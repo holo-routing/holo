@@ -1,0 +1,7 @@
+{
+  "ietf-mpls-ldp:mpls-ldp-clear-peer": {
+    "protocol-name":"main",
+    "lsr-id":"1.1.1.1",
+    "label-space-id":0
+  }
+}

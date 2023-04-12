@@ -1,0 +1,1 @@
+{"ietf-mpls-ldp:mpls-ldp-hello-adjacency-event":{"event-type":"up","protocol-name":"test","targeted":{"target-address":"6.6.6.6"}}}

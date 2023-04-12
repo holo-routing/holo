@@ -1,0 +1,132 @@
+//
+// Copyright (c) The Holo Core Contributors
+//
+// See LICENSE for license details.
+//
+
+use std::sync::LazyLock as Lazy;
+
+use holo_northbound::paths;
+use holo_northbound::rpc::{Callbacks, CallbacksBuilder, Provider};
+use holo_utils::yang::DataNodeRefExt;
+use yang2::data::Data;
+
+use crate::instance::{Instance, InstanceArenas, InstanceUpView};
+use crate::neighbor::nsm;
+use crate::version::{Ospfv2, Ospfv3, Version};
+
+pub static CALLBACKS_OSPFV2: Lazy<Callbacks<Instance<Ospfv2>>> =
+    Lazy::new(load_callbacks);
+pub static CALLBACKS_OSPFV3: Lazy<Callbacks<Instance<Ospfv3>>> =
+    Lazy::new(load_callbacks);
+
+// ===== callbacks =====
+
+fn load_callbacks<V>() -> Callbacks<Instance<V>>
+where
+    V: Version,
+{
+    CallbacksBuilder::<Instance<V>>::default()
+        .path(paths::clear_neighbor::PATH)
+        .rpc(|instance, args| {
+            Box::pin(async move {
+                let rpc = args.data.find_path(args.rpc_path).unwrap();
+
+                // Parse input parameters.
+                let ifname = rpc.get_string_relative("./interface");
+
+                // Clear neighbors.
+                if let Some((mut instance, arenas)) = instance.as_up() {
+                    clear_neighbors(&mut instance, arenas, ifname);
+                }
+
+                Ok(())
+            })
+        })
+        .path(paths::clear_database::PATH)
+        .rpc(|instance, _args| {
+            Box::pin(async move {
+                // Clear database.
+                if let Some((mut instance, arenas)) = instance.as_up() {
+                    clear_database(&mut instance, arenas);
+                }
+
+                Ok(())
+            })
+        })
+        .build()
+}
+
+// ===== impl Instance =====
+
+impl<V> Provider for Instance<V>
+where
+    V: Version,
+{
+    fn callbacks() -> Option<&'static Callbacks<Instance<V>>> {
+        V::rpc_callbacks()
+    }
+}
+
+// ===== helper functions =====
+
+fn clear_neighbors<V>(
+    instance: &mut InstanceUpView<'_, V>,
+    arenas: &mut InstanceArenas<V>,
+    ifname: Option<String>,
+) where
+    V: Version,
+{
+    for area in arenas.areas.iter() {
+        for iface in area
+            .interfaces
+            .iter(&arenas.interfaces)
+            // Filter by interface name.
+            .filter(|iface| {
+                ifname.is_none() || *ifname.as_ref().unwrap() == iface.name
+            })
+        {
+            // Kill neighbors from this interface.
+            for nbr in iface.state.neighbors.iter(&arenas.neighbors) {
+                instance.tx.protocol_input.nsm_event(
+                    area.id,
+                    iface.id,
+                    nbr.id,
+                    nsm::Event::Kill,
+                );
+            }
+        }
+    }
+}
+
+fn clear_database<V>(
+    instance: &mut InstanceUpView<'_, V>,
+    arenas: &mut InstanceArenas<V>,
+) where
+    V: Version,
+{
+    // Clear AS-scope LSDB.
+    instance.state.lsdb = Default::default();
+
+    for area in arenas.areas.iter_mut() {
+        // Clear area-scope LSDB.
+        area.state.lsdb = Default::default();
+
+        for iface_idx in area.interfaces.indexes() {
+            let iface = &mut arenas.interfaces[iface_idx];
+
+            // Clear interface-scope LSDB.
+            iface.state.lsdb = Default::default();
+
+            // Kill neighbors from this interface.
+            for nbr in iface.state.neighbors.iter(&arenas.neighbors) {
+                instance.tx.protocol_input.nsm_event(
+                    area.id,
+                    iface.id,
+                    nbr.id,
+                    nsm::Event::Kill,
+                );
+            }
+        }
+    }
+}

@@ -1,0 +1,507 @@
+{
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-mpls-ldp:mpls-ldp",
+          "name": "main",
+          "ietf-mpls-ldp:mpls-ldp": {
+            "global": {
+              "address-families": {
+                "ipv4": {
+                  "label-distribution-control-mode": "independent",
+                  "bindings": {
+                    "address": [
+                      {
+                        "address": "4.4.4.4",
+                        "advertisement-type": "advertised"
+                      },
+                      {
+                        "address": "10.0.3.4",
+                        "advertisement-type": "advertised"
+                      },
+                      {
+                        "address": "10.0.4.4",
+                        "advertisement-type": "advertised"
+                      },
+                      {
+                        "address": "2.2.2.2",
+                        "advertisement-type": "received",
+                        "peer": {
+                          "lsr-id": "2.2.2.2",
+                          "label-space-id": 0
+                        }
+                      },
+                      {
+                        "address": "10.0.1.2",
+                        "advertisement-type": "received",
+                        "peer": {
+                          "lsr-id": "2.2.2.2",
+                          "label-space-id": 0
+                        }
+                      },
+                      {
+                        "address": "10.0.3.2",
+                        "advertisement-type": "received",
+                        "peer": {
+                          "lsr-id": "2.2.2.2",
+                          "label-space-id": 0
+                        }
+                      },
+                      {
+                        "address": "3.3.3.3",
+                        "advertisement-type": "received",
+                        "peer": {
+                          "lsr-id": "3.3.3.3",
+                          "label-space-id": 0
+                        }
+                      },
+                      {
+                        "address": "10.0.2.3",
+                        "advertisement-type": "received",
+                        "peer": {
+                          "lsr-id": "3.3.3.3",
+                          "label-space-id": 0
+                        }
+                      },
+                      {
+                        "address": "10.0.4.3",
+                        "advertisement-type": "received",
+                        "peer": {
+                          "lsr-id": "3.3.3.3",
+                          "label-space-id": 0
+                        }
+                      }
+                    ],
+                    "fec-label": [
+                      {
+                        "fec": "1.1.1.1/32",
+                        "peer": [
+                          {
+                            "lsr-id": "2.2.2.2",
+                            "label-space-id": 0,
+                            "advertisement-type": "advertised",
+                            "label": 18,
+                            "used-in-forwarding": true
+                          },
+                          {
+                            "lsr-id": "3.3.3.3",
+                            "label-space-id": 0,
+                            "advertisement-type": "advertised",
+                            "label": 18,
+                            "used-in-forwarding": true
+                          },
+                          {
+                            "lsr-id": "2.2.2.2",
+                            "label-space-id": 0,
+                            "advertisement-type": "received",
+                            "label": 16,
+                            "used-in-forwarding": true
+                          },
+                          {
+                            "lsr-id": "3.3.3.3",
+                            "label-space-id": 0,
+                            "advertisement-type": "received",
+                            "label": 18,
+                            "used-in-forwarding": true
+                          }
+                        ]
+                      },
+                      {
+                        "fec": "2.2.2.2/32",
+                        "peer": [
+                          {
+                            "lsr-id": "2.2.2.2",
+                            "label-space-id": 0,
+                            "advertisement-type": "advertised",
+                            "label": 16,
+                            "used-in-forwarding": true
+                          },
+                          {
+                            "lsr-id": "3.3.3.3",
+                            "label-space-id": 0,
+                            "advertisement-type": "advertised",
+                            "label": 16,
+                            "used-in-forwarding": true
+                          },
+                          {
+                            "lsr-id": "2.2.2.2",
+                            "label-space-id": 0,
+                            "advertisement-type": "received",
+                            "label": "ietf-routing-types:implicit-null-label",
+                            "used-in-forwarding": true
+                          },
+                          {
+                            "lsr-id": "3.3.3.3",
+                            "label-space-id": 0,
+                            "advertisement-type": "received",
+                            "label": 19,
+                            "used-in-forwarding": false
+                          }
+                        ]
+                      },
+                      {
+                        "fec": "3.3.3.3/32",
+                        "peer": [
+                          {
+                            "lsr-id": "2.2.2.2",
+                            "label-space-id": 0,
+                            "advertisement-type": "advertised",
+                            "label": 19,
+                            "used-in-forwarding": true
+                          },
+                          {
+                            "lsr-id": "3.3.3.3",
+                            "label-space-id": 0,
+                            "advertisement-type": "advertised",
+                            "label": 19,
+                            "used-in-forwarding": true
+                          },
+                          {
+                            "lsr-id": "2.2.2.2",
+                            "label-space-id": 0,
+                            "advertisement-type": "received",
+                            "label": 17,
+                            "used-in-forwarding": false
+                          },
+                          {
+                            "lsr-id": "3.3.3.3",
+                            "label-space-id": 0,
+                            "advertisement-type": "received",
+                            "label": "ietf-routing-types:implicit-null-label",
+                            "used-in-forwarding": true
+                          }
+                        ]
+                      },
+                      {
+                        "fec": "4.4.4.4/32",
+                        "peer": [
+                          {
+                            "lsr-id": "2.2.2.2",
+                            "label-space-id": 0,
+                            "advertisement-type": "advertised",
+                            "label": "ietf-routing-types:implicit-null-label",
+                            "used-in-forwarding": true
+                          },
+                          {
+                            "lsr-id": "3.3.3.3",
+                            "label-space-id": 0,
+                            "advertisement-type": "advertised",
+                            "label": "ietf-routing-types:implicit-null-label",
+                            "used-in-forwarding": true
+                          },
+                          {
+                            "lsr-id": "2.2.2.2",
+                            "label-space-id": 0,
+                            "advertisement-type": "received",
+                            "label": 20,
+                            "used-in-forwarding": false
+                          },
+                          {
+                            "lsr-id": "3.3.3.3",
+                            "label-space-id": 0,
+                            "advertisement-type": "received",
+                            "label": 16,
+                            "used-in-forwarding": false
+                          }
+                        ]
+                      },
+                      {
+                        "fec": "10.0.1.0/24",
+                        "peer": [
+                          {
+                            "lsr-id": "2.2.2.2",
+                            "label-space-id": 0,
+                            "advertisement-type": "advertised",
+                            "label": 17,
+                            "used-in-forwarding": true
+                          },
+                          {
+                            "lsr-id": "3.3.3.3",
+                            "label-space-id": 0,
+                            "advertisement-type": "advertised",
+                            "label": 17,
+                            "used-in-forwarding": true
+                          },
+                          {
+                            "lsr-id": "2.2.2.2",
+                            "label-space-id": 0,
+                            "advertisement-type": "received",
+                            "label": "ietf-routing-types:implicit-null-label",
+                            "used-in-forwarding": true
+                          },
+                          {
+                            "lsr-id": "3.3.3.3",
+                            "label-space-id": 0,
+                            "advertisement-type": "received",
+                            "label": 20,
+                            "used-in-forwarding": false
+                          }
+                        ]
+                      },
+                      {
+                        "fec": "10.0.2.0/24",
+                        "peer": [
+                          {
+                            "lsr-id": "2.2.2.2",
+                            "label-space-id": 0,
+                            "advertisement-type": "advertised",
+                            "label": 20,
+                            "used-in-forwarding": true
+                          },
+                          {
+                            "lsr-id": "3.3.3.3",
+                            "label-space-id": 0,
+                            "advertisement-type": "advertised",
+                            "label": 20,
+                            "used-in-forwarding": true
+                          },
+                          {
+                            "lsr-id": "2.2.2.2",
+                            "label-space-id": 0,
+                            "advertisement-type": "received",
+                            "label": 18,
+                            "used-in-forwarding": false
+                          },
+                          {
+                            "lsr-id": "3.3.3.3",
+                            "label-space-id": 0,
+                            "advertisement-type": "received",
+                            "label": "ietf-routing-types:implicit-null-label",
+                            "used-in-forwarding": true
+                          }
+                        ]
+                      },
+                      {
+                        "fec": "10.0.3.0/24",
+                        "peer": [
+                          {
+                            "lsr-id": "2.2.2.2",
+                            "label-space-id": 0,
+                            "advertisement-type": "advertised",
+                            "label": "ietf-routing-types:implicit-null-label",
+                            "used-in-forwarding": true
+                          },
+                          {
+                            "lsr-id": "3.3.3.3",
+                            "label-space-id": 0,
+                            "advertisement-type": "advertised",
+                            "label": "ietf-routing-types:implicit-null-label",
+                            "used-in-forwarding": true
+                          },
+                          {
+                            "lsr-id": "2.2.2.2",
+                            "label-space-id": 0,
+                            "advertisement-type": "received",
+                            "label": "ietf-routing-types:implicit-null-label",
+                            "used-in-forwarding": false
+                          },
+                          {
+                            "lsr-id": "3.3.3.3",
+                            "label-space-id": 0,
+                            "advertisement-type": "received",
+                            "label": 17,
+                            "used-in-forwarding": false
+                          }
+                        ]
+                      },
+                      {
+                        "fec": "10.0.4.0/24",
+                        "peer": [
+                          {
+                            "lsr-id": "2.2.2.2",
+                            "label-space-id": 0,
+                            "advertisement-type": "advertised",
+                            "label": "ietf-routing-types:implicit-null-label",
+                            "used-in-forwarding": true
+                          },
+                          {
+                            "lsr-id": "3.3.3.3",
+                            "label-space-id": 0,
+                            "advertisement-type": "advertised",
+                            "label": "ietf-routing-types:implicit-null-label",
+                            "used-in-forwarding": true
+                          },
+                          {
+                            "lsr-id": "2.2.2.2",
+                            "label-space-id": 0,
+                            "advertisement-type": "received",
+                            "label": 19,
+                            "used-in-forwarding": false
+                          },
+                          {
+                            "lsr-id": "3.3.3.3",
+                            "label-space-id": 0,
+                            "advertisement-type": "received",
+                            "label": "ietf-routing-types:implicit-null-label",
+                            "used-in-forwarding": false
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "discovery": {
+              "interfaces": {
+                "interface": [
+                  {
+                    "name": "eth-rt2",
+                    "address-families": {
+                      "ipv4": {
+                        "hello-adjacencies": {
+                          "hello-adjacency": [
+                            {
+                              "adjacent-address": "10.0.3.2",
+                              "hello-holdtime": {
+                                "adjacent": 15,
+                                "negotiated": 15
+                              },
+                              "peer": {
+                                "lsr-id": "2.2.2.2",
+                                "label-space-id": 0
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "name": "eth-rt3",
+                    "address-families": {
+                      "ipv4": {
+                        "hello-adjacencies": {
+                          "hello-adjacency": [
+                            {
+                              "adjacent-address": "10.0.4.3",
+                              "hello-holdtime": {
+                                "adjacent": 15,
+                                "negotiated": 15
+                              },
+                              "peer": {
+                                "lsr-id": "3.3.3.3",
+                                "label-space-id": 0
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "peers": {
+              "peer": [
+                {
+                  "lsr-id": "2.2.2.2",
+                  "label-space-id": 0,
+                  "address-families": {
+                    "ipv4": {
+                      "hello-adjacencies": {
+                        "hello-adjacency": [
+                          {
+                            "local-address": "10.0.3.4",
+                            "adjacent-address": "10.0.3.2",
+                            "hello-holdtime": {
+                              "adjacent": 15,
+                              "negotiated": 15
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "label-advertisement-mode": {
+                    "local": "downstream-unsolicited",
+                    "peer": "downstream-unsolicited",
+                    "negotiated": "downstream-unsolicited"
+                  },
+                  "received-peer-state": {
+                    "capability": {
+                      "end-of-lib": {
+                        "enabled": false
+                      },
+                      "typed-wildcard-fec": {
+                        "enabled": false
+                      }
+                    }
+                  },
+                  "session-holdtime": {
+                    "peer": 180,
+                    "negotiated": 180
+                  },
+                  "session-state": "operational",
+                  "tcp-connection": {
+                    "local-address": "4.4.4.4",
+                    "local-port": 45753,
+                    "remote-address": "2.2.2.2",
+                    "remote-port": 646
+                  },
+                  "statistics": {
+                    "total-addresses": 3,
+                    "total-labels": 8,
+                    "total-fec-label-bindings": 3
+                  }
+                },
+                {
+                  "lsr-id": "3.3.3.3",
+                  "label-space-id": 0,
+                  "address-families": {
+                    "ipv4": {
+                      "hello-adjacencies": {
+                        "hello-adjacency": [
+                          {
+                            "local-address": "10.0.4.4",
+                            "adjacent-address": "10.0.4.3",
+                            "hello-holdtime": {
+                              "adjacent": 15,
+                              "negotiated": 15
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "label-advertisement-mode": {
+                    "local": "downstream-unsolicited",
+                    "peer": "downstream-unsolicited",
+                    "negotiated": "downstream-unsolicited"
+                  },
+                  "received-peer-state": {
+                    "capability": {
+                      "end-of-lib": {
+                        "enabled": false
+                      },
+                      "typed-wildcard-fec": {
+                        "enabled": false
+                      }
+                    }
+                  },
+                  "session-holdtime": {
+                    "peer": 180,
+                    "negotiated": 180
+                  },
+                  "session-state": "operational",
+                  "tcp-connection": {
+                    "local-address": "4.4.4.4",
+                    "local-port": 38289,
+                    "remote-address": "3.3.3.3",
+                    "remote-port": 646
+                  },
+                  "statistics": {
+                    "total-addresses": 3,
+                    "total-labels": 8,
+                    "total-fec-label-bindings": 3
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

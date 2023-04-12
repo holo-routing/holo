@@ -1,0 +1,2 @@
+{"UdpRxPdu":{"src":"10.0.1.1:520","pdu":{"Ok":{"command":"Request","version":2,"rtes":[{"Zero":{"metric":16}}]}}}}
+{"UdpRxPdu":{"src":"10.0.3.4:520","pdu":{"Ok":{"command":"Request","version":2,"rtes":[{"Zero":{"metric":16}}]}}}}

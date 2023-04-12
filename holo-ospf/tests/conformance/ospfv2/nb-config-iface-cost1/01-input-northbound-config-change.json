@@ -1,0 +1,37 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-ospf:ospfv2",
+          "name": "main",
+          "ietf-ospf:ospf": {
+            "areas": {
+              "area": [
+                {
+                  "area-id": "0.0.0.1",
+                  "interfaces": {
+                    "interface": [
+                      {
+                        "name": "eth-rt1",
+                        "cost": 50,
+                        "@cost": {
+                          "yang:operation": "replace",
+                          "yang:orig-default": true,
+                          "yang:orig-value": "10"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

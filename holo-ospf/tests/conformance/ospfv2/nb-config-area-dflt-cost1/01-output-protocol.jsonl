@@ -1,0 +1,1 @@
+{"NetTxPacket":{"packet":{"LsUpdate":{"hdr":{"pkt_type":"LsUpdate","router_id":"6.6.6.6","area_id":"0.0.0.3"},"lsas":[{"hdr":{"options":0,"lsa_type":3,"lsa_id":"0.0.0.0","adv_rtr":"6.6.6.6","length":28},"body":{"SummaryNetwork":{"mask":"0.0.0.0","metric":50}}}]}},"src":"10.0.6.6","dst":{"ifindex":3,"addrs":{"Single":"224.0.0.5"}}}}

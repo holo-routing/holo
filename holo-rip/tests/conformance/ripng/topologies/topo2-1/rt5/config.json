@@ -1,0 +1,72 @@
+{
+  "ietf-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "lo",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv6": {
+          "enabled": true
+        }
+      },
+      {
+        "name": "eth-rt3-1",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv6": {
+          "enabled": true
+        }
+      },
+      {
+        "name": "eth-rt3-2",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv6": {
+          "enabled": true
+        }
+      },
+      {
+        "name": "eth-rt4",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv6": {
+          "enabled": true
+        }
+      },
+      {
+        "name": "eth-rt6",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv6": {
+          "enabled": true
+        }
+      }
+    ]
+  },
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-rip:ripng",
+          "name": "main",
+          "ietf-rip:rip": {
+            "interfaces": {
+              "interface": [
+                {
+                  "interface": "lo"
+                },
+                {
+                  "interface": "eth-rt3-1"
+                },
+                {
+                  "interface": "eth-rt3-2"
+                },
+                {
+                  "interface": "eth-rt4"
+                },
+                {
+                  "interface": "eth-rt6"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

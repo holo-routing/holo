@@ -1,0 +1,24 @@
+
+        +---------+                +---------+
+        |         |eth-rt2         |         |
+        |   RT1   +----------------+   RT2   |
+        |         |         eth-rt1|         |
+        |         |                |         |
+        +---------+                +---------+
+      eth-rt3|                          |eth-rt4
+             |                          |
+             |                          |
+             |                          |
+             |                          |
+             |                          |
+      eth-rt3|                          |eth-rt2
+        +---------+                +---------+
+        |         |                |         |
+        |   RT3   |eth-rt4         |   RT4   |
+        |         +----------------+         |
+        |         |         eth-rt3|         |
+        +---------+                +---------+
+
+topo1-2 is identical to topo1-1, except for the following differences:
+* Split horizon with poison reverse is enabled on all interfaces
+* The interface costs between rt3 and rt4 is 5 instead of 1 (the default cost)

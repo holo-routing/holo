@@ -1,0 +1,32 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-mpls-ldp:mpls-ldp",
+          "name": "main",
+          "ietf-mpls-ldp:mpls-ldp": {
+            "discovery": {
+              "interfaces": {
+                "interface": [
+                  {
+                    "@": {
+                      "yang:operation": "create"
+                    },
+                    "name": "eth-sw1",
+                    "address-families": {
+                      "ipv4": {}
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

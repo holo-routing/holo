@@ -1,0 +1,1 @@
+{"NbrRxPdu":{"nbr_id":3,"pdu":{"Ok":{"version":1,"lsr_id":"1.1.1.1","lspace_id":0,"messages":[{"Notification":{"msg_id":148,"status":{"status_code":6,"msg_id":0,"msg_type":0}}}]}}}}

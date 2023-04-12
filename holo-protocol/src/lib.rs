@@ -1,0 +1,380 @@
+//
+// Copyright (c) The Holo Core Contributors
+//
+// See LICENSE for license details.
+//
+
+#![feature(lazy_cell)]
+#![forbid(unsafe_code)]
+#![warn(rust_2018_idioms)]
+
+pub mod event_recorder;
+#[cfg(feature = "testing")]
+pub mod test;
+
+use async_trait::async_trait;
+use derive_new::new;
+use holo_northbound::{
+    process_northbound_msg, NbDaemonReceiver, NbDaemonSender, NbProviderSender,
+};
+use holo_southbound::process_southbound_msg;
+use holo_southbound::rx::SouthboundRx;
+use holo_southbound::tx::SouthboundTx;
+use holo_southbound::zclient::messages::ZapiRxMsg;
+use holo_utils::ibus::{IbusMsg, IbusReceiver, IbusSender};
+use holo_utils::protocol::Protocol;
+use holo_utils::task::Task;
+use holo_utils::{Receiver, Sender};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
+use tokio::sync::mpsc;
+use tracing::Instrument;
+use {holo_northbound as northbound, holo_southbound as southbound};
+
+use crate::event_recorder::EventRecorder;
+#[cfg(feature = "testing")]
+use crate::test::{process_test_msg, stub::TestMsg, OutputChannelsRx};
+
+/// A trait for protocol instances.
+#[async_trait]
+pub trait ProtocolInstance
+where
+    Self: 'static
+        + Send
+        + Sync
+        + std::fmt::Debug
+        + northbound::configuration::Provider
+        + northbound::rpc::Provider
+        + northbound::state::Provider
+        + southbound::rx::SouthboundRxCallbacks,
+{
+    /// Protocol type.
+    const PROTOCOL: Protocol;
+
+    type ProtocolInputMsg: Send + std::fmt::Debug + Serialize + DeserializeOwned;
+    type ProtocolOutputMsg: Send + std::fmt::Debug + Serialize;
+    type ProtocolInputChannelsTx: Send;
+    type ProtocolInputChannelsRx: MessageReceiver<Self::ProtocolInputMsg>;
+    type SouthboundTx: Send;
+    type SouthboundRx: MessageReceiver<ZapiRxMsg>;
+
+    /// Create protocol instance.
+    async fn new(name: String, channels_tx: InstanceChannelsTx<Self>) -> Self;
+
+    /// Optional protocol instance initialization routine.
+    async fn init(&mut self) {}
+
+    /// Optional protocol instance shutdown routine.
+    async fn shutdown(self) {}
+
+    /// Initialize the southbound layer for this protocol instance.
+    fn southbound_start(
+        tx: SouthboundTx,
+        rx: SouthboundRx,
+    ) -> (Self::SouthboundTx, Self::SouthboundRx);
+
+    /// Process ibus message.
+    fn process_ibus_msg(&mut self, msg: IbusMsg);
+
+    /// Process protocol message.
+    fn process_protocol_msg(&mut self, msg: Self::ProtocolInputMsg);
+
+    /// Create channels for all protocol input events.
+    fn protocol_input_channels(
+    ) -> (Self::ProtocolInputChannelsTx, Self::ProtocolInputChannelsRx);
+
+    /// Return test directory used for unit testing.
+    #[cfg(feature = "testing")]
+    fn test_dir() -> String;
+}
+
+/// Instance input message.
+#[derive(Debug, Deserialize, Serialize)]
+pub enum InstanceMsg<P: ProtocolInstance> {
+    Northbound(Option<northbound::api::daemon::Request>),
+    Southbound(ZapiRxMsg),
+    Ibus(IbusMsg),
+    Protocol(P::ProtocolInputMsg),
+    #[serde(skip)]
+    #[cfg(feature = "testing")]
+    Test(TestMsg<P::ProtocolOutputMsg>),
+}
+
+/// Instance output channels.
+#[derive(Debug, new)]
+pub struct InstanceChannelsTx<P: ProtocolInstance> {
+    pub nb: NbProviderSender,
+    pub sb: P::SouthboundTx,
+    pub ibus: IbusSender,
+    pub protocol_input: P::ProtocolInputChannelsTx,
+    #[cfg(feature = "testing")]
+    pub protocol_output: Sender<P::ProtocolOutputMsg>,
+}
+
+/// Instance input channels.
+#[derive(Debug, new)]
+pub struct InstanceChannelsRx<P: ProtocolInstance> {
+    pub nb: NbDaemonReceiver,
+    pub sb: P::SouthboundRx,
+    pub ibus: IbusReceiver,
+    pub protocol_input: P::ProtocolInputChannelsRx,
+    #[cfg(feature = "testing")]
+    pub test: Receiver<TestMsg<P::ProtocolOutputMsg>>,
+}
+
+#[derive(Debug)]
+pub struct InstanceAggChannels<P: ProtocolInstance> {
+    pub tx: Sender<InstanceMsg<P>>,
+    pub rx: Receiver<InstanceMsg<P>>,
+}
+
+#[async_trait]
+pub trait MessageReceiver<T: Send>
+where
+    Self: Send,
+{
+    async fn recv(&mut self) -> Option<T>;
+}
+
+// ===== impl InstanceAggChannels =====
+
+impl<P> Default for InstanceAggChannels<P>
+where
+    P: ProtocolInstance,
+{
+    fn default() -> Self {
+        let (tx, rx) = mpsc::channel(4);
+        InstanceAggChannels { tx, rx }
+    }
+}
+
+// ===== helper functions =====
+
+// Protocol instance input-event aggregator.
+fn event_aggregator<P>(
+    mut instance_channels_rx: InstanceChannelsRx<P>,
+    agg_tx: Sender<InstanceMsg<P>>,
+) -> Task<()>
+where
+    P: ProtocolInstance,
+{
+    #[cfg(not(feature = "testing"))]
+    {
+        Task::spawn(async move {
+            loop {
+                let msg = tokio::select! {
+                    msg = instance_channels_rx.nb.recv() => {
+                        InstanceMsg::Northbound(msg)
+                    }
+                    msg = instance_channels_rx.sb.recv() => {
+                        InstanceMsg::Southbound(msg.unwrap())
+                    }
+                    msg = instance_channels_rx.ibus.recv() => {
+                        InstanceMsg::Ibus(msg.unwrap())
+                    }
+                    msg = instance_channels_rx.protocol_input.recv() => {
+                        InstanceMsg::Protocol(msg.unwrap())
+                    }
+                };
+
+                let _ = agg_tx.send(msg).await;
+            }
+        })
+    }
+    #[cfg(feature = "testing")]
+    {
+        Task::spawn(async move {
+            let mut ignore_protocol_input = true;
+            loop {
+                let msg = tokio::select! {
+                    biased;
+                    msg = instance_channels_rx.nb.recv() => {
+                        InstanceMsg::Northbound(msg)
+                    }
+                    msg = instance_channels_rx.protocol_input.recv() => {
+                        if ignore_protocol_input {
+                            continue;
+                        }
+                        InstanceMsg::Protocol(msg.unwrap())
+                    }
+                    msg = instance_channels_rx.test.recv() => {
+                        // Stop ignoring internal protocol events as soon as the
+                        // unit test starts (after loading the topology).
+                        ignore_protocol_input = false;
+                        InstanceMsg::Test(msg.unwrap())
+                    }
+                };
+
+                let _ = agg_tx.send(msg).await;
+            }
+        })
+    }
+}
+
+async fn event_loop<P>(
+    instance: &mut P,
+    instance_channels_rx: InstanceChannelsRx<P>,
+    mut agg_channels: InstanceAggChannels<P>,
+    #[cfg(feature = "testing")] mut output_channels_rx: Option<
+        OutputChannelsRx<P::ProtocolOutputMsg>,
+    >,
+    mut event_recorder: Option<EventRecorder>,
+) where
+    P: ProtocolInstance,
+{
+    let mut resources = vec![];
+
+    // Spawn event aggregator task.
+    let _event_aggregator =
+        event_aggregator(instance_channels_rx, agg_channels.tx);
+
+    // Main event loop.
+    loop {
+        // Receive event message.
+        let msg = agg_channels.rx.recv().await.unwrap();
+
+        // Record event message.
+        if let Some(event_recorder) = &mut event_recorder {
+            event_recorder.record(&msg);
+        }
+
+        // Process event message.
+        match msg {
+            InstanceMsg::Northbound(Some(msg)) => {
+                process_northbound_msg(instance, &mut resources, msg).await;
+            }
+            InstanceMsg::Northbound(None) => {
+                // Instance was unconfigured.
+                return;
+            }
+            InstanceMsg::Southbound(msg) => {
+                process_southbound_msg(instance, msg).await;
+            }
+            InstanceMsg::Ibus(msg) => {
+                instance.process_ibus_msg(msg);
+            }
+            InstanceMsg::Protocol(msg) => {
+                instance.process_protocol_msg(msg);
+            }
+            #[cfg(feature = "testing")]
+            InstanceMsg::Test(msg) => {
+                process_test_msg::<P>(msg, &mut output_channels_rx);
+            }
+        }
+    }
+}
+
+#[cfg_attr(not(feature = "testing"), allow(unused_mut))]
+async fn run<P>(
+    name: String,
+    nb_tx: NbProviderSender,
+    nb_rx: NbDaemonReceiver,
+    ibus_tx: IbusSender,
+    ibus_rx: IbusReceiver,
+    agg_channels: InstanceAggChannels<P>,
+    #[cfg(feature = "testing")] test_rx: Receiver<
+        TestMsg<P::ProtocolOutputMsg>,
+    >,
+    event_recorder_config: Option<event_recorder::Config>,
+) where
+    P: ProtocolInstance,
+{
+    // Start base southbound channels.
+    let (mut sb_tx, sb_rx) = southbound::start(P::PROTOCOL).await;
+
+    // Start protocol channels.
+    let (proto_input_tx, proto_input_rx) = P::protocol_input_channels();
+    #[cfg(feature = "testing")]
+    let (proto_output_tx, proto_output_rx) = mpsc::channel(4);
+
+    // Get output channels.
+    #[cfg(feature = "testing")]
+    let output_channels_rx = OutputChannelsRx::new(
+        sb_tx.channel_rx.take().unwrap(),
+        proto_output_rx,
+    );
+
+    // Start the southbound layer.
+    let (sb_tx, sb_rx) = P::southbound_start(sb_tx, sb_rx);
+
+    // Create instance Tx/Rx channels.
+    let instance_channels_tx = InstanceChannelsTx::new(
+        nb_tx,
+        sb_tx,
+        ibus_tx,
+        proto_input_tx,
+        #[cfg(feature = "testing")]
+        proto_output_tx,
+    );
+    let instance_channels_rx = InstanceChannelsRx::new(
+        nb_rx,
+        sb_rx,
+        ibus_rx,
+        proto_input_rx,
+        #[cfg(feature = "testing")]
+        test_rx,
+    );
+
+    // Get event recorder.
+    let event_record = event_recorder_config
+        .filter(|config| config.enabled)
+        .and_then(|config| EventRecorder::new(P::PROTOCOL, &name, config));
+
+    // Create protocol instance.
+    let mut instance = P::new(name, instance_channels_tx).await;
+    instance.init().await;
+
+    // Run event loop.
+    event_loop(
+        &mut instance,
+        instance_channels_rx,
+        agg_channels,
+        #[cfg(feature = "testing")]
+        Some(output_channels_rx),
+        event_record,
+    )
+    .await;
+
+    // Ensure instance is shut down before exiting.
+    instance.shutdown().await;
+}
+
+// ===== global functions =====
+
+pub fn spawn_protocol_task<P>(
+    name: String,
+    nb_provider_tx: &NbProviderSender,
+    ibus_tx: &IbusSender,
+    agg_channels: InstanceAggChannels<P>,
+    #[cfg(feature = "testing")] test_rx: Receiver<
+        TestMsg<P::ProtocolOutputMsg>,
+    >,
+    event_recorder_config: Option<event_recorder::Config>,
+) -> NbDaemonSender
+where
+    P: ProtocolInstance,
+{
+    let (nb_daemon_tx, nb_daemon_rx) = mpsc::channel(4);
+    let nb_provider_tx = nb_provider_tx.clone();
+    let ibus_tx = ibus_tx.clone();
+    let ibus_rx = ibus_tx.subscribe();
+
+    tokio::spawn(async move {
+        let span = P::debug_span(&name);
+        run::<P>(
+            name,
+            nb_provider_tx,
+            nb_daemon_rx,
+            ibus_tx,
+            ibus_rx,
+            agg_channels,
+            #[cfg(feature = "testing")]
+            test_rx,
+            event_recorder_config,
+        )
+        .instrument(span)
+        .await;
+    });
+
+    nb_daemon_tx
+}

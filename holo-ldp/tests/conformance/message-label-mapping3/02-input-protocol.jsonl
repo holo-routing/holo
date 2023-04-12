@@ -1,0 +1,1 @@
+{"NbrRxPdu":{"nbr_id":2,"pdu":{"Ok":{"version":1,"lsr_id":"1.1.1.1","lspace_id":0,"messages":[{"Label":{"msg_id":72,"msg_type":"LabelMapping","fec":[{"Prefix":"192.168.1.0/24"}],"label":100}}]}}}}

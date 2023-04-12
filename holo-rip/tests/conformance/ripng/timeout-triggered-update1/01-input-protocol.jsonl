@@ -1,0 +1,2 @@
+{"UdpRxPdu":{"src":"[fe80::1cd7:28ff:fe99:6a15%2]:521","pdu":{"Ok":{"command":"Response","version":1,"rtes":[{"Ipv6":{"prefix":"2001:db8:2000::1/128","tag":0,"metric":1}}]}}}}
+{"TriggeredUpd":{}}

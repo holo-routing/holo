@@ -1,0 +1,79 @@
+# Enabled protocols
+protocols = ["bfd", "ldp", "ospfv2", "ospfv3", "ripv2", "ripng"]
+
+# User and group information
+user = "frr"
+group = "frr"
+
+# Logging configuration
+[logging]
+  # Logging to journald
+  [logging.journald]
+    # Enable or disable
+    enabled = false
+
+  # Logging to a file
+  [logging.file]
+    # Enable or disable
+    enabled = true
+    # File path (need to be writable by @user or @group)
+    dir = "/var/log/"
+    # File name
+    name = "holod.log"
+    # Log rotation (options: "never", "daily", "hourly")
+    rotation = "never"
+    # Logging style (options: "full", "compact", "pretty", "json")
+    style = "full"
+    # Enable or disable ANSI terminal colors
+    colors = false
+    # Sets whether or not the thread ID of the current thread is displayed
+    show_thread_id = false
+    # Sets whether or not an event’s source code file path and line number are displayed
+    show_source = false
+
+  # Logging to the standard output
+  [logging.stdout]
+    # Enable or disable
+    enabled = false
+    # Logging style (options: "full", "compact", "pretty", "json")
+    style = "full"
+    # Enable or disable ANSI terminal colors
+    colors = false
+    # Sets whether or not the thread ID of the current thread is displayed
+    show_thread_id = false
+    # Sets whether or not an event’s source code file path and line number are displayed
+    show_source = false
+
+# Instrumentation using tokio-console (a diagnostics and debugging tool)
+[tokio_console]
+  # Enable or disable
+  enabled = false
+
+# Event recorder (useful for bug reporting)
+[event_recorder]
+  # Enable or disable the event recorder
+  enabled = false
+  # Directory where to save the files (need to be writable by @user or @group)
+  dir = "/var/run/"
+
+# Daemon plugins
+[plugins]
+  # gRPC northbound plugin configuration
+  [plugins.grpc]
+    # Enable or disable the plugin
+    enabled = true
+    # gRPC server listening address
+    address = "[::1]:50051"
+
+  # gNMI northbound plugin configuration
+  [plugins.gnmi]
+    # Enable or disable the plugin
+    enabled = true
+    # gNMI server listening address
+    address = "[::1]:10161"
+    # Optional gNMI TLS configuration (should be disabled only for testing purposes)
+    [plugins.gnmi.tls]
+      # TLS certificate
+      certificate = "/etc/tls/gnmi.pem"
+      # TLS key
+      key = "/etc/tls/gnmi.key"

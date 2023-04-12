@@ -1,0 +1,146 @@
+{
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-rip:ripv2",
+          "name": "main",
+          "ietf-rip:rip": {
+            "interfaces": {
+              "interface": [
+                {
+                  "interface": "eth-rt1",
+                  "oper-status": "up",
+                  "valid-address": true
+                },
+                {
+                  "interface": "eth-rt4",
+                  "oper-status": "up",
+                  "valid-address": true
+                },
+                {
+                  "interface": "lo",
+                  "oper-status": "up",
+                  "valid-address": true
+                }
+              ]
+            },
+            "num-of-routes": 9,
+            "ipv4": {
+              "neighbors": {
+                "neighbor": [
+                  {
+                    "ipv4-address": "10.0.1.1"
+                  },
+                  {
+                    "ipv4-address": "10.0.3.4"
+                  }
+                ]
+              },
+              "routes": {
+                "route": [
+                  {
+                    "ipv4-prefix": "1.1.1.1/32",
+                    "next-hop": "10.0.1.1",
+                    "interface": "eth-rt1",
+                    "redistributed": false,
+                    "route-type": "rip",
+                    "metric": 2,
+                    "deleted": false,
+                    "need-triggered-update": false,
+                    "inactive": false
+                  },
+                  {
+                    "ipv4-prefix": "2.2.2.2/32",
+                    "interface": "lo",
+                    "redistributed": false,
+                    "route-type": "connected",
+                    "metric": 1,
+                    "deleted": false,
+                    "need-triggered-update": false,
+                    "inactive": false
+                  },
+                  {
+                    "ipv4-prefix": "3.3.3.3/32",
+                    "next-hop": "10.0.1.1",
+                    "interface": "eth-rt1",
+                    "redistributed": false,
+                    "route-type": "rip",
+                    "metric": 3,
+                    "deleted": false,
+                    "need-triggered-update": false,
+                    "inactive": false
+                  },
+                  {
+                    "ipv4-prefix": "4.4.4.4/32",
+                    "next-hop": "10.0.3.4",
+                    "interface": "eth-rt4",
+                    "redistributed": false,
+                    "route-type": "rip",
+                    "metric": 2,
+                    "deleted": false,
+                    "need-triggered-update": false,
+                    "inactive": false
+                  },
+                  {
+                    "ipv4-prefix": "10.0.1.0/24",
+                    "interface": "eth-rt1",
+                    "redistributed": false,
+                    "route-type": "connected",
+                    "metric": 1,
+                    "deleted": false,
+                    "need-triggered-update": false,
+                    "inactive": false
+                  },
+                  {
+                    "ipv4-prefix": "10.0.2.0/24",
+                    "next-hop": "10.0.1.1",
+                    "interface": "eth-rt1",
+                    "redistributed": false,
+                    "route-type": "rip",
+                    "metric": 2,
+                    "deleted": false,
+                    "need-triggered-update": false,
+                    "inactive": false
+                  },
+                  {
+                    "ipv4-prefix": "10.0.3.0/24",
+                    "interface": "eth-rt4",
+                    "redistributed": false,
+                    "route-type": "connected",
+                    "metric": 1,
+                    "deleted": false,
+                    "need-triggered-update": false,
+                    "inactive": false
+                  },
+                  {
+                    "ipv4-prefix": "10.0.4.0/24",
+                    "next-hop": "10.0.3.4",
+                    "interface": "eth-rt4",
+                    "redistributed": false,
+                    "route-type": "rip",
+                    "metric": 2,
+                    "deleted": false,
+                    "need-triggered-update": false,
+                    "inactive": false
+                  },
+                  {
+                    "ipv4-prefix": "172.16.1.0/24",
+                    "next-hop": "10.0.1.1",
+                    "interface": "eth-rt1",
+                    "redistributed": false,
+                    "route-type": "rip",
+                    "metric": 2,
+                    "deleted": false,
+                    "need-triggered-update": false,
+                    "inactive": false
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

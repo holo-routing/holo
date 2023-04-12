@@ -1,0 +1,4 @@
+{"ietf-mpls-ldp:mpls-ldp-peer-event":{"event-type":"down","peer":{"protocol-name":"test","lsr-id":"3.3.3.3"}}}
+{"ietf-mpls-ldp:mpls-ldp-fec-event":{"event-type":"down","protocol-name":"test","fec":"3.3.3.3/32"}}
+{"ietf-mpls-ldp:mpls-ldp-fec-event":{"event-type":"down","protocol-name":"test","fec":"10.0.4.0/24"}}
+{"ietf-mpls-ldp:mpls-ldp-fec-event":{"event-type":"down","protocol-name":"test","fec":"10.0.5.0/24"}}

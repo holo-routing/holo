@@ -1,0 +1,914 @@
+module ietf-ospf-sr-holo-deviations {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/ietf-ospf-sr-holo-deviations";
+  prefix ietf-ospf-sr-holo-deviations;
+
+  import ietf-routing {
+    prefix rt;
+  }
+
+  import ietf-ospf {
+    prefix ospf;
+  }
+
+  import ietf-ospf-sr {
+    prefix ospf-sr;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines deviation statements for the ietf-ospf-sr
+     module.";
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:sr-algorithm-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:sr-algorithm-tlv/ospf-sr:sr-algorithm" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:sid-range-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:sid-range-tlvs/ospf-sr:sid-range-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:sid-range-tlvs/ospf-sr:sid-range-tlv/ospf-sr:range-size" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:sid-range-tlvs/ospf-sr:sid-range-tlv/ospf-sr:sid-sub-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:sid-range-tlvs/ospf-sr:sid-range-tlv/ospf-sr:sid-sub-tlv/ospf-sr:sid" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:local-block-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:local-block-tlvs/ospf-sr:local-block-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:local-block-tlvs/ospf-sr:local-block-tlv/ospf-sr:range-size" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:local-block-tlvs/ospf-sr:local-block-tlv/ospf-sr:sid-sub-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:local-block-tlvs/ospf-sr:local-block-tlv/ospf-sr:sid-sub-tlv/ospf-sr:sid" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:srms-preference-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:srms-preference-tlv/ospf-sr:preference" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf:extended-prefix-tlv/ospf-sr:prefix-sid-sub-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf:extended-prefix-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf:extended-prefix-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:prefix-sid-flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf:extended-prefix-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:prefix-sid-flags/ospf-sr:bits" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf:extended-prefix-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:mt-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf:extended-prefix-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:algorithm" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf:extended-prefix-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:sid" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-length" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:af" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:range-size" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:extended-prefix-range-flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:extended-prefix-range-flags/ospf-sr:bits" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-sid-sub-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:prefix-sid-flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:prefix-sid-flags/ospf-sr:bits" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:mt-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:algorithm" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:sid" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:unknown-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:unknown-tlvs/ospf-sr:unknown-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:unknown-tlvs/ospf-sr:unknown-tlv/ospf-sr:type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:unknown-tlvs/ospf-sr:unknown-tlv/ospf-sr:length" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:unknown-tlvs/ospf-sr:unknown-tlv/ospf-sr:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:sr-algorithm-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:sr-algorithm-tlv/ospf-sr:sr-algorithm" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:sid-range-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:sid-range-tlvs/ospf-sr:sid-range-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:sid-range-tlvs/ospf-sr:sid-range-tlv/ospf-sr:range-size" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:sid-range-tlvs/ospf-sr:sid-range-tlv/ospf-sr:sid-sub-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:sid-range-tlvs/ospf-sr:sid-range-tlv/ospf-sr:sid-sub-tlv/ospf-sr:sid" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:local-block-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:local-block-tlvs/ospf-sr:local-block-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:local-block-tlvs/ospf-sr:local-block-tlv/ospf-sr:range-size" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:local-block-tlvs/ospf-sr:local-block-tlv/ospf-sr:sid-sub-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:local-block-tlvs/ospf-sr:local-block-tlv/ospf-sr:sid-sub-tlv/ospf-sr:sid" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:srms-preference-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:srms-preference-tlv/ospf-sr:preference" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf:extended-prefix-tlv/ospf-sr:prefix-sid-sub-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf:extended-prefix-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf:extended-prefix-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:prefix-sid-flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf:extended-prefix-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:prefix-sid-flags/ospf-sr:bits" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf:extended-prefix-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:mt-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf:extended-prefix-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:algorithm" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf:extended-prefix-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:sid" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-length" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:af" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:range-size" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:extended-prefix-range-flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:extended-prefix-range-flags/ospf-sr:bits" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-sid-sub-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:prefix-sid-flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:prefix-sid-flags/ospf-sr:bits" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:mt-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:algorithm" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:sid" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:unknown-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:unknown-tlvs/ospf-sr:unknown-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:unknown-tlvs/ospf-sr:unknown-tlv/ospf-sr:type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:unknown-tlvs/ospf-sr:unknown-tlv/ospf-sr:length" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:unknown-tlvs/ospf-sr:unknown-tlv/ospf-sr:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-link-opaque/ospf:extended-link-tlv/ospf-sr:adj-sid-sub-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-link-opaque/ospf:extended-link-tlv/ospf-sr:adj-sid-sub-tlvs/ospf-sr:adj-sid-sub-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-link-opaque/ospf:extended-link-tlv/ospf-sr:adj-sid-sub-tlvs/ospf-sr:adj-sid-sub-tlv/ospf-sr:adj-sid-flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-link-opaque/ospf:extended-link-tlv/ospf-sr:adj-sid-sub-tlvs/ospf-sr:adj-sid-sub-tlv/ospf-sr:adj-sid-flags/ospf-sr:bits" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-link-opaque/ospf:extended-link-tlv/ospf-sr:adj-sid-sub-tlvs/ospf-sr:adj-sid-sub-tlv/ospf-sr:mt-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-link-opaque/ospf:extended-link-tlv/ospf-sr:adj-sid-sub-tlvs/ospf-sr:adj-sid-sub-tlv/ospf-sr:weight" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-link-opaque/ospf:extended-link-tlv/ospf-sr:adj-sid-sub-tlvs/ospf-sr:adj-sid-sub-tlv/ospf-sr:sid" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-link-opaque/ospf:extended-link-tlv/ospf-sr:lan-adj-sid-sub-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-link-opaque/ospf:extended-link-tlv/ospf-sr:lan-adj-sid-sub-tlvs/ospf-sr:lan-adj-sid-sub-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-link-opaque/ospf:extended-link-tlv/ospf-sr:lan-adj-sid-sub-tlvs/ospf-sr:lan-adj-sid-sub-tlv/ospf-sr:lan-adj-sid-flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-link-opaque/ospf:extended-link-tlv/ospf-sr:lan-adj-sid-sub-tlvs/ospf-sr:lan-adj-sid-sub-tlv/ospf-sr:lan-adj-sid-flags/ospf-sr:bits" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-link-opaque/ospf:extended-link-tlv/ospf-sr:lan-adj-sid-sub-tlvs/ospf-sr:lan-adj-sid-sub-tlv/ospf-sr:mt-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-link-opaque/ospf:extended-link-tlv/ospf-sr:lan-adj-sid-sub-tlvs/ospf-sr:lan-adj-sid-sub-tlv/ospf-sr:weight" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-link-opaque/ospf:extended-link-tlv/ospf-sr:lan-adj-sid-sub-tlvs/ospf-sr:lan-adj-sid-sub-tlv/ospf-sr:neighbor-router-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-link-opaque/ospf:extended-link-tlv/ospf-sr:lan-adj-sid-sub-tlvs/ospf-sr:lan-adj-sid-sub-tlv/ospf-sr:sid" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:sr-algorithm-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:sr-algorithm-tlv/ospf-sr:sr-algorithm" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:sid-range-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:sid-range-tlvs/ospf-sr:sid-range-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:sid-range-tlvs/ospf-sr:sid-range-tlv/ospf-sr:range-size" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:sid-range-tlvs/ospf-sr:sid-range-tlv/ospf-sr:sid-sub-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:sid-range-tlvs/ospf-sr:sid-range-tlv/ospf-sr:sid-sub-tlv/ospf-sr:sid" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:local-block-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:local-block-tlvs/ospf-sr:local-block-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:local-block-tlvs/ospf-sr:local-block-tlv/ospf-sr:range-size" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:local-block-tlvs/ospf-sr:local-block-tlv/ospf-sr:sid-sub-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:local-block-tlvs/ospf-sr:local-block-tlv/ospf-sr:sid-sub-tlv/ospf-sr:sid" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:srms-preference-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf-sr:srms-preference-tlv/ospf-sr:preference" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf:extended-prefix-tlv/ospf-sr:prefix-sid-sub-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf:extended-prefix-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf:extended-prefix-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:prefix-sid-flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf:extended-prefix-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:prefix-sid-flags/ospf-sr:bits" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf:extended-prefix-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:mt-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf:extended-prefix-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:algorithm" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf:extended-prefix-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:sid" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-length" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:af" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:range-size" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:extended-prefix-range-flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:extended-prefix-range-flags/ospf-sr:bits" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-sid-sub-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:prefix-sid-flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:prefix-sid-flags/ospf-sr:bits" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:mt-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:algorithm" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:prefix-sid-sub-tlvs/ospf-sr:prefix-sid-sub-tlv/ospf-sr:sid" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:unknown-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:unknown-tlvs/ospf-sr:unknown-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:unknown-tlvs/ospf-sr:unknown-tlv/ospf-sr:type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:unknown-tlvs/ospf-sr:unknown-tlv/ospf-sr:length" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr:extended-prefix-range-tlvs/ospf-sr:extended-prefix-range-tlv/ospf-sr:unknown-tlvs/ospf-sr:unknown-tlv/ospf-sr:value" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf-sr:segment-routing" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf-sr:segment-routing/ospf-sr:adjacency-sid" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf-sr:segment-routing/ospf-sr:adjacency-sid/ospf-sr:adj-sids" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf-sr:segment-routing/ospf-sr:adjacency-sid/ospf-sr:adj-sids/ospf-sr:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf-sr:segment-routing/ospf-sr:adjacency-sid/ospf-sr:adj-sids/ospf-sr:value-type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf-sr:segment-routing/ospf-sr:adjacency-sid/ospf-sr:adj-sids/ospf-sr:protected" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf-sr:segment-routing/ospf-sr:adjacency-sid/ospf-sr:adj-sids/ospf-sr:weight" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf-sr:segment-routing/ospf-sr:adjacency-sid/ospf-sr:advertise-adj-group-sid" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf-sr:segment-routing/ospf-sr:adjacency-sid/ospf-sr:advertise-adj-group-sid/ospf-sr:group-id" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf-sr:segment-routing/ospf-sr:adjacency-sid/ospf-sr:advertise-protection" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf-sr:segment-routing" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf-sr:segment-routing/ospf-sr:enabled" {
+    deviate not-supported;
+  }
+  */
+}

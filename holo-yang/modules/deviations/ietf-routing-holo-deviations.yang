@@ -1,0 +1,36 @@
+module ietf-routing-holo-deviations {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/ietf-routing-holo-deviations";
+  prefix ietf-routing-holo-deviations;
+
+  import ietf-routing {
+    prefix rt;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines deviation statements for the ietf-routing
+     module.";
+
+  deviation "/rt:routing/rt:router-id" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:interfaces" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/rt:static-routes" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:ribs" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing-state" {
+    deviate not-supported;
+  }
+}

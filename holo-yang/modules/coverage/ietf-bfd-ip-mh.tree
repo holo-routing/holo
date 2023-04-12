@@ -1,0 +1,183 @@
+module: ietf-routing
+  +--rw routing
+  |  +--rw router-id?                 yang:dotted-quad
+  |  +--ro interfaces
+  |  |  +--ro interface*   if:interface-ref
+  |  +--rw control-plane-protocols
+  |  |  +--rw control-plane-protocol* [type name]
+  |  |     +--rw type             identityref
+  |  |     +--rw name             string
+  |  |     +--rw description?     string
+  |  |     +--rw static-routes
+  |  |     +--rw bfd:bfd
+  |  |        +--ro bfd:summary
+  |  |        |  +--ro bfd:number-of-sessions?              yang:gauge32
+  |  |        |  +--ro bfd:number-of-sessions-up?           yang:gauge32
+  |  |        |  +--ro bfd:number-of-sessions-down?         yang:gauge32
+  |  |        |  +--ro bfd:number-of-sessions-admin-down?   yang:gauge32
+  |  |        +--rw bfd-ip-mh:ip-mh
+  |  |           +--ro bfd-ip-mh:summary
+  |  |           |  +--ro bfd-ip-mh:number-of-sessions?              yang:gauge32
+  |  |           |  +--ro bfd-ip-mh:number-of-sessions-up?           yang:gauge32
+  |  |           |  +--ro bfd-ip-mh:number-of-sessions-down?         yang:gauge32
+  |  |           |  +--ro bfd-ip-mh:number-of-sessions-admin-down?   yang:gauge32
+  |  |           +--rw bfd-ip-mh:session-groups
+  |  |              +--rw bfd-ip-mh:session-group* [source-addr dest-addr]
+  |  |                 +--rw bfd-ip-mh:source-addr               inet:ip-address
+  |  |                 +--rw bfd-ip-mh:dest-addr                 inet:ip-address
+  |  |                 +--rw bfd-ip-mh:local-multiplier?         multiplier
+  |  |                 +--rw (bfd-ip-mh:interval-config-type)?
+  |  |                 |  +--:(bfd-ip-mh:tx-rx-intervals)
+  |  |                 |  |  +--rw bfd-ip-mh:desired-min-tx-interval?    uint32
+  |  |                 |  |  +--rw bfd-ip-mh:required-min-rx-interval?   uint32
+  |  |                 |  +--:(bfd-ip-mh:single-interval) {single-minimum-interval}?
+  |  |                 |     +--rw bfd-ip-mh:min-interval?   uint32
+  |  |                 +--rw bfd-ip-mh:demand-enabled?           boolean {demand-mode}?
+  |  |                 +--rw bfd-ip-mh:admin-down?               boolean
+  |  |                 +--rw bfd-ip-mh:authentication! {authentication}?
+  |  |                 |  +--rw bfd-ip-mh:key-chain?    key-chain:key-chain-ref
+  |  |                 |  +--rw bfd-ip-mh:meticulous?   boolean
+  |  |                 +--rw bfd-ip-mh:tx-ttl?                   bfd-types:hops
+  |  |                 +--rw bfd-ip-mh:rx-ttl                    bfd-types:hops
+  |  |                 +--ro bfd-ip-mh:sessions*
+  |  |                    +--ro bfd-ip-mh:path-type?              identityref
+  |  |                    +--ro bfd-ip-mh:ip-encapsulation?       boolean
+  |  |                    +--ro bfd-ip-mh:local-discriminator?    discriminator
+  |  |                    +--ro bfd-ip-mh:remote-discriminator?   discriminator
+  |  |                    +--ro bfd-ip-mh:remote-multiplier?      multiplier
+  |  |                    +--ro bfd-ip-mh:demand-capability?      boolean {demand-mode}?
+  |  |                    +--ro bfd-ip-mh:source-port?            inet:port-number
+  |  |                    +--ro bfd-ip-mh:dest-port?              inet:port-number
+  |  |                    +--ro bfd-ip-mh:session-running
+  |  |                    |  +--ro bfd-ip-mh:session-index?                uint32
+  |  |                    |  +--ro bfd-ip-mh:local-state?                  state
+  |  |                    |  +--ro bfd-ip-mh:remote-state?                 state
+  |  |                    |  +--ro bfd-ip-mh:local-diagnostic?             iana-bfd-types:diagnostic
+  |  |                    |  +--ro bfd-ip-mh:remote-diagnostic?            iana-bfd-types:diagnostic
+  |  |                    |  +--ro bfd-ip-mh:remote-authenticated?         boolean
+  |  |                    |  +--ro bfd-ip-mh:remote-authentication-type?   iana-bfd-types:auth-type {authentication}?
+  |  |                    |  +--ro bfd-ip-mh:detection-mode?               enumeration
+  |  |                    |  +--ro bfd-ip-mh:negotiated-tx-interval?       uint32
+  |  |                    |  +--ro bfd-ip-mh:negotiated-rx-interval?       uint32
+  |  |                    |  +--ro bfd-ip-mh:detection-time?               uint32
+  |  |                    |  +--ro bfd-ip-mh:echo-tx-interval-in-use?      uint32 {echo-mode}?
+  |  |                    +--ro bfd-ip-mh:session-statistics
+  |  |                       +--ro bfd-ip-mh:create-time?                    yang:date-and-time
+  |  |                       +--ro bfd-ip-mh:last-down-time?                 yang:date-and-time
+  |  |                       +--ro bfd-ip-mh:last-up-time?                   yang:date-and-time
+  |  |                       +--ro bfd-ip-mh:down-count?                     yang:counter32
+  |  |                       +--ro bfd-ip-mh:admin-down-count?               yang:counter32
+  |  |                       +--ro bfd-ip-mh:receive-packet-count?           yang:counter64
+  |  |                       +--ro bfd-ip-mh:send-packet-count?              yang:counter64
+  |  |                       +--ro bfd-ip-mh:receive-invalid-packet-count?   yang:counter64
+  |  |                       +--ro bfd-ip-mh:send-failed-packet-count?       yang:counter64
+  |  +--rw ribs
+  |     +--rw rib* [name]
+  |        +--rw name              string
+  |        +--rw address-family    identityref
+  |        +--ro default-rib?      boolean {multiple-ribs}?
+  |        +--ro routes
+  |        |  +--ro route*
+  |        |     +--ro route-preference?   route-preference
+  |        |     +--ro next-hop
+  |        |     |  +--ro (next-hop-options)
+  |        |     |     +--:(simple-next-hop)
+  |        |     |     |  +--ro outgoing-interface?   if:interface-ref
+  |        |     |     +--:(special-next-hop)
+  |        |     |     |  +--ro special-next-hop?   enumeration
+  |        |     |     +--:(next-hop-list)
+  |        |     |        +--ro next-hop-list
+  |        |     |           +--ro next-hop*
+  |        |     |              +--ro outgoing-interface?   if:interface-ref
+  |        |     +--ro source-protocol     identityref
+  |        |     +--ro active?             empty
+  |        |     +--ro last-updated?       yang:date-and-time
+  |        +--rw description?      string
+  |        +---x active-route
+  |           +--ro output
+  |              +--ro route
+  |                 +--ro next-hop
+  |                 |  +--ro (next-hop-options)
+  |                 |     +--:(simple-next-hop)
+  |                 |     |  +--ro outgoing-interface?   if:interface-ref
+  |                 |     +--:(special-next-hop)
+  |                 |     |  +--ro special-next-hop?   enumeration
+  |                 |     +--:(next-hop-list)
+  |                 |        +--ro next-hop-list
+  |                 |           +--ro next-hop*
+  |                 |              +--ro outgoing-interface?   if:interface-ref
+  |                 +--ro source-protocol    identityref
+  |                 +--ro active?            empty
+  |                 +--ro last-updated?      yang:date-and-time
+  o--ro routing-state
+     o--ro router-id?                 yang:dotted-quad
+     o--ro interfaces
+     |  o--ro interface*   if:interface-state-ref
+     o--ro control-plane-protocols
+     |  o--ro control-plane-protocol* [type name]
+     |     o--ro type    identityref
+     |     o--ro name    string
+     o--ro ribs
+        o--ro rib* [name]
+           o--ro name              string
+           o--ro address-family    identityref
+           o--ro default-rib?      boolean {multiple-ribs}?
+           o--ro routes
+           |  o--ro route*
+           |     o--ro route-preference?   route-preference
+           |     o--ro next-hop
+           |     |  o--ro (next-hop-options)
+           |     |     o--:(simple-next-hop)
+           |     |     |  o--ro outgoing-interface?   if:interface-ref
+           |     |     o--:(special-next-hop)
+           |     |     |  o--ro special-next-hop?   enumeration
+           |     |     o--:(next-hop-list)
+           |     |        o--ro next-hop-list
+           |     |           o--ro next-hop*
+           |     |              o--ro outgoing-interface?   if:interface-ref
+           |     o--ro source-protocol     identityref
+           |     o--ro active?             empty
+           |     o--ro last-updated?       yang:date-and-time
+           o---x active-route
+              o--ro output
+                 o--ro route
+                    o--ro next-hop
+                    |  o--ro (next-hop-options)
+                    |     o--:(simple-next-hop)
+                    |     |  o--ro outgoing-interface?   if:interface-ref
+                    |     o--:(special-next-hop)
+                    |     |  o--ro special-next-hop?   enumeration
+                    |     o--:(next-hop-list)
+                    |        o--ro next-hop-list
+                    |           o--ro next-hop*
+                    |              o--ro outgoing-interface?   if:interface-ref
+                    o--ro source-protocol    identityref
+                    o--ro active?            empty
+                    o--ro last-updated?      yang:date-and-time
+
+module: ietf-bfd-ip-mh
+
+  augment /rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/bfd:bfd:
+    +--rw ip-mh
+       +---u bfd-types:session-statistics-summary
+       +--rw session-groups
+          +--rw session-group* [source-addr dest-addr]
+             +--rw source-addr                   inet:ip-address
+             +--rw dest-addr                     inet:ip-address
+             +---u bfd-types:common-cfg-parms
+             +--rw tx-ttl?                       bfd-types:hops
+             +--rw rx-ttl                        bfd-types:hops
+             +--ro sessions*
+                +---u bfd-types:all-session
+
+  notifications:
+    +---n multihop-notification
+       +---- local-discr?                 discriminator
+       +---- remote-discr?                discriminator
+       +---- new-state?                   state
+       +---- state-change-reason?         iana-bfd-types:diagnostic
+       +---- time-of-last-state-change?   yang:date-and-time
+       +---- dest-addr?                   inet:ip-address
+       +---- source-addr?                 inet:ip-address
+       +---- session-index?               uint32
+       +---- path-type?                   identityref

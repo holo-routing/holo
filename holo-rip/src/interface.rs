@@ -1,0 +1,564 @@
+//
+// Copyright (c) The Holo Core Contributors
+//
+// See LICENSE for license details.
+//
+
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+
+use chrono::{DateTime, Utc};
+use enum_as_inner::EnumAsInner;
+use generational_arena::{Arena, Index};
+use holo_northbound::paths::control_plane_protocol::rip;
+use holo_protocol::InstanceChannelsTx;
+use holo_utils::ip::{IpNetworkKind, SocketAddrKind};
+use holo_utils::socket::UdpSocket;
+use holo_yang::TryFromYang;
+
+use crate::debug::{Debug, InterfaceInactiveReason};
+use crate::error::IoError;
+use crate::instance::{Instance, InstanceState};
+use crate::network::SendDestination;
+use crate::output;
+use crate::route::Metric;
+use crate::version::Version;
+
+pub type InterfaceIndex = Index;
+pub type InterfaceUp<V> = InterfaceCommon<V, InterfaceState>;
+pub type InterfaceDown<V> = InterfaceCommon<V, InterfaceStateDown>;
+
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, EnumAsInner)]
+pub enum Interface<V: Version> {
+    Up(InterfaceUp<V>),
+    Down(InterfaceDown<V>),
+    // This state is required to allow in-place mutations of Interface.
+    Transitioning,
+}
+
+#[derive(Debug)]
+pub struct InterfaceCommon<V: Version, State> {
+    // Interface state-independent data.
+    pub core: InterfaceCore<V>,
+    // Interface state-dependent data.
+    pub state: State,
+}
+
+#[derive(Debug)]
+pub struct InterfaceCore<V: Version> {
+    pub name: String,
+    pub system: InterfaceSys<V>,
+    pub config: InterfaceCfg<V>,
+}
+
+#[derive(Debug)]
+pub struct InterfaceSys<V: Version> {
+    pub operative: bool,
+    pub loopback: bool,
+    pub ifindex: Option<u32>,
+    pub mtu: Option<u32>,
+    pub addr_list: BTreeSet<V::IpNetwork>,
+}
+
+#[derive(Debug)]
+pub struct InterfaceCfg<V: Version> {
+    pub cost: Metric,
+    pub explicit_neighbors: HashSet<V::IpAddr>,
+    pub no_listen: bool,
+    pub passive: bool,
+    pub split_horizon: SplitHorizon,
+    pub invalid_interval: u16,
+    pub flush_interval: u16,
+}
+
+#[derive(Debug)]
+pub struct InterfaceState {
+    pub statistics: MessageStatistics,
+}
+
+#[derive(Debug)]
+pub struct InterfaceStateDown();
+
+#[derive(Debug)]
+pub enum SplitHorizon {
+    Disabled,
+    Simple,
+    PoisonReverse,
+}
+
+// Inbound and outbound statistic counters.
+#[derive(Debug, Default)]
+pub struct MessageStatistics {
+    pub discontinuity_time: Option<DateTime<Utc>>,
+    pub bad_packets_rcvd: u32,
+    pub bad_routes_rcvd: u32,
+    pub updates_sent: u32,
+}
+
+#[derive(Debug)]
+pub struct Interfaces<V: Version> {
+    pub arena: Arena<Interface<V>>,
+    name_tree: BTreeMap<String, InterfaceIndex>,
+    ifindex_tree: HashMap<u32, InterfaceIndex>,
+}
+
+// RIP version-specific code.
+pub trait InterfaceVersion<V: Version> {
+    // Return a mutable reference to the interface corresponding to the given
+    // packet source.
+    fn get_iface_by_source(
+        interfaces: &mut Interfaces<V>,
+        source: V::SocketAddr,
+    ) -> Option<(InterfaceIndex, &mut Interface<V>)>;
+}
+
+// ===== impl Interface =====
+
+impl<V> Interface<V>
+where
+    V: Version,
+{
+    fn new(name: String) -> Interface<V> {
+        Debug::<V>::InterfaceCreate(&name).log();
+
+        Interface::Down(InterfaceDown {
+            core: InterfaceCore {
+                name,
+                system: InterfaceSys::default(),
+                config: InterfaceCfg::default(),
+            },
+            state: InterfaceStateDown(),
+        })
+    }
+
+    // Checks if the interface needs to be started or stopped in response to a
+    // northbound or southbound event.
+    pub(crate) fn update(
+        &mut self,
+        instance_state: &mut InstanceState<V>,
+        instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
+    ) {
+        match self.is_ready() {
+            Ok(()) if !self.is_active() => {
+                self.start(instance_state);
+            }
+            Err(reason) if self.is_active() => {
+                self.stop(instance_state, instance_channels_tx, reason);
+            }
+            _ => (),
+        }
+    }
+
+    // Starts RIP operation on this interface.
+    fn start(&mut self, instance_state: &mut InstanceState<V>) {
+        let iface = std::mem::replace(self, Interface::Transitioning)
+            .into_down()
+            .unwrap();
+        *self = Interface::Up(iface.start(instance_state));
+    }
+
+    // Stops RIP operation on this interface.
+    pub(crate) fn stop(
+        &mut self,
+        instance_state: &mut InstanceState<V>,
+        instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
+        reason: InterfaceInactiveReason,
+    ) {
+        if !self.is_active() {
+            return;
+        }
+
+        let iface = std::mem::replace(self, Interface::Transitioning)
+            .into_up()
+            .unwrap();
+        *self = Interface::Down(iface.stop(
+            instance_state,
+            instance_channels_tx,
+            reason,
+        ));
+    }
+
+    // Checks if RIP is operational on this interface.
+    pub(crate) fn is_active(&self) -> bool {
+        matches!(self, Interface::Up(_))
+    }
+
+    // Returns whether the interface is ready for RIP operation.
+    fn is_ready(&self) -> Result<(), InterfaceInactiveReason> {
+        if !self.core().system.operative {
+            return Err(InterfaceInactiveReason::OperationalDown);
+        }
+
+        if self.core().system.ifindex.is_none() {
+            return Err(InterfaceInactiveReason::MissingIfindex);
+        }
+
+        if self.core().system.addr_list.is_empty() {
+            return Err(InterfaceInactiveReason::MissingIpAddress);
+        }
+
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn core(&self) -> &InterfaceCore<V> {
+        match self {
+            Interface::Up(iface) => &iface.core,
+            Interface::Down(iface) => &iface.core,
+            Interface::Transitioning => unreachable!(),
+        }
+    }
+
+    #[inline]
+    pub(crate) fn core_mut(&mut self) -> &mut InterfaceCore<V> {
+        match self {
+            Interface::Up(iface) => &mut iface.core,
+            Interface::Down(iface) => &mut iface.core,
+            Interface::Transitioning => unreachable!(),
+        }
+    }
+}
+
+// ===== impl InterfaceCommon =====
+
+// Active RIP interface.
+impl<V> InterfaceCommon<V, InterfaceState>
+where
+    V: Version,
+{
+    fn stop(
+        self,
+        instance_state: &mut InstanceState<V>,
+        instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
+        reason: InterfaceInactiveReason,
+    ) -> InterfaceCommon<V, InterfaceStateDown> {
+        Debug::<V>::InterfaceStop(&self.core.name, reason).log();
+
+        self.core.system.leave_multicast(&instance_state.socket);
+
+        // Invalidate all routes that go through this interface.
+        for route in instance_state
+            .routes
+            .values_mut()
+            .filter(|route| route.ifindex == self.core.system.ifindex.unwrap())
+        {
+            route.invalidate(
+                self.core.config.flush_interval,
+                instance_channels_tx,
+            );
+        }
+
+        InterfaceCommon::<V, InterfaceStateDown> {
+            core: self.core,
+            state: InterfaceStateDown(),
+        }
+    }
+
+    pub(crate) fn is_passive(&self) -> bool {
+        self.core.system.loopback || self.core.config.passive
+    }
+
+    // Runs the passed closure once for each one of the valid interface
+    // destinations (multicast and unicast).
+    pub(crate) fn with_destinations<F>(&mut self, mut f: F)
+    where
+        F: FnMut(
+            &mut InterfaceUp<V>,
+            SendDestination<V::IpAddr, V::SocketAddr>,
+        ),
+    {
+        // Multicast dst.
+        let dst = SendDestination::Multicast(self.core.system.ifindex.unwrap());
+        f(self, dst);
+
+        // Unicast destinations (explicit neighbors).
+        let explicit_neighbors =
+            std::mem::take(&mut self.core.config.explicit_neighbors);
+        for nbr_addr in &explicit_neighbors {
+            if self.core.system.contains_addr(nbr_addr) {
+                let sockaddr = V::SocketAddr::new(*nbr_addr, V::UDP_PORT);
+                let dst = SendDestination::Unicast(sockaddr);
+                f(self, dst);
+            }
+        }
+        self.core.config.explicit_neighbors = explicit_neighbors;
+    }
+}
+
+// Inactive RIP interface.
+impl<V> InterfaceCommon<V, InterfaceStateDown>
+where
+    V: Version,
+{
+    fn start(
+        self,
+        instance_state: &mut InstanceState<V>,
+    ) -> InterfaceCommon<V, InterfaceState> {
+        Debug::<V>::InterfaceStart(&self.core.name).log();
+
+        let mut iface = InterfaceCommon {
+            core: self.core,
+            state: InterfaceState {
+                statistics: Default::default(),
+            },
+        };
+
+        // Join RIP multicast address.
+        if !iface.core.config.no_listen {
+            iface.core.system.join_multicast(&instance_state.socket);
+        }
+
+        // Send RIP request.
+        if !iface.is_passive() {
+            iface.with_destinations(|iface, destination| {
+                output::send_request(instance_state, iface, destination);
+            });
+        }
+
+        iface
+    }
+}
+
+// ===== impl InterfaceSys =====
+
+impl<V> InterfaceSys<V>
+where
+    V: Version,
+{
+    // Checks if the interface shares a subnet with the given IP address.
+    pub(crate) fn contains_addr(&self, addr: &V::IpAddr) -> bool {
+        for local in &self.addr_list {
+            if local.contains(*addr) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    pub(crate) fn join_multicast(&self, socket: &UdpSocket) {
+        if let Err(error) = V::join_multicast(socket, self.ifindex.unwrap()) {
+            IoError::UdpMulticastJoinError(error).log();
+        }
+    }
+
+    pub(crate) fn leave_multicast(&self, socket: &UdpSocket) {
+        if let Err(error) = V::leave_multicast(socket, self.ifindex.unwrap()) {
+            IoError::UdpMulticastJoinError(error).log();
+        }
+    }
+}
+
+impl<V> Default for InterfaceSys<V>
+where
+    V: Version,
+{
+    fn default() -> InterfaceSys<V> {
+        InterfaceSys {
+            operative: false,
+            loopback: false,
+            ifindex: None,
+            mtu: None,
+            addr_list: Default::default(),
+        }
+    }
+}
+
+// ===== impl InterfaceCfg =====
+
+impl<V> Default for InterfaceCfg<V>
+where
+    V: Version,
+{
+    fn default() -> InterfaceCfg<V> {
+        let cost = Metric::from(rip::interfaces::interface::cost::DFLT);
+        let split_horizon = rip::interfaces::interface::split_horizon::DFLT;
+        let split_horizon = SplitHorizon::try_from_yang(split_horizon).unwrap();
+        let invalid_interval =
+            rip::interfaces::interface::timers::invalid_interval::DFLT;
+        let flush_interval =
+            rip::interfaces::interface::timers::flush_interval::DFLT;
+
+        InterfaceCfg {
+            cost,
+            explicit_neighbors: Default::default(),
+            no_listen: false,
+            passive: false,
+            split_horizon,
+            invalid_interval,
+            flush_interval,
+        }
+    }
+}
+
+// ===== impl MessageStatistics =====
+
+impl MessageStatistics {
+    pub(crate) fn update_discontinuity_time(&mut self) {
+        self.discontinuity_time = Some(Utc::now());
+    }
+}
+
+// ===== impl Interfaces =====
+
+impl<V> Interfaces<V>
+where
+    V: Version,
+{
+    pub(crate) fn add(
+        &mut self,
+        ifname: &str,
+    ) -> (InterfaceIndex, &mut Interface<V>) {
+        // Check for existing entry first.
+        if let Some(iface_idx) = self.name_tree.get(ifname).copied() {
+            let iface = &mut self.arena[iface_idx];
+            return (iface_idx, iface);
+        }
+
+        // Create and insert interface into the arena.
+        let iface = Interface::new(ifname.to_owned());
+        let iface_idx = self.arena.insert(iface);
+
+        // Link interface to different collections.
+        let iface = &mut self.arena[iface_idx];
+        self.name_tree.insert(iface.core().name.clone(), iface_idx);
+
+        (iface_idx, iface)
+    }
+
+    pub(crate) fn delete(&mut self, iface_idx: InterfaceIndex) {
+        let iface = &mut self.arena[iface_idx];
+
+        Debug::<V>::InterfaceDelete(&iface.core().name).log();
+
+        // Unlink interface from different collections.
+        self.name_tree.remove(&iface.core().name);
+        if let Some(ifindex) = iface.core().system.ifindex {
+            self.ifindex_tree.remove(&ifindex);
+        }
+
+        // Remove interface from the arena.
+        self.arena.remove(iface_idx);
+    }
+
+    pub(crate) fn update_ifindex(
+        &mut self,
+        ifname: &str,
+        ifindex: Option<u32>,
+    ) -> Option<(InterfaceIndex, &mut Interface<V>)> {
+        let iface_idx = match self.name_tree.get(ifname).copied() {
+            Some(iface_idx) => iface_idx,
+            None => return None,
+        };
+        let iface = &mut self.arena[iface_idx];
+
+        // Update interface ifindex.
+        if let Some(ifindex) = iface.core().system.ifindex {
+            self.ifindex_tree.remove(&ifindex);
+        }
+        iface.core_mut().system.ifindex = ifindex;
+        if let Some(ifindex) = ifindex {
+            self.ifindex_tree.insert(ifindex, iface_idx);
+        }
+
+        Some((iface_idx, iface))
+    }
+
+    // Returns a reference to the interface corresponding to the given name.
+    #[allow(dead_code)]
+    pub(crate) fn get_by_name(
+        &self,
+        ifname: &str,
+    ) -> Option<(InterfaceIndex, &Interface<V>)> {
+        self.name_tree
+            .get(ifname)
+            .copied()
+            .map(|iface_idx| (iface_idx, &self.arena[iface_idx]))
+    }
+
+    // Returns a mutable reference to the interface corresponding to the given
+    // name.
+    pub(crate) fn get_mut_by_name(
+        &mut self,
+        ifname: &str,
+    ) -> Option<(InterfaceIndex, &mut Interface<V>)> {
+        self.name_tree
+            .get(ifname)
+            .copied()
+            .map(move |iface_idx| (iface_idx, &mut self.arena[iface_idx]))
+    }
+
+    // Returns a reference to the interface corresponding to the given ifindex.
+    pub(crate) fn get_by_ifindex(
+        &self,
+        ifindex: u32,
+    ) -> Option<(InterfaceIndex, &Interface<V>)> {
+        self.ifindex_tree
+            .get(&ifindex)
+            .copied()
+            .map(|iface_idx| (iface_idx, &self.arena[iface_idx]))
+    }
+
+    // Returns a mutable reference to the interface corresponding to the given
+    // ifindex.
+    pub(crate) fn get_mut_by_ifindex(
+        &mut self,
+        ifindex: u32,
+    ) -> Option<(InterfaceIndex, &mut Interface<V>)> {
+        self.ifindex_tree
+            .get(&ifindex)
+            .copied()
+            .map(move |iface_idx| (iface_idx, &mut self.arena[iface_idx]))
+    }
+
+    // Returns an iterator visiting all interfaces.
+    //
+    // Interfaces are ordered by their names.
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &'_ Interface<V>> + '_ {
+        self.name_tree
+            .values()
+            .map(|iface_idx| &self.arena[*iface_idx])
+    }
+
+    // Returns an iterator visiting all interfaces with mutable references.
+    //
+    // Order of iteration is not defined.
+    pub(crate) fn iter_mut(
+        &mut self,
+    ) -> impl Iterator<Item = &'_ mut Interface<V>> + '_ {
+        self.arena.iter_mut().map(|(_, iface)| iface)
+    }
+}
+
+impl<V> Default for Interfaces<V>
+where
+    V: Version,
+{
+    fn default() -> Interfaces<V> {
+        Interfaces {
+            arena: Arena::new(),
+            name_tree: Default::default(),
+            ifindex_tree: Default::default(),
+        }
+    }
+}
+
+impl<V> std::ops::Index<InterfaceIndex> for Interfaces<V>
+where
+    V: Version,
+{
+    type Output = Interface<V>;
+
+    fn index(&self, index: InterfaceIndex) -> &Self::Output {
+        &self.arena[index]
+    }
+}
+
+impl<V> std::ops::IndexMut<InterfaceIndex> for Interfaces<V>
+where
+    V: Version,
+{
+    fn index_mut(&mut self, index: InterfaceIndex) -> &mut Self::Output {
+        &mut self.arena[index]
+    }
+}

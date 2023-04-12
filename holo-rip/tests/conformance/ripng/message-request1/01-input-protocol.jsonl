@@ -1,0 +1,2 @@
+{"UdpRxPdu":{"src":"[fe80::1cd7:28ff:fe99:6a15%2]:521","pdu":{"Ok":{"command":"Request","version":1,"rtes":[{"Ipv6":{"prefix":"::/0","tag":0,"metric":16}}]}}}}
+{"UdpRxPdu":{"src":"[fe80::c80e:c7ff:fe71:fb92%4]:521","pdu":{"Ok":{"command":"Request","version":1,"rtes":[{"Ipv6":{"prefix":"::/0","tag":0,"metric":16}}]}}}}

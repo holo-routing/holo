@@ -1,0 +1,93 @@
+{
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-rip:ripng",
+          "name": "main",
+          "ietf-rip:rip": {
+            "interfaces": {
+              "interface": [
+                {
+                  "interface": "eth-rt1",
+                  "oper-status": "up",
+                  "valid-address": true
+                },
+                {
+                  "interface": "eth-rt4",
+                  "oper-status": "up",
+                  "valid-address": true
+                },
+                {
+                  "interface": "lo",
+                  "oper-status": "up",
+                  "valid-address": true
+                }
+              ]
+            },
+            "num-of-routes": 4,
+            "ipv6": {
+              "neighbors": {
+                "neighbor": [
+                  {
+                    "ipv6-address": "fe80::8c49:b1ff:fe8a:87b5"
+                  },
+                  {
+                    "ipv6-address": "fe80::b072:d8ff:fed8:6251"
+                  }
+                ]
+              },
+              "routes": {
+                "route": [
+                  {
+                    "ipv6-prefix": "2001:db8:1000::1/128",
+                    "next-hop": "fe80::b072:d8ff:fed8:6251",
+                    "interface": "eth-rt1",
+                    "redistributed": false,
+                    "route-type": "rip",
+                    "metric": 2,
+                    "deleted": false,
+                    "need-triggered-update": false,
+                    "inactive": false
+                  },
+                  {
+                    "ipv6-prefix": "2001:db8:1000::2/128",
+                    "interface": "lo",
+                    "redistributed": false,
+                    "route-type": "connected",
+                    "metric": 1,
+                    "deleted": false,
+                    "need-triggered-update": false,
+                    "inactive": false
+                  },
+                  {
+                    "ipv6-prefix": "2001:db8:1000::3/128",
+                    "next-hop": "fe80::b072:d8ff:fed8:6251",
+                    "interface": "eth-rt1",
+                    "redistributed": false,
+                    "route-type": "rip",
+                    "metric": 3,
+                    "deleted": false,
+                    "need-triggered-update": false,
+                    "inactive": false
+                  },
+                  {
+                    "ipv6-prefix": "2001:db8:1000::4/128",
+                    "next-hop": "fe80::8c49:b1ff:fe8a:87b5",
+                    "interface": "eth-rt4",
+                    "redistributed": false,
+                    "route-type": "rip",
+                    "metric": 2,
+                    "deleted": false,
+                    "need-triggered-update": false,
+                    "inactive": false
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

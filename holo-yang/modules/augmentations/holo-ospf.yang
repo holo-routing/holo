@@ -1,0 +1,73 @@
+module holo-ospf {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/holo-ospf";
+  prefix holo-ospf;
+
+  import ietf-inet-types {
+    prefix "inet";
+    reference "RFC 6991: Common YANG Data Types";
+  }
+
+  import ietf-routing {
+    prefix rt;
+  }
+
+  import ietf-ospf {
+    prefix ospf;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines augment statements for the ietf-ospf
+     module.";
+
+  notification if-rx-bad-lsa {
+    /*
+    uses ospf:notification-instance-hdr;
+    uses ospf:notification-interface;
+    */
+
+    leaf routing-protocol-name {
+      type leafref {
+        path "/rt:routing/rt:control-plane-protocols/"
+           + "rt:control-plane-protocol/rt:name";
+      }
+      must "derived-from( "
+        + "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol[rt:name=current()]/"
+        + "rt:type, 'ospf')";
+      description
+       "OSPF routing protocol instance name.";
+    }
+
+    leaf packet-source {
+      type inet:ip-address;
+      description "Source address.";
+    }
+
+    leaf error {
+      type enumeration {
+        enum "invalid-checksum" {
+          description "Invalid LSA checksum.";
+        }
+        enum "invalid-age" {
+          description "Invalid LSA age.";
+        }
+        enum "invalid-seq-num" {
+          description "Invalid LSA sequence number.";
+        }
+        enum "ospfv2-router-lsa-id-mismatch" {
+          description
+            "OSPFv2 Router-LSA's advertising router and LSA-ID are not equal.";
+        }
+      }
+      description "Error code.";
+    }
+
+    description
+      "This notification is sent when an invalid LSA is received on an
+       OSPF interface.";
+  }
+}

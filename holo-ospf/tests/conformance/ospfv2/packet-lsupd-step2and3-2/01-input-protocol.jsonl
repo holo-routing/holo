@@ -1,0 +1,1 @@
+{"NetRxPacket":{"ifindex":2,"src":"10.0.6.6","dst":"10.0.6.7","packet":{"Ok":{"LsUpdate":{"hdr":{"pkt_type":"LsUpdate","router_id":"6.6.6.6","area_id":"0.0.0.3"},"lsas":[{"hdr":{"options":2,"lsa_type":4,"lsa_id":"192.168.1.10","adv_rtr":"2.2.2.2","seq_no":2200000000,"length":28},"body":{"SummaryRouter":{"mask":"255.255.255.255","metric":10}}}]}}}}}

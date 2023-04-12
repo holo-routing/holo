@@ -1,0 +1,9 @@
+{"UdpTxPdu":{"dst":{"Multicast":3},"pdu":{"command":"Request","version":1,"rtes":[{"Ipv6":{"prefix":"::/0","tag":0,"metric":16}}]}}}
+{"UdpTxPdu":{"dst":{"Unicast":"[fe80::342f:96ff:feeb:ad7e%3]:521"},"pdu":{"command":"Response","version":1,"rtes":[{"Ipv6":{"prefix":"2001:db8:1000::1/128","tag":0,"metric":1}}]}}}
+{"UdpTxPdu":{"dst":{"Multicast":3},"pdu":{"command":"Response","version":1,"rtes":[{"Ipv6":{"prefix":"2001:db8:1000::1/128","tag":0,"metric":1}}]}}}
+{"UdpTxPdu":{"dst":{"Unicast":"[fe80::3048:25ff:fe4a:49d0%3]:521"},"pdu":{"command":"Response","version":1,"rtes":[{"Ipv6":{"prefix":"2001:db8:1000::1/128","tag":0,"metric":1}}]}}}
+{"UdpTxPdu":{"dst":{"Multicast":3},"pdu":{"command":"Response","version":1,"rtes":[{"Ipv6":{"prefix":"2001:db8:1000::1/128","tag":0,"metric":1}}]}}}
+{"UdpTxPdu":{"dst":{"Multicast":3},"pdu":{"command":"Response","version":1,"rtes":[{"Ipv6":{"prefix":"2001:db8:1000::1/128","tag":0,"metric":1}}]}}}
+{"UdpTxPdu":{"dst":{"Multicast":3},"pdu":{"command":"Response","version":1,"rtes":[{"Ipv6":{"prefix":"2001:db8:1000::1/128","tag":0,"metric":1}}]}}}
+{"UdpTxPdu":{"dst":{"Multicast":3},"pdu":{"command":"Response","version":1,"rtes":[{"Ipv6":{"prefix":"2001:db8:1000::1/128","tag":0,"metric":1}}]}}}
+{"UdpTxPdu":{"dst":{"Multicast":3},"pdu":{"command":"Response","version":1,"rtes":[{"Ipv6":{"prefix":"2001:db8:1000::1/128","tag":0,"metric":1}}]}}}

@@ -1,0 +1,1718 @@
+{
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-ospf:ospfv2",
+          "name": "main",
+          "ietf-ospf:ospf": {
+            "spf-control": {
+              "ietf-spf-delay": {
+                "current-state": "quiet"
+              }
+            },
+            "router-id": "1.1.1.1",
+            "local-rib": {
+              "route": [
+                {
+                  "prefix": "1.1.1.1/32",
+                  "metric": 0,
+                  "route-type": "intra-area"
+                },
+                {
+                  "prefix": "2.2.2.2/32",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.1.2",
+                        "outgoing-interface": "eth-sw1"
+                      }
+                    ]
+                  },
+                  "metric": 10,
+                  "route-type": "intra-area"
+                },
+                {
+                  "prefix": "3.3.3.3/32",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.1.3",
+                        "outgoing-interface": "eth-sw1"
+                      }
+                    ]
+                  },
+                  "metric": 10,
+                  "route-type": "intra-area"
+                },
+                {
+                  "prefix": "4.4.4.4/32",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.1.2",
+                        "outgoing-interface": "eth-sw1"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "route-type": "inter-area"
+                },
+                {
+                  "prefix": "5.5.5.5/32",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.1.3",
+                        "outgoing-interface": "eth-sw1"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "route-type": "inter-area"
+                },
+                {
+                  "prefix": "6.6.6.6/32",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.1.2",
+                        "outgoing-interface": "eth-sw1"
+                      },
+                      {
+                        "next-hop": "10.0.1.3",
+                        "outgoing-interface": "eth-sw1"
+                      }
+                    ]
+                  },
+                  "metric": 30,
+                  "route-type": "inter-area"
+                },
+                {
+                  "prefix": "10.0.1.0/24",
+                  "metric": 10,
+                  "route-type": "intra-area"
+                },
+                {
+                  "prefix": "10.0.2.0/24",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.1.2",
+                        "outgoing-interface": "eth-sw1"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "route-type": "intra-area"
+                },
+                {
+                  "prefix": "10.0.3.0/24",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.1.2",
+                        "outgoing-interface": "eth-sw1"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "route-type": "intra-area"
+                },
+                {
+                  "prefix": "10.0.4.0/24",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.1.3",
+                        "outgoing-interface": "eth-sw1"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "route-type": "intra-area"
+                },
+                {
+                  "prefix": "10.0.5.0/24",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.1.3",
+                        "outgoing-interface": "eth-sw1"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "route-type": "intra-area"
+                },
+                {
+                  "prefix": "10.0.6.0/24",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.1.2",
+                        "outgoing-interface": "eth-sw1"
+                      },
+                      {
+                        "next-hop": "10.0.1.3",
+                        "outgoing-interface": "eth-sw1"
+                      }
+                    ]
+                  },
+                  "metric": 30,
+                  "route-type": "inter-area"
+                },
+                {
+                  "prefix": "10.0.7.0/24",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.1.2",
+                        "outgoing-interface": "eth-sw1"
+                      }
+                    ]
+                  },
+                  "metric": 30,
+                  "route-type": "inter-area"
+                },
+                {
+                  "prefix": "10.0.8.0/24",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.1.3",
+                        "outgoing-interface": "eth-sw1"
+                      }
+                    ]
+                  },
+                  "metric": 30,
+                  "route-type": "inter-area"
+                }
+              ]
+            },
+            "statistics": {
+              "as-scope-lsa-count": 0
+            },
+            "areas": {
+              "area": [
+                {
+                  "area-id": "0.0.0.0",
+                  "statistics": {
+                    "abr-count": 2,
+                    "asbr-count": 0,
+                    "area-scope-lsa-count": 34,
+                    "database": {
+                      "area-scope-lsa-type": [
+                        {
+                          "lsa-type": 1,
+                          "lsa-count": 5
+                        },
+                        {
+                          "lsa-type": 2,
+                          "lsa-count": 1
+                        },
+                        {
+                          "lsa-type": 3,
+                          "lsa-count": 12
+                        },
+                        {
+                          "lsa-type": 10,
+                          "lsa-count": 16
+                        }
+                      ]
+                    }
+                  },
+                  "database": {
+                    "area-scope-lsa-type": [
+                      {
+                        "lsa-type": 1,
+                        "area-scope-lsas": {
+                          "area-scope-lsa": [
+                            {
+                              "lsa-id": "1.1.1.1",
+                              "adv-router": "1.1.1.1",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "1.1.1.1",
+                                  "type": "ietf-ospf:ospfv2-router-lsa",
+                                  "adv-router": "1.1.1.1",
+                                  "length": 48
+                                },
+                                "body": {
+                                  "router": {
+                                    "num-of-links": 2,
+                                    "links": {
+                                      "link": [
+                                        {
+                                          "link-id": "10.0.1.3",
+                                          "link-data": "10.0.1.1",
+                                          "type": "transit-network-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 10
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "link-id": "1.1.1.1",
+                                          "link-data": "255.255.255.255",
+                                          "type": "stub-network-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 0
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 17
+                            },
+                            {
+                              "lsa-id": "2.2.2.2",
+                              "adv-router": "2.2.2.2",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "2.2.2.2",
+                                  "type": "ietf-ospf:ospfv2-router-lsa",
+                                  "adv-router": "2.2.2.2",
+                                  "length": 96
+                                },
+                                "body": {
+                                  "router": {
+                                    "num-of-links": 6,
+                                    "links": {
+                                      "link": [
+                                        {
+                                          "link-id": "4.4.4.4",
+                                          "link-data": "10.0.2.2",
+                                          "type": "point-to-point-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 10
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "link-id": "10.0.2.0",
+                                          "link-data": "255.255.255.0",
+                                          "type": "stub-network-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 10
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "link-id": "4.4.4.4",
+                                          "link-data": "10.0.3.2",
+                                          "type": "point-to-point-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 10
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "link-id": "10.0.3.0",
+                                          "link-data": "255.255.255.0",
+                                          "type": "stub-network-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 10
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "link-id": "10.0.1.3",
+                                          "link-data": "10.0.1.2",
+                                          "type": "transit-network-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 10
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "link-id": "2.2.2.2",
+                                          "link-data": "255.255.255.255",
+                                          "type": "stub-network-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 0
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 33
+                            },
+                            {
+                              "lsa-id": "3.3.3.3",
+                              "adv-router": "3.3.3.3",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "3.3.3.3",
+                                  "type": "ietf-ospf:ospfv2-router-lsa",
+                                  "adv-router": "3.3.3.3",
+                                  "length": 96
+                                },
+                                "body": {
+                                  "router": {
+                                    "num-of-links": 6,
+                                    "links": {
+                                      "link": [
+                                        {
+                                          "link-id": "5.5.5.5",
+                                          "link-data": "10.0.4.3",
+                                          "type": "point-to-point-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 10
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "link-id": "10.0.4.0",
+                                          "link-data": "255.255.255.0",
+                                          "type": "stub-network-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 10
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "link-id": "5.5.5.5",
+                                          "link-data": "10.0.5.3",
+                                          "type": "point-to-point-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 10
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "link-id": "10.0.5.0",
+                                          "link-data": "255.255.255.0",
+                                          "type": "stub-network-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 10
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "link-id": "10.0.1.3",
+                                          "link-data": "10.0.1.3",
+                                          "type": "transit-network-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 10
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "link-id": "3.3.3.3",
+                                          "link-data": "255.255.255.255",
+                                          "type": "stub-network-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 0
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 35
+                            },
+                            {
+                              "lsa-id": "4.4.4.4",
+                              "adv-router": "4.4.4.4",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "4.4.4.4",
+                                  "type": "ietf-ospf:ospfv2-router-lsa",
+                                  "adv-router": "4.4.4.4",
+                                  "length": 72
+                                },
+                                "body": {
+                                  "router": {
+                                    "router-bits": {
+                                      "rtr-lsa-bits": [
+                                        "ietf-ospf:abr-bit"
+                                      ]
+                                    },
+                                    "num-of-links": 4,
+                                    "links": {
+                                      "link": [
+                                        {
+                                          "link-id": "2.2.2.2",
+                                          "link-data": "10.0.2.4",
+                                          "type": "point-to-point-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 10
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "link-id": "10.0.2.0",
+                                          "link-data": "255.255.255.0",
+                                          "type": "stub-network-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 10
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "link-id": "2.2.2.2",
+                                          "link-data": "10.0.3.4",
+                                          "type": "point-to-point-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 10
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "link-id": "10.0.3.0",
+                                          "link-data": "255.255.255.0",
+                                          "type": "stub-network-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 10
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 20
+                            },
+                            {
+                              "lsa-id": "5.5.5.5",
+                              "adv-router": "5.5.5.5",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "5.5.5.5",
+                                  "type": "ietf-ospf:ospfv2-router-lsa",
+                                  "adv-router": "5.5.5.5",
+                                  "length": 72
+                                },
+                                "body": {
+                                  "router": {
+                                    "router-bits": {
+                                      "rtr-lsa-bits": [
+                                        "ietf-ospf:abr-bit"
+                                      ]
+                                    },
+                                    "num-of-links": 4,
+                                    "links": {
+                                      "link": [
+                                        {
+                                          "link-id": "3.3.3.3",
+                                          "link-data": "10.0.4.5",
+                                          "type": "point-to-point-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 10
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "link-id": "10.0.4.0",
+                                          "link-data": "255.255.255.0",
+                                          "type": "stub-network-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 10
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "link-id": "3.3.3.3",
+                                          "link-data": "10.0.5.5",
+                                          "type": "point-to-point-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 10
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "link-id": "10.0.5.0",
+                                          "link-data": "255.255.255.0",
+                                          "type": "stub-network-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 10
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 4
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "lsa-type": 2,
+                        "area-scope-lsas": {
+                          "area-scope-lsa": [
+                            {
+                              "lsa-id": "10.0.1.3",
+                              "adv-router": "3.3.3.3",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "10.0.1.3",
+                                  "type": "ietf-ospf:ospfv2-network-lsa",
+                                  "adv-router": "3.3.3.3",
+                                  "length": 36
+                                },
+                                "body": {
+                                  "network": {
+                                    "network-mask": "255.255.255.0",
+                                    "attached-routers": {
+                                      "attached-router": [
+                                        "1.1.1.1",
+                                        "2.2.2.2",
+                                        "3.3.3.3"
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 38
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "lsa-type": 3,
+                        "area-scope-lsas": {
+                          "area-scope-lsa": [
+                            {
+                              "lsa-id": "4.4.4.4",
+                              "adv-router": "4.4.4.4",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "4.4.4.4",
+                                  "type": "ietf-ospf:ospfv2-network-summary-lsa",
+                                  "adv-router": "4.4.4.4",
+                                  "length": 28
+                                },
+                                "body": {
+                                  "summary": {
+                                    "network-mask": "255.255.255.255",
+                                    "topologies": {
+                                      "topology": [
+                                        {
+                                          "mt-id": 0,
+                                          "metric": 0
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 21
+                            },
+                            {
+                              "lsa-id": "5.5.5.5",
+                              "adv-router": "4.4.4.4",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "5.5.5.5",
+                                  "type": "ietf-ospf:ospfv2-network-summary-lsa",
+                                  "adv-router": "4.4.4.4",
+                                  "length": 28
+                                },
+                                "body": {
+                                  "summary": {
+                                    "network-mask": "255.255.255.255",
+                                    "topologies": {
+                                      "topology": [
+                                        {
+                                          "mt-id": 0,
+                                          "metric": 10
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 22
+                            },
+                            {
+                              "lsa-id": "6.6.6.6",
+                              "adv-router": "4.4.4.4",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "6.6.6.6",
+                                  "type": "ietf-ospf:ospfv2-network-summary-lsa",
+                                  "adv-router": "4.4.4.4",
+                                  "length": 28
+                                },
+                                "body": {
+                                  "summary": {
+                                    "network-mask": "255.255.255.255",
+                                    "topologies": {
+                                      "topology": [
+                                        {
+                                          "mt-id": 0,
+                                          "metric": 10
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 23
+                            },
+                            {
+                              "lsa-id": "10.0.6.0",
+                              "adv-router": "4.4.4.4",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "10.0.6.0",
+                                  "type": "ietf-ospf:ospfv2-network-summary-lsa",
+                                  "adv-router": "4.4.4.4",
+                                  "length": 28
+                                },
+                                "body": {
+                                  "summary": {
+                                    "network-mask": "255.255.255.0",
+                                    "topologies": {
+                                      "topology": [
+                                        {
+                                          "mt-id": 0,
+                                          "metric": 10
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 24
+                            },
+                            {
+                              "lsa-id": "10.0.7.0",
+                              "adv-router": "4.4.4.4",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "10.0.7.0",
+                                  "type": "ietf-ospf:ospfv2-network-summary-lsa",
+                                  "adv-router": "4.4.4.4",
+                                  "length": 28
+                                },
+                                "body": {
+                                  "summary": {
+                                    "network-mask": "255.255.255.0",
+                                    "topologies": {
+                                      "topology": [
+                                        {
+                                          "mt-id": 0,
+                                          "metric": 10
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 25
+                            },
+                            {
+                              "lsa-id": "10.0.8.0",
+                              "adv-router": "4.4.4.4",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "10.0.8.0",
+                                  "type": "ietf-ospf:ospfv2-network-summary-lsa",
+                                  "adv-router": "4.4.4.4",
+                                  "length": 28
+                                },
+                                "body": {
+                                  "summary": {
+                                    "network-mask": "255.255.255.0",
+                                    "topologies": {
+                                      "topology": [
+                                        {
+                                          "mt-id": 0,
+                                          "metric": 20
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 26
+                            },
+                            {
+                              "lsa-id": "4.4.4.4",
+                              "adv-router": "5.5.5.5",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "4.4.4.4",
+                                  "type": "ietf-ospf:ospfv2-network-summary-lsa",
+                                  "adv-router": "5.5.5.5",
+                                  "length": 28
+                                },
+                                "body": {
+                                  "summary": {
+                                    "network-mask": "255.255.255.255",
+                                    "topologies": {
+                                      "topology": [
+                                        {
+                                          "mt-id": 0,
+                                          "metric": 10
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 5
+                            },
+                            {
+                              "lsa-id": "5.5.5.5",
+                              "adv-router": "5.5.5.5",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "5.5.5.5",
+                                  "type": "ietf-ospf:ospfv2-network-summary-lsa",
+                                  "adv-router": "5.5.5.5",
+                                  "length": 28
+                                },
+                                "body": {
+                                  "summary": {
+                                    "network-mask": "255.255.255.255",
+                                    "topologies": {
+                                      "topology": [
+                                        {
+                                          "mt-id": 0,
+                                          "metric": 0
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 6
+                            },
+                            {
+                              "lsa-id": "6.6.6.6",
+                              "adv-router": "5.5.5.5",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "6.6.6.6",
+                                  "type": "ietf-ospf:ospfv2-network-summary-lsa",
+                                  "adv-router": "5.5.5.5",
+                                  "length": 28
+                                },
+                                "body": {
+                                  "summary": {
+                                    "network-mask": "255.255.255.255",
+                                    "topologies": {
+                                      "topology": [
+                                        {
+                                          "mt-id": 0,
+                                          "metric": 10
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 7
+                            },
+                            {
+                              "lsa-id": "10.0.6.0",
+                              "adv-router": "5.5.5.5",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "10.0.6.0",
+                                  "type": "ietf-ospf:ospfv2-network-summary-lsa",
+                                  "adv-router": "5.5.5.5",
+                                  "length": 28
+                                },
+                                "body": {
+                                  "summary": {
+                                    "network-mask": "255.255.255.0",
+                                    "topologies": {
+                                      "topology": [
+                                        {
+                                          "mt-id": 0,
+                                          "metric": 10
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 8
+                            },
+                            {
+                              "lsa-id": "10.0.7.0",
+                              "adv-router": "5.5.5.5",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "10.0.7.0",
+                                  "type": "ietf-ospf:ospfv2-network-summary-lsa",
+                                  "adv-router": "5.5.5.5",
+                                  "length": 28
+                                },
+                                "body": {
+                                  "summary": {
+                                    "network-mask": "255.255.255.0",
+                                    "topologies": {
+                                      "topology": [
+                                        {
+                                          "mt-id": 0,
+                                          "metric": 20
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 9
+                            },
+                            {
+                              "lsa-id": "10.0.8.0",
+                              "adv-router": "5.5.5.5",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "10.0.8.0",
+                                  "type": "ietf-ospf:ospfv2-network-summary-lsa",
+                                  "adv-router": "5.5.5.5",
+                                  "length": 28
+                                },
+                                "body": {
+                                  "summary": {
+                                    "network-mask": "255.255.255.0",
+                                    "topologies": {
+                                      "topology": [
+                                        {
+                                          "mt-id": 0,
+                                          "metric": 10
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 10
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "lsa-type": 10,
+                        "area-scope-lsas": {
+                          "area-scope-lsa": [
+                            {
+                              "lsa-id": "4.0.0.0",
+                              "adv-router": "1.1.1.1",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "4.0.0.0",
+                                  "opaque-type": 4,
+                                  "opaque-id": 0,
+                                  "type": "ietf-ospf:ospfv2-area-scope-opaque-lsa",
+                                  "adv-router": "1.1.1.1",
+                                  "length": 28
+                                },
+                                "body": {
+                                  "opaque": {
+                                    "ri-opaque": {
+                                      "router-capabilities-tlv": {
+                                        "router-informational-capabilities": {
+                                          "informational-capabilities": [
+                                            "ietf-ospf:stub-router"
+                                          ]
+                                        },
+                                        "informational-capabilities-flags": [
+                                          {
+                                            "informational-flag": 536870912
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 1
+                            },
+                            {
+                              "lsa-id": "8.0.0.0",
+                              "adv-router": "1.1.1.1",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "8.0.0.0",
+                                  "opaque-type": 8,
+                                  "opaque-id": 0,
+                                  "type": "ietf-ospf:ospfv2-area-scope-opaque-lsa",
+                                  "adv-router": "1.1.1.1",
+                                  "length": 36
+                                },
+                                "body": {
+                                  "opaque": {
+                                    "extended-link-opaque": {
+                                      "extended-link-tlv": {
+                                        "link-id": "10.0.1.3",
+                                        "link-data": "10.0.1.1",
+                                        "type": "transit-network-link"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 18
+                            },
+                            {
+                              "lsa-id": "4.0.0.0",
+                              "adv-router": "2.2.2.2",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "4.0.0.0",
+                                  "opaque-type": 4,
+                                  "opaque-id": 0,
+                                  "type": "ietf-ospf:ospfv2-area-scope-opaque-lsa",
+                                  "adv-router": "2.2.2.2",
+                                  "length": 28
+                                },
+                                "body": {
+                                  "opaque": {
+                                    "ri-opaque": {
+                                      "router-capabilities-tlv": {
+                                        "router-informational-capabilities": {
+                                          "informational-capabilities": [
+                                            "ietf-ospf:stub-router"
+                                          ]
+                                        },
+                                        "informational-capabilities-flags": [
+                                          {
+                                            "informational-flag": 536870912
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 27
+                            },
+                            {
+                              "lsa-id": "8.0.0.0",
+                              "adv-router": "2.2.2.2",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "8.0.0.0",
+                                  "opaque-type": 8,
+                                  "opaque-id": 0,
+                                  "type": "ietf-ospf:ospfv2-area-scope-opaque-lsa",
+                                  "adv-router": "2.2.2.2",
+                                  "length": 36
+                                },
+                                "body": {
+                                  "opaque": {
+                                    "extended-link-opaque": {
+                                      "extended-link-tlv": {
+                                        "link-id": "4.4.4.4",
+                                        "link-data": "10.0.2.2",
+                                        "type": "point-to-point-link"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 28
+                            },
+                            {
+                              "lsa-id": "8.0.0.1",
+                              "adv-router": "2.2.2.2",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "8.0.0.1",
+                                  "opaque-type": 8,
+                                  "opaque-id": 1,
+                                  "type": "ietf-ospf:ospfv2-area-scope-opaque-lsa",
+                                  "adv-router": "2.2.2.2",
+                                  "length": 36
+                                },
+                                "body": {
+                                  "opaque": {
+                                    "extended-link-opaque": {
+                                      "extended-link-tlv": {
+                                        "link-id": "4.4.4.4",
+                                        "link-data": "10.0.3.2",
+                                        "type": "point-to-point-link"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 29
+                            },
+                            {
+                              "lsa-id": "8.0.0.2",
+                              "adv-router": "2.2.2.2",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "8.0.0.2",
+                                  "opaque-type": 8,
+                                  "opaque-id": 2,
+                                  "type": "ietf-ospf:ospfv2-area-scope-opaque-lsa",
+                                  "adv-router": "2.2.2.2",
+                                  "length": 36
+                                },
+                                "body": {
+                                  "opaque": {
+                                    "extended-link-opaque": {
+                                      "extended-link-tlv": {
+                                        "link-id": "10.0.1.3",
+                                        "link-data": "10.0.1.2",
+                                        "type": "transit-network-link"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 34
+                            },
+                            {
+                              "lsa-id": "4.0.0.0",
+                              "adv-router": "3.3.3.3",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "4.0.0.0",
+                                  "opaque-type": 4,
+                                  "opaque-id": 0,
+                                  "type": "ietf-ospf:ospfv2-area-scope-opaque-lsa",
+                                  "adv-router": "3.3.3.3",
+                                  "length": 28
+                                },
+                                "body": {
+                                  "opaque": {
+                                    "ri-opaque": {
+                                      "router-capabilities-tlv": {
+                                        "router-informational-capabilities": {
+                                          "informational-capabilities": [
+                                            "ietf-ospf:stub-router"
+                                          ]
+                                        },
+                                        "informational-capabilities-flags": [
+                                          {
+                                            "informational-flag": 536870912
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 11
+                            },
+                            {
+                              "lsa-id": "8.0.0.0",
+                              "adv-router": "3.3.3.3",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "8.0.0.0",
+                                  "opaque-type": 8,
+                                  "opaque-id": 0,
+                                  "type": "ietf-ospf:ospfv2-area-scope-opaque-lsa",
+                                  "adv-router": "3.3.3.3",
+                                  "length": 36
+                                },
+                                "body": {
+                                  "opaque": {
+                                    "extended-link-opaque": {
+                                      "extended-link-tlv": {
+                                        "link-id": "5.5.5.5",
+                                        "link-data": "10.0.4.3",
+                                        "type": "point-to-point-link"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 12
+                            },
+                            {
+                              "lsa-id": "8.0.0.1",
+                              "adv-router": "3.3.3.3",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "8.0.0.1",
+                                  "opaque-type": 8,
+                                  "opaque-id": 1,
+                                  "type": "ietf-ospf:ospfv2-area-scope-opaque-lsa",
+                                  "adv-router": "3.3.3.3",
+                                  "length": 36
+                                },
+                                "body": {
+                                  "opaque": {
+                                    "extended-link-opaque": {
+                                      "extended-link-tlv": {
+                                        "link-id": "5.5.5.5",
+                                        "link-data": "10.0.5.3",
+                                        "type": "point-to-point-link"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 13
+                            },
+                            {
+                              "lsa-id": "8.0.0.2",
+                              "adv-router": "3.3.3.3",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "8.0.0.2",
+                                  "opaque-type": 8,
+                                  "opaque-id": 2,
+                                  "type": "ietf-ospf:ospfv2-area-scope-opaque-lsa",
+                                  "adv-router": "3.3.3.3",
+                                  "length": 36
+                                },
+                                "body": {
+                                  "opaque": {
+                                    "extended-link-opaque": {
+                                      "extended-link-tlv": {
+                                        "link-id": "10.0.1.3",
+                                        "link-data": "10.0.1.3",
+                                        "type": "transit-network-link"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 37
+                            },
+                            {
+                              "lsa-id": "4.0.0.0",
+                              "adv-router": "4.4.4.4",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "4.0.0.0",
+                                  "opaque-type": 4,
+                                  "opaque-id": 0,
+                                  "type": "ietf-ospf:ospfv2-area-scope-opaque-lsa",
+                                  "adv-router": "4.4.4.4",
+                                  "length": 28
+                                },
+                                "body": {
+                                  "opaque": {
+                                    "ri-opaque": {
+                                      "router-capabilities-tlv": {
+                                        "router-informational-capabilities": {
+                                          "informational-capabilities": [
+                                            "ietf-ospf:stub-router"
+                                          ]
+                                        },
+                                        "informational-capabilities-flags": [
+                                          {
+                                            "informational-flag": 536870912
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 30
+                            },
+                            {
+                              "lsa-id": "8.0.0.0",
+                              "adv-router": "4.4.4.4",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "8.0.0.0",
+                                  "opaque-type": 8,
+                                  "opaque-id": 0,
+                                  "type": "ietf-ospf:ospfv2-area-scope-opaque-lsa",
+                                  "adv-router": "4.4.4.4",
+                                  "length": 36
+                                },
+                                "body": {
+                                  "opaque": {
+                                    "extended-link-opaque": {
+                                      "extended-link-tlv": {
+                                        "link-id": "2.2.2.2",
+                                        "link-data": "10.0.2.4",
+                                        "type": "point-to-point-link"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 31
+                            },
+                            {
+                              "lsa-id": "8.0.0.1",
+                              "adv-router": "4.4.4.4",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "8.0.0.1",
+                                  "opaque-type": 8,
+                                  "opaque-id": 1,
+                                  "type": "ietf-ospf:ospfv2-area-scope-opaque-lsa",
+                                  "adv-router": "4.4.4.4",
+                                  "length": 36
+                                },
+                                "body": {
+                                  "opaque": {
+                                    "extended-link-opaque": {
+                                      "extended-link-tlv": {
+                                        "link-id": "2.2.2.2",
+                                        "link-data": "10.0.3.4",
+                                        "type": "point-to-point-link"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 32
+                            },
+                            {
+                              "lsa-id": "4.0.0.0",
+                              "adv-router": "5.5.5.5",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "4.0.0.0",
+                                  "opaque-type": 4,
+                                  "opaque-id": 0,
+                                  "type": "ietf-ospf:ospfv2-area-scope-opaque-lsa",
+                                  "adv-router": "5.5.5.5",
+                                  "length": 28
+                                },
+                                "body": {
+                                  "opaque": {
+                                    "ri-opaque": {
+                                      "router-capabilities-tlv": {
+                                        "router-informational-capabilities": {
+                                          "informational-capabilities": [
+                                            "ietf-ospf:stub-router"
+                                          ]
+                                        },
+                                        "informational-capabilities-flags": [
+                                          {
+                                            "informational-flag": 536870912
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 14
+                            },
+                            {
+                              "lsa-id": "8.0.0.0",
+                              "adv-router": "5.5.5.5",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "8.0.0.0",
+                                  "opaque-type": 8,
+                                  "opaque-id": 0,
+                                  "type": "ietf-ospf:ospfv2-area-scope-opaque-lsa",
+                                  "adv-router": "5.5.5.5",
+                                  "length": 36
+                                },
+                                "body": {
+                                  "opaque": {
+                                    "extended-link-opaque": {
+                                      "extended-link-tlv": {
+                                        "link-id": "3.3.3.3",
+                                        "link-data": "10.0.4.5",
+                                        "type": "point-to-point-link"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 15
+                            },
+                            {
+                              "lsa-id": "8.0.0.1",
+                              "adv-router": "5.5.5.5",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "8.0.0.1",
+                                  "opaque-type": 8,
+                                  "opaque-id": 1,
+                                  "type": "ietf-ospf:ospfv2-area-scope-opaque-lsa",
+                                  "adv-router": "5.5.5.5",
+                                  "length": 36
+                                },
+                                "body": {
+                                  "opaque": {
+                                    "extended-link-opaque": {
+                                      "extended-link-tlv": {
+                                        "link-id": "3.3.3.3",
+                                        "link-data": "10.0.5.5",
+                                        "type": "point-to-point-link"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 16
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  "interfaces": {
+                    "interface": [
+                      {
+                        "name": "eth-sw1",
+                        "state": "dr-other",
+                        "dr-router-id": "3.3.3.3",
+                        "dr-ip-addr": "10.0.1.3",
+                        "bdr-router-id": "2.2.2.2",
+                        "bdr-ip-addr": "10.0.1.2",
+                        "statistics": {
+                          "link-scope-lsa-count": 0
+                        },
+                        "neighbors": {
+                          "neighbor": [
+                            {
+                              "neighbor-router-id": "2.2.2.2",
+                              "address": "10.0.1.2",
+                              "dr-router-id": "3.3.3.3",
+                              "dr-ip-addr": "10.0.1.3",
+                              "bdr-router-id": "2.2.2.2",
+                              "bdr-ip-addr": "10.0.1.2",
+                              "state": "full",
+                              "statistics": {
+                                "nbr-retrans-qlen": 0
+                              },
+                              "holo-ospf-dev:object-id": 2
+                            },
+                            {
+                              "neighbor-router-id": "3.3.3.3",
+                              "address": "10.0.1.3",
+                              "dr-router-id": "3.3.3.3",
+                              "dr-ip-addr": "10.0.1.3",
+                              "bdr-router-id": "2.2.2.2",
+                              "bdr-ip-addr": "10.0.1.2",
+                              "state": "full",
+                              "statistics": {
+                                "nbr-retrans-qlen": 0
+                              },
+                              "holo-ospf-dev:object-id": 1
+                            }
+                          ]
+                        },
+                        "holo-ospf-dev:object-id": 2
+                      },
+                      {
+                        "name": "lo",
+                        "state": "loopback",
+                        "statistics": {
+                          "link-scope-lsa-count": 0
+                        },
+                        "holo-ospf-dev:object-id": 1
+                      }
+                    ]
+                  },
+                  "holo-ospf-dev:object-id": 1
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{"ietf-mpls-ldp:mpls-ldp-hello-adjacency-event":{"event-type":"down","protocol-name":"test","link":{"next-hop-interface":"eth-rt4-2","next-hop-address":"10.0.3.4"}}}
+{"ietf-mpls-ldp:mpls-ldp-peer-event":{"event-type":"down","peer":{"protocol-name":"test","lsr-id":"4.4.4.4"}}}
+{"ietf-mpls-ldp:mpls-ldp-fec-event":{"event-type":"down","protocol-name":"test","fec":"4.4.4.4/32"}}
+{"ietf-mpls-ldp:mpls-ldp-fec-event":{"event-type":"down","protocol-name":"test","fec":"6.6.6.6/32"}}
+{"ietf-mpls-ldp:mpls-ldp-fec-event":{"event-type":"down","protocol-name":"test","fec":"10.0.6.0/24"}}
+{"ietf-mpls-ldp:mpls-ldp-fec-event":{"event-type":"down","protocol-name":"test","fec":"10.0.7.0/24"}}

@@ -1,0 +1,5 @@
+{"Hello":{"redist_default":"Ripng","instance":0,"session_id":0,"receive_notify":0}}
+"InterfaceAdd"
+{"RouteReplace":{"proto":"Ripng","instance":0,"prefix":"2001:db8:1000::1/128","nexthops":[{"nhtype":"Ipv6Ifindex","addr":"fe80::44a3:b3ff:fe3f:5108","ifindex":4}],"distance":120,"metric":2,"tag":0}}
+{"RouteReplace":{"proto":"Ripng","instance":0,"prefix":"2001:db8:1000::2/128","nexthops":[{"nhtype":"Ipv6Ifindex","addr":"fe80::44a3:b3ff:fe3f:5108","ifindex":4}],"distance":120,"metric":3,"tag":0}}
+{"RouteReplace":{"proto":"Ripng","instance":0,"prefix":"2001:db8:1000::4/128","nexthops":[{"nhtype":"Ipv6Ifindex","addr":"fe80::8ce5:96ff:fea2:5d38","ifindex":3}],"distance":120,"metric":2,"tag":0}}

@@ -1,0 +1,57 @@
+[workspace]
+members = [
+  "holo-bfd",
+  "holo-cli",
+  "holo-daemon",
+  "holo-interface",
+  "holo-keychain",
+  "holo-ldp",
+  "holo-northbound",
+  "holo-ospf",
+  "holo-protocol",
+  "holo-rip",
+  "holo-routing",
+  "holo-tools",
+  "holo-utils",
+  "holo-yang",
+]
+default-members = ["holo-daemon", "holo-cli"]
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Renato Westphal <renatowestphal@gmail.com>"]
+license = "MIT"
+edition = "2021"
+
+[workspace.dependencies]
+async-trait = "0.1"
+bitflags = "1.2"
+bytes = { version = "1", features = ["serde"] }
+capctl = "0.2"
+clap = "2.33"
+chrono = "0.4"
+criterion = "0.4"
+derive-new = "0.5"
+enum-as-inner = "0.3"
+generational-arena = "0.2"
+ipnetwork = "0.20"
+itertools = "0.10"
+libc = "0.2"
+maplit = "1.0"
+nix = "0.25"
+num-derive = "0.3"
+num-traits = "0.2"
+prost = "0.11"
+rand = "0.8.5"
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = "1.0"
+similar = "2.0"
+socket2 = { version = "0.4", features = ["all"] }
+tokio = { version = "1.0", features = ["full"] }
+tonic = { version = "0.8", features = ["tls"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+yang2 = { version = "0.5", features = ["bundled"] }
+
+[profile.release]
+debug = true

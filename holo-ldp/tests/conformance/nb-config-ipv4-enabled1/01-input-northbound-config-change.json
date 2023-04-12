@@ -1,0 +1,29 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-mpls-ldp:mpls-ldp",
+          "name": "main",
+          "ietf-mpls-ldp:mpls-ldp": {
+            "global": {
+              "address-families": {
+                "ipv4": {
+                  "enabled": false,
+                  "@enabled": {
+                    "yang:operation": "replace",
+                    "yang:orig-default": false,
+                    "yang:orig-value": "true"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

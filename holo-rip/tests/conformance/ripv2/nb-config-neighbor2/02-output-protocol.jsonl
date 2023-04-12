@@ -1,0 +1,4 @@
+{"UdpTxPdu":{"dst":{"Multicast":3},"pdu":{"command":"Request","version":2,"rtes":[{"Zero":{"metric":16}}]}}}
+{"UdpTxPdu":{"dst":{"Unicast":"10.0.1.100:520"},"pdu":{"command":"Request","version":2,"rtes":[{"Zero":{"metric":16}}]}}}
+{"UdpTxPdu":{"dst":{"Multicast":3},"pdu":{"command":"Response","version":2,"rtes":[{"Ipv4":{"tag":0,"prefix":"10.0.1.0/24","nexthop":null,"metric":1}}]}}}
+{"UdpTxPdu":{"dst":{"Unicast":"10.0.1.100:520"},"pdu":{"command":"Response","version":2,"rtes":[{"Ipv4":{"tag":0,"prefix":"10.0.1.0/24","nexthop":null,"metric":1}}]}}}

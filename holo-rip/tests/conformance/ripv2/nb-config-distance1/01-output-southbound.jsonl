@@ -1,0 +1,5 @@
+{"RouteReplace":{"proto":"Rip","instance":0,"prefix":"1.1.1.1/32","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.1.1","ifindex":2}],"distance":50,"metric":2,"tag":0}}
+{"RouteReplace":{"proto":"Rip","instance":0,"prefix":"3.3.3.3/32","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.1.1","ifindex":2}],"distance":50,"metric":3,"tag":0}}
+{"RouteReplace":{"proto":"Rip","instance":0,"prefix":"4.4.4.4/32","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.3.4","ifindex":4}],"distance":50,"metric":2,"tag":0}}
+{"RouteReplace":{"proto":"Rip","instance":0,"prefix":"10.0.2.0/24","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.1.1","ifindex":2}],"distance":50,"metric":2,"tag":0}}
+{"RouteReplace":{"proto":"Rip","instance":0,"prefix":"10.0.4.0/24","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.3.4","ifindex":4}],"distance":50,"metric":2,"tag":0}}

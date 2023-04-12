@@ -1,0 +1,179 @@
+//
+// Copyright (c) The Holo Core Contributors
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+
+syntax = "proto3";
+
+package holo;
+
+// Service specification for the Holo northbound interface.
+service Northbound {
+  // Retrieve the capabilities supported by the target.
+  rpc Capabilities(CapabilitiesRequest) returns (CapabilitiesResponse) {}
+
+  // Retrieve configuration data, state data or both from the target.
+  rpc Get(GetRequest) returns (GetResponse) {}
+
+  // Create a new configuration transaction using a two-phase commit protocol.
+  rpc Commit(CommitRequest) returns (CommitResponse) {}
+
+  // Execute a YANG RPC/Action.
+  rpc Execute(ExecuteRequest) returns (ExecuteResponse) {}
+}
+
+// ----------------------- Parameters and return types -------------------------
+
+//
+// RPC: Capabilities()
+//
+message CapabilitiesRequest {
+  // Empty.
+}
+
+message CapabilitiesResponse {
+  // Return values:
+  // - grpc::StatusCode::OK: Success.
+
+  // Holo version.
+  string version = 1;
+
+  // Supported schema modules.
+  repeated ModuleData supported_modules = 2;
+
+  // Supported encodings.
+  repeated Encoding supported_encodings = 3;
+}
+
+//
+// RPC: Get()
+//
+message GetRequest {
+  // Type of elements within the data tree.
+  enum DataType {
+    // All data elements.
+    ALL = 0;
+
+    // Config elements.
+    CONFIG = 1;
+
+    // State elements.
+    STATE = 2;
+  }
+
+  // The type of data being requested.
+  DataType type = 1;
+
+  // Encoding to be used.
+  Encoding encoding = 2;
+
+  // Requested YANG path.
+  string path = 3;
+}
+
+message GetResponse {
+  // Return values:
+  // - grpc::StatusCode::OK: Success.
+  // - grpc::StatusCode::INVALID_ARGUMENT: Invalid YANG data path.
+
+  // Timestamp in nanoseconds since Epoch.
+  int64 timestamp = 1;
+
+  // The requested data.
+  DataTree data = 2;
+}
+
+//
+// RPC: Commit()
+//
+message CommitRequest {
+  enum Operation {
+    // Merge the provided data tree into the running configuration.
+    MERGE = 0;
+
+    // Replace the running configuration by the provided data tree.
+    REPLACE = 1;
+
+    // Apply the provided configuration changes in the YANG PATCH format.
+    CHANGE = 2;
+  }
+
+  // Commit operation.
+  Operation operation = 1;
+
+  // Configuration data.
+  DataTree config = 2;
+
+  // Confirmed commit timeout (in minutes).
+  uint32 confirmed_timeout = 3;
+}
+
+message CommitResponse {
+  // Return values:
+  // - grpc::StatusCode::OK: Success.
+  // - grpc::StatusCode::INVALID_ARGUMENT: Validation error.
+  // - grpc::StatusCode::RESOURCE_EXHAUSTED: Failure to allocate resource.
+
+  // ID of the created configuration transaction.
+  uint32 transaction_id = 1;
+}
+
+//
+// RPC: Execute()
+//
+message ExecuteRequest {
+  // Data tree containing a single YANG RPC/Action (plus input parameters).
+  DataTree data = 1;
+}
+
+message ExecuteResponse {
+  // Return values:
+  // - grpc::StatusCode::OK: Success.
+
+  // The original data tree plus output parameters.
+  DataTree data = 1;
+}
+
+// -------------------------------- Definitions --------------------------------
+
+// YANG module.
+message ModuleData {
+  // Name of the YANG module;
+  string name = 1;
+
+  // Organization publishing the module.
+  string organization = 2;
+
+  // Latest revision of the module;
+  string revision = 3;
+}
+
+// Supported encodings for YANG instance data.
+enum Encoding {
+  JSON = 0;
+  XML = 1;
+  LYB = 2;
+}
+
+// YANG instance data.
+message DataTree {
+  Encoding encoding = 1;
+  string data = 2;
+}

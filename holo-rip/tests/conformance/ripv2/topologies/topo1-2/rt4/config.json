@@ -1,0 +1,55 @@
+{
+  "ietf-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "lo",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {
+          "enabled": true
+        }
+      },
+      {
+        "name": "eth-rt2",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {
+          "enabled": true
+        }
+      },
+      {
+        "name": "eth-rt3",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {
+          "enabled": true
+        }
+      }
+    ]
+  },
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-rip:ripv2",
+          "name": "main",
+          "ietf-rip:rip": {
+            "interfaces": {
+              "interface": [
+                {
+                  "interface": "lo"
+                },
+                {
+                  "interface": "eth-rt2",
+                  "split-horizon": "poison-reverse"
+                },
+                {
+                  "interface": "eth-rt3",
+                  "cost": 5,
+                  "split-horizon": "poison-reverse"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

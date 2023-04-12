@@ -1,0 +1,147 @@
+{
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-mpls-ldp:mpls-ldp",
+          "name": "main",
+          "ietf-mpls-ldp:mpls-ldp": {
+            "global": {
+              "address-families": {
+                "ipv4": {
+                  "label-distribution-control-mode": "independent"
+                }
+              }
+            },
+            "discovery": {
+              "interfaces": {
+                "interface": [
+                  {
+                    "name": "eth-rt1",
+                    "address-families": {
+                      "ipv4": {
+                        "hello-adjacencies": {
+                          "hello-adjacency": [
+                            {
+                              "adjacent-address": "10.0.1.1",
+                              "hello-holdtime": {
+                                "adjacent": 15,
+                                "negotiated": 15
+                              },
+                              "peer": {
+                                "lsr-id": "1.1.1.1",
+                                "label-space-id": 0
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "name": "eth-rt4",
+                    "address-families": {
+                      "ipv4": {
+                        "hello-adjacencies": {
+                          "hello-adjacency": [
+                            {
+                              "adjacent-address": "10.0.3.4",
+                              "hello-holdtime": {
+                                "adjacent": 15,
+                                "negotiated": 15
+                              },
+                              "peer": {
+                                "lsr-id": "4.4.4.4",
+                                "label-space-id": 0
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "peers": {
+              "peer": [
+                {
+                  "lsr-id": "1.1.1.1",
+                  "label-space-id": 0,
+                  "address-families": {
+                    "ipv4": {
+                      "hello-adjacencies": {
+                        "hello-adjacency": [
+                          {
+                            "local-address": "10.0.1.2",
+                            "adjacent-address": "10.0.1.1",
+                            "hello-holdtime": {
+                              "adjacent": 15,
+                              "negotiated": 15
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "received-peer-state": {
+                    "capability": {
+                      "end-of-lib": {
+                        "enabled": false
+                      },
+                      "typed-wildcard-fec": {
+                        "enabled": false
+                      }
+                    }
+                  },
+                  "session-state": "non-existent",
+                  "statistics": {
+                    "total-addresses": 0,
+                    "total-labels": 0,
+                    "total-fec-label-bindings": 0
+                  }
+                },
+                {
+                  "lsr-id": "4.4.4.4",
+                  "label-space-id": 0,
+                  "address-families": {
+                    "ipv4": {
+                      "hello-adjacencies": {
+                        "hello-adjacency": [
+                          {
+                            "local-address": "10.0.3.2",
+                            "adjacent-address": "10.0.3.4",
+                            "hello-holdtime": {
+                              "adjacent": 15,
+                              "negotiated": 15
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "received-peer-state": {
+                    "capability": {
+                      "end-of-lib": {
+                        "enabled": false
+                      },
+                      "typed-wildcard-fec": {
+                        "enabled": false
+                      }
+                    }
+                  },
+                  "session-state": "non-existent",
+                  "statistics": {
+                    "total-addresses": 0,
+                    "total-labels": 0,
+                    "total-fec-label-bindings": 0
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

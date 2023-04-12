@@ -1,0 +1,1 @@
+{"UdpTxPdu":{"dst":{"Multicast":2},"pdu":{"command":"Request","version":2,"rtes":[{"Zero":{"metric":16}}]}}}

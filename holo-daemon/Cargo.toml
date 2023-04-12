@@ -1,0 +1,45 @@
+[package]
+name = "holo-daemon"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+console-subscriber = "0.1.8"
+prost-types = "0.11"
+toml = "0.5"
+tokio-stream = "0.1"
+tracing-appender = "0.2"
+tracing-journald = "0.3"
+
+capctl.workspace = true
+clap.workspace = true
+itertools.workspace = true
+nix.workspace = true
+prost.workspace = true
+serde.workspace = true
+tokio.workspace = true
+tonic.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+yang2.workspace = true
+
+holo-interface = { path = "../holo-interface" }
+holo-bfd = { path = "../holo-bfd" }
+holo-keychain = { path = "../holo-keychain" }
+holo-ldp = { path = "../holo-ldp" }
+holo-northbound = { path = "../holo-northbound" }
+holo-ospf = { path = "../holo-ospf" }
+holo-protocol = { path = "../holo-protocol" }
+holo-rip = { path = "../holo-rip" }
+holo-routing = { path = "../holo-routing" }
+holo-utils = { path = "../holo-utils" }
+holo-yang = { path = "../holo-yang" }
+
+[build-dependencies]
+tonic-build = "0.8"
+
+[[bin]]
+name = "holod"
+path = "src/main.rs"

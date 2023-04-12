@@ -1,0 +1,21 @@
+{
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-mpls-ldp:mpls-ldp",
+          "name": "main",
+          "ietf-mpls-ldp:mpls-ldp": {
+            "global": {
+              "address-families": {
+                "ipv4": {
+                  "label-distribution-control-mode": "independent"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,1 @@
+{"NetRxPacket":{"ifindex":2,"src":"10.0.1.1","dst":"10.0.1.2","packet":{"Ok":{"Hello":{"hdr":{"pkt_type":"Hello","router_id":"1.1.1.1","area_id":"0.0.0.1"},"network_mask":"255.255.255.0","hello_interval":1,"options":2,"priority":1,"dead_interval":12,"dr":null,"bdr":null,"neighbors":["2.2.2.2"]}}}}}

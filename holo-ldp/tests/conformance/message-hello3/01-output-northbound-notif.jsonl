@@ -1,0 +1,2 @@
+{"ietf-mpls-ldp:mpls-ldp-peer-event":{"event-type":"down","peer":{"protocol-name":"test","lsr-id":"1.1.1.1"}}}
+{"ietf-mpls-ldp:mpls-ldp-fec-event":{"event-type":"down","protocol-name":"test","fec":"1.1.1.1/32"}}

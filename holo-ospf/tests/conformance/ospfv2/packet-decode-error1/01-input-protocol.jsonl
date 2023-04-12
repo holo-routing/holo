@@ -1,0 +1,1 @@
+{"NetRxPacket":{"ifindex":2,"src":"10.0.1.1","dst":"10.0.1.2","packet":{"Err":{"UnknownPacketType": 6}}}}

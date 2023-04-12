@@ -1,0 +1,33 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-mpls-ldp:mpls-ldp",
+          "name": "main",
+          "ietf-mpls-ldp:mpls-ldp": {
+            "discovery": {
+              "targeted": {
+                "address-families": {
+                  "ipv4": {
+                    "target": [
+                      {
+                        "@": {
+                          "yang:operation": "delete"
+                        },
+                        "adjacent-address": "6.6.6.6"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

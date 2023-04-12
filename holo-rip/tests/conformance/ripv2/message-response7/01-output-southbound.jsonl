@@ -1,0 +1,1 @@
+{"RouteReplace":{"proto":"Rip","instance":0,"prefix":"3.3.3.3/32","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.1.1","ifindex":2}],"distance":120,"metric":11,"tag":0}}

@@ -1,0 +1,171 @@
+{
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-ospf:ospfv2",
+          "name": "main",
+          "ietf-ospf:ospf": {
+            "spf-control": {
+              "ietf-spf-delay": {
+                "current-state": "short-wait"
+              }
+            },
+            "router-id": "3.3.3.3",
+            "statistics": {
+              "as-scope-lsa-count": 0
+            },
+            "areas": {
+              "area": [
+                {
+                  "area-id": "0.0.0.0",
+                  "statistics": {
+                    "abr-count": 0,
+                    "asbr-count": 0,
+                    "area-scope-lsa-count": 1,
+                    "database": {
+                      "area-scope-lsa-type": [
+                        {
+                          "lsa-type": 1,
+                          "lsa-count": 1
+                        }
+                      ]
+                    }
+                  },
+                  "database": {
+                    "area-scope-lsa-type": [
+                      {
+                        "lsa-type": 1,
+                        "area-scope-lsas": {
+                          "area-scope-lsa": [
+                            {
+                              "lsa-id": "3.3.3.3",
+                              "adv-router": "3.3.3.3",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-flag"
+                                    ]
+                                  },
+                                  "lsa-id": "3.3.3.3",
+                                  "type": "ietf-ospf:ospfv2-router-lsa",
+                                  "adv-router": "3.3.3.3",
+                                  "length": 72
+                                },
+                                "body": {
+                                  "router": {
+                                    "num-of-links": 4,
+                                    "links": {
+                                      "link": [
+                                        {
+                                          "link-id": "10.0.2.0",
+                                          "link-data": "255.255.255.0",
+                                          "type": "stub-network-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 10
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "link-id": "10.0.3.0",
+                                          "link-data": "255.255.255.0",
+                                          "type": "stub-network-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 10
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "link-id": "10.0.4.0",
+                                          "link-data": "255.255.255.0",
+                                          "type": "stub-network-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 10
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "link-id": "3.3.3.3",
+                                          "link-data": "255.255.255.255",
+                                          "type": "stub-network-link",
+                                          "topologies": {
+                                            "topology": [
+                                              {
+                                                "mt-id": 0,
+                                                "metric": 0
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 1
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  "interfaces": {
+                    "interface": [
+                      {
+                        "name": "eth-rt2",
+                        "state": "point-to-point",
+                        "statistics": {
+                          "link-scope-lsa-count": 0
+                        },
+                        "holo-ospf-dev:object-id": 2
+                      },
+                      {
+                        "name": "eth-rt4",
+                        "state": "point-to-point",
+                        "statistics": {
+                          "link-scope-lsa-count": 0
+                        },
+                        "holo-ospf-dev:object-id": 3
+                      },
+                      {
+                        "name": "eth-rt6",
+                        "state": "point-to-point",
+                        "statistics": {
+                          "link-scope-lsa-count": 0
+                        },
+                        "holo-ospf-dev:object-id": 4
+                      },
+                      {
+                        "name": "lo",
+                        "state": "loopback",
+                        "statistics": {
+                          "link-scope-lsa-count": 0
+                        },
+                        "holo-ospf-dev:object-id": 1
+                      }
+                    ]
+                  },
+                  "holo-ospf-dev:object-id": 1
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

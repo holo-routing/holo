@@ -1,0 +1,2 @@
+{"UdpRxPdu":{"src_addr":"10.0.1.10","multicast":true,"pdu":{"Ok":{"version":1,"lsr_id":"1.1.1.10","lspace_id":0,"messages":[{"Hello":{"msg_id":40,"params":{"holdtime":15,"flags":0},"ipv4_addr":"1.1.1.10","cfg_seqno":1}}]}}}}
+{"TcpAccept":{"conn_info":{"local_addr":"2.2.2.2","local_port":646,"remote_addr":"1.1.1.10","remote_port":45000}}}

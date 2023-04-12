@@ -1,0 +1,48 @@
+{
+  "ietf-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "eth-sw1",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {
+          "enabled": true
+        }
+      }
+    ]
+  },
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-mpls-ldp:mpls-ldp",
+          "name": "main",
+          "ietf-mpls-ldp:mpls-ldp": {
+            "global": {
+              "lsr-id": "1.1.1.1",
+              "address-families": {
+                "ipv4": {
+                  "enabled": true
+                }
+              }
+            },
+            "discovery": {
+              "interfaces": {
+                "interface": [
+                  {
+                    "name": "eth-sw1",
+                    "address-families": {
+                      "ipv4": {
+                        "enabled": true
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+^D

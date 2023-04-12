@@ -1,0 +1,4 @@
+{"UdpRxPdu":{"src":"10.0.1.1:520","pdu":{"Err":{"InvalidVersion":0}}}}
+{"UdpRxPdu":{"src":"10.0.1.1:520","pdu":{"Err":{"InvalidCommand":3}}}}
+{"UdpRxPdu":{"src":"10.0.3.4:520","pdu":{"Ok":{"command":"Response","version":2,"rtes":[{"Ipv4":{"tag":0,"prefix":"3.3.3.3/32","nexthop":null,"metric":2}}]}}}}
+{"UdpRxPdu":{"src":"10.0.3.4:520","pdu":{"Ok":{"command":"Response","version":2,"rtes":[],"rte_errors":[{"InvalidRteAddressFamily":1},{"InvalidRteNexthop":"127.0.0.1"},{"InvalidRteMetric":20}]}}}}

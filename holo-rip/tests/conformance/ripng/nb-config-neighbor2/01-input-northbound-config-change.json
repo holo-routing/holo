@@ -1,0 +1,34 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-rip:ripng",
+          "name": "main",
+          "ietf-rip:rip": {
+            "interfaces": {
+              "interface": [
+                {
+                  "interface": "eth-sw1",
+                  "neighbors": {
+                    "@": {
+                      "yang:operation": "create"
+                    },
+                    "neighbor": [
+                      {
+                        "address": "fe80::b8cb:9cff:feb9:9999"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,1 @@
+{"RouteDel":{"proto":"Ospf","instance":0,"prefix":"192.168.1.0/24","nexthops":[{"ifindex":3,"addr":"10.0.1.1"}],"distance":110,"metric":10}}

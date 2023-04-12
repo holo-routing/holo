@@ -1,0 +1,340 @@
+module ietf-segment-routing-mpls-holo-deviations {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/ietf-segment-routing-mpls-holo-deviations";
+  prefix ietf-segment-routing-mpls-holo-deviations;
+
+  import ietf-routing {
+    prefix rt;
+  }
+
+  import ietf-segment-routing {
+    prefix sr;
+  }
+
+  import ietf-segment-routing-mpls {
+    prefix sr-mpls;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines deviation statements for the ietf-segment-routing-mpls
+     module.";
+
+  /*
+   * Default values
+   */
+
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:bindings/sr-mpls:connected-prefix-sid-map/sr-mpls:connected-prefix-sid/sr-mpls:last-hop-behavior" {
+    deviate add {
+      default "php";
+    }
+  }
+
+  /*
+   * Not supported nodes
+   */
+
+  deviation "/sr-mpls:segment-routing-srgb-collision" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/sr-mpls:segment-routing-srgb-collision/sr-mpls:srgb-collisions" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sr-mpls:segment-routing-srgb-collision/sr-mpls:srgb-collisions/sr-mpls:lower-bound" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sr-mpls:segment-routing-srgb-collision/sr-mpls:srgb-collisions/sr-mpls:upper-bound" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sr-mpls:segment-routing-srgb-collision/sr-mpls:srgb-collisions/sr-mpls:routing-protocol" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sr-mpls:segment-routing-srgb-collision/sr-mpls:srgb-collisions/sr-mpls:originating-rtr-id" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/sr-mpls:segment-routing-global-sid-collision" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/sr-mpls:segment-routing-global-sid-collision/sr-mpls:received-target" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sr-mpls:segment-routing-global-sid-collision/sr-mpls:new-sid-rtr-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sr-mpls:segment-routing-global-sid-collision/sr-mpls:original-target" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sr-mpls:segment-routing-global-sid-collision/sr-mpls:original-sid-rtr-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sr-mpls:segment-routing-global-sid-collision/sr-mpls:index" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sr-mpls:segment-routing-global-sid-collision/sr-mpls:routing-protocol" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/sr-mpls:segment-routing-index-out-of-range" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/sr-mpls:segment-routing-index-out-of-range/sr-mpls:received-target" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sr-mpls:segment-routing-index-out-of-range/sr-mpls:received-index" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sr-mpls:segment-routing-index-out-of-range/sr-mpls:routing-protocol" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:bindings" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:bindings/sr-mpls:connected-prefix-sid-map/sr-mpls:connected-prefix-sid/sr-mpls:value-type" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:bindings/sr-mpls:connected-prefix-sid-map/sr-mpls:connected-prefix-sid/sr-mpls:range" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:bindings/sr-mpls:local-prefix-sid" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:bindings/sr-mpls:local-prefix-sid/sr-mpls:local-prefix-sid" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:bindings/sr-mpls:local-prefix-sid/sr-mpls:local-prefix-sid/sr-mpls:prefix" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:bindings/sr-mpls:local-prefix-sid/sr-mpls:local-prefix-sid/sr-mpls:algorithm" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:bindings/sr-mpls:local-prefix-sid/sr-mpls:local-prefix-sid/sr-mpls:value-type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:bindings/sr-mpls:local-prefix-sid/sr-mpls:local-prefix-sid/sr-mpls:start-sid" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:bindings/sr-mpls:local-prefix-sid/sr-mpls:local-prefix-sid/sr-mpls:range" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:srgb" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:srgb/sr-mpls:srgb" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:srgb/sr-mpls:srgb/sr-mpls:lower-bound" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:srgb/sr-mpls:srgb/sr-mpls:upper-bound" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:srlb" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:srlb/sr-mpls:srlb" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:srlb/sr-mpls:srlb/sr-mpls:lower-bound" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:srlb/sr-mpls:srlb/sr-mpls:upper-bound" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:label-blocks" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:label-blocks/sr-mpls:lower-bound" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:label-blocks/sr-mpls:upper-bound" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:label-blocks/sr-mpls:size" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:label-blocks/sr-mpls:free" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:label-blocks/sr-mpls:used" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:label-blocks/sr-mpls:scope" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:sid-db" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:sid-db/sr-mpls:sid" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:sid-db/sr-mpls:sid/sr-mpls:target" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:sid-db/sr-mpls:sid/sr-mpls:sid" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:sid-db/sr-mpls:sid/sr-mpls:source" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:sid-db/sr-mpls:sid/sr-mpls:source-protocol" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:sid-db/sr-mpls:sid/sr-mpls:binding-type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:sid-db/sr-mpls:sid/sr-mpls:algorithm" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:sid-db/sr-mpls:sid/sr-mpls:used" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls/sr-mpls:sid-db/sr-mpls:sid/sr-mpls:scope" {
+    deviate not-supported;
+  }
+  */
+}

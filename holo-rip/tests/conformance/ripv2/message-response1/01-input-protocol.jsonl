@@ -1,0 +1,1 @@
+{"UdpRxPdu":{"src":"10.0.1.1:50000","pdu":{"Ok":{"command":"Response","version":2,"rtes":[{"Ipv4":{"tag":0,"prefix":"172.16.1.0/24","nexthop":null,"metric":1}}]}}}}

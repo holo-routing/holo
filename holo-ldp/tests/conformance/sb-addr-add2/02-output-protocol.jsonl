@@ -1,0 +1,1 @@
+{"NbrTxPdu":{"nbr_id":1,"msg":{"Address":{"msg_id":42,"msg_type":"Address","addr_list":{"Ipv4":["10.0.1.2"]}}},"flush":false}}

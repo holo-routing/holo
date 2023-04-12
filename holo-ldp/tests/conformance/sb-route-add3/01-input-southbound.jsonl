@@ -1,0 +1,1 @@
+{"RouteAdd":{"proto":"Ospf","instance":0,"prefix":"6.6.6.6/32","nexthops":[{"ifindex":5,"addr":"10.0.2.4"}],"distance":110,"metric":20}}

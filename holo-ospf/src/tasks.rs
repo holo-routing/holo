@@ -1,0 +1,724 @@
+//
+// Copyright (c) The Holo Core Contributors
+//
+// See LICENSE for license details.
+//
+
+use std::os::unix::io::{BorrowedFd, OwnedFd};
+use std::time::Duration;
+
+use holo_utils::ip::AddressFamily;
+use holo_utils::task::{IntervalTask, Task, TimeoutTask};
+use holo_utils::{Sender, UnboundedReceiver, UnboundedSender};
+use tracing::debug_span;
+
+use crate::area::Area;
+use crate::collections::{LsaEntryId, LsdbId};
+use crate::debug::LsaFlushReason;
+use crate::instance::InstanceUpView;
+use crate::interface::{ism, Interface};
+use crate::neighbor::{nsm, Neighbor};
+use crate::network::{self, SendDestination};
+use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
+use crate::version::Version;
+use crate::{lsdb, spf};
+
+//
+// OSPF tasks diagram:
+//                                    +--------------+
+//                                    |  northbound  |
+//                                    +--------------+
+//                                          | ^
+//                                          | |
+//                       northbound_rx (1x) V | (1x) northbound_tx
+//                                    +--------------+
+//                     net_rx (1x) -> |              | -> (1x) net_tx
+//                                    |              |
+//             ism_wait_timer (Nx) -> |              | -> (Nx) hello_interval
+//                                    |              |
+//       nsm_inactivity_timer (Nx) -> |              |
+//       packet_rxmt_interval (Nx) -> |              |
+//          dbdesc_free_timer (Nx) -> |              |
+//            ls_update_timer (Nx) -> |              |
+//          delayed_ack_timer (Nx) -> |   instance   |
+//                                    |              |
+//           lsa_expiry_timer (Nx) -> |              |
+//          lsa_refresh_timer (Nx) -> |              |
+//     lsa_orig_delayed_timer (Nx) -> |              |
+// lsdb_maxage_sweep_interval (Nx) -> |              |
+//                                    |              |
+//            spf_delay_timer (Nx) -> |              |
+//        spf_hold_down_timer (Nx) -> |              |
+//            spf_learn_timer (Nx) -> |              |
+//                                    +--------------+
+//                       southbound_tx (1x) | ^ (1x) southbound_rx
+//                                          | |
+//                                          V |
+//                                    +--------------+
+//                                    |    zebra     |
+//                                    +--------------+
+//
+
+// OSPF inter-task message types.
+pub mod messages {
+    use std::net::Ipv4Addr;
+
+    use serde::{Deserialize, Serialize};
+
+    use crate::collections::{
+        AreaId, InterfaceId, LsaEntryId, LsdbId, NeighborId,
+    };
+    use crate::debug::LsaFlushReason;
+    use crate::interface::ism;
+    use crate::lsdb::LsaOriginateEvent;
+    use crate::neighbor::{nsm, RxmtPacketType};
+    use crate::network::SendDestination;
+    use crate::packet::error::DecodeError;
+    use crate::packet::lsa::LsaKey;
+    use crate::packet::Packet;
+    use crate::spf;
+    use crate::version::Version;
+
+    // Type aliases.
+    pub type ProtocolInputMsg<V> = input::ProtocolMsg<V>;
+    pub type ProtocolOutputMsg<V> = output::ProtocolMsg<V>;
+
+    // Input messages (child task -> main task).
+    pub mod input {
+        use super::*;
+
+        #[derive(Debug, Deserialize, Serialize)]
+        #[serde(bound = "V: Version")]
+        pub enum ProtocolMsg<V: Version> {
+            IsmEvent(IsmEventMsg),
+            NsmEvent(NsmEventMsg),
+            NetRxPacket(NetRxPacketMsg<V>),
+            DbDescFree(DbDescFreeMsg),
+            SendLsUpdate(SendLsUpdateMsg),
+            RxmtInterval(RxmtIntervalMsg),
+            DelayedAck(DelayedAckMsg),
+            LsaOrigEvent(LsaOrigEventMsg),
+            LsaOrigCheck(LsaOrigCheckMsg<V>),
+            LsaOrigDelayed(LsaOrigDelayedMsg<V>),
+            LsaFlush(LsaFlushMsg),
+            LsaRefresh(LsaRefreshMsg),
+            LsdbMaxAgeSweep(LsdbMaxAgeSweepMsg),
+            SpfDelayEvent(SpfDelayEventMsg),
+        }
+
+        #[derive(Debug, Deserialize, Serialize)]
+        pub struct IsmEventMsg {
+            pub area_id: AreaId,
+            pub iface_id: InterfaceId,
+            pub event: ism::Event,
+        }
+
+        #[derive(Debug, Deserialize, Serialize)]
+        pub struct NsmEventMsg {
+            pub area_id: AreaId,
+            pub iface_id: InterfaceId,
+            pub nbr_id: NeighborId,
+            pub event: nsm::Event,
+        }
+
+        #[derive(Debug, Deserialize, Serialize)]
+        #[serde(bound = "V: Version")]
+        pub struct NetRxPacketMsg<V: Version> {
+            pub ifindex: u32,
+            pub src: V::NetIpAddr,
+            pub dst: V::NetIpAddr,
+            pub packet: Result<Packet<V>, DecodeError>,
+        }
+
+        #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+        pub struct DbDescFreeMsg {
+            pub area_id: AreaId,
+            pub iface_id: InterfaceId,
+            pub nbr_id: NeighborId,
+        }
+
+        #[derive(Debug, Deserialize, Serialize)]
+        pub struct SendLsUpdateMsg {
+            pub area_id: AreaId,
+            pub iface_id: InterfaceId,
+            pub nbr_id: Option<NeighborId>,
+        }
+
+        #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+        pub struct RxmtIntervalMsg {
+            pub area_id: AreaId,
+            pub iface_id: InterfaceId,
+            pub nbr_id: NeighborId,
+            pub packet_type: RxmtPacketType,
+        }
+
+        #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+        pub struct DelayedAckMsg {
+            pub area_id: AreaId,
+            pub iface_id: InterfaceId,
+        }
+
+        #[derive(Debug, Deserialize, Serialize)]
+        pub struct LsaOrigEventMsg {
+            pub event: LsaOriginateEvent,
+        }
+
+        #[derive(Debug, Deserialize, Serialize)]
+        pub struct LsaOrigCheckMsg<V: Version> {
+            pub lsdb_id: LsdbId,
+            pub options: Option<V::PacketOptions>,
+            pub lsa_id: Ipv4Addr,
+            pub lsa_body: V::LsaBody,
+        }
+
+        #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+        #[serde(bound = "V: Version")]
+        pub struct LsaOrigDelayedMsg<V: Version> {
+            pub lsdb_id: LsdbId,
+            pub lsa_key: LsaKey<V::LsaType>,
+        }
+
+        #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+        pub struct LsaFlushMsg {
+            pub lsdb_id: LsdbId,
+            pub lse_id: LsaEntryId,
+            pub reason: LsaFlushReason,
+        }
+
+        #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+        pub struct LsaRefreshMsg {
+            pub lsdb_id: LsdbId,
+            pub lse_id: LsaEntryId,
+        }
+
+        #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+        pub struct LsdbMaxAgeSweepMsg {
+            pub lsdb_id: LsdbId,
+        }
+
+        #[derive(Debug, Deserialize, Serialize)]
+        pub struct SpfDelayEventMsg {
+            pub event: spf::fsm::Event,
+        }
+    }
+
+    // Output messages (main task -> child task).
+    pub mod output {
+        use super::*;
+
+        #[derive(Debug, Serialize)]
+        #[serde(bound = "V: Version")]
+        pub enum ProtocolMsg<V: Version> {
+            NetTxPacket(NetTxPacketMsg<V>),
+        }
+
+        #[derive(Clone, Debug, Serialize)]
+        #[serde(bound = "V: Version")]
+        pub struct NetTxPacketMsg<V: Version> {
+            pub packet: Packet<V>,
+            pub src: Option<V::NetIpAddr>,
+            pub dst: SendDestination<V::NetIpAddr>,
+        }
+    }
+}
+
+// ===== OSPF tasks =====
+
+// Network Rx task.
+pub(crate) fn net_rx<V>(
+    socket: BorrowedFd<'static>,
+    af: AddressFamily,
+    net_packet_rxp: &Sender<messages::input::NetRxPacketMsg<V>>,
+) -> Task<()>
+where
+    V: Version,
+{
+    #[cfg(not(feature = "testing"))]
+    {
+        let span1 = debug_span!("network");
+        let _span1_guard = span1.enter();
+        let span2 = debug_span!("input");
+        let _span2_guard = span2.enter();
+
+        let net_packet_rxp = net_packet_rxp.clone();
+        let span = tracing::span::Span::current();
+        Task::spawn_blocking(move || {
+            let _span_enter = span.enter();
+            let _ = network::read_loop(socket, af, net_packet_rxp);
+        })
+    }
+    #[cfg(feature = "testing")]
+    {
+        Task::spawn(async move { std::future::pending().await })
+    }
+}
+
+// Network Tx task.
+#[allow(unused_mut)]
+pub(crate) fn net_tx<V>(
+    socket: OwnedFd,
+    mut net_packet_txc: UnboundedReceiver<messages::output::NetTxPacketMsg<V>>,
+    #[cfg(feature = "testing")] proto_output_tx: &Sender<
+        messages::ProtocolOutputMsg<V>,
+    >,
+) -> Task<()>
+where
+    V: Version,
+{
+    #[cfg(not(feature = "testing"))]
+    {
+        let span1 = debug_span!("network");
+        let _span1_guard = span1.enter();
+        let span2 = debug_span!("output");
+        let _span2_guard = span2.enter();
+
+        let span = tracing::span::Span::current();
+        Task::spawn_blocking(move || {
+            let _span_enter = span.enter();
+            network::write_loop(socket, net_packet_txc);
+        })
+    }
+    #[cfg(feature = "testing")]
+    {
+        let proto_output_tx = proto_output_tx.clone();
+        Task::spawn(async move {
+            // Relay message to the test framework.
+            while let Some(msg) = net_packet_txc.recv().await {
+                let msg = messages::ProtocolOutputMsg::NetTxPacket(msg);
+                let _ = proto_output_tx.send(msg).await;
+            }
+        })
+    }
+}
+
+// Send periodic OSPF Hello messages.
+pub(crate) fn hello_interval<V>(
+    iface: &Interface<V>,
+    area: &Area<V>,
+    instance: &InstanceUpView<'_, V>,
+    dst: SendDestination<V::NetIpAddr>,
+    interval: u16,
+) -> IntervalTask
+where
+    V: Version,
+{
+    #[cfg(not(feature = "testing"))]
+    {
+        // Set source address.
+        let src = iface.state.src_addr;
+
+        // Generate hello packet.
+        let packet = V::generate_hello(iface, area, instance);
+
+        let net_tx_packetp = instance.state.net_tx_packetp.clone();
+        IntervalTask::new(
+            Duration::from_secs(interval.into()),
+            true,
+            move || {
+                let packet = packet.clone();
+                let dst = dst.clone();
+                let net_tx_packetp = net_tx_packetp.clone();
+
+                async move {
+                    let msg =
+                        messages::output::NetTxPacketMsg { packet, src, dst };
+                    let _ = net_tx_packetp.send(msg);
+                }
+            },
+        )
+    }
+    #[cfg(feature = "testing")]
+    {
+        IntervalTask {}
+    }
+}
+
+// Interface wait timer task.
+pub(crate) fn ism_wait_timer<V>(
+    iface: &Interface<V>,
+    area: &Area<V>,
+    instance: &InstanceUpView<'_, V>,
+) -> TimeoutTask
+where
+    V: Version,
+{
+    #[cfg(not(feature = "testing"))]
+    {
+        let timeout = Duration::from_secs(iface.config.dead_interval.into());
+        let area_id = area.id;
+        let iface_id = iface.id;
+        let ism_eventp = instance.tx.protocol_input.ism_event.clone();
+
+        TimeoutTask::new(timeout, move || async move {
+            let msg = messages::input::IsmEventMsg {
+                area_id,
+                iface_id,
+                event: ism::Event::WaitTimer,
+            };
+            let _ = ism_eventp.send(msg);
+        })
+    }
+    #[cfg(feature = "testing")]
+    {
+        TimeoutTask {}
+    }
+}
+
+// Neighbor inactivity timer.
+pub(crate) fn nsm_inactivity_timer<V>(
+    nbr: &Neighbor<V>,
+    iface: &Interface<V>,
+    area: &Area<V>,
+    instance: &InstanceUpView<'_, V>,
+) -> TimeoutTask
+where
+    V: Version,
+{
+    #[cfg(not(feature = "testing"))]
+    {
+        let timeout = Duration::from_secs(iface.config.dead_interval.into());
+        let nbr_id = nbr.id;
+        let area_id = area.id;
+        let iface_id = iface.id;
+        let nsm_eventp = instance.tx.protocol_input.nsm_event.clone();
+
+        TimeoutTask::new(timeout, move || async move {
+            let msg = messages::input::NsmEventMsg {
+                area_id,
+                iface_id,
+                nbr_id,
+                event: nsm::Event::InactivityTimer,
+            };
+            let _ = nsm_eventp.send(msg);
+        })
+    }
+    #[cfg(feature = "testing")]
+    {
+        TimeoutTask {}
+    }
+}
+
+// Send periodic packet retransmissions.
+pub(crate) fn packet_rxmt_interval<V>(
+    iface: &Interface<V>,
+    msg: messages::input::RxmtIntervalMsg,
+    instance: &InstanceUpView<'_, V>,
+) -> IntervalTask
+where
+    V: Version,
+{
+    #[cfg(not(feature = "testing"))]
+    {
+        let rxmt_intervalp = instance.tx.protocol_input.rxmt_interval.clone();
+
+        IntervalTask::new(
+            Duration::from_secs(iface.config.retransmit_interval.into()),
+            false,
+            move || {
+                let rxmt_intervalp = rxmt_intervalp.clone();
+
+                async move {
+                    let _ = rxmt_intervalp.send(msg).await;
+                }
+            },
+        )
+    }
+    #[cfg(feature = "testing")]
+    {
+        IntervalTask {}
+    }
+}
+
+// Timer to free the neighbor's last sent/received Database Description packets.
+pub(crate) fn dbdesc_free_timer<V>(
+    nbr: &Neighbor<V>,
+    iface: &Interface<V>,
+    area: &Area<V>,
+    instance: &InstanceUpView<'_, V>,
+) -> TimeoutTask
+where
+    V: Version,
+{
+    #[cfg(not(feature = "testing"))]
+    {
+        let area_id = area.id;
+        let iface_id = iface.id;
+        let nbr_id = nbr.id;
+        let dbdesc_freep = instance.tx.protocol_input.dbdesc_free.clone();
+
+        TimeoutTask::new(
+            Duration::from_secs(iface.config.dead_interval.into()),
+            move || async move {
+                let _ = dbdesc_freep
+                    .send(messages::input::DbDescFreeMsg {
+                        area_id,
+                        iface_id,
+                        nbr_id,
+                    })
+                    .await;
+            },
+        )
+    }
+    #[cfg(feature = "testing")]
+    {
+        TimeoutTask {}
+    }
+}
+
+// Interface LS Update timer task.
+pub(crate) fn ls_update_timer<V>(
+    iface: &Interface<V>,
+    area: &Area<V>,
+    instance: &InstanceUpView<'_, V>,
+) -> TimeoutTask
+where
+    V: Version,
+{
+    let area_id = area.id;
+    let iface_id = iface.id;
+    let send_lsupdp = instance.tx.protocol_input.send_lsupd.clone();
+
+    #[cfg(not(feature = "testing"))]
+    {
+        // Start timer.
+        TimeoutTask::new(Duration::from_millis(100), move || async move {
+            let _ = send_lsupdp.send(messages::input::SendLsUpdateMsg {
+                area_id,
+                iface_id,
+                nbr_id: None,
+            });
+        })
+    }
+    #[cfg(feature = "testing")]
+    {
+        // Send LS Update immediately.
+        let _ = send_lsupdp.send(messages::input::SendLsUpdateMsg {
+            area_id,
+            iface_id,
+            nbr_id: None,
+        });
+
+        TimeoutTask {}
+    }
+}
+
+// Interface delayed Ack timer task.
+pub(crate) fn delayed_ack_timer<V>(
+    iface: &Interface<V>,
+    area: &Area<V>,
+    instance: &InstanceUpView<'_, V>,
+) -> TimeoutTask
+where
+    V: Version,
+{
+    let area_id = area.id;
+    let iface_id = iface.id;
+    let delayed_ack_timeoutp =
+        instance.tx.protocol_input.delayed_ack_timeout.clone();
+
+    #[cfg(not(feature = "testing"))]
+    {
+        // RFC 2328 - Section 13.5:
+        // "The fixed interval between a router's delayed transmissions must be
+        // short (less than RxmtInterval) or needless retransmissions will
+        // ensue".
+        let timeout = Duration::from_secs(1);
+        TimeoutTask::new(timeout, move || async move {
+            let msg = messages::input::DelayedAckMsg { area_id, iface_id };
+            let _ = delayed_ack_timeoutp.send(msg);
+        })
+    }
+    #[cfg(feature = "testing")]
+    {
+        // Send LS Ack immediately.
+        let msg = messages::input::DelayedAckMsg { area_id, iface_id };
+        let _ = delayed_ack_timeoutp.send(msg);
+
+        TimeoutTask {}
+    }
+}
+
+// LSA expiry timer task.
+pub(crate) fn lsa_expiry_timer<V>(
+    lsdb_id: LsdbId,
+    lse_id: LsaEntryId,
+    lsa: &Lsa<V>,
+    lsa_flushp: &UnboundedSender<messages::input::LsaFlushMsg>,
+) -> TimeoutTask
+where
+    V: Version,
+{
+    #[cfg(not(feature = "testing"))]
+    {
+        let timeout = lsdb::LSA_MAX_AGE - lsa.hdr.age();
+        let timeout = Duration::from_secs(timeout.into());
+        let lsa_flushp = lsa_flushp.clone();
+
+        TimeoutTask::new(timeout, move || async move {
+            let msg = messages::input::LsaFlushMsg {
+                lsdb_id,
+                lse_id,
+                reason: LsaFlushReason::Expiry,
+            };
+            let _ = lsa_flushp.send(msg);
+        })
+    }
+    #[cfg(feature = "testing")]
+    {
+        TimeoutTask {}
+    }
+}
+
+// LSA refresh timer task.
+pub(crate) fn lsa_refresh_timer(
+    lsdb_id: LsdbId,
+    lse_id: LsaEntryId,
+    lsa_refreshp: &UnboundedSender<messages::input::LsaRefreshMsg>,
+) -> TimeoutTask {
+    #[cfg(not(feature = "testing"))]
+    {
+        let timeout = lsdb::LSA_REFRESH_TIME;
+        let timeout = Duration::from_secs(timeout.into());
+        let lsa_refreshp = lsa_refreshp.clone();
+
+        TimeoutTask::new(timeout, move || async move {
+            let msg = messages::input::LsaRefreshMsg { lsdb_id, lse_id };
+            let _ = lsa_refreshp.send(msg);
+        })
+    }
+    #[cfg(feature = "testing")]
+    {
+        TimeoutTask {}
+    }
+}
+
+// LSA delayed origination timer task.
+pub(crate) fn lsa_orig_delayed_timer<V>(
+    lsdb_id: LsdbId,
+    lsa_key: LsaKey<V::LsaType>,
+    timeout: Duration,
+    lsa_orig_delayed_timerp: &Sender<messages::input::LsaOrigDelayedMsg<V>>,
+) -> TimeoutTask
+where
+    V: Version,
+{
+    #[cfg(not(feature = "testing"))]
+    {
+        let lsa_orig_delayed_timerp = lsa_orig_delayed_timerp.clone();
+
+        TimeoutTask::new(timeout, move || async move {
+            let msg = messages::input::LsaOrigDelayedMsg { lsdb_id, lsa_key };
+            let _ = lsa_orig_delayed_timerp.send(msg).await;
+        })
+    }
+    #[cfg(feature = "testing")]
+    {
+        TimeoutTask {}
+    }
+}
+
+// LSDB MaxAge sweeper interval task.
+pub(crate) fn lsdb_maxage_sweep_interval(
+    lsdb_id: LsdbId,
+    lsdb_maxage_sweep_intervalp: &Sender<messages::input::LsdbMaxAgeSweepMsg>,
+) -> IntervalTask {
+    #[cfg(not(feature = "testing"))]
+    {
+        let lsdb_maxage_sweep_intervalp = lsdb_maxage_sweep_intervalp.clone();
+
+        let timeout = Duration::from_secs(5);
+        IntervalTask::new(timeout, false, move || {
+            let lsdb_maxage_sweep_intervalp =
+                lsdb_maxage_sweep_intervalp.clone();
+            async move {
+                let msg = messages::input::LsdbMaxAgeSweepMsg { lsdb_id };
+                let _ = lsdb_maxage_sweep_intervalp.send(msg).await;
+            }
+        })
+    }
+    #[cfg(feature = "testing")]
+    {
+        IntervalTask {}
+    }
+}
+
+// SPF delay timer task.
+pub(crate) fn spf_delay_timer<V>(
+    instance: &InstanceUpView<'_, V>,
+    timeout: u32,
+) -> TimeoutTask
+where
+    V: Version,
+{
+    #[cfg(not(feature = "testing"))]
+    {
+        let timeout = Duration::from_millis(timeout.into());
+        let spf_delay_eventp =
+            instance.tx.protocol_input.spf_delay_event.clone();
+
+        TimeoutTask::new(timeout, move || async move {
+            let msg = messages::input::SpfDelayEventMsg {
+                event: spf::fsm::Event::DelayTimer,
+            };
+            let _ = spf_delay_eventp.send(msg);
+        })
+    }
+    #[cfg(feature = "testing")]
+    {
+        TimeoutTask {}
+    }
+}
+
+// SPF delay hold-down timer task.
+pub(crate) fn spf_hold_down_timer<V>(
+    instance: &InstanceUpView<'_, V>,
+) -> TimeoutTask
+where
+    V: Version,
+{
+    #[cfg(not(feature = "testing"))]
+    {
+        let timeout =
+            Duration::from_millis(instance.config.spf_hold_down.into());
+        let spf_delay_eventp =
+            instance.tx.protocol_input.spf_delay_event.clone();
+
+        TimeoutTask::new(timeout, move || async move {
+            let msg = messages::input::SpfDelayEventMsg {
+                event: spf::fsm::Event::HoldDownTimer,
+            };
+            let _ = spf_delay_eventp.send(msg);
+        })
+    }
+    #[cfg(feature = "testing")]
+    {
+        TimeoutTask {}
+    }
+}
+
+// SPF delay learn timer task.
+pub(crate) fn spf_learn_timer<V>(
+    instance: &InstanceUpView<'_, V>,
+) -> TimeoutTask
+where
+    V: Version,
+{
+    #[cfg(not(feature = "testing"))]
+    {
+        let timeout =
+            Duration::from_millis(instance.config.spf_time_to_learn.into());
+        let spf_delay_eventp =
+            instance.tx.protocol_input.spf_delay_event.clone();
+
+        TimeoutTask::new(timeout, move || async move {
+            let msg = messages::input::SpfDelayEventMsg {
+                event: spf::fsm::Event::LearnTimer,
+            };
+            let _ = spf_delay_eventp.send(msg);
+        })
+    }
+    #[cfg(feature = "testing")]
+    {
+        TimeoutTask {}
+    }
+}

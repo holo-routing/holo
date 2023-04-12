@@ -1,0 +1,14 @@
+{"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":91,"msg_type":"LabelRelease","fec":[{"Prefix":"1.1.1.1/32"}]}},"flush":false}}
+{"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":92,"msg_type":"LabelRelease","fec":[{"Prefix":"2.2.2.2/32"}]}},"flush":false}}
+{"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":93,"msg_type":"LabelRelease","fec":[{"Prefix":"3.3.3.3/32"}]}},"flush":false}}
+{"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":94,"msg_type":"LabelRelease","fec":[{"Prefix":"4.4.4.4/32"}]}},"flush":false}}
+{"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":95,"msg_type":"LabelRelease","fec":[{"Prefix":"5.5.5.5/32"}]}},"flush":false}}
+{"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":96,"msg_type":"LabelRelease","fec":[{"Prefix":"6.6.6.6/32"}]}},"flush":false}}
+{"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":97,"msg_type":"LabelRelease","fec":[{"Prefix":"10.0.1.0/24"}]}},"flush":false}}
+{"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":98,"msg_type":"LabelRelease","fec":[{"Prefix":"10.0.2.0/24"}]}},"flush":false}}
+{"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":99,"msg_type":"LabelRelease","fec":[{"Prefix":"10.0.3.0/24"}]}},"flush":false}}
+{"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":100,"msg_type":"LabelRelease","fec":[{"Prefix":"10.0.4.0/24"}]}},"flush":false}}
+{"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":101,"msg_type":"LabelRelease","fec":[{"Prefix":"10.0.5.0/24"}]}},"flush":false}}
+{"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":102,"msg_type":"LabelRelease","fec":[{"Prefix":"10.0.6.0/24"}]}},"flush":false}}
+{"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":103,"msg_type":"LabelRelease","fec":[{"Prefix":"10.0.7.0/24"}]}},"flush":false}}
+{"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":104,"msg_type":"LabelRelease","fec":[{"Prefix":"10.0.8.0/24"}]}},"flush":false}}

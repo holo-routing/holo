@@ -1,0 +1,7 @@
+edition = "2021"
+format_code_in_doc_comments = true
+group_imports = "StdExternalCrate"
+imports_granularity = "Module"
+max_width = 80
+merge_derives = false
+wrap_comments = true

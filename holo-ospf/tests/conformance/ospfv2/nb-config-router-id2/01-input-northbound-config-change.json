@@ -1,0 +1,21 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-ospf:ospfv2",
+          "name": "main",
+          "ietf-ospf:ospf": {
+            "explicit-router-id": "3.3.3.3",
+            "@explicit-router-id": {
+              "yang:operation": "delete"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

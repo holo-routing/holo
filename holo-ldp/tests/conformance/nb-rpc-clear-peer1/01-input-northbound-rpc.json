@@ -1,0 +1,5 @@
+{
+  "ietf-mpls-ldp:mpls-ldp-clear-peer": {
+    "protocol-name":"main"
+  }
+}

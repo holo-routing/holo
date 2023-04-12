@@ -1,0 +1,28 @@
+[package]
+name = "holo-routing"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+regex = "1.5"
+
+async-trait.workspace = true
+chrono.workspace = true
+derive-new.workspace = true
+enum-as-inner.workspace = true
+ipnetwork.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+yang2.workspace = true
+
+holo-bfd = { path = "../holo-bfd" }
+holo-ldp = { path = "../holo-ldp" }
+holo-northbound = { path = "../holo-northbound" }
+holo-ospf = { path = "../holo-ospf" }
+holo-protocol = { path = "../holo-protocol" }
+holo-rip = { path = "../holo-rip" }
+holo-southbound = { path = "../holo-southbound" }
+holo-utils = { path = "../holo-utils" }
+holo-yang = { path = "../holo-yang" }

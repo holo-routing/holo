@@ -1,0 +1,338 @@
+module ietf-ip-holo-deviations {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/ietf-ip-holo-deviations";
+  prefix ietf-ip-holo-deviations;
+
+  import ietf-interfaces {
+    prefix if;
+  }
+
+  import ietf-ip {
+    prefix ip;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines deviation statements for the ietf-ip
+     module.";
+
+  deviation "/if:interfaces/if:interface/ip:ipv4/ip:forwarding" {
+    deviate not-supported;
+  }
+
+  deviation "/if:interfaces/if:interface/ip:ipv4/ip:mtu" {
+    deviate not-supported;
+  }
+
+  deviation "/if:interfaces/if:interface/ip:ipv4/ip:address" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/ip:address/ip:ip" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/ip:address/ip:subnet" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/ip:address/ip:subnet/ip:prefix-length" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/ip:address/ip:subnet/ip:prefix-length/ip:prefix-length" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/ip:address/ip:subnet/ip:netmask" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/ip:address/ip:origin" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/if:interfaces/if:interface/ip:ipv4/ip:neighbor" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/ip:neighbor/ip:ip" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/ip:neighbor/ip:link-layer-address" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/ip:neighbor/ip:origin" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/if:interfaces/if:interface/ip:ipv6/ip:forwarding" {
+    deviate not-supported;
+  }
+
+  deviation "/if:interfaces/if:interface/ip:ipv6/ip:mtu" {
+    deviate not-supported;
+  }
+
+  deviation "/if:interfaces/if:interface/ip:ipv6/ip:address" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/ip:address/ip:ip" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/ip:address/ip:prefix-length" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/ip:address/ip:origin" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/ip:address/ip:status" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/if:interfaces/if:interface/ip:ipv6/ip:neighbor" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/ip:neighbor/ip:ip" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/ip:neighbor/ip:link-layer-address" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/ip:neighbor/ip:origin" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/ip:neighbor/ip:is-router" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/ip:neighbor/ip:state" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/if:interfaces/if:interface/ip:ipv6/ip:dup-addr-detect-transmits" {
+    deviate not-supported;
+  }
+
+  deviation "/if:interfaces/if:interface/ip:ipv6/ip:autoconf" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/ip:autoconf/ip:create-global-addresses" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/if:interfaces-state/if:interface/ip:ipv4" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv4/ip:forwarding" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv4/ip:mtu" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv4/ip:address" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv4/ip:address/ip:ip" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv4/ip:address/ip:subnet" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv4/ip:address/ip:subnet/ip:prefix-length" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv4/ip:address/ip:subnet/ip:prefix-length/ip:prefix-length" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv4/ip:address/ip:subnet/ip:netmask" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv4/ip:address/ip:origin" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv4/ip:neighbor" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv4/ip:neighbor/ip:ip" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv4/ip:neighbor/ip:link-layer-address" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv4/ip:neighbor/ip:origin" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/if:interfaces-state/if:interface/ip:ipv6" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv6/ip:forwarding" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv6/ip:mtu" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv6/ip:address" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv6/ip:address/ip:ip" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv6/ip:address/ip:prefix-length" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv6/ip:address/ip:origin" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv6/ip:address/ip:status" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv6/ip:neighbor" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv6/ip:neighbor/ip:ip" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv6/ip:neighbor/ip:link-layer-address" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv6/ip:neighbor/ip:origin" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv6/ip:neighbor/ip:is-router" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces-state/if:interface/ip:ipv6/ip:neighbor/ip:state" {
+    deviate not-supported;
+  }
+  */
+}

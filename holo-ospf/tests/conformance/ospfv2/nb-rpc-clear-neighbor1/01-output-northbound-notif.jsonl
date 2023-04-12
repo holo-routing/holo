@@ -1,0 +1,2 @@
+{"ietf-ospf:nbr-state-change":{"routing-protocol-name":"test","address-family":"ipv4","interface":{"interface":"eth-rt3"},"neighbor-router-id":"3.3.3.3","neighbor-ip-addr":"10.0.4.3","state":"down"}}
+{"ietf-ospf:nbr-state-change":{"routing-protocol-name":"test","address-family":"ipv4","interface":{"interface":"eth-rt7"},"neighbor-router-id":"7.7.7.7","neighbor-ip-addr":"10.0.6.7","state":"down"}}

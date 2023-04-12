@@ -1,0 +1,23 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-ospf:ospfv2",
+          "name": "main",
+          "ietf-ospf:ospf": {
+            "preference": {
+              "intra-area": 50,
+              "@intra-area": {
+                "yang:operation": "create"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-rip:ripv2",
+          "name": "main",
+          "ietf-rip:rip": {
+            "distance": 50,
+            "@distance": {
+              "yang:operation": "create"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

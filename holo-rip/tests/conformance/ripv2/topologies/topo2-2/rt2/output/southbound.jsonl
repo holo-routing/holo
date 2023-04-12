@@ -1,0 +1,16 @@
+{"Hello":{"redist_default":"Rip","instance":0,"session_id":0,"receive_notify":0}}
+"InterfaceAdd"
+{"RouteReplace":{"proto":"Rip","instance":0,"prefix":"1.1.1.1/32","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.1.1","ifindex":3}],"distance":50,"metric":2,"tag":0}}
+{"RouteReplace":{"proto":"Rip","instance":0,"prefix":"3.3.3.3/32","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.1.3","ifindex":3}],"distance":50,"metric":2,"tag":0}}
+{"RouteReplace":{"proto":"Rip","instance":0,"prefix":"10.0.4.0/24","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.1.3","ifindex":3}],"distance":50,"metric":2,"tag":0}}
+{"RouteReplace":{"proto":"Rip","instance":0,"prefix":"10.0.5.0/24","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.1.3","ifindex":3}],"distance":50,"metric":2,"tag":0}}
+{"RouteReplace":{"proto":"Rip","instance":0,"prefix":"4.4.4.4/32","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.2.4","ifindex":5}],"distance":50,"metric":6,"tag":0}}
+{"RouteReplace":{"proto":"Rip","instance":0,"prefix":"10.0.6.0/24","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.2.4","ifindex":5}],"distance":50,"metric":6,"tag":0}}
+{"RouteReplace":{"proto":"Rip","instance":0,"prefix":"10.0.7.0/24","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.2.4","ifindex":5}],"distance":50,"metric":6,"tag":0}}
+{"RouteReplace":{"proto":"Rip","instance":0,"prefix":"5.5.5.5/32","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.2.4","ifindex":5}],"distance":50,"metric":7,"tag":0}}
+{"RouteReplace":{"proto":"Rip","instance":0,"prefix":"10.0.8.0/24","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.2.4","ifindex":5}],"distance":50,"metric":11,"tag":0}}
+{"RouteReplace":{"proto":"Rip","instance":0,"prefix":"4.4.4.4/32","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.1.3","ifindex":3}],"distance":50,"metric":4,"tag":0}}
+{"RouteReplace":{"proto":"Rip","instance":0,"prefix":"5.5.5.5/32","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.1.3","ifindex":3}],"distance":50,"metric":3,"tag":0}}
+{"RouteReplace":{"proto":"Rip","instance":0,"prefix":"10.0.6.0/24","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.1.3","ifindex":3}],"distance":50,"metric":3,"tag":0}}
+{"RouteReplace":{"proto":"Rip","instance":0,"prefix":"10.0.7.0/24","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.1.3","ifindex":3}],"distance":50,"metric":4,"tag":0}}
+{"RouteReplace":{"proto":"Rip","instance":0,"prefix":"10.0.8.0/24","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.1.3","ifindex":3}],"distance":50,"metric":7,"tag":0}}

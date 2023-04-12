@@ -1,0 +1,2 @@
+{"UdpTxPdu":{"dst":{"Multicast":2},"pdu":{"command":"Response","version":2,"rtes":[{"Ipv4":{"tag":0,"prefix":"3.3.3.3/32","nexthop":null,"metric":16}}]}}}
+{"UdpTxPdu":{"dst":{"Multicast":4},"pdu":{"command":"Response","version":2,"rtes":[{"Ipv4":{"tag":0,"prefix":"3.3.3.3/32","nexthop":null,"metric":16}}]}}}

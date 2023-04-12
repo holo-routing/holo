@@ -1,0 +1,93 @@
+{
+  "ietf-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "eth-rt3-1",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {
+          "enabled": true
+        }
+      },
+      {
+        "name": "eth-rt3-2",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {
+          "enabled": true
+        }
+      },
+      {
+        "name": "eth-rt4",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {
+          "enabled": true
+        }
+      },
+      {
+        "name": "eth-rt6",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {
+          "enabled": true
+        }
+      }
+    ]
+  },
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-mpls-ldp:mpls-ldp",
+          "name": "main",
+          "ietf-mpls-ldp:mpls-ldp": {
+            "global": {
+              "lsr-id": "5.5.5.5",
+              "address-families": {
+                "ipv4": {
+                  "enabled": true
+                }
+              }
+            },
+            "discovery": {
+              "interfaces": {
+                "interface": [
+                  {
+                    "name": "eth-rt3-1",
+                    "address-families": {
+                      "ipv4": {
+                        "enabled": true
+                      }
+                    }
+                  },
+                  {
+                    "name": "eth-rt3-2",
+                    "address-families": {
+                      "ipv4": {
+                        "enabled": true
+                      }
+                    }
+                  },
+                  {
+                    "name": "eth-rt4",
+                    "address-families": {
+                      "ipv4": {
+                        "enabled": true
+                      }
+                    }
+                  },
+                  {
+                    "name": "eth-rt6",
+                    "address-families": {
+                      "ipv4": {
+                        "enabled": true
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+^D

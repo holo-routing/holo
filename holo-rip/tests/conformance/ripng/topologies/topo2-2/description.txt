@@ -1,0 +1,42 @@
+
+                        +---------+
+                        |         |
+                        |   RT1   |
+                        |         |
+                        |         |
+                        +---------+
+                             |eth-sw1
+                             |
+                             |
+                             |
+        +---------+          |          +---------+
+        |         |          |          |         |
+        |   RT2   |eth-sw1   |   eth-sw1|   RT3   |
+        |         +----------+----------+         |
+        |         |                     |         |
+        +---------+                     +---------+
+   eth-rt4-1|  |eth-rt4-2          eth-rt5-1|  |eth-rt5-2
+            |  |                            |  |
+            |  |                            |  |
+            |  |                            |  |
+   eth-rt2-1|  |eth-rt2-2          eth-rt3-1|  |eth-rt3-2
+        +---------+                     +---------+
+        |         |                     |         |
+        |   RT4   |                     |   RT5   |
+        |         +---------------------+         |
+        |         |eth-rt5       eth-rt4|         |
+        +---------+                     +---------+
+      eth-rt6|                                |eth-rt6
+             |                                |
+             |                                |
+             |          +---------+           |
+             |          |         |           |
+             |          |   RT6   |           |
+             +----------+         +-----------+
+                 eth-rt4|         |eth-rt5
+                        +---------+
+
+topo2-2 is identical to topo2-1, except for the following differences:
+* All interfaces on rt6 are configured as passive interfaces
+* The interface costs between rt2 and rt4 is 5 instead of 1 (the default cost)
+* The interface costs between rt5 and rt6 is 5 instead of 1 (the default cost)

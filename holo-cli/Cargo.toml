@@ -1,0 +1,28 @@
+[package]
+name = "holo-cli"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+indextree = "4.3"
+prettytable-rs = "0.10"
+reedline = "0.16"
+xml-rs = "0.8"
+
+clap.workspace = true
+derive-new.workspace = true
+enum-as-inner.workspace = true
+itertools.workspace = true
+prost.workspace = true
+similar.workspace = true
+tokio.workspace = true
+tonic.workspace = true
+yang2.workspace = true
+
+holo-utils = { path = "../holo-utils" }
+holo-yang = { path = "../holo-yang" }
+
+[build-dependencies]
+tonic-build = "0.8"

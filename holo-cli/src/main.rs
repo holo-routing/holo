@@ -1,0 +1,197 @@
+//
+// Copyright (c) The Holo Core Contributors
+//
+// See LICENSE for license details.
+//
+
+mod client;
+mod error;
+mod internal_commands;
+mod parser;
+mod session;
+mod terminal;
+mod token;
+mod token_xml;
+mod token_yang;
+
+use std::sync::{Arc, Mutex};
+
+use clap::{App, Arg};
+use holo_yang as yang;
+use holo_yang::YANG_CTX;
+use reedline::Signal;
+
+use crate::client::grpc::GrpcClient;
+use crate::client::Client;
+use crate::error::Error;
+use crate::session::{CommandMode, Session};
+use crate::terminal::CliPrompt;
+use crate::token::{Action, Commands};
+
+static DEFAULT_HOSTNAME: &str = "holo";
+
+pub struct Cli {
+    commands: Commands,
+    session: Session,
+}
+
+// ===== impl Cli =====
+
+impl Cli {
+    fn new(hostname: String, client: Box<dyn Client>) -> Cli {
+        // Generate commands.
+        let mut commands = Commands::new();
+        commands.gen_cmds();
+
+        // Create CLI session.
+        let mut session = Session::new(hostname, client);
+        session.update_prompt();
+
+        Cli { commands, session }
+    }
+
+    fn enter_command(&mut self, line: &str) -> Result<bool, Error> {
+        // Normalize input line.
+        let line = match parser::normalize_input_line(line) {
+            Some(line) => line,
+            None => return Ok(false),
+        };
+
+        // Parse command.
+        let pcmd =
+            parser::parse_command(&mut self.session, &self.commands, &line)
+                .map_err(Error::Parser)?;
+        let token = self.commands.get_token(pcmd.token_id);
+        let negate = pcmd.negate;
+        let args = pcmd.args;
+
+        // Process command.
+        let mut exit = false;
+        if let Some(action) = &token.action {
+            match action {
+                Action::ConfigEdit(snode) => {
+                    // Edit configuration & update CLI node if necessary.
+                    self.session
+                        .edit_candidate(negate, snode, args)
+                        .map_err(Error::EditConfig)?;
+                }
+                Action::Callback(callback) => {
+                    // Execute callback.
+                    exit = (callback)(&self.commands, &mut self.session, args)
+                        .map_err(Error::Callback)?;
+                }
+            }
+        }
+
+        Ok(exit)
+    }
+}
+
+// ===== global functions =====
+
+fn read_config_file(mut cli: Cli, path: &str) {
+    // Enter configuration mode.
+    let mode = CommandMode::Configure { nodes: vec![] };
+    cli.session.mode_set(mode);
+
+    // Read file from the filesystem.
+    let file = match std::fs::read_to_string(path) {
+        Ok(file) => file,
+        Err(error) => {
+            eprintln!("% failed to read file path: {}", error);
+            return;
+        }
+    };
+
+    // Read configuration.
+    for line in file.lines() {
+        if let Err(error) = cli.enter_command(line) {
+            eprintln!("% {}", error);
+        }
+    }
+
+    // Commit configuration.
+    if let Err(err) = cli.session.candidate_commit() {
+        eprintln!("% {}", err);
+    }
+}
+
+fn main() {
+    // Parse command-line parameters.
+    let matches = App::new("Holo command-line interface")
+        .arg(
+            Arg::with_name("file")
+                .long("file")
+                .value_name("path")
+                .help("Read configuration file"),
+        )
+        .arg(
+            Arg::with_name("no-colors")
+                .long("no-colors")
+                .help("Disable ansi coloring"),
+        )
+        .arg(
+            Arg::with_name("command")
+                .short("c")
+                .long("command")
+                .value_name("COMMAND")
+                .help("Execute argument as command")
+                .multiple(true),
+        )
+        .get_matches();
+
+    // Initialize YANG context and gRPC client.
+    let mut yang_ctx = yang::new_context();
+    let mut client = GrpcClient::connect("http://[::1]:50051")
+        .expect("Failed to connect to holod");
+    client.load_modules(&mut yang_ctx);
+    YANG_CTX.set(Arc::new(yang_ctx)).unwrap();
+
+    // Initialize CLI master structure.
+    let mut cli = Cli::new(DEFAULT_HOSTNAME.to_string(), Box::new(client));
+
+    // Read configuration file.
+    if let Some(path) = matches.value_of("file") {
+        read_config_file(cli, path);
+        return;
+    }
+
+    // Process commands passed as arguments, if any.
+    if let Some(commands) = matches.values_of("command") {
+        for command in commands {
+            if let Err(error) = cli.enter_command(command) {
+                println!("% {}", error)
+            }
+        }
+        return;
+    }
+
+    // Initialize reedline.
+    let mut prompt = CliPrompt::new(cli.session.prompt());
+    let cli = Arc::new(Mutex::new(cli));
+    let use_ansi_coloring = !matches.is_present("no-colors");
+    let mut le = terminal::reedline_init(cli.clone(), use_ansi_coloring);
+
+    // Main loop.
+    while let Signal::Success(line) =
+        le.read_line(&prompt).expect("Failed to read line")
+    {
+        let mut cli = cli.lock().unwrap();
+        match cli.enter_command(&line) {
+            Ok(exit) => {
+                if exit {
+                    break;
+                }
+            }
+            Err(error) => {
+                println!("% {}", error)
+            }
+        };
+
+        // Update CLI prompt.
+        prompt.update(cli.session.prompt());
+    }
+
+    // Update history log.
+    le.sync_history().expect("Failed to update history file");
+}

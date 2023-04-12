@@ -1,0 +1,40 @@
+[package]
+name = "holo-tools"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+clap.workspace = true
+num-traits.workspace = true
+serde_json.workspace = true
+similar.workspace = true
+tokio.workspace = true
+yang2.workspace = true
+
+holo-bfd = { path = "../holo-bfd", features = ["testing"] }
+holo-ldp = { path = "../holo-ldp", features = ["testing"] }
+holo-rip = { path = "../holo-rip", features = ["testing"] }
+holo-northbound = { path = "../holo-northbound" }
+holo-ospf = { path = "../holo-ospf", features = ["testing"] }
+holo-protocol = { path = "../holo-protocol", features = ["testing"] }
+holo-southbound = { path = "../holo-southbound", features = ["testing"] }
+holo-utils = { path = "../holo-utils", features = ["testing"] }
+holo-yang = { path = "../holo-yang" }
+
+[[bin]]
+name = "replay"
+path = "src/replay.rs"
+
+[[bin]]
+name = "yang_callbacks"
+path = "src/yang_callbacks.rs"
+
+[[bin]]
+name = "yang_coverage"
+path = "src/yang_coverage.rs"
+
+[[bin]]
+name = "yang_deviations"
+path = "src/yang_deviations.rs"

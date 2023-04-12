@@ -1,0 +1,35 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-ospf:ospfv2",
+          "name": "main",
+          "ietf-ospf:ospf": {
+            "areas": {
+              "area": [
+                {
+                  "area-id": "0.0.0.1",
+                  "ranges": {
+                    "range": [
+                      {
+                        "@": {
+                          "yang:operation": "create"
+                        },
+                        "prefix": "10.0.0.0/8",
+                        "advertise": false
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

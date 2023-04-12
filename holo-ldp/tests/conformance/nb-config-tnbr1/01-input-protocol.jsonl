@@ -1,0 +1,1 @@
+{"UdpRxPdu":{"src_addr":"6.6.6.6","multicast":false,"pdu":{"Ok":{"version":1,"lsr_id":"6.6.6.6","lspace_id":0,"messages":[{"Hello":{"msg_id":102,"params":{"holdtime":45,"flags":49152},"ipv4_addr":"6.6.6.6","cfg_seqno":2}}]}}}}

@@ -1,0 +1,2 @@
+{"NbrTxPdu":{"nbr_id":1,"msg":{"Address":{"msg_id":41,"msg_type":"AddressWithdraw","addr_list":{"Ipv4":["172.16.1.2"]}}},"flush":false}}
+{"NbrTxPdu":{"nbr_id":2,"msg":{"Address":{"msg_id":42,"msg_type":"AddressWithdraw","addr_list":{"Ipv4":["172.16.1.2"]}}},"flush":false}}

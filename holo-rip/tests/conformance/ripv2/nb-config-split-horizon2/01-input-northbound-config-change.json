@@ -1,0 +1,42 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-rip:ripv2",
+          "name": "main",
+          "ietf-rip:rip": {
+            "interfaces": {
+              "interface": [
+                {
+                  "interface": "eth-rt1",
+                  "split-horizon": "simple",
+                  "@split-horizon": {
+                    "yang:operation": "replace",
+                    "yang:orig-default": false,
+                    "yang:orig-value": "poison-reverse"
+                  }
+                },
+                {
+                  "@": {
+                    "yang:operation": "none"
+                  },
+                  "interface": "eth-rt4",
+                  "split-horizon": "simple",
+                  "@split-horizon": {
+                    "yang:operation": "replace",
+                    "yang:orig-default": false,
+                    "yang:orig-value": "poison-reverse"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

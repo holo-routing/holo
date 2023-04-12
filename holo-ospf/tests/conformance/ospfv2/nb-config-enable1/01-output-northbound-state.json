@@ -1,0 +1,63 @@
+{
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-ospf:ospfv2",
+          "name": "main",
+          "ietf-ospf:ospf": {
+            "areas": {
+              "area": [
+                {
+                  "area-id": "0.0.0.0",
+                  "statistics": {
+                    "abr-count": 0,
+                    "asbr-count": 0,
+                    "area-scope-lsa-count": 0
+                  },
+                  "interfaces": {
+                    "interface": [
+                      {
+                        "name": "eth-rt2",
+                        "state": "down",
+                        "statistics": {
+                          "link-scope-lsa-count": 0
+                        },
+                        "holo-ospf-dev:object-id": 2
+                      },
+                      {
+                        "name": "eth-rt4",
+                        "state": "down",
+                        "statistics": {
+                          "link-scope-lsa-count": 0
+                        },
+                        "holo-ospf-dev:object-id": 3
+                      },
+                      {
+                        "name": "eth-rt6",
+                        "state": "down",
+                        "statistics": {
+                          "link-scope-lsa-count": 0
+                        },
+                        "holo-ospf-dev:object-id": 4
+                      },
+                      {
+                        "name": "lo",
+                        "state": "loopback",
+                        "statistics": {
+                          "link-scope-lsa-count": 0
+                        },
+                        "holo-ospf-dev:object-id": 1
+                      }
+                    ]
+                  },
+                  "holo-ospf-dev:object-id": 1
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

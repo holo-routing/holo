@@ -1,0 +1,2 @@
+{"AddressDel":{"ifindex":2,"addr":"10.0.1.2/24"}}
+{"AddressAdd":{"ifindex":2,"addr":"10.0.1.2/24"}}

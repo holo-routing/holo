@@ -1,0 +1,5 @@
+{
+  "ietf-rip:clear-rip-route": {
+    "rip-instance":"main"
+  }
+}

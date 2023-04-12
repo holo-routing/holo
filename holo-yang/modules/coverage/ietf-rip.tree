@@ -1,0 +1,394 @@
+module: ietf-routing
+  +--rw routing
+  |  +--rw router-id?                 yang:dotted-quad
+  |  +--ro interfaces
+  |  |  +--ro interface*   if:interface-ref
+  |  +--rw control-plane-protocols
+  |  |  +--rw control-plane-protocol* [type name]
+  |  |     +--rw type             identityref
+  |  |     +--rw name             string
+  |  |     +--rw description?     string
+  |  |     +--rw static-routes
+  |  |     +--rw rip:rip
+  |  |        +--rw rip:originate-default-route
+  |  |        |  +--rw rip:enabled?        boolean
+  |  |        |  +--rw rip:route-policy?   route-policy-ref
+  |  |        +--rw rip:default-metric?               uint8
+  |  |        +--rw rip:distance?                     uint8
+  |  |        +--rw rip:triggered-update-threshold?   uint8
+  |  |        +--rw rip:maximum-paths?                uint8
+  |  |        +--rw rip:output-delay?                 uint8
+  |  |        +--rw rip:distribute-list* [prefix-set-name direction]
+  |  |        |  +--rw rip:prefix-set-name    prefix-set-ref
+  |  |        |  +--rw rip:direction          enumeration
+  |  |        |  +--rw rip:if-name?           if:interface-ref
+  |  |        +--rw rip:redistribute
+  |  |        |  +--rw rip:bgp* [asn]
+  |  |        |  |  +--rw rip:asn             inet:as-number
+  |  |        |  |  +--rw rip:metric?         uint8
+  |  |        |  |  +--rw rip:route-policy?   route-policy-ref
+  |  |        |  +--rw rip:cg-nat!
+  |  |        |  |  +--rw rip:metric?         uint8
+  |  |        |  |  +--rw rip:route-policy?   route-policy-ref
+  |  |        |  +--rw rip:connected!
+  |  |        |  |  +--rw rip:metric?         uint8
+  |  |        |  |  +--rw rip:route-policy?   route-policy-ref
+  |  |        |  +--rw rip:ipsec!
+  |  |        |  |  +--rw rip:metric?         uint8
+  |  |        |  |  +--rw rip:route-policy?   route-policy-ref
+  |  |        |  +--rw rip:isis* [instance]
+  |  |        |  |  +--rw rip:instance        -> ../../../../../rt:control-plane-protocol/rt:name
+  |  |        |  |  +--rw rip:level?          enumeration
+  |  |        |  |  +--rw rip:metric?         uint8
+  |  |        |  |  +--rw rip:route-policy?   route-policy-ref
+  |  |        |  +--rw rip:nat!
+  |  |        |  |  +--rw rip:metric?         uint8
+  |  |        |  |  +--rw rip:route-policy?   route-policy-ref
+  |  |        |  +--rw rip:ospfv2* [instance]
+  |  |        |  |  +--rw rip:instance        -> ../../../../../rt:control-plane-protocol/rt:name
+  |  |        |  |  +--rw rip:route-type?     ospf:route-type
+  |  |        |  |  +--rw rip:metric?         uint8
+  |  |        |  |  +--rw rip:route-policy?   route-policy-ref
+  |  |        |  +--rw rip:ospfv3* [instance]
+  |  |        |  |  +--rw rip:instance        -> ../../../../../rt:control-plane-protocol/rt:name
+  |  |        |  |  +--rw rip:route-type?     ospf:route-type
+  |  |        |  |  +--rw rip:metric?         uint8
+  |  |        |  |  +--rw rip:route-policy?   route-policy-ref
+  |  |        |  +--rw rip:ripv2* [instance]
+  |  |        |  |  +--rw rip:instance        -> ../../../../../rt:control-plane-protocol/rt:name
+  |  |        |  |  +--rw rip:metric?         uint8
+  |  |        |  |  +--rw rip:route-policy?   route-policy-ref
+  |  |        |  +--rw rip:ripng* [instance]
+  |  |        |  |  +--rw rip:instance        -> ../../../../../rt:control-plane-protocol/rt:name
+  |  |        |  |  +--rw rip:metric?         uint8
+  |  |        |  |  +--rw rip:route-policy?   route-policy-ref
+  |  |        |  +--rw rip:static!
+  |  |        |     +--rw rip:metric?         uint8
+  |  |        |     +--rw rip:route-policy?   route-policy-ref
+  |  |        +--rw rip:timers
+  |  |        |  +--rw rip:update-interval?     uint16
+  |  |        |  +--rw rip:invalid-interval?    uint16
+  |  |        |  +--rw rip:holddown-interval?   uint16
+  |  |        |  +--rw rip:flush-interval?      uint16
+  |  |        +--rw rip:interfaces
+  |  |        |  +--rw rip:interface* [interface]
+  |  |        |     +--rw rip:interface                  if:interface-ref
+  |  |        |     +--rw rip:authentication
+  |  |        |     |  +--rw (rip:auth-type-selection)?
+  |  |        |     |     +--:(rip:auth-key-chain)
+  |  |        |     |     |  +--rw rip:key-chain?   key-chain:key-chain-ref
+  |  |        |     |     +--:(rip:auth-key)
+  |  |        |     |        +--rw rip:key?                string
+  |  |        |     |        +--rw rip:crypto-algorithm?   identityref
+  |  |        |     +--rw rip:bfd {bfd}?
+  |  |        |     |  +--rw rip:enabled?   boolean
+  |  |        |     +--rw rip:cost?                      uint8
+  |  |        |     +--rw rip:neighbors {explicit-neighbors}?
+  |  |        |     |  +--rw rip:neighbor* [address]
+  |  |        |     |     +--rw rip:address    inet:ip-address
+  |  |        |     +--rw rip:no-listen?                 empty
+  |  |        |     +--rw rip:originate-default-route
+  |  |        |     |  +--rw rip:enabled?        boolean
+  |  |        |     |  +--rw rip:route-policy?   route-policy-ref
+  |  |        |     +--rw rip:passive?                   empty
+  |  |        |     +--rw rip:split-horizon?             enumeration
+  |  |        |     +--rw rip:summary-address
+  |  |        |     |  +--rw rip:address?   inet:ip-prefix
+  |  |        |     |  +--rw rip:metric?    uint8
+  |  |        |     +--rw rip:timers
+  |  |        |     |  +--rw rip:update-interval?     uint16
+  |  |        |     |  +--rw rip:invalid-interval?    uint16
+  |  |        |     |  +--rw rip:holddown-interval?   uint16
+  |  |        |     |  +--rw rip:flush-interval?      uint16
+  |  |        |     +--ro rip:oper-status?               enumeration
+  |  |        |     +--ro rip:next-full-update?          uint32
+  |  |        |     +--ro rip:valid-address?             boolean
+  |  |        |     +--ro rip:statistics {interface-statistics}?
+  |  |        |        +--ro rip:discontinuity-time?   yang:date-and-time
+  |  |        |        +--ro rip:bad-packets-rcvd?     yang:counter32
+  |  |        |        +--ro rip:bad-routes-rcvd?      yang:counter32
+  |  |        |        +--ro rip:updates-sent?         yang:counter32
+  |  |        +--ro rip:next-triggered-update?        uint32
+  |  |        +--ro rip:num-of-routes?                uint32
+  |  |        +--ro rip:ipv4
+  |  |        |  +--ro rip:neighbors
+  |  |        |  |  +--ro rip:neighbor* [ipv4-address]
+  |  |        |  |     +--ro rip:ipv4-address        inet:ipv4-address
+  |  |        |  |     +--ro rip:last-update?        yang:date-and-time
+  |  |        |  |     +--ro rip:bad-packets-rcvd?   yang:counter32
+  |  |        |  |     +--ro rip:bad-routes-rcvd?    yang:counter32
+  |  |        |  +--ro rip:routes
+  |  |        |     +--ro rip:route* [ipv4-prefix]
+  |  |        |        +--ro rip:ipv4-prefix                     inet:ipv4-prefix
+  |  |        |        +--ro rip:next-hop?                       inet:ipv4-address
+  |  |        |        +--ro rip:interface?                      if:interface-ref
+  |  |        |        +--ro rip:redistributed?                  boolean
+  |  |        |        +--ro rip:route-type?                     enumeration
+  |  |        |        +--ro rip:metric?                         uint8
+  |  |        |        +--ro rip:expire-time?                    uint16
+  |  |        |        +--ro rip:deleted?                        boolean
+  |  |        |        +--ro rip:holddown?                       boolean
+  |  |        |        +--ro rip:need-triggered-update?          boolean
+  |  |        |        +--ro rip:inactive?                       boolean
+  |  |        |        +--ro rip:flush-expire-before-holddown?   boolean
+  |  |        +--ro rip:ipv6
+  |  |        |  +--ro rip:neighbors
+  |  |        |  |  +--ro rip:neighbor* [ipv6-address]
+  |  |        |  |     +--ro rip:ipv6-address        inet:ipv6-address
+  |  |        |  |     +--ro rip:last-update?        yang:date-and-time
+  |  |        |  |     +--ro rip:bad-packets-rcvd?   yang:counter32
+  |  |        |  |     +--ro rip:bad-routes-rcvd?    yang:counter32
+  |  |        |  +--ro rip:routes
+  |  |        |     +--ro rip:route* [ipv6-prefix]
+  |  |        |        +--ro rip:ipv6-prefix                     inet:ipv6-prefix
+  |  |        |        +--ro rip:next-hop?                       inet:ipv6-address
+  |  |        |        +--ro rip:interface?                      if:interface-ref
+  |  |        |        +--ro rip:redistributed?                  boolean
+  |  |        |        +--ro rip:route-type?                     enumeration
+  |  |        |        +--ro rip:metric?                         uint8
+  |  |        |        +--ro rip:expire-time?                    uint16
+  |  |        |        +--ro rip:deleted?                        boolean
+  |  |        |        +--ro rip:holddown?                       boolean
+  |  |        |        +--ro rip:need-triggered-update?          boolean
+  |  |        |        +--ro rip:inactive?                       boolean
+  |  |        |        +--ro rip:flush-expire-before-holddown?   boolean
+  |  |        +--ro rip:statistics {global-statistics}?
+  |  |           +--ro rip:discontinuity-time?   yang:date-and-time
+  |  |           +--ro rip:requests-rcvd?        yang:counter32
+  |  |           +--ro rip:requests-sent?        yang:counter32
+  |  |           +--ro rip:responses-rcvd?       yang:counter32
+  |  |           +--ro rip:responses-sent?       yang:counter32
+  |  +--rw ribs
+  |     +--rw rib* [name]
+  |        +--rw name              string
+  |        +--rw address-family    identityref
+  |        +--ro default-rib?      boolean {multiple-ribs}?
+  |        +--ro routes
+  |        |  +--ro route*
+  |        |     +--ro route-preference?   route-preference
+  |        |     +--ro next-hop
+  |        |     |  +--ro (next-hop-options)
+  |        |     |     +--:(simple-next-hop)
+  |        |     |     |  +--ro outgoing-interface?   if:interface-ref
+  |        |     |     +--:(special-next-hop)
+  |        |     |     |  +--ro special-next-hop?   enumeration
+  |        |     |     +--:(next-hop-list)
+  |        |     |        +--ro next-hop-list
+  |        |     |           +--ro next-hop*
+  |        |     |              +--ro outgoing-interface?   if:interface-ref
+  |        |     +--ro source-protocol     identityref
+  |        |     +--ro active?             empty
+  |        |     +--ro last-updated?       yang:date-and-time
+  |        +--rw description?      string
+  |        +---x active-route
+  |           +--ro output
+  |              +--ro route
+  |                 +--ro next-hop
+  |                 |  +--ro (next-hop-options)
+  |                 |     +--:(simple-next-hop)
+  |                 |     |  +--ro outgoing-interface?   if:interface-ref
+  |                 |     +--:(special-next-hop)
+  |                 |     |  +--ro special-next-hop?   enumeration
+  |                 |     +--:(next-hop-list)
+  |                 |        +--ro next-hop-list
+  |                 |           +--ro next-hop*
+  |                 |              +--ro outgoing-interface?   if:interface-ref
+  |                 +--ro source-protocol    identityref
+  |                 +--ro active?            empty
+  |                 +--ro last-updated?      yang:date-and-time
+  o--ro routing-state
+     o--ro router-id?                 yang:dotted-quad
+     o--ro interfaces
+     |  o--ro interface*   if:interface-state-ref
+     o--ro control-plane-protocols
+     |  o--ro control-plane-protocol* [type name]
+     |     o--ro type    identityref
+     |     o--ro name    string
+     o--ro ribs
+        o--ro rib* [name]
+           o--ro name              string
+           o--ro address-family    identityref
+           o--ro default-rib?      boolean {multiple-ribs}?
+           o--ro routes
+           |  o--ro route*
+           |     o--ro route-preference?   route-preference
+           |     o--ro next-hop
+           |     |  o--ro (next-hop-options)
+           |     |     o--:(simple-next-hop)
+           |     |     |  o--ro outgoing-interface?   if:interface-ref
+           |     |     o--:(special-next-hop)
+           |     |     |  o--ro special-next-hop?   enumeration
+           |     |     o--:(next-hop-list)
+           |     |        o--ro next-hop-list
+           |     |           o--ro next-hop*
+           |     |              o--ro outgoing-interface?   if:interface-ref
+           |     o--ro source-protocol     identityref
+           |     o--ro active?             empty
+           |     o--ro last-updated?       yang:date-and-time
+           o---x active-route
+              o--ro output
+                 o--ro route
+                    o--ro next-hop
+                    |  o--ro (next-hop-options)
+                    |     o--:(simple-next-hop)
+                    |     |  o--ro outgoing-interface?   if:interface-ref
+                    |     o--:(special-next-hop)
+                    |     |  o--ro special-next-hop?   enumeration
+                    |     o--:(next-hop-list)
+                    |        o--ro next-hop-list
+                    |           o--ro next-hop*
+                    |              o--ro outgoing-interface?   if:interface-ref
+                    o--ro source-protocol    identityref
+                    o--ro active?            empty
+                    o--ro last-updated?      yang:date-and-time
+
+module: ietf-ip
+
+  augment /if:interfaces/if:interface:
+    +--rw ipv4!
+    |  +--rw enabled?      boolean
+    |  +--rw forwarding?   boolean
+    |  +--rw mtu?          uint16
+    |  +--rw address* [ip]
+    |  |  +--rw ip          inet:ipv4-address-no-zone
+    |  |  +--rw (subnet)
+    |  |  |  +--:(prefix-length)?
+    |  |  |  |  +--rw prefix-length?   uint8
+    |  |  |  +--:(netmask)?
+    |  |  |     +--rw netmask?         yang:dotted-quad {ipv4-non-contiguous-netmasks}?
+    |  |  +--ro origin?     ip-address-origin
+    |  +--rw neighbor* [ip]
+    |     +--rw ip                    inet:ipv4-address-no-zone
+    |     +--rw link-layer-address    yang:phys-address
+    |     +--ro origin?               neighbor-origin
+    +--rw ipv6!
+       +--rw enabled?                     boolean
+       +--rw forwarding?                  boolean
+       +--rw mtu?                         uint32
+       +--rw address* [ip]
+       |  +--rw ip               inet:ipv6-address-no-zone
+       |  +--rw prefix-length    uint8
+       |  +--ro origin?          ip-address-origin
+       |  +--ro status?          enumeration
+       +--rw neighbor* [ip]
+       |  +--rw ip                    inet:ipv6-address-no-zone
+       |  +--rw link-layer-address    yang:phys-address
+       |  +--ro origin?               neighbor-origin
+       |  +--ro is-router?            empty
+       |  +--ro state?                enumeration
+       +--rw dup-addr-detect-transmits?   uint32
+       +--rw autoconf
+          +--rw create-global-addresses?        boolean
+          +--rw create-temporary-addresses?     boolean {ipv6-privacy-autoconf}?
+          +--rw temporary-valid-lifetime?       uint32 {ipv6-privacy-autoconf}?
+          +--rw temporary-preferred-lifetime?   uint32 {ipv6-privacy-autoconf}?
+  augment /if:interfaces-state/if:interface:
+    x--ro ipv4!
+    |  x--ro forwarding?   boolean
+    |  x--ro mtu?          uint16
+    |  x--ro address* [ip]
+    |  |  x--ro ip          inet:ipv4-address-no-zone
+    |  |  x--ro (subnet)?
+    |  |  |  x--:(prefix-length)?
+    |  |  |  |  x--ro prefix-length?   uint8
+    |  |  |  x--:(netmask)?
+    |  |  |     x--ro netmask?         yang:dotted-quad {ipv4-non-contiguous-netmasks}?
+    |  |  x--ro origin?     ip-address-origin
+    |  x--ro neighbor* [ip]
+    |     x--ro ip                    inet:ipv4-address-no-zone
+    |     x--ro link-layer-address?   yang:phys-address
+    |     x--ro origin?               neighbor-origin
+    x--ro ipv6!
+       x--ro forwarding?   boolean
+       x--ro mtu?          uint32
+       x--ro address* [ip]
+       |  x--ro ip               inet:ipv6-address-no-zone
+       |  x--ro prefix-length    uint8
+       |  x--ro origin?          ip-address-origin
+       |  x--ro status?          enumeration
+       x--ro neighbor* [ip]
+          x--ro ip                    inet:ipv6-address-no-zone
+          x--ro link-layer-address?   yang:phys-address
+          x--ro origin?               neighbor-origin
+          x--ro is-router?            empty
+          x--ro state?                enumeration
+
+module: ietf-rip
+
+  augment /rt:routing/rt:control-plane-protocols/rt:control-plane-protocol:
+    +--rw rip
+       +---u global-attributes
+       +---u distribute-lists
+       +---u redistribute-container
+       +---u timers-container
+       +--rw interfaces
+       |  +--rw interface* [interface]
+       |     +--rw interface                            if:interface-ref
+       |     +--rw authentication
+       |     |  +--rw (auth-type-selection)?
+       |     |     +--:(auth-key-chain)
+       |     |     |  +--rw key-chain?   key-chain:key-chain-ref
+       |     |     +--:(auth-key)
+       |     |        +--rw key?                string
+       |     |        +--rw crypto-algorithm?   identityref
+       |     +--rw bfd {bfd}?
+       |     |  +---u bfd-types:client-cfg-parms
+       |     +--rw cost?                                uint8
+       |     +--rw neighbors {explicit-neighbors}?
+       |     |  +--rw neighbor* [address]
+       |     |     +--rw address    inet:ip-address
+       |     +--rw no-listen?                           empty
+       |     +---u originate-default-route-container
+       |     +--rw passive?                             empty
+       |     +--rw split-horizon?                       enumeration
+       |     +--rw summary-address
+       |     |  +--rw address?   inet:ip-prefix
+       |     |  +--rw metric?    uint8
+       |     +---u timers-container
+       |     +--ro oper-status?                         enumeration
+       |     +--ro next-full-update?                    uint32
+       |     +--ro valid-address?                       boolean
+       |     +--ro statistics {interface-statistics}?
+       |        +--ro discontinuity-time?   yang:date-and-time
+       |        +--ro bad-packets-rcvd?     yang:counter32
+       |        +--ro bad-routes-rcvd?      yang:counter32
+       |        +--ro updates-sent?         yang:counter32
+       +--ro next-triggered-update?    uint32
+       +--ro num-of-routes?            uint32
+       +--ro ipv4
+       |  +--ro neighbors
+       |  |  +--ro neighbor* [ipv4-address]
+       |  |     +--ro ipv4-address        inet:ipv4-address
+       |  |     +--ro last-update?        yang:date-and-time
+       |  |     +--ro bad-packets-rcvd?   yang:counter32
+       |  |     +--ro bad-routes-rcvd?    yang:counter32
+       |  +--ro routes
+       |     +--ro route* [ipv4-prefix]
+       |        +--ro ipv4-prefix         inet:ipv4-prefix
+       |        +--ro next-hop?           inet:ipv4-address
+       |        +--ro interface?          if:interface-ref
+       |        +---u route-attributes
+       +--ro ipv6
+       |  +--ro neighbors
+       |  |  +--ro neighbor* [ipv6-address]
+       |  |     +--ro ipv6-address        inet:ipv6-address
+       |  |     +--ro last-update?        yang:date-and-time
+       |  |     +--ro bad-packets-rcvd?   yang:counter32
+       |  |     +--ro bad-routes-rcvd?    yang:counter32
+       |  +--ro routes
+       |     +--ro route* [ipv6-prefix]
+       |        +--ro ipv6-prefix         inet:ipv6-prefix
+       |        +--ro next-hop?           inet:ipv6-address
+       |        +--ro interface?          if:interface-ref
+       |        +---u route-attributes
+       +--ro statistics {global-statistics}?
+          +--ro discontinuity-time?   yang:date-and-time
+          +--ro requests-rcvd?        yang:counter32
+          +--ro requests-sent?        yang:counter32
+          +--ro responses-rcvd?       yang:counter32
+          +--ro responses-sent?       yang:counter32
+
+  rpcs:
+    +---x clear-rip-route
+       +---w input
+          +---w rip-instance?   -> /rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/rt:name

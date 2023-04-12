@@ -1,0 +1,6 @@
+{
+  "ietf-ospf:clear-neighbor": {
+    "routing-protocol-name":"main",
+    "interface":"eth-rt3"
+  }
+}

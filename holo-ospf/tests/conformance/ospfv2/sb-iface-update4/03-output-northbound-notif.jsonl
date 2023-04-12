@@ -1,0 +1,1 @@
+{"ietf-ospf:if-state-change":{"routing-protocol-name":"test","address-family":"ipv4","interface":{"interface":"eth-rt4-1"},"state":"point-to-point"}}

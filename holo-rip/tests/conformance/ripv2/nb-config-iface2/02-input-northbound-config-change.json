@@ -1,0 +1,28 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-rip:ripv2",
+          "name": "main",
+          "ietf-rip:rip": {
+            "interfaces": {
+              "interface": [
+                {
+                  "@": {
+                    "yang:operation": "create"
+                  },
+                  "interface": "eth-rt1",
+                  "split-horizon": "poison-reverse"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

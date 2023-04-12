@@ -1,0 +1,58 @@
+[package]
+name = "holo-ospf"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+fletcher = "0.3"
+internet-checksum = "0.2"
+
+async-trait.workspace = true
+bitflags.workspace = true
+bytes.workspace = true
+chrono.workspace = true
+derive-new.workspace = true
+enum-as-inner.workspace = true
+generational-arena.workspace = true
+ipnetwork.workspace = true
+itertools.workspace = true
+libc.workspace = true
+nix.workspace = true
+num-derive.workspace = true
+num-traits.workspace = true
+rand.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+socket2.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+yang2.workspace = true
+
+holo-northbound = { path = "../holo-northbound" }
+holo-protocol = { path = "../holo-protocol" }
+holo-southbound = { path = "../holo-southbound" }
+holo-utils = { path = "../holo-utils" }
+holo-yang = { path = "../holo-yang" }
+
+[dev-dependencies]
+criterion.workspace = true
+maplit.workspace = true
+
+holo-ospf = { path = ".", features = ["testing"] }
+holo-protocol = { path = "../holo-protocol", features = ["testing"] }
+holo-southbound = { path = "../holo-southbound", features = ["testing"] }
+holo-utils = { path = "../holo-utils", features = ["testing"] }
+
+[features]
+default = []
+testing = []
+
+[[bench]]
+name = "packet_encoding"
+harness = false
+
+[[bench]]
+name = "packet_decoding"
+harness = false

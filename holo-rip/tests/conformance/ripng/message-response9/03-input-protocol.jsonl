@@ -1,0 +1,1 @@
+{"UdpRxPdu":{"src":"[fe80::342f:96ff:feeb:ad7e%3]:521","pdu":{"Ok":{"command":"Response","version":1,"rtes":[{"Nexthop":{"addr":null}},{"Ipv6":{"prefix":"2001:db8:100::/64","tag":0,"metric":1}}]}}}}

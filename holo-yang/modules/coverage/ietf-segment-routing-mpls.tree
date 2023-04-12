@@ -1,0 +1,210 @@
+module: ietf-routing
+  +--rw routing
+  |  +--rw router-id?                 yang:dotted-quad
+  |  +--ro interfaces
+  |  |  +--ro interface*   if:interface-ref
+  |  +--rw control-plane-protocols
+  |  |  +--rw control-plane-protocol* [type name]
+  |  |     +--rw type             identityref
+  |  |     +--rw name             string
+  |  |     +--rw description?     string
+  |  |     +--rw static-routes
+  |  +--rw ribs
+  |  |  +--rw rib* [name]
+  |  |     +--rw name              string
+  |  |     +--rw address-family    identityref
+  |  |     +--ro default-rib?      boolean {multiple-ribs}?
+  |  |     +--ro routes
+  |  |     |  +--ro route*
+  |  |     |     +--ro route-preference?   route-preference
+  |  |     |     +--ro next-hop
+  |  |     |     |  +--ro (next-hop-options)
+  |  |     |     |     +--:(simple-next-hop)
+  |  |     |     |     |  +--ro outgoing-interface?   if:interface-ref
+  |  |     |     |     +--:(special-next-hop)
+  |  |     |     |     |  +--ro special-next-hop?   enumeration
+  |  |     |     |     +--:(next-hop-list)
+  |  |     |     |        +--ro next-hop-list
+  |  |     |     |           +--ro next-hop*
+  |  |     |     |              +--ro outgoing-interface?   if:interface-ref
+  |  |     |     +--ro source-protocol     identityref
+  |  |     |     +--ro active?             empty
+  |  |     |     +--ro last-updated?       yang:date-and-time
+  |  |     +--rw description?      string
+  |  |     +---x active-route
+  |  |        +--ro output
+  |  |           +--ro route
+  |  |              +--ro next-hop
+  |  |              |  +--ro (next-hop-options)
+  |  |              |     +--:(simple-next-hop)
+  |  |              |     |  +--ro outgoing-interface?   if:interface-ref
+  |  |              |     +--:(special-next-hop)
+  |  |              |     |  +--ro special-next-hop?   enumeration
+  |  |              |     +--:(next-hop-list)
+  |  |              |        +--ro next-hop-list
+  |  |              |           +--ro next-hop*
+  |  |              |              +--ro outgoing-interface?   if:interface-ref
+  |  |              +--ro source-protocol    identityref
+  |  |              +--ro active?            empty
+  |  |              +--ro last-updated?      yang:date-and-time
+  |  +--rw sr:segment-routing
+  |     +--rw sr-mpls:sr-mpls
+  |        +--rw sr-mpls:bindings
+  |        |  +--rw sr-mpls:mapping-server {mapping-server}?
+  |        |  |  +--rw sr-mpls:policy* [name]
+  |        |  |     +--rw sr-mpls:name       string
+  |        |  |     +--rw sr-mpls:entries
+  |        |  |        +--rw sr-mpls:mapping-entry* [prefix algorithm]
+  |        |  |           +--rw sr-mpls:prefix        inet:ip-prefix
+  |        |  |           +--rw sr-mpls:algorithm     identityref
+  |        |  |           +--rw sr-mpls:value-type?   enumeration
+  |        |  |           +--rw sr-mpls:start-sid     uint32
+  |        |  |           +--rw sr-mpls:range?        uint32
+  |        |  +--rw sr-mpls:connected-prefix-sid-map
+  |        |  |  +--rw sr-mpls:connected-prefix-sid* [prefix algorithm]
+  |        |  |     +--rw sr-mpls:prefix        inet:ip-prefix
+  |        |  |     +--rw sr-mpls:algorithm     identityref
+  |        |  |     +--rw sr-mpls:value-type?   enumeration
+  |        |  |     +--rw sr-mpls:start-sid     uint32
+  |        |  |     +--rw sr-mpls:range?        uint32
+  |        |  +--rw sr-mpls:local-prefix-sid
+  |        |     +--rw sr-mpls:local-prefix-sid* [prefix algorithm]
+  |        |        +--rw sr-mpls:prefix        inet:ip-prefix
+  |        |        +--rw sr-mpls:algorithm     identityref
+  |        |        +--rw sr-mpls:value-type?   enumeration
+  |        |        +--rw sr-mpls:start-sid     uint32
+  |        |        +--rw sr-mpls:range?        uint32
+  |        +--rw sr-mpls:srgb
+  |        |  +--rw sr-mpls:srgb* [lower-bound upper-bound]
+  |        |     +--rw sr-mpls:lower-bound    uint32
+  |        |     +--rw sr-mpls:upper-bound    uint32
+  |        +--rw sr-mpls:srlb
+  |        |  +--rw sr-mpls:srlb* [lower-bound upper-bound]
+  |        |     +--rw sr-mpls:lower-bound    uint32
+  |        |     +--rw sr-mpls:upper-bound    uint32
+  |        +--ro sr-mpls:label-blocks*
+  |        |  +--ro sr-mpls:lower-bound?   uint32
+  |        |  +--ro sr-mpls:upper-bound?   uint32
+  |        |  +--ro sr-mpls:size?          uint32
+  |        |  +--ro sr-mpls:free?          uint32
+  |        |  +--ro sr-mpls:used?          uint32
+  |        |  +--ro sr-mpls:scope?         enumeration
+  |        +--ro sr-mpls:sid-db
+  |           +--ro sr-mpls:sid* [target sid source source-protocol binding-type]
+  |              +--ro sr-mpls:target             string
+  |              +--ro sr-mpls:sid                uint32
+  |              +--ro sr-mpls:source             inet:ip-address
+  |              +--ro sr-mpls:source-protocol    -> /rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/rt:name
+  |              +--ro sr-mpls:binding-type       enumeration
+  |              +--ro sr-mpls:algorithm?         uint8
+  |              +--ro sr-mpls:used?              boolean
+  |              +--ro sr-mpls:scope?             enumeration
+  o--ro routing-state
+     o--ro router-id?                 yang:dotted-quad
+     o--ro interfaces
+     |  o--ro interface*   if:interface-state-ref
+     o--ro control-plane-protocols
+     |  o--ro control-plane-protocol* [type name]
+     |     o--ro type    identityref
+     |     o--ro name    string
+     o--ro ribs
+        o--ro rib* [name]
+           o--ro name              string
+           o--ro address-family    identityref
+           o--ro default-rib?      boolean {multiple-ribs}?
+           o--ro routes
+           |  o--ro route*
+           |     o--ro route-preference?   route-preference
+           |     o--ro next-hop
+           |     |  o--ro (next-hop-options)
+           |     |     o--:(simple-next-hop)
+           |     |     |  o--ro outgoing-interface?   if:interface-ref
+           |     |     o--:(special-next-hop)
+           |     |     |  o--ro special-next-hop?   enumeration
+           |     |     o--:(next-hop-list)
+           |     |        o--ro next-hop-list
+           |     |           o--ro next-hop*
+           |     |              o--ro outgoing-interface?   if:interface-ref
+           |     o--ro source-protocol     identityref
+           |     o--ro active?             empty
+           |     o--ro last-updated?       yang:date-and-time
+           o---x active-route
+              o--ro output
+                 o--ro route
+                    o--ro next-hop
+                    |  o--ro (next-hop-options)
+                    |     o--:(simple-next-hop)
+                    |     |  o--ro outgoing-interface?   if:interface-ref
+                    |     o--:(special-next-hop)
+                    |     |  o--ro special-next-hop?   enumeration
+                    |     o--:(next-hop-list)
+                    |        o--ro next-hop-list
+                    |           o--ro next-hop*
+                    |              o--ro outgoing-interface?   if:interface-ref
+                    o--ro source-protocol    identityref
+                    o--ro active?            empty
+                    o--ro last-updated?      yang:date-and-time
+
+module: ietf-segment-routing
+
+  augment /rt:routing:
+    +--rw segment-routing
+
+module: ietf-segment-routing-mpls
+
+  augment /rt:routing/sr:segment-routing:
+    +--rw sr-mpls
+       +--rw bindings
+       |  +--rw mapping-server {mapping-server}?
+       |  |  +--rw policy* [name]
+       |  |     +--rw name       string
+       |  |     +--rw entries
+       |  |        +--rw mapping-entry* [prefix algorithm]
+       |  |           +---u sr-cmn:prefix-sid
+       |  +--rw connected-prefix-sid-map
+       |  |  +--rw connected-prefix-sid* [prefix algorithm]
+       |  |     +---u sr-cmn:prefix-sid
+       |  |     +---u sr-cmn:last-hop-behavior
+       |  +--rw local-prefix-sid
+       |     +--rw local-prefix-sid* [prefix algorithm]
+       |        +---u sr-cmn:prefix-sid
+       +--rw srgb
+       |  +---u sr-cmn:srgb
+       +--rw srlb
+       |  +---u sr-cmn:srlb
+       +--ro label-blocks*
+       |  +--ro lower-bound?   uint32
+       |  +--ro upper-bound?   uint32
+       |  +--ro size?          uint32
+       |  +--ro free?          uint32
+       |  +--ro used?          uint32
+       |  +--ro scope?         enumeration
+       +--ro sid-db
+          +--ro sid* [target sid source source-protocol binding-type]
+             +--ro target             string
+             +--ro sid                uint32
+             +--ro algorithm?         uint8
+             +--ro source             inet:ip-address
+             +--ro used?              boolean
+             +--ro source-protocol    -> /rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/rt:name
+             +--ro binding-type       enumeration
+             +--ro scope?             enumeration
+
+  notifications:
+    +---n segment-routing-srgb-collision
+    |  +---- srgb-collisions*
+    |     +---- lower-bound?          uint32
+    |     +---- upper-bound?          uint32
+    |     +---- routing-protocol?     -> /rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/rt:name
+    |     +---- originating-rtr-id?   router-or-system-id
+    +---n segment-routing-global-sid-collision
+    |  +---- received-target?       string
+    |  +---- new-sid-rtr-id?        router-or-system-id
+    |  +---- original-target?       string
+    |  +---- original-sid-rtr-id?   router-or-system-id
+    |  +---- index?                 uint32
+    |  +---- routing-protocol?      -> /rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/rt:name
+    +---n segment-routing-index-out-of-range
+       +---- received-target?    string
+       +---- received-index?     uint32
+       +---- routing-protocol?   -> /rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/rt:name

@@ -1,0 +1,30 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-ospf:ospfv2",
+          "name": "main",
+          "ietf-ospf:ospf": {
+            "areas": {
+              "area": [
+                {
+                  "area-id": "0.0.0.3",
+                  "summary": true,
+                  "@summary": {
+                    "yang:operation": "replace",
+                    "yang:orig-default": false,
+                    "yang:orig-value": "false"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

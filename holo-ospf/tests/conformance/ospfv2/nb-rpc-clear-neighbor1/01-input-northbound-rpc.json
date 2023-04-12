@@ -1,0 +1,5 @@
+{
+  "ietf-ospf:clear-neighbor": {
+    "routing-protocol-name":"main"
+  }
+}

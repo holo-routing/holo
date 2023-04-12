@@ -1,0 +1,4 @@
+{"LabelsDel":{"lsp_type":"Ldp","local_label":25,"route":{"prefix":"6.6.6.6/32","proto":"Ospf","instance":0},"nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.2.4","ifindex":5,"label":["Ldp",24]}]}}
+{"LabelsDel":{"lsp_type":"Ldp","local_label":25,"route":{"prefix":"6.6.6.6/32","proto":"Ospf","instance":0},"nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.3.4","ifindex":7,"label":["Ldp",24]}]}}
+{"LabelsAdd":{"lsp_type":"Ldp","local_label":25,"route":{"prefix":"6.6.6.6/32","proto":"Ospf","instance":0},"nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.2.4","ifindex":5,"label":["Ldp",100]}]}}
+{"LabelsAdd":{"lsp_type":"Ldp","local_label":25,"route":{"prefix":"6.6.6.6/32","proto":"Ospf","instance":0},"nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.3.4","ifindex":7,"label":["Ldp",100]}]}}

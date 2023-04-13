@@ -1,8 +1,14 @@
 [![MIT licensed][mit-badge]][mit-url]
+[![Build Status][actions-badge]][actions-url]
+[![codecov][codecov-badge]][codecov-url]
 [![Discord][discord-badge]][discord-url]
 
 [mit-badge]: https://img.shields.io/badge/license-MIT-blue.svg
-[mit-url]: https://github.com/rwestphal/yang2-rs/blob/master/LICENSE
+[mit-url]: https://github.com/rwestphal/holo/blob/master/LICENSE
+[actions-badge]: https://github.com/rwestphal/holo/workflows/CI/badge.svg
+[actions-url]: https://github.com/rwestphal/holo/actions?query=workflow%3ACI+branch%3Amaster
+[codecov-badge]: https://codecov.io/gh/rwestphal/holo/branch/master/graph/badge.svg?token=OMV0RMNVY8
+[codecov-url]: https://codecov.io/gh/rwestphal/holo
 [discord-badge]: https://img.shields.io/discord/1090816494524452935.svg?logo=discord
 [discord-url]: https://discord.gg/mxWPvUbj
 

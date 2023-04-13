@@ -186,7 +186,7 @@ This project is licensed under the [MIT license].
 ### Contribution
 
 We welcome any contributions, from bug reports to Pull Requests. Please refer
-to our [Project Wishlist](https://github.com/users/rwestphal/projects/1)
+to our [Project Wishlist](https://github.com/users/rwestphal/projects/3)
 for ideas on where to contribute.
 
 Unless you explicitly state otherwise, any contribution intentionally submitted

@@ -22,6 +22,7 @@ pub(crate) fn gen_cmds(commands: &mut Commands) {
         .modules(true)
         .flat_map(|module| module.data())
         .filter(|snode| snode.is_config())
+        .filter(|snode| snode.is_status_current())
         .sorted_by(|a, b| Ord::cmp(&a.name(), &b.name()))
     {
         gen_cmds_recursive(commands, snode, commands.config_root_yang);
@@ -46,6 +47,7 @@ fn gen_cmds_recursive(
         .children()
         .filter(|snode| snode.is_config())
         .filter(|snode| !snode.is_list_key())
+        .filter(|snode| snode.is_status_current())
         .sorted_by(|a, b| Ord::cmp(&a.name(), &b.name()))
     {
         gen_cmds_recursive(commands, snode, token_id);

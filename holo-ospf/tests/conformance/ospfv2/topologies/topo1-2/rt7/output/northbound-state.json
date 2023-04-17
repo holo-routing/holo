@@ -19,8 +19,8 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "10.0.6.6",
-                        "outgoing-interface": "eth-rt6"
+                        "outgoing-interface": "eth-rt6",
+                        "next-hop": "10.0.6.6"
                       }
                     ]
                   },
@@ -32,8 +32,8 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "10.0.6.6",
-                        "outgoing-interface": "eth-rt6"
+                        "outgoing-interface": "eth-rt6",
+                        "next-hop": "10.0.6.6"
                       }
                     ]
                   },
@@ -47,6 +47,13 @@
                 },
                 {
                   "prefix": "10.0.6.0/24",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "outgoing-interface": "eth-rt6"
+                      }
+                    ]
+                  },
                   "metric": 10,
                   "route-type": "intra-area"
                 }

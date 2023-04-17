@@ -96,10 +96,10 @@ where
             let event_queue = args.event_queue;
             event_queue.insert(Event::InstanceReset);
         })
-        .path(ospf::enable::PATH)
+        .path(ospf::enabled::PATH)
         .modify_apply(|instance, args| {
-            let enable = args.dnode.get_bool();
-            instance.config.enable = enable;
+            let enabled = args.dnode.get_bool();
+            instance.config.enabled = enabled;
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InstanceUpdate);
@@ -642,14 +642,14 @@ where
             let transmit_delay = args.dnode.get_u16();
             iface.config.transmit_delay = transmit_delay;
         })
-        .path(ospf::areas::area::interfaces::interface::enable::PATH)
+        .path(ospf::areas::area::interfaces::interface::enabled::PATH)
         .modify_apply(|instance, args| {
             let (area_idx, iface_idx) =
                 args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
-            let enable = args.dnode.get_bool();
-            iface.config.enable = enable;
+            let enabled = args.dnode.get_bool();
+            iface.config.enabled = enabled;
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InterfaceUpdate(area_idx, iface_idx));

@@ -46,7 +46,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "10.0.255.3",

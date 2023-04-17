@@ -40,36 +40,6 @@ module ietf-ospf-holo-deviations {
     }
   }
 
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:spf-control/ospf:ietf-spf-delay/ospf:initial-delay" {
-    deviate add {
-      default "50";
-    }
-  }
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:spf-control/ospf:ietf-spf-delay/ospf:short-delay" {
-    deviate add {
-      default "200";
-    }
-  }
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:spf-control/ospf:ietf-spf-delay/ospf:long-delay" {
-    deviate add {
-      default "5000";
-    }
-  }
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:spf-control/ospf:ietf-spf-delay/ospf:hold-down" {
-    deviate add {
-      default "10000";
-    }
-  }
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:spf-control/ospf:ietf-spf-delay/ospf:time-to-learn" {
-    deviate add {
-      default "500";
-    }
-  }
-
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:summary" {
     deviate add {
       default "true";

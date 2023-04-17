@@ -9,8 +9,8 @@
           "type": "ietf-ospf:ospfv2",
           "name": "main",
           "ietf-ospf:ospf": {
-            "enable": false,
-            "@enable": {
+            "enabled": false,
+            "@enabled": {
               "yang:operation": "replace",
               "yang:orig-default": false,
               "yang:orig-value": "true"

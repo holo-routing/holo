@@ -68,7 +68,7 @@ pub struct InterfaceCfg<V: Version> {
     pub dead_interval: u16,
     pub retransmit_interval: u16,
     pub transmit_delay: u16,
-    pub enable: bool,
+    pub enabled: bool,
     pub cost: u16,
     pub mtu_ignore: bool,
     pub static_nbrs: BTreeMap<V::NetIpAddr, StaticNbr>,
@@ -904,7 +904,7 @@ where
             ospf::areas::area::interfaces::interface::retransmit_interval::DFLT;
         let transmit_delay =
             ospf::areas::area::interfaces::interface::transmit_delay::DFLT;
-        let enable = ospf::areas::area::interfaces::interface::enable::DFLT;
+        let enabled = ospf::areas::area::interfaces::interface::enabled::DFLT;
         let cost = ospf::areas::area::interfaces::interface::cost::DFLT;
         let mtu_ignore =
             ospf::areas::area::interfaces::interface::mtu_ignore::DFLT;
@@ -920,7 +920,7 @@ where
             dead_interval,
             retransmit_interval,
             transmit_delay,
-            enable,
+            enabled,
             cost,
             mtu_ignore,
             static_nbrs: Default::default(),
@@ -999,7 +999,7 @@ pub(crate) fn is_ready_common<V>(
 where
     V: Version,
 {
-    if !iface.config.enable {
+    if !iface.config.enabled {
         return Err(InterfaceInactiveReason::AdminDown);
     }
 

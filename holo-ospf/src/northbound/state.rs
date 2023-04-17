@@ -160,12 +160,7 @@ where
         .path(ospf::local_rib::route::next_hops::next_hop::PATH)
         .get_iterate(|_instance, args| {
             let (_, route) = args.parent_list_entry.as_route().unwrap();
-            let iter = route
-                .nexthops
-                .iter()
-                // TODO: remove workaround for list key issue.
-                .filter(|nexthop| nexthop.addr.is_some())
-                .map(ListEntry::Nexthop);
+            let iter = route.nexthops.iter().map(ListEntry::Nexthop);
             Some(Box::new(iter))
         })
         .path(ospf::local_rib::route::next_hops::next_hop::outgoing_interface::PATH)
@@ -173,6 +168,11 @@ where
             let nexthop = args.list_entry.as_nexthop().unwrap();
             let iface = &instance.arenas.interfaces[nexthop.iface_idx];
             Some(iface.name.clone())
+        })
+        .path(ospf::local_rib::route::next_hops::next_hop::next_hop::PATH)
+        .get_element_ip(|_instance, args| {
+            let nexthop = args.list_entry.as_nexthop().unwrap();
+            nexthop.addr.map(std::convert::Into::into)
         })
         .path(ospf::local_rib::route::metric::PATH)
         .get_element_u32(|_instance, args| {
@@ -3394,11 +3394,10 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             Some(flag.to_string())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::intra_area_prefix::prefixes::prefix::metric::PATH)
-        .get_element_u32(|_instance, args| {
+        .get_element_u16(|_instance, args| {
             let prefix =
                 args.list_entry.as_ospfv3_intra_area_lsa_prefix().unwrap();
-            // NOTE: YANG module needs fixing.
-            Some(prefix.metric.into())
+            Some(prefix.metric)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::router_capabilities_tlv::router_informational_capabilities::informational_capabilities::PATH)
         .get_iterate(|_instance, args| {
@@ -4587,15 +4586,9 @@ where
                 let keys = list_keys(destination);
                 Some(keys)
             }
-            ListEntry::Nexthop(nexthop) => {
-                use ospf::local_rib::route::next_hops::next_hop::list_keys;
-                // TODO: having the nexthop address as the list key seems wrong.
-                if let Some(addr) = nexthop.addr {
-                    let keys = list_keys(addr);
-                    Some(keys)
-                } else {
-                    None
-                }
+            ListEntry::Nexthop(_) => {
+                // Keyless list.
+                None
             }
             ListEntry::StatsAsLsaType(_) => {
                 // Keyless list.

@@ -238,10 +238,10 @@ impl ToYangBits for ospfv2::packet::Options {
 
         let mut options = vec![];
         if self.contains(Options::E) {
-            options.push("v2-e-flag");
+            options.push("v2-e-bit");
         }
         if self.contains(Options::MC) {
-            options.push("mc-flag");
+            options.push("mc-bit");
         }
         if self.contains(Options::NP) {
             options.push("v2-p-bit");

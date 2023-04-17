@@ -19,12 +19,12 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "10.0.7.4",
-                        "outgoing-interface": "eth-rt4"
+                        "outgoing-interface": "eth-rt4",
+                        "next-hop": "10.0.7.4"
                       },
                       {
-                        "next-hop": "10.0.8.5",
-                        "outgoing-interface": "eth-rt5"
+                        "outgoing-interface": "eth-rt5",
+                        "next-hop": "10.0.8.5"
                       }
                     ]
                   },
@@ -36,8 +36,8 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "10.0.7.4",
-                        "outgoing-interface": "eth-rt4"
+                        "outgoing-interface": "eth-rt4",
+                        "next-hop": "10.0.7.4"
                       }
                     ]
                   },
@@ -49,8 +49,8 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "10.0.8.5",
-                        "outgoing-interface": "eth-rt5"
+                        "outgoing-interface": "eth-rt5",
+                        "next-hop": "10.0.8.5"
                       }
                     ]
                   },
@@ -62,8 +62,8 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "10.0.7.4",
-                        "outgoing-interface": "eth-rt4"
+                        "outgoing-interface": "eth-rt4",
+                        "next-hop": "10.0.7.4"
                       }
                     ]
                   },
@@ -75,8 +75,8 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "10.0.8.5",
-                        "outgoing-interface": "eth-rt5"
+                        "outgoing-interface": "eth-rt5",
+                        "next-hop": "10.0.8.5"
                       }
                     ]
                   },
@@ -93,12 +93,12 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "10.0.7.4",
-                        "outgoing-interface": "eth-rt4"
+                        "outgoing-interface": "eth-rt4",
+                        "next-hop": "10.0.7.4"
                       },
                       {
-                        "next-hop": "10.0.8.5",
-                        "outgoing-interface": "eth-rt5"
+                        "outgoing-interface": "eth-rt5",
+                        "next-hop": "10.0.8.5"
                       }
                     ]
                   },
@@ -110,8 +110,8 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "10.0.7.4",
-                        "outgoing-interface": "eth-rt4"
+                        "outgoing-interface": "eth-rt4",
+                        "next-hop": "10.0.7.4"
                       }
                     ]
                   },
@@ -123,8 +123,8 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "10.0.7.4",
-                        "outgoing-interface": "eth-rt4"
+                        "outgoing-interface": "eth-rt4",
+                        "next-hop": "10.0.7.4"
                       }
                     ]
                   },
@@ -136,8 +136,8 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "10.0.8.5",
-                        "outgoing-interface": "eth-rt5"
+                        "outgoing-interface": "eth-rt5",
+                        "next-hop": "10.0.8.5"
                       }
                     ]
                   },
@@ -149,8 +149,8 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "10.0.8.5",
-                        "outgoing-interface": "eth-rt5"
+                        "outgoing-interface": "eth-rt5",
+                        "next-hop": "10.0.8.5"
                       }
                     ]
                   },
@@ -162,12 +162,12 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "10.0.7.4",
-                        "outgoing-interface": "eth-rt4"
+                        "outgoing-interface": "eth-rt4",
+                        "next-hop": "10.0.7.4"
                       },
                       {
-                        "next-hop": "10.0.8.5",
-                        "outgoing-interface": "eth-rt5"
+                        "outgoing-interface": "eth-rt5",
+                        "next-hop": "10.0.8.5"
                       }
                     ]
                   },
@@ -228,7 +228,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "4.4.4.4",
@@ -326,7 +326,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "5.5.5.5",
@@ -424,7 +424,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "6.6.6.6",
@@ -524,7 +524,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "1.1.1.1",
@@ -556,7 +556,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "2.2.2.2",
@@ -588,7 +588,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "3.3.3.3",
@@ -620,7 +620,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "10.0.1.0",
@@ -652,7 +652,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "10.0.2.0",
@@ -684,7 +684,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "10.0.3.0",
@@ -716,7 +716,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "10.0.4.0",
@@ -748,7 +748,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "10.0.5.0",
@@ -780,7 +780,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "1.1.1.1",
@@ -812,7 +812,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "2.2.2.2",
@@ -844,7 +844,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "3.3.3.3",
@@ -876,7 +876,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "10.0.1.0",
@@ -908,7 +908,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "10.0.2.0",
@@ -940,7 +940,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "10.0.3.0",
@@ -972,7 +972,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "10.0.4.0",
@@ -1004,7 +1004,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "10.0.5.0",
@@ -1043,7 +1043,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "4.0.0.0",
@@ -1082,7 +1082,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "8.0.0.0",
@@ -1114,7 +1114,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "8.0.0.1",
@@ -1146,7 +1146,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "4.0.0.0",
@@ -1185,7 +1185,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "8.0.0.0",
@@ -1217,7 +1217,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "8.0.0.1",
@@ -1249,7 +1249,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "4.0.0.0",
@@ -1288,7 +1288,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "8.0.0.0",
@@ -1320,7 +1320,7 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-flag"
+                                      "ietf-ospf:v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "8.0.0.1",

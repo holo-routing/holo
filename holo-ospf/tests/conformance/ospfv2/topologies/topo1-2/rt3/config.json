@@ -38,7 +38,7 @@
           "type": "ietf-ospf:ospfv2",
           "name": "main",
           "ietf-ospf:ospf": {
-            "enable": true,
+            "enabled": true,
             "explicit-router-id": "3.3.3.3",
             "areas": {
               "area": [

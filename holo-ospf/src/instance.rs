@@ -72,7 +72,7 @@ pub struct InstanceSys {
 #[derive(Debug)]
 pub struct InstanceCfg {
     pub af: Option<AddressFamily>,
-    pub enable: bool,
+    pub enabled: bool,
     pub router_id: Option<Ipv4Addr>,
     pub preference: Preference,
     pub max_paths: u16,
@@ -347,7 +347,7 @@ where
         &self,
         router_id: Option<Ipv4Addr>,
     ) -> Result<(), InstanceInactiveReason> {
-        if !self.config.enable || self.arenas.interfaces.is_empty() {
+        if !self.config.enabled || self.arenas.interfaces.is_empty() {
             return Err(InstanceInactiveReason::AdminDown);
         }
 
@@ -535,7 +535,7 @@ where
 
 impl Default for InstanceCfg {
     fn default() -> InstanceCfg {
-        let enable = ospf::enable::DFLT;
+        let enabled = ospf::enabled::DFLT;
         let max_paths = ospf::spf_control::paths::DFLT;
         let spf_initial_delay =
             ospf::spf_control::ietf_spf_delay::initial_delay::DFLT;
@@ -551,7 +551,7 @@ impl Default for InstanceCfg {
 
         InstanceCfg {
             af: None,
-            enable,
+            enabled,
             router_id: None,
             preference: Default::default(),
             max_paths,

@@ -32,6 +32,23 @@ fn get_opt_arg(args: &mut ParsedArgs, name: &str) -> Option<String> {
     None
 }
 
+fn page_output(
+    session: &Session,
+    data: &str,
+) -> Result<(), minus::error::MinusError> {
+    if session.use_pager() {
+        let pager = minus::Pager::new();
+        pager.set_exit_strategy(minus::ExitStrategy::PagerQuit)?;
+        pager.set_run_no_overflow(true)?;
+        pager.set_text(data)?;
+        minus::page_all(pager)?;
+    } else {
+        println!("{}", data);
+    }
+
+    Ok(())
+}
+
 // ===== "configure" =====
 
 pub(crate) fn cmd_config(
@@ -279,14 +296,17 @@ fn cmd_show_config_yang(
     config: &DataTree,
     format: DataFormat,
     with_defaults: bool,
-) {
+) -> Result<String, String> {
     let mut flags = DataPrinterFlags::WITH_SIBLINGS;
     if with_defaults {
         flags |= DataPrinterFlags::WD_ALL;
     }
-    if let Err(error) = config.print_file(std::io::stdout(), format, flags) {
-        println!("% failed to print configuration: {}", error);
-    }
+
+    let data = config
+        .print_string(format, flags)
+        .map_err(|error| format!("failed to print configuration: {}", error))?
+        .unwrap_or_default();
+    Ok(data)
 }
 
 pub(crate) fn cmd_show_config(
@@ -308,18 +328,18 @@ pub(crate) fn cmd_show_config(
     let config = session.get_configuration(config_type);
 
     // Display configuration.
-    match format.as_deref() {
+    let data = match format.as_deref() {
         Some("json") => {
-            cmd_show_config_yang(config, DataFormat::JSON, with_defaults)
+            cmd_show_config_yang(config, DataFormat::JSON, with_defaults)?
         }
         Some("xml") => {
-            cmd_show_config_yang(config, DataFormat::XML, with_defaults)
+            cmd_show_config_yang(config, DataFormat::XML, with_defaults)?
         }
         Some(_) => panic!("unknown format"),
-        None => {
-            let output = cmd_show_config_cmds(config, with_defaults);
-            print!("{}", output);
-        }
+        None => cmd_show_config_cmds(config, with_defaults),
+    };
+    if let Err(error) = page_output(session, &data) {
+        println!("% failed to print configuration: {}", error)
     }
 
     Ok(false)
@@ -363,7 +383,11 @@ pub(crate) fn cmd_show_state(
     };
 
     match session.get_state(xpath, format) {
-        Ok(data) => println!("{}", data),
+        Ok(data) => {
+            if let Err(error) = page_output(session, &data) {
+                println!("% failed to print state data: {}", error)
+            }
+        }
         Err(error) => println!("% failed to fetch state data: {}", error),
     }
 

@@ -8,6 +8,7 @@ edition.workspace = true
 [dependencies]
 indextree = "4.3"
 prettytable-rs = "0.10"
+minus = { version = "5.0", features = ["search", "static_output"] }
 reedline = "0.16"
 xml-rs = "0.8"
 

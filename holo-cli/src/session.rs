@@ -20,6 +20,7 @@ use crate::token_yang;
 pub struct Session {
     hostname: String,
     prompt: String,
+    use_pager: bool,
     mode: CommandMode,
     running: DataTree,
     candidate: Option<DataTree>,
@@ -50,6 +51,7 @@ pub enum ConfigurationType {
 impl Session {
     pub(crate) fn new(
         hostname: String,
+        use_pager: bool,
         mut client: Box<dyn Client>,
     ) -> Session {
         let running = client.get_running_config();
@@ -57,6 +59,7 @@ impl Session {
         Session {
             hostname,
             prompt: String::new(),
+            use_pager,
             mode: CommandMode::Operational,
             running,
             candidate: None,
@@ -71,6 +74,10 @@ impl Session {
 
     pub(crate) fn prompt(&self) -> String {
         self.prompt.clone()
+    }
+
+    pub(crate) fn use_pager(&self) -> bool {
+        self.use_pager
     }
 
     pub(crate) fn update_prompt(&mut self) {

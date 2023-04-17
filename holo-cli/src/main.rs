@@ -38,13 +38,13 @@ pub struct Cli {
 // ===== impl Cli =====
 
 impl Cli {
-    fn new(hostname: String, client: Box<dyn Client>) -> Cli {
+    fn new(hostname: String, use_pager: bool, client: Box<dyn Client>) -> Cli {
         // Generate commands.
         let mut commands = Commands::new();
         commands.gen_cmds();
 
         // Create CLI session.
-        let mut session = Session::new(hostname, client);
+        let mut session = Session::new(hostname, use_pager, client);
         session.update_prompt();
 
         Cli { commands, session }
@@ -148,7 +148,9 @@ fn main() {
     YANG_CTX.set(Arc::new(yang_ctx)).unwrap();
 
     // Initialize CLI master structure.
-    let mut cli = Cli::new(DEFAULT_HOSTNAME.to_string(), Box::new(client));
+    let use_pager = matches.values_of("command").is_none();
+    let mut cli =
+        Cli::new(DEFAULT_HOSTNAME.to_string(), use_pager, Box::new(client));
 
     // Read configuration file.
     if let Some(path) = matches.value_of("file") {

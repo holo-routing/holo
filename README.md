@@ -10,7 +10,7 @@
 [codecov-badge]: https://codecov.io/gh/rwestphal/holo/branch/master/graph/badge.svg?token=OMV0RMNVY8
 [codecov-url]: https://codecov.io/gh/rwestphal/holo
 [discord-badge]: https://img.shields.io/discord/1090816494524452935.svg?logo=discord
-[discord-url]: https://discord.gg/mxWPvUbj
+[discord-url]: https://discord.gg/deqkRvhHB9
 
 Holo is a suite of routing protocols designed to support high-scale and
 automation-driven networks.

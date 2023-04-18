@@ -65,6 +65,8 @@ where
 {
     fn yang_modules() -> &'static [&'static str];
 
+    fn top_level_node(&self) -> String;
+
     fn debug_span(name: &str) -> Span;
 }
 

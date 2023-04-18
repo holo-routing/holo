@@ -20,6 +20,10 @@ impl ProviderBase for Master {
         &["ietf-key-chain"]
     }
 
+    fn top_level_node(&self) -> String {
+        "/ietf-key-chain:key-chains".to_owned()
+    }
+
     fn debug_span(_name: &str) -> Span {
         debug_span!("key-chain")
     }

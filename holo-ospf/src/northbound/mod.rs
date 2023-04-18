@@ -12,6 +12,7 @@ pub mod yang;
 
 use holo_northbound as northbound;
 use holo_northbound::ProviderBase;
+use holo_yang::ToYang;
 use tracing::{debug_span, Span};
 
 use crate::instance::Instance;
@@ -46,6 +47,14 @@ where
             "holo-ospf",
             "holo-ospf-dev",
         ]
+    }
+
+    fn top_level_node(&self) -> String {
+        format!(
+            "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='{}']/ietf-ospf:ospf",
+            V::PROTOCOL.to_yang(),
+            self.name
+        )
     }
 
     fn debug_span(name: &str) -> Span {

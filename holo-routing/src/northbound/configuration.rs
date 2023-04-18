@@ -293,8 +293,11 @@ impl Provider for Master {
         }
         changes_map
             .into_iter()
-            .map(|(instance_id, changes)| {
-                (changes, self.instances.get(&instance_id).unwrap().clone())
+            .filter_map(|(instance_id, changes)| {
+                self.instances
+                    .get(&instance_id)
+                    .cloned()
+                    .map(|nb_tx| (changes, nb_tx))
             })
             .collect::<Vec<_>>()
     }

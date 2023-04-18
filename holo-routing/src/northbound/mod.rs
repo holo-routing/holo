@@ -29,6 +29,10 @@ impl ProviderBase for Master {
         ]
     }
 
+    fn top_level_node(&self) -> String {
+        "/ietf-routing:routing".to_owned()
+    }
+
     fn debug_span(_name: &str) -> Span {
         debug_span!("routing")
     }

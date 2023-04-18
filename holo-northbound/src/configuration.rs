@@ -408,6 +408,17 @@ where
             dnode,
         };
 
+        // Lookup reference(s) associated to the list entry.
+        if phase != CommitPhase::Prepare {
+            args.list_entry = lookup_list_entry(
+                provider,
+                phase,
+                cb_key.operation,
+                &callbacks,
+                &args.dnode,
+            );
+        }
+
         match phase {
             CommitPhase::Prepare => {
                 // Invoke 1st-phase commit callback.
@@ -422,27 +433,6 @@ where
                 }
             }
             CommitPhase::Apply => {
-                // Lookup reference(s) associated to the list entry.
-                let ancestors = if let CallbackOp::Create = cb_key.operation {
-                    args.dnode.ancestors()
-                } else {
-                    args.dnode.inclusive_ancestors()
-                };
-                for dnode in ancestors
-                    .filter(|dnode| {
-                        dnode.schema().kind() == SchemaNodeKind::List
-                    })
-                    .collect::<Vec<_>>()
-                    .into_iter()
-                    .rev()
-                {
-                    let path = dnode.schema().path(SchemaPathFormat::DATA);
-                    if let Some(cb) = callbacks.get_lookup(path) {
-                        args.list_entry =
-                            (*cb)(provider, args.list_entry, dnode);
-                    }
-                }
-
                 // Invoke 2nd-phase commit callback.
                 if let Some(cb) = callbacks.get_apply(cb_key) {
                     (*cb)(provider, args);
@@ -491,12 +481,52 @@ where
     Ok(())
 }
 
-async fn validate_configuration<P>(config: &Arc<DataTree>) -> Result<(), Error>
+fn lookup_list_entry<P>(
+    provider: &mut P,
+    phase: CommitPhase,
+    operation: CallbackOp,
+    callbacks: &Callbacks<P>,
+    dnode: &DataNodeRef<'_>,
+) -> P::ListEntry
+where
+    P: Provider,
+{
+    let ancestors =
+        if phase == CommitPhase::Apply && operation == CallbackOp::Create {
+            dnode.ancestors()
+        } else {
+            dnode.inclusive_ancestors()
+        };
+
+    let mut list_entry = P::ListEntry::default();
+    for dnode in ancestors
+        .filter(|dnode| dnode.schema().kind() == SchemaNodeKind::List)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+    {
+        let path = dnode.schema().path(SchemaPathFormat::DATA);
+        if let Some(cb) = callbacks.get_lookup(path) {
+            list_entry = (*cb)(provider, list_entry, dnode);
+        }
+    }
+
+    list_entry
+}
+
+async fn validate_configuration<P>(
+    provider: &P,
+    config: &Arc<DataTree>,
+) -> Result<(), Error>
 where
     P: Provider,
 {
     if let Some(callbacks) = P::validation_callbacks() {
-        for dnode in config.traverse() {
+        for dnode in config
+            .find_path(&provider.top_level_node())
+            .unwrap()
+            .traverse()
+        {
             if let Some(cb) =
                 callbacks.get(&dnode.schema().path(SchemaPathFormat::DATA))
             {
@@ -598,7 +628,7 @@ where
 {
     // Perform code-level validation before the preparation phase.
     if phase == CommitPhase::Prepare {
-        validate_configuration::<P>(&new_config).await?;
+        validate_configuration::<P>(provider, &new_config).await?;
     }
 
     // Move to a separate vector the changes that need to be relayed.

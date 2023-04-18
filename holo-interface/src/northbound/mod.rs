@@ -20,6 +20,10 @@ impl ProviderBase for Master {
         &["ietf-interfaces", "ietf-ip"]
     }
 
+    fn top_level_node(&self) -> String {
+        "/ietf-interfaces:interfaces".to_owned()
+    }
+
     fn debug_span(_name: &str) -> Span {
         debug_span!("interface")
     }

@@ -11,6 +11,7 @@ pub mod yang;
 
 use holo_northbound as northbound;
 use holo_northbound::ProviderBase;
+use holo_yang::ToYang;
 use tracing::{debug_span, Span};
 
 use crate::instance::Instance;
@@ -39,6 +40,14 @@ where
 {
     fn yang_modules() -> &'static [&'static str] {
         &["ietf-rip"]
+    }
+
+    fn top_level_node(&self) -> String {
+        format!(
+            "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='{}']/ietf-rip:rip",
+            V::PROTOCOL.to_yang(),
+            self.core().name
+        )
     }
 
     fn debug_span(name: &str) -> Span {

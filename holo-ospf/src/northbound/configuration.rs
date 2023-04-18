@@ -771,7 +771,24 @@ fn load_validation_callbacks_ospfv2() -> ValidationCallbacks {
 
 fn load_validation_callbacks_ospfv3() -> ValidationCallbacks {
     let core_cbs = load_validation_callbacks();
-    ValidationCallbacksBuilder::new(core_cbs).build()
+    ValidationCallbacksBuilder::new(core_cbs)
+        .path(ospf::segment_routing::enabled::PATH)
+        .validate(|args| {
+            let sr_enabled = args.dnode.get_bool();
+            let extended_lsa = args
+                .dnode
+                .get_bool_relative("../../extended-lsa-support")
+                .unwrap();
+
+            if sr_enabled && !extended_lsa {
+                return Err(
+                    "Segment Routing for OSPFv3 requires extended LSA support enabled".to_string()
+                );
+            }
+
+            Ok(())
+        })
+        .build()
 }
 
 // ===== impl Instance =====

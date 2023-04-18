@@ -15,7 +15,7 @@ use holo_northbound::configuration::{
     ValidationCallbacksBuilder,
 };
 use holo_northbound::paths::control_plane_protocol::ospf;
-use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
+use holo_utils::ip::{IpAddrKind, IpNetworkKind};
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
 use yang2::data::Data;
@@ -758,15 +758,7 @@ fn load_validation_callbacks() -> ValidationCallbacks {
 
 fn load_validation_callbacks_ospfv2() -> ValidationCallbacks {
     let core_cbs = load_validation_callbacks();
-    ValidationCallbacksBuilder::new(core_cbs)
-        .path(ospf::address_family::PATH)
-        .validate(|args| {
-            if args.dnode.get_af() == AddressFamily::Ipv6 {
-                return Err("OSPFv2 doesn't support IPv6".to_owned());
-            }
-            Ok(())
-        })
-        .build()
+    ValidationCallbacksBuilder::new(core_cbs).build()
 }
 
 fn load_validation_callbacks_ospfv3() -> ValidationCallbacks {

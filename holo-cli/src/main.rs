@@ -131,6 +131,11 @@ fn main() {
                 .help("Disable ansi coloring"),
         )
         .arg(
+            Arg::with_name("no-pager")
+                .long("no-pager")
+                .help("Disable the pager"),
+        )
+        .arg(
             Arg::with_name("command")
                 .short("c")
                 .long("command")
@@ -148,7 +153,8 @@ fn main() {
     YANG_CTX.set(Arc::new(yang_ctx)).unwrap();
 
     // Initialize CLI master structure.
-    let use_pager = matches.values_of("command").is_none();
+    let use_pager = matches.values_of("command").is_none()
+        && !matches.is_present("no-pager");
     let mut cli =
         Cli::new(DEFAULT_HOSTNAME.to_string(), use_pager, Box::new(client));
 

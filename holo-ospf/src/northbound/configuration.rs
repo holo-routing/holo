@@ -4,6 +4,7 @@
 // See LICENSE for license details.
 //
 
+use std::collections::HashSet;
 use std::net::Ipv4Addr;
 use std::sync::LazyLock as Lazy;
 
@@ -17,6 +18,7 @@ use holo_northbound::paths::control_plane_protocol::ospf;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
+use yang2::data::Data;
 
 use crate::area::{self, AreaType};
 use crate::collections::{AreaIndex, InterfaceIndex};
@@ -714,6 +716,25 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
 
 fn load_validation_callbacks() -> ValidationCallbacks {
     ValidationCallbacksBuilder::default()
+        .path(ospf::areas::PATH)
+        .validate(|args| {
+            // Ensure no interface is configured in more than one area.
+            let mut ifnames = HashSet::new();
+            for dnode in args
+                .dnode
+                .find_xpath("./area/interfaces/interface/name")
+                .unwrap()
+            {
+                if !ifnames.insert(dnode.get_string()) {
+                    return Err(format!(
+                        "interface '{}' configured in more than one area",
+                        dnode.get_string()
+                    ));
+                }
+            }
+
+            Ok(())
+        })
         .path(ospf::areas::area::area_type::PATH)
         .validate(|args| {
             let area_type = args.dnode.get_string();

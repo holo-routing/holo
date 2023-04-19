@@ -7,7 +7,7 @@
       "control-plane-protocol": [
         {
           "type": "ietf-rip:ripv2",
-          "name": "main",
+          "name": "test",
           "ietf-rip:rip": {
             "interfaces": {
               "interface": [

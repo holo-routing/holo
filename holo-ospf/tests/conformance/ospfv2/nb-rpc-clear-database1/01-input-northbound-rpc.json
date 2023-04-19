@@ -1,5 +1,5 @@
 {
   "ietf-ospf:clear-database": {
-    "routing-protocol-name":"main"
+    "routing-protocol-name":"test"
   }
 }

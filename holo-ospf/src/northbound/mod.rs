@@ -65,7 +65,7 @@ where
 // ===== impl Ospfv2 =====
 
 impl NorthboundVersion<Self> for Ospfv2 {
-    const STATE_PATH: &'static str = "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='ietf-ospf:ospfv2'][name='main']/ietf-ospf:ospf";
+    const STATE_PATH: &'static str = "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='ietf-ospf:ospfv2'][name='test']/ietf-ospf:ospf";
 
     fn debug_span(name: &str) -> Span {
         debug_span!("ospfv2-instance", %name)
@@ -96,7 +96,7 @@ impl NorthboundVersion<Self> for Ospfv2 {
 // ===== impl Ospfv3 =====
 
 impl NorthboundVersion<Self> for Ospfv3 {
-    const STATE_PATH: &'static str = "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='ietf-ospf:ospfv3'][name='main']/ietf-ospf:ospf";
+    const STATE_PATH: &'static str = "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='ietf-ospf:ospfv3'][name='test']/ietf-ospf:ospf";
 
     fn debug_span(name: &str) -> Span {
         debug_span!("ospfv3-instance", %name)

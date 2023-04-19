@@ -1,7 +1,7 @@
 {
   "ietf-mpls-ldp:mpls-ldp-clear-hello-adjacency": {
     "hello-adjacency": {
-      "protocol-name":"main"
+      "protocol-name":"test"
     }
   }
 }

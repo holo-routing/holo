@@ -716,7 +716,7 @@ fn load_callbacks() -> Callbacks<Instance> {
 // ===== impl Instance =====
 
 impl Provider for Instance {
-    const STATE_PATH: &'static str = "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='ietf-mpls-ldp:mpls-ldp'][name='main']/ietf-mpls-ldp:mpls-ldp";
+    const STATE_PATH: &'static str = "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='ietf-mpls-ldp:mpls-ldp'][name='test']/ietf-mpls-ldp:mpls-ldp";
 
     type ListEntry<'a> = ListEntry<'a>;
 

@@ -4,7 +4,7 @@
       "control-plane-protocol": [
         {
           "type": "ietf-ospf:ospfv2",
-          "name": "main",
+          "name": "test",
           "ietf-ospf:ospf": {
             "spf-control": {
               "ietf-spf-delay": {

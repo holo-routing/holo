@@ -36,7 +36,7 @@
       "control-plane-protocol": [
         {
           "type": "ietf-mpls-ldp:mpls-ldp",
-          "name": "main",
+          "name": "test",
           "ietf-mpls-ldp:mpls-ldp": {
             "global": {
               "lsr-id": "5.5.5.5",

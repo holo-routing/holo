@@ -38,7 +38,7 @@
       "control-plane-protocol": [
         {
           "type": "ietf-ospf:ospfv2",
-          "name": "main",
+          "name": "test",
           "ietf-ospf:ospf": {
             "enabled": true,
             "explicit-router-id": "2.2.2.2",

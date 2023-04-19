@@ -4,7 +4,7 @@
       "control-plane-protocol": [
         {
           "type": "ietf-rip:ripng",
-          "name": "main",
+          "name": "test",
           "ietf-rip:rip": {
             "interfaces": {
               "interface": [

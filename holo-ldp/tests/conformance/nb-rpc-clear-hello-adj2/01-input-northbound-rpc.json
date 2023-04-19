@@ -1,7 +1,7 @@
 {
   "ietf-mpls-ldp:mpls-ldp-clear-hello-adjacency": {
     "hello-adjacency": {
-      "protocol-name":"main",
+      "protocol-name":"test",
       "link": {
         "next-hop-interface":"eth-sw1",
         "next-hop-address":"10.0.1.1"

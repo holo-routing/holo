@@ -23,7 +23,7 @@
       "control-plane-protocol": [
         {
           "type": "ietf-ospf:ospfv2",
-          "name": "main",
+          "name": "test",
           "ietf-ospf:ospf": {
             "explicit-router-id": "6.6.6.6",
             "areas": {

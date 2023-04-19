@@ -29,7 +29,7 @@
       "control-plane-protocol": [
         {
           "type": "ietf-rip:ripng",
-          "name": "main",
+          "name": "test",
           "ietf-rip:rip": {
             "distance": 50,
             "interfaces": {

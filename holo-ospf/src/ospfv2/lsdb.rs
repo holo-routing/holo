@@ -201,11 +201,12 @@ impl LsdbVersion<Self> for Ospfv2 {
                 }
             }
             LsaOriginateEvent::SrEnableChange => {
-                // (Re)originate Router Information LSA(s) and Extended Prefix
-                // Opaque LSA(s) in all areas.
+                // (Re)originate Router Information LSA(s), Extended Prefix
+                // Opaque LSA(s) and Extended Link Opaque LSA(s) in all areas.
                 for area in arenas.areas.iter() {
                     lsa_orig_router_info(area, instance);
                     lsa_orig_ext_prefix(area, instance);
+                    lsa_orig_ext_link(area, instance, arenas);
                 }
             }
             LsaOriginateEvent::SrCfgChange { change } => {

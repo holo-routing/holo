@@ -28,8 +28,8 @@ use crate::interface::{ism, InterfaceType};
 use crate::lsdb::LsaOriginateEvent;
 use crate::neighbor::nsm;
 use crate::route::RouteNetFlags;
-use crate::spf;
 use crate::version::{Ospfv2, Ospfv3, Version};
+use crate::{spf, sr};
 
 #[derive(Debug, EnumAsInner)]
 pub enum ListEntry<V: Version> {
@@ -61,7 +61,7 @@ pub enum Event {
     InterfaceSyncHelloTx(AreaIndex, InterfaceIndex),
     InterfaceBfdChange(InterfaceIndex),
     StubRouterChange,
-    SrEnableChange,
+    SrEnableChange(bool),
     RerunSpf,
     UpdateSummaries,
     ReinstallRoutes,
@@ -267,7 +267,7 @@ where
             instance.config.sr_enabled = sr_enabled;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::SrEnableChange);
+            event_queue.insert(Event::SrEnableChange(sr_enabled));
         })
         .path(ospf::areas::area::PATH)
         .create_apply(|instance, args| {
@@ -1009,13 +1009,33 @@ where
                         .lsa_orig_event(LsaOriginateEvent::StubRouterChange);
                 }
             }
-            Event::SrEnableChange => {
-                if let Some((instance, _)) = self.as_up() {
+            Event::SrEnableChange(sr_enabled) => {
+                if let Some((instance, arenas)) = self.as_up() {
                     // (Re)originate LSAs that might have been affected.
                     instance
                         .tx
                         .protocol_input
                         .lsa_orig_event(LsaOriginateEvent::SrEnableChange);
+
+                    // Iterate over all existing adjacencies.
+                    for area in arenas.areas.iter_mut() {
+                        for iface in area.interfaces.iter(&arenas.interfaces) {
+                            for nbr_idx in iface.state.neighbors.indexes() {
+                                let nbr = &mut arenas.neighbors[nbr_idx];
+                                if nbr.state < nsm::State::TwoWay {
+                                    continue;
+                                }
+
+                                if sr_enabled {
+                                    // Add SR Adj-SID.
+                                    sr::adj_sid_add(nbr, iface, &instance);
+                                } else {
+                                    // Delete SR Adj-SIDs.
+                                    sr::adj_sid_del_all(nbr, &instance);
+                                }
+                            }
+                        }
+                    }
                 }
             }
             Event::RerunSpf => {

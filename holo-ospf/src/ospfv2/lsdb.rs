@@ -12,6 +12,7 @@ use holo_utils::ip::{AddressFamily, Ipv4NetworkExt};
 use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid, SidLastHopBehavior};
 use ipnetwork::{IpNetwork, Ipv4Network};
+use itertools::Itertools;
 
 use crate::area::{Area, AreaType, AreaVersion};
 use crate::collections::{
@@ -24,7 +25,7 @@ use crate::interface::{ism, Interface, InterfaceType};
 use crate::lsdb::{LsaEntry, LsaOriginateEvent, LsdbVersion, MAX_LINK_METRIC};
 use crate::neighbor::nsm;
 use crate::ospfv2::packet::lsa::{
-    LsaBody, LsaNetwork, LsaRouter, LsaRouterFlags, LsaRouterLink,
+    LsaBody, LsaHdr, LsaNetwork, LsaRouter, LsaRouterFlags, LsaRouterLink,
     LsaRouterLinkType, LsaSummary, LsaType, LsaTypeCode,
 };
 use crate::ospfv2::packet::lsa_opaque::{
@@ -205,7 +206,7 @@ impl LsdbVersion<Self> for Ospfv2 {
                 // Opaque LSA(s) and Extended Link Opaque LSA(s) in all areas.
                 for area in arenas.areas.iter() {
                     lsa_orig_router_info(area, instance);
-                    lsa_orig_ext_prefix(area, instance);
+                    lsa_orig_ext_prefix(area, instance, arenas);
                     lsa_orig_ext_link(area, instance, arenas);
                 }
             }
@@ -222,7 +223,7 @@ impl LsdbVersion<Self> for Ospfv2 {
                             // (Re)originate Extended Prefix Opaque LSA(s) in
                             // all areas.
                             for area in arenas.areas.iter() {
-                                lsa_orig_ext_prefix(area, instance);
+                                lsa_orig_ext_prefix(area, instance, arenas);
                             }
                         }
                     }
@@ -580,6 +581,7 @@ fn lsa_orig_router_info(
 fn lsa_orig_ext_prefix(
     area: &Area<Ospfv2>,
     instance: &InstanceUpView<'_, Ospfv2>,
+    arenas: &InstanceArenas<Ospfv2>,
 ) {
     let sr_config = sr::CONFIG.lock().unwrap();
     let lsdb_id = LsdbId::Area(area.id);
@@ -587,59 +589,103 @@ fn lsa_orig_ext_prefix(
     // LSA's header options.
     let options = Ospfv2::area_options(area, false);
 
-    // TODO: split TLVs into multiple LSAs to avoid fragmentation.
-
-    // Initialize Opaque LSA ID.
-    let lsa_id = OpaqueLsaId::new(LsaOpaqueType::ExtPrefix as u8, 0).into();
-
     // Initialize prefixes.
     let mut prefixes = BTreeMap::new();
-    for ((prefix, algo), prefix_sid) in sr_config.prefix_sids.iter() {
-        if let IpNetwork::V4(prefix) = prefix {
-            let mut flags = LsaExtPrefixFlags::empty();
-            if prefix.prefix() == 32 {
-                flags.insert(LsaExtPrefixFlags::N);
-            }
-
-            // Add Prefix-SID Sub-TLV.
-            let mut psid_flags = PrefixSidFlags::empty();
-            let mut prefix_sids = BTreeMap::new();
-            match prefix_sid.last_hop {
-                SidLastHopBehavior::ExpNull => {
-                    psid_flags.insert(PrefixSidFlags::NP);
-                    psid_flags.insert(PrefixSidFlags::E);
+    if instance.config.sr_enabled {
+        for ((prefix, algo), prefix_sid) in sr_config.prefix_sids.iter() {
+            if let IpNetwork::V4(prefix) = prefix {
+                let mut flags = LsaExtPrefixFlags::empty();
+                if prefix.prefix() == 32 {
+                    flags.insert(LsaExtPrefixFlags::N);
                 }
-                SidLastHopBehavior::NoPhp => {
-                    psid_flags.insert(PrefixSidFlags::NP);
-                }
-                SidLastHopBehavior::Php => (),
-            }
-            let sid = Sid::Index(prefix_sid.index);
-            prefix_sids.insert(*algo, PrefixSid::new(psid_flags, *algo, sid));
 
-            prefixes.insert(
-                *prefix,
-                ExtPrefixTlv {
-                    route_type: ExtPrefixRouteType::IntraArea,
-                    af: 0,
-                    flags,
-                    prefix: *prefix,
-                    prefix_sids,
-                    unknown_tlvs: vec![],
-                },
-            );
+                // Add Prefix-SID Sub-TLV.
+                let mut psid_flags = PrefixSidFlags::empty();
+                let mut prefix_sids = BTreeMap::new();
+                match prefix_sid.last_hop {
+                    SidLastHopBehavior::ExpNull => {
+                        psid_flags.insert(PrefixSidFlags::NP);
+                        psid_flags.insert(PrefixSidFlags::E);
+                    }
+                    SidLastHopBehavior::NoPhp => {
+                        psid_flags.insert(PrefixSidFlags::NP);
+                    }
+                    SidLastHopBehavior::Php => (),
+                }
+                let sid = Sid::Index(prefix_sid.index);
+                prefix_sids
+                    .insert(*algo, PrefixSid::new(psid_flags, *algo, sid));
+
+                prefixes.insert(
+                    *prefix,
+                    ExtPrefixTlv {
+                        route_type: ExtPrefixRouteType::IntraArea,
+                        af: 0,
+                        flags,
+                        prefix: *prefix,
+                        prefix_sids,
+                        unknown_tlvs: vec![],
+                    },
+                );
+            }
         }
     }
 
-    // (Re)originate Extended Prefix Opaque LSA.
-    let lsa_body =
-        LsaBody::OpaqueArea(LsaOpaque::ExtPrefix(LsaExtPrefix { prefixes }));
-    instance.tx.protocol_input.lsa_orig_check(
-        lsdb_id,
-        Some(options),
-        lsa_id,
-        lsa_body,
-    );
+    // (Re)originate as many Extended Prefix Opaque LSAs as necessary.
+    let mut opaque_id: u32 = 0;
+    let mut originate_fn = |prefixes| {
+        // Initialize Opaque LSA ID.
+        let lsa_id =
+            OpaqueLsaId::new(LsaOpaqueType::ExtPrefix as u8, opaque_id).into();
+
+        // (Re)originate Extended Prefix Opaque LSA.
+        let lsa_body =
+            LsaBody::OpaqueArea(LsaOpaque::ExtPrefix(LsaExtPrefix {
+                prefixes,
+            }));
+        instance.tx.protocol_input.lsa_orig_check(
+            lsdb_id,
+            Some(options),
+            lsa_id,
+            lsa_body,
+        );
+
+        // Increment the Opaque ID.
+        opaque_id += 1;
+    };
+    if prefixes.is_empty() {
+        originate_fn(prefixes);
+    } else {
+        for prefixes in prefixes
+            .into_iter()
+            .chunks(
+                (Lsa::<Ospfv2>::MAX_LENGTH - LsaHdr::LENGTH as usize)
+                    / ExtPrefixTlv::BASE_LENGTH as usize,
+            )
+            .into_iter()
+        {
+            originate_fn(prefixes.collect());
+        }
+    }
+
+    // Flush self-originated Extended Prefix Opaque LSAs that are no longer
+    // needed.
+    for (_, lse) in area
+        .state
+        .lsdb
+        .iter_by_type_advrtr(
+            &arenas.lsa_entries,
+            LsaTypeCode::OpaqueArea.into(),
+            instance.state.router_id,
+        )
+        .filter(|(_, lse)| {
+            let opaque_lsa_id = OpaqueLsaId::from(lse.data.hdr.lsa_id);
+            opaque_lsa_id.opaque_type == LsaOpaqueType::ExtPrefix as u8
+                && opaque_lsa_id.opaque_id >= opaque_id
+        })
+    {
+        lsa_flush(instance, lsdb_id, lse.id);
+    }
 }
 
 fn lsa_orig_ext_link(
@@ -670,7 +716,7 @@ fn lsa_orig_ext_link(
             lsa_body,
         );
 
-        // Increment the LSA-ID.
+        // Increment the Opaque ID.
         opaque_id += 1;
     };
 

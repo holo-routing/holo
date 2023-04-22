@@ -236,6 +236,12 @@ impl<V> Lsa<V>
 where
     V: Version,
 {
+    // LSA maximum length
+    //
+    // Opt for a conservative value to avoid packet fragmentation even in
+    // low-MTU links.
+    pub const MAX_LENGTH: usize = 1024;
+
     pub fn new(
         age: u16,
         options: Option<V::PacketOptions>,

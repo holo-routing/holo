@@ -42,10 +42,6 @@ use crate::route::{SummaryNet, SummaryNetFlags, SummaryRtr};
 use crate::sr;
 use crate::version::Ospfv3;
 
-// Use a small value so that the self-originated LSAs won't need to be
-// reoriginated when an interface is configured with a small MTU.
-const MAX_LSA_LENGTH: usize = 1024;
-
 // ===== impl Ospfv3 =====
 
 impl LsdbVersion<Self> for Ospfv3 {
@@ -557,7 +553,7 @@ fn lsa_orig_router(
         for links in links
             .into_iter()
             .chunks(
-                (MAX_LSA_LENGTH
+                (Lsa::<Ospfv3>::MAX_LENGTH
                     - LsaHdr::LENGTH as usize
                     - LsaRouter::BASE_LENGTH as usize)
                     / LsaRouterLink::max_length(extended_lsa),
@@ -926,7 +922,7 @@ fn lsa_orig_intra_area_prefix(
             for prefixes in prefixes
                 .into_iter()
                 .chunks(
-                    (MAX_LSA_LENGTH
+                    (Lsa::<Ospfv3>::MAX_LENGTH
                         - LsaHdr::LENGTH as usize
                         - LsaIntraAreaPrefix::BASE_LENGTH as usize)
                         / LsaIntraAreaPrefixEntry::max_length(extended_lsa),

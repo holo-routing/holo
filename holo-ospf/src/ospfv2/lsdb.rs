@@ -118,7 +118,7 @@ impl LsdbVersion<Self> for Ospfv2 {
         event: LsaOriginateEvent,
     ) -> Result<(), Error<Self>> {
         match event {
-            LsaOriginateEvent::AreaCreate { area_id } => {
+            LsaOriginateEvent::AreaStart { area_id } => {
                 let (_, area) = arenas.areas.get_by_id(area_id)?;
 
                 // Originate Router Information LSA(s).

@@ -22,11 +22,15 @@
                   "statistics": {
                     "abr-count": 0,
                     "asbr-count": 0,
-                    "area-scope-lsa-count": 1,
+                    "area-scope-lsa-count": 2,
                     "database": {
                       "area-scope-lsa-type": [
                         {
                           "lsa-type": 1,
+                          "lsa-count": 1
+                        },
+                        {
+                          "lsa-type": 10,
                           "lsa-count": 1
                         }
                       ]
@@ -117,6 +121,52 @@
                                 }
                               },
                               "holo-ospf-dev:object-id": 1
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "lsa-type": 10,
+                        "area-scope-lsas": {
+                          "area-scope-lsa": [
+                            {
+                              "lsa-id": "4.0.0.0",
+                              "adv-router": "10.0.255.3",
+                              "decode-completed": true,
+                              "ospfv2": {
+                                "header": {
+                                  "lsa-options": {
+                                    "lsa-options": [
+                                      "ietf-ospf:v2-e-bit"
+                                    ]
+                                  },
+                                  "lsa-id": "4.0.0.0",
+                                  "opaque-type": 4,
+                                  "opaque-id": 0,
+                                  "type": "ietf-ospf:ospfv2-area-scope-opaque-lsa",
+                                  "adv-router": "10.0.255.3",
+                                  "length": 28
+                                },
+                                "body": {
+                                  "opaque": {
+                                    "ri-opaque": {
+                                      "router-capabilities-tlv": {
+                                        "router-informational-capabilities": {
+                                          "informational-capabilities": [
+                                            "ietf-ospf:stub-router"
+                                          ]
+                                        },
+                                        "informational-capabilities-flags": [
+                                          {
+                                            "informational-flag": 536870912
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "holo-ospf-dev:object-id": 2
                             }
                           ]
                         }

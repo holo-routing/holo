@@ -260,9 +260,10 @@ where
         // Store instance initial state.
         self.state = Some(state);
 
-        // Try to start interfaces.
+        // Iterate over all configured areas.
         let (instance, arenas) = self.as_up().unwrap();
         for area in arenas.areas.iter() {
+            // Try to start interfaces.
             for iface_idx in area.interfaces.indexes() {
                 let iface = &mut arenas.interfaces[iface_idx];
 
@@ -273,6 +274,11 @@ where
                     &mut arenas.lsa_entries,
                 );
             }
+
+            // Originate Router Information LSA(s).
+            instance.tx.protocol_input.lsa_orig_event(
+                LsaOriginateEvent::AreaStart { area_id: area.id },
+            );
         }
     }
 

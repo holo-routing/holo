@@ -1,5 +1,5 @@
 {"Southbound":{"RouterIdUpd":{"router_id":"2.2.2.2"}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"AreaCreate":{"area_id":[1,0]}}}}}
+{"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":[1,0]}}}}}
 {"Southbound":{"InterfaceUpd":{"ifname":"eth-rt4-1","ifindex":5,"mtu":1500,"operative":true,"loopback":false}}}
 {"Southbound":{"AddressAdd":{"ifindex":5,"addr":"10.0.2.2/24"}}}
 {"Southbound":{"AddressAdd":{"ifindex":5,"addr":"fe80::2841:b9ff:fec8:14e8/64"}}}

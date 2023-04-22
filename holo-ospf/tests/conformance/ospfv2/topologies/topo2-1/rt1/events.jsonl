@@ -1,5 +1,5 @@
 {"Southbound":{"RouterIdUpd":{"router_id":"1.1.1.1"}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"AreaCreate":{"area_id":[1,0]}}}}}
+{"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":[1,0]}}}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_id":{"Area":[1,0]},"options":2,"lsa_id":"4.0.0.0","lsa_body":{"OpaqueArea":{"RouterInfo":{"info_caps":536870912,"func_caps":null,"sr_algo":null,"srgb":[],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}}
 {"Protocol":{"SpfDelayEvent":{"event":"Igp"}}}
 {"Southbound":{"InterfaceUpd":{"ifname":"eth-sw1","ifindex":3,"mtu":1500,"operative":true,"loopback":false}}}

@@ -74,7 +74,7 @@ bitflags! {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub enum LsaOriginateEvent {
-    AreaCreate {
+    AreaStart {
         area_id: AreaId,
     },
     InterfaceStateChange {

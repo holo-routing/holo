@@ -811,7 +811,7 @@ where
 
                 // Originate Router Information LSA(s).
                 self.tx.protocol_input.lsa_orig_event(
-                    LsaOriginateEvent::AreaCreate { area_id: area.id },
+                    LsaOriginateEvent::AreaStart { area_id: area.id },
                 );
             }
             Event::AreaDelete(area_idx) => {

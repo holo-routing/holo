@@ -7,19 +7,14 @@
 use std::sync::Arc;
 
 use holo_northbound::ProviderBase;
-use holo_ospf::version::{Ospfv2, Ospfv3};
-use holo_rip::version::{Ripng, Ripv2};
-use holo_utils::protocol::Protocol;
 use holo_yang as yang;
 use holo_yang::YANG_CTX;
-
-use crate::config::Config;
 
 fn modules_add<P: ProviderBase>(modules: &mut Vec<&'static str>) {
     modules.extend(P::yang_modules().iter());
 }
 
-pub(crate) fn create_context(config: &Config) {
+pub(crate) fn create_context() {
     let mut modules = Vec::new();
 
     // Add data type modules.
@@ -33,34 +28,30 @@ pub(crate) fn create_context(config: &Config) {
     modules_add::<holo_routing::Master>(&mut modules);
     modules_add::<holo_keychain::Master>(&mut modules);
 
-    // Add protocol modules (as per the configuration).
-    for protocol in &config.protocols {
-        match protocol {
-            Protocol::BFD => {
-                use holo_bfd::master::Master;
-                modules_add::<Master>(&mut modules)
-            }
-            Protocol::LDP => {
-                use holo_ldp::instance::Instance;
-                modules_add::<Instance>(&mut modules)
-            }
-            Protocol::OSPFV2 => {
-                use holo_ospf::instance::Instance;
-                modules_add::<Instance<Ospfv2>>(&mut modules)
-            }
-            Protocol::OSPFV3 => {
-                use holo_ospf::instance::Instance;
-                modules_add::<Instance<Ospfv3>>(&mut modules)
-            }
-            Protocol::RIPV2 => {
-                use holo_rip::instance::Instance;
-                modules_add::<Instance<Ripv2>>(&mut modules)
-            }
-            Protocol::RIPNG => {
-                use holo_rip::instance::Instance;
-                modules_add::<Instance<Ripng>>(&mut modules)
-            }
-        };
+    // Add protocol modules based on enabled features.
+    #[cfg(feature = "bfd")]
+    {
+        use holo_bfd::master::Master;
+        modules_add::<Master>(&mut modules);
+    }
+    #[cfg(feature = "ldp")]
+    {
+        use holo_ldp::instance::Instance;
+        modules_add::<Instance>(&mut modules);
+    }
+    #[cfg(feature = "ospf")]
+    {
+        use holo_ospf::instance::Instance;
+        use holo_ospf::version::{Ospfv2, Ospfv3};
+        modules_add::<Instance<Ospfv2>>(&mut modules);
+        modules_add::<Instance<Ospfv3>>(&mut modules);
+    }
+    #[cfg(feature = "rip")]
+    {
+        use holo_rip::instance::Instance;
+        use holo_rip::version::{Ripng, Ripv2};
+        modules_add::<Instance<Ripv2>>(&mut modules);
+        modules_add::<Instance<Ripng>>(&mut modules);
     }
 
     // Create YANG context and load all required modules and their deviations.

@@ -63,7 +63,7 @@ pub struct ConfirmedCommit {
 impl Northbound {
     pub(crate) async fn init(config: &Config) -> Northbound {
         // Create global YANG context.
-        yang::create_context(config);
+        yang::create_context();
         let yang_ctx = YANG_CTX.get().unwrap();
 
         // Create empty running configuration.

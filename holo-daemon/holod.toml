@@ -1,6 +1,3 @@
-# Enabled protocols
-protocols = ["bfd", "ldp", "ospfv2", "ospfv3", "ripv2", "ripng"]
-
 # User and group information
 user = "frr"
 group = "frr"

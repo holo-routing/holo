@@ -5,13 +5,11 @@
 //
 
 use holo_protocol::event_recorder;
-use holo_utils::protocol::Protocol;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
-    pub protocols: Vec<Protocol>,
     pub user: String,
     pub group: String,
     pub logging: Logging,
@@ -132,14 +130,6 @@ impl Config {
 impl Default for Config {
     fn default() -> Config {
         Config {
-            protocols: vec![
-                Protocol::BFD,
-                Protocol::LDP,
-                Protocol::OSPFV2,
-                Protocol::OSPFV3,
-                Protocol::RIPV2,
-                Protocol::RIPNG,
-            ],
             user: "frr".to_owned(),
             group: "frr".to_owned(),
             logging: Default::default(),

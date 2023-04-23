@@ -26,13 +26,13 @@ tracing-subscriber.workspace = true
 yang2.workspace = true
 
 holo-interface = { path = "../holo-interface" }
-holo-bfd = { path = "../holo-bfd" }
+holo-bfd = { path = "../holo-bfd", optional = true }
 holo-keychain = { path = "../holo-keychain" }
-holo-ldp = { path = "../holo-ldp" }
+holo-ldp = { path = "../holo-ldp", optional = true }
 holo-northbound = { path = "../holo-northbound" }
-holo-ospf = { path = "../holo-ospf" }
+holo-ospf = { path = "../holo-ospf", optional = true }
 holo-protocol = { path = "../holo-protocol" }
-holo-rip = { path = "../holo-rip" }
+holo-rip = { path = "../holo-rip", optional = true }
 holo-routing = { path = "../holo-routing" }
 holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
@@ -43,3 +43,10 @@ tonic-build = "0.8"
 [[bin]]
 name = "holod"
 path = "src/main.rs"
+
+[features]
+default = ["bfd", "ldp", "ospf", "rip"]
+bfd = ["holo-bfd"]
+ldp = ["holo-ldp"]
+ospf = ["holo-ospf"]
+rip = ["holo-rip"]

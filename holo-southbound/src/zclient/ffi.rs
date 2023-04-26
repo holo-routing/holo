@@ -4,6 +4,7 @@
 // See LICENSE for license details.
 //
 
+use bitflags::bitflags;
 use holo_utils::ip::AddressFamily;
 use holo_utils::protocol::Protocol;
 use num_derive::FromPrimitive;
@@ -71,6 +72,15 @@ pub enum LspType {
     IsisSr = 5,
     Sharp = 6,
     Srte = 7,
+}
+
+bitflags! {
+    #[derive(Default)]
+    pub struct AddressFlags: u8 {
+        const SECONDARY = 0x01;
+        const PEER = 0x02;
+        const UNNUMBERED = 0x04;
+    }
 }
 
 pub mod zebra_message_types_t {

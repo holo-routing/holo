@@ -393,24 +393,32 @@ fn lsa_orig_router(
                     .iter(&arenas.neighbors)
                     .filter(|nbr| nbr.state == nsm::State::Full)
                 {
+                    let link_data = if iface.system.unnumbered {
+                        Ipv4Addr::from(iface.system.ifindex.unwrap())
+                    } else {
+                        primary_addr.ip()
+                    };
                     let link = LsaRouterLink::new(
                         LsaRouterLinkType::PointToPoint,
                         nbr.router_id,
-                        primary_addr.ip(),
+                        link_data,
                         non_stub_cost,
                     );
                     links.push(link);
                 }
 
-                // Add a Type-3 (stub) link.
-                let primary_addr = primary_addr.apply_mask();
-                let link = LsaRouterLink::new(
-                    LsaRouterLinkType::StubNetwork,
-                    primary_addr.ip(),
-                    primary_addr.mask(),
-                    iface.config.cost,
-                );
-                links.push(link);
+                // Add a Type-3 (stub) link (except if the interface is
+                // unnumbered).
+                if !iface.system.unnumbered {
+                    let primary_addr = primary_addr.apply_mask();
+                    let link = LsaRouterLink::new(
+                        LsaRouterLinkType::StubNetwork,
+                        primary_addr.ip(),
+                        primary_addr.mask(),
+                        iface.config.cost,
+                    );
+                    links.push(link);
+                }
             }
             InterfaceType::Broadcast | InterfaceType::NonBroadcast => {
                 let link = if iface.state.ism_state == ism::State::Waiting {

@@ -16,6 +16,7 @@ use crate::collections::{Arena, Lsdb};
 use crate::error::Error;
 use crate::interface::Interface;
 use crate::lsdb::LsaEntry;
+use crate::neighbor::Neighbor;
 use crate::ospfv3::packet::lsa::{
     LsaAsExternal, LsaAsExternalFlags, LsaFunctionCode, LsaInterAreaPrefix,
     LsaInterAreaRouter, LsaIntraAreaPrefix, LsaLink, LsaNetwork, LsaRouter,
@@ -169,10 +170,11 @@ impl SpfVersion<Self> for Ospfv3 {
     fn calc_nexthops(
         area: &Area<Self>,
         parent: &Vertex<Self>,
-        parent_link: Option<&LsaRouterLink>,
+        parent_link: Option<(usize, &LsaRouterLink)>,
         dest_id: VertexId,
         dest_lsa: &VertexLsa,
         interfaces: &Arena<Interface<Self>>,
+        _neighbors: &Arena<Neighbor<Self>>,
         extended_lsa: bool,
         lsa_entries: &Arena<LsaEntry<Self>>,
     ) -> Result<Nexthops<IpAddr>, Error<Self>> {
@@ -185,7 +187,7 @@ impl SpfVersion<Self> for Ospfv3 {
                 // directly connected router.
                 // The outgoing interface in this case is simply the OSPF
                 // interface connecting to the destination network/router.
-                let parent_link = parent_link.unwrap();
+                let (_, parent_link) = parent_link.unwrap();
 
                 // Get nexthop interface.
                 let (iface_idx, iface) = area
@@ -394,7 +396,8 @@ impl SpfVersion<Self> for Ospfv3 {
                             None
                         }
                     })
-                    .filter_map(move |(link, link_vid, cost)| {
+                    .enumerate()
+                    .filter_map(move |(link_pos, (link, link_vid, cost))| {
                         Ospfv3::vertex_lsa_find(
                             af,
                             link_vid,
@@ -403,7 +406,12 @@ impl SpfVersion<Self> for Ospfv3 {
                             lsa_entries,
                         )
                         .map(|link_vlsa| {
-                            SpfLink::new(Some(link), link_vid, link_vlsa, cost)
+                            SpfLink::new(
+                                Some((link_pos, link)),
+                                link_vid,
+                                link_vlsa,
+                                cost,
+                            )
                         })
                     });
                 Box::new(iter)

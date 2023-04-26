@@ -54,6 +54,7 @@ pub struct InterfaceSys<V: Version> {
     pub addr_list: BTreeSet<V::IpNetwork>,
     // OSPFv2: primary address.
     pub primary_addr: Option<Ipv4Network>,
+    pub unnumbered: bool,
     // OSPFv3: link-local address.
     pub linklocal_addr: Option<Ipv6Network>,
 }
@@ -879,6 +880,7 @@ where
             mtu: None,
             addr_list: Default::default(),
             primary_addr: None,
+            unnumbered: false,
             linklocal_addr: None,
         }
     }

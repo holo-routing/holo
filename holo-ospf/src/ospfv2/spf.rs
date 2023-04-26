@@ -14,10 +14,11 @@ use holo_utils::sr::IgpAlgoType;
 use ipnetwork::Ipv4Network;
 
 use crate::area::Area;
-use crate::collections::{Arena, Lsdb};
+use crate::collections::{Arena, InterfaceIndex, Lsdb};
 use crate::error::Error;
-use crate::interface::Interface;
+use crate::interface::{Interface, InterfaceType};
 use crate::lsdb::LsaEntry;
+use crate::neighbor::Neighbor;
 use crate::ospfv2::packet::lsa::{
     LsaAsExternalFlags, LsaBody, LsaRouterFlags, LsaRouterLink,
     LsaRouterLinkType, LsaType, LsaTypeCode,
@@ -178,10 +179,11 @@ impl SpfVersion<Self> for Ospfv2 {
     fn calc_nexthops(
         area: &Area<Self>,
         parent: &Vertex<Self>,
-        parent_link: Option<&LsaRouterLink>,
+        parent_link: Option<(usize, &LsaRouterLink)>,
         dest_id: VertexId,
         dest_lsa: &VertexLsa,
         interfaces: &Arena<Interface<Self>>,
+        neighbors: &Arena<Neighbor<Self>>,
         _extended_lsa: bool,
         _lsa_entries: &Arena<LsaEntry<Self>>,
     ) -> Result<Nexthops<Ipv4Addr>, Error<Self>> {
@@ -192,46 +194,100 @@ impl SpfVersion<Self> for Ospfv2 {
             VertexLsa::Router(_parent_lsa) => {
                 // The destination is either a directly connected network or
                 // directly connected router.
-                // The outgoing interface in this case is simply the OSPF
-                // interface connecting to the destination network/router.
-                let parent_link = parent_link.unwrap();
+                let (parent_link_pos, _parent_link) = parent_link.unwrap();
 
-                // Get nexthop interface.
-                let parent_link_addr = parent_link.link_data;
+                // Get nexthop interface based on the parent's Router-LSA link
+                // position.
                 let (iface_idx, iface) = area
                     .interfaces
-                    .get_by_addr(interfaces, parent_link_addr)
+                    .indexes()
+                    .map(|iface_idx| (iface_idx, &interfaces[iface_idx]))
+                    .filter(|(_, iface)| iface.state.neighbors.count() > 0)
+                    .nth(parent_link_pos)
                     .ok_or_else(|| Error::SpfNexthopCalcError(dest_id))?;
 
                 match dest_lsa {
                     VertexLsa::Router(dest_lsa) => {
                         // Add nexthop(s).
-                        nexthops.extend(
-                            dest_lsa
-                                .body
-                                .as_router()
-                                .unwrap()
-                                .links
-                                .iter()
-                                .filter(|link| {
-                                    iface.system.contains_addr(&link.link_data)
-                                })
-                                .map(|link| {
-                                    let nexthop_addr = link.link_data;
-                                    let nbr_router_id = dest_lsa.hdr.adv_rtr;
-                                    (
-                                        NexthopKey::new(
-                                            iface_idx,
-                                            Some(nexthop_addr),
-                                        ),
-                                        Nexthop::new(
-                                            iface_idx,
-                                            Some(nexthop_addr),
-                                            Some(nbr_router_id),
-                                        ),
-                                    )
-                                }),
-                        );
+                        match iface.config.if_type {
+                            InterfaceType::PointToPoint => {
+                                // RFC 2328 assumes that routes using
+                                // point-to-point interfaces don't need a
+                                // nexthop address. In practice, however, it's
+                                // common to use the point-to-point mode on
+                                // multi-access links such as Ethernet, so a
+                                // nexthop address is required.
+                                //
+                                // To determine the nexthop address, we use the
+                                // neighbor's source address. Examining the
+                                // destination's Router-LSA to find the link
+                                // pointing back to the calculating router
+                                // wouldn't work for unnumbered interfaces.
+                                let nbr_router_id = dest_lsa.hdr.adv_rtr;
+                                let (_, nbr) = iface
+                                    .state
+                                    .neighbors
+                                    .get_by_router_id(neighbors, nbr_router_id)
+                                    .ok_or_else(|| {
+                                        Error::SpfNexthopCalcError(dest_id)
+                                    })?;
+                                let nexthop_addr = nbr.src;
+
+                                nexthops.insert(
+                                    NexthopKey::new(
+                                        iface_idx,
+                                        Some(nexthop_addr),
+                                    ),
+                                    Nexthop::new(
+                                        iface_idx,
+                                        Some(nexthop_addr),
+                                        Some(nbr_router_id),
+                                    ),
+                                );
+                            }
+                            InterfaceType::PointToMultipoint => {
+                                // If the destination is a router which connects
+                                // to the calculating router via a
+                                // Point-to-MultiPoint network, the
+                                // destination's next hop IP address(es) can be
+                                // determined by examining the destination's
+                                // router-LSA: each link pointing back to the
+                                // calculating router and having a Link Data
+                                // field belonging to the Point-to-MultiPoint
+                                // network provides an IP address of the next
+                                // hop router.
+                                nexthops.extend(
+                                    dest_lsa
+                                        .body
+                                        .as_router()
+                                        .unwrap()
+                                        .links
+                                        .iter()
+                                        .filter(|link| {
+                                            iface
+                                                .system
+                                                .contains_addr(&link.link_data)
+                                        })
+                                        .map(|link| {
+                                            let nexthop_addr = link.link_data;
+                                            let nbr_router_id =
+                                                dest_lsa.hdr.adv_rtr;
+                                            (
+                                                NexthopKey::new(
+                                                    iface_idx,
+                                                    Some(nexthop_addr),
+                                                ),
+                                                Nexthop::new(
+                                                    iface_idx,
+                                                    Some(nexthop_addr),
+                                                    Some(nbr_router_id),
+                                                ),
+                                            )
+                                        }),
+                                );
+                            }
+                            _ => unreachable!(),
+                        }
                         if nexthops.is_empty() {
                             return Err(Error::SpfNexthopCalcError(dest_id));
                         }
@@ -382,7 +438,8 @@ impl SpfVersion<Self> for Ospfv2 {
                             None
                         }
                     })
-                    .filter_map(move |(link, link_vid, cost)| {
+                    .enumerate()
+                    .filter_map(move |(link_pos, (link, link_vid, cost))| {
                         Ospfv2::vertex_lsa_find(
                             af,
                             link_vid,
@@ -391,7 +448,12 @@ impl SpfVersion<Self> for Ospfv2 {
                             lsa_entries,
                         )
                         .map(|link_vlsa| {
-                            SpfLink::new(Some(link), link_vid, link_vlsa, cost)
+                            SpfLink::new(
+                                Some((link_pos, link)),
+                                link_vid,
+                                link_vlsa,
+                                cost,
+                            )
                         })
                     });
                 Box::new(iter)

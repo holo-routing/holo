@@ -455,22 +455,6 @@ where
             .map(move |iface_idx| (iface_idx, &mut arena[iface_idx]))
     }
 
-    // Returns a reference to the interface corresponding to the given IP
-    // address.
-    pub(crate) fn get_by_addr<'a>(
-        &self,
-        arena: &'a Arena<Interface<V>>,
-        addr: V::IpAddr,
-    ) -> Option<(InterfaceIndex, &'a Interface<V>)> {
-        for (iface_idx, iface) in arena.iter() {
-            if iface.system.contains_addr(&addr) {
-                return Some((iface_idx, iface));
-            }
-        }
-
-        None
-    }
-
     // Returns a mutable reference to the interface corresponding to the given
     // IP address.
     pub(crate) fn get_mut_by_addr<'a>(
@@ -663,6 +647,11 @@ where
     // Neighbors are ordered by their Router IDs.
     pub(crate) fn indexes(&self) -> impl Iterator<Item = NeighborIndex> + '_ {
         self.router_id_tree.values().copied()
+    }
+
+    // Returns the number of neighbors.
+    pub(crate) fn count(&self) -> usize {
+        self.router_id_tree.len()
     }
 }
 

@@ -25,12 +25,17 @@ impl SouthboundRxVersion<Self> for Ospfv2 {
         // Nothing to do.
     }
 
-    fn process_addr_add(iface: &mut Interface<Self>, addr: Ipv4Network) {
+    fn process_addr_add(
+        iface: &mut Interface<Self>,
+        addr: Ipv4Network,
+        unnumbered: bool,
+    ) {
         if iface.system.primary_addr.is_none() {
             Debug::<Self>::InterfacePrimaryAddrSelect(&iface.name, &addr).log();
 
             // Mark address as the primary one.
             iface.system.primary_addr = Some(addr);
+            iface.system.unnumbered = unnumbered;
         }
     }
 

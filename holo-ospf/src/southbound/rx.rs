@@ -30,7 +30,11 @@ pub trait SouthboundRxVersion<V: Version> {
         instance: &InstanceUpView<'_, V>,
     );
 
-    fn process_addr_add(iface: &mut Interface<V>, addr: V::NetIpNetwork);
+    fn process_addr_add(
+        iface: &mut Interface<V>,
+        addr: V::NetIpNetwork,
+        unnumbered: bool,
+    );
 
     fn process_addr_del(iface: &mut Interface<V>, addr: V::NetIpNetwork);
 }
@@ -129,7 +133,7 @@ where
 
         // OSPF version-specific address handling.
         if let Some(addr) = V::NetIpNetwork::get(msg.addr) {
-            V::process_addr_add(iface, addr);
+            V::process_addr_add(iface, addr, msg.unnumbered);
         }
 
         // Check if OSPF needs to be activated on this interface.

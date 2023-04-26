@@ -26,7 +26,11 @@ impl SouthboundRxVersion<Self> for Ospfv3 {
         iface.sync_hello_tx(area, instance);
     }
 
-    fn process_addr_add(iface: &mut Interface<Self>, addr: Ipv6Network) {
+    fn process_addr_add(
+        iface: &mut Interface<Self>,
+        addr: Ipv6Network,
+        _unnumbered: bool,
+    ) {
         if iface.system.linklocal_addr.is_none()
             && addr.ip().is_unicast_link_local()
         {

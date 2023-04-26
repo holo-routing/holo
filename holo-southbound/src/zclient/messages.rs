@@ -47,6 +47,8 @@ pub struct ZapiRxIfaceInfo {
 pub struct ZapiRxAddressInfo {
     pub ifindex: u32,
     pub addr: IpNetwork,
+    #[serde(default)]
+    pub unnumbered: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -266,7 +268,7 @@ impl ZapiRxIfaceInfo {
 impl ZapiRxAddressInfo {
     fn decode(mut buf: Bytes, _cmd: u16, _vrf_id: u32) -> DecodeResult<Self> {
         let ifindex = buf.get_u32();
-        let _flags = buf.get_u8();
+        let flags = buf.get_u8();
         let family = buf.get_u8();
         let (addr, max_plen) = match family as i32 {
             libc::AF_INET => (IpAddr::from(buf.get_ipv4()), 32),
@@ -280,8 +282,13 @@ impl ZapiRxAddressInfo {
         };
         let plen = std::cmp::min(buf.get_u8(), max_plen);
         let addr = IpNetwork::new(addr, plen)?;
+        let unnumbered = flags & (ffi::AddressFlags::UNNUMBERED.bits()) != 0;
 
-        Ok(ZapiRxAddressInfo { ifindex, addr })
+        Ok(ZapiRxAddressInfo {
+            ifindex,
+            addr,
+            unnumbered,
+        })
     }
 }
 

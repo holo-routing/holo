@@ -22,6 +22,7 @@ use crate::error::Error;
 use crate::instance::{InstanceArenas, InstanceUpView};
 use crate::interface::Interface;
 use crate::lsdb::{LsaEntry, LsaLogId};
+use crate::neighbor::Neighbor;
 use crate::packet::lsa::{Lsa, LsaKey};
 use crate::packet::tlv::{SidLabelRangeTlv, SrAlgoTlv};
 use crate::route::{Nexthops, PathType, RouteRtr};
@@ -59,7 +60,7 @@ pub struct SpfPartialComputation<V: Version> {
 
 #[derive(Debug, new)]
 pub struct SpfLink<'a, V: Version> {
-    pub parent: Option<&'a V::LsaRouterLink>,
+    pub parent: Option<(usize, &'a V::LsaRouterLink)>,
     pub id: V::VertexId,
     pub lsa: V::VertexLsa,
     pub cost: u16,
@@ -150,10 +151,11 @@ pub trait SpfVersion<V: Version> {
     fn calc_nexthops(
         area: &Area<V>,
         parent: &Vertex<V>,
-        parent_link: Option<&V::LsaRouterLink>,
+        parent_link: Option<(usize, &V::LsaRouterLink)>,
         dest_id: V::VertexId,
         dest_lsa: &V::VertexLsa,
         interfaces: &Arena<Interface<V>>,
+        neighbors: &Arena<Neighbor<V>>,
         extended_lsa: bool,
         lsa_entries: &Arena<LsaEntry<V>>,
     ) -> Result<Nexthops<V::IpAddr>, Error<V>>;
@@ -410,6 +412,7 @@ where
                 instance,
                 &mut arenas.areas,
                 &arenas.interfaces,
+                &arenas.neighbors,
                 &arenas.lsa_entries,
                 false,
             );
@@ -430,6 +433,7 @@ where
                 instance,
                 &mut arenas.areas,
                 &arenas.interfaces,
+                &arenas.neighbors,
                 &arenas.lsa_entries,
                 true,
             );
@@ -467,6 +471,7 @@ fn compute_spf<V>(
     instance: &mut InstanceUpView<'_, V>,
     areas: &mut Areas<V>,
     interfaces: &Arena<Interface<V>>,
+    neighbors: &Arena<Neighbor<V>>,
     lsa_entries: &Arena<LsaEntry<V>>,
     force_full_run: bool,
 ) where
@@ -494,7 +499,7 @@ fn compute_spf<V>(
         SpfComputation::Full => {
             // Calculate shortest-path trees.
             for area in areas.iter_mut() {
-                run_area(area, instance, interfaces, lsa_entries);
+                run_area(area, instance, interfaces, neighbors, lsa_entries);
             }
 
             // Update routing table.
@@ -535,6 +540,7 @@ fn run_area<V>(
     area: &mut Area<V>,
     instance: &mut InstanceUpView<'_, V>,
     interfaces: &Arena<Interface<V>>,
+    neighbors: &Arena<Neighbor<V>>,
     lsa_entries: &Arena<LsaEntry<V>>,
 ) where
     V: Version,
@@ -659,6 +665,7 @@ fn run_area<V>(
                 link.id,
                 &cand_v.lsa,
                 interfaces,
+                neighbors,
                 extended_lsa,
                 lsa_entries,
             ) {
@@ -681,10 +688,11 @@ fn run_area<V>(
 fn calc_nexthops<V>(
     area: &Area<V>,
     parent: &Vertex<V>,
-    parent_link: Option<&V::LsaRouterLink>,
+    parent_link: Option<(usize, &V::LsaRouterLink)>,
     dest_id: V::VertexId,
     dest_lsa: &V::VertexLsa,
     interfaces: &Arena<Interface<V>>,
+    neighbors: &Arena<Neighbor<V>>,
     extended_lsa: bool,
     lsa_entries: &Arena<LsaEntry<V>>,
 ) -> Result<Nexthops<V::IpAddr>, Error<V>>
@@ -701,6 +709,7 @@ where
             dest_id,
             dest_lsa,
             interfaces,
+            neighbors,
             extended_lsa,
             lsa_entries,
         )

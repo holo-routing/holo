@@ -573,7 +573,7 @@ fn lsa_orig_router(
             LsaRouter::lsa_type(extended_lsa),
             instance.state.router_id,
         )
-        .filter(|(_, lse)| lse.data.hdr.lsa_id > Ipv4Addr::from(lsa_id))
+        .filter(|(_, lse)| lse.data.hdr.lsa_id >= Ipv4Addr::from(lsa_id))
     {
         lsa_flush(instance, lsdb_id, lse.id);
     }

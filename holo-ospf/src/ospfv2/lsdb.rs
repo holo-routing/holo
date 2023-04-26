@@ -804,7 +804,7 @@ fn lsa_orig_ext_link(
         .filter(|(_, lse)| {
             let opaque_lsa_id = OpaqueLsaId::from(lse.data.hdr.lsa_id);
             opaque_lsa_id.opaque_type == LsaOpaqueType::ExtLink as u8
-                && opaque_lsa_id.opaque_id > opaque_id
+                && opaque_lsa_id.opaque_id >= opaque_id
         })
     {
         lsa_flush(instance, lsdb_id, lse.id);

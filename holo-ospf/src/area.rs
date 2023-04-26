@@ -21,7 +21,7 @@ use crate::interface::Interface;
 use crate::lsdb::{LsaEntry, LsaEntryFlags, LSA_INFINITY};
 use crate::packet::lsa::{LsaKey, LsaRouterFlagsVersion};
 use crate::route::{
-    Nexthop, PathType, RouteNetFlags, RouteRtr, SummaryNet, SummaryNetFlags,
+    Nexthops, PathType, RouteNetFlags, RouteRtr, SummaryNet, SummaryNetFlags,
     SummaryRtr,
 };
 use crate::spf::Vertex;
@@ -583,13 +583,13 @@ where
 }
 
 fn nexthops_area_check<V>(
-    nexthops: &[Nexthop<V::IpAddr>],
+    nexthops: &Nexthops<V::IpAddr>,
     area: &Area<V>,
 ) -> bool
 where
     V: Version,
 {
-    nexthops.iter().any(|nexthop| {
+    nexthops.values().any(|nexthop| {
         area.interfaces
             .indexes()
             .any(|iface_idx| nexthop.iface_idx == iface_idx)

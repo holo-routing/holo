@@ -37,7 +37,7 @@ pub struct RouteNet<V: Version> {
     pub tag: Option<u32>,
     pub prefix_sid: Option<V::PrefixSid>,
     pub sr_label: Option<Label>,
-    pub nexthops: Vec<Nexthop<V::IpAddr>>,
+    pub nexthops: Nexthops<V::IpAddr>,
     pub flags: RouteNetFlags,
 }
 
@@ -58,7 +58,7 @@ pub struct RouteRtr<V: Version> {
     pub options: V::PacketOptions,
     pub flags: V::LsaRouterFlags,
     pub metric: u32,
-    pub nexthops: Vec<Nexthop<V::IpAddr>>,
+    pub nexthops: Nexthops<V::IpAddr>,
 }
 
 // Locally originated inter-area "network" route.
@@ -93,8 +93,17 @@ pub enum PathType {
     Type2External,
 }
 
+// Route nexthop key.
+#[derive(Clone, Copy, Debug, Eq, new, Ord, PartialEq, PartialOrd)]
+pub struct NexthopKey<I: IpAddrKind> {
+    // Nexthop interface.
+    pub iface_idx: InterfaceIndex,
+    // Nexthop address (`None` for connected routes).
+    pub addr: Option<I>,
+}
+
 // Route nexthop.
-#[derive(Clone, Debug, Eq, new, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, new, PartialEq)]
 pub struct Nexthop<I: IpAddrKind> {
     // Nexthop interface.
     pub iface_idx: InterfaceIndex,
@@ -106,6 +115,9 @@ pub struct Nexthop<I: IpAddrKind> {
     #[new(default)]
     pub sr_label: Option<Label>,
 }
+
+// Ordered list of nexthops.
+pub type Nexthops<I: IpAddrKind> = BTreeMap<NexthopKey<I>, Nexthop<I>>;
 
 // ===== impl RouteNet =====
 
@@ -769,7 +781,7 @@ fn route_update<V>(
                 }
                 Ordering::Equal => {
                     // Merge nexthops.
-                    curr_route.nexthops.extend(route.nexthops);
+                    curr_route.nexthops.extend(route.nexthops.into_iter());
                 }
                 Ordering::Greater => {
                     // Ignore less preferred route.
@@ -782,7 +794,14 @@ fn route_update<V>(
     };
 
     // Honor configured maximum number of ECMP paths.
-    route.nexthops.truncate(max_paths as usize);
+    if route.nexthops.len() > max_paths as usize {
+        route.nexthops = route
+            .nexthops
+            .iter()
+            .map(|(k, v)| (*k, *v))
+            .take(max_paths as usize)
+            .collect();
+    }
 }
 
 fn route_compare<V>(a: &RouteNet<V>, b: &RouteNet<V>) -> Ordering

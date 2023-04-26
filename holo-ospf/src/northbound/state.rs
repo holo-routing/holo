@@ -160,7 +160,7 @@ where
         .path(ospf::local_rib::route::next_hops::next_hop::PATH)
         .get_iterate(|_instance, args| {
             let (_, route) = args.parent_list_entry.as_route().unwrap();
-            let iter = route.nexthops.iter().map(ListEntry::Nexthop);
+            let iter = route.nexthops.values().map(ListEntry::Nexthop);
             Some(Box::new(iter))
         })
         .path(ospf::local_rib::route::next_hops::next_hop::outgoing_interface::PATH)

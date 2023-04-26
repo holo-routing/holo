@@ -899,9 +899,9 @@ where
                     // Update the routing table to remove nexthops that are no
                     // longer reachable.
                     for route in instance.state.rib.values_mut() {
-                        route
-                            .nexthops
-                            .retain(|nexthop| nexthop.iface_idx != iface_idx);
+                        route.nexthops.retain(|_, nexthop| {
+                            nexthop.iface_idx != iface_idx
+                        });
                     }
                 }
 

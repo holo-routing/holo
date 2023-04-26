@@ -23,14 +23,6 @@
                         "next-hop": "10.0.7.4"
                       },
                       {
-                        "outgoing-interface": "eth-rt4",
-                        "next-hop": "10.0.7.4"
-                      },
-                      {
-                        "outgoing-interface": "eth-rt5",
-                        "next-hop": "10.0.8.5"
-                      },
-                      {
                         "outgoing-interface": "eth-rt5",
                         "next-hop": "10.0.8.5"
                       }
@@ -46,10 +38,6 @@
                       {
                         "outgoing-interface": "eth-rt4",
                         "next-hop": "10.0.7.4"
-                      },
-                      {
-                        "outgoing-interface": "eth-rt4",
-                        "next-hop": "10.0.7.4"
                       }
                     ]
                   },
@@ -60,10 +48,6 @@
                   "prefix": "3.3.3.3/32",
                   "next-hops": {
                     "next-hop": [
-                      {
-                        "outgoing-interface": "eth-rt5",
-                        "next-hop": "10.0.8.5"
-                      },
                       {
                         "outgoing-interface": "eth-rt5",
                         "next-hop": "10.0.8.5"
@@ -111,14 +95,6 @@
                       {
                         "outgoing-interface": "eth-rt4",
                         "next-hop": "10.0.7.4"
-                      },
-                      {
-                        "outgoing-interface": "eth-rt4",
-                        "next-hop": "10.0.7.4"
-                      },
-                      {
-                        "outgoing-interface": "eth-rt5",
-                        "next-hop": "10.0.8.5"
                       },
                       {
                         "outgoing-interface": "eth-rt5",

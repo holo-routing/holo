@@ -24,7 +24,7 @@ use crate::interface::Interface;
 use crate::lsdb::{LsaEntry, LsaLogId};
 use crate::packet::lsa::{Lsa, LsaKey};
 use crate::packet::tlv::{SidLabelRangeTlv, SrAlgoTlv};
-use crate::route::{Nexthop, PathType, RouteRtr};
+use crate::route::{Nexthops, PathType, RouteRtr};
 use crate::version::Version;
 use crate::{area, route, tasks};
 
@@ -40,7 +40,7 @@ pub struct Vertex<V: Version> {
     pub distance: u16,
     pub hops: u16,
     #[new(default)]
-    pub nexthops: Vec<Nexthop<V::IpAddr>>,
+    pub nexthops: Nexthops<V::IpAddr>,
 }
 
 #[derive(Debug)]
@@ -156,7 +156,7 @@ pub trait SpfVersion<V: Version> {
         interfaces: &Arena<Interface<V>>,
         extended_lsa: bool,
         lsa_entries: &Arena<LsaEntry<V>>,
-    ) -> Result<Vec<Nexthop<V::IpAddr>>, Error<V>>;
+    ) -> Result<Nexthops<V::IpAddr>, Error<V>>;
 
     // Find SPF vertex.
     fn vertex_lsa_find(
@@ -687,7 +687,7 @@ fn calc_nexthops<V>(
     interfaces: &Arena<Interface<V>>,
     extended_lsa: bool,
     lsa_entries: &Arena<LsaEntry<V>>,
-) -> Result<Vec<Nexthop<V::IpAddr>>, Error<V>>
+) -> Result<Nexthops<V::IpAddr>, Error<V>>
 where
     V: Version,
 {

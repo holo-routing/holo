@@ -36,20 +36,16 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "outgoing-interface": "eth-rt4",
-                        "next-hop": "10.0.6.4"
-                      },
-                      {
-                        "outgoing-interface": "eth-rt4",
-                        "next-hop": "10.0.6.4"
-                      },
-                      {
                         "outgoing-interface": "eth-rt3-1",
                         "next-hop": "10.0.4.3"
                       },
                       {
                         "outgoing-interface": "eth-rt3-2",
                         "next-hop": "10.0.5.3"
+                      },
+                      {
+                        "outgoing-interface": "eth-rt4",
+                        "next-hop": "10.0.6.4"
                       }
                     ]
                   },

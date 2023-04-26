@@ -42,7 +42,7 @@ impl InstanceSouthboundTx {
         let lsp_type = LspType::OspfSr;
         let nexthops = route
             .nexthops
-            .iter()
+            .values()
             .map(|nexthop| match nexthop.addr {
                 Some(addr) => {
                     let iface = &interfaces[nexthop.iface_idx];

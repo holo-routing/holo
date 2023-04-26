@@ -53,20 +53,16 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "outgoing-interface": "eth-rt5",
-                        "next-hop": "10.0.6.5"
-                      },
-                      {
-                        "outgoing-interface": "eth-rt5",
-                        "next-hop": "10.0.6.5"
-                      },
-                      {
                         "outgoing-interface": "eth-rt2-1",
                         "next-hop": "10.0.2.2"
                       },
                       {
                         "outgoing-interface": "eth-rt2-2",
                         "next-hop": "10.0.3.2"
+                      },
+                      {
+                        "outgoing-interface": "eth-rt5",
+                        "next-hop": "10.0.6.5"
                       }
                     ]
                   },

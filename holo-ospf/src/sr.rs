@@ -66,7 +66,7 @@ pub(crate) fn prefix_sid_update<V>(
     }
 
     // Update SR output labels.
-    for nexthop in &mut route.nexthops {
+    for nexthop in route.nexthops.values_mut() {
         match prefix_sid_output_label(
             area,
             instance,

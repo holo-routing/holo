@@ -184,14 +184,6 @@
                       {
                         "outgoing-interface": "eth-rt4-2",
                         "next-hop": "10.0.3.4"
-                      },
-                      {
-                        "outgoing-interface": "eth-rt4-1",
-                        "next-hop": "10.0.2.4"
-                      },
-                      {
-                        "outgoing-interface": "eth-rt4-2",
-                        "next-hop": "10.0.3.4"
                       }
                     ]
                   },

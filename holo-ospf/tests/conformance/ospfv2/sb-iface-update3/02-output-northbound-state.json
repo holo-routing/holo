@@ -25,14 +25,6 @@
                       {
                         "outgoing-interface": "eth-rt5-2",
                         "next-hop": "10.0.5.5"
-                      },
-                      {
-                        "outgoing-interface": "eth-rt5-1",
-                        "next-hop": "10.0.4.5"
-                      },
-                      {
-                        "outgoing-interface": "eth-rt5-2",
-                        "next-hop": "10.0.5.5"
                       }
                     ]
                   },
@@ -160,14 +152,6 @@
                   "prefix": "10.0.7.0/24",
                   "next-hops": {
                     "next-hop": [
-                      {
-                        "outgoing-interface": "eth-rt5-1",
-                        "next-hop": "10.0.4.5"
-                      },
-                      {
-                        "outgoing-interface": "eth-rt5-2",
-                        "next-hop": "10.0.5.5"
-                      },
                       {
                         "outgoing-interface": "eth-rt5-1",
                         "next-hop": "10.0.4.5"

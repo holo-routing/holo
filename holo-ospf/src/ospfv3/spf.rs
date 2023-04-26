@@ -24,7 +24,7 @@ use crate::ospfv3::packet::lsa::{
 };
 use crate::ospfv3::packet::Options;
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
-use crate::route::Nexthop;
+use crate::route::{Nexthop, NexthopKey, Nexthops};
 use crate::spf::{
     SpfComputation, SpfExternalNetwork, SpfInterAreaNetwork,
     SpfInterAreaRouter, SpfIntraAreaNetwork, SpfLink, SpfPartialComputation,
@@ -175,7 +175,9 @@ impl SpfVersion<Self> for Ospfv3 {
         interfaces: &Arena<Interface<Self>>,
         extended_lsa: bool,
         lsa_entries: &Arena<LsaEntry<Self>>,
-    ) -> Result<Vec<Nexthop<IpAddr>>, Error<Self>> {
+    ) -> Result<Nexthops<IpAddr>, Error<Self>> {
+        let mut nexthops = Nexthops::new();
+
         match &parent.lsa {
             // The parent vertex is the root.
             VertexLsa::Router(_parent_lsa) => {
@@ -203,16 +205,23 @@ impl SpfVersion<Self> for Ospfv3 {
                         .ok_or_else(|| Error::SpfNexthopCalcError(dest_id))?;
                         let nbr_router_id =
                             dest_lsa.iter().next().unwrap().hdr.adv_rtr;
-                        let nexthop = Nexthop::new(
-                            iface_idx,
-                            Some(nexthop_addr),
-                            Some(nbr_router_id),
+
+                        // Add nexthop.
+                        nexthops.insert(
+                            NexthopKey::new(iface_idx, Some(nexthop_addr)),
+                            Nexthop::new(
+                                iface_idx,
+                                Some(nexthop_addr),
+                                Some(nbr_router_id),
+                            ),
                         );
-                        Ok([nexthop].into())
                     }
                     VertexLsa::Network(_lsa) => {
-                        let nexthop = Nexthop::new(iface_idx, None, None);
-                        Ok([nexthop].into())
+                        // Add nexthop.
+                        nexthops.insert(
+                            NexthopKey::new(iface_idx, None),
+                            Nexthop::new(iface_idx, None, None),
+                        );
                     }
                 }
             }
@@ -238,7 +247,8 @@ impl SpfVersion<Self> for Ospfv3 {
                 // Inherit outgoing interface from the parent network.
                 let iface_idx = parent
                     .nexthops
-                    .first()
+                    .values()
+                    .next()
                     .ok_or(Error::SpfNexthopCalcError(dest_id))?
                     .iface_idx;
                 let iface = &interfaces[iface_idx];
@@ -253,14 +263,20 @@ impl SpfVersion<Self> for Ospfv3 {
                     lsa_entries,
                 )
                 .ok_or_else(|| Error::SpfNexthopCalcError(dest_id))?;
-                let nexthop = Nexthop::new(
-                    iface_idx,
-                    Some(nexthop_addr),
-                    Some(nbr_router_id),
+
+                // Add nexthop.
+                nexthops.insert(
+                    NexthopKey::new(iface_idx, Some(nexthop_addr)),
+                    Nexthop::new(
+                        iface_idx,
+                        Some(nexthop_addr),
+                        Some(nbr_router_id),
+                    ),
                 );
-                Ok([nexthop].into())
             }
         }
+
+        Ok(nexthops)
     }
 
     fn vertex_lsa_find(

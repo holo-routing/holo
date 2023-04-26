@@ -11,4 +11,5 @@
 {"RouteReplace":{"proto":"Ospf","instance":0,"prefix":"10.0.4.0/24","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.8.5","ifindex":3}],"distance":110,"metric":20}}
 {"RouteReplace":{"proto":"Ospf","instance":0,"prefix":"10.0.5.0/24","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.8.5","ifindex":3}],"distance":110,"metric":20}}
 {"RouteReplace":{"proto":"Ospf","instance":0,"prefix":"10.0.6.0/24","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.7.4","ifindex":5},{"nhtype":"Ipv4Ifindex","addr":"10.0.8.5","ifindex":3}],"distance":110,"metric":20}}
+{"RouteReplace":{"proto":"Ospf","instance":0,"prefix":"1.1.1.1/32","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.8.5","ifindex":3}],"distance":110,"metric":30}}
 {"RouteReplace":{"proto":"Ospf","instance":0,"prefix":"1.1.1.1/32","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.7.4","ifindex":5},{"nhtype":"Ipv4Ifindex","addr":"10.0.8.5","ifindex":3}],"distance":110,"metric":30}}

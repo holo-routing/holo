@@ -494,6 +494,13 @@ fn process_nbr_msgs(
             break;
         }
     }
+
+    // Reset the keepalive timer upon receiving any LDP PDU.
+    let nbr = &mut instance.state.neighbors[nbr_idx];
+    if nbr.state == fsm::State::Operational {
+        let kalive_timeout_task = nbr.tasks.kalive_timeout.as_mut().unwrap();
+        kalive_timeout_task.reset(None);
+    }
 }
 
 fn process_nbr_msg(
@@ -646,10 +653,7 @@ fn process_nbr_msg_keepalive(
             Neighbor::fsm(instance, nbr_idx, fsm::Event::KeepaliveRcvd);
         }
         fsm::State::Operational => {
-            // Restart the keepalive interval timer.
-            let kalive_timeout_task =
-                nbr.tasks.kalive_timeout.as_mut().unwrap();
-            kalive_timeout_task.reset(None);
+            // The keepalive timer will be reset later.
         }
         _ => {
             // Unexpected message given the current neighbor's state.

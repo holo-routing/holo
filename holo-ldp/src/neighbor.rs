@@ -660,13 +660,12 @@ impl Neighbor {
         &mut self,
         msg_id: &Arc<AtomicU32>,
         msg_type: LabelMessageType,
-        prefix: IpNetwork,
+        fec_elem: FecElem,
         label: Option<Label>,
         request_id: Option<u32>,
     ) {
         let label = label.map(TlvLabel);
         let request_id = request_id.map(TlvLabelRequestId);
-        let fec_elem = FecElem::Prefix(prefix);
         let fec = TlvFec(vec![fec_elem]);
 
         let msg = LabelMsg {
@@ -706,7 +705,7 @@ impl Neighbor {
         self.send_label(
             msg_id,
             LabelMessageType::LabelMapping,
-            prefix,
+            FecElem::Prefix(prefix),
             Some(label),
             request_id,
         );
@@ -729,7 +728,7 @@ impl Neighbor {
         self.send_label(
             msg_id,
             LabelMessageType::LabelWithdraw,
-            prefix,
+            FecElem::Prefix(prefix),
             Some(label),
             None,
         );
@@ -741,15 +740,13 @@ impl Neighbor {
     pub(crate) fn send_label_release(
         &mut self,
         msg_id: &Arc<AtomicU32>,
-        fec: &Fec,
+        fec_elem: FecElem,
         label: Option<Label>,
     ) {
-        let prefix = *fec.inner.prefix;
-
         self.send_label(
             msg_id,
             LabelMessageType::LabelRelease,
-            prefix,
+            fec_elem,
             label,
             None,
         );

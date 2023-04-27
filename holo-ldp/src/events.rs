@@ -836,7 +836,7 @@ pub(crate) fn process_nbr_msg_label_mapping(
             }
             nbr.send_label_release(
                 &instance.state.msg_id,
-                fec,
+                fec_elem,
                 Some(old_label),
             );
         }
@@ -1048,7 +1048,7 @@ fn process_nbr_msg_label_withdraw(
     }
 
     // LWd.2: send label release.
-    nbr.send_label_release(&instance.state.msg_id, fec, msg.get_label());
+    nbr.send_label_release(&instance.state.msg_id, fec_elem, msg.get_label());
 
     // LWd.3: check previously received label mapping.
     if let btree_map::Entry::Occupied(o) = nbr.rcvd_mappings.entry(prefix) {
@@ -1068,6 +1068,13 @@ fn process_nbr_msg_label_withdraw_wcard(
     wcard: FecElemWildcard,
 ) {
     let nbr = &mut instance.state.neighbors[nbr_idx];
+
+    // LWd.2: send label release.
+    nbr.send_label_release(
+        &instance.state.msg_id,
+        FecElem::Wildcard(wcard),
+        msg.get_label(),
+    );
 
     for fec in instance
         .state
@@ -1104,9 +1111,6 @@ fn process_nbr_msg_label_withdraw_wcard(
                 fec,
             );
         }
-
-        // LWd.2: send label release.
-        nbr.send_label_release(&instance.state.msg_id, fec, msg.get_label());
 
         // LWd.3: check previously received label mapping.
         let prefix = *fec.inner.prefix;

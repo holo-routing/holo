@@ -8,7 +8,7 @@ use std::net::IpAddr;
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::ip::{
-    AddressFamily, IpAddrExt, Ipv4NetworkExt, Ipv6NetworkExt,
+    AddressFamily, IpAddrExt, IpNetworkExt, Ipv4NetworkExt, Ipv6NetworkExt,
 };
 use holo_utils::mpls::Label;
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
@@ -482,10 +482,9 @@ impl FecElem {
                 buf.copy_to_slice(&mut prefix_bytes);
                 *tlv_rlen -= plen_wire as u16;
                 let prefix = IpAddr::from_slice(af, &prefix_bytes);
-                match IpNetwork::new(prefix, plen) {
-                    Ok(prefix) => Ok(FecElem::Prefix(prefix)),
-                    Err(_) => Err(DecodeError::InvalidTlvValue(tlvi.clone())),
-                }
+                IpNetwork::new(prefix, plen)
+                    .map(|prefix| FecElem::Prefix(prefix.apply_mask()))
+                    .map_err(|_| DecodeError::InvalidTlvValue(tlvi.clone()))
             }
             TLV_FEC_ELEMENT_TYPED_WILDCARD => {
                 let elem = TypedWildcardFecElem::decode(buf, tlvi, tlv_rlen)?;

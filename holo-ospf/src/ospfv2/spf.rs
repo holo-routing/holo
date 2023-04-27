@@ -14,7 +14,7 @@ use holo_utils::sr::IgpAlgoType;
 use ipnetwork::Ipv4Network;
 
 use crate::area::Area;
-use crate::collections::{Arena, InterfaceIndex, Lsdb};
+use crate::collections::{Arena, Lsdb};
 use crate::error::Error;
 use crate::interface::{Interface, InterfaceType};
 use crate::lsdb::LsaEntry;

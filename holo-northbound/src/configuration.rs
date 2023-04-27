@@ -414,7 +414,7 @@ where
                 provider,
                 phase,
                 cb_key.operation,
-                &callbacks,
+                callbacks,
                 &args.dnode,
             );
         }

@@ -84,7 +84,7 @@ pub(crate) async fn send_packet_multicast(
     #[cfg(not(feature = "testing"))]
     {
         // Encode Hello message.
-        let buf = pdu.encode();
+        let buf = pdu.encode(Pdu::DFLT_MAX_LEN);
 
         // Send packet.
         socket.send_to(&buf, &*LDP_MCAST_SOCKADDR_V4).await?;
@@ -101,7 +101,7 @@ pub(crate) async fn send_packet_unicast(
     #[cfg(not(feature = "testing"))]
     {
         // Encode Hello message.
-        let buf = pdu.encode();
+        let buf = pdu.encode(Pdu::DFLT_MAX_LEN);
 
         // Send packet.
         socket

@@ -77,22 +77,53 @@ impl Pdu {
         }
     }
 
-    pub fn encode(&self) -> BytesMut {
+    // Encodes LDP PDU into a bytes buffer.
+    //
+    // If the size of all messages exceeds the provided maximum PDU length, the
+    // messages are split into multiple PDUs as needed.
+    pub fn encode(&self, max_pdu_len: u16) -> BytesMut {
+        let mut buf_final = BytesMut::new();
+
         TLS_BUF.with(|buf| {
             let mut buf = buf.borrow_mut();
             buf.clear();
 
-            // Encode PDU header and messages.
+            // Encode PDU header.
             self.encode_hdr(&mut buf);
-            for msg in &self.messages {
-                msg.encode(&mut buf);
-            }
 
-            // Initialize PDU length.
-            let pkt_len = buf.len() as u16 - Pdu::HDR_DEAD_LEN;
-            buf[2..4].copy_from_slice(&pkt_len.to_be_bytes());
-            buf.clone()
-        })
+            // Iterate over all messages.
+            let mut msgs = self.messages.iter().peekable();
+            while let Some(msg) = msgs.next() {
+                let len = buf.len();
+
+                // Encode message.
+                msg.encode(&mut buf);
+
+                // Check if the maximum PDU length was exceeded.
+                if buf.len() > max_pdu_len as usize {
+                    let mut new_msg = buf.split_to(len);
+                    std::mem::swap(&mut new_msg, &mut buf);
+
+                    // Add full PDU.
+                    Pdu::init_pdu_length(&mut buf);
+                    buf_final.extend(buf.clone());
+
+                    // Prepare other PDU.
+                    buf.clear();
+                    self.encode_hdr(&mut buf);
+                    buf.extend(new_msg);
+                }
+
+                // Check if this is the last message.
+                if msgs.peek().is_none() {
+                    // Add full PDU.
+                    Pdu::init_pdu_length(&mut buf);
+                    buf_final.extend(buf.clone());
+                }
+            }
+        });
+
+        buf_final
     }
 
     fn encode_hdr(&self, buf: &mut BytesMut) {
@@ -101,6 +132,11 @@ impl Pdu {
         buf.put_u16(0);
         buf.put_ipv4(&self.lsr_id);
         buf.put_u16(self.lspace_id);
+    }
+
+    fn init_pdu_length(buf: &mut BytesMut) {
+        let pkt_len = buf.len() as u16 - Pdu::HDR_DEAD_LEN;
+        buf[2..4].copy_from_slice(&pkt_len.to_be_bytes());
     }
 
     // Decode buffer into a PDU containing one or more messages.

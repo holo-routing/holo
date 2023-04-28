@@ -29,7 +29,7 @@ static PDU: Lazy<Pdu> = Lazy::new(|| Pdu {
 
 fn pdu_encode(n: u64) {
     for _ in 0..n {
-        PDU.encode();
+        PDU.encode(Pdu::DFLT_MAX_LEN);
     }
 }
 

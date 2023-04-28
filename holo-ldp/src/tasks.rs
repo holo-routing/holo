@@ -464,10 +464,16 @@ pub(crate) fn nbr_tx(
         let span2 = debug_span!("output");
         let _span2_guard = span2.enter();
 
+        let max_pdu_len = nbr.max_pdu_len;
         Task::spawn(
             async move {
-                network::tcp::nbr_write_loop(write_half, local_lsr_id, pdu_txc)
-                    .await;
+                network::tcp::nbr_write_loop(
+                    write_half,
+                    local_lsr_id,
+                    max_pdu_len,
+                    pdu_txc,
+                )
+                .await;
             }
             .in_current_span(),
         )

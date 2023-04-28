@@ -11,7 +11,7 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 thread_local!(
     pub static TLS_BUF: RefCell<BytesMut> =
-        RefCell::new(BytesMut::with_capacity(4096))
+        RefCell::new(BytesMut::with_capacity(65536))
 );
 
 // Extension methods for Bytes.

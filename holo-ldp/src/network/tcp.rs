@@ -149,12 +149,12 @@ pub(crate) async fn connect(
 async fn nbr_send_messages(
     stream: &mut OwnedWriteHalf,
     local_lsr_id: Ipv4Addr,
+    max_pdu_len: u16,
     messages: &mut VecDeque<Message>,
 ) {
-    // TODO: might need multiple PDUs to encode all messages.
     let mut pdu = Pdu::new(local_lsr_id, 0);
     std::mem::swap(&mut pdu.messages, messages);
-    let buf = pdu.encode();
+    let buf = pdu.encode(max_pdu_len);
     if let Err(error) = stream.write_all(&buf).await {
         IoError::TcpSendError(error).log();
     }
@@ -164,6 +164,7 @@ async fn nbr_send_messages(
 pub(crate) async fn nbr_write_loop(
     stream: OwnedWriteHalf,
     local_lsr_id: Ipv4Addr,
+    max_pdu_len: u16,
     mut pdu_txc: UnboundedReceiver<NbrTxPduMsg>,
 ) {
     let stream_mtx = Arc::new(Mutex::new(stream));
@@ -182,7 +183,13 @@ pub(crate) async fn nbr_write_loop(
         if flush {
             let mut stream = stream_mtx.lock().await;
             let mut messages = messages_mtx.lock().await;
-            nbr_send_messages(&mut stream, local_lsr_id, &mut messages).await;
+            nbr_send_messages(
+                &mut stream,
+                local_lsr_id,
+                max_pdu_len,
+                &mut messages,
+            )
+            .await;
             continue;
         }
 
@@ -195,8 +202,13 @@ pub(crate) async fn nbr_write_loop(
                 let mut stream = stream_mtx.lock().await;
                 let mut messages = messages_mtx.lock().await;
 
-                nbr_send_messages(&mut stream, local_lsr_id, &mut messages)
-                    .await;
+                nbr_send_messages(
+                    &mut stream,
+                    local_lsr_id,
+                    max_pdu_len,
+                    &mut messages,
+                )
+                .await;
             });
     }
 }

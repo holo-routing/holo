@@ -72,7 +72,7 @@ fn test_decode_msg(cxt: &DecodeCxt, bytes: &[u8], msg_expected: &Message) {
 }
 
 fn test_encode_pdu(bytes_expected: &[u8], pdu: &Pdu) {
-    let bytes_actual = pdu.encode();
+    let bytes_actual = pdu.encode(Pdu::DFLT_MAX_LEN);
     assert_eq!(bytes_expected, bytes_actual.as_ref());
 }
 

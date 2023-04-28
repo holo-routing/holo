@@ -21,10 +21,9 @@ use crate::tasks::messages::output::UdpTxPduMsg;
 use crate::version::Version;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
-pub enum SendDestination<I: IpAddrKind, S: SocketAddrKind<I>> {
+pub enum SendDestination<S: Into<SocketAddr>> {
     Multicast(u32),
     Unicast(S),
-    _M(std::marker::PhantomData<I>),
 }
 
 // RIP version-specific code.
@@ -63,7 +62,7 @@ pub trait NetworkVersion {
 pub(crate) async fn send_packet<V>(
     socket: &Arc<UdpSocket>,
     pdu: V::Pdu,
-    dst: SendDestination<V::IpAddr, V::SocketAddr>,
+    dst: SendDestination<V::SocketAddr>,
 ) -> Result<(), std::io::Error>
 where
     V: Version,
@@ -82,7 +81,6 @@ where
         SendDestination::Unicast(sockaddr) => {
             socket.send_to(&buf, sockaddr).await?;
         }
-        _ => unreachable!(),
     }
 
     Ok(())

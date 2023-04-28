@@ -262,10 +262,7 @@ where
     // destinations (multicast and unicast).
     pub(crate) fn with_destinations<F>(&mut self, mut f: F)
     where
-        F: FnMut(
-            &mut InterfaceUp<V>,
-            SendDestination<V::IpAddr, V::SocketAddr>,
-        ),
+        F: FnMut(&mut InterfaceUp<V>, SendDestination<V::SocketAddr>),
     {
         // Multicast dst.
         let dst = SendDestination::Multicast(self.core.system.ifindex.unwrap());

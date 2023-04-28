@@ -121,7 +121,7 @@ pub mod messages {
         #[derive(Debug, Serialize)]
         #[serde(bound = "V: Version")]
         pub struct UdpTxPduMsg<V: Version> {
-            pub dst: SendDestination<V::IpAddr, V::SocketAddr>,
+            pub dst: SendDestination<V::SocketAddr>,
             pub pdu: V::Pdu,
         }
     }

@@ -30,7 +30,7 @@ pub enum ResponseType {
 pub(crate) fn send_pdu<V>(
     instance_state: &mut InstanceState<V>,
     iface: &mut InterfaceUp<V>,
-    dst: SendDestination<V::IpAddr, V::SocketAddr>,
+    dst: SendDestination<V::SocketAddr>,
     pdu: V::Pdu,
 ) where
     V: Version,
@@ -53,7 +53,7 @@ pub(crate) fn send_pdu<V>(
 pub(crate) fn send_request<V>(
     instance_state: &mut InstanceState<V>,
     iface: &mut InterfaceUp<V>,
-    dst: SendDestination<V::IpAddr, V::SocketAddr>,
+    dst: SendDestination<V::SocketAddr>,
 ) where
     V: Version,
 {
@@ -70,7 +70,7 @@ pub(crate) fn send_request<V>(
 pub(crate) fn send_response<V>(
     instance_state: &mut InstanceState<V>,
     iface: &mut InterfaceUp<V>,
-    dst: SendDestination<V::IpAddr, V::SocketAddr>,
+    dst: SendDestination<V::SocketAddr>,
     response_type: ResponseType,
 ) where
     V: Version,

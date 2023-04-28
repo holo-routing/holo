@@ -151,6 +151,11 @@ impl LsdbVersion<Self> for Ospfv2 {
                     lsa_flush_network(iface, area, instance, arenas);
                 }
             }
+            LsaOriginateEvent::InterfaceAddrAddDel { area_id, .. } => {
+                // (Re)originate Router-LSA.
+                let (_, area) = arenas.areas.get_by_id(area_id)?;
+                lsa_orig_router(area, instance, arenas);
+            }
             LsaOriginateEvent::InterfaceCostChange { area_id } => {
                 // (Re)originate Router-LSA.
                 let (_, area) = arenas.areas.get_by_id(area_id)?;
@@ -365,14 +370,17 @@ fn lsa_orig_router(
         .filter(|iface| !iface.is_down())
     {
         let primary_addr = iface.system.primary_addr.unwrap();
+
+        // Add Type-3 (stub) links to interfaces in Loopback state.
         if iface.state.ism_state == ism::State::Loopback {
-            let link = LsaRouterLink::new(
-                LsaRouterLinkType::StubNetwork,
-                primary_addr.ip(),
-                Ipv4Addr::BROADCAST,
-                0,
-            );
-            links.push(link);
+            links.extend(iface.system.addr_list.iter().map(|addr| {
+                LsaRouterLink::new(
+                    LsaRouterLinkType::StubNetwork,
+                    addr.ip(),
+                    Ipv4Addr::BROADCAST,
+                    0,
+                )
+            }));
             continue;
         }
 
@@ -384,6 +392,7 @@ fn lsa_orig_router(
             iface.config.cost
         };
 
+        let mut add_stub_links = false;
         match iface.config.if_type {
             InterfaceType::PointToPoint | InterfaceType::PointToMultipoint => {
                 // Add a Type-1 link (p2p) for each fully adjacent neighbor.
@@ -407,28 +416,15 @@ fn lsa_orig_router(
                     links.push(link);
                 }
 
-                // Add a Type-3 (stub) link (except if the interface is
-                // unnumbered).
+                // Add Type-3 (stub) links, unless the interface is unnumbered.
                 if !iface.system.unnumbered {
-                    let primary_addr = primary_addr.apply_mask();
-                    let link = LsaRouterLink::new(
-                        LsaRouterLinkType::StubNetwork,
-                        primary_addr.ip(),
-                        primary_addr.mask(),
-                        iface.config.cost,
-                    );
-                    links.push(link);
+                    add_stub_links = true;
                 }
             }
             InterfaceType::Broadcast | InterfaceType::NonBroadcast => {
-                let link = if iface.state.ism_state == ism::State::Waiting {
-                    let primary_addr = primary_addr.apply_mask();
-                    LsaRouterLink::new(
-                        LsaRouterLinkType::StubNetwork,
-                        primary_addr.ip(),
-                        primary_addr.mask(),
-                        iface.config.cost,
-                    )
+                if iface.state.ism_state == ism::State::Waiting {
+                    // Add Type-3 (stub) links.
+                    add_stub_links = true;
                 } else if (iface.state.ism_state == ism::State::Dr
                     && iface
                         .state
@@ -450,23 +446,36 @@ fn lsa_orig_router(
                         .is_some()
                 {
                     // Add a Type-2 (transit) link.
-                    LsaRouterLink::new(
+                    let link = LsaRouterLink::new(
                         LsaRouterLinkType::TransitNetwork,
                         iface.state.dr.unwrap().get(),
                         primary_addr.ip(),
                         non_stub_cost,
-                    )
+                    );
+                    links.push(link);
                 } else {
-                    let primary_addr = primary_addr.apply_mask();
-                    LsaRouterLink::new(
-                        LsaRouterLinkType::StubNetwork,
-                        primary_addr.ip(),
-                        primary_addr.mask(),
-                        iface.config.cost,
-                    )
-                };
-                links.push(link);
+                    // Add Type-3 (stub) links.
+                    add_stub_links = true;
+                }
             }
+        }
+
+        if add_stub_links {
+            links.extend(
+                iface
+                    .system
+                    .addr_list
+                    .iter()
+                    .map(|addr| addr.apply_mask())
+                    .map(|addr| {
+                        LsaRouterLink::new(
+                            LsaRouterLinkType::StubNetwork,
+                            addr.ip(),
+                            addr.mask(),
+                            iface.config.cost,
+                        )
+                    }),
+            );
         }
     }
 

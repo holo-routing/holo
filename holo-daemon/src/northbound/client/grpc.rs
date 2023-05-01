@@ -240,18 +240,18 @@ impl proto::Northbound for NorthboundService {
 impl From<northbound::Error> for Status {
     fn from(error: northbound::Error) -> Status {
         match error {
-            northbound::Error::YangInvalidPath(err)
-            | northbound::Error::YangInvalidData(err) => {
-                Status::invalid_argument(err.to_string())
+            northbound::Error::YangInvalidPath(..)
+            | northbound::Error::YangInvalidData(..) => {
+                Status::invalid_argument(error.to_string())
             }
-            northbound::Error::YangInternal(err) => {
-                Status::internal(err.to_string())
+            northbound::Error::YangInternal(..) => {
+                Status::internal(error.to_string())
             }
-            northbound::Error::TransactionValidation(err) => {
-                Status::invalid_argument(err.to_string())
+            northbound::Error::TransactionValidation(..) => {
+                Status::invalid_argument(error.to_string())
             }
-            northbound::Error::TransactionPreparation(err) => {
-                Status::resource_exhausted(err.to_string())
+            northbound::Error::TransactionPreparation(..) => {
+                Status::resource_exhausted(error.to_string())
             }
         }
     }

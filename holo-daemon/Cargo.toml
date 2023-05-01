@@ -38,7 +38,7 @@ holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
 
 [build-dependencies]
-tonic-build = "0.8"
+tonic-build.workspace = true
 
 [[bin]]
 name = "holod"

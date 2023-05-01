@@ -9,5 +9,8 @@ mod core;
 mod error;
 pub mod yang;
 
+#[cfg(feature = "rollback-log")]
+mod db;
+
 pub use self::core::Northbound;
 pub use self::error::{Error, Result};

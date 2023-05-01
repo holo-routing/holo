@@ -37,6 +37,12 @@ service Northbound {
 
   // Execute a YANG RPC/Action.
   rpc Execute(ExecuteRequest) returns (ExecuteResponse) {}
+
+  // Get the list of transactions recorded in the rollback log.
+  rpc ListTransactions(ListTransactionsRequest) returns (stream ListTransactionsResponse) {}
+
+  // Retrieve configuration data from the rollback log.
+  rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse) {}
 }
 
 // ----------------------- Parameters and return types -------------------------
@@ -149,6 +155,42 @@ message ExecuteResponse {
 
   // The original data tree plus output parameters.
   DataTree data = 1;
+}
+
+//
+// RPC: ListTransactions()
+//
+message ListTransactionsRequest {
+}
+
+message ListTransactionsResponse {
+  // Return values:
+  // - grpc::StatusCode::OK: Success.
+
+  // Transaction ID.
+  uint32 id = 1;
+
+  // Date and time the transaction was committed.
+  string date = 2;
+}
+
+//
+// RPC: GetTransaction()
+//
+message GetTransactionRequest {
+  // Transaction to retrieve.
+  uint32 transaction_id = 1;
+
+  // Encoding to be used.
+  Encoding encoding = 2;
+}
+
+message GetTransactionResponse {
+  // Return values:
+  // - grpc::StatusCode::OK: Success.
+  // - grpc::StatusCode::NOT_FOUND: Transaction ID wasn't found in the rollback log.
+
+  DataTree config = 1;
 }
 
 // -------------------------------- Definitions --------------------------------

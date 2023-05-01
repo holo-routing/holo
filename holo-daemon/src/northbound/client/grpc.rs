@@ -5,8 +5,10 @@
 //
 
 use std::convert::TryFrom;
+use std::pin::Pin;
 use std::time::SystemTime;
 
+use futures::Stream;
 use holo_utils::Sender;
 use holo_yang::YANG_CTX;
 use tokio::sync::oneshot;
@@ -233,6 +235,98 @@ impl proto::Northbound for NorthboundService {
         };
         Ok(Response::new(grpc_response))
     }
+
+    type ListTransactionsStream = Pin<
+        Box<
+            dyn Stream<Item = Result<proto::ListTransactionsResponse, Status>>
+                + Send,
+        >,
+    >;
+
+    async fn list_transactions(
+        &self,
+        grpc_request: Request<proto::ListTransactionsRequest>,
+    ) -> Result<Response<Self::ListTransactionsStream>, Status> {
+        let grpc_request = grpc_request.into_inner();
+        debug_span!("northbound").in_scope(|| {
+            debug_span!("client", name = "grpc").in_scope(|| {
+                debug!("received GetTransaction() request");
+                trace!("{:?}", grpc_request);
+            });
+        });
+
+        // Create oneshot channel to receive response back from the northbound.
+        let (responder_tx, responder_rx) = oneshot::channel();
+
+        // Convert and relay gRPC request to the northbound.
+        let nb_request = api::client::Request::ListTransactions(
+            api::client::ListTransactionsRequest {
+                responder: responder_tx,
+            },
+        );
+        self.request_tx.send(nb_request).await.unwrap();
+
+        // Receive response from the northbound.
+        let nb_response = responder_rx.await.unwrap()?;
+
+        // Convert and relay northbound response to the gRPC client.
+        let transactions =
+            nb_response.transactions.into_iter().map(|transaction| {
+                Ok(proto::ListTransactionsResponse {
+                    id: transaction.id,
+                    date: transaction.date.to_string(),
+                })
+            });
+
+        Ok(Response::new(Box::pin(futures::stream::iter(transactions))))
+    }
+
+    async fn get_transaction(
+        &self,
+        grpc_request: Request<proto::GetTransactionRequest>,
+    ) -> Result<Response<proto::GetTransactionResponse>, Status> {
+        let grpc_request = grpc_request.into_inner();
+        debug_span!("northbound").in_scope(|| {
+            debug_span!("client", name = "grpc").in_scope(|| {
+                debug!("received Execute() request");
+                trace!("{:?}", grpc_request);
+            });
+        });
+
+        // Create oneshot channel to receive response back from the northbound.
+        let (responder_tx, responder_rx) = oneshot::channel();
+
+        // Convert and relay gRPC request to the northbound.
+        let nb_request = api::client::Request::GetTransaction(
+            api::client::GetTransactionRequest {
+                transaction_id: grpc_request.transaction_id,
+                responder: responder_tx,
+            },
+        );
+        self.request_tx.send(nb_request).await.unwrap();
+
+        // Receive response from the northbound.
+        let nb_response = responder_rx.await.unwrap()?;
+
+        // Convert and relay northbound response to the gRPC client.
+        let encoding = proto::Encoding::from_i32(grpc_request.encoding)
+            .ok_or_else(|| Status::invalid_argument("Invalid data encoding"))?;
+        let config = nb_response
+            .dtree
+            .print_string(
+                DataFormat::from(encoding),
+                DataPrinterFlags::WITH_SIBLINGS,
+            )
+            .map_err(|error| Status::internal(error.to_string()))?
+            .unwrap_or_default();
+        let grpc_response = proto::GetTransactionResponse {
+            config: Some(proto::DataTree {
+                encoding: encoding as i32,
+                data: config,
+            }),
+        };
+        Ok(Response::new(grpc_response))
+    }
 }
 
 // ===== impl Status =====
@@ -252,6 +346,12 @@ impl From<northbound::Error> for Status {
             }
             northbound::Error::TransactionPreparation(..) => {
                 Status::resource_exhausted(error.to_string())
+            }
+            northbound::Error::RollbackLogUnavailable => {
+                Status::internal(error.to_string())
+            }
+            northbound::Error::TransactionIdNotFound(..) => {
+                Status::invalid_argument(error.to_string())
             }
         }
     }

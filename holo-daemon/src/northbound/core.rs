@@ -8,6 +8,8 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+use chrono::{DateTime, Utc};
+use derive_new::new;
 use holo_northbound as northbound;
 use holo_northbound::configuration::{CommitPhase, ConfigChange};
 use holo_northbound::state::NodeAttributes;
@@ -17,6 +19,7 @@ use holo_northbound::{
 use holo_utils::task::TimeoutTask;
 use holo_utils::{Receiver, Sender, UnboundedReceiver};
 use holo_yang::YANG_CTX;
+use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tracing::{debug, error, info, instrument, trace, warn};
 use yang2::data::{
@@ -27,24 +30,48 @@ use yang2::schema::SchemaPathFormat;
 
 use crate::config::Config;
 use crate::northbound::client::{api as capi, gnmi, grpc};
+#[cfg(feature = "rollback-log")]
+use crate::northbound::db;
 use crate::northbound::{yang, Error, Result};
 
-#[derive(Debug)]
 pub struct Northbound {
     // YANG-modeled running configuration.
     running_config: Arc<DataTree>,
+
+    // Rollback log.
+    #[cfg(feature = "rollback-log")]
+    db: Option<pickledb::PickleDb>,
+
     // Callback keys from the data providers.
     callbacks: BTreeMap<CallbackKey, NbDaemonSender>,
+
     // List of data providers.
     providers: Vec<NbDaemonSender>,
+
     // Channel used to receive messages from the external clients.
     rx_clients: Receiver<capi::client::Request>,
+
     // Channel used to receive messages from the data providers.
     rx_providers: UnboundedReceiver<papi::provider::Notification>,
-    // ID of the next configuration transaction.
-    next_transaction_id: u32,
+
     // Confirmed commit information.
     confirmed_commit: ConfirmedCommit,
+}
+
+#[derive(Debug, new)]
+#[derive(Deserialize, Serialize)]
+pub struct Transaction {
+    // Unique identifier for the transaction.
+    #[new(default)]
+    pub id: u32,
+
+    // Date and time for when the transaction occurred.
+    #[serde(with = "chrono::serde::ts_seconds")]
+    pub date: DateTime<Utc>,
+
+    // Configuration that was committed.
+    #[serde(with = "holo_yang::serde::data_tree")]
+    pub configuration: DataTree,
 }
 
 #[derive(Debug)]
@@ -72,6 +99,20 @@ impl Northbound {
         yang::create_context();
         let yang_ctx = YANG_CTX.get().unwrap();
 
+        // Initialize the rollback log.
+        #[cfg(feature = "rollback-log")]
+        let db = if config.rollback_log.enabled {
+            match db::init(&config.rollback_log.path) {
+                Ok(db) => Some(db),
+                Err(error) => {
+                    error!(%error, "failed to open rollback log");
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         // Create empty running configuration.
         let running_config = Arc::new(DataTree::new(yang_ctx));
 
@@ -88,11 +129,12 @@ impl Northbound {
 
         Northbound {
             running_config,
+            #[cfg(feature = "rollback-log")]
+            db,
             callbacks,
             providers,
             rx_clients,
             rx_providers,
-            next_transaction_id: 1,
             confirmed_commit: Default::default(),
         }
     }
@@ -146,6 +188,16 @@ impl Northbound {
                 if let Err(error) = &response {
                     warn!(%error, "execute failed");
                 }
+                let _ = request.responder.send(response);
+            }
+            capi::client::Request::ListTransactions(request) => {
+                let response = self.process_client_list_transactions().await;
+                let _ = request.responder.send(response);
+            }
+            capi::client::Request::GetTransaction(request) => {
+                let response = self
+                    .process_client_get_transaction(request.transaction_id)
+                    .await;
                 let _ = request.responder.send(response);
             }
         }
@@ -211,6 +263,28 @@ impl Northbound {
         Ok(capi::client::ExecuteResponse { data })
     }
 
+    // Processes a `ListTransactions` message received from an external client.
+    async fn process_client_list_transactions(
+        &mut self,
+    ) -> Result<capi::client::ListTransactionsResponse> {
+        let db = self.db.as_ref().ok_or(Error::RollbackLogUnavailable)?;
+        let transactions = db::transaction_get_all(db);
+        Ok(capi::client::ListTransactionsResponse { transactions })
+    }
+
+    // Processes a `GetTransaction` message received from an external client.
+    async fn process_client_get_transaction(
+        &mut self,
+        transaction_id: u32,
+    ) -> Result<capi::client::GetTransactionResponse> {
+        let db = self.db.as_ref().ok_or(Error::RollbackLogUnavailable)?;
+        let transaction = db::transaction_get(db, transaction_id)
+            .ok_or(Error::TransactionIdNotFound(transaction_id))?;
+        Ok(capi::client::GetTransactionResponse {
+            dtree: transaction.configuration,
+        })
+    }
+
     // Processes a message received from a data provider.
     fn process_provider_msg(&mut self, request: papi::provider::Notification) {
         trace!(?request, "received client request");
@@ -257,13 +331,10 @@ impl Northbound {
             return Ok(0);
         }
 
-        // Get transaction ID.
-        let id = self.next_transaction_id;
-        self.next_transaction_id += 1;
-
         // Get list of configuration changes.
         let changes = northbound::configuration::changes_from_diff(&diff);
-        debug!(%id, "new transaction");
+
+        debug!("new transaction");
         trace!(
             "configuration changes: {}",
             diff.print_string(
@@ -307,7 +378,18 @@ impl Northbound {
                 running_config
                     .validate(DataValidationFlags::NO_STATE)
                     .map_err(Error::YangInternal)?;
-                Ok(id)
+
+                // Create transaction structure.
+                let candidate = Arc::try_unwrap(candidate).unwrap();
+                let mut transaction = Transaction::new(Utc::now(), candidate);
+
+                // Record transaction.
+                #[cfg(feature = "rollback-log")]
+                if let Some(db) = &mut self.db {
+                    db::transaction_record(db, &mut transaction);
+                }
+
+                Ok(transaction.id)
             }
             Err(error) => {
                 // Phase 2: abort the configuration changes.

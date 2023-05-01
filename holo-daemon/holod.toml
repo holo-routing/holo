@@ -13,7 +13,7 @@ group = "frr"
   [logging.file]
     # Enable or disable
     enabled = true
-    # File path (need to be writable by @user or @group)
+    # File path (needs to be writable by @user or @group)
     dir = "/var/log/"
     # File name
     name = "holod.log"
@@ -50,8 +50,18 @@ group = "frr"
 [event_recorder]
   # Enable or disable the event recorder
   enabled = false
-  # Directory where to save the files (need to be writable by @user or @group)
+  # Directory where to save the files (needs to be writable by @user or @group)
   dir = "/var/run/"
+
+# Rollback log
+#
+# The rollback log provides the ability to revert to previous versions of the
+# running configuration.
+[rollback_log]
+  # Enable or disable the rollback log
+  enabled = true
+  # Path to save the rollback log file (needs to be writable by @user or @group)
+  path = "/var/run/holo.db"
 
 # Daemon plugins
 [plugins]

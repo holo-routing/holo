@@ -15,6 +15,7 @@ pub struct Config {
     pub logging: Logging,
     pub tokio_console: TokioConsole,
     pub event_recorder: event_recorder::Config,
+    pub rollback_log: RollbackLog,
     pub plugins: Plugins,
 }
 
@@ -76,6 +77,13 @@ pub struct TokioConsole {
     pub enabled: bool,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct RollbackLog {
+    pub enabled: bool,
+    pub path: String,
+}
+
 #[derive(Debug, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Plugins {
@@ -135,6 +143,7 @@ impl Default for Config {
             logging: Default::default(),
             tokio_console: Default::default(),
             event_recorder: Default::default(),
+            rollback_log: Default::default(),
             plugins: Default::default(),
         }
     }
@@ -171,6 +180,17 @@ impl Default for LoggingFmt {
             colors: false,
             show_thread_id: true,
             show_source: true,
+        }
+    }
+}
+
+// ===== impl RollbackLog =====
+
+impl Default for RollbackLog {
+    fn default() -> RollbackLog {
+        RollbackLog {
+            enabled: true,
+            path: "/var/run/holo.db".to_owned(),
         }
     }
 }

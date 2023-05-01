@@ -7,6 +7,7 @@
 use holo_utils::Responder;
 use yang2::data::DataTree;
 
+use crate::northbound::core::Transaction;
 use crate::northbound::Result;
 
 // Daemon -> External client requests.
@@ -25,6 +26,11 @@ pub mod client {
         Commit(CommitRequest),
         // Request to invoke a YANG RPC or Action.
         Execute(ExecuteRequest),
+        // Request to get the list of transactions recorded in the rollback
+        // log.
+        ListTransactions(ListTransactionsRequest),
+        // Request to retrieve configuration data from the rollback log.
+        GetTransaction(GetTransactionRequest),
     }
 
     #[derive(Debug)]
@@ -63,6 +69,27 @@ pub mod client {
         pub data: DataTree,
     }
 
+    #[derive(Debug)]
+    pub struct ListTransactionsRequest {
+        pub responder: Responder<Result<ListTransactionsResponse>>,
+    }
+
+    #[derive(Debug)]
+    pub struct ListTransactionsResponse {
+        pub transactions: Vec<Transaction>,
+    }
+
+    #[derive(Debug)]
+    pub struct GetTransactionRequest {
+        pub transaction_id: u32,
+        pub responder: Responder<Result<GetTransactionResponse>>,
+    }
+
+    #[derive(Debug)]
+    pub struct GetTransactionResponse {
+        pub dtree: DataTree,
+    }
+
     // ===== impl Request =====
 
     impl std::fmt::Display for Request {
@@ -71,6 +98,8 @@ pub mod client {
                 Request::Get(_) => write!(f, "Get"),
                 Request::Commit(_) => write!(f, "Commit"),
                 Request::Execute(_) => write!(f, "Execute"),
+                Request::ListTransactions(_) => write!(f, "ListTransactions"),
+                Request::GetTransaction(_) => write!(f, "GetTransaction"),
             }
         }
     }

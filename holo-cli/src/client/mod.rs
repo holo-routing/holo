@@ -25,7 +25,11 @@ pub trait Client: Send + std::fmt::Debug {
     fn get_running_config(&mut self) -> DataTree;
 
     // Commit the provided candidate configuration.
-    fn commit_candidate(&mut self, candidate: &DataTree) -> Result<(), Error>;
+    fn commit_candidate(
+        &mut self,
+        candidate: &DataTree,
+        comment: Option<String>,
+    ) -> Result<(), Error>;
 
     // Get state data.
     fn get_state(

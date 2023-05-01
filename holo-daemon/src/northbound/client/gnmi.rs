@@ -245,6 +245,7 @@ impl proto::GNmi for GNmiService {
         let nb_request = api::client::CommitRequest {
             operation: api::CommitOperation::Replace,
             config: candidate,
+            comment: Default::default(),
             confirmed_timeout: 0,
             responder: responder_tx,
         };

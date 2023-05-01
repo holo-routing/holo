@@ -42,7 +42,11 @@
 
   <tree name="config-default">
     <token name="no" help="Negate a command or set its defaults."/>
-    <token name="commit" help="Commit current set of changes." cmd="cmd_commit"/>
+    <token name="commit" help="Commit current set of changes." cmd="cmd_commit">
+      <token name="comment" help="Assign a comment to this commit.">
+        <token name="comment" argument="comment" kind="string" help="Comment for this commit." cmd="cmd_commit"/>
+      </token>
+    </token>
     <token name="end" help="Terminate configuration session." cmd="cmd_end"/>
     <token name="exit" help="Exit from current mode." cmd="cmd_exit_config"/>
     <token name="list" help="Print command list." cmd="cmd_list"/>

@@ -69,6 +69,9 @@ pub struct Transaction {
     #[serde(with = "chrono::serde::ts_seconds")]
     pub date: DateTime<Utc>,
 
+    // Optional comment for the transaction.
+    pub comment: String,
+
     // Configuration that was committed.
     #[serde(with = "holo_yang::serde::data_tree")]
     pub configuration: DataTree,
@@ -175,6 +178,7 @@ impl Northbound {
                     .process_client_commit(
                         request.operation,
                         request.config,
+                        request.comment,
                         request.confirmed_timeout,
                     )
                     .await;
@@ -231,6 +235,7 @@ impl Northbound {
         &mut self,
         operation: capi::CommitOperation,
         config: DataTree,
+        comment: String,
         confirmed_timeout: u32,
     ) -> Result<capi::client::CommitResponse> {
         // Handle different commit operations.
@@ -249,7 +254,7 @@ impl Northbound {
 
         // Create configuration transaction.
         let transaction_id = self
-            .create_transaction(candidate, confirmed_timeout)
+            .create_transaction(candidate, comment, confirmed_timeout)
             .await?;
         Ok(capi::client::CommitResponse { transaction_id })
     }
@@ -295,9 +300,11 @@ impl Northbound {
     async fn process_confirmed_commit_timeout(&mut self) {
         info!("confirmed commit has timed out, rolling back to previous configuration");
 
+        let comment = format!("Confirmed commit rollback",);
         let rollback = self.confirmed_commit.rollback.take().unwrap();
-        if let Err(error) =
-            self.create_transaction(rollback.configuration, 0).await
+        if let Err(error) = self
+            .create_transaction(rollback.configuration, comment, 0)
+            .await
         {
             error!(%error, "failed to rollback to previous configuration");
         }
@@ -311,6 +318,7 @@ impl Northbound {
     async fn create_transaction(
         &mut self,
         candidate: DataTree,
+        comment: String,
         confirmed_timeout: u32,
     ) -> Result<u32> {
         let candidate = Arc::new(candidate);
@@ -381,7 +389,8 @@ impl Northbound {
 
                 // Create transaction structure.
                 let candidate = Arc::try_unwrap(candidate).unwrap();
-                let mut transaction = Transaction::new(Utc::now(), candidate);
+                let mut transaction =
+                    Transaction::new(Utc::now(), comment, candidate);
 
                 // Record transaction.
                 #[cfg(feature = "rollback-log")]

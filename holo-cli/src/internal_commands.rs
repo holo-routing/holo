@@ -190,9 +190,10 @@ pub(crate) fn cmd_discard(
 pub(crate) fn cmd_commit(
     _commands: &Commands,
     session: &mut Session,
-    _args: ParsedArgs,
+    mut args: ParsedArgs,
 ) -> Result<bool, String> {
-    match session.candidate_commit() {
+    let comment = get_opt_arg(&mut args, "comment");
+    match session.candidate_commit(comment) {
         Ok(_) => {
             println!("% configuration committed successfully");
         }

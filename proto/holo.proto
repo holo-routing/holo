@@ -127,8 +127,11 @@ message CommitRequest {
   // Configuration data.
   DataTree config = 2;
 
+  // Optional comment describing the configuration changes.
+  string comment = 3;
+
   // Confirmed commit timeout (in minutes).
-  uint32 confirmed_timeout = 3;
+  uint32 confirmed_timeout = 4;
 }
 
 message CommitResponse {
@@ -172,6 +175,9 @@ message ListTransactionsResponse {
 
   // Date and time the transaction was committed.
   string date = 2;
+
+  // Comment assigned to the transaction.
+  string comment = 3;
 }
 
 //

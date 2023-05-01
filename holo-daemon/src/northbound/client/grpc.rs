@@ -164,6 +164,7 @@ impl proto::Northbound for NorthboundService {
             api::client::Request::Commit(api::client::CommitRequest {
                 operation,
                 config,
+                comment: grpc_request.comment,
                 confirmed_timeout: grpc_request.confirmed_timeout,
                 responder: responder_tx,
             });
@@ -274,6 +275,7 @@ impl proto::Northbound for NorthboundService {
             nb_response.transactions.into_iter().map(|transaction| {
                 Ok(proto::ListTransactionsResponse {
                     id: transaction.id,
+                    comment: transaction.comment,
                     date: transaction.date.to_string(),
                 })
             });

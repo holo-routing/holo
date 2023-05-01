@@ -111,7 +111,8 @@ fn read_config_file(mut cli: Cli, path: &str) {
     }
 
     // Commit configuration.
-    if let Err(err) = cli.session.candidate_commit() {
+    let comment = Some(format!("Configuration read from {}", path));
+    if let Err(err) = cli.session.candidate_commit(comment) {
         eprintln!("% {}", err);
     }
 }

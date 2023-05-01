@@ -225,14 +225,17 @@ impl Session {
         Session::validate_configuration(candidate)
     }
 
-    pub(crate) fn candidate_commit(&mut self) -> Result<(), Error> {
+    pub(crate) fn candidate_commit(
+        &mut self,
+        comment: Option<String>,
+    ) -> Result<(), Error> {
         let candidate = self.candidate.as_mut().unwrap();
 
         // Validate configuration first.
         Session::validate_configuration(candidate)?;
 
         // Replace running configuration by candidate configuration.
-        self.client.commit_candidate(candidate)?;
+        self.client.commit_candidate(candidate, comment)?;
         self.running = candidate.duplicate().unwrap();
 
         Ok(())

@@ -49,6 +49,7 @@ pub mod client {
     pub struct CommitRequest {
         pub operation: CommitOperation,
         pub config: DataTree,
+        pub comment: String,
         pub confirmed_timeout: u32,
         pub responder: Responder<Result<CommitResponse>>,
     }

@@ -108,7 +108,11 @@ impl Client for GrpcClient {
         .expect("Failed to parse data tree")
     }
 
-    fn commit_candidate(&mut self, candidate: &DataTree) -> Result<(), Error> {
+    fn commit_candidate(
+        &mut self,
+        candidate: &DataTree,
+        comment: Option<String>,
+    ) -> Result<(), Error> {
         let operation = proto::commit_request::Operation::Replace as i32;
         let config = {
             let encoding = proto::Encoding::Xml as i32;
@@ -123,6 +127,7 @@ impl Client for GrpcClient {
         self.rpc_sync_commit(proto::CommitRequest {
             operation,
             config,
+            comment: comment.unwrap_or_default(),
             confirmed_timeout: 0,
         })
         .map_err(Error::Backend)?;

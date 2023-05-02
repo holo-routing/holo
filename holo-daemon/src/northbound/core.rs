@@ -52,10 +52,16 @@ pub struct ConfirmedCommit {
     // Channels used to send and receive timeout notifications.
     tx: Sender<()>,
     rx: Receiver<()>,
-    // Rollback configuration.
-    rollback_config: Option<DataTree>,
-    // Confirmed commit timeout.
-    timeout: Option<TimeoutTask>,
+
+    // Confirmed commit in progress.
+    rollback: Option<Rollback>,
+}
+
+#[derive(Debug)]
+pub struct Rollback {
+    configuration: DataTree,
+    #[allow(dead_code)]
+    timeout: TimeoutTask,
 }
 
 // ===== impl Northbound =====
@@ -215,13 +221,12 @@ impl Northbound {
     async fn process_confirmed_commit_timeout(&mut self) {
         info!("confirmed commit has timed out, rolling back to previous configuration");
 
-        let rollback_config =
-            self.confirmed_commit.rollback_config.take().unwrap();
-        if let Err(error) = self.create_transaction(rollback_config, 0).await {
+        let rollback = self.confirmed_commit.rollback.take().unwrap();
+        if let Err(error) =
+            self.create_transaction(rollback.configuration, 0).await
+        {
             error!(%error, "failed to rollback to previous configuration");
         }
-
-        self.confirmed_commit.stop();
     }
 
     // Creates a configuration transaction using a two-phase commit protocol. In
@@ -245,19 +250,11 @@ impl Northbound {
         // Check if the configuration has changed.
         if diff.iter().next().is_none() {
             // Check if this a confirmation commit.
-            if self.confirmed_commit.timeout.is_some() {
+            if self.confirmed_commit.rollback.take().is_some() {
                 debug!("commit confirmation accepted");
-                self.confirmed_commit.stop();
             }
 
-            return Ok(self.next_transaction_id);
-        }
-
-        // Start confirmed commit timeout if necessary.
-        if confirmed_timeout > 0 {
-            let rollback_config = (*self.running_config).duplicate().unwrap();
-            self.confirmed_commit
-                .start(rollback_config, confirmed_timeout);
+            return Ok(0);
         }
 
         // Get transaction ID.
@@ -292,6 +289,14 @@ impl Northbound {
                         &changes,
                     )
                     .await;
+
+                // Start confirmed commit timeout if necessary.
+                if confirmed_timeout > 0 {
+                    let rollback_config =
+                        (*self.running_config).duplicate().unwrap();
+                    self.confirmed_commit
+                        .start(rollback_config, confirmed_timeout);
+                }
 
                 // Update the running configuration.
                 let running_config =
@@ -441,18 +446,15 @@ impl Northbound {
 // ===== impl ConfirmedCommit =====
 
 impl ConfirmedCommit {
-    fn start(&mut self, rollback_config: DataTree, timeout: u32) {
+    fn start(&mut self, configuration: DataTree, timeout: u32) {
         debug!(%timeout, "starting confirmed commit timeout");
 
         let timeout = self.timeout_task(timeout);
 
-        self.rollback_config = Some(rollback_config);
-        self.timeout = Some(timeout);
-    }
-
-    fn stop(&mut self) {
-        self.rollback_config = None;
-        self.timeout = None;
+        self.rollback = Some(Rollback {
+            configuration,
+            timeout,
+        });
     }
 
     fn timeout_task(&self, timeout: u32) -> TimeoutTask {
@@ -471,8 +473,7 @@ impl Default for ConfirmedCommit {
         ConfirmedCommit {
             tx,
             rx,
-            rollback_config: None,
-            timeout: None,
+            rollback: None,
         }
     }
 }

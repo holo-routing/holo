@@ -39,7 +39,7 @@ fn page_output(
     if session.use_pager() {
         let pager = minus::Pager::new();
         pager.set_exit_strategy(minus::ExitStrategy::PagerQuit)?;
-        pager.set_run_no_overflow(true)?;
+        pager.set_run_no_overflow(false)?;
         pager.set_text(data)?;
         minus::page_all(pager)?;
     } else {

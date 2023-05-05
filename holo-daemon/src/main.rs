@@ -137,6 +137,7 @@ fn privdrop(user: &str) -> nix::Result<()> {
 fn main() {
     // Parse command-line parameters.
     let matches = App::new("Holo routing daemon")
+        .version(clap::crate_version!())
         .arg(
             Arg::with_name("config")
                 .short("c")

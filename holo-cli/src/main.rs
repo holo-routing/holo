@@ -120,6 +120,7 @@ fn read_config_file(mut cli: Cli, path: &str) {
 fn main() {
     // Parse command-line parameters.
     let matches = App::new("Holo command-line interface")
+        .version(clap::crate_version!())
         .arg(
             Arg::with_name("file")
                 .long("file")

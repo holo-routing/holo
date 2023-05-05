@@ -96,6 +96,7 @@ pub struct Plugins {
 pub struct Grpc {
     pub enabled: bool,
     pub address: String,
+    pub tls: Tls,
 }
 
 #[derive(Debug, Deserialize)]
@@ -203,6 +204,7 @@ impl Default for Grpc {
         Grpc {
             enabled: true,
             address: "[::1]:50051".to_owned(),
+            tls: Default::default(),
         }
     }
 }

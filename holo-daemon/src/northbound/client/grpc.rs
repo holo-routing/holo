@@ -12,9 +12,9 @@ use futures::Stream;
 use holo_utils::Sender;
 use holo_yang::YANG_CTX;
 use tokio::sync::oneshot;
-use tonic::transport::Server;
+use tonic::transport::{Server, ServerTlsConfig};
 use tonic::{Request, Response, Status};
-use tracing::{debug, debug_span, trace};
+use tracing::{debug, debug_span, error, trace};
 use yang2::data::{
     Data, DataFormat, DataOperation, DataParserFlags, DataPrinterFlags,
     DataTree, DataValidationFlags,
@@ -434,10 +434,36 @@ pub(crate) fn start(
         .address
         .parse()
         .expect("Failed to parse gRPC server address");
+    let service = NorthboundService { request_tx };
+
+    let server = Server::builder();
+    let mut server = match config.tls.enabled {
+        true => {
+            let cert = match std::fs::read(&config.tls.certificate) {
+                Ok(value) => value,
+                Err(error) => {
+                    error!(%error, "failed to read TLS certificate");
+                    return;
+                }
+            };
+            let key = match std::fs::read(&config.tls.key) {
+                Ok(value) => value,
+                Err(error) => {
+                    error!(%error, "failed to read TLS key");
+                    return;
+                }
+            };
+
+            let identity = tonic::transport::Identity::from_pem(cert, key);
+            server
+                .tls_config(ServerTlsConfig::new().identity(identity))
+                .expect("Failed to setup gRPC TLS")
+        }
+        false => server,
+    };
 
     tokio::spawn(async move {
-        let service = NorthboundService { request_tx };
-        Server::builder()
+        server
             .add_service(proto::NorthboundServer::new(service))
             .serve(address)
             .await

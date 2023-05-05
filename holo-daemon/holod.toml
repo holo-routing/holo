@@ -71,6 +71,14 @@ group = "frr"
     enabled = true
     # gRPC server listening address
     address = "[::1]:50051"
+    # Optional gRPC TLS configuration
+    [plugins.grpc.tls]
+      # Enable or disable TLS authentication
+      enabled = false
+      # TLS certificate
+      certificate = "/etc/ssl/private/holo.pem"
+      # TLS key
+      key = "/etc/ssl/certs/holo.key"
 
   # gNMI northbound plugin configuration
   [plugins.gnmi]

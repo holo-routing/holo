@@ -78,9 +78,11 @@ group = "frr"
     enabled = true
     # gNMI server listening address
     address = "[::1]:10161"
-    # Optional gNMI TLS configuration (should be disabled only for testing purposes)
+    # Optional gNMI TLS configuration
     [plugins.gnmi.tls]
+      # Enable or disable TLS authentication
+      enabled = false
       # TLS certificate
-      certificate = "/etc/tls/gnmi.pem"
+      certificate = "/etc/ssl/private/holo.pem"
       # TLS key
-      key = "/etc/tls/gnmi.key"
+      key = "/etc/ssl/certs/holo.key"

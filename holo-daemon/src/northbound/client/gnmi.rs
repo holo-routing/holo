@@ -487,16 +487,16 @@ pub(crate) fn start(
     let service = GNmiService { request_tx };
 
     let server = Server::builder();
-    let mut server = match &config.tls {
-        Some(tls_config) => {
-            let cert = match std::fs::read(&tls_config.certificate) {
+    let mut server = match config.tls.enabled {
+        true => {
+            let cert = match std::fs::read(&config.tls.certificate) {
                 Ok(value) => value,
                 Err(error) => {
                     error!(%error, "failed to read TLS certificate");
                     return;
                 }
             };
-            let key = match std::fs::read(&tls_config.key) {
+            let key = match std::fs::read(&config.tls.key) {
                 Ok(value) => value,
                 Err(error) => {
                     error!(%error, "failed to read TLS key");
@@ -509,7 +509,7 @@ pub(crate) fn start(
                 .tls_config(ServerTlsConfig::new().identity(identity))
                 .expect("Failed to setup gNMI TLS")
         }
-        None => server,
+        false => server,
     };
 
     tokio::spawn(async move {

@@ -103,12 +103,13 @@ pub struct Grpc {
 pub struct Gnmi {
     pub enabled: bool,
     pub address: String,
-    pub tls: Option<GnmiTls>,
+    pub tls: Tls,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct GnmiTls {
+pub struct Tls {
+    pub enabled: bool,
     pub certificate: String,
     pub key: String,
 }
@@ -213,18 +214,19 @@ impl Default for Gnmi {
         Gnmi {
             enabled: true,
             address: "[::1]:10161".to_owned(),
-            tls: None,
+            tls: Default::default(),
         }
     }
 }
 
-// ===== impl GnmiTls =====
+// ===== impl Tls =====
 
-impl Default for GnmiTls {
-    fn default() -> GnmiTls {
-        GnmiTls {
-            certificate: "/etc/tls/gnmi.pem".to_owned(),
-            key: "/etc/tls/gnmi.key".to_owned(),
+impl Default for Tls {
+    fn default() -> Tls {
+        Tls {
+            enabled: false,
+            certificate: "/etc/ssl/private/holo.pem".to_owned(),
+            key: "/etc/ssl/certs/holo.key".to_owned(),
         }
     }
 }

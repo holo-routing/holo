@@ -55,10 +55,7 @@ impl InterfaceVersion<Self> for Ospfv3 {
             pkt_type: PacketType::Hello,
             router_id: instance.state.router_id,
             area_id: area.area_id,
-            instance_id: PacketHdr::instance_id(
-                instance.state.af,
-                iface.config.instance_id,
-            ),
+            instance_id: iface.config.instance_id.unwrap_or(0),
         };
 
         Packet::Hello(Hello {
@@ -96,13 +93,10 @@ impl InterfaceVersion<Self> for Ospfv3 {
     }
 
     fn validate_packet_instance_id(
-        af: AddressFamily,
         iface: &Interface<Self>,
         packet_hdr: &ospfv3::packet::PacketHdr,
     ) -> Result<(), Error<Self>> {
-        let iface_instance_id =
-            PacketHdr::instance_id(af, iface.config.instance_id);
-
+        let iface_instance_id = iface.config.instance_id.unwrap_or(0);
         if packet_hdr.instance_id != iface_instance_id {
             return Err(Error::InstanceIdMismatch(
                 packet_hdr.instance_id,

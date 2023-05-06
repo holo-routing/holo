@@ -242,20 +242,6 @@ impl OptionsVersion<Ospfv3> for Options {
 impl PacketHdr {
     pub const VERSION: u8 = 3;
     pub const CHECKSUM_OFFSET: i32 = 12;
-
-    // Calculate the effective interface Instance ID based on the configured
-    // address family and the Instance ID ranges specified by RFC 5838.
-    pub(crate) fn instance_id(
-        af: AddressFamily,
-        instance_id: Option<u8>,
-    ) -> u8 {
-        let base_instance_id = match af {
-            AddressFamily::Ipv4 => 64,
-            AddressFamily::Ipv6 => 0,
-        };
-
-        base_instance_id + instance_id.unwrap_or(0)
-    }
 }
 
 impl PacketHdrVersion<Ospfv3> for PacketHdr {
@@ -350,14 +336,13 @@ impl PacketHdrVersion<Ospfv3> for PacketHdr {
         pkt_type: PacketType,
         router_id: Ipv4Addr,
         area_id: Ipv4Addr,
-        af: AddressFamily,
         instance_id: Option<u8>,
     ) -> Self {
         PacketHdr {
             pkt_type,
             router_id,
             area_id,
-            instance_id: Self::instance_id(af, instance_id),
+            instance_id: instance_id.unwrap_or(0),
         }
     }
 }

@@ -97,7 +97,6 @@ impl InterfaceVersion<Self> for Ospfv2 {
     }
 
     fn validate_packet_instance_id(
-        _af: AddressFamily,
         _iface: &Interface<Self>,
         _packet_hdr: &ospfv2::packet::PacketHdr,
     ) -> Result<(), Error<Self>> {

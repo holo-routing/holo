@@ -206,7 +206,6 @@ pub trait InterfaceVersion<V: Version> {
 
     // Validate the Instance ID of the received packet (OSPFv3 only).
     fn validate_packet_instance_id(
-        af: AddressFamily,
         iface: &Interface<V>,
         packet_hdr: &V::PacketHdr,
     ) -> Result<(), Error<V>>;

@@ -66,7 +66,6 @@ pub(crate) fn send_dbdesc<V>(
         PacketType::DbDesc,
         instance.state.router_id,
         area.area_id,
-        instance.state.af,
         iface.config.instance_id,
     );
     let packet = V::PacketDbDesc::generate(
@@ -137,7 +136,6 @@ pub(crate) fn send_lsreq<V>(
         PacketType::LsRequest,
         instance.state.router_id,
         area.area_id,
-        instance.state.af,
         iface.config.instance_id,
     );
     let entries = nbr.lists.ls_request_pending.keys().copied().collect();
@@ -168,7 +166,6 @@ pub(crate) fn rxmt_lsreq<V>(
         PacketType::LsRequest,
         instance.state.router_id,
         area.area_id,
-        instance.state.af,
         iface.config.instance_id,
     );
     let entries = nbr.lists.ls_request_pending.keys().copied().collect();
@@ -239,7 +236,6 @@ pub(crate) fn send_lsupd<V>(
             PacketType::LsUpdate,
             instance.state.router_id,
             area.area_id,
-            instance.state.af,
             iface.config.instance_id,
         );
         let packet = V::PacketLsUpdate::generate(pkt_hdr, lsas);
@@ -297,7 +293,6 @@ pub(crate) fn rxmt_lsupd<V>(
         PacketType::LsUpdate,
         instance.state.router_id,
         area.area_id,
-        instance.state.af,
         iface.config.instance_id,
     );
     let packet = V::PacketLsUpdate::generate(pkt_hdr, lsas);
@@ -327,7 +322,6 @@ pub(crate) fn send_lsack_direct<V>(
         PacketType::LsAck,
         instance.state.router_id,
         area.area_id,
-        instance.state.af,
         iface.config.instance_id,
     );
     let lsa_hdrs = vec![*lsa_hdr];
@@ -373,7 +367,6 @@ pub(crate) fn send_lsack_delayed<V>(
             PacketType::LsAck,
             instance.state.router_id,
             area.area_id,
-            instance.state.af,
             iface.config.instance_id,
         );
         let packet = V::PacketLsAck::generate(pkt_hdr, lsa_hdrs);

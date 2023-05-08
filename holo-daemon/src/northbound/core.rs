@@ -173,6 +173,14 @@ impl Northbound {
                     .await;
                 let _ = request.responder.send(response);
             }
+            capi::client::Request::Validate(request) => {
+                let response =
+                    self.process_client_validate(request.config).await;
+                if let Err(error) = &response {
+                    warn!(%error, "configuration validation failed");
+                }
+                let _ = request.responder.send(response);
+            }
             capi::client::Request::Commit(request) => {
                 let response = self
                     .process_client_commit(
@@ -228,6 +236,21 @@ impl Northbound {
         };
 
         Ok(capi::client::GetResponse { dtree })
+    }
+
+    // Processes a `Validate` message received from an external client.
+    async fn process_client_validate(
+        &mut self,
+        candidate: DataTree,
+    ) -> Result<capi::client::ValidateResponse> {
+        let candidate = Arc::new(candidate);
+
+        // Validate the candidate configuration.
+        self.validate_notify(&candidate)
+            .await
+            .map_err(Error::TransactionValidation)?;
+
+        Ok(capi::client::ValidateResponse {})
     }
 
     // Processes a `Commit` message received from an external client.

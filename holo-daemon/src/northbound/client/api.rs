@@ -22,6 +22,8 @@ pub mod client {
     pub enum Request {
         // Request to get data (configuration, state or both).
         Get(GetRequest),
+        // Request to validate a candidate configuration.
+        Validate(ValidateRequest),
         // Request to change the running configuration.
         Commit(CommitRequest),
         // Request to invoke a YANG RPC or Action.
@@ -44,6 +46,15 @@ pub mod client {
     pub struct GetResponse {
         pub dtree: DataTree,
     }
+
+    #[derive(Debug)]
+    pub struct ValidateRequest {
+        pub config: DataTree,
+        pub responder: Responder<Result<ValidateResponse>>,
+    }
+
+    #[derive(Debug)]
+    pub struct ValidateResponse {}
 
     #[derive(Debug)]
     pub struct CommitRequest {
@@ -97,6 +108,7 @@ pub mod client {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             match self {
                 Request::Get(_) => write!(f, "Get"),
+                Request::Validate(_) => write!(f, "Validate"),
                 Request::Commit(_) => write!(f, "Commit"),
                 Request::Execute(_) => write!(f, "Execute"),
                 Request::ListTransactions(_) => write!(f, "ListTransactions"),

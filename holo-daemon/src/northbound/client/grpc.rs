@@ -129,6 +129,51 @@ impl proto::Northbound for NorthboundService {
         Ok(Response::new(grpc_response))
     }
 
+    async fn validate(
+        &self,
+        grpc_request: Request<proto::ValidateRequest>,
+    ) -> Result<Response<proto::ValidateResponse>, Status> {
+        let yang_ctx = YANG_CTX.get().unwrap();
+        let grpc_request = grpc_request.into_inner();
+        debug_span!("northbound").in_scope(|| {
+            debug_span!("client", name = "grpc").in_scope(|| {
+                debug!("received Validate() request");
+                trace!("{:?}", grpc_request);
+            });
+        });
+
+        // Create oneshot channel to receive response back from the northbound.
+        let (responder_tx, responder_rx) = oneshot::channel();
+
+        // Convert and relay gRPC request to the northbound.
+        let config_tree = grpc_request.config.ok_or_else(|| {
+            Status::invalid_argument("Missing 'config' field")
+        })?;
+        let encoding = proto::Encoding::from_i32(config_tree.encoding)
+            .ok_or_else(|| Status::invalid_argument("Invalid data encoding"))?;
+        let config = DataTree::parse_string(
+            yang_ctx,
+            &config_tree.data,
+            DataFormat::from(encoding),
+            DataParserFlags::empty(),
+            DataValidationFlags::NO_STATE,
+        )
+        .map_err(|error| Status::invalid_argument(error.to_string()))?;
+        let nb_request =
+            api::client::Request::Validate(api::client::ValidateRequest {
+                config,
+                responder: responder_tx,
+            });
+        self.request_tx.send(nb_request).await.unwrap();
+
+        // Receive response from the northbound.
+        let _nb_response = responder_rx.await.unwrap()?;
+
+        // Prepare and send response to the gRPC client.
+        let grpc_response = proto::ValidateResponse {};
+        Ok(Response::new(grpc_response))
+    }
+
     async fn commit(
         &self,
         grpc_request: Request<proto::CommitRequest>,

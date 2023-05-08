@@ -32,6 +32,9 @@ service Northbound {
   // Retrieve configuration data, state data or both from the target.
   rpc Get(GetRequest) returns (GetResponse) {}
 
+  // Validate the configuration without committing it.
+  rpc Validate(ValidateRequest) returns (ValidateResponse) {}
+
   // Create a new configuration transaction using a two-phase commit protocol.
   rpc Commit(CommitRequest) returns (CommitResponse) {}
 
@@ -104,6 +107,20 @@ message GetResponse {
 
   // The requested data.
   DataTree data = 2;
+}
+
+//
+// RPC: Validate()
+//
+message ValidateRequest {
+  // Configuration data.
+  DataTree config = 1;
+}
+
+message ValidateResponse {
+  // Return values:
+  // - grpc::StatusCode::OK: Success.
+  // - grpc::StatusCode::INVALID_ARGUMENT: Validation error.
 }
 
 //

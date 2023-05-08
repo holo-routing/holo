@@ -323,6 +323,11 @@ impl Northbound {
     ) -> Result<u32> {
         let candidate = Arc::new(candidate);
 
+        // Validate the candidate configuration.
+        self.validate_notify(&candidate)
+            .await
+            .map_err(Error::TransactionValidation)?;
+
         // Compute diff between the running config and the candidate config.
         let diff = self
             .running_config
@@ -409,9 +414,44 @@ impl Northbound {
                         &changes,
                     )
                     .await;
+
                 Err(Error::TransactionPreparation(error))
             }
         }
+    }
+
+    // Request all data providers to validate the candidate configuration.
+    async fn validate_notify(
+        &mut self,
+        candidate: &Arc<DataTree>,
+    ) -> std::result::Result<(), northbound::error::Error> {
+        let mut handles = Vec::new();
+
+        // Spawn one task per data provider.
+        for daemon_tx in self.providers.iter() {
+            // Prepare request.
+            let (responder_tx, responder_rx) = oneshot::channel();
+            let request = papi::daemon::Request::Validate(
+                papi::daemon::ValidateRequest {
+                    config: candidate.clone(),
+                    responder: Some(responder_tx),
+                },
+            );
+
+            // Spawn task to send the request and receive the response.
+            let daemon_tx = daemon_tx.clone();
+            let handle = tokio::spawn(async move {
+                daemon_tx.send(request).await.unwrap();
+                responder_rx.await.unwrap()
+            });
+            handles.push(handle);
+        }
+        // Wait for all tasks to complete.
+        for handle in handles {
+            handle.await.unwrap()?;
+        }
+
+        Ok(())
     }
 
     // Notifies all data providers of the configuration changes associated to an

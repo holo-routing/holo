@@ -302,6 +302,10 @@ impl Provider for Master {
             .collect::<Vec<_>>()
     }
 
+    fn relay_validation(&self) -> Vec<NbDaemonSender> {
+        self.instances.values().cloned().collect()
+    }
+
     async fn process_event(&mut self, event: Event) {
         match event {
             Event::InstanceStart { protocol, name } => {

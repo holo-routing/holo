@@ -115,6 +115,10 @@ pub trait Provider: ProviderBase {
         None
     }
 
+    fn relay_validation(&self) -> Vec<NbDaemonSender> {
+        vec![]
+    }
+
     fn relay_changes(
         &self,
         _changes: ConfigChanges,
@@ -615,6 +619,36 @@ pub fn changes_from_diff(diff: &DataDiff) -> ConfigChanges {
     changes
 }
 
+pub(crate) async fn process_validate<P>(
+    provider: &mut P,
+    config: Arc<DataTree>,
+) -> Result<api::daemon::ValidateResponse, Error>
+where
+    P: Provider,
+{
+    // Validate local subtree.
+    validate_configuration::<P>(provider, &config).await?;
+
+    // Validate nested subtrees.
+    for nb_tx in provider.relay_validation() {
+        // Send request to child task.
+        let (responder_tx, responder_rx) = oneshot::channel();
+        let relayed_req = api::daemon::ValidateRequest {
+            config: config.clone(),
+            responder: Some(responder_tx),
+        };
+        nb_tx
+            .send(api::daemon::Request::Validate(relayed_req))
+            .await
+            .unwrap();
+
+        // Receive response.
+        let _ = responder_rx.await.unwrap()?;
+    }
+
+    Ok(api::daemon::ValidateResponse {})
+}
+
 pub(crate) async fn process_commit<P>(
     provider: &mut P,
     phase: CommitPhase,
@@ -626,11 +660,6 @@ pub(crate) async fn process_commit<P>(
 where
     P: Provider,
 {
-    // Perform code-level validation before the preparation phase.
-    if phase == CommitPhase::Prepare {
-        validate_configuration::<P>(provider, &new_config).await?;
-    }
-
     // Move to a separate vector the changes that need to be relayed.
     let callbacks = P::callbacks().unwrap();
     let relayed_changes = changes

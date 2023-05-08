@@ -222,7 +222,12 @@ impl Session {
 
     pub(crate) fn candidate_validate(&mut self) -> Result<(), Error> {
         let candidate = self.candidate.as_mut().unwrap();
-        Session::validate_configuration(candidate)
+
+        // Validate the candidate configuration against YANG schema first.
+        Session::validate_configuration_yang(candidate)?;
+
+        // Request the device to do a full configuration validation.
+        self.client.validate_candidate(candidate)
     }
 
     pub(crate) fn candidate_commit(
@@ -231,17 +236,20 @@ impl Session {
     ) -> Result<(), Error> {
         let candidate = self.candidate.as_mut().unwrap();
 
-        // Validate configuration first.
-        Session::validate_configuration(candidate)?;
+        // Validate the candidate configuration against YANG schema first.
+        Session::validate_configuration_yang(candidate)?;
 
-        // Replace running configuration by candidate configuration.
+        // Request the device to validate and commit the candidate
+        // configuration.
         self.client.commit_candidate(candidate, comment)?;
+
+        // Replace the running configuration with the candidate configuration.
         self.running = candidate.duplicate().unwrap();
 
         Ok(())
     }
 
-    fn validate_configuration(config: &mut DataTree) -> Result<(), Error> {
+    fn validate_configuration_yang(config: &mut DataTree) -> Result<(), Error> {
         config
             .validate(DataValidationFlags::NO_STATE)
             .map_err(Error::ValidateConfig)

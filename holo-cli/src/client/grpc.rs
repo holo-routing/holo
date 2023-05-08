@@ -57,6 +57,14 @@ impl GrpcClient {
         let request = tonic::Request::new(request);
         self.runtime.block_on(self.client.commit(request))
     }
+
+    fn rpc_sync_validate(
+        &mut self,
+        request: proto::ValidateRequest,
+    ) -> Result<tonic::Response<proto::ValidateResponse>, tonic::Status> {
+        let request = tonic::Request::new(request);
+        self.runtime.block_on(self.client.validate(request))
+    }
 }
 
 impl Client for GrpcClient {
@@ -106,6 +114,26 @@ impl Client for GrpcClient {
             DataValidationFlags::PRESENT | DataValidationFlags::NO_STATE,
         )
         .expect("Failed to parse data tree")
+    }
+
+    fn validate_candidate(
+        &mut self,
+        candidate: &DataTree,
+    ) -> Result<(), Error> {
+        let config = {
+            let encoding = proto::Encoding::Xml as i32;
+            let data = candidate
+                .print_string(DataFormat::XML, DataPrinterFlags::WITH_SIBLINGS)
+                .expect("Failed to encode data tree")
+                .unwrap_or_default();
+
+            Some(proto::DataTree { encoding, data })
+        };
+
+        self.rpc_sync_validate(proto::ValidateRequest { config })
+            .map_err(Error::Backend)?;
+
+        Ok(())
     }
 
     fn commit_candidate(

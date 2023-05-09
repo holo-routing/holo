@@ -42,7 +42,7 @@ pub(crate) fn process_pdu<V>(
     Debug::<V>::PduRx(iface, src.ip(), &pdu).log();
 
     // Update or create new neighbor.
-    let mut nbr = neighbor::update(
+    let nbr = neighbor::update(
         &mut instance.state.neighbors,
         *src.ip(),
         instance.core.config.invalid_interval,

@@ -22,36 +22,31 @@
                         "state": "down",
                         "statistics": {
                           "link-scope-lsa-count": 0
-                        },
-                        "holo-ospf-dev:object-id": 2
+                        }
                       },
                       {
                         "name": "eth-rt4",
                         "state": "down",
                         "statistics": {
                           "link-scope-lsa-count": 0
-                        },
-                        "holo-ospf-dev:object-id": 3
+                        }
                       },
                       {
                         "name": "eth-rt6",
                         "state": "down",
                         "statistics": {
                           "link-scope-lsa-count": 0
-                        },
-                        "holo-ospf-dev:object-id": 4
+                        }
                       },
                       {
                         "name": "lo",
                         "state": "loopback",
                         "statistics": {
                           "link-scope-lsa-count": 0
-                        },
-                        "holo-ospf-dev:object-id": 1
+                        }
                       }
                     ]
-                  },
-                  "holo-ospf-dev:object-id": 1
+                  }
                 }
               ]
             }

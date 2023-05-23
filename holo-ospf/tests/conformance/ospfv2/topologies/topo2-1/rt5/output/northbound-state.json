@@ -267,8 +267,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 24
+                              }
                             },
                             {
                               "lsa-id": "2.2.2.2",
@@ -373,8 +372,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 26
+                              }
                             },
                             {
                               "lsa-id": "3.3.3.3",
@@ -479,8 +477,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 21
+                              }
                             },
                             {
                               "lsa-id": "4.4.4.4",
@@ -624,8 +621,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 19
+                              }
                             },
                             {
                               "lsa-id": "5.5.5.5",
@@ -769,8 +765,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 13
+                              }
                             },
                             {
                               "lsa-id": "6.6.6.6",
@@ -862,8 +857,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 17
+                              }
                             }
                           ]
                         }
@@ -900,8 +894,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 25
+                              }
                             }
                           ]
                         }
@@ -946,8 +939,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 23
+                              }
                             },
                             {
                               "lsa-id": "4.0.0.0",
@@ -985,8 +977,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 15
+                              }
                             },
                             {
                               "lsa-id": "4.0.0.0",
@@ -1024,8 +1015,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 6
+                              }
                             },
                             {
                               "lsa-id": "4.0.0.0",
@@ -1063,8 +1053,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 12
+                              }
                             },
                             {
                               "lsa-id": "4.0.0.0",
@@ -1102,8 +1091,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 1
+                              }
                             },
                             {
                               "lsa-id": "4.0.0.0",
@@ -1141,8 +1129,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 9
+                              }
                             }
                           ]
                         }
@@ -1165,12 +1152,10 @@
                               "state": "full",
                               "statistics": {
                                 "nbr-retrans-qlen": 1
-                              },
-                              "holo-ospf-dev:object-id": 1
+                              }
                             }
                           ]
-                        },
-                        "holo-ospf-dev:object-id": 2
+                        }
                       },
                       {
                         "name": "eth-rt3-2",
@@ -1186,12 +1171,10 @@
                               "state": "full",
                               "statistics": {
                                 "nbr-retrans-qlen": 1
-                              },
-                              "holo-ospf-dev:object-id": 1
+                              }
                             }
                           ]
-                        },
-                        "holo-ospf-dev:object-id": 3
+                        }
                       },
                       {
                         "name": "eth-rt4",
@@ -1207,12 +1190,10 @@
                               "state": "full",
                               "statistics": {
                                 "nbr-retrans-qlen": 1
-                              },
-                              "holo-ospf-dev:object-id": 1
+                              }
                             }
                           ]
-                        },
-                        "holo-ospf-dev:object-id": 4
+                        }
                       },
                       {
                         "name": "eth-rt6",
@@ -1228,24 +1209,20 @@
                               "state": "full",
                               "statistics": {
                                 "nbr-retrans-qlen": 1
-                              },
-                              "holo-ospf-dev:object-id": 1
+                              }
                             }
                           ]
-                        },
-                        "holo-ospf-dev:object-id": 5
+                        }
                       },
                       {
                         "name": "lo",
                         "state": "loopback",
                         "statistics": {
                           "link-scope-lsa-count": 0
-                        },
-                        "holo-ospf-dev:object-id": 1
+                        }
                       }
                     ]
-                  },
-                  "holo-ospf-dev:object-id": 1
+                  }
                 }
               ]
             }

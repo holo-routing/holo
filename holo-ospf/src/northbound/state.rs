@@ -282,12 +282,6 @@ where
                 lsa.raw.iter().map(|byte| format!("{:02x}", byte)).join(":");
             Some(bytes)
         })
-        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::object_id::PATH)
-        .attributes(NodeAttributes::DEV)
-        .get_element_u32(|_instance, args| {
-            let lse = args.list_entry.as_as_lsa().unwrap();
-            Some(lse.id.get())
-        })
         .path(ospf::spf_log::event::PATH)
         .attributes(NodeAttributes::LOG)
         .get_iterate(|instance, _args| {
@@ -405,12 +399,6 @@ where
             let iter = instance.arenas.areas.iter().map(ListEntry::Area);
             Some(Box::new(iter))
         })
-        .path(ospf::areas::area::object_id::PATH)
-        .attributes(NodeAttributes::DEV)
-        .get_element_u32(|_instance, args| {
-            let area = args.list_entry.as_area().unwrap();
-            Some(area.id.get())
-        })
         .path(ospf::areas::area::ranges::range::PATH)
         .get_iterate(|_instance, _args| {
             // No operational data under this list.
@@ -509,12 +497,6 @@ where
                 lsa.raw.iter().map(|byte| format!("{:02x}", byte)).join(":");
             Some(bytes)
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::object_id::PATH)
-        .attributes(NodeAttributes::DEV)
-        .get_element_u32(|_instance, args| {
-            let lse = args.list_entry.as_area_lsa().unwrap();
-            Some(lse.id.get())
-        })
         .path(ospf::areas::area::interfaces::interface::PATH)
         .get_iterate(|instance, args| {
             let area = args.parent_list_entry.as_area().unwrap();
@@ -523,12 +505,6 @@ where
                 .iter(&instance.arenas.interfaces)
                 .map(ListEntry::Interface);
             Some(Box::new(iter))
-        })
-        .path(ospf::areas::area::interfaces::interface::object_id::PATH)
-        .attributes(NodeAttributes::DEV)
-        .get_element_u32(|_instance, args| {
-            let iface = args.list_entry.as_interface().unwrap();
-            Some(iface.id.get())
         })
         .path(ospf::areas::area::interfaces::interface::state::PATH)
         .get_element_string(|_instance, args| {
@@ -694,12 +670,6 @@ where
                 .iter(&instance.arenas.neighbors)
                 .map(|nbr| ListEntry::Neighbor(iface, nbr));
             Some(Box::new(iter))
-        })
-        .path(ospf::areas::area::interfaces::interface::neighbors::neighbor::object_id::PATH)
-        .attributes(NodeAttributes::DEV)
-        .get_element_u32(|_instance, args| {
-            let (_, nbr) = args.list_entry.as_neighbor().unwrap();
-            Some(nbr.id.get())
         })
         .path(ospf::areas::area::interfaces::interface::neighbors::neighbor::address::PATH)
         .get_element_ip(|_instance, args| {
@@ -872,12 +842,6 @@ where
             let bytes =
                 lsa.raw.iter().map(|byte| format!("{:02x}", byte)).join(":");
             Some(bytes)
-        })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::object_id::PATH)
-        .attributes(NodeAttributes::DEV)
-        .get_element_u32(|_instance, args| {
-            let lse = args.list_entry.as_interface_lsa().unwrap();
-            Some(lse.id.get())
         })
         .path(ospf::areas::area::interfaces::interface::static_neighbors::neighbor::PATH)
         .get_iterate(|_instance, _args| None)

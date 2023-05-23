@@ -230,8 +230,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 1
+                              }
                             }
                           ]
                         }
@@ -245,12 +244,10 @@
                         "state": "point-to-point",
                         "statistics": {
                           "link-scope-lsa-count": 0
-                        },
-                        "holo-ospf-dev:object-id": 1
+                        }
                       }
                     ]
-                  },
-                  "holo-ospf-dev:object-id": 2
+                  }
                 },
                 {
                   "area-id": "0.0.0.3",
@@ -324,8 +321,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 1
+                              }
                             }
                           ]
                         }
@@ -339,20 +335,17 @@
                         "state": "point-to-point",
                         "statistics": {
                           "link-scope-lsa-count": 0
-                        },
-                        "holo-ospf-dev:object-id": 2
+                        }
                       },
                       {
                         "name": "lo",
                         "state": "loopback",
                         "statistics": {
                           "link-scope-lsa-count": 0
-                        },
-                        "holo-ospf-dev:object-id": 1
+                        }
                       }
                     ]
-                  },
-                  "holo-ospf-dev:object-id": 1
+                  }
                 }
               ]
             }

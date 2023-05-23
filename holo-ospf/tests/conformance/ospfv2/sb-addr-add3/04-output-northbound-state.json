@@ -259,8 +259,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 21
+                              }
                             },
                             {
                               "lsa-id": "2.2.2.2",
@@ -365,8 +364,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 23
+                              }
                             },
                             {
                               "lsa-id": "3.3.3.3",
@@ -471,8 +469,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 18
+                              }
                             },
                             {
                               "lsa-id": "4.4.4.4",
@@ -616,8 +613,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 16
+                              }
                             },
                             {
                               "lsa-id": "5.5.5.5",
@@ -761,8 +757,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 14
+                              }
                             },
                             {
                               "lsa-id": "6.6.6.6",
@@ -841,8 +836,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 25
+                              }
                             }
                           ]
                         }
@@ -879,8 +873,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 22
+                              }
                             }
                           ]
                         }
@@ -925,8 +918,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 20
+                              }
                             },
                             {
                               "lsa-id": "4.0.0.0",
@@ -964,8 +956,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 12
+                              }
                             },
                             {
                               "lsa-id": "4.0.0.0",
@@ -1003,8 +994,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 10
+                              }
                             },
                             {
                               "lsa-id": "4.0.0.0",
@@ -1042,8 +1032,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 7
+                              }
                             },
                             {
                               "lsa-id": "4.0.0.0",
@@ -1081,8 +1070,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 4
+                              }
                             },
                             {
                               "lsa-id": "4.0.0.0",
@@ -1120,8 +1108,7 @@
                                     }
                                   }
                                 }
-                              },
-                              "holo-ospf-dev:object-id": 1
+                              }
                             }
                           ]
                         }
@@ -1135,8 +1122,7 @@
                         "state": "point-to-point",
                         "statistics": {
                           "link-scope-lsa-count": 0
-                        },
-                        "holo-ospf-dev:object-id": 2
+                        }
                       },
                       {
                         "name": "eth-rt5",
@@ -1152,24 +1138,20 @@
                               "state": "full",
                               "statistics": {
                                 "nbr-retrans-qlen": 1
-                              },
-                              "holo-ospf-dev:object-id": 1
+                              }
                             }
                           ]
-                        },
-                        "holo-ospf-dev:object-id": 3
+                        }
                       },
                       {
                         "name": "lo",
                         "state": "loopback",
                         "statistics": {
                           "link-scope-lsa-count": 0
-                        },
-                        "holo-ospf-dev:object-id": 1
+                        }
                       }
                     ]
-                  },
-                  "holo-ospf-dev:object-id": 1
+                  }
                 }
               ]
             }

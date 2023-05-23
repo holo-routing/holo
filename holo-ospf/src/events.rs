@@ -16,9 +16,9 @@ use holo_utils::sr::SrCfg;
 
 use crate::area::{Area, AreaType};
 use crate::collections::{
-    lsdb_get, lsdb_get_mut, lsdb_index, lsdb_index_mut, AreaId, AreaIndex,
-    Arena, InterfaceId, InterfaceIndex, LsaEntryId, LsdbId, LsdbIndex,
-    NeighborId, NeighborIndex,
+    lsdb_get, lsdb_get_mut, lsdb_index, lsdb_index_mut, AreaIndex, AreaKey,
+    Arena, InterfaceIndex, InterfaceKey, LsaEntryKey, LsdbIndex, LsdbKey,
+    NeighborIndex, NeighborKey,
 };
 use crate::debug::{Debug, LsaFlushReason, SeqNoMismatchReason};
 use crate::error::{Error, InterfaceCfgError};
@@ -47,18 +47,18 @@ use crate::{output, spf, sr, tasks};
 pub(crate) fn process_ism_event<V>(
     instance: &mut InstanceUpView<'_, V>,
     arenas: &mut InstanceArenas<V>,
-    area_id: AreaId,
-    iface_id: InterfaceId,
+    area_key: AreaKey,
+    iface_key: InterfaceKey,
     event: ism::Event,
 ) -> Result<(), Error<V>>
 where
     V: Version,
 {
     // Lookup area and interface.
-    let (_, area) = arenas.areas.get_mut_by_id(area_id)?;
+    let (_, area) = arenas.areas.get_mut_by_key(&area_key)?;
     let (_iface_idx, iface) = area
         .interfaces
-        .get_mut_by_id(&mut arenas.interfaces, iface_id)?;
+        .get_mut_by_key(&mut arenas.interfaces, &iface_key)?;
 
     // Invoke FSM event.
     iface.fsm(
@@ -77,23 +77,23 @@ where
 pub(crate) fn process_nsm_event<V>(
     instance: &mut InstanceUpView<'_, V>,
     arenas: &mut InstanceArenas<V>,
-    area_id: AreaId,
-    iface_id: InterfaceId,
-    nbr_id: NeighborId,
+    area_key: AreaKey,
+    iface_key: InterfaceKey,
+    nbr_key: NeighborKey,
     event: nsm::Event,
 ) -> Result<(), Error<V>>
 where
     V: Version,
 {
     // Lookup area, interface and neighbor.
-    let (_, area) = arenas.areas.get_mut_by_id(area_id)?;
+    let (_, area) = arenas.areas.get_mut_by_key(&area_key)?;
     let (_, iface) = area
         .interfaces
-        .get_mut_by_id(&mut arenas.interfaces, iface_id)?;
+        .get_mut_by_key(&mut arenas.interfaces, &iface_key)?;
     let (nbr_idx, nbr) = iface
         .state
         .neighbors
-        .get_mut_by_id(&mut arenas.neighbors, nbr_id)?;
+        .get_mut_by_key(&mut arenas.neighbors, &nbr_key)?;
 
     // Invoke FSM event.
     nbr.fsm(iface, area, instance, &arenas.lsa_entries, event);
@@ -973,22 +973,22 @@ where
 pub(crate) fn process_dbdesc_free<V>(
     _instance: &mut InstanceUpView<'_, V>,
     arenas: &mut InstanceArenas<V>,
-    area_id: AreaId,
-    iface_id: InterfaceId,
-    nbr_id: NeighborId,
+    area_key: AreaKey,
+    iface_key: InterfaceKey,
+    nbr_key: NeighborKey,
 ) -> Result<(), Error<V>>
 where
     V: Version,
 {
     // Lookup area, interface and neighbor.
-    let (_, area) = arenas.areas.get_mut_by_id(area_id)?;
+    let (_, area) = arenas.areas.get_mut_by_key(&area_key)?;
     let (_iface_idx, iface) = area
         .interfaces
-        .get_mut_by_id(&mut arenas.interfaces, iface_id)?;
+        .get_mut_by_key(&mut arenas.interfaces, &iface_key)?;
     let (_, nbr) = iface
         .state
         .neighbors
-        .get_mut_by_id(&mut arenas.neighbors, nbr_id)?;
+        .get_mut_by_key(&mut arenas.neighbors, &nbr_key)?;
 
     // Free last sent/received Database Description packets.
     nbr.tasks.dbdesc_free_timer = None;
@@ -1003,24 +1003,24 @@ where
 pub(crate) fn process_send_lsupd<V>(
     instance: &mut InstanceUpView<'_, V>,
     arenas: &mut InstanceArenas<V>,
-    area_id: AreaId,
-    iface_id: InterfaceId,
-    nbr_id: Option<NeighborId>,
+    area_key: AreaKey,
+    iface_key: InterfaceKey,
+    nbr_key: Option<NeighborKey>,
 ) -> Result<(), Error<V>>
 where
     V: Version,
 {
     // Lookup area, interface and optional neighbor.
-    let (_, area) = arenas.areas.get_mut_by_id(area_id)?;
+    let (_, area) = arenas.areas.get_mut_by_key(&area_key)?;
     let (_iface_idx, iface) = area
         .interfaces
-        .get_mut_by_id(&mut arenas.interfaces, iface_id)?;
-    let nbr_idx = match nbr_id {
-        Some(nbr_id) => {
+        .get_mut_by_key(&mut arenas.interfaces, &iface_key)?;
+    let nbr_idx = match &nbr_key {
+        Some(nbr_key) => {
             let (nbr_idx, _) = iface
                 .state
                 .neighbors
-                .get_mut_by_id(&mut arenas.neighbors, nbr_id)?;
+                .get_mut_by_key(&mut arenas.neighbors, nbr_key)?;
             Some(nbr_idx)
         }
         None => None,
@@ -1038,23 +1038,23 @@ where
 pub(crate) fn process_packet_rxmt<V>(
     instance: &mut InstanceUpView<'_, V>,
     arenas: &mut InstanceArenas<V>,
-    area_id: AreaId,
-    iface_id: InterfaceId,
-    nbr_id: NeighborId,
+    area_key: AreaKey,
+    iface_key: InterfaceKey,
+    nbr_key: NeighborKey,
     packet_type: RxmtPacketType,
 ) -> Result<(), Error<V>>
 where
     V: Version,
 {
     // Lookup area, interface and optional neighbor.
-    let (_, area) = arenas.areas.get_mut_by_id(area_id)?;
+    let (_, area) = arenas.areas.get_mut_by_key(&area_key)?;
     let (_iface_idx, iface) = area
         .interfaces
-        .get_mut_by_id(&mut arenas.interfaces, iface_id)?;
+        .get_mut_by_key(&mut arenas.interfaces, &iface_key)?;
     let (_, nbr) = iface
         .state
         .neighbors
-        .get_mut_by_id(&mut arenas.neighbors, nbr_id)?;
+        .get_mut_by_key(&mut arenas.neighbors, &nbr_key)?;
 
     // Retransmit packet.
     match packet_type {
@@ -1077,17 +1077,17 @@ where
 pub(crate) fn process_delayed_ack_timeout<V>(
     instance: &mut InstanceUpView<'_, V>,
     arenas: &mut InstanceArenas<V>,
-    area_id: AreaId,
-    iface_id: InterfaceId,
+    area_key: AreaKey,
+    iface_key: InterfaceKey,
 ) -> Result<(), Error<V>>
 where
     V: Version,
 {
     // Lookup area and interface.
-    let (_, area) = arenas.areas.get_mut_by_id(area_id)?;
+    let (_, area) = arenas.areas.get_mut_by_key(&area_key)?;
     let (_iface_idx, iface) = area
         .interfaces
-        .get_mut_by_id(&mut arenas.interfaces, iface_id)?;
+        .get_mut_by_key(&mut arenas.interfaces, &iface_key)?;
 
     // Send delayed LS Ack.
     iface.state.tasks.ls_delayed_ack = None;
@@ -1115,7 +1115,7 @@ where
 pub(crate) fn process_lsa_orig_check<V>(
     instance: &mut InstanceUpView<'_, V>,
     arenas: &mut InstanceArenas<V>,
-    lsdb_id: LsdbId,
+    lsdb_key: LsdbKey,
     options: Option<V::PacketOptions>,
     lsa_id: Ipv4Addr,
     lsa_body: V::LsaBody,
@@ -1128,7 +1128,7 @@ where
         &instance.state.lsdb,
         &arenas.areas,
         &arenas.interfaces,
-        lsdb_id,
+        &lsdb_key,
     )?;
 
     // Attempt to originate LSA.
@@ -1144,7 +1144,7 @@ where
 pub(crate) fn process_lsa_orig_delayed_timer<V>(
     instance: &mut InstanceUpView<'_, V>,
     arenas: &mut InstanceArenas<V>,
-    lsdb_id: LsdbId,
+    lsdb_key: LsdbKey,
     lsa_key: LsaKey<V::LsaType>,
 ) -> Result<(), Error<V>>
 where
@@ -1155,7 +1155,7 @@ where
         &mut instance.state.lsdb,
         &mut arenas.areas,
         &mut arenas.interfaces,
-        lsdb_id,
+        &lsdb_key,
     )?;
 
     // Originate LSA.
@@ -1171,8 +1171,8 @@ where
 pub(crate) fn process_lsa_flush<V>(
     instance: &mut InstanceUpView<'_, V>,
     arenas: &mut InstanceArenas<V>,
-    lsdb_id: LsdbId,
-    lse_id: LsaEntryId,
+    lsdb_key: LsdbKey,
+    lse_key: LsaEntryKey<V::LsaType>,
     reason: LsaFlushReason,
 ) -> Result<(), Error<V>>
 where
@@ -1183,9 +1183,10 @@ where
         &mut instance.state.lsdb,
         &mut arenas.areas,
         &mut arenas.interfaces,
-        lsdb_id,
+        &lsdb_key,
     )?;
-    let (lse_idx, _) = lsdb.get_mut_by_id(&mut arenas.lsa_entries, lse_id)?;
+    let (lse_idx, _) =
+        lsdb.get_mut_by_key(&mut arenas.lsa_entries, &lse_key)?;
 
     // Flush LSA.
     lsdb::flush(instance, arenas, lsdb_idx, lse_idx, reason);
@@ -1198,8 +1199,8 @@ where
 pub(crate) fn process_lsa_refresh<V>(
     instance: &mut InstanceUpView<'_, V>,
     arenas: &mut InstanceArenas<V>,
-    lsdb_id: LsdbId,
-    lse_id: LsaEntryId,
+    lsdb_key: LsdbKey,
+    lse_key: LsaEntryKey<V::LsaType>,
 ) -> Result<(), Error<V>>
 where
     V: Version,
@@ -1209,9 +1210,9 @@ where
         &mut instance.state.lsdb,
         &mut arenas.areas,
         &mut arenas.interfaces,
-        lsdb_id,
+        &lsdb_key,
     )?;
-    let (_, lse) = lsdb.get_by_id(&arenas.lsa_entries, lse_id)?;
+    let (_, lse) = lsdb.get_by_key(&arenas.lsa_entries, &lse_key)?;
 
     assert!(lse.flags.contains(LsaEntryFlags::SELF_ORIGINATED));
 
@@ -1236,7 +1237,7 @@ where
 pub(crate) fn process_lsdb_maxage_sweep_interval<V>(
     instance: &mut InstanceUpView<'_, V>,
     arenas: &mut InstanceArenas<V>,
-    lsdb_id: LsdbId,
+    lsdb_key: LsdbKey,
 ) -> Result<(), Error<V>>
 where
     V: Version,
@@ -1246,7 +1247,7 @@ where
         &mut instance.state.lsdb,
         &mut arenas.areas,
         &mut arenas.interfaces,
-        lsdb_id,
+        &lsdb_key,
     )?;
 
     // Skip discarding MaxAge LSAs if any of the router's neighbors are in

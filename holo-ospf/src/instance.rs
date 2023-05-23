@@ -164,9 +164,9 @@ pub struct ProtocolInputChannelsTx<V: Version> {
     // LSA delayed origination timer.
     pub lsa_orig_delayed_timer: Sender<LsaOrigDelayedMsg<V>>,
     // LSA flush event.
-    pub lsa_flush: UnboundedSender<LsaFlushMsg>,
+    pub lsa_flush: UnboundedSender<LsaFlushMsg<V>>,
     // LSA refresh event.
-    pub lsa_refresh: UnboundedSender<LsaRefreshMsg>,
+    pub lsa_refresh: UnboundedSender<LsaRefreshMsg<V>>,
     // LSDB MaxAge sweep timer.
     pub lsdb_maxage_sweep_interval: Sender<LsdbMaxAgeSweepMsg>,
     // SPF run event.
@@ -196,9 +196,9 @@ pub struct ProtocolInputChannelsRx<V: Version> {
     // LSA delayed origination timer.
     pub lsa_orig_delayed_timer: Receiver<LsaOrigDelayedMsg<V>>,
     // LSA flush event.
-    pub lsa_flush: UnboundedReceiver<LsaFlushMsg>,
+    pub lsa_flush: UnboundedReceiver<LsaFlushMsg<V>>,
     // LSA refresh event.
-    pub lsa_refresh: UnboundedReceiver<LsaRefreshMsg>,
+    pub lsa_refresh: UnboundedReceiver<LsaRefreshMsg<V>>,
     // LSDB MaxAge sweep timer.
     pub lsdb_maxage_sweep_interval: Receiver<LsdbMaxAgeSweepMsg>,
     // SPF run event.
@@ -665,8 +665,8 @@ where
         event: ism::Event,
     ) {
         let _ = self.ism_event.send(IsmEventMsg {
-            area_id,
-            iface_id,
+            area_key: area_id.into(),
+            iface_key: iface_id.into(),
             event,
         });
     }
@@ -679,9 +679,9 @@ where
         event: nsm::Event,
     ) {
         let _ = self.nsm_event.send(NsmEventMsg {
-            area_id,
-            iface_id,
-            nbr_id,
+            area_key: area_id.into(),
+            iface_key: iface_id.into(),
+            nbr_key: nbr_id.into(),
             event,
         });
     }
@@ -693,9 +693,9 @@ where
         nbr_id: Option<NeighborId>,
     ) {
         let _ = self.send_lsupd.send(SendLsUpdateMsg {
-            area_id,
-            iface_id,
-            nbr_id,
+            area_key: area_id.into(),
+            iface_key: iface_id.into(),
+            nbr_key: nbr_id.map(std::convert::Into::into),
         });
     }
 
@@ -711,7 +711,7 @@ where
         lsa_body: V::LsaBody,
     ) {
         let _ = self.lsa_orig_check.send(LsaOrigCheckMsg {
-            lsdb_id,
+            lsdb_key: lsdb_id.into(),
             options,
             lsa_id,
             lsa_body,
@@ -725,14 +725,17 @@ where
         reason: LsaFlushReason,
     ) {
         let _ = self.lsa_flush.send(LsaFlushMsg {
-            lsdb_id,
-            lse_id,
+            lsdb_key: lsdb_id.into(),
+            lse_key: lse_id.into(),
             reason,
         });
     }
 
     pub(crate) fn lsa_refresh(&self, lsdb_id: LsdbId, lse_id: LsaEntryId) {
-        let _ = self.lsa_refresh.send(LsaRefreshMsg { lsdb_id, lse_id });
+        let _ = self.lsa_refresh.send(LsaRefreshMsg {
+            lsdb_key: lsdb_id.into(),
+            lse_key: lse_id.into(),
+        });
     }
 
     pub(crate) fn spf_delay_event(&self, event: spf::fsm::Event) {
@@ -834,17 +837,17 @@ where
         ProtocolInputMsg::IsmEvent(msg) => events::process_ism_event(
             instance,
             arenas,
-            msg.area_id,
-            msg.iface_id,
+            msg.area_key,
+            msg.iface_key,
             msg.event,
         )?,
         // Neighbor FSM event.
         ProtocolInputMsg::NsmEvent(msg) => events::process_nsm_event(
             instance,
             arenas,
-            msg.area_id,
-            msg.iface_id,
-            msg.nbr_id,
+            msg.area_key,
+            msg.iface_key,
+            msg.nbr_key,
             msg.event,
         )?,
         // Received network packet.
@@ -862,25 +865,25 @@ where
         ProtocolInputMsg::DbDescFree(msg) => events::process_dbdesc_free(
             instance,
             arenas,
-            msg.area_id,
-            msg.iface_id,
-            msg.nbr_id,
+            msg.area_key,
+            msg.iface_key,
+            msg.nbr_key,
         )?,
         // Request to send LS Update.
         ProtocolInputMsg::SendLsUpdate(msg) => events::process_send_lsupd(
             instance,
             arenas,
-            msg.area_id,
-            msg.iface_id,
-            msg.nbr_id,
+            msg.area_key,
+            msg.iface_key,
+            msg.nbr_key,
         )?,
         // Packet retransmission.
         ProtocolInputMsg::RxmtInterval(msg) => events::process_packet_rxmt(
             instance,
             arenas,
-            msg.area_id,
-            msg.iface_id,
-            msg.nbr_id,
+            msg.area_key,
+            msg.iface_key,
+            msg.nbr_key,
             msg.packet_type,
         )?,
         // Delayed Ack timeout.
@@ -888,8 +891,8 @@ where
             events::process_delayed_ack_timeout(
                 instance,
                 arenas,
-                msg.area_id,
-                msg.iface_id,
+                msg.area_key,
+                msg.iface_key,
             )?
         }
         // LSA origination event.
@@ -900,7 +903,7 @@ where
         ProtocolInputMsg::LsaOrigCheck(msg) => events::process_lsa_orig_check(
             instance,
             arenas,
-            msg.lsdb_id,
+            msg.lsdb_key,
             msg.options,
             msg.lsa_id,
             msg.lsa_body,
@@ -910,7 +913,7 @@ where
             events::process_lsa_orig_delayed_timer(
                 instance,
                 arenas,
-                msg.lsdb_id,
+                msg.lsdb_key,
                 msg.lsa_key,
             )?
         }
@@ -918,23 +921,23 @@ where
         ProtocolInputMsg::LsaFlush(msg) => events::process_lsa_flush(
             instance,
             arenas,
-            msg.lsdb_id,
-            msg.lse_id,
+            msg.lsdb_key,
+            msg.lse_key,
             msg.reason,
         )?,
         // LSA refresh event.
         ProtocolInputMsg::LsaRefresh(msg) => events::process_lsa_refresh(
             instance,
             arenas,
-            msg.lsdb_id,
-            msg.lse_id,
+            msg.lsdb_key,
+            msg.lse_key,
         )?,
         // LSA MaxAge sweep interval.
         ProtocolInputMsg::LsdbMaxAgeSweep(msg) => {
             events::process_lsdb_maxage_sweep_interval(
                 instance,
                 arenas,
-                msg.lsdb_id,
+                msg.lsdb_key,
             )?
         }
         // SPF run event.

@@ -23,18 +23,27 @@ use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::tasks;
 use crate::version::Version;
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub type ObjectId = u32;
+
+#[derive(Clone, Debug)]
 #[derive(Deserialize, Serialize)]
-pub struct ObjectId(u32, u32);
+pub enum ObjectKey<T> {
+    Id(ObjectId),
+    Value(T),
+}
 
 pub type AreaId = ObjectId;
 pub type AreaIndex = Index;
+pub type AreaKey = ObjectKey<Ipv4Addr>;
 pub type InterfaceId = ObjectId;
 pub type InterfaceIndex = Index;
+pub type InterfaceKey = ObjectKey<String>;
 pub type NeighborId = ObjectId;
 pub type NeighborIndex = Index;
+pub type NeighborKey = ObjectKey<Ipv4Addr>;
 pub type LsaEntryId = ObjectId;
 pub type LsaEntryIndex = Index;
+pub type LsaEntryKey<T> = ObjectKey<LsaKey<T>>;
 
 #[derive(Debug)]
 pub struct Arena<T>(generational_arena::Arena<T>);
@@ -90,14 +99,6 @@ pub struct LsdbSingleType<V: Version> {
     cksum_sum: u32,
 }
 
-// LSDB Index.
-#[derive(Clone, Copy, Debug, EnumAsInner, Eq, PartialEq)]
-pub enum LsdbIndex {
-    Link(AreaIndex, InterfaceIndex),
-    Area(AreaIndex),
-    As,
-}
-
 // LSDB ID.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
@@ -107,26 +108,28 @@ pub enum LsdbId {
     As,
 }
 
-// ===== impl ObjectId =====
-
-impl ObjectId {
-    pub(crate) fn get(&self) -> u32 {
-        self.0
-    }
-
-    fn next(&mut self) -> Self {
-        Self(self.0 + 1, 0)
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn update(&mut self) {
-        self.1 += 1;
-    }
+// LSDB Index.
+#[derive(Clone, Copy, Debug, EnumAsInner, Eq, PartialEq)]
+pub enum LsdbIndex {
+    Link(AreaIndex, InterfaceIndex),
+    Area(AreaIndex),
+    As,
 }
 
-impl core::hash::Hash for ObjectId {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.0.hash(state);
+// LSDB key.
+#[derive(Clone, Debug)]
+#[derive(Deserialize, Serialize)]
+pub enum LsdbKey {
+    Link(AreaKey, InterfaceKey),
+    Area(AreaKey),
+    As,
+}
+
+// ===== impl ObjectKey =====
+
+impl<T> From<ObjectId> for ObjectKey<T> {
+    fn from(id: ObjectId) -> ObjectKey<T> {
+        ObjectKey::Id(id)
     }
 }
 
@@ -177,7 +180,7 @@ where
         area_id: Ipv4Addr,
     ) -> (AreaIndex, &mut Area<V>) {
         // Create and insert area into the arena.
-        self.next_id = self.next_id.next();
+        self.next_id += 1;
         let area = Area::new(self.next_id, area_id);
         let area_idx = self.arena.0.insert(area);
 
@@ -229,7 +232,6 @@ where
     }
 
     // Returns a reference to the area corresponding to the given area ID.
-    #[allow(dead_code)]
     pub(crate) fn get_by_area_id(
         &self,
         area_id: Ipv4Addr,
@@ -250,6 +252,34 @@ where
             .get(&area_id)
             .copied()
             .map(move |area_idx| (area_idx, &mut self.arena[area_idx]))
+    }
+
+    // Returns a reference to the area corresponding to the given object key.
+    #[allow(dead_code)]
+    pub(crate) fn get_by_key(
+        &self,
+        key: &AreaKey,
+    ) -> Result<(AreaIndex, &Area<V>), Error<V>> {
+        match key {
+            AreaKey::Id(id) => self.get_by_id(*id),
+            AreaKey::Value(area_id) => {
+                Ok(self.get_by_area_id(*area_id).unwrap())
+            }
+        }
+    }
+
+    // Returns a mutable reference to the area corresponding to the given object
+    // key.
+    pub(crate) fn get_mut_by_key(
+        &mut self,
+        key: &AreaKey,
+    ) -> Result<(AreaIndex, &mut Area<V>), Error<V>> {
+        match key {
+            AreaKey::Id(id) => self.get_mut_by_id(*id),
+            AreaKey::Value(area_id) => {
+                Ok(self.get_mut_by_area_id(*area_id).unwrap())
+            }
+        }
     }
 
     // Returns an iterator visiting all areas.
@@ -323,7 +353,7 @@ where
         ifname: &str,
     ) -> (InterfaceIndex, &'a mut Interface<V>) {
         // Create and insert interface into the arena.
-        self.next_id = self.next_id.next();
+        self.next_id += 1;
         let iface = Interface::new(self.next_id, ifname.to_owned());
         let iface_idx = arena.0.insert(iface);
 
@@ -471,6 +501,37 @@ where
         None
     }
 
+    // Returns a reference to the interface corresponding to the given object
+    // key.
+    #[allow(dead_code)]
+    pub(crate) fn get_by_key<'a>(
+        &self,
+        arena: &'a Arena<Interface<V>>,
+        key: &InterfaceKey,
+    ) -> Result<(InterfaceIndex, &'a Interface<V>), Error<V>> {
+        match key {
+            InterfaceKey::Id(id) => self.get_by_id(arena, *id),
+            InterfaceKey::Value(ifname) => {
+                Ok(self.get_by_name(arena, ifname).unwrap())
+            }
+        }
+    }
+
+    // Returns a mutable reference to the interface corresponding to the given
+    // object key.
+    pub(crate) fn get_mut_by_key<'a>(
+        &mut self,
+        arena: &'a mut Arena<Interface<V>>,
+        key: &InterfaceKey,
+    ) -> Result<(InterfaceIndex, &'a mut Interface<V>), Error<V>> {
+        match key {
+            InterfaceKey::Id(id) => self.get_mut_by_id(arena, *id),
+            InterfaceKey::Value(ifname) => {
+                Ok(self.get_mut_by_name(arena, ifname).unwrap())
+            }
+        }
+    }
+
     // Returns an iterator visiting all interfaces.
     //
     // Interfaces are ordered by their names.
@@ -502,7 +563,7 @@ where
         src: V::NetIpAddr,
     ) -> (NeighborIndex, &'a mut Neighbor<V>) {
         // Create and insert neighbor into the arena.
-        self.next_id = self.next_id.next();
+        self.next_id += 1;
         let nbr = Neighbor::new(self.next_id, router_id, src);
         let nbr_idx = arena.0.insert(nbr);
 
@@ -545,7 +606,6 @@ where
     }
 
     // Returns a reference to the neighbor corresponding to the given ID.
-    #[allow(dead_code)]
     pub(crate) fn get_by_id<'a>(
         &self,
         arena: &'a Arena<Neighbor<V>>,
@@ -625,6 +685,37 @@ where
             .map(move |nbr_idx| (nbr_idx, &mut arena[nbr_idx]))
     }
 
+    // Returns a reference to the neighbor corresponding to the given object
+    // key.
+    #[allow(dead_code)]
+    pub(crate) fn get_by_key<'a>(
+        &self,
+        arena: &'a Arena<Neighbor<V>>,
+        key: &NeighborKey,
+    ) -> Result<(NeighborIndex, &'a Neighbor<V>), Error<V>> {
+        match key {
+            NeighborKey::Id(id) => self.get_by_id(arena, *id),
+            NeighborKey::Value(router_id) => {
+                Ok(self.get_by_router_id(arena, *router_id).unwrap())
+            }
+        }
+    }
+
+    // Returns a mutable reference to the neighbor corresponding to the given
+    // object key.
+    pub(crate) fn get_mut_by_key<'a>(
+        &mut self,
+        arena: &'a mut Arena<Neighbor<V>>,
+        key: &NeighborKey,
+    ) -> Result<(NeighborIndex, &'a mut Neighbor<V>), Error<V>> {
+        match key {
+            NeighborKey::Id(id) => self.get_mut_by_id(arena, *id),
+            NeighborKey::Value(router_id) => {
+                Ok(self.get_mut_by_router_id(arena, *router_id).unwrap())
+            }
+        }
+    }
+
     // Returns an iterator visiting all neighbors.
     //
     // Neighbors are ordered by their Router IDs.
@@ -671,7 +762,7 @@ where
         let key = lsa.hdr.key();
 
         // Create and insert LSA into the arena.
-        let next_id = self.next_id.next();
+        let next_id = self.next_id + 1;
         self.next_id = next_id;
         let lse =
             LsaEntry::new(lsdb_id, next_id, lsa, &protocol_input.lsa_flush);
@@ -790,7 +881,6 @@ where
 
     // Returns a mutable reference to the LSA corresponding to the given
     // LSA key.
-    #[allow(dead_code)]
     pub(crate) fn get_mut<'a>(
         &mut self,
         arena: &'a mut Arena<LsaEntry<V>>,
@@ -800,6 +890,31 @@ where
             .get(&key.lsa_type)
             .and_then(|lsdb_type| lsdb_type.tree.get(key).copied())
             .map(move |lse_idx| (lse_idx, &mut arena[lse_idx]))
+    }
+
+    // Returns a reference to the LSA corresponding to the given object key.
+    pub(crate) fn get_by_key<'a>(
+        &self,
+        arena: &'a Arena<LsaEntry<V>>,
+        key: &LsaEntryKey<V::LsaType>,
+    ) -> Result<(LsaEntryIndex, &'a LsaEntry<V>), Error<V>> {
+        match key {
+            LsaEntryKey::Id(id) => self.get_by_id(arena, *id),
+            LsaEntryKey::Value(key) => Ok(self.get(arena, key).unwrap()),
+        }
+    }
+
+    // Returns a mutable reference to the LSA corresponding to the given
+    // object key.
+    pub(crate) fn get_mut_by_key<'a>(
+        &mut self,
+        arena: &'a mut Arena<LsaEntry<V>>,
+        key: &LsaEntryKey<V::LsaType>,
+    ) -> Result<(LsaEntryIndex, &'a mut LsaEntry<V>), Error<V>> {
+        match key {
+            LsaEntryKey::Id(id) => self.get_mut_by_id(arena, *id),
+            LsaEntryKey::Value(key) => Ok(self.get_mut(arena, key).unwrap()),
+        }
     }
 
     // Returns an iterator visiting all LSAs.
@@ -950,35 +1065,49 @@ where
     }
 }
 
+// ===== impl LsdbKey =====
+
+impl From<LsdbId> for LsdbKey {
+    fn from(lsdb_id: LsdbId) -> LsdbKey {
+        match lsdb_id {
+            LsdbId::Link(area_id, iface_id) => {
+                LsdbKey::Link(area_id.into(), iface_id.into())
+            }
+            LsdbId::Area(area_id) => LsdbKey::Area(area_id.into()),
+            LsdbId::As => LsdbKey::As,
+        }
+    }
+}
+
 // ===== global functions =====
 
 pub(crate) fn lsdb_get<'a, V>(
     instance_lsdb: &'a Lsdb<V>,
     areas: &'a Areas<V>,
     interfaces: &'a Arena<Interface<V>>,
-    lsdb_id: LsdbId,
+    lsdb_key: &LsdbKey,
 ) -> Result<(LsdbIndex, &'a Lsdb<V>), Error<V>>
 where
     V: Version,
 {
-    match lsdb_id {
-        LsdbId::Link(area_id, iface_id) => {
-            let (area_idx, area) = areas.get_by_id(area_id)?;
+    match lsdb_key {
+        LsdbKey::Link(area_key, iface_key) => {
+            let (area_idx, area) = areas.get_by_key(area_key)?;
             let (iface_idx, iface) =
-                area.interfaces.get_by_id(interfaces, iface_id)?;
+                area.interfaces.get_by_key(interfaces, iface_key)?;
 
             let lsdb_idx = LsdbIndex::Link(area_idx, iface_idx);
             let lsdb = &iface.state.lsdb;
             Ok((lsdb_idx, lsdb))
         }
-        LsdbId::Area(area_id) => {
-            let (area_idx, area) = areas.get_by_id(area_id)?;
+        LsdbKey::Area(area_key) => {
+            let (area_idx, area) = areas.get_by_key(area_key)?;
 
             let lsdb_idx = LsdbIndex::Area(area_idx);
             let lsdb = &area.state.lsdb;
             Ok((lsdb_idx, lsdb))
         }
-        LsdbId::As => {
+        LsdbKey::As => {
             let lsdb_idx = LsdbIndex::As;
             let lsdb = instance_lsdb;
             Ok((lsdb_idx, lsdb))
@@ -990,29 +1119,29 @@ pub(crate) fn lsdb_get_mut<'a, V>(
     instance_lsdb: &'a mut Lsdb<V>,
     areas: &'a mut Areas<V>,
     interfaces: &'a mut Arena<Interface<V>>,
-    lsdb_id: LsdbId,
+    lsdb_key: &LsdbKey,
 ) -> Result<(LsdbIndex, &'a mut Lsdb<V>), Error<V>>
 where
     V: Version,
 {
-    match lsdb_id {
-        LsdbId::Link(area_id, iface_id) => {
-            let (area_idx, area) = areas.get_mut_by_id(area_id)?;
+    match lsdb_key {
+        LsdbKey::Link(area_key, iface_key) => {
+            let (area_idx, area) = areas.get_mut_by_key(area_key)?;
             let (iface_idx, iface) =
-                area.interfaces.get_mut_by_id(interfaces, iface_id)?;
+                area.interfaces.get_mut_by_key(interfaces, iface_key)?;
 
             let lsdb_idx = LsdbIndex::Link(area_idx, iface_idx);
             let lsdb = &mut iface.state.lsdb;
             Ok((lsdb_idx, lsdb))
         }
-        LsdbId::Area(area_id) => {
-            let (area_idx, area) = areas.get_mut_by_id(area_id)?;
+        LsdbKey::Area(area_key) => {
+            let (area_idx, area) = areas.get_mut_by_key(area_key)?;
 
             let lsdb_idx = LsdbIndex::Area(area_idx);
             let lsdb = &mut area.state.lsdb;
             Ok((lsdb_idx, lsdb))
         }
-        LsdbId::As => {
+        LsdbKey::As => {
             let lsdb_idx = LsdbIndex::As;
             let lsdb = instance_lsdb;
             Ok((lsdb_idx, lsdb))

@@ -585,9 +585,9 @@ where
         instance: &InstanceUpView<'_, V>,
     ) {
         let msg = RxmtIntervalMsg {
-            area_id: area.id,
-            iface_id: iface.id,
-            nbr_id: self.id,
+            area_key: area.id.into(),
+            iface_key: iface.id.into(),
+            nbr_key: self.id.into(),
             packet_type: RxmtPacketType::DbDesc,
         };
 
@@ -606,9 +606,9 @@ where
         instance: &InstanceUpView<'_, V>,
     ) {
         let msg = RxmtIntervalMsg {
-            area_id: area.id,
-            iface_id: iface.id,
-            nbr_id: self.id,
+            area_key: area.id.into(),
+            iface_key: iface.id.into(),
+            nbr_key: self.id.into(),
             packet_type: RxmtPacketType::LsRequest,
         };
 
@@ -628,9 +628,9 @@ where
     ) {
         if !self.lists.ls_rxmt.is_empty() && self.tasks.rxmt_lsupd.is_none() {
             let msg = RxmtIntervalMsg {
-                area_id: area.id,
-                iface_id: iface.id,
-                nbr_id: self.id,
+                area_key: area.id.into(),
+                iface_key: iface.id.into(),
+                nbr_key: self.id.into(),
                 packet_type: RxmtPacketType::LsUpdate,
             };
             let task = tasks::packet_rxmt_interval(iface, msg, instance);

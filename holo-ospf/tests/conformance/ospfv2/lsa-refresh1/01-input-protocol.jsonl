@@ -1,1 +1,1 @@
-{"LsaRefresh":{"lsdb_id":{"Area":[1,0]},"lse_id":[21,0]}}
+{"LsaRefresh":{"lsdb_key":{"Area":{"Value":"0.0.0.0"}},"lse_key":{"Value":{"lsa_type":1,"lsa_id":"2.2.2.2","adv_rtr":"2.2.2.2"}}}}

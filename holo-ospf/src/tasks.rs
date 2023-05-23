@@ -66,7 +66,7 @@ pub mod messages {
     use serde::{Deserialize, Serialize};
 
     use crate::collections::{
-        AreaId, InterfaceId, LsaEntryId, LsdbId, NeighborId,
+        AreaKey, InterfaceKey, LsaEntryKey, LsdbKey, NeighborKey,
     };
     use crate::debug::LsaFlushReason;
     use crate::interface::ism;
@@ -100,24 +100,24 @@ pub mod messages {
             LsaOrigEvent(LsaOrigEventMsg),
             LsaOrigCheck(LsaOrigCheckMsg<V>),
             LsaOrigDelayed(LsaOrigDelayedMsg<V>),
-            LsaFlush(LsaFlushMsg),
-            LsaRefresh(LsaRefreshMsg),
+            LsaFlush(LsaFlushMsg<V>),
+            LsaRefresh(LsaRefreshMsg<V>),
             LsdbMaxAgeSweep(LsdbMaxAgeSweepMsg),
             SpfDelayEvent(SpfDelayEventMsg),
         }
 
         #[derive(Debug, Deserialize, Serialize)]
         pub struct IsmEventMsg {
-            pub area_id: AreaId,
-            pub iface_id: InterfaceId,
+            pub area_key: AreaKey,
+            pub iface_key: InterfaceKey,
             pub event: ism::Event,
         }
 
         #[derive(Debug, Deserialize, Serialize)]
         pub struct NsmEventMsg {
-            pub area_id: AreaId,
-            pub iface_id: InterfaceId,
-            pub nbr_id: NeighborId,
+            pub area_key: AreaKey,
+            pub iface_key: InterfaceKey,
+            pub nbr_key: NeighborKey,
             pub event: nsm::Event,
         }
 
@@ -130,32 +130,32 @@ pub mod messages {
             pub packet: Result<Packet<V>, DecodeError>,
         }
 
-        #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+        #[derive(Clone, Debug, Deserialize, Serialize)]
         pub struct DbDescFreeMsg {
-            pub area_id: AreaId,
-            pub iface_id: InterfaceId,
-            pub nbr_id: NeighborId,
+            pub area_key: AreaKey,
+            pub iface_key: InterfaceKey,
+            pub nbr_key: NeighborKey,
         }
 
         #[derive(Debug, Deserialize, Serialize)]
         pub struct SendLsUpdateMsg {
-            pub area_id: AreaId,
-            pub iface_id: InterfaceId,
-            pub nbr_id: Option<NeighborId>,
+            pub area_key: AreaKey,
+            pub iface_key: InterfaceKey,
+            pub nbr_key: Option<NeighborKey>,
         }
 
-        #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+        #[derive(Clone, Debug, Deserialize, Serialize)]
         pub struct RxmtIntervalMsg {
-            pub area_id: AreaId,
-            pub iface_id: InterfaceId,
-            pub nbr_id: NeighborId,
+            pub area_key: AreaKey,
+            pub iface_key: InterfaceKey,
+            pub nbr_key: NeighborKey,
             pub packet_type: RxmtPacketType,
         }
 
-        #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+        #[derive(Clone, Debug, Deserialize, Serialize)]
         pub struct DelayedAckMsg {
-            pub area_id: AreaId,
-            pub iface_id: InterfaceId,
+            pub area_key: AreaKey,
+            pub iface_key: InterfaceKey,
         }
 
         #[derive(Debug, Deserialize, Serialize)]
@@ -165,35 +165,37 @@ pub mod messages {
 
         #[derive(Debug, Deserialize, Serialize)]
         pub struct LsaOrigCheckMsg<V: Version> {
-            pub lsdb_id: LsdbId,
+            pub lsdb_key: LsdbKey,
             pub options: Option<V::PacketOptions>,
             pub lsa_id: Ipv4Addr,
             pub lsa_body: V::LsaBody,
         }
 
-        #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+        #[derive(Clone, Debug, Deserialize, Serialize)]
         #[serde(bound = "V: Version")]
         pub struct LsaOrigDelayedMsg<V: Version> {
-            pub lsdb_id: LsdbId,
+            pub lsdb_key: LsdbKey,
             pub lsa_key: LsaKey<V::LsaType>,
         }
 
-        #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-        pub struct LsaFlushMsg {
-            pub lsdb_id: LsdbId,
-            pub lse_id: LsaEntryId,
+        #[derive(Clone, Debug, Deserialize, Serialize)]
+        #[serde(bound = "V: Version")]
+        pub struct LsaFlushMsg<V: Version> {
+            pub lsdb_key: LsdbKey,
+            pub lse_key: LsaEntryKey<V::LsaType>,
             pub reason: LsaFlushReason,
         }
 
-        #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-        pub struct LsaRefreshMsg {
-            pub lsdb_id: LsdbId,
-            pub lse_id: LsaEntryId,
+        #[derive(Clone, Debug, Deserialize, Serialize)]
+        #[serde(bound = "V: Version")]
+        pub struct LsaRefreshMsg<V: Version> {
+            pub lsdb_key: LsdbKey,
+            pub lse_key: LsaEntryKey<V::LsaType>,
         }
 
-        #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+        #[derive(Clone, Debug, Deserialize, Serialize)]
         pub struct LsdbMaxAgeSweepMsg {
-            pub lsdb_id: LsdbId,
+            pub lsdb_key: LsdbKey,
         }
 
         #[derive(Debug, Deserialize, Serialize)]
@@ -351,8 +353,8 @@ where
 
         TimeoutTask::new(timeout, move || async move {
             let msg = messages::input::IsmEventMsg {
-                area_id,
-                iface_id,
+                area_key: area_id.into(),
+                iface_key: iface_id.into(),
                 event: ism::Event::WaitTimer,
             };
             let _ = ism_eventp.send(msg);
@@ -384,9 +386,9 @@ where
 
         TimeoutTask::new(timeout, move || async move {
             let msg = messages::input::NsmEventMsg {
-                area_id,
-                iface_id,
-                nbr_id,
+                area_key: area_id.into(),
+                iface_key: iface_id.into(),
+                nbr_key: nbr_id.into(),
                 event: nsm::Event::InactivityTimer,
             };
             let _ = nsm_eventp.send(msg);
@@ -416,6 +418,7 @@ where
             false,
             move || {
                 let rxmt_intervalp = rxmt_intervalp.clone();
+                let msg = msg.clone();
 
                 async move {
                     let _ = rxmt_intervalp.send(msg).await;
@@ -451,9 +454,9 @@ where
             move || async move {
                 let _ = dbdesc_freep
                     .send(messages::input::DbDescFreeMsg {
-                        area_id,
-                        iface_id,
-                        nbr_id,
+                        area_key: area_id.into(),
+                        iface_key: iface_id.into(),
+                        nbr_key: nbr_id.into(),
                     })
                     .await;
             },
@@ -483,9 +486,9 @@ where
         // Start timer.
         TimeoutTask::new(Duration::from_millis(100), move || async move {
             let _ = send_lsupdp.send(messages::input::SendLsUpdateMsg {
-                area_id,
-                iface_id,
-                nbr_id: None,
+                area_key: area_id.into(),
+                iface_key: iface_id.into(),
+                nbr_key: None,
             });
         })
     }
@@ -493,9 +496,9 @@ where
     {
         // Send LS Update immediately.
         let _ = send_lsupdp.send(messages::input::SendLsUpdateMsg {
-            area_id,
-            iface_id,
-            nbr_id: None,
+            area_key: area_id.into(),
+            iface_key: iface_id.into(),
+            nbr_key: None,
         });
 
         TimeoutTask {}
@@ -524,14 +527,20 @@ where
         // ensue".
         let timeout = Duration::from_secs(1);
         TimeoutTask::new(timeout, move || async move {
-            let msg = messages::input::DelayedAckMsg { area_id, iface_id };
+            let msg = messages::input::DelayedAckMsg {
+                area_key: area_id.into(),
+                iface_key: iface_id.into(),
+            };
             let _ = delayed_ack_timeoutp.send(msg);
         })
     }
     #[cfg(feature = "testing")]
     {
         // Send LS Ack immediately.
-        let msg = messages::input::DelayedAckMsg { area_id, iface_id };
+        let msg = messages::input::DelayedAckMsg {
+            area_key: area_id.into(),
+            iface_key: iface_id.into(),
+        };
         let _ = delayed_ack_timeoutp.send(msg);
 
         TimeoutTask {}
@@ -543,7 +552,7 @@ pub(crate) fn lsa_expiry_timer<V>(
     lsdb_id: LsdbId,
     lse_id: LsaEntryId,
     lsa: &Lsa<V>,
-    lsa_flushp: &UnboundedSender<messages::input::LsaFlushMsg>,
+    lsa_flushp: &UnboundedSender<messages::input::LsaFlushMsg<V>>,
 ) -> TimeoutTask
 where
     V: Version,
@@ -556,8 +565,8 @@ where
 
         TimeoutTask::new(timeout, move || async move {
             let msg = messages::input::LsaFlushMsg {
-                lsdb_id,
-                lse_id,
+                lsdb_key: lsdb_id.into(),
+                lse_key: lse_id.into(),
                 reason: LsaFlushReason::Expiry,
             };
             let _ = lsa_flushp.send(msg);
@@ -570,11 +579,14 @@ where
 }
 
 // LSA refresh timer task.
-pub(crate) fn lsa_refresh_timer(
+pub(crate) fn lsa_refresh_timer<V>(
     lsdb_id: LsdbId,
     lse_id: LsaEntryId,
-    lsa_refreshp: &UnboundedSender<messages::input::LsaRefreshMsg>,
-) -> TimeoutTask {
+    lsa_refreshp: &UnboundedSender<messages::input::LsaRefreshMsg<V>>,
+) -> TimeoutTask
+where
+    V: Version,
+{
     #[cfg(not(feature = "testing"))]
     {
         let timeout = lsdb::LSA_REFRESH_TIME;
@@ -582,7 +594,10 @@ pub(crate) fn lsa_refresh_timer(
         let lsa_refreshp = lsa_refreshp.clone();
 
         TimeoutTask::new(timeout, move || async move {
-            let msg = messages::input::LsaRefreshMsg { lsdb_id, lse_id };
+            let msg = messages::input::LsaRefreshMsg {
+                lsdb_key: lsdb_id.into(),
+                lse_key: lse_id.into(),
+            };
             let _ = lsa_refreshp.send(msg);
         })
     }
@@ -607,7 +622,10 @@ where
         let lsa_orig_delayed_timerp = lsa_orig_delayed_timerp.clone();
 
         TimeoutTask::new(timeout, move || async move {
-            let msg = messages::input::LsaOrigDelayedMsg { lsdb_id, lsa_key };
+            let msg = messages::input::LsaOrigDelayedMsg {
+                lsdb_key: lsdb_id.into(),
+                lsa_key,
+            };
             let _ = lsa_orig_delayed_timerp.send(msg).await;
         })
     }
@@ -631,7 +649,9 @@ pub(crate) fn lsdb_maxage_sweep_interval(
             let lsdb_maxage_sweep_intervalp =
                 lsdb_maxage_sweep_intervalp.clone();
             async move {
-                let msg = messages::input::LsdbMaxAgeSweepMsg { lsdb_id };
+                let msg = messages::input::LsdbMaxAgeSweepMsg {
+                    lsdb_key: lsdb_id.into(),
+                };
                 let _ = lsdb_maxage_sweep_intervalp.send(msg).await;
             }
         })

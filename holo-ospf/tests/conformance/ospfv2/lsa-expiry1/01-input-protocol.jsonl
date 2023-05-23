@@ -1,1 +1,1 @@
-{"LsaFlush":{"lsdb_id":{"Area":[1,0]},"lse_id":[17,0],"reason":"Expiry"}}
+{"LsaFlush":{"lsdb_key":{"Area":{"Value":"0.0.0.0"}},"lse_key":{"Value":{"lsa_type":1,"lsa_id":"1.1.1.1","adv_rtr":"1.1.1.1"}},"reason":"Expiry"}}

@@ -1150,7 +1150,7 @@
                               "address": "10.0.7.4",
                               "state": "full",
                               "statistics": {
-                                "nbr-retrans-qlen": 0
+                                "nbr-retrans-qlen": 1
                               }
                             }
                           ]
@@ -1169,7 +1169,7 @@
                               "address": "10.0.8.5",
                               "state": "full",
                               "statistics": {
-                                "nbr-retrans-qlen": 0
+                                "nbr-retrans-qlen": 1
                               }
                             }
                           ]

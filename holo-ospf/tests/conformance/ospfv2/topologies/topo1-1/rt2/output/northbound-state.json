@@ -1547,7 +1547,7 @@
                               "address": "10.0.1.1",
                               "state": "full",
                               "statistics": {
-                                "nbr-retrans-qlen": 0
+                                "nbr-retrans-qlen": 1
                               }
                             }
                           ]

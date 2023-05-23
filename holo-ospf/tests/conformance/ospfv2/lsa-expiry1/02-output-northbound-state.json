@@ -1162,7 +1162,7 @@
                               "address": "10.0.2.4",
                               "state": "full",
                               "statistics": {
-                                "nbr-retrans-qlen": 2
+                                "nbr-retrans-qlen": 1
                               }
                             }
                           ]
@@ -1181,7 +1181,7 @@
                               "address": "10.0.3.4",
                               "state": "full",
                               "statistics": {
-                                "nbr-retrans-qlen": 2
+                                "nbr-retrans-qlen": 1
                               }
                             }
                           ]
@@ -1208,7 +1208,7 @@
                               "bdr-ip-addr": "10.0.1.2",
                               "state": "full",
                               "statistics": {
-                                "nbr-retrans-qlen": 2
+                                "nbr-retrans-qlen": 1
                               }
                             },
                             {
@@ -1220,7 +1220,7 @@
                               "bdr-ip-addr": "10.0.1.2",
                               "state": "full",
                               "statistics": {
-                                "nbr-retrans-qlen": 2
+                                "nbr-retrans-qlen": 1
                               }
                             }
                           ]

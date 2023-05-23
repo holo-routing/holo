@@ -222,7 +222,7 @@ where
         lsdb_id: LsdbId,
         id: LsaEntryId,
         data: Arc<Lsa<V>>,
-        lsa_flushp: &UnboundedSender<LsaFlushMsg>,
+        lsa_flushp: &UnboundedSender<LsaFlushMsg<V>>,
     ) -> LsaEntry<V> {
         let expiry_timer = (!data.hdr.is_maxage())
             .then_some(tasks::lsa_expiry_timer(lsdb_id, id, &data, lsa_flushp));

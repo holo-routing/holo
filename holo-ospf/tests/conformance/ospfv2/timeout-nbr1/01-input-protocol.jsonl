@@ -1,1 +1,1 @@
-{"NsmEvent":{"area_id":[1,0],"iface_id":[2,0],"nbr_id":[1,0],"event":"InactivityTimer"}}
+{"NsmEvent":{"area_key":{"Value":"0.0.0.0"},"iface_key":{"Value":"eth-rt2"},"nbr_key":{"Value":"2.2.2.2"},"event":"InactivityTimer"}}

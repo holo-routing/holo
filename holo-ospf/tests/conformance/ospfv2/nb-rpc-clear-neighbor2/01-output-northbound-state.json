@@ -1218,7 +1218,7 @@
                               "address": "10.0.6.7",
                               "state": "full",
                               "statistics": {
-                                "nbr-retrans-qlen": 0
+                                "nbr-retrans-qlen": 1
                               }
                             }
                           ]

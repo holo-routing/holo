@@ -1011,7 +1011,7 @@ fn process_self_originated_lsa(
         &instance.state.lsdb,
         &arenas.areas,
         &arenas.interfaces,
-        lsdb_id,
+        &lsdb_id.into(),
     )?;
     let (_, lse) = lsdb.get_by_id(&arenas.lsa_entries, lse_id)?;
     let lsa = &lse.data;

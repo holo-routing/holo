@@ -8,7 +8,7 @@ use std::net::Ipv4Addr;
 
 use tracing::{error, warn, warn_span};
 
-use crate::collections::{AreaId, InterfaceId, LsaEntryId, LsdbId, NeighborId};
+use crate::collections::{AreaId, InterfaceId, LsaEntryId, NeighborId};
 use crate::interface::ism;
 use crate::neighbor::nsm;
 use crate::network::MulticastAddr;
@@ -26,7 +26,6 @@ pub enum Error<V: Version> {
     AreaIdNotFound(AreaId),
     InterfaceIdNotFound(InterfaceId),
     NeighborIdNotFound(NeighborId),
-    LsdbIdNotFound(LsdbId),
     LsaEntryIdNotFound(LsaEntryId),
     // Packet input
     InvalidSrcAddr(V::NetIpAddr),
@@ -96,9 +95,6 @@ where
             }
             Error::NeighborIdNotFound(nbr_id) => {
                 warn!(?nbr_id, "{}", self);
-            }
-            Error::LsdbIdNotFound(lsdb_id) => {
-                warn!(?lsdb_id, "{}", self);
             }
             Error::LsaEntryIdNotFound(lse_id) => {
                 warn!(?lse_id, "{}", self);
@@ -183,9 +179,6 @@ where
             }
             Error::NeighborIdNotFound(..) => {
                 write!(f, "neighbor ID not found")
-            }
-            Error::LsdbIdNotFound(..) => {
-                write!(f, "LSDB ID not found")
             }
             Error::LsaEntryIdNotFound(..) => {
                 write!(f, "LSA entry ID not found")

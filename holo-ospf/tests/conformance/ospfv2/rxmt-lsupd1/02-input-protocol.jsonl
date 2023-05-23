@@ -1,4 +1,4 @@
-{"RxmtInterval":{"area_id":[1,0],"iface_id":[2,0],"nbr_id":[1,0],"packet_type":"LsUpdate"}}
-{"RxmtInterval":{"area_id":[1,0],"iface_id":[2,0],"nbr_id":[2,0],"packet_type":"LsUpdate"}}
-{"RxmtInterval":{"area_id":[1,0],"iface_id":[3,0],"nbr_id":[1,0],"packet_type":"LsUpdate"}}
-{"RxmtInterval":{"area_id":[1,0],"iface_id":[4,0],"nbr_id":[1,0],"packet_type":"LsUpdate"}}
+{"RxmtInterval":{"area_key":{"Value":"0.0.0.0"},"iface_key":{"Value":"eth-sw1"},"nbr_key":{"Value":"1.1.1.1"},"packet_type":"LsUpdate"}}
+{"RxmtInterval":{"area_key":{"Value":"0.0.0.0"},"iface_key":{"Value":"eth-sw1"},"nbr_key":{"Value":"3.3.3.3"},"packet_type":"LsUpdate"}}
+{"RxmtInterval":{"area_key":{"Value":"0.0.0.0"},"iface_key":{"Value":"eth-rt4-1"},"nbr_key":{"Value":"4.4.4.4"},"packet_type":"LsUpdate"}}
+{"RxmtInterval":{"area_key":{"Value":"0.0.0.0"},"iface_key":{"Value":"eth-rt4-2"},"nbr_key":{"Value":"4.4.4.4"},"packet_type":"LsUpdate"}}

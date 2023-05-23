@@ -1,0 +1,78 @@
+{
+  "ietf-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "lo",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv6": {
+          "enabled": true
+        }
+      },
+      {
+        "name": "eth-rt3",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv6": {
+          "enabled": true
+        }
+      },
+      {
+        "name": "eth-rt5",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv6": {
+          "enabled": true
+        }
+      }
+    ]
+  },
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-ospf:ospfv3",
+          "name": "main",
+          "ietf-ospf:ospf": {
+            "enabled": true,
+            "explicit-router-id": "4.4.4.4",
+            "areas": {
+              "area": [
+                {
+                  "area-id": "0.0.0.2",
+                  "area-type": "ietf-ospf:stub-area",
+                  "interfaces": {
+                    "interface": [
+                      {
+                        "name": "lo"
+                      },
+                      {
+                        "name": "eth-rt5",
+                        "interface-type": "broadcast",
+                        "priority": 4,
+                        "hello-interval": 3,
+                        "dead-interval": 12
+                      }
+                    ]
+                  }
+                },
+                {
+                  "area-id": "0.0.0.0",
+                  "interfaces": {
+                    "interface": [
+                      {
+                        "name": "eth-rt3",
+                        "interface-type": "broadcast",
+                        "priority": 4,
+                        "hello-interval": 3,
+                        "dead-interval": 12
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+

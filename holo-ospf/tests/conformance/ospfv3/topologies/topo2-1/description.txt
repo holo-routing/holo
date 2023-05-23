@@ -1,0 +1,39 @@
+                         +---------+
+                         |         |
+                         |   RT1   |
+                         | 1.1.1.1 |
+                         |         |
+                         +---------+
+                              |eth-sw1
+                              |
+                              |
+                              |
+         +---------+          |          +---------+
+         |         |          |          |         |
+         |   RT2   |eth-sw1   |   eth-sw1|   RT3   |
+         | 2.2.2.2 +----------+----------+ 3.3.3.3 |
+         |         |                     |         |
+         +---------+                     +---------+
+    eth-rt4-1|  |eth-rt4-2          eth-rt5-1|  |eth-rt5-2
+             |  |                            |  |
+             |  |                            |  |
+    eth-rt2-1|  |eth-rt2-2          eth-rt3-1|  |eth-rt3-2
+         +---------+                     +---------+
+         |         |                     |         |
+         |   RT4   |                     |   RT5   |
+         | 4.4.4.4 +---------------------+ 5.5.5.5 |
+         |         |eth-rt5       eth-rt4|         |
+         +---------+                     +---------+
+       eth-rt6|                                |eth-rt6
+              |                                |
+              |          +---------+           |
+              |          |         |           |
+              |          |   RT6   |           |
+              +----------+ 6.6.6.6 +-----------+
+                  eth-rt4|         |eth-rt5
+                         +---------+
+
+Area 0: rt1, rt2, rt3, rt4, rt5, rt6
+
+The interfaces connected to the sw1 LAN are configured in the broadcast mode.
+All other interfaces are configured in the point-to-point mode.

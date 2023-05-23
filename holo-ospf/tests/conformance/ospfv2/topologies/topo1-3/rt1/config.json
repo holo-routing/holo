@@ -1,0 +1,83 @@
+{
+  "ietf-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "lo",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {}
+      },
+      {
+        "name": "eth-rt2",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {}
+      }
+    ]
+  },
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-ospf:ospfv2",
+          "name": "main",
+          "ietf-ospf:ospf": {
+            "explicit-router-id": "1.1.1.1",
+            "areas": {
+              "area": [
+                {
+                  "area-id": "0.0.0.1",
+                  "interfaces": {
+                    "interface": [
+                      {
+                        "name": "lo"
+                      },
+                      {
+                        "name": "eth-rt2",
+                        "interface-type": "point-to-point",
+                        "hello-interval": 3,
+                        "dead-interval": 12
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "ietf-ospf-sr:segment-routing": {
+              "enabled": true
+            }
+          }
+        }
+      ]
+    },
+    "ietf-segment-routing:segment-routing": {
+      "ietf-segment-routing-mpls:sr-mpls": {
+        "bindings": {
+          "connected-prefix-sid-map": {
+            "connected-prefix-sid": [
+              {
+                "prefix": "1.1.1.1/32",
+                "algorithm": "ietf-segment-routing-common:prefix-sid-algorithm-shortest-path",
+                "start-sid": 10,
+                "last-hop-behavior": "no-php"
+              },
+              {
+                "prefix": "2001:db8:1000::1/128",
+                "algorithm": "ietf-segment-routing-common:prefix-sid-algorithm-shortest-path",
+                "start-sid": 11,
+                "last-hop-behavior": "no-php"
+              }
+            ]
+          }
+        },
+        "srgb": {
+          "srgb": [
+            {
+              "lower-bound": 16000,
+              "upper-bound": 23999
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+

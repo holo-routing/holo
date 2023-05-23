@@ -25,6 +25,14 @@ async fn topology1_2() {
 }
 
 #[tokio::test]
+async fn topology1_3() {
+    for rt_num in 1..=7 {
+        let rt_name = format!("rt{}", rt_num);
+        run_test_topology::<Instance<Ospfv2>>("topo1-3", &rt_name).await;
+    }
+}
+
+#[tokio::test]
 async fn topology2_1() {
     for rt_num in 1..=6 {
         let rt_name = format!("rt{}", rt_num);
@@ -45,5 +53,13 @@ async fn topology2_3() {
     for rt_num in 1..=6 {
         let rt_name = format!("rt{}", rt_num);
         run_test_topology::<Instance<Ospfv2>>("topo2-3", &rt_name).await;
+    }
+}
+
+#[tokio::test]
+async fn topology2_4() {
+    for rt_num in 1..=6 {
+        let rt_name = format!("rt{}", rt_num);
+        run_test_topology::<Instance<Ospfv2>>("topo2-4", &rt_name).await;
     }
 }

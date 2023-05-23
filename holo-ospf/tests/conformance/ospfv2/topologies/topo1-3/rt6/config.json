@@ -1,0 +1,103 @@
+{
+  "ietf-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "lo",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {}
+      },
+      {
+        "name": "eth-rt3",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {}
+      },
+      {
+        "name": "eth-rt7",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {}
+      }
+    ]
+  },
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-ospf:ospfv2",
+          "name": "main",
+          "ietf-ospf:ospf": {
+            "explicit-router-id": "6.6.6.6",
+            "areas": {
+              "area": [
+                {
+                  "area-id": "0.0.0.3",
+                  "area-type": "ietf-ospf:stub-area",
+                  "summary": false,
+                  "interfaces": {
+                    "interface": [
+                      {
+                        "name": "lo"
+                      },
+                      {
+                        "name": "eth-rt7",
+                        "interface-type": "point-to-point",
+                        "hello-interval": 3,
+                        "dead-interval": 12
+                      }
+                    ]
+                  }
+                },
+                {
+                  "area-id": "0.0.0.0",
+                  "interfaces": {
+                    "interface": [
+                      {
+                        "name": "eth-rt3",
+                        "interface-type": "point-to-point",
+                        "hello-interval": 3,
+                        "dead-interval": 12
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "ietf-ospf-sr:segment-routing": {
+              "enabled": true
+            }
+          }
+        }
+      ]
+    },
+    "ietf-segment-routing:segment-routing": {
+      "ietf-segment-routing-mpls:sr-mpls": {
+        "bindings": {
+          "connected-prefix-sid-map": {
+            "connected-prefix-sid": [
+              {
+                "prefix": "6.6.6.6/32",
+                "algorithm": "ietf-segment-routing-common:prefix-sid-algorithm-shortest-path",
+                "start-sid": 60,
+                "last-hop-behavior": "no-php"
+              },
+              {
+                "prefix": "2001:db8:1000::6/128",
+                "algorithm": "ietf-segment-routing-common:prefix-sid-algorithm-shortest-path",
+                "start-sid": 61,
+                "last-hop-behavior": "no-php"
+              }
+            ]
+          }
+        },
+        "srgb": {
+          "srgb": [
+            {
+              "lower-bound": 16000,
+              "upper-bound": 23999
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+

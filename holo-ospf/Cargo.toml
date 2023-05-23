@@ -40,7 +40,7 @@ holo-yang = { path = "../holo-yang" }
 criterion.workspace = true
 maplit.workspace = true
 
-holo-ospf = { path = ".", features = ["testing"] }
+holo-ospf = { path = ".", features = ["testing", "deterministic"] }
 holo-protocol = { path = "../holo-protocol", features = ["testing"] }
 holo-southbound = { path = "../holo-southbound", features = ["testing"] }
 holo-utils = { path = "../holo-utils", features = ["testing"] }
@@ -48,6 +48,7 @@ holo-utils = { path = "../holo-utils", features = ["testing"] }
 [features]
 default = []
 testing = []
+deterministic = []
 
 [[bench]]
 name = "packet_encoding"

@@ -993,7 +993,7 @@
                               "bdr-ip-addr": "10.0.2.2",
                               "state": "full",
                               "statistics": {
-                                "nbr-retrans-qlen": 1
+                                "nbr-retrans-qlen": 0
                               }
                             }
                           ]
@@ -1020,7 +1020,7 @@
                               "bdr-ip-addr": "10.0.3.3",
                               "state": "full",
                               "statistics": {
-                                "nbr-retrans-qlen": 1
+                                "nbr-retrans-qlen": 0
                               }
                             }
                           ]
@@ -1047,7 +1047,7 @@
                               "bdr-ip-addr": "10.0.4.3",
                               "state": "full",
                               "statistics": {
-                                "nbr-retrans-qlen": 1
+                                "nbr-retrans-qlen": 0
                               }
                             }
                           ]

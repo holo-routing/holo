@@ -1155,7 +1155,7 @@
                               "address": "10.0.7.4",
                               "state": "full",
                               "statistics": {
-                                "nbr-retrans-qlen": 1
+                                "nbr-retrans-qlen": 0
                               }
                             }
                           ]
@@ -1174,7 +1174,7 @@
                               "address": "10.0.8.5",
                               "state": "full",
                               "statistics": {
-                                "nbr-retrans-qlen": 1
+                                "nbr-retrans-qlen": 0
                               }
                             }
                           ]

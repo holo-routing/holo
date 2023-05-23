@@ -8,7 +8,7 @@ use std::cmp::Ordering;
 use std::collections::{btree_map, hash_map};
 use std::net::Ipv4Addr;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use bitflags::bitflags;
 use chrono::Utc;
@@ -338,11 +338,18 @@ where
         return false;
     }
 
-    match lse.data.base_time {
-        Some(lsa_base_time) => {
-            lsa_base_time.elapsed().as_secs() < LSA_MIN_ARRIVAL
+    #[cfg(feature = "deterministic")]
+    {
+        false
+    }
+    #[cfg(not(feature = "deterministic"))]
+    {
+        match lse.data.base_time {
+            Some(lsa_base_time) => {
+                lsa_base_time.elapsed().as_secs() < LSA_MIN_ARRIVAL
+            }
+            None => false,
         }
-        None => false,
     }
 }
 
@@ -355,11 +362,18 @@ where
         return false;
     }
 
-    match lse.data.base_time {
-        Some(lsa_base_time) => {
-            lsa_base_time.elapsed().as_secs() < LSA_MIN_INTERVAL
+    #[cfg(feature = "deterministic")]
+    {
+        false
+    }
+    #[cfg(not(feature = "deterministic"))]
+    {
+        match lse.data.base_time {
+            Some(lsa_base_time) => {
+                lsa_base_time.elapsed().as_secs() < LSA_MIN_INTERVAL
+            }
+            None => false,
         }
-        None => false,
     }
 }
 
@@ -580,13 +594,10 @@ pub(crate) fn originate_check<V>(
                 }
                 hash_map::Entry::Vacant(v) => {
                     // Start timer to postpone originating the LSA.
-                    let lsa_age = old_lse.data.base_time.unwrap().elapsed();
-                    let timeout = Duration::from_secs(LSA_MIN_INTERVAL)
-                        .saturating_sub(lsa_age);
                     let timeout = tasks::lsa_orig_delayed_timer(
                         lsdb_id,
                         lsa_key,
-                        timeout,
+                        old_lse.data.base_time,
                         &instance.tx.protocol_input.lsa_orig_delayed_timer,
                     );
                     v.insert(LsaDelayedOrig { data: lsa, timeout });

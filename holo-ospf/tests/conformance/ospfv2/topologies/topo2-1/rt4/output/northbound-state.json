@@ -1151,7 +1151,7 @@
                               "address": "10.0.2.2",
                               "state": "full",
                               "statistics": {
-                                "nbr-retrans-qlen": 1
+                                "nbr-retrans-qlen": 0
                               }
                             }
                           ]
@@ -1170,7 +1170,7 @@
                               "address": "10.0.3.2",
                               "state": "full",
                               "statistics": {
-                                "nbr-retrans-qlen": 1
+                                "nbr-retrans-qlen": 0
                               }
                             }
                           ]
@@ -1189,7 +1189,7 @@
                               "address": "10.0.6.5",
                               "state": "full",
                               "statistics": {
-                                "nbr-retrans-qlen": 1
+                                "nbr-retrans-qlen": 0
                               }
                             }
                           ]
@@ -1208,7 +1208,7 @@
                               "address": "10.0.7.6",
                               "state": "full",
                               "statistics": {
-                                "nbr-retrans-qlen": 1
+                                "nbr-retrans-qlen": 0
                               }
                             }
                           ]

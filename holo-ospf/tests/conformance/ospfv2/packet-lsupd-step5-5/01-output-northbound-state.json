@@ -1599,7 +1599,7 @@
                               "address": "10.0.1.1",
                               "state": "full",
                               "statistics": {
-                                "nbr-retrans-qlen": 2
+                                "nbr-retrans-qlen": 1
                               }
                             }
                           ]

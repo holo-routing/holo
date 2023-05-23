@@ -158,12 +158,12 @@ where
 
         // Initialize the DD Sequence Number.
         let dd_seq_no = {
-            #[cfg(not(feature = "testing"))]
+            #[cfg(not(feature = "deterministic"))]
             {
                 // Random value.
                 rand::thread_rng().next_u32()
             }
-            #[cfg(feature = "testing")]
+            #[cfg(feature = "deterministic")]
             {
                 // Fixed value for deterministic test results.
                 router_id.into()

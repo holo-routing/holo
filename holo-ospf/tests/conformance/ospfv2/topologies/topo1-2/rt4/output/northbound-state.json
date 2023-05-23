@@ -1562,7 +1562,7 @@
                               "bdr-ip-addr": "10.0.5.4",
                               "state": "full",
                               "statistics": {
-                                "nbr-retrans-qlen": 1
+                                "nbr-retrans-qlen": 0
                               }
                             }
                           ]

@@ -1503,7 +1503,7 @@
                               "address": "10.0.5.5",
                               "state": "full",
                               "statistics": {
-                                "nbr-retrans-qlen": 1
+                                "nbr-retrans-qlen": 0
                               }
                             }
                           ]

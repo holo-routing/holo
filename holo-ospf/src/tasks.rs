@@ -5,7 +5,7 @@
 //
 
 use std::os::unix::io::{BorrowedFd, OwnedFd};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use holo_utils::ip::AddressFamily;
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
@@ -611,7 +611,7 @@ where
 pub(crate) fn lsa_orig_delayed_timer<V>(
     lsdb_id: LsdbId,
     lsa_key: LsaKey<V::LsaType>,
-    timeout: Duration,
+    lsa_base_time: Option<Instant>,
     lsa_orig_delayed_timerp: &Sender<messages::input::LsaOrigDelayedMsg<V>>,
 ) -> TimeoutTask
 where
@@ -620,6 +620,10 @@ where
     #[cfg(not(feature = "testing"))]
     {
         let lsa_orig_delayed_timerp = lsa_orig_delayed_timerp.clone();
+
+        let lsa_age = lsa_base_time.unwrap().elapsed();
+        let timeout =
+            Duration::from_secs(lsdb::LSA_MIN_INTERVAL).saturating_sub(lsa_age);
 
         TimeoutTask::new(timeout, move || async move {
             let msg = messages::input::LsaOrigDelayedMsg {

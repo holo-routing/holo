@@ -1019,25 +1019,27 @@ fn process_self_originated_lsa(
     // Check LSA type.
     match lsa.hdr.lsa_type.function_code() {
         Some(LsaFunctionCode::Router) => {
-            // Refresh Router-LSA.
-            instance.tx.protocol_input.lsa_refresh(lsdb_id, lse_id);
+            let area_idx = lsdb_idx.into_area().unwrap();
+            let area = &arenas.areas[area_idx];
+
+            // Reoriginate Router-LSA.
+            lsa_orig_router(area, instance, arenas);
         }
         Some(LsaFunctionCode::Network) => {
             let area_idx = lsdb_idx.into_area().unwrap();
             let area = &arenas.areas[area_idx];
 
             // Check if the router is still the DR for the network.
-            if area
+            if let Some(iface) = area
                 .interfaces
                 .iter(&arenas.interfaces)
                 .find(|iface| {
                     iface.system.ifindex == Some(u32::from(lsa.hdr.lsa_id) as _)
                 })
                 .filter(|iface| iface.state.ism_state == ism::State::Dr)
-                .is_some()
             {
-                // Refresh Network-LSA.
-                instance.tx.protocol_input.lsa_refresh(lsdb_id, lse_id);
+                // Reoriginate Network-LSA.
+                lsa_orig_network(iface, area, instance, arenas);
             } else {
                 // Flush Network-LSA.
                 flush = true;
@@ -1055,12 +1057,13 @@ fn process_self_originated_lsa(
             flush = true;
         }
         Some(LsaFunctionCode::Link) => {
-            let (_, iface_idx) = lsdb_idx.into_link().unwrap();
+            let (area_idx, iface_idx) = lsdb_idx.into_link().unwrap();
+            let area = &arenas.areas[area_idx];
             let iface = &arenas.interfaces[iface_idx];
 
             if iface.state.ism_state >= ism::State::Waiting {
-                // Refresh Link-LSA.
-                instance.tx.protocol_input.lsa_refresh(lsdb_id, lse_id);
+                // Reoriginate Link-LSA.
+                lsa_orig_link(iface, area, instance);
             } else {
                 // Flush Link-LSA.
                 flush = true;

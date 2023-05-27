@@ -585,7 +585,12 @@ pub(crate) fn originate_check<V>(
     if let Some((_, old_lse)) = lsdb.get(&arenas.lsa_entries, &lsa_key) {
         // If an LSA with identical contents already exists in the LSDB, skip
         // originating a new one (as per section 12.4 of RFC 2328).
-        if lsa_same_contents(&old_lse.data, &lsa) {
+        //
+        // However, if the database copy was received through flooding, proceed
+        // to originate a new instance with an updated sequence number.
+        if lsa_same_contents(&old_lse.data, &lsa)
+            && !old_lse.flags.contains(LsaEntryFlags::RECEIVED)
+        {
             return;
         }
 

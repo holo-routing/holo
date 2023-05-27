@@ -731,13 +731,6 @@ where
         });
     }
 
-    pub(crate) fn lsa_refresh(&self, lsdb_id: LsdbId, lse_id: LsaEntryId) {
-        let _ = self.lsa_refresh.send(LsaRefreshMsg {
-            lsdb_key: lsdb_id.into(),
-            lse_key: lse_id.into(),
-        });
-    }
-
     pub(crate) fn spf_delay_event(&self, event: spf::fsm::Event) {
         let _ = self.spf_delay_event.send(SpfDelayEventMsg { event });
     }

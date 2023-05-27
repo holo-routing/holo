@@ -849,15 +849,18 @@ fn process_self_originated_lsa(
     // Check LSA type.
     match lsa.hdr.lsa_type.type_code() {
         Some(LsaTypeCode::Router) => {
-            // Refresh Router-LSA.
-            instance.tx.protocol_input.lsa_refresh(lsdb_id, lse_id);
+            let area_idx = lsdb_idx.into_area().unwrap();
+            let area = &arenas.areas[area_idx];
+
+            // Reoriginate Router-LSA.
+            lsa_orig_router(area, instance, arenas);
         }
         Some(LsaTypeCode::Network) => {
             let area_idx = lsdb_idx.into_area().unwrap();
             let area = &arenas.areas[area_idx];
 
             // Check if the router is still the DR for the network.
-            if area
+            if let Some(iface) = area
                 .interfaces
                 .iter(&arenas.interfaces)
                 .find(|iface| {
@@ -868,10 +871,9 @@ fn process_self_originated_lsa(
                     // Ensure the Router-ID hasn't changed.
                     lsa.hdr.adv_rtr == instance.state.router_id
                 })
-                .is_some()
             {
-                // Refresh Network-LSA.
-                instance.tx.protocol_input.lsa_refresh(lsdb_id, lse_id);
+                // Reoriginate Network-LSA.
+                lsa_orig_network(iface, area, instance, arenas);
             } else {
                 // Flush Network-LSA.
                 flush = true;

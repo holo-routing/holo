@@ -411,18 +411,6 @@ where
         None => None,
     };
 
-    // RFC 2328 - Section 13.2:
-    // "The contents of the new LSA should be compared to the old instance, if
-    // present. If there is no difference, there is no need to recalculate the
-    // routing table".
-    let mut content_change = true;
-    if let Some(old_lsa) = &old_lsa {
-        if lsa_same_contents(old_lsa, &lsa) {
-            content_change = false;
-        }
-    }
-    let route_recalc = content_change && !lsa.body.is_unknown();
-
     // Add LSA entry to LSDB.
     let (lse_idx, lse) = lsdb.insert(
         &mut arenas.lsa_entries,
@@ -439,6 +427,28 @@ where
     ) {
         lse.flags.insert(LsaEntryFlags::SELF_ORIGINATED);
     }
+
+    // RFC 2328 - Section 13.2:
+    // "The contents of the new LSA should be compared to the old instance, if
+    // present. If there is no difference, there is no need to recalculate the
+    // routing table".
+    //
+    // Additionally, do not recalculate the routing table in the following
+    // cases:
+    // * The type of the new LSA is unknown
+    // * The new LSA is a self-originated summary
+    let mut content_change = true;
+    if let Some(old_lsa) = &old_lsa {
+        if lsa_same_contents(old_lsa, &lsa) {
+            content_change = false;
+        }
+    }
+    let lsa_type = lsa.hdr.lsa_type();
+    let self_orig_summary = lse.flags.contains(LsaEntryFlags::SELF_ORIGINATED)
+        && (lsa_type == V::type3_summary(instance.config.extended_lsa)
+            || lsa_type == V::type4_summary(instance.config.extended_lsa));
+    let route_recalc =
+        content_change && !lsa.body.is_unknown() && !self_orig_summary;
 
     // OSPF version-specific LSDB installation handling.
     V::lsdb_install(instance, arenas, lsdb_idx, lsdb_id, &lsa);

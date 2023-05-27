@@ -8,7 +8,7 @@
           "ietf-ospf:ospf": {
             "spf-control": {
               "ietf-spf-delay": {
-                "current-state": "short-wait"
+                "current-state": "quiet"
               }
             },
             "router-id": "6.6.6.6",

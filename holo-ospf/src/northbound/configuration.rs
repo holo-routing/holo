@@ -109,19 +109,25 @@ where
         .path(ospf::explicit_router_id::PATH)
         .modify_apply(|instance, args| {
             let router_id = args.dnode.get_ipv4();
+            let old_router_id = instance.get_router_id();
             instance.config.router_id = Some(router_id);
 
             // NOTE: apply the new Router-ID immediately.
-            let event_queue = args.event_queue;
-            event_queue.insert(Event::InstanceReset);
-            event_queue.insert(Event::InstanceUpdate);
+            if instance.get_router_id() != old_router_id {
+                let event_queue = args.event_queue;
+                event_queue.insert(Event::InstanceReset);
+                event_queue.insert(Event::InstanceUpdate);
+            }
         })
         .delete_apply(|instance, args| {
+            let old_router_id = instance.get_router_id();
             instance.config.router_id = None;
 
-            let event_queue = args.event_queue;
-            event_queue.insert(Event::InstanceReset);
-            event_queue.insert(Event::InstanceUpdate);
+            if instance.get_router_id() != old_router_id {
+                let event_queue = args.event_queue;
+                event_queue.insert(Event::InstanceReset);
+                event_queue.insert(Event::InstanceUpdate);
+            }
         })
         .path(ospf::preference::all::PATH)
         .modify_apply(|instance, args| {

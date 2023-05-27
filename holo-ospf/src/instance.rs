@@ -364,7 +364,7 @@ where
         Ok(())
     }
 
-    fn get_router_id(&self) -> Option<Ipv4Addr> {
+    pub(crate) fn get_router_id(&self) -> Option<Ipv4Addr> {
         if self.config.router_id.is_some() {
             self.config.router_id
         } else if self.system.router_id.is_some() {

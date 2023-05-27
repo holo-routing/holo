@@ -411,7 +411,7 @@ where
     }
 }
 
-// ===== global functions =====
+// ===== helper functions =====
 
 fn lsa_base_time() -> Option<Instant> {
     #[cfg(not(feature = "testing"))]
@@ -422,4 +422,14 @@ fn lsa_base_time() -> Option<Instant> {
     {
         None
     }
+}
+
+// ===== global functions =====
+
+// When serializing an LSA header in testing mode, skip the age field as it's
+// unimportant and non-deterministic, with one exception: when the LSA age is
+// MaxAge. It's important to differentiate this specific case for more precise
+// testing.
+pub fn serde_lsa_age_filter(age: &u16) -> bool {
+    *age != 3600
 }

@@ -22,6 +22,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::ospfv3::packet::Options;
 use crate::packet::error::{DecodeError, DecodeResult, LsaValidationError};
+#[cfg(feature = "testing")]
+use crate::packet::lsa::serde_lsa_age_filter;
 use crate::packet::lsa::{
     AdjSidVersion, LsaBodyVersion, LsaHdrVersion, LsaRouterFlagsVersion,
     LsaScope, LsaTypeVersion, LsaVersion, PrefixOptionsVersion,
@@ -120,7 +122,10 @@ pub enum LsaFunctionCode {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct LsaHdr {
-    #[cfg_attr(feature = "testing", serde(default, skip_serializing))]
+    #[cfg_attr(
+        feature = "testing",
+        serde(default, skip_serializing_if = "serde_lsa_age_filter")
+    )]
     pub age: u16,
     pub lsa_type: LsaType,
     pub lsa_id: Ipv4Addr,

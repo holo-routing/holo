@@ -204,11 +204,12 @@ pub trait InterfaceVersion<V: Version> {
         src: V::NetIpAddr,
     ) -> Result<(), Error<V>>;
 
-    // Validate the Instance ID of the received packet (OSPFv3 only).
-    fn validate_packet_instance_id(
+    // Check if the interface and the received packet have matching Instance IDs
+    // (OSPFv3 only).
+    fn packet_instance_id_match(
         iface: &Interface<V>,
         packet_hdr: &V::PacketHdr,
-    ) -> Result<(), Error<V>>;
+    ) -> bool;
 
     // Validate the network mask of the received Hello packet (OSPFv2 only).
     fn validate_hello_netmask(

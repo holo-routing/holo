@@ -169,7 +169,11 @@ where
     }
 
     // OSPFv3: check for Instance ID mismatch.
-    V::validate_packet_instance_id(iface, packet.hdr())?;
+    if !V::packet_instance_id_match(iface, packet.hdr()) {
+        // Instance ID mismatches are expected in normal operation and do not
+        // constitute an error.
+        return Ok(());
+    }
 
     // Log received packet.
     Debug::<V>::PacketRx(iface, &src, &dst, &packet).log();

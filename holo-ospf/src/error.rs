@@ -31,7 +31,6 @@ pub enum Error<V: Version> {
     InvalidSrcAddr(V::NetIpAddr),
     InvalidDstAddr(V::NetIpAddr),
     PacketDecodeError(DecodeError),
-    InstanceIdMismatch(u8, u8),
     UnknownNeighbor(V::NetIpAddr, Ipv4Addr),
     InterfaceCfgError(String, V::NetIpAddr, PacketType, InterfaceCfgError),
     DbDescReject(Ipv4Addr, nsm::State),
@@ -107,9 +106,6 @@ where
             }
             Error::PacketDecodeError(error) => {
                 warn!(%error, "{}", self);
-            }
-            Error::InstanceIdMismatch(received, expected) => {
-                warn!(%received, %expected, "{}", self);
             }
             Error::UnknownNeighbor(source, router_id) => {
                 warn!(%source, %router_id, "{}", self);
@@ -191,9 +187,6 @@ where
             }
             Error::PacketDecodeError(..) => {
                 write!(f, "failed to decode packet")
-            }
-            Error::InstanceIdMismatch(..) => {
-                write!(f, "instance ID mismatch")
             }
             Error::UnknownNeighbor(..) => {
                 write!(f, "unknown neighbor")

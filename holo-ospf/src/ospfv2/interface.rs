@@ -96,12 +96,12 @@ impl InterfaceVersion<Self> for Ospfv2 {
         Ok(())
     }
 
-    fn validate_packet_instance_id(
+    fn packet_instance_id_match(
         _iface: &Interface<Self>,
         _packet_hdr: &ospfv2::packet::PacketHdr,
-    ) -> Result<(), Error<Self>> {
-        // Nothing to do.
-        Ok(())
+    ) -> bool {
+        // The Instance ID field is not present in OSPFv2's packet header.
+        true
     }
 
     fn validate_hello_netmask(

@@ -92,19 +92,12 @@ impl InterfaceVersion<Self> for Ospfv3 {
         interface::validate_packet_src_common(iface, src)
     }
 
-    fn validate_packet_instance_id(
+    fn packet_instance_id_match(
         iface: &Interface<Self>,
         packet_hdr: &ospfv3::packet::PacketHdr,
-    ) -> Result<(), Error<Self>> {
+    ) -> bool {
         let iface_instance_id = iface.config.instance_id.unwrap_or(0);
-        if packet_hdr.instance_id != iface_instance_id {
-            return Err(Error::InstanceIdMismatch(
-                packet_hdr.instance_id,
-                iface_instance_id,
-            ));
-        }
-
-        Ok(())
+        packet_hdr.instance_id == iface_instance_id
     }
 
     fn validate_hello_netmask(

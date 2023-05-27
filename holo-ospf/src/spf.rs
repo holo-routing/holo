@@ -314,17 +314,26 @@ where
             if instance.state.spf_delay_timer.is_none() {
                 let task = tasks::spf_delay_timer(
                     instance,
+                    fsm::Event::DelayTimer,
                     instance.config.spf_initial_delay,
                 );
                 instance.state.spf_delay_timer = Some(task);
             }
 
             // Start LEARN_TIMER with TIME_TO_LEARN_INTERVAL.
-            let task = tasks::spf_learn_timer(instance);
+            let task = tasks::spf_delay_timer(
+                instance,
+                fsm::Event::LearnTimer,
+                instance.config.spf_time_to_learn,
+            );
             instance.state.spf_learn_timer = Some(task);
 
             // Start HOLDDOWN_TIMER with HOLDDOWN_INTERVAL.
-            let task = tasks::spf_hold_down_timer(instance);
+            let task = tasks::spf_delay_timer(
+                instance,
+                fsm::Event::HoldDownTimer,
+                instance.config.spf_hold_down,
+            );
             instance.state.spf_hold_down_timer = Some(task);
 
             // Transition to SHORT_WAIT state.
@@ -344,6 +353,7 @@ where
             if instance.state.spf_delay_timer.is_none() {
                 let task = tasks::spf_delay_timer(
                     instance,
+                    fsm::Event::DelayTimer,
                     instance.config.spf_short_delay,
                 );
                 instance.state.spf_delay_timer = Some(task);
@@ -373,6 +383,7 @@ where
             if instance.state.spf_delay_timer.is_none() {
                 let task = tasks::spf_delay_timer(
                     instance,
+                    fsm::Event::DelayTimer,
                     instance.config.spf_long_delay,
                 );
                 instance.state.spf_delay_timer = Some(task);

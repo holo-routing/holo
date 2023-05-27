@@ -48,8 +48,6 @@ use crate::{lsdb, spf};
 // lsdb_maxage_sweep_interval (Nx) -> |              |
 //                                    |              |
 //            spf_delay_timer (Nx) -> |              |
-//        spf_hold_down_timer (Nx) -> |              |
-//            spf_learn_timer (Nx) -> |              |
 //                                    +--------------+
 //                       southbound_tx (1x) | ^ (1x) southbound_rx
 //                                          | |
@@ -669,6 +667,7 @@ pub(crate) fn lsdb_maxage_sweep_interval(
 // SPF delay timer task.
 pub(crate) fn spf_delay_timer<V>(
     instance: &InstanceUpView<'_, V>,
+    event: spf::fsm::Event,
     timeout: u32,
 ) -> TimeoutTask
 where
@@ -681,63 +680,7 @@ where
             instance.tx.protocol_input.spf_delay_event.clone();
 
         TimeoutTask::new(timeout, move || async move {
-            let msg = messages::input::SpfDelayEventMsg {
-                event: spf::fsm::Event::DelayTimer,
-            };
-            let _ = spf_delay_eventp.send(msg);
-        })
-    }
-    #[cfg(feature = "testing")]
-    {
-        TimeoutTask {}
-    }
-}
-
-// SPF delay hold-down timer task.
-pub(crate) fn spf_hold_down_timer<V>(
-    instance: &InstanceUpView<'_, V>,
-) -> TimeoutTask
-where
-    V: Version,
-{
-    #[cfg(not(feature = "testing"))]
-    {
-        let timeout =
-            Duration::from_millis(instance.config.spf_hold_down.into());
-        let spf_delay_eventp =
-            instance.tx.protocol_input.spf_delay_event.clone();
-
-        TimeoutTask::new(timeout, move || async move {
-            let msg = messages::input::SpfDelayEventMsg {
-                event: spf::fsm::Event::HoldDownTimer,
-            };
-            let _ = spf_delay_eventp.send(msg);
-        })
-    }
-    #[cfg(feature = "testing")]
-    {
-        TimeoutTask {}
-    }
-}
-
-// SPF delay learn timer task.
-pub(crate) fn spf_learn_timer<V>(
-    instance: &InstanceUpView<'_, V>,
-) -> TimeoutTask
-where
-    V: Version,
-{
-    #[cfg(not(feature = "testing"))]
-    {
-        let timeout =
-            Duration::from_millis(instance.config.spf_time_to_learn.into());
-        let spf_delay_eventp =
-            instance.tx.protocol_input.spf_delay_event.clone();
-
-        TimeoutTask::new(timeout, move || async move {
-            let msg = messages::input::SpfDelayEventMsg {
-                event: spf::fsm::Event::LearnTimer,
-            };
+            let msg = messages::input::SpfDelayEventMsg { event };
             let _ = spf_delay_eventp.send(msg);
         })
     }

@@ -131,13 +131,8 @@ fn process_udp_pdu_unicast(
                     instance.core.tneighbors.insert(src_addr)
                 }
             };
-        if hello.params.flags.contains(HelloFlags::REQ_TARGETED)
-            && instance.core.config.targeted_hello_accept
-        {
-            tnbr.dynamic = true;
-        } else {
-            tnbr.dynamic = false;
-        }
+        tnbr.dynamic = hello.params.flags.contains(HelloFlags::REQ_TARGETED)
+            && instance.core.config.targeted_hello_accept;
 
         //
         // The targeted neighbor might need to be activated or deactivated

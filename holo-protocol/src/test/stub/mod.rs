@@ -354,7 +354,7 @@ where
         let op = TestOp::from_filename(&filename[3..])
             .expect("failed to parse test operation from filename");
 
-        let mut step = test_steps.entry(step_num).or_default();
+        let step = test_steps.entry(step_num).or_default();
         match op {
             TestOp::Input(op) => {
                 if step.input.is_some() {

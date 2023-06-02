@@ -528,8 +528,8 @@ where
     if let Some(callbacks) = P::validation_callbacks() {
         for dnode in config
             .find_path(&provider.top_level_node())
-            .unwrap()
-            .traverse()
+            .iter()
+            .flat_map(|dnode| dnode.traverse())
         {
             if let Some(cb) =
                 callbacks.get(&dnode.schema().path(SchemaPathFormat::DATA))

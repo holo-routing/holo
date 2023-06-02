@@ -19,6 +19,7 @@ use crate::instance::InstanceUpView;
 use crate::interface::Interface;
 use crate::lsdb::LsaEntry;
 use crate::neighbor::Neighbor;
+use crate::northbound::notification;
 use crate::packet::lsa::{AdjSidVersion, PrefixSidVersion};
 use crate::packet::tlv::{PrefixSidFlags, SidLabelRangeTlv};
 use crate::route::RouteNet;
@@ -148,7 +149,7 @@ where
             if ri.srgb.is_empty() {
                 return Err(Error::SrgbNotFound(area.area_id, router_id));
             }
-            index_to_label(index, &ri.srgb)?
+            index_to_label(instance, router_id, index, &ri.srgb)?
         }
         Sid::Label(label) => {
             // Absolute label (V/L flags are set).
@@ -202,7 +203,7 @@ where
             if ri.srgb.is_empty() {
                 return Err(Error::SrgbNotFound(area.area_id, nbr_router_id));
             }
-            index_to_label(index, &ri.srgb)
+            index_to_label(instance, nbr_router_id, index, &ri.srgb)
         }
         Sid::Label(label) => {
             // V/L SIDs have local significance, so only adjacent routers can
@@ -218,6 +219,8 @@ where
 
 // Maps SID index to MPLS label value.
 fn index_to_label<V>(
+    instance: &InstanceUpView<'_, V>,
+    nbr_router_id: Ipv4Addr,
     mut index: u32,
     srgbs: &[&SidLabelRangeTlv],
 ) -> Result<Label, Error<V>>
@@ -245,6 +248,7 @@ where
         return Ok(Label::new(label));
     }
 
+    notification::sr_index_out_of_range(instance, nbr_router_id, index);
     Err(Error::InvalidSidIndex(index))
 }
 

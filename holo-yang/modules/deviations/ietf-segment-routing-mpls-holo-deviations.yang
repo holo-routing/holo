@@ -110,28 +110,6 @@ module ietf-segment-routing-mpls-holo-deviations {
   }
   */
 
-  deviation "/sr-mpls:segment-routing-index-out-of-range" {
-    deviate not-supported;
-  }
-
-  /*
-  deviation "/sr-mpls:segment-routing-index-out-of-range/sr-mpls:received-target" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/sr-mpls:segment-routing-index-out-of-range/sr-mpls:received-index" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/sr-mpls:segment-routing-index-out-of-range/sr-mpls:routing-protocol" {
-    deviate not-supported;
-  }
-  */
-
   /*
   deviation "/rt:routing/sr:segment-routing/sr-mpls:sr-mpls" {
     deviate not-supported;

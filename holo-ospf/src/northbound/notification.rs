@@ -4,6 +4,8 @@
 // See LICENSE for license details.
 //
 
+use std::net::Ipv4Addr;
+
 use holo_northbound::{notification, paths};
 use holo_yang::ToYang;
 
@@ -128,6 +130,26 @@ pub(crate) fn if_rx_bad_lsa<V>(
         (base::routing_protocol_name::PATH, Some(instance.name)),
         (base::packet_source::PATH, Some(&src)),
         (base::error::PATH, Some(&error)),
+    ];
+    notification::send(&instance.tx.nb, base::PATH, &args);
+}
+
+pub(crate) fn sr_index_out_of_range<V>(
+    instance: &InstanceUpView<'_, V>,
+    nbr_router_id: Ipv4Addr,
+    index: u32,
+) where
+    V: Version,
+{
+    use paths::segment_routing_index_out_of_range as base;
+
+    let nbr_router_id = nbr_router_id.to_string();
+    let index = index.to_string();
+
+    let args = [
+        (base::routing_protocol::PATH, Some(instance.name)),
+        (base::received_target::PATH, Some(&nbr_router_id)),
+        (base::received_index::PATH, Some(&index)),
     ];
     notification::send(&instance.tx.nb, base::PATH, &args);
 }

@@ -174,7 +174,7 @@ Holo supports the following IETF RFCs and Internet drafts:
 | ietf-ospfv3-sr@2022-10-21 | - | 51.63% | - | - | [51.63%](http://westphal.com.br/holo/ietf-ospfv3-sr.html) |
 | ietf-rip@2020-02-20 | 24.42% | 93.33% | 100.00% | - | [53.38%](http://westphal.com.br/holo/ietf-rip.html) |
 | ietf-routing@2018-03-13 | 50.00% | 0.00% | - | - | [23.08%](http://westphal.com.br/holo/ietf-routing.html) |
-| ietf-segment-routing-mpls@2021-05-26 | 62.50% | 0.00% | - | 0.00% | [25.86%](http://westphal.com.br/holo/ietf-segment-routing-mpls.html) |
+| ietf-segment-routing-mpls@2021-05-26 | 62.50% | 0.00% | - | 23.53% | [32.76%](http://westphal.com.br/holo/ietf-segment-routing-mpls.html) |
 | ietf-segment-routing@2021-05-26 | 100.00% | - | - | - | [100.00%](http://westphal.com.br/holo/ietf-segment-routing.html) |
 
 ## License

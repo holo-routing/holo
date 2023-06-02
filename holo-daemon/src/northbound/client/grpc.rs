@@ -16,8 +16,8 @@ use tonic::transport::{Server, ServerTlsConfig};
 use tonic::{Request, Response, Status};
 use tracing::{debug, debug_span, error, trace};
 use yang2::data::{
-    Data, DataFormat, DataOperation, DataParserFlags, DataPrinterFlags,
-    DataTree, DataValidationFlags,
+    Data, DataDiff, DataFormat, DataOperation, DataParserFlags,
+    DataPrinterFlags, DataTree, DataValidationFlags,
 };
 
 use crate::northbound::client::api;
@@ -196,18 +196,48 @@ impl proto::Northbound for NorthboundService {
         })?;
         let encoding = proto::Encoding::from_i32(config_tree.encoding)
             .ok_or_else(|| Status::invalid_argument("Invalid data encoding"))?;
-        let operation = api::CommitOperation::try_from(grpc_request.operation)?;
-        let config = DataTree::parse_string(
-            yang_ctx,
-            &config_tree.data,
-            DataFormat::from(encoding),
-            DataParserFlags::empty(),
-            DataValidationFlags::NO_STATE,
-        )
-        .map_err(|error| Status::invalid_argument(error.to_string()))?;
+        let operation =
+            proto::commit_request::Operation::from_i32(grpc_request.operation)
+                .ok_or(Status::invalid_argument("Invalid commit operation"))?;
+        let config = match operation {
+            proto::commit_request::Operation::Merge => {
+                let config = DataTree::parse_string(
+                    yang_ctx,
+                    &config_tree.data,
+                    DataFormat::from(encoding),
+                    DataParserFlags::empty(),
+                    DataValidationFlags::NO_STATE,
+                )
+                .map_err(|error| Status::invalid_argument(error.to_string()))?;
+                api::CommitConfiguration::Merge(config)
+            }
+            proto::commit_request::Operation::Replace => {
+                let config = DataTree::parse_string(
+                    yang_ctx,
+                    &config_tree.data,
+                    DataFormat::from(encoding),
+                    DataParserFlags::empty(),
+                    DataValidationFlags::NO_STATE,
+                )
+                .map_err(|error| Status::invalid_argument(error.to_string()))?;
+                api::CommitConfiguration::Replace(config)
+            }
+            proto::commit_request::Operation::Change => {
+                let diff = DataDiff::parse_string(
+                    yang_ctx,
+                    &config_tree.data,
+                    DataFormat::from(encoding),
+                    DataParserFlags::NO_VALIDATION,
+                    DataValidationFlags::NO_STATE
+                        | DataValidationFlags::PRESENT,
+                )
+                .map_err(|error| Status::invalid_argument(error.to_string()))?;
+                api::CommitConfiguration::Change(diff)
+            }
+        };
+
         let nb_request =
             api::client::Request::Commit(api::client::CommitRequest {
-                operation,
                 config,
                 comment: grpc_request.comment,
                 confirmed_timeout: grpc_request.confirmed_timeout,
@@ -439,25 +469,6 @@ impl TryFrom<i32> for api::DataType {
                 Ok(api::DataType::State)
             }
             None => Err(Status::invalid_argument("Invalid data type")),
-        }
-    }
-}
-
-impl TryFrom<i32> for api::CommitOperation {
-    type Error = Status;
-
-    fn try_from(data_type: i32) -> Result<Self, Self::Error> {
-        match proto::commit_request::Operation::from_i32(data_type) {
-            Some(proto::commit_request::Operation::Merge) => {
-                Ok(api::CommitOperation::Merge)
-            }
-            Some(proto::commit_request::Operation::Replace) => {
-                Ok(api::CommitOperation::Replace)
-            }
-            Some(proto::commit_request::Operation::Change) => {
-                Ok(api::CommitOperation::Change)
-            }
-            None => Err(Status::invalid_argument("Invalid commit operation")),
         }
     }
 }

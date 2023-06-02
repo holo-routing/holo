@@ -243,8 +243,7 @@ impl proto::GNmi for GNmiService {
 
         // Convert and relay gNMI request to the northbound.
         let nb_request = api::client::CommitRequest {
-            operation: api::CommitOperation::Replace,
-            config: candidate,
+            config: api::CommitConfiguration::Replace(candidate),
             comment: Default::default(),
             confirmed_timeout: 0,
             responder: responder_tx,

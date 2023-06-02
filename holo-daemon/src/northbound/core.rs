@@ -184,7 +184,6 @@ impl Northbound {
             capi::client::Request::Commit(request) => {
                 let response = self
                     .process_client_commit(
-                        request.operation,
                         request.config,
                         request.comment,
                         request.confirmed_timeout,
@@ -256,14 +255,13 @@ impl Northbound {
     // Processes a `Commit` message received from an external client.
     async fn process_client_commit(
         &mut self,
-        operation: capi::CommitOperation,
-        config: DataTree,
+        config: capi::CommitConfiguration,
         comment: String,
         confirmed_timeout: u32,
     ) -> Result<capi::client::CommitResponse> {
         // Handle different commit operations.
-        let candidate = match operation {
-            capi::CommitOperation::Merge => {
+        let candidate = match config {
+            capi::CommitConfiguration::Merge(config) => {
                 let mut candidate = self
                     .running_config
                     .duplicate()
@@ -271,8 +269,15 @@ impl Northbound {
                 candidate.merge(&config).map_err(Error::YangInternal)?;
                 candidate
             }
-            capi::CommitOperation::Replace => config,
-            capi::CommitOperation::Change => unimplemented!(),
+            capi::CommitConfiguration::Replace(config) => config,
+            capi::CommitConfiguration::Change(diff) => {
+                let mut candidate = self
+                    .running_config
+                    .duplicate()
+                    .map_err(Error::YangInternal)?;
+                candidate.diff_apply(&diff).map_err(Error::YangInternal)?;
+                candidate
+            }
         };
 
         // Create configuration transaction.

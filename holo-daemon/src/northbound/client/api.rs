@@ -5,7 +5,7 @@
 //
 
 use holo_utils::Responder;
-use yang2::data::DataTree;
+use yang2::data::{DataDiff, DataTree};
 
 use crate::northbound::core::Transaction;
 use crate::northbound::Result;
@@ -58,8 +58,7 @@ pub mod client {
 
     #[derive(Debug)]
     pub struct CommitRequest {
-        pub operation: CommitOperation,
-        pub config: DataTree,
+        pub config: CommitConfiguration,
         pub comment: String,
         pub confirmed_timeout: u32,
         pub responder: Responder<Result<CommitResponse>>,
@@ -125,9 +124,9 @@ pub enum DataType {
     State,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub enum CommitOperation {
-    Merge,
-    Replace,
-    Change,
+#[derive(Debug)]
+pub enum CommitConfiguration {
+    Merge(DataTree),
+    Replace(DataTree),
+    Change(DataDiff),
 }

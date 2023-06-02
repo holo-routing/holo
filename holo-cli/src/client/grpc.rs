@@ -8,8 +8,8 @@ use holo_yang as yang;
 use holo_yang::YANG_CTX;
 use proto::northbound_client::NorthboundClient;
 use yang2::data::{
-    Data, DataFormat, DataParserFlags, DataPrinterFlags, DataTree,
-    DataValidationFlags,
+    Data, DataDiffFlags, DataFormat, DataParserFlags, DataPrinterFlags,
+    DataTree, DataValidationFlags,
 };
 
 use crate::client::Client;
@@ -138,15 +138,19 @@ impl Client for GrpcClient {
 
     fn commit_candidate(
         &mut self,
+        running: &DataTree,
         candidate: &DataTree,
         comment: Option<String>,
     ) -> Result<(), Error> {
-        let operation = proto::commit_request::Operation::Replace as i32;
+        let operation = proto::commit_request::Operation::Change as i32;
         let config = {
             let encoding = proto::Encoding::Xml as i32;
-            let data = candidate
+            let diff = running
+                .diff(&candidate, DataDiffFlags::DEFAULTS)
+                .expect("Failed to compare configurations");
+            let data = diff
                 .print_string(DataFormat::XML, DataPrinterFlags::WITH_SIBLINGS)
-                .expect("Failed to encode data tree")
+                .expect("Failed to encode data diff")
                 .unwrap_or_default();
 
             Some(proto::DataTree { encoding, data })

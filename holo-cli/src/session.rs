@@ -241,7 +241,8 @@ impl Session {
 
         // Request the device to validate and commit the candidate
         // configuration.
-        self.client.commit_candidate(candidate, comment)?;
+        self.client
+            .commit_candidate(&self.running, candidate, comment)?;
 
         // Replace the running configuration with the candidate configuration.
         self.running = candidate.duplicate().unwrap();

@@ -31,6 +31,7 @@ pub trait Client: Send + std::fmt::Debug {
     // Commit the provided candidate configuration.
     fn commit_candidate(
         &mut self,
+        running: &DataTree,
         candidate: &DataTree,
         comment: Option<String>,
     ) -> Result<(), Error>;

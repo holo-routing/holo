@@ -53,7 +53,7 @@ tonic = { version = "0.9", features = ["tls"] }
 tonic-build = "0.9"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-yang2 = { version = "0.5", features = ["bundled"] }
+yang2 = { version = "0.6", features = ["bundled"] }
 
 [profile.release]
 debug = true

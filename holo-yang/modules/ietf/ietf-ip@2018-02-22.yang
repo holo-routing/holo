@@ -17,7 +17,7 @@ module ietf-ip {
     "IETF NETMOD (Network Modeling) Working Group";
 
   contact
-    "WG Web:   <http://tools.ietf.org/wg/netmod/>
+    "WG Web:   <https://datatracker.ietf.org/wg/netmod/>
      WG List:  <mailto:netmod@ietf.org>
 
      Editor:   Martin Bjorklund
@@ -34,16 +34,16 @@ module ietf-ip {
      to the license terms contained in, the Simplified BSD License
      set forth in Section 4.c of the IETF Trust's Legal Provisions
      Relating to IETF Documents
-     (http://trustee.ietf.org/license-info).
+     (https://trustee.ietf.org/license-info).
 
-     This version of this YANG module is part of RFC XXXX; see
+     This version of this YANG module is part of RFC 8344; see
      the RFC itself for full legal notices.";
 
-  revision 2018-01-09 {
+  revision 2018-02-22 {
     description
       "Updated to support NMDA.";
     reference
-      "RFC XXXX: A YANG Data Model for IP Management";
+      "RFC 8344: A YANG Data Model for IP Management";
   }
 
   revision 2014-06-16 {
@@ -65,8 +65,8 @@ module ietf-ip {
 
   feature ipv6-privacy-autoconf {
     description
-      "Indicates support for Privacy Extensions for Stateless Address
-       Autoconfiguration in IPv6.";
+      "Indicates support for privacy extensions for stateless address
+       autoconfiguration in IPv6.";
     reference
       "RFC 4941: Privacy Extensions for Stateless Address
                  Autoconfiguration in IPv6";
@@ -82,11 +82,12 @@ module ietf-ip {
         description
           "None of the following.";
       }
+
       enum static {
         description
           "Indicates that the address has been statically
-           configured - for example, using NETCONF or a Command Line
-           Interface.";
+           configured -- for example, using the Network Configuration
+           Protocol (NETCONF) or a command line interface.";
       }
       enum dhcp {
         description
@@ -102,10 +103,9 @@ module ietf-ip {
       enum random {
         description
           "Indicates an address chosen by the system at
-
-           random, e.g., an IPv4 address within 169.254/16, an
-           RFC 4941 temporary address, or an RFC 7217 semantically
-           opaque address.";
+           random, e.g., an IPv4 address within 169.254/16, a
+           temporary address as described in RFC 4941, or a
+           semantically opaque address as described in RFC 7217.";
         reference
           "RFC 4941: Privacy Extensions for Stateless Address
                      Autoconfiguration in IPv6
@@ -127,14 +127,15 @@ module ietf-ip {
       enum static {
         description
           "Indicates that the mapping has been statically
-           configured - for example, using NETCONF or a Command Line
-           Interface.";
+           configured -- for example, using NETCONF or a command line
+           interface.";
       }
+
       enum dynamic {
         description
           "Indicates that the mapping has been dynamically resolved
-           using, e.g., IPv4 ARP or the IPv6 Neighbor Discovery
-           protocol.";
+           using, for example, IPv4 ARP or the IPv6 Neighbor
+           Discovery protocol.";
       }
     }
     description
@@ -177,11 +178,12 @@ module ietf-ip {
            forward datagrams.  IPv4 hosts do not (except those
            source-routed via the host).";
       }
+
       leaf mtu {
         type uint16 {
           range "68..max";
         }
-        units octets;
+        units "octets";
         description
           "The size, in octets, of the largest IPv4 packet that the
            interface will send and receive.
@@ -207,7 +209,7 @@ module ietf-ip {
         choice subnet {
           mandatory true;
           description
-            "The subnet can be specified as a prefix-length, or,
+            "The subnet can be specified as a prefix length or,
              if the server supports non-contiguous netmasks, as
              a netmask.";
           leaf prefix-length {
@@ -224,6 +226,7 @@ module ietf-ip {
               "The subnet specified as a netmask.";
           }
         }
+
         leaf origin {
           type ip-address-origin;
           config false;
@@ -297,7 +300,7 @@ module ietf-ip {
         type uint32 {
           range "1280..max";
         }
-        units octets;
+        units "octets";
         description
           "The size, in octets, of the largest IPv6 packet that the
            interface will send and receive.
@@ -308,7 +311,7 @@ module ietf-ip {
            If this leaf is not configured, the operationally used MTU
            depends on the interface's type.";
         reference
-          "RFC 2460: Internet Protocol, Version 6 (IPv6)
+          "RFC 8200: Internet Protocol, Version 6 (IPv6)
                      Specification
                      Section 5";
       }
@@ -356,6 +359,7 @@ module ietf-ip {
                 "This isn't a valid address, and it shouldn't appear
                  as the destination or source address of a packet.";
             }
+
             enum inaccessible {
               description
                 "The address is not accessible because the interface
@@ -397,6 +401,7 @@ module ietf-ip {
              RFC 4862: IPv6 Stateless Address Autoconfiguration";
         }
       }
+
       list neighbor {
         key "ip";
         description
@@ -437,6 +442,7 @@ module ietf-ip {
           description
             "Indicates that the neighbor node acts as a router.";
         }
+
         leaf state {
           type enumeration {
             enum incomplete {
@@ -564,7 +570,8 @@ module ietf-ip {
       "Data nodes for the operational state of IP on interfaces.";
 
     container ipv4 {
-      presence "Present if IPv4 is enabled on this interface";
+      presence
+        "Present if IPv4 is enabled on this interface";
       config false;
       status deprecated;
       description
@@ -581,7 +588,7 @@ module ietf-ip {
         type uint16 {
           range "68..max";
         }
-        units octets;
+        units "octets";
         status deprecated;
         description
           "The size, in octets, of the largest IPv4 packet that the
@@ -604,7 +611,7 @@ module ietf-ip {
         choice subnet {
           status deprecated;
           description
-            "The subnet can be specified as a prefix-length, or,
+            "The subnet can be specified as a prefix length or,
              if the server supports non-contiguous netmasks, as
              a netmask.";
           leaf prefix-length {
@@ -647,6 +654,7 @@ module ietf-ip {
           description
             "The IPv4 address of the neighbor node.";
         }
+
         leaf link-layer-address {
           type yang:phys-address;
           status deprecated;
@@ -663,7 +671,8 @@ module ietf-ip {
     }
 
     container ipv6 {
-      presence "Present if IPv6 is enabled on this interface";
+      presence
+        "Present if IPv6 is enabled on this interface";
       config false;
       status deprecated;
       description
@@ -684,13 +693,13 @@ module ietf-ip {
         type uint32 {
           range "1280..max";
         }
-        units octets;
+        units "octets";
         status deprecated;
         description
           "The size, in octets, of the largest IPv6 packet that the
            interface will send and receive.";
         reference
-          "RFC 2460: Internet Protocol, Version 6 (IPv6)
+          "RFC 8200: Internet Protocol, Version 6 (IPv6)
                      Specification
                      Section 5";
       }
@@ -740,6 +749,7 @@ module ietf-ip {
                 "This isn't a valid address, and it shouldn't appear
                  as the destination or source address of a packet.";
             }
+
             enum inaccessible {
               description
                 "The address is not accessible because the interface
@@ -781,6 +791,7 @@ module ietf-ip {
              RFC 4862: IPv6 Stateless Address Autoconfiguration";
         }
       }
+
       list neighbor {
         key "ip";
         status deprecated;

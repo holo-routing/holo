@@ -42,18 +42,18 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-bfd-types@2022-09-22.yang"),
         EmbeddedModuleKey::new("ietf-bfd", Some("2022-09-22"), None, None) =>
             include_str!("../modules/ietf/ietf-bfd@2022-09-22.yang"),
-        EmbeddedModuleKey::new("ietf-interfaces", Some("2018-01-09"), None, None) =>
-            include_str!("../modules/ietf/ietf-interfaces@2018-01-09.yang"),
-        EmbeddedModuleKey::new("ietf-ip", Some("2018-01-09"), None, None) =>
-            include_str!("../modules/ietf/ietf-ip@2018-01-09.yang"),
-        EmbeddedModuleKey::new("ietf-isis", Some("2019-10-15"), None, None) =>
-            include_str!("../modules/ietf/ietf-isis@2019-10-15.yang"),
+        EmbeddedModuleKey::new("ietf-interfaces", Some("2018-02-20"), None, None) =>
+            include_str!("../modules/ietf/ietf-interfaces@2018-02-20.yang"),
+        EmbeddedModuleKey::new("ietf-ip", Some("2018-02-22"), None, None) =>
+            include_str!("../modules/ietf/ietf-ip@2018-02-22.yang"),
+        EmbeddedModuleKey::new("ietf-isis", Some("2022-10-19"), None, None) =>
+            include_str!("../modules/ietf/ietf-isis@2022-10-19.yang"),
         EmbeddedModuleKey::new("ietf-key-chain", Some("2017-06-15"), None, None) =>
             include_str!("../modules/ietf/ietf-key-chain@2017-06-15.yang"),
         EmbeddedModuleKey::new("ietf-mpls-ldp", Some("2022-03-14"), None, None) =>
             include_str!("../modules/ietf/ietf-mpls-ldp@2022-03-14.yang"),
-        EmbeddedModuleKey::new("ietf-netconf-acm", Some("2017-12-11"), None, None) =>
-            include_str!("../modules/ietf/ietf-netconf-acm@2017-12-11.yang"),
+        EmbeddedModuleKey::new("ietf-netconf-acm", Some("2018-02-14"), None, None) =>
+            include_str!("../modules/ietf/ietf-netconf-acm@2018-02-14.yang"),
         EmbeddedModuleKey::new("ietf-ospf", Some("2022-10-19"), None, None) =>
             include_str!("../modules/ietf/ietf-ospf@2022-10-19.yang"),
         EmbeddedModuleKey::new("ietf-ospf-sr", Some("2023-01-01"), None, None) =>
@@ -66,8 +66,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-rip@2020-02-20.yang"),
         EmbeddedModuleKey::new("ietf-routing", Some("2018-03-13"), None, None) =>
             include_str!("../modules/ietf/ietf-routing@2018-03-13.yang"),
-        EmbeddedModuleKey::new("ietf-routing-types", Some("2017-10-13"), None, None) =>
-            include_str!("../modules/ietf/ietf-routing-types@2017-10-13.yang"),
+        EmbeddedModuleKey::new("ietf-routing-types", Some("2017-12-04"), None, None) =>
+            include_str!("../modules/ietf/ietf-routing-types@2017-12-04.yang"),
         EmbeddedModuleKey::new("ietf-segment-routing-common", Some("2021-05-26"), None, None) =>
             include_str!("../modules/ietf/ietf-segment-routing-common@2021-05-26.yang"),
         EmbeddedModuleKey::new("ietf-segment-routing-mpls", Some("2021-05-26"), None, None) =>

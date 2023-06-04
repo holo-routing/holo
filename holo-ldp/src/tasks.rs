@@ -334,7 +334,7 @@ pub(crate) fn adj_timeout(
 
 // TCP listening task.
 pub(crate) fn tcp_listener(
-    session_socket: TcpListener,
+    session_socket: &Arc<TcpListener>,
     tcp_acceptp: &Sender<messages::input::TcpAcceptMsg>,
 ) -> Task<()> {
     #[cfg(not(feature = "testing"))]
@@ -344,6 +344,7 @@ pub(crate) fn tcp_listener(
         let span2 = debug_span!("input");
         let _span2_guard = span2.enter();
 
+        let session_socket = session_socket.clone();
         let tcp_acceptp = tcp_acceptp.clone();
         Task::spawn(
             async move {
@@ -363,6 +364,7 @@ pub(crate) fn tcp_listener(
 pub(crate) fn tcp_connect(
     nbr: &Neighbor,
     local_addr: IpAddr,
+    password: Option<&str>,
     tcp_connectp: &Sender<messages::input::TcpConnectMsg>,
 ) -> Task<()> {
     #[cfg(not(feature = "testing"))]
@@ -373,13 +375,18 @@ pub(crate) fn tcp_connect(
         let nbr_id = nbr.id;
         let remote_addr = nbr.trans_addr;
         let gtsm = nbr.flags.contains(NeighborFlags::GTSM);
+        let password = password.map(String::from);
         let tcp_connectp = tcp_connectp.clone();
         Task::spawn(
             async move {
                 loop {
-                    let result =
-                        network::tcp::connect(local_addr, remote_addr, gtsm)
-                            .await;
+                    let result = network::tcp::connect(
+                        local_addr,
+                        remote_addr,
+                        gtsm,
+                        &password,
+                    )
+                    .await;
 
                     match result {
                         Ok((stream, conn_info)) => {

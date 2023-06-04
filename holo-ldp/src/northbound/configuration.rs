@@ -4,11 +4,15 @@
 // See LICENSE for license details.
 //
 
+use std::net::Ipv4Addr;
 use std::sync::LazyLock as Lazy;
 
 use async_trait::async_trait;
 use enum_as_inner::EnumAsInner;
-use holo_northbound::configuration::{Callbacks, CallbacksBuilder, Provider};
+use holo_northbound::configuration::{
+    Callbacks, CallbacksBuilder, Provider, ValidationCallbacks,
+    ValidationCallbacksBuilder,
+};
 use holo_northbound::paths::control_plane_protocol::mpls_ldp;
 use holo_utils::yang::DataNodeRefExt;
 
@@ -17,6 +21,7 @@ use crate::debug::InterfaceInactiveReason;
 use crate::discovery::TargetedNbr;
 use crate::instance::{Instance, InstanceIpv4Cfg};
 use crate::interface::{Interface, InterfaceIpv4Cfg};
+use crate::neighbor;
 
 #[derive(Debug, Default, EnumAsInner)]
 pub enum ListEntry {
@@ -24,6 +29,7 @@ pub enum ListEntry {
     None,
     Interface(InterfaceIndex),
     TargetedNbr(TargetedNbrIndex),
+    Neighbor(Ipv4Addr),
 }
 
 #[derive(Debug)]
@@ -39,10 +45,15 @@ pub enum Event {
     TargetedNbrRemoveDynamic,
     StopInitBackoff,
     ResetNeighbors,
+    ResetNeighbor(Ipv4Addr),
+    UpdateNeighborsAuth,
+    UpdateNeighborAuth(Ipv4Addr),
     CfgSeqNumberUpdate,
     SbRequestInterfaceInfo,
 }
 
+pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
+    Lazy::new(load_validation_callbacks);
 pub static CALLBACKS: Lazy<Callbacks<Instance>> = Lazy::new(load_callbacks);
 
 // ===== callbacks =====
@@ -263,6 +274,32 @@ fn load_callbacks() -> Callbacks<Instance> {
             event_queue.insert(Event::TargetedNbrUpdate(tnbr_idx));
             event_queue.insert(Event::CfgSeqNumberUpdate);
         })
+        .path(mpls_ldp::peers::authentication::key::PATH)
+        .modify_apply(|instance, args| {
+            let password = args.dnode.get_string();
+            instance.core_mut().config.password = Some(password);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ResetNeighbors);
+            event_queue.insert(Event::UpdateNeighborsAuth);
+            event_queue.insert(Event::CfgSeqNumberUpdate);
+
+        })
+        .delete_apply(|instance, args| {
+            instance.core_mut().config.password = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ResetNeighbors);
+            event_queue.insert(Event::UpdateNeighborsAuth);
+            event_queue.insert(Event::CfgSeqNumberUpdate);
+        })
+        .path(mpls_ldp::peers::authentication::crypto_algorithm::PATH)
+        .modify_apply(|_context, _args| {
+            // Nothing to do (only TCP MD5 is supported at the moment).
+        })
+        .delete_apply(|_context, _args| {
+            // Nothing to do (only TCP MD5 is supported at the moment).
+        })
         .path(mpls_ldp::peers::session_ka_holdtime::PATH)
         .modify_apply(|instance, args| {
             let holdtime = args.dnode.get_u16();
@@ -281,15 +318,48 @@ fn load_callbacks() -> Callbacks<Instance> {
             event_queue.insert(Event::CfgSeqNumberUpdate);
         })
         .path(mpls_ldp::peers::peer::PATH)
-        .create_apply(|_instance, _args| {
-            // Nothing to do.
+        .create_apply(|instance, args| {
+            let lsr_id = args.dnode.get_ipv4_relative("lsr-id").unwrap();
+            instance.core_mut().config.neighbors.insert(lsr_id, Default::default());
+        })
+        .delete_apply(|instance, args| {
+            let lsr_id = args.list_entry.into_neighbor().unwrap();
+            instance.core_mut().config.neighbors.remove(&lsr_id);
+        })
+        .lookup(|_instance, _list_entry, dnode| {
+            let lsr_id = dnode.get_ipv4_relative("lsr-id").unwrap();
+            ListEntry::Neighbor(lsr_id)
+        })
+        .path(mpls_ldp::peers::peer::authentication::key::PATH)
+        .modify_apply(|instance, args| {
+            let lsr_id = args.list_entry.into_neighbor().unwrap();
+            let nbr_cfg = instance.core_mut().config.neighbors.get_mut(&lsr_id).unwrap();
+
+            let password = args.dnode.get_string();
+            nbr_cfg.password = Some(password);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ResetNeighbor(lsr_id));
+            event_queue.insert(Event::UpdateNeighborAuth(lsr_id));
+            event_queue.insert(Event::CfgSeqNumberUpdate);
+        })
+        .delete_apply(|instance, args| {
+            let lsr_id = args.list_entry.into_neighbor().unwrap();
+            let nbr_cfg = instance.core_mut().config.neighbors.get_mut(&lsr_id).unwrap();
+
+            nbr_cfg.password = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ResetNeighbor(lsr_id));
+            event_queue.insert(Event::UpdateNeighborAuth(lsr_id));
+            event_queue.insert(Event::CfgSeqNumberUpdate);
+        })
+        .path(mpls_ldp::peers::peer::authentication::crypto_algorithm::PATH)
+        .modify_apply(|_instance, _args| {
+            // Nothing to do (only TCP MD5 is supported at the moment).
         })
         .delete_apply(|_instance, _args| {
-            // Nothing to do.
-        })
-        .lookup(|_instance, _list_entry, _dnode| {
-            // Nothing to do.
-            ListEntry::None
+            // Nothing to do (only TCP MD5 is supported at the moment).
         })
         .path(mpls_ldp::peers::peer::address_families::ipv4::PATH)
         .create_apply(|_instance, _args| {
@@ -301,6 +371,21 @@ fn load_callbacks() -> Callbacks<Instance> {
         .build()
 }
 
+fn load_validation_callbacks() -> ValidationCallbacks {
+    ValidationCallbacksBuilder::default()
+        .path(mpls_ldp::peers::peer::authentication::crypto_algorithm::PATH)
+        .validate(|args| {
+            let algo = args.dnode.get_string();
+            validate_crypto_algo(&algo)
+        })
+        .path(mpls_ldp::peers::authentication::crypto_algorithm::PATH)
+        .validate(|args| {
+            let algo = args.dnode.get_string();
+            validate_crypto_algo(&algo)
+        })
+        .build()
+}
+
 // ===== impl Instance =====
 
 #[async_trait]
@@ -308,6 +393,10 @@ impl Provider for Instance {
     type ListEntry = ListEntry;
     type Event = Event;
     type Resource = Resource;
+
+    fn validation_callbacks() -> Option<&'static ValidationCallbacks> {
+        Some(&VALIDATION_CALLBACKS)
+    }
 
     fn callbacks() -> Option<&'static Callbacks<Instance>> {
         Some(&CALLBACKS)
@@ -376,7 +465,57 @@ impl Provider for Instance {
                 if let Instance::Up(instance) = self {
                     for nbr in instance.state.neighbors.iter_mut() {
                         // Send Shutdown notification.
-                        nbr.send_shutdown(&instance.state.msg_id, None);
+                        if nbr.state != neighbor::fsm::State::NonExistent {
+                            nbr.send_shutdown(&instance.state.msg_id, None);
+                        }
+
+                        // Stop the connection task.
+                        nbr.tasks.connect = None;
+                    }
+                }
+            }
+            Event::ResetNeighbor(lsr_id) => {
+                if let Instance::Up(instance) = self {
+                    if let Some((_, nbr)) =
+                        instance.state.neighbors.get_mut_by_lsr_id(&lsr_id)
+                    {
+                        // Send Shutdown notification.
+                        if nbr.state != neighbor::fsm::State::NonExistent {
+                            nbr.send_shutdown(&instance.state.msg_id, None);
+                        }
+
+                        // Stop the connection task.
+                        nbr.tasks.connect = None;
+                    }
+                }
+            }
+            Event::UpdateNeighborsAuth => {
+                if let Instance::Up(instance) = self {
+                    for nbr in instance.state.neighbors.iter_mut() {
+                        let password = instance
+                            .core
+                            .config
+                            .get_neighbor_password(nbr.lsr_id);
+                        nbr.set_listener_md5sig(
+                            &instance.state.ipv4.session_socket,
+                            password,
+                        );
+                    }
+                }
+            }
+            Event::UpdateNeighborAuth(lsr_id) => {
+                if let Instance::Up(instance) = self {
+                    if let Some((_, nbr)) =
+                        instance.state.neighbors.get_by_lsr_id(&lsr_id)
+                    {
+                        let password = instance
+                            .core
+                            .config
+                            .get_neighbor_password(nbr.lsr_id);
+                        nbr.set_listener_md5sig(
+                            &instance.state.ipv4.session_socket,
+                            password,
+                        );
                     }
                 }
             }
@@ -393,4 +532,15 @@ impl Provider for Instance {
             }
         }
     }
+}
+
+// ===== helper functions =====
+
+fn validate_crypto_algo(algo: &str) -> Result<(), String> {
+    if algo != "ietf-key-chain:md5" {
+        return Err("unsupported cryptographic algorithm (valid options: \"ietf-key-chain:md5\")"
+            .to_string());
+    }
+
+    Ok(())
 }

@@ -50,6 +50,7 @@ pub enum IoError {
     TcpAcceptError(std::io::Error),
     TcpConnectError(std::io::Error),
     TcpInfoError(std::io::Error),
+    TcpAuthError(std::io::Error),
     TcpRecvError(std::io::Error),
     TcpSendError(std::io::Error),
 }
@@ -194,6 +195,7 @@ impl IoError {
             | IoError::TcpSocketError(error)
             | IoError::TcpAcceptError(error)
             | IoError::TcpConnectError(error)
+            | IoError::TcpAuthError(error)
             | IoError::TcpInfoError(error)
             | IoError::TcpRecvError(error)
             | IoError::TcpSendError(error) => {
@@ -230,6 +232,9 @@ impl std::fmt::Display for IoError {
             IoError::TcpConnectError(..) => {
                 write!(f, "failed to establish TCP connection")
             }
+            IoError::TcpAuthError(..) => {
+                write!(f, "failed to set TCP authentication option")
+            }
             IoError::TcpInfoError(..) => {
                 write!(f, "failed to fetch address and port information from the socket")
             }
@@ -254,6 +259,7 @@ impl std::error::Error for IoError {
             | IoError::TcpSocketError(error)
             | IoError::TcpAcceptError(error)
             | IoError::TcpConnectError(error)
+            | IoError::TcpAuthError(error)
             | IoError::TcpInfoError(error)
             | IoError::TcpRecvError(error)
             | IoError::TcpSendError(error) => Some(error),

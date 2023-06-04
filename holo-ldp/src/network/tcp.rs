@@ -80,7 +80,7 @@ pub(crate) async fn listen_socket(
 
 #[cfg(not(feature = "testing"))]
 pub(crate) async fn listen_loop(
-    listener: TcpListener,
+    listener: Arc<TcpListener>,
     tcp_acceptp: Sender<TcpAcceptMsg>,
 ) -> Result<(), SendError<TcpAcceptMsg>> {
     loop {
@@ -117,6 +117,7 @@ fn connect_socket(
         socket.set_ipv4_ttl(255)?;
         socket.set_ipv4_minttl(255)?;
     }
+
     socket.bind(sockaddr)?;
     Ok(socket)
 }
@@ -126,6 +127,7 @@ pub(crate) async fn connect(
     local_addr: IpAddr,
     remote_addr: IpAddr,
     gtsm: bool,
+    password: &Option<String>,
 ) -> Result<(TcpStream, ConnectionInfo), Error> {
     // Create TCP socket.
     let socket =
@@ -133,6 +135,9 @@ pub(crate) async fn connect(
 
     // Connect to remote address on the LDP port.
     let sockaddr = SocketAddr::from((remote_addr, network::LDP_PORT));
+    if let Err(error) = socket.set_md5sig(&sockaddr, password.as_deref()) {
+        IoError::TcpAuthError(error).log();
+    }
     let stream = socket
         .connect(sockaddr)
         .await

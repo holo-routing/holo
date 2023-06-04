@@ -655,6 +655,10 @@ impl Neighbors {
                 );
             }
 
+            // Unset neighbor password (if any).
+            let nbr = &instance.state.neighbors[nbr_idx];
+            nbr.set_listener_md5sig(&instance.state.ipv4.session_socket, None);
+
             // Delete neighbor.
             instance.state.neighbors.delete(nbr_idx);
         }

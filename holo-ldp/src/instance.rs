@@ -4,7 +4,7 @@
 // See LICENSE for license details.
 //
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::atomic::{self, AtomicU32};
 use std::sync::Arc;
@@ -19,7 +19,7 @@ use holo_southbound::tx::SouthboundTx;
 use holo_utils::ibus::IbusMsg;
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
-use holo_utils::socket::UdpSocket;
+use holo_utils::socket::{TcpListener, UdpSocket};
 use holo_utils::task::Task;
 use holo_utils::{Receiver, Sender};
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
@@ -31,6 +31,7 @@ use crate::discovery::TargetedNbr;
 use crate::error::{Error, IoError};
 use crate::fec::Fec;
 use crate::interface::Interface;
+use crate::neighbor::NeighborCfg;
 use crate::network::{tcp, udp};
 use crate::southbound::rx::InstanceSouthboundRx;
 use crate::southbound::tx::InstanceSouthboundTx;
@@ -89,12 +90,14 @@ pub struct InstanceCfg {
     pub router_id: Option<Ipv4Addr>,
     pub session_ka_holdtime: u16,
     pub session_ka_interval: u16,
+    pub password: Option<String>,
     pub interface_hello_holdtime: u16,
     pub interface_hello_interval: u16,
     pub targeted_hello_holdtime: u16,
     pub targeted_hello_interval: u16,
     pub targeted_hello_accept: bool,
     pub ipv4: Option<InstanceIpv4Cfg>,
+    pub neighbors: HashMap<Ipv4Addr, NeighborCfg>,
 }
 
 #[derive(Debug)]
@@ -127,6 +130,8 @@ pub struct InstanceIpv4State {
     pub disc_socket: Arc<UdpSocket>,
     // UDP extended discovery socket.
     pub edisc_socket: Arc<UdpSocket>,
+    // TCP listening socket.
+    pub session_socket: Arc<TcpListener>,
     // UDP discovery Rx task.
     _disc_rx_task: Task<()>,
     // UDP extended discovery Rx task.
@@ -507,6 +512,24 @@ impl InstanceCommon<InstanceStateDown> {
 
 // ===== impl InstanceCfg =====
 
+impl InstanceCfg {
+    // Retrieves the password for a specific neighbor identified by its LSR-ID.
+    // If a custom password isn't configured for the neighbor, it's inherited
+    // from the global configuration.
+    pub(crate) fn get_neighbor_password(
+        &self,
+        lsr_id: Ipv4Addr,
+    ) -> Option<&str> {
+        if let Some(nbr_cfg) = self.neighbors.get(&lsr_id) {
+            if nbr_cfg.password.is_some() {
+                return nbr_cfg.password.as_deref();
+            }
+        }
+
+        self.password.as_deref()
+    }
+}
+
 impl Default for InstanceCfg {
     fn default() -> InstanceCfg {
         let session_ka_holdtime = mpls_ldp::peers::session_ka_holdtime::DFLT;
@@ -526,12 +549,14 @@ impl Default for InstanceCfg {
             router_id: None,
             session_ka_holdtime,
             session_ka_interval,
+            password: None,
             interface_hello_holdtime,
             interface_hello_interval,
             targeted_hello_holdtime,
             targeted_hello_interval,
             targeted_hello_accept,
             ipv4: None,
+            neighbors: Default::default(),
         }
     }
 }
@@ -564,6 +589,7 @@ impl InstanceState {
             .map_err(IoError::UdpSocketError)?;
         let session_socket = tcp::listen_socket(IpAddr::V4(trans_addr))
             .await
+            .map(Arc::new)
             .map_err(IoError::TcpSocketError)?;
 
         // Start UDP/TCP tasks.
@@ -574,7 +600,7 @@ impl InstanceState {
             &proto_input_tx.udp_pdu_rx,
         );
         let tcp_listener_task =
-            tasks::tcp_listener(session_socket, &proto_input_tx.tcp_accept);
+            tasks::tcp_listener(&session_socket, &proto_input_tx.tcp_accept);
 
         Ok(InstanceState {
             msg_id: Arc::new(AtomicU32::new(0)),
@@ -586,6 +612,7 @@ impl InstanceState {
             ipv4: InstanceIpv4State::new(
                 disc_socket,
                 edisc_socket,
+                session_socket,
                 disc_rx_task,
                 edisc_rx_task,
                 tcp_listener_task,

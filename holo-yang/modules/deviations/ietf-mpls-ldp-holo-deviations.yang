@@ -62,62 +62,6 @@ module ietf-mpls-ldp-holo-deviations {
     deviate not-supported;
   }
 
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ldp:mpls-ldp/ldp:peers/ldp:authentication" {
-    deviate not-supported;
-  }
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ldp:mpls-ldp/ldp:peers/ldp:authentication/ldp:authentication-type" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ldp:mpls-ldp/ldp:peers/ldp:authentication/ldp:authentication-type/ldp:password" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ldp:mpls-ldp/ldp:peers/ldp:authentication/ldp:authentication-type/ldp:password/ldp:key" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ldp:mpls-ldp/ldp:peers/ldp:authentication/ldp:authentication-type/ldp:password/ldp:crypto-algorithm" {
-    deviate not-supported;
-  }
-  */
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ldp:mpls-ldp/ldp:peers/ldp:peer/ldp:authentication" {
-    deviate not-supported;
-  }
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ldp:mpls-ldp/ldp:peers/ldp:peer/ldp:authentication/ldp:authentication-type" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ldp:mpls-ldp/ldp:peers/ldp:peer/ldp:authentication/ldp:authentication-type/ldp:password" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ldp:mpls-ldp/ldp:peers/ldp:peer/ldp:authentication/ldp:authentication-type/ldp:password/ldp:key" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ldp:mpls-ldp/ldp:peers/ldp:peer/ldp:authentication/ldp:authentication-type/ldp:password/ldp:crypto-algorithm" {
-    deviate not-supported;
-  }
-  */
-
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ldp:mpls-ldp/ldp:peers/ldp:peer/ldp:address-families/ldp:ipv4/ldp:hello-adjacencies/ldp:hello-adjacency/ldp:interface" {
     deviate not-supported;
   }

@@ -19,6 +19,18 @@ pub use {
     },
 };
 
+// FFI struct used to set the TCP_MD5SIG socket option.
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct tcp_md5sig {
+    pub tcpm_addr: nix::sys::socket::SockaddrStorage,
+    pub tcpm_flags: u8,
+    pub tcpm_prefixlen: u8,
+    pub tcpm_keylen: u16,
+    pub __tcpm_pad: u32,
+    pub tcpm_key: [u8; 108],
+}
+
 use crate::ip::{AddressFamily, IpAddrKind};
 // Test build: export mock sockets.
 #[cfg(feature = "testing")]
@@ -94,6 +106,13 @@ pub trait TcpSocketExt {
 
     // Sets the value of the IPV6_TCLASS option for this socket.
     fn set_ipv6_tclass(&self, dscp: u8) -> Result<()>;
+
+    // Sets the value of the TCP_MD5SIG option for this socket.
+    fn set_md5sig(
+        &self,
+        dst: &SocketAddr,
+        password: Option<&str>,
+    ) -> Result<()>;
 }
 
 // Extension methods for TcpStream.
@@ -109,6 +128,13 @@ pub trait TcpListenerExt {
 
     // Sets the value of the IPV6_TCLASS option for this socket.
     fn set_ipv6_tclass(&self, dscp: u8) -> Result<()>;
+
+    // Sets the value of the TCP_MD5SIG option for this socket.
+    fn set_md5sig(
+        &self,
+        dst: &SocketAddr,
+        password: Option<&str>,
+    ) -> Result<()>;
 }
 
 // Extension methods for Socket.
@@ -357,6 +383,34 @@ impl TcpSocketExt for TcpSocket {
             std::mem::size_of::<i32>() as libc::socklen_t,
         )
     }
+
+    fn set_md5sig(
+        &self,
+        dst: &SocketAddr,
+        password: Option<&str>,
+    ) -> Result<()> {
+        let mut optval = tcp_md5sig {
+            tcpm_addr: (*dst).into(),
+            tcpm_flags: 0,
+            tcpm_prefixlen: 0,
+            tcpm_keylen: 0,
+            __tcpm_pad: 0,
+            tcpm_key: [0; 108],
+        };
+        if let Some(password) = password {
+            optval.tcpm_keylen = password.len() as u16;
+            optval.tcpm_key[..password.len()]
+                .copy_from_slice(password.as_bytes());
+        }
+
+        setsockopt(
+            self,
+            libc::IPPROTO_TCP,
+            libc::TCP_MD5SIG,
+            &optval as *const _ as *const libc::c_void,
+            std::mem::size_of::<tcp_md5sig>() as libc::socklen_t,
+        )
+    }
 }
 
 // ===== impl TcpStream =====
@@ -401,6 +455,34 @@ impl TcpListenerExt for TcpListener {
             libc::IPV6_TCLASS,
             &optval as *const _ as *const libc::c_void,
             std::mem::size_of::<i32>() as libc::socklen_t,
+        )
+    }
+
+    fn set_md5sig(
+        &self,
+        dst: &SocketAddr,
+        password: Option<&str>,
+    ) -> Result<()> {
+        let mut optval = tcp_md5sig {
+            tcpm_addr: (*dst).into(),
+            tcpm_flags: 0,
+            tcpm_prefixlen: 0,
+            tcpm_keylen: 0,
+            __tcpm_pad: 0,
+            tcpm_key: [0; 108],
+        };
+        if let Some(password) = password {
+            optval.tcpm_keylen = password.len() as u16;
+            optval.tcpm_key[..password.len()]
+                .copy_from_slice(password.as_bytes());
+        }
+
+        setsockopt(
+            self,
+            libc::IPPROTO_TCP,
+            libc::TCP_MD5SIG,
+            &optval as *const _ as *const libc::c_void,
+            std::mem::size_of::<tcp_md5sig>() as libc::socklen_t,
         )
     }
 }

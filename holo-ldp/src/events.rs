@@ -269,6 +269,17 @@ fn process_hello(
             let id = instance.state.neighbors.next_id();
             let kalive_interval = instance.core.config.session_ka_interval;
             let nbr = Neighbor::new(id, lsr_id, trans_addr, kalive_interval);
+            if let Some(password) =
+                instance.core.config.get_neighbor_password(nbr.lsr_id)
+            {
+                // The neighbor password (if any) must be set in the TCP
+                // listening socket otherwise incoming SYN requests will be
+                // rejected.
+                nbr.set_listener_md5sig(
+                    &instance.state.ipv4.session_socket,
+                    Some(password),
+                );
+            }
             instance.state.neighbors.insert(nbr)
         }
     };
@@ -297,8 +308,10 @@ fn process_hello(
         && nbr.tasks.connect.is_none()
         && nbr.tasks.backoff_timeout.is_none()
     {
+        let password = instance.core.config.get_neighbor_password(nbr.lsr_id);
         nbr.connect(
             instance.state.ipv4.trans_addr,
+            password,
             &instance.tx.protocol_input.tcp_connect,
         );
     }
@@ -1289,8 +1302,10 @@ pub(crate) fn process_nbr_backoff_timeout(
     Debug::NbrInitBackoffTimeout(&nbr.lsr_id).log();
 
     nbr.tasks.backoff_timeout = None;
+    let password = instance.core.config.get_neighbor_password(nbr.lsr_id);
     nbr.connect(
         instance.state.ipv4.trans_addr,
+        password,
         &instance.tx.protocol_input.tcp_connect,
     );
 }

@@ -5,7 +5,7 @@
 //
 
 use std::collections::{btree_map, BTreeMap, BTreeSet};
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::atomic::{self, AtomicU32, AtomicU64};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -14,7 +14,7 @@ use bitflags::bitflags;
 use chrono::{DateTime, Utc};
 use holo_utils::ip::AddressFamily;
 use holo_utils::mpls::Label;
-use holo_utils::socket::TcpStream;
+use holo_utils::socket::{TcpListener, TcpListenerExt, TcpStream};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{Sender, UnboundedSender};
 use ipnetwork::IpNetwork;
@@ -22,7 +22,7 @@ use tokio::sync::mpsc;
 
 use crate::collections::{NeighborId, NeighborIndex};
 use crate::debug::Debug;
-use crate::error::Error;
+use crate::error::{Error, IoError};
 use crate::fec::{Fec, LabelMapping, LabelRequest};
 use crate::instance::{InstanceCfg, InstanceState, InstanceUp};
 use crate::network::tcp::ConnectionInfo;
@@ -131,6 +131,11 @@ pub enum LabelDistMode {
 pub enum LabelAdvMode {
     DownstreamUnsolicited,
     DownstreamOnDemand,
+}
+
+#[derive(Debug, Default)]
+pub struct NeighborCfg {
+    pub password: Option<String>,
 }
 
 // Session Initialization FSM:
@@ -456,10 +461,11 @@ impl Neighbor {
     pub(crate) fn connect<I: Into<IpAddr>>(
         &mut self,
         local_addr: I,
+        password: Option<&str>,
         tcp_connectp: &Sender<TcpConnectMsg>,
     ) {
         let local_addr = local_addr.into();
-        let task = tasks::tcp_connect(self, local_addr, tcp_connectp);
+        let task = tasks::tcp_connect(self, local_addr, password, tcp_connectp);
         self.tasks.connect = Some(task);
     }
 
@@ -513,6 +519,20 @@ impl Neighbor {
         self.uptime = None;
         self.tasks = Default::default();
         self.pdu_txp = None;
+    }
+
+    pub(crate) fn set_listener_md5sig(
+        &self,
+        socket: &TcpListener,
+        password: Option<&str>,
+    ) {
+        #[cfg(not(feature = "testing"))]
+        {
+            let dst = SocketAddr::new(self.trans_addr, 0);
+            if let Err(error) = socket.set_md5sig(&dst, password) {
+                IoError::TcpAuthError(error).log();
+            }
+        }
     }
 
     pub(crate) fn is_operational(&self) -> bool {

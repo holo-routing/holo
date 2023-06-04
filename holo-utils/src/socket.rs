@@ -8,6 +8,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 use std::os::raw::{c_int, c_void};
 use std::os::unix::io::AsRawFd;
 
+use libc::ip_mreqn;
 // Normal build: re-export standard socket types.
 #[cfg(not(feature = "testing"))]
 pub use {
@@ -25,15 +26,6 @@ pub use crate::socket::mock::{
     OwnedReadHalf, OwnedWriteHalf, Socket, TcpListener, TcpSocket, TcpStream,
     UdpSocket,
 };
-
-// FFI struct used to set certain socket options.
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct ip_mreqn {
-    pub imr_multiaddr: libc::in_addr,
-    pub imr_address: libc::in_addr,
-    pub imr_ifindex: c_int,
-}
 
 // Useful type definition.
 type Result<T> = std::io::Result<T>;

@@ -173,18 +173,29 @@ fn main() {
         std::process::exit(1);
     }));
 
-    // Create async runtime.
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .expect("failed to create async runtime");
-
     // We're ready to go!
     info!("starting up");
 
-    // Serve northbound clients.
-    rt.block_on(async {
+    // Main loop.
+    let main = || async {
+        // Serve northbound clients.
         let nb = Northbound::init(&config).await;
         nb.run().await;
-    });
+    };
+    #[cfg(not(feature = "io_uring"))]
+    {
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("failed to create async runtime")
+            .block_on(async {
+                main().await;
+            });
+    }
+    #[cfg(feature = "io_uring")]
+    {
+        tokio_uring::start(async {
+            main().await;
+        });
+    }
 }

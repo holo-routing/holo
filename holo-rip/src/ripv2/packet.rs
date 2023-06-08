@@ -8,7 +8,7 @@ use std::net::Ipv4Addr;
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use derive_new::new;
-use holo_utils::bytes::{BytesExt, BytesMutExt};
+use holo_utils::bytes::{BytesExt, BytesMutExt, TLS_BUF};
 use ipnetwork::Ipv4Network;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
@@ -113,23 +113,22 @@ impl PduVersion<Ipv4Addr, Ipv4Network, DecodeError> for Pdu {
     }
 
     fn encode(&self) -> BytesMut {
-        // Calculate PDU length.
-        let size = Self::HDR_LENGTH + self.rtes.len() * Rte::LENGTH;
+        TLS_BUF.with(|buf| {
+            let mut buf = buf.borrow_mut();
+            buf.clear();
 
-        // Pre-allocate buffer to hold the entire PDU.
-        let mut buf = BytesMut::with_capacity(size);
+            // Encode PDU header.
+            buf.put_u8(self.command as u8);
+            buf.put_u8(self.version);
+            buf.put_u16(0);
 
-        // Encode PDU header.
-        buf.put_u8(self.command as u8);
-        buf.put_u8(self.version);
-        buf.put_u16(0);
+            // Encode RTEs.
+            for rte in &self.rtes {
+                rte.encode(&mut buf);
+            }
 
-        // Encode RTEs.
-        for rte in &self.rtes {
-            rte.encode(&mut buf);
-        }
-
-        buf
+            buf.clone()
+        })
     }
 
     fn decode(data: &[u8]) -> Result<Self, DecodeError> {

@@ -181,7 +181,7 @@ Holo supports the following IETF RFCs and Internet drafts:
 
 This project is licensed under the [MIT license].
 
-[MIT license]: https://github.com/rwestphal/holo/blob/devel/LICENSE
+[MIT license]: https://github.com/rwestphal/holo/blob/master/LICENSE
 
 ### Contribution
 

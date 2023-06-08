@@ -70,7 +70,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let count = master
                 .sessions
                 .iter()
-                .filter(|sess| sess.key.as_ip_single_hop().is_some())
+                .filter(|sess| sess.key.is_ip_single_hop())
                 .count();
             Some(count as u32)
         })
@@ -79,7 +79,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let count = master
                 .sessions
                 .iter()
-                .filter(|sess| sess.key.as_ip_single_hop().is_some())
+                .filter(|sess| sess.key.is_ip_single_hop())
                 .filter(|sess| sess.state.local_state == State::Up)
                 .count();
             Some(count as u32)
@@ -89,7 +89,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let count = master
                 .sessions
                 .iter()
-                .filter(|sess| sess.key.as_ip_single_hop().is_some())
+                .filter(|sess| sess.key.is_ip_single_hop())
                 .filter(|sess| sess.state.local_state == State::Down)
                 .count();
             Some(count as u32)
@@ -99,7 +99,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let count = master
                 .sessions
                 .iter()
-                .filter(|sess| sess.key.as_ip_single_hop().is_some())
+                .filter(|sess| sess.key.is_ip_single_hop())
                 .filter(|sess| sess.state.local_state == State::AdminDown)
                 .count();
             Some(count as u32)
@@ -109,7 +109,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let iter = master
                 .sessions
                 .iter()
-                .filter(|sess| sess.key.as_ip_single_hop().is_some())
+                .filter(|sess| sess.key.is_ip_single_hop())
                 .map(ListEntry::Session);
             Some(Box::new(iter))
         })
@@ -259,7 +259,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let count = master
                 .sessions
                 .iter()
-                .filter(|sess| sess.key.as_ip_multihop().is_some())
+                .filter(|sess| sess.key.is_ip_multihop())
                 .count();
             Some(count as u32)
         })
@@ -268,7 +268,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let count = master
                 .sessions
                 .iter()
-                .filter(|sess| sess.key.as_ip_multihop().is_some())
+                .filter(|sess| sess.key.is_ip_multihop())
                 .filter(|sess| sess.state.local_state == State::Up)
                 .count();
             Some(count as u32)
@@ -278,7 +278,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let count = master
                 .sessions
                 .iter()
-                .filter(|sess| sess.key.as_ip_multihop().is_some())
+                .filter(|sess| sess.key.is_ip_multihop())
                 .filter(|sess| sess.state.local_state == State::Down)
                 .count();
             Some(count as u32)
@@ -288,7 +288,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let count = master
                 .sessions
                 .iter()
-                .filter(|sess| sess.key.as_ip_multihop().is_some())
+                .filter(|sess| sess.key.is_ip_multihop())
                 .filter(|sess| sess.state.local_state == State::AdminDown)
                 .count();
             Some(count as u32)
@@ -298,7 +298,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let iter = master
                 .sessions
                 .iter()
-                .filter(|sess| sess.key.as_ip_multihop().is_some())
+                .filter(|sess| sess.key.is_ip_multihop())
                 .map(ListEntry::Session);
             Some(Box::new(iter))
         })

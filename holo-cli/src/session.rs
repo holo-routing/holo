@@ -305,12 +305,4 @@ impl CommandMode {
             }
         }
     }
-
-    pub(crate) fn is_operational(&self) -> bool {
-        matches!(self, CommandMode::Operational)
-    }
-
-    pub(crate) fn is_configure(&self) -> bool {
-        matches!(self, CommandMode::Configure { .. })
-    }
 }

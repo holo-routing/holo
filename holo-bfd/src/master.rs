@@ -77,14 +77,10 @@ impl Master {
     // one BFD session of that path type. This is done to avoid creating UDP
     // sockets that are not necessary.
     pub(crate) fn update_udp_rx_tasks(&mut self) {
-        let ip_sh_sessions = self
-            .sessions
-            .iter()
-            .any(|sess| sess.key.as_ip_single_hop().is_some());
-        let ip_mh_sessions = self
-            .sessions
-            .iter()
-            .any(|sess| sess.key.as_ip_multihop().is_some());
+        let ip_sh_sessions =
+            self.sessions.iter().any(|sess| sess.key.is_ip_single_hop());
+        let ip_mh_sessions =
+            self.sessions.iter().any(|sess| sess.key.is_ip_multihop());
         let udp_packet_rxp = &self.tx.protocol_input.udp_packet_rx;
 
         // Update IP single-hop Rx tasks.

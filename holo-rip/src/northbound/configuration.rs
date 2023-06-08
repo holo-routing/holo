@@ -165,7 +165,7 @@ where
             iface.core_mut().config.no_listen = true;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::JoinMulticast(iface_idx));
+            event_queue.insert(Event::LeaveMulticast(iface_idx));
         })
         .delete_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -174,7 +174,7 @@ where
             iface.core_mut().config.no_listen = false;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::LeaveMulticast(iface_idx));
+            event_queue.insert(Event::JoinMulticast(iface_idx));
         })
         .path(rip::interfaces::interface::passive::PATH)
         .create_apply(|instance, args| {

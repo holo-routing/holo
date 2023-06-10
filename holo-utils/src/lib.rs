@@ -14,6 +14,7 @@
 pub mod bfd;
 pub mod bytes;
 pub mod capabilities;
+pub mod crypto;
 pub mod ibus;
 pub mod ip;
 pub mod mpls;

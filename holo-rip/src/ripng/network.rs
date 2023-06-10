@@ -28,15 +28,14 @@ static RIPNG_MCAST_SOCKADDR: Lazy<SocketAddr> = Lazy::new(|| {
 impl NetworkVersion for Ripng {
     const UDP_PORT: u16 = 521;
 
-    async fn socket() -> Result<UdpSocket, std::io::Error> {
+    fn socket(ifname: &str) -> Result<UdpSocket, std::io::Error> {
         #[cfg(not(feature = "testing"))]
         {
             let sockaddr =
                 SocketAddr::from((Ipv6Addr::UNSPECIFIED, Self::UDP_PORT));
-            let socket = capabilities::raise_async(|| {
-                Box::pin(UdpSocket::bind(sockaddr))
-            })
-            .await?;
+            let socket =
+                capabilities::raise(|| UdpSocket::bind_reuseaddr(sockaddr))?;
+            socket.bind_device(Some(ifname.as_bytes())).unwrap();
             socket.set_multicast_loop_v6(false)?;
             socket.set_ipv6_tclass(libc::IPTOS_PREC_INTERNETCONTROL)?;
 

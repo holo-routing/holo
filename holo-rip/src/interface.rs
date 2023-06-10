@@ -5,6 +5,7 @@
 //
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use enum_as_inner::EnumAsInner;
@@ -13,18 +14,22 @@ use holo_northbound::paths::control_plane_protocol::rip;
 use holo_protocol::InstanceChannelsTx;
 use holo_utils::ip::{IpNetworkKind, SocketAddrKind};
 use holo_utils::socket::UdpSocket;
+use holo_utils::task::Task;
+use holo_utils::UnboundedSender;
 use holo_yang::TryFromYang;
+use tokio::sync::mpsc;
 
 use crate::debug::{Debug, InterfaceInactiveReason};
-use crate::error::IoError;
+use crate::error::{Error, IoError};
 use crate::instance::{Instance, InstanceState};
 use crate::network::SendDestination;
-use crate::output;
 use crate::route::Metric;
+use crate::tasks::messages::output::UdpTxPduMsg;
 use crate::version::Version;
+use crate::{output, tasks};
 
 pub type InterfaceIndex = Index;
-pub type InterfaceUp<V> = InterfaceCommon<V, InterfaceState>;
+pub type InterfaceUp<V> = InterfaceCommon<V, InterfaceState<V>>;
 pub type InterfaceDown<V> = InterfaceCommon<V, InterfaceStateDown>;
 
 #[allow(clippy::large_enum_variant)]
@@ -72,12 +77,26 @@ pub struct InterfaceCfg<V: Version> {
 }
 
 #[derive(Debug)]
-pub struct InterfaceState {
+pub struct InterfaceState<V: Version> {
+    // UDP socket and Tx/Rx tasks.
+    pub net: Option<InterfaceNet<V>>,
+    // Message statistics.
     pub statistics: MessageStatistics,
 }
 
 #[derive(Debug)]
 pub struct InterfaceStateDown();
+
+#[derive(Debug)]
+pub struct InterfaceNet<V: Version> {
+    // UDP socket.
+    pub socket: Arc<UdpSocket>,
+    // UDP Tx/Rx tasks.
+    _udp_tx_task: Task<()>,
+    _udp_rx_task: Task<()>,
+    // UDP Tx output channel.
+    pub udp_tx_pdup: UnboundedSender<UdpTxPduMsg<V>>,
+}
 
 #[derive(Debug)]
 pub enum SplitHorizon {
@@ -140,7 +159,7 @@ where
     ) {
         match self.is_ready() {
             Ok(()) if !self.is_active() => {
-                self.start(instance_state);
+                self.start(instance_state, instance_channels_tx);
             }
             Err(reason) if self.is_active() => {
                 self.stop(instance_state, instance_channels_tx, reason);
@@ -150,11 +169,23 @@ where
     }
 
     // Starts RIP operation on this interface.
-    fn start(&mut self, instance_state: &mut InstanceState<V>) {
+    fn start(
+        &mut self,
+        instance_state: &mut InstanceState<V>,
+        instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
+    ) {
         let iface = std::mem::replace(self, Interface::Transitioning)
             .into_down()
             .unwrap();
-        *self = Interface::Up(iface.start(instance_state));
+        match iface.start(instance_state, instance_channels_tx) {
+            Ok(iface) => {
+                *self = Interface::Up(iface);
+            }
+            Err(error) => {
+                let ifname = self.core().name.clone();
+                Error::<V>::InterfaceStartError(ifname, error).log();
+            }
+        }
     }
 
     // Stops RIP operation on this interface.
@@ -222,7 +253,7 @@ where
 // ===== impl InterfaceCommon =====
 
 // Active RIP interface.
-impl<V> InterfaceCommon<V, InterfaceState>
+impl<V> InterfaceCommon<V, InterfaceState<V>>
 where
     V: Version,
 {
@@ -233,8 +264,6 @@ where
         reason: InterfaceInactiveReason,
     ) -> InterfaceCommon<V, InterfaceStateDown> {
         Debug::<V>::InterfaceStop(&self.core.name, reason).log();
-
-        self.core.system.leave_multicast(&instance_state.socket);
 
         // Invalidate all routes that go through this interface.
         for route in instance_state
@@ -290,19 +319,26 @@ where
     fn start(
         self,
         instance_state: &mut InstanceState<V>,
-    ) -> InterfaceCommon<V, InterfaceState> {
+        instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
+    ) -> Result<InterfaceCommon<V, InterfaceState<V>>, IoError> {
         Debug::<V>::InterfaceStart(&self.core.name).log();
 
         let mut iface = InterfaceCommon {
             core: self.core,
             state: InterfaceState {
+                net: None,
                 statistics: Default::default(),
             },
         };
 
-        // Join RIP multicast address.
-        if !iface.core.config.no_listen {
-            iface.core.system.join_multicast(&instance_state.socket);
+        // Start network Tx/Rx tasks.
+        if !iface.core.system.loopback {
+            let net =
+                InterfaceNet::new(&iface.core.name, instance_channels_tx)?;
+            if !iface.core.config.no_listen {
+                iface.core.system.join_multicast(&net.socket);
+            }
+            iface.state.net = Some(net);
         }
 
         // Send RIP request.
@@ -312,7 +348,44 @@ where
             });
         }
 
-        iface
+        Ok(iface)
+    }
+}
+
+// ===== impl InterfaceNet =====
+
+impl<V> InterfaceNet<V>
+where
+    V: Version,
+{
+    fn new(
+        ifname: &str,
+        instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
+    ) -> Result<Self, IoError> {
+        // Create UDP socket.
+        let socket = V::socket(ifname)
+            .map_err(IoError::UdpSocketError)
+            .map(Arc::new)?;
+
+        // Start UDP Tx/Rx tasks.
+        let (udp_tx_pdup, udp_tx_pduc) = mpsc::unbounded_channel();
+        let udp_tx_task = tasks::udp_tx(
+            &socket,
+            udp_tx_pduc,
+            #[cfg(feature = "testing")]
+            &instance_channels_tx.protocol_output,
+        );
+        let udp_rx_task = tasks::udp_rx(
+            &socket,
+            &instance_channels_tx.protocol_input.udp_pdu_rx,
+        );
+
+        Ok(InterfaceNet {
+            socket,
+            _udp_tx_task: udp_tx_task,
+            _udp_rx_task: udp_rx_task,
+            udp_tx_pdup,
+        })
     }
 }
 

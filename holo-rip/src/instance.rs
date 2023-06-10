@@ -6,7 +6,6 @@
 
 use std::collections::BTreeMap;
 use std::net::Ipv4Addr;
-use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -18,13 +17,11 @@ use holo_southbound::rx::SouthboundRx;
 use holo_southbound::tx::SouthboundTx;
 use holo_utils::ibus::IbusMsg;
 use holo_utils::protocol::Protocol;
-use holo_utils::socket::UdpSocket;
-use holo_utils::task::{IntervalTask, Task, TimeoutTask};
+use holo_utils::task::{IntervalTask, TimeoutTask};
 use holo_utils::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 use tokio::sync::mpsc;
 
 use crate::debug::{Debug, InstanceInactiveReason, InterfaceInactiveReason};
-use crate::error::{Error, IoError};
 use crate::interface::Interfaces;
 use crate::neighbor::Neighbor;
 use crate::packet::Command;
@@ -35,7 +32,6 @@ use crate::tasks::messages::input::{
     InitialUpdateMsg, NbrTimeoutMsg, RouteGcTimeoutMsg, RouteTimeoutMsg,
     TriggeredUpdMsg, TriggeredUpdTimeoutMsg, UdpRxPduMsg, UpdateIntervalMsg,
 };
-use crate::tasks::messages::output::UdpTxPduMsg;
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
 use crate::version::Version;
 use crate::{events, tasks};
@@ -91,19 +87,12 @@ pub struct InstanceCfg {
 
 #[derive(Debug)]
 pub struct InstanceState<V: Version> {
-    // UDP socket.
-    pub socket: Arc<UdpSocket>,
-    // UDP Tx/Rx tasks.
-    _udp_tx_task: Task<()>,
-    _udp_rx_task: Task<()>,
     // Outbound update tasks.
     pub initial_update_task: Option<TimeoutTask>,
     pub update_interval_task: IntervalTask,
     // Triggered update information.
     pub triggered_upd_timeout_task: Option<TimeoutTask>,
     pub pending_trigger_upd: bool,
-    // UDP Tx output channel.
-    pub udp_tx_pdup: UnboundedSender<UdpTxPduMsg<V>>,
     // RIP neighbors.
     pub neighbors: BTreeMap<V::IpAddr, Neighbor<V>>,
     // RIP routing table.
@@ -176,7 +165,7 @@ where
     pub(crate) async fn update(&mut self) {
         match self.is_ready() {
             Ok(()) if !self.is_active() => {
-                self.try_start().await;
+                self.start().await;
             }
             Err(reason) if self.is_active() => {
                 self.stop(reason);
@@ -185,21 +174,14 @@ where
         }
     }
 
-    async fn try_start(&mut self) {
+    async fn start(&mut self) {
         let instance = &self.as_down().unwrap();
         let update_interval = instance.core.config.update_interval;
-
-        match InstanceState::new(update_interval, &instance.tx).await {
-            Ok(state) => {
-                let instance = std::mem::replace(self, Instance::Transitioning)
-                    .into_down()
-                    .unwrap();
-                *self = Instance::Up(instance.start(state));
-            }
-            Err(error) => {
-                Error::<V>::InstanceStartError(Box::new(error)).log();
-            }
-        }
+        let instance = std::mem::replace(self, Instance::Transitioning)
+            .into_down()
+            .unwrap();
+        let state = InstanceState::new(update_interval, &instance.tx).await;
+        *self = Instance::Up(instance.start(state));
     }
 
     fn stop(&mut self, reason: InstanceInactiveReason) {
@@ -476,21 +458,7 @@ where
     async fn new(
         update_interval: u16,
         tx: &InstanceChannelsTx<Instance<V>>,
-    ) -> Result<InstanceState<V>, Error<V>> {
-        // Create UDP socket.
-        let socket = V::socket().await.map_err(IoError::UdpSocketError)?;
-        let socket = Arc::new(socket);
-
-        // Start UDP Tx/Rx tasks.
-        let (udp_tx_pdup, udp_tx_pduc) = mpsc::unbounded_channel();
-        let udp_tx_task = tasks::udp_tx(
-            &socket,
-            udp_tx_pduc,
-            #[cfg(feature = "testing")]
-            &tx.protocol_output,
-        );
-        let udp_rx_task = tasks::udp_rx(&socket, &tx.protocol_input.udp_pdu_rx);
-
+    ) -> InstanceState<V> {
         // Start initial update timeout task.
         let initial_update_task =
             tasks::initial_update(&tx.protocol_input.initial_update);
@@ -502,19 +470,15 @@ where
             &tx.protocol_input.update_interval,
         );
 
-        Ok(InstanceState {
-            socket,
-            _udp_tx_task: udp_tx_task,
-            _udp_rx_task: udp_rx_task,
+        InstanceState {
             initial_update_task: Some(initial_update_task),
             update_interval_task,
             triggered_upd_timeout_task: None,
             pending_trigger_upd: false,
-            udp_tx_pdup,
             neighbors: Default::default(),
             routes: Default::default(),
             statistics: Default::default(),
-        })
+        }
     }
 
     pub(crate) fn next_update(&self) -> Duration {

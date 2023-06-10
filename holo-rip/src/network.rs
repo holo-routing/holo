@@ -32,7 +32,7 @@ pub trait NetworkVersion {
     const UDP_PORT: u16;
 
     // Create a RIP socket.
-    async fn socket() -> Result<UdpSocket, std::io::Error>;
+    fn socket(ifname: &str) -> Result<UdpSocket, std::io::Error>;
 
     // Join the RIP multicast group.
     fn join_multicast(
@@ -60,7 +60,7 @@ pub trait NetworkVersion {
 
 #[cfg(not(feature = "testing"))]
 pub(crate) async fn send_packet<V>(
-    socket: &Arc<UdpSocket>,
+    socket: &UdpSocket,
     pdu: V::Pdu,
     dst: SendDestination<V::SocketAddr>,
 ) -> Result<(), std::io::Error>

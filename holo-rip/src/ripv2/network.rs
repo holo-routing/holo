@@ -28,15 +28,14 @@ static RIPV2_MCAST_SOCKADDR: Lazy<SocketAddr> = Lazy::new(|| {
 impl NetworkVersion for Ripv2 {
     const UDP_PORT: u16 = 520;
 
-    async fn socket() -> Result<UdpSocket, std::io::Error> {
+    fn socket(ifname: &str) -> Result<UdpSocket, std::io::Error> {
         #[cfg(not(feature = "testing"))]
         {
             let sockaddr =
                 SocketAddr::from((Ipv4Addr::UNSPECIFIED, Self::UDP_PORT));
-            let socket = capabilities::raise_async(|| {
-                Box::pin(UdpSocket::bind(sockaddr))
-            })
-            .await?;
+            let socket =
+                capabilities::raise(|| UdpSocket::bind_reuseaddr(sockaddr))?;
+            socket.bind_device(Some(ifname.as_bytes())).unwrap();
             socket.set_multicast_loop_v4(false)?;
             socket.set_multicast_ttl_v4(1)?;
             socket.set_ipv4_tos(libc::IPTOS_PREC_INTERNETCONTROL)?;

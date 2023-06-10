@@ -47,7 +47,9 @@ pub(crate) fn send_pdu<V>(
     }
 
     // Send packet.
-    let _ = instance_state.udp_tx_pdup.send(UdpTxPduMsg { dst, pdu });
+    if let Some(net) = &iface.state.net {
+        let _ = net.udp_tx_pdup.send(UdpTxPduMsg { dst, pdu });
+    }
 }
 
 pub(crate) fn send_request<V>(

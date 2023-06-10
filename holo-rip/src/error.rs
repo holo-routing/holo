@@ -14,8 +14,7 @@ pub enum Error<V: Version> {
     IoError(IoError),
     UdpInvalidSourceAddr(V::IpAddr),
     UdpPduDecodeError(V::PduDecodeError),
-    InstanceStartError(Box<Error<V>>),
-    InterfaceStartError(String, Box<Error<V>>),
+    InterfaceStartError(String, IoError),
 }
 
 // RIP I/O errors.
@@ -51,9 +50,6 @@ where
             Error::UdpPduDecodeError(error) => {
                 warn!(%error, "{}", self);
             }
-            Error::InstanceStartError(error) => {
-                error!(error = %with_source(error), "{}", self);
-            }
             Error::InterfaceStartError(name, error) => {
                 error!(%name, error = %with_source(error), "{}", self);
             }
@@ -74,9 +70,6 @@ where
             Error::UdpPduDecodeError(..) => {
                 write!(f, "failed to decode PDU")
             }
-            Error::InstanceStartError(..) => {
-                write!(f, "failed to start instance")
-            }
             Error::InterfaceStartError(..) => {
                 write!(f, "failed to start interface")
             }
@@ -92,7 +85,6 @@ where
         match self {
             Error::IoError(error) => Some(error),
             Error::UdpPduDecodeError(error) => Some(error),
-            Error::InstanceStartError(error) => Some(error),
             Error::InterfaceStartError(_, error) => Some(error),
             _ => None,
         }

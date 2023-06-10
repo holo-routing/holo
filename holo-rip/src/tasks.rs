@@ -25,10 +25,10 @@ use crate::version::Version;
 //                    northbound_rx (1x) V | (1x) northbound_tx
 //                                 +--------------+
 //                                 |              |
-//                  udp_rx (1x) -> |              |
+//                  udp_rx (Nx) -> |              |
 //        initial_update (0/1x) -> |              |
 //         update_interval (1x) -> |              |
-//         triggered_upd (0/1x) -> |   instance   | -> (1x) udp_tx
+//         triggered_upd (0/1x) -> |   instance   | -> (Nx) udp_tx
 // triggered_upd_timeout (0/1x) -> |              |
 //             nbr_timeout (Nx) -> |              |
 //           route_timeout (Nx) -> |              |

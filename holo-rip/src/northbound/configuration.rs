@@ -337,10 +337,9 @@ where
                 if let Instance::Up(instance) = self {
                     let iface = &mut instance.core.interfaces[iface_idx];
                     if let Interface::Up(iface) = iface {
-                        iface
-                            .core
-                            .system
-                            .join_multicast(&instance.state.socket);
+                        if let Some(net) = &iface.state.net {
+                            iface.core.system.join_multicast(&net.socket);
+                        }
                     }
                 }
             }
@@ -348,10 +347,9 @@ where
                 if let Instance::Up(instance) = self {
                     let iface = &mut instance.core.interfaces[iface_idx];
                     if let Interface::Up(iface) = iface {
-                        iface
-                            .core
-                            .system
-                            .leave_multicast(&instance.state.socket);
+                        if let Some(net) = &iface.state.net {
+                            iface.core.system.leave_multicast(&net.socket);
+                        }
                     }
                 }
             }

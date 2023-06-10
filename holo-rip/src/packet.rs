@@ -4,7 +4,12 @@
 // See LICENSE for license details.
 //
 
+use std::sync::atomic::AtomicU32;
+use std::sync::Arc;
+
 use bytes::BytesMut;
+use derive_new::new;
+use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::{IpAddrKind, IpNetworkKind};
 use num_derive::FromPrimitive;
 use serde::de::DeserializeOwned;
@@ -17,6 +22,17 @@ use crate::route::Metric;
 pub enum Command {
     Request = 1,
     Response = 2,
+}
+
+#[derive(Clone, Debug, new)]
+#[derive(Deserialize, Serialize)]
+pub struct AuthCtx {
+    // Authentication key.
+    pub key: String,
+    // Authentication cryptographic algorithm.
+    pub algo: CryptoAlgo,
+    // Non-decreasing sequence number (only used for encoding packets).
+    pub seqno: Arc<AtomicU32>,
 }
 
 // RIP version-specific code.
@@ -33,10 +49,11 @@ pub trait PduVersion<
     fn new(command: Command, rtes: Vec<Self::Rte>) -> Self;
 
     // Encode PDU into a bytes buffer.
-    fn encode(&self) -> BytesMut;
+    fn encode(&self, auth: Option<&AuthCtx>) -> BytesMut;
 
     // Decode PDU from a bytes buffer.
-    fn decode(data: &[u8]) -> Result<Self, DecodeError>;
+    fn decode(data: &[u8], auth: Option<&AuthCtx>)
+        -> Result<Self, DecodeError>;
 
     // Return the PDU command.
     fn command(&self) -> Command;
@@ -55,6 +72,9 @@ pub trait PduVersion<
 
     // Return list of invalid RTEs.
     fn rte_errors(&mut self) -> Vec<DecodeError>;
+
+    // Return the PDU authentication sequence number.
+    fn auth_seqno(&self) -> Option<u32>;
 
     // Create a request to send the entire routing table.
     fn new_dump_request() -> Self;

@@ -11,7 +11,7 @@
     allow(dead_code, unused_variables, unused_imports)
 )]
 #![allow(clippy::too_many_arguments)]
-#![feature(ip, lazy_cell)]
+#![feature(ip, lazy_cell, let_chains)]
 
 pub mod debug;
 pub mod error;

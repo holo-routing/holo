@@ -51,6 +51,28 @@ pub(crate) fn process_pdu<V>(
 
     match pdu {
         Ok(mut pdu) => {
+            if let Some(auth_seqno) = pdu.auth_seqno() {
+                // Perform sequence number validation to protect against replay
+                // attacks when authentication is enabled.
+                if auth_seqno < nbr.auth_seqno {
+                    // Log the error first.
+                    Error::<V>::UdpPduAuthInvalidSeqno(src, auth_seqno).log();
+
+                    // Update neighbor statistics.
+                    nbr.bad_packets_rcvd += 1;
+
+                    // Update interface statistics.
+                    iface.state.statistics.bad_packets_rcvd += 1;
+                    iface.state.statistics.update_discontinuity_time();
+
+                    // Discard the packet.
+                    return;
+                }
+
+                // Update neighbor's last received sequence number.
+                nbr.auth_seqno = auth_seqno;
+            }
+
             // Update statistics.
             instance.state.statistics.update(pdu.command(), false);
             for rte_error in pdu.rte_errors() {

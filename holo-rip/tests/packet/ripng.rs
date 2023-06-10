@@ -20,12 +20,12 @@ use ipnetwork::Ipv6Network;
 //
 
 fn test_encode_pdu(bytes_expected: &[u8], pdu: &DecodeResult<Pdu>) {
-    let bytes_actual = pdu.as_ref().unwrap().encode();
+    let bytes_actual = pdu.as_ref().unwrap().encode(None);
     assert_eq!(bytes_expected, bytes_actual);
 }
 
 fn test_decode_pdu(bytes: &[u8], pdu_expected: &DecodeResult<Pdu>) {
-    let pdu_actual = Pdu::decode(&bytes);
+    let pdu_actual = Pdu::decode(&bytes, None);
     assert_eq!(*pdu_expected, pdu_actual);
 }
 

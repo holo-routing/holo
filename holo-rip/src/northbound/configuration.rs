@@ -14,9 +14,10 @@ use holo_northbound::configuration::{
     ValidationCallbacksBuilder,
 };
 use holo_northbound::paths::control_plane_protocol::rip;
+use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::IpAddrKind;
 use holo_utils::yang::DataNodeRefExt;
-use holo_yang::TryFromYang;
+use holo_yang::{ToYang, TryFromYang};
 
 use crate::debug::{Debug, InterfaceInactiveReason};
 use crate::instance::Instance;
@@ -39,6 +40,7 @@ pub enum Event {
     InterfaceUpdate(InterfaceIndex),
     InterfaceDelete(InterfaceIndex),
     InterfaceCostUpdate(InterfaceIndex),
+    InterfaceRestartNetTasks(InterfaceIndex),
     JoinMulticast(InterfaceIndex),
     LeaveMulticast(InterfaceIndex),
     ReinstallRoutes,
@@ -51,9 +53,9 @@ pub static VALIDATION_CALLBACKS_RIPV2: Lazy<ValidationCallbacks> =
 pub static VALIDATION_CALLBACKS_RIPNG: Lazy<ValidationCallbacks> =
     Lazy::new(load_validation_callbacks_ripng);
 pub static CALLBACKS_RIPV2: Lazy<Callbacks<Instance<Ripv2>>> =
-    Lazy::new(load_callbacks);
+    Lazy::new(load_callbacks_ripv2);
 pub static CALLBACKS_RIPNG: Lazy<Callbacks<Instance<Ripng>>> =
-    Lazy::new(load_callbacks);
+    Lazy::new(load_callbacks_ripng);
 
 // ===== callbacks =====
 
@@ -218,12 +220,79 @@ where
         .build()
 }
 
+fn load_callbacks_ripv2() -> Callbacks<Instance<Ripv2>> {
+    let core_cbs = load_callbacks();
+    CallbacksBuilder::<Instance<Ripv2>>::new(core_cbs)
+        .path(rip::interfaces::interface::authentication::key::PATH)
+        .modify_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.core_mut().interfaces[iface_idx];
+
+            let auth_key = args.dnode.get_string();
+            iface.core_mut().config.auth_key = Some(auth_key);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceRestartNetTasks(iface_idx));
+        })
+        .delete_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.core_mut().interfaces[iface_idx];
+
+            iface.core_mut().config.auth_key = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceRestartNetTasks(iface_idx));
+        })
+        .path(
+            rip::interfaces::interface::authentication::crypto_algorithm::PATH,
+        )
+        .modify_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.core_mut().interfaces[iface_idx];
+
+            let auth_algo = args.dnode.get_string();
+            let auth_algo = CryptoAlgo::try_from_yang(&auth_algo).unwrap();
+            iface.core_mut().config.auth_algo = Some(auth_algo);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceRestartNetTasks(iface_idx));
+        })
+        .delete_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.core_mut().interfaces[iface_idx];
+
+            iface.core_mut().config.auth_algo = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceRestartNetTasks(iface_idx));
+        })
+        .build()
+}
+
+fn load_callbacks_ripng() -> Callbacks<Instance<Ripng>> {
+    let core_cbs = load_callbacks();
+    CallbacksBuilder::<Instance<Ripng>>::new(core_cbs).build()
+}
+
 fn load_validation_callbacks_ripv2() -> ValidationCallbacks {
     ValidationCallbacksBuilder::default()
         .path(rip::interfaces::interface::neighbors::neighbor::address::PATH)
         .validate(|args| {
             if args.dnode.get_ip().is_ipv6() {
                 return Err("unexpected IPv6 address".to_owned());
+            }
+            Ok(())
+        })
+        .path(
+            rip::interfaces::interface::authentication::crypto_algorithm::PATH,
+        )
+        .validate(|args| {
+            let algo = args.dnode.get_string();
+            if algo != CryptoAlgo::Md5.to_yang() {
+                return Err(format!(
+                    "unsupported cryptographic algorithm (valid options: \"{}\")",
+                    CryptoAlgo::Md5.to_yang()
+                ));
             }
             Ok(())
         })
@@ -333,6 +402,24 @@ where
                     }
                 }
             }
+            Event::InterfaceRestartNetTasks(iface_idx) => {
+                let instance = match self.as_up_mut() {
+                    Some(instance) => instance,
+                    None => return,
+                };
+                let iface = &mut instance.core.interfaces[iface_idx];
+                let iface = match iface.as_up_mut() {
+                    Some(iface) => iface,
+                    None => return,
+                };
+
+                // Restart network Tx/Rx tasks.
+                let auth = iface.auth(&instance.state.auth_seqno);
+                if let Some(net) = &mut iface.state.net {
+                    net.restart_tasks(auth, &instance.tx);
+                }
+            }
+
             Event::JoinMulticast(iface_idx) => {
                 if let Instance::Up(instance) = self {
                     let iface = &mut instance.core.interfaces[iface_idx];

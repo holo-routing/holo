@@ -15,7 +15,8 @@ use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
 use crate::packet::{
-    Command, DecodeErrorVersion, PduVersion, RteRouteVersion, RteVersion,
+    AuthCtx, Command, DecodeErrorVersion, PduVersion, RteRouteVersion,
+    RteVersion,
 };
 use crate::route::Metric;
 
@@ -106,7 +107,8 @@ impl PduVersion<Ipv6Addr, Ipv6Network, DecodeError> for Pdu {
         Pdu::new(command, rtes)
     }
 
-    fn encode(&self) -> BytesMut {
+    // NOTE: RIPng supports only IPSec authentication.
+    fn encode(&self, _auth: Option<&AuthCtx>) -> BytesMut {
         TLS_BUF.with(|buf| {
             let mut buf = buf.borrow_mut();
             buf.clear();
@@ -125,7 +127,11 @@ impl PduVersion<Ipv6Addr, Ipv6Network, DecodeError> for Pdu {
         })
     }
 
-    fn decode(data: &[u8]) -> Result<Self, DecodeError> {
+    // NOTE: RIPng supports only IPSec authentication.
+    fn decode(
+        data: &[u8],
+        _auth: Option<&AuthCtx>,
+    ) -> Result<Self, DecodeError> {
         let mut buf = Bytes::copy_from_slice(data);
 
         // Validate the packet length.
@@ -208,6 +214,10 @@ impl PduVersion<Ipv6Addr, Ipv6Network, DecodeError> for Pdu {
 
     fn rte_errors(&mut self) -> Vec<DecodeError> {
         std::mem::take(&mut self.rte_errors)
+    }
+
+    fn auth_seqno(&self) -> Option<u32> {
+        None
     }
 
     fn new_dump_request() -> Self {

@@ -30,6 +30,8 @@ pub struct Neighbor<V: Version> {
     pub bad_packets_rcvd: u32,
     // Number of valid routes received from this neighbor.
     pub bad_routes_rcvd: u32,
+    // Last received authentication sequence number.
+    pub auth_seqno: u32,
     // Neighbor's timeout (refreshed whenever a RIP update is received).
     pub timeout_task: TimeoutTask,
 }
@@ -55,6 +57,7 @@ where
             last_update: Utc::now(),
             bad_packets_rcvd: 0,
             bad_routes_rcvd: 0,
+            auth_seqno: 0,
             timeout_task,
         }
     }

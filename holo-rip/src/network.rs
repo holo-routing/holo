@@ -15,7 +15,7 @@ use serde::Serialize;
 use tokio::sync::mpsc::error::SendError;
 
 use crate::error::{Error, IoError};
-use crate::packet::PduVersion;
+use crate::packet::{AuthCtx, PduVersion};
 use crate::tasks::messages::input::UdpRxPduMsg;
 use crate::tasks::messages::output::UdpTxPduMsg;
 use crate::version::Version;
@@ -63,12 +63,13 @@ pub(crate) async fn send_packet<V>(
     socket: &UdpSocket,
     pdu: V::Pdu,
     dst: SendDestination<V::SocketAddr>,
+    auth: Option<&AuthCtx>,
 ) -> Result<(), std::io::Error>
 where
     V: Version,
 {
     // Encode PDU.
-    let buf = pdu.encode();
+    let buf = pdu.encode(auth);
 
     // Send packet.
     match dst {
@@ -89,12 +90,15 @@ where
 #[cfg(not(feature = "testing"))]
 pub(crate) async fn write_loop<V>(
     socket: Arc<UdpSocket>,
+    auth: Option<AuthCtx>,
     mut udp_tx_pduc: UnboundedReceiver<UdpTxPduMsg<V>>,
 ) where
     V: Version,
 {
     while let Some(UdpTxPduMsg { dst, pdu }) = udp_tx_pduc.recv().await {
-        if let Err(error) = send_packet::<V>(&socket, pdu, dst).await {
+        if let Err(error) =
+            send_packet::<V>(&socket, pdu, dst, auth.as_ref()).await
+        {
             IoError::UdpSendError(error).log();
         }
     }
@@ -103,6 +107,7 @@ pub(crate) async fn write_loop<V>(
 #[cfg(not(feature = "testing"))]
 pub(crate) async fn read_loop<V>(
     socket: Arc<UdpSocket>,
+    auth: Option<AuthCtx>,
     udp_pdu_rxp: Sender<UdpRxPduMsg<V>>,
 ) -> Result<(), SendError<UdpRxPduMsg<V>>>
 where
@@ -129,7 +134,7 @@ where
         }
 
         // Decode packet.
-        let pdu = V::Pdu::decode(&buf[0..num_bytes]);
+        let pdu = V::Pdu::decode(&buf[0..num_bytes], auth.as_ref());
         let msg = UdpRxPduMsg { src, pdu };
         udp_pdu_rxp.send(msg).await?;
     }

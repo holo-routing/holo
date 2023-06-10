@@ -5,6 +5,7 @@
 //
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
@@ -12,6 +13,7 @@ use enum_as_inner::EnumAsInner;
 use generational_arena::{Arena, Index};
 use holo_northbound::paths::control_plane_protocol::rip;
 use holo_protocol::InstanceChannelsTx;
+use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::{IpNetworkKind, SocketAddrKind};
 use holo_utils::socket::UdpSocket;
 use holo_utils::task::Task;
@@ -23,6 +25,7 @@ use crate::debug::{Debug, InterfaceInactiveReason};
 use crate::error::{Error, IoError};
 use crate::instance::{Instance, InstanceState};
 use crate::network::SendDestination;
+use crate::packet::AuthCtx;
 use crate::route::Metric;
 use crate::tasks::messages::output::UdpTxPduMsg;
 use crate::version::Version;
@@ -74,6 +77,8 @@ pub struct InterfaceCfg<V: Version> {
     pub split_horizon: SplitHorizon,
     pub invalid_interval: u16,
     pub flush_interval: u16,
+    pub auth_key: Option<String>,
+    pub auth_algo: Option<CryptoAlgo>,
 }
 
 #[derive(Debug)]
@@ -287,6 +292,16 @@ where
         self.core.system.loopback || self.core.config.passive
     }
 
+    pub(crate) fn auth(&self, seqno: &Arc<AtomicU32>) -> Option<AuthCtx> {
+        self.core.config.auth_key.as_ref().map(|auth_key| {
+            AuthCtx::new(
+                auth_key.clone(),
+                self.core.config.auth_algo.unwrap_or(CryptoAlgo::Md5),
+                seqno.clone(),
+            )
+        })
+    }
+
     // Runs the passed closure once for each one of the valid interface
     // destinations (multicast and unicast).
     pub(crate) fn with_destinations<F>(&mut self, mut f: F)
@@ -333,8 +348,11 @@ where
 
         // Start network Tx/Rx tasks.
         if !iface.core.system.loopback {
-            let net =
-                InterfaceNet::new(&iface.core.name, instance_channels_tx)?;
+            let net = InterfaceNet::new(
+                &iface.core.name,
+                iface.auth(&instance_state.auth_seqno),
+                instance_channels_tx,
+            )?;
             if !iface.core.config.no_listen {
                 iface.core.system.join_multicast(&net.socket);
             }
@@ -360,6 +378,7 @@ where
 {
     fn new(
         ifname: &str,
+        auth: Option<AuthCtx>,
         instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
     ) -> Result<Self, IoError> {
         // Create UDP socket.
@@ -371,12 +390,14 @@ where
         let (udp_tx_pdup, udp_tx_pduc) = mpsc::unbounded_channel();
         let udp_tx_task = tasks::udp_tx(
             &socket,
+            auth.clone(),
             udp_tx_pduc,
             #[cfg(feature = "testing")]
             &instance_channels_tx.protocol_output,
         );
         let udp_rx_task = tasks::udp_rx(
             &socket,
+            auth,
             &instance_channels_tx.protocol_input.udp_pdu_rx,
         );
 
@@ -386,6 +407,27 @@ where
             _udp_rx_task: udp_rx_task,
             udp_tx_pdup,
         })
+    }
+
+    pub(crate) fn restart_tasks(
+        &mut self,
+        auth: Option<AuthCtx>,
+        instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
+    ) {
+        let (udp_tx_pdup, udp_tx_pduc) = mpsc::unbounded_channel();
+        self._udp_tx_task = tasks::udp_tx(
+            &self.socket,
+            auth.clone(),
+            udp_tx_pduc,
+            #[cfg(feature = "testing")]
+            &instance_channels_tx.protocol_output,
+        );
+        self._udp_rx_task = tasks::udp_rx(
+            &self.socket,
+            auth,
+            &instance_channels_tx.protocol_input.udp_pdu_rx,
+        );
+        self.udp_tx_pdup = udp_tx_pdup;
     }
 }
 
@@ -457,6 +499,8 @@ where
             split_horizon,
             invalid_interval,
             flush_interval,
+            auth_key: None,
+            auth_algo: None,
         }
     }
 }

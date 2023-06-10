@@ -6,6 +6,8 @@
 
 use std::collections::BTreeMap;
 use std::net::Ipv4Addr;
+use std::sync::atomic::AtomicU32;
+use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -99,6 +101,8 @@ pub struct InstanceState<V: Version> {
     pub routes: BTreeMap<V::IpNetwork, Route<V>>,
     // Message statistics.
     pub statistics: MessageStatistics,
+    // Authentication non-decreasing sequence number.
+    pub auth_seqno: Arc<AtomicU32>,
 }
 
 #[derive(Debug)]
@@ -478,6 +482,7 @@ where
             neighbors: Default::default(),
             routes: Default::default(),
             statistics: Default::default(),
+            auth_seqno: Default::default(),
         }
     }
 

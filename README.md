@@ -156,6 +156,7 @@ Holo supports the following IETF RFCs and Internet drafts:
 
 * RFC 2080 - RIPng for IPv6
 * RFC 2453 - RIP Version 2
+* RFC 4822 - RIPv2 Cryptographic Authentication
 
 ##### IETF YANG implementation coverage
 
@@ -172,7 +173,7 @@ Holo supports the following IETF RFCs and Internet drafts:
 | ietf-ospf@2019-10-17 | 73.24% | 59.36% | 100.00% | 31.18% | [58.20%](http://westphal.com.br/holo/ietf-ospf.html) |
 | ietf-ospfv3-extended-lsa@2022-03-06 | 50.00% | 84.82% | - | - | [84.46%](http://westphal.com.br/holo/ietf-ospfv3-extended-lsa.html) |
 | ietf-ospfv3-sr@2022-10-21 | - | 51.63% | - | - | [51.63%](http://westphal.com.br/holo/ietf-ospfv3-sr.html) |
-| ietf-rip@2020-02-20 | 24.42% | 93.33% | 100.00% | - | [53.38%](http://westphal.com.br/holo/ietf-rip.html) |
+| ietf-rip@2020-02-20 | 27.91% | 93.33% | 100.00% | - | [55.41%](http://westphal.com.br/holo/ietf-rip.html) |
 | ietf-routing@2018-03-13 | 50.00% | 0.00% | - | - | [23.08%](http://westphal.com.br/holo/ietf-routing.html) |
 | ietf-segment-routing-mpls@2021-05-26 | 62.50% | 0.00% | - | 23.53% | [32.76%](http://westphal.com.br/holo/ietf-segment-routing-mpls.html) |
 | ietf-segment-routing@2021-05-26 | 100.00% | - | - | - | [100.00%](http://westphal.com.br/holo/ietf-segment-routing.html) |

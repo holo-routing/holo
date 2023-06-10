@@ -5,16 +5,20 @@
 //
 
 use std::net::Ipv4Addr;
+use std::sync::atomic;
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use derive_new::new;
+use enum_as_inner::EnumAsInner;
 use holo_utils::bytes::{BytesExt, BytesMutExt, TLS_BUF};
+use holo_utils::crypto::CryptoAlgo;
 use ipnetwork::Ipv4Network;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
 use crate::packet::{
-    Command, DecodeErrorVersion, PduVersion, RteRouteVersion, RteVersion,
+    AuthCtx, Command, DecodeErrorVersion, PduVersion, RteRouteVersion,
+    RteVersion,
 };
 use crate::route::Metric;
 
@@ -33,14 +37,23 @@ use crate::route::Metric;
 //
 #[derive(Debug, Deserialize, Eq, new, PartialEq, Serialize)]
 pub struct Pdu {
+    // PDU command.
     pub command: Command,
     #[new(value = "2")]
+    // PDU version.
     pub version: u8,
+    // List of RTEs.
     pub rtes: Vec<Rte>,
+    // List of RTEs that failed to be decoded.
     #[new(default)]
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub rte_errors: Vec<DecodeError>,
+    // Decoded authentication sequence number.
+    #[new(default)]
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth_seqno: Option<u32>,
 }
 
 //
@@ -60,10 +73,11 @@ pub struct Pdu {
 // |                         Metric (4)                            |
 // +---------------------------------------------------------------+
 //
-#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, EnumAsInner, Eq, PartialEq, Serialize)]
 pub enum Rte {
     Zero(RteZero),
     Ipv4(RteIpv4),
+    Auth(RteAuth),
 }
 
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -79,6 +93,40 @@ pub struct RteIpv4 {
     pub metric: Metric,
 }
 
+//
+// The RIP authentication entry format is:
+//
+//  0                   1                   2                   3
+//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +---------------+---------------+-------------------------------+
+// |             0xFFFF            |  Authentication Type=0x0003   |
+// +---------------+---------------+---------------+---------------+
+// |     RIPv2 Packet Length       |   Key ID      | Auth Data Len |
+// +---------------+---------------+---------------+---------------+
+// |               Sequence Number (non-decreasing)                |
+// +---------------+---------------+---------------+---------------+
+// |                      reserved must be zero                    |
+// +---------------+---------------+---------------+---------------+
+// |                      reserved must be zero                    |
+// +---------------+---------------+---------------+---------------+
+//
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum RteAuth {
+    Crypto(RteAuthCrypto),
+    Trailer(RteAuthTrailer),
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct RteAuthCrypto {
+    pub pkt_len: u16,
+    pub key_id: u8,
+    pub auth_data_len: u8,
+    pub seqno: u32,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct RteAuthTrailer(pub Bytes);
+
 // RIP decode errors.
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum DecodeError {
@@ -89,6 +137,9 @@ pub enum DecodeError {
     InvalidRtePrefix(Ipv4Addr, Ipv4Addr),
     InvalidRteNexthop(Ipv4Addr),
     InvalidRteMetric(u32),
+    InvalidRteAuthType(u16),
+    AuthTypeMismatch,
+    AuthError,
 }
 
 // Type aliases.
@@ -103,6 +154,111 @@ impl Pdu {
     pub const MIN_SIZE: usize = (Self::HDR_LENGTH + Rte::LENGTH);
     pub const MAX_SIZE: usize =
         (Self::HDR_LENGTH + Self::MAX_ENTRIES * Rte::LENGTH);
+
+    fn encode_auth_header(buf: &mut BytesMut, auth: Option<&AuthCtx>) {
+        if let Some(auth) = &auth {
+            let auth_hdr = RteAuthCrypto {
+                // The packet length field will be rewritten later.
+                pkt_len: 0,
+                // Use a static key for now.
+                key_id: 1,
+                auth_data_len: auth.algo.digest_size(),
+                seqno: auth.seqno.fetch_add(1, atomic::Ordering::Relaxed),
+            };
+            auth_hdr.encode(buf);
+        }
+    }
+
+    fn encode_auth_trailer(buf: &mut BytesMut, auth: Option<&AuthCtx>) {
+        if let Some(auth) = auth {
+            // Update the RIPv2 Packet Length field.
+            let pkt_len = buf.len() as u16;
+            buf[8..10].copy_from_slice(&pkt_len.to_be_bytes());
+
+            // Append trailer header.
+            buf.put_u16(RteAuth::AFI);
+            buf.put_u16(RteAuth::AUTH_TYPE_TRAILER);
+
+            // Append message digest.
+            match auth.algo {
+                CryptoAlgo::Md5 => {
+                    let digest = md5_digest(buf, &auth.key);
+                    buf.put_slice(&digest);
+                }
+                _ => {
+                    // Other algorithms can't be configured yet.
+                    unreachable!()
+                }
+            }
+        }
+    }
+
+    fn decode_auth_validate(
+        buf: &Bytes,
+        auth: Option<&AuthCtx>,
+    ) -> Result<Option<u32>, DecodeError> {
+        let mut auth_seqno = None;
+
+        // Decode the first RTE in advance for authentication purposes.
+        if let Ok(rte) = Rte::decode(
+            &mut buf.slice(Pdu::HDR_LENGTH..Pdu::HDR_LENGTH + Rte::LENGTH),
+        ) {
+            // Discard the packet if its authentication type doesn't match the
+            // interface's configured authentication type.
+            if auth.is_some() != matches!(rte, Rte::Auth(RteAuth::Crypto(..))) {
+                return Err(DecodeError::AuthTypeMismatch);
+            }
+
+            // Handle cryptographic authentication (RFC 4822).
+            if let Rte::Auth(RteAuth::Crypto(rte)) = rte {
+                let auth = auth.as_ref().unwrap();
+
+                // Validate the "RIPv2 Packet Length" field.
+                //
+                // Note: to ensure compatibility with legacy RIP
+                // implementations, the "Auth Data Len" field is not validated
+                // (that field is completely ignored anyway).
+                if rte.pkt_len as usize
+                    > (buf.len()
+                        - RteAuthCrypto::HDR_LENGTH
+                        - auth.algo.digest_size() as usize)
+                {
+                    return Err(DecodeError::AuthError);
+                }
+
+                // Get the authentication trailer.
+                let auth_trailer =
+                    match Rte::decode(&mut buf.slice(rte.pkt_len as usize..)) {
+                        Ok(Rte::Auth(RteAuth::Trailer(trailer))) => trailer,
+                        _ => return Err(DecodeError::AuthError),
+                    };
+
+                // Compute message digest.
+                let digest = match auth.algo {
+                    CryptoAlgo::Md5 => {
+                        let data = buf.slice(
+                            ..rte.pkt_len as usize + RteAuthCrypto::HDR_LENGTH,
+                        );
+                        md5_digest(&data, &auth.key)
+                    }
+                    _ => {
+                        // Other algorithms can't be configured yet.
+                        unreachable!()
+                    }
+                };
+
+                // Check if the received message digest is valid.
+                if *auth_trailer.0 != digest {
+                    return Err(DecodeError::AuthError);
+                }
+
+                // Authentication succeeded.
+                auth_seqno = Some(rte.seqno);
+            }
+        }
+
+        Ok(auth_seqno)
+    }
 }
 
 impl PduVersion<Ipv4Addr, Ipv4Network, DecodeError> for Pdu {
@@ -112,7 +268,7 @@ impl PduVersion<Ipv4Addr, Ipv4Network, DecodeError> for Pdu {
         Pdu::new(command, rtes)
     }
 
-    fn encode(&self) -> BytesMut {
+    fn encode(&self, auth: Option<&AuthCtx>) -> BytesMut {
         TLS_BUF.with(|buf| {
             let mut buf = buf.borrow_mut();
             buf.clear();
@@ -122,16 +278,25 @@ impl PduVersion<Ipv4Addr, Ipv4Network, DecodeError> for Pdu {
             buf.put_u8(self.version);
             buf.put_u16(0);
 
+            // Encode the authentication header if necessary.
+            Self::encode_auth_header(&mut buf, auth);
+
             // Encode RTEs.
             for rte in &self.rtes {
                 rte.encode(&mut buf);
             }
 
+            // Encode the authentication trailer if necessary.
+            Self::encode_auth_trailer(&mut buf, auth);
+
             buf.clone()
         })
     }
 
-    fn decode(data: &[u8]) -> Result<Self, DecodeError> {
+    fn decode(
+        data: &[u8],
+        auth: Option<&AuthCtx>,
+    ) -> Result<Self, DecodeError> {
         let mut buf = Bytes::copy_from_slice(data);
 
         // Validate the packet length.
@@ -139,6 +304,9 @@ impl PduVersion<Ipv4Addr, Ipv4Network, DecodeError> for Pdu {
         if !(Self::MIN_SIZE..=Self::MAX_SIZE).contains(&buf_size) {
             return Err(DecodeError::InvalidLength(buf_size));
         }
+
+        // Validate the packet before anything.
+        let auth_seqno = Self::decode_auth_validate(&buf, auth)?;
 
         // Parse and validate RIP command.
         let command = buf.get_u8();
@@ -162,7 +330,13 @@ impl PduVersion<Ipv4Addr, Ipv4Network, DecodeError> for Pdu {
         let mut rte_errors = vec![];
         while buf.remaining() >= Rte::LENGTH {
             match Rte::decode(&mut buf) {
-                Ok(rte) => rtes.push(rte),
+                Ok(rte) => {
+                    // Ignore authentication RTEs (already processed).
+                    if rte.is_auth() {
+                        continue;
+                    }
+                    rtes.push(rte);
+                }
                 Err(error) => rte_errors.push(error),
             }
         }
@@ -172,6 +346,7 @@ impl PduVersion<Ipv4Addr, Ipv4Network, DecodeError> for Pdu {
             version,
             rtes,
             rte_errors,
+            auth_seqno,
         };
 
         Ok(pdu)
@@ -208,6 +383,10 @@ impl PduVersion<Ipv4Addr, Ipv4Network, DecodeError> for Pdu {
         Pdu::new(Command::Request, rtes)
     }
 
+    fn auth_seqno(&self) -> Option<u32> {
+        self.auth_seqno
+    }
+
     // If there is exactly one entry in the request, and it has an address
     // family identifier of zero and a metric of infinity (i.e., 16), then this
     // is a request to send the entire routing table.
@@ -230,14 +409,16 @@ impl Rte {
         match self {
             Rte::Zero(rte) => rte.encode(buf),
             Rte::Ipv4(rte) => rte.encode(buf),
+            Rte::Auth(rte) => rte.encode(buf),
         }
     }
 
     pub(crate) fn decode(buf: &mut Bytes) -> DecodeResult<Self> {
         let afi = buf.get_u16();
-        let rte = match afi as i32 {
-            libc::AF_UNSPEC => Rte::Zero(RteZero::decode(buf)?),
-            libc::AF_INET => Rte::Ipv4(RteIpv4::decode(buf)?),
+        let rte = match afi {
+            RteZero::AFI => Rte::Zero(RteZero::decode(buf)?),
+            RteIpv4::AFI => Rte::Ipv4(RteIpv4::decode(buf)?),
+            RteAuth::AFI => Rte::Auth(RteAuth::decode(buf)?),
             _ => {
                 buf.advance(Rte::LENGTH - 2);
                 return Err(DecodeError::InvalidRteAddressFamily(afi));
@@ -284,8 +465,10 @@ impl RteVersion<Ipv4Addr, Ipv4Network> for Rte {
 // ===== impl RteZero =====
 
 impl RteZero {
+    const AFI: u16 = libc::AF_UNSPEC as u16;
+
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
-        buf.put_u16(libc::AF_UNSPEC as u16);
+        buf.put_u16(Self::AFI);
         buf.put_u16(0);
         buf.put_u32(0);
         buf.put_u32(0);
@@ -311,8 +494,10 @@ impl RteZero {
 // ===== impl RteIpv4 =====
 
 impl RteIpv4 {
+    const AFI: u16 = libc::AF_INET as u16;
+
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
-        buf.put_u16(libc::AF_INET as u16);
+        buf.put_u16(Self::AFI);
         buf.put_u16(self.tag);
         buf.put_ipv4(&self.prefix.ip());
         buf.put_ipv4(&self.prefix.mask());
@@ -383,6 +568,76 @@ impl RteRouteVersion<Ipv4Addr, Ipv4Network> for RteIpv4 {
     }
 }
 
+// ===== impl RteAuth =====
+
+impl RteAuth {
+    const AFI: u16 = 0xFFFF;
+    const AUTH_TYPE_TRAILER: u16 = 1;
+    const AUTH_TYPE_CRYPTO: u16 = 3;
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        match self {
+            RteAuth::Crypto(rte) => rte.encode(buf),
+            RteAuth::Trailer(_rte) => unreachable!(),
+        }
+    }
+
+    pub(crate) fn decode(buf: &mut Bytes) -> DecodeResult<Self> {
+        let auth_type = buf.get_u16();
+        let rte = match auth_type {
+            Self::AUTH_TYPE_CRYPTO => {
+                RteAuth::Crypto(RteAuthCrypto::decode(buf)?)
+            }
+            Self::AUTH_TYPE_TRAILER => {
+                RteAuth::Trailer(RteAuthTrailer(buf.clone()))
+            }
+            _ => {
+                buf.advance(Rte::LENGTH - 4);
+                return Err(DecodeError::InvalidRteAuthType(auth_type));
+            }
+        };
+
+        Ok(rte)
+    }
+}
+
+// ===== impl RteAuthCrypto =====
+
+impl RteAuthCrypto {
+    const HDR_LENGTH: usize = 4;
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        buf.put_u16(RteAuth::AFI);
+        buf.put_u16(RteAuth::AUTH_TYPE_CRYPTO);
+        buf.put_u16(self.pkt_len);
+        buf.put_u8(self.key_id);
+        buf.put_u8(self.auth_data_len);
+        buf.put_u32(self.seqno);
+        // Reserved bytes.
+        buf.put_u32(0);
+        // Reserved bytes.
+        buf.put_u32(0);
+    }
+
+    pub(crate) fn decode(buf: &mut Bytes) -> DecodeResult<Self> {
+        let pkt_len = buf.get_u16();
+        let key_id = buf.get_u8();
+        let auth_data_len = buf.get_u8();
+        let seqno = buf.get_u32();
+        // Reserved bytes.
+        let _ = buf.get_u32();
+        // Reserved bytes.
+        let _ = buf.get_u32();
+
+        Ok(RteAuthCrypto {
+            pkt_len,
+            key_id,
+            auth_data_len,
+            seqno,
+        })
+    }
+}
+
 // ===== impl DecodeError =====
 
 impl DecodeErrorVersion for DecodeError {}
@@ -411,8 +666,31 @@ impl std::fmt::Display for DecodeError {
             DecodeError::InvalidRteMetric(metric) => {
                 write!(f, "Invalid RIP metric: {}", metric)
             }
+            DecodeError::InvalidRteAuthType(auth_type) => {
+                write!(f, "Invalid authentication type: {}", auth_type)
+            }
+            DecodeError::AuthTypeMismatch => {
+                write!(f, "Authentication type mismatch")
+            }
+            DecodeError::AuthError => {
+                write!(f, "Authentication failed")
+            }
         }
     }
 }
 
 impl std::error::Error for DecodeError {}
+
+// ===== helper functions =====
+
+fn md5_digest(data: &[u8], auth_key: &str) -> [u8; 16] {
+    // The RIPv2 Authentication Key is always 16 octets when
+    // "Keyed-MD5" is in use.
+    let mut auth_key = auth_key.as_bytes().to_vec();
+    auth_key.resize(16, 0);
+
+    let mut ctx = md5::Context::new();
+    ctx.consume(data);
+    ctx.consume(&auth_key);
+    *ctx.compute()
+}

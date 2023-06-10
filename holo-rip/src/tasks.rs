@@ -13,6 +13,7 @@ use holo_utils::{Sender, UnboundedReceiver};
 use tracing::{debug_span, Instrument};
 
 use crate::network;
+use crate::packet::AuthCtx;
 use crate::version::Version;
 
 //
@@ -132,6 +133,7 @@ pub mod messages {
 // UDP Rx task.
 pub(crate) fn udp_rx<V>(
     socket: &Arc<UdpSocket>,
+    auth: Option<AuthCtx>,
     udp_pdu_rxp: &Sender<messages::input::UdpRxPduMsg<V>>,
 ) -> Task<()>
 where
@@ -148,7 +150,7 @@ where
         let udp_pdu_rxp = udp_pdu_rxp.clone();
         Task::spawn(
             async move {
-                let _ = network::read_loop(socket, udp_pdu_rxp).await;
+                let _ = network::read_loop(socket, auth, udp_pdu_rxp).await;
             }
             .in_current_span(),
         )
@@ -163,6 +165,7 @@ where
 #[allow(unused_mut)]
 pub(crate) fn udp_tx<V>(
     socket: &Arc<UdpSocket>,
+    auth: Option<AuthCtx>,
     mut udp_pdu_txc: UnboundedReceiver<messages::output::UdpTxPduMsg<V>>,
     #[cfg(feature = "testing")] proto_output_tx: &Sender<
         messages::ProtocolOutputMsg<V>,
@@ -181,7 +184,7 @@ where
         let socket = socket.clone();
         Task::spawn(
             async move {
-                network::write_loop(socket, udp_pdu_txc).await;
+                network::write_loop(socket, auth, udp_pdu_txc).await;
             }
             .in_current_span(),
         )

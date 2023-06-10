@@ -325,42 +325,12 @@ module ietf-rip-holo-deviations {
     deviate not-supported;
   }
 
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/rip:rip/rip:interfaces/rip:interface/rip:authentication" {
-    deviate not-supported;
-  }
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/rip:rip/rip:interfaces/rip:interface/rip:authentication/rip:auth-type-selection" {
-    deviate not-supported;
-  }
-  */
-
-  /*
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/rip:rip/rip:interfaces/rip:interface/rip:authentication/rip:auth-type-selection/rip:auth-key-chain" {
     deviate not-supported;
   }
-  */
 
   /*
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/rip:rip/rip:interfaces/rip:interface/rip:authentication/rip:auth-type-selection/rip:auth-key-chain/rip:key-chain" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/rip:rip/rip:interfaces/rip:interface/rip:authentication/rip:auth-type-selection/rip:auth-key" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/rip:rip/rip:interfaces/rip:interface/rip:authentication/rip:auth-type-selection/rip:auth-key/rip:key" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/rip:rip/rip:interfaces/rip:interface/rip:authentication/rip:auth-type-selection/rip:auth-key/rip:crypto-algorithm" {
     deviate not-supported;
   }
   */

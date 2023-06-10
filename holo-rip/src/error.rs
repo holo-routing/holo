@@ -14,6 +14,7 @@ pub enum Error<V: Version> {
     IoError(IoError),
     UdpInvalidSourceAddr(V::IpAddr),
     UdpPduDecodeError(V::PduDecodeError),
+    UdpPduAuthInvalidSeqno(V::SocketAddr, u32),
     InterfaceStartError(String, IoError),
 }
 
@@ -50,6 +51,9 @@ where
             Error::UdpPduDecodeError(error) => {
                 warn!(%error, "{}", self);
             }
+            Error::UdpPduAuthInvalidSeqno(source, seqno) => {
+                warn!(%source, %seqno, "{}", self);
+            }
             Error::InterfaceStartError(name, error) => {
                 error!(%name, error = %with_source(error), "{}", self);
             }
@@ -69,6 +73,9 @@ where
             }
             Error::UdpPduDecodeError(..) => {
                 write!(f, "failed to decode PDU")
+            }
+            Error::UdpPduAuthInvalidSeqno(..) => {
+                write!(f, "authentication failed: decreasing sequence number")
             }
             Error::InterfaceStartError(..) => {
                 write!(f, "failed to start interface")

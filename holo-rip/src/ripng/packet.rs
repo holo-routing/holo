@@ -9,6 +9,7 @@ use std::net::Ipv6Addr;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use derive_new::new;
 use holo_utils::bytes::{BytesExt, BytesMutExt, TLS_BUF};
+use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::Ipv6NetworkExt;
 use ipnetwork::Ipv6Network;
 use num_traits::FromPrimitive;
@@ -196,7 +197,7 @@ impl PduVersion<Ipv6Addr, Ipv6Network, DecodeError> for Pdu {
     // #RTEs = INT | --------------------------------------------------- |
     //             |                      RTE_size                       |
     //             +-                                                   -+"
-    fn max_entries(mtu: u32) -> usize {
+    fn max_entries(mtu: u32, _auth_algo: Option<CryptoAlgo>) -> usize {
         const IPV6_HDR_LENGTH: usize = 40;
         const UDP_HDR_LENGTH: usize = 8;
 

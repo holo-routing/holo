@@ -62,7 +62,7 @@ pub trait PduVersion<
     fn set_command(&mut self, command: Command);
 
     // Return maximum number of RTEs that can fit in the specified MTU size.
-    fn max_entries(mtu: u32) -> usize;
+    fn max_entries(mtu: u32, auth_algo: Option<CryptoAlgo>) -> usize;
 
     // Return a reference to the PDU's RTEs.
     fn rtes(&self) -> &Vec<Self::Rte>;

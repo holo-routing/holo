@@ -129,11 +129,10 @@ pub(crate) fn send_response<V>(
     }
 
     // Send as many PDUs as necessary.
-    let mut max_entries = V::Pdu::max_entries(iface.core.system.mtu.unwrap());
-    if iface.core.config.auth_key.is_some() {
-        // Reserve space for the authentication header.
-        max_entries -= 1;
-    }
+    let max_entries = V::Pdu::max_entries(
+        iface.core.system.mtu.unwrap(),
+        iface.core.config.auth_algo,
+    );
     for rtes in rtes
         .into_iter()
         .chunks(max_entries)

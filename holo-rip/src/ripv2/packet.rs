@@ -360,8 +360,13 @@ impl PduVersion<Ipv4Addr, Ipv4Network, DecodeError> for Pdu {
         self.command = command;
     }
 
-    fn max_entries(_mtu: u32) -> usize {
-        Self::MAX_ENTRIES
+    fn max_entries(_mtu: u32, auth_algo: Option<CryptoAlgo>) -> usize {
+        let mut max_entries = Self::MAX_ENTRIES;
+        if auth_algo.is_some() {
+            // Reserve space for the authentication header and trailer.
+            max_entries -= 2;
+        }
+        max_entries
     }
 
     fn rtes(&self) -> &Vec<Self::Rte> {

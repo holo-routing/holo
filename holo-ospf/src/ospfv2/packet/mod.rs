@@ -243,6 +243,7 @@ impl OptionsVersion<Ospfv2> for Options {
 impl PacketHdr {
     pub const VERSION: u8 = 2;
     pub const CKSUM_RANGE: std::ops::Range<usize> = 12..14;
+    pub const AUTH_RANGE: std::ops::Range<usize> = 16..24;
 }
 
 impl PacketHdrVersion<Ospfv2> for PacketHdr {
@@ -320,7 +321,8 @@ impl PacketHdrVersion<Ospfv2> for PacketHdr {
 
     fn verify_cksum(data: &[u8]) -> DecodeResult<()> {
         let mut cksum = Checksum::new();
-        cksum.add_bytes(data);
+        cksum.add_bytes(&data[0..Self::AUTH_RANGE.start]);
+        cksum.add_bytes(&data[Self::AUTH_RANGE.end..]);
         if cksum.checksum() != [0; 2] {
             return Err(DecodeError::InvalidChecksum);
         }

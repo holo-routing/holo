@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use std::net::Ipv4Addr;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -482,7 +482,17 @@ where
             neighbors: Default::default(),
             routes: Default::default(),
             statistics: Default::default(),
-            auth_seqno: Default::default(),
+            // Initialize the authentication sequence number as the number of
+            // seconds since the Unix epoch (1 January 1970).
+            // By using this approach, the chances of successfully replaying
+            // packets from a restarted RIP instance are significantly reduced.
+            auth_seqno: Arc::new(
+                (SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .expect("Time went backwards")
+                    .as_secs() as u32)
+                    .into(),
+            ),
         }
     }
 

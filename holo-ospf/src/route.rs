@@ -209,7 +209,7 @@ pub(crate) fn update_rib_partial<V>(
     // Check for intra-area changes.
     if !partial.intra.is_empty() {
         // Remove affected intra-area routes from the RIB.
-        old_rib.extend(rib.drain_filter(|prefix, route| {
+        old_rib.extend(rib.extract_if(|prefix, route| {
             partial.intra.contains(prefix)
                 && route.path_type == PathType::IntraArea
         }));
@@ -235,7 +235,7 @@ pub(crate) fn update_rib_partial<V>(
     // Check for inter-area changes.
     if !partial.inter_network.is_empty() {
         // Remove affected inter-area routes from the RIB.
-        old_rib.extend(rib.drain_filter(|prefix, route| {
+        old_rib.extend(rib.extract_if(|prefix, route| {
             partial.inter_network.contains(prefix)
                 && route.path_type == PathType::InterArea
         }));
@@ -273,7 +273,7 @@ pub(crate) fn update_rib_partial<V>(
             }
 
             // Remove affected inter-area routes from the routers RIB.
-            area.state.routers.drain_filter(|router_id, route| {
+            let _ = area.state.routers.extract_if(|router_id, route| {
                 partial.inter_router.contains(router_id)
                     && route.path_type == PathType::InterArea
             });
@@ -294,7 +294,7 @@ pub(crate) fn update_rib_partial<V>(
         let reevaluate_all = !partial.inter_router.is_empty();
 
         // Remove affected external routes from the RIB.
-        old_rib.extend(rib.drain_filter(|prefix, route| {
+        old_rib.extend(rib.extract_if(|prefix, route| {
             (reevaluate_all || partial.external.contains(prefix))
                 && matches!(
                     route.path_type,

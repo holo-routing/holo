@@ -11,7 +11,7 @@
 )]
 #![allow(clippy::single_match, clippy::too_many_arguments)]
 #![allow(type_alias_bounds)]
-#![feature(btree_drain_filter, hash_drain_filter, ip, let_chains, lazy_cell)]
+#![feature(btree_extract_if, hash_extract_if, ip, let_chains, lazy_cell)]
 
 pub mod area;
 pub mod collections;

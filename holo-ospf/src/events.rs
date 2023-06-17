@@ -1266,7 +1266,7 @@ where
     // retransmission lists.
     for lse_idx in lsdb
         .maxage_lsas
-        .drain_filter(|lse_idx| {
+        .extract_if(|lse_idx| {
             let lse = &arenas.lsa_entries[*lse_idx];
             !arenas.neighbors.iter().any(|(_, nbr)| {
                 nbr.lists

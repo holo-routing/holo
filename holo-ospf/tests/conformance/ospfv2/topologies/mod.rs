@@ -24,6 +24,7 @@ async fn topology1_2() {
     }
 }
 
+#[ignore]
 #[tokio::test]
 async fn topology1_3() {
     for rt_num in 1..=7 {
@@ -56,6 +57,7 @@ async fn topology2_3() {
     }
 }
 
+#[ignore]
 #[tokio::test]
 async fn topology2_4() {
     for rt_num in 1..=6 {

@@ -6,17 +6,18 @@
 
 use std::io::{IoSlice, IoSliceMut};
 use std::ops::Deref;
-use std::os::fd::{AsRawFd, RawFd};
-use std::os::unix::io::{BorrowedFd, OwnedFd};
+use std::os::fd::AsRawFd;
+use std::sync::Arc;
 
 use derive_new::new;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
-use holo_utils::socket::Socket;
+use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::{Sender, UnboundedReceiver};
 use nix::sys::socket::{self, SockaddrLike};
 use serde::Serialize;
 use tokio::sync::mpsc::error::SendError;
 
+use crate::collections::{AreaId, InterfaceId};
 use crate::debug::Debug;
 use crate::error::IoError;
 use crate::packet::error::DecodeResult;
@@ -50,25 +51,25 @@ pub enum MulticastAddr {
 pub trait NetworkVersion<V: Version> {
     type NetIpAddr: IpAddrKind;
     type NetIpNetwork: IpNetworkKind<Self::NetIpAddr>;
-    type SocketAddr: SockaddrLike;
-    type Pktinfo;
+    type SocketAddr: SockaddrLike + Send + Sync;
+    type Pktinfo: Send + Sync;
 
     // Create OSPF socket.
-    fn socket() -> Result<Socket, std::io::Error>;
+    fn socket(ifname: &str) -> Result<Socket, std::io::Error>;
 
     // Return the IP address of the specified OSPF multicast group.
     fn multicast_addr(addr: MulticastAddr) -> &'static V::NetIpAddr;
 
     // Join the specified OSPF multicast group.
     fn join_multicast(
-        socket: BorrowedFd<'_>,
+        socket: &Socket,
         addr: MulticastAddr,
         ifindex: u32,
     ) -> Result<(), std::io::Error>;
 
     // Leave the specified OSPF multicast group.
     fn leave_multicast(
-        socket: BorrowedFd<'_>,
+        socket: &Socket,
         addr: MulticastAddr,
         ifindex: u32,
     ) -> Result<(), std::io::Error>;
@@ -79,11 +80,8 @@ pub trait NetworkVersion<V: Version> {
     // Initialize the control message used by `sendmsg`.
     fn set_cmsg_data(pktinfo: &V::Pktinfo) -> socket::ControlMessage<'_>;
 
-    // Get the ifindex and source address from the control message of a received
-    // packet.
-    fn get_cmsg_data(
-        cmsgs: socket::CmsgIterator<'_>,
-    ) -> Option<(u32, V::NetIpAddr)>;
+    // Get destination address from the control message of a received packet.
+    fn get_cmsg_data(cmsgs: socket::CmsgIterator<'_>) -> Option<V::NetIpAddr>;
 
     // Convert packet destination to socket address.
     fn dst_to_sockaddr(ifindex: u32, addr: V::NetIpAddr) -> V::SocketAddr;
@@ -103,7 +101,7 @@ where
     I: IpAddrKind + 'static,
 {
     #[cfg(not(feature = "testing"))]
-    fn into_iter(self) -> Box<dyn Iterator<Item = I> + 'static> {
+    fn into_iter(self) -> Box<dyn Iterator<Item = I> + 'static + Send> {
         match self {
             DestinationAddrs::Single(addr) => Box::new(std::iter::once(addr)),
             DestinationAddrs::Multiple(addrs) => Box::new(addrs.into_iter()),
@@ -114,8 +112,8 @@ where
 // ===== global functions =====
 
 #[cfg(not(feature = "testing"))]
-pub(crate) fn send_packet<V>(
-    socket: &RawFd,
+pub(crate) async fn send_packet<V>(
+    socket: &AsyncFd<Socket>,
     src: Option<V::NetIpAddr>,
     dst_ifindex: u32,
     dst_addr: V::NetIpAddr,
@@ -134,31 +132,35 @@ where
     let sockaddr: V::SocketAddr = V::dst_to_sockaddr(dst_ifindex, dst_addr);
     let pktinfo = V::new_pktinfo(src, dst_ifindex);
     let cmsg = [V::set_cmsg_data(&pktinfo)];
-    socket::sendmsg(
-        *socket,
-        &iov,
-        &cmsg,
-        socket::MsgFlags::empty(),
-        Some(&sockaddr),
-    )
-    .map_err(IoError::SendError)
+    socket
+        .async_io(tokio::io::Interest::WRITABLE, |socket| {
+            socket::sendmsg(
+                socket.as_raw_fd(),
+                &iov,
+                &cmsg,
+                socket::MsgFlags::empty(),
+                Some(&sockaddr),
+            )
+            .map_err(|errno| errno.into())
+        })
+        .await
+        .map_err(IoError::SendError)
 }
 
 #[cfg(not(feature = "testing"))]
-pub(crate) fn write_loop<V>(
-    socket: OwnedFd,
+pub(crate) async fn write_loop<V>(
+    socket: Arc<AsyncFd<Socket>>,
     mut net_tx_packetc: UnboundedReceiver<NetTxPacketMsg<V>>,
 ) where
     V: Version,
 {
-    let socket = socket.as_raw_fd();
-
     while let Some(NetTxPacketMsg { packet, src, dst }) =
-        net_tx_packetc.blocking_recv()
+        net_tx_packetc.recv().await
     {
         for dst_addr in dst.addrs.into_iter() {
             if let Err(error) =
                 send_packet::<V>(&socket, src, dst.ifindex, dst_addr, &packet)
+                    .await
             {
                 error.log();
             }
@@ -167,61 +169,78 @@ pub(crate) fn write_loop<V>(
 }
 
 #[cfg(not(feature = "testing"))]
-pub(crate) fn read_loop<V>(
-    socket: BorrowedFd<'_>,
+pub(crate) async fn read_loop<V>(
+    socket: Arc<AsyncFd<Socket>>,
+    area_id: AreaId,
+    iface_id: InterfaceId,
     af: AddressFamily,
     net_packet_rxp: Sender<NetRxPacketMsg<V>>,
 ) -> Result<(), SendError<NetRxPacketMsg<V>>>
 where
     V: Version,
 {
-    let socket = socket.as_raw_fd();
     let mut buf = [0; 16384];
     let mut iov = [IoSliceMut::new(&mut buf)];
     let mut cmsgspace = nix::cmsg_space!(V::Pktinfo);
 
     loop {
         // Receive data packet.
-        let msg = match socket::recvmsg::<V::SocketAddr>(
-            socket,
-            &mut iov,
-            Some(&mut cmsgspace),
-            socket::MsgFlags::empty(),
-        ) {
-            Ok(msg) => msg,
+        match socket
+            .async_io(tokio::io::Interest::READABLE, |socket| {
+                match socket::recvmsg::<V::SocketAddr>(
+                    socket.as_raw_fd(),
+                    &mut iov,
+                    Some(&mut cmsgspace),
+                    socket::MsgFlags::empty(),
+                ) {
+                    Ok(msg) => {
+                        // Retrieve source and destination addresses.
+                        let src = msg
+                            .address
+                            .as_ref()
+                            .map(|addr| V::src_from_sockaddr(addr));
+                        let dst = V::get_cmsg_data(msg.cmsgs());
+                        Ok((src, dst, msg.bytes))
+                    }
+                    Err(errno) => Err(errno.into()),
+                }
+            })
+            .await
+        {
+            Ok((src, dst, bytes)) => {
+                let src = match src {
+                    Some(addr) => addr,
+                    None => {
+                        IoError::RecvMissingSourceAddr.log();
+                        return Ok(());
+                    }
+                };
+                let dst = match dst {
+                    Some(addr) => addr,
+                    None => {
+                        IoError::RecvMissingAncillaryData.log();
+                        return Ok(());
+                    }
+                };
+
+                // Decode packet.
+                let packet = V::decode_packet(af, &iov[0].deref()[0..bytes]);
+                let msg = NetRxPacketMsg {
+                    area_key: area_id.into(),
+                    iface_key: iface_id.into(),
+                    src,
+                    dst,
+                    packet,
+                };
+                net_packet_rxp.send(msg).await.unwrap();
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {
+                // Retry if the syscall was interrupted (EINTR).
+                continue;
+            }
             Err(error) => {
                 IoError::RecvError(error).log();
-                return Ok(());
             }
-        };
-
-        // Retrieve source address.
-        let src = match &msg.address {
-            Some(addr) => V::src_from_sockaddr(addr),
-            None => {
-                IoError::RecvMissingSourceAddr.log();
-                return Ok(());
-            }
-        };
-
-        // Retrieve ancillary data.
-        let (ifindex, dst) = match V::get_cmsg_data(msg.cmsgs()) {
-            Some(value) => value,
-            None => {
-                IoError::RecvMissingAncillaryData.log();
-                return Ok(());
-            }
-        };
-
-        // Decode packet.
-        let packet = V::decode_packet(af, &iov[0].deref()[0..msg.bytes]);
-
-        let msg = NetRxPacketMsg {
-            ifindex,
-            src,
-            dst,
-            packet,
-        };
-        net_packet_rxp.blocking_send(msg)?;
+        }
     }
 }

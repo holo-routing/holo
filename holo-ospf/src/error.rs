@@ -46,8 +46,7 @@ pub enum Error<V: Version> {
     IsmUnexpectedEvent(ism::State, ism::Event),
     NsmUnexpectedEvent(Ipv4Addr, nsm::State, nsm::Event),
     SpfDelayUnexpectedEvent(spf::fsm::State, spf::fsm::Event),
-    InstanceStartError(Box<Error<V>>),
-    InterfaceStartError(String, Box<Error<V>>),
+    InterfaceStartError(String, IoError),
 }
 
 // OSPF I/O errors.
@@ -56,10 +55,10 @@ pub enum IoError {
     SocketError(std::io::Error),
     MulticastJoinError(MulticastAddr, std::io::Error),
     MulticastLeaveError(MulticastAddr, std::io::Error),
-    RecvError(nix::errno::Errno),
+    RecvError(std::io::Error),
     RecvMissingSourceAddr,
     RecvMissingAncillaryData,
-    SendError(nix::errno::Errno),
+    SendError(std::io::Error),
 }
 
 // OSPF interface configuration errors.
@@ -150,9 +149,6 @@ where
             Error::SpfDelayUnexpectedEvent(state, event) => {
                 warn!(?state, ?event, "{}", self);
             }
-            Error::InstanceStartError(error) => {
-                error!(error = %with_source(error), "{}", self);
-            }
             Error::InterfaceStartError(name, error) => {
                 error!(%name, error = %with_source(error), "{}", self);
             }
@@ -222,9 +218,6 @@ where
             Error::SpfDelayUnexpectedEvent(..) => {
                 write!(f, "unexpected SPF Delay FSM event")
             }
-            Error::InstanceStartError(..) => {
-                write!(f, "failed to start instance")
-            }
             Error::InterfaceStartError(..) => {
                 write!(f, "failed to start interface")
             }
@@ -239,7 +232,6 @@ where
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Error::IoError(error) => Some(error),
-            Error::InstanceStartError(error) => Some(error),
             Error::InterfaceStartError(_, error) => Some(error),
             _ => None,
         }

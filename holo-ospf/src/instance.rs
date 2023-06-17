@@ -6,7 +6,6 @@
 
 use std::collections::{BTreeMap, VecDeque};
 use std::net::Ipv4Addr;
-use std::os::unix::io::{BorrowedFd, FromRawFd, IntoRawFd, OwnedFd};
 use std::time::Instant;
 
 use async_trait::async_trait;
@@ -18,7 +17,7 @@ use holo_southbound::tx::SouthboundTx;
 use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
 use holo_utils::protocol::Protocol;
-use holo_utils::task::{Task, TimeoutTask};
+use holo_utils::task::TimeoutTask;
 use holo_utils::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 use tokio::sync::mpsc;
 
@@ -28,7 +27,7 @@ use crate::collections::{
 use crate::debug::{
     Debug, InstanceInactiveReason, InterfaceInactiveReason, LsaFlushReason,
 };
-use crate::error::{Error, IoError};
+use crate::error::Error;
 use crate::interface::{ism, Interface};
 use crate::lsdb::{LsaEntry, LsaLogEntry, LsaOriginateEvent};
 use crate::neighbor::{nsm, Neighbor};
@@ -43,10 +42,9 @@ use crate::tasks::messages::input::{
     NetRxPacketMsg, NsmEventMsg, RxmtIntervalMsg, SendLsUpdateMsg,
     SpfDelayEventMsg,
 };
-use crate::tasks::messages::output::NetTxPacketMsg;
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
 use crate::version::Version;
-use crate::{events, lsdb, output, spf, tasks};
+use crate::{events, lsdb, output, spf};
 
 #[derive(Debug)]
 pub struct Instance<V: Version> {
@@ -92,13 +90,6 @@ pub struct InstanceState<V: Version> {
     pub af: AddressFamily,
     // Instance Router ID.
     pub router_id: Ipv4Addr,
-    // Raw socket.
-    pub socket: BorrowedFd<'static>,
-    // Network Tx/Rx tasks.
-    _net_tx_task: Task<()>,
-    _net_rx_task: Task<()>,
-    // Network Tx output channel.
-    pub net_tx_packetp: UnboundedSender<NetTxPacketMsg<V>>,
     // LSDB of AS-scope LSAs.
     pub lsdb: Lsdb<V>,
     // SPF data.
@@ -234,7 +225,7 @@ where
 
         match self.is_ready(router_id) {
             Ok(()) if !self.is_active() => {
-                self.try_start(af, router_id.unwrap());
+                self.start(af, router_id.unwrap());
             }
             Err(reason) if self.is_active() => {
                 self.stop(reason);
@@ -243,19 +234,10 @@ where
         }
     }
 
-    fn try_start(&mut self, af: AddressFamily, router_id: Ipv4Addr) {
-        match InstanceState::new(af, router_id, &self.tx) {
-            Ok(state) => {
-                self.start(state);
-            }
-            Err(error) => {
-                Error::<V>::InstanceStartError(Box::new(error)).log();
-            }
-        }
-    }
-
-    fn start(&mut self, state: InstanceState<V>) {
+    fn start(&mut self, af: AddressFamily, router_id: Ipv4Addr) {
         Debug::<V>::InstanceStart.log();
+
+        let state = InstanceState::new(af, router_id);
 
         // Store instance initial state.
         self.state = Some(state);
@@ -595,42 +577,10 @@ impl<V> InstanceState<V>
 where
     V: Version,
 {
-    fn new(
-        af: AddressFamily,
-        router_id: Ipv4Addr,
-        tx: &InstanceChannelsTx<Instance<V>>,
-    ) -> Result<InstanceState<V>, Error<V>> {
-        // Create raw socket.
-        let socket = V::socket().map_err(IoError::SocketError)?;
-        let raw_fd = socket.into_raw_fd();
-        let owned_socket = unsafe { OwnedFd::from_raw_fd(raw_fd) };
-        let borrowed_socket = unsafe { BorrowedFd::borrow_raw(raw_fd) };
-
-        // Start network Tx/Rx tasks.
-        let (net_tx_packetp, net_tx_packetc) = mpsc::unbounded_channel();
-        let mut net_tx_task = tasks::net_tx(
-            owned_socket,
-            net_tx_packetc,
-            #[cfg(feature = "testing")]
-            &tx.protocol_output,
-        );
-        let net_rx_task = tasks::net_rx(
-            borrowed_socket,
-            af,
-            &tx.protocol_input.net_packet_rx,
-        );
-
-        // The network Tx task needs to be detached to ensure flushed
-        // self-originated LSAs will be sent once the instance terminates.
-        net_tx_task.detach();
-
-        Ok(InstanceState {
+    fn new(af: AddressFamily, router_id: Ipv4Addr) -> InstanceState<V> {
+        InstanceState {
             af,
             router_id,
-            socket: borrowed_socket,
-            _net_tx_task: net_tx_task,
-            _net_rx_task: net_rx_task,
-            net_tx_packetp,
             lsdb: Default::default(),
             spf_last_event_rcvd: None,
             spf_last_time: None,
@@ -648,7 +598,7 @@ where
             lsa_log_next_id: 0,
             spf_log: Default::default(),
             spf_log_next_id: 0,
-        })
+        }
     }
 }
 
@@ -848,7 +798,8 @@ where
             events::process_packet(
                 instance,
                 arenas,
-                msg.ifindex,
+                msg.area_key,
+                msg.iface_key,
                 msg.src,
                 msg.dst,
                 msg.packet,

@@ -1067,7 +1067,7 @@
                                               "mt-id": 0,
                                               "weight": 0,
                                               "neighbor-router-id": "2.2.2.2",
-                                              "sid": 16
+                                              "sid": 17
                                             },
                                             {
                                               "lan-adj-sid-flags": {
@@ -1079,7 +1079,7 @@
                                               "mt-id": 0,
                                               "weight": 0,
                                               "neighbor-router-id": "3.3.3.3",
-                                              "sid": 18
+                                              "sid": 19
                                             }
                                           ]
                                         }
@@ -1275,7 +1275,7 @@
                                               },
                                               "mt-id": 0,
                                               "weight": 0,
-                                              "sid": 20
+                                              "sid": 19
                                             }
                                           ]
                                         }
@@ -1322,7 +1322,7 @@
                                               "mt-id": 0,
                                               "weight": 0,
                                               "neighbor-router-id": "1.1.1.1",
-                                              "sid": 17
+                                              "sid": 20
                                             },
                                             {
                                               "lan-adj-sid-flags": {
@@ -1334,7 +1334,7 @@
                                               "mt-id": 0,
                                               "weight": 0,
                                               "neighbor-router-id": "3.3.3.3",
-                                              "sid": 22
+                                              "sid": 23
                                             }
                                           ]
                                         }
@@ -1484,7 +1484,7 @@
                                               },
                                               "mt-id": 0,
                                               "weight": 0,
-                                              "sid": 22
+                                              "sid": 19
                                             }
                                           ]
                                         }
@@ -1530,7 +1530,7 @@
                                               },
                                               "mt-id": 0,
                                               "weight": 0,
-                                              "sid": 23
+                                              "sid": 21
                                             }
                                           ]
                                         }
@@ -1577,7 +1577,7 @@
                                               "mt-id": 0,
                                               "weight": 0,
                                               "neighbor-router-id": "1.1.1.1",
-                                              "sid": 17
+                                              "sid": 22
                                             },
                                             {
                                               "lan-adj-sid-flags": {
@@ -1589,7 +1589,7 @@
                                               "mt-id": 0,
                                               "weight": 0,
                                               "neighbor-router-id": "2.2.2.2",
-                                              "sid": 16
+                                              "sid": 23
                                             }
                                           ]
                                         }
@@ -1739,7 +1739,7 @@
                                               },
                                               "mt-id": 0,
                                               "weight": 0,
-                                              "sid": 16
+                                              "sid": 20
                                             }
                                           ]
                                         }
@@ -1785,7 +1785,7 @@
                                               },
                                               "mt-id": 0,
                                               "weight": 0,
-                                              "sid": 18
+                                              "sid": 21
                                             }
                                           ]
                                         }
@@ -1831,7 +1831,7 @@
                                               },
                                               "mt-id": 0,
                                               "weight": 0,
-                                              "sid": 21
+                                              "sid": 16
                                             }
                                           ]
                                         }
@@ -1877,7 +1877,7 @@
                                               },
                                               "mt-id": 0,
                                               "weight": 0,
-                                              "sid": 22
+                                              "sid": 23
                                             }
                                           ]
                                         }
@@ -2027,7 +2027,7 @@
                                               },
                                               "mt-id": 0,
                                               "weight": 0,
-                                              "sid": 19
+                                              "sid": 20
                                             }
                                           ]
                                         }
@@ -2073,7 +2073,7 @@
                                               },
                                               "mt-id": 0,
                                               "weight": 0,
-                                              "sid": 20
+                                              "sid": 21
                                             }
                                           ]
                                         }
@@ -2119,7 +2119,7 @@
                                               },
                                               "mt-id": 0,
                                               "weight": 0,
-                                              "sid": 21
+                                              "sid": 16
                                             }
                                           ]
                                         }
@@ -2315,7 +2315,7 @@
                                               },
                                               "mt-id": 0,
                                               "weight": 0,
-                                              "sid": 16
+                                              "sid": 18
                                             }
                                           ]
                                         }
@@ -2361,7 +2361,7 @@
                                               },
                                               "mt-id": 0,
                                               "weight": 0,
-                                              "sid": 18
+                                              "sid": 16
                                             }
                                           ]
                                         }

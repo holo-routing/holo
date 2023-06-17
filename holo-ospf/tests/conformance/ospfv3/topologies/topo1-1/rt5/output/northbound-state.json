@@ -20,7 +20,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt4",
-                        "next-hop": "fe80::bc54:fdff:fead:13bc"
+                        "next-hop": "fe80::64b0:d5ff:febc:dfdd"
                       }
                     ]
                   },
@@ -33,7 +33,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt4",
-                        "next-hop": "fe80::bc54:fdff:fead:13bc"
+                        "next-hop": "fe80::64b0:d5ff:febc:dfdd"
                       }
                     ]
                   },
@@ -46,7 +46,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt4",
-                        "next-hop": "fe80::bc54:fdff:fead:13bc"
+                        "next-hop": "fe80::64b0:d5ff:febc:dfdd"
                       }
                     ]
                   },
@@ -59,7 +59,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt4",
-                        "next-hop": "fe80::bc54:fdff:fead:13bc"
+                        "next-hop": "fe80::64b0:d5ff:febc:dfdd"
                       }
                     ]
                   },
@@ -72,7 +72,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt4",
-                        "next-hop": "fe80::bc54:fdff:fead:13bc"
+                        "next-hop": "fe80::64b0:d5ff:febc:dfdd"
                       }
                     ]
                   },
@@ -90,7 +90,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt4",
-                        "next-hop": "fe80::bc54:fdff:fead:13bc"
+                        "next-hop": "fe80::64b0:d5ff:febc:dfdd"
                       }
                     ]
                   },
@@ -103,7 +103,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt4",
-                        "next-hop": "fe80::bc54:fdff:fead:13bc"
+                        "next-hop": "fe80::64b0:d5ff:febc:dfdd"
                       }
                     ]
                   },
@@ -116,7 +116,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt4",
-                        "next-hop": "fe80::bc54:fdff:fead:13bc"
+                        "next-hop": "fe80::64b0:d5ff:febc:dfdd"
                       }
                     ]
                   },
@@ -277,8 +277,8 @@
                                 },
                                 "body": {
                                   "inter-area-prefix": {
-                                    "metric": 20,
-                                    "prefix": "2001:db8:1000::2/128",
+                                    "metric": 10,
+                                    "prefix": "2001:db8:1000::3/128",
                                     "prefix-options": {
                                       "prefix-options": [
                                         "ietf-ospf:la-bit"
@@ -297,17 +297,12 @@
                                   "lsa-id": 3,
                                   "type": "ietf-ospf:ospfv3-inter-area-prefix-lsa",
                                   "adv-router": "4.4.4.4",
-                                  "length": 44
+                                  "length": 36
                                 },
                                 "body": {
                                   "inter-area-prefix": {
-                                    "metric": 10,
-                                    "prefix": "2001:db8:1000::3/128",
-                                    "prefix-options": {
-                                      "prefix-options": [
-                                        "ietf-ospf:la-bit"
-                                      ]
-                                    }
+                                    "metric": 20,
+                                    "prefix": "3000::/64"
                                   }
                                 }
                               }
@@ -325,8 +320,8 @@
                                 },
                                 "body": {
                                   "inter-area-prefix": {
-                                    "metric": 20,
-                                    "prefix": "2001:db8:1000::6/128",
+                                    "metric": 30,
+                                    "prefix": "2001:db8:1000::1/128",
                                     "prefix-options": {
                                       "prefix-options": [
                                         "ietf-ospf:la-bit"
@@ -345,12 +340,17 @@
                                   "lsa-id": 5,
                                   "type": "ietf-ospf:ospfv3-inter-area-prefix-lsa",
                                   "adv-router": "4.4.4.4",
-                                  "length": 36
+                                  "length": 44
                                 },
                                 "body": {
                                   "inter-area-prefix": {
                                     "metric": 20,
-                                    "prefix": "3000::/64"
+                                    "prefix": "2001:db8:1000::2/128",
+                                    "prefix-options": {
+                                      "prefix-options": [
+                                        "ietf-ospf:la-bit"
+                                      ]
+                                    }
                                   }
                                 }
                               }
@@ -368,8 +368,8 @@
                                 },
                                 "body": {
                                   "inter-area-prefix": {
-                                    "metric": 30,
-                                    "prefix": "2001:db8:1000::1/128",
+                                    "metric": 20,
+                                    "prefix": "2001:db8:1000::6/128",
                                     "prefix-options": {
                                       "prefix-options": [
                                         "ietf-ospf:la-bit"
@@ -568,7 +568,7 @@
                           "neighbor": [
                             {
                               "neighbor-router-id": "4.4.4.4",
-                              "address": "fe80::bc54:fdff:fead:13bc",
+                              "address": "fe80::64b0:d5ff:febc:dfdd",
                               "state": "full",
                               "statistics": {
                                 "nbr-retrans-qlen": 0
@@ -603,7 +603,7 @@
                                               "ietf-ospf:af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::bc54:fdff:fead:13bc",
+                                          "link-local-interface-address": "fe80::64b0:d5ff:febc:dfdd",
                                           "num-of-prefixes": 0
                                         }
                                       }
@@ -630,7 +630,7 @@
                                               "ietf-ospf:af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::c832:1bff:fe66:952f",
+                                          "link-local-interface-address": "fe80::d4a1:27ff:fe45:9519",
                                           "num-of-prefixes": 0
                                         }
                                       }

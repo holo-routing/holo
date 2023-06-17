@@ -13,6 +13,7 @@ use libc::ip_mreqn;
 #[cfg(not(feature = "testing"))]
 pub use {
     socket2::Socket,
+    tokio::io::unix::AsyncFd,
     tokio::net::{
         tcp::OwnedReadHalf, tcp::OwnedWriteHalf, TcpListener, TcpSocket,
         TcpStream, UdpSocket,
@@ -35,8 +36,8 @@ use crate::ip::{AddressFamily, IpAddrKind};
 // Test build: export mock sockets.
 #[cfg(feature = "testing")]
 pub use crate::socket::mock::{
-    OwnedReadHalf, OwnedWriteHalf, Socket, TcpListener, TcpSocket, TcpStream,
-    UdpSocket,
+    AsyncFd, OwnedReadHalf, OwnedWriteHalf, Socket, TcpListener, TcpSocket,
+    TcpStream, UdpSocket,
 };
 
 // Useful type definition.
@@ -544,6 +545,9 @@ impl SocketExt for Socket {
 
 pub mod mock {
     #[derive(Debug, Default)]
+    pub struct AsyncFd<T>(T);
+
+    #[derive(Debug, Default)]
     pub struct Socket();
 
     #[derive(Debug, Default)]
@@ -564,9 +568,13 @@ pub mod mock {
     #[derive(Debug, Default)]
     pub struct OwnedWriteHalf();
 
-    impl Socket {
-        pub fn into_raw_fd(self) -> std::os::fd::RawFd {
-            1000
+    impl<T> AsyncFd<T> {
+        pub fn new(inner: T) -> std::io::Result<Self> {
+            Ok(Self(inner))
+        }
+
+        pub fn get_ref(&self) -> &T {
+            &self.0
         }
     }
 

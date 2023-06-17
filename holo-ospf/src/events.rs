@@ -113,7 +113,8 @@ where
 pub(crate) fn process_packet<V>(
     instance: &mut InstanceUpView<'_, V>,
     arenas: &mut InstanceArenas<V>,
-    ifindex: u32,
+    area_key: AreaKey,
+    iface_key: InterfaceKey,
     src: V::NetIpAddr,
     dst: V::NetIpAddr,
     packet: DecodeResult<Packet<V>>,
@@ -121,19 +122,11 @@ pub(crate) fn process_packet<V>(
 where
     V: Version,
 {
-    // Lookup interface.
-    let (iface_idx, area_idx) =
-        match arenas.areas.indexes().find_map(|area_idx| {
-            let area = &arenas.areas[area_idx];
-            area.interfaces
-                .get_by_ifindex(&arenas.interfaces, ifindex)
-                .map(|(iface_idx, _iface)| (iface_idx, area_idx))
-        }) {
-            Some(value) => value,
-            None => return Ok(()),
-        };
-    let iface = &mut arenas.interfaces[iface_idx];
-    let area = &arenas.areas[area_idx];
+    // Lookup area and interface.
+    let (area_idx, area) = arenas.areas.get_mut_by_key(&area_key)?;
+    let (iface_idx, iface) = area
+        .interfaces
+        .get_mut_by_key(&mut arenas.interfaces, &iface_key)?;
 
     // Check if the packet was decoded successfully.
     let packet = match packet {
@@ -475,7 +468,7 @@ where
                 // The slave needs to retransmit the last Database Description
                 // packet that it had sent.
                 if !nbr.dd_flags.contains(DbDescFlags::MS) {
-                    output::rxmt_dbdesc(nbr, instance);
+                    output::rxmt_dbdesc(nbr, iface);
                 }
 
                 return Ok(());
@@ -515,7 +508,7 @@ where
                 // The slave must respond to duplicates by repeating the last
                 // Database Description packet that it had sent.
                 if !nbr.dd_flags.contains(DbDescFlags::MS) {
-                    output::rxmt_dbdesc(nbr, instance);
+                    output::rxmt_dbdesc(nbr, iface);
                 }
 
                 return Ok(());
@@ -1063,7 +1056,7 @@ where
     // Retransmit packet.
     match packet_type {
         RxmtPacketType::DbDesc => {
-            output::rxmt_dbdesc(nbr, instance);
+            output::rxmt_dbdesc(nbr, iface);
         }
         RxmtPacketType::LsRequest => {
             output::rxmt_lsreq(nbr, iface, area, instance);

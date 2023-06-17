@@ -5,7 +5,6 @@
 //
 
 use std::net::Ipv4Addr;
-use std::os::unix::io::BorrowedFd;
 use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
@@ -36,7 +35,7 @@ impl NetworkVersion<Self> for Ospfv2 {
     type SocketAddr = SockaddrIn;
     type Pktinfo = libc::in_pktinfo;
 
-    fn socket() -> Result<Socket, std::io::Error> {
+    fn socket(ifname: &str) -> Result<Socket, std::io::Error> {
         #[cfg(not(feature = "testing"))]
         {
             use socket2::{Domain, Protocol, Type};
@@ -49,6 +48,8 @@ impl NetworkVersion<Self> for Ospfv2 {
                 )
             })?;
 
+            socket.set_nonblocking(true)?;
+            socket.bind_device(Some(ifname.as_bytes()))?;
             socket.set_multicast_loop_v4(false)?;
             socket.set_multicast_ttl_v4(1)?;
             socket.set_ipv4_pktinfo(true)?;
@@ -70,27 +71,43 @@ impl NetworkVersion<Self> for Ospfv2 {
     }
 
     fn join_multicast(
-        socket: BorrowedFd<'_>,
+        socket: &Socket,
         addr: MulticastAddr,
         ifindex: u32,
     ) -> Result<(), std::io::Error> {
-        let addr = Self::multicast_addr(addr);
-        let socket = socket2::SockRef::from(&socket);
-        socket
-            .join_multicast_v4_n(addr, &InterfaceIndexOrAddress::Index(ifindex))
+        #[cfg(not(feature = "testing"))]
+        {
+            let addr = Self::multicast_addr(addr);
+            let socket = socket2::SockRef::from(socket);
+            socket.join_multicast_v4_n(
+                addr,
+                &InterfaceIndexOrAddress::Index(ifindex),
+            )
+        }
+        #[cfg(feature = "testing")]
+        {
+            Ok(())
+        }
     }
 
     fn leave_multicast(
-        socket: BorrowedFd<'_>,
+        socket: &Socket,
         addr: MulticastAddr,
         ifindex: u32,
     ) -> Result<(), std::io::Error> {
-        let addr = Self::multicast_addr(addr);
-        let socket = socket2::SockRef::from(&socket);
-        socket.leave_multicast_v4_n(
-            addr,
-            &InterfaceIndexOrAddress::Index(ifindex),
-        )
+        #[cfg(not(feature = "testing"))]
+        {
+            let addr = Self::multicast_addr(addr);
+            let socket = socket2::SockRef::from(socket);
+            socket.leave_multicast_v4_n(
+                addr,
+                &InterfaceIndexOrAddress::Index(ifindex),
+            )
+        }
+        #[cfg(feature = "testing")]
+        {
+            Ok(())
+        }
     }
 
     fn new_pktinfo(src: Option<Ipv4Addr>, ifindex: u32) -> libc::in_pktinfo {
@@ -107,14 +124,11 @@ impl NetworkVersion<Self> for Ospfv2 {
         socket::ControlMessage::Ipv4PacketInfo(pktinfo)
     }
 
-    fn get_cmsg_data(
-        mut cmsgs: socket::CmsgIterator<'_>,
-    ) -> Option<(u32, Ipv4Addr)> {
+    fn get_cmsg_data(mut cmsgs: socket::CmsgIterator<'_>) -> Option<Ipv4Addr> {
         cmsgs.find_map(|cmsg| {
             if let socket::ControlMessageOwned::Ipv4PacketInfo(pktinfo) = cmsg {
-                let ifindex = pktinfo.ipi_ifindex as u32;
                 let dst = Ipv4Addr::from(pktinfo.ipi_spec_dst.s_addr.to_be());
-                Some((ifindex, dst))
+                Some(dst)
             } else {
                 None
             }

@@ -5,7 +5,6 @@
 //
 
 use std::net::Ipv6Addr;
-use std::os::unix::io::BorrowedFd;
 use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
@@ -35,7 +34,7 @@ impl NetworkVersion<Self> for Ospfv3 {
     type SocketAddr = SockaddrIn6;
     type Pktinfo = libc::in6_pktinfo;
 
-    fn socket() -> Result<Socket, std::io::Error> {
+    fn socket(ifname: &str) -> Result<Socket, std::io::Error> {
         #[cfg(not(feature = "testing"))]
         {
             use socket2::{Domain, Protocol, Type};
@@ -48,6 +47,8 @@ impl NetworkVersion<Self> for Ospfv3 {
                 )
             })?;
 
+            socket.set_nonblocking(true)?;
+            socket.bind_device(Some(ifname.as_bytes()))?;
             socket.set_multicast_loop_v6(false)?;
             // NOTE: IPV6_MULTICAST_HOPS is 1 by default.
             socket.set_ipv6_checksum(
@@ -72,23 +73,37 @@ impl NetworkVersion<Self> for Ospfv3 {
     }
 
     fn join_multicast(
-        socket: BorrowedFd<'_>,
+        socket: &Socket,
         addr: MulticastAddr,
         ifindex: u32,
     ) -> Result<(), std::io::Error> {
-        let addr = Self::multicast_addr(addr);
-        let socket = socket2::SockRef::from(&socket);
-        socket.join_multicast_v6(addr, ifindex)
+        #[cfg(not(feature = "testing"))]
+        {
+            let addr = Self::multicast_addr(addr);
+            let socket = socket2::SockRef::from(socket);
+            socket.join_multicast_v6(addr, ifindex)
+        }
+        #[cfg(feature = "testing")]
+        {
+            Ok(())
+        }
     }
 
     fn leave_multicast(
-        socket: BorrowedFd<'_>,
+        socket: &Socket,
         addr: MulticastAddr,
         ifindex: u32,
     ) -> Result<(), std::io::Error> {
-        let addr = Self::multicast_addr(addr);
-        let socket = socket2::SockRef::from(&socket);
-        socket.leave_multicast_v6(addr, ifindex)
+        #[cfg(not(feature = "testing"))]
+        {
+            let addr = Self::multicast_addr(addr);
+            let socket = socket2::SockRef::from(socket);
+            socket.leave_multicast_v6(addr, ifindex)
+        }
+        #[cfg(feature = "testing")]
+        {
+            Ok(())
+        }
     }
 
     fn new_pktinfo(src: Option<Ipv6Addr>, ifindex: u32) -> libc::in6_pktinfo {
@@ -106,14 +121,11 @@ impl NetworkVersion<Self> for Ospfv3 {
         socket::ControlMessage::Ipv6PacketInfo(pktinfo)
     }
 
-    fn get_cmsg_data(
-        mut cmsgs: socket::CmsgIterator<'_>,
-    ) -> Option<(u32, Ipv6Addr)> {
+    fn get_cmsg_data(mut cmsgs: socket::CmsgIterator<'_>) -> Option<Ipv6Addr> {
         cmsgs.find_map(|cmsg| {
             if let socket::ControlMessageOwned::Ipv6PacketInfo(pktinfo) = cmsg {
-                let ifindex = pktinfo.ipi6_ifindex;
                 let dst = Ipv6Addr::from(pktinfo.ipi6_addr.s6_addr);
-                Some((ifindex, dst))
+                Some(dst)
             } else {
                 None
             }

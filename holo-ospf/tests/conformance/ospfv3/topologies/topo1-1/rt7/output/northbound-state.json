@@ -20,7 +20,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt6",
-                        "next-hop": "fe80::181c:8ff:fed0:79f4"
+                        "next-hop": "fe80::ac50:14ff:fef6:36c9"
                       }
                     ]
                   },
@@ -33,7 +33,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt6",
-                        "next-hop": "fe80::181c:8ff:fed0:79f4"
+                        "next-hop": "fe80::ac50:14ff:fef6:36c9"
                       }
                     ]
                   },
@@ -351,7 +351,7 @@
                           "neighbor": [
                             {
                               "neighbor-router-id": "6.6.6.6",
-                              "address": "fe80::181c:8ff:fed0:79f4",
+                              "address": "fe80::ac50:14ff:fef6:36c9",
                               "state": "full",
                               "statistics": {
                                 "nbr-retrans-qlen": 0
@@ -386,7 +386,7 @@
                                               "ietf-ospf:af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::181c:8ff:fed0:79f4",
+                                          "link-local-interface-address": "fe80::ac50:14ff:fef6:36c9",
                                           "num-of-prefixes": 0
                                         }
                                       }
@@ -413,7 +413,7 @@
                                               "ietf-ospf:af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::40c5:dff:fe35:4462",
+                                          "link-local-interface-address": "fe80::e84c:b1ff:fe04:2e7a",
                                           "num-of-prefixes": 0
                                         }
                                       }

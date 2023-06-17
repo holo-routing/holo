@@ -25,7 +25,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-sw1",
-                        "next-hop": "fe80::c0e7:c2ff:fe51:691b"
+                        "next-hop": "fe80::5465:6eff:fecc:c654"
                       }
                     ]
                   },
@@ -38,7 +38,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-sw1",
-                        "next-hop": "fe80::f8ef:4aff:fea3:90e3"
+                        "next-hop": "fe80::1c55:d9ff:fe7a:d9b2"
                       }
                     ]
                   },
@@ -51,7 +51,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-sw1",
-                        "next-hop": "fe80::c0e7:c2ff:fe51:691b"
+                        "next-hop": "fe80::5465:6eff:fecc:c654"
                       }
                     ]
                   },
@@ -64,7 +64,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-sw1",
-                        "next-hop": "fe80::f8ef:4aff:fea3:90e3"
+                        "next-hop": "fe80::1c55:d9ff:fe7a:d9b2"
                       }
                     ]
                   },
@@ -77,11 +77,11 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-sw1",
-                        "next-hop": "fe80::c0e7:c2ff:fe51:691b"
+                        "next-hop": "fe80::1c55:d9ff:fe7a:d9b2"
                       },
                       {
                         "outgoing-interface": "eth-sw1",
-                        "next-hop": "fe80::f8ef:4aff:fea3:90e3"
+                        "next-hop": "fe80::5465:6eff:fecc:c654"
                       }
                     ]
                   },
@@ -884,9 +884,9 @@
                         "name": "eth-sw1",
                         "state": "dr-other",
                         "dr-router-id": "3.3.3.3",
-                        "dr-ip-addr": "fe80::f8ef:4aff:fea3:90e3",
+                        "dr-ip-addr": "fe80::1c55:d9ff:fe7a:d9b2",
                         "bdr-router-id": "2.2.2.2",
-                        "bdr-ip-addr": "fe80::c0e7:c2ff:fe51:691b",
+                        "bdr-ip-addr": "fe80::5465:6eff:fecc:c654",
                         "statistics": {
                           "link-scope-lsa-count": 3,
                           "database": {
@@ -902,11 +902,11 @@
                           "neighbor": [
                             {
                               "neighbor-router-id": "2.2.2.2",
-                              "address": "fe80::c0e7:c2ff:fe51:691b",
+                              "address": "fe80::5465:6eff:fecc:c654",
                               "dr-router-id": "3.3.3.3",
-                              "dr-ip-addr": "fe80::f8ef:4aff:fea3:90e3",
+                              "dr-ip-addr": "fe80::1c55:d9ff:fe7a:d9b2",
                               "bdr-router-id": "2.2.2.2",
-                              "bdr-ip-addr": "fe80::c0e7:c2ff:fe51:691b",
+                              "bdr-ip-addr": "fe80::5465:6eff:fecc:c654",
                               "state": "full",
                               "statistics": {
                                 "nbr-retrans-qlen": 0
@@ -914,11 +914,11 @@
                             },
                             {
                               "neighbor-router-id": "3.3.3.3",
-                              "address": "fe80::f8ef:4aff:fea3:90e3",
+                              "address": "fe80::1c55:d9ff:fe7a:d9b2",
                               "dr-router-id": "3.3.3.3",
-                              "dr-ip-addr": "fe80::f8ef:4aff:fea3:90e3",
+                              "dr-ip-addr": "fe80::1c55:d9ff:fe7a:d9b2",
                               "bdr-router-id": "2.2.2.2",
-                              "bdr-ip-addr": "fe80::c0e7:c2ff:fe51:691b",
+                              "bdr-ip-addr": "fe80::5465:6eff:fecc:c654",
                               "state": "full",
                               "statistics": {
                                 "nbr-retrans-qlen": 0
@@ -954,7 +954,7 @@
                                               "ietf-ospf:af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::50f0:dcff:fe8d:ed6b",
+                                          "link-local-interface-address": "fe80::34a9:14ff:fe7f:1094",
                                           "num-of-prefixes": 0
                                         }
                                       }
@@ -982,7 +982,7 @@
                                               "ietf-ospf:af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::c0e7:c2ff:fe51:691b",
+                                          "link-local-interface-address": "fe80::5465:6eff:fecc:c654",
                                           "num-of-prefixes": 0
                                         }
                                       }
@@ -1010,7 +1010,7 @@
                                               "ietf-ospf:af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::f8ef:4aff:fea3:90e3",
+                                          "link-local-interface-address": "fe80::1c55:d9ff:fe7a:d9b2",
                                           "num-of-prefixes": 0
                                         }
                                       }

@@ -4,13 +4,14 @@
 // See LICENSE for license details.
 //
 
-use std::os::unix::io::{BorrowedFd, OwnedFd};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use holo_utils::ip::AddressFamily;
+use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{Sender, UnboundedReceiver, UnboundedSender};
-use tracing::debug_span;
+use tracing::{debug_span, Instrument};
 
 use crate::area::Area;
 use crate::collections::{LsaEntryId, LsdbId};
@@ -32,7 +33,7 @@ use crate::{lsdb, spf};
 //                                          | |
 //                       northbound_rx (1x) V | (1x) northbound_tx
 //                                    +--------------+
-//                     net_rx (1x) -> |              | -> (1x) net_tx
+//                     net_rx (Nx) -> |              | -> (Nx) net_tx
 //                                    |              |
 //             ism_wait_timer (Nx) -> |              | -> (Nx) hello_interval
 //                                    |              |
@@ -122,7 +123,8 @@ pub mod messages {
         #[derive(Debug, Deserialize, Serialize)]
         #[serde(bound = "V: Version")]
         pub struct NetRxPacketMsg<V: Version> {
-            pub ifindex: u32,
+            pub area_key: AreaKey,
+            pub iface_key: InterfaceKey,
             pub src: V::NetIpAddr,
             pub dst: V::NetIpAddr,
             pub packet: Result<Packet<V>, DecodeError>,
@@ -226,8 +228,10 @@ pub mod messages {
 
 // Network Rx task.
 pub(crate) fn net_rx<V>(
-    socket: BorrowedFd<'static>,
+    iface: &Interface<V>,
+    area: &Area<V>,
     af: AddressFamily,
+    socket: Arc<AsyncFd<Socket>>,
     net_packet_rxp: &Sender<messages::input::NetRxPacketMsg<V>>,
 ) -> Task<()>
 where
@@ -240,12 +244,25 @@ where
         let span2 = debug_span!("input");
         let _span2_guard = span2.enter();
 
+        let area_id = area.id;
+        let iface_id = iface.id;
         let net_packet_rxp = net_packet_rxp.clone();
+
         let span = tracing::span::Span::current();
-        Task::spawn_blocking(move || {
-            let _span_enter = span.enter();
-            let _ = network::read_loop(socket, af, net_packet_rxp);
-        })
+        Task::spawn(
+            async move {
+                let _span_enter = span.enter();
+                let _ = network::read_loop(
+                    socket,
+                    area_id,
+                    iface_id,
+                    af,
+                    net_packet_rxp,
+                )
+                .await;
+            }
+            .in_current_span(),
+        )
     }
     #[cfg(feature = "testing")]
     {
@@ -256,7 +273,7 @@ where
 // Network Tx task.
 #[allow(unused_mut)]
 pub(crate) fn net_tx<V>(
-    socket: OwnedFd,
+    socket: Arc<AsyncFd<Socket>>,
     mut net_packet_txc: UnboundedReceiver<messages::output::NetTxPacketMsg<V>>,
     #[cfg(feature = "testing")] proto_output_tx: &Sender<
         messages::ProtocolOutputMsg<V>,
@@ -273,10 +290,13 @@ where
         let _span2_guard = span2.enter();
 
         let span = tracing::span::Span::current();
-        Task::spawn_blocking(move || {
-            let _span_enter = span.enter();
-            network::write_loop(socket, net_packet_txc);
-        })
+        Task::spawn(
+            async move {
+                let _span_enter = span.enter();
+                network::write_loop(socket, net_packet_txc).await;
+            }
+            .in_current_span(),
+        )
     }
     #[cfg(feature = "testing")]
     {
@@ -310,7 +330,8 @@ where
         // Generate hello packet.
         let packet = V::generate_hello(iface, area, instance);
 
-        let net_tx_packetp = instance.state.net_tx_packetp.clone();
+        let net_tx_packetp =
+            iface.state.net.as_ref().unwrap().net_tx_packetp.clone();
         IntervalTask::new(
             Duration::from_secs(interval.into()),
             true,

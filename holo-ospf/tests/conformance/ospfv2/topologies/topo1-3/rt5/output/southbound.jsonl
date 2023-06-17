@@ -6,7 +6,6 @@
 {"RouteReplace":{"proto":"Ospf","instance":0,"prefix":"4.4.4.4/32","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.5.4","ifindex":3,"label":["OspfSr",16040]}],"distance":110,"metric":10}}
 {"LabelsReplace":{"lsp_type":"OspfSr","local_label":16040,"nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.5.4","ifindex":3,"label":["OspfSr",16040]}]}}
 {"RouteReplace":{"proto":"Ospf","instance":0,"prefix":"10.0.3.0/24","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.5.4","ifindex":3}],"distance":110,"metric":20}}
-{"RouteReplace":{"proto":"Ospf","instance":0,"prefix":"1.1.1.1/32","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.5.4","ifindex":3}],"distance":110,"metric":40}}
 {"RouteReplace":{"proto":"Ospf","instance":0,"prefix":"2.2.2.2/32","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.5.4","ifindex":3}],"distance":110,"metric":30}}
 {"RouteReplace":{"proto":"Ospf","instance":0,"prefix":"3.3.3.3/32","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.5.4","ifindex":3}],"distance":110,"metric":20}}
 {"RouteReplace":{"proto":"Ospf","instance":0,"prefix":"6.6.6.6/32","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.5.4","ifindex":3}],"distance":110,"metric":30}}
@@ -14,4 +13,5 @@
 {"RouteReplace":{"proto":"Ospf","instance":0,"prefix":"10.0.2.0/24","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.5.4","ifindex":3}],"distance":110,"metric":30}}
 {"RouteReplace":{"proto":"Ospf","instance":0,"prefix":"10.0.4.0/24","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.5.4","ifindex":3}],"distance":110,"metric":30}}
 {"RouteReplace":{"proto":"Ospf","instance":0,"prefix":"10.0.6.0/24","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.5.4","ifindex":3}],"distance":110,"metric":40}}
+{"RouteReplace":{"proto":"Ospf","instance":0,"prefix":"1.1.1.1/32","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.5.4","ifindex":3}],"distance":110,"metric":40}}
 {"RouteReplace":{"proto":"Ospf","instance":0,"prefix":"7.7.7.7/32","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.5.4","ifindex":3}],"distance":110,"metric":40}}

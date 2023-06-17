@@ -6,23 +6,25 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::net::Ipv4Addr;
-use std::os::unix::io::BorrowedFd;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use holo_northbound::paths::control_plane_protocol::ospf;
-use holo_utils::bfd;
+use holo_protocol::InstanceChannelsTx;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
-use holo_utils::task::{IntervalTask, TimeoutTask};
+use holo_utils::socket::{AsyncFd, Socket};
+use holo_utils::task::{IntervalTask, Task, TimeoutTask};
+use holo_utils::{bfd, UnboundedSender};
 use holo_yang::TryFromYang;
 use ipnetwork::{Ipv4Network, Ipv6Network};
 use ism::{Event, State};
+use tokio::sync::mpsc;
 
 use crate::area::Area;
 use crate::collections::{Arena, InterfaceId, Lsdb, NeighborIndex, Neighbors};
 use crate::debug::{Debug, InterfaceInactiveReason};
 use crate::error::{Error, InterfaceCfgError, IoError};
-use crate::instance::InstanceUpView;
+use crate::instance::{Instance, InstanceUpView};
 use crate::lsdb::{LsaEntry, LsaOriginateEvent};
 use crate::neighbor::{nsm, Neighbor, NeighborNetId};
 use crate::network::{DestinationAddrs, MulticastAddr, SendDestination};
@@ -30,6 +32,7 @@ use crate::northbound::notification;
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::packet::Packet;
 use crate::tasks;
+use crate::tasks::messages::output::NetTxPacketMsg;
 use crate::version::Version;
 
 #[derive(Debug)]
@@ -81,6 +84,8 @@ pub struct InterfaceCfg<V: Version> {
 pub struct InterfaceState<V: Version> {
     // ISM state.
     pub ism_state: State,
+    // Raw socket and Tx/Rx tasks.
+    pub net: Option<InterfaceNet<V>>,
     // Source address used when sending packets.
     pub src_addr: Option<V::NetIpAddr>,
     // Joined multicast groups.
@@ -102,6 +107,17 @@ pub struct InterfaceState<V: Version> {
     pub network_lsa_self: Option<LsaKey<V::LsaType>>,
     // Tasks.
     pub tasks: InterfaceTasks<V>,
+}
+
+#[derive(Debug)]
+pub struct InterfaceNet<V: Version> {
+    // Raw socket.
+    pub socket: Arc<AsyncFd<Socket>>,
+    // Network Tx/Rx tasks.
+    _net_tx_task: Task<()>,
+    _net_rx_task: Task<()>,
+    // Network Tx output channel.
+    pub net_tx_packetp: UnboundedSender<NetTxPacketMsg<V>>,
 }
 
 #[derive(Debug)]
@@ -296,6 +312,17 @@ where
         Debug::<V>::InterfaceStart(&self.name).log();
 
         if !self.is_passive() {
+            // Start network Tx/Rx tasks.
+            match InterfaceNet::new(self, area, instance.state.af, instance.tx)
+            {
+                Ok(net) => self.state.net = Some(net),
+                Err(error) => {
+                    let ifname = self.name.clone();
+                    Error::<V>::InterfaceStartError(ifname, error).log();
+                    return State::Down;
+                }
+            }
+
             // Initialize source address.
             self.state.src_addr = V::src_addr(&self.system);
 
@@ -384,7 +411,9 @@ where
         }
 
         // Reset interface state.
+        self.state.net = None;
         self.state.src_addr = None;
+        self.state.mcast_groups = Default::default();
         self.state.dr = None;
         self.state.bdr = None;
         self.state.neighbors = Default::default();
@@ -531,7 +560,7 @@ where
         notification::if_state_change(instance, self);
 
         // Join or leave OSPF multicast groups as necessary.
-        self.update_mcast_groups(instance.state.socket);
+        self.update_mcast_groups();
 
         // Update statistics.
         self.state.event_count += 1;
@@ -578,7 +607,12 @@ where
         self.state.tasks.nbma_poll_interval.remove(&addr);
     }
 
-    fn update_mcast_groups(&mut self, socket: BorrowedFd<'_>) {
+    fn update_mcast_groups(&mut self) {
+        let socket = match &self.state.net {
+            Some(net) => net.socket.get_ref(),
+            None => return,
+        };
+
         // AllSPFRouters.
         if self.state.ism_state >= State::Waiting
             && !self.state.mcast_groups.contains(&MulticastAddr::AllSpfRtrs)
@@ -817,6 +851,10 @@ where
             self.state.tasks.ls_delayed_ack = Some(task);
         }
     }
+
+    pub(crate) fn send_packet(&self, msg: NetTxPacketMsg<V>) {
+        let _ = self.state.net.as_ref().unwrap().net_tx_packetp.send(msg);
+    }
 }
 
 impl<V> Drop for Interface<V>
@@ -845,25 +883,19 @@ where
         false
     }
 
-    fn join_multicast(&self, socket: BorrowedFd<'_>, addr: MulticastAddr) {
-        #[cfg(not(feature = "testing"))]
+    fn join_multicast(&self, socket: &Socket, addr: MulticastAddr) {
+        if let Err(error) =
+            V::join_multicast(socket, addr, self.ifindex.unwrap())
         {
-            if let Err(error) =
-                V::join_multicast(socket, addr, self.ifindex.unwrap())
-            {
-                IoError::MulticastJoinError(addr, error).log();
-            }
+            IoError::MulticastJoinError(addr, error).log();
         }
     }
 
-    fn leave_multicast(&self, socket: BorrowedFd<'_>, addr: MulticastAddr) {
-        #[cfg(not(feature = "testing"))]
+    fn leave_multicast(&self, socket: &Socket, addr: MulticastAddr) {
+        if let Err(error) =
+            V::leave_multicast(socket, addr, self.ifindex.unwrap())
         {
-            if let Err(error) =
-                V::leave_multicast(socket, addr, self.ifindex.unwrap())
-            {
-                IoError::MulticastJoinError(addr, error).log();
-            }
+            IoError::MulticastJoinError(addr, error).log();
         }
     }
 }
@@ -941,6 +973,7 @@ where
     fn default() -> InterfaceState<V> {
         InterfaceState {
             ism_state: Default::default(),
+            net: None,
             src_addr: None,
             mcast_groups: Default::default(),
             dr: None,
@@ -954,6 +987,55 @@ where
             network_lsa_self: None,
             tasks: Default::default(),
         }
+    }
+}
+
+// ===== impl InterfaceNet =====
+
+impl<V> InterfaceNet<V>
+where
+    V: Version,
+{
+    fn new(
+        iface: &Interface<V>,
+        area: &Area<V>,
+        af: AddressFamily,
+        instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
+    ) -> Result<Self, IoError> {
+        // Create raw socket.
+        let socket = V::socket(&iface.name)
+            .map_err(IoError::SocketError)
+            .and_then(|socket| {
+                AsyncFd::new(socket).map_err(IoError::SocketError)
+            })
+            .map(Arc::new)?;
+
+        // Start network Tx/Rx tasks.
+        let (net_tx_packetp, net_tx_packetc) = mpsc::unbounded_channel();
+        let mut net_tx_task = tasks::net_tx(
+            socket.clone(),
+            net_tx_packetc,
+            #[cfg(feature = "testing")]
+            &instance_channels_tx.protocol_output,
+        );
+        let net_rx_task = tasks::net_rx(
+            iface,
+            area,
+            af,
+            socket.clone(),
+            &instance_channels_tx.protocol_input.net_packet_rx,
+        );
+
+        // The network Tx task needs to be detached to ensure flushed
+        // self-originated LSAs will be sent once the instance terminates.
+        net_tx_task.detach();
+
+        Ok(InterfaceNet {
+            socket,
+            _net_tx_task: net_tx_task,
+            _net_rx_task: net_rx_task,
+            net_tx_packetp,
+        })
     }
 }
 

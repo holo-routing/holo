@@ -80,7 +80,7 @@ pub(crate) fn send_dbdesc<V>(
     // Enqueue packet for network transmission.
     let msg = NetTxPacketMsg { packet, src, dst };
     nbr.last_sent_dbdesc = Some(msg.clone());
-    let _ = instance.state.net_tx_packetp.send(msg);
+    iface.send_packet(msg);
 
     // Start retransmission interval in two cases:
     // * The router is master
@@ -90,15 +90,13 @@ pub(crate) fn send_dbdesc<V>(
     }
 }
 
-pub(crate) fn rxmt_dbdesc<V>(
-    nbr: &mut Neighbor<V>,
-    instance: &InstanceUpView<'_, V>,
-) where
+pub(crate) fn rxmt_dbdesc<V>(nbr: &mut Neighbor<V>, iface: &Interface<V>)
+where
     V: Version,
 {
     if let Some(msg) = &nbr.last_sent_dbdesc {
         // Enqueue packet for network transmission.
-        let _ = instance.state.net_tx_packetp.send(msg.clone());
+        iface.send_packet(msg.clone());
     }
 }
 
@@ -143,7 +141,7 @@ pub(crate) fn send_lsreq<V>(
 
     // Enqueue packet for network transmission.
     let msg = NetTxPacketMsg { packet, src, dst };
-    let _ = instance.state.net_tx_packetp.send(msg);
+    iface.send_packet(msg);
 
     // Start retransmission interval.
     nbr.rxmt_lsreq_start(iface, area, instance);
@@ -173,7 +171,7 @@ pub(crate) fn rxmt_lsreq<V>(
 
     // Enqueue packet for network transmission.
     let msg = NetTxPacketMsg { packet, src, dst };
-    let _ = instance.state.net_tx_packetp.send(msg);
+    iface.send_packet(msg);
 }
 
 // ===== LS Update Packets =====
@@ -196,6 +194,7 @@ pub(crate) fn send_lsupd<V>(
         - V::PacketHdr::LENGTH
         - V::PacketLsUpdate::BASE_LENGTH;
 
+    // Get list of LSAs enqueued for transmission.
     let ls_update_list = match nbr_idx {
         Some(nbr_idx) => {
             let nbr = &mut neighbors[nbr_idx];
@@ -203,6 +202,7 @@ pub(crate) fn send_lsupd<V>(
         }
         None => &mut iface.state.ls_update_list,
     };
+    let mut ls_update_list = std::mem::take(ls_update_list);
 
     // Send as many LS Updates as necessary.
     while !ls_update_list.is_empty() {
@@ -246,7 +246,7 @@ pub(crate) fn send_lsupd<V>(
             src,
             dst: dst.clone(),
         };
-        let _ = instance.state.net_tx_packetp.send(msg);
+        iface.send_packet(msg);
     }
 }
 
@@ -299,7 +299,7 @@ pub(crate) fn rxmt_lsupd<V>(
 
     // Enqueue packet for network transmission.
     let msg = NetTxPacketMsg { packet, src, dst };
-    let _ = instance.state.net_tx_packetp.send(msg);
+    iface.send_packet(msg);
 }
 
 // ===== LS Ack Packets =====
@@ -329,7 +329,7 @@ pub(crate) fn send_lsack_direct<V>(
 
     // Enqueue packet for network transmission.
     let msg = NetTxPacketMsg { packet, src, dst };
-    let _ = instance.state.net_tx_packetp.send(msg);
+    iface.send_packet(msg);
 }
 
 pub(crate) fn send_lsack_delayed<V>(
@@ -377,7 +377,7 @@ pub(crate) fn send_lsack_delayed<V>(
             src,
             dst: dst.clone(),
         };
-        let _ = instance.state.net_tx_packetp.send(msg);
+        iface.send_packet(msg);
     }
 }
 

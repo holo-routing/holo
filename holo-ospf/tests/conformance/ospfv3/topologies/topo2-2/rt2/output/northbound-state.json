@@ -20,7 +20,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-sw1",
-                        "next-hop": "fe80::30ab:d9ff:fef3:7219"
+                        "next-hop": "fe80::8c6d:13ff:fe77:c2fe"
                       }
                     ]
                   },
@@ -38,7 +38,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-sw1",
-                        "next-hop": "fe80::2899:43ff:fe05:caf7"
+                        "next-hop": "fe80::8831:7cff:fe04:a26e"
                       }
                     ]
                   },
@@ -51,11 +51,11 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt4-1",
-                        "next-hop": "fe80::a065:7cff:fe2f:74f0"
+                        "next-hop": "fe80::500a:25ff:fed9:484b"
                       },
                       {
                         "outgoing-interface": "eth-rt4-2",
-                        "next-hop": "fe80::480b:46ff:fed5:e503"
+                        "next-hop": "fe80::d0d9:60ff:fe7d:bcdd"
                       }
                     ]
                   },
@@ -68,15 +68,15 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-sw1",
-                        "next-hop": "fe80::2899:43ff:fe05:caf7"
+                        "next-hop": "fe80::8831:7cff:fe04:a26e"
                       },
                       {
                         "outgoing-interface": "eth-rt4-1",
-                        "next-hop": "fe80::a065:7cff:fe2f:74f0"
+                        "next-hop": "fe80::500a:25ff:fed9:484b"
                       },
                       {
                         "outgoing-interface": "eth-rt4-2",
-                        "next-hop": "fe80::480b:46ff:fed5:e503"
+                        "next-hop": "fe80::d0d9:60ff:fe7d:bcdd"
                       }
                     ]
                   },
@@ -89,11 +89,11 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt4-1",
-                        "next-hop": "fe80::a065:7cff:fe2f:74f0"
+                        "next-hop": "fe80::500a:25ff:fed9:484b"
                       },
                       {
                         "outgoing-interface": "eth-rt4-2",
-                        "next-hop": "fe80::480b:46ff:fed5:e503"
+                        "next-hop": "fe80::d0d9:60ff:fe7d:bcdd"
                       }
                     ]
                   },
@@ -460,7 +460,7 @@
                                 "body": {
                                   "inter-area-prefix": {
                                     "metric": 10,
-                                    "prefix": "2001:db8:1000::6/128",
+                                    "prefix": "2001:db8:1000::5/128",
                                     "prefix-options": {
                                       "prefix-options": [
                                         "ietf-ospf:la-bit"
@@ -484,7 +484,7 @@
                                 "body": {
                                   "inter-area-prefix": {
                                     "metric": 10,
-                                    "prefix": "2001:db8:1000::5/128",
+                                    "prefix": "2001:db8:1000::6/128",
                                     "prefix-options": {
                                       "prefix-options": [
                                         "ietf-ospf:la-bit"
@@ -915,7 +915,7 @@
                           "neighbor": [
                             {
                               "neighbor-router-id": "4.4.4.4",
-                              "address": "fe80::a065:7cff:fe2f:74f0",
+                              "address": "fe80::500a:25ff:fed9:484b",
                               "state": "full",
                               "statistics": {
                                 "nbr-retrans-qlen": 0
@@ -951,7 +951,7 @@
                                               "ietf-ospf:af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::d853:ddff:fe4d:b74c",
+                                          "link-local-interface-address": "fe80::68cb:54ff:fe00:4c67",
                                           "num-of-prefixes": 0
                                         }
                                       }
@@ -979,7 +979,7 @@
                                               "ietf-ospf:af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::a065:7cff:fe2f:74f0",
+                                          "link-local-interface-address": "fe80::500a:25ff:fed9:484b",
                                           "num-of-prefixes": 0
                                         }
                                       }
@@ -1010,7 +1010,7 @@
                           "neighbor": [
                             {
                               "neighbor-router-id": "4.4.4.4",
-                              "address": "fe80::480b:46ff:fed5:e503",
+                              "address": "fe80::d0d9:60ff:fe7d:bcdd",
                               "state": "full",
                               "statistics": {
                                 "nbr-retrans-qlen": 0
@@ -1046,7 +1046,7 @@
                                               "ietf-ospf:af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::90c0:f4ff:fe45:7ceb",
+                                          "link-local-interface-address": "fe80::2c58:a8ff:fec6:2953",
                                           "num-of-prefixes": 0
                                         }
                                       }
@@ -1074,7 +1074,7 @@
                                               "ietf-ospf:af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::480b:46ff:fed5:e503",
+                                          "link-local-interface-address": "fe80::d0d9:60ff:fe7d:bcdd",
                                           "num-of-prefixes": 0
                                         }
                                       }
@@ -1091,9 +1091,9 @@
                         "name": "eth-sw1",
                         "state": "bdr",
                         "dr-router-id": "3.3.3.3",
-                        "dr-ip-addr": "fe80::2899:43ff:fe05:caf7",
+                        "dr-ip-addr": "fe80::8831:7cff:fe04:a26e",
                         "bdr-router-id": "2.2.2.2",
-                        "bdr-ip-addr": "fe80::888b:d0ff:fe38:d92e",
+                        "bdr-ip-addr": "fe80::60c5:c1ff:fe65:6e49",
                         "statistics": {
                           "link-scope-lsa-count": 3,
                           "database": {
@@ -1109,11 +1109,11 @@
                           "neighbor": [
                             {
                               "neighbor-router-id": "1.1.1.1",
-                              "address": "fe80::30ab:d9ff:fef3:7219",
+                              "address": "fe80::8c6d:13ff:fe77:c2fe",
                               "dr-router-id": "3.3.3.3",
-                              "dr-ip-addr": "fe80::2899:43ff:fe05:caf7",
+                              "dr-ip-addr": "fe80::8831:7cff:fe04:a26e",
                               "bdr-router-id": "2.2.2.2",
-                              "bdr-ip-addr": "fe80::888b:d0ff:fe38:d92e",
+                              "bdr-ip-addr": "fe80::60c5:c1ff:fe65:6e49",
                               "state": "full",
                               "statistics": {
                                 "nbr-retrans-qlen": 0
@@ -1121,11 +1121,11 @@
                             },
                             {
                               "neighbor-router-id": "3.3.3.3",
-                              "address": "fe80::2899:43ff:fe05:caf7",
+                              "address": "fe80::8831:7cff:fe04:a26e",
                               "dr-router-id": "3.3.3.3",
-                              "dr-ip-addr": "fe80::2899:43ff:fe05:caf7",
+                              "dr-ip-addr": "fe80::8831:7cff:fe04:a26e",
                               "bdr-router-id": "2.2.2.2",
-                              "bdr-ip-addr": "fe80::888b:d0ff:fe38:d92e",
+                              "bdr-ip-addr": "fe80::60c5:c1ff:fe65:6e49",
                               "state": "full",
                               "statistics": {
                                 "nbr-retrans-qlen": 0
@@ -1161,7 +1161,7 @@
                                               "ietf-ospf:af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::30ab:d9ff:fef3:7219",
+                                          "link-local-interface-address": "fe80::8c6d:13ff:fe77:c2fe",
                                           "num-of-prefixes": 0
                                         }
                                       }
@@ -1189,7 +1189,7 @@
                                               "ietf-ospf:af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::888b:d0ff:fe38:d92e",
+                                          "link-local-interface-address": "fe80::60c5:c1ff:fe65:6e49",
                                           "num-of-prefixes": 0
                                         }
                                       }
@@ -1217,7 +1217,7 @@
                                               "ietf-ospf:af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::2899:43ff:fe05:caf7",
+                                          "link-local-interface-address": "fe80::8831:7cff:fe04:a26e",
                                           "num-of-prefixes": 0
                                         }
                                       }

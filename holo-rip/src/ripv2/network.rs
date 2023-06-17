@@ -35,7 +35,7 @@ impl NetworkVersion for Ripv2 {
                 SocketAddr::from((Ipv4Addr::UNSPECIFIED, Self::UDP_PORT));
             let socket =
                 capabilities::raise(|| UdpSocket::bind_reuseaddr(sockaddr))?;
-            socket.bind_device(Some(ifname.as_bytes())).unwrap();
+            socket.bind_device(Some(ifname.as_bytes()))?;
             socket.set_multicast_loop_v4(false)?;
             socket.set_multicast_ttl_v4(1)?;
             socket.set_ipv4_tos(libc::IPTOS_PREC_INTERNETCONTROL)?;

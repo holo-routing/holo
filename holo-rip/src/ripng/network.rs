@@ -35,7 +35,7 @@ impl NetworkVersion for Ripng {
                 SocketAddr::from((Ipv6Addr::UNSPECIFIED, Self::UDP_PORT));
             let socket =
                 capabilities::raise(|| UdpSocket::bind_reuseaddr(sockaddr))?;
-            socket.bind_device(Some(ifname.as_bytes())).unwrap();
+            socket.bind_device(Some(ifname.as_bytes()))?;
             socket.set_multicast_loop_v6(false)?;
             socket.set_ipv6_tclass(libc::IPTOS_PREC_INTERNETCONTROL)?;
 

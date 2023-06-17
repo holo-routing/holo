@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::neighbor::NeighborNetId;
 use crate::ospfv3::packet::lsa::{LsaHdr, LsaType};
+use crate::packet::auth::AuthCtx;
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::packet::{
@@ -71,6 +72,9 @@ pub struct PacketHdr {
     pub area_id: Ipv4Addr,
     pub instance_id: u8,
 }
+
+#[derive(Debug)]
+pub struct PacketHdrAuth;
 
 //
 // OSPFv3 Hello packet.
@@ -247,7 +251,7 @@ impl PacketHdr {
 impl PacketHdrVersion<Ospfv3> for PacketHdr {
     const LENGTH: u16 = 16;
 
-    fn decode(buf: &mut Bytes) -> DecodeResult<Self> {
+    fn decode(buf: &mut Bytes) -> DecodeResult<(Self, u16, PacketHdrAuth)> {
         // Parse version.
         let version = buf.get_u8();
         if version != Self::VERSION {
@@ -290,15 +294,19 @@ impl PacketHdrVersion<Ospfv3> for PacketHdr {
             return Err(DecodeError::InvalidLength(pkt_len));
         }
 
-        Ok(PacketHdr {
-            pkt_type,
-            router_id,
-            area_id,
-            instance_id,
-        })
+        Ok((
+            PacketHdr {
+                pkt_type,
+                router_id,
+                area_id,
+                instance_id,
+            },
+            pkt_len,
+            PacketHdrAuth {},
+        ))
     }
 
-    fn encode(&self, buf: &mut BytesMut) {
+    fn encode(&self, buf: &mut BytesMut, _auth: Option<&AuthCtx>) {
         buf.put_u8(Self::VERSION);
         buf.put_u8(self.pkt_type as u8);
         // The length will be initialized later.
@@ -330,6 +338,10 @@ impl PacketHdrVersion<Ospfv3> for PacketHdr {
 
     fn area_id(&self) -> Ipv4Addr {
         self.area_id
+    }
+
+    fn auth_seqno(&self) -> Option<u32> {
+        None
     }
 
     fn generate(
@@ -392,9 +404,9 @@ impl PacketBase<Ospfv3> for Hello {
         })
     }
 
-    fn encode(&self) -> Bytes {
+    fn encode(&self, auth: Option<&AuthCtx>) -> Bytes {
         TLS_BUF.with(|buf| {
-            let mut buf = packet_encode_start::<Ospfv3>(buf, &self.hdr);
+            let mut buf = packet_encode_start::<Ospfv3>(buf, &self.hdr, auth);
 
             buf.put_u32(self.iface_id);
             buf.put_u8(self.priority);
@@ -417,7 +429,7 @@ impl PacketBase<Ospfv3> for Hello {
                 buf.put_ipv4(nbr);
             }
 
-            packet_encode_end::<Ospfv3>(buf)
+            packet_encode_end::<Ospfv3>(buf, auth)
         })
     }
 
@@ -497,9 +509,9 @@ impl PacketBase<Ospfv3> for DbDesc {
         })
     }
 
-    fn encode(&self) -> Bytes {
+    fn encode(&self, auth: Option<&AuthCtx>) -> Bytes {
         TLS_BUF.with(|buf| {
-            let mut buf = packet_encode_start::<Ospfv3>(buf, &self.hdr);
+            let mut buf = packet_encode_start::<Ospfv3>(buf, &self.hdr, auth);
 
             buf.put_u8(0);
             self.options.encode(&mut buf);
@@ -511,7 +523,7 @@ impl PacketBase<Ospfv3> for DbDesc {
                 lsa_hdr.encode(&mut buf);
             }
 
-            packet_encode_end::<Ospfv3>(buf)
+            packet_encode_end::<Ospfv3>(buf, auth)
         })
     }
 
@@ -589,9 +601,9 @@ impl PacketBase<Ospfv3> for LsRequest {
         Ok(LsRequest { hdr, entries })
     }
 
-    fn encode(&self) -> Bytes {
+    fn encode(&self, auth: Option<&AuthCtx>) -> Bytes {
         TLS_BUF.with(|buf| {
-            let mut buf = packet_encode_start::<Ospfv3>(buf, &self.hdr);
+            let mut buf = packet_encode_start::<Ospfv3>(buf, &self.hdr, auth);
 
             for entry in &self.entries {
                 buf.put_u16(0);
@@ -600,7 +612,7 @@ impl PacketBase<Ospfv3> for LsRequest {
                 buf.put_ipv4(&entry.adv_rtr);
             }
 
-            packet_encode_end::<Ospfv3>(buf)
+            packet_encode_end::<Ospfv3>(buf, auth)
         })
     }
 
@@ -651,16 +663,16 @@ impl PacketBase<Ospfv3> for LsUpdate {
         Ok(LsUpdate { hdr, lsas })
     }
 
-    fn encode(&self) -> Bytes {
+    fn encode(&self, auth: Option<&AuthCtx>) -> Bytes {
         TLS_BUF.with(|buf| {
-            let mut buf = packet_encode_start::<Ospfv3>(buf, &self.hdr);
+            let mut buf = packet_encode_start::<Ospfv3>(buf, &self.hdr, auth);
 
             buf.put_u32(self.lsas.len() as u32);
             for lsa in &self.lsas {
                 buf.put_slice(&lsa.raw);
             }
 
-            packet_encode_end::<Ospfv3>(buf)
+            packet_encode_end::<Ospfv3>(buf, auth)
         })
     }
 
@@ -700,15 +712,15 @@ impl PacketBase<Ospfv3> for LsAck {
         Ok(LsAck { hdr, lsa_hdrs })
     }
 
-    fn encode(&self) -> Bytes {
+    fn encode(&self, auth: Option<&AuthCtx>) -> Bytes {
         TLS_BUF.with(|buf| {
-            let mut buf = packet_encode_start::<Ospfv3>(buf, &self.hdr);
+            let mut buf = packet_encode_start::<Ospfv3>(buf, &self.hdr, auth);
 
             for lsa_hdr in &self.lsa_hdrs {
                 lsa_hdr.encode(&mut buf);
             }
 
-            packet_encode_end::<Ospfv3>(buf)
+            packet_encode_end::<Ospfv3>(buf, auth)
         })
     }
 
@@ -732,9 +744,23 @@ impl LsAckVersion<Ospfv3> for LsAck {
 impl PacketVersion<Self> for Ospfv3 {
     type PacketOptions = Options;
     type PacketHdr = PacketHdr;
+    type PacketHdrAuth = PacketHdrAuth;
     type PacketHello = Hello;
     type PacketDbDesc = DbDesc;
     type PacketLsRequest = LsRequest;
     type PacketLsUpdate = LsUpdate;
     type PacketLsAck = LsAck;
+
+    // Not implemented yet (RFC 7166).
+    fn decode_auth_validate(
+        _data: &[u8],
+        _pkt_len: u16,
+        _hdr_auth: PacketHdrAuth,
+        _auth: Option<&AuthCtx>,
+    ) -> DecodeResult<()> {
+        Ok(())
+    }
+
+    // Not implemented yet (RFC 7166).
+    fn encode_auth_trailer(_buf: &mut BytesMut, _auth: &AuthCtx) {}
 }

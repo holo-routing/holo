@@ -10,7 +10,6 @@ use std::sync::LazyLock as Lazy;
 
 use bytes::{Buf, Bytes};
 use holo_utils::capabilities;
-use holo_utils::ip::AddressFamily;
 use holo_utils::socket::{Socket, SocketExt};
 use ipnetwork::Ipv4Network;
 use nix::sys::socket::{self, SockaddrIn};
@@ -18,7 +17,6 @@ use socket2::InterfaceIndexOrAddress;
 
 use crate::network::{MulticastAddr, NetworkVersion, OSPF_IP_PROTO};
 use crate::packet::error::{DecodeError, DecodeResult};
-use crate::packet::Packet;
 use crate::version::Ospfv2;
 
 // OSPFv2 multicast addresses.
@@ -143,11 +141,7 @@ impl NetworkVersion<Self> for Ospfv2 {
         Ipv4Addr::from(sockaddr.ip())
     }
 
-    fn decode_packet(
-        af: AddressFamily,
-        data: &[u8],
-    ) -> DecodeResult<Packet<Self>> {
-        let mut buf = Bytes::copy_from_slice(data);
+    fn validate_ip_hdr(buf: &mut Bytes) -> DecodeResult<()> {
         let buf_len = buf.len() as u16;
 
         // Parse IHL (header length).
@@ -165,7 +159,6 @@ impl NetworkVersion<Self> for Ospfv2 {
         // Move past the IP header.
         buf.advance(((hdr_len << 2) - 4) as usize);
 
-        // Parse OSPFv2 packet.
-        Packet::decode(af, buf.as_ref())
+        Ok(())
     }
 }

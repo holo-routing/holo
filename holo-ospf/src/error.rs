@@ -32,6 +32,7 @@ pub enum Error<V: Version> {
     InvalidDstAddr(V::NetIpAddr),
     PacketDecodeError(DecodeError),
     UnknownNeighbor(V::NetIpAddr, Ipv4Addr),
+    PacketAuthInvalidSeqno(V::NetIpAddr, u32),
     InterfaceCfgError(String, V::NetIpAddr, PacketType, InterfaceCfgError),
     DbDescReject(Ipv4Addr, nsm::State),
     Ospfv2LsaUnknownType(V::LsaType),
@@ -108,6 +109,9 @@ where
             }
             Error::UnknownNeighbor(source, router_id) => {
                 warn!(%source, %router_id, "{}", self);
+            }
+            Error::PacketAuthInvalidSeqno(source, seqno) => {
+                warn!(%source, %seqno, "{}", self);
             }
             Error::InterfaceCfgError(iface, source, _, error) => {
                 warn_span!("interface", name = %iface, %source).in_scope(|| {
@@ -186,6 +190,9 @@ where
             }
             Error::UnknownNeighbor(..) => {
                 write!(f, "unknown neighbor")
+            }
+            Error::PacketAuthInvalidSeqno(..) => {
+                write!(f, "authentication failed: decreasing sequence number")
             }
             Error::InterfaceCfgError(_, _, _, error) => error.fmt(f),
             Error::DbDescReject(..) => {

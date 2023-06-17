@@ -6,11 +6,13 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::net::Ipv4Addr;
+use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use holo_northbound::paths::control_plane_protocol::ospf;
 use holo_protocol::InstanceChannelsTx;
+use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
@@ -29,6 +31,7 @@ use crate::lsdb::{LsaEntry, LsaOriginateEvent};
 use crate::neighbor::{nsm, Neighbor, NeighborNetId};
 use crate::network::{DestinationAddrs, MulticastAddr, SendDestination};
 use crate::northbound::notification;
+use crate::packet::auth::AuthCtx;
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::packet::Packet;
 use crate::tasks;
@@ -76,6 +79,9 @@ pub struct InterfaceCfg<V: Version> {
     pub cost: u16,
     pub mtu_ignore: bool,
     pub static_nbrs: BTreeMap<V::NetIpAddr, StaticNbr>,
+    pub auth_keyid: Option<u32>,
+    pub auth_key: Option<String>,
+    pub auth_algo: Option<CryptoAlgo>,
     pub bfd_enabled: bool,
     pub bfd_params: bfd::ClientCfg,
 }
@@ -313,8 +319,14 @@ where
 
         if !self.is_passive() {
             // Start network Tx/Rx tasks.
-            match InterfaceNet::new(self, area, instance.state.af, instance.tx)
-            {
+            let auth = self.auth(&instance.state.auth_seqno);
+            match InterfaceNet::new(
+                self,
+                area,
+                instance.state.af,
+                auth,
+                instance.tx,
+            ) {
                 Ok(net) => self.state.net = Some(net),
                 Err(error) => {
                     let ifname = self.name.clone();
@@ -466,6 +478,17 @@ where
             self.config.if_type,
             InterfaceType::Broadcast | InterfaceType::NonBroadcast
         )
+    }
+
+    pub(crate) fn auth(&self, seqno: &Arc<AtomicU32>) -> Option<AuthCtx> {
+        self.config.auth_key.as_ref().map(|auth_key| {
+            AuthCtx::new(
+                auth_key.clone(),
+                self.config.auth_keyid.unwrap_or(1),
+                self.config.auth_algo.unwrap_or(CryptoAlgo::Md5),
+                seqno.clone(),
+            )
+        })
     }
 
     pub(crate) fn fsm(
@@ -958,6 +981,9 @@ where
             cost,
             mtu_ignore,
             static_nbrs: Default::default(),
+            auth_keyid: None,
+            auth_key: None,
+            auth_algo: None,
             bfd_enabled,
             bfd_params: Default::default(),
         }
@@ -1000,6 +1026,7 @@ where
         iface: &Interface<V>,
         area: &Area<V>,
         af: AddressFamily,
+        auth: Option<AuthCtx>,
         instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
     ) -> Result<Self, IoError> {
         // Create raw socket.
@@ -1014,15 +1041,17 @@ where
         let (net_tx_packetp, net_tx_packetc) = mpsc::unbounded_channel();
         let mut net_tx_task = tasks::net_tx(
             socket.clone(),
+            auth.clone(),
             net_tx_packetc,
             #[cfg(feature = "testing")]
             &instance_channels_tx.protocol_output,
         );
         let net_rx_task = tasks::net_rx(
+            socket.clone(),
             iface,
             area,
             af,
-            socket.clone(),
+            auth,
             &instance_channels_tx.protocol_input.net_packet_rx,
         );
 
@@ -1036,6 +1065,36 @@ where
             _net_rx_task: net_rx_task,
             net_tx_packetp,
         })
+    }
+
+    pub(crate) fn restart_tasks(
+        &mut self,
+        iface: &Interface<V>,
+        area: &Area<V>,
+        af: AddressFamily,
+        auth: Option<AuthCtx>,
+        instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
+    ) {
+        let (net_tx_packetp, net_tx_packetc) = mpsc::unbounded_channel();
+        self._net_tx_task = tasks::net_tx(
+            self.socket.clone(),
+            auth.clone(),
+            net_tx_packetc,
+            #[cfg(feature = "testing")]
+            &instance_channels_tx.protocol_output,
+        );
+        self._net_rx_task = tasks::net_rx(
+            self.socket.clone(),
+            iface,
+            area,
+            af,
+            auth,
+            &instance_channels_tx.protocol_input.net_packet_rx,
+        );
+        // The network Tx task needs to be detached to ensure flushed
+        // self-originated LSAs will be sent once the instance terminates.
+        self._net_tx_task.detach();
+        self.net_tx_packetp = net_tx_packetp;
     }
 }
 

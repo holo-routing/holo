@@ -15,9 +15,10 @@ use holo_northbound::configuration::{
     ValidationCallbacksBuilder,
 };
 use holo_northbound::paths::control_plane_protocol::ospf;
+use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::{IpAddrKind, IpNetworkKind};
 use holo_utils::yang::DataNodeRefExt;
-use holo_yang::TryFromYang;
+use holo_yang::{ToYang, TryFromYang};
 use yang2::data::Data;
 
 use crate::area::{self, AreaType};
@@ -59,6 +60,7 @@ pub enum Event {
     InterfacePriorityChange(AreaIndex, InterfaceIndex),
     InterfaceCostChange(AreaIndex),
     InterfaceSyncHelloTx(AreaIndex, InterfaceIndex),
+    InterfaceRestartNetTasks(AreaIndex, InterfaceIndex),
     InterfaceBfdChange(InterfaceIndex),
     StubRouterChange,
     SrEnableChange(bool),
@@ -687,7 +689,75 @@ where
 
 fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
     let core_cbs = load_callbacks();
-    CallbacksBuilder::<Instance<Ospfv2>>::new(core_cbs).build()
+    CallbacksBuilder::<Instance<Ospfv2>>::new(core_cbs)
+        .path(ospf::areas::area::interfaces::interface::authentication::ospfv2_key_id::PATH)
+        .modify_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let auth_keyid = args.dnode.get_u32();
+            iface.config.auth_keyid = Some(auth_keyid);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceRestartNetTasks(area_idx, iface_idx));
+        })
+        .delete_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.auth_keyid = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceRestartNetTasks(area_idx, iface_idx));
+        })
+        .path(ospf::areas::area::interfaces::interface::authentication::ospfv2_key::PATH)
+        .modify_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let auth_key = args.dnode.get_string();
+            iface.config.auth_key = Some(auth_key);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceRestartNetTasks(area_idx, iface_idx));
+        })
+        .delete_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.auth_key = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceRestartNetTasks(area_idx, iface_idx));
+        })
+        .path(ospf::areas::area::interfaces::interface::authentication::ospfv2_crypto_algorithm::PATH)
+        .modify_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let auth_algo = args.dnode.get_string();
+            let auth_algo = CryptoAlgo::try_from_yang(&auth_algo).unwrap();
+            iface.config.auth_algo = Some(auth_algo);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceRestartNetTasks(area_idx, iface_idx));
+        })
+        .delete_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.auth_algo = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceRestartNetTasks(area_idx, iface_idx));
+        })
+        .build()
 }
 
 fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
@@ -764,7 +834,19 @@ fn load_validation_callbacks() -> ValidationCallbacks {
 
 fn load_validation_callbacks_ospfv2() -> ValidationCallbacks {
     let core_cbs = load_validation_callbacks();
-    ValidationCallbacksBuilder::new(core_cbs).build()
+    ValidationCallbacksBuilder::new(core_cbs)
+        .path(ospf::areas::area::interfaces::interface::authentication::ospfv2_crypto_algorithm::PATH)
+        .validate(|args| {
+            let algo = args.dnode.get_string();
+            if algo != CryptoAlgo::Md5.to_yang() {
+                return Err(format!(
+                    "unsupported cryptographic algorithm (valid options: \"{}\")",
+                    CryptoAlgo::Md5.to_yang()
+                ));
+            }
+            Ok(())
+        })
+        .build()
 }
 
 fn load_validation_callbacks_ospfv3() -> ValidationCallbacks {
@@ -986,6 +1068,25 @@ where
                     let iface = &mut arenas.interfaces[iface_idx];
 
                     iface.sync_hello_tx(area, &instance);
+                }
+            }
+            Event::InterfaceRestartNetTasks(area_idx, iface_idx) => {
+                if let Some((instance, arenas)) = self.as_up() {
+                    let area = &arenas.areas[area_idx];
+                    let iface = &mut arenas.interfaces[iface_idx];
+
+                    // Restart network Tx/Rx tasks.
+                    let auth = iface.auth(&instance.state.auth_seqno);
+                    if let Some(mut net) = iface.state.net.take() {
+                        net.restart_tasks(
+                            iface,
+                            area,
+                            instance.state.af,
+                            auth,
+                            &instance.tx,
+                        );
+                        iface.state.net = Some(net);
+                    }
                 }
             }
             Event::InterfaceBfdChange(iface_idx) => {

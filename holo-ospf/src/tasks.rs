@@ -20,6 +20,7 @@ use crate::instance::InstanceUpView;
 use crate::interface::{ism, Interface};
 use crate::neighbor::{nsm, Neighbor};
 use crate::network::{self, SendDestination};
+use crate::packet::auth::AuthCtx;
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::version::Version;
 use crate::{lsdb, spf};
@@ -228,10 +229,11 @@ pub mod messages {
 
 // Network Rx task.
 pub(crate) fn net_rx<V>(
+    socket: Arc<AsyncFd<Socket>>,
     iface: &Interface<V>,
     area: &Area<V>,
     af: AddressFamily,
-    socket: Arc<AsyncFd<Socket>>,
+    auth: Option<AuthCtx>,
     net_packet_rxp: &Sender<messages::input::NetRxPacketMsg<V>>,
 ) -> Task<()>
 where
@@ -257,6 +259,7 @@ where
                     area_id,
                     iface_id,
                     af,
+                    auth,
                     net_packet_rxp,
                 )
                 .await;
@@ -274,6 +277,7 @@ where
 #[allow(unused_mut)]
 pub(crate) fn net_tx<V>(
     socket: Arc<AsyncFd<Socket>>,
+    auth: Option<AuthCtx>,
     mut net_packet_txc: UnboundedReceiver<messages::output::NetTxPacketMsg<V>>,
     #[cfg(feature = "testing")] proto_output_tx: &Sender<
         messages::ProtocolOutputMsg<V>,
@@ -293,7 +297,7 @@ where
         Task::spawn(
             async move {
                 let _span_enter = span.enter();
-                network::write_loop(socket, net_packet_txc).await;
+                network::write_loop(socket, auth, net_packet_txc).await;
             }
             .in_current_span(),
         )

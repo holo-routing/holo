@@ -47,6 +47,7 @@ pub struct Neighbor<V: Version> {
     pub dd_seq_no: u32,
     pub last_rcvd_dbdesc: Option<LastDbDesc<V>>,
     pub last_sent_dbdesc: Option<NetTxPacketMsg<V>>,
+    pub auth_seqno: u32,
 
     pub event_count: u32,
     pub discontinuity_time: DateTime<Utc>,
@@ -184,6 +185,7 @@ where
             dd_seq_no,
             last_rcvd_dbdesc: None,
             last_sent_dbdesc: None,
+            auth_seqno: 0,
             event_count: 0,
             discontinuity_time: Utc::now(),
             adj_sids: Default::default(),

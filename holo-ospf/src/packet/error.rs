@@ -26,6 +26,9 @@ pub enum DecodeError {
     InvalidTlvLength(u16),
     MissingRequiredTlv(u16),
     InvalidIpPrefix,
+    AuthTypeMismatch,
+    AuthKeyIdNotFound(u32),
+    AuthError,
     // OSPFv2
     InvalidExtPrefixRouteType(u8),
 }
@@ -82,6 +85,15 @@ impl std::fmt::Display for DecodeError {
             }
             DecodeError::InvalidIpPrefix => {
                 write!(f, "invalid IP prefix")
+            }
+            DecodeError::AuthTypeMismatch => {
+                write!(f, "authentication type mismatch")
+            }
+            DecodeError::AuthKeyIdNotFound(key_id) => {
+                write!(f, "authentication Key ID not found: {}", key_id)
+            }
+            DecodeError::AuthError => {
+                write!(f, "authentication failed")
             }
             DecodeError::InvalidExtPrefixRouteType(route_type) => {
                 write!(f, "invalid extended prefix route type: {}", route_type)

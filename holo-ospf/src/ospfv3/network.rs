@@ -8,8 +8,8 @@ use std::net::Ipv6Addr;
 use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
+use bytes::Bytes;
 use holo_utils::capabilities;
-use holo_utils::ip::AddressFamily;
 use holo_utils::socket::{Socket, SocketExt};
 use ipnetwork::Ipv6Network;
 use nix::sys::socket::{self, SockaddrIn6};
@@ -17,7 +17,6 @@ use nix::sys::socket::{self, SockaddrIn6};
 use crate::network::{MulticastAddr, NetworkVersion, OSPF_IP_PROTO};
 use crate::ospfv3;
 use crate::packet::error::DecodeResult;
-use crate::packet::Packet;
 use crate::version::Ospfv3;
 
 // OSPFv3 multicast addresses.
@@ -140,14 +139,9 @@ impl NetworkVersion<Self> for Ospfv3 {
         sockaddr.ip()
     }
 
-    fn decode_packet(
-        af: AddressFamily,
-        data: &[u8],
-    ) -> DecodeResult<Packet<Self>> {
-        // NOTE: the IPv6 raw socket API doesn't include the IPv6 header in the
-        // received packets by default.
-
-        // Parse OSPFv3 packet.
-        Packet::decode(af, data)
+    // NOTE: by default, the IPv6 raw socket API does not include the IPv6
+    // header in the received packets.
+    fn validate_ip_hdr(_buf: &mut Bytes) -> DecodeResult<()> {
+        Ok(())
     }
 }

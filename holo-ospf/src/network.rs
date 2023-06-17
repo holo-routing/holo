@@ -9,6 +9,7 @@ use std::ops::Deref;
 use std::os::fd::AsRawFd;
 use std::sync::Arc;
 
+use bytes::Bytes;
 use derive_new::new;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
 use holo_utils::socket::{AsyncFd, Socket};
@@ -20,6 +21,7 @@ use tokio::sync::mpsc::error::SendError;
 use crate::collections::{AreaId, InterfaceId};
 use crate::debug::Debug;
 use crate::error::IoError;
+use crate::packet::auth::AuthCtx;
 use crate::packet::error::DecodeResult;
 use crate::packet::Packet;
 use crate::tasks::messages::input::NetRxPacketMsg;
@@ -89,9 +91,8 @@ pub trait NetworkVersion<V: Version> {
     // Convert socket address to packet source address.
     fn src_from_sockaddr(sockaddr: &V::SocketAddr) -> V::NetIpAddr;
 
-    // Decode OSPF packet from a bytes buffer filled by `recvmsg`.
-    fn decode_packet(af: AddressFamily, data: &[u8])
-        -> DecodeResult<Packet<V>>;
+    // Validate the IP header of the received packet.
+    fn validate_ip_hdr(buf: &mut Bytes) -> DecodeResult<()>;
 }
 
 // ===== impl DestinationAddrs =====
@@ -118,6 +119,7 @@ pub(crate) async fn send_packet<V>(
     dst_ifindex: u32,
     dst_addr: V::NetIpAddr,
     packet: &Packet<V>,
+    auth: Option<&AuthCtx>,
 ) -> Result<usize, IoError>
 where
     V: Version,
@@ -125,7 +127,7 @@ where
     Debug::<V>::PacketTx(dst_ifindex, &dst_addr, packet).log();
 
     // Encode packet.
-    let buf = packet.encode();
+    let buf = packet.encode(auth);
 
     // Send packet.
     let iov = [IoSlice::new(&buf)];
@@ -150,6 +152,7 @@ where
 #[cfg(not(feature = "testing"))]
 pub(crate) async fn write_loop<V>(
     socket: Arc<AsyncFd<Socket>>,
+    auth: Option<AuthCtx>,
     mut net_tx_packetc: UnboundedReceiver<NetTxPacketMsg<V>>,
 ) where
     V: Version,
@@ -158,9 +161,15 @@ pub(crate) async fn write_loop<V>(
         net_tx_packetc.recv().await
     {
         for dst_addr in dst.addrs.into_iter() {
-            if let Err(error) =
-                send_packet::<V>(&socket, src, dst.ifindex, dst_addr, &packet)
-                    .await
+            if let Err(error) = send_packet::<V>(
+                &socket,
+                src,
+                dst.ifindex,
+                dst_addr,
+                &packet,
+                auth.as_ref(),
+            )
+            .await
             {
                 error.log();
             }
@@ -174,6 +183,7 @@ pub(crate) async fn read_loop<V>(
     area_id: AreaId,
     iface_id: InterfaceId,
     af: AddressFamily,
+    auth: Option<AuthCtx>,
     net_packet_rxp: Sender<NetRxPacketMsg<V>>,
 ) -> Result<(), SendError<NetRxPacketMsg<V>>>
 where
@@ -224,7 +234,9 @@ where
                 };
 
                 // Decode packet.
-                let packet = V::decode_packet(af, &iov[0].deref()[0..bytes]);
+                let mut buf = Bytes::copy_from_slice(&iov[0].deref()[0..bytes]);
+                let packet = V::validate_ip_hdr(&mut buf)
+                    .and_then(|_| Packet::decode(af, &mut buf, auth.as_ref()));
                 let msg = NetRxPacketMsg {
                     area_key: area_id.into(),
                     iface_key: iface_id.into(),

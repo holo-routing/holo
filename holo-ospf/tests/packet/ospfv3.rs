@@ -26,7 +26,7 @@ use maplit::{btreemap, btreeset};
 //
 
 fn test_encode_packet(bytes_expected: &[u8], packet: &Packet<Ospfv3>) {
-    let bytes_actual = packet.encode();
+    let bytes_actual = packet.encode(None);
     assert_eq!(bytes_expected, bytes_actual.as_ref());
 }
 
@@ -35,7 +35,8 @@ fn test_decode_packet(
     packet_expected: &Packet<Ospfv3>,
     af: AddressFamily,
 ) {
-    let packet_actual = Packet::decode(af, &bytes).unwrap();
+    let mut buf = Bytes::copy_from_slice(bytes);
+    let packet_actual = Packet::decode(af, &mut buf, None).unwrap();
     assert_eq!(*packet_expected, packet_actual);
 }
 

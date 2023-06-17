@@ -4,6 +4,7 @@
 // See LICENSE for license details.
 //
 
+pub mod auth;
 pub mod error;
 pub mod lsa;
 pub mod tlv;
@@ -20,6 +21,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use crate::neighbor::NeighborNetId;
+use crate::packet::auth::AuthCtx;
 use crate::packet::error::DecodeResult;
 use crate::packet::lsa::{Lsa, LsaKey};
 use crate::version::Version;
@@ -65,11 +67,23 @@ pub enum Packet<V: Version> {
 pub trait PacketVersion<V: Version> {
     type PacketOptions: OptionsVersion<V>;
     type PacketHdr: PacketHdrVersion<V>;
+    type PacketHdrAuth;
     type PacketHello: HelloVersion<V>;
     type PacketDbDesc: DbDescVersion<V>;
     type PacketLsRequest: LsRequestVersion<V>;
     type PacketLsUpdate: LsUpdateVersion<V>;
     type PacketLsAck: LsAckVersion<V>;
+
+    // Validate the packet authentication.
+    fn decode_auth_validate(
+        data: &[u8],
+        pkt_len: u16,
+        hdr_auth: V::PacketHdrAuth,
+        auth: Option<&AuthCtx>,
+    ) -> DecodeResult<()>;
+
+    // Encode the authentication trailer.
+    fn encode_auth_trailer(buf: &mut BytesMut, auth: &AuthCtx);
 }
 
 // OSPF version-specific code.
@@ -80,10 +94,10 @@ where
     const LENGTH: u16;
 
     // Decode OSPF packet header from a bytes buffer.
-    fn decode(buf: &mut Bytes) -> DecodeResult<Self>;
+    fn decode(buf: &mut Bytes) -> DecodeResult<(Self, u16, V::PacketHdrAuth)>;
 
     // Encode OSPF packet header into a bytes buffer.
-    fn encode(&self, buf: &mut BytesMut);
+    fn encode(&self, buf: &mut BytesMut, auth: Option<&AuthCtx>);
 
     // Update the header checksum.
     fn update_cksum(buf: &mut BytesMut);
@@ -99,6 +113,9 @@ where
 
     // Return the packet Area ID.
     fn area_id(&self) -> Ipv4Addr;
+
+    // Return the packet authentication sequence number.
+    fn auth_seqno(&self) -> Option<u32>;
 
     // Create new packet header.
     fn generate(
@@ -122,7 +139,7 @@ where
     ) -> DecodeResult<Self>;
 
     // Encode OSPF packet into a bytes buffer.
-    fn encode(&self) -> Bytes;
+    fn encode(&self, auth: Option<&AuthCtx>) -> Bytes;
 
     // Return a reference to the packet header.
     fn hdr(&self) -> &V::PacketHdr;
@@ -261,11 +278,28 @@ where
 
 impl<V: Version> Packet<V> {
     // Decodes OSPF packet from a bytes buffer.
-    pub fn decode(af: AddressFamily, data: &[u8]) -> DecodeResult<Self> {
-        V::PacketHdr::verify_cksum(data)?;
-        let mut buf = Bytes::copy_from_slice(data);
-        let hdr = V::PacketHdr::decode(&mut buf)?;
+    pub fn decode(
+        af: AddressFamily,
+        buf: &mut Bytes,
+        auth: Option<&AuthCtx>,
+    ) -> DecodeResult<Self> {
+        // Verify if the packet checksum is correct.
+        if auth.is_none() {
+            V::PacketHdr::verify_cksum(buf.as_ref())?;
+        }
 
+        // Create a zero-copy duplicate of the original packet buffer.
+        let buf_orig = buf.clone();
+
+        // Decode the packet header.
+        let (hdr, pkt_len, hdr_auth) = V::PacketHdr::decode(buf)?;
+        let mut buf =
+            buf.slice(..pkt_len as usize - V::PacketHdr::LENGTH as usize);
+
+        // Validate the packet authentication.
+        V::decode_auth_validate(buf_orig.as_ref(), pkt_len, hdr_auth, auth)?;
+
+        // Decode the packet body.
         let packet = match hdr.pkt_type() {
             PacketType::Hello => {
                 Packet::Hello(V::PacketHello::decode(af, hdr, &mut buf)?)
@@ -288,13 +322,13 @@ impl<V: Version> Packet<V> {
     }
 
     // Encodes OSPF packet into a bytes buffer.
-    pub fn encode(&self) -> Bytes {
+    pub fn encode(&self, auth: Option<&AuthCtx>) -> Bytes {
         match self {
-            Packet::Hello(pkt) => pkt.encode(),
-            Packet::DbDesc(pkt) => pkt.encode(),
-            Packet::LsRequest(pkt) => pkt.encode(),
-            Packet::LsUpdate(pkt) => pkt.encode(),
-            Packet::LsAck(pkt) => pkt.encode(),
+            Packet::Hello(pkt) => pkt.encode(auth),
+            Packet::DbDesc(pkt) => pkt.encode(auth),
+            Packet::LsRequest(pkt) => pkt.encode(auth),
+            Packet::LsUpdate(pkt) => pkt.encode(auth),
+            Packet::LsAck(pkt) => pkt.encode(auth),
         }
     }
 
@@ -315,17 +349,21 @@ impl<V: Version> Packet<V> {
 pub(crate) fn packet_encode_start<'a, V>(
     buf: &'a RefCell<BytesMut>,
     hdr: &V::PacketHdr,
+    auth: Option<&AuthCtx>,
 ) -> RefMut<'a, BytesMut>
 where
     V: Version,
 {
     let mut buf = buf.borrow_mut();
     buf.clear();
-    hdr.encode(&mut buf);
+    hdr.encode(&mut buf, auth);
     buf
 }
 
-pub(crate) fn packet_encode_end<V>(mut buf: RefMut<'_, BytesMut>) -> Bytes
+pub(crate) fn packet_encode_end<V>(
+    mut buf: RefMut<'_, BytesMut>,
+    auth: Option<&AuthCtx>,
+) -> Bytes
 where
     V: Version,
 {
@@ -333,8 +371,15 @@ where
     let pkt_len = buf.len() as u16;
     buf[2..4].copy_from_slice(&pkt_len.to_be_bytes());
 
-    // Compute packet checksum.
-    V::PacketHdr::update_cksum(&mut buf);
+    // Calculate the packet checksum or append the authentication trailer.
+    match auth {
+        Some(auth) => {
+            V::encode_auth_trailer(&mut buf, auth);
+        }
+        None => {
+            V::PacketHdr::update_cksum(&mut buf);
+        }
+    }
 
     buf.clone().freeze()
 }

@@ -6,16 +6,19 @@
 
 use std::net::Ipv4Addr;
 use std::str::FromStr;
-use std::sync::LazyLock as Lazy;
+use std::sync::atomic::AtomicU32;
+use std::sync::{Arc, LazyLock as Lazy};
 
 use bytes::Bytes;
 use holo_ospf::ospfv2::packet::lsa::*;
 use holo_ospf::ospfv2::packet::lsa_opaque::*;
 use holo_ospf::ospfv2::packet::*;
+use holo_ospf::packet::auth::AuthCtx;
 use holo_ospf::packet::lsa::{Lsa, LsaKey};
 use holo_ospf::packet::tlv::*;
 use holo_ospf::packet::{DbDescFlags, Packet, PacketType};
 use holo_ospf::version::Ospfv2;
+use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::AddressFamily;
 use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid};
@@ -26,13 +29,23 @@ use maplit::{btreemap, btreeset};
 // Helper functions.
 //
 
-fn test_encode_packet(bytes_expected: &[u8], packet: &Packet<Ospfv2>) {
-    let bytes_actual = packet.encode();
+fn test_encode_packet(
+    bytes_expected: &[u8],
+    auth: &Option<AuthCtx>,
+    packet: &Packet<Ospfv2>,
+) {
+    let bytes_actual = packet.encode(auth.as_ref());
     assert_eq!(bytes_expected, bytes_actual.as_ref());
 }
 
-fn test_decode_packet(bytes: &[u8], packet_expected: &Packet<Ospfv2>) {
-    let packet_actual = Packet::decode(AddressFamily::Ipv4, &bytes).unwrap();
+fn test_decode_packet(
+    bytes: &[u8],
+    auth: &Option<AuthCtx>,
+    packet_expected: &Packet<Ospfv2>,
+) {
+    let mut buf = Bytes::copy_from_slice(bytes);
+    let packet_actual =
+        Packet::decode(AddressFamily::Ipv4, &mut buf, auth.as_ref()).unwrap();
     assert_eq!(*packet_expected, packet_actual);
 }
 
@@ -50,230 +63,291 @@ fn test_decode_lsa(bytes: &[u8], lsa_expected: &Lsa<Ospfv2>) {
 // Test packets.
 //
 
-static HELLO1: Lazy<(Vec<u8>, Packet<Ospfv2>)> = Lazy::new(|| {
-    (
-        vec![
-            0x02, 0x01, 0x00, 0x30, 0x02, 0x02, 0x02, 0x02, 0x00, 0x00, 0x00,
-            0x01, 0xf6, 0x9e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0xff, 0xff, 0xff, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00,
-            0x00, 0x00, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x01, 0x01, 0x01, 0x01,
-        ],
-        Packet::Hello(Hello {
-            hdr: PacketHdr {
-                pkt_type: PacketType::Hello,
-                router_id: Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                area_id: Ipv4Addr::from_str("0.0.0.1").unwrap(),
-            },
-            network_mask: Ipv4Addr::from_str("255.255.255.0").unwrap(),
-            hello_interval: 3,
-            options: Options::E,
-            priority: 1,
-            dead_interval: 36,
-            dr: None,
-            bdr: None,
-            neighbors: [Ipv4Addr::from_str("1.1.1.1").unwrap()].into(),
-        }),
-    )
-});
-
-static DBDESC1: Lazy<(Vec<u8>, Packet<Ospfv2>)> = Lazy::new(|| {
-    (
-        vec![
-            0x02, 0x02, 0x00, 0x48, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00,
-            0x01, 0xd8, 0x9e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x05, 0xdc, 0x42, 0x00, 0x4e, 0xb8, 0x8f, 0x2e, 0x00,
-            0x03, 0x02, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
-            0x80, 0x00, 0x00, 0x02, 0x48, 0xd6, 0x00, 0x30, 0x00, 0x03, 0x02,
-            0x05, 0xac, 0x10, 0x01, 0x00, 0x01, 0x01, 0x01, 0x01, 0x80, 0x00,
-            0x00, 0x01, 0xfc, 0xff, 0x00, 0x24,
-        ],
-        Packet::DbDesc(DbDesc {
-            hdr: PacketHdr {
-                pkt_type: PacketType::DbDesc,
-                router_id: Ipv4Addr::from_str("1.1.1.1").unwrap(),
-                area_id: Ipv4Addr::from_str("0.0.0.1").unwrap(),
-            },
-            mtu: 1500,
-            options: Options::E | Options::O,
-            dd_flags: DbDescFlags::empty(),
-            dd_seq_no: 1320718126,
-            lsa_hdrs: vec![
-                LsaHdr {
-                    age: 3,
-                    options: Options::E,
-                    lsa_type: LsaTypeCode::Router.into(),
-                    lsa_id: Ipv4Addr::from_str("1.1.1.1").unwrap(),
-                    adv_rtr: Ipv4Addr::from_str("1.1.1.1").unwrap(),
-                    seq_no: 0x80000002,
-                    cksum: 0x48d6,
-                    length: 48,
-                },
-                LsaHdr {
-                    age: 3,
-                    options: Options::E,
-                    lsa_type: LsaTypeCode::AsExternal.into(),
-                    lsa_id: Ipv4Addr::from_str("172.16.1.0").unwrap(),
-                    adv_rtr: Ipv4Addr::from_str("1.1.1.1").unwrap(),
-                    seq_no: 0x80000001,
-                    cksum: 0xfcff,
-                    length: 36,
-                },
+static HELLO1: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv2>)> =
+    Lazy::new(|| {
+        (
+            vec![
+                0x02, 0x01, 0x00, 0x30, 0x02, 0x02, 0x02, 0x02, 0x00, 0x00,
+                0x00, 0x01, 0xf6, 0x9e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0x00, 0x00, 0x03,
+                0x02, 0x01, 0x00, 0x00, 0x00, 0x24, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01,
             ],
-        }),
-    )
-});
+            None,
+            Packet::Hello(Hello {
+                hdr: PacketHdr {
+                    pkt_type: PacketType::Hello,
+                    router_id: Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                    area_id: Ipv4Addr::from_str("0.0.0.1").unwrap(),
+                    auth_seqno: None,
+                },
+                network_mask: Ipv4Addr::from_str("255.255.255.0").unwrap(),
+                hello_interval: 3,
+                options: Options::E,
+                priority: 1,
+                dead_interval: 36,
+                dr: None,
+                bdr: None,
+                neighbors: [Ipv4Addr::from_str("1.1.1.1").unwrap()].into(),
+            }),
+        )
+    });
 
-static LSREQUEST1: Lazy<(Vec<u8>, Packet<Ospfv2>)> = Lazy::new(|| {
-    (
-        vec![
-            0x02, 0x03, 0x00, 0x30, 0x02, 0x02, 0x02, 0x02, 0x00, 0x00, 0x00,
-            0x01, 0x46, 0xab, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
-            0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x05, 0xac, 0x10, 0x01, 0x00,
-            0x01, 0x01, 0x01, 0x01,
-        ],
-        Packet::LsRequest(LsRequest {
-            hdr: PacketHdr {
-                pkt_type: PacketType::LsRequest,
-                router_id: Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                area_id: Ipv4Addr::from_str("0.0.0.1").unwrap(),
-            },
-            entries: vec![
-                LsaKey {
-                    lsa_type: LsaTypeCode::Router.into(),
-                    adv_rtr: Ipv4Addr::from_str("1.1.1.1").unwrap(),
-                    lsa_id: Ipv4Addr::from_str("1.1.1.1").unwrap(),
-                },
-                LsaKey {
-                    lsa_type: LsaTypeCode::AsExternal.into(),
-                    adv_rtr: Ipv4Addr::from_str("1.1.1.1").unwrap(),
-                    lsa_id: Ipv4Addr::from_str("172.16.1.0").unwrap(),
-                },
+static HELLO2: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv2>)> =
+    Lazy::new(|| {
+        (
+            vec![
+                0x02, 0x01, 0x00, 0x34, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x01, 0x10,
+                0x32, 0x45, 0xd0, 0x14, 0xff, 0xff, 0xff, 0x00, 0x00, 0x03,
+                0x02, 0x01, 0x00, 0x00, 0x00, 0x0c, 0x0a, 0x00, 0x01, 0x03,
+                0x0a, 0x00, 0x01, 0x02, 0x02, 0x02, 0x02, 0x02, 0x03, 0x03,
+                0x03, 0x03, 0x9d, 0xd5, 0xa8, 0x03, 0x86, 0xee, 0x71, 0x67,
+                0x44, 0x1a, 0x37, 0xa9, 0x04, 0x27, 0xfc, 0xc7,
             ],
-        }),
-    )
-});
+            Some(AuthCtx::new(
+                "HOLO".to_owned(),
+                1,
+                CryptoAlgo::Md5,
+                Arc::new(AtomicU32::new(843436052)),
+            )),
+            Packet::Hello(Hello {
+                hdr: PacketHdr {
+                    pkt_type: PacketType::Hello,
+                    router_id: Ipv4Addr::from_str("1.1.1.1").unwrap(),
+                    area_id: Ipv4Addr::from_str("0.0.0.0").unwrap(),
+                    auth_seqno: Some(843436052),
+                },
+                network_mask: Ipv4Addr::from_str("255.255.255.0").unwrap(),
+                hello_interval: 3,
+                options: Options::E,
+                priority: 1,
+                dead_interval: 12,
+                dr: Some(Ipv4Addr::from_str("10.0.1.3").unwrap().into()),
+                bdr: Some(Ipv4Addr::from_str("10.0.1.2").unwrap().into()),
+                neighbors: [
+                    Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                    Ipv4Addr::from_str("3.3.3.3").unwrap(),
+                ]
+                .into(),
+            }),
+        )
+    });
 
-static LSUPDATE1: Lazy<(Vec<u8>, Packet<Ospfv2>)> = Lazy::new(|| {
-    (
-        vec![
-            0x02, 0x04, 0x00, 0x78, 0x02, 0x02, 0x02, 0x02, 0x00, 0x00, 0x00,
-            0x01, 0x40, 0xa1, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x31, 0x02, 0x01, 0x02,
-            0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x80, 0x00, 0x00, 0x02,
-            0x37, 0xf4, 0x00, 0x24, 0x01, 0x00, 0x00, 0x01, 0x0a, 0x00, 0x01,
-            0x00, 0xff, 0xff, 0xff, 0x00, 0x03, 0x00, 0x00, 0x0a, 0x00, 0x31,
-            0x02, 0x03, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x80,
-            0x00, 0x00, 0x01, 0xd2, 0x7a, 0x00, 0x1c, 0xff, 0xff, 0xff, 0xff,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x31, 0x02, 0x03, 0x0a, 0x00, 0x02,
-            0x00, 0x02, 0x02, 0x02, 0x02, 0x80, 0x00, 0x00, 0x01, 0xfa, 0x44,
-            0x00, 0x1c, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x0a,
-        ],
-        Packet::LsUpdate(LsUpdate {
-            hdr: PacketHdr {
-                pkt_type: PacketType::LsUpdate,
-                router_id: Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                area_id: Ipv4Addr::from_str("0.0.0.1").unwrap(),
-            },
-            lsas: vec![
-                Lsa::new(
-                    49,
-                    Some(Options::E),
-                    Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                    Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                    0x80000002,
-                    LsaBody::Router(LsaRouter {
-                        flags: LsaRouterFlags::B,
-                        links: vec![LsaRouterLink {
-                            link_type: LsaRouterLinkType::StubNetwork,
-                            link_id: Ipv4Addr::from_str("10.0.1.0").unwrap(),
-                            link_data: Ipv4Addr::from_str("255.255.255.0")
+static DBDESC1: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv2>)> =
+    Lazy::new(|| {
+        (
+            vec![
+                0x02, 0x02, 0x00, 0x48, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00,
+                0x00, 0x01, 0xd8, 0x9e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x05, 0xdc, 0x42, 0x00, 0x4e, 0xb8,
+                0x8f, 0x2e, 0x00, 0x03, 0x02, 0x01, 0x01, 0x01, 0x01, 0x01,
+                0x01, 0x01, 0x01, 0x01, 0x80, 0x00, 0x00, 0x02, 0x48, 0xd6,
+                0x00, 0x30, 0x00, 0x03, 0x02, 0x05, 0xac, 0x10, 0x01, 0x00,
+                0x01, 0x01, 0x01, 0x01, 0x80, 0x00, 0x00, 0x01, 0xfc, 0xff,
+                0x00, 0x24,
+            ],
+            None,
+            Packet::DbDesc(DbDesc {
+                hdr: PacketHdr {
+                    pkt_type: PacketType::DbDesc,
+                    router_id: Ipv4Addr::from_str("1.1.1.1").unwrap(),
+                    area_id: Ipv4Addr::from_str("0.0.0.1").unwrap(),
+                    auth_seqno: None,
+                },
+                mtu: 1500,
+                options: Options::E | Options::O,
+                dd_flags: DbDescFlags::empty(),
+                dd_seq_no: 1320718126,
+                lsa_hdrs: vec![
+                    LsaHdr {
+                        age: 3,
+                        options: Options::E,
+                        lsa_type: LsaTypeCode::Router.into(),
+                        lsa_id: Ipv4Addr::from_str("1.1.1.1").unwrap(),
+                        adv_rtr: Ipv4Addr::from_str("1.1.1.1").unwrap(),
+                        seq_no: 0x80000002,
+                        cksum: 0x48d6,
+                        length: 48,
+                    },
+                    LsaHdr {
+                        age: 3,
+                        options: Options::E,
+                        lsa_type: LsaTypeCode::AsExternal.into(),
+                        lsa_id: Ipv4Addr::from_str("172.16.1.0").unwrap(),
+                        adv_rtr: Ipv4Addr::from_str("1.1.1.1").unwrap(),
+                        seq_no: 0x80000001,
+                        cksum: 0xfcff,
+                        length: 36,
+                    },
+                ],
+            }),
+        )
+    });
+
+static LSREQUEST1: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv2>)> =
+    Lazy::new(|| {
+        (
+            vec![
+                0x02, 0x03, 0x00, 0x30, 0x02, 0x02, 0x02, 0x02, 0x00, 0x00,
+                0x00, 0x01, 0x46, 0xab, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01,
+                0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x05,
+                0xac, 0x10, 0x01, 0x00, 0x01, 0x01, 0x01, 0x01,
+            ],
+            None,
+            Packet::LsRequest(LsRequest {
+                hdr: PacketHdr {
+                    pkt_type: PacketType::LsRequest,
+                    router_id: Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                    area_id: Ipv4Addr::from_str("0.0.0.1").unwrap(),
+                    auth_seqno: None,
+                },
+                entries: vec![
+                    LsaKey {
+                        lsa_type: LsaTypeCode::Router.into(),
+                        adv_rtr: Ipv4Addr::from_str("1.1.1.1").unwrap(),
+                        lsa_id: Ipv4Addr::from_str("1.1.1.1").unwrap(),
+                    },
+                    LsaKey {
+                        lsa_type: LsaTypeCode::AsExternal.into(),
+                        adv_rtr: Ipv4Addr::from_str("1.1.1.1").unwrap(),
+                        lsa_id: Ipv4Addr::from_str("172.16.1.0").unwrap(),
+                    },
+                ],
+            }),
+        )
+    });
+
+static LSUPDATE1: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv2>)> =
+    Lazy::new(|| {
+        (
+            vec![
+                0x02, 0x04, 0x00, 0x78, 0x02, 0x02, 0x02, 0x02, 0x00, 0x00,
+                0x00, 0x01, 0x40, 0xa1, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x31,
+                0x02, 0x01, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
+                0x80, 0x00, 0x00, 0x02, 0x37, 0xf4, 0x00, 0x24, 0x01, 0x00,
+                0x00, 0x01, 0x0a, 0x00, 0x01, 0x00, 0xff, 0xff, 0xff, 0x00,
+                0x03, 0x00, 0x00, 0x0a, 0x00, 0x31, 0x02, 0x03, 0x02, 0x02,
+                0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x80, 0x00, 0x00, 0x01,
+                0xd2, 0x7a, 0x00, 0x1c, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x31, 0x02, 0x03, 0x0a, 0x00, 0x02, 0x00,
+                0x02, 0x02, 0x02, 0x02, 0x80, 0x00, 0x00, 0x01, 0xfa, 0x44,
+                0x00, 0x1c, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x0a,
+            ],
+            None,
+            Packet::LsUpdate(LsUpdate {
+                hdr: PacketHdr {
+                    pkt_type: PacketType::LsUpdate,
+                    router_id: Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                    area_id: Ipv4Addr::from_str("0.0.0.1").unwrap(),
+                    auth_seqno: None,
+                },
+                lsas: vec![
+                    Lsa::new(
+                        49,
+                        Some(Options::E),
+                        Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                        Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                        0x80000002,
+                        LsaBody::Router(LsaRouter {
+                            flags: LsaRouterFlags::B,
+                            links: vec![LsaRouterLink {
+                                link_type: LsaRouterLinkType::StubNetwork,
+                                link_id: Ipv4Addr::from_str("10.0.1.0")
+                                    .unwrap(),
+                                link_data: Ipv4Addr::from_str("255.255.255.0")
+                                    .unwrap(),
+                                metric: 10,
+                            }],
+                        }),
+                    ),
+                    Lsa::new(
+                        49,
+                        Some(Options::E),
+                        Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                        Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                        0x80000001,
+                        LsaBody::SummaryNetwork(LsaSummary {
+                            mask: Ipv4Addr::from_str("255.255.255.255")
                                 .unwrap(),
+                            metric: 0,
+                        }),
+                    ),
+                    Lsa::new(
+                        49,
+                        Some(Options::E),
+                        Ipv4Addr::from_str("10.0.2.0").unwrap(),
+                        Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                        0x80000001,
+                        LsaBody::SummaryNetwork(LsaSummary {
+                            mask: Ipv4Addr::from_str("255.255.255.0").unwrap(),
                             metric: 10,
-                        }],
-                    }),
-                ),
-                Lsa::new(
-                    49,
-                    Some(Options::E),
-                    Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                    Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                    0x80000001,
-                    LsaBody::SummaryNetwork(LsaSummary {
-                        mask: Ipv4Addr::from_str("255.255.255.255").unwrap(),
-                        metric: 0,
-                    }),
-                ),
-                Lsa::new(
-                    49,
-                    Some(Options::E),
-                    Ipv4Addr::from_str("10.0.2.0").unwrap(),
-                    Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                    0x80000001,
-                    LsaBody::SummaryNetwork(LsaSummary {
-                        mask: Ipv4Addr::from_str("255.255.255.0").unwrap(),
-                        metric: 10,
-                    }),
-                ),
-            ],
-        }),
-    )
-});
+                        }),
+                    ),
+                ],
+            }),
+        )
+    });
 
-static LSACK1: Lazy<(Vec<u8>, Packet<Ospfv2>)> = Lazy::new(|| {
-    (
-        vec![
-            0x02, 0x05, 0x00, 0x54, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00,
-            0x01, 0xa0, 0x2e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03, 0x02,
-            0x02, 0x02, 0x02, 0x80, 0x00, 0x00, 0x01, 0x09, 0x36, 0x00, 0x1c,
-            0x00, 0x01, 0x02, 0x03, 0x0a, 0x00, 0x03, 0x00, 0x02, 0x02, 0x02,
-            0x02, 0x80, 0x00, 0x00, 0x01, 0x54, 0xdf, 0x00, 0x1c, 0x00, 0x01,
-            0x02, 0x03, 0x0a, 0x00, 0x04, 0x00, 0x02, 0x02, 0x02, 0x02, 0x80,
-            0x00, 0x00, 0x01, 0x49, 0xe9, 0x00, 0x1c,
-        ],
-        Packet::LsAck(LsAck {
-            hdr: PacketHdr {
-                pkt_type: PacketType::LsAck,
-                router_id: Ipv4Addr::from_str("1.1.1.1").unwrap(),
-                area_id: Ipv4Addr::from_str("0.0.0.1").unwrap(),
-            },
-            lsa_hdrs: vec![
-                LsaHdr {
-                    age: 1,
-                    options: Options::E,
-                    lsa_type: LsaTypeCode::SummaryNetwork.into(),
-                    lsa_id: Ipv4Addr::from_str("3.3.3.3").unwrap(),
-                    adv_rtr: Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                    seq_no: 0x80000001,
-                    cksum: 0x0936,
-                    length: 28,
-                },
-                LsaHdr {
-                    age: 1,
-                    options: Options::E,
-                    lsa_type: LsaTypeCode::SummaryNetwork.into(),
-                    lsa_id: Ipv4Addr::from_str("10.0.3.0").unwrap(),
-                    adv_rtr: Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                    seq_no: 0x80000001,
-                    cksum: 0x54df,
-                    length: 28,
-                },
-                LsaHdr {
-                    age: 1,
-                    options: Options::E,
-                    lsa_type: LsaTypeCode::SummaryNetwork.into(),
-                    lsa_id: Ipv4Addr::from_str("10.0.4.0").unwrap(),
-                    adv_rtr: Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                    seq_no: 0x80000001,
-                    cksum: 0x49e9,
-                    length: 28,
-                },
+static LSACK1: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv2>)> =
+    Lazy::new(|| {
+        (
+            vec![
+                0x02, 0x05, 0x00, 0x54, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00,
+                0x00, 0x01, 0xa0, 0x2e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x03, 0x03,
+                0x03, 0x03, 0x02, 0x02, 0x02, 0x02, 0x80, 0x00, 0x00, 0x01,
+                0x09, 0x36, 0x00, 0x1c, 0x00, 0x01, 0x02, 0x03, 0x0a, 0x00,
+                0x03, 0x00, 0x02, 0x02, 0x02, 0x02, 0x80, 0x00, 0x00, 0x01,
+                0x54, 0xdf, 0x00, 0x1c, 0x00, 0x01, 0x02, 0x03, 0x0a, 0x00,
+                0x04, 0x00, 0x02, 0x02, 0x02, 0x02, 0x80, 0x00, 0x00, 0x01,
+                0x49, 0xe9, 0x00, 0x1c,
             ],
-        }),
-    )
-});
+            None,
+            Packet::LsAck(LsAck {
+                hdr: PacketHdr {
+                    pkt_type: PacketType::LsAck,
+                    router_id: Ipv4Addr::from_str("1.1.1.1").unwrap(),
+                    area_id: Ipv4Addr::from_str("0.0.0.1").unwrap(),
+                    auth_seqno: None,
+                },
+                lsa_hdrs: vec![
+                    LsaHdr {
+                        age: 1,
+                        options: Options::E,
+                        lsa_type: LsaTypeCode::SummaryNetwork.into(),
+                        lsa_id: Ipv4Addr::from_str("3.3.3.3").unwrap(),
+                        adv_rtr: Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                        seq_no: 0x80000001,
+                        cksum: 0x0936,
+                        length: 28,
+                    },
+                    LsaHdr {
+                        age: 1,
+                        options: Options::E,
+                        lsa_type: LsaTypeCode::SummaryNetwork.into(),
+                        lsa_id: Ipv4Addr::from_str("10.0.3.0").unwrap(),
+                        adv_rtr: Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                        seq_no: 0x80000001,
+                        cksum: 0x54df,
+                        length: 28,
+                    },
+                    LsaHdr {
+                        age: 1,
+                        options: Options::E,
+                        lsa_type: LsaTypeCode::SummaryNetwork.into(),
+                        lsa_id: Ipv4Addr::from_str("10.0.4.0").unwrap(),
+                        adv_rtr: Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                        seq_no: 0x80000001,
+                        cksum: 0x49e9,
+                        length: 28,
+                    },
+                ],
+            }),
+        )
+    });
 
 //
 // Test LSAs.
@@ -423,62 +497,74 @@ static LSA4: Lazy<(Vec<u8>, Lsa<Ospfv2>)> = Lazy::new(|| {
 
 #[test]
 fn test_encode_hello1() {
-    let (ref bytes, ref hello) = *HELLO1;
-    test_encode_packet(bytes, hello);
+    let (ref bytes, ref auth, ref hello) = *HELLO1;
+    test_encode_packet(bytes, auth, hello);
 }
 
 #[test]
 fn test_decode_hello1() {
-    let (ref bytes, ref hello) = *HELLO1;
-    test_decode_packet(bytes, hello);
+    let (ref bytes, ref auth, ref hello) = *HELLO1;
+    test_decode_packet(bytes, auth, hello);
+}
+
+#[test]
+fn test_encode_hello2() {
+    let (ref bytes, ref auth, ref hello) = *HELLO2;
+    test_encode_packet(bytes, auth, hello);
+}
+
+#[test]
+fn test_decode_hello2() {
+    let (ref bytes, ref auth, ref hello) = *HELLO2;
+    test_decode_packet(bytes, auth, hello);
 }
 
 #[test]
 fn test_encode_dbdesc1() {
-    let (ref bytes, ref dbdescr) = *DBDESC1;
-    test_encode_packet(bytes, dbdescr);
+    let (ref bytes, ref auth, ref dbdescr) = *DBDESC1;
+    test_encode_packet(bytes, auth, dbdescr);
 }
 
 #[test]
 fn test_decode_dbdesc1() {
-    let (ref bytes, ref dbdescr) = *DBDESC1;
-    test_decode_packet(bytes, dbdescr);
+    let (ref bytes, ref auth, ref dbdescr) = *DBDESC1;
+    test_decode_packet(bytes, auth, dbdescr);
 }
 
 #[test]
 fn test_encode_lsrequest1() {
-    let (ref bytes, ref request) = *LSREQUEST1;
-    test_encode_packet(bytes, request);
+    let (ref bytes, ref auth, ref request) = *LSREQUEST1;
+    test_encode_packet(bytes, auth, request);
 }
 
 #[test]
 fn test_decode_lsrequest1() {
-    let (ref bytes, ref request) = *LSREQUEST1;
-    test_decode_packet(bytes, request);
+    let (ref bytes, ref auth, ref request) = *LSREQUEST1;
+    test_decode_packet(bytes, auth, request);
 }
 
 #[test]
 fn test_encode_lsupdate1() {
-    let (ref bytes, ref lsupdate) = *LSUPDATE1;
-    test_encode_packet(bytes, lsupdate);
+    let (ref bytes, ref auth, ref lsupdate) = *LSUPDATE1;
+    test_encode_packet(bytes, auth, lsupdate);
 }
 
 #[test]
 fn test_decode_lsupdate1() {
-    let (ref bytes, ref lsupdate) = *LSUPDATE1;
-    test_decode_packet(bytes, lsupdate);
+    let (ref bytes, ref auth, ref lsupdate) = *LSUPDATE1;
+    test_decode_packet(bytes, auth, lsupdate);
 }
 
 #[test]
 fn test_encode_lsack1() {
-    let (ref bytes, ref lsack) = *LSACK1;
-    test_encode_packet(bytes, lsack);
+    let (ref bytes, ref auth, ref lsack) = *LSACK1;
+    test_encode_packet(bytes, auth, lsack);
 }
 
 #[test]
 fn test_decode_lsack1() {
-    let (ref bytes, ref lsack) = *LSACK1;
-    test_decode_packet(bytes, lsack);
+    let (ref bytes, ref auth, ref lsack) = *LSACK1;
+    test_decode_packet(bytes, auth, lsack);
 }
 
 #[test]

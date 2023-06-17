@@ -168,6 +168,22 @@ where
         return Ok(());
     }
 
+    // Perform authentication sequence number validation.
+    let router_id = packet.hdr().router_id();
+    if let Some(auth_seqno) = packet.hdr().auth_seqno()
+        && let Some((_, nbr)) =
+            V::get_neighbor(iface, &src, router_id, &mut arenas.neighbors)
+    {
+        // Discard the packet if its sequence number is lower than the recorded
+        // sequence number in the sender's neighbor data structure.
+        if auth_seqno < nbr.auth_seqno {
+            return Err(Error::PacketAuthInvalidSeqno(src, auth_seqno));
+        }
+
+        // Update neighbor's last received sequence number.
+        nbr.auth_seqno = auth_seqno;
+    }
+
     // Log received packet.
     Debug::<V>::PacketRx(iface, &src, &dst, &packet).log();
 
@@ -183,7 +199,6 @@ where
         )
     } else {
         // Non-Hello packets not matching any active neighbor are discarded.
-        let router_id = packet.hdr().router_id();
         let (nbr_idx, nbr) =
             V::get_neighbor(iface, &src, router_id, &mut arenas.neighbors)
                 .ok_or_else(|| Error::UnknownNeighbor(src, router_id))?;

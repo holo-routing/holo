@@ -6,6 +6,7 @@
 
 use std::net::Ipv4Addr;
 
+use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::AddressFamily;
 
 use crate::area::{Area, AreaVersion};
@@ -52,6 +53,7 @@ impl InterfaceVersion<Self> for Ospfv2 {
             pkt_type: PacketType::Hello,
             router_id: instance.state.router_id,
             area_id: area.area_id,
+            auth_seqno: None,
         };
 
         Packet::Hello(Hello {
@@ -135,7 +137,18 @@ impl InterfaceVersion<Self> for Ospfv2 {
     fn max_packet_size(iface: &Interface<Self>) -> u16 {
         const IPV4_HDR_SIZE: u16 = 20;
 
-        iface.system.mtu.unwrap() - IPV4_HDR_SIZE
+        let mut max = iface.system.mtu.unwrap() - IPV4_HDR_SIZE;
+
+        // Reserve space for the message digest when authentication is enabled.
+        if iface.config.auth_key.is_some() {
+            max -= iface
+                .config
+                .auth_algo
+                .unwrap_or(CryptoAlgo::Md5)
+                .digest_size() as u16;
+        }
+
+        max
     }
 
     fn get_neighbor<'a>(

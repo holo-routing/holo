@@ -2960,52 +2960,6 @@ module ietf-ospf-holo-deviations {
   }
   */
 
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:authentication" {
-    deviate not-supported;
-  }
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:authentication/ospf:auth-type-selection" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:authentication/ospf:auth-type-selection/ospf:ospfv2-auth" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:authentication/ospf:auth-type-selection/ospf:ospfv2-auth/ospf:ospfv2-auth-specification" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:authentication/ospf:auth-type-selection/ospf:ospfv2-auth/ospf:ospfv2-auth-specification/ospf:auth-key-explicit" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:authentication/ospf:auth-type-selection/ospf:ospfv2-auth/ospf:ospfv2-auth-specification/ospf:auth-key-explicit/ospf:ospfv2-key-id" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:authentication/ospf:auth-type-selection/ospf:ospfv2-auth/ospf:ospfv2-auth-specification/ospf:auth-key-explicit/ospf:ospfv2-key" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:authentication/ospf:auth-type-selection/ospf:ospfv2-auth/ospf:ospfv2-auth-specification/ospf:auth-key-explicit/ospf:ospfv2-crypto-algorithm" {
-    deviate not-supported;
-  }
-  */
-
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:neighbors/ospf:neighbor/ospf:cost" {
     deviate not-supported;
   }

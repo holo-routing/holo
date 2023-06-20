@@ -92,6 +92,12 @@ pub trait UdpSocketExt {
 
     // Sets the value of the IPV6_MINHOPCOUNT option for this socket.
     fn set_min_hopcount_v6(&self, hopcount: u8) -> Result<()>;
+
+    // Sets the value of the IP_PKTINFO option for this socket.
+    fn set_ipv4_pktinfo(&self, value: bool) -> Result<()>;
+
+    // Sets the value of the IPV6_RECVPKTINFO option for this socket.
+    fn set_ipv6_pktinfo(&self, value: bool) -> Result<()>;
 }
 
 // Extension methods for TcpSocket.
@@ -327,6 +333,30 @@ impl UdpSocketExt for UdpSocket {
             self,
             libc::IPPROTO_IPV6,
             libc::IPV6_MINHOPCOUNT,
+            &optval as *const _ as *const libc::c_void,
+            std::mem::size_of::<i32>() as libc::socklen_t,
+        )
+    }
+
+    fn set_ipv4_pktinfo(&self, value: bool) -> Result<()> {
+        let optval = value as c_int;
+
+        setsockopt(
+            self,
+            libc::IPPROTO_IP,
+            libc::IP_PKTINFO,
+            &optval as *const _ as *const libc::c_void,
+            std::mem::size_of::<i32>() as libc::socklen_t,
+        )
+    }
+
+    fn set_ipv6_pktinfo(&self, value: bool) -> Result<()> {
+        let optval = value as c_int;
+
+        setsockopt(
+            self,
+            libc::IPPROTO_IPV6,
+            libc::IPV6_RECVPKTINFO,
             &optval as *const _ as *const libc::c_void,
             std::mem::size_of::<i32>() as libc::socklen_t,
         )

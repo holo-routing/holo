@@ -37,6 +37,8 @@ pub enum IoError {
     UdpSocketError(std::io::Error),
     UdpRecvError(std::io::Error),
     UdpSendError(std::io::Error),
+    UdpRecvMissingSourceAddr,
+    UdpRecvMissingAncillaryData,
 }
 
 // ===== impl Error =====
@@ -145,6 +147,10 @@ impl IoError {
             | IoError::UdpSendError(error) => {
                 warn!(error = %with_source(error), "{}", self);
             }
+            IoError::UdpRecvMissingSourceAddr
+            | IoError::UdpRecvMissingAncillaryData => {
+                warn!("{}", self);
+            }
         }
     }
 }
@@ -161,6 +167,18 @@ impl std::fmt::Display for IoError {
             IoError::UdpSendError(..) => {
                 write!(f, "failed to send UDP packet")
             }
+            IoError::UdpRecvMissingSourceAddr => {
+                write!(
+                    f,
+                    "failed to retrieve source address from received packet"
+                )
+            }
+            IoError::UdpRecvMissingAncillaryData => {
+                write!(
+                    f,
+                    "failed to retrieve ancillary data from received packet"
+                )
+            }
         }
     }
 }
@@ -171,6 +189,7 @@ impl std::error::Error for IoError {
             IoError::UdpSocketError(error)
             | IoError::UdpRecvError(error)
             | IoError::UdpSendError(error) => Some(error),
+            _ => None,
         }
     }
 }

@@ -4,7 +4,12 @@
 // See LICENSE for license details.
 //
 
-use std::net::{IpAddr, SocketAddr};
+use std::io::IoSliceMut;
+use std::net::{
+    IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6,
+};
+use std::ops::Deref;
+use std::os::fd::AsRawFd;
 use std::sync::atomic::{self, AtomicU64};
 use std::sync::Arc;
 
@@ -12,6 +17,7 @@ use holo_utils::bfd::PathType;
 use holo_utils::ip::{AddressFamily, IpAddrExt};
 use holo_utils::socket::{UdpSocket, UdpSocketExt};
 use holo_utils::{capabilities, Sender};
+use nix::sys::socket::{self, ControlMessageOwned};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::error::SendError;
 
@@ -52,9 +58,11 @@ pub(crate) fn socket_rx(
         match path_type {
             PathType::IpSingleHop => match af {
                 AddressFamily::Ipv4 => {
+                    socket.set_ipv4_pktinfo(true)?;
                     socket.set_ipv4_minttl(255)?;
                 }
                 AddressFamily::Ipv6 => {
+                    socket.set_ipv6_pktinfo(true)?;
                     socket.set_min_hopcount_v6(255)?;
                 }
             },
@@ -63,6 +71,14 @@ pub(crate) fn socket_rx(
                 // sessions, incoming TTL checking should be done in the
                 // userspace given that different peers might have different TTL
                 // settings.
+                match af {
+                    AddressFamily::Ipv4 => {
+                        socket.set_ipv4_pktinfo(true)?;
+                    }
+                    AddressFamily::Ipv6 => {
+                        socket.set_ipv6_pktinfo(true)?;
+                    }
+                }
             }
         }
 
@@ -145,53 +161,119 @@ pub(crate) async fn send_packet(
 }
 
 #[cfg(not(feature = "testing"))]
+fn get_packet_src(sa: Option<&socket::SockaddrStorage>) -> Option<SocketAddr> {
+    sa.and_then(|sa| {
+        if let Some(sa) = sa.as_sockaddr_in() {
+            Some(SocketAddrV4::from(*sa).into())
+        } else if let Some(sa) = sa.as_sockaddr_in6() {
+            Some(SocketAddrV6::from(*sa).into())
+        } else {
+            None
+        }
+    })
+}
+
+#[cfg(not(feature = "testing"))]
+fn get_packet_dst(cmsgs: socket::CmsgIterator<'_>) -> Option<IpAddr> {
+    for cmsg in cmsgs {
+        match cmsg {
+            ControlMessageOwned::Ipv4PacketInfo(pktinfo) => {
+                return Some(
+                    Ipv4Addr::from(pktinfo.ipi_spec_dst.s_addr.to_be()).into(),
+                );
+            }
+            ControlMessageOwned::Ipv6PacketInfo(pktinfo) => {
+                return Some(Ipv6Addr::from(pktinfo.ipi6_addr.s6_addr).into());
+            }
+            _ => {}
+        }
+    }
+
+    None
+}
+
+#[cfg(not(feature = "testing"))]
 pub(crate) async fn read_loop(
     socket: Arc<UdpSocket>,
     path_type: PathType,
     udp_packet_rxp: Sender<UdpRxPacketMsg>,
 ) -> Result<(), SendError<UdpRxPacketMsg>> {
     let mut buf = [0; 1024];
+    let mut iov = [IoSliceMut::new(&mut buf)];
+    let mut cmsgspace = nix::cmsg_space!(libc::in6_pktinfo);
 
     loop {
         // Receive data from the network.
-        let (_, src) = match socket.recv_from(&mut buf).await {
-            Ok((num_bytes, src)) => (num_bytes, src),
-            Err(error) => {
-                IoError::UdpRecvError(error).log();
+        match socket
+            .async_io(tokio::io::Interest::READABLE, || {
+                match socket::recvmsg::<socket::SockaddrStorage>(
+                    socket.as_raw_fd(),
+                    &mut iov,
+                    Some(&mut cmsgspace),
+                    socket::MsgFlags::empty(),
+                ) {
+                    Ok(msg) => {
+                        // Retrieve source and destination addresses.
+                        let src = get_packet_src(msg.address.as_ref());
+                        let dst = get_packet_dst(msg.cmsgs());
+                        Ok((src, dst, msg.bytes))
+                    }
+                    Err(errno) => Err(errno.into()),
+                }
+            })
+            .await
+        {
+            Ok((src, dst, bytes)) => {
+                let src = match src {
+                    Some(addr) => addr,
+                    None => {
+                        IoError::UdpRecvMissingSourceAddr.log();
+                        return Ok(());
+                    }
+                };
+                let dst = match dst {
+                    Some(addr) => addr,
+                    None => {
+                        IoError::UdpRecvMissingAncillaryData.log();
+                        return Ok(());
+                    }
+                };
+
+                // Validate packet's source address.
+                if !src.ip().is_usable() {
+                    Error::UdpInvalidSourceAddr(src.ip()).log();
+                    continue;
+                }
+
+                // Decode packet, discarding malformed ones.
+                let packet = match Packet::decode(&iov[0].deref()[0..bytes]) {
+                    Ok(packet) => packet,
+                    Err(_) => continue,
+                };
+
+                // Notify the BFD main task about the received packet.
+                let packet_info = match path_type {
+                    PathType::IpSingleHop => PacketInfo::IpSingleHop { src },
+                    PathType::IpMultihop => {
+                        let src = src.ip();
+                        // TODO: get packet's TTL using IP_RECVTTL/IPV6_HOPLIMIT
+                        let ttl = 255;
+                        PacketInfo::IpMultihop { src, dst, ttl }
+                    }
+                };
+                let msg = UdpRxPacketMsg {
+                    packet_info,
+                    packet,
+                };
+                udp_packet_rxp.send(msg).await?;
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {
+                // Retry if the syscall was interrupted (EINTR).
                 continue;
             }
-        };
-
-        // Validate packet's source address.
-        if !src.ip().is_usable() {
-            Error::UdpInvalidSourceAddr(src.ip()).log();
-            continue;
-        }
-
-        // Get packet's ancillary data.
-        let packet_info = match path_type {
-            PathType::IpSingleHop => PacketInfo::IpSingleHop { src },
-            PathType::IpMultihop => {
-                let src = src.ip();
-                // TODO: get packet's destination using IP_PKTINFO/IPV6_PKTINFO.
-                let dst = src;
-                // TODO: get packet's TTL using IP_RECVTTL/IPV6_HOPLIMIT.
-                let ttl = 255;
-                PacketInfo::IpMultihop { src, dst, ttl }
+            Err(error) => {
+                IoError::UdpRecvError(error).log();
             }
-        };
-
-        // Decode packet, dropping malformed ones.
-        let packet = match Packet::decode(&buf) {
-            Ok(packet) => packet,
-            Err(_) => continue,
-        };
-
-        // Notify the BFD main task about the received packet.
-        let msg = UdpRxPacketMsg {
-            packet_info,
-            packet,
-        };
-        udp_packet_rxp.send(msg).await?;
+        }
     }
 }

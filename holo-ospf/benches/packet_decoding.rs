@@ -3,6 +3,7 @@
 use std::hint::black_box;
 use std::sync::LazyLock as Lazy;
 
+use bytes::Bytes;
 use criterion::{criterion_group, criterion_main, Criterion};
 use holo_ospf::packet::*;
 use holo_ospf::version::Ospfv2;
@@ -25,7 +26,9 @@ static BYTES: Lazy<Vec<u8>> = Lazy::new(|| {
 
 fn packet_decode(n: u64) {
     for _ in 0..n {
-        let _ = Packet::<Ospfv2>::decode(AddressFamily::Ipv4, &BYTES).unwrap();
+        let mut buf = Bytes::copy_from_slice(&BYTES);
+        let _ = Packet::<Ospfv2>::decode(AddressFamily::Ipv4, &mut buf, None)
+            .unwrap();
     }
 }
 

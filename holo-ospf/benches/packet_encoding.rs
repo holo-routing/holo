@@ -18,6 +18,7 @@ static PACKET: Lazy<Packet<Ospfv2>> = Lazy::new(|| {
             pkt_type: PacketType::LsUpdate,
             router_id: Ipv4Addr::from_str("2.2.2.2").unwrap(),
             area_id: Ipv4Addr::from_str("0.0.0.1").unwrap(),
+            auth_seqno: None,
         },
         lsas: vec![
             Lsa::new(
@@ -64,7 +65,7 @@ static PACKET: Lazy<Packet<Ospfv2>> = Lazy::new(|| {
 
 fn packet_encode(n: u64) {
     for _ in 0..n {
-        PACKET.encode();
+        PACKET.encode(None);
     }
 }
 

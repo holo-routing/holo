@@ -837,13 +837,22 @@ fn load_validation_callbacks_ospfv2() -> ValidationCallbacks {
     ValidationCallbacksBuilder::new(core_cbs)
         .path(ospf::areas::area::interfaces::interface::authentication::ospfv2_crypto_algorithm::PATH)
         .validate(|args| {
+            let valid_options = [
+                CryptoAlgo::Md5.to_yang(),
+                CryptoAlgo::HmacSha1.to_yang(),
+                CryptoAlgo::HmacSha256.to_yang(),
+                CryptoAlgo::HmacSha384.to_yang(),
+                CryptoAlgo::HmacSha512.to_yang(),
+            ];
+
             let algo = args.dnode.get_string();
-            if algo != CryptoAlgo::Md5.to_yang() {
+            if !valid_options.iter().any(|option| *option == algo) {
                 return Err(format!(
                     "unsupported cryptographic algorithm (valid options: \"{}\")",
-                    CryptoAlgo::Md5.to_yang()
+                    valid_options.join(", "),
                 ));
             }
+
             Ok(())
         })
         .build()

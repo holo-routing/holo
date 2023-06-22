@@ -142,6 +142,7 @@ Holo supports the following IETF RFCs and Internet drafts:
 * RFC 5243 - OSPF Database Exchange Summary List Optimization
 * RFC 5250 - The OSPF Opaque LSA Option
 * RFC 5340 - OSPF for IPv6
+* RFC 5709 - OSPFv2 HMAC-SHA Cryptographic Authentication
 * RFC 5838 - Support of Address Families in OSPFv3
 * RFC 6987 - OSPF Stub Router Advertisement
 * RFC 7684 - OSPFv2 Prefix/Link Attribute Advertisement

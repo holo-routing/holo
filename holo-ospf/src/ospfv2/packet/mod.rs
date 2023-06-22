@@ -14,7 +14,6 @@ use std::sync::atomic;
 use bitflags::bitflags;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::{BytesExt, BytesMutExt, TLS_BUF};
-use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::{AddressFamily, Ipv4AddrExt};
 use internet_checksum::Checksum;
 use num_derive::FromPrimitive;
@@ -833,16 +832,8 @@ impl PacketVersion<Self> for Ospfv2 {
                     [pkt_len as usize..pkt_len as usize + auth_len as usize];
 
                 // Compute message digest.
-                let digest = match auth.algo {
-                    CryptoAlgo::Md5 => {
-                        let data = &data[..pkt_len as usize];
-                        auth::md5_digest(data, &auth.key)
-                    }
-                    _ => {
-                        // Other algorithms can't be configured yet.
-                        unreachable!()
-                    }
-                };
+                let data = &data[..pkt_len as usize];
+                let digest = auth::message_digest(data, auth.algo, &auth.key);
 
                 // Check if the received message digest is valid.
                 if *auth_trailer != digest {
@@ -856,15 +847,7 @@ impl PacketVersion<Self> for Ospfv2 {
     }
 
     fn encode_auth_trailer(buf: &mut BytesMut, auth: &AuthCtx) {
-        match auth.algo {
-            CryptoAlgo::Md5 => {
-                let digest = auth::md5_digest(buf, &auth.key);
-                buf.put_slice(&digest);
-            }
-            _ => {
-                // Other algorithms can't be configured yet.
-                unreachable!()
-            }
-        }
+        let digest = auth::message_digest(buf, auth.algo, &auth.key);
+        buf.put_slice(&digest);
     }
 }

@@ -35,6 +35,7 @@ fn test_encode_packet(
     packet: &Packet<Ospfv2>,
 ) {
     let bytes_actual = packet.encode(auth.as_ref());
+    println!("XXX {:02x?}", &bytes_actual.as_ref());
     assert_eq!(bytes_expected, bytes_actual.as_ref());
 }
 
@@ -93,7 +94,7 @@ static HELLO1: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv2>)> =
         )
     });
 
-static HELLO2: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv2>)> =
+static HELLO1_MD5: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv2>)> =
     Lazy::new(|| {
         (
             vec![
@@ -109,6 +110,181 @@ static HELLO2: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv2>)> =
                 "HOLO".to_owned(),
                 1,
                 CryptoAlgo::Md5,
+                Arc::new(AtomicU32::new(843436052)),
+            )),
+            Packet::Hello(Hello {
+                hdr: PacketHdr {
+                    pkt_type: PacketType::Hello,
+                    router_id: Ipv4Addr::from_str("1.1.1.1").unwrap(),
+                    area_id: Ipv4Addr::from_str("0.0.0.0").unwrap(),
+                    auth_seqno: Some(843436052),
+                },
+                network_mask: Ipv4Addr::from_str("255.255.255.0").unwrap(),
+                hello_interval: 3,
+                options: Options::E,
+                priority: 1,
+                dead_interval: 12,
+                dr: Some(Ipv4Addr::from_str("10.0.1.3").unwrap().into()),
+                bdr: Some(Ipv4Addr::from_str("10.0.1.2").unwrap().into()),
+                neighbors: [
+                    Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                    Ipv4Addr::from_str("3.3.3.3").unwrap(),
+                ]
+                .into(),
+            }),
+        )
+    });
+
+static HELLO1_HMAC_SHA1: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv2>)> =
+    Lazy::new(|| {
+        (
+            vec![
+                0x02, 0x01, 0x00, 0x34, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x01, 0x14,
+                0x32, 0x45, 0xd0, 0x14, 0xff, 0xff, 0xff, 0x00, 0x00, 0x03,
+                0x02, 0x01, 0x00, 0x00, 0x00, 0x0c, 0x0a, 0x00, 0x01, 0x03,
+                0x0a, 0x00, 0x01, 0x02, 0x02, 0x02, 0x02, 0x02, 0x03, 0x03,
+                0x03, 0x03, 0x8a, 0xbd, 0xb5, 0x24, 0x96, 0x63, 0xe6, 0xcc,
+                0x4e, 0x11, 0xac, 0xdc, 0x37, 0x83, 0x8c, 0xc9, 0xf5, 0xc0,
+                0x8d, 0xcd,
+            ],
+            Some(AuthCtx::new(
+                "HOLO".to_owned(),
+                1,
+                CryptoAlgo::HmacSha1,
+                Arc::new(AtomicU32::new(843436052)),
+            )),
+            Packet::Hello(Hello {
+                hdr: PacketHdr {
+                    pkt_type: PacketType::Hello,
+                    router_id: Ipv4Addr::from_str("1.1.1.1").unwrap(),
+                    area_id: Ipv4Addr::from_str("0.0.0.0").unwrap(),
+                    auth_seqno: Some(843436052),
+                },
+                network_mask: Ipv4Addr::from_str("255.255.255.0").unwrap(),
+                hello_interval: 3,
+                options: Options::E,
+                priority: 1,
+                dead_interval: 12,
+                dr: Some(Ipv4Addr::from_str("10.0.1.3").unwrap().into()),
+                bdr: Some(Ipv4Addr::from_str("10.0.1.2").unwrap().into()),
+                neighbors: [
+                    Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                    Ipv4Addr::from_str("3.3.3.3").unwrap(),
+                ]
+                .into(),
+            }),
+        )
+    });
+
+static HELLO1_HMAC_SHA256: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv2>)> =
+    Lazy::new(|| {
+        (
+            vec![
+                0x02, 0x01, 0x00, 0x34, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x01, 0x20,
+                0x32, 0x45, 0xd0, 0x14, 0xff, 0xff, 0xff, 0x00, 0x00, 0x03,
+                0x02, 0x01, 0x00, 0x00, 0x00, 0x0c, 0x0a, 0x00, 0x01, 0x03,
+                0x0a, 0x00, 0x01, 0x02, 0x02, 0x02, 0x02, 0x02, 0x03, 0x03,
+                0x03, 0x03, 0x26, 0x39, 0xac, 0x92, 0xa3, 0xcc, 0x7e, 0x92,
+                0xe1, 0x25, 0x3a, 0xa2, 0x59, 0xc9, 0xb5, 0x72, 0xbf, 0xc2,
+                0x8f, 0x05, 0x36, 0xa2, 0xcb, 0x0a, 0x4b, 0x46, 0x66, 0x6a,
+                0x69, 0x62, 0x6f, 0x04,
+            ],
+            Some(AuthCtx::new(
+                "HOLO".to_owned(),
+                1,
+                CryptoAlgo::HmacSha256,
+                Arc::new(AtomicU32::new(843436052)),
+            )),
+            Packet::Hello(Hello {
+                hdr: PacketHdr {
+                    pkt_type: PacketType::Hello,
+                    router_id: Ipv4Addr::from_str("1.1.1.1").unwrap(),
+                    area_id: Ipv4Addr::from_str("0.0.0.0").unwrap(),
+                    auth_seqno: Some(843436052),
+                },
+                network_mask: Ipv4Addr::from_str("255.255.255.0").unwrap(),
+                hello_interval: 3,
+                options: Options::E,
+                priority: 1,
+                dead_interval: 12,
+                dr: Some(Ipv4Addr::from_str("10.0.1.3").unwrap().into()),
+                bdr: Some(Ipv4Addr::from_str("10.0.1.2").unwrap().into()),
+                neighbors: [
+                    Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                    Ipv4Addr::from_str("3.3.3.3").unwrap(),
+                ]
+                .into(),
+            }),
+        )
+    });
+
+static HELLO1_HMAC_SHA384: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv2>)> =
+    Lazy::new(|| {
+        (
+            vec![
+                0x02, 0x01, 0x00, 0x34, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x01, 0x30,
+                0x32, 0x45, 0xd0, 0x14, 0xff, 0xff, 0xff, 0x00, 0x00, 0x03,
+                0x02, 0x01, 0x00, 0x00, 0x00, 0x0c, 0x0a, 0x00, 0x01, 0x03,
+                0x0a, 0x00, 0x01, 0x02, 0x02, 0x02, 0x02, 0x02, 0x03, 0x03,
+                0x03, 0x03, 0xbe, 0xe2, 0x9b, 0x71, 0x5a, 0x18, 0xe8, 0x37,
+                0xcd, 0x06, 0x47, 0xab, 0x7c, 0x8d, 0x2e, 0x5d, 0x52, 0x75,
+                0x6b, 0x3f, 0x6e, 0x1b, 0x70, 0x21, 0x22, 0x70, 0xe8, 0x22,
+                0x7f, 0x3d, 0xd3, 0xd6, 0x1d, 0xfb, 0xa2, 0xec, 0x28, 0x12,
+                0x72, 0x23, 0x96, 0xdc, 0xdf, 0xe4, 0xe6, 0xe5, 0x8c, 0x7a,
+            ],
+            Some(AuthCtx::new(
+                "HOLO".to_owned(),
+                1,
+                CryptoAlgo::HmacSha384,
+                Arc::new(AtomicU32::new(843436052)),
+            )),
+            Packet::Hello(Hello {
+                hdr: PacketHdr {
+                    pkt_type: PacketType::Hello,
+                    router_id: Ipv4Addr::from_str("1.1.1.1").unwrap(),
+                    area_id: Ipv4Addr::from_str("0.0.0.0").unwrap(),
+                    auth_seqno: Some(843436052),
+                },
+                network_mask: Ipv4Addr::from_str("255.255.255.0").unwrap(),
+                hello_interval: 3,
+                options: Options::E,
+                priority: 1,
+                dead_interval: 12,
+                dr: Some(Ipv4Addr::from_str("10.0.1.3").unwrap().into()),
+                bdr: Some(Ipv4Addr::from_str("10.0.1.2").unwrap().into()),
+                neighbors: [
+                    Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                    Ipv4Addr::from_str("3.3.3.3").unwrap(),
+                ]
+                .into(),
+            }),
+        )
+    });
+
+static HELLO1_HMAC_SHA512: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv2>)> =
+    Lazy::new(|| {
+        (
+            vec![
+                0x02, 0x01, 0x00, 0x34, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x01, 0x40,
+                0x32, 0x45, 0xd0, 0x14, 0xff, 0xff, 0xff, 0x00, 0x00, 0x03,
+                0x02, 0x01, 0x00, 0x00, 0x00, 0x0c, 0x0a, 0x00, 0x01, 0x03,
+                0x0a, 0x00, 0x01, 0x02, 0x02, 0x02, 0x02, 0x02, 0x03, 0x03,
+                0x03, 0x03, 0xea, 0x86, 0xf8, 0xd8, 0x7d, 0xd2, 0x4f, 0xc3,
+                0x29, 0x15, 0x9e, 0x5c, 0x54, 0x71, 0x1d, 0xbe, 0x77, 0xf2,
+                0x3a, 0x1b, 0x94, 0x23, 0xb8, 0xd7, 0x11, 0x8c, 0x78, 0x39,
+                0x08, 0x9d, 0xc6, 0x3a, 0xbf, 0x7a, 0x63, 0xb2, 0xea, 0x60,
+                0xd3, 0xbc, 0x19, 0x5b, 0xf5, 0x58, 0xa0, 0x89, 0x01, 0xae,
+                0xb5, 0x6c, 0xbd, 0x1e, 0x2c, 0x7f, 0xdb, 0x03, 0x28, 0x97,
+                0xf7, 0xbc, 0x92, 0xe3, 0x56, 0xc7,
+            ],
+            Some(AuthCtx::new(
+                "HOLO".to_owned(),
+                1,
+                CryptoAlgo::HmacSha512,
                 Arc::new(AtomicU32::new(843436052)),
             )),
             Packet::Hello(Hello {
@@ -508,14 +684,62 @@ fn test_decode_hello1() {
 }
 
 #[test]
-fn test_encode_hello2() {
-    let (ref bytes, ref auth, ref hello) = *HELLO2;
+fn test_encode_hello_md5() {
+    let (ref bytes, ref auth, ref hello) = *HELLO1_MD5;
     test_encode_packet(bytes, auth, hello);
 }
 
 #[test]
-fn test_decode_hello2() {
-    let (ref bytes, ref auth, ref hello) = *HELLO2;
+fn test_decode_hello_md5() {
+    let (ref bytes, ref auth, ref hello) = *HELLO1_MD5;
+    test_decode_packet(bytes, auth, hello);
+}
+
+#[test]
+fn test_encode_hello_hmac_sha1() {
+    let (ref bytes, ref auth, ref hello) = *HELLO1_HMAC_SHA1;
+    test_encode_packet(bytes, auth, hello);
+}
+
+#[test]
+fn test_decode_hello_hmac_sha1() {
+    let (ref bytes, ref auth, ref hello) = *HELLO1_HMAC_SHA1;
+    test_decode_packet(bytes, auth, hello);
+}
+
+#[test]
+fn test_encode_hello_hmac_sha256() {
+    let (ref bytes, ref auth, ref hello) = *HELLO1_HMAC_SHA256;
+    test_encode_packet(bytes, auth, hello);
+}
+
+#[test]
+fn test_decode_hello_hmac_sha256() {
+    let (ref bytes, ref auth, ref hello) = *HELLO1_HMAC_SHA256;
+    test_decode_packet(bytes, auth, hello);
+}
+
+#[test]
+fn test_encode_hello_hmac_sha384() {
+    let (ref bytes, ref auth, ref hello) = *HELLO1_HMAC_SHA384;
+    test_encode_packet(bytes, auth, hello);
+}
+
+#[test]
+fn test_decode_hello_hmac_sha384() {
+    let (ref bytes, ref auth, ref hello) = *HELLO1_HMAC_SHA384;
+    test_decode_packet(bytes, auth, hello);
+}
+
+#[test]
+fn test_encode_hello_hmac_sha512() {
+    let (ref bytes, ref auth, ref hello) = *HELLO1_HMAC_SHA512;
+    test_encode_packet(bytes, auth, hello);
+}
+
+#[test]
+fn test_decode_hello_hmac_sha512() {
+    let (ref bytes, ref auth, ref hello) = *HELLO1_HMAC_SHA512;
     test_decode_packet(bytes, auth, hello);
 }
 

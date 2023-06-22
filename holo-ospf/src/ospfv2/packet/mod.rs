@@ -822,9 +822,6 @@ impl PacketVersion<Self> for Ospfv2 {
                 if auth.algo.digest_size() != auth_len {
                     return Err(DecodeError::AuthError);
                 }
-                if data.len() != pkt_len as usize + auth_len as usize {
-                    return Err(DecodeError::AuthError);
-                }
 
                 // Check if the Key ID matches.
                 if auth.key_id != key_id as u32 {
@@ -832,7 +829,8 @@ impl PacketVersion<Self> for Ospfv2 {
                 }
 
                 // Get the authentication trailer.
-                let auth_trailer = &data[pkt_len as usize..];
+                let auth_trailer = &data
+                    [pkt_len as usize..pkt_len as usize + auth_len as usize];
 
                 // Compute message digest.
                 let digest = match auth.algo {

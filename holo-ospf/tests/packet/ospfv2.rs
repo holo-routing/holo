@@ -34,7 +34,8 @@ fn test_encode_packet(
     auth: &Option<AuthCtx>,
     packet: &Packet<Ospfv2>,
 ) {
-    let bytes_actual = packet.encode(auth.as_ref());
+    let src = Ipv4Addr::UNSPECIFIED;
+    let bytes_actual = packet.encode(auth.as_ref(), &src.into());
     assert_eq!(bytes_expected, bytes_actual.as_ref());
 }
 
@@ -43,9 +44,15 @@ fn test_decode_packet(
     auth: &Option<AuthCtx>,
     packet_expected: &Packet<Ospfv2>,
 ) {
+    let src = Ipv4Addr::UNSPECIFIED;
     let mut buf = Bytes::copy_from_slice(bytes);
-    let packet_actual =
-        Packet::decode(AddressFamily::Ipv4, &mut buf, auth.as_ref()).unwrap();
+    let packet_actual = Packet::decode(
+        AddressFamily::Ipv4,
+        &mut buf,
+        auth.as_ref(),
+        &src.into(),
+    )
+    .unwrap();
     assert_eq!(*packet_expected, packet_actual);
 }
 

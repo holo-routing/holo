@@ -8,7 +8,7 @@ pub mod lsa;
 pub mod lsa_opaque;
 
 use std::collections::BTreeSet;
-use std::net::Ipv4Addr;
+use std::net::{IpAddr, Ipv4Addr};
 use std::sync::atomic;
 
 use bitflags::bitflags;
@@ -453,7 +453,7 @@ impl PacketBase<Ospfv2> for Hello {
         })
     }
 
-    fn encode(&self, auth: Option<&AuthCtx>) -> Bytes {
+    fn encode(&self, auth: Option<&AuthCtx>, src: &IpAddr) -> Bytes {
         TLS_BUF.with(|buf| {
             let mut buf = packet_encode_start::<Ospfv2>(buf, &self.hdr, auth);
 
@@ -478,7 +478,7 @@ impl PacketBase<Ospfv2> for Hello {
                 buf.put_ipv4(nbr);
             }
 
-            packet_encode_end::<Ospfv2>(buf, auth)
+            packet_encode_end::<Ospfv2>(buf, auth, src)
         })
     }
 
@@ -556,7 +556,7 @@ impl PacketBase<Ospfv2> for DbDesc {
         })
     }
 
-    fn encode(&self, auth: Option<&AuthCtx>) -> Bytes {
+    fn encode(&self, auth: Option<&AuthCtx>, src: &IpAddr) -> Bytes {
         TLS_BUF.with(|buf| {
             let mut buf = packet_encode_start::<Ospfv2>(buf, &self.hdr, auth);
 
@@ -568,7 +568,7 @@ impl PacketBase<Ospfv2> for DbDesc {
                 lsa_hdr.encode(&mut buf);
             }
 
-            packet_encode_end::<Ospfv2>(buf, auth)
+            packet_encode_end::<Ospfv2>(buf, auth, src)
         })
     }
 
@@ -645,7 +645,7 @@ impl PacketBase<Ospfv2> for LsRequest {
         Ok(LsRequest { hdr, entries })
     }
 
-    fn encode(&self, auth: Option<&AuthCtx>) -> Bytes {
+    fn encode(&self, auth: Option<&AuthCtx>, src: &IpAddr) -> Bytes {
         TLS_BUF.with(|buf| {
             let mut buf = packet_encode_start::<Ospfv2>(buf, &self.hdr, auth);
 
@@ -655,7 +655,7 @@ impl PacketBase<Ospfv2> for LsRequest {
                 buf.put_ipv4(&entry.adv_rtr);
             }
 
-            packet_encode_end::<Ospfv2>(buf, auth)
+            packet_encode_end::<Ospfv2>(buf, auth, src)
         })
     }
 
@@ -706,7 +706,7 @@ impl PacketBase<Ospfv2> for LsUpdate {
         Ok(LsUpdate { hdr, lsas })
     }
 
-    fn encode(&self, auth: Option<&AuthCtx>) -> Bytes {
+    fn encode(&self, auth: Option<&AuthCtx>, src: &IpAddr) -> Bytes {
         TLS_BUF.with(|buf| {
             let mut buf = packet_encode_start::<Ospfv2>(buf, &self.hdr, auth);
 
@@ -715,7 +715,7 @@ impl PacketBase<Ospfv2> for LsUpdate {
                 buf.put_slice(&lsa.raw);
             }
 
-            packet_encode_end::<Ospfv2>(buf, auth)
+            packet_encode_end::<Ospfv2>(buf, auth, src)
         })
     }
 
@@ -755,7 +755,7 @@ impl PacketBase<Ospfv2> for LsAck {
         Ok(LsAck { hdr, lsa_hdrs })
     }
 
-    fn encode(&self, auth: Option<&AuthCtx>) -> Bytes {
+    fn encode(&self, auth: Option<&AuthCtx>, src: &IpAddr) -> Bytes {
         TLS_BUF.with(|buf| {
             let mut buf = packet_encode_start::<Ospfv2>(buf, &self.hdr, auth);
 
@@ -763,7 +763,7 @@ impl PacketBase<Ospfv2> for LsAck {
                 lsa_hdr.encode(&mut buf);
             }
 
-            packet_encode_end::<Ospfv2>(buf, auth)
+            packet_encode_end::<Ospfv2>(buf, auth, src)
         })
     }
 
@@ -799,6 +799,7 @@ impl PacketVersion<Self> for Ospfv2 {
         pkt_len: u16,
         hdr_auth: PacketHdrAuth,
         auth: Option<&AuthCtx>,
+        _src: &IpAddr,
     ) -> DecodeResult<()> {
         // Discard the packet if its authentication type doesn't match the
         // interface's configured authentication type.
@@ -846,7 +847,7 @@ impl PacketVersion<Self> for Ospfv2 {
         }
     }
 
-    fn encode_auth_trailer(buf: &mut BytesMut, auth: &AuthCtx) {
+    fn encode_auth_trailer(buf: &mut BytesMut, auth: &AuthCtx, _src: &IpAddr) {
         let digest = auth::message_digest(buf, auth.algo, &auth.key);
         buf.put_slice(&digest);
     }

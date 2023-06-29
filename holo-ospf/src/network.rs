@@ -133,7 +133,7 @@ where
     Debug::<V>::PacketTx(dst_ifindex, &dst_addr, packet).log();
 
     // Encode packet.
-    let buf = packet.encode(auth);
+    let buf = packet.encode(auth, &src.into());
 
     // Send packet.
     let iov = [IoSlice::new(&buf)];
@@ -241,8 +241,9 @@ where
 
                 // Decode packet.
                 let mut buf = Bytes::copy_from_slice(&iov[0].deref()[0..bytes]);
-                let packet = V::validate_ip_hdr(&mut buf)
-                    .and_then(|_| Packet::decode(af, &mut buf, auth.as_ref()));
+                let packet = V::validate_ip_hdr(&mut buf).and_then(|_| {
+                    Packet::decode(af, &mut buf, auth.as_ref(), &src.into())
+                });
                 let msg = NetRxPacketMsg {
                     area_key: area_id.into(),
                     iface_key: iface_id.into(),

@@ -4,7 +4,7 @@
 // See LICENSE for license details.
 //
 
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
@@ -26,7 +26,8 @@ use maplit::{btreemap, btreeset};
 //
 
 fn test_encode_packet(bytes_expected: &[u8], packet: &Packet<Ospfv3>) {
-    let bytes_actual = packet.encode(None);
+    let src = Ipv6Addr::UNSPECIFIED;
+    let bytes_actual = packet.encode(None, &src.into());
     assert_eq!(bytes_expected, bytes_actual.as_ref());
 }
 
@@ -35,8 +36,10 @@ fn test_decode_packet(
     packet_expected: &Packet<Ospfv3>,
     af: AddressFamily,
 ) {
+    let src = Ipv6Addr::UNSPECIFIED;
     let mut buf = Bytes::copy_from_slice(bytes);
-    let packet_actual = Packet::decode(af, &mut buf, None).unwrap();
+    let packet_actual =
+        Packet::decode(af, &mut buf, None, &src.into()).unwrap();
     assert_eq!(*packet_expected, packet_actual);
 }
 

@@ -64,8 +64,9 @@ static PACKET: Lazy<Packet<Ospfv2>> = Lazy::new(|| {
 });
 
 fn packet_encode(n: u64) {
+    let src = Ipv4Addr::UNSPECIFIED;
     for _ in 0..n {
-        PACKET.encode(None);
+        PACKET.encode(None, &src.into());
     }
 }
 

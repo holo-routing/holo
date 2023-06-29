@@ -21,7 +21,7 @@ use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::socket::{TcpListener, UdpSocket};
 use holo_utils::task::Task;
-use holo_utils::{Receiver, Sender};
+use holo_utils::{Database, Receiver, Sender};
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use tokio::sync::mpsc;
 
@@ -295,7 +295,11 @@ impl ProtocolInstance for Instance {
     type SouthboundTx = InstanceSouthboundTx;
     type SouthboundRx = InstanceSouthboundRx;
 
-    async fn new(name: String, tx: InstanceChannelsTx<Instance>) -> Instance {
+    async fn new(
+        name: String,
+        _db: Option<Database>,
+        tx: InstanceChannelsTx<Instance>,
+    ) -> Instance {
         Debug::InstanceCreate.log();
 
         Instance::Down(InstanceDown {

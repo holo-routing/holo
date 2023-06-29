@@ -4,25 +4,10 @@
 // See LICENSE for license details.
 //
 
-use std::path::Path;
-
-use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};
+use pickledb::PickleDb;
 use tracing::error;
 
 use crate::northbound::core::Transaction;
-
-// Loads a rollback log from a file, or initialize a new rollback log if one
-// doesn't exist.
-pub(crate) fn init<P: AsRef<Path>>(
-    path: P,
-) -> Result<PickleDb, pickledb::error::Error> {
-    let dump_policy = PickleDbDumpPolicy::AutoDump;
-    let serialization_method = SerializationMethod::Bin;
-    match path.as_ref().exists() {
-        true => PickleDb::load(path, dump_policy, serialization_method),
-        false => Ok(PickleDb::new(path, dump_policy, serialization_method)),
-    }
-}
 
 // Records a transaction in the rollback log.
 pub(crate) fn transaction_record(

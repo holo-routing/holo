@@ -2,6 +2,12 @@
 user = "frr"
 group = "frr"
 
+# Path to the non-volatile memory storage for configuration transactions,
+# graceful-restart information, authentication sequence numbers, and more.
+#
+# Needs to be writable by @user or @group.
+database_path = "/var/run/holo.db"
+
 # Logging configuration
 [logging]
   # Logging to journald
@@ -52,16 +58,6 @@ group = "frr"
   enabled = false
   # Directory where to save the files (needs to be writable by @user or @group)
   dir = "/var/run/"
-
-# Rollback log
-#
-# The rollback log provides the ability to revert to previous versions of the
-# running configuration.
-[rollback_log]
-  # Enable or disable the rollback log
-  enabled = true
-  # Path to save the rollback log file (needs to be writable by @user or @group)
-  path = "/var/run/holo.db"
 
 # Daemon plugins
 [plugins]

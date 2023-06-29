@@ -20,7 +20,9 @@ use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
 use holo_utils::protocol::Protocol;
 use holo_utils::task::TimeoutTask;
-use holo_utils::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
+use holo_utils::{
+    Database, Receiver, Sender, UnboundedReceiver, UnboundedSender,
+};
 use tokio::sync::mpsc;
 
 use crate::collections::{
@@ -394,6 +396,7 @@ where
 
     async fn new(
         name: String,
+        _db: Option<Database>,
         tx: InstanceChannelsTx<Instance<V>>,
     ) -> Instance<V> {
         Debug::<V>::InstanceCreate.log();

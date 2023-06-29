@@ -424,9 +424,6 @@ impl From<northbound::Error> for Status {
             northbound::Error::TransactionPreparation(..) => {
                 Status::resource_exhausted(error.to_string())
             }
-            northbound::Error::RollbackLogUnavailable => {
-                Status::internal(error.to_string())
-            }
             northbound::Error::TransactionIdNotFound(..) => {
                 Status::invalid_argument(error.to_string())
             }

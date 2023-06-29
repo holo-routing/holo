@@ -21,15 +21,18 @@ use holo_protocol::{event_recorder, spawn_protocol_task};
 use holo_utils::ibus::{IbusReceiver, IbusSender};
 use holo_utils::protocol::Protocol;
 use holo_utils::sr::SrCfg;
+use holo_utils::Database;
 use tokio::sync::mpsc;
 use tracing::Instrument;
 
-#[derive(Debug, new)]
+#[derive(new)]
 pub struct Master {
     // Northbound Tx channel.
     pub nb_tx: NbProviderSender,
     // Internal bus Tx channel.
     pub ibus_tx: IbusSender,
+    // Non-volatile storage.
+    pub db: Database,
     // Event recorder configuration.
     pub event_recorder_config: event_recorder::Config,
     // Configuration data.
@@ -82,14 +85,19 @@ pub fn start(
     nb_provider_tx: NbProviderSender,
     ibus_tx: IbusSender,
     ibus_rx: IbusReceiver,
+    db: Database,
     event_recorder_config: event_recorder::Config,
 ) -> NbDaemonSender {
     let (nb_daemon_tx, nb_daemon_rx) = mpsc::channel(4);
 
     tokio::spawn(async move {
         let span = Master::debug_span("");
-        let mut master =
-            Master::new(nb_provider_tx, ibus_tx, event_recorder_config);
+        let mut master = Master::new(
+            nb_provider_tx,
+            ibus_tx,
+            db.clone(),
+            event_recorder_config,
+        );
 
         // Start BFD task.
         let name = "main".to_owned();
@@ -99,6 +107,7 @@ pub fn start(
             &master.nb_tx,
             &master.ibus_tx,
             Default::default(),
+            Some(db.clone()),
             Some(master.event_recorder_config.clone()),
         );
         master.instances.insert(instance_id, nb_daemon_tx);

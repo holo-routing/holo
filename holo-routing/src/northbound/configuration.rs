@@ -326,6 +326,7 @@ impl Provider for Master {
                             &self.nb_tx,
                             &self.ibus_tx,
                             Default::default(),
+                            Some(self.db.clone()),
                             Some(event_recorder_config),
                         )
                     }
@@ -338,6 +339,7 @@ impl Provider for Master {
                             &self.nb_tx,
                             &self.ibus_tx,
                             Default::default(),
+                            Some(self.db.clone()),
                             Some(event_recorder_config),
                         )
                     }
@@ -350,6 +352,7 @@ impl Provider for Master {
                             &self.nb_tx,
                             &self.ibus_tx,
                             Default::default(),
+                            Some(self.db.clone()),
                             Some(event_recorder_config),
                         )
                     }
@@ -362,6 +365,7 @@ impl Provider for Master {
                             &self.nb_tx,
                             &self.ibus_tx,
                             Default::default(),
+                            Some(self.db.clone()),
                             Some(event_recorder_config),
                         )
                     }
@@ -374,6 +378,7 @@ impl Provider for Master {
                             &self.nb_tx,
                             &self.ibus_tx,
                             Default::default(),
+                            Some(self.db.clone()),
                             Some(event_recorder_config),
                         )
                     }

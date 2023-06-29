@@ -11,6 +11,10 @@
     allow(dead_code, unused_variables, unused_imports)
 )]
 
+use std::sync::{Arc, Mutex};
+
+use pickledb::PickleDb;
+
 pub mod bfd;
 pub mod bytes;
 pub mod capabilities;
@@ -29,3 +33,6 @@ pub type Receiver<T> = tokio::sync::mpsc::Receiver<T>;
 pub type Responder<T> = tokio::sync::oneshot::Sender<T>;
 pub type UnboundedSender<T> = tokio::sync::mpsc::UnboundedSender<T>;
 pub type UnboundedReceiver<T> = tokio::sync::mpsc::UnboundedReceiver<T>;
+
+pub type Database = Arc<Mutex<PickleDb>>;
+pub type DatabaseError = pickledb::error::Error;

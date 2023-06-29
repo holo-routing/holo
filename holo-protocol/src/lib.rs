@@ -24,7 +24,7 @@ use holo_southbound::zclient::messages::ZapiRxMsg;
 use holo_utils::ibus::{IbusMsg, IbusReceiver, IbusSender};
 use holo_utils::protocol::Protocol;
 use holo_utils::task::Task;
-use holo_utils::{Receiver, Sender};
+use holo_utils::{Database, Receiver, Sender};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
@@ -59,7 +59,11 @@ where
     type SouthboundRx: MessageReceiver<ZapiRxMsg>;
 
     /// Create protocol instance.
-    async fn new(name: String, channels_tx: InstanceChannelsTx<Self>) -> Self;
+    async fn new(
+        name: String,
+        db: Option<Database>,
+        channels_tx: InstanceChannelsTx<Self>,
+    ) -> Self;
 
     /// Optional protocol instance initialization routine.
     async fn init(&mut self) {}
@@ -275,6 +279,7 @@ async fn run<P>(
     #[cfg(feature = "testing")] test_rx: Receiver<
         TestMsg<P::ProtocolOutputMsg>,
     >,
+    db: Option<Database>,
     event_recorder_config: Option<event_recorder::Config>,
 ) where
     P: ProtocolInstance,
@@ -321,7 +326,7 @@ async fn run<P>(
         .and_then(|config| EventRecorder::new(P::PROTOCOL, &name, config));
 
     // Create protocol instance.
-    let mut instance = P::new(name, instance_channels_tx).await;
+    let mut instance = P::new(name, db, instance_channels_tx).await;
     instance.init().await;
 
     // Run event loop.
@@ -349,6 +354,7 @@ pub fn spawn_protocol_task<P>(
     #[cfg(feature = "testing")] test_rx: Receiver<
         TestMsg<P::ProtocolOutputMsg>,
     >,
+    db: Option<Database>,
     event_recorder_config: Option<event_recorder::Config>,
 ) -> NbDaemonSender
 where
@@ -370,6 +376,7 @@ where
             agg_channels,
             #[cfg(feature = "testing")]
             test_rx,
+            db,
             event_recorder_config,
         )
         .instrument(span)

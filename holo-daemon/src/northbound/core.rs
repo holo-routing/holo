@@ -5,7 +5,7 @@
 //
 
 use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
@@ -17,8 +17,9 @@ use holo_northbound::{
     api as papi, CallbackKey, CallbackOp, NbDaemonSender, NbProviderReceiver,
 };
 use holo_utils::task::TimeoutTask;
-use holo_utils::{Receiver, Sender, UnboundedReceiver};
+use holo_utils::{Database, Receiver, Sender, UnboundedReceiver};
 use holo_yang::YANG_CTX;
+use pickledb::PickleDb;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tracing::{debug, error, info, instrument, trace, warn};
@@ -30,17 +31,14 @@ use yang2::schema::SchemaPathFormat;
 
 use crate::config::Config;
 use crate::northbound::client::{api as capi, gnmi, grpc};
-#[cfg(feature = "rollback-log")]
-use crate::northbound::db;
-use crate::northbound::{yang, Error, Result};
+use crate::northbound::{db, yang, Error, Result};
 
 pub struct Northbound {
     // YANG-modeled running configuration.
     running_config: Arc<DataTree>,
 
-    // Rollback log.
-    #[cfg(feature = "rollback-log")]
-    db: Option<pickledb::PickleDb>,
+    // Non-volatile storage.
+    db: Database,
 
     // Callback keys from the data providers.
     callbacks: BTreeMap<CallbackKey, NbDaemonSender>,
@@ -97,24 +95,12 @@ pub struct Rollback {
 // ===== impl Northbound =====
 
 impl Northbound {
-    pub(crate) async fn init(config: &Config) -> Northbound {
+    pub(crate) async fn init(config: &Config, db: PickleDb) -> Northbound {
+        let db = Arc::new(Mutex::new(db));
+
         // Create global YANG context.
         yang::create_context();
         let yang_ctx = YANG_CTX.get().unwrap();
-
-        // Initialize the rollback log.
-        #[cfg(feature = "rollback-log")]
-        let db = if config.rollback_log.enabled {
-            match db::init(&config.rollback_log.path) {
-                Ok(db) => Some(db),
-                Err(error) => {
-                    error!(%error, "failed to open rollback log");
-                    None
-                }
-            }
-        } else {
-            None
-        };
 
         // Create empty running configuration.
         let running_config = Arc::new(DataTree::new(yang_ctx));
@@ -123,7 +109,7 @@ impl Northbound {
         let rx_clients = start_clients(config);
 
         // Start provider tasks (e.g. interfaces, routing, etc).
-        let (rx_providers, providers) = start_providers(config);
+        let (rx_providers, providers) = start_providers(config, db.clone());
 
         // Load callbacks keys from data providers and check for missing
         // callbacks.
@@ -132,7 +118,6 @@ impl Northbound {
 
         Northbound {
             running_config,
-            #[cfg(feature = "rollback-log")]
             db,
             callbacks,
             providers,
@@ -300,8 +285,8 @@ impl Northbound {
     async fn process_client_list_transactions(
         &mut self,
     ) -> Result<capi::client::ListTransactionsResponse> {
-        let db = self.db.as_ref().ok_or(Error::RollbackLogUnavailable)?;
-        let transactions = db::transaction_get_all(db);
+        let db = self.db.lock().unwrap();
+        let transactions = db::transaction_get_all(&db);
         Ok(capi::client::ListTransactionsResponse { transactions })
     }
 
@@ -310,8 +295,8 @@ impl Northbound {
         &mut self,
         transaction_id: u32,
     ) -> Result<capi::client::GetTransactionResponse> {
-        let db = self.db.as_ref().ok_or(Error::RollbackLogUnavailable)?;
-        let transaction = db::transaction_get(db, transaction_id)
+        let db = self.db.lock().unwrap();
+        let transaction = db::transaction_get(&db, transaction_id)
             .ok_or(Error::TransactionIdNotFound(transaction_id))?;
         Ok(capi::client::GetTransactionResponse {
             dtree: transaction.configuration,
@@ -426,10 +411,8 @@ impl Northbound {
                     Transaction::new(Utc::now(), comment, candidate);
 
                 // Record transaction.
-                #[cfg(feature = "rollback-log")]
-                if let Some(db) = &mut self.db {
-                    db::transaction_record(db, &mut transaction);
-                }
+                let mut db = self.db.lock().unwrap();
+                db::transaction_record(&mut db, &mut transaction);
 
                 Ok(transaction.id)
             }
@@ -642,6 +625,7 @@ impl Default for ConfirmedCommit {
 // Starts base data providers.
 fn start_providers(
     config: &Config,
+    db: Database,
 ) -> (NbProviderReceiver, Vec<NbDaemonSender>) {
     let mut providers = Vec::new();
     let (provider_tx, provider_rx) = mpsc::unbounded_channel();
@@ -652,6 +636,7 @@ fn start_providers(
         provider_tx.clone(),
         ibus_tx.clone(),
         ibus_tx.subscribe(),
+        db,
         config.event_recorder.clone(),
     );
     providers.push(daemon_tx);

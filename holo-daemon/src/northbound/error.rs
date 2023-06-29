@@ -21,7 +21,6 @@ pub enum Error {
     YangInternal(yang2::Error),
     TransactionValidation(northbound::error::Error),
     TransactionPreparation(northbound::error::Error),
-    RollbackLogUnavailable,
     TransactionIdNotFound(u32),
 }
 
@@ -44,9 +43,6 @@ impl std::fmt::Display for Error {
             }
             Error::TransactionPreparation(err) => {
                 write!(f, "Resource allocation error: {}", err)
-            }
-            Error::RollbackLogUnavailable => {
-                write!(f, "Rollback log is unavailable")
             }
             Error::TransactionIdNotFound(id) => {
                 write!(f, "Transaction ID not found: {}", id)

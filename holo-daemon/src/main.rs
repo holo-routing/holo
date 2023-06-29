@@ -9,11 +9,14 @@
 mod config;
 mod northbound;
 
+use std::path::Path;
+
 use capctl::caps;
 use clap::{App, Arg};
 use config::{Config, LoggingFileRotation, LoggingFmtStyle};
 use nix::unistd::{Uid, User};
 use northbound::Northbound;
+use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};
 use tracing::level_filters::LevelFilter;
 use tracing::{error, info};
 use tracing_appender::rolling;
@@ -100,6 +103,17 @@ fn init_tracing(config: &config::Logging, tokio_console: bool) {
         .init();
 }
 
+fn init_db<P: AsRef<Path>>(
+    path: P,
+) -> Result<PickleDb, pickledb::error::Error> {
+    let dump_policy = PickleDbDumpPolicy::AutoDump;
+    let serialization_method = SerializationMethod::Bin;
+    match path.as_ref().exists() {
+        true => PickleDb::load(path, dump_policy, serialization_method),
+        false => Ok(PickleDb::new(path, dump_policy, serialization_method)),
+    }
+}
+
 fn privdrop(user: &str) -> nix::Result<()> {
     // Preserve set of permitted capabilities upon privdrop.
     capctl::prctl::set_securebits(capctl::prctl::Secbits::KEEP_CAPS).unwrap();
@@ -160,6 +174,10 @@ fn main() {
     // Initialize tracing.
     init_tracing(&config.logging, config.tokio_console.enabled);
 
+    // Initialize non-volatile storage.
+    let db = init_db(&config.database_path)
+        .expect("failed to initialize non-volatile storage");
+
     // Drop privileges.
     if let Err(error) = privdrop(&config.user) {
         error!(%error, "failed to drop root privileges");
@@ -179,7 +197,7 @@ fn main() {
     // Main loop.
     let main = || async {
         // Serve northbound clients.
-        let nb = Northbound::init(&config).await;
+        let nb = Northbound::init(&config, db).await;
         nb.run().await;
     };
     #[cfg(not(feature = "io_uring"))]

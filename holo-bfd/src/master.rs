@@ -16,7 +16,7 @@ use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
 use holo_utils::protocol::Protocol;
 use holo_utils::task::Task;
-use holo_utils::{Receiver, Sender};
+use holo_utils::{Database, Receiver, Sender};
 use tokio::sync::mpsc;
 
 use crate::error::{Error, IoError};
@@ -112,7 +112,11 @@ impl ProtocolInstance for Master {
     type SouthboundTx = InstanceSouthboundTx;
     type SouthboundRx = InstanceSouthboundRx;
 
-    async fn new(_name: String, tx: InstanceChannelsTx<Master>) -> Master {
+    async fn new(
+        _name: String,
+        _db: Option<Database>,
+        tx: InstanceChannelsTx<Master>,
+    ) -> Master {
         Master {
             udp_sh_rx_tasks: None,
             udp_mh_rx_tasks: None,

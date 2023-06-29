@@ -56,6 +56,7 @@ impl InterfaceVersion<Self> for Ospfv3 {
             router_id: instance.state.router_id,
             area_id: area.area_id,
             instance_id: iface.config.instance_id.unwrap_or(0),
+            auth_seqno: None,
         };
 
         Packet::Hello(Hello {
@@ -64,7 +65,10 @@ impl InterfaceVersion<Self> for Ospfv3 {
             priority: iface.config.priority,
             options: Self::area_options(
                 area,
-                OptionsLocation::new_packet(PacketType::Hello),
+                OptionsLocation::new_packet(
+                    PacketType::Hello,
+                    iface.state.auth.is_some(),
+                ),
             ),
             hello_interval: iface.config.hello_interval,
             dead_interval: iface.config.dead_interval,
@@ -125,7 +129,16 @@ impl InterfaceVersion<Self> for Ospfv3 {
     fn max_packet_size(iface: &Interface<Self>) -> u16 {
         const IPV6_HDR_SIZE: u16 = 40;
 
-        iface.system.mtu.unwrap() - IPV6_HDR_SIZE
+        let mut max = iface.system.mtu.unwrap() - IPV6_HDR_SIZE;
+
+        // Reserve space for the authentication trailer when authentication is
+        // enabled.
+        if let Some(auth) = &iface.state.auth {
+            max -= ospfv3::packet::AUTH_TRAILER_HDR_SIZE;
+            max -= auth.algo.digest_size() as u16;
+        }
+
+        max
     }
 
     fn get_neighbor<'a>(

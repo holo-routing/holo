@@ -4,7 +4,7 @@
 // See LICENSE for license details.
 //
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::net::Ipv4Addr;
 use std::sync::Arc;
 
@@ -25,7 +25,7 @@ use crate::interface::{ism, Interface, InterfaceType};
 use crate::lsdb::{LsaEntry, LsaOriginateEvent};
 use crate::northbound::notification;
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
-use crate::packet::{DbDescFlags, DbDescVersion};
+use crate::packet::{DbDescFlags, DbDescVersion, PacketType};
 use crate::tasks::messages::input::RxmtIntervalMsg;
 use crate::tasks::messages::output::NetTxPacketMsg;
 use crate::version::Version;
@@ -47,7 +47,7 @@ pub struct Neighbor<V: Version> {
     pub dd_seq_no: u32,
     pub last_rcvd_dbdesc: Option<LastDbDesc<V>>,
     pub last_sent_dbdesc: Option<NetTxPacketMsg<V>>,
-    pub auth_seqno: u32,
+    pub auth_seqno: HashMap<PacketType, u64>,
 
     pub event_count: u32,
     pub discontinuity_time: DateTime<Utc>,
@@ -185,7 +185,7 @@ where
             dd_seq_no,
             last_rcvd_dbdesc: None,
             last_sent_dbdesc: None,
-            auth_seqno: 0,
+            auth_seqno: Default::default(),
             event_count: 0,
             discontinuity_time: Utc::now(),
             adj_sids: Default::default(),

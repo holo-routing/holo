@@ -20,11 +20,15 @@ pub struct AreaState {
 impl AreaVersion<Self> for Ospfv3 {
     type State = AreaState;
 
-    fn area_options(area: &Area<Self>, _location: OptionsLocation) -> Options {
+    fn area_options(area: &Area<Self>, location: OptionsLocation) -> Options {
         let mut options = Options::R | Options::V6 | Options::AF;
 
         if area.config.area_type == AreaType::Normal {
             options.insert(Options::E);
+        }
+
+        if let OptionsLocation::Packet { auth: true, .. } = location {
+            options.insert(Options::AT);
         }
 
         options

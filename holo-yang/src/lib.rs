@@ -149,6 +149,7 @@ pub static YANG_FEATURES: Lazy<HashMap<&'static str, Vec<&'static str>>> =
                 "ietf-spf-delay",
                 "max-ecmp",
                 "mtu-ignore",
+                "ospfv3-authentication-trailer",
                 "stub-router",
             ],
             "ietf-rip" => vec![

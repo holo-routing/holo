@@ -146,6 +146,7 @@ Holo supports the following IETF RFCs and Internet drafts:
 * RFC 5838 - Support of Address Families in OSPFv3
 * RFC 6987 - OSPF Stub Router Advertisement
 * RFC 7684 - OSPFv2 Prefix/Link Attribute Advertisement
+* RFC 7166 - Supporting Authentication Trailer for OSPFv3
 * RFC 7770 - Extensions to OSPF for Advertising Optional Router Capabilities
 * RFC 8362 - OSPFv3 Link State Advertisement (LSA) Extensibility
 * RFC 8405 - Shortest Path First (SPF) Back-Off Delay Algorithm for Link-State IGPs
@@ -171,7 +172,7 @@ Holo supports the following IETF RFCs and Internet drafts:
 | ietf-key-chain@2017-04-18 | 25.00% | 0.00% | - | - | [21.05%](http://westphal.com.br/holo/ietf-key-chain.html) |
 | ietf-mpls-ldp@2022-03-14 | 86.96% | 92.31% | 100.00% | 100.00% | [92.38%](http://westphal.com.br/holo/ietf-mpls-ldp.html) |
 | ietf-ospf-sr@2023-01-01 | 16.67% | 56.52% | - | - | [53.33%](http://westphal.com.br/holo/ietf-ospf-sr.html) |
-| ietf-ospf@2019-10-17 | 79.45% | 59.36% | 100.00% | 31.18% | [58.59%](http://westphal.com.br/holo/ietf-ospf.html) |
+| ietf-ospf@2019-10-17 | 77.22% | 59.36% | 100.00% | 31.18% | [58.55%](http://westphal.com.br/holo/ietf-ospf.html) |
 | ietf-ospfv3-extended-lsa@2022-03-06 | 50.00% | 84.82% | - | - | [84.46%](http://westphal.com.br/holo/ietf-ospfv3-extended-lsa.html) |
 | ietf-ospfv3-sr@2022-10-21 | - | 51.63% | - | - | [51.63%](http://westphal.com.br/holo/ietf-ospfv3-sr.html) |
 | ietf-rip@2020-02-20 | 27.91% | 93.33% | 100.00% | - | [55.41%](http://westphal.com.br/holo/ietf-rip.html) |

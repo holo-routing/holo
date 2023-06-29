@@ -42,7 +42,7 @@ bitflags! {
 //
 // IANA registry:
 // https://www.iana.org/assignments/ospfv2-parameters/ospfv2-parameters.xhtml#ospfv2-parameters-3
-#[derive(Clone, Copy, Debug, Eq, FromPrimitive, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, FromPrimitive, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub enum PacketType {
     Hello = 0x01,
@@ -74,14 +74,17 @@ pub trait PacketVersion<V: Version> {
     type PacketLsUpdate: LsUpdateVersion<V>;
     type PacketLsAck: LsAckVersion<V>;
 
-    // Validate the packet authentication.
+    // Validate packet authentication.
+    //
+    // If cryptographic authentication is enabled, return the authentication
+    // sequence number.
     fn decode_auth_validate(
         data: &[u8],
         pkt_len: u16,
         hdr_auth: V::PacketHdrAuth,
         auth: Option<&AuthCtx>,
         src: &IpAddr,
-    ) -> DecodeResult<()>;
+    ) -> DecodeResult<Option<u64>>;
 
     // Encode the authentication trailer.
     fn encode_auth_trailer(buf: &mut BytesMut, auth: &AuthCtx, src: &IpAddr);
@@ -116,7 +119,10 @@ where
     fn area_id(&self) -> Ipv4Addr;
 
     // Return the packet authentication sequence number.
-    fn auth_seqno(&self) -> Option<u32>;
+    fn auth_seqno(&self) -> Option<u64>;
+
+    // Set the packet authentication sequence number.
+    fn set_auth_seqno(&mut self, seqno: u64);
 
     // Create new packet header.
     fn generate(
@@ -294,18 +300,20 @@ impl<V: Version> Packet<V> {
         let buf_orig = buf.clone();
 
         // Decode the packet header.
-        let (hdr, pkt_len, hdr_auth) = V::PacketHdr::decode(buf)?;
+        let (mut hdr, pkt_len, hdr_auth) = V::PacketHdr::decode(buf)?;
         let mut buf =
             buf.slice(..pkt_len as usize - V::PacketHdr::LENGTH as usize);
 
         // Validate the packet authentication.
-        V::decode_auth_validate(
+        if let Some(auth_seqno) = V::decode_auth_validate(
             buf_orig.as_ref(),
             pkt_len,
             hdr_auth,
             auth,
             src,
-        )?;
+        )? {
+            hdr.set_auth_seqno(auth_seqno);
+        }
 
         // Decode the packet body.
         let packet = match hdr.pkt_type() {

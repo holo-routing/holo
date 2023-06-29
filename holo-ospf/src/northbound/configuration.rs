@@ -788,6 +788,73 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             event_queue
                 .insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
         })
+        .path(ospf::areas::area::interfaces::interface::authentication::ospfv3_sa_id::PATH)
+        .modify_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let auth_keyid = args.dnode.get_u16();
+            iface.config.auth_keyid = Some(auth_keyid as u32);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
+        .delete_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.auth_keyid = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
+        .path(ospf::areas::area::interfaces::interface::authentication::ospfv3_key::PATH)
+        .modify_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let auth_key = args.dnode.get_string();
+            iface.config.auth_key = Some(auth_key);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
+        .delete_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.auth_key = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
+        .path(ospf::areas::area::interfaces::interface::authentication::ospfv3_crypto_algorithm::PATH)
+        .modify_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let auth_algo = args.dnode.get_string();
+            let auth_algo = CryptoAlgo::try_from_yang(&auth_algo).unwrap();
+            iface.config.auth_algo = Some(auth_algo);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
+        .delete_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.auth_algo = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
         .build()
 }
 
@@ -874,6 +941,25 @@ fn load_validation_callbacks_ospfv3() -> ValidationCallbacks {
                 return Err(
                     "Segment Routing for OSPFv3 requires extended LSA support enabled".to_string()
                 );
+            }
+
+            Ok(())
+        })
+        .path(ospf::areas::area::interfaces::interface::authentication::ospfv3_crypto_algorithm::PATH)
+        .validate(|args| {
+            let valid_options = [
+                CryptoAlgo::HmacSha1.to_yang(),
+                CryptoAlgo::HmacSha256.to_yang(),
+                CryptoAlgo::HmacSha384.to_yang(),
+                CryptoAlgo::HmacSha512.to_yang(),
+            ];
+
+            let algo = args.dnode.get_string();
+            if !valid_options.iter().any(|option| *option == algo) {
+                return Err(format!(
+                    "unsupported cryptographic algorithm (valid options: \"{}\")",
+                    valid_options.join(", "),
+                ));
             }
 
             Ok(())

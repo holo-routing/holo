@@ -33,7 +33,7 @@ pub enum Error<V: Version> {
     InvalidDstAddr(V::NetIpAddr),
     PacketDecodeError(DecodeError),
     UnknownNeighbor(V::NetIpAddr, Ipv4Addr),
-    PacketAuthInvalidSeqno(V::NetIpAddr, u32),
+    PacketAuthInvalidSeqno(V::NetIpAddr, u64),
     InterfaceCfgError(String, V::NetIpAddr, PacketType, InterfaceCfgError),
     DbDescReject(Ipv4Addr, nsm::State),
     Ospfv2LsaUnknownType(V::LsaType),

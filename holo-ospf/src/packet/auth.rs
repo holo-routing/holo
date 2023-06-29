@@ -4,7 +4,8 @@
 // See LICENSE for license details.
 //
 
-use std::sync::atomic::AtomicU32;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, LazyLock as Lazy};
 
 use derive_new::new;
@@ -15,7 +16,8 @@ use hmac::digest::core_api::{
 use hmac::digest::typenum::{IsLess, Le, NonZero, U256};
 use hmac::digest::{HashMarker, Mac, OutputSizeUser};
 use hmac::Hmac;
-use holo_utils::crypto::CryptoAlgo;
+use holo_utils::crypto::{CryptoAlgo, CryptoProtocolId};
+use holo_utils::ip::{Ipv4AddrExt, Ipv6AddrExt};
 use serde::{Deserialize, Serialize};
 use sha1::Sha1;
 use sha2::{Sha256, Sha384, Sha512};
@@ -43,7 +45,7 @@ pub struct AuthCtx {
     // Authentication cryptographic algorithm.
     pub algo: CryptoAlgo,
     // Non-decreasing sequence number (only used for encoding packets).
-    pub seqno: Arc<AtomicU32>,
+    pub seqno: Arc<AtomicU64>,
 }
 
 // ===== helper functions =====
@@ -59,7 +61,12 @@ fn keyed_md5_digest(data: &[u8], key: &str) -> [u8; 16] {
     *ctx.compute()
 }
 
-fn hmac_sha_digest<H>(data: &[u8], key: &str) -> Vec<u8>
+fn hmac_sha_digest<H>(
+    data: &[u8],
+    key: &str,
+    proto_id: Option<CryptoProtocolId>,
+    src: Option<&IpAddr>,
+) -> Vec<u8>
 where
     H: CoreProxy,
     H::Core: HashMarker
@@ -71,9 +78,43 @@ where
     <H::Core as BlockSizeUser>::BlockSize: IsLess<U256>,
     Le<<H::Core as BlockSizeUser>::BlockSize, U256>: NonZero,
 {
-    let mut mac = Hmac::<H>::new_from_slice(key.as_bytes()).unwrap();
+    let mut key = key.as_bytes();
+    let key_proto: Vec<u8>;
+
+    // Append Cryptographic Protocol ID to the authentication key.
+    if let Some(proto_id) = proto_id {
+        let proto_id = proto_id as u16;
+        key_proto = [key, &proto_id.to_be_bytes()].concat();
+        key = &key_proto;
+    }
+
+    // Compute the message digest.
+    let mut mac = Hmac::<H>::new_from_slice(key).unwrap();
     mac.update(data);
-    mac.update(&HMAC_APAD[..H::Core::output_size()]);
+    let digest_size = H::Core::output_size();
+    match src {
+        Some(IpAddr::V4(addr)) => {
+            // RFC 7474 Section 5 says:
+            // "Initialize the first 4 octets of Apad to the IP source address
+            // from the IP header of the incoming OSPFv2 packet. The remainder
+            // of Apad will contain the value 0x878FE1F3 repeated (L - 4)/4
+            // times".
+            mac.update(&addr.octets());
+            mac.update(&HMAC_APAD[..digest_size - Ipv4Addr::LENGTH]);
+        }
+        Some(IpAddr::V6(addr)) => {
+            // RFC 7166 Secion 4.5 says:
+            // "Apad is a value that is the same length as the hash output or
+            // message digest. The first 16 octets contain the IPv6 source
+            // address followed by the hexadecimal value 0x878FE1F3 repeated
+            // (L-16)/4 times".
+            mac.update(&addr.octets());
+            mac.update(&HMAC_APAD[..digest_size - Ipv6Addr::LENGTH]);
+        }
+        None => {
+            mac.update(&HMAC_APAD[..digest_size]);
+        }
+    }
     let digest = mac.finalize();
     digest.into_bytes().to_vec()
 }
@@ -84,13 +125,23 @@ pub(crate) fn message_digest(
     data: &[u8],
     algo: CryptoAlgo,
     key: &str,
+    proto_id: Option<CryptoProtocolId>,
+    src: Option<&IpAddr>,
 ) -> Vec<u8> {
     match algo {
         CryptoAlgo::Md5 => keyed_md5_digest(data, key).to_vec(),
-        CryptoAlgo::HmacSha1 => hmac_sha_digest::<Sha1>(data, key),
-        CryptoAlgo::HmacSha256 => hmac_sha_digest::<Sha256>(data, key),
-        CryptoAlgo::HmacSha384 => hmac_sha_digest::<Sha384>(data, key),
-        CryptoAlgo::HmacSha512 => hmac_sha_digest::<Sha512>(data, key),
+        CryptoAlgo::HmacSha1 => {
+            hmac_sha_digest::<Sha1>(data, key, proto_id, src)
+        }
+        CryptoAlgo::HmacSha256 => {
+            hmac_sha_digest::<Sha256>(data, key, proto_id, src)
+        }
+        CryptoAlgo::HmacSha384 => {
+            hmac_sha_digest::<Sha384>(data, key, proto_id, src)
+        }
+        CryptoAlgo::HmacSha512 => {
+            hmac_sha_digest::<Sha512>(data, key, proto_id, src)
+        }
         _ => {
             // Other algorithms can't be configured (e.g. Keyed SHA1).
             unreachable!()

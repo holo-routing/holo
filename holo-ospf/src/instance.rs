@@ -6,9 +6,9 @@
 
 use std::collections::{BTreeMap, VecDeque};
 use std::net::Ipv4Addr;
-use std::sync::atomic::AtomicU32;
+use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::Instant;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -121,7 +121,7 @@ pub struct InstanceState<V: Version> {
     pub spf_log: VecDeque<SpfLogEntry<V>>,
     pub spf_log_next_id: u32,
     // Authentication non-decreasing sequence number.
-    pub auth_seqno: Arc<AtomicU32>,
+    pub auth_seqno: Arc<AtomicU64>,
 }
 
 #[derive(Debug, Default)]
@@ -214,8 +214,13 @@ pub struct InstanceUpView<'a, V: Version> {
 
 // OSPF version-specific code.
 pub trait InstanceVersion<V: Version> {
+    const STRICT_AUTH_SEQNO_CHECK: bool;
+
     // Return the instance's address family (IPv4 or IPv6).
     fn address_family(instance: &Instance<V>) -> AddressFamily;
+
+    // Return the instance's initial authentication sequence number.
+    fn initial_auth_seqno(boot_count: u32) -> u64;
 }
 
 // ===== impl Instance =====
@@ -244,7 +249,7 @@ where
     fn start(&mut self, af: AddressFamily, router_id: Ipv4Addr) {
         Debug::<V>::InstanceStart.log();
 
-        let state = InstanceState::new(af, router_id);
+        let state = InstanceState::new(af, router_id, self.boot_count_get());
 
         // Store instance initial state.
         self.state = Some(state);
@@ -631,7 +636,11 @@ impl<V> InstanceState<V>
 where
     V: Version,
 {
-    fn new(af: AddressFamily, router_id: Ipv4Addr) -> InstanceState<V> {
+    fn new(
+        af: AddressFamily,
+        router_id: Ipv4Addr,
+        boot_count: u32,
+    ) -> InstanceState<V> {
         InstanceState {
             af,
             router_id,
@@ -652,17 +661,7 @@ where
             lsa_log_next_id: 0,
             spf_log: Default::default(),
             spf_log_next_id: 0,
-            // Initialize the authentication sequence number as the number of
-            // seconds since the Unix epoch (1 January 1970).
-            // By using this approach, the chances of successfully replaying
-            // packets from a restarted OSPF instance are significantly reduced.
-            auth_seqno: Arc::new(
-                (SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .expect("Time went backwards")
-                    .as_secs() as u32)
-                    .into(),
-            ),
+            auth_seqno: Arc::new(V::initial_auth_seqno(boot_count).into()),
         }
     }
 }

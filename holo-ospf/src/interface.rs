@@ -6,7 +6,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::net::Ipv4Addr;
-use std::sync::atomic::AtomicU32;
+use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
@@ -479,7 +479,7 @@ where
         )
     }
 
-    pub(crate) fn auth(&self, seqno: &Arc<AtomicU32>) -> Option<AuthCtx> {
+    pub(crate) fn auth(&self, seqno: &Arc<AtomicU64>) -> Option<AuthCtx> {
         if let (Some(key), Some(key_id), Some(algo)) = (
             self.config.auth_key.as_ref(),
             self.config.auth_keyid,

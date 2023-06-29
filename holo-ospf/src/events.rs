@@ -149,11 +149,12 @@ where
     V::validate_packet_src(iface, src)?;
 
     // Check for Area ID mismatch.
+    let pkt_type = packet.hdr().pkt_type();
     if packet.hdr().area_id() != area.area_id {
         return Err(Error::InterfaceCfgError(
             iface.name.clone(),
             src,
-            packet.hdr().pkt_type(),
+            pkt_type,
             InterfaceCfgError::AreaIdMismatch(
                 packet.hdr().area_id(),
                 area.area_id,
@@ -176,12 +177,24 @@ where
     {
         // Discard the packet if its sequence number is lower than the recorded
         // sequence number in the sender's neighbor data structure.
-        if auth_seqno < nbr.auth_seqno {
-            return Err(Error::PacketAuthInvalidSeqno(src, auth_seqno));
+        //
+        // Sequence number checking is dependent on OSPF packet type in order to
+        // account for packet prioritization as specified in RFC 4222.
+        let nbr_auth_seqno = nbr.auth_seqno.entry(pkt_type).or_default();
+        match auth_seqno.cmp(nbr_auth_seqno) {
+            Ordering::Less => {
+                return Err(Error::PacketAuthInvalidSeqno(src, auth_seqno));
+            }
+            Ordering::Equal if V::STRICT_AUTH_SEQNO_CHECK => {
+                return Err(Error::PacketAuthInvalidSeqno(src, auth_seqno));
+            }
+            _ => {
+                // Packet sequence number is valid.
+            }
         }
 
         // Update neighbor's last received sequence number.
-        nbr.auth_seqno = auth_seqno;
+        *nbr_auth_seqno = auth_seqno;
     }
 
     // Log received packet.

@@ -5,6 +5,7 @@
 //
 
 use holo_yang::{ToYang, TryFromYang};
+use num_derive::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Debug)]
@@ -16,6 +17,21 @@ pub enum CryptoAlgo {
     HmacSha256,
     HmacSha384,
     HmacSha512,
+}
+
+// Cryptographic Protocol ID.
+//
+// Unique protocol-specific values for cryptographic applications, including but
+// not limited to prevention of cross-protocol replay attacks.
+//
+// IANA registry:
+// https://www.iana.org/assignments/authentication-cryptographic-protocol-id/authentication-cryptographic-protocol-id.xhtml
+#[derive(Clone, Copy, Debug, Eq, FromPrimitive, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub enum CryptoProtocolId {
+    Ospfv3 = 0x01,
+    Ldp = 0x02,
+    Ospfv2 = 0x03,
 }
 
 // ===== impl CryptoAlgo =====

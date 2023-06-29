@@ -8,11 +8,14 @@ pub mod lsa;
 
 use std::collections::BTreeSet;
 use std::net::{IpAddr, Ipv4Addr};
+use std::sync::atomic;
 
 use bitflags::bitflags;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::{BytesExt, BytesMutExt, TLS_BUF};
+use holo_utils::crypto::CryptoProtocolId;
 use holo_utils::ip::{AddressFamily, Ipv4AddrExt};
+use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
@@ -22,7 +25,7 @@ use crate::packet::auth::AuthCtx;
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::packet::{
-    packet_encode_end, packet_encode_start, DbDescFlags, DbDescVersion,
+    auth, packet_encode_end, packet_encode_start, DbDescFlags, DbDescVersion,
     HelloVersion, LsAckVersion, LsRequestVersion, LsUpdateVersion,
     OptionsVersion, Packet, PacketBase, PacketHdrVersion, PacketType,
     PacketVersion,
@@ -44,8 +47,23 @@ bitflags! {
         const R = 0x0010;
         const DC = 0x0020;
         const AF = 0x0100;
+        const L = 0x0200;
+        const AT = 0x0400;
     }
 }
+
+// OSPFv3 authentication type.
+#[derive(Clone, Copy, Debug, Eq, FromPrimitive, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub enum AuthType {
+    HmacCryptographic = 0x01,
+}
+
+// Length of LLS Data Block header.
+pub const LLS_HDR_SIZE: u16 = 4;
+
+// Length of the authentication trailer fixed header.
+pub const AUTH_TRAILER_HDR_SIZE: u16 = 16;
 
 //
 // OSPFv3 packet header.
@@ -71,8 +89,13 @@ pub struct PacketHdr {
     pub router_id: Ipv4Addr,
     pub area_id: Ipv4Addr,
     pub instance_id: u8,
+    // Decoded authentication sequence number.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth_seqno: Option<u64>,
 }
 
+// OSPFv3 doesn't contain authentication data in its packet header.
 #[derive(Debug)]
 pub struct PacketHdrAuth;
 
@@ -289,17 +312,13 @@ impl PacketHdrVersion<Ospfv3> for PacketHdr {
         // Parse reserved field.
         let _ = buf.get_u8();
 
-        // Ensure the length field matches the number of received bytes.
-        if pkt_len != Self::LENGTH + buf.remaining() as u16 {
-            return Err(DecodeError::InvalidLength(pkt_len));
-        }
-
         Ok((
             PacketHdr {
                 pkt_type,
                 router_id,
                 area_id,
                 instance_id,
+                auth_seqno: None,
             },
             pkt_len,
             PacketHdrAuth {},
@@ -340,8 +359,12 @@ impl PacketHdrVersion<Ospfv3> for PacketHdr {
         self.area_id
     }
 
-    fn auth_seqno(&self) -> Option<u32> {
-        None
+    fn auth_seqno(&self) -> Option<u64> {
+        self.auth_seqno
+    }
+
+    fn set_auth_seqno(&mut self, seqno: u64) {
+        self.auth_seqno = Some(seqno)
     }
 
     fn generate(
@@ -355,6 +378,7 @@ impl PacketHdrVersion<Ospfv3> for PacketHdr {
             router_id,
             area_id,
             instance_id: instance_id.unwrap_or(0),
+            auth_seqno: None,
         }
     }
 }
@@ -751,22 +775,141 @@ impl PacketVersion<Self> for Ospfv3 {
     type PacketLsUpdate = LsUpdate;
     type PacketLsAck = LsAck;
 
-    // Not implemented yet (RFC 7166).
     fn decode_auth_validate(
-        _data: &[u8],
-        _pkt_len: u16,
+        data: &[u8],
+        pkt_len: u16,
         _hdr_auth: PacketHdrAuth,
-        _auth: Option<&AuthCtx>,
-        _src: &IpAddr,
-    ) -> DecodeResult<()> {
-        Ok(())
+        auth: Option<&AuthCtx>,
+        src: &IpAddr,
+    ) -> DecodeResult<Option<u64>> {
+        let options = packet_options(data);
+
+        // Check for authentication type mismatch.
+        //
+        // RFC 7166 states the following:
+        // "OSPFv3 packet types that don't include an OSPFv3 Options
+        // field will use the setting from the neighbor data structure
+        // to determine whether or not the AT is expected".
+        //
+        // LS Updates, LS Requests, and LS Acks are the packet types
+        // that lack the OSPFv3 Options field. As these packets are only
+        // transmitted after bidirectional connectivity is confirmed,
+        // authentication type mismatches can be ruled out. This avoids
+        // the need to give the network RX tasks access to neighbor data
+        // structures, which would require the introduction of locking
+        // primitives.
+        if let Some(options) = options
+            && auth.is_some() != options.contains(Options::AT) {
+            return Err(DecodeError::AuthTypeMismatch);
+        }
+        if auth.is_none() {
+            return Ok(None);
+        }
+
+        // Get data after the end of the OSPF packet.
+        let mut buf = Bytes::copy_from_slice(&data[pkt_len as usize..]);
+
+        // Ignore optional LLS block (only present in Hello and Database
+        // Description packets).
+        if let Some(options) = &options && options.contains(Options::L) {
+            if buf.remaining() < LLS_HDR_SIZE as usize {
+                return Err(DecodeError::InvalidLength(buf.len() as u16));
+            }
+            let _lls_cksum = buf.get_u16();
+            let lls_block_len = buf.get_u16();
+            if buf.remaining() < (lls_block_len * 4 - LLS_HDR_SIZE) as usize
+            {
+                return Err(DecodeError::InvalidLength(buf.len() as u16));
+            }
+            buf.advance(lls_block_len as usize);
+        }
+
+        // Decode authentication trailer fixed header.
+        let auth = auth.as_ref().unwrap();
+        if buf.remaining()
+            < AUTH_TRAILER_HDR_SIZE as usize + auth.algo.digest_size() as usize
+        {
+            return Err(DecodeError::InvalidLength(buf.len() as u16));
+        }
+        let auth_type = buf.get_u16();
+        let auth_len = buf.get_u16();
+        let _reserved = buf.get_u16();
+        let key_id = buf.get_u16();
+        let seqno = buf.get_u64();
+
+        // Sanity checks.
+        if AuthType::from_u16(auth_type) != Some(AuthType::HmacCryptographic) {
+            return Err(DecodeError::UnsupportedAuthType(auth_type));
+        }
+        if auth_len != AUTH_TRAILER_HDR_SIZE + auth.algo.digest_size() as u16 {
+            return Err(DecodeError::AuthError);
+        }
+        if auth.key_id != key_id as u32 {
+            return Err(DecodeError::AuthKeyIdNotFound(key_id as u32));
+        }
+
+        // Compute message digest.
+        let rcvd_digest = buf.slice(..auth.algo.digest_size() as usize);
+        let digest = auth::message_digest(
+            &data[..pkt_len as usize + AUTH_TRAILER_HDR_SIZE as usize],
+            auth.algo,
+            &auth.key,
+            Some(CryptoProtocolId::Ospfv3),
+            Some(src),
+        );
+
+        // Check if the received message digest is valid.
+        if *rcvd_digest != digest {
+            return Err(DecodeError::AuthError);
+        }
+
+        // Authentication succeeded.
+        Ok(Some(seqno))
     }
 
-    // Not implemented yet (RFC 7166).
-    fn encode_auth_trailer(
-        _buf: &mut BytesMut,
-        _auth: &AuthCtx,
-        _src: &IpAddr,
-    ) {
+    fn encode_auth_trailer(buf: &mut BytesMut, auth: &AuthCtx, src: &IpAddr) {
+        // Append authentication trailer fixed header.
+        buf.put_u16(AuthType::HmacCryptographic as u16);
+        buf.put_u16(AUTH_TRAILER_HDR_SIZE + auth.algo.digest_size() as u16);
+        buf.put_u16(0);
+        buf.put_u16(auth.key_id as u16);
+        // TODO RFC 7166 - Section 4.1.1:
+        // "If the lower-order 32-bit value wraps, the higher-order 32-bit value
+        // should be incremented and saved in non-volatile storage".
+        buf.put_u64(auth.seqno.fetch_add(1, atomic::Ordering::Relaxed));
+
+        // Append message digest.
+        let digest = auth::message_digest(
+            buf,
+            auth.algo,
+            &auth.key,
+            Some(CryptoProtocolId::Ospfv3),
+            Some(src),
+        );
+        buf.put_slice(&digest);
+    }
+}
+
+// ===== helper functions =====
+
+// Retrieves the Options field from Hello and Database Description packets.
+//
+// Assumes the packet length has been validated beforehand.
+fn packet_options(data: &[u8]) -> Option<Options> {
+    let pkt_type = PacketType::from_u8(data[1]).unwrap();
+    match pkt_type {
+        PacketType::Hello => {
+            let options = &data[PacketHdr::LENGTH as usize + 6..];
+            let options = (options[0] as u16) << 8 | options[1] as u16;
+            Some(Options::from_bits_truncate(options))
+        }
+        PacketType::DbDesc => {
+            let options = &data[PacketHdr::LENGTH as usize + 2..];
+            let options = (options[0] as u16) << 8 | options[1] as u16;
+            Some(Options::from_bits_truncate(options))
+        }
+        PacketType::LsRequest | PacketType::LsUpdate | PacketType::LsAck => {
+            None
+        }
     }
 }

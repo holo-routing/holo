@@ -60,7 +60,10 @@ impl InterfaceVersion<Self> for Ospfv2 {
             hello_interval: iface.config.hello_interval,
             options: Self::area_options(
                 area,
-                OptionsLocation::new_packet(PacketType::Hello),
+                OptionsLocation::new_packet(
+                    PacketType::Hello,
+                    iface.state.auth.is_some(),
+                ),
             ),
             priority: iface.config.priority,
             dead_interval: iface.config.dead_interval as u32,

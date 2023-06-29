@@ -89,7 +89,7 @@ pub struct PacketHdr {
     // Decoded authentication sequence number.
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub auth_seqno: Option<u32>,
+    pub auth_seqno: Option<u64>,
 }
 
 #[derive(Debug)]
@@ -298,7 +298,6 @@ impl PacketHdrVersion<Ospfv2> for PacketHdr {
         let _cksum = buf.get_u16();
 
         // Parse authentication data.
-        let mut auth_seqno = None;
         let au_type = buf.get_u16();
         let auth = match AuthType::from_u16(au_type) {
             Some(AuthType::Null) => {
@@ -310,7 +309,6 @@ impl PacketHdrVersion<Ospfv2> for PacketHdr {
                 let key_id = buf.get_u8();
                 let auth_len = buf.get_u8();
                 let seqno = buf.get_u32();
-                auth_seqno = Some(seqno);
                 PacketHdrAuth::Cryptographic {
                     key_id,
                     auth_len,
@@ -327,7 +325,7 @@ impl PacketHdrVersion<Ospfv2> for PacketHdr {
                 pkt_type,
                 router_id,
                 area_id,
-                auth_seqno,
+                auth_seqno: None,
             },
             pkt_len,
             auth,
@@ -350,7 +348,11 @@ impl PacketHdrVersion<Ospfv2> for PacketHdr {
                 buf.put_u16(0);
                 buf.put_u8(auth.key_id as u8);
                 buf.put_u8(auth.algo.digest_size());
-                buf.put_u32(auth.seqno.fetch_add(1, atomic::Ordering::Relaxed));
+                // RFC 5709 does not include provisions for handling sequence
+                // number overflows.
+                buf.put_u32(
+                    auth.seqno.fetch_add(1, atomic::Ordering::Relaxed) as u32
+                );
             }
             None => {
                 buf.put_u16(AuthType::Null as u16);
@@ -388,8 +390,12 @@ impl PacketHdrVersion<Ospfv2> for PacketHdr {
         self.area_id
     }
 
-    fn auth_seqno(&self) -> Option<u32> {
+    fn auth_seqno(&self) -> Option<u64> {
         self.auth_seqno
+    }
+
+    fn set_auth_seqno(&mut self, seqno: u64) {
+        self.auth_seqno = Some(seqno)
     }
 
     fn generate(
@@ -800,7 +806,7 @@ impl PacketVersion<Self> for Ospfv2 {
         hdr_auth: PacketHdrAuth,
         auth: Option<&AuthCtx>,
         _src: &IpAddr,
-    ) -> DecodeResult<()> {
+    ) -> DecodeResult<Option<u64>> {
         // Discard the packet if its authentication type doesn't match the
         // interface's configured authentication type.
         if auth.is_some()
@@ -811,10 +817,12 @@ impl PacketVersion<Self> for Ospfv2 {
 
         match hdr_auth {
             // No authentication.
-            PacketHdrAuth::Null => Ok(()),
+            PacketHdrAuth::Null => Ok(None),
             // Handle cryptographic authentication.
             PacketHdrAuth::Cryptographic {
-                key_id, auth_len, ..
+                key_id,
+                auth_len,
+                seqno,
             } => {
                 let auth = auth.as_ref().unwrap();
 
@@ -834,7 +842,9 @@ impl PacketVersion<Self> for Ospfv2 {
 
                 // Compute message digest.
                 let data = &data[..pkt_len as usize];
-                let digest = auth::message_digest(data, auth.algo, &auth.key);
+                let digest = auth::message_digest(
+                    data, auth.algo, &auth.key, None, None,
+                );
 
                 // Check if the received message digest is valid.
                 if *auth_trailer != digest {
@@ -842,13 +852,14 @@ impl PacketVersion<Self> for Ospfv2 {
                 }
 
                 // Authentication succeeded.
-                Ok(())
+                Ok(Some(seqno.into()))
             }
         }
     }
 
     fn encode_auth_trailer(buf: &mut BytesMut, auth: &AuthCtx, _src: &IpAddr) {
-        let digest = auth::message_digest(buf, auth.algo, &auth.key);
+        let digest =
+            auth::message_digest(buf, auth.algo, &auth.key, None, None);
         buf.put_slice(&digest);
     }
 }

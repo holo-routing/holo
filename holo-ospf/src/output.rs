@@ -70,7 +70,13 @@ pub(crate) fn send_dbdesc<V>(
     );
     let packet = V::PacketDbDesc::generate(
         pkt_hdr,
-        V::area_options(area, OptionsLocation::new_packet(PacketType::DbDesc)),
+        V::area_options(
+            area,
+            OptionsLocation::new_packet(
+                PacketType::DbDesc,
+                iface.state.auth.is_some(),
+            ),
+        ),
         iface.system.mtu.unwrap(),
         nbr.dd_flags,
         nbr.dd_seq_no,

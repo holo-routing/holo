@@ -6,7 +6,7 @@
 
 use std::net::Ipv4Addr;
 use std::str::FromStr;
-use std::sync::atomic::AtomicU32;
+use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, LazyLock as Lazy};
 
 use bytes::Bytes;
@@ -116,7 +116,7 @@ static HELLO1_MD5: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv2>)> =
                 "HOLO".to_owned(),
                 1,
                 CryptoAlgo::Md5,
-                Arc::new(AtomicU32::new(843436052)),
+                Arc::new(AtomicU64::new(843436052)),
             )),
             Packet::Hello(Hello {
                 hdr: PacketHdr {
@@ -158,7 +158,7 @@ static HELLO1_HMAC_SHA1: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv2>)> =
                 "HOLO".to_owned(),
                 1,
                 CryptoAlgo::HmacSha1,
-                Arc::new(AtomicU32::new(843436052)),
+                Arc::new(AtomicU64::new(843436052)),
             )),
             Packet::Hello(Hello {
                 hdr: PacketHdr {
@@ -201,7 +201,7 @@ static HELLO1_HMAC_SHA256: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv2>)> =
                 "HOLO".to_owned(),
                 1,
                 CryptoAlgo::HmacSha256,
-                Arc::new(AtomicU32::new(843436052)),
+                Arc::new(AtomicU64::new(843436052)),
             )),
             Packet::Hello(Hello {
                 hdr: PacketHdr {
@@ -245,7 +245,7 @@ static HELLO1_HMAC_SHA384: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv2>)> =
                 "HOLO".to_owned(),
                 1,
                 CryptoAlgo::HmacSha384,
-                Arc::new(AtomicU32::new(843436052)),
+                Arc::new(AtomicU64::new(843436052)),
             )),
             Packet::Hello(Hello {
                 hdr: PacketHdr {
@@ -291,7 +291,7 @@ static HELLO1_HMAC_SHA512: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv2>)> =
                 "HOLO".to_owned(),
                 1,
                 CryptoAlgo::HmacSha512,
-                Arc::new(AtomicU32::new(843436052)),
+                Arc::new(AtomicU64::new(843436052)),
             )),
             Packet::Hello(Hello {
                 hdr: PacketHdr {

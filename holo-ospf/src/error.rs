@@ -322,10 +322,11 @@ impl std::fmt::Display for IoError {
 impl std::error::Error for IoError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            IoError::SocketError(error) => Some(error),
-            IoError::RecvError(error) | IoError::SendError(error) => {
-                Some(error)
-            }
+            IoError::SocketError(error)
+            | IoError::MulticastJoinError(_, error)
+            | IoError::MulticastLeaveError(_, error)
+            | IoError::RecvError(error)
+            | IoError::SendError(error) => Some(error),
             _ => None,
         }
     }

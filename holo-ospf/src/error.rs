@@ -58,6 +58,7 @@ pub enum IoError {
     SocketError(std::io::Error),
     MulticastJoinError(MulticastAddr, std::io::Error),
     MulticastLeaveError(MulticastAddr, std::io::Error),
+    ChecksumOffloadError(bool, std::io::Error),
     RecvError(std::io::Error),
     RecvMissingSourceAddr,
     RecvMissingAncillaryData,
@@ -274,6 +275,9 @@ impl IoError {
             | IoError::MulticastLeaveError(addr, error) => {
                 warn!(?addr, error = %with_source(error), "{}", self);
             }
+            IoError::ChecksumOffloadError(enable, error) => {
+                warn!(%enable, error = %with_source(error), "{}", self);
+            }
             IoError::RecvError(error) | IoError::SendError(error) => {
                 warn!(error = %with_source(error), "{}", self);
             }
@@ -296,6 +300,12 @@ impl std::fmt::Display for IoError {
             }
             IoError::MulticastLeaveError(..) => {
                 write!(f, "failed to leave multicast group")
+            }
+            IoError::ChecksumOffloadError(..) => {
+                write!(
+                    f,
+                    "failed to offload checksum calculation to the kernel"
+                )
             }
             IoError::RecvError(..) => {
                 write!(f, "failed to receive IP packet")
@@ -325,6 +335,7 @@ impl std::error::Error for IoError {
             IoError::SocketError(error)
             | IoError::MulticastJoinError(_, error)
             | IoError::MulticastLeaveError(_, error)
+            | IoError::ChecksumOffloadError(_, error)
             | IoError::RecvError(error)
             | IoError::SendError(error) => Some(error),
             _ => None,

@@ -1037,6 +1037,12 @@ where
             })
             .map(Arc::new)?;
 
+        // Enable or disable checksum offloading.
+        let cksum_enable = auth.is_none();
+        V::set_cksum_offloading(socket.get_ref(), cksum_enable).map_err(
+            |error| IoError::ChecksumOffloadError(cksum_enable, error),
+        )?;
+
         // Start network Tx/Rx tasks.
         let (net_tx_packetp, net_tx_packetc) = mpsc::unbounded_channel();
         let mut net_tx_task = tasks::net_tx(

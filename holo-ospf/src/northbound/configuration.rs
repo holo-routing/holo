@@ -24,6 +24,7 @@ use yang2::data::Data;
 use crate::area::{self, AreaType};
 use crate::collections::{AreaIndex, InterfaceIndex};
 use crate::debug::InterfaceInactiveReason;
+use crate::error::IoError;
 use crate::instance::Instance;
 use crate::interface::{ism, InterfaceType};
 use crate::lsdb::LsaOriginateEvent;
@@ -60,7 +61,7 @@ pub enum Event {
     InterfacePriorityChange(AreaIndex, InterfaceIndex),
     InterfaceCostChange(AreaIndex),
     InterfaceSyncHelloTx(AreaIndex, InterfaceIndex),
-    InterfaceRestartNetTasks(AreaIndex, InterfaceIndex),
+    InterfaceUpdateAuth(AreaIndex, InterfaceIndex),
     InterfaceBfdChange(InterfaceIndex),
     StubRouterChange,
     SrEnableChange(bool),
@@ -700,7 +701,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             iface.config.auth_keyid = Some(auth_keyid);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetTasks(area_idx, iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .delete_apply(|instance, args| {
             let (area_idx, iface_idx) =
@@ -710,7 +711,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             iface.config.auth_keyid = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetTasks(area_idx, iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .path(ospf::areas::area::interfaces::interface::authentication::ospfv2_key::PATH)
         .modify_apply(|instance, args| {
@@ -722,7 +723,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             iface.config.auth_key = Some(auth_key);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetTasks(area_idx, iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .delete_apply(|instance, args| {
             let (area_idx, iface_idx) =
@@ -732,7 +733,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             iface.config.auth_key = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetTasks(area_idx, iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .path(ospf::areas::area::interfaces::interface::authentication::ospfv2_crypto_algorithm::PATH)
         .modify_apply(|instance, args| {
@@ -745,7 +746,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             iface.config.auth_algo = Some(auth_algo);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetTasks(area_idx, iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .delete_apply(|instance, args| {
             let (area_idx, iface_idx) =
@@ -755,7 +756,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             iface.config.auth_algo = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetTasks(area_idx, iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .build()
 }
@@ -1079,14 +1080,24 @@ where
                     iface.sync_hello_tx(area, &instance);
                 }
             }
-            Event::InterfaceRestartNetTasks(area_idx, iface_idx) => {
+            Event::InterfaceUpdateAuth(area_idx, iface_idx) => {
                 if let Some((instance, arenas)) = self.as_up() {
                     let area = &arenas.areas[area_idx];
                     let iface = &mut arenas.interfaces[iface_idx];
 
-                    // Restart network Tx/Rx tasks.
                     let auth = iface.auth(&instance.state.auth_seqno);
                     if let Some(mut net) = iface.state.net.take() {
+                        // Enable or disable checksum offloading.
+                        let cksum_enable = auth.is_some();
+                        if let Err(error) = V::set_cksum_offloading(
+                            net.socket.get_ref(),
+                            cksum_enable,
+                        ) {
+                            IoError::ChecksumOffloadError(cksum_enable, error)
+                                .log();
+                        }
+
+                        // Restart network Tx/Rx tasks.
                         net.restart_tasks(
                             iface,
                             area,

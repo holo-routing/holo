@@ -61,6 +61,15 @@ impl NetworkVersion<Self> for Ospfv2 {
         }
     }
 
+    fn set_cksum_offloading(
+        _socket: &Socket,
+        _enable: bool,
+    ) -> Result<(), std::io::Error> {
+        // The Linux kernel doesn't support checksum offloading for IPv4
+        // sockets.
+        Ok(())
+    }
+
     fn multicast_addr(addr: MulticastAddr) -> &'static Ipv4Addr {
         match addr {
             MulticastAddr::AllSpfRtrs => &ALL_SPF_RTRS,

@@ -50,9 +50,6 @@ impl NetworkVersion<Self> for Ospfv3 {
             socket.bind_device(Some(ifname.as_bytes()))?;
             socket.set_multicast_loop_v6(false)?;
             // NOTE: IPV6_MULTICAST_HOPS is 1 by default.
-            socket.set_ipv6_checksum(
-                ospfv3::packet::PacketHdr::CHECKSUM_OFFSET,
-            )?;
             socket.set_ipv6_pktinfo(true)?;
             socket.set_ipv6_tclass(libc::IPTOS_PREC_INTERNETCONTROL)?;
 
@@ -61,6 +58,25 @@ impl NetworkVersion<Self> for Ospfv3 {
         #[cfg(feature = "testing")]
         {
             Ok(Socket {})
+        }
+    }
+
+    fn set_cksum_offloading(
+        socket: &Socket,
+        enable: bool,
+    ) -> Result<(), std::io::Error> {
+        #[cfg(not(feature = "testing"))]
+        {
+            let offset = if enable {
+                ospfv3::packet::PacketHdr::CHECKSUM_OFFSET
+            } else {
+                -1
+            };
+            socket.set_ipv6_checksum(offset)
+        }
+        #[cfg(feature = "testing")]
+        {
+            Ok(())
         }
     }
 

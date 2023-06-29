@@ -59,6 +59,12 @@ pub trait NetworkVersion<V: Version> {
     // Create OSPF socket.
     fn socket(ifname: &str) -> Result<Socket, std::io::Error>;
 
+    // Enable or disable checksum offloading.
+    fn set_cksum_offloading(
+        socket: &Socket,
+        enable: bool,
+    ) -> Result<(), std::io::Error>;
+
     // Return the IP address of the specified OSPF multicast group.
     fn multicast_addr(addr: MulticastAddr) -> &'static V::NetIpAddr;
 

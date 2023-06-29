@@ -14,7 +14,7 @@ use holo_utils::sr::{IgpAlgoType, Sid, SidLastHopBehavior};
 use ipnetwork::{IpNetwork, Ipv4Network};
 use itertools::Itertools;
 
-use crate::area::{Area, AreaType, AreaVersion};
+use crate::area::{Area, AreaType, AreaVersion, OptionsLocation};
 use crate::collections::{
     lsdb_get, AreaIndex, Arena, InterfaceIndex, LsaEntryId, LsdbId, LsdbIndex,
 };
@@ -250,7 +250,7 @@ impl LsdbVersion<Self> for Ospfv2 {
         let lsdb_id = LsdbId::Area(area.id);
 
         // LSA's header options.
-        let options = Self::area_options(area, false);
+        let options = Self::area_options(area, OptionsLocation::Lsa);
 
         // TODO: implement Appendix's E algorithm for assigning Link State IDs.
         let lsa_id = prefix.ip();
@@ -353,7 +353,7 @@ fn lsa_orig_router(
     let lsdb_id = LsdbId::Area(area.id);
 
     // LSA's header options.
-    let options = Ospfv2::area_options(area, false);
+    let options = Ospfv2::area_options(area, OptionsLocation::Lsa);
 
     // Router-LSA's flags.
     let mut flags = LsaRouterFlags::empty();
@@ -498,7 +498,7 @@ fn lsa_orig_network(
     let lsdb_id = LsdbId::Area(area.id);
 
     // LSA's header options.
-    let options = Ospfv2::area_options(area, false);
+    let options = Ospfv2::area_options(area, OptionsLocation::Lsa);
 
     // The Link State ID for a network-LSA is the IP interface address of the
     // Designated Router.
@@ -549,7 +549,7 @@ fn lsa_orig_router_info(
     let lsdb_id = LsdbId::Area(area.id);
 
     // LSA's header options.
-    let options = Ospfv2::area_options(area, false);
+    let options = Ospfv2::area_options(area, OptionsLocation::Lsa);
 
     // Initialize Opaque LSA ID.
     let lsa_id = OpaqueLsaId::new(LsaOpaqueType::RouterInfo as u8, 0).into();
@@ -604,7 +604,7 @@ fn lsa_orig_ext_prefix(
     let lsdb_id = LsdbId::Area(area.id);
 
     // LSA's header options.
-    let options = Ospfv2::area_options(area, false);
+    let options = Ospfv2::area_options(area, OptionsLocation::Lsa);
 
     // Initialize prefixes.
     let mut prefixes = BTreeMap::new();
@@ -713,7 +713,7 @@ fn lsa_orig_ext_link(
     let lsdb_id = LsdbId::Area(area.id);
 
     // LSA's header options.
-    let options = Ospfv2::area_options(area, false);
+    let options = Ospfv2::area_options(area, OptionsLocation::Lsa);
 
     // Originate as many Extended Link Opaque LSAs as necessary.
     let mut opaque_id: u32 = 0;

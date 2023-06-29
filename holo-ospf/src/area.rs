@@ -8,6 +8,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::net::Ipv4Addr;
 
 use chrono::{DateTime, Utc};
+use derive_new::new;
 use holo_northbound::paths::control_plane_protocol::ospf;
 use holo_utils::ip::IpNetworkKind;
 use holo_yang::TryFromYang;
@@ -20,6 +21,7 @@ use crate::instance::InstanceUpView;
 use crate::interface::Interface;
 use crate::lsdb::{LsaEntry, LsaEntryFlags, LSA_INFINITY};
 use crate::packet::lsa::{LsaKey, LsaRouterFlagsVersion};
+use crate::packet::PacketType;
 use crate::route::{
     Nexthops, PathType, RouteNetFlags, RouteRtr, SummaryNet, SummaryNetFlags,
     SummaryRtr,
@@ -96,6 +98,13 @@ pub struct RangeCfg {
     pub cost: Option<u32>,
 }
 
+// Represents the possible locations of the OSPF Options field.
+#[derive(Clone, Copy, Debug, Eq, new, PartialEq)]
+pub enum OptionsLocation {
+    Packet { pkt_type: PacketType },
+    Lsa,
+}
+
 // OSPF version-specific code.
 pub trait AreaVersion<V: Version> {
     // Version-specific area state data.
@@ -103,9 +112,12 @@ pub trait AreaVersion<V: Version> {
 
     // Return the options associated to the provided area.
     //
-    // These options are used both when sending OSPF packets and originating
-    // certain LSA types.
-    fn area_options(area: &Area<V>, db_desc: bool) -> V::PacketOptions;
+    // These options are used for sending OSPF Hello and Database Description
+    // packets, as well as for originating specific LSA types.
+    fn area_options(
+        area: &Area<V>,
+        location: OptionsLocation,
+    ) -> V::PacketOptions;
 }
 
 // ===== impl Area =====

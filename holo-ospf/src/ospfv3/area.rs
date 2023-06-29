@@ -4,7 +4,7 @@
 // See LICENSE for license details.
 //
 
-use crate::area::{Area, AreaType, AreaVersion};
+use crate::area::{Area, AreaType, AreaVersion, OptionsLocation};
 use crate::ospfv3::packet::Options;
 use crate::version::Ospfv3;
 
@@ -20,7 +20,7 @@ pub struct AreaState {
 impl AreaVersion<Self> for Ospfv3 {
     type State = AreaState;
 
-    fn area_options(area: &Area<Self>, _db_desc: bool) -> Options {
+    fn area_options(area: &Area<Self>, _location: OptionsLocation) -> Options {
         let mut options = Options::R | Options::V6 | Options::AF;
 
         if area.config.area_type == AreaType::Normal {

@@ -4,7 +4,7 @@
 // See LICENSE for license details.
 //
 
-use crate::area::Area;
+use crate::area::{Area, OptionsLocation};
 use crate::collections::{Arena, NeighborIndex};
 use crate::instance::InstanceUpView;
 use crate::interface::{ism, Interface, InterfaceType};
@@ -70,7 +70,7 @@ pub(crate) fn send_dbdesc<V>(
     );
     let packet = V::PacketDbDesc::generate(
         pkt_hdr,
-        V::area_options(area, true),
+        V::area_options(area, OptionsLocation::new_packet(PacketType::DbDesc)),
         iface.system.mtu.unwrap(),
         nbr.dd_flags,
         nbr.dd_seq_no,

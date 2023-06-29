@@ -8,7 +8,7 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 
 use holo_utils::ip::AddressFamily;
 
-use crate::area::{Area, AreaVersion};
+use crate::area::{Area, AreaVersion, OptionsLocation};
 use crate::collections::{Arena, NeighborIndex};
 use crate::debug::InterfaceInactiveReason;
 use crate::error::{Error, InterfaceCfgError};
@@ -62,7 +62,10 @@ impl InterfaceVersion<Self> for Ospfv3 {
             hdr,
             iface_id: iface.system.ifindex.unwrap(),
             priority: iface.config.priority,
-            options: Self::area_options(area, false),
+            options: Self::area_options(
+                area,
+                OptionsLocation::new_packet(PacketType::Hello),
+            ),
             hello_interval: iface.config.hello_interval,
             dead_interval: iface.config.dead_interval,
             dr: iface.state.dr,

@@ -14,7 +14,7 @@ use holo_utils::sr::{IgpAlgoType, Sid, SidLastHopBehavior};
 use ipnetwork::IpNetwork;
 use itertools::Itertools;
 
-use crate::area::{Area, AreaType, AreaVersion};
+use crate::area::{Area, AreaType, AreaVersion, OptionsLocation};
 use crate::collections::{
     lsdb_get, AreaIndex, Arena, InterfaceIndex, LsaEntryId, LsdbId, LsdbIndex,
 };
@@ -424,7 +424,7 @@ fn lsa_orig_router(
     let extended_lsa = instance.config.extended_lsa;
 
     // Router-LSA's options.
-    let options = Ospfv3::area_options(area, false);
+    let options = Ospfv3::area_options(area, OptionsLocation::Lsa);
 
     // Router-LSA's flags.
     let mut flags = LsaRouterFlags::empty();
@@ -589,7 +589,7 @@ fn lsa_orig_network(
     let extended_lsa = instance.config.extended_lsa;
 
     // Network-LSA's options.
-    let options = Ospfv3::area_options(area, false);
+    let options = Ospfv3::area_options(area, OptionsLocation::Lsa);
 
     // An IPv6 network-LSA's Link State ID is set to the Interface ID of the
     // Designated Router on the link.
@@ -641,7 +641,7 @@ fn lsa_orig_link(
     let extended_lsa = instance.config.extended_lsa;
 
     // Link-LSA's options.
-    let options = Ospfv3::area_options(area, false);
+    let options = Ospfv3::area_options(area, OptionsLocation::Lsa);
 
     // The Link State ID is set to the router's Interface ID on Link L.
     let lsa_id = Ipv4Addr::from(iface.system.ifindex.unwrap());

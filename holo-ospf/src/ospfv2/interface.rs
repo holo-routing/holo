@@ -9,7 +9,7 @@ use std::net::Ipv4Addr;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::AddressFamily;
 
-use crate::area::{Area, AreaVersion};
+use crate::area::{Area, AreaVersion, OptionsLocation};
 use crate::collections::{Arena, NeighborIndex};
 use crate::debug::InterfaceInactiveReason;
 use crate::error::{Error, InterfaceCfgError};
@@ -59,7 +59,10 @@ impl InterfaceVersion<Self> for Ospfv2 {
             hdr,
             network_mask: iface.system.primary_addr.unwrap().mask(),
             hello_interval: iface.config.hello_interval,
-            options: Self::area_options(area, false),
+            options: Self::area_options(
+                area,
+                OptionsLocation::new_packet(PacketType::Hello),
+            ),
             priority: iface.config.priority,
             dead_interval: iface.config.dead_interval as u32,
             dr: iface.state.dr,

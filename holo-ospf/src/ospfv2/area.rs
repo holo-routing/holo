@@ -9,9 +9,10 @@ use std::net::Ipv4Addr;
 
 use ipnetwork::Ipv4Network;
 
-use crate::area::{Area, AreaType, AreaVersion};
+use crate::area::{Area, AreaType, AreaVersion, OptionsLocation};
 use crate::ospfv2::packet::lsa_opaque::ExtPrefixTlv;
 use crate::ospfv2::packet::Options;
+use crate::packet::PacketType;
 use crate::version::Ospfv2;
 
 #[derive(Debug, Default)]
@@ -24,7 +25,7 @@ pub struct AreaState {
 impl AreaVersion<Self> for Ospfv2 {
     type State = AreaState;
 
-    fn area_options(area: &Area<Self>, db_desc: bool) -> Options {
+    fn area_options(area: &Area<Self>, location: OptionsLocation) -> Options {
         let mut options = Options::empty();
 
         if area.config.area_type == AreaType::Normal {
@@ -33,7 +34,11 @@ impl AreaVersion<Self> for Ospfv2 {
 
         // The O-bit is not set in packets other than Database Description
         // packets.
-        if db_desc {
+        if let OptionsLocation::Packet {
+            pkt_type: PacketType::DbDesc,
+            ..
+        } = location
+        {
             options.insert(Options::O);
         }
 

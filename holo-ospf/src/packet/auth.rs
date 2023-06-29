@@ -13,7 +13,7 @@ use hmac::digest::core_api::{
     BlockSizeUser, BufferKindUser, CoreProxy, FixedOutputCore, UpdateCore,
 };
 use hmac::digest::typenum::{IsLess, Le, NonZero, U256};
-use hmac::digest::{HashMarker, Mac};
+use hmac::digest::{HashMarker, Mac, OutputSizeUser};
 use hmac::Hmac;
 use holo_utils::crypto::CryptoAlgo;
 use serde::{Deserialize, Serialize};
@@ -54,11 +54,7 @@ fn md5_digest(data: &[u8], auth_key: &str) -> [u8; 16] {
     *ctx.compute()
 }
 
-fn hmac_sha_digest<H>(
-    data: &[u8],
-    auth_key: &str,
-    digest_size: usize,
-) -> Vec<u8>
+fn hmac_sha_digest<H>(data: &[u8], auth_key: &str) -> Vec<u8>
 where
     H: CoreProxy,
     H::Core: HashMarker
@@ -72,8 +68,7 @@ where
 {
     let mut mac = Hmac::<H>::new_from_slice(auth_key.as_bytes()).unwrap();
     mac.update(data);
-    // TODO: infer digest size from the generic H type.
-    mac.update(&HMAC_APAD[..digest_size]);
+    mac.update(&HMAC_APAD[..H::Core::output_size()]);
     let digest = mac.finalize();
     digest.into_bytes().to_vec()
 }
@@ -85,13 +80,12 @@ pub(crate) fn message_digest(
     algo: CryptoAlgo,
     key: &str,
 ) -> Vec<u8> {
-    let dsize = algo.digest_size() as usize;
     match algo {
         CryptoAlgo::Md5 => md5_digest(data, key).to_vec(),
-        CryptoAlgo::HmacSha1 => hmac_sha_digest::<Sha1>(data, key, dsize),
-        CryptoAlgo::HmacSha256 => hmac_sha_digest::<Sha256>(data, key, dsize),
-        CryptoAlgo::HmacSha384 => hmac_sha_digest::<Sha384>(data, key, dsize),
-        CryptoAlgo::HmacSha512 => hmac_sha_digest::<Sha512>(data, key, dsize),
+        CryptoAlgo::HmacSha1 => hmac_sha_digest::<Sha1>(data, key),
+        CryptoAlgo::HmacSha256 => hmac_sha_digest::<Sha256>(data, key),
+        CryptoAlgo::HmacSha384 => hmac_sha_digest::<Sha384>(data, key),
+        CryptoAlgo::HmacSha512 => hmac_sha_digest::<Sha512>(data, key),
         _ => {
             // Other algorithms can't be configured (e.g. Keyed SHA1).
             unreachable!()

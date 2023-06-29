@@ -146,7 +146,7 @@ impl Client for GrpcClient {
         let config = {
             let encoding = proto::Encoding::Xml as i32;
             let diff = running
-                .diff(&candidate, DataDiffFlags::DEFAULTS)
+                .diff(candidate, DataDiffFlags::DEFAULTS)
                 .expect("Failed to compare configurations");
             let data = diff
                 .print_string(DataFormat::XML, DataPrinterFlags::WITH_SIBLINGS)

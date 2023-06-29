@@ -35,7 +35,6 @@ fn test_encode_packet(
     packet: &Packet<Ospfv2>,
 ) {
     let bytes_actual = packet.encode(auth.as_ref());
-    println!("XXX {:02x?}", &bytes_actual.as_ref());
     assert_eq!(bytes_expected, bytes_actual.as_ref());
 }
 

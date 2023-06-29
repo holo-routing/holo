@@ -81,7 +81,7 @@ fn count_nodes(yang_ctx: &Context) -> BTreeMap<String, NodeCounters<usize>> {
         }
 
         // Count number of nodes of each type and the grand total.
-        let mut counter = counters.entry(module_name).or_default();
+        let counter = counters.entry(module_name).or_default();
         if snode.kind() == SchemaNodeKind::Rpc
             || snode.kind() == SchemaNodeKind::Action
             || snode.is_within_input()

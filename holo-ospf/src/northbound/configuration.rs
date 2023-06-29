@@ -1092,7 +1092,7 @@ where
                             area,
                             instance.state.af,
                             auth,
-                            &instance.tx,
+                            instance.tx,
                         );
                         iface.state.net = Some(net);
                     }

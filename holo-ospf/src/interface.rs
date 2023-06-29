@@ -205,7 +205,7 @@ pub trait InterfaceVersion<V: Version> {
     ) -> Result<(), InterfaceInactiveReason>;
 
     // Return the source address used to send OSPF packets.
-    fn src_addr(iface_sys: &InterfaceSys<V>) -> Option<V::NetIpAddr>;
+    fn src_addr(iface_sys: &InterfaceSys<V>) -> V::NetIpAddr;
 
     // Generate an OSPF Hello message.
     fn generate_hello(
@@ -336,7 +336,7 @@ where
             }
 
             // Initialize source address.
-            self.state.src_addr = V::src_addr(&self.system);
+            self.state.src_addr = Some(V::src_addr(&self.system));
 
             // Start Hello Tx task.
             self.hello_interval_start(area, instance);

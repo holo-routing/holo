@@ -30,7 +30,7 @@ pub(crate) fn send_dbdesc<V>(
     V: Version,
 {
     // Initialize source and destination address.
-    let src = iface.state.src_addr;
+    let src = iface.state.src_addr.unwrap();
     let dst = send_dest_nbr(nbr, iface);
 
     // Calculate maximum packet size.
@@ -111,7 +111,7 @@ pub(crate) fn send_lsreq<V>(
     V: Version,
 {
     // Initialize source and destination address.
-    let src = iface.state.src_addr;
+    let src = iface.state.src_addr.unwrap();
     let dst = send_dest_nbr(nbr, iface);
 
     // Calculate maximum packet size.
@@ -156,7 +156,7 @@ pub(crate) fn rxmt_lsreq<V>(
     V: Version,
 {
     // Initialize source and destination address.
-    let src = iface.state.src_addr;
+    let src = iface.state.src_addr.unwrap();
     let dst = send_dest_nbr(nbr, iface);
 
     // Generate Link State Request packet.
@@ -186,7 +186,7 @@ pub(crate) fn send_lsupd<V>(
     V: Version,
 {
     // Initialize source and destination address(es).
-    let src = iface.state.src_addr;
+    let src = iface.state.src_addr.unwrap();
     let dst = send_dest_iface(iface, neighbors);
 
     // Calculate maximum packet size.
@@ -259,7 +259,7 @@ pub(crate) fn rxmt_lsupd<V>(
     V: Version,
 {
     // Initialize source and destination address.
-    let src = iface.state.src_addr;
+    let src = iface.state.src_addr.unwrap();
     let dst = send_dest_nbr(nbr, iface);
 
     // Calculate maximum packet size.
@@ -314,7 +314,7 @@ pub(crate) fn send_lsack_direct<V>(
     V: Version,
 {
     // Initialize source and destination address.
-    let src = iface.state.src_addr;
+    let src = iface.state.src_addr.unwrap();
     let dst = send_dest_nbr(nbr, iface);
 
     // Generate Link State Ack packet.
@@ -341,7 +341,7 @@ pub(crate) fn send_lsack_delayed<V>(
     V: Version,
 {
     // Initialize source and destination address(es).
-    let src = iface.state.src_addr;
+    let src = iface.state.src_addr.unwrap();
     let dst = send_dest_iface(iface, neighbors);
 
     // Calculate maximum packet size.

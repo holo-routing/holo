@@ -83,7 +83,7 @@ pub trait NetworkVersion<V: Version> {
     ) -> Result<(), std::io::Error>;
 
     // Create new IP_PKTINFO/IPV6_PKTINFO struct.
-    fn new_pktinfo(src: Option<V::NetIpAddr>, ifindex: u32) -> V::Pktinfo;
+    fn new_pktinfo(src: V::NetIpAddr, ifindex: u32) -> V::Pktinfo;
 
     // Initialize the control message used by `sendmsg`.
     fn set_cmsg_data(pktinfo: &V::Pktinfo) -> socket::ControlMessage<'_>;
@@ -121,7 +121,7 @@ where
 #[cfg(not(feature = "testing"))]
 pub(crate) async fn send_packet<V>(
     socket: &AsyncFd<Socket>,
-    src: Option<V::NetIpAddr>,
+    src: V::NetIpAddr,
     dst_ifindex: u32,
     dst_addr: V::NetIpAddr,
     packet: &Packet<V>,

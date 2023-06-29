@@ -39,9 +39,8 @@ impl InterfaceVersion<Self> for Ospfv2 {
         Ok(())
     }
 
-    fn src_addr(iface_sys: &InterfaceSys<Self>) -> Option<Ipv4Addr> {
-        // Point-to-point interfaces might not have an IP address.
-        iface_sys.primary_addr.map(|addr| addr.ip())
+    fn src_addr(iface_sys: &InterfaceSys<Self>) -> Ipv4Addr {
+        iface_sys.primary_addr.unwrap().ip()
     }
 
     fn generate_hello(

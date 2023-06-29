@@ -219,7 +219,7 @@ pub mod messages {
         #[serde(bound = "V: Version")]
         pub struct NetTxPacketMsg<V: Version> {
             pub packet: Packet<V>,
-            pub src: Option<V::NetIpAddr>,
+            pub src: V::NetIpAddr,
             pub dst: SendDestination<V::NetIpAddr>,
         }
     }
@@ -329,7 +329,7 @@ where
     #[cfg(not(feature = "testing"))]
     {
         // Set source address.
-        let src = iface.state.src_addr;
+        let src = iface.state.src_addr.unwrap();
 
         // Generate hello packet.
         let packet = V::generate_hello(iface, area, instance);

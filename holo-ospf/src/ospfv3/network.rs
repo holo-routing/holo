@@ -121,10 +121,10 @@ impl NetworkVersion<Self> for Ospfv3 {
         }
     }
 
-    fn new_pktinfo(src: Option<Ipv6Addr>, ifindex: u32) -> libc::in6_pktinfo {
+    fn new_pktinfo(src: Ipv6Addr, ifindex: u32) -> libc::in6_pktinfo {
         libc::in6_pktinfo {
             ipi6_addr: libc::in6_addr {
-                s6_addr: src.unwrap_or(Ipv6Addr::UNSPECIFIED).octets(),
+                s6_addr: src.octets(),
             },
             ipi6_ifindex: ifindex,
         }

@@ -42,8 +42,8 @@ impl InterfaceVersion<Self> for Ospfv3 {
         Ok(())
     }
 
-    fn src_addr(iface_sys: &InterfaceSys<Self>) -> Option<Ipv6Addr> {
-        Some(iface_sys.linklocal_addr.unwrap().ip())
+    fn src_addr(iface_sys: &InterfaceSys<Self>) -> Ipv6Addr {
+        iface_sys.linklocal_addr.unwrap().ip()
     }
 
     fn generate_hello(

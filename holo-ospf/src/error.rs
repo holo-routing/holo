@@ -6,6 +6,7 @@
 
 use std::net::Ipv4Addr;
 
+use holo_utils::DatabaseError;
 use tracing::{error, warn, warn_span};
 
 use crate::collections::{AreaId, InterfaceId, LsaEntryId, NeighborId};
@@ -48,6 +49,7 @@ pub enum Error<V: Version> {
     NsmUnexpectedEvent(Ipv4Addr, nsm::State, nsm::Event),
     SpfDelayUnexpectedEvent(spf::fsm::State, spf::fsm::Event),
     InterfaceStartError(String, IoError),
+    BootCountNvmUpdate(DatabaseError),
 }
 
 // OSPF I/O errors.
@@ -156,6 +158,9 @@ where
             Error::InterfaceStartError(name, error) => {
                 error!(%name, error = %with_source(error), "{}", self);
             }
+            Error::BootCountNvmUpdate(error) => {
+                error!(%error, "{}", self);
+            }
         }
     }
 }
@@ -227,6 +232,9 @@ where
             }
             Error::InterfaceStartError(..) => {
                 write!(f, "failed to start interface")
+            }
+            Error::BootCountNvmUpdate(..) => {
+                write!(f, "failed to record updated boot count in non-volatile storage")
             }
         }
     }

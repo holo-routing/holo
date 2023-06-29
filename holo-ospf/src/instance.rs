@@ -50,7 +50,6 @@ use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
 use crate::version::Version;
 use crate::{events, lsdb, output, spf};
 
-#[derive(Debug)]
 pub struct Instance<V: Version> {
     // Instance name.
     pub name: String,
@@ -64,6 +63,8 @@ pub struct Instance<V: Version> {
     pub arenas: InstanceArenas<V>,
     // Instance Tx channels.
     pub tx: InstanceChannelsTx<Instance<V>>,
+    // Non-volatile storage.
+    pub db: Option<Database>,
 }
 
 #[derive(Debug, Default)]
@@ -268,6 +269,9 @@ where
                 LsaOriginateEvent::AreaStart { area_id: area.id },
             );
         }
+
+        // Update boot count in non-volatile storage.
+        self.boot_count_update();
     }
 
     fn stop(&mut self, reason: InstanceInactiveReason) {
@@ -362,6 +366,39 @@ where
         }
     }
 
+    // Retrieves the boot count of the instance from non-volatile memory.
+    fn boot_count_get(&self) -> u32 {
+        let mut boot_count = 0;
+
+        if let Some(db) = &self.db {
+            let db = db.lock().unwrap();
+
+            let key = format!("{}-{}-boot-count", V::PROTOCOL, self.name);
+            if let Some(value) = db.get::<u32>(&key) {
+                boot_count = value;
+            }
+        }
+
+        boot_count
+    }
+
+    // Stores the updated boot count of the instance in non-volatile memory.
+    fn boot_count_update(&mut self) {
+        if let Some(db) = &self.db {
+            let mut db = db.lock().unwrap();
+            let mut boot_count = 0;
+
+            let key = format!("{}-{}-boot-count", V::PROTOCOL, self.name);
+            if let Some(value) = db.get::<u32>(&key) {
+                boot_count = value;
+            }
+            boot_count += 1;
+            if let Err(error) = db.set(&key, &boot_count) {
+                Error::<V>::BootCountNvmUpdate(error).log();
+            }
+        }
+    }
+
     pub(crate) fn as_up(
         &mut self,
     ) -> Option<(InstanceUpView<'_, V>, &mut InstanceArenas<V>)> {
@@ -396,7 +433,7 @@ where
 
     async fn new(
         name: String,
-        _db: Option<Database>,
+        db: Option<Database>,
         tx: InstanceChannelsTx<Instance<V>>,
     ) -> Instance<V> {
         Debug::<V>::InstanceCreate.log();
@@ -408,6 +445,7 @@ where
             state: None,
             arenas: Default::default(),
             tx,
+            db,
         }
     }
 
@@ -514,6 +552,15 @@ where
             env!("CARGO_MANIFEST_DIR"),
             V::PROTOCOL
         )
+    }
+}
+
+impl<V> std::fmt::Debug for Instance<V>
+where
+    V: Version,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Action").field("name", &self.name).finish()
     }
 }
 

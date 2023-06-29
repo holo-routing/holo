@@ -1085,10 +1085,12 @@ where
                     let area = &arenas.areas[area_idx];
                     let iface = &mut arenas.interfaces[iface_idx];
 
-                    let auth = iface.auth(&instance.state.auth_seqno);
+                    // Update authentication data.
+                    iface.state.auth = iface.auth(&instance.state.auth_seqno);
+
                     if let Some(mut net) = iface.state.net.take() {
                         // Enable or disable checksum offloading.
-                        let cksum_enable = auth.is_some();
+                        let cksum_enable = iface.state.auth.is_some();
                         if let Err(error) = V::set_cksum_offloading(
                             net.socket.get_ref(),
                             cksum_enable,
@@ -1102,7 +1104,6 @@ where
                             iface,
                             area,
                             instance.state.af,
-                            auth,
                             instance.tx,
                         );
                         iface.state.net = Some(net);

@@ -233,7 +233,6 @@ pub(crate) fn net_rx<V>(
     iface: &Interface<V>,
     area: &Area<V>,
     af: AddressFamily,
-    auth: Option<AuthCtx>,
     net_packet_rxp: &Sender<messages::input::NetRxPacketMsg<V>>,
 ) -> Task<()>
 where
@@ -248,6 +247,7 @@ where
 
         let area_id = area.id;
         let iface_id = iface.id;
+        let auth = iface.state.auth.clone();
         let net_packet_rxp = net_packet_rxp.clone();
 
         let span = tracing::span::Span::current();

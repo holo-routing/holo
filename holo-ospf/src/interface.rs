@@ -111,6 +111,8 @@ pub struct InterfaceState<V: Version> {
     // LSDB of interface-scope LSAs.
     pub lsdb: Lsdb<V>,
     pub network_lsa_self: Option<LsaKey<V::LsaType>>,
+    // Authentication data.
+    pub auth: Option<AuthCtx>,
     // Tasks.
     pub tasks: InterfaceTasks<V>,
 }
@@ -318,15 +320,11 @@ where
         Debug::<V>::InterfaceStart(&self.name).log();
 
         if !self.is_passive() {
+            self.state.auth = self.auth(&instance.state.auth_seqno);
+
             // Start network Tx/Rx tasks.
-            let auth = self.auth(&instance.state.auth_seqno);
-            match InterfaceNet::new(
-                self,
-                area,
-                instance.state.af,
-                auth,
-                instance.tx,
-            ) {
+            match InterfaceNet::new(self, area, instance.state.af, instance.tx)
+            {
                 Ok(net) => self.state.net = Some(net),
                 Err(error) => {
                     let ifname = self.name.clone();
@@ -432,6 +430,7 @@ where
         self.state.ls_update_list = Default::default();
         self.state.ls_ack_list = Default::default();
         // NOTE: the interface LSDB should be preserved.
+        self.state.auth = None;
         self.state.tasks = Default::default();
     }
 
@@ -481,14 +480,20 @@ where
     }
 
     pub(crate) fn auth(&self, seqno: &Arc<AtomicU32>) -> Option<AuthCtx> {
-        self.config.auth_key.as_ref().map(|auth_key| {
-            AuthCtx::new(
-                auth_key.clone(),
-                self.config.auth_keyid.unwrap_or(1),
-                self.config.auth_algo.unwrap_or(CryptoAlgo::Md5),
+        if let (Some(key), Some(key_id), Some(algo)) = (
+            self.config.auth_key.as_ref(),
+            self.config.auth_keyid,
+            self.config.auth_algo,
+        ) {
+            return Some(AuthCtx::new(
+                key.clone(),
+                key_id,
+                algo,
                 seqno.clone(),
-            )
-        })
+            ));
+        }
+
+        None
     }
 
     pub(crate) fn fsm(
@@ -1011,6 +1016,7 @@ where
             discontinuity_time: Utc::now(),
             lsdb: Default::default(),
             network_lsa_self: None,
+            auth: None,
             tasks: Default::default(),
         }
     }
@@ -1026,7 +1032,6 @@ where
         iface: &Interface<V>,
         area: &Area<V>,
         af: AddressFamily,
-        auth: Option<AuthCtx>,
         instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
     ) -> Result<Self, IoError> {
         // Create raw socket.
@@ -1038,7 +1043,7 @@ where
             .map(Arc::new)?;
 
         // Enable or disable checksum offloading.
-        let cksum_enable = auth.is_none();
+        let cksum_enable = iface.state.auth.is_none();
         V::set_cksum_offloading(socket.get_ref(), cksum_enable).map_err(
             |error| IoError::ChecksumOffloadError(cksum_enable, error),
         )?;
@@ -1047,7 +1052,7 @@ where
         let (net_tx_packetp, net_tx_packetc) = mpsc::unbounded_channel();
         let mut net_tx_task = tasks::net_tx(
             socket.clone(),
-            auth.clone(),
+            iface.state.auth.clone(),
             net_tx_packetc,
             #[cfg(feature = "testing")]
             &instance_channels_tx.protocol_output,
@@ -1057,7 +1062,6 @@ where
             iface,
             area,
             af,
-            auth,
             &instance_channels_tx.protocol_input.net_packet_rx,
         );
 
@@ -1078,13 +1082,12 @@ where
         iface: &Interface<V>,
         area: &Area<V>,
         af: AddressFamily,
-        auth: Option<AuthCtx>,
         instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
     ) {
         let (net_tx_packetp, net_tx_packetc) = mpsc::unbounded_channel();
         self._net_tx_task = tasks::net_tx(
             self.socket.clone(),
-            auth.clone(),
+            iface.state.auth.clone(),
             net_tx_packetc,
             #[cfg(feature = "testing")]
             &instance_channels_tx.protocol_output,
@@ -1094,7 +1097,6 @@ where
             iface,
             area,
             af,
-            auth,
             &instance_channels_tx.protocol_input.net_packet_rx,
         );
         // The network Tx task needs to be detached to ensure flushed

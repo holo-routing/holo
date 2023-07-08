@@ -131,7 +131,7 @@ static HELLO1_HMAC_SHA1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
                 0x6b, 0xf9, 0x9a, 0xd1, 0x4f, 0x4b,
             ],
             Some((
-                Key::new(1, CryptoAlgo::HmacSha1, "HOLO".to_owned()),
+                Key::new(1, CryptoAlgo::HmacSha1, "HOLO".as_bytes().to_vec()),
                 843436052,
             )),
             Packet::Hello(Hello {
@@ -169,7 +169,7 @@ static HELLO1_HMAC_SHA256: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
                 0x78, 0x1b, 0x72, 0xd2, 0xa9, 0x9f, 0x0f, 0x91,
             ],
             Some((
-                Key::new(1, CryptoAlgo::HmacSha256, "HOLO".to_owned()),
+                Key::new(1, CryptoAlgo::HmacSha256, "HOLO".as_bytes().to_vec()),
                 843436052,
             )),
             Packet::Hello(Hello {
@@ -209,7 +209,7 @@ static HELLO1_HMAC_SHA384: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
                 0x21, 0x76, 0xa2, 0x65,
             ],
             Some((
-                Key::new(1, CryptoAlgo::HmacSha384, "HOLO".to_owned()),
+                Key::new(1, CryptoAlgo::HmacSha384, "HOLO".as_bytes().to_vec()),
                 843436052,
             )),
             Packet::Hello(Hello {
@@ -250,7 +250,7 @@ static HELLO1_HMAC_SHA512: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
                 0x2c, 0xab, 0xab, 0x92, 0x99, 0x2d, 0xae, 0xec, 0x0c, 0xf7,
             ],
             Some((
-                Key::new(1, CryptoAlgo::HmacSha512, "HOLO".to_owned()),
+                Key::new(1, CryptoAlgo::HmacSha512, "HOLO".as_bytes().to_vec()),
                 843436052,
             )),
             Packet::Hello(Hello {

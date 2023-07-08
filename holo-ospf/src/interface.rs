@@ -492,7 +492,8 @@ where
             self.config.auth_keyid,
             self.config.auth_algo,
         ) {
-            let auth_key = Key::new(key_id as u64, algo, key.clone());
+            let auth_key =
+                Key::new(key_id as u64, algo, key.as_bytes().to_vec());
             return Some(AuthMethod::ManualKey(auth_key));
         }
 

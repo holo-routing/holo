@@ -57,7 +57,7 @@ pub struct Key {
     // Cryptographic algorithm associated with the key.
     pub algo: CryptoAlgo,
     // The key string.
-    pub string: String,
+    pub string: Vec<u8>,
 }
 
 // Key lifetime.

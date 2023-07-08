@@ -126,7 +126,10 @@ static HELLO1_MD5: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
                 0x03, 0x03, 0x9d, 0xd5, 0xa8, 0x03, 0x86, 0xee, 0x71, 0x67,
                 0x44, 0x1a, 0x37, 0xa9, 0x04, 0x27, 0xfc, 0xc7,
             ],
-            Some((Key::new(1, CryptoAlgo::Md5, "HOLO".to_owned()), 843436052)),
+            Some((
+                Key::new(1, CryptoAlgo::Md5, "HOLO".as_bytes().to_vec()),
+                843436052,
+            )),
             Packet::Hello(Hello {
                 hdr: PacketHdr {
                     pkt_type: PacketType::Hello,
@@ -164,7 +167,7 @@ static HELLO1_HMAC_SHA1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
                 0x8d, 0xcd,
             ],
             Some((
-                Key::new(1, CryptoAlgo::HmacSha1, "HOLO".to_owned()),
+                Key::new(1, CryptoAlgo::HmacSha1, "HOLO".as_bytes().to_vec()),
                 843436052,
             )),
             Packet::Hello(Hello {
@@ -205,7 +208,7 @@ static HELLO1_HMAC_SHA256: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
                 0x69, 0x62, 0x6f, 0x04,
             ],
             Some((
-                Key::new(1, CryptoAlgo::HmacSha256, "HOLO".to_owned()),
+                Key::new(1, CryptoAlgo::HmacSha256, "HOLO".as_bytes().to_vec()),
                 843436052,
             )),
             Packet::Hello(Hello {
@@ -247,7 +250,7 @@ static HELLO1_HMAC_SHA384: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
                 0x72, 0x23, 0x96, 0xdc, 0xdf, 0xe4, 0xe6, 0xe5, 0x8c, 0x7a,
             ],
             Some((
-                Key::new(1, CryptoAlgo::HmacSha384, "HOLO".to_owned()),
+                Key::new(1, CryptoAlgo::HmacSha384, "HOLO".as_bytes().to_vec()),
                 843436052,
             )),
             Packet::Hello(Hello {
@@ -291,7 +294,7 @@ static HELLO1_HMAC_SHA512: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
                 0xf7, 0xbc, 0x92, 0xe3, 0x56, 0xc7,
             ],
             Some((
-                Key::new(1, CryptoAlgo::HmacSha512, "HOLO".to_owned()),
+                Key::new(1, CryptoAlgo::HmacSha512, "HOLO".as_bytes().to_vec()),
                 843436052,
             )),
             Packet::Hello(Hello {

@@ -363,7 +363,32 @@ fn load_callbacks() -> Callbacks<Master> {
             let key = keychain.keys.get_mut(&key_id).unwrap();
 
             let string = args.dnode.get_string();
-            key.data.string = string;
+            key.data.string = string.into_bytes();
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::KeychainChange(keychain.name.clone()));
+        })
+        .delete_apply(|master, args| {
+            let (keychain_name, key_id) = args.list_entry.into_key().unwrap();
+            let keychain = master.keychains.get_mut(&keychain_name).unwrap();
+            let key = keychain.keys.get_mut(&key_id).unwrap();
+
+            key.data.string.clear();
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::KeychainChange(keychain.name.clone()));
+        })
+        .path(key_chains::key_chain::key::key_string::hexadecimal_string::PATH)
+        .modify_apply(|master, args| {
+            let (keychain_name, key_id) = args.list_entry.into_key().unwrap();
+            let keychain = master.keychains.get_mut(&keychain_name).unwrap();
+            let key = keychain.keys.get_mut(&key_id).unwrap();
+
+            let string = args.dnode.get_string();
+            key.data.string = string
+               .split(':')
+               .map(|hex_byte| u8::from_str_radix(hex_byte, 16).unwrap())
+               .collect();
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::KeychainChange(keychain.name.clone()));

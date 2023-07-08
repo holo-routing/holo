@@ -61,9 +61,9 @@ pub struct AuthDecodeCtx<'a> {
 
 // ===== helper functions =====
 
-fn keyed_md5_digest(data: &[u8], key: &str) -> [u8; 16] {
+fn keyed_md5_digest(data: &[u8], key: &[u8]) -> [u8; 16] {
     // The authentication key needs to be 16-bytes long.
-    let mut key = key.as_bytes().to_vec();
+    let mut key = key.to_vec();
     key.resize(16, 0);
 
     let mut ctx = md5::Context::new();
@@ -74,7 +74,7 @@ fn keyed_md5_digest(data: &[u8], key: &str) -> [u8; 16] {
 
 fn hmac_sha_digest<H>(
     data: &[u8],
-    key: &str,
+    key: &[u8],
     proto_id: Option<CryptoProtocolId>,
     src: Option<&IpAddr>,
 ) -> Vec<u8>
@@ -89,7 +89,7 @@ where
     <H::Core as BlockSizeUser>::BlockSize: IsLess<U256>,
     Le<<H::Core as BlockSizeUser>::BlockSize, U256>: NonZero,
 {
-    let mut key = key.as_bytes();
+    let mut key = key;
     let key_proto: Vec<u8>;
 
     // Append Cryptographic Protocol ID to the authentication key.
@@ -135,7 +135,7 @@ where
 pub(crate) fn message_digest(
     data: &[u8],
     algo: CryptoAlgo,
-    key: &str,
+    key: &[u8],
     proto_id: Option<CryptoProtocolId>,
     src: Option<&IpAddr>,
 ) -> Vec<u8> {

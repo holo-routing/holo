@@ -842,7 +842,7 @@ impl PacketVersion<Self> for Ospfv2 {
 
                 // Sanity check.
                 if auth_key.algo.digest_size() != auth_len {
-                    return Err(DecodeError::AuthError);
+                    return Err(DecodeError::AuthLenError(auth_len as u16));
                 }
 
                 // Get the authentication trailer.

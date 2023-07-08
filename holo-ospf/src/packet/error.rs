@@ -28,6 +28,7 @@ pub enum DecodeError {
     InvalidIpPrefix,
     AuthTypeMismatch,
     AuthKeyIdNotFound(u32),
+    AuthLenError(u16),
     AuthError,
     // OSPFv2
     InvalidExtPrefixRouteType(u8),
@@ -91,6 +92,9 @@ impl std::fmt::Display for DecodeError {
             }
             DecodeError::AuthKeyIdNotFound(key_id) => {
                 write!(f, "authentication Key ID not found: {}", key_id)
+            }
+            DecodeError::AuthLenError(length) => {
+                write!(f, "invalid authentication data length: {}", length)
             }
             DecodeError::AuthError => {
                 write!(f, "authentication failed")

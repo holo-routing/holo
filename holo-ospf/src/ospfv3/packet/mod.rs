@@ -858,7 +858,7 @@ impl PacketVersion<Self> for Ospfv3 {
         if auth_len
             != AUTH_TRAILER_HDR_SIZE + auth_key.algo.digest_size() as u16
         {
-            return Err(DecodeError::AuthError);
+            return Err(DecodeError::AuthLenError(auth_len));
         }
 
         // Compute message digest.

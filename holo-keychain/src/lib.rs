@@ -10,12 +10,15 @@
 
 pub mod northbound;
 
+use std::collections::BTreeMap;
+
 use derive_new::new;
 use holo_northbound::{
     process_northbound_msg, NbDaemonReceiver, NbDaemonSender, NbProviderSender,
     ProviderBase,
 };
 use holo_utils::ibus::{IbusReceiver, IbusSender};
+use holo_utils::keychain::Keychain;
 use tokio::sync::mpsc;
 use tracing::Instrument;
 
@@ -25,6 +28,9 @@ pub struct Master {
     pub nb_tx: NbProviderSender,
     // Internal bus Tx channel.
     pub ibus_tx: IbusSender,
+    // List of configured key-chains.
+    #[new(default)]
+    pub keychains: BTreeMap<String, Keychain>,
 }
 
 // ===== impl Master =====

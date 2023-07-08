@@ -120,6 +120,7 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
             "ietf-routing-types",
             "ietf-interfaces",
             "ietf-ip",
+            "ietf-key-chain",
             "ietf-routing",
             "ietf-segment-routing",
             "ietf-segment-routing-common",

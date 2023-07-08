@@ -21,6 +21,7 @@ pub mod capabilities;
 pub mod crypto;
 pub mod ibus;
 pub mod ip;
+pub mod keychain;
 pub mod mpls;
 pub mod protocol;
 pub mod socket;

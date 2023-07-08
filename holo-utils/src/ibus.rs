@@ -41,6 +41,8 @@ pub enum IbusMsg {
         sess_key: bfd::SessionKey,
         state: bfd::State,
     },
+    // Keychain update notification.
+    KeychainUpd(String),
 }
 
 // Type of Segment Routing configuration change.

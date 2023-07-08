@@ -17,6 +17,7 @@ use crate::interface::{self, Interface, InterfaceSys, InterfaceVersion};
 use crate::neighbor::Neighbor;
 use crate::ospfv3;
 use crate::ospfv3::packet::{Hello, Options, PacketHdr};
+use crate::packet::auth::AuthMethod;
 use crate::packet::{Packet, PacketType};
 use crate::version::Ospfv3;
 
@@ -135,7 +136,14 @@ impl InterfaceVersion<Self> for Ospfv3 {
         // enabled.
         if let Some(auth) = &iface.state.auth {
             max -= ospfv3::packet::AUTH_TRAILER_HDR_SIZE;
-            max -= auth.algo.digest_size() as u16;
+            match auth {
+                AuthMethod::ManualKey(key) => {
+                    max -= key.algo.digest_size() as u16
+                }
+                AuthMethod::Keychain(keychain) => {
+                    max -= keychain.max_digest_size as u16
+                }
+            }
         }
 
         max

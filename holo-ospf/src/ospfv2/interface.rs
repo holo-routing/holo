@@ -19,6 +19,7 @@ use crate::interface::{
 use crate::neighbor::{Neighbor, NeighborVersion};
 use crate::ospfv2;
 use crate::ospfv2::packet::{Hello, PacketHdr};
+use crate::packet::auth::AuthMethod;
 use crate::packet::{Packet, PacketType};
 use crate::version::Ospfv2;
 
@@ -145,7 +146,14 @@ impl InterfaceVersion<Self> for Ospfv2 {
 
         // Reserve space for the message digest when authentication is enabled.
         if let Some(auth) = &iface.state.auth {
-            max -= auth.algo.digest_size() as u16;
+            match auth {
+                AuthMethod::ManualKey(key) => {
+                    max -= key.algo.digest_size() as u16
+                }
+                AuthMethod::Keychain(keychain) => {
+                    max -= keychain.max_digest_size as u16
+                }
+            }
         }
 
         max

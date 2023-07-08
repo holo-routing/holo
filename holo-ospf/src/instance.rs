@@ -824,6 +824,10 @@ where
         IbusMsg::BfdStateUpd { sess_key, state } => {
             events::process_bfd_state_update(instance, sess_key, state)?
         }
+        // Keychain update event.
+        IbusMsg::KeychainUpd(keychain_name) => {
+            events::process_keychain_update(instance, &keychain_name)?
+        }
         // Ignore other events.
         _ => {}
     }

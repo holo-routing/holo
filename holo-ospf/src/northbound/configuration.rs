@@ -24,7 +24,6 @@ use yang2::data::Data;
 use crate::area::{self, AreaType};
 use crate::collections::{AreaIndex, InterfaceIndex};
 use crate::debug::InterfaceInactiveReason;
-use crate::error::IoError;
 use crate::instance::Instance;
 use crate::interface::{ism, InterfaceType};
 use crate::lsdb::LsaOriginateEvent;
@@ -691,6 +690,28 @@ where
 fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
     let core_cbs = load_callbacks();
     CallbacksBuilder::<Instance<Ospfv2>>::new(core_cbs)
+        .path(ospf::areas::area::interfaces::interface::authentication::ospfv2_key_chain::PATH)
+        .modify_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let auth_keychain = args.dnode.get_string();
+            iface.config.auth_keychain = Some(auth_keychain);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
+        .delete_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.auth_keychain = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
         .path(ospf::areas::area::interfaces::interface::authentication::ospfv2_key_id::PATH)
         .modify_apply(|instance, args| {
             let (area_idx, iface_idx) =
@@ -787,6 +808,28 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let event_queue = args.event_queue;
             event_queue
                 .insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
+        })
+        .path(ospf::areas::area::interfaces::interface::authentication::ospfv3_key_chain::PATH)
+        .modify_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let auth_keychain = args.dnode.get_string();
+            iface.config.auth_keychain = Some(auth_keychain);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
+        .delete_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.auth_keychain = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .path(ospf::areas::area::interfaces::interface::authentication::ospfv3_sa_id::PATH)
         .modify_apply(|instance, args| {
@@ -1171,29 +1214,8 @@ where
                     let area = &arenas.areas[area_idx];
                     let iface = &mut arenas.interfaces[iface_idx];
 
-                    // Update authentication data.
-                    iface.state.auth = iface.auth(&instance.state.auth_seqno);
-
-                    if let Some(mut net) = iface.state.net.take() {
-                        // Enable or disable checksum offloading.
-                        let cksum_enable = iface.state.auth.is_some();
-                        if let Err(error) = V::set_cksum_offloading(
-                            net.socket.get_ref(),
-                            cksum_enable,
-                        ) {
-                            IoError::ChecksumOffloadError(cksum_enable, error)
-                                .log();
-                        }
-
-                        // Restart network Tx/Rx tasks.
-                        net.restart_tasks(
-                            iface,
-                            area,
-                            instance.state.af,
-                            instance.tx,
-                        );
-                        iface.state.net = Some(net);
-                    }
+                    // Update interface authentication keys.
+                    iface.auth_update(area, &instance);
                 }
             }
             Event::InterfaceBfdChange(iface_idx) => {

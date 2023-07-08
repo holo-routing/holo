@@ -1418,3 +1418,31 @@ where
 
     Ok(())
 }
+
+// ===== Keychain update event =====
+
+pub(crate) fn process_keychain_update<V>(
+    instance: &mut Instance<V>,
+    keychain_name: &str,
+) -> Result<(), Error<V>>
+where
+    V: Version,
+{
+    let Some((instance, arenas)) = instance.as_up() else {
+        return Ok(());
+    };
+
+    for area in arenas.areas.iter_mut() {
+        for iface_idx in area.interfaces.indexes() {
+            let iface = &mut arenas.interfaces[iface_idx];
+            if iface.config.auth_keychain.as_deref() != Some(keychain_name) {
+                continue;
+            }
+
+            // Update interface authentication keys.
+            iface.auth_update(area, &instance);
+        }
+    }
+
+    Ok(())
+}

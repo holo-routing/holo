@@ -11,7 +11,7 @@ pub mod tlv;
 
 use std::cell::{RefCell, RefMut};
 use std::collections::BTreeSet;
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::Ipv4Addr;
 
 use bitflags::bitflags;
 use bytes::{Bytes, BytesMut};
@@ -21,7 +21,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use crate::neighbor::NeighborNetId;
-use crate::packet::auth::AuthCtx;
+use crate::packet::auth::{AuthDecodeCtx, AuthEncodeCtx};
 use crate::packet::error::DecodeResult;
 use crate::packet::lsa::{Lsa, LsaKey};
 use crate::version::Version;
@@ -82,12 +82,11 @@ pub trait PacketVersion<V: Version> {
         data: &[u8],
         pkt_len: u16,
         hdr_auth: V::PacketHdrAuth,
-        auth: Option<&AuthCtx>,
-        src: &IpAddr,
+        auth: Option<AuthDecodeCtx<'_>>,
     ) -> DecodeResult<Option<u64>>;
 
     // Encode the authentication trailer.
-    fn encode_auth_trailer(buf: &mut BytesMut, auth: &AuthCtx, src: &IpAddr);
+    fn encode_auth_trailer(buf: &mut BytesMut, auth: AuthEncodeCtx<'_>);
 }
 
 // OSPF version-specific code.
@@ -101,7 +100,7 @@ where
     fn decode(buf: &mut Bytes) -> DecodeResult<(Self, u16, V::PacketHdrAuth)>;
 
     // Encode OSPF packet header into a bytes buffer.
-    fn encode(&self, buf: &mut BytesMut, auth: Option<&AuthCtx>);
+    fn encode(&self, buf: &mut BytesMut, auth: Option<AuthEncodeCtx<'_>>);
 
     // Update the header checksum.
     fn update_cksum(buf: &mut BytesMut);
@@ -146,7 +145,7 @@ where
     ) -> DecodeResult<Self>;
 
     // Encode OSPF packet into a bytes buffer.
-    fn encode(&self, auth: Option<&AuthCtx>, src: &IpAddr) -> Bytes;
+    fn encode(&self, auth: Option<AuthEncodeCtx<'_>>) -> Bytes;
 
     // Return a reference to the packet header.
     fn hdr(&self) -> &V::PacketHdr;
@@ -288,8 +287,7 @@ impl<V: Version> Packet<V> {
     pub fn decode(
         af: AddressFamily,
         buf: &mut Bytes,
-        auth: Option<&AuthCtx>,
-        src: &IpAddr,
+        auth: Option<AuthDecodeCtx<'_>>,
     ) -> DecodeResult<Self> {
         // Verify if the packet checksum is correct.
         if auth.is_none() {
@@ -305,13 +303,9 @@ impl<V: Version> Packet<V> {
             buf.slice(..pkt_len as usize - V::PacketHdr::LENGTH as usize);
 
         // Validate the packet authentication.
-        if let Some(auth_seqno) = V::decode_auth_validate(
-            buf_orig.as_ref(),
-            pkt_len,
-            hdr_auth,
-            auth,
-            src,
-        )? {
+        if let Some(auth_seqno) =
+            V::decode_auth_validate(buf_orig.as_ref(), pkt_len, hdr_auth, auth)?
+        {
             hdr.set_auth_seqno(auth_seqno);
         }
 
@@ -338,13 +332,13 @@ impl<V: Version> Packet<V> {
     }
 
     // Encodes OSPF packet into a bytes buffer.
-    pub fn encode(&self, auth: Option<&AuthCtx>, src: &IpAddr) -> Bytes {
+    pub fn encode(&self, auth: Option<AuthEncodeCtx<'_>>) -> Bytes {
         match self {
-            Packet::Hello(pkt) => pkt.encode(auth, src),
-            Packet::DbDesc(pkt) => pkt.encode(auth, src),
-            Packet::LsRequest(pkt) => pkt.encode(auth, src),
-            Packet::LsUpdate(pkt) => pkt.encode(auth, src),
-            Packet::LsAck(pkt) => pkt.encode(auth, src),
+            Packet::Hello(pkt) => pkt.encode(auth),
+            Packet::DbDesc(pkt) => pkt.encode(auth),
+            Packet::LsRequest(pkt) => pkt.encode(auth),
+            Packet::LsUpdate(pkt) => pkt.encode(auth),
+            Packet::LsAck(pkt) => pkt.encode(auth),
         }
     }
 
@@ -365,7 +359,7 @@ impl<V: Version> Packet<V> {
 pub(crate) fn packet_encode_start<'a, V>(
     buf: &'a RefCell<BytesMut>,
     hdr: &V::PacketHdr,
-    auth: Option<&AuthCtx>,
+    auth: Option<AuthEncodeCtx<'_>>,
 ) -> RefMut<'a, BytesMut>
 where
     V: Version,
@@ -378,8 +372,7 @@ where
 
 pub(crate) fn packet_encode_end<V>(
     mut buf: RefMut<'_, BytesMut>,
-    auth: Option<&AuthCtx>,
-    src: &IpAddr,
+    auth: Option<AuthEncodeCtx<'_>>,
 ) -> Bytes
 where
     V: Version,
@@ -391,7 +384,7 @@ where
     // Calculate the packet checksum or append the authentication trailer.
     match auth {
         Some(auth) => {
-            V::encode_auth_trailer(&mut buf, auth, src);
+            V::encode_auth_trailer(&mut buf, auth);
         }
         None => {
             V::PacketHdr::update_cksum(&mut buf);

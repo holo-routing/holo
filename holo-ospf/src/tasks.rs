@@ -4,6 +4,7 @@
 // See LICENSE for license details.
 //
 
+use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -20,7 +21,7 @@ use crate::instance::InstanceUpView;
 use crate::interface::{ism, Interface};
 use crate::neighbor::{nsm, Neighbor};
 use crate::network::{self, SendDestination};
-use crate::packet::auth::AuthCtx;
+use crate::packet::auth::AuthMethod;
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::version::Version;
 use crate::{lsdb, spf};
@@ -277,7 +278,8 @@ where
 #[allow(unused_mut)]
 pub(crate) fn net_tx<V>(
     socket: Arc<AsyncFd<Socket>>,
-    auth: Option<AuthCtx>,
+    auth: Option<AuthMethod>,
+    auth_seqno: &Arc<AtomicU64>,
     mut net_packet_txc: UnboundedReceiver<messages::output::NetTxPacketMsg<V>>,
     #[cfg(feature = "testing")] proto_output_tx: &Sender<
         messages::ProtocolOutputMsg<V>,
@@ -293,11 +295,14 @@ where
         let span2 = debug_span!("output");
         let _span2_guard = span2.enter();
 
+        let auth_seqno = auth_seqno.clone();
+
         let span = tracing::span::Span::current();
         Task::spawn(
             async move {
                 let _span_enter = span.enter();
-                network::write_loop(socket, auth, net_packet_txc).await;
+                network::write_loop(socket, auth, auth_seqno, net_packet_txc)
+                    .await;
             }
             .in_current_span(),
         )

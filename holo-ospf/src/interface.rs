@@ -14,6 +14,7 @@ use holo_northbound::paths::control_plane_protocol::ospf;
 use holo_protocol::InstanceChannelsTx;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
+use holo_utils::keychain::{Key, KEYCHAINS};
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{bfd, UnboundedSender};
@@ -31,7 +32,7 @@ use crate::lsdb::{LsaEntry, LsaOriginateEvent};
 use crate::neighbor::{nsm, Neighbor, NeighborNetId};
 use crate::network::{DestinationAddrs, MulticastAddr, SendDestination};
 use crate::northbound::notification;
-use crate::packet::auth::AuthCtx;
+use crate::packet::auth::AuthMethod;
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::packet::Packet;
 use crate::tasks;
@@ -79,6 +80,7 @@ pub struct InterfaceCfg<V: Version> {
     pub cost: u16,
     pub mtu_ignore: bool,
     pub static_nbrs: BTreeMap<V::NetIpAddr, StaticNbr>,
+    pub auth_keychain: Option<String>,
     pub auth_keyid: Option<u32>,
     pub auth_key: Option<String>,
     pub auth_algo: Option<CryptoAlgo>,
@@ -112,7 +114,7 @@ pub struct InterfaceState<V: Version> {
     pub lsdb: Lsdb<V>,
     pub network_lsa_self: Option<LsaKey<V::LsaType>>,
     // Authentication data.
-    pub auth: Option<AuthCtx>,
+    pub auth: Option<AuthMethod>,
     // Tasks.
     pub tasks: InterfaceTasks<V>,
 }
@@ -320,11 +322,16 @@ where
         Debug::<V>::InterfaceStart(&self.name).log();
 
         if !self.is_passive() {
-            self.state.auth = self.auth(&instance.state.auth_seqno);
+            self.state.auth = self.auth();
 
             // Start network Tx/Rx tasks.
-            match InterfaceNet::new(self, area, instance.state.af, instance.tx)
-            {
+            match InterfaceNet::new(
+                self,
+                area,
+                instance.state.af,
+                &instance.state.auth_seqno,
+                instance.tx,
+            ) {
                 Ok(net) => self.state.net = Some(net),
                 Err(error) => {
                     let ifname = self.name.clone();
@@ -479,21 +486,52 @@ where
         )
     }
 
-    pub(crate) fn auth(&self, seqno: &Arc<AtomicU64>) -> Option<AuthCtx> {
+    fn auth(&self) -> Option<AuthMethod> {
         if let (Some(key), Some(key_id), Some(algo)) = (
-            self.config.auth_key.as_ref(),
+            &self.config.auth_key,
             self.config.auth_keyid,
             self.config.auth_algo,
         ) {
-            return Some(AuthCtx::new(
-                key.clone(),
-                key_id,
-                algo,
-                seqno.clone(),
-            ));
+            let auth_key = Key::new(key_id as u64, algo, key.clone());
+            return Some(AuthMethod::ManualKey(auth_key));
+        }
+
+        if let Some(keychain) = &self.config.auth_keychain {
+            if let Some(keychain) = KEYCHAINS.lock().unwrap().get(keychain) {
+                return Some(AuthMethod::Keychain(keychain.clone()));
+            }
         }
 
         None
+    }
+
+    pub(crate) fn auth_update(
+        &mut self,
+        area: &Area<V>,
+        instance: &InstanceUpView<'_, V>,
+    ) {
+        // Update authentication data.
+        self.state.auth = self.auth();
+
+        if let Some(mut net) = self.state.net.take() {
+            // Enable or disable checksum offloading.
+            let cksum_enable = self.state.auth.is_none();
+            if let Err(error) =
+                V::set_cksum_offloading(net.socket.get_ref(), cksum_enable)
+            {
+                IoError::ChecksumOffloadError(cksum_enable, error).log();
+            }
+
+            // Restart network Tx/Rx tasks.
+            net.restart_tasks(
+                self,
+                area,
+                instance.state.af,
+                &instance.state.auth_seqno,
+                instance.tx,
+            );
+            self.state.net = Some(net);
+        }
     }
 
     pub(crate) fn fsm(
@@ -986,6 +1024,7 @@ where
             cost,
             mtu_ignore,
             static_nbrs: Default::default(),
+            auth_keychain: None,
             auth_keyid: None,
             auth_key: None,
             auth_algo: None,
@@ -1032,6 +1071,7 @@ where
         iface: &Interface<V>,
         area: &Area<V>,
         af: AddressFamily,
+        auth_seqno: &Arc<AtomicU64>,
         instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
     ) -> Result<Self, IoError> {
         // Create raw socket.
@@ -1053,6 +1093,7 @@ where
         let mut net_tx_task = tasks::net_tx(
             socket.clone(),
             iface.state.auth.clone(),
+            auth_seqno,
             net_tx_packetc,
             #[cfg(feature = "testing")]
             &instance_channels_tx.protocol_output,
@@ -1077,17 +1118,19 @@ where
         })
     }
 
-    pub(crate) fn restart_tasks(
+    fn restart_tasks(
         &mut self,
         iface: &Interface<V>,
         area: &Area<V>,
         af: AddressFamily,
+        auth_seqno: &Arc<AtomicU64>,
         instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
     ) {
         let (net_tx_packetp, net_tx_packetc) = mpsc::unbounded_channel();
         self._net_tx_task = tasks::net_tx(
             self.socket.clone(),
             iface.state.auth.clone(),
+            auth_seqno,
             net_tx_packetc,
             #[cfg(feature = "testing")]
             &instance_channels_tx.protocol_output,

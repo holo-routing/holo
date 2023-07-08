@@ -7,6 +7,7 @@
 use std::io::{IoSlice, IoSliceMut};
 use std::ops::Deref;
 use std::os::fd::AsRawFd;
+use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 
 use bytes::Bytes;
@@ -20,8 +21,8 @@ use tokio::sync::mpsc::error::SendError;
 
 use crate::collections::{AreaId, InterfaceId};
 use crate::debug::Debug;
-use crate::error::IoError;
-use crate::packet::auth::AuthCtx;
+use crate::error::{Error, IoError};
+use crate::packet::auth::{AuthDecodeCtx, AuthEncodeCtx, AuthMethod};
 use crate::packet::error::DecodeResult;
 use crate::packet::Packet;
 use crate::tasks::messages::input::NetRxPacketMsg;
@@ -125,7 +126,7 @@ pub(crate) async fn send_packet<V>(
     dst_ifindex: u32,
     dst_addr: V::NetIpAddr,
     packet: &Packet<V>,
-    auth: Option<&AuthCtx>,
+    auth: Option<AuthEncodeCtx<'_>>,
 ) -> Result<usize, IoError>
 where
     V: Version,
@@ -133,7 +134,7 @@ where
     Debug::<V>::PacketTx(dst_ifindex, &dst_addr, packet).log();
 
     // Encode packet.
-    let buf = packet.encode(auth, &src.into());
+    let buf = packet.encode(auth);
 
     // Send packet.
     let iov = [IoSlice::new(&buf)];
@@ -158,7 +159,8 @@ where
 #[cfg(not(feature = "testing"))]
 pub(crate) async fn write_loop<V>(
     socket: Arc<AsyncFd<Socket>>,
-    auth: Option<AuthCtx>,
+    auth: Option<AuthMethod>,
+    auth_seqno: Arc<AtomicU64>,
     mut net_tx_packetc: UnboundedReceiver<NetTxPacketMsg<V>>,
 ) where
     V: Version,
@@ -166,16 +168,31 @@ pub(crate) async fn write_loop<V>(
     while let Some(NetTxPacketMsg { packet, src, dst }) =
         net_tx_packetc.recv().await
     {
+        // Prepare authentication context.
+        let auth = match &auth {
+            Some(auth) => {
+                let auth_key = match auth {
+                    AuthMethod::ManualKey(key) => key,
+                    AuthMethod::Keychain(keychain) => {
+                        match keychain.key_lookup_send() {
+                            Some(key) => key,
+                            None => {
+                                Error::<V>::PacketAuthMissingKey.log();
+                                continue;
+                            }
+                        }
+                    }
+                };
+                Some(AuthEncodeCtx::new(auth_key, &auth_seqno, src.into()))
+            }
+            None => None,
+        };
+
+        // Send packet to all requested destinations.
         for dst_addr in dst.addrs.into_iter() {
-            if let Err(error) = send_packet(
-                &socket,
-                src,
-                dst.ifindex,
-                dst_addr,
-                &packet,
-                auth.as_ref(),
-            )
-            .await
+            if let Err(error) =
+                send_packet(&socket, src, dst.ifindex, dst_addr, &packet, auth)
+                    .await
             {
                 error.log();
             }
@@ -189,7 +206,7 @@ pub(crate) async fn read_loop<V>(
     area_id: AreaId,
     iface_id: InterfaceId,
     af: AddressFamily,
-    auth: Option<AuthCtx>,
+    auth: Option<AuthMethod>,
     net_packet_rxp: Sender<NetRxPacketMsg<V>>,
 ) -> Result<(), SendError<NetRxPacketMsg<V>>>
 where
@@ -242,7 +259,10 @@ where
                 // Decode packet.
                 let mut buf = Bytes::copy_from_slice(&iov[0].deref()[0..bytes]);
                 let packet = V::validate_ip_hdr(&mut buf).and_then(|_| {
-                    Packet::decode(af, &mut buf, auth.as_ref(), &src.into())
+                    let auth = auth
+                        .as_ref()
+                        .map(|auth| AuthDecodeCtx::new(auth, src.into()));
+                    Packet::decode(af, &mut buf, auth)
                 });
                 let msg = NetRxPacketMsg {
                     area_key: area_id.into(),

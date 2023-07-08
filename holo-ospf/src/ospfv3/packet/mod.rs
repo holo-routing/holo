@@ -7,7 +7,7 @@
 pub mod lsa;
 
 use std::collections::BTreeSet;
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::Ipv4Addr;
 use std::sync::atomic;
 
 use bitflags::bitflags;
@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::neighbor::NeighborNetId;
 use crate::ospfv3::packet::lsa::{LsaHdr, LsaType};
-use crate::packet::auth::AuthCtx;
+use crate::packet::auth::{AuthDecodeCtx, AuthEncodeCtx, AuthMethod};
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::packet::{
@@ -325,7 +325,7 @@ impl PacketHdrVersion<Ospfv3> for PacketHdr {
         ))
     }
 
-    fn encode(&self, buf: &mut BytesMut, _auth: Option<&AuthCtx>) {
+    fn encode(&self, buf: &mut BytesMut, _auth: Option<AuthEncodeCtx<'_>>) {
         buf.put_u8(Self::VERSION);
         buf.put_u8(self.pkt_type as u8);
         // The length will be initialized later.
@@ -428,7 +428,7 @@ impl PacketBase<Ospfv3> for Hello {
         })
     }
 
-    fn encode(&self, auth: Option<&AuthCtx>, src: &IpAddr) -> Bytes {
+    fn encode(&self, auth: Option<AuthEncodeCtx<'_>>) -> Bytes {
         TLS_BUF.with(|buf| {
             let mut buf = packet_encode_start::<Ospfv3>(buf, &self.hdr, auth);
 
@@ -453,7 +453,7 @@ impl PacketBase<Ospfv3> for Hello {
                 buf.put_ipv4(nbr);
             }
 
-            packet_encode_end::<Ospfv3>(buf, auth, src)
+            packet_encode_end::<Ospfv3>(buf, auth)
         })
     }
 
@@ -533,7 +533,7 @@ impl PacketBase<Ospfv3> for DbDesc {
         })
     }
 
-    fn encode(&self, auth: Option<&AuthCtx>, src: &IpAddr) -> Bytes {
+    fn encode(&self, auth: Option<AuthEncodeCtx<'_>>) -> Bytes {
         TLS_BUF.with(|buf| {
             let mut buf = packet_encode_start::<Ospfv3>(buf, &self.hdr, auth);
 
@@ -547,7 +547,7 @@ impl PacketBase<Ospfv3> for DbDesc {
                 lsa_hdr.encode(&mut buf);
             }
 
-            packet_encode_end::<Ospfv3>(buf, auth, src)
+            packet_encode_end::<Ospfv3>(buf, auth)
         })
     }
 
@@ -625,7 +625,7 @@ impl PacketBase<Ospfv3> for LsRequest {
         Ok(LsRequest { hdr, entries })
     }
 
-    fn encode(&self, auth: Option<&AuthCtx>, src: &IpAddr) -> Bytes {
+    fn encode(&self, auth: Option<AuthEncodeCtx<'_>>) -> Bytes {
         TLS_BUF.with(|buf| {
             let mut buf = packet_encode_start::<Ospfv3>(buf, &self.hdr, auth);
 
@@ -636,7 +636,7 @@ impl PacketBase<Ospfv3> for LsRequest {
                 buf.put_ipv4(&entry.adv_rtr);
             }
 
-            packet_encode_end::<Ospfv3>(buf, auth, src)
+            packet_encode_end::<Ospfv3>(buf, auth)
         })
     }
 
@@ -687,7 +687,7 @@ impl PacketBase<Ospfv3> for LsUpdate {
         Ok(LsUpdate { hdr, lsas })
     }
 
-    fn encode(&self, auth: Option<&AuthCtx>, src: &IpAddr) -> Bytes {
+    fn encode(&self, auth: Option<AuthEncodeCtx<'_>>) -> Bytes {
         TLS_BUF.with(|buf| {
             let mut buf = packet_encode_start::<Ospfv3>(buf, &self.hdr, auth);
 
@@ -696,7 +696,7 @@ impl PacketBase<Ospfv3> for LsUpdate {
                 buf.put_slice(&lsa.raw);
             }
 
-            packet_encode_end::<Ospfv3>(buf, auth, src)
+            packet_encode_end::<Ospfv3>(buf, auth)
         })
     }
 
@@ -736,7 +736,7 @@ impl PacketBase<Ospfv3> for LsAck {
         Ok(LsAck { hdr, lsa_hdrs })
     }
 
-    fn encode(&self, auth: Option<&AuthCtx>, src: &IpAddr) -> Bytes {
+    fn encode(&self, auth: Option<AuthEncodeCtx<'_>>) -> Bytes {
         TLS_BUF.with(|buf| {
             let mut buf = packet_encode_start::<Ospfv3>(buf, &self.hdr, auth);
 
@@ -744,7 +744,7 @@ impl PacketBase<Ospfv3> for LsAck {
                 lsa_hdr.encode(&mut buf);
             }
 
-            packet_encode_end::<Ospfv3>(buf, auth, src)
+            packet_encode_end::<Ospfv3>(buf, auth)
         })
     }
 
@@ -779,8 +779,7 @@ impl PacketVersion<Self> for Ospfv3 {
         data: &[u8],
         pkt_len: u16,
         _hdr_auth: PacketHdrAuth,
-        auth: Option<&AuthCtx>,
-        src: &IpAddr,
+        auth: Option<AuthDecodeCtx<'_>>,
     ) -> DecodeResult<Option<u64>> {
         let options = packet_options(data);
 
@@ -825,10 +824,7 @@ impl PacketVersion<Self> for Ospfv3 {
         }
 
         // Decode authentication trailer fixed header.
-        let auth = auth.as_ref().unwrap();
-        if buf.remaining()
-            < AUTH_TRAILER_HDR_SIZE as usize + auth.algo.digest_size() as usize
-        {
+        if buf.remaining() < AUTH_TRAILER_HDR_SIZE as usize {
             return Err(DecodeError::InvalidLength(buf.len() as u16));
         }
         let auth_type = buf.get_u16();
@@ -837,25 +833,42 @@ impl PacketVersion<Self> for Ospfv3 {
         let key_id = buf.get_u16();
         let seqno = buf.get_u64();
 
+        // Get authentication key.
+        let auth = auth.as_ref().unwrap();
+        let auth_key = match auth.method {
+            AuthMethod::ManualKey(key) => {
+                // Check if the Key ID matches.
+                if key.id != key_id as u64 {
+                    return Err(DecodeError::AuthKeyIdNotFound(key_id as u32));
+                }
+                key
+            }
+            AuthMethod::Keychain(keychain) => keychain
+                .key_lookup_accept(key_id as u64)
+                .ok_or(DecodeError::AuthKeyIdNotFound(key_id as u32))?,
+        };
+
         // Sanity checks.
+        if buf.remaining() < auth_key.algo.digest_size() as usize {
+            return Err(DecodeError::InvalidLength(buf.len() as u16));
+        }
         if AuthType::from_u16(auth_type) != Some(AuthType::HmacCryptographic) {
             return Err(DecodeError::UnsupportedAuthType(auth_type));
         }
-        if auth_len != AUTH_TRAILER_HDR_SIZE + auth.algo.digest_size() as u16 {
+        if auth_len
+            != AUTH_TRAILER_HDR_SIZE + auth_key.algo.digest_size() as u16
+        {
             return Err(DecodeError::AuthError);
-        }
-        if auth.key_id != key_id as u32 {
-            return Err(DecodeError::AuthKeyIdNotFound(key_id as u32));
         }
 
         // Compute message digest.
-        let rcvd_digest = buf.slice(..auth.algo.digest_size() as usize);
+        let rcvd_digest = buf.slice(..auth_key.algo.digest_size() as usize);
         let digest = auth::message_digest(
             &data[..pkt_len as usize + AUTH_TRAILER_HDR_SIZE as usize],
-            auth.algo,
-            &auth.key,
+            auth_key.algo,
+            &auth_key.string,
             Some(CryptoProtocolId::Ospfv3),
-            Some(src),
+            Some(&auth.src_addr),
         );
 
         // Check if the received message digest is valid.
@@ -867,12 +880,12 @@ impl PacketVersion<Self> for Ospfv3 {
         Ok(Some(seqno))
     }
 
-    fn encode_auth_trailer(buf: &mut BytesMut, auth: &AuthCtx, src: &IpAddr) {
+    fn encode_auth_trailer(buf: &mut BytesMut, auth: AuthEncodeCtx<'_>) {
         // Append authentication trailer fixed header.
         buf.put_u16(AuthType::HmacCryptographic as u16);
-        buf.put_u16(AUTH_TRAILER_HDR_SIZE + auth.algo.digest_size() as u16);
+        buf.put_u16(AUTH_TRAILER_HDR_SIZE + auth.key.algo.digest_size() as u16);
         buf.put_u16(0);
-        buf.put_u16(auth.key_id as u16);
+        buf.put_u16(auth.key.id as u16);
         // TODO RFC 7166 - Section 4.1.1:
         // "If the lower-order 32-bit value wraps, the higher-order 32-bit value
         // should be incremented and saved in non-volatile storage".
@@ -881,10 +894,10 @@ impl PacketVersion<Self> for Ospfv3 {
         // Append message digest.
         let digest = auth::message_digest(
             buf,
-            auth.algo,
-            &auth.key,
+            auth.key.algo,
+            &auth.key.string,
             Some(CryptoProtocolId::Ospfv3),
-            Some(src),
+            Some(&auth.src_addr),
         );
         buf.put_slice(&digest);
     }

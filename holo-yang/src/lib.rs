@@ -148,6 +148,7 @@ pub static YANG_FEATURES: Lazy<HashMap<&'static str, Vec<&'static str>>> =
                 "bfd",
                 "explicit-router-id",
                 "ietf-spf-delay",
+                "key-chain",
                 "max-ecmp",
                 "mtu-ignore",
                 "ospfv3-authentication-trailer",

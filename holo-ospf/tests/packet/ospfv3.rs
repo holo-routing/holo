@@ -12,17 +12,20 @@ use std::sync::{Arc, LazyLock as Lazy};
 use bytes::Bytes;
 use holo_ospf::ospfv3::packet::lsa::*;
 use holo_ospf::ospfv3::packet::*;
-use holo_ospf::packet::auth::AuthCtx;
+use holo_ospf::packet::auth::{AuthDecodeCtx, AuthEncodeCtx, AuthMethod};
 use holo_ospf::packet::lsa::{Lsa, LsaKey};
 use holo_ospf::packet::tlv::*;
 use holo_ospf::packet::{DbDescFlags, Packet, PacketType};
 use holo_ospf::version::Ospfv3;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::AddressFamily;
+use holo_utils::keychain::Key;
 use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid};
 use ipnetwork::IpNetwork;
 use maplit::{btreemap, btreeset};
+
+const SRC_ADDR: Ipv6Addr = Ipv6Addr::UNSPECIFIED;
 
 //
 // Helper functions.
@@ -30,24 +33,39 @@ use maplit::{btreemap, btreeset};
 
 fn test_encode_packet(
     bytes_expected: &[u8],
-    auth: &Option<AuthCtx>,
+    auth_data: &Option<(Key, u64)>,
     packet: &Packet<Ospfv3>,
 ) {
-    let src = Ipv6Addr::UNSPECIFIED;
-    let bytes_actual = packet.encode(auth.as_ref(), &src.into());
+    // Prepare authentication context.
+    let mut auth = None;
+    let auth_seqno;
+    if let Some((auth_key, seqno)) = auth_data {
+        auth_seqno = Arc::new(AtomicU64::new(*seqno));
+        auth = Some(AuthEncodeCtx::new(auth_key, &auth_seqno, SRC_ADDR.into()));
+    }
+
+    // Encode the packet.
+    let bytes_actual = packet.encode(auth);
     assert_eq!(bytes_expected, bytes_actual.as_ref());
 }
 
 fn test_decode_packet(
     bytes: &[u8],
-    auth: &Option<AuthCtx>,
+    auth_data: &Option<(Key, u64)>,
     packet_expected: &Packet<Ospfv3>,
     af: AddressFamily,
 ) {
-    let src = Ipv6Addr::UNSPECIFIED;
+    // Prepare authentication context.
+    let mut auth = None;
+    let auth_method;
+    if let Some((auth_key, _)) = auth_data {
+        auth_method = AuthMethod::ManualKey(auth_key.clone());
+        auth = Some(AuthDecodeCtx::new(&auth_method, SRC_ADDR.into()));
+    };
+
+    // Encode the packet.
     let mut buf = Bytes::copy_from_slice(bytes);
-    let packet_actual =
-        Packet::decode(af, &mut buf, auth.as_ref(), &src.into()).unwrap();
+    let packet_actual = Packet::decode(af, &mut buf, auth).unwrap();
     assert_eq!(*packet_expected, packet_actual);
 }
 
@@ -69,7 +87,7 @@ fn test_decode_lsa(
 // Test packets.
 //
 
-static HELLO1: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv3>)> =
+static HELLO1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
     Lazy::new(|| {
         (
             vec![
@@ -99,7 +117,7 @@ static HELLO1: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv3>)> =
         )
     });
 
-static HELLO1_HMAC_SHA1: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv3>)> =
+static HELLO1_HMAC_SHA1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
     Lazy::new(|| {
         (
             vec![
@@ -112,11 +130,9 @@ static HELLO1_HMAC_SHA1: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv3>)> =
                 0xaf, 0x89, 0x4a, 0x11, 0xb6, 0x43, 0xe0, 0x7c, 0x77, 0xce,
                 0x6b, 0xf9, 0x9a, 0xd1, 0x4f, 0x4b,
             ],
-            Some(AuthCtx::new(
-                "HOLO".to_owned(),
-                1,
-                CryptoAlgo::HmacSha1,
-                Arc::new(AtomicU64::new(843436052)),
+            Some((
+                Key::new(1, CryptoAlgo::HmacSha1, "HOLO".to_owned()),
+                843436052,
             )),
             Packet::Hello(Hello {
                 hdr: PacketHdr {
@@ -138,7 +154,7 @@ static HELLO1_HMAC_SHA1: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv3>)> =
         )
     });
 
-static HELLO1_HMAC_SHA256: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv3>)> =
+static HELLO1_HMAC_SHA256: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
     Lazy::new(|| {
         (
             vec![
@@ -152,11 +168,9 @@ static HELLO1_HMAC_SHA256: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv3>)> =
                 0xef, 0x4b, 0xd0, 0xf4, 0xb4, 0xe2, 0x51, 0xea, 0xee, 0xe8,
                 0x78, 0x1b, 0x72, 0xd2, 0xa9, 0x9f, 0x0f, 0x91,
             ],
-            Some(AuthCtx::new(
-                "HOLO".to_owned(),
-                1,
-                CryptoAlgo::HmacSha256,
-                Arc::new(AtomicU64::new(843436052)),
+            Some((
+                Key::new(1, CryptoAlgo::HmacSha256, "HOLO".to_owned()),
+                843436052,
             )),
             Packet::Hello(Hello {
                 hdr: PacketHdr {
@@ -178,7 +192,7 @@ static HELLO1_HMAC_SHA256: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv3>)> =
         )
     });
 
-static HELLO1_HMAC_SHA384: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv3>)> =
+static HELLO1_HMAC_SHA384: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
     Lazy::new(|| {
         (
             vec![
@@ -194,11 +208,9 @@ static HELLO1_HMAC_SHA384: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv3>)> =
                 0xa7, 0x87, 0x1c, 0x2f, 0xa7, 0xcc, 0xa8, 0xf1, 0xbd, 0xab,
                 0x21, 0x76, 0xa2, 0x65,
             ],
-            Some(AuthCtx::new(
-                "HOLO".to_owned(),
-                1,
-                CryptoAlgo::HmacSha384,
-                Arc::new(AtomicU64::new(843436052)),
+            Some((
+                Key::new(1, CryptoAlgo::HmacSha384, "HOLO".to_owned()),
+                843436052,
             )),
             Packet::Hello(Hello {
                 hdr: PacketHdr {
@@ -220,7 +232,7 @@ static HELLO1_HMAC_SHA384: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv3>)> =
         )
     });
 
-static HELLO1_HMAC_SHA512: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv3>)> =
+static HELLO1_HMAC_SHA512: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
     Lazy::new(|| {
         (
             vec![
@@ -237,11 +249,9 @@ static HELLO1_HMAC_SHA512: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv3>)> =
                 0x3a, 0x2f, 0x49, 0x7e, 0xe7, 0x08, 0x70, 0xd0, 0x6e, 0xc6,
                 0x2c, 0xab, 0xab, 0x92, 0x99, 0x2d, 0xae, 0xec, 0x0c, 0xf7,
             ],
-            Some(AuthCtx::new(
-                "HOLO".to_owned(),
-                1,
-                CryptoAlgo::HmacSha512,
-                Arc::new(AtomicU64::new(843436052)),
+            Some((
+                Key::new(1, CryptoAlgo::HmacSha512, "HOLO".to_owned()),
+                843436052,
             )),
             Packet::Hello(Hello {
                 hdr: PacketHdr {
@@ -263,7 +273,7 @@ static HELLO1_HMAC_SHA512: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv3>)> =
         )
     });
 
-static DBDESCR1: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv3>)> =
+static DBDESCR1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
     Lazy::new(|| {
         (
             vec![
@@ -289,7 +299,7 @@ static DBDESCR1: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv3>)> =
         )
     });
 
-static DBDESCR2: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv3>)> =
+static DBDESCR2: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
     Lazy::new(|| {
         (
             vec![
@@ -349,7 +359,7 @@ static DBDESCR2: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv3>)> =
         )
     });
 
-static LSREQUEST1: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv3>)> =
+static LSREQUEST1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
     Lazy::new(|| {
         (
             vec![
@@ -396,7 +406,7 @@ static LSREQUEST1: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv3>)> =
         )
     });
 
-static LSUPDATE1: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv3>)> =
+static LSUPDATE1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
     Lazy::new(|| {
         (
             vec![
@@ -479,7 +489,7 @@ static LSUPDATE1: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv3>)> =
         )
     });
 
-static LSACK1: Lazy<(Vec<u8>, Option<AuthCtx>, Packet<Ospfv3>)> =
+static LSACK1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
     Lazy::new(|| {
         (
             vec![

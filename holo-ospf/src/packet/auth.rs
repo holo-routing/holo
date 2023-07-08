@@ -18,6 +18,7 @@ use hmac::digest::{HashMarker, Mac, OutputSizeUser};
 use hmac::Hmac;
 use holo_utils::crypto::{CryptoAlgo, CryptoProtocolId};
 use holo_utils::ip::{Ipv4AddrExt, Ipv6AddrExt};
+use holo_utils::keychain::{Key, Keychain};
 use sha1::Sha1;
 use sha2::{Sha256, Sha384, Sha512};
 
@@ -34,16 +35,28 @@ pub static HMAC_APAD: Lazy<Vec<u8>> = Lazy::new(|| {
         .collect()
 });
 
-#[derive(Clone, Debug, new)]
-pub struct AuthCtx {
+#[derive(Clone, Debug)]
+pub enum AuthMethod {
+    ManualKey(Key),
+    Keychain(Arc<Keychain>),
+}
+
+#[derive(Clone, Copy, Debug, new)]
+pub struct AuthEncodeCtx<'a> {
     // Authentication key.
-    pub key: String,
-    // Authentication key ID.
-    pub key_id: u32,
-    // Authentication cryptographic algorithm.
-    pub algo: CryptoAlgo,
-    // Non-decreasing sequence number (only used for encoding packets).
-    pub seqno: Arc<AtomicU64>,
+    pub key: &'a Key,
+    // Authentication sequence number.
+    pub seqno: &'a Arc<AtomicU64>,
+    // Packet source.
+    pub src_addr: IpAddr,
+}
+
+#[derive(Clone, Debug, new)]
+pub struct AuthDecodeCtx<'a> {
+    // Authentication method.
+    pub method: &'a AuthMethod,
+    // Packet source.
+    pub src_addr: IpAddr,
 }
 
 // ===== helper functions =====

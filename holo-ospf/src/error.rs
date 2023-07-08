@@ -34,6 +34,7 @@ pub enum Error<V: Version> {
     PacketDecodeError(DecodeError),
     UnknownNeighbor(V::NetIpAddr, Ipv4Addr),
     PacketAuthInvalidSeqno(V::NetIpAddr, u64),
+    PacketAuthMissingKey,
     InterfaceCfgError(String, V::NetIpAddr, PacketType, InterfaceCfgError),
     DbDescReject(Ipv4Addr, nsm::State),
     Ospfv2LsaUnknownType(V::LsaType),
@@ -115,6 +116,9 @@ where
             }
             Error::PacketAuthInvalidSeqno(source, seqno) => {
                 warn!(%source, %seqno, "{}", self);
+            }
+            Error::PacketAuthMissingKey => {
+                warn!("{}", self);
             }
             Error::InterfaceCfgError(iface, source, _, error) => {
                 warn_span!("interface", name = %iface, %source).in_scope(|| {
@@ -199,6 +203,12 @@ where
             }
             Error::PacketAuthInvalidSeqno(..) => {
                 write!(f, "authentication failed: decreasing sequence number")
+            }
+            Error::PacketAuthMissingKey => {
+                write!(
+                    f,
+                    "missing authentication key with a valid send lifetime"
+                )
             }
             Error::InterfaceCfgError(_, _, _, error) => error.fmt(f),
             Error::DbDescReject(..) => {

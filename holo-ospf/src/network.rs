@@ -167,7 +167,7 @@ pub(crate) async fn write_loop<V>(
         net_tx_packetc.recv().await
     {
         for dst_addr in dst.addrs.into_iter() {
-            if let Err(error) = send_packet::<V>(
+            if let Err(error) = send_packet(
                 &socket,
                 src,
                 dst.ifindex,

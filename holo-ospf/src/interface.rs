@@ -356,7 +356,7 @@ where
 
         if new_ism_state == State::Waiting {
             // Start wait timer.
-            let task = tasks::ism_wait_timer::<V>(self, area, instance);
+            let task = tasks::ism_wait_timer(self, area, instance);
             self.state.tasks.wait_timer = Some(task);
 
             if self.config.if_type == InterfaceType::NonBroadcast {

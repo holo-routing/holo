@@ -565,7 +565,7 @@ fn update_rib_inter_area_routers<V>(
         let metric = route_br.metric + lsa.metric;
 
         // Create new inter-area route.
-        let new_route = RouteRtr::<V> {
+        let new_route = RouteRtr {
             area_id: area.area_id,
             path_type: PathType::InterArea,
             options: lsa.options,

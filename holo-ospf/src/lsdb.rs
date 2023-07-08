@@ -579,7 +579,7 @@ pub(crate) fn originate_check<V>(
     };
 
     // Make new LSA.
-    let lsa = Lsa::<V>::new(0, options, lsa_id, adv_rtr, seq_no, lsa_body);
+    let lsa = Lsa::new(0, options, lsa_id, adv_rtr, seq_no, lsa_body);
 
     // Check if an instance of this LSA already exists in the LSDB.
     if let Some((_, old_lse)) = lsdb.get(&arenas.lsa_entries, &lsa_key) {

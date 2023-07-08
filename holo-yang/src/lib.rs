@@ -144,6 +144,9 @@ pub static YANG_FEATURES: Lazy<HashMap<&'static str, Vec<&'static str>>> =
                 "client-base-cfg-parms",
                 "single-minimum-interval",
             ],
+            "ietf-key-chain" => vec![
+                "independent-send-accept-lifetime",
+            ],
             "ietf-ospf" => vec![
                 "bfd",
                 "explicit-router-id",

@@ -183,6 +183,166 @@ fn load_callbacks() -> Callbacks<Master> {
         .delete_apply(|_master, _args| {
             // Nothing to do.
         })
+        .path(key_chains::key_chain::key::lifetime::send_lifetime::always::PATH)
+        .create_apply(|master, args| {
+            let (keychain_name, key_id) = args.list_entry.into_key().unwrap();
+            let keychain = master.keychains.get_mut(&keychain_name).unwrap();
+            let key = keychain.keys.get_mut(&key_id).unwrap();
+
+            key.send_lifetime.start = None;
+            key.send_lifetime.end = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::KeychainChange(keychain.name.clone()));
+        })
+        .delete_apply(|_master, _args| {
+            // Nothing to do.
+        })
+        .path(key_chains::key_chain::key::lifetime::send_lifetime::start_date_time::PATH)
+        .modify_apply(|master, args| {
+            let (keychain_name, key_id) = args.list_entry.into_key().unwrap();
+            let keychain = master.keychains.get_mut(&keychain_name).unwrap();
+            let key = keychain.keys.get_mut(&key_id).unwrap();
+
+            let date_time = args.dnode.get_string();
+            let date_time = DateTime::<FixedOffset>::parse_from_rfc3339(&date_time).unwrap();
+            key.send_lifetime.start = Some(date_time);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::KeychainChange(keychain.name.clone()));
+        })
+        .delete_apply(|_master, _args| {
+            // Nothing to do.
+        })
+        .path(key_chains::key_chain::key::lifetime::send_lifetime::no_end_time::PATH)
+        .create_apply(|master, args| {
+            let (keychain_name, key_id) = args.list_entry.into_key().unwrap();
+            let keychain = master.keychains.get_mut(&keychain_name).unwrap();
+            let key = keychain.keys.get_mut(&key_id).unwrap();
+
+            key.send_lifetime.end = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::KeychainChange(keychain.name.clone()));
+        })
+        .delete_apply(|_master, _args| {
+            // Nothing to do.
+        })
+        .path(key_chains::key_chain::key::lifetime::send_lifetime::duration::PATH)
+        .modify_apply(|master, args| {
+            let (keychain_name, key_id) = args.list_entry.into_key().unwrap();
+            let keychain = master.keychains.get_mut(&keychain_name).unwrap();
+            let key = keychain.keys.get_mut(&key_id).unwrap();
+
+            let seconds  = args.dnode.get_u32();
+            let duration = Duration::from_secs(seconds as u64);
+            let duration = chrono::Duration::from_std(duration).unwrap();
+            if let Some(start) = key.send_lifetime.start {
+                key.send_lifetime.end = Some(start + duration);
+            }
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::KeychainChange(keychain.name.clone()));
+        })
+        .delete_apply(|_master, _args| {
+            // Nothing to do.
+        })
+        .path(key_chains::key_chain::key::lifetime::send_lifetime::end_date_time::PATH)
+        .modify_apply(|master, args| {
+            let (keychain_name, key_id) = args.list_entry.into_key().unwrap();
+            let keychain = master.keychains.get_mut(&keychain_name).unwrap();
+            let key = keychain.keys.get_mut(&key_id).unwrap();
+
+            let date_time = args.dnode.get_string();
+            let date_time = DateTime::<FixedOffset>::parse_from_rfc3339(&date_time).unwrap();
+            key.send_lifetime.end = Some(date_time);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::KeychainChange(keychain.name.clone()));
+        })
+        .delete_apply(|_master, _args| {
+            // Nothing to do.
+        })
+        .path(key_chains::key_chain::key::lifetime::accept_lifetime::always::PATH)
+        .create_apply(|master, args| {
+            let (keychain_name, key_id) = args.list_entry.into_key().unwrap();
+            let keychain = master.keychains.get_mut(&keychain_name).unwrap();
+            let key = keychain.keys.get_mut(&key_id).unwrap();
+
+            key.accept_lifetime.start = None;
+            key.accept_lifetime.end = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::KeychainChange(keychain.name.clone()));
+        })
+        .delete_apply(|_master, _args| {
+            // Nothing to do.
+        })
+        .path(key_chains::key_chain::key::lifetime::accept_lifetime::start_date_time::PATH)
+        .modify_apply(|master, args| {
+            let (keychain_name, key_id) = args.list_entry.into_key().unwrap();
+            let keychain = master.keychains.get_mut(&keychain_name).unwrap();
+            let key = keychain.keys.get_mut(&key_id).unwrap();
+
+            let date_time = args.dnode.get_string();
+            let date_time = DateTime::<FixedOffset>::parse_from_rfc3339(&date_time).unwrap();
+            key.accept_lifetime.start = Some(date_time);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::KeychainChange(keychain.name.clone()));
+        })
+        .delete_apply(|_master, _args| {
+            // Nothing to do.
+        })
+        .path(key_chains::key_chain::key::lifetime::accept_lifetime::no_end_time::PATH)
+        .create_apply(|master, args| {
+            let (keychain_name, key_id) = args.list_entry.into_key().unwrap();
+            let keychain = master.keychains.get_mut(&keychain_name).unwrap();
+            let key = keychain.keys.get_mut(&key_id).unwrap();
+
+            key.accept_lifetime.end = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::KeychainChange(keychain.name.clone()));
+        })
+        .delete_apply(|_master, _args| {
+            // Nothing to do.
+        })
+        .path(key_chains::key_chain::key::lifetime::accept_lifetime::duration::PATH)
+        .modify_apply(|master, args| {
+            let (keychain_name, key_id) = args.list_entry.into_key().unwrap();
+            let keychain = master.keychains.get_mut(&keychain_name).unwrap();
+            let key = keychain.keys.get_mut(&key_id).unwrap();
+
+            let seconds  = args.dnode.get_u32();
+            let duration = Duration::from_secs(seconds as u64);
+            let duration = chrono::Duration::from_std(duration).unwrap();
+            if let Some(start) = key.accept_lifetime.start {
+                key.accept_lifetime.end = Some(start + duration);
+            }
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::KeychainChange(keychain.name.clone()));
+        })
+        .delete_apply(|_master, _args| {
+            // Nothing to do.
+        })
+        .path(key_chains::key_chain::key::lifetime::accept_lifetime::end_date_time::PATH)
+        .modify_apply(|master, args| {
+            let (keychain_name, key_id) = args.list_entry.into_key().unwrap();
+            let keychain = master.keychains.get_mut(&keychain_name).unwrap();
+            let key = keychain.keys.get_mut(&key_id).unwrap();
+
+            let date_time = args.dnode.get_string();
+            let date_time = DateTime::<FixedOffset>::parse_from_rfc3339(&date_time).unwrap();
+            key.accept_lifetime.end = Some(date_time);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::KeychainChange(keychain.name.clone()));
+        })
+        .delete_apply(|_master, _args| {
+            // Nothing to do.
+        })
         .path(key_chains::key_chain::key::crypto_algorithm::PATH)
         .modify_apply(|master, args| {
             let (keychain_name, key_id) = args.list_entry.into_key().unwrap();

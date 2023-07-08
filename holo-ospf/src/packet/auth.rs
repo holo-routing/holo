@@ -18,7 +18,6 @@ use hmac::digest::{HashMarker, Mac, OutputSizeUser};
 use hmac::Hmac;
 use holo_utils::crypto::{CryptoAlgo, CryptoProtocolId};
 use holo_utils::ip::{Ipv4AddrExt, Ipv6AddrExt};
-use serde::{Deserialize, Serialize};
 use sha1::Sha1;
 use sha2::{Sha256, Sha384, Sha512};
 
@@ -36,7 +35,6 @@ pub static HMAC_APAD: Lazy<Vec<u8>> = Lazy::new(|| {
 });
 
 #[derive(Clone, Debug, new)]
-#[derive(Deserialize, Serialize)]
 pub struct AuthCtx {
     // Authentication key.
     pub key: String,

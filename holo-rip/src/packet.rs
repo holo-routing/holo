@@ -25,7 +25,6 @@ pub enum Command {
 }
 
 #[derive(Clone, Debug, new)]
-#[derive(Deserialize, Serialize)]
 pub struct AuthCtx {
     // Authentication key.
     pub key: String,

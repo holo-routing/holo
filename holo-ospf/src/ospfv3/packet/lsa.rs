@@ -262,6 +262,7 @@ pub struct ExtLsaSubTlvs {
 #[derive(Deserialize, Serialize)]
 pub struct PrefixSid {
     pub flags: PrefixSidFlags,
+    pub algo: IgpAlgoType,
     pub sid: Sid,
 }
 
@@ -1101,6 +1102,82 @@ impl LsaHdrVersion<Ospfv3> for LsaHdr {
 }
 
 // ===== impl LsaBody =====
+
+impl LsaBody {
+    pub(crate) fn as_std_router(&self) -> Option<&LsaRouter> {
+        self.as_router().filter(|lsa_body| !lsa_body.extended)
+    }
+
+    pub(crate) fn as_ext_router(&self) -> Option<&LsaRouter> {
+        self.as_router().filter(|lsa_body| lsa_body.extended)
+    }
+
+    pub(crate) fn as_std_network(&self) -> Option<&LsaNetwork> {
+        self.as_network().filter(|lsa_body| !lsa_body.extended)
+    }
+
+    pub(crate) fn as_ext_network(&self) -> Option<&LsaNetwork> {
+        self.as_network().filter(|lsa_body| lsa_body.extended)
+    }
+
+    pub(crate) fn as_std_inter_area_prefix(
+        &self,
+    ) -> Option<&LsaInterAreaPrefix> {
+        self.as_inter_area_prefix()
+            .filter(|lsa_body| !lsa_body.extended)
+    }
+
+    pub(crate) fn as_ext_inter_area_prefix(
+        &self,
+    ) -> Option<&LsaInterAreaPrefix> {
+        self.as_inter_area_prefix()
+            .filter(|lsa_body| lsa_body.extended)
+    }
+
+    pub(crate) fn as_std_inter_area_router(
+        &self,
+    ) -> Option<&LsaInterAreaRouter> {
+        self.as_inter_area_router()
+            .filter(|lsa_body| !lsa_body.extended)
+    }
+
+    pub(crate) fn as_ext_inter_area_router(
+        &self,
+    ) -> Option<&LsaInterAreaRouter> {
+        self.as_inter_area_router()
+            .filter(|lsa_body| lsa_body.extended)
+    }
+
+    pub(crate) fn as_std_as_external(&self) -> Option<&LsaAsExternal> {
+        self.as_as_external().filter(|lsa_body| !lsa_body.extended)
+    }
+
+    pub(crate) fn as_ext_as_external(&self) -> Option<&LsaAsExternal> {
+        self.as_as_external().filter(|lsa_body| lsa_body.extended)
+    }
+
+    pub(crate) fn as_std_link(&self) -> Option<&LsaLink> {
+        self.as_link().filter(|lsa_body| !lsa_body.extended)
+    }
+
+    pub(crate) fn as_ext_link(&self) -> Option<&LsaLink> {
+        self.as_link().filter(|lsa_body| lsa_body.extended)
+    }
+
+    pub(crate) fn as_std_intra_area_prefix(
+        &self,
+    ) -> Option<&LsaIntraAreaPrefix> {
+        self.as_intra_area_prefix()
+            .filter(|lsa_body| !lsa_body.extended)
+    }
+
+    pub(crate) fn as_ext_intra_area_prefix(
+        &self,
+    ) -> Option<&LsaIntraAreaPrefix> {
+        self.as_intra_area_prefix()
+            .filter(|lsa_body| lsa_body.extended)
+    }
+}
 
 impl LsaBodyVersion<Ospfv3> for LsaBody {
     fn decode(
@@ -2506,7 +2583,7 @@ impl ExtLsaSubTlvs {
                         continue;
                     };
 
-                    let prefix_sid = PrefixSid::new(flags, sid);
+                    let prefix_sid = PrefixSid::new(flags, algo, sid);
                     // TODO: in case there are multiple Prefix-SIDs for the same
                     // algorithm, all of them need to be ignored.
                     stlvs.prefix_sids.insert(algo, prefix_sid);

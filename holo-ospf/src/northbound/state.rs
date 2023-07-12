@@ -72,7 +72,10 @@ pub enum ListEntry<'a, V: Version> {
     // OSPFv3
     Ospfv3RouterLsaLink(&'a ospfv3::packet::lsa::LsaRouterLink),
     Ospfv3LinkLsaPrefix(&'a ospfv3::packet::lsa::LsaLinkPrefix),
+    Ospfv3AdjSid(&'a ospfv3::packet::lsa::AdjSid),
     Ospfv3IntraAreaLsaPrefix(&'a ospfv3::packet::lsa::LsaIntraAreaPrefixEntry),
+    Ospfv3PrefixSid(&'a ospfv3::packet::lsa::PrefixSid),
+    Ospfv3LinkLocalAddr(&'a IpAddr),
 }
 
 // ===== callbacks =====
@@ -2292,7 +2295,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             Some(*flag)
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::maximum_sid_depth_tlv::msd_type::PATH)
-        .get_iterate(|_context, args| {
+        .get_iterate(|_instance, args| {
             let lse: &LsaEntry<Ospfv2> =
                 args.parent_list_entry.as_interface_lsa().unwrap();
             let lsa = &lse.data;
@@ -2309,12 +2312,12 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             }
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::maximum_sid_depth_tlv::msd_type::msd_type::PATH)
-        .get_element_u8(|_context, args| {
+        .get_element_u8(|_instance, args| {
             let (msd_type, _) = args.list_entry.as_msd().unwrap();
             Some(*msd_type)
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::maximum_sid_depth_tlv::msd_type::msd_value::PATH)
-        .get_element_u8(|_context, args| {
+        .get_element_u8(|_instance, args| {
             let (_, msd_value) = args.list_entry.as_msd().unwrap();
             Some(*msd_value)
         })
@@ -2630,21 +2633,21 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_element_u32(|_instance, args| {
             let lse = args.list_entry.as_as_lsa().unwrap();
             let lsa = &lse.data;
-            lsa.body.as_as_external().map(|lsa_body| lsa_body.metric)
+            lsa.body.as_std_as_external().map(|lsa_body| lsa_body.metric)
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::as_external::flags::PATH)
         .get_element_string(|_instance, args| {
             let lse = args.list_entry.as_as_lsa().unwrap();
             let lsa = &lse.data;
             lsa.body
-                .as_as_external()
+                .as_std_as_external()
                 .map(|lsa_body| lsa_body.flags.to_yang())
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::as_external::referenced_ls_type::PATH)
         .get_element_string(|_instance, args| {
             let lse: &LsaEntry<Ospfv3> = args.list_entry.as_as_lsa().unwrap();
             let lsa = &lse.data;
-            lsa.body.as_as_external().and_then(|lsa_body| {
+            lsa.body.as_std_as_external().and_then(|lsa_body| {
                 lsa_body.ref_lsa_type.map(|lsa_type| lsa_type.to_yang())
             })
         })
@@ -2652,7 +2655,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_element_u16(|_instance, args| {
             let lse: &LsaEntry<Ospfv3> = args.list_entry.as_as_lsa().unwrap();
             let lsa = &lse.data;
-            lsa.body.as_as_external().and_then(|lsa_body| {
+            lsa.body.as_std_as_external().and_then(|lsa_body| {
                 lsa_body.ref_lsa_type.and_then(|ref_lsa_type| {
                     if ref_lsa_type.function_code().is_none() {
                         Some(ref_lsa_type.0)
@@ -2666,13 +2669,13 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_element_prefix(|_instance, args| {
             let lse = args.list_entry.as_as_lsa().unwrap();
             let lsa = &lse.data;
-            lsa.body.as_as_external().map(|lsa_body| lsa_body.prefix)
+            lsa.body.as_std_as_external().map(|lsa_body| lsa_body.prefix)
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::as_external::prefix_options::prefix_options::PATH)
         .get_iterate(|_instance, args| {
             let lse = args.parent_list_entry.as_as_lsa().unwrap();
             let lsa = &lse.data;
-            if let Some(lsa_body) = lsa.body.as_as_external() {
+            if let Some(lsa_body) = lsa.body.as_std_as_external() {
                 let options = lsa_body.prefix_options.to_yang_bits();
                 let iter = options.into_iter().map(ListEntry::Flag);
                 Some(Box::new(iter))
@@ -2688,7 +2691,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_element_ipv6(|_instance, args| {
             let lse = args.list_entry.as_as_lsa().unwrap();
             let lsa = &lse.data;
-            lsa.body.as_as_external().and_then(|lsa_body| {
+            lsa.body.as_std_as_external().and_then(|lsa_body| {
                 lsa_body.fwd_addr.map(|addr| match addr {
                     IpAddr::V4(addr) => addr.to_ipv6_mapped(),
                     IpAddr::V6(addr) => addr,
@@ -2699,13 +2702,13 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_element_u32(|_instance, args| {
             let lse = args.list_entry.as_as_lsa().unwrap();
             let lsa = &lse.data;
-            lsa.body.as_as_external().and_then(|lsa_body| lsa_body.tag)
+            lsa.body.as_std_as_external().and_then(|lsa_body| lsa_body.tag)
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::as_external::referenced_link_state_id::PATH)
         .get_element_u32(|_instance, args| {
             let lse = args.list_entry.as_as_lsa().unwrap();
             let lsa = &lse.data;
-            lsa.body.as_as_external().and_then(|lsa_body| {
+            lsa.body.as_std_as_external().and_then(|lsa_body| {
                 lsa_body.ref_lsa_id.map(|lsa_id| lsa_id.into())
             })
         })
@@ -2884,26 +2887,34 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             }
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> = args.parent_list_entry.as_as_lsa().unwrap();
+            let lsa = &lse.data;
+            if lsa.body.as_ext_as_external().is_some() {
+                let iter = std::iter::once(lse).map(ListEntry::AsLsa);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::unknown_tlv::r#type::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Some(tlv.tlv_type)
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::unknown_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Some(tlv.length)
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::unknown_tlv::value::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            let bytes =
+                tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":");
+            Some(bytes)
         })
-        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::external_prefix_tlv_length::PATH)
+        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::length::PATH)
         .get_element_u16(|_instance, _args| {
             // TODO: implement me!
             None
@@ -2918,23 +2929,32 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             None
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::metric::PATH)
-        .get_element_u32(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u32(|_instance, args| {
+            let lse = args.list_entry.as_as_lsa().unwrap();
+            let lsa = &lse.data;
+            lsa.body.as_ext_as_external().map(|lsa_body| lsa_body.metric)
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::prefix::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_prefix(|_instance, args| {
+            let lse = args.list_entry.as_as_lsa().unwrap();
+            let lsa = &lse.data;
+            lsa.body.as_ext_as_external().map(|lsa_body| lsa_body.prefix)
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::prefix_options::prefix_options::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let lse = args.parent_list_entry.as_as_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_ext_as_external() {
+                let options = lsa_body.prefix_options.to_yang_bits();
+                let iter = options.into_iter().map(ListEntry::Flag);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            let flag = args.list_entry.as_flag().unwrap();
+            Some(flag.to_string())
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::prefix_length::PATH)
         .get_element_u8(|_instance, _args| {
@@ -2946,22 +2966,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             // TODO: implement me!
             None
         })
-        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::unknown_sub_tlv::r#type::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
-        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::unknown_sub_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
-        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::unknown_sub_tlv::value::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
-        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::ipv6_fwd_addr_sub_tlv::ipv6_fwd_addr_sub_tlv_length::PATH)
+        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::ipv6_fwd_addr_sub_tlv::length::PATH)
         .get_element_u16(|_instance, _args| {
             // TODO: implement me!
             None
@@ -2971,7 +2976,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             // TODO: implement me!
             None
         })
-        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::ipv4_fwd_addr_sub_tlv::ipv4_fwd_addr_sub_tlv_length::PATH)
+        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::ipv4_fwd_addr_sub_tlv::length::PATH)
         .get_element_u16(|_instance, _args| {
             // TODO: implement me!
             None
@@ -2981,7 +2986,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             // TODO: implement me!
             None
         })
-        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::route_tag_sub_tlv::route_tag_sub_tlv_length::PATH)
+        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::route_tag_sub_tlv::length::PATH)
         .get_element_u16(|_instance, _args| {
             // TODO: implement me!
             None
@@ -2990,6 +2995,23 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_element_u32(|_instance, _args| {
             // TODO: implement me!
             None
+        })
+        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::unknown_sub_tlv::r#type::PATH)
+        .get_element_u16(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Some(tlv.tlv_type)
+        })
+        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::unknown_sub_tlv::length::PATH)
+        .get_element_u16(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Some(tlv.length)
+        })
+        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::unknown_sub_tlv::value::PATH)
+        .get_element_string(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            let bytes =
+                tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":");
+            Some(bytes)
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PATH)
         .get_iterate(|_instance, _args| {
@@ -3072,7 +3094,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let lse: &LsaEntry<Ospfv3> =
                 args.parent_list_entry.as_area_lsa().unwrap();
             let lsa = &lse.data;
-            if let Some(lsa_body) = lsa.body.as_router() {
+            if let Some(lsa_body) = lsa.body.as_std_router() {
                 let flags = lsa_body.flags.to_yang_bits();
                 let iter = flags.into_iter().map(ListEntry::Flag);
                 Some(Box::new(iter))
@@ -3089,7 +3111,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let lse: &LsaEntry<Ospfv3> =
                 args.parent_list_entry.as_area_lsa().unwrap();
             let lsa = &lse.data;
-            if let Some(lsa_body) = lsa.body.as_router() {
+            if let Some(lsa_body) = lsa.body.as_std_router() {
                 let options = lsa_body.options.to_yang_bits();
                 let iter = options.into_iter().map(ListEntry::Flag);
                 Some(Box::new(iter))
@@ -3106,7 +3128,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let lse: &LsaEntry<Ospfv3> =
                 args.parent_list_entry.as_area_lsa().unwrap();
             let lsa = &lse.data;
-            if let Some(lsa_body) = lsa.body.as_router() {
+            if let Some(lsa_body) = lsa.body.as_std_router() {
                 let iter =
                     lsa_body.links.iter().map(ListEntry::Ospfv3RouterLsaLink);
                 Some(Box::new(iter))
@@ -3144,7 +3166,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let lse: &LsaEntry<Ospfv3> =
                 args.parent_list_entry.as_area_lsa().unwrap();
             let lsa = &lse.data;
-            if let Some(lsa_body) = lsa.body.as_network() {
+            if let Some(lsa_body) = lsa.body.as_std_network() {
                 let options = lsa_body.options.to_yang_bits();
                 let iter = options.into_iter().map(ListEntry::Flag);
                 Some(Box::new(iter))
@@ -3161,7 +3183,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let lse: &LsaEntry<Ospfv3> =
                 args.parent_list_entry.as_area_lsa().unwrap();
             let lsa = &lse.data;
-            if let Some(lsa_body) = lsa.body.as_network() {
+            if let Some(lsa_body) = lsa.body.as_std_network() {
                 let iter = lsa_body
                     .attached_rtrs
                     .iter()
@@ -3182,7 +3204,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let lse: &LsaEntry<Ospfv3> = args.list_entry.as_area_lsa().unwrap();
             let lsa = &lse.data;
             lsa.body
-                .as_inter_area_prefix()
+                .as_std_inter_area_prefix()
                 .map(|lsa_body| lsa_body.metric)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::inter_area_prefix::prefix::PATH)
@@ -3190,7 +3212,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let lse: &LsaEntry<Ospfv3> = args.list_entry.as_area_lsa().unwrap();
             let lsa = &lse.data;
             lsa.body
-                .as_inter_area_prefix()
+                .as_std_inter_area_prefix()
                 .map(|lsa_body| lsa_body.prefix)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::inter_area_prefix::prefix_options::prefix_options::PATH)
@@ -3198,7 +3220,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let lse: &LsaEntry<Ospfv3> =
                 args.parent_list_entry.as_area_lsa().unwrap();
             let lsa = &lse.data;
-            if let Some(lsa_body) = lsa.body.as_inter_area_prefix() {
+            if let Some(lsa_body) = lsa.body.as_std_inter_area_prefix() {
                 let options = lsa_body.prefix_options.to_yang_bits();
                 let iter = options.into_iter().map(ListEntry::Flag);
                 Some(Box::new(iter))
@@ -3215,7 +3237,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let lse: &LsaEntry<Ospfv3> =
                 args.parent_list_entry.as_area_lsa().unwrap();
             let lsa = &lse.data;
-            if let Some(lsa_body) = lsa.body.as_inter_area_router() {
+            if let Some(lsa_body) = lsa.body.as_std_inter_area_router() {
                 let options = lsa_body.options.to_yang_bits();
                 let iter = options.into_iter().map(ListEntry::Flag);
                 Some(Box::new(iter))
@@ -3232,7 +3254,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let lse: &LsaEntry<Ospfv3> = args.list_entry.as_area_lsa().unwrap();
             let lsa = &lse.data;
             lsa.body
-                .as_inter_area_router()
+                .as_std_inter_area_router()
                 .map(|lsa_body| lsa_body.metric)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::inter_area_router::destination_router_id::PATH)
@@ -3240,7 +3262,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let lse: &LsaEntry<Ospfv3> = args.list_entry.as_area_lsa().unwrap();
             let lsa = &lse.data;
             lsa.body
-                .as_inter_area_router()
+                .as_std_inter_area_router()
                 .map(|lsa_body| lsa_body.router_id)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::as_external::metric::PATH)
@@ -3283,14 +3305,14 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let lse: &LsaEntry<Ospfv3> = args.list_entry.as_area_lsa().unwrap();
             let lsa = &lse.data;
             lsa.body
-                .as_intra_area_prefix()
+                .as_std_intra_area_prefix()
                 .map(|lsa_body| lsa_body.ref_lsa_type.to_yang())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::intra_area_prefix::unknown_referenced_ls_type::PATH)
         .get_element_u16(|_instance, args| {
             let lse: &LsaEntry<Ospfv3> = args.list_entry.as_area_lsa().unwrap();
             let lsa = &lse.data;
-            lsa.body.as_intra_area_prefix().and_then(|lsa_body| {
+            lsa.body.as_std_intra_area_prefix().and_then(|lsa_body| {
                 if lsa_body.ref_lsa_type.function_code().is_none() {
                     Some(lsa_body.ref_lsa_type.0)
                 } else {
@@ -3303,7 +3325,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let lse: &LsaEntry<Ospfv3> = args.list_entry.as_area_lsa().unwrap();
             let lsa = &lse.data;
             lsa.body
-                .as_intra_area_prefix()
+                .as_std_intra_area_prefix()
                 .map(|lsa_body| lsa_body.ref_lsa_id.into())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::intra_area_prefix::referenced_adv_router::PATH)
@@ -3311,7 +3333,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let lse: &LsaEntry<Ospfv3> = args.list_entry.as_area_lsa().unwrap();
             let lsa = &lse.data;
             lsa.body
-                .as_intra_area_prefix()
+                .as_std_intra_area_prefix()
                 .map(|lsa_body| lsa_body.ref_adv_rtr)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::intra_area_prefix::num_of_prefixes::PATH)
@@ -3319,7 +3341,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let lse: &LsaEntry<Ospfv3> = args.list_entry.as_area_lsa().unwrap();
             let lsa = &lse.data;
             lsa.body
-                .as_intra_area_prefix()
+                .as_std_intra_area_prefix()
                 .map(|lsa_body| lsa_body.prefixes.len() as _)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::intra_area_prefix::prefixes::prefix::PATH)
@@ -3327,7 +3349,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let lse: &LsaEntry<Ospfv3> =
                 args.parent_list_entry.as_area_lsa().unwrap();
             let lsa = &lse.data;
-            if let Some(lsa_body) = lsa.body.as_intra_area_prefix() {
+            if let Some(lsa_body) = lsa.body.as_std_intra_area_prefix() {
                 let iter = lsa_body
                     .prefixes
                     .iter()
@@ -3503,323 +3525,417 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             }
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::router_bits::rtr_lsa_bits::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> =
+                args.parent_list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_ext_router() {
+                let flags = lsa_body.flags.to_yang_bits();
+                let iter = flags.into_iter().map(ListEntry::Flag);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            let flag = args.list_entry.as_flag().unwrap();
+            Some(flag.to_string())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::lsa_options::lsa_options::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> =
+                args.parent_list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_ext_router() {
+                let options = lsa_body.options.to_yang_bits();
+                let iter = options.into_iter().map(ListEntry::Flag);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            let flag = args.list_entry.as_flag().unwrap();
+            Some(flag.to_string())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> =
+                args.parent_list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_ext_router() {
+                let iter =
+                    lsa_body.links.iter().map(ListEntry::Ospfv3RouterLsaLink);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::unknown_tlv::r#type::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            args.list_entry.as_unknown_tlv().map(|tlv| tlv.tlv_type)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::unknown_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            args.list_entry.as_unknown_tlv().map(|tlv| tlv.length)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::unknown_tlv::value::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            args.list_entry.as_unknown_tlv().map(|tlv| {
+                tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":")
+            })
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::link_tlv_length::PATH)
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::length::PATH)
         .get_element_u16(|_instance, _args| {
             // TODO: implement me!
             None
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::interface_id::PATH)
-        .get_element_u32(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u32(|_instance, args| {
+            let rtr_link = args.list_entry.as_ospfv3_router_lsa_link().unwrap();
+            Some(rtr_link.iface_id)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::neighbor_interface_id::PATH)
-        .get_element_u32(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u32(|_instance, args| {
+            let rtr_link = args.list_entry.as_ospfv3_router_lsa_link().unwrap();
+            Some(rtr_link.nbr_iface_id)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::neighbor_router_id::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_ipv4(|_instance, args| {
+            let rtr_link = args.list_entry.as_ospfv3_router_lsa_link().unwrap();
+            Some(rtr_link.nbr_router_id)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::r#type::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            let rtr_link = args.list_entry.as_ospfv3_router_lsa_link().unwrap();
+            Some(rtr_link.link_type.to_yang())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::metric::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            let rtr_link = args.list_entry.as_ospfv3_router_lsa_link().unwrap();
+            Some(rtr_link.metric)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::sub_tlvs::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let tlv = args.parent_list_entry.as_ospfv3_router_lsa_link().unwrap();
+            let iter = tlv
+                .unknown_stlvs
+                .iter()
+                .map(ListEntry::UnknownTlv);
+            Some(Box::new(iter))
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::sub_tlvs::unknown_sub_tlv::r#type::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Some(tlv.tlv_type)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::sub_tlvs::unknown_sub_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Some(tlv.length)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::sub_tlvs::unknown_sub_tlv::value::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            let bytes =
+                tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":");
+            Some(bytes)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::adj_sid_sub_tlvs::adj_sid_sub_tlv::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let rtr_link = args.parent_list_entry.as_ospfv3_router_lsa_link().unwrap();
+            let iter = rtr_link
+                .adj_sids
+                .iter()
+                .filter(|adj_sid| adj_sid.nbr_router_id.is_none())
+                .map(ListEntry::Ospfv3AdjSid);
+            Some(Box::new(iter))
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::adj_sid_sub_tlvs::adj_sid_sub_tlv::adj_sid_flags::bits::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let adj_sid = args.parent_list_entry.as_ospfv3_adj_sid().unwrap();
+            let flags = adj_sid.flags.to_yang_bits();
+            let iter = flags.into_iter().map(ListEntry::Flag);
+            Some(Box::new(iter))
         })
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            let flag = args.list_entry.as_flag().unwrap();
+            Some(flag.to_string())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::adj_sid_sub_tlvs::adj_sid_sub_tlv::weight::PATH)
-        .get_element_u8(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u8(|_instance, args| {
+            let adj_sid = args.list_entry.as_ospfv3_adj_sid().unwrap();
+            Some(adj_sid.weight)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::adj_sid_sub_tlvs::adj_sid_sub_tlv::sid::PATH)
-        .get_element_u32(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u32(|_instance, args| {
+            let adj_sid = args.list_entry.as_ospfv3_adj_sid().unwrap();
+            Some(adj_sid.sid.value())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let rtr_link = args.parent_list_entry.as_ospfv3_router_lsa_link().unwrap();
+            let iter = rtr_link
+                .adj_sids
+                .iter()
+                .filter(|adj_sid| adj_sid.nbr_router_id.is_some())
+                .map(ListEntry::Ospfv3AdjSid);
+            Some(Box::new(iter))
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::lan_adj_sid_flags::bits::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let adj_sid = args.parent_list_entry.as_ospfv3_adj_sid().unwrap();
+            let flags = adj_sid.flags.to_yang_bits();
+            let iter = flags.into_iter().map(ListEntry::Flag);
+            Some(Box::new(iter))
         })
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            let flag = args.list_entry.as_flag().unwrap();
+            Some(flag.to_string())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::weight::PATH)
-        .get_element_u8(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u8(|_instance, args| {
+            let adj_sid = args.list_entry.as_ospfv3_adj_sid().unwrap();
+            Some(adj_sid.weight)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::neighbor_router_id::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_ipv4(|_instance, args| {
+            let adj_sid = args.list_entry.as_ospfv3_adj_sid().unwrap();
+            Some(adj_sid.nbr_router_id.unwrap())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::sid::PATH)
-        .get_element_u32(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u32(|_instance, args| {
+            let adj_sid = args.list_entry.as_ospfv3_adj_sid().unwrap();
+            Some(adj_sid.sid.value())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_network::lsa_options::lsa_options::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> =
+                args.parent_list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_ext_network() {
+                let options = lsa_body.options.to_yang_bits();
+                let iter = options.into_iter().map(ListEntry::Flag);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            let flag = args.list_entry.as_flag().unwrap();
+            Some(flag.to_string())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_network::e_network_tlvs::PATH)
         .get_iterate(|_instance, _args| {
-            // TODO: implement me!
+            // Nothing to do.
             None
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_network::e_network_tlvs::unknown_tlv::r#type::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Some(tlv.tlv_type)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_network::e_network_tlvs::unknown_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Some(tlv.length)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_network::e_network_tlvs::unknown_tlv::value::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            let bytes =
+                tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":");
+            Some(bytes)
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_network::e_network_tlvs::attached_router_tlv::attached_router_tlv_length::PATH)
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_network::e_network_tlvs::attached_router_tlv::length::PATH)
         .get_element_u16(|_instance, _args| {
             // TODO: implement me!
             None
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_network::e_network_tlvs::attached_router_tlv::adjacent_neighbor_router_id::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> =
+                args.parent_list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_ext_network() {
+                let iter = lsa_body
+                    .attached_rtrs
+                    .iter()
+                    .copied()
+                    .map(ListEntry::NetworkLsaAttachedRtr);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_network::e_network_tlvs::attached_router_tlv::sub_tlvs::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_network::e_network_tlvs::attached_router_tlv::sub_tlvs::unknown_sub_tlv::r#type::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_network::e_network_tlvs::attached_router_tlv::sub_tlvs::unknown_sub_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_network::e_network_tlvs::attached_router_tlv::sub_tlvs::unknown_sub_tlv::value::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_ipv4(|_instance, args| {
+            let attached_rtr =
+                args.list_entry.as_network_lsa_attached_rtr().unwrap();
+            Some(*attached_rtr)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> = args.parent_list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            if lsa.body.as_ext_inter_area_prefix().is_some() {
+                let iter = std::iter::once(lse).map(ListEntry::AreaLsa);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::unknown_tlv::r#type::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            args.list_entry.as_unknown_tlv().map(|tlv| tlv.tlv_type)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::unknown_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            args.list_entry.as_unknown_tlv().map(|tlv| tlv.length)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::unknown_tlv::value::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            args.list_entry.as_unknown_tlv().map(|tlv| {
+                tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":")
+            })
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::inter_prefix_tlv_length::PATH)
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::length::PATH)
         .get_element_u16(|_instance, _args| {
             // TODO: implement me!
             None
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::metric::PATH)
-        .get_element_u32(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u32(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> = args.list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            lsa.body
+                .as_ext_inter_area_prefix()
+                .map(|lsa_body| lsa_body.metric)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::prefix::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_prefix(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> = args.list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            lsa.body
+                .as_ext_inter_area_prefix()
+                .map(|lsa_body| lsa_body.prefix)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::prefix_options::prefix_options::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> =
+                args.parent_list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_ext_inter_area_prefix() {
+                let options = lsa_body.prefix_options.to_yang_bits();
+                let iter = options.into_iter().map(ListEntry::Flag);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            let flag = args.list_entry.as_flag().unwrap();
+            Some(flag.to_string())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::prefix_length::PATH)
-        .get_element_u8(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u8(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> = args.list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            lsa.body
+                .as_ext_inter_area_prefix()
+                .map(|lsa_body| lsa_body.prefix.prefix())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::sub_tlvs::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> = args.parent_list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_ext_inter_area_router() {
+                let iter = lsa_body
+                    .unknown_stlvs
+                    .iter()
+                    .map(ListEntry::UnknownTlv);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::sub_tlvs::unknown_sub_tlv::r#type::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Some(tlv.tlv_type)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::sub_tlvs::unknown_sub_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Some(tlv.length)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::sub_tlvs::unknown_sub_tlv::value::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            let bytes =
+                tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":");
+            Some(bytes)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> = args.parent_list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_ext_inter_area_prefix() {
+                let iter = lsa_body
+                    .prefix_sids
+                    .values()
+                    .map(ListEntry::Ospfv3PrefixSid);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::bits::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let prefix_sid = args.parent_list_entry.as_ospfv3_prefix_sid().unwrap();
+            let flags = prefix_sid.flags.to_yang_bits();
+            let iter = flags.into_iter().map(ListEntry::Flag);
+            Some(Box::new(iter))
         })
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            let flag = args.list_entry.as_flag().unwrap();
+            Some(flag.to_string())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::algorithm::PATH)
-        .get_element_u8(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u8(|_instance, args| {
+            let prefix_sid = args.list_entry.as_ospfv3_prefix_sid().unwrap();
+            Some(prefix_sid.algo as u8)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::sid::PATH)
-        .get_element_u32(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u32(|_instance, args| {
+            let prefix_sid = args.list_entry.as_ospfv3_prefix_sid().unwrap();
+            Some(prefix_sid.sid.value())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> = args.parent_list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            if lsa.body.as_ext_inter_area_router().is_some() {
+                let iter = std::iter::once(lse).map(ListEntry::AreaLsa);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::unknown_tlv::r#type::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            args.list_entry.as_unknown_tlv().map(|tlv| tlv.tlv_type)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::unknown_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            args.list_entry.as_unknown_tlv().map(|tlv| tlv.length)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::unknown_tlv::value::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            args.list_entry.as_unknown_tlv().map(|tlv| {
+                tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":")
+            })
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::inter_router_tlv::inter_router_tlv_length::PATH)
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::inter_router_tlv::length::PATH)
         .get_element_u16(|_instance, _args| {
             // TODO: implement me!
             None
@@ -3834,102 +3950,152 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             None
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::inter_router_tlv::lsa_options::lsa_options::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> =
+                args.parent_list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_ext_inter_area_router() {
+                let options = lsa_body.options.to_yang_bits();
+                let iter = options.into_iter().map(ListEntry::Flag);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            let flag = args.list_entry.as_flag().unwrap();
+            Some(flag.to_string())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::inter_router_tlv::metric::PATH)
-        .get_element_u32(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u32(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> = args.list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            lsa.body
+                .as_ext_inter_area_router()
+                .map(|lsa_body| lsa_body.metric)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::inter_router_tlv::destination_router_id::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_ipv4(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> = args.list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            lsa.body
+                .as_ext_inter_area_router()
+                .map(|lsa_body| lsa_body.router_id)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::inter_router_tlv::sub_tlvs::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> = args.parent_list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_ext_inter_area_router() {
+                let iter = lsa_body
+                    .unknown_stlvs
+                    .iter()
+                    .map(ListEntry::UnknownTlv);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::inter_router_tlv::sub_tlvs::unknown_sub_tlv::r#type::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Some(tlv.tlv_type)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::inter_router_tlv::sub_tlvs::unknown_sub_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Some(tlv.length)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::inter_router_tlv::sub_tlvs::unknown_sub_tlv::value::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            let bytes =
+                tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":");
+            Some(bytes)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::referenced_ls_type::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> = args.list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            lsa.body
+                .as_ext_intra_area_prefix()
+                .map(|lsa_body| lsa_body.ref_lsa_type.into())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::referenced_link_state_id::PATH)
-        .get_element_u32(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u32(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> = args.list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            lsa.body
+                .as_ext_intra_area_prefix()
+                .map(|lsa_body| lsa_body.ref_lsa_id.into())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::referenced_adv_router::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_ipv4(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> = args.list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            lsa.body
+                .as_ext_intra_area_prefix()
+                .map(|lsa_body| lsa_body.ref_lsa_id.into())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> =
+                args.parent_list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_ext_intra_area_prefix() {
+                let iter = lsa_body
+                    .prefixes
+                    .iter()
+                    .map(ListEntry::Ospfv3IntraAreaLsaPrefix);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::unknown_tlv::r#type::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            args.list_entry.as_unknown_tlv().map(|tlv| tlv.tlv_type)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::unknown_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            args.list_entry.as_unknown_tlv().map(|tlv| tlv.length)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::unknown_tlv::value::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            args.list_entry.as_unknown_tlv().map(|tlv| {
+                tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":")
+            })
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::intra_prefix_tlv_length::PATH)
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::length::PATH)
         .get_element_u16(|_instance, _args| {
             // TODO: implement me!
             None
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::metric::PATH)
-        .get_element_u32(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u32(|_instance, args| {
+            let prefix =
+                args.list_entry.as_ospfv3_intra_area_lsa_prefix().unwrap();
+            Some(prefix.metric as u32)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::prefix::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_prefix(|_instance, args| {
+            let prefix =
+                args.list_entry.as_ospfv3_intra_area_lsa_prefix().unwrap();
+            Some(prefix.value)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::prefix_options::prefix_options::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let prefix = args
+                .parent_list_entry
+                .as_ospfv3_intra_area_lsa_prefix()
+                .unwrap();
+            let options = prefix.options.to_yang_bits();
+            let iter = options.into_iter().map(ListEntry::Flag);
+            Some(Box::new(iter))
         })
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            let flag = args.list_entry.as_flag().unwrap();
+            Some(flag.to_string())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::prefix_length::PATH)
         .get_element_u8(|_instance, _args| {
@@ -3937,78 +4103,72 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             None
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let prefix = args
+                .parent_list_entry
+                .as_ospfv3_intra_area_lsa_prefix()
+                .unwrap();
+            let iter = prefix
+                .unknown_stlvs
+                .iter()
+                .map(ListEntry::UnknownTlv);
+            Some(Box::new(iter))
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::unknown_sub_tlv::r#type::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Some(tlv.tlv_type)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::unknown_sub_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Some(tlv.length)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::unknown_sub_tlv::value::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            let bytes =
+                tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":");
+            Some(bytes)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let prefix = args
+                .parent_list_entry
+                .as_ospfv3_intra_area_lsa_prefix()
+                .unwrap();
+            let iter = prefix
+                .prefix_sids
+                .values()
+                .map(ListEntry::Ospfv3PrefixSid);
+            Some(Box::new(iter))
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::bits::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let prefix_sid = args.parent_list_entry.as_ospfv3_prefix_sid().unwrap();
+            let flags = prefix_sid.flags.to_yang_bits();
+            let iter = flags.into_iter().map(ListEntry::Flag);
+            Some(Box::new(iter))
         })
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            let flag = args.list_entry.as_flag().unwrap();
+            Some(flag.to_string())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::algorithm::PATH)
-        .get_element_u8(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u8(|_instance, args| {
+            let prefix_sid = args.list_entry.as_ospfv3_prefix_sid().unwrap();
+            Some(prefix_sid.algo as u8)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::sid::PATH)
-        .get_element_u32(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u32(|_instance, args| {
+            let prefix_sid = args.list_entry.as_ospfv3_prefix_sid().unwrap();
+            Some(prefix_sid.sid.value())
         })
         .path(ospf::areas::area::interfaces::interface::interface_id::PATH)
         .get_element_u16(|_instance, args| {
             let iface = args.list_entry.as_interface().unwrap();
             // NOTE: YANG module needs fixing (s/u16/u32).
             iface.system.ifindex.map(|ifindex| ifindex as _)
-        })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::bits::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::algorithm::PATH)
-        .get_element_u8(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::sid::PATH)
-        .get_element_u32(|_instance, _args| {
-            // TODO: implement me!
-            None
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::header::lsa_id::PATH)
         .get_element_u32(|_instance, args| {
@@ -4132,14 +4292,14 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let lse: &LsaEntry<Ospfv3> =
                 args.list_entry.as_interface_lsa().unwrap();
             let lsa = &lse.data;
-            lsa.body.as_link().map(|lsa_body| lsa_body.priority)
+            lsa.body.as_std_link().map(|lsa_body| lsa_body.priority)
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::link::lsa_options::lsa_options::PATH)
         .get_iterate(|_instance, args| {
             let lse: &LsaEntry<Ospfv3> =
                 args.parent_list_entry.as_interface_lsa().unwrap();
             let lsa = &lse.data;
-            if let Some(lsa_body) = lsa.body.as_link() {
+            if let Some(lsa_body) = lsa.body.as_std_link() {
                 let options = lsa_body.options.to_yang_bits();
                 let iter = options.into_iter().map(ListEntry::Flag);
                 Some(Box::new(iter))
@@ -4156,7 +4316,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let lse: &LsaEntry<Ospfv3> =
                 args.list_entry.as_interface_lsa().unwrap();
             let lsa = &lse.data;
-            lsa.body.as_link().map(|lsa_body| match lsa_body.linklocal {
+            lsa.body.as_std_link().map(|lsa_body| match lsa_body.linklocal {
                 IpAddr::V4(addr) => addr.to_ipv6_mapped(),
                 IpAddr::V6(addr) => addr,
             })
@@ -4167,7 +4327,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
                 args.list_entry.as_interface_lsa().unwrap();
             let lsa = &lse.data;
             lsa.body
-                .as_link()
+                .as_std_link()
                 .map(|lsa_body| lsa_body.prefixes.len() as _)
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::link::prefixes::prefix::PATH)
@@ -4175,7 +4335,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let lse: &LsaEntry<Ospfv3> =
                 args.parent_list_entry.as_interface_lsa().unwrap();
             let lsa = &lse.data;
-            if let Some(lsa_body) = lsa.body.as_link() {
+            if let Some(lsa_body) = lsa.body.as_std_link() {
                 let iter = lsa_body
                     .prefixes
                     .iter()
@@ -4362,40 +4522,61 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             }
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::rtr_priority::PATH)
-        .get_element_u8(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u8(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> =
+                args.list_entry.as_interface_lsa().unwrap();
+            let lsa = &lse.data;
+            lsa.body.as_ext_link().map(|lsa_body| lsa_body.priority)
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::lsa_options::lsa_options::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> =
+                args.parent_list_entry.as_interface_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_ext_link() {
+                let options = lsa_body.options.to_yang_bits();
+                let iter = options.into_iter().map(ListEntry::Flag);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            let flag = args.list_entry.as_flag().unwrap();
+            Some(flag.to_string())
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> =
+                args.parent_list_entry.as_interface_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_ext_link() {
+                let iter_prefixes = lsa_body
+                    .prefixes
+                    .iter()
+                    .map(ListEntry::Ospfv3LinkLsaPrefix);
+                let iter_linklocal = std::iter::once(&lsa_body.linklocal)
+                    .map(ListEntry::Ospfv3LinkLocalAddr);
+                Some(Box::new(iter_prefixes.chain(iter_linklocal)))
+            } else {
+                None
+            }
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::unknown_tlv::r#type::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            args.list_entry.as_unknown_tlv().map(|tlv| tlv.tlv_type)
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::unknown_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            args.list_entry.as_unknown_tlv().map(|tlv| tlv.length)
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::unknown_tlv::value::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            args.list_entry.as_unknown_tlv().map(|tlv| {
+                tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":")
+            })
         })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::intra_prefix_tlv_length::PATH)
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::length::PATH)
         .get_element_u16(|_instance, _args| {
             // TODO: implement me!
             None
@@ -4406,18 +4587,26 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             None
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::prefix::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_prefix(|_instance, args| {
+            args.list_entry.as_ospfv3_link_lsa_prefix()
+                .map(|prefix| prefix.value)
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::prefix_options::prefix_options::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            if let Some(prefix) = args
+                .parent_list_entry
+                .as_ospfv3_link_lsa_prefix()
+            {
+                let options = prefix.options.to_yang_bits();
+                let iter = options.into_iter().map(ListEntry::Flag);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            let flag = args.list_entry.as_flag().unwrap();
+            Some(flag.to_string())
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::prefix_length::PATH)
         .get_element_u8(|_instance, _args| {
@@ -4425,34 +4614,75 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             None
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::sub_tlvs::PATH)
+        .get_iterate(|_instance, args| {
+            if let Some(prefix) = args
+                .parent_list_entry
+                .as_ospfv3_link_lsa_prefix()
+            {
+                let iter = prefix
+                    .unknown_stlvs
+                    .iter()
+                    .map(ListEntry::UnknownTlv);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
+        })
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::sub_tlvs::unknown_sub_tlv::r#type::PATH)
+        .get_element_u16(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Some(tlv.tlv_type)
+        })
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::sub_tlvs::unknown_sub_tlv::length::PATH)
+        .get_element_u16(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Some(tlv.length)
+        })
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::sub_tlvs::unknown_sub_tlv::value::PATH)
+        .get_element_string(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            let bytes =
+                tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":");
+            Some(bytes)
+        })
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PATH)
         .get_iterate(|_instance, _args| {
             // TODO: implement me!
             None
         })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::sub_tlvs::unknown_sub_tlv::r#type::PATH)
-        .get_element_u16(|_instance, _args| {
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::bits::PATH)
+        .get_iterate(|_instance, _args| {
             // TODO: implement me!
             None
         })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::sub_tlvs::unknown_sub_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::sub_tlvs::unknown_sub_tlv::value::PATH)
         .get_element_string(|_instance, _args| {
             // TODO: implement me!
             None
         })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv6_link_local_tlv::ipv6_link_local_tlv_length::PATH)
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::algorithm::PATH)
+        .get_element_u8(|_instance, _args| {
+            // TODO: implement me!
+            None
+        })
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::sid::PATH)
+        .get_element_u32(|_instance, _args| {
+            // TODO: implement me!
+            None
+        })
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv6_link_local_tlv::length::PATH)
         .get_element_u16(|_instance, _args| {
             // TODO: implement me!
             None
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv6_link_local_tlv::link_local_address::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_ipv6(|_instance, args| {
+            args.list_entry.as_ospfv3_link_local_addr().and_then(|addr| {
+                if let IpAddr::V6(addr) = addr {
+                    Some(*addr)
+                } else {
+                    None
+                }
+            })
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv6_link_local_tlv::sub_tlvs::PATH)
         .get_iterate(|_instance, _args| {
@@ -4460,29 +4690,36 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             None
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv6_link_local_tlv::sub_tlvs::unknown_sub_tlv::r#type::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Some(tlv.tlv_type)
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv6_link_local_tlv::sub_tlvs::unknown_sub_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Some(tlv.length)
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv6_link_local_tlv::sub_tlvs::unknown_sub_tlv::value::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            let bytes =
+                tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":");
+            Some(bytes)
         })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv4_link_local_tlv::ipv4_link_local_tlv_length::PATH)
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv4_link_local_tlv::length::PATH)
         .get_element_u16(|_instance, _args| {
             // TODO: implement me!
             None
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv4_link_local_tlv::link_local_address::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_ipv4(|_instance, args| {
+            args.list_entry.as_ospfv3_link_local_addr().and_then(|addr| {
+                if let IpAddr::V4(addr) = addr {
+                    Some(*addr)
+                } else {
+                    None
+                }
+            })
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv4_link_local_tlv::sub_tlvs::PATH)
         .get_iterate(|_instance, _args| {
@@ -4490,19 +4727,21 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             None
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv4_link_local_tlv::sub_tlvs::unknown_sub_tlv::r#type::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Some(tlv.tlv_type)
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv4_link_local_tlv::sub_tlvs::unknown_sub_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_u16(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Some(tlv.length)
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv4_link_local_tlv::sub_tlvs::unknown_sub_tlv::value::PATH)
-        .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_element_string(|_instance, args| {
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            let bytes =
+                tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":");
+            Some(bytes)
         })
         .build()
 }
@@ -4628,7 +4867,10 @@ where
             | ListEntry::Ospfv2PrefixSid(..)
             | ListEntry::Ospfv3RouterLsaLink(..)
             | ListEntry::Ospfv3LinkLsaPrefix(..)
-            | ListEntry::Ospfv3IntraAreaLsaPrefix(..) => {
+            | ListEntry::Ospfv3AdjSid(..)
+            | ListEntry::Ospfv3IntraAreaLsaPrefix(..)
+            | ListEntry::Ospfv3PrefixSid(..)
+            | ListEntry::Ospfv3LinkLocalAddr(..) => {
                 // Keyless lists.
                 None
             }

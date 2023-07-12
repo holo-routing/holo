@@ -804,10 +804,11 @@ fn lsa_orig_intra_area_prefix(
                     }
                     SidLastHopBehavior::Php => (),
                 }
+                let algo = IgpAlgoType::Spf;
                 let sid = Sid::Index(prefix_sid.index);
                 entry
                     .prefix_sids
-                    .insert(IgpAlgoType::Spf, PrefixSid::new(flags, sid));
+                    .insert(algo, PrefixSid::new(flags, algo, sid));
             }
         }
 

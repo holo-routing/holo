@@ -324,22 +324,6 @@ module ietf-ospfv3-sr {
       "OSPFv3 AS-Scoped E-AS-External LSA.";
   }
 
-  augment "/rt:routing/"
-    + "rt:control-plane-protocols/rt:control-plane-protocol/"
-    + "ospf:ospf/ospf:database/"
-    + "ospf:as-scope-lsa-type/ospf:as-scope-lsas/"
-    + "ospf:as-scope-lsa/ospf:version/ospf:ospfv3/"
-    + "ospf:ospfv3/ospf:body/ospfv3-e-lsa:e-nssa" {
-    when "'ospf:../../../../../../../../../"
-      + "rt:type' = 'ospf:ospfv3'" {
-      description
-        "This augmentation is only valid for OSPFv3.";
-    }
-    uses ospfv3-extended-prefix-range-tlvs;
-    description
-      "OSPFv3 AS-Scoped E-NSSA LSA.";
-  }
-
   /* Prefix SID Sub-TLV in Intra-Area Prefix TLV */
   augment "/rt:routing/"
     + "rt:control-plane-protocols/rt:control-plane-protocol/"
@@ -406,24 +390,6 @@ module ietf-ospfv3-sr {
     + "ospf:as-scope-lsa-type/ospf:as-scope-lsas/"
     + "ospf:as-scope-lsa/ospf:version/ospf:ospfv3/"
     + "ospf:ospfv3/ospf:body/ospfv3-e-lsa:e-as-external/"
-    + "ospfv3-e-lsa:e-external-tlvs/"
-    + "ospfv3-e-lsa:external-prefix-tlv" {
-    when "'ospf:../../../../../../../../../"
-      + "rt:type' = 'ospf:ospfv3'" {
-      description
-        "This augmentation is only valid for OSPFv3.";
-    }
-    uses ospfv3-prefix-sid-sub-tlvs;
-    description
-      "OSPFv3 AS-Scoped External Prefix TLV.";
-  }
-
-  augment "/rt:routing/"
-    + "rt:control-plane-protocols/rt:control-plane-protocol/"
-    + "ospf:ospf/ospf:database/"
-    + "ospf:as-scope-lsa-type/ospf:as-scope-lsas/"
-    + "ospf:as-scope-lsa/ospf:version/ospf:ospfv3/"
-    + "ospf:ospfv3/ospf:body/ospfv3-e-lsa:e-nssa/"
     + "ospfv3-e-lsa:e-external-tlvs/"
     + "ospfv3-e-lsa:external-prefix-tlv" {
     when "'ospf:../../../../../../../../../"

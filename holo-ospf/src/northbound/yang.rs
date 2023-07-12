@@ -176,19 +176,19 @@ impl ToYangBits for PrefixSidFlags {
         let mut flags = vec![];
 
         if self.contains(PrefixSidFlags::NP) {
-            flags.push("np-bit");
+            flags.push("ietf-ospf-sr:np-bit");
         }
         if self.contains(PrefixSidFlags::M) {
-            flags.push("m-bit");
+            flags.push("ietf-ospf-sr:m-bit");
         }
         if self.contains(PrefixSidFlags::E) {
-            flags.push("e-bit");
+            flags.push("ietf-ospf-sr:e-bit");
         }
         if self.contains(PrefixSidFlags::V) {
-            flags.push("v-bit");
+            flags.push("ietf-ospf-sr:v-bit");
         }
         if self.contains(PrefixSidFlags::L) {
-            flags.push("l-bit");
+            flags.push("ietf-ospf-sr:l-bit");
         }
 
         flags
@@ -200,19 +200,19 @@ impl ToYangBits for AdjSidFlags {
         let mut flags = vec![];
 
         if self.contains(AdjSidFlags::B) {
-            flags.push("b-bit");
+            flags.push("ietf-ospf-sr:b-bit");
         }
         if self.contains(AdjSidFlags::V) {
-            flags.push("vi-bit");
+            flags.push("ietf-ospf-sr:vi-bit");
         }
         if self.contains(AdjSidFlags::L) {
-            flags.push("lo-bit");
+            flags.push("ietf-ospf-sr:lo-bit");
         }
         if self.contains(AdjSidFlags::G) {
-            flags.push("g-bit");
+            flags.push("ietf-ospf-sr:g-bit");
         }
         if self.contains(AdjSidFlags::P) {
-            flags.push("p-bit");
+            flags.push("ietf-ospf-sr:p-bit");
         }
 
         flags
@@ -412,16 +412,16 @@ impl ToYangBits for ospfv3::packet::lsa::LsaRouterFlags {
 
         let mut flags = vec![];
         if self.contains(LsaRouterFlags::B) {
-            flags.push("abr-bit");
+            flags.push("ietf-ospf:abr-bit");
         }
         if self.contains(LsaRouterFlags::E) {
-            flags.push("asbr-bit");
+            flags.push("ietf-ospf:asbr-bit");
         }
         if self.contains(LsaRouterFlags::V) {
-            flags.push("vlink-end-bit");
+            flags.push("ietf-ospf:vlink-end-bit");
         }
         if self.contains(LsaRouterFlags::NT) {
-            flags.push("nssa-bit");
+            flags.push("ietf-ospf:nssa-bit");
         }
 
         flags
@@ -467,22 +467,22 @@ impl ToYangBits for ospfv3::packet::Options {
 
         let mut options = vec![];
         if self.contains(Options::V6) {
-            options.push("v6-bit");
+            options.push("ietf-ospf:v6-bit");
         }
         if self.contains(Options::E) {
-            options.push("e-bit");
+            options.push("ietf-ospf:e-bit");
         }
         if self.contains(Options::N) {
-            options.push("n-bit");
+            options.push("ietf-ospf:n-bit");
         }
         if self.contains(Options::R) {
-            options.push("r-bit");
+            options.push("ietf-ospf:r-bit");
         }
         if self.contains(Options::DC) {
-            options.push("dc-bit");
+            options.push("ietf-ospf:dc-bit");
         }
         if self.contains(Options::AF) {
-            options.push("af-bit");
+            options.push("ietf-ospf:af-bit");
         }
 
         options

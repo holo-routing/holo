@@ -1164,9 +1164,9 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
                 None
             }
         })
-        .get_element_u8(|_instance, args| {
+        .get_element_string(|_instance, args| {
             let algo = args.list_entry.as_sr_algo().unwrap();
-            Some(algo.to_u8().unwrap())
+            Some(algo.to_yang())
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::opaque::ri_opaque::sid_range_tlvs::sid_range_tlv::PATH)
         .get_iterate(|_instance, args| {
@@ -1731,9 +1731,9 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
                 None
             }
         })
-        .get_element_u8(|_instance, args| {
+        .get_element_string(|_instance, args| {
             let algo = args.list_entry.as_sr_algo().unwrap();
-            Some(algo.to_u8().unwrap())
+            Some(algo.to_yang())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::sid_range_tlvs::sid_range_tlv::PATH)
         .get_iterate(|_instance, args| {
@@ -1885,9 +1885,9 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             Some(0)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::extended_prefix_opaque::extended_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::algorithm::PATH)
-        .get_element_u8(|_instance, args| {
+        .get_element_string(|_instance, args| {
             let prefix_sid = args.list_entry.as_ospfv2_prefix_sid().unwrap();
-            Some(prefix_sid.algo as u8)
+            Some(prefix_sid.algo.to_yang())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::extended_prefix_opaque::extended_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::sid::PATH)
         .get_element_u32(|_instance, args| {
@@ -2369,9 +2369,9 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
                 None
             }
         })
-        .get_element_u8(|_instance, args| {
+        .get_element_string(|_instance, args| {
             let algo = args.list_entry.as_sr_algo().unwrap();
-            Some(algo.to_u8().unwrap())
+            Some(algo.to_yang())
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::sid_range_tlvs::sid_range_tlv::PATH)
         .get_iterate(|_instance, args| {
@@ -2828,9 +2828,9 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
                 None
             }
         })
-        .get_element_u8(|_instance, args| {
+        .get_element_string(|_instance, args| {
             let algo = args.list_entry.as_sr_algo().unwrap();
-            Some(algo.to_u8().unwrap())
+            Some(algo.to_yang())
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::router_information::sid_range_tlvs::sid_range_tlv::PATH)
         .get_iterate(|_instance, args| {
@@ -3466,9 +3466,9 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
                 None
             }
         })
-        .get_element_u8(|_instance, args| {
+        .get_element_string(|_instance, args| {
             let algo = args.list_entry.as_sr_algo().unwrap();
-            Some(algo.to_u8().unwrap())
+            Some(algo.to_yang())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::sid_range_tlvs::sid_range_tlv::PATH)
         .get_iterate(|_instance, args| {

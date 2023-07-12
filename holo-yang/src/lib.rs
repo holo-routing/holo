@@ -56,12 +56,10 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-netconf-acm@2018-02-14.yang"),
         EmbeddedModuleKey::new("ietf-ospf", Some("2022-10-19"), None, None) =>
             include_str!("../modules/ietf/ietf-ospf@2022-10-19.yang"),
-        EmbeddedModuleKey::new("ietf-ospf-sr", Some("2023-01-01"), None, None) =>
-            include_str!("../modules/ietf/ietf-ospf-sr@2023-01-01.yang"),
+        EmbeddedModuleKey::new("ietf-ospf-sr", Some("2023-07-09"), None, None) =>
+            include_str!("../modules/ietf/ietf-ospf-sr@2023-07-09.yang"),
         EmbeddedModuleKey::new("ietf-ospfv3-extended-lsa", Some("2023-06-29"), None, None) =>
             include_str!("../modules/ietf/ietf-ospfv3-extended-lsa@2023-06-29.yang"),
-        EmbeddedModuleKey::new("ietf-ospfv3-sr", Some("2022-10-21"), None, None) =>
-            include_str!("../modules/ietf/ietf-ospfv3-sr@2022-10-21.yang"),
         EmbeddedModuleKey::new("ietf-rip", Some("2020-02-20"), None, None) =>
             include_str!("../modules/ietf/ietf-rip@2020-02-20.yang"),
         EmbeddedModuleKey::new("ietf-routing", Some("2018-03-13"), None, None) =>
@@ -94,8 +92,6 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/deviations/ietf-ospf-sr-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-ospfv3-extended-lsa-holo-deviations", None, None, None) =>
             include_str!("../modules/deviations/ietf-ospfv3-extended-lsa-holo-deviations.yang"),
-        EmbeddedModuleKey::new("ietf-ospfv3-sr-holo-deviations", None, None, None) =>
-            include_str!("../modules/deviations/ietf-ospfv3-sr-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-rip-holo-deviations", None, None, None) =>
             include_str!("../modules/deviations/ietf-rip-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-routing-holo-deviations", None, None, None) =>
@@ -129,7 +125,6 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
             "ietf-ospf",
             "ietf-ospf-sr",
             "ietf-ospfv3-extended-lsa",
-            "ietf-ospfv3-sr",
             "ietf-rip",
             "holo-ospf",
             "holo-ospf-dev",

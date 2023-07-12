@@ -85,9 +85,13 @@ pub struct SrCfgLabelRange {
 impl ToYang for IgpAlgoType {
     fn to_yang(&self) -> String {
         match self {
-            IgpAlgoType::Spf => "prefix-sid-algorithm-shortest-path".to_owned(),
+            IgpAlgoType::Spf => {
+                "ietf-segment-routing-common:prefix-sid-algorithm-shortest-path"
+                    .to_owned()
+            }
             IgpAlgoType::StrictSpf => {
-                "prefix-sid-algorithm-strict-spf".to_owned()
+                "ietf-segment-routing-common:prefix-sid-algorithm-strict-spf"
+                    .to_owned()
             }
         }
     }

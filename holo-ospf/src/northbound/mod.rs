@@ -43,7 +43,6 @@ where
             "ietf-ospf",
             "ietf-ospf-sr",
             "ietf-ospfv3-extended-lsa",
-            "ietf-ospfv3-sr",
             "holo-ospf",
             "holo-ospf-dev",
         ]

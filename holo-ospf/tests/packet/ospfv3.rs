@@ -887,6 +887,7 @@ static EXT_INTRA_AREA_PREFIX_LSA1: Lazy<(Vec<u8>, Lsa<Ospfv3>)> =
                             IgpAlgoType::Spf => {
                                 PrefixSid {
                                     flags: PrefixSidFlags::empty(),
+                                    algo: IgpAlgoType::Spf,
                                     sid: Sid::Index(20),
                                 }
                             }

@@ -14,5 +14,4 @@ cargo run --bin yang_coverage --\
   -m ietf-ospf\
   -m ietf-ospf-sr\
   -m ietf-ospfv3-extended-lsa\
-  -m ietf-ospfv3-sr\
   -m ietf-rip

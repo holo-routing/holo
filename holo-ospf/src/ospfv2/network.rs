@@ -45,9 +45,11 @@ impl NetworkVersion<Self> for Ospfv2 {
                     Some(Protocol::from(OSPF_IP_PROTO)),
                 )
             })?;
+            capabilities::raise(|| {
+                socket.bind_device(Some(ifname.as_bytes()))
+            })?;
 
             socket.set_nonblocking(true)?;
-            socket.bind_device(Some(ifname.as_bytes()))?;
             socket.set_multicast_loop_v4(false)?;
             socket.set_multicast_ttl_v4(1)?;
             socket.set_ipv4_pktinfo(true)?;

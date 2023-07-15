@@ -62,7 +62,9 @@ pub(crate) fn interface_discovery_socket(
     {
         // Create and bind socket.
         let socket = UdpSocket::new(AddressFamily::Ipv4)?;
-        socket.bind_device(Some(iface.name.as_bytes()))?;
+        capabilities::raise(|| {
+            socket.bind_device(Some(iface.name.as_bytes()))
+        })?;
 
         // Set socket options.
         socket.set_multicast_loop_v4(false)?;

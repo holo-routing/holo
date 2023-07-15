@@ -45,9 +45,11 @@ impl NetworkVersion<Self> for Ospfv3 {
                     Some(Protocol::from(OSPF_IP_PROTO)),
                 )
             })?;
+            capabilities::raise(|| {
+                socket.bind_device(Some(ifname.as_bytes()))
+            })?;
 
             socket.set_nonblocking(true)?;
-            socket.bind_device(Some(ifname.as_bytes()))?;
             socket.set_multicast_loop_v6(false)?;
             // NOTE: IPV6_MULTICAST_HOPS is 1 by default.
             socket.set_ipv6_pktinfo(true)?;

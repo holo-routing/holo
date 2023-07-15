@@ -427,6 +427,9 @@ impl From<northbound::Error> for Status {
             northbound::Error::TransactionIdNotFound(..) => {
                 Status::invalid_argument(error.to_string())
             }
+            northbound::Error::Get(..) => {
+                Status::invalid_argument(error.to_string())
+            }
         }
     }
 }

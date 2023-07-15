@@ -550,7 +550,7 @@ impl Northbound {
             daemon_tx.send(request).await.unwrap();
 
             // Receive response.
-            let response = responder_rx.await.unwrap().unwrap();
+            let response = responder_rx.await.unwrap().map_err(Error::Get)?;
 
             // Combine all responses into a single data tree.
             dtree.merge(&response.data).map_err(Error::YangInternal)?;

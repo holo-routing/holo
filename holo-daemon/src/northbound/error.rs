@@ -22,6 +22,7 @@ pub enum Error {
     TransactionValidation(northbound::error::Error),
     TransactionPreparation(northbound::error::Error),
     TransactionIdNotFound(u32),
+    Get(northbound::error::Error),
 }
 
 // ===== impl Error =====
@@ -46,6 +47,9 @@ impl std::fmt::Display for Error {
             }
             Error::TransactionIdNotFound(id) => {
                 write!(f, "Transaction ID not found: {}", id)
+            }
+            Error::Get(err) => {
+                write!(f, "Failed to get operational data: {}", err)
             }
         }
     }

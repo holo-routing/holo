@@ -286,7 +286,7 @@ impl SpfVersion<Self> for Ospfv2 {
                                         }),
                                 );
                             }
-                            _ => unreachable!(),
+                            _ => {}
                         }
                         if nexthops.is_empty() {
                             return Err(Error::SpfNexthopCalcError(dest_id));

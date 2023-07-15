@@ -134,7 +134,7 @@ impl NetworkVersion<Self> for Ospfv2 {
     fn get_cmsg_data(mut cmsgs: socket::CmsgIterator<'_>) -> Option<Ipv4Addr> {
         cmsgs.find_map(|cmsg| {
             if let socket::ControlMessageOwned::Ipv4PacketInfo(pktinfo) = cmsg {
-                let dst = Ipv4Addr::from(pktinfo.ipi_spec_dst.s_addr.to_be());
+                let dst = Ipv4Addr::from(pktinfo.ipi_addr.s_addr.to_be());
                 Some(dst)
             } else {
                 None

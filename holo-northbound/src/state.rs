@@ -15,9 +15,9 @@ use holo_yang::{YangPath, YANG_CTX};
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
-use yang2::data::DataTree;
+use yang2::data::{DataNodeRef, DataTree};
 use yang2::schema::{
-    DataValueType, SchemaNode, SchemaNodeKind, SchemaPathFormat,
+    DataValueType, SchemaModule, SchemaNode, SchemaNodeKind, SchemaPathFormat,
 };
 
 use crate::debug::Debug;
@@ -171,7 +171,7 @@ where
     fn get_iterate(
         &self,
         key: &CallbackKey,
-        attr_filter: &Option<NodeAttributes>,
+        attr_filter: Option<&NodeAttributes>,
     ) -> Option<&GetIterateCb<P>> {
         let node = self.0.get(key)?;
 
@@ -188,7 +188,7 @@ where
     fn get_element(
         &self,
         key: &CallbackKey,
-        attr_filter: &Option<NodeAttributes>,
+        attr_filter: Option<&NodeAttributes>,
     ) -> Option<&GetElementCb<P>> {
         let node = self.0.get(key)?;
 
@@ -591,7 +591,7 @@ where
 fn iterate_node<'a, P>(
     provider: &'a P,
     cbs: &Callbacks<P>,
-    attr_filter: &Option<NodeAttributes>,
+    attr_filter: Option<&NodeAttributes>,
     dtree: &mut DataTree,
     snode: &SchemaNode<'_>,
     parent_path: &str,
@@ -681,7 +681,7 @@ where
 fn iterate_leaf<'a, P>(
     provider: &'a P,
     cbs: &Callbacks<P>,
-    attr_filter: &Option<NodeAttributes>,
+    attr_filter: Option<&NodeAttributes>,
     dtree: &mut DataTree,
     snode: &SchemaNode<'_>,
     path: &str,
@@ -720,7 +720,7 @@ where
 fn iterate_list<'a, P>(
     provider: &'a P,
     cbs: &Callbacks<P>,
-    attr_filter: &Option<NodeAttributes>,
+    attr_filter: Option<&NodeAttributes>,
     dtree: &mut DataTree,
     snode: &SchemaNode<'_>,
     path: &str,
@@ -763,7 +763,7 @@ where
 fn iterate_list_entry<'a, P>(
     provider: &'a P,
     cbs: &Callbacks<P>,
-    attr_filter: &Option<NodeAttributes>,
+    attr_filter: Option<&NodeAttributes>,
     dtree: &mut DataTree,
     snode: &SchemaNode<'_>,
     path: &str,
@@ -824,7 +824,7 @@ where
 fn iterate_container<'a, P>(
     provider: &'a P,
     cbs: &Callbacks<P>,
-    attr_filter: &Option<NodeAttributes>,
+    attr_filter: Option<&NodeAttributes>,
     dtree: &mut DataTree,
     snode: &SchemaNode<'_>,
     path: &str,
@@ -868,7 +868,7 @@ where
 fn iterate_children<'a, P>(
     provider: &'a P,
     cbs: &Callbacks<P>,
-    attr_filter: &Option<NodeAttributes>,
+    attr_filter: Option<&NodeAttributes>,
     dtree: &mut DataTree,
     snode: &SchemaNode<'_>,
     path: &str,
@@ -879,26 +879,19 @@ where
     P: Provider,
 {
     for snode in snode.children() {
-        let module = snode.module();
-        let module_name = module.name();
-
         // Check if the provider implements the child node.
-        if !P::yang_modules()
-            .iter()
-            .any(|module| *module == module_name)
-        {
+        let module = snode.module();
+        if !is_module_implemented::<P>(&module) {
             if let Some(child_nb_tx) = list_entry.child_task() {
-                let (responder_tx, responder_rx) = oneshot::channel();
-
                 // Prepare request to child task.
-                let path = format!("{}/{}:{}", path, module_name, snode.name());
+                let (responder_tx, responder_rx) = oneshot::channel();
+                let path =
+                    format!("{}/{}:{}", path, module.name(), snode.name());
                 let request = api::daemon::GetRequest {
                     path: Some(path),
-                    attr_filter: *attr_filter,
+                    attr_filter: attr_filter.copied(),
                     responder: Some(responder_tx),
                 };
-
-                // Enqueue request to be relayed to the appropriate task later.
                 relay_list.push(RelayedRequest::new(
                     request,
                     child_nb_tx,
@@ -924,6 +917,67 @@ where
     Ok(())
 }
 
+fn lookup_list_entry<'a, P>(
+    provider: &'a P,
+    cbs: &Callbacks<P>,
+    dnode: &DataNodeRef<'_>,
+) -> P::ListEntry<'a>
+where
+    P: Provider,
+{
+    let mut list_entry = Default::default();
+
+    // Iterate over parent list entries starting from the root.
+    for dnode in dnode
+        .inclusive_ancestors()
+        .filter(|dnode| dnode.schema().kind() == SchemaNodeKind::List)
+        .collect::<Vec<_>>()
+        .iter()
+        .rev()
+    {
+        let snode_path = dnode.schema().path(SchemaPathFormat::DATA);
+        let cb_key = CallbackKey::new(snode_path, CallbackOp::GetIterate);
+
+        // Obtain the list entry keys.
+        let list_keys = dnode
+            .list_keys()
+            .map(|key| {
+                format!(
+                    "[{}='{}']",
+                    key.schema().name(),
+                    key.value_canonical().unwrap()
+                )
+            })
+            .collect::<String>();
+
+        // Find the list entry associated to the provided path.
+        if let Some(cb) = cbs.get_iterate(&cb_key, None) {
+            let args = GetIterateArgs {
+                parent_list_entry: &list_entry,
+            };
+            if let Some(mut list_iter) = (*cb)(provider, args) {
+                if let Some(entry) = list_iter
+                    .find(|entry| list_keys == entry.get_keys().unwrap())
+                {
+                    list_entry = entry;
+                }
+            }
+        }
+    }
+
+    list_entry
+}
+
+fn is_module_implemented<P>(module: &SchemaModule<'_>) -> bool
+where
+    P: Provider,
+{
+    let module_name = module.name();
+    P::yang_modules()
+        .iter()
+        .any(|module| *module == module_name)
+}
+
 // ===== global functions =====
 
 pub(crate) async fn process_get<P>(
@@ -946,29 +1000,57 @@ where
         .map_err(Error::YangInvalidPath)?
         .unwrap();
 
-    // TODO: if list, lookup entry (nb_oper_data_lookup_list_entry)
-
-    // TODO: if list entry, iterate over that list entry, else...
-
     if let Some(cbs) = P::callbacks() {
         let mut relay_list = vec![];
 
+        let list_entry = lookup_list_entry(provider, cbs, &dnode);
         let snode = yang_ctx
             .find_path(&dnode.schema().path(SchemaPathFormat::DATA))
             .unwrap();
 
-        let list_entry = Default::default();
-        iterate_node(
-            provider,
-            cbs,
-            &attr_filter,
-            &mut dtree,
-            &snode,
-            &path,
-            &list_entry,
-            &mut relay_list,
-            true,
-        )?;
+        // Check if the provider implements the child node.
+        if !is_module_implemented::<P>(&snode.module()) {
+            if let Some(child_nb_tx) = list_entry.child_task() {
+                // Prepare request to child task.
+                let (responder_tx, responder_rx) = oneshot::channel();
+                let request = api::daemon::GetRequest {
+                    path: Some(path),
+                    attr_filter,
+                    responder: Some(responder_tx),
+                };
+                relay_list.push(RelayedRequest::new(
+                    request,
+                    child_nb_tx,
+                    responder_rx,
+                ));
+            }
+        } else {
+            // If a list entry was given, iterate over that list entry.
+            if snode.kind() == SchemaNodeKind::List {
+                iterate_children(
+                    provider,
+                    cbs,
+                    attr_filter.as_ref(),
+                    &mut dtree,
+                    &snode,
+                    &path,
+                    &list_entry,
+                    &mut relay_list,
+                )?;
+            } else {
+                iterate_node(
+                    provider,
+                    cbs,
+                    attr_filter.as_ref(),
+                    &mut dtree,
+                    &snode,
+                    &path,
+                    &list_entry,
+                    &mut relay_list,
+                    true,
+                )?;
+            }
+        }
 
         // Send relayed requests.
         for relayed_req in relay_list {

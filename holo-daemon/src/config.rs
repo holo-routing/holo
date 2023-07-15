@@ -135,7 +135,7 @@ impl Default for Config {
         Config {
             user: "frr".to_owned(),
             group: "frr".to_owned(),
-            database_path: "/var/run/holo.db".to_owned(),
+            database_path: "/var/run/holo/holo.db".to_owned(),
             logging: Default::default(),
             tokio_console: Default::default(),
             event_recorder: Default::default(),
@@ -148,7 +148,7 @@ impl Default for Config {
 
 impl Default for LoggingJournald {
     fn default() -> LoggingJournald {
-        LoggingJournald { enabled: true }
+        LoggingJournald { enabled: false }
     }
 }
 
@@ -157,7 +157,7 @@ impl Default for LoggingJournald {
 impl Default for LoggingFile {
     fn default() -> LoggingFile {
         LoggingFile {
-            dir: "/var/run".to_owned(),
+            dir: "/var/log".to_owned(),
             name: "holod.log".to_owned(),
             rotation: Default::default(),
             inner: Default::default(),

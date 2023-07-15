@@ -71,7 +71,7 @@ impl Default for Config {
     fn default() -> Config {
         Config {
             enabled: false,
-            dir: "/var/run/".to_owned(),
+            dir: "/var/run/holo".to_owned(),
         }
     }
 }

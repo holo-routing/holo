@@ -18,6 +18,17 @@ automation-driven networks.
 For a description of what a routing protocol is, please refer to this
 [Wikipedia page](https://en.wikipedia.org/wiki/Routing_protocol).
 
+## Architecture
+
+The image below shows the different logical layers of the Holo software stack:
+
+<p align="center">
+  <img src="http://westphal.com.br/holo/holo-layers2.png">
+</p>
+
+Items with a gray background have not been implemented yet.
+For more comprehensive and detailed information, please refer to the [Architecture](https://github.com/rwestphal/holo/wiki/Architecture) page.
+
 ## Features
 
 #### Focus on simplicity and correctness
@@ -29,8 +40,7 @@ implementations built on a robust foundation.  To that end, Holo's
 codebase prioritizes simplicity, modularity, and thorough documentation.
 Thanks to the strictness of the Rust compiler and extensive unit
 tests, it's expected that most regressions will be caught early in the
-development cycle of new features. For more details, please refer to the
-[Architecture](https://github.com/rwestphal/holo/wiki/Architecture) page.
+development cycle of new features.
 
 #### Automation-ready
 

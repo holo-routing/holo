@@ -678,6 +678,7 @@ impl ZapiTxNexthopInfo {
         // Nexthop label.
         if let Some((label_type, label)) = self.label {
             buf.put_u8(1);
+            #[cfg(not(feature = "zebra-8-4-compat"))]
             buf.put_u8(label_type as u8);
             buf.put_u32_le(label.get());
         }

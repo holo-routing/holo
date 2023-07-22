@@ -24,3 +24,4 @@ holo-utils = { path = "../holo-utils" }
 [features]
 default = []
 testing = []
+zebra-8-4-compat = []

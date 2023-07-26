@@ -2956,18 +2956,8 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let flag = args.list_entry.as_flag().unwrap();
             Some(flag.to_string())
         })
-        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::prefix_length::PATH)
-        .get_element_u8(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::PATH)
         .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
-        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::ipv6_fwd_addr_sub_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
             // TODO: implement me!
             None
         })
@@ -2976,18 +2966,8 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             // TODO: implement me!
             None
         })
-        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::ipv4_fwd_addr_sub_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::ipv4_fwd_addr_sub_tlv::forwarding_address::PATH)
         .get_element_string(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
-        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::route_tag_sub_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
             // TODO: implement me!
             None
         })
@@ -3836,14 +3816,6 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let flag = args.list_entry.as_flag().unwrap();
             Some(flag.to_string())
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::prefix_length::PATH)
-        .get_element_u8(|_instance, args| {
-            let lse: &LsaEntry<Ospfv3> = args.list_entry.as_area_lsa().unwrap();
-            let lsa = &lse.data;
-            lsa.body
-                .as_ext_inter_area_prefix()
-                .map(|lsa_body| lsa_body.prefix.prefix())
-        })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::sub_tlvs::PATH)
         .get_iterate(|_instance, args| {
             let lse: &LsaEntry<Ospfv3> = args.parent_list_entry.as_area_lsa().unwrap();
@@ -3937,15 +3909,6 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::inter_router_tlv::length::PATH)
         .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::inter_router_tlv::router_bits::rtr_lsa_bits::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
-        .get_element_string(|_instance, _args| {
             // TODO: implement me!
             None
         })
@@ -4096,11 +4059,6 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_element_string(|_instance, args| {
             let flag = args.list_entry.as_flag().unwrap();
             Some(flag.to_string())
-        })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::prefix_length::PATH)
-        .get_element_u8(|_instance, _args| {
-            // TODO: implement me!
-            None
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::PATH)
         .get_iterate(|_instance, args| {
@@ -4607,11 +4565,6 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_element_string(|_instance, args| {
             let flag = args.list_entry.as_flag().unwrap();
             Some(flag.to_string())
-        })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::prefix_length::PATH)
-        .get_element_u8(|_instance, _args| {
-            // TODO: implement me!
-            None
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::sub_tlvs::PATH)
         .get_iterate(|_instance, args| {

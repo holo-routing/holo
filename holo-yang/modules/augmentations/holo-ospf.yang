@@ -23,6 +23,29 @@ module holo-ospf {
     "This module defines augment statements for the ietf-ospf
      module.";
 
+  /*
+   * Augmentations.
+   */
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/ospf:ospf" {
+    when "derived-from-or-self(../rt:type, "
+       + "'ospf:ospfv3')" {
+      description
+        "This augmentation is only valid for OSPFv3.";
+    }
+    description
+      "OSPFv3 protocol instance-level augmentations";
+    leaf instance-id {
+      type uint8;
+      default "0";
+      description
+        "OSPFv3 instance ID.";
+    }
+  }
+
+  /*
+   * Notifications.
+   */
   notification if-rx-bad-lsa {
     /*
     uses ospf:notification-instance-hdr;

@@ -56,7 +56,7 @@ impl InterfaceVersion<Self> for Ospfv3 {
             pkt_type: PacketType::Hello,
             router_id: instance.state.router_id,
             area_id: area.area_id,
-            instance_id: iface.config.instance_id.unwrap_or(0),
+            instance_id: iface.config.instance_id.resolved,
             auth_seqno: None,
         };
 
@@ -104,7 +104,7 @@ impl InterfaceVersion<Self> for Ospfv3 {
         iface: &Interface<Self>,
         packet_hdr: &ospfv3::packet::PacketHdr,
     ) -> bool {
-        let iface_instance_id = iface.config.instance_id.unwrap_or(0);
+        let iface_instance_id = iface.config.instance_id.resolved;
         packet_hdr.instance_id == iface_instance_id
     }
 

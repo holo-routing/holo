@@ -48,6 +48,7 @@ pub enum Resource {}
 pub enum Event {
     InstanceReset,
     InstanceUpdate,
+    InstanceIdUpdate,
     AreaCreate(AreaIndex),
     AreaDelete(AreaIndex),
     AreaTypeChange(AreaIndex),
@@ -785,6 +786,17 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
 fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
     let core_cbs = load_callbacks();
     CallbacksBuilder::<Instance<Ospfv3>>::new(core_cbs)
+        .path(ospf::instance_id::PATH)
+        .modify_apply(|instance, args| {
+            let instance_id = args.dnode.get_u8();
+            instance.config.instance_id = instance_id;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceIdUpdate);
+        })
+        .delete_apply(|_instance, _args| {
+            // Nothing to do.
+        })
         .path(ospf::areas::area::interfaces::interface::instance_id::PATH)
         .modify_apply(|instance, args| {
             let (area_idx, iface_idx) =
@@ -792,7 +804,8 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let instance_id = args.dnode.get_u8();
-            iface.config.instance_id = Some(instance_id);
+            iface.config.instance_id.explicit = Some(instance_id);
+            iface.config.instance_id.resolved = instance_id;
 
             let event_queue = args.event_queue;
             event_queue
@@ -803,7 +816,8 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
                 args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
-            iface.config.instance_id = None;
+            iface.config.instance_id.explicit = None;
+            iface.config.instance_id.resolved = instance.config.instance_id;
 
             let event_queue = args.event_queue;
             event_queue
@@ -972,17 +986,39 @@ fn load_validation_callbacks_ospfv2() -> ValidationCallbacks {
 fn load_validation_callbacks_ospfv3() -> ValidationCallbacks {
     let core_cbs = load_validation_callbacks();
     ValidationCallbacksBuilder::new(core_cbs)
-        .path(ospf::areas::area::interfaces::interface::PATH)
+        .path(ospf::instance_id::PATH)
         .validate(|args| {
-            let instance_id =
-                args.dnode.get_u8_relative("./instance-id").unwrap_or(0);
+            let instance_id = args.dnode.get_u8();
             let af = args
                 .dnode
-                .get_af_relative("../../../../address-family")
+                .get_af_relative("../address-family")
                 .unwrap_or(AddressFamily::Ipv6);
 
             // Validate interface Instance ID based on RFC5838's address-family
             // Instance ID ranges.
+            let range = match af {
+                AddressFamily::Ipv6 => 0..=31,
+                AddressFamily::Ipv4 => 64..=95,
+            };
+            if !range.contains(&instance_id) {
+                return Err(format!(
+                    "Instance ID {} isn't valid for the {} address family",
+                    instance_id, af
+                ));
+            }
+
+            Ok(())
+        })
+        .path(ospf::areas::area::interfaces::interface::instance_id::PATH)
+        .validate(|args| {
+            let instance_id = args.dnode.get_u8();
+            let af = args
+                .dnode
+                .get_af_relative("../../../../../address-family")
+                .unwrap_or(AddressFamily::Ipv6);
+
+            // Validate interface Instance ID based on RFC5838's
+            // address-family Instance ID ranges.
             let range = match af {
                 AddressFamily::Ipv6 => 0..=31,
                 AddressFamily::Ipv4 => 64..=95,
@@ -1057,6 +1093,24 @@ where
         match event {
             Event::InstanceReset => self.reset(),
             Event::InstanceUpdate => self.update(),
+            Event::InstanceIdUpdate => {
+                for area_idx in self.arenas.areas.indexes().collect::<Vec<_>>()
+                {
+                    let area = &mut self.arenas.areas[area_idx];
+                    for iface_idx in
+                        area.interfaces.indexes().collect::<Vec<_>>()
+                    {
+                        let iface = &mut self.arenas.interfaces[iface_idx];
+                        iface.config.instance_id.resolved = iface
+                            .config
+                            .instance_id
+                            .explicit
+                            .unwrap_or(self.config.instance_id);
+                    }
+
+                    self.process_event(Event::AreaSyncHelloTx(area_idx)).await;
+                }
+            }
             Event::AreaCreate(area_idx) => {
                 let area = &mut self.arenas.areas[area_idx];
 

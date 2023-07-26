@@ -18,6 +18,16 @@ use crate::debug::Debug;
 use crate::error::Error;
 use crate::{api, CallbackKey, CallbackOp, NbDaemonSender, ProviderBase};
 
+// A generic struct representing an inheritable configuration value.
+//
+// It contains two fields: `explicit`, which is an optional explicit value, and
+// `resolved`, the resolved configuration value (inherited or explicit).
+#[derive(Clone, Debug)]
+pub struct InheritableConfig<T> {
+    pub explicit: Option<T>,
+    pub resolved: T,
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
 pub enum CommitPhase {
@@ -127,6 +137,17 @@ pub trait Provider: ProviderBase {
     }
 
     async fn process_event(&mut self, _event: Self::Event) {}
+}
+
+// ===== impl InheritableConfig =====
+
+impl<T> InheritableConfig<T> {
+    pub fn new(resolved: T) -> Self {
+        InheritableConfig {
+            explicit: None,
+            resolved,
+        }
+    }
 }
 
 // ===== impl Callbacks =====

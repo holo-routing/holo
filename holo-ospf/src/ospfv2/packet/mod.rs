@@ -402,7 +402,7 @@ impl PacketHdrVersion<Ospfv2> for PacketHdr {
         pkt_type: PacketType,
         router_id: Ipv4Addr,
         area_id: Ipv4Addr,
-        _instance_id: Option<u8>,
+        _instance_id: u8,
     ) -> Self {
         PacketHdr {
             pkt_type,

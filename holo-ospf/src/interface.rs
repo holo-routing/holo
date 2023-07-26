@@ -10,6 +10,7 @@ use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
+use holo_northbound::configuration::InheritableConfig;
 use holo_northbound::paths::control_plane_protocol::ospf;
 use holo_protocol::InstanceChannelsTx;
 use holo_utils::crypto::CryptoAlgo;
@@ -68,7 +69,7 @@ pub struct InterfaceSys<V: Version> {
 
 #[derive(Debug)]
 pub struct InterfaceCfg<V: Version> {
-    pub instance_id: Option<u8>,
+    pub instance_id: InheritableConfig<u8>,
     pub if_type: InterfaceType,
     pub passive: bool,
     pub priority: u8,
@@ -992,6 +993,7 @@ where
     V: Version,
 {
     fn default() -> InterfaceCfg<V> {
+        let instance_id = ospf::instance_id::DFLT;
         let if_type =
             ospf::areas::area::interfaces::interface::interface_type::DFLT;
         let if_type = InterfaceType::try_from_yang(if_type).unwrap();
@@ -1013,7 +1015,7 @@ where
             ospf::areas::area::interfaces::interface::bfd::enabled::DFLT;
 
         InterfaceCfg {
-            instance_id: None,
+            instance_id: InheritableConfig::new(instance_id),
             if_type,
             passive,
             priority,

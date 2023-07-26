@@ -87,6 +87,7 @@ pub struct InstanceCfg {
     pub stub_router: bool,
     pub extended_lsa: bool,
     pub sr_enabled: bool,
+    pub instance_id: u8,
 }
 
 #[derive(Debug)]
@@ -595,6 +596,7 @@ impl Default for InstanceCfg {
             ospf::spf_control::ietf_spf_delay::time_to_learn::DFLT;
         let extended_lsa = ospf::extended_lsa_support::DFLT;
         let sr_enabled = ospf::segment_routing::enabled::DFLT;
+        let instance_id = ospf::instance_id::DFLT;
 
         InstanceCfg {
             af: None,
@@ -610,6 +612,7 @@ impl Default for InstanceCfg {
             stub_router: false,
             extended_lsa,
             sr_enabled,
+            instance_id,
         }
     }
 }

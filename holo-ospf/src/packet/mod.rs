@@ -128,7 +128,7 @@ where
         pkt_type: PacketType,
         router_id: Ipv4Addr,
         area_id: Ipv4Addr,
-        instance_id: Option<u8>,
+        instance_id: u8,
     ) -> Self;
 }
 

@@ -45,7 +45,7 @@ use crate::{output, spf, sr, tasks};
 // ===== Interface FSM event =====
 
 pub(crate) fn process_ism_event<V>(
-    instance: &mut InstanceUpView<'_, V>,
+    instance: &InstanceUpView<'_, V>,
     arenas: &mut InstanceArenas<V>,
     area_key: AreaKey,
     iface_key: InterfaceKey,
@@ -65,7 +65,7 @@ where
         area,
         instance,
         &mut arenas.neighbors,
-        &mut arenas.lsa_entries,
+        &arenas.lsa_entries,
         event,
     );
 
@@ -75,7 +75,7 @@ where
 // ===== Neighbor FSM event =====
 
 pub(crate) fn process_nsm_event<V>(
-    instance: &mut InstanceUpView<'_, V>,
+    instance: &InstanceUpView<'_, V>,
     arenas: &mut InstanceArenas<V>,
     area_key: AreaKey,
     iface_key: InterfaceKey,
@@ -206,7 +206,7 @@ where
             area,
             instance,
             &mut arenas.neighbors,
-            &mut arenas.lsa_entries,
+            &arenas.lsa_entries,
             src,
             pkt,
         )
@@ -223,7 +223,7 @@ where
                 iface,
                 area,
                 instance,
-                &mut arenas.lsa_entries,
+                &arenas.lsa_entries,
                 src,
                 pkt,
             ),
@@ -232,7 +232,7 @@ where
                 iface,
                 area,
                 instance,
-                &mut arenas.lsa_entries,
+                &arenas.lsa_entries,
                 pkt,
             ),
             Packet::LsUpdate(pkt) => process_packet_lsupd(
@@ -248,7 +248,7 @@ fn process_packet_hello<V>(
     area: &Area<V>,
     instance: &InstanceUpView<'_, V>,
     neighbors: &mut Arena<Neighbor<V>>,
-    lsa_entries: &mut Arena<LsaEntry<V>>,
+    lsa_entries: &Arena<LsaEntry<V>>,
     src: V::NetIpAddr,
     hello: V::PacketHello,
 ) -> Result<(), Error<V>>
@@ -379,7 +379,7 @@ where
 }
 
 fn process_packet_hello_sanity_checks<V>(
-    iface: &mut Interface<V>,
+    iface: &Interface<V>,
     area: &Area<V>,
     instance: &InstanceUpView<'_, V>,
     hello: &V::PacketHello,
@@ -431,7 +431,7 @@ fn process_packet_dbdesc<V>(
     iface: &mut Interface<V>,
     area: &Area<V>,
     instance: &InstanceUpView<'_, V>,
-    lsa_entries: &mut Arena<LsaEntry<V>>,
+    lsa_entries: &Arena<LsaEntry<V>>,
     src: V::NetIpAddr,
     dbdesc: V::PacketDbDesc,
 ) -> Result<(), Error<V>>
@@ -657,7 +657,7 @@ fn process_packet_lsreq<V>(
     iface: &mut Interface<V>,
     area: &Area<V>,
     instance: &InstanceUpView<'_, V>,
-    lsa_entries: &mut Arena<LsaEntry<V>>,
+    lsa_entries: &Arena<LsaEntry<V>>,
     ls_req: V::PacketLsRequest,
 ) -> Result<(), Error<V>>
 where
@@ -1026,7 +1026,7 @@ where
 // ===== Request to send LS Update =====
 
 pub(crate) fn process_send_lsupd<V>(
-    instance: &mut InstanceUpView<'_, V>,
+    instance: &InstanceUpView<'_, V>,
     arenas: &mut InstanceArenas<V>,
     area_key: AreaKey,
     iface_key: InterfaceKey,
@@ -1061,7 +1061,7 @@ where
 // ===== Packet retransmission =====
 
 pub(crate) fn process_packet_rxmt<V>(
-    instance: &mut InstanceUpView<'_, V>,
+    instance: &InstanceUpView<'_, V>,
     arenas: &mut InstanceArenas<V>,
     area_key: AreaKey,
     iface_key: InterfaceKey,
@@ -1100,7 +1100,7 @@ where
 // ===== Delayed Ack timeout =====
 
 pub(crate) fn process_delayed_ack_timeout<V>(
-    instance: &mut InstanceUpView<'_, V>,
+    instance: &InstanceUpView<'_, V>,
     arenas: &mut InstanceArenas<V>,
     area_key: AreaKey,
     iface_key: InterfaceKey,
@@ -1124,8 +1124,8 @@ where
 // ===== LSA origination event =====
 
 pub(crate) fn process_lsa_orig_event<V>(
-    instance: &mut InstanceUpView<'_, V>,
-    arenas: &mut InstanceArenas<V>,
+    instance: &InstanceUpView<'_, V>,
+    arenas: &InstanceArenas<V>,
     event: LsaOriginateEvent,
 ) -> Result<(), Error<V>>
 where
@@ -1384,9 +1384,8 @@ where
     }
 
     // Ignore notification if the OSPF instance isn't active anymore.
-    let Some((instance, arenas)) = instance.as_up()
-    else {
-        return Ok(())
+    let Some((instance, arenas)) = instance.as_up() else {
+        return Ok(());
     };
 
     if let bfd::SessionKey::IpSingleHop { ifname, dst } = sess_key {

@@ -549,7 +549,7 @@ fn compute_spf<V>(
 // Runs SPF in the provided area.
 fn run_area<V>(
     area: &mut Area<V>,
-    instance: &mut InstanceUpView<'_, V>,
+    instance: &InstanceUpView<'_, V>,
     interfaces: &Arena<Interface<V>>,
     neighbors: &Arena<Neighbor<V>>,
     lsa_entries: &Arena<LsaEntry<V>>,

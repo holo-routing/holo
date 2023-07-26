@@ -286,7 +286,7 @@ where
         area: &Area<V>,
         instance: &InstanceUpView<'_, V>,
         neighbors: &mut Arena<Neighbor<V>>,
-        lsa_entries: &mut Arena<LsaEntry<V>>,
+        lsa_entries: &Arena<LsaEntry<V>>,
     ) {
         // Check next ISM event to invoke, but only if necessary.
         let event = match V::is_ready(instance.state.af, self) {
@@ -401,7 +401,7 @@ where
         area: &Area<V>,
         instance: &InstanceUpView<'_, V>,
         neighbors: &mut Arena<Neighbor<V>>,
-        lsa_entries: &mut Arena<LsaEntry<V>>,
+        lsa_entries: &Arena<LsaEntry<V>>,
         reason: InterfaceInactiveReason,
     ) {
         if self.is_down() {
@@ -457,7 +457,7 @@ where
         area: &Area<V>,
         instance: &InstanceUpView<'_, V>,
         neighbors: &mut Arena<Neighbor<V>>,
-        lsa_entries: &mut Arena<LsaEntry<V>>,
+        lsa_entries: &Arena<LsaEntry<V>>,
     ) {
         for event in [
             ism::Event::InterfaceDown(InterfaceInactiveReason::Resetting),
@@ -540,7 +540,7 @@ where
         area: &Area<V>,
         instance: &InstanceUpView<'_, V>,
         neighbors: &mut Arena<Neighbor<V>>,
-        lsa_entries: &mut Arena<LsaEntry<V>>,
+        lsa_entries: &Arena<LsaEntry<V>>,
         event: Event,
     ) {
         Debug::<V>::IsmEvent(&self.state.ism_state, &event).log();
@@ -714,7 +714,7 @@ where
         &mut self,
         area: &Area<V>,
         instance: &InstanceUpView<'_, V>,
-        neighbors: &mut Arena<Neighbor<V>>,
+        neighbors: &Arena<Neighbor<V>>,
     ) -> State {
         let router_id = instance.state.router_id;
         let net_id = V::network_id(&self.state.src_addr.unwrap(), router_id);

@@ -271,7 +271,7 @@ pub(crate) fn iface_hello_interval(
 // Send periodic LDP targeted hello messages.
 pub(crate) fn tnbr_hello_interval(
     tnbr: &TargetedNbr,
-    instance_state: &mut InstanceState,
+    instance_state: &InstanceState,
 ) -> IntervalTask {
     #[cfg(not(feature = "testing"))]
     {

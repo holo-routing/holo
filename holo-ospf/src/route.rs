@@ -331,8 +331,8 @@ pub(crate) fn update_rib_partial<V>(
 fn update_rib_intra_area<V>(
     rib: &mut BTreeMap<V::IpNetwork, RouteNet<V>>,
     filter: Option<&BTreeSet<V::IpNetwork>>,
-    area: &mut Area<V>,
-    instance: &mut InstanceUpView<'_, V>,
+    area: &Area<V>,
+    instance: &InstanceUpView<'_, V>,
     lsa_entries: &Arena<LsaEntry<V>>,
 ) where
     V: Version,
@@ -431,8 +431,8 @@ fn update_rib_intra_area<V>(
 fn update_rib_inter_area_networks<V>(
     rib: &mut BTreeMap<V::IpNetwork, RouteNet<V>>,
     filter: Option<&BTreeSet<V::IpNetwork>>,
-    area: &mut Area<V>,
-    instance: &mut InstanceUpView<'_, V>,
+    area: &Area<V>,
+    instance: &InstanceUpView<'_, V>,
     lsa_entries: &Arena<LsaEntry<V>>,
 ) where
     V: Version,
@@ -516,7 +516,7 @@ fn update_rib_inter_area_networks<V>(
 fn update_rib_inter_area_routers<V>(
     filter: Option<&BTreeSet<Ipv4Addr>>,
     area: &mut Area<V>,
-    instance: &mut InstanceUpView<'_, V>,
+    instance: &InstanceUpView<'_, V>,
     lsa_entries: &Arena<LsaEntry<V>>,
 ) where
     V: Version,
@@ -581,7 +581,7 @@ fn update_rib_inter_area_routers<V>(
 fn update_rib_external<V>(
     rib: &mut BTreeMap<V::IpNetwork, RouteNet<V>>,
     filter: Option<&BTreeSet<V::IpNetwork>>,
-    instance: &mut InstanceUpView<'_, V>,
+    instance: &InstanceUpView<'_, V>,
     areas: &Areas<V>,
     lsa_entries: &Arena<LsaEntry<V>>,
 ) where
@@ -697,7 +697,7 @@ fn update_rib_external<V>(
 fn update_global_rib<V>(
     rib: &mut BTreeMap<V::IpNetwork, RouteNet<V>>,
     mut old_rib: BTreeMap<V::IpNetwork, RouteNet<V>>,
-    instance: &mut InstanceUpView<'_, V>,
+    instance: &InstanceUpView<'_, V>,
     interfaces: &Arena<Interface<V>>,
 ) where
     V: Version,
@@ -781,7 +781,7 @@ fn route_update<V>(
                 }
                 Ordering::Equal => {
                     // Merge nexthops.
-                    curr_route.nexthops.extend(route.nexthops.into_iter());
+                    curr_route.nexthops.extend(route.nexthops);
                 }
                 Ordering::Greater => {
                     // Ignore less preferred route.

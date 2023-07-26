@@ -4035,7 +4035,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let lsa = &lse.data;
             lsa.body
                 .as_ext_intra_area_prefix()
-                .map(|lsa_body| lsa_body.ref_lsa_id.into())
+                .map(|lsa_body| lsa_body.ref_lsa_id)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::PATH)
         .get_iterate(|_instance, args| {

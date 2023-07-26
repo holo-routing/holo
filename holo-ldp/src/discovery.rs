@@ -202,7 +202,7 @@ impl TargetedNbr {
         }
     }
 
-    pub(crate) fn start(&mut self, instance_state: &mut InstanceState) {
+    pub(crate) fn start(&mut self, instance_state: &InstanceState) {
         Debug::TargetedNbrStart(&self.addr).log();
 
         let task = tasks::tnbr_hello_interval(self, instance_state);
@@ -245,7 +245,7 @@ impl TargetedNbr {
         let remove = tnbr.remove_check();
 
         if !tnbr.is_active() && is_ready {
-            tnbr.start(&mut instance.state);
+            tnbr.start(&instance.state);
         } else if tnbr.is_active() && !is_ready {
             TargetedNbr::stop(instance, tnbr_idx, true);
         }
@@ -255,7 +255,7 @@ impl TargetedNbr {
         }
     }
 
-    pub(crate) fn sync_hello_tx(&mut self, instance_state: &mut InstanceState) {
+    pub(crate) fn sync_hello_tx(&mut self, instance_state: &InstanceState) {
         let task = tasks::tnbr_hello_interval(self, instance_state);
         self.hello_interval_task = Some(task);
     }
@@ -274,7 +274,7 @@ impl TargetedNbr {
 
     pub(crate) fn generate_hello(
         &self,
-        instance_state: &mut InstanceState,
+        instance_state: &InstanceState,
     ) -> HelloMsg {
         // NOTE: do not attempt GTSM negotiation in multi-hop peering sessions.
         let mut flags = HelloFlags::TARGETED;

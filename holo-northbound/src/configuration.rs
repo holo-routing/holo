@@ -454,7 +454,7 @@ where
 }
 
 async fn process_commit_relayed<P>(
-    provider: &mut P,
+    provider: &P,
     phase: CommitPhase,
     old_config: &Arc<DataTree>,
     new_config: &Arc<DataTree>,
@@ -620,7 +620,7 @@ pub fn changes_from_diff(diff: &DataDiff) -> ConfigChanges {
 }
 
 pub(crate) async fn process_validate<P>(
-    provider: &mut P,
+    provider: &P,
     config: Arc<DataTree>,
 ) -> Result<api::daemon::ValidateResponse, Error>
 where

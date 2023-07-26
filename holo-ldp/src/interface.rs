@@ -141,7 +141,7 @@ impl Interface {
         }
     }
 
-    pub(crate) fn sync_hello_tx(&mut self, instance_state: &mut InstanceState) {
+    pub(crate) fn sync_hello_tx(&mut self, instance_state: &InstanceState) {
         let state = self.state.as_ref().unwrap();
         let hello_interval_task = tasks::iface_hello_interval(
             self,

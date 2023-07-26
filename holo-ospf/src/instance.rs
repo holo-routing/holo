@@ -265,7 +265,7 @@ where
                     area,
                     &instance,
                     &mut arenas.neighbors,
-                    &mut arenas.lsa_entries,
+                    &arenas.lsa_entries,
                 );
             }
 
@@ -324,7 +324,7 @@ where
                     area,
                     &instance,
                     &mut arenas.neighbors,
-                    &mut arenas.lsa_entries,
+                    &arenas.lsa_entries,
                     ism::Event::InterfaceDown(reason),
                 );
             }

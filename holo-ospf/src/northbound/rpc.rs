@@ -36,8 +36,8 @@ where
                 let ifname = rpc.get_string_relative("./interface");
 
                 // Clear neighbors.
-                if let Some((mut instance, arenas)) = instance.as_up() {
-                    clear_neighbors(&mut instance, arenas, ifname);
+                if let Some((instance, arenas)) = instance.as_up() {
+                    clear_neighbors(&instance, arenas, ifname);
                 }
 
                 Ok(())
@@ -71,8 +71,8 @@ where
 // ===== helper functions =====
 
 fn clear_neighbors<V>(
-    instance: &mut InstanceUpView<'_, V>,
-    arenas: &mut InstanceArenas<V>,
+    instance: &InstanceUpView<'_, V>,
+    arenas: &InstanceArenas<V>,
     ifname: Option<String>,
 ) where
     V: Version,

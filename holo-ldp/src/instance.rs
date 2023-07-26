@@ -440,7 +440,7 @@ impl InstanceCommon<InstanceState> {
             .iter_mut()
             .filter(|iface| iface.is_active())
         {
-            iface.sync_hello_tx(&mut self.state);
+            iface.sync_hello_tx(&self.state);
         }
 
         // Synchronize targeted neighbors.
@@ -450,7 +450,7 @@ impl InstanceCommon<InstanceState> {
             .iter_mut()
             .filter(|tnbr| tnbr.is_active())
         {
-            tnbr.sync_hello_tx(&mut self.state);
+            tnbr.sync_hello_tx(&self.state);
         }
     }
 

@@ -96,7 +96,7 @@ pub(crate) fn send_dbdesc<V>(
     }
 }
 
-pub(crate) fn rxmt_dbdesc<V>(nbr: &mut Neighbor<V>, iface: &Interface<V>)
+pub(crate) fn rxmt_dbdesc<V>(nbr: &Neighbor<V>, iface: &Interface<V>)
 where
     V: Version,
 {
@@ -154,7 +154,7 @@ pub(crate) fn send_lsreq<V>(
 }
 
 pub(crate) fn rxmt_lsreq<V>(
-    nbr: &mut Neighbor<V>,
+    nbr: &Neighbor<V>,
     iface: &Interface<V>,
     area: &Area<V>,
     instance: &InstanceUpView<'_, V>,
@@ -257,7 +257,7 @@ pub(crate) fn send_lsupd<V>(
 }
 
 pub(crate) fn rxmt_lsupd<V>(
-    nbr: &mut Neighbor<V>,
+    nbr: &Neighbor<V>,
     iface: &Interface<V>,
     area: &Area<V>,
     instance: &InstanceUpView<'_, V>,

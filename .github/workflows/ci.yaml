@@ -40,3 +40,17 @@ jobs:
         with:
           files: ./lcov.info
           fail_ci_if_error: true
+
+  push-store-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{github.actor}}
+          password: ${{secrets.GITHUB_TOKEN}}
+      - name: Build and push container image
+        run: |
+          docker build . -f docker/Dockerfile --tag ghcr.io/rwestphal/holo:latest
+          docker push ghcr.io/rwestphal/holo:latest

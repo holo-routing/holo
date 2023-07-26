@@ -8,7 +8,7 @@ RUN apt-get update && \
     protobuf-compiler
 
 WORKDIR /usr/src/holo
-COPY .. .
+COPY . .
 RUN cargo build --features zebra-8-4-compat --release
 
 # Final base

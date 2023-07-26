@@ -16,7 +16,7 @@ use holo_northbound::configuration::{
 };
 use holo_northbound::paths::control_plane_protocol::ospf;
 use holo_utils::crypto::CryptoAlgo;
-use holo_utils::ip::{IpAddrKind, IpNetworkKind};
+use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::{ToYang, TryFromYang};
 use yang2::data::Data;
@@ -972,6 +972,30 @@ fn load_validation_callbacks_ospfv2() -> ValidationCallbacks {
 fn load_validation_callbacks_ospfv3() -> ValidationCallbacks {
     let core_cbs = load_validation_callbacks();
     ValidationCallbacksBuilder::new(core_cbs)
+        .path(ospf::areas::area::interfaces::interface::PATH)
+        .validate(|args| {
+            let instance_id =
+                args.dnode.get_u8_relative("./instance-id").unwrap_or(0);
+            let af = args
+                .dnode
+                .get_af_relative("../../../../address-family")
+                .unwrap_or(AddressFamily::Ipv6);
+
+            // Validate interface Instance ID based on RFC5838's address-family
+            // Instance ID ranges.
+            let range = match af {
+                AddressFamily::Ipv6 => 0..=31,
+                AddressFamily::Ipv4 => 64..=95,
+            };
+            if !range.contains(&instance_id) {
+                return Err(format!(
+                    "Instance ID {} isn't valid for the {} address family",
+                    instance_id, af
+                ));
+            }
+
+            Ok(())
+        })
         .path(ospf::segment_routing::enabled::PATH)
         .validate(|args| {
             let sr_enabled = args.dnode.get_bool();

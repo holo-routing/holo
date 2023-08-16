@@ -2914,11 +2914,6 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
                 tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":");
             Some(bytes)
         })
-        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::flags::ospfv3_e_external_prefix_bits::PATH)
         .get_iterate(|_instance, _args| {
             // TODO: implement me!
@@ -3565,11 +3560,6 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
                 tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":")
             })
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::interface_id::PATH)
         .get_element_u32(|_instance, args| {
             let rtr_link = args.list_entry.as_ospfv3_router_lsa_link().unwrap();
@@ -3727,11 +3717,6 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
                 tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":");
             Some(bytes)
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_network::e_network_tlvs::attached_router_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_network::e_network_tlvs::attached_router_tlv::adjacent_neighbor_router_id::PATH)
         .get_iterate(|_instance, args| {
             let lse: &LsaEntry<Ospfv3> =
@@ -3777,11 +3762,6 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             args.list_entry.as_unknown_tlv().map(|tlv| {
                 tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":")
             })
-        })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::metric::PATH)
         .get_element_u32(|_instance, args| {
@@ -3907,11 +3887,6 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
                 tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":")
             })
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::inter_router_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::inter_router_tlv::lsa_options::lsa_options::PATH)
         .get_iterate(|_instance, args| {
             let lse: &LsaEntry<Ospfv3> =
@@ -4028,11 +4003,6 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             args.list_entry.as_unknown_tlv().map(|tlv| {
                 tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":")
             })
-        })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::metric::PATH)
         .get_element_u32(|_instance, args| {
@@ -4534,11 +4504,6 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
                 tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":")
             })
         })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::metric::PATH)
         .get_element_u32(|_instance, _args| {
             // TODO: implement me!
@@ -4622,11 +4587,6 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             // TODO: implement me!
             None
         })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv6_link_local_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv6_link_local_tlv::link_local_address::PATH)
         .get_element_ipv6(|_instance, args| {
             args.list_entry.as_ospfv3_link_local_addr().and_then(|addr| {
@@ -4658,11 +4618,6 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let bytes =
                 tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":");
             Some(bytes)
-        })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv4_link_local_tlv::length::PATH)
-        .get_element_u16(|_instance, _args| {
-            // TODO: implement me!
-            None
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv4_link_local_tlv::link_local_address::PATH)
         .get_element_ipv4(|_instance, args| {

@@ -30,6 +30,14 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
         // IETF modules
         EmbeddedModuleKey::new("iana-bfd-types", Some("2021-10-21"), None, None) =>
             include_str!("../modules/ietf/iana-bfd-types@2021-10-21.yang"),
+        EmbeddedModuleKey::new("iana-bgp-community-types", Some("2023-07-05"), None, None) =>
+            include_str!("../modules/ietf/iana-bgp-community-types@2023-07-05.yang"),
+        EmbeddedModuleKey::new("iana-bgp-notification", Some("2023-07-05"), None, None) =>
+            include_str!("../modules/ietf/iana-bgp-notification@2023-07-05.yang"),
+        EmbeddedModuleKey::new("iana-bgp-rib-types", Some("2023-07-05"), None, None) =>
+            include_str!("../modules/ietf/iana-bgp-rib-types@2023-07-05.yang"),
+        EmbeddedModuleKey::new("iana-bgp-types", Some("2023-07-05"), None, None) =>
+            include_str!("../modules/ietf/iana-bgp-types@2023-07-05.yang"),
         EmbeddedModuleKey::new("iana-if-type", Some("2017-01-19"), None, None) =>
             include_str!("../modules/ietf/iana-if-type@2017-01-19.yang"),
         EmbeddedModuleKey::new("iana-routing-types", Some("2018-10-29"), None, None) =>
@@ -42,6 +50,26 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-bfd-types@2022-09-22.yang"),
         EmbeddedModuleKey::new("ietf-bfd", Some("2022-09-22"), None, None) =>
             include_str!("../modules/ietf/ietf-bfd@2022-09-22.yang"),
+        EmbeddedModuleKey::new("ietf-bgp", Some("2023-07-05"), None, None) =>
+            include_str!("../modules/ietf/ietf-bgp@2023-07-05.yang"),
+        EmbeddedModuleKey::new("ietf-bgp", Some("2023-07-05"), Some("ietf-bgp-capabilities"), Some("2023-07-05")) =>
+            include_str!("../modules/ietf/ietf-bgp-capabilities@2023-07-05.yang"),
+        EmbeddedModuleKey::new("ietf-bgp", Some("2023-07-05"), Some("ietf-bgp-common"), Some("2023-07-05")) =>
+            include_str!("../modules/ietf/ietf-bgp-common@2023-07-05.yang"),
+        EmbeddedModuleKey::new("ietf-bgp", Some("2023-07-05"), Some("ietf-bgp-common-multiprotocol"), Some("2023-07-05")) =>
+            include_str!("../modules/ietf/ietf-bgp-common-multiprotocol@2023-07-05.yang"),
+        EmbeddedModuleKey::new("ietf-bgp", Some("2023-07-05"), Some("ietf-bgp-common-structure"), Some("2023-07-05")) =>
+            include_str!("../modules/ietf/ietf-bgp-common-structure@2023-07-05.yang"),
+        EmbeddedModuleKey::new("ietf-bgp", Some("2023-07-05"), Some("ietf-bgp-neighbor"), Some("2023-07-05")) =>
+            include_str!("../modules/ietf/ietf-bgp-neighbor@2023-07-05.yang"),
+        EmbeddedModuleKey::new("ietf-bgp", Some("2023-07-05"), Some("ietf-bgp-rib"), Some("2023-07-05")) =>
+            include_str!("../modules/ietf/ietf-bgp-rib@2023-07-05.yang"),
+        EmbeddedModuleKey::new("ietf-bgp", Some("2023-07-05"), Some("ietf-bgp-rib-attributes"), Some("2023-07-05")) =>
+            include_str!("../modules/ietf/ietf-bgp-rib-attributes@2023-07-05.yang"),
+        EmbeddedModuleKey::new("ietf-bgp", Some("2023-07-05"), Some("ietf-bgp-rib-tables"), Some("2023-07-05")) =>
+            include_str!("../modules/ietf/ietf-bgp-rib-tables@2023-07-05.yang"),
+        EmbeddedModuleKey::new("ietf-bgp-policy", Some("2023-07-05"), None, None) =>
+            include_str!("../modules/ietf/ietf-bgp-policy@2023-07-05.yang"),
         EmbeddedModuleKey::new("ietf-interfaces", Some("2018-02-20"), None, None) =>
             include_str!("../modules/ietf/ietf-interfaces@2018-02-20.yang"),
         EmbeddedModuleKey::new("ietf-ip", Some("2018-02-22"), None, None) =>
@@ -64,6 +92,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-rip@2020-02-20.yang"),
         EmbeddedModuleKey::new("ietf-routing", Some("2018-03-13"), None, None) =>
             include_str!("../modules/ietf/ietf-routing@2018-03-13.yang"),
+        EmbeddedModuleKey::new("ietf-routing-policy", Some("2021-10-11"), None, None) =>
+            include_str!("../modules/ietf/ietf-routing-policy@2021-10-11.yang"),
         EmbeddedModuleKey::new("ietf-routing-types", Some("2017-12-04"), None, None) =>
             include_str!("../modules/ietf/ietf-routing-types@2017-12-04.yang"),
         EmbeddedModuleKey::new("ietf-segment-routing-common", Some("2021-05-26"), None, None) =>
@@ -72,6 +102,10 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-segment-routing-mpls@2021-05-26.yang"),
         EmbeddedModuleKey::new("ietf-segment-routing", Some("2021-05-26"), None, None) =>
             include_str!("../modules/ietf/ietf-segment-routing@2021-05-26.yang"),
+        EmbeddedModuleKey::new("ietf-tcp", Some("2022-09-11"), None, None) =>
+            include_str!("../modules/ietf/ietf-tcp@2022-09-11.yang"),
+        EmbeddedModuleKey::new("ietf-tcp-common", Some("2023-04-17"), None, None) =>
+            include_str!("../modules/ietf/ietf-tcp-common@2023-04-17.yang"),
         // IETF Holo augmentations
         EmbeddedModuleKey::new("holo-ospf", None, None, None) =>
             include_str!("../modules/augmentations/holo-ospf.yang"),

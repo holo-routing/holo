@@ -20,7 +20,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt3",
-                        "next-hop": "fe80::d8ac:f1ff:fef9:a1c9"
+                        "next-hop": "fe80::1879:15ff:fec8:1eb1"
                       }
                     ]
                   },
@@ -33,7 +33,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt3",
-                        "next-hop": "fe80::d8ac:f1ff:fef9:a1c9"
+                        "next-hop": "fe80::1879:15ff:fec8:1eb1"
                       }
                     ]
                   },
@@ -46,7 +46,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt3",
-                        "next-hop": "fe80::d8ac:f1ff:fef9:a1c9"
+                        "next-hop": "fe80::1879:15ff:fec8:1eb1"
                       }
                     ]
                   },
@@ -59,7 +59,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt3",
-                        "next-hop": "fe80::d8ac:f1ff:fef9:a1c9"
+                        "next-hop": "fe80::1879:15ff:fec8:1eb1"
                       }
                     ]
                   },
@@ -72,7 +72,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt3",
-                        "next-hop": "fe80::d8ac:f1ff:fef9:a1c9"
+                        "next-hop": "fe80::1879:15ff:fec8:1eb1"
                       }
                     ]
                   },
@@ -90,7 +90,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt7",
-                        "next-hop": "fe80::e84c:b1ff:fe04:2e7a"
+                        "next-hop": "fe80::6c27:4bff:fed1:c534"
                       }
                     ]
                   },
@@ -103,7 +103,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt3",
-                        "next-hop": "fe80::d8ac:f1ff:fef9:a1c9"
+                        "next-hop": "fe80::1879:15ff:fec8:1eb1"
                       }
                     ]
                   },
@@ -613,12 +613,16 @@
                                     "router-capabilities-tlv": {
                                       "router-informational-capabilities": {
                                         "informational-capabilities": [
+                                          "ietf-ospf:graceful-restart-helper",
                                           "ietf-ospf:stub-router"
                                         ]
                                       },
                                       "informational-capabilities-flags": [
                                         {
                                           "informational-flag": 536870912
+                                        },
+                                        {
+                                          "informational-flag": 1073741824
                                         }
                                       ]
                                     }
@@ -642,12 +646,16 @@
                                     "router-capabilities-tlv": {
                                       "router-informational-capabilities": {
                                         "informational-capabilities": [
+                                          "ietf-ospf:graceful-restart-helper",
                                           "ietf-ospf:stub-router"
                                         ]
                                       },
                                       "informational-capabilities-flags": [
                                         {
                                           "informational-flag": 536870912
+                                        },
+                                        {
+                                          "informational-flag": 1073741824
                                         }
                                       ]
                                     }
@@ -671,12 +679,16 @@
                                     "router-capabilities-tlv": {
                                       "router-informational-capabilities": {
                                         "informational-capabilities": [
+                                          "ietf-ospf:graceful-restart-helper",
                                           "ietf-ospf:stub-router"
                                         ]
                                       },
                                       "informational-capabilities-flags": [
                                         {
                                           "informational-flag": 536870912
+                                        },
+                                        {
+                                          "informational-flag": 1073741824
                                         }
                                       ]
                                     }
@@ -700,12 +712,16 @@
                                     "router-capabilities-tlv": {
                                       "router-informational-capabilities": {
                                         "informational-capabilities": [
+                                          "ietf-ospf:graceful-restart-helper",
                                           "ietf-ospf:stub-router"
                                         ]
                                       },
                                       "informational-capabilities-flags": [
                                         {
                                           "informational-flag": 536870912
+                                        },
+                                        {
+                                          "informational-flag": 1073741824
                                         }
                                       ]
                                     }
@@ -738,7 +754,7 @@
                           "neighbor": [
                             {
                               "neighbor-router-id": "3.3.3.3",
-                              "address": "fe80::d8ac:f1ff:fef9:a1c9",
+                              "address": "fe80::1879:15ff:fec8:1eb1",
                               "state": "full",
                               "statistics": {
                                 "nbr-retrans-qlen": 0
@@ -774,7 +790,7 @@
                                               "ietf-ospf:af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::d8ac:f1ff:fef9:a1c9",
+                                          "link-local-interface-address": "fe80::1879:15ff:fec8:1eb1",
                                           "num-of-prefixes": 0
                                         }
                                       }
@@ -802,7 +818,7 @@
                                               "ietf-ospf:af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::5039:beff:fe0a:662",
+                                          "link-local-interface-address": "fe80::a4b6:d5ff:fe85:9008",
                                           "num-of-prefixes": 0
                                         }
                                       }
@@ -1050,12 +1066,16 @@
                                     "router-capabilities-tlv": {
                                       "router-informational-capabilities": {
                                         "informational-capabilities": [
+                                          "ietf-ospf:graceful-restart-helper",
                                           "ietf-ospf:stub-router"
                                         ]
                                       },
                                       "informational-capabilities-flags": [
                                         {
                                           "informational-flag": 536870912
+                                        },
+                                        {
+                                          "informational-flag": 1073741824
                                         }
                                       ]
                                     }
@@ -1079,12 +1099,16 @@
                                     "router-capabilities-tlv": {
                                       "router-informational-capabilities": {
                                         "informational-capabilities": [
+                                          "ietf-ospf:graceful-restart-helper",
                                           "ietf-ospf:stub-router"
                                         ]
                                       },
                                       "informational-capabilities-flags": [
                                         {
                                           "informational-flag": 536870912
+                                        },
+                                        {
+                                          "informational-flag": 1073741824
                                         }
                                       ]
                                     }
@@ -1117,7 +1141,7 @@
                           "neighbor": [
                             {
                               "neighbor-router-id": "7.7.7.7",
-                              "address": "fe80::e84c:b1ff:fe04:2e7a",
+                              "address": "fe80::6c27:4bff:fed1:c534",
                               "state": "full",
                               "statistics": {
                                 "nbr-retrans-qlen": 0
@@ -1152,7 +1176,7 @@
                                               "ietf-ospf:af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::ac50:14ff:fef6:36c9",
+                                          "link-local-interface-address": "fe80::b462:80ff:fe1c:a1a1",
                                           "num-of-prefixes": 0
                                         }
                                       }
@@ -1179,7 +1203,7 @@
                                               "ietf-ospf:af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::e84c:b1ff:fe04:2e7a",
+                                          "link-local-interface-address": "fe80::6c27:4bff:fed1:c534",
                                           "num-of-prefixes": 0
                                         }
                                       }

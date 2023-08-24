@@ -20,7 +20,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt6",
-                        "next-hop": "fe80::101f:8eff:fecb:34e9"
+                        "next-hop": "fe80::3cf7:23ff:fed0:d749"
                       }
                     ]
                   },
@@ -33,7 +33,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt6",
-                        "next-hop": "fe80::101f:8eff:fecb:34e9"
+                        "next-hop": "fe80::3cf7:23ff:fed0:d749"
                       }
                     ]
                   },
@@ -346,12 +346,16 @@
                                     "router-capabilities-tlv": {
                                       "router-informational-capabilities": {
                                         "informational-capabilities": [
+                                          "ietf-ospf:graceful-restart-helper",
                                           "ietf-ospf:stub-router"
                                         ]
                                       },
                                       "informational-capabilities-flags": [
                                         {
                                           "informational-flag": 536870912
+                                        },
+                                        {
+                                          "informational-flag": 1073741824
                                         }
                                       ]
                                     }
@@ -375,12 +379,16 @@
                                     "router-capabilities-tlv": {
                                       "router-informational-capabilities": {
                                         "informational-capabilities": [
+                                          "ietf-ospf:graceful-restart-helper",
                                           "ietf-ospf:stub-router"
                                         ]
                                       },
                                       "informational-capabilities-flags": [
                                         {
                                           "informational-flag": 536870912
+                                        },
+                                        {
+                                          "informational-flag": 1073741824
                                         }
                                       ]
                                     }
@@ -399,9 +407,9 @@
                         "name": "eth-rt6",
                         "state": "dr",
                         "dr-router-id": "7.7.7.7",
-                        "dr-ip-addr": "fe80::b86f:6bff:fe0c:5cb4",
+                        "dr-ip-addr": "fe80::5c98:49ff:fea4:4d05",
                         "bdr-router-id": "6.6.6.6",
-                        "bdr-ip-addr": "fe80::101f:8eff:fecb:34e9",
+                        "bdr-ip-addr": "fe80::3cf7:23ff:fed0:d749",
                         "statistics": {
                           "link-scope-lsa-count": 2,
                           "database": {
@@ -417,11 +425,11 @@
                           "neighbor": [
                             {
                               "neighbor-router-id": "6.6.6.6",
-                              "address": "fe80::101f:8eff:fecb:34e9",
+                              "address": "fe80::3cf7:23ff:fed0:d749",
                               "dr-router-id": "7.7.7.7",
-                              "dr-ip-addr": "fe80::b86f:6bff:fe0c:5cb4",
+                              "dr-ip-addr": "fe80::5c98:49ff:fea4:4d05",
                               "bdr-router-id": "6.6.6.6",
-                              "bdr-ip-addr": "fe80::101f:8eff:fecb:34e9",
+                              "bdr-ip-addr": "fe80::3cf7:23ff:fed0:d749",
                               "state": "full",
                               "statistics": {
                                 "nbr-retrans-qlen": 0
@@ -456,7 +464,7 @@
                                               "ietf-ospf:af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::101f:8eff:fecb:34e9",
+                                          "link-local-interface-address": "fe80::3cf7:23ff:fed0:d749",
                                           "num-of-prefixes": 0
                                         }
                                       }
@@ -483,7 +491,7 @@
                                               "ietf-ospf:af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::b86f:6bff:fe0c:5cb4",
+                                          "link-local-interface-address": "fe80::5c98:49ff:fea4:4d05",
                                           "num-of-prefixes": 0
                                         }
                                       }

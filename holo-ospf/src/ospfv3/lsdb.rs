@@ -243,6 +243,12 @@ impl LsdbVersion<Self> for Ospfv3 {
             LsaOriginateEvent::StubRouterChange => {
                 // (Re)originate Router-LSA(s) in all areas.
                 for area in arenas.areas.iter() {
+                    lsa_orig_router_info(area, instance);
+                }
+            }
+            LsaOriginateEvent::GrHelperChange => {
+                // (Re)originate Router Information LSA(s) in all areas.
+                for area in arenas.areas.iter() {
                     lsa_orig_router(area, instance, arenas);
                 }
             }
@@ -983,9 +989,13 @@ fn lsa_orig_router_info(
 
     // (Re)originate Router Information LSA.
     let scope = LsaScopeCode::Area;
+    let mut info_caps = RouterInfoCaps::STUB_ROUTER;
+    if instance.config.gr.helper_enabled {
+        info_caps.insert(RouterInfoCaps::GR_HELPER);
+    }
     let lsa_body = LsaBody::RouterInfo(LsaRouterInfo {
         scope,
-        info_caps: Some(RouterInfoCapsTlv::new(RouterInfoCaps::STUB_ROUTER)),
+        info_caps: Some(RouterInfoCapsTlv::new(info_caps)),
         func_caps: None,
         sr_algo,
         srgb,

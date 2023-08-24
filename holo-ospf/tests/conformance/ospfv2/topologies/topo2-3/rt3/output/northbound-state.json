@@ -677,12 +677,16 @@
                                       "router-capabilities-tlv": {
                                         "router-informational-capabilities": {
                                           "informational-capabilities": [
+                                            "ietf-ospf:graceful-restart-helper",
                                             "ietf-ospf:stub-router"
                                           ]
                                         },
                                         "informational-capabilities-flags": [
                                           {
                                             "informational-flag": 536870912
+                                          },
+                                          {
+                                            "informational-flag": 1073741824
                                           }
                                         ]
                                       }
@@ -715,12 +719,16 @@
                                       "router-capabilities-tlv": {
                                         "router-informational-capabilities": {
                                           "informational-capabilities": [
+                                            "ietf-ospf:graceful-restart-helper",
                                             "ietf-ospf:stub-router"
                                           ]
                                         },
                                         "informational-capabilities-flags": [
                                           {
                                             "informational-flag": 536870912
+                                          },
+                                          {
+                                            "informational-flag": 1073741824
                                           }
                                         ]
                                       }
@@ -753,12 +761,16 @@
                                       "router-capabilities-tlv": {
                                         "router-informational-capabilities": {
                                           "informational-capabilities": [
+                                            "ietf-ospf:graceful-restart-helper",
                                             "ietf-ospf:stub-router"
                                           ]
                                         },
                                         "informational-capabilities-flags": [
                                           {
                                             "informational-flag": 536870912
+                                          },
+                                          {
+                                            "informational-flag": 1073741824
                                           }
                                         ]
                                       }
@@ -791,12 +803,16 @@
                                       "router-capabilities-tlv": {
                                         "router-informational-capabilities": {
                                           "informational-capabilities": [
+                                            "ietf-ospf:graceful-restart-helper",
                                             "ietf-ospf:stub-router"
                                           ]
                                         },
                                         "informational-capabilities-flags": [
                                           {
                                             "informational-flag": 536870912
+                                          },
+                                          {
+                                            "informational-flag": 1073741824
                                           }
                                         ]
                                       }
@@ -829,12 +845,16 @@
                                       "router-capabilities-tlv": {
                                         "router-informational-capabilities": {
                                           "informational-capabilities": [
+                                            "ietf-ospf:graceful-restart-helper",
                                             "ietf-ospf:stub-router"
                                           ]
                                         },
                                         "informational-capabilities-flags": [
                                           {
                                             "informational-flag": 536870912
+                                          },
+                                          {
+                                            "informational-flag": 1073741824
                                           }
                                         ]
                                       }
@@ -867,12 +887,16 @@
                                       "router-capabilities-tlv": {
                                         "router-informational-capabilities": {
                                           "informational-capabilities": [
+                                            "ietf-ospf:graceful-restart-helper",
                                             "ietf-ospf:stub-router"
                                           ]
                                         },
                                         "informational-capabilities-flags": [
                                           {
                                             "informational-flag": 536870912
+                                          },
+                                          {
+                                            "informational-flag": 1073741824
                                           }
                                         ]
                                       }

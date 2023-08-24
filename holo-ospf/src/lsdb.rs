@@ -123,6 +123,7 @@ pub enum LsaOriginateEvent {
     SrCfgChange {
         change: SrCfgEventMsg,
     },
+    GrHelperChange,
     GrHelperExit {
         area_id: AreaId,
         iface_id: InterfaceId,

@@ -1347,6 +1347,12 @@ where
                             arenas,
                         );
                     }
+
+                    // (Re)originate Router Information LSAs.
+                    instance
+                        .tx
+                        .protocol_input
+                        .lsa_orig_event(LsaOriginateEvent::GrHelperChange);
                 }
             }
             Event::SrEnableChange(sr_enabled) => {

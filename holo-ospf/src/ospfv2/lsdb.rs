@@ -207,6 +207,12 @@ impl LsdbVersion<Self> for Ospfv2 {
                     lsa_orig_router(area, instance, arenas);
                 }
             }
+            LsaOriginateEvent::GrHelperChange => {
+                // (Re)originate Router Information LSA(s) in all areas.
+                for area in arenas.areas.iter() {
+                    lsa_orig_router_info(area, instance);
+                }
+            }
             LsaOriginateEvent::SrEnableChange => {
                 // (Re)originate Router Information LSA(s), Extended Prefix
                 // Opaque LSA(s) and Extended Link Opaque LSA(s) in all areas.
@@ -578,8 +584,12 @@ fn lsa_orig_router_info(
     }
 
     // (Re)originate Router Information LSA.
+    let mut info_caps = RouterInfoCaps::STUB_ROUTER;
+    if instance.config.gr.helper_enabled {
+        info_caps.insert(RouterInfoCaps::GR_HELPER);
+    }
     let lsa_body = LsaBody::OpaqueArea(LsaOpaque::RouterInfo(LsaRouterInfo {
-        info_caps: Some(RouterInfoCapsTlv::new(RouterInfoCaps::STUB_ROUTER)),
+        info_caps: Some(RouterInfoCapsTlv::new(info_caps)),
         func_caps: None,
         sr_algo,
         srgb,

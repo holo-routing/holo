@@ -1,0 +1,2 @@
+{"ietf-ospf:nbr-restart-helper-status-change":{"routing-protocol-name":"test","address-family":"ipv4","interface":{"interface":"eth-rt6"},"neighbor-router-id":"6.6.6.6","neighbor-ip-addr":"10.0.7.6","status":"not-helping","exit-reason":"timed-out"}}
+{"ietf-ospf:nbr-state-change":{"routing-protocol-name":"test","address-family":"ipv4","interface":{"interface":"eth-rt6"},"neighbor-router-id":"6.6.6.6","neighbor-ip-addr":"10.0.7.6","state":"down"}}

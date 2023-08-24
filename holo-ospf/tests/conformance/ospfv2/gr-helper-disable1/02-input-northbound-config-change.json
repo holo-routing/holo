@@ -1,0 +1,25 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-ospf:ospfv2",
+          "name": "test",
+          "ietf-ospf:ospf": {
+            "graceful-restart": {
+              "helper-enabled": false,
+              "@helper-enabled": {
+                "yang:operation": "replace",
+                "yang:orig-default": true,
+                "yang:orig-value": "true"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

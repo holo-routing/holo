@@ -13,6 +13,132 @@ use holo_protocol::test::stub::run_test;
 // Test description:
 //
 // Input:
+//  * Protocol: received Grace-LSA from rt6
+// Output:
+//  * Protocol: send an LS Ack to rt6 containing the Grace-LSA
+//  * Northbound:
+//    - The Grace-LSA is present in the interface LSDB
+//    - neighbor rt6 is in graceful restart mode
+//
+// Input:
+//  * Northbound: disable the graceful restart helper mode
+// Output:
+//  * Protocol: send an LS Update to all adjacencies containing the updated
+//    self-originated Router Information LSA
+//  * Northbound:
+//    - the self-originated Router Information LSA no longer has the
+//      "ietf-ospf:graceful-restart-helper" informational capability
+//    - neighbor rt6 is no longer in graceful restart mode
+//      ("exit-reason":"topology-changed")
+#[tokio::test]
+async fn gr_helper_disable1() {
+    run_test::<Instance<Ospfv2>>("gr-helper-disable1", "topo2-1", "rt4").await;
+}
+
+// Test description:
+//
+// Input:
+//  * Protocol: received Grace-LSA from rt6
+// Output:
+//  * Protocol: send an LS Ack to rt6 containing the Grace-LSA
+//  * Northbound:
+//    - The Grace-LSA is present in the interface LSDB
+//    - neighbor rt6 is in graceful restart mode
+#[tokio::test]
+async fn gr_helper_enter1() {
+    run_test::<Instance<Ospfv2>>("gr-helper-enter1", "topo2-1", "rt4").await;
+}
+
+// Test description:
+//
+// Input:
+//  * Protocol: received Grace-LSA from rt1 (reachable over a broadcast network)
+//    containing rt1's eth-sw1 interface address
+// Output:
+//  * Northbound:
+//    - The Grace-LSA is present in the interface LSDB
+//    - neighbor rt1 is in graceful restart mode
+#[tokio::test]
+async fn gr_helper_enter2() {
+    run_test::<Instance<Ospfv2>>("gr-helper-enter2", "topo2-1", "rt2").await;
+}
+
+// Test description:
+//
+// Input:
+//  * Protocol: received Grace-LSA from rt6
+// Output:
+//  * Protocol: send an LS Ack to rt6 containing the Grace-LSA
+//  * Northbound:
+//    - the Grace-LSA is present in the interface LSDB
+//    - neighbor rt6 is in graceful restart mode
+//
+// Input:
+//  * Protocol: received MaxAge Grace-LSA from rt6
+// Output:
+//  * Protocol: send an LS Ack to rt6 containing the MaxAge Grace-LSA
+//  * Northbound:
+//    - The Grace-LSA is present in the interface LSDB with MaxAge
+//    - neighbor rt6 is no longer in graceful restart mode
+//      ("exit-reason":"completed")
+#[tokio::test]
+async fn gr_helper_exit1() {
+    run_test::<Instance<Ospfv2>>("gr-helper-exit1", "topo2-1", "rt4").await;
+}
+
+// Test description:
+//
+// Input:
+//  * Protocol: received Grace-LSA from rt6
+// Output:
+//  * Protocol: send an LS Ack to rt6 containing the Grace-LSA
+//  * Northbound:
+//    - the Grace-LSA is present in the interface LSDB
+//    - neighbor rt6 is in graceful restart mode
+//
+// Input:
+//  * Protocol: the grace period for rt6 has timed out
+// Output:
+//  * Protocol: send an LS Update to all adjacencies containing the updated
+//    self-originated Router-LSA, which no longer has a link to rt6
+//  * Northbound:
+//    - neighbor rt6 is no longer in graceful restart mode
+//      ("exit-reason":"timed-out")
+//    - neighbor rt6 is deleted
+//    - the self-originated Router-LSA no longer includes a link to rt6
+#[tokio::test]
+async fn gr_helper_exit2() {
+    run_test::<Instance<Ospfv2>>("gr-helper-exit2", "topo2-1", "rt4").await;
+}
+
+// Test description:
+//
+// Input:
+//  * Protocol: received Grace-LSA from rt6
+// Output:
+//  * Protocol: send an LS Ack to rt6 containing the Grace-LSA
+//  * Northbound:
+//    - the Grace-LSA is present in the interface LSDB
+//    - neighbor rt6 is in graceful restart mode
+//
+// Input:
+//  * Protocol: received updated Router-LSA (adv-rtr 3.3.3.3) from rt5
+// Output:
+//    - send an LS Ack to rt6 containing the received Router-LSA
+//    - send an LS Update to all adjacencies containing the received Router-LSA,
+//      except to rt5
+//  * Northbound:
+//    - neighbor rt6 is no longer in graceful restart mode
+//      ("exit-reason":"topology-changed")
+//    - Router-LSA (adv-rtr 3.3.3.3) is updated
+#[tokio::test]
+async fn gr_helper_exit3() {
+    run_test::<Instance<Ospfv2>>("gr-helper-exit3", "topo2-1", "rt4").await;
+}
+
+// Test description:
+//
+// Input:
 //  * Protocol: Router-LSA (adv-rtr 1.1.1.1, lsa-id 1.1.1.1) has expired
 // Output:
 //  * Protocol: send an LS Update to all adjacencies containing the expired LSA

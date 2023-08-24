@@ -1,0 +1,1 @@
+{"ietf-ospf:nbr-restart-helper-status-change":{"routing-protocol-name":"test","address-family":"ipv4","interface":{"interface":"eth-sw1"},"neighbor-router-id":"1.1.1.1","neighbor-ip-addr":"10.0.1.1","status":"helping","age":120}}

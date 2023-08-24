@@ -173,8 +173,8 @@ impl Default for LoggingFmt {
             enabled: true,
             style: LoggingFmtStyle::Full,
             colors: false,
-            show_thread_id: true,
-            show_source: true,
+            show_thread_id: false,
+            show_source: false,
         }
     }
 }

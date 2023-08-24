@@ -25,6 +25,7 @@ use crate::interface::{ism, Interface, InterfaceType};
 use crate::lsdb::{LsaEntry, LsaOriginateEvent};
 use crate::northbound::notification;
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
+use crate::packet::tlv::GrReason;
 use crate::packet::{DbDescFlags, DbDescVersion, PacketType};
 use crate::tasks::messages::input::RxmtIntervalMsg;
 use crate::tasks::messages::output::NetTxPacketMsg;
@@ -53,6 +54,7 @@ pub struct Neighbor<V: Version> {
     pub discontinuity_time: DateTime<Utc>,
 
     pub adj_sids: Vec<V::AdjSid>,
+    pub gr: Option<NeighborGrHelper>,
     pub lists: NeighborLsaLists<V>,
     pub tasks: NeighborTasks,
 }
@@ -80,6 +82,12 @@ pub struct NeighborLsaLists<V: Version> {
     pub ls_request: BTreeMap<LsaKey<V::LsaType>, V::LsaHdr>,
     // LSAs that were requested but not received yet.
     pub ls_request_pending: BTreeMap<LsaKey<V::LsaType>, V::LsaHdr>,
+}
+
+#[derive(Debug)]
+pub struct NeighborGrHelper {
+    pub restart_reason: GrReason,
+    pub grace_period: TimeoutTask,
 }
 
 #[derive(Debug, Default)]
@@ -189,6 +197,7 @@ where
             event_count: 0,
             discontinuity_time: Utc::now(),
             adj_sids: Default::default(),
+            gr: None,
             lists: Default::default(),
             tasks: Default::default(),
         }
@@ -319,7 +328,18 @@ where
             (_, Event::Kill | Event::LinkDown | Event::InactivityTimer) => {
                 self.reset_adjacency();
                 self.tasks.inactivity_timer = None;
-                Some(State::Down)
+
+                // If we're acting as a graceful restart helper for the
+                // neighbor, do not change its state once the Inactivity Timer
+                // event is triggered.
+                //
+                // If the neighbor fails to restart before the grace period
+                // expires, it will be removed.
+                if event == Event::InactivityTimer && self.gr.is_some() {
+                    None
+                } else {
+                    Some(State::Down)
+                }
             }
             // NSM (state, event) -> (Action, new state)
             (
@@ -332,7 +352,15 @@ where
             ) => {
                 self.reset_adjacency();
                 self.tasks.inactivity_timer = None;
-                Some(State::Init)
+
+                // If we're acting as a graceful restart helper for the
+                // neighbor, do not change its state once the 1-Way event is
+                // triggered.
+                if self.gr.is_some() {
+                    None
+                } else {
+                    Some(State::Init)
+                }
             }
             // NSM (state, event) -> (Action, new state)
             (
@@ -403,7 +431,9 @@ where
         }
 
         // Check if the neighbor changed to/from the FULL state.
-        if new_state == State::Full || self.state == State::Full {
+        if (new_state == State::Full || self.state == State::Full)
+            && self.gr.is_none()
+        {
             // (Re)originate LSAs that might have been affected.
             instance.tx.protocol_input.lsa_orig_event(
                 LsaOriginateEvent::NeighborToFromFull {
@@ -414,7 +444,7 @@ where
         }
 
         // Update Adj-SID(s) associated to this neighbor.
-        if instance.config.sr_enabled {
+        if instance.config.sr_enabled && self.gr.is_none() {
             let mut two_way_or_higher_change = false;
 
             if new_state >= State::TwoWay && self.state < State::TwoWay {

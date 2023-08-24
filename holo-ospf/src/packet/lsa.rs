@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::lsdb::{LSA_MAX_AGE, LSA_RESERVED_SEQ_NO};
 use crate::packet::error::{DecodeError, DecodeResult, LsaValidationError};
-use crate::packet::tlv::{AdjSidFlags, PrefixSidFlags};
+use crate::packet::tlv::{AdjSidFlags, GrReason, PrefixSidFlags};
 use crate::version::Version;
 
 // OSPF LSA.
@@ -101,6 +101,11 @@ where
 {
     // Return the scope associated to the LSA type.
     fn scope(&self) -> LsaScope;
+
+    // Return whether the LSA type, as seen from the Graceful Restart
+    // perspective, corresponds to topology-related information (types 1-5,
+    // 7).
+    fn is_gr_topology_info(&self) -> bool;
 }
 
 // OSPF version-specific code.
@@ -179,6 +184,7 @@ where
     fn lsa_type(&self) -> V::LsaType;
     fn is_unknown(&self) -> bool;
     fn validate(&self, hdr: &V::LsaHdr) -> Result<(), LsaValidationError>;
+    fn as_grace(&self) -> Option<(u32, GrReason, Option<V::NetIpAddr>)>;
 }
 
 // OSPF version-specific code.

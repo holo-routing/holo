@@ -34,6 +34,18 @@ module ietf-ospf-holo-deviations {
     }
   }
 
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:graceful-restart/ospf:helper-enabled" {
+    deviate add {
+      default "true";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:graceful-restart/ospf:helper-strict-lsa-checking" {
+    deviate add {
+      default "true";
+    }
+  }
+
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:spf-control/ospf:paths" {
     deviate add {
       default "16";
@@ -290,51 +302,9 @@ module ietf-ospf-holo-deviations {
   }
   */
 
-  deviation "/ospf:nbr-restart-helper-status-change" {
-    deviate not-supported;
-  }
-
-  /*
-  deviation "/ospf:nbr-restart-helper-status-change/ospf:routing-protocol-name" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/ospf:nbr-restart-helper-status-change/ospf:address-family" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/ospf:nbr-restart-helper-status-change/ospf:if-link-type-selection" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/ospf:nbr-restart-helper-status-change/ospf:if-link-type-selection/ospf:interface" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/ospf:nbr-restart-helper-status-change/ospf:if-link-type-selection/ospf:interface/ospf:interface" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/ospf:nbr-restart-helper-status-change/ospf:if-link-type-selection/ospf:interface/ospf:interface/ospf:interface" {
-    deviate not-supported;
-  }
-  */
-
-  /*
   deviation "/ospf:nbr-restart-helper-status-change/ospf:if-link-type-selection/ospf:virtual-link" {
     deviate not-supported;
   }
-  */
 
   /*
   deviation "/ospf:nbr-restart-helper-status-change/ospf:if-link-type-selection/ospf:virtual-link/ospf:virtual-link" {
@@ -354,11 +324,9 @@ module ietf-ospf-holo-deviations {
   }
   */
 
-  /*
   deviation "/ospf:nbr-restart-helper-status-change/ospf:if-link-type-selection/ospf:sham-link" {
     deviate not-supported;
   }
-  */
 
   /*
   deviation "/ospf:nbr-restart-helper-status-change/ospf:if-link-type-selection/ospf:sham-link/ospf:sham-link" {
@@ -569,6 +537,14 @@ module ietf-ospf-holo-deviations {
     deviate not-supported;
   }
   */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:graceful-restart/ospf:enabled" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:graceful-restart/ospf:restart-interval" {
+    deviate not-supported;
+  }
 
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:mpls" {
     deviate not-supported;

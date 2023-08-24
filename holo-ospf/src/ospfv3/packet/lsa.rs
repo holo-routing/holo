@@ -30,10 +30,10 @@ use crate::packet::lsa::{
     PrefixSidVersion,
 };
 use crate::packet::tlv::{
-    tlv_encode_end, tlv_encode_start, tlv_wire_len, AdjSidFlags, MsdTlv,
-    PrefixSidFlags, RouterFuncCapsTlv, RouterInfoCapsTlv, RouterInfoTlvType,
-    SidLabelRangeTlv, SrAlgoTlv, SrLocalBlockTlv, SrmsPrefTlv, UnknownTlv,
-    TLV_HDR_SIZE,
+    tlv_encode_end, tlv_encode_start, tlv_wire_len, AdjSidFlags, GrReason,
+    GrReasonTlv, GracePeriodTlv, MsdTlv, PrefixSidFlags, RouterFuncCapsTlv,
+    RouterInfoCapsTlv, RouterInfoTlvType, SidLabelRangeTlv, SrAlgoTlv,
+    SrLocalBlockTlv, SrmsPrefTlv, UnknownTlv, TLV_HDR_SIZE,
 };
 use crate::version::Ospfv3;
 
@@ -97,6 +97,7 @@ pub enum LsaFunctionCode {
     ExtLink = 40,
     ExtIntraAreaPrefix = 41,
     // Other LSA types
+    Grace = 11,
     RouterInfo = 12,
 }
 
@@ -148,6 +149,7 @@ pub enum LsaBody {
     AsExternal(LsaAsExternal),
     Link(LsaLink),
     IntraAreaPrefix(LsaIntraAreaPrefix),
+    Grace(LsaGrace),
     RouterInfo(LsaRouterInfo),
     Unknown(LsaUnknown),
 }
@@ -887,6 +889,35 @@ pub struct LsaIntraAreaPrefixEntry {
     pub unknown_stlvs: Vec<UnknownTlv>,
 }
 
+// OSPFv3 Grace LSA Top Level TLV types.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(FromPrimitive, ToPrimitive)]
+#[derive(Deserialize, Serialize)]
+pub enum GraceTlvType {
+    GracePeriod = 1,
+    GrReason = 2,
+}
+
+//
+// OSPFv3 Grace Opaque LSA.
+//
+// Encoding format (LSA body):
+//
+//  0                   1                   2                   3
+//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |                                                               |
+// +-                            TLVs                             -+
+// |                             ...                               |
+//
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct LsaGrace {
+    pub grace_period: Option<GracePeriodTlv>,
+    pub gr_reason: Option<GrReasonTlv>,
+    pub unknown_tlvs: Vec<UnknownTlv>,
+}
+
 //
 // OSPFv3 Router Information (RI) Opaque LSA.
 //
@@ -964,6 +995,19 @@ impl LsaTypeVersion for LsaType {
             LsaScopeCode::As => LsaScope::As,
             LsaScopeCode::Reserved => LsaScope::Unknown,
         }
+    }
+
+    fn is_gr_topology_info(&self) -> bool {
+        matches!(
+            self.function_code_normalized(),
+            Some(
+                LsaFunctionCode::Router
+                    | LsaFunctionCode::Network
+                    | LsaFunctionCode::InterAreaPrefix
+                    | LsaFunctionCode::InterAreaRouter
+                    | LsaFunctionCode::AsExternal
+            )
+        )
     }
 }
 
@@ -1239,6 +1283,9 @@ impl LsaBodyVersion<Ospfv3> for LsaBody {
                 )?)
             }
             // Other LSA types
+            Some(LsaFunctionCode::Grace) => {
+                LsaBody::Grace(LsaGrace::decode(buf)?)
+            }
             Some(LsaFunctionCode::RouterInfo) => {
                 LsaBody::RouterInfo(LsaRouterInfo::decode(lsa_scope, buf)?)
             }
@@ -1257,6 +1304,7 @@ impl LsaBodyVersion<Ospfv3> for LsaBody {
             LsaBody::AsExternal(lsa) => lsa.encode(buf),
             LsaBody::Link(lsa) => lsa.encode(buf),
             LsaBody::IntraAreaPrefix(lsa) => lsa.encode(buf),
+            LsaBody::Grace(lsa) => lsa.encode(buf),
             LsaBody::RouterInfo(lsa) => lsa.encode(buf),
             LsaBody::Unknown(lsa) => lsa.encode(buf),
         }
@@ -1277,6 +1325,7 @@ impl LsaBodyVersion<Ospfv3> for LsaBody {
             LsaBody::IntraAreaPrefix(lsa) => {
                 LsaIntraAreaPrefix::lsa_type(lsa.extended)
             }
+            LsaBody::Grace(_) => LsaGrace::lsa_type(),
             LsaBody::RouterInfo(lsa) => lsa.lsa_type(),
             LsaBody::Unknown(_) => LsaUnknown::lsa_type(),
         }
@@ -1288,6 +1337,15 @@ impl LsaBodyVersion<Ospfv3> for LsaBody {
 
     fn validate(&self, _hdr: &LsaHdr) -> Result<(), LsaValidationError> {
         Ok(())
+    }
+
+    fn as_grace(&self) -> Option<(u32, GrReason, Option<Ipv6Addr>)> {
+        let grace = self.as_grace()?;
+        let grace_period = grace.grace_period?.get();
+        let gr_reason = grace.gr_reason?.get();
+        let gr_reason =
+            GrReason::from_u8(gr_reason).unwrap_or(GrReason::Unknown);
+        Some((grace_period, gr_reason, None))
     }
 }
 
@@ -2400,6 +2458,64 @@ impl LsaIntraAreaPrefixEntry {
             true => Self::MAX_LENGTH_EXT,
             false => Self::MAX_LENGTH_LEGACY,
         }
+    }
+}
+
+// ===== impl LsaGrace =====
+
+impl LsaGrace {
+    fn decode(buf: &mut Bytes) -> DecodeResult<Self> {
+        let mut grace = LsaGrace::default();
+
+        while buf.remaining() >= TLV_HDR_SIZE as usize {
+            // Parse TLV type.
+            let tlv_type = buf.get_u16();
+            let tlv_etype = GraceTlvType::from_u16(tlv_type);
+
+            // Parse and validate TLV length.
+            let tlv_len = buf.get_u16();
+            let tlv_wlen = tlv_wire_len(tlv_len);
+            if tlv_wlen as usize > buf.remaining() {
+                return Err(DecodeError::InvalidTlvLength(tlv_len));
+            }
+
+            // Parse TLV value.
+            let mut buf_tlv = buf.copy_to_bytes(tlv_wlen as usize);
+            match tlv_etype {
+                Some(GraceTlvType::GracePeriod) => {
+                    let period = GracePeriodTlv::decode(tlv_len, &mut buf_tlv)?;
+                    grace.grace_period.get_or_insert(period);
+                }
+                Some(GraceTlvType::GrReason) => {
+                    let reason = GrReasonTlv::decode(tlv_len, &mut buf_tlv)?;
+                    grace.gr_reason.get_or_insert(reason);
+                }
+                _ => {
+                    // Save unknown TLV.
+                    let value = buf_tlv.copy_to_bytes(tlv_len as usize);
+                    grace
+                        .unknown_tlvs
+                        .push(UnknownTlv::new(tlv_type, tlv_len, value));
+                }
+            }
+        }
+
+        Ok(grace)
+    }
+
+    fn encode(&self, buf: &mut BytesMut) {
+        if let Some(grace_period) = &self.grace_period {
+            grace_period.encode(GraceTlvType::GracePeriod as u16, buf);
+        }
+        if let Some(gr_reason) = &self.gr_reason {
+            gr_reason.encode(GraceTlvType::GrReason as u16, buf);
+        }
+    }
+
+    pub(crate) const fn lsa_type() -> LsaType {
+        let scope = LsaScopeCode::Link;
+        let function_code = LsaFunctionCode::Grace;
+        LsaType(scope as u16 | function_code as u16)
     }
 }
 

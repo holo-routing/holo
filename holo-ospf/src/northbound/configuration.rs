@@ -30,7 +30,7 @@ use crate::lsdb::LsaOriginateEvent;
 use crate::neighbor::nsm;
 use crate::route::RouteNetFlags;
 use crate::version::{Ospfv2, Ospfv3, Version};
-use crate::{spf, sr};
+use crate::{gr, spf, sr};
 
 #[derive(Debug, EnumAsInner)]
 pub enum ListEntry<V: Version> {
@@ -64,6 +64,7 @@ pub enum Event {
     InterfaceUpdateAuth(AreaIndex, InterfaceIndex),
     InterfaceBfdChange(InterfaceIndex),
     StubRouterChange,
+    GrHelperChange,
     SrEnableChange(bool),
     RerunSpf,
     UpdateSummaries,
@@ -212,6 +213,19 @@ where
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::ReinstallRoutes);
+        })
+        .path(ospf::graceful_restart::helper_enabled::PATH)
+        .modify_apply(|instance, args| {
+            let enabled = args.dnode.get_bool();
+            instance.config.gr.helper_enabled = enabled;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::GrHelperChange);
+        })
+        .path(ospf::graceful_restart::helper_strict_lsa_checking::PATH)
+        .modify_apply(|instance, args| {
+            let strict_lsa_checking = args.dnode.get_bool();
+            instance.config.gr.helper_strict_lsa_checking = strict_lsa_checking;
         })
         .path(ospf::spf_control::paths::PATH)
         .modify_apply(|instance, args| {
@@ -1321,6 +1335,18 @@ where
                         .tx
                         .protocol_input
                         .lsa_orig_event(LsaOriginateEvent::StubRouterChange);
+                }
+            }
+            Event::GrHelperChange => {
+                if let Some((mut instance, arenas)) = self.as_up() {
+                    // Exit from the helper mode for all neighbors.
+                    if !instance.config.gr.helper_enabled {
+                        gr::helper_process_topology_change(
+                            None,
+                            &mut instance,
+                            arenas,
+                        );
+                    }
                 }
             }
             Event::SrEnableChange(sr_enabled) => {

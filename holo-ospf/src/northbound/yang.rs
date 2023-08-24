@@ -10,11 +10,14 @@ use holo_yang::{ToYang, ToYangBits, TryFromYang};
 
 use crate::area::AreaType;
 use crate::error::InterfaceCfgError;
+use crate::gr::GrExitReason;
 use crate::interface::{ism, InterfaceType};
 use crate::lsdb::LsaLogReason;
 use crate::neighbor::nsm;
 use crate::packet::error::LsaValidationError;
-use crate::packet::tlv::{AdjSidFlags, PrefixSidFlags, RouterInfoCaps};
+use crate::packet::tlv::{
+    AdjSidFlags, GrReason, PrefixSidFlags, RouterInfoCaps,
+};
 use crate::packet::PacketType;
 use crate::route::PathType;
 use crate::spf::SpfLogType;
@@ -219,6 +222,29 @@ impl ToYangBits for AdjSidFlags {
     }
 }
 
+impl ToYang for GrReason {
+    fn to_yang(&self) -> String {
+        match self {
+            GrReason::Unknown => "unknown".to_owned(),
+            GrReason::SoftwareRestart => "software-restart".to_owned(),
+            GrReason::SoftwareUpgrade => "software-upgrade".to_owned(),
+            GrReason::ControlProcessorSwitchover => {
+                "control-processor-switchover".to_owned()
+            }
+        }
+    }
+}
+
+impl ToYang for GrExitReason {
+    fn to_yang(&self) -> String {
+        match self {
+            GrExitReason::Completed => "completed".to_owned(),
+            GrExitReason::TimedOut => "timed-out".to_owned(),
+            GrExitReason::TopologyChanged => "topology-changed".to_owned(),
+        }
+    }
+}
+
 impl ToYang for ospfv2::packet::lsa::LsaAsExternalFlags {
     fn to_yang(&self) -> String {
         use ospfv2::packet::lsa::LsaAsExternalFlags;
@@ -376,6 +402,9 @@ impl ToYang for ospfv3::packet::lsa::LsaType {
             }
             Some(LsaFunctionCode::RouterInfo) => {
                 "ospfv3-router-information-lsa".to_owned()
+            }
+            Some(LsaFunctionCode::Grace) => {
+                "holo-ospf:ospfv3-grace-lsa".to_owned()
             }
             Some(LsaFunctionCode::ExtRouter) => {
                 "ietf-ospfv3-extended-lsa:ospfv3-e-router-lsa".to_owned()

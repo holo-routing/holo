@@ -105,6 +105,7 @@ pub mod messages {
             LsaRefresh(LsaRefreshMsg<V>),
             LsdbMaxAgeSweep(LsdbMaxAgeSweepMsg),
             SpfDelayEvent(SpfDelayEventMsg),
+            GracePeriod(GracePeriodMsg),
         }
 
         #[derive(Debug, Deserialize, Serialize)]
@@ -203,6 +204,13 @@ pub mod messages {
         #[derive(Debug, Deserialize, Serialize)]
         pub struct SpfDelayEventMsg {
             pub event: spf::fsm::Event,
+        }
+
+        #[derive(Clone, Debug, Deserialize, Serialize)]
+        pub struct GracePeriodMsg {
+            pub area_key: AreaKey,
+            pub iface_key: InterfaceKey,
+            pub nbr_key: NeighborKey,
         }
     }
 
@@ -713,6 +721,43 @@ where
             let msg = messages::input::SpfDelayEventMsg { event };
             let _ = spf_delay_eventp.send(msg);
         })
+    }
+    #[cfg(feature = "testing")]
+    {
+        TimeoutTask {}
+    }
+}
+
+// Grace period timer task.
+pub(crate) fn grace_period_timer<V>(
+    nbr: &Neighbor<V>,
+    iface: &Interface<V>,
+    area: &Area<V>,
+    instance: &InstanceUpView<'_, V>,
+    grace_period: u32,
+) -> TimeoutTask
+where
+    V: Version,
+{
+    #[cfg(not(feature = "testing"))]
+    {
+        let area_id = area.id;
+        let iface_id = iface.id;
+        let nbr_id = nbr.id;
+        let grace_periodp = instance.tx.protocol_input.grace_period.clone();
+
+        TimeoutTask::new(
+            Duration::from_secs(grace_period.into()),
+            move || async move {
+                let _ = grace_periodp
+                    .send(messages::input::GracePeriodMsg {
+                        area_key: area_id.into(),
+                        iface_key: iface_id.into(),
+                        nbr_key: nbr_id.into(),
+                    })
+                    .await;
+            },
+        )
     }
     #[cfg(feature = "testing")]
     {

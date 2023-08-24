@@ -677,6 +677,30 @@ static LSA4: Lazy<(Vec<u8>, Lsa<Ospfv2>)> = Lazy::new(|| {
     )
 });
 
+static GRACE_LSA1: Lazy<(Vec<u8>, Lsa<Ospfv2>)> = Lazy::new(|| {
+    (
+        vec![
+            0x00, 0x01, 0x42, 0x09, 0x03, 0x00, 0x00, 0x00, 0x06, 0x06, 0x06,
+            0x06, 0x80, 0x00, 0x00, 0x01, 0x7e, 0xf4, 0x00, 0x24, 0x00, 0x01,
+            0x00, 0x04, 0x00, 0x00, 0x00, 0x78, 0x00, 0x02, 0x00, 0x01, 0x00,
+            0x00, 0x00, 0x00,
+        ],
+        Lsa::new(
+            1,
+            Some(Options::O | Options::E),
+            Ipv4Addr::from_str("3.0.0.0").unwrap(),
+            Ipv4Addr::from_str("6.6.6.6").unwrap(),
+            0x80000001,
+            LsaBody::OpaqueLink(LsaOpaque::Grace(LsaGrace {
+                grace_period: Some(GracePeriodTlv::new(120)),
+                gr_reason: Some(GrReasonTlv::new(0)),
+                addr: None,
+                unknown_tlvs: vec![],
+            })),
+        ),
+    )
+});
+
 //
 // Tests.
 //
@@ -846,5 +870,17 @@ fn test_encode_lsa4() {
 #[test]
 fn test_decode_lsa4() {
     let (ref bytes, ref lsa) = *LSA4;
+    test_decode_lsa(bytes, lsa);
+}
+
+#[test]
+fn test_encode_grace_lsa1() {
+    let (ref bytes, ref lsa) = *GRACE_LSA1;
+    test_encode_lsa(bytes, lsa);
+}
+
+#[test]
+fn test_decode_grace_lsa1() {
+    let (ref bytes, ref lsa) = *GRACE_LSA1;
     test_decode_lsa(bytes, lsa);
 }

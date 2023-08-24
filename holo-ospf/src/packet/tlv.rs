@@ -246,6 +246,27 @@ bitflags! {
     }
 }
 
+// OSPF Grace-LSA's Grace Period TLV.
+#[derive(Clone, Copy, Debug, Eq, new, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct GracePeriodTlv(u32);
+
+// OSPF Grace-LSA's Graceful Restart reason TLV.
+#[derive(Clone, Copy, Debug, Eq, new, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct GrReasonTlv(u8);
+
+// OSPF Graceful Restart reason value.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(FromPrimitive)]
+#[derive(Deserialize, Serialize)]
+pub enum GrReason {
+    Unknown = 0,
+    SoftwareRestart = 1,
+    SoftwareUpgrade = 2,
+    ControlProcessorSwitchover = 3,
+}
+
 #[derive(Clone, Debug, Eq, new, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct UnknownTlv {
@@ -528,6 +549,77 @@ impl MsdTlv {
 
     pub(crate) fn get(&self) -> &BTreeMap<u8, u8> {
         &self.0
+    }
+}
+
+// ===== impl GracePeriodTlv =====
+
+impl GracePeriodTlv {
+    pub(crate) fn decode(tlv_len: u16, buf: &mut Bytes) -> DecodeResult<Self> {
+        // Validate TLV length.
+        if tlv_len != 4 {
+            return Err(DecodeError::InvalidTlvLength(tlv_len));
+        }
+
+        let period = buf.get_u32();
+
+        Ok(GracePeriodTlv(period))
+    }
+
+    pub(crate) fn encode(&self, tlv_type: u16, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, tlv_type);
+        buf.put_u32(self.0);
+        tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn get(&self) -> u32 {
+        self.0
+    }
+}
+
+// ===== impl GrReasonTlv =====
+
+impl GrReasonTlv {
+    pub(crate) fn decode(tlv_len: u16, buf: &mut Bytes) -> DecodeResult<Self> {
+        // Validate TLV length.
+        if tlv_len != 1 {
+            return Err(DecodeError::InvalidTlvLength(tlv_len));
+        }
+
+        let reason = buf.get_u8();
+
+        Ok(GrReasonTlv(reason))
+    }
+
+    pub(crate) fn encode(&self, tlv_type: u16, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, tlv_type);
+        buf.put_u8(self.0);
+        tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn get(&self) -> u8 {
+        self.0
+    }
+}
+
+// ===== impl GrReason =====
+
+impl std::fmt::Display for GrReason {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GrReason::Unknown => {
+                write!(f, "unknown")
+            }
+            GrReason::SoftwareRestart => {
+                write!(f, "software restart")
+            }
+            GrReason::SoftwareUpgrade => {
+                write!(f, "software upgrade")
+            }
+            GrReason::ControlProcessorSwitchover => {
+                write!(f, "control plane switchover")
+            }
+        }
     }
 }
 

@@ -8,6 +8,12 @@ module holo-ospf {
     reference "RFC 6991: Common YANG Data Types";
   }
 
+  import ietf-routing-types {
+    prefix rt-types;
+    reference
+      "RFC 8294: Common YANG Data Types for the Routing Area";
+  }
+
   import ietf-routing {
     prefix rt;
   }
@@ -22,6 +28,43 @@ module holo-ospf {
   description
     "This module defines augment statements for the ietf-ospf
      module.";
+
+  /*
+   * Identities.
+   */
+  identity ospfv2-grace-lsa {
+    base ospf:ospfv2-link-scope-opaque-lsa;
+    description
+      "OSPFv2 Grace-LSA.";
+  }
+
+  identity ospfv3-grace-lsa {
+    base ospf:ospfv3-lsa-type;
+    description
+      "OSPFv3 Grace-LSA.";
+  }
+
+  /*
+   * Types.
+   */
+  typedef graceful-restart-reason-type {
+    type enumeration {
+      enum unknown {
+        value 0;
+      }
+      enum software-restart {
+        value 1;
+      }
+      enum software-upgrade {
+        value 2;
+      }
+      enum control-processor-switchover {
+        value 3;
+      }
+    }
+    description
+      "Describes the reason for the router restart.";
+  }
 
   /*
    * Augmentations.
@@ -40,6 +83,95 @@ module holo-ospf {
       default "0";
       description
         "OSPFv3 instance ID.";
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/"
+        + "ospf:interfaces/ospf:interface/ospf:neighbors/ospf:neighbor" {
+    container graceful-restart {
+      config false;
+      description
+        "Neighbor Graceful Restart information.";
+
+      leaf restart-reason {
+        type graceful-restart-reason-type;
+        description
+          "Graceful Restart reason encoded in the received Grace-LSA.";
+      }
+      leaf grace-timer {
+        type uint16;
+        units "seconds";
+        description
+          "This timer tracks the remaining time before the
+           grace period expires.";
+      }
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/"
+        + "ospf:interfaces/ospf:interface/ospf:database/"
+        + "ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/"
+        + "ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque" {
+    container grace {
+      when "derived-from(../../header/type, "
+         + "'ospfv2-grace-lsa')" {
+        description
+          "Only applies to Grace-LSAs.";
+      }
+      description
+        "Grace-LSA.";
+      leaf grace-period {
+        type uint32;
+        units "seconds";
+        description
+          "The number of seconds that the router's neighbors should
+           continue to advertise the router as fully adjacent, regardless
+           of the state of database synchronization between the router
+           and its neighbors.";
+      }
+      leaf graceful-restart-reason {
+        type graceful-restart-reason-type;
+        description
+          "The reason for the router restart.";
+      }
+      leaf ip-interface-address {
+        type inet:ipv4-address;
+        description
+          "The router's IP interface address on the subnet associated
+           with the grace-LSA.";
+      }
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/"
+        + "ospf:interfaces/ospf:interface/ospf:database/"
+        + "ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/"
+        + "ospf:version/ospf:ospfv3/ospf:ospfv3/ospf:body" {
+    container grace {
+      when "derived-from(../../header/type, "
+         + "'ospfv3-grace-lsa')" {
+        description
+          "Only applies to Grace-LSAs.";
+      }
+      description
+        "Grace-LSA.";
+      leaf grace-period {
+        type uint32;
+        units "seconds";
+        description
+          "The number of seconds that the router's neighbors should
+           continue to advertise the router as fully adjacent, regardless
+           of the state of database synchronization between the router
+           and its neighbors.";
+      }
+      leaf graceful-restart-reason {
+        type graceful-restart-reason-type;
+        description
+          "The reason for the router restart.";
+      }
     }
   }
 

@@ -23,6 +23,7 @@ use crate::collections::{
 use crate::debug::{Debug, LsaFlushReason, SeqNoMismatchReason};
 use crate::error::{Error, InterfaceCfgError};
 use crate::flood::flood;
+use crate::gr::GrExitReason;
 use crate::instance::{Instance, InstanceArenas, InstanceUpView};
 use crate::interface::{ism, Interface};
 use crate::lsdb::{
@@ -32,7 +33,7 @@ use crate::neighbor::{nsm, LastDbDesc, Neighbor, RxmtPacketType};
 use crate::northbound::notification;
 use crate::packet::error::DecodeResult;
 use crate::packet::lsa::{
-    Lsa, LsaHdrVersion, LsaKey, LsaScope, LsaTypeVersion,
+    Lsa, LsaBodyVersion, LsaHdrVersion, LsaKey, LsaScope, LsaTypeVersion,
 };
 use crate::packet::{
     DbDescFlags, DbDescVersion, HelloVersion, LsAckVersion, LsRequestVersion,
@@ -40,7 +41,7 @@ use crate::packet::{
     PacketType,
 };
 use crate::version::Version;
-use crate::{output, spf, sr, tasks};
+use crate::{gr, output, spf, sr, tasks};
 
 // ===== Interface FSM event =====
 
@@ -855,10 +856,11 @@ where
 
         // (5.e) Possibly acknowledge the receipt of the LSA by sending a
         // Link State Acknowledgment packet.
-        let nbr = &arenas.neighbors[nbr_idx];
+        let nbr = &mut arenas.neighbors[nbr_idx];
         let iface = &mut arenas.interfaces[iface_idx];
         let area = &arenas.areas[area_idx];
         let nbr_net_id = nbr.network_id();
+        let nbr_router_id = nbr.router_id;
         if !flooded_back
             && (iface.state.ism_state != ism::State::Backup
                 || iface.state.dr == Some(nbr_net_id))
@@ -867,9 +869,38 @@ where
             iface.enqueue_delayed_ack(area, instance, &lse.data.hdr);
         }
 
+        // Grace-LSA processing.
+        if let Some((grace_period, reason, addr)) = lse.data.body.as_grace() {
+            // For OSPFv2, on broadcast, NBMA and P2MP segments, the restarting
+            // neighbor is identified by the IP interface address in the body of
+            // the Grace-LSA.
+            let nbr = match addr {
+                Some(addr) => V::get_neighbor(
+                    iface,
+                    &addr,
+                    nbr_router_id,
+                    &mut arenas.neighbors,
+                )
+                .map(|(_, nbr)| nbr),
+                None => Some(nbr),
+            };
+
+            if let Some(nbr) = nbr {
+                gr::helper_process_grace_lsa(
+                    nbr,
+                    iface,
+                    area,
+                    &lse.data.hdr,
+                    grace_period,
+                    reason,
+                    instance,
+                );
+            }
+        }
+
         // (5.f) Check if this is a self-originated LSA.
         if lse.flags.contains(LsaEntryFlags::SELF_ORIGINATED) {
-            Debug::<V>::LsaSelfOriginated(nbr.router_id, &lse.data.hdr).log();
+            Debug::<V>::LsaSelfOriginated(nbr_router_id, &lse.data.hdr).log();
 
             // (Re)originate or flush self-originated LSA.
             let (lsdb_id, _) = lsdb_index(
@@ -993,7 +1024,7 @@ where
     Ok(())
 }
 
-// ===== Request to send LS Update =====
+// ===== Free last sent/received Database Description packets =====
 
 pub(crate) fn process_dbdesc_free<V>(
     _instance: &mut InstanceUpView<'_, V>,
@@ -1339,6 +1370,44 @@ where
 {
     // Trigger SPF Delay FSM event.
     spf::fsm(event, instance, arenas)
+}
+
+// ===== Grace period timeout =====
+
+pub(crate) fn process_grace_period_timeout<V>(
+    instance: &mut InstanceUpView<'_, V>,
+    arenas: &mut InstanceArenas<V>,
+    area_key: AreaKey,
+    iface_key: InterfaceKey,
+    nbr_key: NeighborKey,
+) -> Result<(), Error<V>>
+where
+    V: Version,
+{
+    // Lookup area, interface and neighbor.
+    let (_, area) = arenas.areas.get_mut_by_key(&area_key)?;
+    let (_iface_idx, iface) = area
+        .interfaces
+        .get_mut_by_key(&mut arenas.interfaces, &iface_key)?;
+    let (_, nbr) = iface
+        .state
+        .neighbors
+        .get_mut_by_key(&mut arenas.neighbors, &nbr_key)?;
+
+    if nbr.gr.is_some() {
+        // Exit from the helper mode.
+        gr::helper_exit(nbr, iface, area, GrExitReason::TimedOut, instance);
+
+        // Delete the neighbor.
+        instance.tx.protocol_input.nsm_event(
+            area.id,
+            iface.id,
+            nbr.id,
+            nsm::Event::InactivityTimer,
+        );
+    }
+
+    Ok(())
 }
 
 // ===== SR configuration change event =====

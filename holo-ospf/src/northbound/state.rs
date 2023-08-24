@@ -16,7 +16,7 @@ use holo_northbound::state::{
 use holo_utils::sr::IgpAlgoType;
 use holo_yang::{ToYang, ToYangBits};
 use itertools::Itertools;
-use num_traits::ToPrimitive;
+use num_traits::{FromPrimitive, ToPrimitive};
 
 use crate::area::Area;
 use crate::collections::LsdbSingleType;
@@ -25,7 +25,9 @@ use crate::interface::{ism, Interface};
 use crate::lsdb::{LsaEntry, LsaLogEntry, LsaLogId};
 use crate::neighbor::Neighbor;
 use crate::packet::lsa::{LsaBodyVersion, LsaHdrVersion};
-use crate::packet::tlv::{SidLabelRangeTlv, SrLocalBlockTlv, UnknownTlv};
+use crate::packet::tlv::{
+    GrReason, SidLabelRangeTlv, SrLocalBlockTlv, UnknownTlv,
+};
 use crate::route::{Nexthop, RouteNet};
 use crate::spf::SpfLogEntry;
 use crate::version::{Ospfv2, Ospfv3, Version};
@@ -807,6 +809,20 @@ where
         .get_element_u32(|_instance, args| {
             let (_, nbr) = args.list_entry.as_neighbor().unwrap();
             Some(nbr.lists.ls_rxmt.len() as u32)
+        })
+        .path(ospf::areas::area::interfaces::interface::neighbors::neighbor::graceful_restart::restart_reason::PATH)
+        .get_element_string(|_instance, args| {
+            let (_, nbr) = args.list_entry.as_neighbor().unwrap();
+            nbr.gr.as_ref().map(|gr| gr.restart_reason.to_yang())
+        })
+        .path(ospf::areas::area::interfaces::interface::neighbors::neighbor::graceful_restart::grace_timer::PATH)
+        .attributes(NodeAttributes::TIME)
+        .get_element_u16(|_instance, args| {
+            let (_, nbr) = args.list_entry.as_neighbor().unwrap();
+            nbr.gr.as_ref().map(|gr| {
+                u16::try_from(gr.grace_period.remaining().as_secs())
+                    .unwrap_or(u16::MAX)
+            })
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::PATH)
         .get_iterate(|_instance, args| {
@@ -2532,6 +2548,46 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::extended_link_opaque::extended_link_tlv::unknown_tlvs::unknown_tlv::value::PATH)
         .get_element_string(|_instance, _args| {
             None
+        })
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::grace::grace_period::PATH)
+        .get_element_u32(|_instance, args| {
+            let lse: &LsaEntry<Ospfv2> =
+                args.list_entry.as_interface_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_opaque_link()
+                && let Some(lsa_body) = lsa_body.as_grace()
+                && let Some(grace_period) = &lsa_body.grace_period {
+                    Some(grace_period.get())
+            } else {
+                None
+            }
+        })
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::grace::graceful_restart_reason::PATH)
+        .get_element_string(|_instance, args| {
+            let lse: &LsaEntry<Ospfv2> =
+                args.list_entry.as_interface_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_opaque_link()
+                && let Some(lsa_body) = lsa_body.as_grace()
+                && let Some(gr_reason) = &lsa_body.gr_reason
+                && let Some(gr_reason) = GrReason::from_u8(gr_reason.get()) {
+                    Some(gr_reason.to_yang())
+            } else {
+                None
+            }
+        })
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::grace::ip_interface_address::PATH)
+        .get_element_ipv4(|_instance, args| {
+            let lse: &LsaEntry<Ospfv2> =
+                args.list_entry.as_interface_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_opaque_link()
+                && let Some(lsa_body) = lsa_body.as_grace()
+                && let Some(addr) = &lsa_body.addr {
+                    Some(addr.get())
+            } else {
+                None
+            }
         })
         .build()
 }
@@ -4650,6 +4706,31 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let bytes =
                 tlv.value.iter().map(|byte| format!("{:02x}", byte)).join(":");
             Some(bytes)
+        })
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::grace::grace_period::PATH)
+        .get_element_u32(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> =
+                args.list_entry.as_interface_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_grace()
+                && let Some(grace_period) = &lsa_body.grace_period {
+                    Some(grace_period.get())
+            } else {
+                None
+            }
+        })
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::grace::graceful_restart_reason::PATH)
+        .get_element_string(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> =
+                args.list_entry.as_interface_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_grace()
+                && let Some(gr_reason) = &lsa_body.gr_reason
+                && let Some(gr_reason) = GrReason::from_u8(gr_reason.get()) {
+                    Some(gr_reason.to_yang())
+            } else {
+                None
+            }
         })
         .build()
 }

@@ -149,6 +149,8 @@ Holo supports the following IETF RFCs and Internet drafts:
 ##### OSPF
 
 * RFC 2328 - OSPF Version 2
+* RFC 3623 - Graceful OSPF Restart
+* RFC 5187 - OSPFv3 Graceful Restart
 * RFC 5243 - OSPF Database Exchange Summary List Optimization
 * RFC 5250 - The OSPF Opaque LSA Option
 * RFC 5340 - OSPF for IPv6
@@ -182,7 +184,7 @@ Holo supports the following IETF RFCs and Internet drafts:
 | ietf-key-chain@2017-04-18 | 100.00% | 100.00% | - | - | [100.00%](http://westphal.com.br/holo/ietf-key-chain.html) |
 | ietf-mpls-ldp@2022-03-14 | 86.96% | 92.31% | 100.00% | 100.00% | [92.38%](http://westphal.com.br/holo/ietf-mpls-ldp.html) |
 | ietf-ospf-sr@2023-07-09 | 25.00% | 53.95% | - | - | [52.81%](http://westphal.com.br/holo/ietf-ospf-sr.html) |
-| ietf-ospf@2022-10-19 | 75.90% | 59.36% | 100.00% | 31.18% | [58.52%](http://westphal.com.br/holo/ietf-ospf.html) |
+| ietf-ospf@2022-10-19 | 75.00% | 59.36% | 100.00% | 41.94% | [59.33%](http://westphal.com.br/holo/ietf-ospf.html) |
 | ietf-ospfv3-extended-lsa@2023-06-29 | 50.00% | 84.41% | - | - | [84.04%](http://westphal.com.br/holo/ietf-ospfv3-extended-lsa.html) |
 | ietf-rip@2020-02-20 | 27.91% | 93.33% | 100.00% | - | [55.41%](http://westphal.com.br/holo/ietf-rip.html) |
 | ietf-routing@2018-03-13 | 50.00% | 0.00% | - | - | [23.08%](http://westphal.com.br/holo/ietf-routing.html) |

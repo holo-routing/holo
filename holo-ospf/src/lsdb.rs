@@ -28,12 +28,14 @@ use crate::error::Error;
 use crate::flood::flood;
 use crate::instance::{InstanceArenas, InstanceUpView};
 use crate::interface::Interface;
-use crate::packet::lsa::{Lsa, LsaBodyVersion, LsaHdrVersion, LsaKey};
+use crate::packet::lsa::{
+    Lsa, LsaBodyVersion, LsaHdrVersion, LsaKey, LsaTypeVersion,
+};
 use crate::route::{SummaryNet, SummaryRtr};
 use crate::spf::SpfTriggerLsa;
 use crate::tasks::messages::input::LsaFlushMsg;
 use crate::version::Version;
-use crate::{spf, tasks};
+use crate::{gr, spf, tasks};
 
 // Architectural Constants.
 pub const LSA_REFRESH_TIME: u16 = 1800;
@@ -120,6 +122,10 @@ pub enum LsaOriginateEvent {
     SrEnableChange,
     SrCfgChange {
         change: SrCfgEventMsg,
+    },
+    GrHelperExit {
+        area_id: AreaId,
+        iface_id: InterfaceId,
     },
 }
 
@@ -449,6 +455,19 @@ where
             || lsa_type == V::type4_summary(instance.config.extended_lsa));
     let route_recalc =
         content_change && !lsa.body.is_unknown() && !self_orig_summary;
+
+    // A network topology change forces the termination of a graceful restart.
+    if content_change
+        && lsa.hdr.lsa_type().is_gr_topology_info()
+        && instance.state.gr_helper_count > 0
+        && instance.config.gr.helper_strict_lsa_checking
+    {
+        gr::helper_process_topology_change(
+            Some(lsa.hdr.lsa_type()),
+            instance,
+            arenas,
+        );
+    }
 
     // OSPF version-specific LSDB installation handling.
     V::lsdb_install(instance, arenas, lsdb_idx, lsdb_id, &lsa);

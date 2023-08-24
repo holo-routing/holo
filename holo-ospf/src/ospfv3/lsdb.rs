@@ -128,7 +128,8 @@ impl LsdbVersion<Self> for Ospfv3 {
                     lsa_orig_intra_area_prefix(area, instance, arenas);
                 }
             }
-            LsaOriginateEvent::InterfaceDrChange { area_id, iface_id } => {
+            LsaOriginateEvent::InterfaceDrChange { area_id, iface_id }
+            | LsaOriginateEvent::GrHelperExit { area_id, iface_id } => {
                 // (Re)originate Router-LSA(s).
                 let (_, area) = arenas.areas.get_by_id(area_id)?;
                 lsa_orig_router(area, instance, arenas);

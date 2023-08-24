@@ -41,10 +41,10 @@ use crate::southbound::rx::InstanceSouthboundRx;
 use crate::southbound::tx::InstanceSouthboundTx;
 use crate::spf::{SpfLogEntry, SpfTriggerLsa};
 use crate::tasks::messages::input::{
-    DbDescFreeMsg, DelayedAckMsg, IsmEventMsg, LsaFlushMsg, LsaOrigCheckMsg,
-    LsaOrigDelayedMsg, LsaOrigEventMsg, LsaRefreshMsg, LsdbMaxAgeSweepMsg,
-    NetRxPacketMsg, NsmEventMsg, RxmtIntervalMsg, SendLsUpdateMsg,
-    SpfDelayEventMsg,
+    DbDescFreeMsg, DelayedAckMsg, GracePeriodMsg, IsmEventMsg, LsaFlushMsg,
+    LsaOrigCheckMsg, LsaOrigDelayedMsg, LsaOrigEventMsg, LsaRefreshMsg,
+    LsdbMaxAgeSweepMsg, NetRxPacketMsg, NsmEventMsg, RxmtIntervalMsg,
+    SendLsUpdateMsg, SpfDelayEventMsg,
 };
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
 use crate::version::Version;
@@ -78,6 +78,7 @@ pub struct InstanceCfg {
     pub enabled: bool,
     pub router_id: Option<Ipv4Addr>,
     pub preference: Preference,
+    pub gr: InstanceGrCfg,
     pub max_paths: u16,
     pub spf_initial_delay: u32,
     pub spf_short_delay: u32,
@@ -88,6 +89,12 @@ pub struct InstanceCfg {
     pub extended_lsa: bool,
     pub sr_enabled: bool,
     pub instance_id: u8,
+}
+
+#[derive(Debug)]
+pub struct InstanceGrCfg {
+    pub helper_enabled: bool,
+    pub helper_strict_lsa_checking: bool,
 }
 
 #[derive(Debug)]
@@ -121,6 +128,8 @@ pub struct InstanceState<V: Version> {
     // SPF log.
     pub spf_log: VecDeque<SpfLogEntry<V>>,
     pub spf_log_next_id: u32,
+    // Number of neighbors performing a graceful restart.
+    pub gr_helper_count: usize,
     // Authentication non-decreasing sequence number.
     pub auth_seqno: Arc<AtomicU64>,
 }
@@ -170,6 +179,8 @@ pub struct ProtocolInputChannelsTx<V: Version> {
     pub lsdb_maxage_sweep_interval: Sender<LsdbMaxAgeSweepMsg>,
     // SPF run event.
     pub spf_delay_event: UnboundedSender<SpfDelayEventMsg>,
+    // Grace period timeout.
+    pub grace_period: Sender<GracePeriodMsg>,
 }
 
 #[derive(Debug)]
@@ -202,6 +213,8 @@ pub struct ProtocolInputChannelsRx<V: Version> {
     pub lsdb_maxage_sweep_interval: Receiver<LsdbMaxAgeSweepMsg>,
     // SPF run event.
     pub spf_delay_event: UnboundedReceiver<SpfDelayEventMsg>,
+    // Grace period timeout.
+    pub grace_period: Receiver<GracePeriodMsg>,
 }
 
 #[derive(Debug)]
@@ -514,6 +527,7 @@ where
         let (lsdb_maxage_sweep_intervalp, lsdb_maxage_sweep_intervalc) =
             mpsc::channel(4);
         let (spf_delay_eventp, spf_delay_eventc) = mpsc::unbounded_channel();
+        let (grace_periodp, grace_periodc) = mpsc::channel(4);
 
         let tx = ProtocolInputChannelsTx {
             ism_event: ism_eventp,
@@ -530,6 +544,7 @@ where
             lsa_refresh: lsa_refreshp,
             lsdb_maxage_sweep_interval: lsdb_maxage_sweep_intervalp,
             spf_delay_event: spf_delay_eventp,
+            grace_period: grace_periodp,
         };
         let rx = ProtocolInputChannelsRx {
             ism_event: ism_eventc,
@@ -546,6 +561,7 @@ where
             lsa_refresh: lsa_refreshc,
             lsdb_maxage_sweep_interval: lsdb_maxage_sweep_intervalc,
             spf_delay_event: spf_delay_eventc,
+            grace_period: grace_periodc,
         };
 
         (tx, rx)
@@ -603,6 +619,7 @@ impl Default for InstanceCfg {
             enabled,
             router_id: None,
             preference: Default::default(),
+            gr: Default::default(),
             max_paths,
             spf_initial_delay,
             spf_short_delay,
@@ -613,6 +630,21 @@ impl Default for InstanceCfg {
             extended_lsa,
             sr_enabled,
             instance_id,
+        }
+    }
+}
+
+// ===== impl InstanceGrCfg =====
+
+impl Default for InstanceGrCfg {
+    fn default() -> InstanceGrCfg {
+        let helper_enabled = ospf::graceful_restart::helper_enabled::DFLT;
+        let helper_strict_lsa_checking =
+            ospf::graceful_restart::helper_strict_lsa_checking::DFLT;
+
+        InstanceGrCfg {
+            helper_enabled,
+            helper_strict_lsa_checking,
         }
     }
 }
@@ -664,6 +696,7 @@ where
             lsa_log_next_id: 0,
             spf_log: Default::default(),
             spf_log_next_id: 0,
+            gr_helper_count: 0,
             auth_seqno: Arc::new(V::initial_auth_seqno(boot_count).into()),
         }
     }
@@ -804,6 +837,9 @@ where
             }
             msg = self.spf_delay_event.recv() => {
                 msg.map(ProtocolInputMsg::SpfDelayEvent)
+            }
+            msg = self.grace_period.recv() => {
+                msg.map(ProtocolInputMsg::GracePeriod)
             }
         }
     }
@@ -958,6 +994,16 @@ where
         // SPF run event.
         ProtocolInputMsg::SpfDelayEvent(msg) => {
             events::process_spf_delay_event(instance, arenas, msg.event)?
+        }
+        // Grace period timeout.
+        ProtocolInputMsg::GracePeriod(msg) => {
+            events::process_grace_period_timeout(
+                instance,
+                arenas,
+                msg.area_key,
+                msg.iface_key,
+                msg.nbr_key,
+            )?
         }
     }
 

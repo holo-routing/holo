@@ -900,6 +900,29 @@ static EXT_INTRA_AREA_PREFIX_LSA1: Lazy<(Vec<u8>, Lsa<Ospfv3>)> =
         )
     });
 
+static GRACE_LSA1: Lazy<(Vec<u8>, Lsa<Ospfv3>)> = Lazy::new(|| {
+    (
+        vec![
+            0x00, 0x00, 0x00, 0x0b, 0x00, 0x00, 0x00, 0x05, 0x06, 0x06, 0x06,
+            0x06, 0x80, 0x00, 0x00, 0x01, 0x39, 0x78, 0x00, 0x24, 0x00, 0x01,
+            0x00, 0x04, 0x00, 0x00, 0x00, 0x78, 0x00, 0x02, 0x00, 0x01, 0x00,
+            0x00, 0x00, 0x00,
+        ],
+        Lsa::new(
+            0,
+            None,
+            Ipv4Addr::from_str("0.0.0.5").unwrap(),
+            Ipv4Addr::from_str("6.6.6.6").unwrap(),
+            0x80000001,
+            LsaBody::Grace(LsaGrace {
+                grace_period: Some(GracePeriodTlv::new(120)),
+                gr_reason: Some(GrReasonTlv::new(0)),
+                unknown_tlvs: vec![],
+            }),
+        ),
+    )
+});
+
 //
 // Tests.
 //
@@ -1141,5 +1164,17 @@ fn test_encode_extended_intra_area_prefix_lsa1() {
 #[test]
 fn test_decode_extended_intra_area_prefix_lsa1() {
     let (ref bytes, ref lsa) = *EXT_INTRA_AREA_PREFIX_LSA1;
+    test_decode_lsa(bytes, lsa, AddressFamily::Ipv4);
+}
+
+#[test]
+fn test_encode_grace_lsa1() {
+    let (ref bytes, ref lsa) = *GRACE_LSA1;
+    test_encode_lsa(bytes, lsa);
+}
+
+#[test]
+fn test_decode_grace_lsa1() {
+    let (ref bytes, ref lsa) = *GRACE_LSA1;
     test_decode_lsa(bytes, lsa, AddressFamily::Ipv4);
 }

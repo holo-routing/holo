@@ -180,6 +180,7 @@ pub static YANG_FEATURES: Lazy<HashMap<&'static str, Vec<&'static str>>> =
             "ietf-ospf" => vec![
                 "bfd",
                 "explicit-router-id",
+                "graceful-restart",
                 "ietf-spf-delay",
                 "key-chain",
                 "max-ecmp",

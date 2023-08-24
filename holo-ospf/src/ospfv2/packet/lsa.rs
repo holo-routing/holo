@@ -26,6 +26,7 @@ use crate::packet::lsa::{
     LsaBodyVersion, LsaHdrVersion, LsaRouterFlagsVersion, LsaScope,
     LsaTypeVersion, LsaVersion, PrefixOptionsVersion,
 };
+use crate::packet::tlv::GrReason;
 use crate::version::Ospfv2;
 
 // Dummy PrefixOptions.
@@ -314,6 +315,19 @@ impl LsaTypeVersion for LsaType {
             None => LsaScope::Unknown,
         }
     }
+
+    fn is_gr_topology_info(&self) -> bool {
+        matches!(
+            self.type_code(),
+            Some(
+                LsaTypeCode::Router
+                    | LsaTypeCode::Network
+                    | LsaTypeCode::SummaryNetwork
+                    | LsaTypeCode::SummaryRouter
+                    | LsaTypeCode::AsExternal
+            )
+        )
+    }
 }
 
 impl std::fmt::Display for LsaType {
@@ -530,6 +544,16 @@ impl LsaBodyVersion<Ospfv2> for LsaBody {
             LsaBody::Router(lsa) => lsa.validate(hdr),
             _ => Ok(()),
         }
+    }
+
+    fn as_grace(&self) -> Option<(u32, GrReason, Option<Ipv4Addr>)> {
+        let grace = self.as_opaque_link()?.as_grace()?;
+        let grace_period = grace.grace_period?.get();
+        let gr_reason = grace.gr_reason?.get();
+        let gr_reason =
+            GrReason::from_u8(gr_reason).unwrap_or(GrReason::Unknown);
+        let addr = grace.addr.map(|addr| addr.get());
+        Some((grace_period, gr_reason, addr))
     }
 }
 

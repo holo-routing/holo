@@ -23,10 +23,10 @@ use crate::ospfv2::packet::lsa::{LsaRouterLinkType, LsaUnknown};
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::lsa::{AdjSidVersion, PrefixSidVersion};
 use crate::packet::tlv::{
-    tlv_encode_end, tlv_encode_start, tlv_wire_len, AdjSidFlags, MsdTlv,
-    PrefixSidFlags, RouterFuncCapsTlv, RouterInfoCapsTlv, RouterInfoTlvType,
-    SidLabelRangeTlv, SrAlgoTlv, SrLocalBlockTlv, SrmsPrefTlv, UnknownTlv,
-    TLV_HDR_SIZE,
+    tlv_encode_end, tlv_encode_start, tlv_wire_len, AdjSidFlags, GrReasonTlv,
+    GracePeriodTlv, MsdTlv, PrefixSidFlags, RouterFuncCapsTlv,
+    RouterInfoCapsTlv, RouterInfoTlvType, SidLabelRangeTlv, SrAlgoTlv,
+    SrLocalBlockTlv, SrmsPrefTlv, UnknownTlv, TLV_HDR_SIZE,
 };
 
 // OSPFv2 opaque LSA types.
@@ -54,11 +54,51 @@ pub struct OpaqueLsaId {
 #[derive(Clone, Debug, EnumAsInner, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub enum LsaOpaque {
+    Grace(LsaGrace),
     RouterInfo(LsaRouterInfo),
     ExtPrefix(LsaExtPrefix),
     ExtLink(LsaExtLink),
     Unknown(LsaUnknown),
 }
+
+// OSPFv2 Grace LSA Top Level TLV types.
+//
+// IANA registry:
+// https://www.iana.org/assignments/ospfv2-parameters/ospfv2-parameters.xhtml#ospfv2-parameters-13
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(FromPrimitive, ToPrimitive)]
+#[derive(Deserialize, Serialize)]
+pub enum GraceTlvType {
+    GracePeriod = 1,
+    GrReason = 2,
+    InterfaceAddr = 3,
+}
+
+//
+// OSPFv2 Grace Opaque LSA.
+//
+// Encoding format (LSA body):
+//
+//  0                   1                   2                   3
+//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |                                                               |
+// +-                            TLVs                             -+
+// |                             ...                               |
+//
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct LsaGrace {
+    pub grace_period: Option<GracePeriodTlv>,
+    pub gr_reason: Option<GrReasonTlv>,
+    pub addr: Option<GrInterfaceAddrTlv>,
+    pub unknown_tlvs: Vec<UnknownTlv>,
+}
+
+// OSPFv2 Grace-LSA's IP interface address TLV.
+#[derive(Clone, Copy, Debug, Eq, new, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct GrInterfaceAddrTlv(Ipv4Addr);
 
 //
 // OSPFv2 Router Information (RI) Opaque LSA.
@@ -358,6 +398,9 @@ impl LsaOpaque {
     ) -> DecodeResult<Self> {
         let opaque_type = lsa_id.octets()[0];
         let lsa = match LsaOpaqueType::from_u8(opaque_type) {
+            Some(LsaOpaqueType::Grace) => {
+                LsaOpaque::Grace(LsaGrace::decode(buf)?)
+            }
             Some(LsaOpaqueType::RouterInfo) => {
                 LsaOpaque::RouterInfo(LsaRouterInfo::decode(buf)?)
             }
@@ -375,11 +418,98 @@ impl LsaOpaque {
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
         match self {
+            LsaOpaque::Grace(lsa) => lsa.encode(buf),
             LsaOpaque::RouterInfo(lsa) => lsa.encode(buf),
             LsaOpaque::ExtPrefix(lsa) => lsa.encode(buf),
             LsaOpaque::ExtLink(lsa) => lsa.encode(buf),
             LsaOpaque::Unknown(lsa) => lsa.encode(buf),
         }
+    }
+}
+
+// ===== impl LsaGrace =====
+
+impl LsaGrace {
+    fn decode(buf: &mut Bytes) -> DecodeResult<Self> {
+        let mut grace = LsaGrace::default();
+
+        while buf.remaining() >= TLV_HDR_SIZE as usize {
+            // Parse TLV type.
+            let tlv_type = buf.get_u16();
+            let tlv_etype = GraceTlvType::from_u16(tlv_type);
+
+            // Parse and validate TLV length.
+            let tlv_len = buf.get_u16();
+            let tlv_wlen = tlv_wire_len(tlv_len);
+            if tlv_wlen as usize > buf.remaining() {
+                return Err(DecodeError::InvalidTlvLength(tlv_len));
+            }
+
+            // Parse TLV value.
+            let mut buf_tlv = buf.copy_to_bytes(tlv_wlen as usize);
+            match tlv_etype {
+                Some(GraceTlvType::GracePeriod) => {
+                    let period = GracePeriodTlv::decode(tlv_len, &mut buf_tlv)?;
+                    grace.grace_period.get_or_insert(period);
+                }
+                Some(GraceTlvType::GrReason) => {
+                    let reason = GrReasonTlv::decode(tlv_len, &mut buf_tlv)?;
+                    grace.gr_reason.get_or_insert(reason);
+                }
+                Some(GraceTlvType::InterfaceAddr) => {
+                    let addr =
+                        GrInterfaceAddrTlv::decode(tlv_len, &mut buf_tlv)?;
+                    grace.addr.get_or_insert(addr);
+                }
+                _ => {
+                    // Save unknown TLV.
+                    let value = buf_tlv.copy_to_bytes(tlv_len as usize);
+                    grace
+                        .unknown_tlvs
+                        .push(UnknownTlv::new(tlv_type, tlv_len, value));
+                }
+            }
+        }
+
+        Ok(grace)
+    }
+
+    fn encode(&self, buf: &mut BytesMut) {
+        if let Some(grace_period) = &self.grace_period {
+            grace_period.encode(GraceTlvType::GracePeriod as u16, buf);
+        }
+        if let Some(gr_reason) = &self.gr_reason {
+            gr_reason.encode(GraceTlvType::GrReason as u16, buf);
+        }
+        if let Some(addr) = &self.addr {
+            addr.encode(buf);
+        }
+    }
+}
+
+// ===== impl GrInterfaceAddrTlv =====
+
+impl GrInterfaceAddrTlv {
+    pub(crate) fn decode(tlv_len: u16, buf: &mut Bytes) -> DecodeResult<Self> {
+        // Validate TLV length.
+        if tlv_len != 4 {
+            return Err(DecodeError::InvalidTlvLength(tlv_len));
+        }
+
+        let addr = buf.get_ipv4();
+
+        Ok(GrInterfaceAddrTlv(addr))
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos =
+            tlv_encode_start(buf, GraceTlvType::InterfaceAddr as u16);
+        buf.put_ipv4(&self.0);
+        tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn get(&self) -> Ipv4Addr {
+        self.0
     }
 }
 

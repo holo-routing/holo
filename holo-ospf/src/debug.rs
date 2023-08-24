@@ -10,9 +10,11 @@ use ipnetwork::{Ipv4Network, Ipv6Network};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, debug_span};
 
+use crate::gr::GrExitReason;
 use crate::interface::{ism, Interface};
 use crate::neighbor::{nsm, NeighborNetId};
 use crate::packet::error::LsaValidationError;
+use crate::packet::tlv::GrReason;
 use crate::packet::Packet;
 use crate::spf;
 use crate::version::Version;
@@ -76,6 +78,10 @@ pub enum Debug<'a, V: Version> {
     SpfNetworkUnreachableAbr(&'a V::IpNetwork, Ipv4Addr),
     SpfRouterUnreachableAbr(&'a Ipv4Addr, Ipv4Addr),
     SpfUnreachableAsbr(&'a V::IpNetwork, Ipv4Addr),
+    // Graceful Restart
+    GrHelperReject(Ipv4Addr, GrRejectReason),
+    GrHelperEnter(Ipv4Addr, GrReason, u32),
+    GrHelperExit(Ipv4Addr, GrExitReason),
 }
 
 // Reason why an OSPF instance is inactive.
@@ -118,6 +124,16 @@ pub enum SeqNoMismatchReason {
 pub enum LsaFlushReason {
     Expiry,
     PrematureAging,
+}
+
+// Reason why the router failed to enter the helper mode.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub enum GrRejectReason {
+    NeighborNotFull,
+    TopologyChange,
+    GracePeriodExpired,
+    HelperDisabled,
 }
 
 // ===== impl Debug =====
@@ -291,6 +307,24 @@ where
                 // Parent span(s): ospf-instance
                 debug!(%destination, %asbr, "{}", self);
             }
+            Debug::GrHelperReject(router_id, reason) => {
+                // Parent span(s): ospf-instance
+                debug_span!("neighbor", %router_id).in_scope(|| {
+                    debug!(%reason, "{}", self);
+                })
+            }
+            Debug::GrHelperEnter(router_id, reason, grace_period) => {
+                // Parent span(s): ospf-instance
+                debug_span!("neighbor", %router_id).in_scope(|| {
+                    debug!(%reason, %grace_period, "{}", self);
+                })
+            }
+            Debug::GrHelperExit(router_id, reason) => {
+                // Parent span(s): ospf-instance
+                debug_span!("neighbor", %router_id).in_scope(|| {
+                    debug!(%reason, "{}", self);
+                })
+            }
         }
     }
 }
@@ -419,6 +453,15 @@ where
             Debug::SpfUnreachableAsbr(..) => {
                 write!(f, "no route found for originating ASBR")
             }
+            Debug::GrHelperReject(..) => {
+                write!(f, "failed to enter helper mode")
+            }
+            Debug::GrHelperEnter(..) => {
+                write!(f, "entering helper mode")
+            }
+            Debug::GrHelperExit(..) => {
+                write!(f, "exiting from helper mode")
+            }
         }
     }
 }
@@ -511,6 +554,30 @@ impl std::fmt::Display for LsaFlushReason {
             }
             LsaFlushReason::PrematureAging => {
                 write!(f, "premature aging")
+            }
+        }
+    }
+}
+
+// ===== impl GrRejectReason =====
+
+impl std::fmt::Display for GrRejectReason {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GrRejectReason::NeighborNotFull => {
+                write!(f, "neighbor is not fully adjacent")
+            }
+            GrRejectReason::TopologyChange => {
+                write!(
+                    f,
+                    "Network topology has changed since the router restarted"
+                )
+            }
+            GrRejectReason::GracePeriodExpired => {
+                write!(f, "grace period has already expired")
+            }
+            GrRejectReason::HelperDisabled => {
+                write!(f, "graceful restart helper mode is disabled")
             }
         }
     }

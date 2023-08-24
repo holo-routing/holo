@@ -10,6 +10,7 @@ use holo_northbound::{notification, paths};
 use holo_yang::ToYang;
 
 use crate::error::InterfaceCfgError;
+use crate::gr::GrExitReason;
 use crate::instance::InstanceUpView;
 use crate::interface::Interface;
 use crate::neighbor::Neighbor;
@@ -87,6 +88,60 @@ pub(crate) fn nbr_state_change<V>(
         (base::neighbor_router_id::PATH, Some(&nbr_router_id)),
         (base::neighbor_ip_addr::PATH, Some(&nbr_addr)),
         (base::state::PATH, Some(&state)),
+    ];
+    notification::send(&instance.tx.nb, base::PATH, &args);
+}
+
+pub(crate) fn nbr_restart_helper_enter<V>(
+    instance: &InstanceUpView<'_, V>,
+    iface: &Interface<V>,
+    nbr: &Neighbor<V>,
+    age: u32,
+) where
+    V: Version,
+{
+    use paths::nbr_restart_helper_status_change as base;
+
+    let af = instance.state.af.to_yang();
+    let nbr_router_id = nbr.router_id.to_string();
+    let nbr_addr = nbr.src.to_string();
+    let age = age.to_string();
+
+    let args = [
+        (base::routing_protocol_name::PATH, Some(instance.name)),
+        (base::address_family::PATH, Some(&af)),
+        (base::interface::interface::PATH, Some(&iface.name)),
+        (base::neighbor_router_id::PATH, Some(&nbr_router_id)),
+        (base::neighbor_ip_addr::PATH, Some(&nbr_addr)),
+        (base::status::PATH, Some("helping")),
+        (base::age::PATH, Some(&age)),
+    ];
+    notification::send(&instance.tx.nb, base::PATH, &args);
+}
+
+pub(crate) fn nbr_restart_helper_exit<V>(
+    instance: &InstanceUpView<'_, V>,
+    iface: &Interface<V>,
+    nbr: &Neighbor<V>,
+    reason: GrExitReason,
+) where
+    V: Version,
+{
+    use paths::nbr_restart_helper_status_change as base;
+
+    let af = instance.state.af.to_yang();
+    let nbr_router_id = nbr.router_id.to_string();
+    let nbr_addr = nbr.src.to_string();
+    let reason = reason.to_yang();
+
+    let args = [
+        (base::routing_protocol_name::PATH, Some(instance.name)),
+        (base::address_family::PATH, Some(&af)),
+        (base::interface::interface::PATH, Some(&iface.name)),
+        (base::neighbor_router_id::PATH, Some(&nbr_router_id)),
+        (base::neighbor_ip_addr::PATH, Some(&nbr_addr)),
+        (base::status::PATH, Some("not-helping")),
+        (base::exit_reason::PATH, Some(&reason)),
     ];
     notification::send(&instance.tx.nb, base::PATH, &args);
 }

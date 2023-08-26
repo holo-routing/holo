@@ -144,12 +144,26 @@ fn main() {
                 .value_name("COMMAND")
                 .help("Execute argument as command")
                 .multiple(true),
+            )
+        .arg(
+            Arg::with_name("address")
+                .short("a")
+                .long("address")
+                .value_name("ADDRESS")
+                .help("Holo daemon IPv4/6 address: http://IP:Port")
+                .multiple(false),
         )
         .get_matches();
-
-    // Initialize YANG context and gRPC client.
-    let mut yang_ctx = yang::new_context();
-    let mut client = GrpcClient::connect("http://[::1]:50051")
+    
+        let addr = matches
+            .value_of("address")
+            .unwrap_or("http://[::1]:50051")
+            .to_string();
+        let grpc_addr: &'static str = Box::leak(addr.into_boxed_str());
+    
+        // Initialize YANG context and gRPC client.
+        let mut yang_ctx = yang::new_context();
+        let mut client = GrpcClient::connect(grpc_addr)
         .expect("Failed to connect to holod");
     client.load_modules(&mut yang_ctx);
     YANG_CTX.set(Arc::new(yang_ctx)).unwrap();

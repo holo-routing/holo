@@ -18,14 +18,23 @@ If you don't already have Rust in your system, the best way to install it is via
 $ git clone https://github.com/rwestphal/holo.git
 ```
 
-3. Build `holod` and `holo-cli`
+3. Install build dependencies:
+
+Holo requires a few dependencies for building and embedding the libyang2 library.
+You can install them using your system's package manager. For example, on Debian-based systems:
+
+```
+# apt-get install build-essential cmake libpcre2-dev protobuf-compiler
+```
+
+4. Build `holod` and `holo-cli`
 
 ```
 $ cd holo/
 $ cargo build --release
 ```
 
-4. Installation
+5. Installation
 
 Copy the `holod` and `holo-cli` binaries from the `target/release` directory to your preferred location.
 

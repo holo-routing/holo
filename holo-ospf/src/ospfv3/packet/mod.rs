@@ -377,7 +377,7 @@ impl PacketHdrVersion<Ospfv3> for PacketHdr {
             pkt_type,
             router_id,
             area_id,
-            instance_id: instance_id,
+            instance_id,
             auth_seqno: None,
         }
     }

@@ -4867,6 +4867,7 @@ where
     }
 }
 
+#[allow(clippy::derivable_impls)]
 impl<'a, V> Default for ListEntry<'a, V>
 where
     V: Version,

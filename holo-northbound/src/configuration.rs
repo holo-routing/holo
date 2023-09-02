@@ -397,7 +397,7 @@ async fn process_commit_local<P>(
     phase: CommitPhase,
     old_config: &Arc<DataTree>,
     new_config: &Arc<DataTree>,
-    changes: &mut ConfigChanges,
+    changes: &ConfigChanges,
     resources: &mut Vec<Option<P::Resource>>,
 ) -> Result<(), Error>
 where
@@ -693,7 +693,7 @@ where
         phase,
         &old_config,
         &new_config,
-        &mut changes,
+        &changes,
         resources,
     )
     .await?;

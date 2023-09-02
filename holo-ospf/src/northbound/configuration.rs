@@ -1431,6 +1431,7 @@ where
 
 // ===== impl ListEntry =====
 
+#[allow(clippy::derivable_impls)]
 impl<V> Default for ListEntry<V>
 where
     V: Version,

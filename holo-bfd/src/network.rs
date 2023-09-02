@@ -163,13 +163,12 @@ pub(crate) async fn send_packet(
 #[cfg(not(feature = "testing"))]
 fn get_packet_src(sa: Option<&socket::SockaddrStorage>) -> Option<SocketAddr> {
     sa.and_then(|sa| {
-        if let Some(sa) = sa.as_sockaddr_in() {
-            Some(SocketAddrV4::from(*sa).into())
-        } else if let Some(sa) = sa.as_sockaddr_in6() {
-            Some(SocketAddrV6::from(*sa).into())
-        } else {
-            None
-        }
+        sa.as_sockaddr_in()
+            .map(|sa| SocketAddrV4::from(*sa).into())
+            .or_else(|| {
+                sa.as_sockaddr_in6()
+                    .map(|sa| SocketAddrV6::from(*sa).into())
+            })
     })
 }
 

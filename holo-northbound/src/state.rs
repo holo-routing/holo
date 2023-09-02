@@ -5,6 +5,7 @@
 //
 
 use std::collections::HashMap;
+use std::fmt::Write;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::time::{Duration, Instant};
 
@@ -939,16 +940,16 @@ where
         let cb_key = CallbackKey::new(snode_path, CallbackOp::GetIterate);
 
         // Obtain the list entry keys.
-        let list_keys = dnode
-            .list_keys()
-            .map(|key| {
-                format!(
+        let list_keys =
+            dnode.list_keys().fold(String::new(), |mut list_keys, key| {
+                let _ = write!(
+                    list_keys,
                     "[{}='{}']",
                     key.schema().name(),
                     key.value_canonical().unwrap()
-                )
-            })
-            .collect::<String>();
+                );
+                list_keys
+            });
 
         // Find the list entry associated to the provided path.
         if let Some(cb) = cbs.get_iterate(&cb_key, None) {

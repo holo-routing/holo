@@ -269,6 +269,7 @@ async fn event_loop<P>(
 }
 
 #[cfg_attr(not(feature = "testing"), allow(unused_mut))]
+#[allow(clippy::too_many_arguments)]
 async fn run<P>(
     name: String,
     nb_tx: NbProviderSender,

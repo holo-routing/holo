@@ -758,10 +758,10 @@ where
 
         // Step 4: check if the router is the new DR/BDR or no longer the
         // DR/BDR.
-        if (new_dr == Some(net_id) && new_dr != old_dr)
-            || (old_dr == Some(net_id) && new_dr != old_dr)
-            || (new_bdr == Some(net_id) && new_bdr != old_bdr)
-            || (old_bdr == Some(net_id) && new_bdr != old_bdr)
+        if (new_dr == Some(net_id) || old_dr == Some(net_id))
+            && new_dr != old_dr
+            || (new_bdr == Some(net_id) || old_bdr == Some(net_id))
+                && new_bdr != old_bdr
         {
             // Repeat steps 2 and 3.
             new_bdr = calc_bdr(self);

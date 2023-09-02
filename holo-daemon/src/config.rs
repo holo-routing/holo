@@ -4,6 +4,8 @@
 // See LICENSE for license details.
 //
 
+#![allow(clippy::derivable_impls)]
+
 use holo_protocol::event_recorder;
 use serde::Deserialize;
 

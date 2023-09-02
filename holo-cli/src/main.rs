@@ -163,8 +163,14 @@ fn main() {
 
     // Initialize YANG context and gRPC client.
     let mut yang_ctx = yang::new_context();
-    let mut client =
-        GrpcClient::connect(grpc_addr).expect("Failed to connect to holod");
+    let mut client = match GrpcClient::connect(grpc_addr) {
+        Ok(client) => client,
+        Err(error) => {
+            eprintln!("Connection to holod failed: {}\n", error);
+            eprintln!("Please ensure that holod is currently running.");
+            std::process::exit(1);
+        }
+    };
     client.load_modules(&mut yang_ctx);
     YANG_CTX.set(Arc::new(yang_ctx)).unwrap();
 

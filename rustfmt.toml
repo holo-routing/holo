@@ -4,4 +4,4 @@ group_imports = "StdExternalCrate"
 imports_granularity = "Module"
 max_width = 80
 merge_derives = false
-wrap_comments = true
+wrap_comments = false

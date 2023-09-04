@@ -13,7 +13,7 @@
 #![allow(type_alias_bounds)]
 #![feature(btree_extract_if, hash_extract_if, ip, let_chains, lazy_cell)]
 
-pub mod area;
+  pub mod area;
 pub mod collections;
 pub mod debug;
 pub mod error;

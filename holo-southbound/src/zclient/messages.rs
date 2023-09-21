@@ -250,6 +250,8 @@ impl ZapiRxIfaceInfo {
         let _ptm_status = buf.get_u8();
         let _metric = buf.get_u32();
         let _speed = buf.get_u32();
+        #[cfg(not(feature = "zebra-8-4-compat"))]
+        let _txqlen = buf.get_u32();
         let mtu = buf.get_u32();
 
         let operative = flags & (libc::IFF_RUNNING as u64) != 0;

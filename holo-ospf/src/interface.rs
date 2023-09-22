@@ -15,7 +15,7 @@ use holo_northbound::paths::control_plane_protocol::ospf;
 use holo_protocol::InstanceChannelsTx;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
-use holo_utils::keychain::{Key, KEYCHAINS};
+use holo_utils::keychain::{Key, Keychains};
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{bfd, UnboundedSender};
@@ -317,7 +317,7 @@ where
         Debug::<V>::InterfaceStart(&self.name).log();
 
         if !self.is_passive() {
-            self.state.auth = self.auth();
+            self.state.auth = self.auth(&instance.shared.keychains);
 
             // Start network Tx/Rx tasks.
             match InterfaceNet::new(
@@ -481,7 +481,7 @@ where
         )
     }
 
-    fn auth(&self) -> Option<AuthMethod> {
+    fn auth(&self, keychains: &Keychains) -> Option<AuthMethod> {
         if let (Some(key), Some(key_id), Some(algo)) = (
             &self.config.auth_key,
             self.config.auth_keyid,
@@ -493,7 +493,7 @@ where
         }
 
         if let Some(keychain) = &self.config.auth_keychain {
-            if let Some(keychain) = KEYCHAINS.lock().unwrap().get(keychain) {
+            if let Some(keychain) = keychains.get(keychain) {
                 return Some(AuthMethod::Keychain(keychain.clone()));
             }
         }
@@ -507,7 +507,7 @@ where
         instance: &InstanceUpView<'_, V>,
     ) {
         // Update authentication data.
-        self.state.auth = self.auth();
+        self.state.auth = self.auth(&instance.shared.keychains);
 
         if let Some(mut net) = self.state.net.take() {
             // Enable or disable checksum offloading.

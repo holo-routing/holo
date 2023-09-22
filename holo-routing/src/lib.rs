@@ -17,8 +17,8 @@ use holo_northbound::{
     process_northbound_msg, NbDaemonReceiver, NbDaemonSender, NbProviderSender,
     ProviderBase,
 };
-use holo_protocol::{event_recorder, spawn_protocol_task};
-use holo_utils::ibus::{IbusReceiver, IbusSender};
+use holo_protocol::{event_recorder, spawn_protocol_task, InstanceShared};
+use holo_utils::ibus::{IbusMsg, IbusReceiver, IbusSender};
 use holo_utils::protocol::Protocol;
 use holo_utils::sr::SrCfg;
 use holo_utils::Database;
@@ -31,11 +31,11 @@ pub struct Master {
     pub nb_tx: NbProviderSender,
     // Internal bus Tx channel.
     pub ibus_tx: IbusSender,
-    // Non-volatile storage.
-    pub db: Database,
+    // Shared data among all protocol instances.
+    pub shared: InstanceShared,
     // Event recorder configuration.
     pub event_recorder_config: event_recorder::Config,
-    // Configuration data.
+    // SR configuration data.
     #[new(default)]
     pub sr_config: SrCfg,
     // Protocol instances.
@@ -71,11 +71,29 @@ impl Master {
                     )
                     .await;
                 }
-                Ok(_) = ibus_rx.recv() => {
-                    // Ignore for now.
+                Ok(msg) = ibus_rx.recv() => {
+                    process_ibus_msg(self, msg);
                 }
             }
         }
+    }
+}
+
+fn process_ibus_msg(master: &mut Master, msg: IbusMsg) {
+    match msg {
+        IbusMsg::KeychainUpd(keychain) => {
+            // Update the local copy of the keychain.
+            master
+                .shared
+                .keychains
+                .insert(keychain.name.clone(), keychain.clone());
+        }
+        IbusMsg::KeychainDel(keychain_name) => {
+            // Remove the local copy of the keychain.
+            master.shared.keychains.remove(&keychain_name);
+        }
+        // Ignore other events.
+        _ => {}
     }
 }
 
@@ -91,11 +109,14 @@ pub fn start(
     let (nb_daemon_tx, nb_daemon_rx) = mpsc::channel(4);
 
     tokio::spawn(async move {
-        let span = Master::debug_span("");
+        let shared = InstanceShared {
+            db: Some(db.clone()),
+            ..Default::default()
+        };
         let mut master = Master::new(
             nb_provider_tx,
             ibus_tx,
-            db.clone(),
+            shared.clone(),
             event_recorder_config,
         );
 
@@ -107,12 +128,13 @@ pub fn start(
             &master.nb_tx,
             &master.ibus_tx,
             Default::default(),
-            Some(db.clone()),
+            shared,
             Some(master.event_recorder_config.clone()),
         );
         master.instances.insert(instance_id, nb_daemon_tx);
 
         // Run task main loop.
+        let span = Master::debug_span("");
         master.run(nb_daemon_rx, ibus_rx).instrument(span).await;
     });
 

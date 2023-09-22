@@ -13,16 +13,16 @@ use std::time::Instant;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use holo_northbound::paths::control_plane_protocol::ospf;
-use holo_protocol::{InstanceChannelsTx, MessageReceiver, ProtocolInstance};
+use holo_protocol::{
+    InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
+};
 use holo_southbound::rx::SouthboundRx;
 use holo_southbound::tx::SouthboundTx;
 use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
 use holo_utils::protocol::Protocol;
 use holo_utils::task::TimeoutTask;
-use holo_utils::{
-    Database, Receiver, Sender, UnboundedReceiver, UnboundedSender,
-};
+use holo_utils::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 use tokio::sync::mpsc;
 
 use crate::collections::{
@@ -63,8 +63,8 @@ pub struct Instance<V: Version> {
     pub arenas: InstanceArenas<V>,
     // Instance Tx channels.
     pub tx: InstanceChannelsTx<Instance<V>>,
-    // Non-volatile storage.
-    pub db: Option<Database>,
+    // Shared data.
+    pub shared: InstanceShared,
 }
 
 #[derive(Debug, Default)]
@@ -217,13 +217,13 @@ pub struct ProtocolInputChannelsRx<V: Version> {
     pub grace_period: Receiver<GracePeriodMsg>,
 }
 
-#[derive(Debug)]
 pub struct InstanceUpView<'a, V: Version> {
     pub name: &'a str,
     pub system: &'a InstanceSys,
     pub config: &'a InstanceCfg,
     pub state: &'a mut InstanceState<V>,
     pub tx: &'a InstanceChannelsTx<Instance<V>>,
+    pub shared: &'a InstanceShared,
 }
 
 // OSPF version-specific code.
@@ -389,7 +389,7 @@ where
     fn boot_count_get(&self) -> u32 {
         let mut boot_count = 0;
 
-        if let Some(db) = &self.db {
+        if let Some(db) = &self.shared.db {
             let db = db.lock().unwrap();
 
             let key = format!("{}-{}-boot-count", V::PROTOCOL, self.name);
@@ -403,7 +403,7 @@ where
 
     // Stores the updated boot count of the instance in non-volatile memory.
     fn boot_count_update(&mut self) {
-        if let Some(db) = &self.db {
+        if let Some(db) = &self.shared.db {
             let mut db = db.lock().unwrap();
             let mut boot_count = 0;
 
@@ -428,6 +428,7 @@ where
                 config: &self.config,
                 state,
                 tx: &self.tx,
+                shared: &self.shared,
             };
             Some((instance, &mut self.arenas))
         } else {
@@ -452,7 +453,7 @@ where
 
     async fn new(
         name: String,
-        db: Option<Database>,
+        shared: InstanceShared,
         tx: InstanceChannelsTx<Instance<V>>,
     ) -> Instance<V> {
         Debug::<V>::InstanceCreate.log();
@@ -464,7 +465,7 @@ where
             state: None,
             arenas: Default::default(),
             tx,
-            db,
+            shared,
         }
     }
 
@@ -855,17 +856,36 @@ where
     V: Version,
 {
     match msg {
-        // SR configuration change event.
-        IbusMsg::SrCfgEvent { event, sr_config } => {
-            events::process_sr_cfg_change(instance, sr_config, event)?
-        }
         // BFD peer state update event.
         IbusMsg::BfdStateUpd { sess_key, state } => {
             events::process_bfd_state_update(instance, sess_key, state)?
         }
         // Keychain update event.
-        IbusMsg::KeychainUpd(keychain_name) => {
+        IbusMsg::KeychainUpd(keychain) => {
+            // Update the local copy of the keychain.
+            instance
+                .shared
+                .keychains
+                .insert(keychain.name.clone(), keychain.clone());
+
+            // Update all interfaces using this keychain.
+            events::process_keychain_update(instance, &keychain.name)?
+        }
+        // Keychain delete event.
+        IbusMsg::KeychainDel(keychain_name) => {
+            // Remove the local copy of the keychain.
+            instance.shared.keychains.remove(&keychain_name);
+
+            // Update all interfaces using this keychain.
             events::process_keychain_update(instance, &keychain_name)?
+        }
+        // SR configuration update.
+        IbusMsg::SrCfgUpd(sr_config) => {
+            instance.shared.sr_config = sr_config;
+        }
+        // SR configuration event.
+        IbusMsg::SrCfgEvent(event) => {
+            events::process_sr_cfg_change(instance, event)?
         }
         // Ignore other events.
         _ => {}

@@ -11,8 +11,7 @@ use std::sync::Arc;
 
 use chrono::Utc;
 use holo_utils::bfd;
-use holo_utils::ibus::SrCfgEventMsg;
-use holo_utils::sr::SrCfg;
+use holo_utils::ibus::SrCfgEvent;
 
 use crate::area::{Area, AreaType};
 use crate::collections::{
@@ -41,7 +40,7 @@ use crate::packet::{
     PacketType,
 };
 use crate::version::Version;
-use crate::{gr, output, spf, sr, tasks};
+use crate::{gr, output, spf, tasks};
 
 // ===== Interface FSM event =====
 
@@ -1411,15 +1410,11 @@ where
 
 pub(crate) fn process_sr_cfg_change<V>(
     instance: &mut Instance<V>,
-    sr_config: Arc<SrCfg>,
-    change: SrCfgEventMsg,
+    change: SrCfgEvent,
 ) -> Result<(), Error<V>>
 where
     V: Version,
 {
-    // Update local reference-counted copy of the SR configuration.
-    *sr::CONFIG.lock().unwrap() = sr_config;
-
     if let Some((instance, arenas)) = instance.as_up() {
         if instance.config.sr_enabled {
             // Check which LSAs need to be reoriginated or flushed.

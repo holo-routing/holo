@@ -11,6 +11,7 @@ use tokio::sync::broadcast::{Receiver, Sender};
 
 use crate::bfd;
 use crate::ip::AddressFamily;
+use crate::keychain::Keychain;
 use crate::sr::SrCfg;
 
 // Useful type definition(s).
@@ -20,11 +21,6 @@ pub type IbusSender = Sender<IbusMsg>;
 // Ibus message for communication among the different Holo components.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum IbusMsg {
-    // Segment Routing configuration change.
-    SrCfgEvent {
-        event: SrCfgEventMsg,
-        sr_config: Arc<SrCfg>,
-    },
     // BFD peer registration.
     BfdSessionReg {
         sess_key: bfd::SessionKey,
@@ -42,12 +38,18 @@ pub enum IbusMsg {
         state: bfd::State,
     },
     // Keychain update notification.
-    KeychainUpd(String),
+    KeychainUpd(Arc<Keychain>),
+    // Keychain delete notification.
+    KeychainDel(String),
+    // Segment Routing configuration update.
+    SrCfgUpd(Arc<SrCfg>),
+    // Segment Routing configuration event.
+    SrCfgEvent(SrCfgEvent),
 }
 
 // Type of Segment Routing configuration change.
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub enum SrCfgEventMsg {
+pub enum SrCfgEvent {
     LabelRangeUpdate,
     PrefixSidUpdate(AddressFamily),
 }

@@ -8,7 +8,9 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use derive_new::new;
-use holo_protocol::{InstanceChannelsTx, MessageReceiver, ProtocolInstance};
+use holo_protocol::{
+    InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
+};
 use holo_southbound::rx::SouthboundRx;
 use holo_southbound::tx::SouthboundTx;
 use holo_utils::bfd::PathType;
@@ -16,7 +18,7 @@ use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
 use holo_utils::protocol::Protocol;
 use holo_utils::task::Task;
-use holo_utils::{Database, Receiver, Sender};
+use holo_utils::{Receiver, Sender};
 use tokio::sync::mpsc;
 
 use crate::error::{Error, IoError};
@@ -114,7 +116,7 @@ impl ProtocolInstance for Master {
 
     async fn new(
         _name: String,
-        _db: Option<Database>,
+        _shared: InstanceShared,
         tx: InstanceChannelsTx<Master>,
     ) -> Master {
         Master {

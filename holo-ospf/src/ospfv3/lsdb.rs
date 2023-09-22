@@ -7,7 +7,7 @@
 use std::collections::{hash_map, BTreeMap, HashMap};
 use std::net::{IpAddr, Ipv4Addr};
 
-use holo_utils::ibus::SrCfgEventMsg;
+use holo_utils::ibus::SrCfgEvent;
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid, SidLastHopBehavior};
@@ -39,7 +39,6 @@ use crate::packet::tlv::{
     SrAlgoTlv, SrLocalBlockTlv,
 };
 use crate::route::{SummaryNet, SummaryNetFlags, SummaryRtr};
-use crate::sr;
 use crate::version::Ospfv3;
 
 // ===== impl Ospfv3 =====
@@ -262,13 +261,13 @@ impl LsdbVersion<Self> for Ospfv3 {
             }
             LsaOriginateEvent::SrCfgChange { change } => {
                 match change {
-                    SrCfgEventMsg::LabelRangeUpdate => {
+                    SrCfgEvent::LabelRangeUpdate => {
                         // Reoriginate Router Information LSA(s) in all areas.
                         for area in arenas.areas.iter() {
                             lsa_orig_router_info(area, instance);
                         }
                     }
-                    SrCfgEventMsg::PrefixSidUpdate(af) => {
+                    SrCfgEvent::PrefixSidUpdate(af) => {
                         if af == instance.state.af {
                             // (Re)originate Intra-area-prefix-LSA(s) in all
                             // areas.
@@ -718,7 +717,7 @@ fn lsa_orig_intra_area_prefix(
     instance: &InstanceUpView<'_, Ospfv3>,
     arenas: &InstanceArenas<Ospfv3>,
 ) {
-    let sr_config = sr::CONFIG.lock().unwrap();
+    let sr_config = &instance.shared.sr_config;
     let lsdb_id = LsdbId::Area(area.id);
     let extended_lsa = instance.config.extended_lsa;
     let adv_rtr = instance.state.router_id;
@@ -961,7 +960,7 @@ fn lsa_orig_router_info(
     area: &Area<Ospfv3>,
     instance: &InstanceUpView<'_, Ospfv3>,
 ) {
-    let sr_config = sr::CONFIG.lock().unwrap();
+    let sr_config = &instance.shared.sr_config;
     let lsdb_id = LsdbId::Area(area.id);
     let lsa_id = Ipv4Addr::from(0);
 

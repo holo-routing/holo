@@ -5,7 +5,7 @@
 //
 
 use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use chrono::{DateTime, FixedOffset, Utc};
 use derive_new::new;
@@ -13,9 +13,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::crypto::CryptoAlgo;
 
-// Global list of configured key-chains.
-pub static KEYCHAINS: Mutex<BTreeMap<String, Arc<Keychain>>> =
-    Mutex::new(BTreeMap::new());
+// Type aliases.
+pub type Keychains = BTreeMap<String, Arc<Keychain>>;
 
 // Authentication key-chain.
 #[derive(Clone, Debug, new)]

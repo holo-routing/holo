@@ -19,7 +19,8 @@ use crate::test::stub::collector::MessageCollector;
 use crate::test::stub::northbound::NorthboundStub;
 use crate::test::{setup, OutputChannelsRx};
 use crate::{
-    spawn_protocol_task, InstanceAggChannels, InstanceMsg, ProtocolInstance,
+    spawn_protocol_task, InstanceAggChannels, InstanceMsg, InstanceShared,
+    ProtocolInstance,
 };
 
 // Environment variable that controls if the test data needs to be updated or
@@ -289,7 +290,7 @@ where
         &ibus_tx,
         channels,
         test_rx,
-        None,
+        InstanceShared::default(),
         None,
     );
 

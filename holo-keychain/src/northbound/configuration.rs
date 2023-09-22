@@ -16,7 +16,7 @@ use holo_northbound::configuration::{
 use holo_northbound::paths::key_chains;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ibus::IbusMsg;
-use holo_utils::keychain::{Key, Keychain, KeychainKey, KEYCHAINS};
+use holo_utils::keychain::{Key, Keychain, KeychainKey};
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
 
@@ -39,6 +39,7 @@ pub enum Resource {}
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Event {
     KeychainChange(String),
+    KeychainDelete(String),
 }
 
 // ===== callbacks =====
@@ -54,6 +55,9 @@ fn load_callbacks() -> Callbacks<Master> {
         .delete_apply(|master, args| {
             let name = args.list_entry.into_keychain().unwrap();
             master.keychains.remove(&name);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::KeychainDelete(name.clone()));
         })
         .lookup(|_master, _list_entry, dnode| {
             let name = dnode.get_string_relative("./name").unwrap();
@@ -434,14 +438,17 @@ impl Provider for Master {
                     .max()
                     .unwrap_or(0);
 
-                // Update the global list of keychains shared by all protocols.
-                KEYCHAINS
-                    .lock()
-                    .unwrap()
-                    .insert(name, Arc::new(keychain.clone()));
+                // Create a reference-counted copy of the keychain to be shared among all
+                // protocol instances.
+                let keychain = Arc::new(keychain.clone());
 
                 // Notify protocols that the keychain has been updated.
-                let msg = IbusMsg::KeychainUpd(keychain.name.clone());
+                let msg = IbusMsg::KeychainUpd(keychain.clone());
+                let _ = self.ibus_tx.send(msg);
+            }
+            Event::KeychainDelete(name) => {
+                // Notify protocols that the keychain has been deleted.
+                let msg = IbusMsg::KeychainDel(name);
                 let _ = self.ibus_tx.send(msg);
             }
         }

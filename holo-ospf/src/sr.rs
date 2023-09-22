@@ -6,11 +6,10 @@
 
 use std::net::Ipv4Addr;
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::{Arc, LazyLock as Lazy, Mutex};
 
 use holo_utils::ip::AddressFamily;
 use holo_utils::mpls::Label;
-use holo_utils::sr::{IgpAlgoType, Sid, SrCfg};
+use holo_utils::sr::{IgpAlgoType, Sid};
 
 use crate::area::Area;
 use crate::collections::Arena;
@@ -24,10 +23,6 @@ use crate::packet::lsa::{AdjSidVersion, PrefixSidVersion};
 use crate::packet::tlv::{PrefixSidFlags, SidLabelRangeTlv};
 use crate::route::RouteNet;
 use crate::version::Version;
-
-// Segment Routing global configuration.
-pub static CONFIG: Lazy<Mutex<Arc<SrCfg>>> =
-    Lazy::new(|| Mutex::new(Arc::new(SrCfg::default())));
 
 // ===== global functions =====
 

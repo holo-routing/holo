@@ -13,7 +13,9 @@ use async_trait::async_trait;
 use derive_new::new;
 use enum_as_inner::EnumAsInner;
 use holo_northbound::paths::control_plane_protocol::mpls_ldp;
-use holo_protocol::{InstanceChannelsTx, MessageReceiver, ProtocolInstance};
+use holo_protocol::{
+    InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
+};
 use holo_southbound::rx::SouthboundRx;
 use holo_southbound::tx::SouthboundTx;
 use holo_utils::ibus::IbusMsg;
@@ -21,7 +23,7 @@ use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::socket::{TcpListener, UdpSocket};
 use holo_utils::task::Task;
-use holo_utils::{Database, Receiver, Sender};
+use holo_utils::{Receiver, Sender};
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use tokio::sync::mpsc;
 
@@ -297,7 +299,7 @@ impl ProtocolInstance for Instance {
 
     async fn new(
         name: String,
-        _db: Option<Database>,
+        _shared: InstanceShared,
         tx: InstanceChannelsTx<Instance>,
     ) -> Instance {
         Debug::InstanceCreate.log();

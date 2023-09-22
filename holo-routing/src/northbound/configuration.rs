@@ -17,7 +17,7 @@ use holo_northbound::paths::control_plane_protocol;
 use holo_northbound::paths::routing::segment_routing::sr_mpls;
 use holo_northbound::{CallbackKey, NbDaemonSender};
 use holo_protocol::spawn_protocol_task;
-use holo_utils::ibus::{IbusMsg, SrCfgEventMsg};
+use holo_utils::ibus::{IbusMsg, SrCfgEvent};
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::protocol::Protocol;
 use holo_utils::sr::{
@@ -49,6 +49,7 @@ pub enum Resource {}
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Event {
     InstanceStart { protocol: Protocol, name: String },
+    SrCfgUpdate,
     SrCfgLabelRangeUpdate,
     SrCfgPrefixSidUpdate(AddressFamily),
 }
@@ -128,6 +129,7 @@ fn load_callbacks() -> Callbacks<Master> {
             master.sr_config.prefix_sids.insert((prefix, algo), psid);
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::SrCfgUpdate);
             event_queue.insert(Event::SrCfgPrefixSidUpdate(prefix.address_family()));
         })
         .delete_apply(|master, args| {
@@ -137,6 +139,7 @@ fn load_callbacks() -> Callbacks<Master> {
             master.sr_config.prefix_sids.remove(&(prefix, algo));
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::SrCfgUpdate);
             event_queue.insert(Event::SrCfgPrefixSidUpdate(prefix.address_family()));
         })
         .lookup(|_master, _list_entry, dnode| {
@@ -154,6 +157,7 @@ fn load_callbacks() -> Callbacks<Master> {
             psid.index = index;
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::SrCfgUpdate);
             event_queue.insert(Event::SrCfgPrefixSidUpdate(prefix.address_family()));
         })
         .path(sr_mpls::bindings::connected_prefix_sid_map::connected_prefix_sid::last_hop_behavior::PATH)
@@ -166,6 +170,7 @@ fn load_callbacks() -> Callbacks<Master> {
             psid.last_hop = last_hop;
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::SrCfgUpdate);
             event_queue.insert(Event::SrCfgPrefixSidUpdate(prefix.address_family()));
         })
         .path(sr_mpls::srgb::srgb::PATH)
@@ -176,6 +181,7 @@ fn load_callbacks() -> Callbacks<Master> {
             master.sr_config.srgb.insert(range);
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::SrCfgUpdate);
             event_queue.insert(Event::SrCfgLabelRangeUpdate);
         })
         .delete_apply(|master, args| {
@@ -185,6 +191,7 @@ fn load_callbacks() -> Callbacks<Master> {
             master.sr_config.srgb.remove(&range);
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::SrCfgUpdate);
             event_queue.insert(Event::SrCfgLabelRangeUpdate);
         })
         .lookup(|_master, _list_entry, _dnode| {
@@ -198,6 +205,7 @@ fn load_callbacks() -> Callbacks<Master> {
             master.sr_config.srlb.insert(range);
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::SrCfgUpdate);
             event_queue.insert(Event::SrCfgLabelRangeUpdate);
         })
         .delete_apply(|master, args| {
@@ -207,6 +215,7 @@ fn load_callbacks() -> Callbacks<Master> {
             master.sr_config.srlb.remove(&range);
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::SrCfgUpdate);
             event_queue.insert(Event::SrCfgLabelRangeUpdate);
         })
         .lookup(|_master, _list_entry, _dnode| {
@@ -326,7 +335,7 @@ impl Provider for Master {
                             &self.nb_tx,
                             &self.ibus_tx,
                             Default::default(),
-                            Some(self.db.clone()),
+                            self.shared.clone(),
                             Some(event_recorder_config),
                         )
                     }
@@ -339,7 +348,7 @@ impl Provider for Master {
                             &self.nb_tx,
                             &self.ibus_tx,
                             Default::default(),
-                            Some(self.db.clone()),
+                            self.shared.clone(),
                             Some(event_recorder_config),
                         )
                     }
@@ -352,7 +361,7 @@ impl Provider for Master {
                             &self.nb_tx,
                             &self.ibus_tx,
                             Default::default(),
-                            Some(self.db.clone()),
+                            self.shared.clone(),
                             Some(event_recorder_config),
                         )
                     }
@@ -365,7 +374,7 @@ impl Provider for Master {
                             &self.nb_tx,
                             &self.ibus_tx,
                             Default::default(),
-                            Some(self.db.clone()),
+                            self.shared.clone(),
                             Some(event_recorder_config),
                         )
                     }
@@ -378,7 +387,7 @@ impl Provider for Master {
                             &self.nb_tx,
                             &self.ibus_tx,
                             Default::default(),
-                            Some(self.db.clone()),
+                            self.shared.clone(),
                             Some(event_recorder_config),
                         )
                     }
@@ -388,19 +397,26 @@ impl Provider for Master {
                 // type and name.
                 self.instances.insert(instance_id, nb_daemon_tx);
             }
+            Event::SrCfgUpdate => {
+                // Update the shared SR configuration by creating a new reference-counted copy.
+                self.shared.sr_config = Arc::new(self.sr_config.clone());
+
+                // Notify protocol instances about the updated SR configuration.
+                let _ = self
+                    .ibus_tx
+                    .send(IbusMsg::SrCfgUpd(self.shared.sr_config.clone()));
+            }
             Event::SrCfgLabelRangeUpdate => {
-                let sr_config = Arc::new(self.sr_config.clone());
-                let _ = self.ibus_tx.send(IbusMsg::SrCfgEvent {
-                    event: SrCfgEventMsg::LabelRangeUpdate,
-                    sr_config,
-                });
+                // Notify protocol instances about the updated SRGB/SRLB configuration.
+                let _ = self
+                    .ibus_tx
+                    .send(IbusMsg::SrCfgEvent(SrCfgEvent::LabelRangeUpdate));
             }
             Event::SrCfgPrefixSidUpdate(af) => {
-                let sr_config = Arc::new(self.sr_config.clone());
-                let _ = self.ibus_tx.send(IbusMsg::SrCfgEvent {
-                    event: SrCfgEventMsg::PrefixSidUpdate(af),
-                    sr_config,
-                });
+                // Notify protocol instances about the updated Prefix-SID configuration.
+                let _ = self
+                    .ibus_tx
+                    .send(IbusMsg::SrCfgEvent(SrCfgEvent::PrefixSidUpdate(af)));
             }
         }
     }

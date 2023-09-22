@@ -14,15 +14,15 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use enum_as_inner::EnumAsInner;
 use holo_northbound::paths::control_plane_protocol::rip;
-use holo_protocol::{InstanceChannelsTx, MessageReceiver, ProtocolInstance};
+use holo_protocol::{
+    InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
+};
 use holo_southbound::rx::SouthboundRx;
 use holo_southbound::tx::SouthboundTx;
 use holo_utils::ibus::IbusMsg;
 use holo_utils::protocol::Protocol;
 use holo_utils::task::{IntervalTask, TimeoutTask};
-use holo_utils::{
-    Database, Receiver, Sender, UnboundedReceiver, UnboundedSender,
-};
+use holo_utils::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 use tokio::sync::mpsc;
 
 use crate::debug::{Debug, InstanceInactiveReason, InterfaceInactiveReason};
@@ -250,7 +250,7 @@ where
 
     async fn new(
         name: String,
-        _db: Option<Database>,
+        _shared: InstanceShared,
         tx: InstanceChannelsTx<Instance<V>>,
     ) -> Instance<V> {
         Debug::<V>::InstanceCreate.log();

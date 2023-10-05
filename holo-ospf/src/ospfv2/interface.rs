@@ -111,31 +111,21 @@ impl InterfaceVersion<Self> for Ospfv2 {
         true
     }
 
-    fn validate_hello_netmask(
+    fn validate_hello(
         iface: &Interface<Self>,
         hello: &ospfv2::packet::Hello,
     ) -> Result<(), InterfaceCfgError> {
-        // Skip validation on point-to-point interfaces.
-        if iface.config.if_type == InterfaceType::PointToPoint {
-            return Ok(());
+        if iface.config.if_type != InterfaceType::PointToPoint {
+            // Validate the Hello Network mask field.
+            let iface_addrmask = iface.system.primary_addr.unwrap().mask();
+            if hello.network_mask != iface_addrmask {
+                return Err(InterfaceCfgError::HelloMaskMismatch(
+                    hello.network_mask,
+                    iface_addrmask,
+                ));
+            }
         }
 
-        let iface_addrmask = iface.system.primary_addr.unwrap().mask();
-        if hello.network_mask != iface_addrmask {
-            return Err(InterfaceCfgError::HelloMaskMismatch(
-                hello.network_mask,
-                iface_addrmask,
-            ));
-        }
-
-        Ok(())
-    }
-
-    fn validate_hello_af_bit(
-        _iface: &Interface<Self>,
-        _hello: &ospfv2::packet::Hello,
-    ) -> Result<(), InterfaceCfgError> {
-        // Nothing to do.
         Ok(())
     }
 

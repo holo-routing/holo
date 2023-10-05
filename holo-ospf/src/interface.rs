@@ -238,14 +238,8 @@ pub trait InterfaceVersion<V: Version> {
         packet_hdr: &V::PacketHdr,
     ) -> bool;
 
-    // Validate the network mask of the received Hello packet (OSPFv2 only).
-    fn validate_hello_netmask(
-        iface: &Interface<V>,
-        hello: &V::PacketHello,
-    ) -> Result<(), InterfaceCfgError>;
-
-    // Validate the AF-bit of the received packet (OSPFv3 only).
-    fn validate_hello_af_bit(
+    // Validate the received Hello packet.
+    fn validate_hello(
         iface: &Interface<V>,
         hello: &V::PacketHello,
     ) -> Result<(), InterfaceCfgError>;

@@ -108,18 +108,11 @@ impl InterfaceVersion<Self> for Ospfv3 {
         packet_hdr.instance_id == iface_instance_id
     }
 
-    fn validate_hello_netmask(
-        _iface: &Interface<Self>,
-        _hello: &ospfv3::packet::Hello,
-    ) -> Result<(), InterfaceCfgError> {
-        // Nothing to do.
-        Ok(())
-    }
-
-    fn validate_hello_af_bit(
+    fn validate_hello(
         _iface: &Interface<Self>,
         hello: &ospfv3::packet::Hello,
     ) -> Result<(), InterfaceCfgError> {
+        // Validate the setting of the AF-bit.
         if hello.hdr.instance_id >= 32 && !hello.options.contains(Options::AF) {
             return Err(InterfaceCfgError::AfBitClear);
         }

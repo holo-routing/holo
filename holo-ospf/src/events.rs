@@ -388,11 +388,8 @@ fn process_packet_hello_sanity_checks<V>(
 where
     V: Version,
 {
-    // OSPFv2: check for NetworkMask mismatch.
-    V::validate_hello_netmask(iface, hello)?;
-
-    // OSPFv3: check for AF-bit validity.
-    V::validate_hello_af_bit(iface, hello)?;
+    // OSPF version-specific hello validation.
+    V::validate_hello(iface, hello)?;
 
     // Check for HelloInterval mismatch.
     if hello.hello_interval() != iface.config.hello_interval {

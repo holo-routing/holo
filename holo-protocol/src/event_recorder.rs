@@ -1,7 +1,7 @@
 //
 // Copyright (c) The Holo Core Contributors
 //
-// See LICENSE for license details.
+// SPDX-License-Identifier: MIT
 //
 
 #![cfg_attr(feature = "testing", allow(dead_code, unused_variables))]

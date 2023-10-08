@@ -130,6 +130,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/deviations/ietf-rip-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-routing-holo-deviations", None, None, None) =>
             include_str!("../modules/deviations/ietf-routing-holo-deviations.yang"),
+        EmbeddedModuleKey::new("ietf-routing-policy-holo-deviations", None, None, None) =>
+            include_str!("../modules/deviations/ietf-routing-policy-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-segment-routing-mpls-holo-deviations", None, None, None) =>
             include_str!("../modules/deviations/ietf-segment-routing-mpls-holo-deviations.yang"),
     }
@@ -152,6 +154,7 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
             "ietf-ip",
             "ietf-key-chain",
             "ietf-routing",
+            "ietf-routing-policy",
             "ietf-segment-routing",
             "ietf-segment-routing-common",
             "ietf-segment-routing-mpls",

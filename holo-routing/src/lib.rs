@@ -92,6 +92,21 @@ fn process_ibus_msg(master: &mut Master, msg: IbusMsg) {
             // Remove the local copy of the keychain.
             master.shared.keychains.remove(&keychain_name);
         }
+        IbusMsg::PolicyMatchSetsUpd(match_sets) => {
+            // Update the local copy of the policy match sets.
+            master.shared.policy_match_sets = match_sets;
+        }
+        IbusMsg::PolicyUpd(policy) => {
+            // Update the local copy of the policy definition.
+            master
+                .shared
+                .policies
+                .insert(policy.name.clone(), policy.clone());
+        }
+        IbusMsg::PolicyDel(policy_name) => {
+            // Remove the local copy of the policy definition.
+            master.shared.policies.remove(&policy_name);
+        }
         // Ignore other events.
         _ => {}
     }

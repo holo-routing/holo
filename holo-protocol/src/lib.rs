@@ -25,6 +25,7 @@ use holo_southbound::tx::SouthboundTx;
 use holo_southbound::zclient::messages::ZapiRxMsg;
 use holo_utils::ibus::{IbusMsg, IbusReceiver, IbusSender};
 use holo_utils::keychain::Keychains;
+use holo_utils::policy::{MatchSets, Policies};
 use holo_utils::protocol::Protocol;
 use holo_utils::sr::SrCfg;
 use holo_utils::task::Task;
@@ -103,6 +104,10 @@ pub struct InstanceShared {
     pub db: Option<Database>,
     // List of key-chains.
     pub keychains: Keychains,
+    // List of policy match sets.
+    pub policy_match_sets: Arc<MatchSets>,
+    // List of routing policies.
+    pub policies: Policies,
     // Global Segment Routing configuration.
     pub sr_config: Arc<SrCfg>,
 }

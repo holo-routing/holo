@@ -36,6 +36,7 @@ holo-keychain = { path = "../holo-keychain" }
 holo-ldp = { path = "../holo-ldp", optional = true }
 holo-northbound = { path = "../holo-northbound" }
 holo-ospf = { path = "../holo-ospf", optional = true }
+holo-policy = { path = "../holo-policy" }
 holo-protocol = { path = "../holo-protocol" }
 holo-rip = { path = "../holo-rip", optional = true }
 holo-routing = { path = "../holo-routing" }

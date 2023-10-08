@@ -4,6 +4,7 @@ cargo run --bin yang_coverage --\
   -m ietf-interfaces\
   -m ietf-ip\
   -m ietf-routing\
+  -m ietf-routing-policy\
   -m ietf-segment-routing\
   -m ietf-segment-routing-mpls\
   -m ietf-key-chain\

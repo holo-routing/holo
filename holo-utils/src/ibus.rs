@@ -12,6 +12,7 @@ use tokio::sync::broadcast::{Receiver, Sender};
 use crate::bfd;
 use crate::ip::AddressFamily;
 use crate::keychain::Keychain;
+use crate::policy::{MatchSets, Policy};
 use crate::sr::SrCfg;
 
 // Useful type definition(s).
@@ -41,6 +42,12 @@ pub enum IbusMsg {
     KeychainUpd(Arc<Keychain>),
     // Keychain delete notification.
     KeychainDel(String),
+    // Policy match sets update notification.
+    PolicyMatchSetsUpd(Arc<MatchSets>),
+    // Policy definition update notification.
+    PolicyUpd(Arc<Policy>),
+    // Policy definition delete notification.
+    PolicyDel(String),
     // Segment Routing configuration update.
     SrCfgUpd(Arc<SrCfg>),
     // Segment Routing configuration event.

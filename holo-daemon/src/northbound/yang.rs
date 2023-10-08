@@ -27,6 +27,7 @@ pub(crate) fn create_context() {
     modules_add::<holo_interface::Master>(&mut modules);
     modules_add::<holo_routing::Master>(&mut modules);
     modules_add::<holo_keychain::Master>(&mut modules);
+    modules_add::<holo_policy::Master>(&mut modules);
 
     // Add protocol modules based on enabled features.
     #[cfg(feature = "bfd")]

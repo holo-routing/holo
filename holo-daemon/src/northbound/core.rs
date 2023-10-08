@@ -650,7 +650,15 @@ fn start_providers(
     providers.push(daemon_tx);
 
     // Start holo-keychain.
-    let daemon_tx = holo_keychain::start(provider_tx, ibus_tx, ibus_rx);
+    let daemon_tx = holo_keychain::start(
+        provider_tx.clone(),
+        ibus_tx.clone(),
+        ibus_tx.subscribe(),
+    );
+    providers.push(daemon_tx);
+
+    // Start holo-policy.
+    let daemon_tx = holo_policy::start(provider_tx, ibus_tx, ibus_rx);
     providers.push(daemon_tx);
 
     (provider_rx, providers)

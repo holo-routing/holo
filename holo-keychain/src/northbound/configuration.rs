@@ -443,7 +443,7 @@ impl Provider for Master {
                 let keychain = Arc::new(keychain.clone());
 
                 // Notify protocols that the keychain has been updated.
-                let msg = IbusMsg::KeychainUpd(keychain.clone());
+                let msg = IbusMsg::KeychainUpd(keychain);
                 let _ = self.ibus_tx.send(msg);
             }
             Event::KeychainDelete(name) => {

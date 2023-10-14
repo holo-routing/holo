@@ -19,7 +19,6 @@ use holo_protocol::{
 use holo_southbound::rx::SouthboundRx;
 use holo_southbound::tx::SouthboundTx;
 use holo_utils::ibus::IbusMsg;
-use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::socket::{TcpListener, UdpSocket};
 use holo_utils::task::Task;
@@ -64,6 +63,8 @@ pub struct InstanceCommon<State> {
     pub state: State,
     // Instance Tx channels.
     pub tx: InstanceChannelsTx<Instance>,
+    // Shared data.
+    pub shared: InstanceShared,
 }
 
 #[derive(Debug)]
@@ -119,9 +120,6 @@ pub struct InstanceState {
     pub neighbors: Neighbors,
     // Known FECs and their associated label mappings.
     pub fecs: BTreeMap<IpNetwork, Fec>,
-    // Next available FEC label (to be replaced by a Label Manager in the
-    // future).
-    pub next_fec_label: u32,
     // IPv4 instance state.
     pub ipv4: InstanceIpv4State,
 }
@@ -299,7 +297,7 @@ impl ProtocolInstance for Instance {
 
     async fn new(
         name: String,
-        _shared: InstanceShared,
+        shared: InstanceShared,
         tx: InstanceChannelsTx<Instance>,
     ) -> Instance {
         Debug::InstanceCreate.log();
@@ -314,6 +312,7 @@ impl ProtocolInstance for Instance {
             },
             state: InstanceStateDown(),
             tx,
+            shared,
         })
     }
 
@@ -483,6 +482,7 @@ impl InstanceCommon<InstanceState> {
             core: self.core,
             state: InstanceStateDown(),
             tx: self.tx,
+            shared: self.shared,
         }
     }
 }
@@ -496,6 +496,7 @@ impl InstanceCommon<InstanceStateDown> {
             core: self.core,
             state,
             tx: self.tx,
+            shared: self.shared,
         };
 
         // Try to start interfaces.
@@ -614,7 +615,6 @@ impl InstanceState {
             router_id,
             neighbors: Default::default(),
             fecs: Default::default(),
-            next_fec_label: *Label::UNRESERVED_RANGE.start(),
             ipv4: InstanceIpv4State::new(
                 disc_socket,
                 edisc_socket,

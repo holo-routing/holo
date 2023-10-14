@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::sync::Mutex;
+
 use async_trait::async_trait;
 use derive_new::new;
 use holo_protocol::MessageReceiver;
@@ -13,7 +15,7 @@ use holo_southbound::zclient::messages::{
     ZapiRtrIdInfo, ZapiRxAddressInfo, ZapiRxIfaceInfo, ZapiRxMsg,
     ZapiRxRouteInfo,
 };
-use holo_utils::mpls::Label;
+use holo_utils::mpls::{Label, LabelManager};
 use ipnetwork::IpNetwork;
 use maplit::btreeset;
 
@@ -205,7 +207,7 @@ impl SouthboundRxCallbacks for Instance {
         }
 
         // Allocate new label if necessary.
-        local_label_update(fec, &mut instance.state.next_fec_label);
+        local_label_update(fec, &instance.shared.label_manager);
         process_new_fec(instance, prefix);
     }
 
@@ -262,21 +264,19 @@ impl MessageReceiver<ZapiRxMsg> for InstanceSouthboundRx {
 
 // ===== helper functions =====
 
-fn local_label_update(fec: &mut Fec, next_fec_label: &mut u32) {
+fn local_label_update(fec: &mut Fec, label_manager: &Mutex<LabelManager>) {
     if fec.inner.local_label.is_some() {
         return;
     }
 
     let owner = fec.inner.owner.as_ref().unwrap();
     let label = if owner.proto == zclient::ffi::RouteType::Connect {
-        Label::IMPLICIT_NULL
+        Label::new(Label::IMPLICIT_NULL)
     } else {
-        // TODO: request labels to a label manager.
-        let label = *next_fec_label;
-        *next_fec_label += 1;
-        label
+        let mut label_manager = label_manager.lock().unwrap();
+        label_manager.label_request().unwrap()
     };
-    let label = Some(Label::new(label));
+    let label = Some(label);
 
     Debug::FecLabelUpdate(fec, &label).log();
     fec.inner.local_label = label;

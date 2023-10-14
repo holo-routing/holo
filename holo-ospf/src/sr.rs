@@ -5,7 +5,6 @@
 //
 
 use std::net::Ipv4Addr;
-use std::sync::atomic::{AtomicU32, Ordering};
 
 use holo_utils::ip::AddressFamily;
 use holo_utils::mpls::Label;
@@ -85,7 +84,8 @@ pub(crate) fn adj_sid_add<V>(
 ) where
     V: Version,
 {
-    let label = dynamic_label_request();
+    let mut label_manager = instance.shared.label_manager.lock().unwrap();
+    let label = label_manager.label_request().unwrap();
     let nbr_router_id = iface.is_broadcast_or_nbma().then_some(nbr.router_id);
     let adj_sid = V::AdjSid::new(label, 0, nbr_router_id);
     instance.tx.sb.adj_sid_install(iface, nbr.src, label);
@@ -104,7 +104,8 @@ pub(crate) fn adj_sid_del_all<V>(
         .into_iter()
         .filter_map(|adj_sid| adj_sid.sid().as_label().copied())
     {
-        dynamic_label_release(label);
+        let mut label_manager = instance.shared.label_manager.lock().unwrap();
+        label_manager.label_release(label);
         instance.tx.sb.adj_sid_uninstall(label);
     }
 }
@@ -246,17 +247,3 @@ where
     notification::sr_index_out_of_range(instance, nbr_router_id, index);
     Err(Error::InvalidSidIndex(index))
 }
-
-// Requests dynamic MPLS label to the label manager.
-//
-// TODO: write actual label manager :)
-fn dynamic_label_request() -> Label {
-    static NEXT: AtomicU32 = AtomicU32::new(*Label::UNRESERVED_RANGE.start());
-
-    Label::new(NEXT.fetch_add(1, Ordering::Relaxed))
-}
-
-// Releases dynamic MPLS label from the label manager.
-//
-// TODO: write actual label manager :)
-fn dynamic_label_release(_label: Label) {}

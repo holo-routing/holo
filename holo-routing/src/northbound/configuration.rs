@@ -42,8 +42,10 @@ pub enum ListEntry {
     SrCfgPrefixSid(IpNetwork, IgpAlgoType),
 }
 
-#[derive(Debug)]
-pub enum Resource {}
+#[derive(Debug, EnumAsInner)]
+pub enum Resource {
+    SrLabelRange(LabelRange),
+}
 
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Event {
@@ -173,10 +175,29 @@ fn load_callbacks() -> Callbacks<Master> {
             event_queue.insert(Event::SrCfgPrefixSidUpdate(prefix.address_family()));
         })
         .path(sr_mpls::srgb::srgb::PATH)
-        .create_apply(|master, args| {
+        .create_prepare(|master, args| {
             let lower_bound = args.dnode.get_u32_relative("./lower-bound").unwrap();
             let upper_bound = args.dnode.get_u32_relative("./upper-bound").unwrap();
             let range = LabelRange::new(lower_bound, upper_bound);
+
+            let mut label_manager = master.shared.label_manager.lock().unwrap();
+            label_manager
+                .range_reserve(range)
+                .map_err(|error| error.to_string())?;
+            *args.resource = Some(Resource::SrLabelRange(range));
+
+            Ok(())
+        })
+        .create_abort(|master, args| {
+            let resource = args.resource.take().unwrap();
+            let range = resource.into_sr_label_range().unwrap();
+
+            let mut label_manager = master.shared.label_manager.lock().unwrap();
+            label_manager.range_release(range);
+        })
+        .create_apply(|master, args| {
+            let resource = args.resource.take().unwrap();
+            let range = resource.into_sr_label_range().unwrap();
             master.sr_config.srgb.insert(range);
 
             let event_queue = args.event_queue;
@@ -187,6 +208,9 @@ fn load_callbacks() -> Callbacks<Master> {
             let lower_bound = args.dnode.get_u32_relative("./lower-bound").unwrap();
             let upper_bound = args.dnode.get_u32_relative("./upper-bound").unwrap();
             let range = LabelRange::new(lower_bound, upper_bound);
+
+            let mut label_manager = master.shared.label_manager.lock().unwrap();
+            label_manager.range_release(range);
             master.sr_config.srgb.remove(&range);
 
             let event_queue = args.event_queue;
@@ -197,10 +221,29 @@ fn load_callbacks() -> Callbacks<Master> {
             ListEntry::None
         })
         .path(sr_mpls::srlb::srlb::PATH)
-        .create_apply(|master, args| {
+        .create_prepare(|master, args| {
             let lower_bound = args.dnode.get_u32_relative("./lower-bound").unwrap();
             let upper_bound = args.dnode.get_u32_relative("./upper-bound").unwrap();
             let range = LabelRange::new(lower_bound, upper_bound);
+
+            let mut label_manager = master.shared.label_manager.lock().unwrap();
+            label_manager
+                .range_reserve(range)
+                .map_err(|error| error.to_string())?;
+            *args.resource = Some(Resource::SrLabelRange(range));
+
+            Ok(())
+        })
+        .create_abort(|master, args| {
+            let resource = args.resource.take().unwrap();
+            let range = resource.into_sr_label_range().unwrap();
+
+            let mut label_manager = master.shared.label_manager.lock().unwrap();
+            label_manager.range_release(range);
+        })
+        .create_apply(|master, args| {
+            let resource = args.resource.take().unwrap();
+            let range = resource.into_sr_label_range().unwrap();
             master.sr_config.srlb.insert(range);
 
             let event_queue = args.event_queue;
@@ -211,6 +254,9 @@ fn load_callbacks() -> Callbacks<Master> {
             let lower_bound = args.dnode.get_u32_relative("./lower-bound").unwrap();
             let upper_bound = args.dnode.get_u32_relative("./upper-bound").unwrap();
             let range = LabelRange::new(lower_bound, upper_bound);
+
+            let mut label_manager = master.shared.label_manager.lock().unwrap();
+            label_manager.range_release(range);
             master.sr_config.srlb.remove(&range);
 
             let event_queue = args.event_queue;

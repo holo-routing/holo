@@ -12,7 +12,7 @@ pub mod event_recorder;
 #[cfg(feature = "testing")]
 pub mod test;
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use derive_new::new;
@@ -25,6 +25,7 @@ use holo_southbound::tx::SouthboundTx;
 use holo_southbound::zclient::messages::ZapiRxMsg;
 use holo_utils::ibus::{IbusMsg, IbusReceiver, IbusSender};
 use holo_utils::keychain::Keychains;
+use holo_utils::mpls::LabelManager;
 use holo_utils::policy::{MatchSets, Policies};
 use holo_utils::protocol::Protocol;
 use holo_utils::sr::SrCfg;
@@ -102,6 +103,8 @@ where
 pub struct InstanceShared {
     // Non-volatile storage.
     pub db: Option<Database>,
+    // MPLS Label Manager.
+    pub label_manager: Arc<Mutex<LabelManager>>,
     // List of key-chains.
     pub keychains: Keychains,
     // List of policy match sets.
@@ -158,6 +161,20 @@ where
     Self: Send,
 {
     async fn recv(&mut self) -> Option<T>;
+}
+
+// ===== impl InstanceShared =====
+
+impl std::fmt::Debug for InstanceShared {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InstanceShared")
+            .field("label_manager", &self.label_manager)
+            .field("keychains", &self.keychains)
+            .field("policy_match_sets", &self.policy_match_sets)
+            .field("policies", &self.policies)
+            .field("sr_config", &self.sr_config)
+            .finish()
+    }
 }
 
 // ===== impl InstanceAggChannels =====

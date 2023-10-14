@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::collections::BTreeSet;
+
 use derive_new::new;
 use holo_yang::ToYang;
 use serde::{Deserialize, Serialize};
@@ -20,6 +22,25 @@ pub struct LabelRange {
     pub lower_bound: u32,
     pub upper_bound: u32,
 }
+
+// MPLS label manager.
+#[derive(Debug)]
+pub struct LabelManager {
+    // Next dynamic label.
+    next_dynamic: u32,
+    // Reserved label ranges.
+    reserved_ranges: BTreeSet<LabelRange>,
+}
+
+// MPLS label manager errors.
+#[derive(Debug)]
+pub enum LabelManagerError {
+    LabelRangeInvalid,
+    LabelRangeUnavailable,
+    LabelSpaceExhausted,
+}
+
+// ===== impl Label =====
 
 impl Label {
     pub const VALUE_MASK: u32 = 0x000FFFFF;
@@ -53,8 +74,6 @@ impl Label {
         Self::RESERVED_RANGE.contains(&self.0)
     }
 }
-
-// ===== impl Label =====
 
 impl std::fmt::Display for Label {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -97,3 +116,100 @@ impl ToYang for Label {
         }
     }
 }
+
+// ===== impl LabelRange =====
+
+impl LabelRange {
+    // Checks if this label range overlaps with another.
+    fn overlaps(&self, other: &LabelRange) -> bool {
+        self.lower_bound < other.upper_bound
+            && self.upper_bound > other.lower_bound
+    }
+}
+
+// ===== impl LabelManager =====
+
+// This is a prototype implementation with the following limitations:
+// - Dynamic labels are assigned sequentially using a non-decreasing counter,
+//   and they cannot be released back to the label pool.
+// - Reservation of label ranges does not check for collisions with existing
+//   dynamic labels.
+impl LabelManager {
+    // Reserves a label range.
+    pub fn range_reserve(
+        &mut self,
+        range: LabelRange,
+    ) -> Result<(), LabelManagerError> {
+        // Check if the label range is valid.
+        if !Label::UNRESERVED_RANGE.contains(&range.lower_bound)
+            || !Label::UNRESERVED_RANGE.contains(&range.upper_bound)
+        {
+            return Err(LabelManagerError::LabelRangeInvalid);
+        }
+
+        // Check for overlaps with existing reserved ranges.
+        if self
+            .reserved_ranges
+            .iter()
+            .any(|reserved_range| range.overlaps(reserved_range))
+        {
+            return Err(LabelManagerError::LabelRangeUnavailable);
+        }
+
+        // Allocate requested label range.
+        self.reserved_ranges.insert(range);
+
+        Ok(())
+    }
+
+    // Releases a label range.
+    pub fn range_release(&mut self, range: LabelRange) {
+        self.reserved_ranges.remove(&range);
+    }
+
+    // Allocates a dynamic label.
+    pub fn label_request(&mut self) -> Result<Label, LabelManagerError> {
+        // Check if the label space was exhausted.
+        if self.next_dynamic == *Label::UNRESERVED_RANGE.end() {
+            return Err(LabelManagerError::LabelSpaceExhausted);
+        }
+
+        // Allocate label.
+        self.next_dynamic += 1;
+        let label = Label::new(self.next_dynamic);
+
+        Ok(label)
+    }
+
+    // Releases a dynamic label.
+    pub fn label_release(&mut self, _label: Label) {}
+}
+
+impl Default for LabelManager {
+    fn default() -> LabelManager {
+        LabelManager {
+            next_dynamic: *Label::RESERVED_RANGE.end(),
+            reserved_ranges: Default::default(),
+        }
+    }
+}
+
+// ===== impl LabelManagerError =====
+
+impl std::fmt::Display for LabelManagerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LabelManagerError::LabelRangeInvalid => {
+                write!(f, "Invalid label range")
+            }
+            LabelManagerError::LabelRangeUnavailable => {
+                write!(f, "Label range is unavailable")
+            }
+            LabelManagerError::LabelSpaceExhausted => {
+                write!(f, "Label space has been exhausted")
+            }
+        }
+    }
+}
+
+impl std::error::Error for LabelManagerError {}

@@ -19,10 +19,9 @@ use holo_northbound::{CallbackKey, NbDaemonSender};
 use holo_protocol::spawn_protocol_task;
 use holo_utils::ibus::{IbusMsg, SrCfgEvent};
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
+use holo_utils::mpls::LabelRange;
 use holo_utils::protocol::Protocol;
-use holo_utils::sr::{
-    IgpAlgoType, SidLastHopBehavior, SrCfgLabelRange, SrCfgPrefixSid,
-};
+use holo_utils::sr::{IgpAlgoType, SidLastHopBehavior, SrCfgPrefixSid};
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
 use ipnetwork::IpNetwork;
@@ -177,7 +176,7 @@ fn load_callbacks() -> Callbacks<Master> {
         .create_apply(|master, args| {
             let lower_bound = args.dnode.get_u32_relative("./lower-bound").unwrap();
             let upper_bound = args.dnode.get_u32_relative("./upper-bound").unwrap();
-            let range = SrCfgLabelRange::new(lower_bound, upper_bound);
+            let range = LabelRange::new(lower_bound, upper_bound);
             master.sr_config.srgb.insert(range);
 
             let event_queue = args.event_queue;
@@ -187,7 +186,7 @@ fn load_callbacks() -> Callbacks<Master> {
         .delete_apply(|master, args| {
             let lower_bound = args.dnode.get_u32_relative("./lower-bound").unwrap();
             let upper_bound = args.dnode.get_u32_relative("./upper-bound").unwrap();
-            let range = SrCfgLabelRange::new(lower_bound, upper_bound);
+            let range = LabelRange::new(lower_bound, upper_bound);
             master.sr_config.srgb.remove(&range);
 
             let event_queue = args.event_queue;
@@ -201,7 +200,7 @@ fn load_callbacks() -> Callbacks<Master> {
         .create_apply(|master, args| {
             let lower_bound = args.dnode.get_u32_relative("./lower-bound").unwrap();
             let upper_bound = args.dnode.get_u32_relative("./upper-bound").unwrap();
-            let range = SrCfgLabelRange::new(lower_bound, upper_bound);
+            let range = LabelRange::new(lower_bound, upper_bound);
             master.sr_config.srlb.insert(range);
 
             let event_queue = args.event_queue;
@@ -211,7 +210,7 @@ fn load_callbacks() -> Callbacks<Master> {
         .delete_apply(|master, args| {
             let lower_bound = args.dnode.get_u32_relative("./lower-bound").unwrap();
             let upper_bound = args.dnode.get_u32_relative("./upper-bound").unwrap();
-            let range = SrCfgLabelRange::new(lower_bound, upper_bound);
+            let range = LabelRange::new(lower_bound, upper_bound);
             master.sr_config.srlb.remove(&range);
 
             let event_queue = args.event_queue;

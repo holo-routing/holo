@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use derive_new::new;
 use holo_yang::ToYang;
 use serde::{Deserialize, Serialize};
 
@@ -11,6 +12,14 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
 pub struct Label(u32);
+
+// MPLS label range.
+#[derive(Clone, Copy, Debug, Eq, Ord, new, PartialEq, PartialOrd)]
+#[derive(Deserialize, Serialize)]
+pub struct LabelRange {
+    pub lower_bound: u32,
+    pub upper_bound: u32,
+}
 
 impl Label {
     pub const VALUE_MASK: u32 = 0x000FFFFF;

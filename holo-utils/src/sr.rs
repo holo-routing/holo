@@ -13,7 +13,7 @@ use ipnetwork::IpNetwork;
 use num_derive::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
 
-use crate::mpls::Label;
+use crate::mpls::{Label, LabelRange};
 
 // IGP Algorithm Types.
 //
@@ -60,8 +60,8 @@ pub enum SidLastHopBehavior {
 pub struct SrCfg {
     #[serde(with = "vectorize")]
     pub prefix_sids: HashMap<(IpNetwork, IgpAlgoType), SrCfgPrefixSid>,
-    pub srgb: BTreeSet<SrCfgLabelRange>,
-    pub srlb: BTreeSet<SrCfgLabelRange>,
+    pub srgb: BTreeSet<LabelRange>,
+    pub srlb: BTreeSet<LabelRange>,
 }
 
 // Prefix-SID configuration.
@@ -70,14 +70,6 @@ pub struct SrCfg {
 pub struct SrCfgPrefixSid {
     pub index: u32,
     pub last_hop: SidLastHopBehavior,
-}
-
-// Label range configuration.
-#[derive(Clone, Debug, Eq, Ord, new, PartialEq, PartialOrd)]
-#[derive(Deserialize, Serialize)]
-pub struct SrCfgLabelRange {
-    pub lower_bound: u32,
-    pub upper_bound: u32,
 }
 
 // ===== impl IgpAlgoType =====

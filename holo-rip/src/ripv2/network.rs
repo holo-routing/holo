@@ -8,7 +8,6 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
-use async_trait::async_trait;
 use holo_utils::capabilities;
 use holo_utils::socket::{UdpSocket, UdpSocketExt};
 
@@ -24,7 +23,6 @@ static RIPV2_MCAST_SOCKADDR: Lazy<SocketAddr> = Lazy::new(|| {
 
 // ===== impl Ripv2 =====
 
-#[async_trait]
 impl NetworkVersion for Ripv2 {
     const UDP_PORT: u16 = 520;
 

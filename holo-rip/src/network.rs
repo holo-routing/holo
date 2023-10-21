@@ -7,7 +7,6 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use holo_utils::ip::{IpAddrKind, SocketAddrKind};
 use holo_utils::socket::UdpSocket;
 use holo_utils::{Sender, UnboundedReceiver};
@@ -27,7 +26,6 @@ pub enum SendDestination<S: Into<SocketAddr>> {
 }
 
 // RIP version-specific code.
-#[async_trait]
 pub trait NetworkVersion {
     const UDP_PORT: u16;
 

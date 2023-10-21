@@ -8,7 +8,6 @@ use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
-use async_trait::async_trait;
 use holo_utils::capabilities;
 use holo_utils::socket::{UdpSocket, UdpSocketExt};
 
@@ -24,7 +23,6 @@ static RIPNG_MCAST_SOCKADDR: Lazy<SocketAddr> = Lazy::new(|| {
 
 // ===== impl Ripng =====
 
-#[async_trait]
 impl NetworkVersion for Ripng {
     const UDP_PORT: u16 = 521;
 

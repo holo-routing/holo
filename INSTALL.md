@@ -2,10 +2,6 @@
 
 Holo uses unstable Rust features, so building it from the source code requires a nightly version of the Rust compiler.
 
-Also, Holo has a runtime dependency of the `zebra` daemon from [FRRouting (v8.4..v8.5)](https://github.com/FRRouting/frr).
-`zebra` is used as a proxy to communicate with the Linux kernel.
-This dependency shall be removed in the future.
-
 ### Build from source
 
 1. Install the Rust toolchain
@@ -34,9 +30,18 @@ $ cd holo/
 $ cargo build --release
 ```
 
-5. Installation
+5. Add `holo` user and group:
+
+```
+# groupadd -r holo
+# useradd --system --shell /sbin/nologin --home-dir /var/run/holo/ -g holo holo
+```
+
+6. Installation
 
 Copy the `holod` and `holo-cli` binaries from the `target/release` directory to your preferred location.
+
+Alternatively, you can use `cargo install` to install these binaries into the `$HOME/.cargo/bin` directory.
 
 ## Configuration
 

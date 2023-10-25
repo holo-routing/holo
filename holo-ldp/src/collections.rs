@@ -203,6 +203,7 @@ impl Interfaces {
 
     // Returns a mutable reference to the interface corresponding to the given
     // ifindex.
+    #[allow(dead_code)]
     pub(crate) fn get_mut_by_ifindex(
         &mut self,
         ifindex: u32,

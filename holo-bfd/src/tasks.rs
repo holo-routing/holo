@@ -31,11 +31,11 @@ use crate::session::Session;
 //        detection_timer (Nx) -> |    master    | -> (Nx) udp_tx_final
 //                                |              |
 //                                +--------------+
-//                   southbound_tx (1x) | ^ (1x) southbound_rx
+//                         ibus_tx (1x) | ^ (1x) ibus_rx
 //                                      | |
 //                                      V |
 //                                +--------------+
-//                                |    zebra     |
+//                                |     ibus     |
 //                                +--------------+
 //
 

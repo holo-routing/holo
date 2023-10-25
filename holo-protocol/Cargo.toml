@@ -16,7 +16,6 @@ tracing-subscriber.workspace = true
 yang2.workspace = true
 
 holo-northbound = { path = "../holo-northbound" }
-holo-southbound = { path = "../holo-southbound" }
 holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
 

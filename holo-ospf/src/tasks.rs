@@ -52,11 +52,11 @@ use crate::{lsdb, spf};
 //                                    |              |
 //            spf_delay_timer (Nx) -> |              |
 //                                    +--------------+
-//                       southbound_tx (1x) | ^ (1x) southbound_rx
+//                             ibus_tx (1x) | ^ (1x) ibus_rx
 //                                          | |
 //                                          V |
 //                                    +--------------+
-//                                    |    zebra     |
+//                                    |     ibus     |
 //                                    +--------------+
 //
 

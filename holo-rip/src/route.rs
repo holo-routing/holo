@@ -15,9 +15,9 @@ use serde::{Deserialize, Serialize};
 use crate::debug::Debug;
 use crate::error::MetricError;
 use crate::instance::Instance;
-use crate::tasks;
 use crate::tasks::messages::input::{RouteGcTimeoutMsg, RouteTimeoutMsg};
 use crate::version::Version;
+use crate::{southbound, tasks};
 
 #[derive(Debug)]
 pub struct Route<V: Version> {
@@ -89,7 +89,7 @@ where
         Debug::<V>::RouteInvalidate(&self.prefix).log();
 
         // Uninstall route.
-        instance_channels_tx.sb.route_uninstall(self);
+        southbound::tx::route_uninstall(&instance_channels_tx.ibus, self);
 
         // Set metric to infinite and start GC timeout.
         self.metric.set_infinite();

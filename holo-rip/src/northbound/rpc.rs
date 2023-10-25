@@ -11,6 +11,7 @@ use holo_northbound::rpc::{Callbacks, CallbacksBuilder, Provider};
 
 use crate::instance::{Instance, InstanceUp};
 use crate::route::RouteType;
+use crate::southbound;
 use crate::version::{Ripng, Ripv2, Version};
 
 pub static CALLBACKS_RIPV2: Lazy<Callbacks<Instance<Ripv2>>> =
@@ -62,7 +63,7 @@ where
         }
 
         // Uninstall and remove route.
-        instance.tx.sb.route_uninstall(route);
+        southbound::tx::route_uninstall(&instance.tx.ibus, route);
         false
     });
 }

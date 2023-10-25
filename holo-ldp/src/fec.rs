@@ -8,8 +8,8 @@ use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 
-use holo_southbound::zclient;
 use holo_utils::mpls::Label;
+use holo_utils::protocol::Protocol;
 use ipnetwork::IpNetwork;
 
 use crate::debug::Debug;
@@ -28,13 +28,7 @@ pub struct FecInner {
     pub downstream: BTreeMap<Ipv4Addr, LabelMapping>,
     pub upstream: BTreeMap<Ipv4Addr, LabelMapping>,
     pub local_label: Option<Label>,
-    pub owner: Option<FecOwner>,
-}
-
-#[derive(Debug)]
-pub struct FecOwner {
-    pub proto: zclient::ffi::RouteType,
-    pub instance: u16,
+    pub protocol: Option<Protocol>,
 }
 
 #[derive(Clone, Debug)]
@@ -69,7 +63,7 @@ impl Fec {
                 downstream: Default::default(),
                 upstream: Default::default(),
                 local_label: None,
-                owner: None,
+                protocol: None,
             },
             nexthops: Default::default(),
         };

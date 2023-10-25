@@ -40,7 +40,6 @@ holo-policy = { path = "../holo-policy" }
 holo-protocol = { path = "../holo-protocol" }
 holo-rip = { path = "../holo-rip", optional = true }
 holo-routing = { path = "../holo-routing" }
-holo-southbound = { path = "../holo-southbound" }
 holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
 
@@ -58,4 +57,3 @@ ldp = ["holo-ldp"]
 ospf = ["holo-ospf"]
 rip = ["holo-rip"]
 io_uring = ["tokio-uring"]
-zebra-8-4-compat = ["holo-southbound/zebra-8-4-compat"]

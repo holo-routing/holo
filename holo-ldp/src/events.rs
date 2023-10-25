@@ -35,6 +35,7 @@ use crate::packet::messages::{
     NotifMsg,
 };
 use crate::packet::{AddressMessageType, LabelMessageType, Message, Pdu};
+use crate::southbound;
 
 // ===== UDP packet receipt =====
 
@@ -712,10 +713,18 @@ fn process_nbr_msg_address(
                 match msg.msg_type {
                     AddressMessageType::Address => {
                         nexthop.set_label(Some(mapping.label));
-                        instance.tx.sb.label_install(&fec.inner, nexthop);
+                        southbound::tx::label_install(
+                            &instance.tx.ibus,
+                            &fec.inner,
+                            nexthop,
+                        );
                     }
                     AddressMessageType::AddressWithdraw => {
-                        instance.tx.sb.label_uninstall(&fec.inner, nexthop);
+                        southbound::tx::label_uninstall(
+                            &instance.tx.ibus,
+                            &fec.inner,
+                            nexthop,
+                        );
                         nexthop.set_label(None);
                     }
                 }
@@ -839,7 +848,11 @@ pub(crate) fn process_nbr_msg_label_mapping(
                     continue;
                 }
 
-                instance.tx.sb.label_uninstall(&fec.inner, nexthop);
+                southbound::tx::label_uninstall(
+                    &instance.tx.ibus,
+                    &fec.inner,
+                    nexthop,
+                );
                 nexthop.set_label(None);
             }
             nbr.send_label_release(
@@ -864,7 +877,11 @@ pub(crate) fn process_nbr_msg_label_mapping(
 
         nexthop.set_label(Some(label));
         if fec.inner.local_label.is_some() {
-            instance.tx.sb.label_install(&fec.inner, nexthop);
+            southbound::tx::label_install(
+                &instance.tx.ibus,
+                &fec.inner,
+                nexthop,
+            );
         }
     }
 
@@ -1043,7 +1060,7 @@ fn process_nbr_msg_label_withdraw(
             continue;
         }
 
-        instance.tx.sb.label_uninstall(&fec.inner, nexthop);
+        southbound::tx::label_uninstall(&instance.tx.ibus, &fec.inner, nexthop);
         nexthop.set_label(None);
     }
 
@@ -1108,7 +1125,11 @@ fn process_nbr_msg_label_withdraw_wcard(
                 continue;
             }
 
-            instance.tx.sb.label_uninstall(&fec.inner, nexthop);
+            southbound::tx::label_uninstall(
+                &instance.tx.ibus,
+                &fec.inner,
+                nexthop,
+            );
             nexthop.set_label(None);
         }
 

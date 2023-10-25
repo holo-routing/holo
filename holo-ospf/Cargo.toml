@@ -36,7 +36,6 @@ yang2.workspace = true
 
 holo-northbound = { path = "../holo-northbound" }
 holo-protocol = { path = "../holo-protocol" }
-holo-southbound = { path = "../holo-southbound" }
 holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
 
@@ -46,7 +45,6 @@ maplit.workspace = true
 
 holo-ospf = { path = ".", features = ["testing", "deterministic"] }
 holo-protocol = { path = "../holo-protocol", features = ["testing"] }
-holo-southbound = { path = "../holo-southbound", features = ["testing"] }
 holo-utils = { path = "../holo-utils", features = ["testing"] }
 
 [features]

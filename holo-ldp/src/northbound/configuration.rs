@@ -14,6 +14,8 @@ use holo_northbound::configuration::{
     ValidationCallbacksBuilder,
 };
 use holo_northbound::paths::control_plane_protocol::mpls_ldp;
+use holo_utils::ibus::IbusMsg;
+use holo_utils::ip::AddressFamily;
 use holo_utils::yang::DataNodeRefExt;
 
 use crate::collections::{InterfaceIndex, TargetedNbrIndex};
@@ -40,6 +42,7 @@ pub enum Event {
     InstanceUpdate,
     InterfaceUpdate(InterfaceIndex),
     InterfaceDelete(InterfaceIndex),
+    InterfaceQuerySouthbound(String),
     TargetedNbrUpdate(TargetedNbrIndex),
     TargetedNbrRemoveCheck(TargetedNbrIndex),
     TargetedNbrRemoveDynamic,
@@ -49,7 +52,6 @@ pub enum Event {
     UpdateNeighborsAuth,
     UpdateNeighborAuth(Ipv4Addr),
     CfgSeqNumberUpdate,
-    SbRequestInterfaceInfo,
 }
 
 pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
@@ -132,7 +134,7 @@ fn load_callbacks() -> Callbacks<Instance> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InterfaceUpdate(iface_idx));
-            event_queue.insert(Event::SbRequestInterfaceInfo);
+            event_queue.insert(Event::InterfaceQuerySouthbound(ifname));
             event_queue.insert(Event::CfgSeqNumberUpdate);
         })
         .delete_apply(|_instance, args| {
@@ -422,6 +424,14 @@ impl Provider for Instance {
 
                 self.core_mut().interfaces.delete(iface_idx);
             }
+            Event::InterfaceQuerySouthbound(ifname) => {
+                if let Instance::Up(instance) = self {
+                    let _ = instance.tx.ibus.send(IbusMsg::InterfaceQuery {
+                        ifname,
+                        af: Some(AddressFamily::Ipv4),
+                    });
+                }
+            }
             Event::TargetedNbrUpdate(tnbr_idx) => {
                 if let Instance::Up(instance) = self {
                     TargetedNbr::update(instance, tnbr_idx);
@@ -523,11 +533,6 @@ impl Provider for Instance {
                 if let Instance::Up(instance) = self {
                     instance.state.cfg_seqno += 1;
                     instance.sync_hello_tx();
-                }
-            }
-            Event::SbRequestInterfaceInfo => {
-                if let Instance::Up(instance) = self {
-                    instance.tx.sb.request_interface_info();
                 }
             }
         }

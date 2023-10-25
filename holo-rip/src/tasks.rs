@@ -35,11 +35,11 @@ use crate::version::Version;
 //           route_timeout (Nx) -> |              |
 //        route_gc_timeout (Nx) -> |              |
 //                                 +--------------+
-//                    southbound_tx (1x) | ^ (1x) southbound_rx
+//                          ibus_tx (1x) | ^ (1x) ibus_rx
 //                                       | |
 //                                       V |
 //                                 +--------------+
-//                                 |    zebra     |
+//                                 |     ibus     |
 //                                 +--------------+
 //
 

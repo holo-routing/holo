@@ -135,8 +135,8 @@ impl Config {
 impl Default for Config {
     fn default() -> Config {
         Config {
-            user: "frr".to_owned(),
-            group: "frr".to_owned(),
+            user: "holo".to_owned(),
+            group: "holo".to_owned(),
             database_path: "/var/run/holo/holo.db".to_owned(),
             logging: Default::default(),
             tokio_console: Default::default(),

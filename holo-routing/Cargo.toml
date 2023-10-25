@@ -27,6 +27,5 @@ holo-northbound = { path = "../holo-northbound" }
 holo-ospf = { path = "../holo-ospf" }
 holo-protocol = { path = "../holo-protocol" }
 holo-rip = { path = "../holo-rip" }
-holo-southbound = { path = "../holo-southbound" }
 holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }

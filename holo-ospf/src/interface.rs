@@ -17,6 +17,7 @@ use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
 use holo_utils::keychain::{Key, Keychains};
 use holo_utils::socket::{AsyncFd, Socket};
+use holo_utils::southbound::InterfaceFlags;
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{bfd, UnboundedSender};
 use holo_yang::TryFromYang;
@@ -52,8 +53,7 @@ pub struct Interface<V: Version> {
 #[derive(Debug)]
 pub struct InterfaceSys<V: Version> {
     // Interface flags.
-    pub operative: bool,
-    pub loopback: bool,
+    pub flags: InterfaceFlags,
     // Interface ifindex.
     pub ifindex: Option<u32>,
     // Interface MTU.
@@ -287,7 +287,7 @@ where
         let event = match V::is_ready(instance.state.af, self) {
             Ok(_) => {
                 let ism_state = self.state.ism_state;
-                if self.system.loopback {
+                if self.system.flags.contains(InterfaceFlags::LOOPBACK) {
                     if ism_state == State::Loopback {
                         return;
                     }
@@ -467,7 +467,8 @@ where
     }
 
     pub(crate) fn is_passive(&self) -> bool {
-        self.system.loopback || self.config.passive
+        self.system.flags.contains(InterfaceFlags::LOOPBACK)
+            || self.config.passive
     }
 
     pub(crate) fn is_dr_or_backup(&self) -> bool {
@@ -968,8 +969,7 @@ where
 {
     fn default() -> InterfaceSys<V> {
         InterfaceSys {
-            operative: false,
-            loopback: false,
+            flags: Default::default(),
             ifindex: None,
             mtu: None,
             addr_list: Default::default(),
@@ -1194,7 +1194,7 @@ where
         return Err(InterfaceInactiveReason::AdminDown);
     }
 
-    if !iface.system.operative {
+    if !iface.system.flags.contains(InterfaceFlags::OPERATIVE) {
         return Err(InterfaceInactiveReason::OperationalDown);
     }
 

@@ -22,8 +22,8 @@ use crate::interface::Interface;
 use crate::lsdb::{LsaEntry, LSA_INFINITY};
 use crate::packet::lsa::{LsaKey, LsaRouterFlagsVersion};
 use crate::spf::{SpfPartialComputation, VertexLsaVersion};
-use crate::sr;
 use crate::version::Version;
+use crate::{southbound, sr};
 
 // Network routing table entry.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -732,7 +732,8 @@ fn update_global_rib<V>(
             && !route.nexthops.is_empty()
         {
             let distance = route.distance(instance.config);
-            instance.tx.sb.route_install(
+            southbound::tx::route_install(
+                &instance.tx.ibus,
                 prefix,
                 route,
                 old_sr_label,
@@ -741,7 +742,7 @@ fn update_global_rib<V>(
             );
             route.flags.insert(RouteNetFlags::INSTALLED);
         } else if route.flags.contains(RouteNetFlags::INSTALLED) {
-            instance.tx.sb.route_uninstall(prefix, route);
+            southbound::tx::route_uninstall(&instance.tx.ibus, prefix, route);
             route.flags.remove(RouteNetFlags::INSTALLED);
         }
     }
@@ -751,7 +752,7 @@ fn update_global_rib<V>(
         .into_iter()
         .filter(|(_, route)| route.flags.contains(RouteNetFlags::INSTALLED))
     {
-        instance.tx.sb.route_uninstall(&dest, &route);
+        southbound::tx::route_uninstall(&instance.tx.ibus, &dest, &route);
     }
 }
 

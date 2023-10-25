@@ -16,8 +16,6 @@ use holo_northbound::paths::control_plane_protocol::ospf;
 use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
 };
-use holo_southbound::rx::SouthboundRx;
-use holo_southbound::tx::SouthboundTx;
 use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
 use holo_utils::protocol::Protocol;
@@ -37,8 +35,6 @@ use crate::lsdb::{LsaEntry, LsaLogEntry, LsaOriginateEvent};
 use crate::neighbor::{nsm, Neighbor};
 use crate::northbound::notification;
 use crate::route::{RouteNet, RouteNetFlags};
-use crate::southbound::rx::InstanceSouthboundRx;
-use crate::southbound::tx::InstanceSouthboundTx;
 use crate::spf::{SpfLogEntry, SpfTriggerLsa};
 use crate::tasks::messages::input::{
     DbDescFreeMsg, DelayedAckMsg, GracePeriodMsg, IsmEventMsg, LsaFlushMsg,
@@ -48,7 +44,7 @@ use crate::tasks::messages::input::{
 };
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
 use crate::version::Version;
-use crate::{events, lsdb, output, spf};
+use crate::{events, lsdb, output, southbound, spf};
 
 pub struct Instance<V: Version> {
     // Instance name.
@@ -310,7 +306,7 @@ where
                 route.flags.contains(RouteNetFlags::INSTALLED)
             })
         {
-            instance.tx.sb.route_uninstall(dest, route);
+            southbound::tx::route_uninstall(&instance.tx.ibus, dest, route);
         }
 
         for area in arenas.areas.iter_mut() {
@@ -448,8 +444,6 @@ where
     type ProtocolOutputMsg = ProtocolOutputMsg<V>;
     type ProtocolInputChannelsTx = ProtocolInputChannelsTx<V>;
     type ProtocolInputChannelsRx = ProtocolInputChannelsRx<V>;
-    type SouthboundTx = InstanceSouthboundTx;
-    type SouthboundRx = InstanceSouthboundRx;
 
     async fn new(
         name: String,
@@ -467,6 +461,11 @@ where
             tx,
             shared,
         }
+    }
+
+    async fn init(&mut self) {
+        // Request information about the system Router ID.
+        southbound::tx::router_id_query(&self.tx.ibus);
     }
 
     async fn shutdown(mut self) {
@@ -497,16 +496,6 @@ where
                 }
             }
         }
-    }
-
-    fn southbound_start(
-        sb_tx: SouthboundTx,
-        sb_rx: SouthboundRx,
-    ) -> (Self::SouthboundTx, Self::SouthboundRx) {
-        let sb_tx = InstanceSouthboundTx::new(sb_tx);
-        let sb_rx = InstanceSouthboundRx::new(sb_rx);
-        sb_tx.initial_requests();
-        (sb_tx, sb_rx)
     }
 
     fn protocol_input_channels(
@@ -860,6 +849,18 @@ where
         IbusMsg::BfdStateUpd { sess_key, state } => {
             events::process_bfd_state_update(instance, sess_key, state)?
         }
+        // Interface update notification.
+        IbusMsg::InterfaceUpd(msg) => {
+            southbound::rx::process_iface_update(instance, msg);
+        }
+        // Interface address addition notification.
+        IbusMsg::InterfaceAddressAdd(msg) => {
+            southbound::rx::process_addr_add(instance, msg);
+        }
+        // Interface address delete notification.
+        IbusMsg::InterfaceAddressDel(msg) => {
+            southbound::rx::process_addr_del(instance, msg);
+        }
         // Keychain update event.
         IbusMsg::KeychainUpd(keychain) => {
             // Update the local copy of the keychain.
@@ -878,6 +879,10 @@ where
 
             // Update all interfaces using this keychain.
             events::process_keychain_update(instance, &keychain_name)?
+        }
+        // Router ID update notification.
+        IbusMsg::RouterIdUpdate(router_id) => {
+            southbound::rx::process_router_id_update(instance, router_id);
         }
         // SR configuration update.
         IbusMsg::SrCfgUpd(sr_config) => {

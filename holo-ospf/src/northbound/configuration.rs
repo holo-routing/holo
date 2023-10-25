@@ -16,6 +16,7 @@ use holo_northbound::configuration::{
 };
 use holo_northbound::paths::control_plane_protocol::ospf;
 use holo_utils::crypto::CryptoAlgo;
+use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::{ToYang, TryFromYang};
@@ -30,7 +31,7 @@ use crate::lsdb::LsaOriginateEvent;
 use crate::neighbor::nsm;
 use crate::route::RouteNetFlags;
 use crate::version::{Ospfv2, Ospfv3, Version};
-use crate::{gr, spf, sr};
+use crate::{gr, southbound, spf, sr};
 
 #[derive(Debug, EnumAsInner)]
 pub enum ListEntry<V: Version> {
@@ -63,13 +64,13 @@ pub enum Event {
     InterfaceSyncHelloTx(AreaIndex, InterfaceIndex),
     InterfaceUpdateAuth(AreaIndex, InterfaceIndex),
     InterfaceBfdChange(InterfaceIndex),
+    InterfaceQuerySouthbound(String, AddressFamily),
     StubRouterChange,
     GrHelperChange,
     SrEnableChange(bool),
     RerunSpf,
     UpdateSummaries,
     ReinstallRoutes,
-    SbRequestInterfaceInfo,
 }
 
 pub static VALIDATION_CALLBACKS_OSPFV2: Lazy<ValidationCallbacks> =
@@ -431,10 +432,11 @@ where
                 .interfaces
                 .insert(&mut instance.arenas.interfaces, &ifname);
 
+            let af = V::address_family(instance);
             let event_queue = args.event_queue;
             event_queue.insert(Event::InstanceUpdate);
             event_queue.insert(Event::InterfaceUpdate(area_idx, iface_idx));
-            event_queue.insert(Event::SbRequestInterfaceInfo);
+            event_queue.insert(Event::InterfaceQuerySouthbound(ifname, af));
         })
         .delete_apply(|_instance, args| {
             let (area_idx, iface_idx) =
@@ -1328,6 +1330,14 @@ where
                     }
                 }
             }
+            Event::InterfaceQuerySouthbound(ifname, af) => {
+                if self.is_active() {
+                    let _ = self.tx.ibus.send(IbusMsg::InterfaceQuery {
+                        ifname,
+                        af: Some(af),
+                    });
+                }
+            }
             Event::StubRouterChange => {
                 if let Some((instance, _)) = self.as_up() {
                     // (Re)originate Router-LSAs.
@@ -1410,7 +1420,8 @@ where
                         })
                     {
                         let distance = route.distance(instance.config);
-                        instance.tx.sb.route_install(
+                        southbound::tx::route_install(
+                            &instance.tx.ibus,
                             dest,
                             route,
                             None,
@@ -1418,11 +1429,6 @@ where
                             &arenas.interfaces,
                         );
                     }
-                }
-            }
-            Event::SbRequestInterfaceInfo => {
-                if self.is_active() {
-                    self.tx.sb.request_interface_info();
                 }
             }
         }

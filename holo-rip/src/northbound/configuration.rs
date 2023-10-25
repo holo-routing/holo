@@ -15,6 +15,7 @@ use holo_northbound::configuration::{
 };
 use holo_northbound::paths::control_plane_protocol::rip;
 use holo_utils::crypto::CryptoAlgo;
+use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::IpAddrKind;
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::{ToYang, TryFromYang};
@@ -23,6 +24,7 @@ use crate::debug::{Debug, InterfaceInactiveReason};
 use crate::instance::Instance;
 use crate::interface::{Interface, InterfaceIndex, SplitHorizon};
 use crate::route::{Metric, RouteFlags};
+use crate::southbound;
 use crate::version::{Ripng, Ripv2, Version};
 
 #[derive(Debug, EnumAsInner)]
@@ -41,11 +43,11 @@ pub enum Event {
     InterfaceDelete(InterfaceIndex),
     InterfaceCostUpdate(InterfaceIndex),
     InterfaceRestartNetTasks(InterfaceIndex),
+    InterfaceQuerySouthbound(String),
     JoinMulticast(InterfaceIndex),
     LeaveMulticast(InterfaceIndex),
     ReinstallRoutes,
     ResetUpdateInterval,
-    SbRequestInterfaceInfo,
 }
 
 pub static VALIDATION_CALLBACKS_RIPV2: Lazy<ValidationCallbacks> =
@@ -108,7 +110,7 @@ where
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InterfaceUpdate(iface_idx));
-            event_queue.insert(Event::SbRequestInterfaceInfo);
+            event_queue.insert(Event::InterfaceQuerySouthbound(ifname));
         })
         .delete_apply(|_instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -391,10 +393,17 @@ where
 
                     if !metric.is_infinite() {
                         // Reinstall route.
-                        instance.tx.sb.route_install(route, distance);
+                        southbound::tx::route_install(
+                            &instance.tx.ibus,
+                            route,
+                            distance,
+                        );
                     } else {
                         // Uninstall route.
-                        instance.tx.sb.route_uninstall(route);
+                        southbound::tx::route_uninstall(
+                            &instance.tx.ibus,
+                            route,
+                        );
                         route.garbage_collection_start(
                             iface.core.config.flush_interval,
                             &instance.tx.protocol_input.route_gc_timeout,
@@ -419,7 +428,14 @@ where
                     net.restart_tasks(auth, &instance.tx);
                 }
             }
-
+            Event::InterfaceQuerySouthbound(ifname) => {
+                if let Instance::Up(instance) = self {
+                    let _ = instance.tx.ibus.send(IbusMsg::InterfaceQuery {
+                        ifname,
+                        af: Some(V::ADDRESS_FAMILY),
+                    });
+                }
+            }
             Event::JoinMulticast(iface_idx) => {
                 if let Instance::Up(instance) = self {
                     let iface = &mut instance.core.interfaces[iface_idx];
@@ -444,7 +460,11 @@ where
                 if let Instance::Up(instance) = self {
                     for route in instance.state.routes.values() {
                         let distance = instance.core.config.distance;
-                        instance.tx.sb.route_install(route, distance);
+                        southbound::tx::route_install(
+                            &instance.tx.ibus,
+                            route,
+                            distance,
+                        );
                     }
                 }
             }
@@ -454,11 +474,6 @@ where
                         instance.core.config.update_interval.into(),
                     );
                     instance.state.update_interval_task.reset(Some(interval));
-                }
-            }
-            Event::SbRequestInterfaceInfo => {
-                if let Instance::Up(instance) = self {
-                    instance.tx.sb.request_interface_info();
                 }
             }
         }

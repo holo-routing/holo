@@ -11,8 +11,6 @@ use derive_new::new;
 use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
 };
-use holo_southbound::rx::SouthboundRx;
-use holo_southbound::tx::SouthboundTx;
 use holo_utils::bfd::PathType;
 use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
@@ -23,11 +21,9 @@ use tokio::sync::mpsc;
 
 use crate::error::{Error, IoError};
 use crate::session::Sessions;
-use crate::southbound::rx::InstanceSouthboundRx;
-use crate::southbound::tx::InstanceSouthboundTx;
 use crate::tasks::messages::input::{DetectTimerMsg, UdpRxPacketMsg};
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
-use crate::{events, network, tasks};
+use crate::{events, network, southbound, tasks};
 
 #[derive(Debug)]
 pub struct Master {
@@ -111,8 +107,6 @@ impl ProtocolInstance for Master {
     type ProtocolOutputMsg = ProtocolOutputMsg;
     type ProtocolInputChannelsTx = ProtocolInputChannelsTx;
     type ProtocolInputChannelsRx = ProtocolInputChannelsRx;
-    type SouthboundTx = InstanceSouthboundTx;
-    type SouthboundRx = InstanceSouthboundRx;
 
     async fn new(
         _name: String,
@@ -128,6 +122,11 @@ impl ProtocolInstance for Master {
         }
     }
 
+    async fn init(&mut self) {
+        // Request information about all interfaces.
+        let _ = self.tx.ibus.send(IbusMsg::InterfaceDump);
+    }
+
     async fn process_ibus_msg(&mut self, msg: IbusMsg) {
         if let Err(error) = process_ibus_msg(self, msg).await {
             error.log();
@@ -138,16 +137,6 @@ impl ProtocolInstance for Master {
         if let Err(error) = process_protocol_msg(self, msg) {
             error.log();
         }
-    }
-
-    fn southbound_start(
-        sb_tx: SouthboundTx,
-        sb_rx: SouthboundRx,
-    ) -> (Self::SouthboundTx, Self::SouthboundRx) {
-        let sb_tx = InstanceSouthboundTx::new(sb_tx);
-        let sb_rx = InstanceSouthboundRx::new(sb_rx);
-        sb_tx.initial_requests();
-        (sb_tx, sb_rx)
     }
 
     fn protocol_input_channels(
@@ -236,6 +225,10 @@ async fn process_ibus_msg(
             sess_key,
             client_id,
         } => events::process_client_peer_unreg(master, sess_key, client_id)?,
+        // Interface update notification.
+        IbusMsg::InterfaceUpd(msg) => {
+            southbound::process_iface_update(master, msg);
+        }
         // Ignore other events.
         _ => {}
     }

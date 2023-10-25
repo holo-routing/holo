@@ -16,6 +16,7 @@ use holo_protocol::InstanceChannelsTx;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::{IpNetworkKind, SocketAddrKind};
 use holo_utils::socket::UdpSocket;
+use holo_utils::southbound::InterfaceFlags;
 use holo_utils::task::Task;
 use holo_utils::UnboundedSender;
 use holo_yang::TryFromYang;
@@ -61,8 +62,7 @@ pub struct InterfaceCore<V: Version> {
 
 #[derive(Debug)]
 pub struct InterfaceSys<V: Version> {
-    pub operative: bool,
-    pub loopback: bool,
+    pub flags: InterfaceFlags,
     pub ifindex: Option<u32>,
     pub mtu: Option<u32>,
     pub addr_list: BTreeSet<V::IpNetwork>,
@@ -221,7 +221,7 @@ where
 
     // Returns whether the interface is ready for RIP operation.
     fn is_ready(&self) -> Result<(), InterfaceInactiveReason> {
-        if !self.core().system.operative {
+        if !self.core().system.flags.contains(InterfaceFlags::OPERATIVE) {
             return Err(InterfaceInactiveReason::OperationalDown);
         }
 
@@ -289,7 +289,8 @@ where
     }
 
     pub(crate) fn is_passive(&self) -> bool {
-        self.core.system.loopback || self.core.config.passive
+        self.core.system.flags.contains(InterfaceFlags::LOOPBACK)
+            || self.core.config.passive
     }
 
     pub(crate) fn auth(&self, seqno: &Arc<AtomicU32>) -> Option<AuthCtx> {
@@ -347,7 +348,7 @@ where
         };
 
         // Start network Tx/Rx tasks.
-        if !iface.core.system.loopback {
+        if !iface.core.system.flags.contains(InterfaceFlags::LOOPBACK) {
             let net = InterfaceNet::new(
                 &iface.core.name,
                 iface.auth(&instance_state.auth_seqno),
@@ -467,8 +468,7 @@ where
 {
     fn default() -> InterfaceSys<V> {
         InterfaceSys {
-            operative: false,
-            loopback: false,
+            flags: Default::default(),
             ifindex: None,
             mtu: None,
             addr_list: Default::default(),
@@ -615,6 +615,7 @@ where
 
     // Returns a mutable reference to the interface corresponding to the given
     // ifindex.
+    #[allow(dead_code)]
     pub(crate) fn get_mut_by_ifindex(
         &mut self,
         ifindex: u32,

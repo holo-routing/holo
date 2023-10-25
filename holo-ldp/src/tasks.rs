@@ -44,11 +44,11 @@ use crate::network;
 //     nbr_kalive_timeout (Nx) -> |              | -> (Nx) nbr_kalive_interval
 //    nbr_backoff_timeout (Nx) -> |              |
 //                                +--------------+
-//                   southbound_tx (1x) | ^ (1x) southbound_rx
+//                         ibus_tx (1x) | ^ (1x) ibus_rx
 //                                      | |
 //                                      V |
 //                                +--------------+
-//                                |    zebra     |
+//                                |     ibus     |
 //                                +--------------+
 //
 

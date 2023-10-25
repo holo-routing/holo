@@ -12,6 +12,7 @@ use std::time::Duration;
 
 use holo_northbound::paths::control_plane_protocol::mpls_ldp;
 use holo_utils::socket::{UdpSocket, UdpSocketExt};
+use holo_utils::southbound::InterfaceFlags;
 use holo_utils::task::IntervalTask;
 use ipnetwork::{Ipv4Network, Ipv6Network};
 
@@ -38,7 +39,7 @@ pub struct Interface {
 
 #[derive(Debug, Default)]
 pub struct InterfaceSys {
-    pub operative: bool,
+    pub flags: InterfaceFlags,
     pub ifindex: Option<u32>,
     pub ipv4_addr_list: BTreeSet<Ipv4Network>,
     pub ipv6_addr_list: BTreeSet<Ipv6Network>,
@@ -165,7 +166,7 @@ impl Interface {
             return Err(InterfaceInactiveReason::AdminDown);
         }
 
-        if !self.system.operative {
+        if !self.system.flags.contains(InterfaceFlags::OPERATIVE) {
             return Err(InterfaceInactiveReason::OperationalDown);
         }
 

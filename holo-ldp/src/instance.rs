@@ -16,8 +16,6 @@ use holo_northbound::paths::control_plane_protocol::mpls_ldp;
 use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
 };
-use holo_southbound::rx::SouthboundRx;
-use holo_southbound::tx::SouthboundTx;
 use holo_utils::ibus::IbusMsg;
 use holo_utils::protocol::Protocol;
 use holo_utils::socket::{TcpListener, UdpSocket};
@@ -34,14 +32,12 @@ use crate::fec::Fec;
 use crate::interface::Interface;
 use crate::neighbor::NeighborCfg;
 use crate::network::{tcp, udp};
-use crate::southbound::rx::InstanceSouthboundRx;
-use crate::southbound::tx::InstanceSouthboundTx;
 use crate::tasks::messages::input::{
     AdjTimeoutMsg, NbrBackoffTimeoutMsg, NbrKaTimeoutMsg, NbrRxPduMsg,
     TcpAcceptMsg, TcpConnectMsg, UdpRxPduMsg,
 };
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
-use crate::{events, tasks};
+use crate::{events, southbound, tasks};
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, EnumAsInner)]
@@ -292,8 +288,6 @@ impl ProtocolInstance for Instance {
     type ProtocolOutputMsg = ProtocolOutputMsg;
     type ProtocolInputChannelsTx = ProtocolInputChannelsTx;
     type ProtocolInputChannelsRx = ProtocolInputChannelsRx;
-    type SouthboundTx = InstanceSouthboundTx;
-    type SouthboundRx = InstanceSouthboundRx;
 
     async fn new(
         name: String,
@@ -316,13 +310,24 @@ impl ProtocolInstance for Instance {
         })
     }
 
+    async fn init(&mut self) {
+        let instance = self.as_down().unwrap();
+
+        // Request information about the system Router ID.
+        southbound::tx::router_id_query(&instance.tx.ibus);
+    }
+
     async fn shutdown(mut self) {
         // Ensure instance is disabled before exiting.
         self.stop(InstanceInactiveReason::AdminDown);
         Debug::InstanceDelete.log();
     }
 
-    async fn process_ibus_msg(&mut self, _msg: IbusMsg) {}
+    async fn process_ibus_msg(&mut self, msg: IbusMsg) {
+        if let Err(error) = process_ibus_msg(self, msg).await {
+            error.log();
+        }
+    }
 
     fn process_protocol_msg(&mut self, msg: ProtocolInputMsg) {
         // Ignore event if the instance isn't active.
@@ -331,16 +336,6 @@ impl ProtocolInstance for Instance {
                 error.log();
             }
         }
-    }
-
-    fn southbound_start(
-        sb_tx: SouthboundTx,
-        sb_rx: SouthboundRx,
-    ) -> (Self::SouthboundTx, Self::SouthboundRx) {
-        let sb_tx = InstanceSouthboundTx::new(sb_tx);
-        let sb_rx = InstanceSouthboundRx::new(sb_rx);
-        sb_tx.initial_requests();
-        (sb_tx, sb_rx)
     }
 
     fn protocol_input_channels(
@@ -510,9 +505,6 @@ impl InstanceCommon<InstanceStateDown> {
             TargetedNbr::update(&mut instance, tnbr_idx);
         }
 
-        // Request southbound route information.
-        instance.tx.sb.request_route_info();
-
         instance
     }
 }
@@ -661,4 +653,42 @@ impl MessageReceiver<ProtocolInputMsg> for ProtocolInputChannelsRx {
             }
         }
     }
+}
+
+// ===== helper functions =====
+
+async fn process_ibus_msg(
+    instance: &mut Instance,
+    msg: IbusMsg,
+) -> Result<(), Error> {
+    match msg {
+        // Interface update notification.
+        IbusMsg::InterfaceUpd(msg) => {
+            southbound::rx::process_iface_update(instance, msg);
+        }
+        // Interface address addition notification.
+        IbusMsg::InterfaceAddressAdd(msg) => {
+            southbound::rx::process_addr_add(instance, msg);
+        }
+        // Interface address delete notification.
+        IbusMsg::InterfaceAddressDel(msg) => {
+            southbound::rx::process_addr_del(instance, msg);
+        }
+        // Router ID update notification.
+        IbusMsg::RouterIdUpdate(router_id) => {
+            southbound::rx::process_router_id_update(instance, router_id).await;
+        }
+        // Route redistribute update notification.
+        IbusMsg::RouteRedistributeAdd(msg) => {
+            southbound::rx::process_route_add(instance, msg);
+        }
+        // Route redistribute delete notification.
+        IbusMsg::RouteRedistributeDel(msg) => {
+            southbound::rx::process_route_del(instance, msg);
+        }
+        // Ignore other events.
+        _ => {}
+    }
+
+    Ok(())
 }

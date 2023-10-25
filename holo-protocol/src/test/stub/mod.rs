@@ -64,7 +64,6 @@ enum TestOpInput {
     NorthboundConfigChange,
     NorthboundConfigReplace,
     NorthboundRpc,
-    Southbound,
     Ibus,
     Protocol,
 }
@@ -73,7 +72,6 @@ enum TestOpInput {
 enum TestOpOutput {
     NorthboundNotif,
     NorthboundState,
-    Southbound,
     Ibus,
     Protocol,
 }
@@ -83,7 +81,6 @@ struct TestStep {
     input: Option<(TestOpInput, String)>,
     output_nb_notif: String,
     output_nb_state: Option<String>,
-    output_sb: String,
     output_ibus: String,
     output_protocol: String,
 }
@@ -118,15 +115,6 @@ where
         path: &impl AsRef<std::path::Path>,
     ) {
         let actual = self.messages.nb_notifications().join("\n");
-        self.assert_output(expected, &actual, path);
-    }
-
-    fn assert_sb_output(
-        &self,
-        expected: &str,
-        path: &impl AsRef<std::path::Path>,
-    ) {
-        let actual = self.messages.sb_output().join("\n");
         self.assert_output(expected, &actual, path);
     }
 
@@ -189,9 +177,6 @@ impl TestOp {
             "input-northbound-rpc.json" => {
                 Ok(TestOp::Input(TestOpInput::NorthboundRpc))
             }
-            "input-southbound.jsonl" => {
-                Ok(TestOp::Input(TestOpInput::Southbound))
-            }
             "input-ibus.jsonl" => Ok(TestOp::Input(TestOpInput::Ibus)),
             "input-protocol.jsonl" => Ok(TestOp::Input(TestOpInput::Protocol)),
             "output-northbound-notif.jsonl" => {
@@ -199,9 +184,6 @@ impl TestOp {
             }
             "output-northbound-state.json" => {
                 Ok(TestOp::Output(TestOpOutput::NorthboundState))
-            }
-            "output-southbound.jsonl" => {
-                Ok(TestOp::Output(TestOpOutput::Southbound))
             }
             "output-ibus.jsonl" => Ok(TestOp::Output(TestOpOutput::Ibus)),
             "output-protocol.jsonl" => {
@@ -219,7 +201,6 @@ impl TestOpOutput {
         match self {
             TestOpOutput::NorthboundNotif => "output-northbound-notif.jsonl",
             TestOpOutput::NorthboundState => "output-northbound-state.json",
-            TestOpOutput::Southbound => "output-southbound.jsonl",
             TestOpOutput::Ibus => "output-ibus.jsonl",
             TestOpOutput::Protocol => "output-protocol.jsonl",
         }
@@ -314,7 +295,6 @@ where
     // Create message collector.
     let messages = MessageCollector::new::<P>(
         nb_provider_rx,
-        output_channels_rx.sb_txc,
         ibus_rx,
         output_channels_rx.protocol_txc,
     );
@@ -370,7 +350,6 @@ where
             TestOp::Output(TestOpOutput::NorthboundState) => {
                 step.output_nb_state = Some(data);
             }
-            TestOp::Output(TestOpOutput::Southbound) => step.output_sb = data,
             TestOp::Output(TestOpOutput::Ibus) => step.output_ibus = data,
             TestOp::Output(TestOpOutput::Protocol) => {
                 step.output_protocol = data;
@@ -392,13 +371,6 @@ where
             }
             TestOpInput::NorthboundRpc => {
                 stub.nb.rpc(&data).await;
-            }
-            TestOpInput::Southbound => {
-                for data in data.lines() {
-                    let msg = serde_json::from_str(data)
-                        .expect("failed to parse southbound input message");
-                    stub.send(InstanceMsg::Southbound(msg)).await;
-                }
             }
             TestOpInput::Ibus => {
                 for data in data.lines() {
@@ -428,10 +400,6 @@ where
         stub.nb
             .assert_state(step.output_nb_state.as_deref(), &path, P::STATE_PATH)
             .await;
-
-        // Check output: southbound messages.
-        let path = output_path(&test_dir, step_num, TestOpOutput::Southbound);
-        stub.assert_sb_output(&step.output_sb, &path);
 
         // Check output: ibus messages.
         let path = output_path(&test_dir, step_num, TestOpOutput::Ibus);
@@ -475,11 +443,6 @@ where
     let path = format!("{}/{}", topo_dir, "output/northbound-notif.jsonl");
     let expected = std::fs::read_to_string(&path).unwrap_or_default();
     stub.assert_nb_notifications(&expected, &path);
-
-    // Check initial convergence: southbound output.
-    let path = format!("{}/{}", topo_dir, "output/southbound.jsonl");
-    let expected = std::fs::read_to_string(&path).unwrap_or_default();
-    stub.assert_sb_output(&expected, &path);
 
     // Check initial convergence: ibus output.
     let path = format!("{}/{}", topo_dir, "output/ibus.jsonl");

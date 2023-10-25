@@ -27,7 +27,6 @@ yang2.workspace = true
 
 holo-northbound = { path = "../holo-northbound" }
 holo-protocol = { path = "../holo-protocol" }
-holo-southbound = { path = "../holo-southbound" }
 holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
 
@@ -36,7 +35,6 @@ criterion.workspace = true
 
 holo-ldp = { path = ".", features = ["testing"] }
 holo-protocol = { path = "../holo-protocol", features = ["testing"] }
-holo-southbound = { path = "../holo-southbound", features = ["testing"] }
 holo-utils = { path = "../holo-utils", features = ["testing"] }
 
 [features]

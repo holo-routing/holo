@@ -17,8 +17,6 @@ use holo_northbound::paths::control_plane_protocol::rip;
 use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
 };
-use holo_southbound::rx::SouthboundRx;
-use holo_southbound::tx::SouthboundTx;
 use holo_utils::ibus::IbusMsg;
 use holo_utils::protocol::Protocol;
 use holo_utils::task::{IntervalTask, TimeoutTask};
@@ -26,19 +24,18 @@ use holo_utils::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 use tokio::sync::mpsc;
 
 use crate::debug::{Debug, InstanceInactiveReason, InterfaceInactiveReason};
+use crate::error::Error;
 use crate::interface::Interfaces;
 use crate::neighbor::Neighbor;
 use crate::packet::Command;
 use crate::route::{Metric, Route};
-use crate::southbound::rx::InstanceSouthboundRx;
-use crate::southbound::tx::InstanceSouthboundTx;
 use crate::tasks::messages::input::{
     InitialUpdateMsg, NbrTimeoutMsg, RouteGcTimeoutMsg, RouteTimeoutMsg,
     TriggeredUpdMsg, TriggeredUpdTimeoutMsg, UdpRxPduMsg, UpdateIntervalMsg,
 };
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
 use crate::version::Version;
-use crate::{events, tasks};
+use crate::{events, southbound, tasks};
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, EnumAsInner)]
@@ -245,8 +242,6 @@ where
     type ProtocolOutputMsg = ProtocolOutputMsg<V>;
     type ProtocolInputChannelsTx = ProtocolInputChannelsTx<V>;
     type ProtocolInputChannelsRx = ProtocolInputChannelsRx<V>;
-    type SouthboundTx = InstanceSouthboundTx;
-    type SouthboundRx = InstanceSouthboundRx;
 
     async fn new(
         name: String,
@@ -277,23 +272,17 @@ where
         Debug::<V>::InstanceDelete.log();
     }
 
-    async fn process_ibus_msg(&mut self, _msg: IbusMsg) {}
+    async fn process_ibus_msg(&mut self, msg: IbusMsg) {
+        if let Err(error) = process_ibus_msg(self, msg).await {
+            error.log();
+        }
+    }
 
     fn process_protocol_msg(&mut self, msg: ProtocolInputMsg<V>) {
         // Ignore event if the instance isn't active.
         if let Instance::Up(instance) = self {
             instance.process_protocol_msg(msg);
         }
-    }
-
-    fn southbound_start(
-        sb_tx: SouthboundTx,
-        sb_rx: SouthboundRx,
-    ) -> (Self::SouthboundTx, Self::SouthboundRx) {
-        let sb_tx = InstanceSouthboundTx::new(sb_tx);
-        let sb_rx = InstanceSouthboundRx::new(sb_rx);
-        sb_tx.initial_requests();
-        (sb_tx, sb_rx)
     }
 
     fn protocol_input_channels(
@@ -570,4 +559,33 @@ where
             }
         }
     }
+}
+
+// ===== helper functions =====
+
+async fn process_ibus_msg<V>(
+    instance: &mut Instance<V>,
+    msg: IbusMsg,
+) -> Result<(), Error<V>>
+where
+    V: Version,
+{
+    match msg {
+        // Interface update notification.
+        IbusMsg::InterfaceUpd(msg) => {
+            southbound::rx::process_iface_update(instance, msg);
+        }
+        // Interface address addition notification.
+        IbusMsg::InterfaceAddressAdd(msg) => {
+            southbound::rx::process_addr_add(instance, msg);
+        }
+        // Interface address delete notification.
+        IbusMsg::InterfaceAddressDel(msg) => {
+            southbound::rx::process_addr_del(instance, msg);
+        }
+        // Ignore other events.
+        _ => {}
+    }
+
+    Ok(())
 }

@@ -9,8 +9,7 @@ pub mod stub;
 use std::sync::{Arc, Once};
 
 use derive_new::new;
-use holo_southbound::zclient::messages::ZapiTxMsg;
-use holo_utils::{Receiver, UnboundedReceiver};
+use holo_utils::Receiver;
 use holo_yang as yang;
 use holo_yang::{YANG_CTX, YANG_IMPLEMENTED_MODULES};
 use tracing::info;
@@ -22,7 +21,6 @@ static INIT: Once = Once::new();
 
 #[derive(Debug, new)]
 pub struct OutputChannelsRx<T> {
-    sb_txc: UnboundedReceiver<ZapiTxMsg>,
     protocol_txc: Receiver<T>,
 }
 

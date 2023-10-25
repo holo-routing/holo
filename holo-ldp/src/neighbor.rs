@@ -43,13 +43,13 @@ use crate::packet::messages::{
 };
 use crate::packet::pdu::Pdu;
 use crate::packet::{AddressMessageType, LabelMessageType, Message};
-use crate::tasks;
 use crate::tasks::messages::input::{
     NbrBackoffTimeoutMsg, NbrKaTimeoutMsg, NbrRxPduMsg, TcpConnectMsg,
 };
 use crate::tasks::messages::output::NbrTxPduMsg;
 #[cfg(feature = "testing")]
 use crate::tasks::messages::ProtocolOutputMsg;
+use crate::{southbound, tasks};
 
 #[derive(Debug)]
 pub struct Neighbor {
@@ -406,7 +406,11 @@ impl Neighbor {
                     for nexthop in fec.nexthops.values_mut().filter(|nexthop| {
                         nbr.addr_list.get(&nexthop.addr).is_some()
                     }) {
-                        instance.tx.sb.label_uninstall(&fec.inner, nexthop);
+                        southbound::tx::label_uninstall(
+                            &instance.tx.ibus,
+                            &fec.inner,
+                            nexthop,
+                        );
                         nexthop.set_label(None);
                     }
                     if old_fec_status != fec.is_operational() {

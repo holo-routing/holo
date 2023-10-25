@@ -4,137 +4,15 @@
 // SPDX-License-Identifier: MIT
 //
 
-use async_trait::async_trait;
-use derive_new::new;
-use holo_protocol::{InstanceChannelsTx, MessageReceiver};
-use holo_southbound::rx::{SouthboundRx, SouthboundRxCallbacks};
-use holo_southbound::zclient::messages::{
-    ZapiRxAddressInfo, ZapiRxIfaceInfo, ZapiRxMsg,
-};
+use holo_protocol::InstanceChannelsTx;
 use holo_utils::ip::IpNetworkKind;
+use holo_utils::southbound::{AddressMsg, InterfaceUpdateMsg};
 
 use crate::instance::{Instance, InstanceState};
 use crate::interface::{Interface, InterfaceUp};
 use crate::route::{Route, RouteType};
+use crate::southbound;
 use crate::version::Version;
-
-#[derive(Debug, new)]
-pub struct InstanceSouthboundRx(pub SouthboundRx);
-
-// ===== impl Instance =====
-
-#[async_trait]
-impl<V> SouthboundRxCallbacks for Instance<V>
-where
-    V: Version,
-{
-    async fn process_iface_upd(&mut self, msg: ZapiRxIfaceInfo) {
-        let instance = match self {
-            Instance::Up(instance) => instance,
-            _ => return,
-        };
-
-        if let Some((_, iface)) = instance
-            .core
-            .interfaces
-            .update_ifindex(&msg.ifname, msg.ifindex)
-        {
-            iface.core_mut().system.mtu = Some(msg.mtu);
-            iface.core_mut().system.operative = msg.operative;
-            iface.core_mut().system.loopback = msg.loopback;
-            iface.update(&mut instance.state, &instance.tx);
-
-            // Add connected routes.
-            if let Interface::Up(iface) = iface {
-                for addr in &iface.core.system.addr_list {
-                    connected_route_add(
-                        &mut instance.state,
-                        &instance.tx,
-                        iface,
-                        addr,
-                    );
-                }
-            }
-        }
-    }
-
-    async fn process_addr_add(&mut self, msg: ZapiRxAddressInfo) {
-        let addr = match V::IpNetwork::get(msg.addr) {
-            Some(addr) => addr,
-            None => return,
-        };
-        let instance = match self {
-            Instance::Up(instance) => instance,
-            _ => return,
-        };
-        let iface =
-            match instance.core.interfaces.get_mut_by_ifindex(msg.ifindex) {
-                Some((_, iface)) => iface,
-                None => return,
-            };
-
-        // Add address.
-        if !iface.core_mut().system.addr_list.insert(addr) {
-            return;
-        }
-
-        // Check if RIP needs to be activated on this interface.
-        iface.update(&mut instance.state, &instance.tx);
-
-        // Add connected route.
-        if let Interface::Up(iface) = iface {
-            connected_route_add(
-                &mut instance.state,
-                &instance.tx,
-                iface,
-                &addr,
-            );
-        }
-    }
-
-    async fn process_addr_del(&mut self, msg: ZapiRxAddressInfo) {
-        let addr = match V::IpNetwork::get(msg.addr) {
-            Some(addr) => addr,
-            None => return,
-        };
-        let instance = match self {
-            Instance::Up(instance) => instance,
-            _ => return,
-        };
-        let iface =
-            match instance.core.interfaces.get_mut_by_ifindex(msg.ifindex) {
-                Some((_, iface)) => iface,
-                None => return,
-            };
-
-        // Remove address.
-        if !iface.core_mut().system.addr_list.remove(&addr) {
-            return;
-        }
-
-        // Invalidate connected route.
-        if let Interface::Up(iface) = iface {
-            connected_route_invalidate(
-                &mut instance.state,
-                &instance.tx,
-                iface,
-                &addr,
-            );
-        }
-
-        // Check if RIP needs to be deactivated on this interface.
-        iface.update(&mut instance.state, &instance.tx);
-    }
-}
-
-// ===== impl InstanceSouthboundRx =====
-
-#[async_trait]
-impl MessageReceiver<ZapiRxMsg> for InstanceSouthboundRx {
-    async fn recv(&mut self) -> Option<ZapiRxMsg> {
-        self.0.recv().await
-    }
-}
 
 // ===== helper functions =====
 
@@ -153,7 +31,7 @@ fn connected_route_add<V>(
     // Uninstall previously learned route (if any).
     let prefix = addr.apply_mask();
     if let Some(route) = instance_state.routes.get(&prefix) {
-        instance_tx.sb.route_uninstall(route);
+        southbound::tx::route_uninstall(&instance_tx.ibus, route);
     }
 
     // Add new connected route.
@@ -187,4 +65,107 @@ fn connected_route_invalidate<V>(
     if let Some(route) = instance_state.routes.get_mut(&prefix) {
         route.invalidate(iface.core.config.flush_interval, instance_tx);
     }
+}
+
+// ===== global functions =====
+
+pub(crate) fn process_iface_update<V>(
+    instance: &mut Instance<V>,
+    msg: InterfaceUpdateMsg,
+) where
+    V: Version,
+{
+    let instance = match instance {
+        Instance::Up(instance) => instance,
+        _ => return,
+    };
+
+    if let Some((_, iface)) = instance
+        .core
+        .interfaces
+        .update_ifindex(&msg.ifname, Some(msg.ifindex))
+    {
+        iface.core_mut().system.mtu = Some(msg.mtu);
+        iface.core_mut().system.flags = msg.flags;
+        iface.update(&mut instance.state, &instance.tx);
+
+        // Add connected routes.
+        if let Interface::Up(iface) = iface {
+            for addr in &iface.core.system.addr_list {
+                connected_route_add(
+                    &mut instance.state,
+                    &instance.tx,
+                    iface,
+                    addr,
+                );
+            }
+        }
+    }
+}
+
+pub(crate) fn process_addr_add<V>(instance: &mut Instance<V>, msg: AddressMsg)
+where
+    V: Version,
+{
+    let instance = match instance {
+        Instance::Up(instance) => instance,
+        _ => return,
+    };
+    let Some(addr) = V::IpNetwork::get(msg.addr) else {
+        return;
+    };
+    let Some((_, iface)) =
+        instance.core.interfaces.get_mut_by_name(&msg.ifname)
+    else {
+        return;
+    };
+
+    // Add address.
+    if !iface.core_mut().system.addr_list.insert(addr) {
+        return;
+    }
+
+    // Check if RIP needs to be activated on this interface.
+    iface.update(&mut instance.state, &instance.tx);
+
+    // Add connected route.
+    if let Interface::Up(iface) = iface {
+        connected_route_add(&mut instance.state, &instance.tx, iface, &addr);
+    }
+}
+
+pub(crate) fn process_addr_del<V>(instance: &mut Instance<V>, msg: AddressMsg)
+where
+    V: Version,
+{
+    let instance = match instance {
+        Instance::Up(instance) => instance,
+        _ => return,
+    };
+    let Some(addr) = V::IpNetwork::get(msg.addr) else {
+        return;
+    };
+    let Some((_, iface)) =
+        instance.core.interfaces.get_mut_by_name(&msg.ifname)
+    else {
+        return;
+    };
+
+    // Remove address.
+    if !iface.core_mut().system.addr_list.remove(&addr) {
+        return;
+    }
+
+    // Invalidate connected route.
+    if let Interface::Up(iface) = iface {
+        connected_route_invalidate(
+            &mut instance.state,
+            &instance.tx,
+            iface,
+            &addr,
+        );
+    }
+
+    // Check if RIP needs to be deactivated on this interface.
+    iface.update(&mut instance.state, &instance.tx);
 }

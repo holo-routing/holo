@@ -21,6 +21,7 @@ use crate::northbound::notification;
 use crate::packet::lsa::{AdjSidVersion, PrefixSidVersion};
 use crate::packet::tlv::{PrefixSidFlags, SidLabelRangeTlv};
 use crate::route::RouteNet;
+use crate::southbound;
 use crate::version::Version;
 
 // ===== global functions =====
@@ -88,7 +89,7 @@ pub(crate) fn adj_sid_add<V>(
     let label = label_manager.label_request().unwrap();
     let nbr_router_id = iface.is_broadcast_or_nbma().then_some(nbr.router_id);
     let adj_sid = V::AdjSid::new(label, 0, nbr_router_id);
-    instance.tx.sb.adj_sid_install(iface, nbr.src, label);
+    southbound::tx::adj_sid_install(&instance.tx.ibus, iface, nbr.src, label);
     nbr.adj_sids.push(adj_sid);
 }
 
@@ -106,7 +107,7 @@ pub(crate) fn adj_sid_del_all<V>(
     {
         let mut label_manager = instance.shared.label_manager.lock().unwrap();
         label_manager.label_release(label);
-        instance.tx.sb.adj_sid_uninstall(label);
+        southbound::tx::adj_sid_uninstall::<V>(&instance.tx.ibus, label);
     }
 }
 

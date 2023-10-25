@@ -7,6 +7,7 @@
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use holo_utils::ip::AddressFamily;
+use holo_utils::southbound::InterfaceFlags;
 
 use crate::area::{Area, AreaVersion, OptionsLocation};
 use crate::collections::{Arena, NeighborIndex};
@@ -30,7 +31,9 @@ impl InterfaceVersion<Self> for Ospfv3 {
     ) -> Result<(), InterfaceInactiveReason> {
         interface::is_ready_common(iface)?;
 
-        if !iface.system.loopback && iface.system.linklocal_addr.is_none() {
+        if !iface.system.flags.contains(InterfaceFlags::LOOPBACK)
+            && iface.system.linklocal_addr.is_none()
+        {
             return Err(InterfaceInactiveReason::MissingLinkLocalAddress);
         }
 

@@ -4,263 +4,24 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::net::Ipv4Addr;
 use std::sync::Mutex;
 
-use async_trait::async_trait;
-use derive_new::new;
-use holo_protocol::MessageReceiver;
-use holo_southbound::rx::{SouthboundRx, SouthboundRxCallbacks};
-use holo_southbound::zclient;
-use holo_southbound::zclient::messages::{
-    ZapiRtrIdInfo, ZapiRxAddressInfo, ZapiRxIfaceInfo, ZapiRxMsg,
-    ZapiRxRouteInfo,
-};
 use holo_utils::mpls::{Label, LabelManager};
+use holo_utils::protocol::Protocol;
+use holo_utils::southbound::{
+    AddressMsg, InterfaceUpdateMsg, Nexthop, RouteKeyMsg, RouteMsg,
+};
 use ipnetwork::IpNetwork;
 use maplit::btreeset;
 
 use crate::debug::Debug;
-use crate::events;
-use crate::fec::{Fec, FecOwner};
+use crate::fec::Fec;
 use crate::instance::{Instance, InstanceUp};
 use crate::interface::Interface;
 use crate::northbound::notification;
 use crate::packet::AddressMessageType;
-
-#[derive(Debug, new)]
-pub struct InstanceSouthboundRx(pub SouthboundRx);
-
-// ===== impl Instance =====
-
-#[async_trait]
-impl SouthboundRxCallbacks for Instance {
-    async fn process_rtr_id_upd(&mut self, msg: ZapiRtrIdInfo) {
-        self.core_mut().system.router_id = msg.router_id;
-        self.update().await;
-    }
-
-    async fn process_iface_upd(&mut self, msg: ZapiRxIfaceInfo) {
-        let instance = match self {
-            Instance::Up(instance) => instance,
-            _ => return,
-        };
-
-        if let Some((iface_idx, iface)) = instance
-            .core
-            .interfaces
-            .update_ifindex(&msg.ifname, msg.ifindex)
-        {
-            iface.system.operative = msg.operative;
-            Interface::update(instance, iface_idx);
-        }
-    }
-
-    async fn process_addr_add(&mut self, msg: ZapiRxAddressInfo) {
-        let instance = match self {
-            Instance::Up(instance) => instance,
-            _ => return,
-        };
-
-        // Add address to global list.
-        match msg.addr {
-            IpNetwork::V4(addr) => {
-                if instance.core.system.ipv4_addr_list.insert(addr) {
-                    // Inform neighbors about new address.
-                    for nbr in instance
-                        .state
-                        .neighbors
-                        .iter_mut()
-                        .filter(|nbr| nbr.is_operational())
-                    {
-                        nbr.send_address(
-                            &instance.state.msg_id,
-                            AddressMessageType::Address,
-                            btreeset![addr.ip()],
-                        )
-                    }
-                }
-            }
-            IpNetwork::V6(addr) => {
-                instance.core.system.ipv6_addr_list.insert(addr);
-            }
-        }
-
-        if let Some((iface_idx, iface)) =
-            instance.core.interfaces.get_mut_by_ifindex(msg.ifindex)
-        {
-            match msg.addr {
-                IpNetwork::V4(addr) => {
-                    if iface.system.ipv4_addr_list.insert(addr) {
-                        // Check if LDP needs to be activated on this
-                        // interface.
-                        Interface::update(instance, iface_idx);
-                    }
-                }
-                IpNetwork::V6(addr) => {
-                    iface.system.ipv6_addr_list.insert(addr);
-                }
-            }
-        }
-    }
-
-    async fn process_addr_del(&mut self, msg: ZapiRxAddressInfo) {
-        let instance = match self {
-            Instance::Up(instance) => instance,
-            _ => return,
-        };
-
-        // Remove address from global list.
-        match msg.addr {
-            IpNetwork::V4(addr) => {
-                if instance.core.system.ipv4_addr_list.remove(&addr) {
-                    // Inform neighbors about deleted address.
-                    for nbr in instance
-                        .state
-                        .neighbors
-                        .iter_mut()
-                        .filter(|nbr| nbr.is_operational())
-                    {
-                        nbr.send_address(
-                            &instance.state.msg_id,
-                            AddressMessageType::AddressWithdraw,
-                            btreeset![addr.ip()],
-                        )
-                    }
-                }
-            }
-            IpNetwork::V6(addr) => {
-                instance.core.system.ipv6_addr_list.remove(&addr);
-            }
-        }
-
-        if let Some((iface_idx, iface)) =
-            instance.core.interfaces.get_mut_by_ifindex(msg.ifindex)
-        {
-            match msg.addr {
-                IpNetwork::V4(addr) => {
-                    if iface.system.ipv4_addr_list.remove(&addr) {
-                        // Check if LDP needs to be disabled on this
-                        // interface.
-                        Interface::update(instance, iface_idx);
-                    }
-                }
-                IpNetwork::V6(addr) => {
-                    iface.system.ipv6_addr_list.remove(&addr);
-                }
-            }
-        }
-    }
-
-    async fn process_route_add(&mut self, msg: ZapiRxRouteInfo) {
-        let instance = match self {
-            Instance::Up(instance) => instance,
-            _ => return,
-        };
-
-        // Find or create new FEC.
-        let prefix = msg.prefix;
-        let fec = instance
-            .state
-            .fecs
-            .entry(prefix)
-            .or_insert_with(|| Fec::new(prefix));
-        let old_fec_status = fec.is_operational();
-        fec.inner.owner = Some(FecOwner {
-            proto: msg.proto,
-            instance: msg.instance,
-        });
-
-        // Find the nexthops that were deleted.
-        for nexthop_addr in fec.nexthops.keys().copied().collect::<Vec<_>>() {
-            if !msg.nexthops.iter().any(|zapi_nexthop| {
-                if let Some(zapi_nexthop_addr) = zapi_nexthop.addr {
-                    zapi_nexthop_addr == nexthop_addr
-                } else {
-                    false
-                }
-            }) {
-                let nexthop = &fec.nexthops[&nexthop_addr];
-                instance.tx.sb.label_uninstall(&fec.inner, nexthop);
-                fec.nexthops.remove(&nexthop_addr);
-            }
-        }
-
-        if old_fec_status != fec.is_operational() {
-            notification::mpls_ldp_fec_event(
-                &instance.tx.nb,
-                &instance.core.name,
-                fec,
-            );
-        }
-
-        // Find newly added nexthops.
-        for zapi_nexthop in &msg.nexthops {
-            let zapi_nexthop_addr = match zapi_nexthop.addr {
-                Some(addr) => addr,
-                // Ignore nexthops that don't contain an IP address.
-                None => continue,
-            };
-
-            if fec.nexthops.get(&zapi_nexthop_addr).is_none() {
-                fec.nexthop_add(zapi_nexthop_addr, zapi_nexthop.ifindex);
-            }
-        }
-
-        // Allocate new label if necessary.
-        local_label_update(fec, &instance.shared.label_manager);
-        process_new_fec(instance, prefix);
-    }
-
-    async fn process_route_del(&mut self, msg: ZapiRxRouteInfo) {
-        let instance = match self {
-            Instance::Up(instance) => instance,
-            _ => return,
-        };
-
-        let prefix = msg.prefix;
-        if let Some(fec) = instance.state.fecs.get_mut(&prefix) {
-            let old_fec_status = fec.is_operational();
-
-            // Withdraw previously allocated label.
-            let msg_id = &instance.state.msg_id;
-            for nbr in instance
-                .state
-                .neighbors
-                .iter_mut()
-                .filter(|nbr| nbr.is_operational())
-            {
-                nbr.send_label_withdraw(msg_id, fec);
-            }
-
-            // Uninstall learned labels.
-            for nexthop in fec.nexthops.values() {
-                instance.tx.sb.label_uninstall(&fec.inner, nexthop);
-            }
-
-            // TODO deallocate local label.
-
-            // Delete nexthops.
-            fec.nexthops.clear();
-
-            if old_fec_status != fec.is_operational() {
-                notification::mpls_ldp_fec_event(
-                    &instance.tx.nb,
-                    &instance.core.name,
-                    fec,
-                );
-            }
-        }
-    }
-}
-
-// ===== impl InstanceSouthboundRx =====
-
-#[async_trait]
-impl MessageReceiver<ZapiRxMsg> for InstanceSouthboundRx {
-    async fn recv(&mut self) -> Option<ZapiRxMsg> {
-        self.0.recv().await
-    }
-}
+use crate::{events, southbound};
 
 // ===== helper functions =====
 
@@ -269,8 +30,8 @@ fn local_label_update(fec: &mut Fec, label_manager: &Mutex<LabelManager>) {
         return;
     }
 
-    let owner = fec.inner.owner.as_ref().unwrap();
-    let label = if owner.proto == zclient::ffi::RouteType::Connect {
+    let protocol = fec.inner.protocol.unwrap();
+    let label = if protocol == Protocol::DIRECT {
         Label::new(Label::IMPLICIT_NULL)
     } else {
         let mut label_manager = label_manager.lock().unwrap();
@@ -311,6 +72,238 @@ fn process_new_fec(instance: &mut InstanceUp, prefix: IpNetwork) {
                     fec_elem,
                 );
             }
+        }
+    }
+}
+
+// ===== global functions =====
+
+pub(crate) async fn process_router_id_update(
+    instance: &mut Instance,
+    router_id: Option<Ipv4Addr>,
+) {
+    instance.core_mut().system.router_id = router_id;
+    instance.update().await;
+}
+
+pub(crate) fn process_iface_update(
+    instance: &mut Instance,
+    msg: InterfaceUpdateMsg,
+) {
+    let instance = match instance {
+        Instance::Up(instance) => instance,
+        _ => return,
+    };
+
+    if let Some((iface_idx, iface)) = instance
+        .core
+        .interfaces
+        .update_ifindex(&msg.ifname, Some(msg.ifindex))
+    {
+        iface.system.flags = msg.flags;
+        Interface::update(instance, iface_idx);
+    }
+}
+
+pub(crate) fn process_addr_add(instance: &mut Instance, msg: AddressMsg) {
+    let Instance::Up(instance) = instance else {
+        return;
+    };
+
+    // Add address to global list.
+    match msg.addr {
+        IpNetwork::V4(addr) => {
+            if instance.core.system.ipv4_addr_list.insert(addr) {
+                // Inform neighbors about new address.
+                for nbr in instance
+                    .state
+                    .neighbors
+                    .iter_mut()
+                    .filter(|nbr| nbr.is_operational())
+                {
+                    nbr.send_address(
+                        &instance.state.msg_id,
+                        AddressMessageType::Address,
+                        btreeset![addr.ip()],
+                    )
+                }
+            }
+        }
+        IpNetwork::V6(addr) => {
+            instance.core.system.ipv6_addr_list.insert(addr);
+        }
+    }
+
+    if let Some((iface_idx, iface)) =
+        instance.core.interfaces.get_mut_by_name(&msg.ifname)
+    {
+        match msg.addr {
+            IpNetwork::V4(addr) => {
+                if iface.system.ipv4_addr_list.insert(addr) {
+                    // Check if LDP needs to be activated on this interface.
+                    Interface::update(instance, iface_idx);
+                }
+            }
+            IpNetwork::V6(addr) => {
+                iface.system.ipv6_addr_list.insert(addr);
+            }
+        }
+    }
+}
+
+pub(crate) fn process_addr_del(instance: &mut Instance, msg: AddressMsg) {
+    let Instance::Up(instance) = instance else {
+        return;
+    };
+
+    // Remove address from global list.
+    match msg.addr {
+        IpNetwork::V4(addr) => {
+            if instance.core.system.ipv4_addr_list.remove(&addr) {
+                // Inform neighbors about deleted address.
+                for nbr in instance
+                    .state
+                    .neighbors
+                    .iter_mut()
+                    .filter(|nbr| nbr.is_operational())
+                {
+                    nbr.send_address(
+                        &instance.state.msg_id,
+                        AddressMessageType::AddressWithdraw,
+                        btreeset![addr.ip()],
+                    )
+                }
+            }
+        }
+        IpNetwork::V6(addr) => {
+            instance.core.system.ipv6_addr_list.remove(&addr);
+        }
+    }
+
+    if let Some((iface_idx, iface)) =
+        instance.core.interfaces.get_mut_by_name(&msg.ifname)
+    {
+        match msg.addr {
+            IpNetwork::V4(addr) => {
+                if iface.system.ipv4_addr_list.remove(&addr) {
+                    // Check if LDP needs to be disabled on this interface.
+                    Interface::update(instance, iface_idx);
+                }
+            }
+            IpNetwork::V6(addr) => {
+                iface.system.ipv6_addr_list.remove(&addr);
+            }
+        }
+    }
+}
+
+pub(crate) fn process_route_add(instance: &mut Instance, msg: RouteMsg) {
+    let instance = match instance {
+        Instance::Up(instance) => instance,
+        _ => return,
+    };
+
+    // Find or create new FEC.
+    let prefix = msg.prefix;
+    let fec = instance
+        .state
+        .fecs
+        .entry(prefix)
+        .or_insert_with(|| Fec::new(prefix));
+    let old_fec_status = fec.is_operational();
+    fec.inner.protocol = Some(msg.protocol);
+
+    // Find the nexthops that were deleted.
+    for nexthop_addr in fec.nexthops.keys().copied().collect::<Vec<_>>() {
+        if !msg.nexthops.iter().any(|msg_nexthop| {
+            if let Nexthop::Address { addr, .. } = *msg_nexthop {
+                addr == nexthop_addr
+            } else {
+                false
+            }
+        }) {
+            let nexthop = &fec.nexthops[&nexthop_addr];
+            southbound::tx::label_uninstall(
+                &instance.tx.ibus,
+                &fec.inner,
+                nexthop,
+            );
+            fec.nexthops.remove(&nexthop_addr);
+        }
+    }
+
+    if old_fec_status != fec.is_operational() {
+        notification::mpls_ldp_fec_event(
+            &instance.tx.nb,
+            &instance.core.name,
+            fec,
+        );
+    }
+
+    // Find newly added nexthops.
+    for msg_nexthop in &msg.nexthops {
+        let (msg_nexthop_ifindex, msg_nexthop_addr) = match *msg_nexthop {
+            Nexthop::Address { ifindex, addr, .. } => (ifindex, addr),
+            // Ignore nexthops that don't contain an IP address.
+            _ => continue,
+        };
+
+        if fec.nexthops.get(&msg_nexthop_addr).is_none() {
+            fec.nexthop_add(msg_nexthop_addr, Some(msg_nexthop_ifindex));
+        }
+    }
+
+    // Allocate new label if necessary.
+    local_label_update(fec, &instance.shared.label_manager);
+    process_new_fec(instance, prefix);
+}
+
+pub(crate) fn process_route_del(instance: &mut Instance, msg: RouteKeyMsg) {
+    let instance = match instance {
+        Instance::Up(instance) => instance,
+        _ => return,
+    };
+
+    let prefix = msg.prefix;
+    if let Some(fec) = instance.state.fecs.get_mut(&prefix) {
+        let old_fec_status = fec.is_operational();
+
+        // Withdraw previously allocated label.
+        let msg_id = &instance.state.msg_id;
+        for nbr in instance
+            .state
+            .neighbors
+            .iter_mut()
+            .filter(|nbr| nbr.is_operational())
+        {
+            nbr.send_label_withdraw(msg_id, fec);
+        }
+
+        // Uninstall learned labels.
+        for nexthop in fec.nexthops.values() {
+            southbound::tx::label_uninstall(
+                &instance.tx.ibus,
+                &fec.inner,
+                nexthop,
+            );
+        }
+
+        // Release FEC's local label.
+        if let Some(local_label) = fec.inner.local_label {
+            let mut label_manager =
+                instance.shared.label_manager.lock().unwrap();
+            label_manager.label_release(local_label);
+        }
+
+        // Delete nexthops.
+        fec.nexthops.clear();
+
+        if old_fec_status != fec.is_operational() {
+            notification::mpls_ldp_fec_event(
+                &instance.tx.nb,
+                &instance.core.name,
+                fec,
+            );
         }
     }
 }

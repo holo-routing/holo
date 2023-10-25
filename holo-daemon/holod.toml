@@ -1,6 +1,6 @@
 # User and group information
-user = "frr"
-group = "frr"
+user = "holo"
+group = "holo"
 
 # Path to the non-volatile memory storage for configuration transactions,
 # graceful-restart information, authentication sequence numbers, and more.

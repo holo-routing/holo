@@ -16,13 +16,10 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use derive_new::new;
+use holo_northbound as northbound;
 use holo_northbound::{
     process_northbound_msg, NbDaemonReceiver, NbDaemonSender, NbProviderSender,
 };
-use holo_southbound::process_southbound_msg;
-use holo_southbound::rx::SouthboundRx;
-use holo_southbound::tx::SouthboundTx;
-use holo_southbound::zclient::messages::ZapiRxMsg;
 use holo_utils::ibus::{IbusMsg, IbusReceiver, IbusSender};
 use holo_utils::keychain::Keychains;
 use holo_utils::mpls::LabelManager;
@@ -35,7 +32,6 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tracing::Instrument;
-use {holo_northbound as northbound, holo_southbound as southbound};
 
 use crate::event_recorder::EventRecorder;
 #[cfg(feature = "testing")]
@@ -51,8 +47,7 @@ where
         + std::fmt::Debug
         + northbound::configuration::Provider
         + northbound::rpc::Provider
-        + northbound::state::Provider
-        + southbound::rx::SouthboundRxCallbacks,
+        + northbound::state::Provider,
 {
     /// Protocol type.
     const PROTOCOL: Protocol;
@@ -61,8 +56,6 @@ where
     type ProtocolOutputMsg: Send + std::fmt::Debug + Serialize;
     type ProtocolInputChannelsTx: Send;
     type ProtocolInputChannelsRx: MessageReceiver<Self::ProtocolInputMsg>;
-    type SouthboundTx: Send;
-    type SouthboundRx: MessageReceiver<ZapiRxMsg>;
 
     /// Create protocol instance.
     async fn new(
@@ -76,12 +69,6 @@ where
 
     /// Optional protocol instance shutdown routine.
     async fn shutdown(self) {}
-
-    /// Initialize the southbound layer for this protocol instance.
-    fn southbound_start(
-        tx: SouthboundTx,
-        rx: SouthboundRx,
-    ) -> (Self::SouthboundTx, Self::SouthboundRx);
 
     /// Process ibus message.
     async fn process_ibus_msg(&mut self, msg: IbusMsg);
@@ -119,7 +106,6 @@ pub struct InstanceShared {
 #[derive(Debug, Deserialize, Serialize)]
 pub enum InstanceMsg<P: ProtocolInstance> {
     Northbound(Option<northbound::api::daemon::Request>),
-    Southbound(ZapiRxMsg),
     Ibus(IbusMsg),
     Protocol(P::ProtocolInputMsg),
     #[serde(skip)]
@@ -131,7 +117,6 @@ pub enum InstanceMsg<P: ProtocolInstance> {
 #[derive(Debug, new)]
 pub struct InstanceChannelsTx<P: ProtocolInstance> {
     pub nb: NbProviderSender,
-    pub sb: P::SouthboundTx,
     pub ibus: IbusSender,
     pub protocol_input: P::ProtocolInputChannelsTx,
     #[cfg(feature = "testing")]
@@ -142,7 +127,6 @@ pub struct InstanceChannelsTx<P: ProtocolInstance> {
 #[derive(Debug, new)]
 pub struct InstanceChannelsRx<P: ProtocolInstance> {
     pub nb: NbDaemonReceiver,
-    pub sb: P::SouthboundRx,
     pub ibus: IbusReceiver,
     pub protocol_input: P::ProtocolInputChannelsRx,
     #[cfg(feature = "testing")]
@@ -206,9 +190,6 @@ where
                 let msg = tokio::select! {
                     msg = instance_channels_rx.nb.recv() => {
                         InstanceMsg::Northbound(msg)
-                    }
-                    msg = instance_channels_rx.sb.recv() => {
-                        InstanceMsg::Southbound(msg.unwrap())
                     }
                     msg = instance_channels_rx.ibus.recv() => {
                         InstanceMsg::Ibus(msg.unwrap())
@@ -288,9 +269,6 @@ async fn event_loop<P>(
                 // Instance was unconfigured.
                 return;
             }
-            InstanceMsg::Southbound(msg) => {
-                process_southbound_msg(instance, msg).await;
-            }
             InstanceMsg::Ibus(msg) => {
                 instance.process_ibus_msg(msg).await;
             }
@@ -322,9 +300,6 @@ async fn run<P>(
 ) where
     P: ProtocolInstance,
 {
-    // Start base southbound channels.
-    let (mut sb_tx, sb_rx) = southbound::start(P::PROTOCOL).await;
-
     // Start protocol channels.
     let (proto_input_tx, proto_input_rx) = P::protocol_input_channels();
     #[cfg(feature = "testing")]
@@ -332,18 +307,11 @@ async fn run<P>(
 
     // Get output channels.
     #[cfg(feature = "testing")]
-    let output_channels_rx = OutputChannelsRx::new(
-        sb_tx.channel_rx.take().unwrap(),
-        proto_output_rx,
-    );
-
-    // Start the southbound layer.
-    let (sb_tx, sb_rx) = P::southbound_start(sb_tx, sb_rx);
+    let output_channels_rx = OutputChannelsRx::new(proto_output_rx);
 
     // Create instance Tx/Rx channels.
     let instance_channels_tx = InstanceChannelsTx::new(
         nb_tx,
-        sb_tx,
         ibus_tx,
         proto_input_tx,
         #[cfg(feature = "testing")]
@@ -351,7 +319,6 @@ async fn run<P>(
     );
     let instance_channels_rx = InstanceChannelsRx::new(
         nb_rx,
-        sb_rx,
         ibus_rx,
         proto_input_rx,
         #[cfg(feature = "testing")]

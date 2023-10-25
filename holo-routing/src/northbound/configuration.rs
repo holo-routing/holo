@@ -64,11 +64,14 @@ fn load_callbacks() -> Callbacks<Master> {
             let ptype = args.dnode.get_string_relative("./type").unwrap();
             let name = args.dnode.get_string_relative("./name").unwrap();
 
-            // Parse protocol name.
+            // Parse protocol type.
             let protocol = match Protocol::try_from_yang(&ptype) {
+                Some(Protocol::DIRECT) => {
+                    return Err("invalid protocol type".to_owned());
+                }
                 Some(value) => value,
                 None => {
-                    return Err("unknown protocol name".to_owned());
+                    return Err("unknown protocol type".to_owned());
                 }
             };
 
@@ -371,6 +374,10 @@ impl Provider for Master {
                     Protocol::BFD => {
                         // Nothing to do, the BFD task runs permanently.
                         return;
+                    }
+                    Protocol::DIRECT => {
+                        // This protocol type can not be configured.
+                        unreachable!()
                     }
                     Protocol::LDP => {
                         use holo_ldp::instance::Instance;

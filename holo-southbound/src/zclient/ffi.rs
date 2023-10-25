@@ -248,6 +248,7 @@ impl From<Protocol> for RouteType {
     fn from(protocol: Protocol) -> RouteType {
         match protocol {
             Protocol::BFD => RouteType::Bfd,
+            Protocol::DIRECT => RouteType::Connect,
             Protocol::LDP => RouteType::Ldp,
             Protocol::OSPFV2 => RouteType::Ospf,
             Protocol::OSPFV3 => RouteType::Ospf6,

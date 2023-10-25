@@ -14,6 +14,7 @@ use holo_northbound::configuration::{
     ValidationCallbacks, ValidationCallbacksBuilder,
 };
 use holo_northbound::paths::control_plane_protocol;
+use holo_northbound::paths::routing::ribs;
 use holo_northbound::paths::routing::segment_routing::sr_mpls;
 use holo_northbound::{CallbackKey, NbDaemonSender};
 use holo_protocol::spawn_protocol_task;
@@ -268,6 +269,27 @@ fn load_callbacks() -> Callbacks<Master> {
         })
         .lookup(|_master, _list_entry, _dnode| {
             ListEntry::None
+        })
+        .path(ribs::rib::PATH)
+        .create_apply(|_master, _args| {
+            // Nothing to do.
+        })
+        .delete_apply(|_master, _args| {
+            // Nothing to do.
+        })
+        .lookup(|_master, _list_entry, _dnode| {
+            ListEntry::None
+        })
+        .path(ribs::rib::address_family::PATH)
+        .modify_apply(|_master, _args| {
+            // Nothing to do.
+        })
+        .path(ribs::rib::description::PATH)
+        .modify_apply(|_master, _args| {
+            // Nothing to do.
+        })
+        .delete_apply(|_master, _args| {
+            // Nothing to do.
         })
         .build()
 }

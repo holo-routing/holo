@@ -3272,21 +3272,15 @@ module ietf-ospf-holo-deviations {
   }
   */
 
-  /*
   deviation "/rt:routing/rt:ribs/rt:rib/rt:routes/rt:route/ospf:metric" {
     deviate not-supported;
   }
-  */
 
-  /*
   deviation "/rt:routing/rt:ribs/rt:rib/rt:routes/rt:route/ospf:tag" {
     deviate not-supported;
   }
-  */
 
-  /*
   deviation "/rt:routing/rt:ribs/rt:rib/rt:routes/rt:route/ospf:route-type" {
     deviate not-supported;
   }
-  */
 }

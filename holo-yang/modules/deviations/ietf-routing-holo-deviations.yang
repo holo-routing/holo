@@ -26,10 +26,6 @@ module ietf-routing-holo-deviations {
     deviate not-supported;
   }
 
-  deviation "/rt:routing/rt:ribs" {
-    deviate not-supported;
-  }
-
   deviation "/rt:routing-state" {
     deviate not-supported;
   }

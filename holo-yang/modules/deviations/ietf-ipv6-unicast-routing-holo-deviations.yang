@@ -1,0 +1,158 @@
+module ietf-ipv6-unicast-routing-holo-deviations {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/ietf-ipv6-unicast-routing-holo-deviations";
+  prefix ietf-ipv6-unicast-routing-holo-deviations;
+
+  import ietf-interfaces {
+    prefix if;
+  }
+
+  import ietf-ip {
+    prefix ip;
+  }
+
+  import ietf-routing {
+    prefix rt;
+  }
+
+  import ietf-ipv6-unicast-routing {
+    prefix v6ur;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines deviation statements for the ietf-ipv6-unicast-routing
+     module.";
+
+  deviation "/if:interfaces/if:interface/ip:ipv6/v6ur:ipv6-router-advertisements" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/v6ur:ipv6-router-advertisements/v6ur:send-advertisements" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/v6ur:ipv6-router-advertisements/v6ur:max-rtr-adv-interval" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/v6ur:ipv6-router-advertisements/v6ur:min-rtr-adv-interval" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/v6ur:ipv6-router-advertisements/v6ur:managed-flag" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/v6ur:ipv6-router-advertisements/v6ur:other-config-flag" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/v6ur:ipv6-router-advertisements/v6ur:link-mtu" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/v6ur:ipv6-router-advertisements/v6ur:reachable-time" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/v6ur:ipv6-router-advertisements/v6ur:retrans-timer" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/v6ur:ipv6-router-advertisements/v6ur:cur-hop-limit" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/v6ur:ipv6-router-advertisements/v6ur:default-lifetime" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/v6ur:ipv6-router-advertisements/v6ur:prefix-list" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/v6ur:ipv6-router-advertisements/v6ur:prefix-list/v6ur:prefix" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/v6ur:ipv6-router-advertisements/v6ur:prefix-list/v6ur:prefix/v6ur:prefix-spec" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/v6ur:ipv6-router-advertisements/v6ur:prefix-list/v6ur:prefix/v6ur:control-adv-prefixes" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/v6ur:ipv6-router-advertisements/v6ur:prefix-list/v6ur:prefix/v6ur:control-adv-prefixes/v6ur:no-advertise" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/v6ur:ipv6-router-advertisements/v6ur:prefix-list/v6ur:prefix/v6ur:control-adv-prefixes/v6ur:no-advertise/v6ur:no-advertise" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/v6ur:ipv6-router-advertisements/v6ur:prefix-list/v6ur:prefix/v6ur:control-adv-prefixes/v6ur:advertise" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/v6ur:ipv6-router-advertisements/v6ur:prefix-list/v6ur:prefix/v6ur:control-adv-prefixes/v6ur:advertise/v6ur:valid-lifetime" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/v6ur:ipv6-router-advertisements/v6ur:prefix-list/v6ur:prefix/v6ur:control-adv-prefixes/v6ur:advertise/v6ur:on-link-flag" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/v6ur:ipv6-router-advertisements/v6ur:prefix-list/v6ur:prefix/v6ur:control-adv-prefixes/v6ur:advertise/v6ur:preferred-lifetime" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/v6ur:ipv6-router-advertisements/v6ur:prefix-list/v6ur:prefix/v6ur:control-adv-prefixes/v6ur:advertise/v6ur:autonomous-flag" {
+    deviate not-supported;
+  }
+  */
+}

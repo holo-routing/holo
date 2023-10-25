@@ -1,0 +1,134 @@
+module ietf-mpls-holo-deviations {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/ietf-mpls-holo-deviations";
+  prefix ietf-mpls-holo-deviations;
+
+  import ietf-routing {
+    prefix rt;
+  }
+
+  import ietf-mpls {
+    prefix mpls;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines deviation statements for the ietf-mpls
+     module.";
+
+  deviation "/rt:routing/rt:ribs/rt:rib/rt:routes/rt:route/rt:next-hop/rt:next-hop-options/rt:simple-next-hop/mpls:mpls-label-stack/mpls:entry/mpls:ttl" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:ribs/rt:rib/rt:routes/rt:route/rt:next-hop/rt:next-hop-options/rt:simple-next-hop/mpls:mpls-label-stack/mpls:entry/mpls:traffic-class" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:ribs/rt:rib/rt:routes/rt:route/rt:next-hop/rt:next-hop-options/rt:next-hop-list/rt:next-hop-list/rt:next-hop/mpls:index" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:ribs/rt:rib/rt:routes/rt:route/rt:next-hop/rt:next-hop-options/rt:next-hop-list/rt:next-hop-list/rt:next-hop/mpls:backup-index" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:ribs/rt:rib/rt:routes/rt:route/rt:next-hop/rt:next-hop-options/rt:next-hop-list/rt:next-hop-list/rt:next-hop/mpls:loadshare" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:ribs/rt:rib/rt:routes/rt:route/rt:next-hop/rt:next-hop-options/rt:next-hop-list/rt:next-hop-list/rt:next-hop/mpls:role" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:ribs/rt:rib/rt:routes/rt:route/rt:next-hop/rt:next-hop-options/rt:next-hop-list/rt:next-hop-list/rt:next-hop/mpls:mpls-label-stack/mpls:entry/mpls:ttl" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:ribs/rt:rib/rt:routes/rt:route/rt:next-hop/rt:next-hop-options/rt:next-hop-list/rt:next-hop-list/rt:next-hop/mpls:mpls-label-stack/mpls:entry/mpls:traffic-class" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/mpls:mpls" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/mpls:mpls/mpls:ttl-propagate" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/mpls:mpls/mpls:mpls-label-blocks" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/mpls:mpls/mpls:mpls-label-blocks/mpls:mpls-label-block" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/mpls:mpls/mpls:mpls-label-blocks/mpls:mpls-label-block/mpls:index" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/mpls:mpls/mpls:mpls-label-blocks/mpls:mpls-label-block/mpls:start-label" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/mpls:mpls/mpls:mpls-label-blocks/mpls:mpls-label-block/mpls:end-label" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/mpls:mpls/mpls:mpls-label-blocks/mpls:mpls-label-block/mpls:block-allocation-mode" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/mpls:mpls/mpls:mpls-label-blocks/mpls:mpls-label-block/mpls:inuse-labels-count" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/mpls:mpls/mpls:interfaces" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/mpls:mpls/mpls:interfaces/mpls:interface" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/mpls:mpls/mpls:interfaces/mpls:interface/mpls:name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/mpls:mpls/mpls:interfaces/mpls:interface/mpls:mpls-enabled" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/mpls:mpls/mpls:interfaces/mpls:interface/mpls:maximum-labeled-packet" {
+    deviate not-supported;
+  }
+  */
+}

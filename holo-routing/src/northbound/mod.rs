@@ -23,6 +23,9 @@ impl ProviderBase for Master {
     fn yang_modules() -> &'static [&'static str] {
         &[
             "ietf-routing",
+            "ietf-ipv4-unicast-routing",
+            "ietf-ipv6-unicast-routing",
+            "ietf-mpls",
             "ietf-segment-routing",
             "ietf-segment-routing-common",
             "ietf-segment-routing-mpls",

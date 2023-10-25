@@ -74,10 +74,18 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-interfaces@2018-02-20.yang"),
         EmbeddedModuleKey::new("ietf-ip", Some("2018-02-22"), None, None) =>
             include_str!("../modules/ietf/ietf-ip@2018-02-22.yang"),
+        EmbeddedModuleKey::new("ietf-ipv4-unicast-routing", Some("2018-03-13"), None, None) =>
+            include_str!("../modules/ietf/ietf-ipv4-unicast-routing@2018-03-13.yang"),
+        EmbeddedModuleKey::new("ietf-ipv6-unicast-routing", Some("2018-03-13"), None, None) =>
+            include_str!("../modules/ietf/ietf-ipv6-unicast-routing@2018-03-13.yang"),
+        EmbeddedModuleKey::new("ietf-ipv6-unicast-routing", Some("2018-03-13"), Some("ietf-ipv6-router-advertisements"), Some("2018-03-13")) =>
+            include_str!("../modules/ietf/ietf-ipv6-router-advertisements@2018-03-13.yang"),
         EmbeddedModuleKey::new("ietf-isis", Some("2022-10-19"), None, None) =>
             include_str!("../modules/ietf/ietf-isis@2022-10-19.yang"),
         EmbeddedModuleKey::new("ietf-key-chain", Some("2017-06-15"), None, None) =>
             include_str!("../modules/ietf/ietf-key-chain@2017-06-15.yang"),
+        EmbeddedModuleKey::new("ietf-mpls", Some("2020-12-18"), None, None) =>
+            include_str!("../modules/ietf/ietf-mpls@2020-12-18.yang"),
         EmbeddedModuleKey::new("ietf-mpls-ldp", Some("2022-03-14"), None, None) =>
             include_str!("../modules/ietf/ietf-mpls-ldp@2022-03-14.yang"),
         EmbeddedModuleKey::new("ietf-netconf-acm", Some("2018-02-14"), None, None) =>
@@ -118,6 +126,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/deviations/ietf-interfaces-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-ip-holo-deviations", None, None, None) =>
             include_str!("../modules/deviations/ietf-ip-holo-deviations.yang"),
+        EmbeddedModuleKey::new("ietf-mpls-holo-deviations", None, None, None) =>
+            include_str!("../modules/deviations/ietf-mpls-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-key-chain-holo-deviations", None, None, None) =>
             include_str!("../modules/deviations/ietf-key-chain-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-ospf-holo-deviations", None, None, None) =>
@@ -130,6 +140,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/deviations/ietf-rip-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-routing-holo-deviations", None, None, None) =>
             include_str!("../modules/deviations/ietf-routing-holo-deviations.yang"),
+        EmbeddedModuleKey::new("ietf-ipv6-unicast-routing-holo-deviations", None, None, None) =>
+            include_str!("../modules/deviations/ietf-ipv6-unicast-routing-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-routing-policy-holo-deviations", None, None, None) =>
             include_str!("../modules/deviations/ietf-routing-policy-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-segment-routing-mpls-holo-deviations", None, None, None) =>
@@ -155,9 +167,12 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
             "ietf-key-chain",
             "ietf-routing",
             "ietf-routing-policy",
+            "ietf-ipv4-unicast-routing",
+            "ietf-ipv6-unicast-routing",
             "ietf-segment-routing",
             "ietf-segment-routing-common",
             "ietf-segment-routing-mpls",
+            "ietf-mpls",
             "ietf-mpls-ldp",
             "ietf-ospf",
             "ietf-ospf-sr",

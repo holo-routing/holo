@@ -23,6 +23,22 @@ fn snode_normalized_name(snode: &SchemaNode<'_>) -> String {
         name = "r#type".to_owned();
     }
 
+    // HACK: distinguish nodes with the same names but different namespaces.
+    if matches!(
+        snode.name(),
+        "destination-prefix" | "address" | "next-hop-address"
+    ) {
+        if snode.module().name() == "ietf-ipv4-unicast-routing" {
+            name.insert_str(0, "ipv4_");
+        }
+        if snode.module().name() == "ietf-ipv6-unicast-routing" {
+            name.insert_str(0, "ipv6_");
+        }
+        if snode.module().name() == "ietf-mpls" {
+            name.insert_str(0, "mpls_");
+        }
+    }
+
     name
 }
 

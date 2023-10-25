@@ -629,7 +629,7 @@ fn start_providers(
 ) -> (NbProviderReceiver, Vec<NbDaemonSender>) {
     let mut providers = Vec::new();
     let (provider_tx, provider_rx) = mpsc::unbounded_channel();
-    let (ibus_tx, ibus_rx) = broadcast::channel(16);
+    let (ibus_tx, ibus_rx) = broadcast::channel(1024);
 
     // Start holo-routing.
     let daemon_tx = holo_routing::start(

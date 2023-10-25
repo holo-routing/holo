@@ -26,6 +26,7 @@ pub mod mpls;
 pub mod policy;
 pub mod protocol;
 pub mod socket;
+pub mod southbound;
 pub mod sr;
 pub mod task;
 pub mod yang;

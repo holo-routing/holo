@@ -8,7 +8,9 @@
 #![warn(rust_2018_idioms)]
 #![feature(lazy_cell)]
 
+mod netlink;
 pub mod northbound;
+mod rib;
 
 use std::collections::BTreeMap;
 
@@ -25,7 +27,8 @@ use holo_utils::Database;
 use tokio::sync::mpsc;
 use tracing::Instrument;
 
-#[derive(new)]
+use crate::rib::Rib;
+
 pub struct Master {
     // Northbound Tx channel.
     pub nb_tx: NbProviderSender,
@@ -35,11 +38,13 @@ pub struct Master {
     pub shared: InstanceShared,
     // Event recorder configuration.
     pub event_recorder_config: event_recorder::Config,
+    // Netlink socket.
+    pub netlink_handle: rtnetlink::Handle,
+    // RIB.
+    pub rib: Rib,
     // SR configuration data.
-    #[new(default)]
     pub sr_config: SrCfg,
     // Protocol instances.
-    #[new(default)]
     pub instances: BTreeMap<InstanceId, NbDaemonSender>,
 }
 
@@ -72,15 +77,35 @@ impl Master {
                     .await;
                 }
                 Ok(msg) = ibus_rx.recv() => {
-                    process_ibus_msg(self, msg);
+                    process_ibus_msg(self, msg).await;
+                }
+                Some(_) = self.rib.update_queue_rx.recv() => {
+                    self.rib
+                        .process_rib_update_queue(
+                            &self.netlink_handle,
+                            &self.ibus_tx,
+                        )
+                        .await;
                 }
             }
         }
     }
 }
 
-fn process_ibus_msg(master: &mut Master, msg: IbusMsg) {
+// ===== helper functions =====
+
+async fn process_ibus_msg(master: &mut Master, msg: IbusMsg) {
     match msg {
+        // Interface address addition notification.
+        IbusMsg::InterfaceAddressAdd(msg) => {
+            // Add connected route to the RIB.
+            master.rib.connected_route_add(msg).await;
+        }
+        // Interface address delete notification.
+        IbusMsg::InterfaceAddressDel(msg) => {
+            // Remove connected route from the RIB.
+            master.rib.connected_route_del(msg).await;
+        }
         IbusMsg::KeychainUpd(keychain) => {
             // Update the local copy of the keychain.
             master
@@ -107,6 +132,22 @@ fn process_ibus_msg(master: &mut Master, msg: IbusMsg) {
             // Remove the local copy of the policy definition.
             master.shared.policies.remove(&policy_name);
         }
+        IbusMsg::RouteIpAdd(msg) => {
+            // Add route to the RIB.
+            master.rib.ip_route_add(msg).await;
+        }
+        IbusMsg::RouteIpDel(msg) => {
+            // Remove route from the RIB.
+            master.rib.ip_route_del(msg).await;
+        }
+        IbusMsg::RouteMplsAdd(msg) => {
+            // Add MPLS route to the LIB.
+            master.rib.mpls_route_add(msg).await;
+        }
+        IbusMsg::RouteMplsDel(msg) => {
+            // Remove MPLS route from the LIB.
+            master.rib.mpls_route_del(msg).await;
+        }
         // Ignore other events.
         _ => {}
     }
@@ -115,7 +156,7 @@ fn process_ibus_msg(master: &mut Master, msg: IbusMsg) {
 // ===== global functions =====
 
 pub fn start(
-    nb_provider_tx: NbProviderSender,
+    nb_tx: NbProviderSender,
     ibus_tx: IbusSender,
     ibus_rx: IbusReceiver,
     db: Database,
@@ -128,12 +169,16 @@ pub fn start(
             db: Some(db.clone()),
             ..Default::default()
         };
-        let mut master = Master::new(
-            nb_provider_tx,
+        let mut master = Master {
+            nb_tx,
             ibus_tx,
-            shared.clone(),
+            shared: shared.clone(),
             event_recorder_config,
-        );
+            netlink_handle: netlink::init(),
+            rib: Default::default(),
+            sr_config: Default::default(),
+            instances: Default::default(),
+        };
 
         // Start BFD task.
         let name = "main".to_owned();

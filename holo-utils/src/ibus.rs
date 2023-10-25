@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::net::Ipv4Addr;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -13,6 +14,10 @@ use crate::bfd;
 use crate::ip::AddressFamily;
 use crate::keychain::Keychain;
 use crate::policy::{MatchSets, Policy};
+use crate::southbound::{
+    AddressMsg, InterfaceUpdateMsg, LabelInstallMsg, LabelUninstallMsg,
+    RouteKeyMsg, RouteMsg,
+};
 use crate::sr::SrCfg;
 
 // Useful type definition(s).
@@ -38,6 +43,21 @@ pub enum IbusMsg {
         sess_key: bfd::SessionKey,
         state: bfd::State,
     },
+    // Request to dump information about all interfaces.
+    InterfaceDump,
+    // Query information about a specific interface.
+    InterfaceQuery {
+        ifname: String,
+        af: Option<AddressFamily>,
+    },
+    // Interface update notification.
+    InterfaceUpd(InterfaceUpdateMsg),
+    // Interface delete notification.
+    InterfaceDel(String),
+    // Interface address addition notification.
+    InterfaceAddressAdd(AddressMsg),
+    // Interface address delete notification.
+    InterfaceAddressDel(AddressMsg),
     // Keychain update notification.
     KeychainUpd(Arc<Keychain>),
     // Keychain delete notification.
@@ -48,6 +68,22 @@ pub enum IbusMsg {
     PolicyUpd(Arc<Policy>),
     // Policy definition delete notification.
     PolicyDel(String),
+    // Query the current Router ID.
+    RouterIdQuery,
+    // Router ID update notification.
+    RouterIdUpdate(Option<Ipv4Addr>),
+    // Request to install IP route in the RIB.
+    RouteIpAdd(RouteMsg),
+    // Request to uninstall IP route from the RIB.
+    RouteIpDel(RouteKeyMsg),
+    // Request to install MPLS route in the LIB.
+    RouteMplsAdd(LabelInstallMsg),
+    // Request to uninstall MPLS route from the LIB.
+    RouteMplsDel(LabelUninstallMsg),
+    // Route redistribute update notification.
+    RouteRedistributeAdd(RouteMsg),
+    // Route redistribute delete notification.
+    RouteRedistributeDel(RouteKeyMsg),
     // Segment Routing configuration update.
     SrCfgUpd(Arc<SrCfg>),
     // Segment Routing configuration event.

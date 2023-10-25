@@ -9,10 +9,14 @@ edition.workspace = true
 regex = "1.5"
 
 async-trait.workspace = true
+bitflags.workspace = true
+capctl.workspace = true
 chrono.workspace = true
 derive-new.workspace = true
 enum-as-inner.workspace = true
+futures.workspace = true
 ipnetwork.workspace = true
+rtnetlink.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 yang2.workspace = true

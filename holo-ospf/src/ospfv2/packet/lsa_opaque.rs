@@ -223,7 +223,7 @@ pub enum ExtPrefixRouteType {
 // IANA registry:
 // https://www.iana.org/assignments/ospfv2-parameters/ospfv2-parameters.xhtml#extended-prefix-tlv-flags
 bitflags! {
-    #[derive(Default)]
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
     #[derive(Deserialize, Serialize)]
     #[serde(transparent)]
     pub struct LsaExtPrefixFlags: u8 {

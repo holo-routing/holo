@@ -28,7 +28,7 @@ use crate::version::Version;
 
 // Database Description flags.
 bitflags! {
-    #[derive(Default)]
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
     #[derive(Deserialize, Serialize)]
     #[serde(transparent)]
     pub struct DbDescFlags: u8 {

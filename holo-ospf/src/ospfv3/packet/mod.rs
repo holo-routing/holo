@@ -37,7 +37,7 @@ use crate::version::Ospfv3;
 // IANA registry:
 // https://www.iana.org/assignments/ospfv3-parameters/ospfv3-parameters.xhtml#ospfv3-parameters-1
 bitflags! {
-    #[derive(Default)]
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
     #[derive(Deserialize, Serialize)]
     #[serde(transparent)]
     pub struct Options: u16 {

@@ -147,7 +147,7 @@ pub struct LsaRouter {
 // IANA registry:
 // https://www.iana.org/assignments/ospfv2-parameters/ospfv2-parameters.xhtml#ospfv2-parameters-11
 bitflags! {
-    #[derive(Default)]
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
     #[derive(Deserialize, Serialize)]
     #[serde(transparent)]
     pub struct LsaRouterFlags: u8 {
@@ -260,7 +260,7 @@ pub struct LsaAsExternal {
 }
 
 bitflags! {
-    #[derive(Default)]
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
     #[derive(Deserialize, Serialize)]
     #[serde(transparent)]
     pub struct LsaAsExternalFlags: u8 {

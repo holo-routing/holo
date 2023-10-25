@@ -50,7 +50,7 @@ const SUBTLV_SID_LABEL: u16 = 1;
 // IANA registry:
 // https://www.iana.org/assignments/ospf-parameters/ospf-parameters.xhtml#router-informational-capability
 bitflags! {
-    #[derive(Default)]
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
     #[derive(Deserialize, Serialize)]
     #[serde(transparent)]
     pub struct RouterInfoCaps: u32 {
@@ -85,7 +85,7 @@ pub struct RouterInfoCapsTlv(RouterInfoCaps);
 // IANA registry:
 // https://www.iana.org/assignments/ospf-parameters/ospf-parameters.xhtml#router-functional-capability
 bitflags! {
-    #[derive(Default)]
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
     #[derive(Deserialize, Serialize)]
     #[serde(transparent)]
     pub struct RouterFuncCaps: u32 {
@@ -216,7 +216,7 @@ pub struct SrmsPrefTlv(u8);
 // flags are the same for both versions (even though they are specified
 // separately).
 bitflags! {
-    #[derive(Default)]
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
     #[derive(Deserialize, Serialize)]
     #[serde(transparent)]
     pub struct PrefixSidFlags: u8 {
@@ -234,7 +234,7 @@ bitflags! {
 // flags are the same for both versions (even though they are specified
 // separately).
 bitflags! {
-    #[derive(Default)]
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
     #[derive(Deserialize, Serialize)]
     #[serde(transparent)]
     pub struct AdjSidFlags: u8 {

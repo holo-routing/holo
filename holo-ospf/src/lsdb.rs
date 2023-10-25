@@ -67,7 +67,7 @@ pub struct LsaEntry<V: Version> {
 }
 
 bitflags! {
-    #[derive(Default)]
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
     pub struct LsaEntryFlags: u8 {
         const RECEIVED = 0x01;
         const SELF_ORIGINATED = 0x02;

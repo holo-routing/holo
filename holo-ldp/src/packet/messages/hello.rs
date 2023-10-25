@@ -73,7 +73,7 @@ pub struct TlvCommonHelloParams {
 
 // Common Hello Parameters TLV flags.
 bitflags! {
-    #[derive(Default, Deserialize, Serialize)]
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
     #[serde(transparent)]
     pub struct HelloFlags: u16 {
         const TARGETED = 0x8000;
@@ -239,7 +239,7 @@ impl TlvKind for TlvCommonHelloParams {
 
     fn encode_value(&self, buf: &mut BytesMut) {
         buf.put_u16(self.holdtime);
-        buf.put_u16(self.flags.bits);
+        buf.put_u16(self.flags.bits());
     }
 
     fn decode_value(

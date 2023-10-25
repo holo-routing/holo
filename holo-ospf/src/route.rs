@@ -42,7 +42,7 @@ pub struct RouteNet<V: Version> {
 }
 
 bitflags! {
-    #[derive(Default)]
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
     pub struct RouteNetFlags: u8 {
         const CONNECTED = 0x01;
         const INSTALLED = 0x02;
@@ -71,7 +71,7 @@ pub struct SummaryNet<V: Version> {
 }
 
 bitflags! {
-    #[derive(Default)]
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
     pub struct SummaryNetFlags: u8 {
         const CONNECTED = 0x01;
     }

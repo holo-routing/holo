@@ -48,7 +48,7 @@ pub struct CallbacksBuilder<P: Provider> {
 //
 
 bitflags! {
-    #[derive(Deserialize, Serialize)]
+    #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
     #[serde(transparent)]
     pub struct NodeAttributes: u16 {
         // Development-specific data used by unit tests only.

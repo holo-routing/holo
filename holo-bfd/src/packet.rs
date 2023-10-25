@@ -69,7 +69,7 @@ pub enum DiagnosticCode {
 
 // BFD packet flags.
 bitflags! {
-    #[derive(Default)]
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
     #[derive(Deserialize, Serialize)]
     #[serde(transparent)]
     pub struct PacketFlags: u8 {

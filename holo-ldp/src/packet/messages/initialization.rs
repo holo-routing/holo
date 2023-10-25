@@ -83,7 +83,7 @@ pub struct TlvCommonSessParams {
 
 // Common Session Parameters TLV flags.
 bitflags! {
-    #[derive(Default, Deserialize, Serialize)]
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
     #[serde(transparent)]
     pub struct InitFlags: u8 {
         const ADV_DISCIPLINE = 0x80;
@@ -211,7 +211,7 @@ impl TlvKind for TlvCommonSessParams {
     fn encode_value(&self, buf: &mut BytesMut) {
         buf.put_u16(self.version);
         buf.put_u16(self.keepalive_time);
-        buf.put_u8(self.flags.bits);
+        buf.put_u8(self.flags.bits());
         buf.put_u8(self.pvlim);
         buf.put_u16(self.max_pdu_len);
         buf.put_ipv4(&self.lsr_id);

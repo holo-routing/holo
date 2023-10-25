@@ -44,7 +44,7 @@ pub enum RouteType {
 }
 
 bitflags! {
-    #[derive(Default)]
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
     pub struct RouteFlags: u8 {
         const CHANGED = 0x01;
     }

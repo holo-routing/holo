@@ -88,6 +88,7 @@ pub struct NeighborTasks {
 }
 
 bitflags! {
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
     pub struct NeighborFlags: u8 {
         const GTSM = 0x01;
         const CAP_DYNAMIC = 0x02;

@@ -84,7 +84,7 @@ where
     ) -> (Self::SouthboundTx, Self::SouthboundRx);
 
     /// Process ibus message.
-    fn process_ibus_msg(&mut self, msg: IbusMsg);
+    async fn process_ibus_msg(&mut self, msg: IbusMsg);
 
     /// Process protocol message.
     fn process_protocol_msg(&mut self, msg: Self::ProtocolInputMsg);
@@ -292,7 +292,7 @@ async fn event_loop<P>(
                 process_southbound_msg(instance, msg).await;
             }
             InstanceMsg::Ibus(msg) => {
-                instance.process_ibus_msg(msg);
+                instance.process_ibus_msg(msg).await;
             }
             InstanceMsg::Protocol(msg) => {
                 instance.process_protocol_msg(msg);

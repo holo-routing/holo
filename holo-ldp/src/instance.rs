@@ -322,7 +322,7 @@ impl ProtocolInstance for Instance {
         Debug::InstanceDelete.log();
     }
 
-    fn process_ibus_msg(&mut self, _msg: IbusMsg) {}
+    async fn process_ibus_msg(&mut self, _msg: IbusMsg) {}
 
     fn process_protocol_msg(&mut self, msg: ProtocolInputMsg) {
         // Ignore event if the instance isn't active.

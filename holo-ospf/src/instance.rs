@@ -474,8 +474,8 @@ where
         self.stop(InstanceInactiveReason::AdminDown);
     }
 
-    fn process_ibus_msg(&mut self, msg: IbusMsg) {
-        if let Err(error) = process_ibus_msg(self, msg) {
+    async fn process_ibus_msg(&mut self, msg: IbusMsg) {
+        if let Err(error) = process_ibus_msg(self, msg).await {
             error.log();
         }
     }
@@ -848,7 +848,7 @@ where
 
 // ===== helper functions =====
 
-fn process_ibus_msg<V>(
+async fn process_ibus_msg<V>(
     instance: &mut Instance<V>,
     msg: IbusMsg,
 ) -> Result<(), Error<V>>

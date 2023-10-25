@@ -128,8 +128,8 @@ impl ProtocolInstance for Master {
         }
     }
 
-    fn process_ibus_msg(&mut self, msg: IbusMsg) {
-        if let Err(error) = process_ibus_msg(self, msg) {
+    async fn process_ibus_msg(&mut self, msg: IbusMsg) {
+        if let Err(error) = process_ibus_msg(self, msg).await {
             error.log();
         }
     }
@@ -215,7 +215,10 @@ impl MessageReceiver<ProtocolInputMsg> for ProtocolInputChannelsRx {
 
 // ===== helper functions =====
 
-fn process_ibus_msg(master: &mut Master, msg: IbusMsg) -> Result<(), Error> {
+async fn process_ibus_msg(
+    master: &mut Master,
+    msg: IbusMsg,
+) -> Result<(), Error> {
     match msg {
         // BFD peer registration.
         IbusMsg::BfdSessionReg {

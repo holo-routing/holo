@@ -798,7 +798,8 @@ impl PacketVersion<Self> for Ospfv3 {
         // structures, which would require the introduction of locking
         // primitives.
         if let Some(options) = options
-            && auth.is_some() != options.contains(Options::AT) {
+            && auth.is_some() != options.contains(Options::AT)
+        {
             return Err(DecodeError::AuthTypeMismatch);
         }
         if auth.is_none() {
@@ -810,14 +811,15 @@ impl PacketVersion<Self> for Ospfv3 {
 
         // Ignore optional LLS block (only present in Hello and Database
         // Description packets).
-        if let Some(options) = &options && options.contains(Options::L) {
+        if let Some(options) = &options
+            && options.contains(Options::L)
+        {
             if buf.remaining() < LLS_HDR_SIZE as usize {
                 return Err(DecodeError::InvalidLength(buf.len() as u16));
             }
             let _lls_cksum = buf.get_u16();
             let lls_block_len = buf.get_u16();
-            if buf.remaining() < (lls_block_len * 4 - LLS_HDR_SIZE) as usize
-            {
+            if buf.remaining() < (lls_block_len * 4 - LLS_HDR_SIZE) as usize {
                 return Err(DecodeError::InvalidLength(buf.len() as u16));
             }
             buf.advance(lls_block_len as usize);

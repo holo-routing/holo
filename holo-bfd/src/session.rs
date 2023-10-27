@@ -371,9 +371,8 @@ impl Session {
         {
             // (Re)start Tx interval.
             let sockaddr = self.state.sockaddr.unwrap();
-            let task = tasks::udp_tx_interval(
-                self, interval, socket_tx, sockaddr
-            );
+            let task =
+                tasks::udp_tx_interval(self, interval, socket_tx, sockaddr);
             self.state.tx_interval = Some(task);
         } else {
             // Stop Tx interval.

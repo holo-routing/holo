@@ -1,4 +1,6 @@
 # Build image
+# ==============================================================================
+
 FROM ghcr.io/rust-lang/rust:nightly-bookworm as build
 
 RUN apt-get update && \
@@ -9,23 +11,25 @@ RUN apt-get update && \
 
 WORKDIR /usr/src/holo
 COPY . .
-RUN cargo build --features zebra-8-4-compat --release
+RUN cargo build --release
 
 # Final base
+# ==============================================================================
+
 FROM debian:bookworm-slim
 
 RUN apt-get update && \
-    apt-get install -y frr \
-    ifupdown \
+    apt-get install -y ifupdown \
     iputils-ping \
     less \
     tcpdump \
   && rm -rf /var/lib/apt/lists/*
 
+RUN groupadd -r holo
+RUN useradd --system --shell /sbin/nologin --home-dir /var/run/holo/ -g holo holo
 RUN mkdir -p /var/run/holo
-RUN chown frr:frr /var/run/holo
+RUN chown holo:holo /var/run/holo
 
-# Define Bash aliases
 RUN echo "alias holo-cli-show='holo-cli -c \"show state xpath /ietf-routing:routing format json\"'" >> /root/.bashrc
 RUN echo "alias ipr='ip -4 ro ; ip -6 ro ; ip -M ro'" >> /root/.bashrc
 
@@ -36,5 +40,4 @@ COPY --from=build /usr/src/holo/target/release/holo-cli /usr/local/sbin/
 ENV RUST_BACKTRACE=1
 ENV RUST_LOG=holo=debug
 
-COPY docker/docker-start /usr/src/docker-start
-CMD ["/usr/src/docker-start"]
+CMD ["sh", "-c", "holod 2>> /tmp/holod.err"]

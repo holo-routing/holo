@@ -1,4 +1,0 @@
-#!/bin/bash
-
-service frr start
-holod 2>> /tmp/holod.err

@@ -21,6 +21,7 @@ use netlink_packet_route::rtnl::RtnlMessage;
 use netlink_packet_route::{AddressMessage, LinkMessage};
 use netlink_sys::{AsyncSocket, SocketAddr};
 use rtnetlink::new_connection;
+use tracing::trace;
 
 use crate::Master;
 
@@ -28,6 +29,8 @@ use crate::Master;
 
 fn process_newlink_msg(master: &mut Master, msg: LinkMessage, notify: bool) {
     use netlink_packet_route::link::nlas::Nla;
+
+    trace!(?msg, "received RTM_NEWLINK message");
 
     // Fetch interface attributes.
     let ifindex = msg.header.index;
@@ -58,6 +61,8 @@ fn process_newlink_msg(master: &mut Master, msg: LinkMessage, notify: bool) {
 fn process_dellink_msg(master: &mut Master, msg: LinkMessage, notify: bool) {
     use netlink_packet_route::link::nlas::Nla;
 
+    trace!(?msg, "received RTM_DELLINK message");
+
     // Fetch interface name.
     let mut ifname = None;
     for nla in msg.nlas.into_iter() {
@@ -76,6 +81,8 @@ fn process_dellink_msg(master: &mut Master, msg: LinkMessage, notify: bool) {
 
 fn process_newaddr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
     use netlink_packet_route::address::nlas::Nla;
+
+    trace!(?msg, "received RTM_NEWADDR message");
 
     // Fetch address attributes.
     let mut addr = None;
@@ -103,6 +110,8 @@ fn process_newaddr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
 
 fn process_deladdr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
     use netlink_packet_route::address::nlas::Nla;
+
+    trace!(?msg, "received RTM_DELADDR message");
 
     // Fetch address attributes.
     let mut addr = None;

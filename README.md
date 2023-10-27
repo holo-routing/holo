@@ -127,6 +127,19 @@ WebAssembly support is planned for the future. This addition will enable
 simulation of large networks from within your browser, making network
 experimentation more convenient and accessible to everyone.
 
+#### Getting Started
+
+The easiest way to start using Holo is by using pre-built Docker containers
+in combination with the [containerlab](https://containerlab.dev/) software.
+You can find a variety of pre-configured network topologies at [this
+link](https://github.com/rwestphal/containerlab-topologies).  These topologies
+can be deployed with a single command, allowing you to test Holo in various
+network setups, including interoperability testing with other implementations.
+
+Additionally, Holo can be used wherever a routing stack is required, such
+as in software routers, provided that the feature set aligns with your
+specific needs.
+
 ## Compliance
 
 Holo supports the following IETF RFCs and Internet drafts:

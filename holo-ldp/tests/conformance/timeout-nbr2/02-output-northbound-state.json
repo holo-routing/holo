@@ -87,10 +87,10 @@
                   "received-peer-state": {
                     "capability": {
                       "end-of-lib": {
-                        "enabled": false
+                        "enabled": true
                       },
                       "typed-wildcard-fec": {
-                        "enabled": false
+                        "enabled": true
                       }
                     }
                   },
@@ -123,10 +123,10 @@
                   "received-peer-state": {
                     "capability": {
                       "end-of-lib": {
-                        "enabled": false
+                        "enabled": true
                       },
                       "typed-wildcard-fec": {
-                        "enabled": false
+                        "enabled": true
                       }
                     }
                   },

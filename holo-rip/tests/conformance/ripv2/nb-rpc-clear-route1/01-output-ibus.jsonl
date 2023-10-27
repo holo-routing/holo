@@ -1,0 +1,5 @@
+{"RouteIpDel":{"protocol":"ripv2","prefix":"1.1.1.1/32"}}
+{"RouteIpDel":{"protocol":"ripv2","prefix":"3.3.3.3/32"}}
+{"RouteIpDel":{"protocol":"ripv2","prefix":"4.4.4.4/32"}}
+{"RouteIpDel":{"protocol":"ripv2","prefix":"10.0.2.0/24"}}
+{"RouteIpDel":{"protocol":"ripv2","prefix":"10.0.4.0/24"}}

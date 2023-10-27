@@ -1,0 +1,1 @@
+{"RouteIpAdd":{"protocol":"ripv2","prefix":"3.3.3.3/32","distance":120,"metric":11,"tag":0,"nexthops":[{"Address":{"ifindex":2,"addr":"10.0.1.1","labels":[]}}]}}

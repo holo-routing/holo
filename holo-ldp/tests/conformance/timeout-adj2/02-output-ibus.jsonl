@@ -1,0 +1,12 @@
+{"RouteMplsDel":{"protocol":"ldp","label":16,"nexthops":[{"Address":{"ifindex":5,"addr":"10.0.2.4","labels":[3]}}],"route":["ospfv2","4.4.4.4/32"]}}
+{"RouteMplsDel":{"protocol":"ldp","label":16,"nexthops":[{"Address":{"ifindex":7,"addr":"10.0.3.4","labels":[3]}}],"route":["ospfv2","4.4.4.4/32"]}}
+{"RouteMplsDel":{"protocol":"ldp","label":20,"nexthops":[{"Address":{"ifindex":5,"addr":"10.0.2.4","labels":[17]}}],"route":["ospfv2","5.5.5.5/32"]}}
+{"RouteMplsDel":{"protocol":"ldp","label":20,"nexthops":[{"Address":{"ifindex":7,"addr":"10.0.3.4","labels":[17]}}],"route":["ospfv2","5.5.5.5/32"]}}
+{"RouteMplsDel":{"protocol":"ldp","label":21,"nexthops":[{"Address":{"ifindex":5,"addr":"10.0.2.4","labels":[18]}}],"route":["ospfv2","6.6.6.6/32"]}}
+{"RouteMplsDel":{"protocol":"ldp","label":21,"nexthops":[{"Address":{"ifindex":7,"addr":"10.0.3.4","labels":[18]}}],"route":["ospfv2","6.6.6.6/32"]}}
+{"RouteMplsDel":{"protocol":"ldp","label":17,"nexthops":[{"Address":{"ifindex":5,"addr":"10.0.2.4","labels":[3]}}],"route":["ospfv2","10.0.6.0/24"]}}
+{"RouteMplsDel":{"protocol":"ldp","label":17,"nexthops":[{"Address":{"ifindex":7,"addr":"10.0.3.4","labels":[3]}}],"route":["ospfv2","10.0.6.0/24"]}}
+{"RouteMplsDel":{"protocol":"ldp","label":18,"nexthops":[{"Address":{"ifindex":5,"addr":"10.0.2.4","labels":[3]}}],"route":["ospfv2","10.0.7.0/24"]}}
+{"RouteMplsDel":{"protocol":"ldp","label":18,"nexthops":[{"Address":{"ifindex":7,"addr":"10.0.3.4","labels":[3]}}],"route":["ospfv2","10.0.7.0/24"]}}
+{"RouteMplsDel":{"protocol":"ldp","label":24,"nexthops":[{"Address":{"ifindex":5,"addr":"10.0.2.4","labels":[22]}}],"route":["ospfv2","10.0.8.0/24"]}}
+{"RouteMplsDel":{"protocol":"ldp","label":24,"nexthops":[{"Address":{"ifindex":7,"addr":"10.0.3.4","labels":[22]}}],"route":["ospfv2","10.0.8.0/24"]}}

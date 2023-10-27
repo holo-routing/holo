@@ -1,0 +1,3 @@
+{"RouteIpAdd":{"protocol":"ripng","prefix":"2001:db8:1000::1/128","distance":120,"metric":13,"tag":0,"nexthops":[{"Address":{"ifindex":2,"addr":"fe80::3cfc:24ff:fea3:3b9","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ripng","prefix":"2001:db8:1000::3/128","distance":120,"metric":14,"tag":0,"nexthops":[{"Address":{"ifindex":2,"addr":"fe80::3cfc:24ff:fea3:3b9","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ripng","prefix":"2001:db8:1000::4/128","distance":120,"metric":13,"tag":0,"nexthops":[{"Address":{"ifindex":4,"addr":"fe80::490:afff:fe29:1bb5","labels":[]}}]}}

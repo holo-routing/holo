@@ -1,1 +1,0 @@
-{"RouteReplace":{"proto":"Ospf","instance":0,"prefix":"1.1.1.1/32","nexthops":[{"nhtype":"Ipv4Ifindex","addr":"10.0.1.1","ifindex":2}],"distance":110,"metric":50}}

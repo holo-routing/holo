@@ -1,1 +1,0 @@
-{"RouteReplace":{"proto":"Ripng","instance":0,"prefix":"2001:db8:1000::3/128","nexthops":[{"nhtype":"Ipv6Ifindex","addr":"fe80::8c49:b1ff:fe8a:87b5","ifindex":4}],"distance":120,"metric":2,"tag":0}}

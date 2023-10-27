@@ -40,13 +40,13 @@
               "neighbors": {
                 "neighbor": [
                   {
-                    "ipv6-address": "fe80::5d:1dff:fecc:6e87"
+                    "ipv6-address": "fe80::4ccc:90ff:feb4:d910"
                   },
                   {
-                    "ipv6-address": "fe80::2c1e:54ff:feaf:46c4"
+                    "ipv6-address": "fe80::70ce:8dff:fe10:6076"
                   },
                   {
-                    "ipv6-address": "fe80::d45d:d5ff:fea2:1293"
+                    "ipv6-address": "fe80::b82a:32ff:fedf:e921"
                   }
                 ]
               },
@@ -54,7 +54,7 @@
                 "route": [
                   {
                     "ipv6-prefix": "2001:db8:1000::1/128",
-                    "next-hop": "fe80::5d:1dff:fecc:6e87",
+                    "next-hop": "fe80::70ce:8dff:fe10:6076",
                     "interface": "eth-rt3-1",
                     "redistributed": false,
                     "route-type": "rip",
@@ -65,7 +65,7 @@
                   },
                   {
                     "ipv6-prefix": "2001:db8:1000::2/128",
-                    "next-hop": "fe80::5d:1dff:fecc:6e87",
+                    "next-hop": "fe80::70ce:8dff:fe10:6076",
                     "interface": "eth-rt3-1",
                     "redistributed": false,
                     "route-type": "rip",
@@ -76,7 +76,7 @@
                   },
                   {
                     "ipv6-prefix": "2001:db8:1000::3/128",
-                    "next-hop": "fe80::5d:1dff:fecc:6e87",
+                    "next-hop": "fe80::70ce:8dff:fe10:6076",
                     "interface": "eth-rt3-1",
                     "redistributed": false,
                     "route-type": "rip",
@@ -87,7 +87,7 @@
                   },
                   {
                     "ipv6-prefix": "2001:db8:1000::4/128",
-                    "next-hop": "fe80::d45d:d5ff:fea2:1293",
+                    "next-hop": "fe80::4ccc:90ff:feb4:d910",
                     "interface": "eth-rt4",
                     "redistributed": false,
                     "route-type": "rip",

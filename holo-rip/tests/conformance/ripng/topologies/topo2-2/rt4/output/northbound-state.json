@@ -40,13 +40,13 @@
               "neighbors": {
                 "neighbor": [
                   {
-                    "ipv6-address": "fe80::74c6:7bff:fe17:b798"
+                    "ipv6-address": "fe80::64a3:1eff:fed6:57a"
                   },
                   {
-                    "ipv6-address": "fe80::8cfc:8cff:fea9:2f49"
+                    "ipv6-address": "fe80::806e:15ff:fecb:bf84"
                   },
                   {
-                    "ipv6-address": "fe80::f8ce:1fff:fe98:3adb"
+                    "ipv6-address": "fe80::a8af:aeff:fe45:cadd"
                   }
                 ]
               },
@@ -54,7 +54,7 @@
                 "route": [
                   {
                     "ipv6-prefix": "2001:db8:1000::1/128",
-                    "next-hop": "fe80::8cfc:8cff:fea9:2f49",
+                    "next-hop": "fe80::64a3:1eff:fed6:57a",
                     "interface": "eth-rt5",
                     "redistributed": false,
                     "route-type": "rip",
@@ -65,7 +65,7 @@
                   },
                   {
                     "ipv6-prefix": "2001:db8:1000::2/128",
-                    "next-hop": "fe80::8cfc:8cff:fea9:2f49",
+                    "next-hop": "fe80::64a3:1eff:fed6:57a",
                     "interface": "eth-rt5",
                     "redistributed": false,
                     "route-type": "rip",
@@ -76,7 +76,7 @@
                   },
                   {
                     "ipv6-prefix": "2001:db8:1000::3/128",
-                    "next-hop": "fe80::8cfc:8cff:fea9:2f49",
+                    "next-hop": "fe80::64a3:1eff:fed6:57a",
                     "interface": "eth-rt5",
                     "redistributed": false,
                     "route-type": "rip",
@@ -97,7 +97,7 @@
                   },
                   {
                     "ipv6-prefix": "2001:db8:1000::5/128",
-                    "next-hop": "fe80::8cfc:8cff:fea9:2f49",
+                    "next-hop": "fe80::64a3:1eff:fed6:57a",
                     "interface": "eth-rt5",
                     "redistributed": false,
                     "route-type": "rip",

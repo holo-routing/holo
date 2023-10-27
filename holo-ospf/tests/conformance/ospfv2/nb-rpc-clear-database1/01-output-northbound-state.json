@@ -195,11 +195,11 @@
                                 "header": {
                                   "lsa-options": {
                                     "lsa-options": [
-                                      "ietf-ospf:v2-e-bit"
+                                      "v2-e-bit"
                                     ]
                                   },
                                   "lsa-id": "6.6.6.6",
-                                  "type": "ietf-ospf:ospfv2-router-lsa",
+                                  "type": "ospfv2-router-lsa",
                                   "adv-router": "6.6.6.6",
                                   "length": 36
                                 },
@@ -207,7 +207,7 @@
                                   "router": {
                                     "router-bits": {
                                       "rtr-lsa-bits": [
-                                        "ietf-ospf:abr-bit"
+                                        "abr-bit"
                                       ]
                                     },
                                     "num-of-links": 1,
@@ -277,7 +277,7 @@
                               "ospfv2": {
                                 "header": {
                                   "lsa-id": "6.6.6.6",
-                                  "type": "ietf-ospf:ospfv2-router-lsa",
+                                  "type": "ospfv2-router-lsa",
                                   "adv-router": "6.6.6.6",
                                   "length": 48
                                 },
@@ -285,7 +285,7 @@
                                   "router": {
                                     "router-bits": {
                                       "rtr-lsa-bits": [
-                                        "ietf-ospf:abr-bit"
+                                        "abr-bit"
                                       ]
                                     },
                                     "num-of-links": 2,

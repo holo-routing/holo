@@ -1,3 +1,0 @@
-{"RouteReplace":{"proto":"Ripng","instance":0,"prefix":"2001:db8:1000::1/128","nexthops":[{"nhtype":"Ipv6Ifindex","addr":"fe80::b072:d8ff:fed8:6251","ifindex":2}],"distance":120,"metric":13,"tag":0}}
-{"RouteReplace":{"proto":"Ripng","instance":0,"prefix":"2001:db8:1000::3/128","nexthops":[{"nhtype":"Ipv6Ifindex","addr":"fe80::b072:d8ff:fed8:6251","ifindex":2}],"distance":120,"metric":14,"tag":0}}
-{"RouteReplace":{"proto":"Ripng","instance":0,"prefix":"2001:db8:1000::4/128","nexthops":[{"nhtype":"Ipv6Ifindex","addr":"fe80::8c49:b1ff:fe8a:87b5","ifindex":4}],"distance":120,"metric":13,"tag":0}}

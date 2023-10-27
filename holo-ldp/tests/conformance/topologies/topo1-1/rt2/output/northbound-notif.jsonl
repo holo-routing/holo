@@ -1,13 +1,9 @@
-{"ietf-mpls-ldp:mpls-ldp-hello-adjacency-event":{"event-type":"up","protocol-name":"test","link":{"next-hop-interface":"eth-rt4","next-hop-address":"10.0.3.4"}}}
 {"ietf-mpls-ldp:mpls-ldp-hello-adjacency-event":{"event-type":"up","protocol-name":"test","link":{"next-hop-interface":"eth-rt1","next-hop-address":"10.0.1.1"}}}
+{"ietf-mpls-ldp:mpls-ldp-hello-adjacency-event":{"event-type":"up","protocol-name":"test","link":{"next-hop-interface":"eth-rt4","next-hop-address":"10.0.3.4"}}}
+{"ietf-mpls-ldp:mpls-ldp-peer-event":{"event-type":"up","peer":{"protocol-name":"test","lsr-id":"4.4.4.4"}}}
+{"ietf-mpls-ldp:mpls-ldp-fec-event":{"event-type":"up","protocol-name":"test","fec":"4.4.4.4/32"}}
+{"ietf-mpls-ldp:mpls-ldp-fec-event":{"event-type":"up","protocol-name":"test","fec":"10.0.4.0/24"}}
 {"ietf-mpls-ldp:mpls-ldp-peer-event":{"event-type":"up","peer":{"protocol-name":"test","lsr-id":"1.1.1.1"}}}
 {"ietf-mpls-ldp:mpls-ldp-fec-event":{"event-type":"up","protocol-name":"test","fec":"1.1.1.1/32"}}
 {"ietf-mpls-ldp:mpls-ldp-fec-event":{"event-type":"up","protocol-name":"test","fec":"3.3.3.3/32"}}
-{"ietf-mpls-ldp:mpls-ldp-fec-event":{"event-type":"up","protocol-name":"test","fec":"4.4.4.4/32"}}
 {"ietf-mpls-ldp:mpls-ldp-fec-event":{"event-type":"up","protocol-name":"test","fec":"10.0.2.0/24"}}
-{"ietf-mpls-ldp:mpls-ldp-fec-event":{"event-type":"up","protocol-name":"test","fec":"10.0.4.0/24"}}
-{"ietf-mpls-ldp:mpls-ldp-peer-event":{"event-type":"up","peer":{"protocol-name":"test","lsr-id":"4.4.4.4"}}}
-{"ietf-mpls-ldp:mpls-ldp-fec-event":{"event-type":"down","protocol-name":"test","fec":"4.4.4.4/32"}}
-{"ietf-mpls-ldp:mpls-ldp-fec-event":{"event-type":"up","protocol-name":"test","fec":"4.4.4.4/32"}}
-{"ietf-mpls-ldp:mpls-ldp-fec-event":{"event-type":"down","protocol-name":"test","fec":"10.0.4.0/24"}}
-{"ietf-mpls-ldp:mpls-ldp-fec-event":{"event-type":"up","protocol-name":"test","fec":"10.0.4.0/24"}}

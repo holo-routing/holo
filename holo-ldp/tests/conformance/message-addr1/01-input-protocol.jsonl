@@ -1,3 +1,3 @@
-{"UdpRxPdu":{"src_addr":"10.0.1.10","multicast":true,"pdu":{"Ok":{"version":1,"lsr_id":"10.10.10.10","lspace_id":0,"messages":[{"Hello":{"msg_id":40,"params":{"holdtime":15,"flags":0},"ipv4_addr":"10.10.10.10","cfg_seqno":1}}]}}}}
+{"UdpRxPdu":{"src_addr":"10.0.1.10","multicast":true,"pdu":{"Ok":{"version":1,"lsr_id":"10.10.10.10","lspace_id":0,"messages":[{"Hello":{"msg_id":40,"params":{"holdtime":15,"flags":""},"ipv4_addr":"10.10.10.10","cfg_seqno":1}}]}}}}
 {"TcpAccept":{"conn_info":{"local_addr":"2.2.2.2","local_port":646,"remote_addr":"10.10.10.10","remote_port":45000}}}
 {"NbrRxPdu":{"nbr_id":4,"pdu":{"Ok":{"version":1,"lsr_id":"10.10.10.10","lspace_id":0,"messages":[{"Address":{"msg_id":50,"msg_type":"Address","addr_list":{"Ipv4":["10.10.10.10"]}}}]}}}}

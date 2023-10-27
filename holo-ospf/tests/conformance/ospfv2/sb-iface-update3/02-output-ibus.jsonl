@@ -1,0 +1,6 @@
+{"RouteIpAdd":{"protocol":"ospfv2","prefix":"2.2.2.2/32","distance":110,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":5,"addr":"10.0.4.5","labels":[]}},{"Address":{"ifindex":7,"addr":"10.0.5.5","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv2","prefix":"4.4.4.4/32","distance":110,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":5,"addr":"10.0.4.5","labels":[]}},{"Address":{"ifindex":7,"addr":"10.0.5.5","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv2","prefix":"10.0.2.0/24","distance":110,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":5,"addr":"10.0.4.5","labels":[]}},{"Address":{"ifindex":7,"addr":"10.0.5.5","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv2","prefix":"10.0.3.0/24","distance":110,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":5,"addr":"10.0.4.5","labels":[]}},{"Address":{"ifindex":7,"addr":"10.0.5.5","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv2","prefix":"10.0.7.0/24","distance":110,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":5,"addr":"10.0.4.5","labels":[]}},{"Address":{"ifindex":7,"addr":"10.0.5.5","labels":[]}}]}}
+{"RouteIpDel":{"protocol":"ospfv2","prefix":"1.1.1.1/32"}}

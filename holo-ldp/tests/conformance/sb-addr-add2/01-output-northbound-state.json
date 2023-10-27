@@ -60,7 +60,7 @@
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 18,
+                            "label": 16,
                             "used-in-forwarding": false
                           }
                         ]
@@ -79,7 +79,7 @@
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 16,
+                            "label": 17,
                             "used-in-forwarding": false
                           }
                         ]
@@ -110,7 +110,7 @@
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 20,
+                            "label": 18,
                             "used-in-forwarding": true
                           },
                           {
@@ -136,7 +136,7 @@
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 17,
+                            "label": 18,
                             "used-in-forwarding": false
                           }
                         ]
@@ -148,7 +148,7 @@
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 18,
+                            "label": 19,
                             "used-in-forwarding": true
                           },
                           {
@@ -186,7 +186,7 @@
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 19,
+                            "label": 20,
                             "used-in-forwarding": true
                           },
                           {
@@ -260,10 +260,10 @@
                   "received-peer-state": {
                     "capability": {
                       "end-of-lib": {
-                        "enabled": false
+                        "enabled": true
                       },
                       "typed-wildcard-fec": {
-                        "enabled": false
+                        "enabled": true
                       }
                     }
                   },
@@ -276,7 +276,7 @@
                     "local-address": "2.2.2.2",
                     "local-port": 646,
                     "remote-address": "4.4.4.4",
-                    "remote-port": 45753
+                    "remote-port": 36341
                   },
                   "statistics": {
                     "total-addresses": 3,

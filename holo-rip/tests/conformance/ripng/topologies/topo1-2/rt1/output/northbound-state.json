@@ -30,10 +30,10 @@
               "neighbors": {
                 "neighbor": [
                   {
-                    "ipv6-address": "fe80::6c7e:45ff:feed:71e3"
+                    "ipv6-address": "fe80::6888:b5ff:fed3:ac14"
                   },
                   {
-                    "ipv6-address": "fe80::a0d7:dbff:fe09:de48"
+                    "ipv6-address": "fe80::84d2:dbff:fe90:f4a0"
                   }
                 ]
               },
@@ -51,7 +51,7 @@
                   },
                   {
                     "ipv6-prefix": "2001:db8:1000::2/128",
-                    "next-hop": "fe80::6c7e:45ff:feed:71e3",
+                    "next-hop": "fe80::6888:b5ff:fed3:ac14",
                     "interface": "eth-rt2",
                     "redistributed": false,
                     "route-type": "rip",
@@ -62,7 +62,7 @@
                   },
                   {
                     "ipv6-prefix": "2001:db8:1000::3/128",
-                    "next-hop": "fe80::a0d7:dbff:fe09:de48",
+                    "next-hop": "fe80::84d2:dbff:fe90:f4a0",
                     "interface": "eth-rt3",
                     "redistributed": false,
                     "route-type": "rip",
@@ -73,7 +73,7 @@
                   },
                   {
                     "ipv6-prefix": "2001:db8:1000::4/128",
-                    "next-hop": "fe80::6c7e:45ff:feed:71e3",
+                    "next-hop": "fe80::6888:b5ff:fed3:ac14",
                     "interface": "eth-rt2",
                     "redistributed": false,
                     "route-type": "rip",

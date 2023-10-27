@@ -1,1 +1,1 @@
-{"NbrTxPdu":{"nbr_id":1,"msg":{"Notification":{"msg_id":91,"status":{"status_code":11,"msg_id":68,"msg_type":1025}}},"flush":true}}
+{"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":95,"msg_type":"LabelMapping","fec":[{"Prefix":"4.4.4.4/32"}],"label":16,"request_id":68}},"flush":false}}

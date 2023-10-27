@@ -1,0 +1,1 @@
+{"RouteMplsAdd":{"protocol":"ldp","label":21,"nexthops":[{"Address":{"ifindex":7,"addr":"10.0.3.4","labels":[18]}}],"route":["ospfv2","6.6.6.6/32"],"replace":false}}

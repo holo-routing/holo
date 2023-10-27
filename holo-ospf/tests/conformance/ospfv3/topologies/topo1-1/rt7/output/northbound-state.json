@@ -20,7 +20,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt6",
-                        "next-hop": "fe80::b462:80ff:fe1c:a1a1"
+                        "next-hop": "fe80::50af:3dff:fe58:9ebc"
                       }
                     ]
                   },
@@ -33,7 +33,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt6",
-                        "next-hop": "fe80::b462:80ff:fe1c:a1a1"
+                        "next-hop": "fe80::50af:3dff:fe58:9ebc"
                       }
                     ]
                   },
@@ -92,7 +92,7 @@
                               "ospfv3": {
                                 "header": {
                                   "lsa-id": 0,
-                                  "type": "ietf-ospf:ospfv3-router-lsa",
+                                  "type": "ospfv3-router-lsa",
                                   "adv-router": "6.6.6.6",
                                   "length": 40
                                 },
@@ -100,14 +100,14 @@
                                   "router": {
                                     "router-bits": {
                                       "rtr-lsa-bits": [
-                                        "ietf-ospf:abr-bit"
+                                        "abr-bit"
                                       ]
                                     },
                                     "lsa-options": {
                                       "lsa-options": [
-                                        "ietf-ospf:v6-bit",
-                                        "ietf-ospf:r-bit",
-                                        "ietf-ospf:af-bit"
+                                        "v6-bit",
+                                        "r-bit",
+                                        "af-bit"
                                       ]
                                     },
                                     "links": {
@@ -132,7 +132,7 @@
                               "ospfv3": {
                                 "header": {
                                   "lsa-id": 0,
-                                  "type": "ietf-ospf:ospfv3-router-lsa",
+                                  "type": "ospfv3-router-lsa",
                                   "adv-router": "7.7.7.7",
                                   "length": 40
                                 },
@@ -140,9 +140,9 @@
                                   "router": {
                                     "lsa-options": {
                                       "lsa-options": [
-                                        "ietf-ospf:v6-bit",
-                                        "ietf-ospf:r-bit",
-                                        "ietf-ospf:af-bit"
+                                        "v6-bit",
+                                        "r-bit",
+                                        "af-bit"
                                       ]
                                     },
                                     "links": {
@@ -174,7 +174,7 @@
                               "ospfv3": {
                                 "header": {
                                   "lsa-id": 1,
-                                  "type": "ietf-ospf:ospfv3-inter-area-prefix-lsa",
+                                  "type": "ospfv3-inter-area-prefix-lsa",
                                   "adv-router": "6.6.6.6",
                                   "length": 28
                                 },
@@ -200,13 +200,13 @@
                               "ospfv3": {
                                 "header": {
                                   "lsa-id": 0,
-                                  "type": "ietf-ospf:ospfv3-intra-area-prefix-lsa",
+                                  "type": "ospfv3-intra-area-prefix-lsa",
                                   "adv-router": "6.6.6.6",
                                   "length": 52
                                 },
                                 "body": {
                                   "intra-area-prefix": {
-                                    "referenced-ls-type": "ietf-ospf:ospfv3-router-lsa",
+                                    "referenced-ls-type": "ospfv3-router-lsa",
                                     "referenced-link-state-id": 0,
                                     "referenced-adv-router": "6.6.6.6",
                                     "num-of-prefixes": 1,
@@ -216,7 +216,7 @@
                                           "prefix": "2001:db8:1000::6/128",
                                           "prefix-options": {
                                             "prefix-options": [
-                                              "ietf-ospf:la-bit"
+                                              "la-bit"
                                             ]
                                           },
                                           "metric": 0
@@ -234,13 +234,13 @@
                               "ospfv3": {
                                 "header": {
                                   "lsa-id": 0,
-                                  "type": "ietf-ospf:ospfv3-intra-area-prefix-lsa",
+                                  "type": "ospfv3-intra-area-prefix-lsa",
                                   "adv-router": "7.7.7.7",
                                   "length": 52
                                 },
                                 "body": {
                                   "intra-area-prefix": {
-                                    "referenced-ls-type": "ietf-ospf:ospfv3-router-lsa",
+                                    "referenced-ls-type": "ospfv3-router-lsa",
                                     "referenced-link-state-id": 0,
                                     "referenced-adv-router": "7.7.7.7",
                                     "num-of-prefixes": 1,
@@ -250,7 +250,7 @@
                                           "prefix": "2001:db8:1000::7/128",
                                           "prefix-options": {
                                             "prefix-options": [
-                                              "ietf-ospf:la-bit"
+                                              "la-bit"
                                             ]
                                           },
                                           "metric": 0
@@ -275,7 +275,7 @@
                               "ospfv3": {
                                 "header": {
                                   "lsa-id": 0,
-                                  "type": "ietf-ospf:ospfv3-router-information-lsa",
+                                  "type": "ospfv3-router-information-lsa",
                                   "adv-router": "6.6.6.6",
                                   "length": 28
                                 },
@@ -284,8 +284,8 @@
                                     "router-capabilities-tlv": {
                                       "router-informational-capabilities": {
                                         "informational-capabilities": [
-                                          "ietf-ospf:graceful-restart-helper",
-                                          "ietf-ospf:stub-router"
+                                          "graceful-restart-helper",
+                                          "stub-router"
                                         ]
                                       },
                                       "informational-capabilities-flags": [
@@ -308,7 +308,7 @@
                               "ospfv3": {
                                 "header": {
                                   "lsa-id": 0,
-                                  "type": "ietf-ospf:ospfv3-router-information-lsa",
+                                  "type": "ospfv3-router-information-lsa",
                                   "adv-router": "7.7.7.7",
                                   "length": 28
                                 },
@@ -317,8 +317,8 @@
                                     "router-capabilities-tlv": {
                                       "router-informational-capabilities": {
                                         "informational-capabilities": [
-                                          "ietf-ospf:graceful-restart-helper",
-                                          "ietf-ospf:stub-router"
+                                          "graceful-restart-helper",
+                                          "stub-router"
                                         ]
                                       },
                                       "informational-capabilities-flags": [
@@ -359,7 +359,7 @@
                           "neighbor": [
                             {
                               "neighbor-router-id": "6.6.6.6",
-                              "address": "fe80::b462:80ff:fe1c:a1a1",
+                              "address": "fe80::50af:3dff:fe58:9ebc",
                               "state": "full",
                               "statistics": {
                                 "nbr-retrans-qlen": 0
@@ -380,7 +380,7 @@
                                     "ospfv3": {
                                       "header": {
                                         "lsa-id": 3,
-                                        "type": "ietf-ospf:ospfv3-link-lsa",
+                                        "type": "ospfv3-link-lsa",
                                         "adv-router": "6.6.6.6",
                                         "length": 44
                                       },
@@ -389,12 +389,12 @@
                                           "rtr-priority": 1,
                                           "lsa-options": {
                                             "lsa-options": [
-                                              "ietf-ospf:v6-bit",
-                                              "ietf-ospf:r-bit",
-                                              "ietf-ospf:af-bit"
+                                              "v6-bit",
+                                              "r-bit",
+                                              "af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::b462:80ff:fe1c:a1a1",
+                                          "link-local-interface-address": "fe80::50af:3dff:fe58:9ebc",
                                           "num-of-prefixes": 0
                                         }
                                       }
@@ -407,7 +407,7 @@
                                     "ospfv3": {
                                       "header": {
                                         "lsa-id": 2,
-                                        "type": "ietf-ospf:ospfv3-link-lsa",
+                                        "type": "ospfv3-link-lsa",
                                         "adv-router": "7.7.7.7",
                                         "length": 44
                                       },
@@ -416,12 +416,12 @@
                                           "rtr-priority": 1,
                                           "lsa-options": {
                                             "lsa-options": [
-                                              "ietf-ospf:v6-bit",
-                                              "ietf-ospf:r-bit",
-                                              "ietf-ospf:af-bit"
+                                              "v6-bit",
+                                              "r-bit",
+                                              "af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::6c27:4bff:fed1:c534",
+                                          "link-local-interface-address": "fe80::9c0f:ffff:fe72:fdf1",
                                           "num-of-prefixes": 0
                                         }
                                       }

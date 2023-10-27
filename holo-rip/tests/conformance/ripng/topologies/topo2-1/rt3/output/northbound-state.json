@@ -35,16 +35,16 @@
               "neighbors": {
                 "neighbor": [
                   {
-                    "ipv6-address": "fe80::342f:96ff:feeb:ad7e"
+                    "ipv6-address": "fe80::c3:fcff:fe2a:22bd"
                   },
                   {
-                    "ipv6-address": "fe80::485c:b9ff:fef7:793c"
+                    "ipv6-address": "fe80::3458:abff:fe48:b5f9"
                   },
                   {
-                    "ipv6-address": "fe80::a0e2:5fff:fed1:41cc"
+                    "ipv6-address": "fe80::9484:daff:fe73:7cda"
                   },
                   {
-                    "ipv6-address": "fe80::c485:e3ff:fe6d:69c6"
+                    "ipv6-address": "fe80::ccea:33ff:fe99:74f2"
                   }
                 ]
               },
@@ -52,7 +52,7 @@
                 "route": [
                   {
                     "ipv6-prefix": "2001:db8:1000::1/128",
-                    "next-hop": "fe80::485c:b9ff:fef7:793c",
+                    "next-hop": "fe80::9484:daff:fe73:7cda",
                     "interface": "eth-sw1",
                     "redistributed": false,
                     "route-type": "rip",
@@ -63,7 +63,7 @@
                   },
                   {
                     "ipv6-prefix": "2001:db8:1000::2/128",
-                    "next-hop": "fe80::342f:96ff:feeb:ad7e",
+                    "next-hop": "fe80::ccea:33ff:fe99:74f2",
                     "interface": "eth-sw1",
                     "redistributed": false,
                     "route-type": "rip",
@@ -84,8 +84,8 @@
                   },
                   {
                     "ipv6-prefix": "2001:db8:1000::4/128",
-                    "next-hop": "fe80::342f:96ff:feeb:ad7e",
-                    "interface": "eth-sw1",
+                    "next-hop": "fe80::3458:abff:fe48:b5f9",
+                    "interface": "eth-rt5-1",
                     "redistributed": false,
                     "route-type": "rip",
                     "metric": 3,
@@ -95,7 +95,7 @@
                   },
                   {
                     "ipv6-prefix": "2001:db8:1000::5/128",
-                    "next-hop": "fe80::c485:e3ff:fe6d:69c6",
+                    "next-hop": "fe80::3458:abff:fe48:b5f9",
                     "interface": "eth-rt5-1",
                     "redistributed": false,
                     "route-type": "rip",
@@ -106,7 +106,7 @@
                   },
                   {
                     "ipv6-prefix": "2001:db8:1000::6/128",
-                    "next-hop": "fe80::c485:e3ff:fe6d:69c6",
+                    "next-hop": "fe80::3458:abff:fe48:b5f9",
                     "interface": "eth-rt5-1",
                     "redistributed": false,
                     "route-type": "rip",

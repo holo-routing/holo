@@ -1,1 +1,1 @@
-{"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":91,"msg_type":"LabelRelease","fec":[{"Prefix":"4.4.4.4/32"}]}},"flush":false}}
+{"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":95,"msg_type":"LabelRelease","fec":[{"Prefix":"4.4.4.4/32"}]}},"flush":false}}

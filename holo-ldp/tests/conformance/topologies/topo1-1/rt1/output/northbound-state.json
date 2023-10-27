@@ -102,7 +102,7 @@
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 18,
+                            "label": 16,
                             "used-in-forwarding": false
                           }
                         ]
@@ -114,14 +114,14 @@
                             "lsr-id": "2.2.2.2",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 18,
+                            "label": 16,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 18,
+                            "label": 16,
                             "used-in-forwarding": true
                           },
                           {
@@ -135,7 +135,7 @@
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 19,
+                            "label": 17,
                             "used-in-forwarding": false
                           }
                         ]
@@ -147,14 +147,14 @@
                             "lsr-id": "2.2.2.2",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 16,
+                            "label": 17,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 16,
+                            "label": 17,
                             "used-in-forwarding": true
                           },
                           {
@@ -180,28 +180,28 @@
                             "lsr-id": "2.2.2.2",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 20,
+                            "label": 18,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 20,
+                            "label": 18,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "2.2.2.2",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 20,
+                            "label": 18,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 16,
+                            "label": 19,
                             "used-in-forwarding": true
                           }
                         ]
@@ -234,7 +234,7 @@
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 20,
+                            "label": 18,
                             "used-in-forwarding": false
                           }
                         ]
@@ -260,7 +260,7 @@
                             "lsr-id": "2.2.2.2",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 18,
+                            "label": 19,
                             "used-in-forwarding": false
                           },
                           {
@@ -300,7 +300,7 @@
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 17,
+                            "label": 20,
                             "used-in-forwarding": false
                           }
                         ]
@@ -312,21 +312,21 @@
                             "lsr-id": "2.2.2.2",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 17,
+                            "label": 20,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 17,
+                            "label": 20,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "2.2.2.2",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 19,
+                            "label": 20,
                             "used-in-forwarding": false
                           },
                           {
@@ -422,10 +422,10 @@
                   "received-peer-state": {
                     "capability": {
                       "end-of-lib": {
-                        "enabled": false
+                        "enabled": true
                       },
                       "typed-wildcard-fec": {
-                        "enabled": false
+                        "enabled": true
                       }
                     }
                   },
@@ -438,7 +438,7 @@
                     "local-address": "1.1.1.1",
                     "local-port": 646,
                     "remote-address": "2.2.2.2",
-                    "remote-port": 42669
+                    "remote-port": 40439
                   },
                   "statistics": {
                     "total-addresses": 3,
@@ -473,10 +473,10 @@
                   "received-peer-state": {
                     "capability": {
                       "end-of-lib": {
-                        "enabled": false
+                        "enabled": true
                       },
                       "typed-wildcard-fec": {
-                        "enabled": false
+                        "enabled": true
                       }
                     }
                   },
@@ -489,7 +489,7 @@
                     "local-address": "1.1.1.1",
                     "local-port": 646,
                     "remote-address": "3.3.3.3",
-                    "remote-port": 41137
+                    "remote-port": 46503
                   },
                   "statistics": {
                     "total-addresses": 3,

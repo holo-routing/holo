@@ -41,8 +41,8 @@
                 "route": [
                   {
                     "ipv4-prefix": "1.1.1.1/32",
-                    "next-hop": "10.0.3.2",
-                    "interface": "eth-rt2",
+                    "next-hop": "10.0.4.3",
+                    "interface": "eth-rt3",
                     "redistributed": false,
                     "route-type": "rip",
                     "metric": 3,

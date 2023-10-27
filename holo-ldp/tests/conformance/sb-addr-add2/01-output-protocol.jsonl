@@ -1,3 +1,3 @@
-{"NbrTxPdu":{"nbr_id":1,"msg":{"Address":{"msg_id":39,"msg_type":"AddressWithdraw","addr_list":{"Ipv4":["10.0.1.2"]}}},"flush":false}}
-{"NbrTxPdu":{"nbr_id":2,"msg":{"Address":{"msg_id":40,"msg_type":"AddressWithdraw","addr_list":{"Ipv4":["10.0.1.2"]}}},"flush":false}}
-{"NbrTxPdu":{"nbr_id":2,"msg":{"Notification":{"msg_id":41,"status":{"status_code":2147483658,"msg_id":0,"msg_type":0}}},"flush":true}}
+{"NbrTxPdu":{"nbr_id":1,"msg":{"Address":{"msg_id":36,"msg_type":"AddressWithdraw","addr_list":{"Ipv4":["10.0.1.2"]}}},"flush":false}}
+{"NbrTxPdu":{"nbr_id":1,"msg":{"Notification":{"msg_id":38,"status":{"status_code":2147483658,"msg_id":0,"msg_type":0}}},"flush":true}}
+{"NbrTxPdu":{"nbr_id":2,"msg":{"Address":{"msg_id":37,"msg_type":"AddressWithdraw","addr_list":{"Ipv4":["10.0.1.2"]}}},"flush":false}}

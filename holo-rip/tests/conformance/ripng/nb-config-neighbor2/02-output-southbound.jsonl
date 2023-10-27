@@ -1,5 +1,0 @@
-{"RouteDel":{"proto":"Ripng","instance":0,"prefix":"2001:db8:1000::2/128","nexthops":[]}}
-{"RouteDel":{"proto":"Ripng","instance":0,"prefix":"2001:db8:1000::3/128","nexthops":[]}}
-{"RouteDel":{"proto":"Ripng","instance":0,"prefix":"2001:db8:1000::4/128","nexthops":[]}}
-{"RouteDel":{"proto":"Ripng","instance":0,"prefix":"2001:db8:1000::5/128","nexthops":[]}}
-{"RouteDel":{"proto":"Ripng","instance":0,"prefix":"2001:db8:1000::6/128","nexthops":[]}}

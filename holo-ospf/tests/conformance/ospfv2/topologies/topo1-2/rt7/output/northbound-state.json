@@ -104,7 +104,7 @@
                               "ospfv2": {
                                 "header": {
                                   "lsa-id": "6.6.6.6",
-                                  "type": "ietf-ospf:ospfv2-router-lsa",
+                                  "type": "ospfv2-router-lsa",
                                   "adv-router": "6.6.6.6",
                                   "length": 48
                                 },
@@ -112,7 +112,7 @@
                                   "router": {
                                     "router-bits": {
                                       "rtr-lsa-bits": [
-                                        "ietf-ospf:abr-bit"
+                                        "abr-bit"
                                       ]
                                     },
                                     "num-of-links": 2,
@@ -157,7 +157,7 @@
                               "ospfv2": {
                                 "header": {
                                   "lsa-id": "7.7.7.7",
-                                  "type": "ietf-ospf:ospfv2-router-lsa",
+                                  "type": "ospfv2-router-lsa",
                                   "adv-router": "7.7.7.7",
                                   "length": 48
                                 },
@@ -212,7 +212,7 @@
                               "ospfv2": {
                                 "header": {
                                   "lsa-id": "10.0.6.7",
-                                  "type": "ietf-ospf:ospfv2-network-lsa",
+                                  "type": "ospfv2-network-lsa",
                                   "adv-router": "7.7.7.7",
                                   "length": 32
                                 },
@@ -243,7 +243,7 @@
                               "ospfv2": {
                                 "header": {
                                   "lsa-id": "0.0.0.0",
-                                  "type": "ietf-ospf:ospfv2-network-summary-lsa",
+                                  "type": "ospfv2-network-summary-lsa",
                                   "adv-router": "6.6.6.6",
                                   "length": 28
                                 },
@@ -278,7 +278,7 @@
                                   "lsa-id": "4.0.0.0",
                                   "opaque-type": 4,
                                   "opaque-id": 0,
-                                  "type": "ietf-ospf:ospfv2-area-scope-opaque-lsa",
+                                  "type": "ospfv2-area-scope-opaque-lsa",
                                   "adv-router": "6.6.6.6",
                                   "length": 28
                                 },
@@ -288,8 +288,8 @@
                                       "router-capabilities-tlv": {
                                         "router-informational-capabilities": {
                                           "informational-capabilities": [
-                                            "ietf-ospf:graceful-restart-helper",
-                                            "ietf-ospf:stub-router"
+                                            "graceful-restart-helper",
+                                            "stub-router"
                                           ]
                                         },
                                         "informational-capabilities-flags": [
@@ -315,7 +315,7 @@
                                   "lsa-id": "4.0.0.0",
                                   "opaque-type": 4,
                                   "opaque-id": 0,
-                                  "type": "ietf-ospf:ospfv2-area-scope-opaque-lsa",
+                                  "type": "ospfv2-area-scope-opaque-lsa",
                                   "adv-router": "7.7.7.7",
                                   "length": 28
                                 },
@@ -325,8 +325,8 @@
                                       "router-capabilities-tlv": {
                                         "router-informational-capabilities": {
                                           "informational-capabilities": [
-                                            "ietf-ospf:graceful-restart-helper",
-                                            "ietf-ospf:stub-router"
+                                            "graceful-restart-helper",
+                                            "stub-router"
                                           ]
                                         },
                                         "informational-capabilities-flags": [

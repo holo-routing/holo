@@ -1,1 +1,1 @@
-{"ietf-mpls-ldp:mpls-ldp-hello-adjacency-event":{"event-type":"down","protocol-name":"test","link":{"next-hop-interface":"eth-rt4-1","next-hop-address":"10.0.2.4"}}}
+{"ietf-mpls-ldp:mpls-ldp-hello-adjacency-event":{"event-type":"down","protocol-name":"test","link":{"next-hop-interface":"eth-rt4-2","next-hop-address":"10.0.3.4"}}}

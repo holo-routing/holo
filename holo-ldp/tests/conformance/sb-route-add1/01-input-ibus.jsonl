@@ -1,0 +1,1 @@
+{"RouteRedistributeAdd":{"protocol":"ospfv2","prefix":"192.168.1.0/24","distance":110,"metric":10,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"10.0.1.1","labels":[]}}]}}

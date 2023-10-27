@@ -458,6 +458,7 @@ async fn message_label_request4() {
 //  * Protocol: LDP Label Request message from rt4 containing a wildcard FEC
 // Output:
 //  * Protocol: Label Mapping message to rt4 containing all local label bindings
+//  * Protocol: Notification message to rt4 with the End-of-LIB status code
 #[tokio::test]
 async fn message_label_request5() {
     run_test::<Instance>("message-label-request5", "topo2-1", "rt2").await;

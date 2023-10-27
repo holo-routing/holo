@@ -1,0 +1,1 @@
+{"RouteMplsDel":{"protocol":"ldp","label":25,"nexthops":[{"Address":{"ifindex":3,"addr":"10.0.1.1","labels":[3]}}],"route":["ospfv2","1.1.1.1/32"]}}

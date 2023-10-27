@@ -1,0 +1,13 @@
+"RouterIdQuery"
+{"InterfaceQuery":{"ifname":"eth-rt5-1","af":"Ipv6"}}
+{"InterfaceQuery":{"ifname":"eth-rt5-2","af":"Ipv6"}}
+{"InterfaceQuery":{"ifname":"eth-sw1","af":"Ipv6"}}
+{"InterfaceQuery":{"ifname":"lo","af":"Ipv6"}}
+{"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::4/128","distance":110,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":5,"addr":"fe80::7ce1:37ff:fe6f:514f","labels":[]}},{"Address":{"ifindex":7,"addr":"fe80::8c0e:faff:fe24:4c7b","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::5/128","distance":110,"metric":10,"tag":null,"nexthops":[{"Address":{"ifindex":5,"addr":"fe80::7ce1:37ff:fe6f:514f","labels":[]}},{"Address":{"ifindex":7,"addr":"fe80::8c0e:faff:fe24:4c7b","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::6/128","distance":110,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":5,"addr":"fe80::7ce1:37ff:fe6f:514f","labels":[]}},{"Address":{"ifindex":7,"addr":"fe80::8c0e:faff:fe24:4c7b","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::2/128","distance":110,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":5,"addr":"fe80::7ce1:37ff:fe6f:514f","labels":[]}},{"Address":{"ifindex":7,"addr":"fe80::8c0e:faff:fe24:4c7b","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::4/128","distance":110,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":5,"addr":"fe80::7ce1:37ff:fe6f:514f","labels":[]}},{"Address":{"ifindex":7,"addr":"fe80::8c0e:faff:fe24:4c7b","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::1/128","distance":110,"metric":10,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::dc0b:47ff:fe04:ce83","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::2/128","distance":110,"metric":10,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::3402:f0ff:fe6e:ef20","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::4/128","distance":110,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::3402:f0ff:fe6e:ef20","labels":[]}},{"Address":{"ifindex":5,"addr":"fe80::7ce1:37ff:fe6f:514f","labels":[]}},{"Address":{"ifindex":7,"addr":"fe80::8c0e:faff:fe24:4c7b","labels":[]}}]}}

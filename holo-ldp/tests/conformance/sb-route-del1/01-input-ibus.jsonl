@@ -1,0 +1,1 @@
+{"RouteRedistributeDel":{"protocol":"ospfv2","prefix":"6.6.6.6/32","distance":110,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":7,"addr":"10.0.3.4","labels":[]}}]}}

@@ -1,5 +1,0 @@
-{"Hello":{"redist_default":"Ospf6","instance":0,"session_id":0,"receive_notify":0}}
-{"RouterIdAdd":{"afi":1}}
-"InterfaceAdd"
-{"RouteReplace":{"proto":"Ospf6","instance":0,"prefix":"::/0","nexthops":[{"nhtype":"Ipv6Ifindex","addr":"fe80::b462:80ff:fe1c:a1a1","ifindex":2}],"distance":110,"metric":20}}
-{"RouteReplace":{"proto":"Ospf6","instance":0,"prefix":"2001:db8:1000::6/128","nexthops":[{"nhtype":"Ipv6Ifindex","addr":"fe80::b462:80ff:fe1c:a1a1","ifindex":2}],"distance":110,"metric":10}}

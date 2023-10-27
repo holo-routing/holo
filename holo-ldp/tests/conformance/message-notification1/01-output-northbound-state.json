@@ -45,42 +45,34 @@
                         }
                       },
                       {
-                        "address": "4.4.4.4",
+                        "address": "3.3.3.3",
                         "advertisement-type": "received",
                         "peer": {
-                          "lsr-id": "4.4.4.4",
+                          "lsr-id": "3.3.3.3",
                           "label-space-id": 0
                         }
                       },
                       {
-                        "address": "10.0.2.4",
+                        "address": "10.0.1.3",
                         "advertisement-type": "received",
                         "peer": {
-                          "lsr-id": "4.4.4.4",
+                          "lsr-id": "3.3.3.3",
                           "label-space-id": 0
                         }
                       },
                       {
-                        "address": "10.0.3.4",
+                        "address": "10.0.4.3",
                         "advertisement-type": "received",
                         "peer": {
-                          "lsr-id": "4.4.4.4",
+                          "lsr-id": "3.3.3.3",
                           "label-space-id": 0
                         }
                       },
                       {
-                        "address": "10.0.6.4",
+                        "address": "10.0.5.3",
                         "advertisement-type": "received",
                         "peer": {
-                          "lsr-id": "4.4.4.4",
-                          "label-space-id": 0
-                        }
-                      },
-                      {
-                        "address": "10.0.7.4",
-                        "advertisement-type": "received",
-                        "peer": {
-                          "lsr-id": "4.4.4.4",
+                          "lsr-id": "3.3.3.3",
                           "label-space-id": 0
                         }
                       }
@@ -93,14 +85,14 @@
                             "lsr-id": "1.1.1.1",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 16,
+                            "label": 25,
                             "used-in-forwarding": true
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 16,
+                            "label": 25,
                             "used-in-forwarding": true
                           },
                           {
@@ -111,10 +103,10 @@
                             "used-in-forwarding": true
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 16,
+                            "label": 25,
                             "used-in-forwarding": false
                           }
                         ]
@@ -130,7 +122,7 @@
                             "used-in-forwarding": true
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
                             "label": "ietf-routing-types:implicit-null-label",
@@ -144,10 +136,10 @@
                             "used-in-forwarding": false
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 17,
+                            "label": 16,
                             "used-in-forwarding": false
                           }
                         ]
@@ -159,14 +151,14 @@
                             "lsr-id": "1.1.1.1",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 17,
+                            "label": 19,
                             "used-in-forwarding": true
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 17,
+                            "label": 19,
                             "used-in-forwarding": true
                           },
                           {
@@ -177,11 +169,11 @@
                             "used-in-forwarding": false
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 18,
-                            "used-in-forwarding": false
+                            "label": "ietf-routing-types:implicit-null-label",
+                            "used-in-forwarding": true
                           }
                         ]
                       },
@@ -192,29 +184,29 @@
                             "lsr-id": "1.1.1.1",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 20,
+                            "label": 16,
                             "used-in-forwarding": true
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 20,
+                            "label": 16,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "1.1.1.1",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 22,
+                            "label": 18,
                             "used-in-forwarding": false
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": "ietf-routing-types:implicit-null-label",
-                            "used-in-forwarding": true
+                            "label": 17,
+                            "used-in-forwarding": false
                           }
                         ]
                       },
@@ -225,28 +217,28 @@
                             "lsr-id": "1.1.1.1",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 23,
+                            "label": 20,
                             "used-in-forwarding": true
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 23,
+                            "label": 20,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "1.1.1.1",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 25,
+                            "label": 19,
                             "used-in-forwarding": false
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 19,
+                            "label": 18,
                             "used-in-forwarding": true
                           }
                         ]
@@ -258,29 +250,29 @@
                             "lsr-id": "1.1.1.1",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 25,
+                            "label": 21,
                             "used-in-forwarding": true
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 25,
+                            "label": 21,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "1.1.1.1",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 27,
+                            "label": 20,
                             "used-in-forwarding": false
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 24,
-                            "used-in-forwarding": true
+                            "label": 19,
+                            "used-in-forwarding": false
                           }
                         ]
                       },
@@ -295,7 +287,7 @@
                             "used-in-forwarding": true
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
                             "label": "ietf-routing-types:implicit-null-label",
@@ -309,10 +301,10 @@
                             "used-in-forwarding": false
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 20,
+                            "label": "ietf-routing-types:implicit-null-label",
                             "used-in-forwarding": false
                           }
                         ]
@@ -328,7 +320,7 @@
                             "used-in-forwarding": true
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
                             "label": "ietf-routing-types:implicit-null-label",
@@ -338,14 +330,14 @@
                             "lsr-id": "1.1.1.1",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 18,
+                            "label": 21,
                             "used-in-forwarding": false
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": "ietf-routing-types:implicit-null-label",
+                            "label": 20,
                             "used-in-forwarding": false
                           }
                         ]
@@ -361,7 +353,7 @@
                             "used-in-forwarding": true
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
                             "label": "ietf-routing-types:implicit-null-label",
@@ -371,14 +363,14 @@
                             "lsr-id": "1.1.1.1",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 19,
+                            "label": 22,
                             "used-in-forwarding": false
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": "ietf-routing-types:implicit-null-label",
+                            "label": 21,
                             "used-in-forwarding": false
                           }
                         ]
@@ -390,80 +382,14 @@
                             "lsr-id": "1.1.1.1",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 18,
-                            "used-in-forwarding": true
-                          },
-                          {
-                            "lsr-id": "4.4.4.4",
-                            "label-space-id": 0,
-                            "advertisement-type": "advertised",
-                            "label": 18,
-                            "used-in-forwarding": true
-                          },
-                          {
-                            "lsr-id": "1.1.1.1",
-                            "label-space-id": 0,
-                            "advertisement-type": "received",
-                            "label": 20,
-                            "used-in-forwarding": false
-                          },
-                          {
-                            "lsr-id": "4.4.4.4",
-                            "label-space-id": 0,
-                            "advertisement-type": "received",
-                            "label": 21,
-                            "used-in-forwarding": false
-                          }
-                        ]
-                      },
-                      {
-                        "fec": "10.0.5.0/24",
-                        "peer": [
-                          {
-                            "lsr-id": "1.1.1.1",
-                            "label-space-id": 0,
-                            "advertisement-type": "advertised",
-                            "label": 19,
-                            "used-in-forwarding": true
-                          },
-                          {
-                            "lsr-id": "4.4.4.4",
-                            "label-space-id": 0,
-                            "advertisement-type": "advertised",
-                            "label": 19,
-                            "used-in-forwarding": true
-                          },
-                          {
-                            "lsr-id": "1.1.1.1",
-                            "label-space-id": 0,
-                            "advertisement-type": "received",
-                            "label": 21,
-                            "used-in-forwarding": false
-                          },
-                          {
-                            "lsr-id": "4.4.4.4",
-                            "label-space-id": 0,
-                            "advertisement-type": "received",
                             "label": 22,
-                            "used-in-forwarding": false
-                          }
-                        ]
-                      },
-                      {
-                        "fec": "10.0.6.0/24",
-                        "peer": [
-                          {
-                            "lsr-id": "1.1.1.1",
-                            "label-space-id": 0,
-                            "advertisement-type": "advertised",
-                            "label": 21,
                             "used-in-forwarding": true
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 21,
+                            "label": 22,
                             "used-in-forwarding": true
                           },
                           {
@@ -474,7 +400,7 @@
                             "used-in-forwarding": false
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
                             "label": "ietf-routing-types:implicit-null-label",
@@ -483,20 +409,20 @@
                         ]
                       },
                       {
-                        "fec": "10.0.7.0/24",
+                        "fec": "10.0.5.0/24",
                         "peer": [
                           {
                             "lsr-id": "1.1.1.1",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 22,
+                            "label": 23,
                             "used-in-forwarding": true
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 22,
+                            "label": 23,
                             "used-in-forwarding": true
                           },
                           {
@@ -507,11 +433,77 @@
                             "used-in-forwarding": false
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
                             "label": "ietf-routing-types:implicit-null-label",
                             "used-in-forwarding": true
+                          }
+                        ]
+                      },
+                      {
+                        "fec": "10.0.6.0/24",
+                        "peer": [
+                          {
+                            "lsr-id": "1.1.1.1",
+                            "label-space-id": 0,
+                            "advertisement-type": "advertised",
+                            "label": 17,
+                            "used-in-forwarding": true
+                          },
+                          {
+                            "lsr-id": "3.3.3.3",
+                            "label-space-id": 0,
+                            "advertisement-type": "advertised",
+                            "label": 17,
+                            "used-in-forwarding": true
+                          },
+                          {
+                            "lsr-id": "1.1.1.1",
+                            "label-space-id": 0,
+                            "advertisement-type": "received",
+                            "label": 25,
+                            "used-in-forwarding": false
+                          },
+                          {
+                            "lsr-id": "3.3.3.3",
+                            "label-space-id": 0,
+                            "advertisement-type": "received",
+                            "label": 22,
+                            "used-in-forwarding": false
+                          }
+                        ]
+                      },
+                      {
+                        "fec": "10.0.7.0/24",
+                        "peer": [
+                          {
+                            "lsr-id": "1.1.1.1",
+                            "label-space-id": 0,
+                            "advertisement-type": "advertised",
+                            "label": 18,
+                            "used-in-forwarding": true
+                          },
+                          {
+                            "lsr-id": "3.3.3.3",
+                            "label-space-id": 0,
+                            "advertisement-type": "advertised",
+                            "label": 18,
+                            "used-in-forwarding": true
+                          },
+                          {
+                            "lsr-id": "1.1.1.1",
+                            "label-space-id": 0,
+                            "advertisement-type": "received",
+                            "label": 26,
+                            "used-in-forwarding": false
+                          },
+                          {
+                            "lsr-id": "3.3.3.3",
+                            "label-space-id": 0,
+                            "advertisement-type": "received",
+                            "label": 23,
+                            "used-in-forwarding": false
                           }
                         ]
                       },
@@ -526,7 +518,7 @@
                             "used-in-forwarding": true
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
                             "label": 24,
@@ -536,14 +528,14 @@
                             "lsr-id": "1.1.1.1",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 26,
+                            "label": 27,
                             "used-in-forwarding": false
                           },
                           {
-                            "lsr-id": "4.4.4.4",
+                            "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 23,
+                            "label": 24,
                             "used-in-forwarding": true
                           }
                         ]
@@ -665,10 +657,10 @@
                   "received-peer-state": {
                     "capability": {
                       "end-of-lib": {
-                        "enabled": false
+                        "enabled": true
                       },
                       "typed-wildcard-fec": {
-                        "enabled": false
+                        "enabled": true
                       }
                     }
                   },
@@ -679,7 +671,7 @@
                   "session-state": "operational",
                   "tcp-connection": {
                     "local-address": "2.2.2.2",
-                    "local-port": 45477,
+                    "local-port": 34139,
                     "remote-address": "1.1.1.1",
                     "remote-port": 646
                   },
@@ -708,21 +700,36 @@
                       }
                     }
                   },
+                  "label-advertisement-mode": {
+                    "local": "downstream-unsolicited",
+                    "peer": "downstream-unsolicited",
+                    "negotiated": "downstream-unsolicited"
+                  },
                   "received-peer-state": {
                     "capability": {
                       "end-of-lib": {
-                        "enabled": false
+                        "enabled": true
                       },
                       "typed-wildcard-fec": {
-                        "enabled": false
+                        "enabled": true
                       }
                     }
                   },
-                  "session-state": "non-existent",
+                  "session-holdtime": {
+                    "peer": 180,
+                    "negotiated": 180
+                  },
+                  "session-state": "operational",
+                  "tcp-connection": {
+                    "local-address": "2.2.2.2",
+                    "local-port": 646,
+                    "remote-address": "3.3.3.3",
+                    "remote-port": 37703
+                  },
                   "statistics": {
-                    "total-addresses": 0,
-                    "total-labels": 0,
-                    "total-fec-label-bindings": 0
+                    "total-addresses": 4,
+                    "total-labels": 14,
+                    "total-fec-label-bindings": 5
                   }
                 },
                 {
@@ -752,36 +759,21 @@
                       }
                     }
                   },
-                  "label-advertisement-mode": {
-                    "local": "downstream-unsolicited",
-                    "peer": "downstream-unsolicited",
-                    "negotiated": "downstream-unsolicited"
-                  },
                   "received-peer-state": {
                     "capability": {
                       "end-of-lib": {
-                        "enabled": false
+                        "enabled": true
                       },
                       "typed-wildcard-fec": {
-                        "enabled": false
+                        "enabled": true
                       }
                     }
                   },
-                  "session-holdtime": {
-                    "peer": 180,
-                    "negotiated": 180
-                  },
-                  "session-state": "operational",
-                  "tcp-connection": {
-                    "local-address": "2.2.2.2",
-                    "local-port": 646,
-                    "remote-address": "4.4.4.4",
-                    "remote-port": 44529
-                  },
+                  "session-state": "non-existent",
                   "statistics": {
-                    "total-addresses": 5,
-                    "total-labels": 14,
-                    "total-fec-label-bindings": 6
+                    "total-addresses": 0,
+                    "total-labels": 0,
+                    "total-fec-label-bindings": 0
                   }
                 }
               ]

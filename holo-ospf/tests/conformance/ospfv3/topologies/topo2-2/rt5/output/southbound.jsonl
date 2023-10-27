@@ -1,8 +1,0 @@
-{"Hello":{"redist_default":"Ospf6","instance":0,"session_id":0,"receive_notify":0}}
-{"RouterIdAdd":{"afi":1}}
-"InterfaceAdd"
-{"RouteReplace":{"proto":"Ospf6","instance":0,"prefix":"2001:db8:1000::3/128","nexthops":[{"nhtype":"Ipv6Ifindex","addr":"fe80::48b3:35ff:fe4d:aa0f","ifindex":4},{"nhtype":"Ipv6Ifindex","addr":"fe80::48f5:49ff:fe95:c02c","ifindex":6}],"distance":110,"metric":10}}
-{"RouteReplace":{"proto":"Ospf6","instance":0,"prefix":"2001:db8:1000::4/128","nexthops":[{"nhtype":"Ipv6Ifindex","addr":"fe80::4096:73ff:fe4f:8cb1","ifindex":2}],"distance":110,"metric":10}}
-{"RouteReplace":{"proto":"Ospf6","instance":0,"prefix":"2001:db8:1000::6/128","nexthops":[{"nhtype":"Ipv6Ifindex","addr":"fe80::f897:7eff:fe9a:84bd","ifindex":5}],"distance":110,"metric":10}}
-{"RouteReplace":{"proto":"Ospf6","instance":0,"prefix":"2001:db8:1000::1/128","nexthops":[{"nhtype":"Ipv6Ifindex","addr":"fe80::48b3:35ff:fe4d:aa0f","ifindex":4},{"nhtype":"Ipv6Ifindex","addr":"fe80::48f5:49ff:fe95:c02c","ifindex":6}],"distance":110,"metric":20}}
-{"RouteReplace":{"proto":"Ospf6","instance":0,"prefix":"2001:db8:1000::2/128","nexthops":[{"nhtype":"Ipv6Ifindex","addr":"fe80::48b3:35ff:fe4d:aa0f","ifindex":4},{"nhtype":"Ipv6Ifindex","addr":"fe80::48f5:49ff:fe95:c02c","ifindex":6}],"distance":110,"metric":20}}

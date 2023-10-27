@@ -1,1 +1,1 @@
-{"NbrTxPdu":{"nbr_id":4,"msg":{"Initialization":{"msg_id":91,"params":{"version":1,"keepalive_time":180,"flags":0,"pvlim":0,"max_pdu_len":0,"lsr_id":"1.1.1.10","lspace_id":0},"cap_dynamic":[],"cap_twcard_fec":true,"cap_unrec_notif":true}},"flush":true}}
+{"NbrTxPdu":{"nbr_id":4,"msg":{"Initialization":{"msg_id":95,"params":{"version":1,"keepalive_time":180,"flags":"","pvlim":0,"max_pdu_len":0,"lsr_id":"1.1.1.10","lspace_id":0},"cap_dynamic":[],"cap_twcard_fec":true,"cap_unrec_notif":true}},"flush":true}}

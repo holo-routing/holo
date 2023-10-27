@@ -1,3 +1,0 @@
-{"RouteDel":{"proto":"Ospf","instance":0,"prefix":"4.4.4.4/32","nexthops":[]}}
-{"RouteDel":{"proto":"Ospf","instance":0,"prefix":"5.5.5.5/32","nexthops":[]}}
-{"RouteDel":{"proto":"Ospf","instance":0,"prefix":"10.0.5.0/24","nexthops":[]}}

@@ -109,28 +109,28 @@
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 16,
+                            "label": 25,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 16,
+                            "label": 25,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 16,
+                            "label": 25,
                             "used-in-forwarding": false
                           },
                           {
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 16,
+                            "label": 24,
                             "used-in-forwarding": false
                           }
                         ]
@@ -156,14 +156,14 @@
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 17,
+                            "label": 16,
                             "used-in-forwarding": false
                           },
                           {
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 17,
+                            "label": 16,
                             "used-in-forwarding": false
                           }
                         ]
@@ -175,14 +175,14 @@
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 17,
+                            "label": 19,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 17,
+                            "label": 19,
                             "used-in-forwarding": true
                           },
                           {
@@ -196,7 +196,7 @@
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 18,
+                            "label": 23,
                             "used-in-forwarding": false
                           }
                         ]
@@ -208,21 +208,21 @@
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 20,
+                            "label": 16,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 20,
+                            "label": 16,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 20,
+                            "label": 17,
                             "used-in-forwarding": false
                           },
                           {
@@ -241,28 +241,28 @@
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 23,
+                            "label": 20,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 23,
+                            "label": 20,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 21,
+                            "label": 18,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 19,
+                            "label": 17,
                             "used-in-forwarding": true
                           }
                         ]
@@ -274,28 +274,28 @@
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 25,
+                            "label": 21,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 25,
+                            "label": 21,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 25,
+                            "label": 19,
                             "used-in-forwarding": false
                           },
                           {
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 24,
+                            "label": 18,
                             "used-in-forwarding": true
                           }
                         ]
@@ -328,7 +328,7 @@
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 20,
+                            "label": 19,
                             "used-in-forwarding": false
                           }
                         ]
@@ -354,7 +354,7 @@
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 18,
+                            "label": 20,
                             "used-in-forwarding": false
                           },
                           {
@@ -387,7 +387,7 @@
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 19,
+                            "label": 21,
                             "used-in-forwarding": false
                           },
                           {
@@ -406,14 +406,14 @@
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 18,
+                            "label": 22,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 18,
+                            "label": 22,
                             "used-in-forwarding": true
                           },
                           {
@@ -427,7 +427,7 @@
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 21,
+                            "label": 20,
                             "used-in-forwarding": false
                           }
                         ]
@@ -439,14 +439,14 @@
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 19,
+                            "label": 23,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 19,
+                            "label": 23,
                             "used-in-forwarding": true
                           },
                           {
@@ -460,7 +460,7 @@
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 22,
+                            "label": 21,
                             "used-in-forwarding": false
                           }
                         ]
@@ -472,14 +472,14 @@
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 21,
+                            "label": 17,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 21,
+                            "label": 17,
                             "used-in-forwarding": true
                           },
                           {
@@ -505,14 +505,14 @@
                             "lsr-id": "3.3.3.3",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 22,
+                            "label": 18,
                             "used-in-forwarding": true
                           },
                           {
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "advertised",
-                            "label": 22,
+                            "label": 18,
                             "used-in-forwarding": true
                           },
                           {
@@ -559,7 +559,7 @@
                             "lsr-id": "4.4.4.4",
                             "label-space-id": 0,
                             "advertisement-type": "received",
-                            "label": 23,
+                            "label": 22,
                             "used-in-forwarding": true
                           }
                         ]
@@ -676,10 +676,10 @@
                   "received-peer-state": {
                     "capability": {
                       "end-of-lib": {
-                        "enabled": false
+                        "enabled": true
                       },
                       "typed-wildcard-fec": {
-                        "enabled": false
+                        "enabled": true
                       }
                     }
                   },
@@ -717,10 +717,10 @@
                   "received-peer-state": {
                     "capability": {
                       "end-of-lib": {
-                        "enabled": false
+                        "enabled": true
                       },
                       "typed-wildcard-fec": {
-                        "enabled": false
+                        "enabled": true
                       }
                     }
                   },
@@ -733,7 +733,7 @@
                     "local-address": "2.2.2.2",
                     "local-port": 646,
                     "remote-address": "3.3.3.3",
-                    "remote-port": 42413
+                    "remote-port": 37703
                   },
                   "statistics": {
                     "total-addresses": 4,
@@ -776,10 +776,10 @@
                   "received-peer-state": {
                     "capability": {
                       "end-of-lib": {
-                        "enabled": false
+                        "enabled": true
                       },
                       "typed-wildcard-fec": {
-                        "enabled": false
+                        "enabled": true
                       }
                     }
                   },
@@ -792,7 +792,7 @@
                     "local-address": "2.2.2.2",
                     "local-port": 646,
                     "remote-address": "4.4.4.4",
-                    "remote-port": 44529
+                    "remote-port": 39091
                   },
                   "statistics": {
                     "total-addresses": 5,

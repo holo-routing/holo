@@ -90,7 +90,7 @@
                   },
                   {
                     "ipv4-prefix": "6.6.6.6/32",
-                    "next-hop": "10.0.1.3",
+                    "next-hop": "10.0.1.2",
                     "interface": "eth-sw1",
                     "redistributed": false,
                     "route-type": "rip",

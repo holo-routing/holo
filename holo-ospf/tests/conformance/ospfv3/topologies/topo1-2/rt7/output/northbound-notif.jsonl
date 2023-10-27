@@ -1,9 +1,8 @@
-{"ietf-ospf:if-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"eth-rt6"},"state":"waiting"}}
 {"ietf-ospf:if-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"lo"},"state":"loopback"}}
-{"ietf-ospf:nbr-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"eth-rt6"},"neighbor-router-id":"6.6.6.6","neighbor-ip-addr":"fe80::3cf7:23ff:fed0:d749","state":"init"}}
-{"ietf-ospf:nbr-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"eth-rt6"},"neighbor-router-id":"6.6.6.6","neighbor-ip-addr":"fe80::3cf7:23ff:fed0:d749","state":"2-way"}}
+{"ietf-ospf:if-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"eth-rt6"},"state":"waiting"}}
+{"ietf-ospf:nbr-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"eth-rt6"},"neighbor-router-id":"6.6.6.6","neighbor-ip-addr":"fe80::a0fe:b2ff:fe79:ebdc","state":"init"}}
+{"ietf-ospf:nbr-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"eth-rt6"},"neighbor-router-id":"6.6.6.6","neighbor-ip-addr":"fe80::a0fe:b2ff:fe79:ebdc","state":"2-way"}}
 {"ietf-ospf:if-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"eth-rt6"},"state":"dr"}}
-{"ietf-ospf:nbr-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"eth-rt6"},"neighbor-router-id":"6.6.6.6","neighbor-ip-addr":"fe80::3cf7:23ff:fed0:d749","state":"exstart"}}
-{"ietf-ospf:nbr-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"eth-rt6"},"neighbor-router-id":"6.6.6.6","neighbor-ip-addr":"fe80::3cf7:23ff:fed0:d749","state":"exchange"}}
-{"ietf-ospf:nbr-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"eth-rt6"},"neighbor-router-id":"6.6.6.6","neighbor-ip-addr":"fe80::3cf7:23ff:fed0:d749","state":"loading"}}
-{"ietf-ospf:nbr-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"eth-rt6"},"neighbor-router-id":"6.6.6.6","neighbor-ip-addr":"fe80::3cf7:23ff:fed0:d749","state":"full"}}
+{"ietf-ospf:nbr-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"eth-rt6"},"neighbor-router-id":"6.6.6.6","neighbor-ip-addr":"fe80::a0fe:b2ff:fe79:ebdc","state":"exstart"}}
+{"ietf-ospf:nbr-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"eth-rt6"},"neighbor-router-id":"6.6.6.6","neighbor-ip-addr":"fe80::a0fe:b2ff:fe79:ebdc","state":"exchange"}}
+{"ietf-ospf:nbr-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"eth-rt6"},"neighbor-router-id":"6.6.6.6","neighbor-ip-addr":"fe80::a0fe:b2ff:fe79:ebdc","state":"full"}}

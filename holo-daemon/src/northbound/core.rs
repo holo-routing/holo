@@ -313,7 +313,7 @@ impl Northbound {
     async fn process_confirmed_commit_timeout(&mut self) {
         info!("confirmed commit has timed out, rolling back to previous configuration");
 
-        let comment = format!("Confirmed commit rollback",);
+        let comment = "Confirmed commit rollback".to_owned();
         let rollback = self.confirmed_commit.rollback.take().unwrap();
         if let Err(error) = self
             .create_transaction(rollback.configuration, comment, 0)

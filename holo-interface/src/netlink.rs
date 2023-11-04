@@ -62,25 +62,14 @@ fn process_newlink_msg(master: &mut Master, msg: LinkMessage, notify: bool) {
 }
 
 fn process_dellink_msg(master: &mut Master, msg: LinkMessage, notify: bool) {
-    use netlink_packet_route::link::nlas::Nla;
-
     trace!(?msg, "received RTM_DELLINK message");
 
-    // Fetch interface name.
-    let mut ifname = None;
-    for nla in msg.nlas.into_iter() {
-        match nla {
-            Nla::IfName(nla_ifname) => ifname = Some(nla_ifname),
-            _ => (),
-        }
-    }
-    let Some(ifname) = ifname else {
-        return;
-    };
+    // Fetch interface ifindex.
+    let ifindex = msg.header.index;
 
     // Remove interface.
     let ibus_tx = notify.then_some(&master.ibus_tx);
-    master.interfaces.remove(ifname, ibus_tx);
+    master.interfaces.remove(ifindex, ibus_tx);
 }
 
 fn process_newaddr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {

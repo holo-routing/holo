@@ -4,9 +4,10 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::{btree_map, BTreeMap};
+use std::collections::{BTreeMap, HashMap};
 use std::net::{IpAddr, Ipv4Addr};
 
+use generational_arena::{Arena, Index};
 use holo_utils::ibus::IbusSender;
 use holo_utils::ip::Ipv4NetworkExt;
 use holo_utils::southbound::{AddressFlags, InterfaceFlags};
@@ -16,10 +17,14 @@ use crate::ibus;
 
 #[derive(Debug, Default)]
 pub struct Interfaces {
-    // List of interfaces.
-    pub tree: BTreeMap<String, Interface>,
+    // Interface arena.
+    arena: Arena<Interface>,
+    // Interface binary tree keyed by name (1:1).
+    name_tree: BTreeMap<String, Index>,
+    // Interface hash table keyed by ifindex (1:1).
+    ifindex_tree: HashMap<u32, Index>,
     // Auto-generated Router ID.
-    pub router_id: Option<Ipv4Addr>,
+    router_id: Option<Ipv4Addr>,
 }
 
 #[derive(Debug)]
@@ -40,6 +45,7 @@ pub struct InterfaceAddress {
 // ===== impl Interfaces =====
 
 impl Interfaces {
+    // Adds or updates the interface with the specified attributes.
     pub(crate) fn update(
         &mut self,
         ifname: String,
@@ -48,22 +54,12 @@ impl Interfaces {
         flags: InterfaceFlags,
         ibus_tx: Option<&IbusSender>,
     ) {
-        match self.tree.entry(ifname.clone()) {
-            btree_map::Entry::Vacant(v) => {
-                // If the interface does not exist, create a new entry.
-                v.insert(Interface {
-                    name: ifname.clone(),
-                    ifindex,
-                    mtu,
-                    flags,
-                    addresses: Default::default(),
-                });
-            }
-            btree_map::Entry::Occupied(o) => {
-                let iface = o.into_mut();
+        match self.ifindex_tree.get(&ifindex).copied() {
+            Some(iface_idx) => {
+                let iface = &mut self.arena[iface_idx];
 
                 // If nothing of interest has changed, return early.
-                if iface.ifindex == ifindex
+                if iface.name == ifname
                     && iface.mtu == mtu
                     && iface.flags == flags
                 {
@@ -71,9 +67,27 @@ impl Interfaces {
                 }
 
                 // Update the existing interface with the new information.
-                iface.ifindex = ifindex;
+                if iface.name != ifname {
+                    self.name_tree.remove(&iface.name);
+                    iface.name = ifname.clone();
+                    self.name_tree.insert(ifname.clone(), iface_idx);
+                }
                 iface.mtu = mtu;
                 iface.flags = flags;
+            }
+            None => {
+                // If the interface does not exist, create a new entry.
+                let iface = Interface {
+                    name: ifname.clone(),
+                    ifindex,
+                    mtu,
+                    flags,
+                    addresses: Default::default(),
+                };
+
+                let iface_idx = self.arena.insert(iface);
+                self.name_tree.insert(ifname.clone(), iface_idx);
+                self.ifindex_tree.insert(ifindex, iface_idx);
             }
         }
 
@@ -83,25 +97,32 @@ impl Interfaces {
         }
     }
 
+    // Removes the specified interface identified by its ifindex.
     pub(crate) fn remove(
         &mut self,
-        ifname: String,
+        ifindex: u32,
         ibus_tx: Option<&IbusSender>,
     ) {
-        // Remove interface.
-        if self.tree.remove(&ifname).is_none() {
+        let Some(iface_idx) = self.ifindex_tree.get(&ifindex).copied() else {
             return;
-        }
+        };
 
         // Notify protocol instances.
+        let iface = &self.arena[iface_idx];
         if let Some(ibus_tx) = ibus_tx {
-            ibus::notify_interface_del(ibus_tx, ifname);
+            ibus::notify_interface_del(ibus_tx, iface.name.clone());
         }
+
+        // Remove interface.
+        self.name_tree.remove(&iface.name);
+        self.ifindex_tree.remove(&iface.ifindex);
+        self.arena.remove(iface_idx);
 
         // Check if the Router ID needs to be updated.
         self.update_router_id(ibus_tx);
     }
 
+    // Adds the specified address to the interface identified by its ifindex.
     pub(crate) fn addr_add(
         &mut self,
         ifindex: u32,
@@ -114,11 +135,7 @@ impl Interfaces {
         }
 
         // Lookup interface.
-        let Some(iface) = self
-            .tree
-            .values_mut()
-            .find(|iface| iface.ifindex == ifindex)
-        else {
+        let Some(iface) = self.get_mut_by_ifindex(ifindex) else {
             return;
         };
 
@@ -143,6 +160,7 @@ impl Interfaces {
         self.update_router_id(ibus_tx);
     }
 
+    // Removes the specified address from the interface identified by its ifindex.
     pub(crate) fn addr_del(
         &mut self,
         ifindex: u32,
@@ -150,11 +168,7 @@ impl Interfaces {
         ibus_tx: Option<&IbusSender>,
     ) {
         // Lookup interface.
-        let Some(iface) = self
-            .tree
-            .values_mut()
-            .find(|iface| iface.ifindex == ifindex)
-        else {
+        let Some(iface) = self.get_mut_by_ifindex(ifindex) else {
             return;
         };
 
@@ -176,14 +190,18 @@ impl Interfaces {
         }
     }
 
+    // Returns the auto-generated Router ID.
+    pub(crate) fn router_id(&self) -> Option<Ipv4Addr> {
+        self.router_id
+    }
+
+    // Updates the auto-generated Router ID.
     fn update_router_id(&mut self, ibus_tx: Option<&IbusSender>) {
         let loopback_interfaces = self
-            .tree
-            .values()
+            .iter()
             .filter(|iface| iface.flags.contains(InterfaceFlags::LOOPBACK));
         let non_loopback_interfaces = self
-            .tree
-            .values()
+            .iter()
             .filter(|iface| !iface.flags.contains(InterfaceFlags::LOOPBACK));
 
         // Helper function to find the highest IPv4 address among a list of
@@ -221,5 +239,56 @@ impl Interfaces {
                 ibus::notify_router_id_update(ibus_tx, self.router_id);
             }
         }
+    }
+
+    // Returns a reference to the interface corresponding to the given name.
+    pub(crate) fn get_by_name(&self, ifname: &str) -> Option<&Interface> {
+        self.name_tree
+            .get(ifname)
+            .copied()
+            .map(|iface_idx| &self.arena[iface_idx])
+    }
+
+    // Returns a mutable reference to the interface corresponding to the given
+    // name.
+    #[allow(dead_code)]
+    pub(crate) fn get_mut_by_name(
+        &mut self,
+        ifname: &str,
+    ) -> Option<&mut Interface> {
+        self.name_tree
+            .get(ifname)
+            .copied()
+            .map(move |iface_idx| &mut self.arena[iface_idx])
+    }
+
+    // Returns a reference to the interface corresponding to the given ifindex.
+    #[allow(dead_code)]
+    pub(crate) fn get_by_ifindex(&self, ifindex: u32) -> Option<&Interface> {
+        self.ifindex_tree
+            .get(&ifindex)
+            .copied()
+            .map(|iface_idx| &self.arena[iface_idx])
+    }
+
+    // Returns a mutable reference to the interface corresponding to the given
+    // ifindex.
+    pub(crate) fn get_mut_by_ifindex(
+        &mut self,
+        ifindex: u32,
+    ) -> Option<&mut Interface> {
+        self.ifindex_tree
+            .get(&ifindex)
+            .copied()
+            .map(move |iface_idx| &mut self.arena[iface_idx])
+    }
+
+    // Returns an iterator visiting all interfaces.
+    //
+    // Interfaces are ordered by their names.
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &'_ Interface> + '_ {
+        self.name_tree
+            .values()
+            .map(|iface_idx| &self.arena[*iface_idx])
     }
 }

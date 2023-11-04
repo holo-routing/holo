@@ -20,7 +20,7 @@ use crate::Master;
 pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
     match msg {
         IbusMsg::InterfaceDump => {
-            for iface in master.interfaces.tree.values() {
+            for iface in master.interfaces.iter() {
                 notify_interface_update(
                     &master.ibus_tx,
                     iface.name.clone(),
@@ -31,7 +31,7 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
             }
         }
         IbusMsg::InterfaceQuery { ifname, af } => {
-            if let Some(iface) = master.interfaces.tree.get(&ifname) {
+            if let Some(iface) = master.interfaces.get_by_name(&ifname) {
                 notify_interface_update(
                     &master.ibus_tx,
                     iface.name.clone(),
@@ -58,7 +58,7 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
         IbusMsg::RouterIdQuery => {
             notify_router_id_update(
                 &master.ibus_tx,
-                master.interfaces.router_id,
+                master.interfaces.router_id(),
             );
         }
         // Ignore other events.

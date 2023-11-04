@@ -10,7 +10,8 @@ use std::sync::Mutex;
 use holo_utils::mpls::{Label, LabelManager};
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{
-    AddressMsg, InterfaceUpdateMsg, Nexthop, RouteKeyMsg, RouteMsg,
+    AddressFlags, AddressMsg, InterfaceUpdateMsg, Nexthop, RouteKeyMsg,
+    RouteMsg,
 };
 use ipnetwork::IpNetwork;
 use maplit::btreeset;
@@ -113,7 +114,9 @@ pub(crate) fn process_addr_add(instance: &mut Instance, msg: AddressMsg) {
     // Add address to global list.
     match msg.addr {
         IpNetwork::V4(addr) => {
-            if instance.core.system.ipv4_addr_list.insert(addr) {
+            if !msg.flags.contains(AddressFlags::UNNUMBERED)
+                && instance.core.system.ipv4_addr_list.insert(addr)
+            {
                 // Inform neighbors about new address.
                 for nbr in instance
                     .state
@@ -159,7 +162,9 @@ pub(crate) fn process_addr_del(instance: &mut Instance, msg: AddressMsg) {
     // Remove address from global list.
     match msg.addr {
         IpNetwork::V4(addr) => {
-            if instance.core.system.ipv4_addr_list.remove(&addr) {
+            if !msg.flags.contains(AddressFlags::UNNUMBERED)
+                && instance.core.system.ipv4_addr_list.remove(&addr)
+            {
                 // Inform neighbors about deleted address.
                 for nbr in instance
                     .state

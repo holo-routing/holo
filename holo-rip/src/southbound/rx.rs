@@ -6,7 +6,7 @@
 
 use holo_protocol::InstanceChannelsTx;
 use holo_utils::ip::IpNetworkKind;
-use holo_utils::southbound::{AddressMsg, InterfaceUpdateMsg};
+use holo_utils::southbound::{AddressFlags, AddressMsg, InterfaceUpdateMsg};
 
 use crate::instance::{Instance, InstanceState};
 use crate::interface::{Interface, InterfaceUp};
@@ -120,6 +120,11 @@ where
         return;
     };
 
+    // Ignore IPv4 unnumbered addresses.
+    if msg.flags.contains(AddressFlags::UNNUMBERED) {
+        return;
+    }
+
     // Add address.
     if !iface.core_mut().system.addr_list.insert(addr) {
         return;
@@ -150,6 +155,11 @@ where
     else {
         return;
     };
+
+    // Ignore IPv4 unnumbered addresses.
+    if msg.flags.contains(AddressFlags::UNNUMBERED) {
+        return;
+    }
 
     // Remove address.
     if !iface.core_mut().system.addr_list.remove(&addr) {

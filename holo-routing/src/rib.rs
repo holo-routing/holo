@@ -9,7 +9,7 @@ use std::collections::{btree_map, BTreeMap, BTreeSet};
 use bitflags::bitflags;
 use chrono::{DateTime, Utc};
 use derive_new::new;
-use holo_utils::ibus::{IbusMsg, IbusSender};
+use holo_utils::ibus::IbusSender;
 use holo_utils::ip::IpNetworkExt;
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
@@ -21,7 +21,7 @@ use holo_utils::{UnboundedReceiver, UnboundedSender};
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use tokio::sync::mpsc;
 
-use crate::netlink;
+use crate::{ibus, netlink};
 
 #[derive(Debug)]
 pub struct Rib {
@@ -329,7 +329,7 @@ impl Rib {
                     }
 
                     // Notify protocol instances about the updated route.
-                    redistribute_add_notify(ibus_tx, prefix, route);
+                    ibus::notify_redistribute_add(ibus_tx, prefix, route);
                 } else {
                     // Remove the preferred flag for other routes.
                     route.flags.remove(RouteFlags::ACTIVE);
@@ -350,7 +350,7 @@ impl Rib {
                     }
 
                     // Notify protocol instances about the deleted route.
-                    redistribute_del_notify(ibus_tx, prefix, protocol);
+                    ibus::notify_redistribute_del(ibus_tx, prefix, protocol);
                 }
 
                 // Remove prefix entry from the RIB.
@@ -497,35 +497,4 @@ impl Route {
         }
         self.nexthops = nhs.into_iter().collect();
     }
-}
-
-// ===== helper functions =====
-
-// Sends route redistribute update notification.
-fn redistribute_add_notify(
-    ibus_tx: &IbusSender,
-    prefix: IpNetwork,
-    route: &Route,
-) {
-    let msg = RouteMsg {
-        protocol: route.protocol,
-        prefix,
-        distance: route.distance,
-        metric: route.metric,
-        tag: route.tag,
-        nexthops: route.nexthops.clone(),
-    };
-    let msg = IbusMsg::RouteRedistributeAdd(msg);
-    let _ = ibus_tx.send(msg);
-}
-
-// Sends route redistribute delete notification.
-fn redistribute_del_notify(
-    ibus_tx: &IbusSender,
-    prefix: IpNetwork,
-    protocol: Protocol,
-) {
-    let msg = RouteKeyMsg { protocol, prefix };
-    let msg = IbusMsg::RouteRedistributeDel(msg);
-    let _ = ibus_tx.send(msg);
 }

@@ -8,6 +8,7 @@
 #![warn(rust_2018_idioms)]
 #![feature(lazy_cell)]
 
+mod ibus;
 mod netlink;
 pub mod northbound;
 mod rib;
@@ -20,7 +21,7 @@ use holo_northbound::{
     ProviderBase,
 };
 use holo_protocol::{event_recorder, spawn_protocol_task, InstanceShared};
-use holo_utils::ibus::{IbusMsg, IbusReceiver, IbusSender};
+use holo_utils::ibus::{IbusReceiver, IbusSender};
 use holo_utils::protocol::Protocol;
 use holo_utils::sr::SrCfg;
 use holo_utils::Database;
@@ -77,7 +78,7 @@ impl Master {
                     .await;
                 }
                 Ok(msg) = ibus_rx.recv() => {
-                    process_ibus_msg(self, msg).await;
+                    ibus::process_msg(self, msg).await;
                 }
                 Some(_) = self.rib.update_queue_rx.recv() => {
                     self.rib
@@ -89,67 +90,6 @@ impl Master {
                 }
             }
         }
-    }
-}
-
-// ===== helper functions =====
-
-async fn process_ibus_msg(master: &mut Master, msg: IbusMsg) {
-    match msg {
-        // Interface address addition notification.
-        IbusMsg::InterfaceAddressAdd(msg) => {
-            // Add connected route to the RIB.
-            master.rib.connected_route_add(msg).await;
-        }
-        // Interface address delete notification.
-        IbusMsg::InterfaceAddressDel(msg) => {
-            // Remove connected route from the RIB.
-            master.rib.connected_route_del(msg).await;
-        }
-        IbusMsg::KeychainUpd(keychain) => {
-            // Update the local copy of the keychain.
-            master
-                .shared
-                .keychains
-                .insert(keychain.name.clone(), keychain.clone());
-        }
-        IbusMsg::KeychainDel(keychain_name) => {
-            // Remove the local copy of the keychain.
-            master.shared.keychains.remove(&keychain_name);
-        }
-        IbusMsg::PolicyMatchSetsUpd(match_sets) => {
-            // Update the local copy of the policy match sets.
-            master.shared.policy_match_sets = match_sets;
-        }
-        IbusMsg::PolicyUpd(policy) => {
-            // Update the local copy of the policy definition.
-            master
-                .shared
-                .policies
-                .insert(policy.name.clone(), policy.clone());
-        }
-        IbusMsg::PolicyDel(policy_name) => {
-            // Remove the local copy of the policy definition.
-            master.shared.policies.remove(&policy_name);
-        }
-        IbusMsg::RouteIpAdd(msg) => {
-            // Add route to the RIB.
-            master.rib.ip_route_add(msg).await;
-        }
-        IbusMsg::RouteIpDel(msg) => {
-            // Remove route from the RIB.
-            master.rib.ip_route_del(msg).await;
-        }
-        IbusMsg::RouteMplsAdd(msg) => {
-            // Add MPLS route to the LIB.
-            master.rib.mpls_route_add(msg).await;
-        }
-        IbusMsg::RouteMplsDel(msg) => {
-            // Remove MPLS route from the LIB.
-            master.rib.mpls_route_del(msg).await;
-        }
-        // Ignore other events.
-        _ => {}
     }
 }
 

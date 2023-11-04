@@ -22,7 +22,9 @@ use holo_utils::ibus::{IbusMsg, SrCfgEvent};
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::mpls::LabelRange;
 use holo_utils::protocol::Protocol;
-use holo_utils::southbound::{Nexthop, NexthopSpecial, RouteKeyMsg, RouteMsg};
+use holo_utils::southbound::{
+    Nexthop, NexthopSpecial, RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
+};
 use holo_utils::sr::{IgpAlgoType, SidLastHopBehavior, SrCfgPrefixSid};
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
@@ -821,6 +823,7 @@ impl Provider for Master {
                     distance: 1,
                     metric: 0,
                     tag: None,
+                    opaque_attrs: RouteOpaqueAttrs::None,
                     nexthops,
                 };
 

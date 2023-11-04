@@ -12,6 +12,7 @@ use bitflags::bitflags;
 use derive_new::new;
 use holo_utils::ip::IpAddrKind;
 use holo_utils::mpls::Label;
+use holo_utils::southbound::OspfRouteType;
 use holo_utils::sr::IgpAlgoType;
 
 use crate::area::Area;
@@ -84,15 +85,6 @@ pub struct SummaryRtr<V: Version> {
     pub metric: u32,
 }
 
-// OSPF path types in decreasing order of preference.
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum PathType {
-    IntraArea,
-    InterArea,
-    Type1External,
-    Type2External,
-}
-
 // Route nexthop key.
 #[derive(Clone, Copy, Debug, Eq, new, Ord, PartialEq, PartialOrd)]
 pub struct NexthopKey<I: IpAddrKind> {
@@ -116,8 +108,9 @@ pub struct Nexthop<I: IpAddrKind> {
     pub sr_label: Option<Label>,
 }
 
-// Ordered list of nexthops.
+// Type aliases.
 pub type Nexthops<I: IpAddrKind> = BTreeMap<NexthopKey<I>, Nexthop<I>>;
+pub type PathType = OspfRouteType;
 
 // ===== impl RouteNet =====
 

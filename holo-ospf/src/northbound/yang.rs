@@ -19,7 +19,6 @@ use crate::packet::tlv::{
     AdjSidFlags, GrReason, PrefixSidFlags, RouterInfoCaps,
 };
 use crate::packet::PacketType;
-use crate::route::PathType;
 use crate::spf::SpfLogType;
 use crate::{ospfv2, ospfv3, spf};
 
@@ -93,17 +92,6 @@ impl ToYang for SpfLogType {
             SpfLogType::Intra => "intra".to_owned(),
             SpfLogType::Inter => "inter".to_owned(),
             SpfLogType::External => "external".to_owned(),
-        }
-    }
-}
-
-impl ToYang for PathType {
-    fn to_yang(&self) -> String {
-        match self {
-            PathType::IntraArea => "intra-area".to_owned(),
-            PathType::InterArea => "inter-area".to_owned(),
-            PathType::Type1External => "external-1".to_owned(),
-            PathType::Type2External => "external-2".to_owned(),
         }
     }
 }

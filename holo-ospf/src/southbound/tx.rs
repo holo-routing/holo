@@ -11,6 +11,7 @@ use holo_utils::ibus::{IbusMsg, IbusSender};
 use holo_utils::mpls::Label;
 use holo_utils::southbound::{
     LabelInstallMsg, LabelUninstallMsg, Nexthop, RouteKeyMsg, RouteMsg,
+    RouteOpaqueAttrs,
 };
 
 use crate::collections::Arena;
@@ -66,6 +67,9 @@ pub(crate) fn route_install<V>(
         distance: distance.into(),
         metric: route.metric(),
         tag: route.tag,
+        opaque_attrs: RouteOpaqueAttrs::Ospf {
+            route_type: route.path_type,
+        },
         nexthops: nexthops.clone(),
     };
     let msg = IbusMsg::RouteIpAdd(msg);

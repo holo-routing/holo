@@ -5,7 +5,9 @@
 //
 
 use holo_utils::ibus::{IbusMsg, IbusSender};
-use holo_utils::southbound::{Nexthop, RouteKeyMsg, RouteMsg};
+use holo_utils::southbound::{
+    Nexthop, RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
+};
 
 use crate::route::{Route, RouteType};
 use crate::version::Version;
@@ -31,6 +33,7 @@ pub(crate) fn route_install<V>(
         distance: distance.into(),
         metric: route.metric.get() as u32,
         tag: Some(route.tag.into()),
+        opaque_attrs: RouteOpaqueAttrs::None,
         nexthops: [Nexthop::Address {
             ifindex: route.ifindex,
             addr: route.nexthop.unwrap().into(),

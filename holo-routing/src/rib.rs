@@ -16,7 +16,7 @@ use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{
     AddressFlags, AddressMsg, LabelInstallMsg, LabelUninstallMsg, Nexthop,
-    NexthopSpecial, RouteKeyMsg, RouteMsg,
+    NexthopSpecial, RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
 };
 use holo_utils::{UnboundedReceiver, UnboundedSender};
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
@@ -41,6 +41,7 @@ pub struct Route {
     pub distance: u32,
     pub metric: u32,
     pub tag: Option<u32>,
+    pub opaque_attrs: RouteOpaqueAttrs,
     pub nexthops: BTreeSet<Nexthop>,
     pub last_updated: DateTime<Utc>,
     pub flags: RouteFlags,
@@ -88,6 +89,7 @@ impl Rib {
                     distance,
                     0,
                     None,
+                    RouteOpaqueAttrs::None,
                     Default::default(),
                     Utc::now(),
                     RouteFlags::empty(),
@@ -139,6 +141,7 @@ impl Rib {
                     msg.distance,
                     msg.metric,
                     msg.tag,
+                    msg.opaque_attrs,
                     msg.nexthops,
                     Utc::now(),
                     RouteFlags::empty(),
@@ -151,6 +154,7 @@ impl Rib {
                 route.distance = msg.distance;
                 route.metric = msg.metric;
                 route.tag = msg.tag;
+                route.opaque_attrs = msg.opaque_attrs;
                 route.nexthops = msg.nexthops;
                 route.last_updated = Utc::now();
                 route.flags.remove(RouteFlags::REMOVED);
@@ -188,6 +192,7 @@ impl Rib {
                     0,
                     0,
                     None,
+                    RouteOpaqueAttrs::None,
                     msg.nexthops.clone(),
                     Utc::now(),
                     RouteFlags::empty(),

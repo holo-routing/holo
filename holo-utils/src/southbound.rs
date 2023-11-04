@@ -83,6 +83,8 @@ pub struct RouteMsg {
     pub distance: u32,
     pub metric: u32,
     pub tag: Option<u32>,
+    #[serde(skip)]
+    pub opaque_attrs: RouteOpaqueAttrs,
     pub nexthops: BTreeSet<Nexthop>,
 }
 
@@ -110,6 +112,27 @@ pub struct LabelUninstallMsg {
     pub label: Label,
     pub nexthops: BTreeSet<Nexthop>,
     pub route: Option<(Protocol, IpNetwork)>,
+}
+
+// Route opaque attributes.
+#[derive(Clone, Debug, Default)]
+#[derive(Deserialize, Serialize)]
+pub enum RouteOpaqueAttrs {
+    #[default]
+    None,
+    Ospf {
+        route_type: OspfRouteType,
+    },
+}
+
+// OSPF route types in decreasing order of preference.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Deserialize, Serialize)]
+pub enum OspfRouteType {
+    IntraArea,
+    InterArea,
+    Type1External,
+    Type2External,
 }
 
 // ===== impl Nexthop =====
@@ -189,6 +212,19 @@ impl TryFromYang for NexthopSpecial {
             "unreachable" => Some(NexthopSpecial::Unreachable),
             "prohibit" => Some(NexthopSpecial::Prohibit),
             _ => None,
+        }
+    }
+}
+
+// ===== impl OspfRouteType =====
+
+impl ToYang for OspfRouteType {
+    fn to_yang(&self) -> String {
+        match self {
+            OspfRouteType::IntraArea => "intra-area".to_owned(),
+            OspfRouteType::InterArea => "inter-area".to_owned(),
+            OspfRouteType::Type1External => "external-1".to_owned(),
+            OspfRouteType::Type2External => "external-2".to_owned(),
         }
     }
 }

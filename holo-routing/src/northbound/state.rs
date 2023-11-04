@@ -17,7 +17,8 @@ use holo_northbound::state::{
 };
 use holo_northbound::{CallbackKey, NbDaemonSender};
 use holo_utils::mpls::Label;
-use holo_utils::southbound::Nexthop;
+use holo_utils::protocol::Protocol;
+use holo_utils::southbound::{Nexthop, RouteOpaqueAttrs};
 use holo_yang::ToYang;
 use ipnetwork::{Ipv4Network, Ipv6Network};
 
@@ -347,6 +348,33 @@ fn load_callbacks() -> Callbacks<Master> {
         .get_element_string(|_master, _args| {
             // TODO: implement me!
             None
+        })
+        .path(ribs::rib::routes::route::metric::PATH)
+        .get_element_u32(|_master, args| {
+            let (_, route) = args.list_entry.as_route().unwrap();
+            if matches!(route.protocol, Protocol::OSPFV2 | Protocol::OSPFV3) {
+                Some(route.metric)
+            } else {
+                None
+            }
+        })
+        .path(ribs::rib::routes::route::tag::PATH)
+        .get_element_u32(|_master, args| {
+            let (_, route) = args.list_entry.as_route().unwrap();
+            if matches!(route.protocol, Protocol::OSPFV2 | Protocol::OSPFV3) {
+                route.tag
+            } else {
+                None
+            }
+        })
+        .path(ribs::rib::routes::route::route_type::PATH)
+        .get_element_string(|_master, args| {
+            let (_, route) = args.list_entry.as_route().unwrap();
+            if let RouteOpaqueAttrs::Ospf { route_type } = &route.opaque_attrs {
+                Some(route_type.to_yang())
+            } else {
+                None
+            }
         })
         .build()
 }

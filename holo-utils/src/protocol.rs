@@ -22,6 +22,7 @@ pub enum Protocol {
     OSPFV3,
     RIPV2,
     RIPNG,
+    STATIC,
 }
 
 // ===== impl Protocol =====
@@ -36,6 +37,7 @@ impl std::fmt::Display for Protocol {
             Protocol::OSPFV3 => write!(f, "ospfv3"),
             Protocol::RIPV2 => write!(f, "ripv2"),
             Protocol::RIPNG => write!(f, "ripng"),
+            Protocol::STATIC => write!(f, "static"),
         }
     }
 }
@@ -46,7 +48,7 @@ impl FromStr for Protocol {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_ref() {
             "bfd" => Ok(Protocol::BFD),
-            "direct" => Ok(Protocol::DIRECT),
+            "static" => Ok(Protocol::STATIC),
             "ldp" => Ok(Protocol::LDP),
             "ospfv2" => Ok(Protocol::OSPFV2),
             "ospfv3" => Ok(Protocol::OSPFV3),
@@ -67,6 +69,7 @@ impl ToYang for Protocol {
             Protocol::OSPFV3 => "ietf-ospf:ospfv3".to_owned(),
             Protocol::RIPV2 => "ietf-rip:ripv2".to_owned(),
             Protocol::RIPNG => "ietf-rip:ripng".to_owned(),
+            Protocol::STATIC => "ietf-routing:static".to_owned(),
         }
     }
 }
@@ -81,6 +84,7 @@ impl TryFromYang for Protocol {
             "ietf-ospf:ospfv3" => Some(Protocol::OSPFV3),
             "ietf-rip:ripv2" => Some(Protocol::RIPV2),
             "ietf-rip:ripng" => Some(Protocol::RIPNG),
+            "ietf-routing:static" => Some(Protocol::STATIC),
             _ => None,
         }
     }

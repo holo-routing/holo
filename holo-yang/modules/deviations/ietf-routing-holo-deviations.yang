@@ -22,10 +22,6 @@ module ietf-routing-holo-deviations {
     deviate not-supported;
   }
 
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/rt:static-routes" {
-    deviate not-supported;
-  }
-
   deviation "/rt:routing-state" {
     deviate not-supported;
   }

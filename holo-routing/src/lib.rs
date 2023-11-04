@@ -23,12 +23,14 @@ use holo_northbound::{
 use holo_protocol::{event_recorder, spawn_protocol_task, InstanceShared};
 use holo_utils::ibus::{IbusReceiver, IbusSender};
 use holo_utils::protocol::Protocol;
+use holo_utils::southbound::InterfaceFlags;
 use holo_utils::sr::SrCfg;
 use holo_utils::Database;
+use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 use tracing::Instrument;
 
-use crate::rib::Rib;
+use crate::rib::{Rib, StaticRoute};
 
 pub struct Master {
     // Northbound Tx channel.
@@ -41,8 +43,12 @@ pub struct Master {
     pub event_recorder_config: event_recorder::Config,
     // Netlink socket.
     pub netlink_handle: rtnetlink::Handle,
+    // List of interfaces.
+    pub interfaces: BTreeMap<String, Interface>,
     // RIB.
     pub rib: Rib,
+    // Static routes.
+    pub static_routes: BTreeMap<IpNetwork, StaticRoute>,
     // SR configuration data.
     pub sr_config: SrCfg,
     // Protocol instances.
@@ -55,6 +61,13 @@ pub struct InstanceId {
     pub protocol: Protocol,
     // Instance name.
     pub name: String,
+}
+
+#[derive(Debug, new)]
+pub struct Interface {
+    pub ifname: String,
+    pub ifindex: u32,
+    pub flags: InterfaceFlags,
 }
 
 // ===== impl Master =====
@@ -115,7 +128,9 @@ pub fn start(
             shared: shared.clone(),
             event_recorder_config,
             netlink_handle: netlink::init(),
+            interfaces: Default::default(),
             rib: Default::default(),
+            static_routes: Default::default(),
             sr_config: Default::default(),
             instances: Default::default(),
         };

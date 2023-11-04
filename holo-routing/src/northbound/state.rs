@@ -72,6 +72,26 @@ fn load_callbacks() -> Callbacks<Master> {
                 .map(ListEntry::ProtocolInstance);
             Some(Box::new(iter))
         })
+        .path(control_plane_protocol::static_routes::ipv4::route::PATH)
+        .get_iterate(|_master, _args| {
+            // No operational data under this list.
+            None
+        })
+        .path(control_plane_protocol::static_routes::ipv4::route::next_hop::next_hop_list::next_hop::PATH)
+        .get_iterate(|_master, _args| {
+            // No operational data under this list.
+            None
+        })
+        .path(control_plane_protocol::static_routes::ipv6::route::PATH)
+        .get_iterate(|_master, _args| {
+            // No operational data under this list.
+            None
+        })
+        .path(control_plane_protocol::static_routes::ipv6::route::next_hop::next_hop_list::next_hop::PATH)
+        .get_iterate(|_master, _args| {
+            // No operational data under this list.
+            None
+        })
         .path(sr_mpls::bindings::connected_prefix_sid_map::connected_prefix_sid::PATH)
         .get_iterate(|_master, _args| {
             // No operational data under this list.

@@ -10,12 +10,23 @@ use holo_utils::southbound::{RouteKeyMsg, RouteMsg};
 use ipnetwork::IpNetwork;
 
 use crate::rib::Route;
-use crate::Master;
+use crate::{Interface, Master};
 
 // ===== global functions =====
 
 pub(crate) async fn process_msg(master: &mut Master, msg: IbusMsg) {
     match msg {
+        // Interface update notification.
+        IbusMsg::InterfaceUpd(msg) => {
+            master.interfaces.insert(
+                msg.ifname.clone(),
+                Interface::new(msg.ifname, msg.ifindex, msg.flags),
+            );
+        }
+        // Interface delete notification.
+        IbusMsg::InterfaceDel(ifname) => {
+            master.interfaces.remove(&ifname);
+        }
         // Interface address addition notification.
         IbusMsg::InterfaceAddressAdd(msg) => {
             // Add connected route to the RIB.

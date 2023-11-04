@@ -8,7 +8,7 @@ use std::collections::BTreeSet;
 use std::net::IpAddr;
 
 use bitflags::bitflags;
-use holo_yang::ToYang;
+use holo_yang::{ToYang, TryFromYang};
 use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
 
@@ -48,7 +48,7 @@ pub enum Nexthop {
     Special(NexthopSpecial),
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
 pub enum NexthopSpecial {
     Blackhole,
@@ -178,6 +178,17 @@ impl ToYang for NexthopSpecial {
             NexthopSpecial::Blackhole => "blackhole".to_owned(),
             NexthopSpecial::Unreachable => "unreachable".to_owned(),
             NexthopSpecial::Prohibit => "prohibit".to_owned(),
+        }
+    }
+}
+
+impl TryFromYang for NexthopSpecial {
+    fn try_from_yang(value: &str) -> Option<NexthopSpecial> {
+        match value {
+            "blackhole" => Some(NexthopSpecial::Blackhole),
+            "unreachable" => Some(NexthopSpecial::Unreachable),
+            "prohibit" => Some(NexthopSpecial::Prohibit),
+            _ => None,
         }
     }
 }

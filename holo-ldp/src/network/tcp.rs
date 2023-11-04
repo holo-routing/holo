@@ -60,11 +60,15 @@ pub(crate) async fn listen_socket(
 ) -> Result<TcpListener, std::io::Error> {
     #[cfg(not(feature = "testing"))]
     {
+        use tokio::{runtime, task};
+
         // Create and bind socket.
         let sockaddr = SocketAddr::from((addr, network::LDP_PORT));
-        let socket =
-            capabilities::raise_async(|| Box::pin(TcpListener::bind(sockaddr)))
-                .await?;
+        let socket = capabilities::raise(|| {
+            task::block_in_place(move || {
+                runtime::Handle::current().block_on(TcpListener::bind(sockaddr))
+            })
+        })?;
 
         // Set socket options.
         socket.set_ipv4_tos(libc::IPTOS_PREC_INTERNETCONTROL)?;

@@ -55,7 +55,10 @@ fn process_newlink_msg(master: &mut Master, msg: LinkMessage, notify: bool) {
     };
 
     // Add or update interface.
-    master.interface_update(ifname, ifindex, mtu, flags, notify);
+    let ibus_tx = notify.then_some(&master.ibus_tx);
+    master
+        .interfaces
+        .update(ifname, ifindex, mtu, flags, ibus_tx);
 }
 
 fn process_dellink_msg(master: &mut Master, msg: LinkMessage, notify: bool) {
@@ -76,7 +79,8 @@ fn process_dellink_msg(master: &mut Master, msg: LinkMessage, notify: bool) {
     };
 
     // Remove interface.
-    master.interface_remove(ifname, notify);
+    let ibus_tx = notify.then_some(&master.ibus_tx);
+    master.interfaces.remove(ifname, ibus_tx);
 }
 
 fn process_newaddr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
@@ -105,7 +109,8 @@ fn process_newaddr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
     };
 
     // Add address to the interface.
-    master.interface_addr_add(ifindex, addr, notify);
+    let ibus_tx = notify.then_some(&master.ibus_tx);
+    master.interfaces.addr_add(ifindex, addr, ibus_tx);
 }
 
 fn process_deladdr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
@@ -134,7 +139,8 @@ fn process_deladdr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
     };
 
     // Remove address from the interface.
-    master.interface_addr_del(ifindex, addr, notify);
+    let ibus_tx = notify.then_some(&master.ibus_tx);
+    master.interfaces.addr_del(ifindex, addr, ibus_tx);
 }
 
 fn parse_address(

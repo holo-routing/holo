@@ -4,11 +4,11 @@
 [![Discord][discord-badge]][discord-url]
 
 [mit-badge]: https://img.shields.io/badge/license-MIT-blue.svg
-[mit-url]: https://github.com/rwestphal/holo/blob/master/LICENSE
-[actions-badge]: https://github.com/rwestphal/holo/workflows/CI/badge.svg
-[actions-url]: https://github.com/rwestphal/holo/actions?query=workflow%3ACI+branch%3Amaster
-[codecov-badge]: https://codecov.io/gh/rwestphal/holo/branch/master/graph/badge.svg?token=OMV0RMNVY8
-[codecov-url]: https://codecov.io/gh/rwestphal/holo
+[mit-url]: https://github.com/holo-routing/holo/blob/master/LICENSE
+[actions-badge]: https://github.com/holo-routing/holo/workflows/CI/badge.svg
+[actions-url]: https://github.com/holo-routing/holo/actions?query=workflow%3ACI+branch%3Amaster
+[codecov-badge]: https://codecov.io/gh/holo-routing/holo/branch/master/graph/badge.svg?token=OMV0RMNVY8
+[codecov-url]: https://codecov.io/gh/holo-routing/holo
 [discord-badge]: https://img.shields.io/discord/1090816494524452935.svg?logo=discord
 [discord-url]: https://discord.gg/deqkRvhHB9
 
@@ -27,7 +27,7 @@ The image below shows the different logical layers of the Holo software stack:
 </p>
 
 Items with a gray background have not been implemented yet.
-For more comprehensive and detailed information, please refer to the [Architecture](https://github.com/rwestphal/holo/wiki/Architecture) page.
+For more comprehensive and detailed information, please refer to the [Architecture](https://github.com/holo-routing/holo/wiki/Architecture) page.
 
 ## Features
 
@@ -48,9 +48,9 @@ Holo was developed specifically for high-scale, automation-driven
 networks that require programmable configuration and monitoring
 using structured and modeled data.  Holo natively implements standard
 YANG modules from IETF and supports multiple management interfaces,
-including native [gRPC](https://github.com/rwestphal/holo/wiki/gRPC) and
-[gNMI](https://github.com/rwestphal/holo/wiki/gNMI).  Additionally, Holo
-features a standalone [CLI](https://github.com/rwestphal/holo/wiki/CLI)
+including native [gRPC](https://github.com/holo-routing/holo/wiki/gRPC) and
+[gNMI](https://github.com/holo-routing/holo/wiki/gNMI).  Additionally, Holo
+features a standalone [CLI](https://github.com/holo-routing/holo/wiki/CLI)
 that dynamically renders commands from YANG modules and communicates with
 the Holo daemon through gRPC.
 
@@ -132,7 +132,7 @@ experimentation more convenient and accessible to everyone.
 The easiest way to start using Holo is by using pre-built Docker containers
 in combination with the [containerlab](https://containerlab.dev/) software.
 You can find a variety of pre-configured network topologies at [this
-link](https://github.com/rwestphal/containerlab-topologies).  These topologies
+link](https://github.com/holo-routing/containerlab-topologies).  These topologies
 can be deployed with a single command, allowing you to test Holo in various
 network setups, including interoperability testing with other implementations.
 
@@ -212,12 +212,12 @@ Holo supports the following IETF RFCs and Internet drafts:
 
 This project is licensed under the [MIT license].
 
-[MIT license]: https://github.com/rwestphal/holo/blob/master/LICENSE
+[MIT license]: https://github.com/holo-routing/holo/blob/master/LICENSE
 
 ### Contribution
 
 We welcome any contributions, from bug reports to Pull Requests. Please refer
-to our [Project Wishlist](https://github.com/users/rwestphal/projects/3)
+to our [Project Wishlist](https://github.com/users/holo-routing/projects/2)
 for ideas on where to contribute.
 
 Unless you explicitly state otherwise, any contribution intentionally submitted

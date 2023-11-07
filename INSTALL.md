@@ -11,7 +11,7 @@ If you don't already have Rust in your system, the best way to install it is via
 2. Clone Holo's git repository
 
 ```
-$ git clone https://github.com/rwestphal/holo.git
+$ git clone https://github.com/holo-routing/holo.git
 ```
 
 3. Install build dependencies:
@@ -50,6 +50,6 @@ Alternatively, you can use `cargo install` to install these binaries into the `$
   Here's an [example](holo-daemon/holod.toml) containing the default values. If this file doesn't exist, the default values will be used.
 * Running configuration: this is the normal YANG-modeled
 configuration that can only be changed through a northbound client
-(e.g. [gRPC](https://github.com/rwestphal/holo/wiki/gRPC),
-[gNMI](https://github.com/rwestphal/holo/wiki/gNMI),
-[CLI](https://github.com/rwestphal/holo/wiki/CLI), etc).
+(e.g. [gRPC](https://github.com/holo-routing/holo/wiki/gRPC),
+[gNMI](https://github.com/holo-routing/holo/wiki/gNMI),
+[CLI](https://github.com/holo-routing/holo/wiki/CLI), etc).

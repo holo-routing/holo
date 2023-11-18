@@ -262,7 +262,6 @@ fn cmd_show_config_cmds(config: &DataTree, with_defaults: bool) -> String {
                 }
                 let snode = iter.schema();
                 match snode.kind() {
-                    SchemaNodeKind::Container => snode.is_np_container(),
                     SchemaNodeKind::List => false,
                     _ => true,
                 }

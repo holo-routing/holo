@@ -19,7 +19,6 @@
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":2}},"options":"E","lsa_id":"4.0.0.0","lsa_body":{"OpaqueArea":{"RouterInfo":{"info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":null,"srgb":[],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt2-2","ifindex":6,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt2-2","addr":"10.0.3.4/24","flags":""}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":1}}}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt5","ifindex":3,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt5","addr":"10.0.6.4/24","flags":""}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":1,"iface_id":1}}}}}
@@ -28,15 +27,12 @@
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":1,"iface_id":1}}}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}
 {"Protocol":{"NetRxPacket":{"area_key":{"Id":1},"iface_key":{"Id":1},"src":"10.0.2.2","dst":"224.0.0.5","packet":{"Ok":{"Hello":{"hdr":{"pkt_type":"Hello","router_id":"2.2.2.2","area_id":"0.0.0.0"},"network_mask":"255.255.255.0","hello_interval":3,"options":"E","priority":1,"dead_interval":12,"dr":null,"bdr":null,"neighbors":["4.4.4.4"]}}}}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":2}}}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"lo","addr":"4.4.4.4/32","flags":""}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":1,"iface_id":2}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":1,"iface_id":2}}}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":2,"iface_id":2}}}}}
 {"Protocol":{"NetRxPacket":{"area_key":{"Id":1},"iface_key":{"Id":2},"src":"10.0.3.2","dst":"224.0.0.5","packet":{"Ok":{"Hello":{"hdr":{"pkt_type":"Hello","router_id":"2.2.2.2","area_id":"0.0.0.0"},"network_mask":"255.255.255.0","hello_interval":3,"options":"E","priority":1,"dead_interval":12,"dr":null,"bdr":null,"neighbors":["4.4.4.4"]}}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":2,"iface_id":2}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":2,"iface_id":2}}}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":2,"iface_id":3}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":2,"iface_id":3}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":2,"iface_id":3}}}}}
 {"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2-1","af":"Ipv6"}}}
@@ -50,7 +46,6 @@
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt2-1","addr":"fe80::6011:1dff:fed3:4a14/64","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt2-2","ifindex":6,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt2-2","addr":"fe80::6010:aaff:fe17:354c/64","flags":""}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":2,"iface_id":1}}}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt5","ifindex":3,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":2,"iface_id":1}}}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt5","addr":"fe80::c457:e3ff:fef2:8c58/64","flags":""}}}

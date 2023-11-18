@@ -16,11 +16,9 @@
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"","lsa_id":"4.0.0.0","lsa_body":{"OpaqueArea":{"RouterInfo":{"info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":["Spf"],"srgb":[{"first":{"Label":16000},"range":8000}],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"lo","addr":"7.7.7.7/32","flags":""}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":2}}}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"","lsa_id":"4.0.0.0","lsa_body":{"OpaqueArea":{"RouterInfo":{"info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":["Spf"],"srgb":[{"first":{"Label":16000},"range":8000}],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":1,"iface_id":2}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":1,"iface_id":2}}}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":1}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":1,"iface_id":1}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":1,"iface_id":1}}}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"","lsa_id":"4.0.0.0","lsa_body":{"OpaqueArea":{"RouterInfo":{"info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":["Spf"],"srgb":[{"first":{"Label":16000},"range":8000}],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}}

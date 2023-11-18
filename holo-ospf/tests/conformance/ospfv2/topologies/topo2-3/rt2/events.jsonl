@@ -35,13 +35,9 @@
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"2.2.2.2/32","distance":0,"metric":0,"tag":null,"nexthops":[]}}}
 {"Protocol":{"NetRxPacket":{"area_key":{"Id":1},"iface_key":{"Id":4},"src":"4.4.4.4","dst":"224.0.0.5","packet":{"Ok":{"Hello":{"hdr":{"pkt_type":"Hello","router_id":"4.4.4.4","area_id":"0.0.0.0"},"network_mask":"255.255.255.255","hello_interval":3,"options":"E","priority":1,"dead_interval":12,"dr":null,"bdr":null,"neighbors":["2.2.2.2"]}}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":4}}}}}
 {"Protocol":{"NetRxPacket":{"area_key":{"Id":1},"iface_key":{"Id":2},"src":"10.0.1.1","dst":"224.0.0.5","packet":{"Ok":{"Hello":{"hdr":{"pkt_type":"Hello","router_id":"1.1.1.1","area_id":"0.0.0.0"},"network_mask":"255.255.255.0","hello_interval":3,"options":"E","priority":1,"dead_interval":12,"dr":null,"bdr":null,"neighbors":["2.2.2.2","3.3.3.3"]}}}}}}
 {"Protocol":{"NetRxPacket":{"area_key":{"Id":1},"iface_key":{"Id":2},"src":"10.0.1.3","dst":"224.0.0.5","packet":{"Ok":{"Hello":{"hdr":{"pkt_type":"Hello","router_id":"3.3.3.3","area_id":"0.0.0.0"},"network_mask":"255.255.255.0","hello_interval":3,"options":"E","priority":3,"dead_interval":12,"dr":null,"bdr":null,"neighbors":["1.1.1.1","2.2.2.2"]}}}}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":2}}}}}
 {"Protocol":{"NetRxPacket":{"area_key":{"Id":1},"iface_key":{"Id":3},"src":"4.4.4.4","dst":"224.0.0.5","packet":{"Ok":{"DbDesc":{"hdr":{"pkt_type":"DbDesc","router_id":"4.4.4.4","area_id":"0.0.0.0"},"mtu":1500,"options":"E | O","dd_flags":"MS | M | I","dd_seq_no":33686019,"lsa_hdrs":[]}}}}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":1}}}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":3}}}}}
 {"Protocol":{"IsmEvent":{"area_key":{"Id":1},"iface_key":{"Id":2},"event":"NbrChange"}}}
 {"Protocol":{"IsmEvent":{"area_key":{"Id":1},"iface_key":{"Id":2},"event":"NbrChange"}}}
 {"Protocol":{"NetRxPacket":{"area_key":{"Id":1},"iface_key":{"Id":4},"src":"4.4.4.4","dst":"224.0.0.5","packet":{"Ok":{"DbDesc":{"hdr":{"pkt_type":"DbDesc","router_id":"4.4.4.4","area_id":"0.0.0.0"},"mtu":1500,"options":"E | O","dd_flags":"MS | M | I","dd_seq_no":33686019,"lsa_hdrs":[]}}}}}}

@@ -36,7 +36,6 @@
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt3-1","addr":"fe80::4c9:ecff:fe66:630b/64","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt3-2","ifindex":6,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":2}},"options":null,"lsa_id":"0.0.0.0","lsa_body":{"RouterInfo":{"scope":"Area","info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":null,"srgb":[],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":1}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":1,"iface_id":1}}}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt3-2","addr":"fe80::1062:9cff:fe95:450/64","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt4","ifindex":2,"mtu":1500,"flags":"OPERATIVE"}}}
@@ -44,20 +43,16 @@
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt6","ifindex":5,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt6","addr":"fe80::8012:8ff:fe36:93e8/64","flags":""}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":1,"iface_id":1}}}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":2}}}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"lo","addr":"2001:db8:1000::5/128","flags":""}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"fe80::/64","distance":0,"metric":0,"tag":null,"nexthops":[]}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"2001:db8:1000::5/128","distance":0,"metric":0,"tag":null,"nexthops":[]}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":1,"iface_id":2}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":1,"iface_id":2}}}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":2,"iface_id":2}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":2,"iface_id":2}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":2,"iface_id":2}}}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":2,"iface_id":3}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":2,"iface_id":3}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":2,"iface_id":3}}}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":2,"iface_id":1}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":2,"iface_id":1}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":2,"iface_id":1}}}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":null,"lsa_id":"0.0.0.0","lsa_body":{"RouterInfo":{"scope":"Area","info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":null,"srgb":[],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}

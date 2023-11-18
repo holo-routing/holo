@@ -7,9 +7,7 @@
 use holo_utils::ip::{IpAddrKind, IpNetworkKind};
 use ipnetwork::Ipv4Network;
 
-use crate::area::Area;
 use crate::debug::Debug;
-use crate::instance::InstanceUpView;
 use crate::interface::Interface;
 use crate::southbound::rx::SouthboundRxVersion;
 use crate::version::Ospfv2;
@@ -17,14 +15,6 @@ use crate::version::Ospfv2;
 // ===== impl Ospfv2 =====
 
 impl SouthboundRxVersion<Self> for Ospfv2 {
-    fn process_ifindex_update(
-        _iface: &mut Interface<Self>,
-        _area: &Area<Self>,
-        _instance: &InstanceUpView<'_, Self>,
-    ) {
-        // Nothing to do.
-    }
-
     fn process_addr_add(
         iface: &mut Interface<Self>,
         addr: Ipv4Network,

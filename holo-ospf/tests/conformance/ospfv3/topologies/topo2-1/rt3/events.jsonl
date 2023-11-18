@@ -8,7 +8,6 @@
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt5-1","ifindex":5,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt5-1","addr":"fe80::50e4:7fff:feca:95aa/64","flags":""}}}
 {"Ibus":{"InterfaceQuery":{"ifname":"eth-rt5-2","af":"Ipv6"}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":3}}}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt5-2","ifindex":7,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt5-2","addr":"fe80::9409:14ff:fecc:7618/64","flags":""}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":1,"iface_id":3}}}}}
@@ -18,7 +17,6 @@
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-sw1","addr":"fe80::5436:86ff:feb8:febe/64","flags":""}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":1,"iface_id":3}}}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":4}}}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"lo","addr":"2001:db8:1000::3/128","flags":""}}}
 {"Ibus":{"InterfaceQuery":{"ifname":"eth-rt5-1","af":"Ipv4"}}}
 {"Ibus":{"InterfaceQuery":{"ifname":"eth-rt5-2","af":"Ipv4"}}}
@@ -27,11 +25,9 @@
 {"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"fe80::/64","distance":0,"metric":0,"tag":null,"nexthops":[]}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":1,"iface_id":4}}}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":2}}}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"fe80::/64","distance":0,"metric":0,"tag":null,"nexthops":[]}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":1,"iface_id":2}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":1,"iface_id":2}}}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":1}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":1,"iface_id":1}}}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"2001:db8:1000::3/128","distance":0,"metric":0,"tag":null,"nexthops":[]}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt5-1","ifindex":5,"mtu":1500,"flags":"OPERATIVE"}}}

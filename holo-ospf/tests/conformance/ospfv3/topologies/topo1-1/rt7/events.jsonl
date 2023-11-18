@@ -15,9 +15,7 @@
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt6","addr":"fe80::9c0f:ffff:fe72:fdf1/64","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":2}}}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"lo","addr":"2001:db8:1000::7/128","flags":""}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":1}}}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"10.0.6.0/24","distance":0,"metric":0,"tag":null,"nexthops":[]}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"7.7.7.7/32","distance":0,"metric":0,"tag":null,"nexthops":[]}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"fe80::/64","distance":0,"metric":0,"tag":null,"nexthops":[]}}}

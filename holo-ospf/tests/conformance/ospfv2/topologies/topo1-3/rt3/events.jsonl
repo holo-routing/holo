@@ -29,24 +29,20 @@
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt2","ifindex":3,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt2","addr":"10.0.2.3/24","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt4","ifindex":4,"mtu":1500,"flags":"OPERATIVE"}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":3}}}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt4","addr":"10.0.3.3/24","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt6","ifindex":6,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt6","addr":"10.0.4.3/24","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"lo","addr":"3.3.3.3/32","flags":""}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":4}}}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"3000::/64","distance":0,"metric":0,"tag":null,"nexthops":[]}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"fe80::/64","distance":0,"metric":0,"tag":null,"nexthops":[]}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"2001:db8:1000::3/128","distance":0,"metric":0,"tag":null,"nexthops":[]}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":1}}}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"fe80::/64","distance":0,"metric":0,"tag":null,"nexthops":[]}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"10.0.2.0/24","distance":0,"metric":0,"tag":null,"nexthops":[]}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"10.0.3.0/24","distance":0,"metric":0,"tag":null,"nexthops":[]}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"3.3.3.3/32","distance":0,"metric":0,"tag":null,"nexthops":[]}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"10.0.4.0/24","distance":0,"metric":0,"tag":null,"nexthops":[]}}}
 {"Ibus":{"RouteMplsAdd":{"protocol":"ospfv3","label":16,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::6894:e3ff:feb2:8826","labels":[3]}}],"route":null,"replace":false}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":2}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":1,"iface_id":2}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":1,"iface_id":2}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":1,"iface_id":3}}}}}

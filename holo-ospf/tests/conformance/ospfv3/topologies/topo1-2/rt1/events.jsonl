@@ -14,8 +14,6 @@
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"10.0.1.0/24","distance":0,"metric":0,"tag":null,"nexthops":[]}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"1.1.1.1/32","distance":0,"metric":0,"tag":null,"nexthops":[]}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":2}}}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":1}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":1,"iface_id":1}}}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt2","ifindex":3,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt2","addr":"fe80::d44c:17ff:fea9:a0fa/64","flags":""}}}

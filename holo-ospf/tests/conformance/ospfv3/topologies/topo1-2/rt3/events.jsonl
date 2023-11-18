@@ -14,7 +14,6 @@
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt2","addr":"3000::3/64","flags":""}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt2","addr":"fe80::1c31:4ff:fe33:caf/64","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt4","ifindex":4,"mtu":1500,"flags":"OPERATIVE"}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":2}}}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt4","addr":"fe80::fc16:61ff:fe7d:1eb9/64","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt6","ifindex":6,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":1,"iface_id":2}}}}}
@@ -23,14 +22,11 @@
 {"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"lo","addr":"2001:db8:1000::3/128","flags":""}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":1,"iface_id":2}}}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":3}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":1,"iface_id":3}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":1,"iface_id":3}}}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":4}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":1,"iface_id":4}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":1,"iface_id":4}}}}}
 {"Protocol":{"NetRxPacket":{"area_key":{"Id":1},"iface_key":{"Id":2},"src":"fe80::50ed:51ff:fe2b:c822","dst":"ff02::5","packet":{"Ok":{"Hello":{"hdr":{"pkt_type":"Hello","router_id":"2.2.2.2","area_id":"0.0.0.0","instance_id":0},"iface_id":4,"priority":2,"options":"V6 | E | R | AF","hello_interval":3,"dead_interval":12,"dr":null,"bdr":null,"neighbors":["3.3.3.3"]}}}}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":1}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":1,"iface_id":1}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":1,"iface_id":1}}}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":null,"lsa_id":"0.0.0.0","lsa_body":{"Router":{"extended":false,"flags":"","options":"V6 | E | R | AF","links":[],"unknown_tlvs":[]}}}}}

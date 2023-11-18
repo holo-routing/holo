@@ -21,12 +21,9 @@
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":2}}}}}
 {"Ibus":{"InterfaceQuery":{"ifname":"eth-rt3","af":"Ipv4"}}}
 {"Protocol":{"LsaOrigEvent":{"event":"SrEnableChange"}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":2,"iface_id":1}}}}}
 {"Ibus":{"InterfaceQuery":{"ifname":"eth-rt5","af":"Ipv4"}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":2}}}}}
 {"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt3","ifindex":2,"mtu":1500,"flags":"OPERATIVE"}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":1}}}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"fe80::/64","distance":0,"metric":0,"tag":null,"nexthops":[]}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt3","addr":"10.0.3.4/24","flags":""}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":2}},"options":"E","lsa_id":"4.0.0.0","lsa_body":{"OpaqueArea":{"RouterInfo":{"info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":["Spf"],"srgb":[{"first":{"Label":16000},"range":8000}],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}}

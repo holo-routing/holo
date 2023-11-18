@@ -20,11 +20,8 @@
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"6.6.6.6/32","distance":0,"metric":0,"tag":null,"nexthops":[]}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt4","ifindex":5,"mtu":1500,"flags":"OPERATIVE"}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":2}}}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":3}}}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt4","addr":"fe80::fb:6aff:fece:b5b/64","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt5","ifindex":3,"mtu":1500,"flags":"OPERATIVE"}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":1}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":1,"iface_id":1}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":1,"iface_id":2}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":1,"iface_id":2}}}}}

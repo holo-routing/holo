@@ -91,8 +91,7 @@ impl LsdbVersion<Self> for Ospfv3 {
                 // Originate Router Information LSA(s).
                 lsa_orig_router_info(area, instance);
             }
-            LsaOriginateEvent::InterfaceStateChange { area_id, iface_id }
-            | LsaOriginateEvent::InterfaceIdChange { area_id, iface_id } => {
+            LsaOriginateEvent::InterfaceStateChange { area_id, iface_id } => {
                 // (Re)originate Router-LSA(s) in all areas since the ABR status
                 // might have changed.
                 for area in arenas.areas.iter() {

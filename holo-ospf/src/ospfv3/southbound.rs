@@ -7,9 +7,7 @@
 use holo_utils::ip::IpNetworkKind;
 use ipnetwork::Ipv6Network;
 
-use crate::area::Area;
 use crate::debug::Debug;
-use crate::instance::InstanceUpView;
 use crate::interface::Interface;
 use crate::southbound::rx::SouthboundRxVersion;
 use crate::version::Ospfv3;
@@ -17,15 +15,6 @@ use crate::version::Ospfv3;
 // ===== impl Ospfv3 =====
 
 impl SouthboundRxVersion<Self> for Ospfv3 {
-    fn process_ifindex_update(
-        iface: &mut Interface<Self>,
-        area: &Area<Self>,
-        instance: &InstanceUpView<'_, Self>,
-    ) {
-        // Synchronize interface's Hello Tx task (updated interface ID).
-        iface.sync_hello_tx(area, instance);
-    }
-
     fn process_addr_add(
         iface: &mut Interface<Self>,
         addr: Ipv6Network,

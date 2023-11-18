@@ -18,11 +18,8 @@
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt6","ifindex":7,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt6","addr":"fe80::b054:c2ff:fe7a:7d2e/64","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":2}}}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"lo","addr":"2001:db8:1000::4/128","flags":""}}}
 {"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2-1","af":"Ipv4"}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":3}}}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":4}}}}}
 {"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2-2","af":"Ipv4"}}}
 {"Ibus":{"InterfaceQuery":{"ifname":"eth-rt5","af":"Ipv4"}}}
 {"Ibus":{"InterfaceQuery":{"ifname":"eth-rt6","af":"Ipv4"}}}
@@ -33,11 +30,9 @@
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt2-2","addr":"4.4.4.4/32","flags":"UNNUMBERED"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt5","ifindex":3,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt5","addr":"4.4.4.4/32","flags":"UNNUMBERED"}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":5}}}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt6","ifindex":7,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt6","addr":"4.4.4.4/32","flags":"UNNUMBERED"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}
-{"Protocol":{"LsaOrigEvent":{"event":{"InterfaceIdChange":{"area_id":1,"iface_id":1}}}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"lo","addr":"4.4.4.4/32","flags":""}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":1,"iface_id":2}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":1,"iface_id":2}}}}}

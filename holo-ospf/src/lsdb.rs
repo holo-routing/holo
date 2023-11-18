@@ -83,10 +83,6 @@ pub enum LsaOriginateEvent {
         area_id: AreaId,
         iface_id: InterfaceId,
     },
-    InterfaceIdChange {
-        area_id: AreaId,
-        iface_id: InterfaceId,
-    },
     InterfaceDrChange {
         area_id: AreaId,
         iface_id: InterfaceId,

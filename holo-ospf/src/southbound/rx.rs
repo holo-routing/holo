@@ -9,20 +9,13 @@ use std::net::Ipv4Addr;
 use holo_utils::ip::IpNetworkKind;
 use holo_utils::southbound::{AddressFlags, AddressMsg, InterfaceUpdateMsg};
 
-use crate::area::Area;
-use crate::instance::{Instance, InstanceUpView};
+use crate::instance::Instance;
 use crate::interface::Interface;
 use crate::lsdb::LsaOriginateEvent;
 use crate::version::Version;
 
 // OSPF version-specific code.
 pub trait SouthboundRxVersion<V: Version> {
-    fn process_ifindex_update(
-        iface: &mut Interface<V>,
-        area: &Area<V>,
-        instance: &InstanceUpView<'_, V>,
-    );
-
     fn process_addr_add(
         iface: &mut Interface<V>,
         addr: V::NetIpNetwork,
@@ -70,17 +63,6 @@ pub(crate) fn process_iface_update<V>(
     if iface.system.ifindex != Some(msg.ifindex) {
         area.interfaces
             .update_ifindex(iface_idx, iface, Some(msg.ifindex));
-
-        // OSPF version-specific ifindex update handling.
-        V::process_ifindex_update(iface, area, &instance);
-
-        // (Re)originate LSAs that might have been affected.
-        instance.tx.protocol_input.lsa_orig_event(
-            LsaOriginateEvent::InterfaceIdChange {
-                area_id: area.id,
-                iface_id: iface.id,
-            },
-        );
     }
 
     // Check if OSPF needs to be activated or deactivated on this interface.

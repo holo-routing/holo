@@ -48,12 +48,13 @@ impl FromStr for Protocol {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_ref() {
             "bfd" => Ok(Protocol::BFD),
-            "static" => Ok(Protocol::STATIC),
+            "direct" => Ok(Protocol::DIRECT),
             "ldp" => Ok(Protocol::LDP),
             "ospfv2" => Ok(Protocol::OSPFV2),
             "ospfv3" => Ok(Protocol::OSPFV3),
             "ripv2" => Ok(Protocol::RIPV2),
             "ripng" => Ok(Protocol::RIPNG),
+            "static" => Ok(Protocol::STATIC),
             _ => Err(()),
         }
     }

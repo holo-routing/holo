@@ -30,6 +30,7 @@ async-trait = "0.1"
 bitflags = { version = "2.4", features = ["serde"] }
 bytes = { version = "1", features = ["serde"] }
 capctl = "0.2"
+check_keyword = "0.2"
 clap = "2.33"
 chrono = { version = "0.4", features = ["serde"] }
 criterion = "0.4"

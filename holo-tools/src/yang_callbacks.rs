@@ -6,6 +6,7 @@
 
 use std::fmt::Write;
 
+use check_keyword::CheckKeyword;
 use clap::{App, Arg};
 use holo_northbound::CallbackOp;
 use holo_yang as yang;
@@ -23,10 +24,7 @@ fn snode_module_path(snode: &SchemaNode<'_>) -> String {
             // Replace hyphens by underscores.
             name = str::replace(&name, "-", "_");
             // Handle Rust reserved keywords.
-            if name == "type" {
-                name = "r#type".to_owned();
-            }
-            name
+            name.into_safe()
         })
         .collect::<Vec<String>>()
         .join("::");

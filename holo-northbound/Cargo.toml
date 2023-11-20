@@ -24,5 +24,6 @@ holo-yang = { path = "../holo-yang" }
 holo-utils = { path = "../holo-utils" }
 
 [build-dependencies]
+check_keyword.workspace = true
 yang2.workspace = true
 holo-yang = { path = "../holo-yang" }

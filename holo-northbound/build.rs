@@ -8,6 +8,7 @@ use std::env;
 use std::fmt::Write;
 use std::path::PathBuf;
 
+use check_keyword::CheckKeyword;
 use holo_yang as yang;
 use holo_yang::YANG_IMPLEMENTED_MODULES;
 use yang2::schema::{DataValue, SchemaNode, SchemaNodeKind, SchemaPathFormat};
@@ -19,9 +20,7 @@ fn snode_normalized_name(snode: &SchemaNode<'_>) -> String {
     name = str::replace(&name, "-", "_");
 
     // Handle Rust reserved keywords.
-    if name == "type" {
-        name = "r#type".to_owned();
-    }
+    name = name.into_safe();
 
     // HACK: distinguish nodes with the same names but different namespaces.
     if matches!(

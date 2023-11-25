@@ -183,28 +183,28 @@ pub trait SpfVersion<V: Version> {
         area: &'a Area<V>,
         extended_lsa: bool,
         lsa_entries: &'a Arena<LsaEntry<V>>,
-    ) -> Box<dyn Iterator<Item = SpfIntraAreaNetwork<'a, V>> + 'a>;
+    ) -> impl Iterator<Item = SpfIntraAreaNetwork<'a, V>> + 'a;
 
     // Return iterator over all inter-area networks.
     fn inter_area_networks<'a>(
         area: &'a Area<V>,
         extended_lsa: bool,
         lsa_entries: &'a Arena<LsaEntry<V>>,
-    ) -> Box<dyn Iterator<Item = SpfInterAreaNetwork<V>> + 'a>;
+    ) -> impl Iterator<Item = SpfInterAreaNetwork<V>> + 'a;
 
     // Return iterator over all inter-area routers.
     fn inter_area_routers<'a>(
         lsdb: &'a Lsdb<V>,
         extended_lsa: bool,
         lsa_entries: &'a Arena<LsaEntry<V>>,
-    ) -> Box<dyn Iterator<Item = SpfInterAreaRouter<V>> + 'a>;
+    ) -> impl Iterator<Item = SpfInterAreaRouter<V>> + 'a;
 
     // Return iterator over all AS external networks.
     fn external_networks<'a>(
         lsdb: &'a Lsdb<V>,
         extended_lsa: bool,
         lsa_entries: &'a Arena<LsaEntry<V>>,
-    ) -> Box<dyn Iterator<Item = SpfExternalNetwork<V>> + 'a>;
+    ) -> impl Iterator<Item = SpfExternalNetwork<V>> + 'a;
 
     // Locate the Router Information LSA for the specified area.
     fn area_router_information<'a>(

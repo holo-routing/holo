@@ -423,11 +423,10 @@ impl SpfVersion<Self> for Ospfv3 {
         area: &'a Area<Self>,
         extended_lsa: bool,
         lsa_entries: &'a Arena<LsaEntry<Self>>,
-    ) -> Box<dyn Iterator<Item = SpfIntraAreaNetwork<'a, Self>> + 'a> {
+    ) -> impl Iterator<Item = SpfIntraAreaNetwork<'a, Self>> + 'a {
         // Instead of examining the stub links within router-LSAs, the list of
         // the area's intra-area-prefix-LSAs is examined.
-        let iter = area
-            .state
+        area.state
             .lsdb
             .iter_by_type(
                 lsa_entries,
@@ -475,17 +474,15 @@ impl SpfVersion<Self> for Ospfv3 {
                         metric: prefix.metric,
                         prefix_sids: prefix.prefix_sids,
                     })
-            });
-        Box::new(iter)
+            })
     }
 
     fn inter_area_networks<'a>(
         area: &'a Area<Self>,
         extended_lsa: bool,
         lsa_entries: &'a Arena<LsaEntry<Self>>,
-    ) -> Box<dyn Iterator<Item = SpfInterAreaNetwork<Self>> + 'a> {
-        let iter = area
-            .state
+    ) -> impl Iterator<Item = SpfInterAreaNetwork<Self>> + 'a {
+        area.state
             .lsdb
             .iter_by_type(
                 lsa_entries,
@@ -506,42 +503,38 @@ impl SpfVersion<Self> for Ospfv3 {
                         prefix_sids: lsa_body.prefix_sids.clone(),
                     })
                 }
-            });
-        Box::new(iter)
+            })
     }
 
     fn inter_area_routers<'a>(
         lsdb: &'a Lsdb<Self>,
         extended_lsa: bool,
         lsa_entries: &'a Arena<LsaEntry<Self>>,
-    ) -> Box<dyn Iterator<Item = SpfInterAreaRouter<Self>> + 'a> {
-        let iter = lsdb
-            .iter_by_type(
-                lsa_entries,
-                LsaInterAreaRouter::lsa_type(extended_lsa),
-            )
-            .map(|(_, lse)| &lse.data)
-            .filter(|lsa| !lsa.hdr.is_maxage())
-            .map(|lsa| {
-                let lsa_body = lsa.body.as_inter_area_router().unwrap();
-                SpfInterAreaRouter {
-                    adv_rtr: lsa.hdr.adv_rtr,
-                    router_id: lsa_body.router_id,
-                    options: lsa_body.options,
-                    flags: LsaRouterFlags::E,
-                    metric: lsa_body.metric,
-                }
-            });
-        Box::new(iter)
+    ) -> impl Iterator<Item = SpfInterAreaRouter<Self>> + 'a {
+        lsdb.iter_by_type(
+            lsa_entries,
+            LsaInterAreaRouter::lsa_type(extended_lsa),
+        )
+        .map(|(_, lse)| &lse.data)
+        .filter(|lsa| !lsa.hdr.is_maxage())
+        .map(|lsa| {
+            let lsa_body = lsa.body.as_inter_area_router().unwrap();
+            SpfInterAreaRouter {
+                adv_rtr: lsa.hdr.adv_rtr,
+                router_id: lsa_body.router_id,
+                options: lsa_body.options,
+                flags: LsaRouterFlags::E,
+                metric: lsa_body.metric,
+            }
+        })
     }
 
     fn external_networks<'a>(
         lsdb: &'a Lsdb<Self>,
         extended_lsa: bool,
         lsa_entries: &'a Arena<LsaEntry<Self>>,
-    ) -> Box<dyn Iterator<Item = SpfExternalNetwork<Self>> + 'a> {
-        let iter = lsdb
-            .iter_by_type(lsa_entries, LsaAsExternal::lsa_type(extended_lsa))
+    ) -> impl Iterator<Item = SpfExternalNetwork<Self>> + 'a {
+        lsdb.iter_by_type(lsa_entries, LsaAsExternal::lsa_type(extended_lsa))
             .map(|(_, lse)| &lse.data)
             .filter(|lsa| !lsa.hdr.is_maxage())
             .filter_map(|lsa| {
@@ -559,8 +552,7 @@ impl SpfVersion<Self> for Ospfv3 {
                         tag: lsa_body.tag,
                     })
                 }
-            });
-        Box::new(iter)
+            })
     }
 
     fn area_router_information<'a>(

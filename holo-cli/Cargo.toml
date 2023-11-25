@@ -27,3 +27,6 @@ holo-yang = { path = "../holo-yang" }
 
 [build-dependencies]
 tonic-build.workspace = true
+
+[lints.rust]
+rust_2018_idioms = "warn"

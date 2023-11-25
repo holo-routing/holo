@@ -46,6 +46,9 @@ holo-yang = { path = "../holo-yang" }
 [build-dependencies]
 tonic-build.workspace = true
 
+[lints]
+workspace = true
+
 [[bin]]
 name = "holod"
 path = "src/main.rs"

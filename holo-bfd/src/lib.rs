@@ -4,13 +4,11 @@
 // SPDX-License-Identifier: MIT
 //
 
-#![warn(rust_2018_idioms)]
 #![cfg_attr(
     feature = "testing",
     allow(dead_code, unused_variables, unused_imports)
 )]
 #![feature(let_chains, lazy_cell)]
-#![allow(clippy::too_many_arguments)]
 
 pub mod debug;
 pub mod error;

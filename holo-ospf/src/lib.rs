@@ -4,12 +4,10 @@
 // SPDX-License-Identifier: MIT
 //
 
-#![warn(rust_2018_idioms)]
 #![cfg_attr(
     feature = "testing",
     allow(dead_code, unused_variables, unused_imports)
 )]
-#![allow(clippy::single_match, clippy::too_many_arguments)]
 #![allow(type_alias_bounds)]
 #![feature(btree_extract_if, hash_extract_if, ip, let_chains, lazy_cell)]
 

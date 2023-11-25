@@ -19,6 +19,9 @@ holo-northbound = { path = "../holo-northbound" }
 holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
 
+[lints]
+workspace = true
+
 [features]
 default = []
 testing = []

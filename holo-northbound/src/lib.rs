@@ -5,9 +5,7 @@
 //
 
 #![feature(extract_if)]
-#![warn(rust_2018_idioms)]
 #![allow(type_alias_bounds)]
-#![allow(clippy::too_many_arguments)]
 
 mod debug;
 

@@ -261,12 +261,9 @@ fn cmd_show_config_cmds(config: &DataTree, with_defaults: bool) -> String {
                     return true;
                 }
                 let snode = iter.schema();
-                match snode.kind() {
-                    SchemaNodeKind::List => false,
-                    _ => true,
-                }
+                snode.kind() != SchemaNodeKind::List
             })
-            .collect::<Vec<DataNodeRef>>()
+            .collect::<Vec<DataNodeRef<'_>>>()
             .iter()
             .rev()
         {

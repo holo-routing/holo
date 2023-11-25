@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: MIT
 //
 
-#![warn(rust_2018_idioms)]
 #![feature(ip)]
 #![cfg_attr(
     feature = "testing",

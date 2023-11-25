@@ -4,8 +4,6 @@
 // SPDX-License-Identifier: MIT
 //
 
-#![forbid(unsafe_code)]
-#![warn(rust_2018_idioms)]
 #![feature(lazy_cell)]
 
 mod ibus;

@@ -23,6 +23,9 @@ holo-protocol = { path = "../holo-protocol", features = ["testing"] }
 holo-utils = { path = "../holo-utils", features = ["testing"] }
 holo-yang = { path = "../holo-yang" }
 
+[lints]
+workspace = true
+
 [[bin]]
 name = "replay"
 path = "src/replay.rs"

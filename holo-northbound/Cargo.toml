@@ -27,3 +27,6 @@ holo-utils = { path = "../holo-utils" }
 check_keyword.workspace = true
 yang2.workspace = true
 holo-yang = { path = "../holo-yang" }
+
+[lints]
+workspace = true

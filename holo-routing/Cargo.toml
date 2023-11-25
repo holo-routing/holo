@@ -29,3 +29,6 @@ holo-protocol = { path = "../holo-protocol" }
 holo-rip = { path = "../holo-rip" }
 holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
+
+[lints]
+workspace = true

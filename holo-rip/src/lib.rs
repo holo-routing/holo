@@ -4,13 +4,10 @@
 // SPDX-License-Identifier: MIT
 //
 
-#![forbid(unsafe_code)]
-#![warn(rust_2018_idioms)]
 #![cfg_attr(
     feature = "testing",
     allow(dead_code, unused_variables, unused_imports)
 )]
-#![allow(clippy::too_many_arguments)]
 #![feature(ip, lazy_cell, let_chains)]
 
 pub mod debug;

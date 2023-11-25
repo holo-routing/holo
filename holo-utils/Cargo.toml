@@ -30,6 +30,9 @@ yang2.workspace = true
 
 holo-yang = { path = "../holo-yang" }
 
+[lints.rust]
+rust_2018_idioms = "warn"
+
 [features]
 default = []
 testing = []

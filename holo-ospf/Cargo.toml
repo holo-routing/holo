@@ -47,6 +47,9 @@ holo-ospf = { path = ".", features = ["testing", "deterministic"] }
 holo-protocol = { path = "../holo-protocol", features = ["testing"] }
 holo-utils = { path = "../holo-utils", features = ["testing"] }
 
+[lints]
+workspace = true
+
 [features]
 default = []
 testing = []

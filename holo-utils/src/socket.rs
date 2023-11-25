@@ -111,6 +111,9 @@ pub trait TcpSocketExt {
     // Sets the value of the IP_TOS option for this socket.
     fn set_ipv4_tos(&self, tos: u8) -> Result<()>;
 
+    // Sets the value of the IPV6_V6ONLY option for this socket.
+    fn set_ipv6_only(&self, enable: bool) -> Result<()>;
+
     // Sets the value of the IPV6_TCLASS option for this socket.
     fn set_ipv6_tclass(&self, dscp: u8) -> Result<()>;
 
@@ -398,6 +401,18 @@ impl TcpSocketExt for TcpSocket {
             self,
             libc::IPPROTO_IP,
             libc::IP_TOS,
+            &optval as *const _ as *const libc::c_void,
+            std::mem::size_of::<i32>() as libc::socklen_t,
+        )
+    }
+
+    fn set_ipv6_only(&self, enable: bool) -> Result<()> {
+        let optval = enable as c_int;
+
+        setsockopt(
+            self,
+            libc::IPPROTO_IPV6,
+            libc::IPV6_V6ONLY,
             &optval as *const _ as *const libc::c_void,
             std::mem::size_of::<i32>() as libc::socklen_t,
         )

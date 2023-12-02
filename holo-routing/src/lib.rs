@@ -133,6 +133,9 @@ pub fn start(
             instances: Default::default(),
         };
 
+        // Request information about all interfaces addresses.
+        ibus::request_addresses(&master.ibus_tx);
+
         // Start BFD task.
         let name = "main".to_owned();
         let instance_id = InstanceId::new(Protocol::BFD, name.clone());

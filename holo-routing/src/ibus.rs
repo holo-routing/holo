@@ -84,6 +84,11 @@ pub(crate) async fn process_msg(master: &mut Master, msg: IbusMsg) {
     }
 }
 
+// Requests information about all interfaces addresses.
+pub(crate) fn request_addresses(ibus_tx: &IbusSender) {
+    send(ibus_tx, IbusMsg::InterfaceDump);
+}
+
 // Sends route redistribute update notification.
 pub(crate) fn notify_redistribute_add(
     ibus_tx: &IbusSender,
@@ -100,7 +105,7 @@ pub(crate) fn notify_redistribute_add(
         nexthops: route.nexthops.clone(),
     };
     let msg = IbusMsg::RouteRedistributeAdd(msg);
-    notify(ibus_tx, msg);
+    send(ibus_tx, msg);
 }
 
 // Sends route redistribute delete notification.
@@ -111,11 +116,11 @@ pub(crate) fn notify_redistribute_del(
 ) {
     let msg = RouteKeyMsg { protocol, prefix };
     let msg = IbusMsg::RouteRedistributeDel(msg);
-    notify(ibus_tx, msg);
+    send(ibus_tx, msg);
 }
 
 // ===== helper functions =====
 
-fn notify(ibus_tx: &IbusSender, msg: IbusMsg) {
+fn send(ibus_tx: &IbusSender, msg: IbusMsg) {
     let _ = ibus_tx.send(msg);
 }

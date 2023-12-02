@@ -28,6 +28,15 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
                     iface.mtu,
                     iface.flags,
                 );
+
+                for iface_addr in iface.addresses.values() {
+                    notify_addr_add(
+                        &master.ibus_tx,
+                        iface.name.clone(),
+                        iface_addr.addr,
+                        iface_addr.flags,
+                    );
+                }
             }
         }
         IbusMsg::InterfaceQuery { ifname, af } => {

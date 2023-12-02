@@ -27,6 +27,7 @@ edition = "2021"
 
 [workspace.dependencies]
 async-trait = "0.1"
+base64 = "0.21"
 bitflags = { version = "2.4", features = ["serde"] }
 bytes = { version = "1", features = ["serde"] }
 capctl = "0.2"

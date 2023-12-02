@@ -99,6 +99,7 @@ pub enum GetElementCb<P: Provider> {
     Uint16(GetElementCbType<P, u16>),
     Uint32(GetElementCbType<P, u32>),
     Uint64(GetElementCbType<P, u64>),
+    Binary(GetElementCbType<P, Vec<u8>>),
     Bool(GetElementCbType<P, bool>),
     Empty(GetElementCbType<P, ()>),
     Container(GetElementCbType<P, ()>),
@@ -313,6 +314,11 @@ where
     }
 
     #[must_use]
+    pub fn get_element_binary(self, cb: GetElementCbType<P, Vec<u8>>) -> Self {
+        self.get_element(GetElementCb::Binary(cb))
+    }
+
+    #[must_use]
     pub fn get_element_bool(self, cb: GetElementCbType<P, bool>) -> Self {
         self.get_element(GetElementCb::Bool(cb))
     }
@@ -485,6 +491,13 @@ where
             }
             GetElementCb::Uint64(cb) => {
                 (*cb)(provider, args).map(|v| v.to_string())
+            }
+            GetElementCb::Binary(cb) => {
+                use base64::Engine;
+
+                (*cb)(provider, args).map(|v| {
+                    base64::engine::general_purpose::STANDARD.encode(v)
+                })
             }
             GetElementCb::Bool(cb) => {
                 (*cb)(provider, args).map(|v| v.to_string())

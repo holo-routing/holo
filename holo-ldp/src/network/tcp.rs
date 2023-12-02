@@ -10,12 +10,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use holo_utils::socket::{
-    OwnedReadHalf, OwnedWriteHalf, TcpListener, TcpListenerExt, TcpSocket,
-    TcpSocketExt, TcpStream,
+    OwnedReadHalf, OwnedWriteHalf, TcpConnInfo, TcpListener, TcpListenerExt,
+    TcpSocket, TcpSocketExt, TcpStream, TcpStreamExt,
 };
 use holo_utils::task::TimeoutTask;
 use holo_utils::{capabilities, Sender, UnboundedReceiver};
-use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::Mutex;
@@ -27,31 +26,6 @@ use crate::packet::error::DecodeError;
 use crate::packet::{DecodeCxt, Message, PacketInfo, Pdu};
 use crate::tasks::messages::input::{NbrRxPduMsg, TcpAcceptMsg};
 use crate::tasks::messages::output::NbrTxPduMsg;
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct ConnectionInfo {
-    pub local_addr: IpAddr,
-    pub local_port: u16,
-    pub remote_addr: IpAddr,
-    pub remote_port: u16,
-}
-
-// ===== impl ConnectionInfo =====
-
-impl ConnectionInfo {
-    #[cfg(not(feature = "testing"))]
-    pub(crate) fn new(stream: &TcpStream) -> std::io::Result<ConnectionInfo> {
-        let local_addr = stream.local_addr()?;
-        let remote_addr = stream.peer_addr()?;
-
-        Ok(ConnectionInfo {
-            local_addr: local_addr.ip(),
-            local_port: local_addr.port(),
-            remote_addr: remote_addr.ip(),
-            remote_port: remote_addr.port(),
-        })
-    }
-}
 
 // ===== global functions =====
 
@@ -89,7 +63,7 @@ pub(crate) async fn listen_loop(
 ) -> Result<(), SendError<TcpAcceptMsg>> {
     loop {
         match listener.accept().await {
-            Ok((stream, _)) => match ConnectionInfo::new(&stream) {
+            Ok((stream, _)) => match stream.conn_info() {
                 Ok(conn_info) => {
                     let msg = TcpAcceptMsg {
                         stream: Some(stream),
@@ -132,7 +106,7 @@ pub(crate) async fn connect(
     remote_addr: IpAddr,
     gtsm: bool,
     password: &Option<String>,
-) -> Result<(TcpStream, ConnectionInfo), Error> {
+) -> Result<(TcpStream, TcpConnInfo), Error> {
     // Create TCP socket.
     let socket =
         connect_socket(local_addr, gtsm).map_err(IoError::TcpSocketError)?;
@@ -148,8 +122,7 @@ pub(crate) async fn connect(
         .map_err(IoError::TcpConnectError)?;
 
     // Obtain TCP connection address/port information.
-    let conn_info =
-        ConnectionInfo::new(&stream).map_err(IoError::TcpInfoError)?;
+    let conn_info = stream.conn_info().map_err(IoError::TcpInfoError)?;
 
     Ok((stream, conn_info))
 }

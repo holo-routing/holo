@@ -56,12 +56,11 @@ use crate::network;
 pub mod messages {
     use std::net::{IpAddr, Ipv4Addr};
 
-    use holo_utils::socket::TcpStream;
+    use holo_utils::socket::{TcpConnInfo, TcpStream};
     use serde::{Deserialize, Serialize};
 
     use crate::collections::{AdjacencyId, NeighborId};
     use crate::error::Error;
-    use crate::network::tcp::ConnectionInfo;
     use crate::packet::{DecodeError, Message, Pdu};
 
     // Type aliases.
@@ -99,7 +98,7 @@ pub mod messages {
         pub struct TcpAcceptMsg {
             #[serde(skip)]
             pub stream: Option<TcpStream>,
-            pub conn_info: ConnectionInfo,
+            pub conn_info: TcpConnInfo,
         }
 
         #[derive(Debug, Deserialize, Serialize)]
@@ -107,7 +106,7 @@ pub mod messages {
             pub nbr_id: NeighborId,
             #[serde(skip)]
             pub stream: Option<TcpStream>,
-            pub conn_info: ConnectionInfo,
+            pub conn_info: TcpConnInfo,
         }
 
         #[derive(Debug, Deserialize, Serialize)]

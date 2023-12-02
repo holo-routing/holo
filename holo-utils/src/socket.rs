@@ -4,11 +4,12 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::net::{Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::os::raw::{c_int, c_void};
 use std::os::unix::io::AsRawFd;
 
 use libc::ip_mreqn;
+use serde::{Deserialize, Serialize};
 // Normal build: re-export standard socket types.
 #[cfg(not(feature = "testing"))]
 pub use {
@@ -19,6 +20,16 @@ pub use {
         TcpStream, UdpSocket,
     },
 };
+
+// TCP connection information.
+#[derive(Debug)]
+#[derive(Deserialize, Serialize)]
+pub struct TcpConnInfo {
+    pub local_addr: IpAddr,
+    pub local_port: u16,
+    pub remote_addr: IpAddr,
+    pub remote_port: u16,
+}
 
 // FFI struct used to set the TCP_MD5SIG socket option.
 #[repr(C)]
@@ -127,6 +138,9 @@ pub trait TcpSocketExt {
 
 // Extension methods for TcpStream.
 pub trait TcpStreamExt {
+    // Returns address and port information about the TCP connection.
+    fn conn_info(&self) -> Result<TcpConnInfo>;
+
     // Sets the value of the IP_MINTTL option for this socket.
     fn set_ipv4_minttl(&self, ttl: u8) -> Result<()>;
 }
@@ -463,6 +477,18 @@ impl TcpSocketExt for TcpSocket {
 
 #[cfg(not(feature = "testing"))]
 impl TcpStreamExt for TcpStream {
+    fn conn_info(&self) -> Result<TcpConnInfo> {
+        let local_addr = self.local_addr()?;
+        let remote_addr = self.peer_addr()?;
+
+        Ok(TcpConnInfo {
+            local_addr: local_addr.ip(),
+            local_port: local_addr.port(),
+            remote_addr: remote_addr.ip(),
+            remote_port: remote_addr.port(),
+        })
+    }
+
     fn set_ipv4_minttl(&self, ttl: u8) -> Result<()> {
         let optval = ttl as c_int;
 

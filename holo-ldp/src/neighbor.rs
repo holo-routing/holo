@@ -14,7 +14,7 @@ use bitflags::bitflags;
 use chrono::{DateTime, Utc};
 use holo_utils::ip::AddressFamily;
 use holo_utils::mpls::Label;
-use holo_utils::socket::{TcpListener, TcpListenerExt, TcpStream};
+use holo_utils::socket::{TcpConnInfo, TcpListener, TcpListenerExt, TcpStream};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{Sender, UnboundedSender};
 use ipnetwork::IpNetwork;
@@ -25,7 +25,6 @@ use crate::debug::Debug;
 use crate::error::{Error, IoError};
 use crate::fec::{Fec, LabelMapping, LabelRequest};
 use crate::instance::{InstanceCfg, InstanceState, InstanceUp};
-use crate::network::tcp::ConnectionInfo;
 use crate::northbound::notification;
 use crate::packet::message::MessageType;
 use crate::packet::messages::address::TlvAddressList;
@@ -58,7 +57,7 @@ pub struct Neighbor {
     pub trans_addr: IpAddr,
     pub state: fsm::State,
     pub cfg_seqno: u32,
-    pub conn_info: Option<ConnectionInfo>,
+    pub conn_info: Option<TcpConnInfo>,
     pub max_pdu_len: u16,
     pub init_attempts: usize,
     pub kalive_holdtime_rcvd: Option<u16>,
@@ -477,7 +476,7 @@ impl Neighbor {
     pub(crate) fn setup_connection(
         &mut self,
         stream: TcpStream,
-        conn_info: ConnectionInfo,
+        conn_info: TcpConnInfo,
         local_lsr_id: Ipv4Addr,
         nbr_pdu_rxp: &Sender<NbrRxPduMsg>,
         #[cfg(feature = "testing")] proto_output_tx: &Sender<ProtocolOutputMsg>,

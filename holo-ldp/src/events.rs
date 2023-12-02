@@ -10,7 +10,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use chrono::Utc;
 use holo_utils::ip::IpNetworkKind;
 use holo_utils::mpls::Label;
-use holo_utils::socket::{TcpStream, TcpStreamExt};
+use holo_utils::socket::{TcpConnInfo, TcpStream, TcpStreamExt};
 use tracing::{debug_span, Span};
 
 use crate::collections::{AdjacencyId, NeighborId, NeighborIndex};
@@ -20,7 +20,6 @@ use crate::error::{Error, IoError};
 use crate::fec::{Fec, LabelMapping, LabelRequest};
 use crate::instance::InstanceUp;
 use crate::neighbor::{fsm, LabelAdvMode, Neighbor, NeighborFlags};
-use crate::network::tcp::ConnectionInfo;
 use crate::northbound::notification;
 use crate::packet::error::DecodeError;
 use crate::packet::messages::address::TlvAddressList;
@@ -350,7 +349,7 @@ pub(crate) fn process_adj_timeout(
 pub(crate) fn process_tcp_accept(
     instance: &mut InstanceUp,
     stream: TcpStream,
-    conn_info: ConnectionInfo,
+    conn_info: TcpConnInfo,
 ) {
     // Lookup neighbor.
     let source = conn_info.remote_addr;
@@ -402,7 +401,7 @@ pub(crate) fn process_tcp_connect(
     instance: &mut InstanceUp,
     nbr_id: NeighborId,
     stream: TcpStream,
-    conn_info: ConnectionInfo,
+    conn_info: TcpConnInfo,
 ) -> Result<(), Error> {
     // Lookup neighbor.
     let (nbr_idx, nbr) = instance.state.neighbors.get_mut_by_id(nbr_id)?;

@@ -23,6 +23,7 @@ use holo_utils::{bfd, UnboundedSender};
 use holo_yang::TryFromYang;
 use ipnetwork::{Ipv4Network, Ipv6Network};
 use ism::{Event, State};
+use smallvec::smallvec;
 use tokio::sync::mpsc;
 
 use crate::area::Area;
@@ -32,7 +33,7 @@ use crate::error::{Error, InterfaceCfgError, IoError};
 use crate::instance::{Instance, InstanceUpView};
 use crate::lsdb::{LsaEntry, LsaOriginateEvent};
 use crate::neighbor::{nsm, Neighbor, NeighborNetId};
-use crate::network::{DestinationAddrs, MulticastAddr, SendDestination};
+use crate::network::{MulticastAddr, SendDestination};
 use crate::northbound::notification;
 use crate::packet::auth::AuthMethod;
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
@@ -638,12 +639,10 @@ where
         let ifindex = self.system.ifindex.unwrap();
         let addrs = match self.config.if_type {
             InterfaceType::PointToPoint | InterfaceType::Broadcast => {
-                let addr = MulticastAddr::AllSpfRtrs;
-                DestinationAddrs::Single(*V::multicast_addr(addr))
+                smallvec![*V::multicast_addr(MulticastAddr::AllSpfRtrs)]
             }
             InterfaceType::NonBroadcast | InterfaceType::PointToMultipoint => {
-                let addrs = self.config.static_nbrs.keys().copied().collect();
-                DestinationAddrs::Multiple(addrs)
+                self.config.static_nbrs.keys().copied().collect()
             }
         };
         let dst = SendDestination::new(ifindex, addrs);
@@ -660,7 +659,7 @@ where
         poll_interval: u16,
     ) {
         let ifindex = self.system.ifindex.unwrap();
-        let dst = SendDestination::new(ifindex, DestinationAddrs::Single(addr));
+        let dst = SendDestination::new(ifindex, smallvec![addr]);
         let task =
             tasks::hello_interval(self, area, instance, dst, poll_interval);
         self.state.tasks.nbma_poll_interval.insert(addr, task);

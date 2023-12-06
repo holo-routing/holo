@@ -17,6 +17,7 @@ use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::{Sender, UnboundedReceiver};
 use nix::sys::socket::{self, SockaddrLike};
 use serde::Serialize;
+use smallvec::SmallVec;
 use tokio::sync::mpsc::error::SendError;
 
 use crate::collections::{AreaId, InterfaceId};
@@ -35,13 +36,7 @@ pub const OSPF_IP_PROTO: i32 = 89;
 #[derive(Clone, Debug, Eq, PartialEq, new, Serialize)]
 pub struct SendDestination<I: IpAddrKind> {
     pub ifindex: u32,
-    pub addrs: DestinationAddrs<I>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, new, Serialize)]
-pub enum DestinationAddrs<I: IpAddrKind> {
-    Single(I),
-    Multiple(Vec<I>),
+    pub addrs: SmallVec<[I; 4]>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize)]
@@ -100,21 +95,6 @@ pub trait NetworkVersion<V: Version> {
 
     // Validate the IP header of the received packet.
     fn validate_ip_hdr(buf: &mut Bytes) -> DecodeResult<()>;
-}
-
-// ===== impl DestinationAddrs =====
-
-impl<I> DestinationAddrs<I>
-where
-    I: IpAddrKind + 'static,
-{
-    #[cfg(not(feature = "testing"))]
-    fn into_iter(self) -> Box<dyn Iterator<Item = I> + 'static + Send> {
-        match self {
-            DestinationAddrs::Single(addr) => Box::new(std::iter::once(addr)),
-            DestinationAddrs::Multiple(addrs) => Box::new(addrs.into_iter()),
-        }
-    }
 }
 
 // ===== global functions =====

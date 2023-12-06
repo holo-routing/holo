@@ -4,13 +4,15 @@
 // SPDX-License-Identifier: MIT
 //
 
+use smallvec::smallvec;
+
 use crate::area::{Area, OptionsLocation};
 use crate::collections::{Arena, NeighborIndex};
 use crate::instance::InstanceUpView;
 use crate::interface::{ism, Interface, InterfaceType};
 use crate::lsdb;
 use crate::neighbor::{nsm, Neighbor};
-use crate::network::{DestinationAddrs, MulticastAddr, SendDestination};
+use crate::network::{MulticastAddr, SendDestination};
 use crate::packet::lsa::LsaHdrVersion;
 use crate::packet::{
     DbDescFlags, DbDescVersion, LsAckVersion, LsRequestVersion,
@@ -403,8 +405,7 @@ where
     } else {
         nbr.src
     };
-    let addr = DestinationAddrs::Single(addr);
-    SendDestination::new(ifindex, addr)
+    SendDestination::new(ifindex, smallvec![addr])
 }
 
 // Returns a destination used to send a packet to all adjacent neighbors
@@ -427,23 +428,22 @@ where
             } else {
                 MulticastAddr::AllDrRtrs
             };
-            DestinationAddrs::Single(*V::multicast_addr(addr))
+            smallvec![*V::multicast_addr(addr)]
         }
         InterfaceType::NonBroadcast | InterfaceType::PointToMultipoint => {
             // On non-broadcast networks, separate LS Update and delayed LS Ack
             // packets must be sent, as unicasts, to each adjacent neighbor.
-            let addrs = iface
+            iface
                 .state
                 .neighbors
                 .iter(neighbors)
                 .filter(|nbr| nbr.state >= nsm::State::Exchange)
                 .map(|nbr| nbr.src)
-                .collect();
-            DestinationAddrs::Multiple(addrs)
+                .collect()
         }
         InterfaceType::PointToPoint => {
             let addr = MulticastAddr::AllSpfRtrs;
-            DestinationAddrs::Single(*V::multicast_addr(addr))
+            smallvec![*V::multicast_addr(addr)]
         }
     };
     SendDestination::new(ifindex, addrs)

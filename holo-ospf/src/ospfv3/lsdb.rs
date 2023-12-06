@@ -241,13 +241,13 @@ impl LsdbVersion<Self> for Ospfv3 {
             LsaOriginateEvent::StubRouterChange => {
                 // (Re)originate Router-LSA(s) in all areas.
                 for area in arenas.areas.iter() {
-                    lsa_orig_router_info(area, instance);
+                    lsa_orig_router(area, instance, arenas);
                 }
             }
             LsaOriginateEvent::GrHelperChange => {
                 // (Re)originate Router Information LSA(s) in all areas.
                 for area in arenas.areas.iter() {
-                    lsa_orig_router(area, instance, arenas);
+                    lsa_orig_router_info(area, instance);
                 }
             }
             LsaOriginateEvent::SrEnableChange => {

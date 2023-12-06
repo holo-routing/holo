@@ -178,7 +178,7 @@ impl Client for GrpcClient {
                 encoding: proto::Encoding::from(format) as i32,
                 path: xpath.unwrap_or_default(),
             })
-            .expect("Failed to parse gRPC Get() response")
+            .map_err(Error::Backend)?
             .into_inner()
             .data
             .unwrap();

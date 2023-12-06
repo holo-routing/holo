@@ -1005,7 +1005,7 @@ where
     let yang_ctx = YANG_CTX.get().unwrap();
 
     // TODO: support Get without path
-    let path = path.unwrap();
+    let path = path.unwrap_or_default();
 
     // Populate data tree with path requested by the user.
     let mut dtree = DataTree::new(yang_ctx);

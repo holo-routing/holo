@@ -14,6 +14,7 @@ use crate::error::Error;
 use crate::instance::InstanceUp;
 use crate::interface::Interface;
 use crate::neighbor::{self, Neighbor};
+use crate::network;
 use crate::packet::StatusCode;
 
 pub type InterfaceId = usize;
@@ -658,7 +659,11 @@ impl Neighbors {
 
             // Unset neighbor password (if any).
             let nbr = &instance.state.neighbors[nbr_idx];
-            nbr.set_listener_md5sig(&instance.state.ipv4.session_socket, None);
+            network::tcp::listen_socket_md5sig_update(
+                &instance.state.ipv4.session_socket,
+                &nbr.trans_addr,
+                None,
+            );
 
             // Delete neighbor.
             instance.state.neighbors.delete(nbr_idx);

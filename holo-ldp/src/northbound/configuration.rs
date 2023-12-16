@@ -23,7 +23,7 @@ use crate::debug::InterfaceInactiveReason;
 use crate::discovery::TargetedNbr;
 use crate::instance::{Instance, InstanceIpv4Cfg};
 use crate::interface::{Interface, InterfaceIpv4Cfg};
-use crate::neighbor;
+use crate::{neighbor, network};
 
 #[derive(Debug, Default, EnumAsInner)]
 pub enum ListEntry {
@@ -506,8 +506,9 @@ impl Provider for Instance {
                             .core
                             .config
                             .get_neighbor_password(nbr.lsr_id);
-                        nbr.set_listener_md5sig(
+                        network::tcp::listen_socket_md5sig_update(
                             &instance.state.ipv4.session_socket,
+                            &nbr.trans_addr,
                             password,
                         );
                     }
@@ -522,8 +523,9 @@ impl Provider for Instance {
                             .core
                             .config
                             .get_neighbor_password(nbr.lsr_id);
-                        nbr.set_listener_md5sig(
+                        network::tcp::listen_socket_md5sig_update(
                             &instance.state.ipv4.session_socket,
+                            &nbr.trans_addr,
                             password,
                         );
                     }

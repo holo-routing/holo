@@ -56,6 +56,19 @@ pub(crate) async fn listen_socket(
     }
 }
 
+pub(crate) fn listen_socket_md5sig_update(
+    socket: &TcpListener,
+    nbr_addr: &IpAddr,
+    password: Option<&str>,
+) {
+    #[cfg(not(feature = "testing"))]
+    {
+        if let Err(error) = socket.set_md5sig(nbr_addr, password) {
+            IoError::TcpAuthError(error).log();
+        }
+    }
+}
+
 #[cfg(not(feature = "testing"))]
 pub(crate) async fn listen_loop(
     listener: Arc<TcpListener>,

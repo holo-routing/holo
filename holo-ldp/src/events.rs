@@ -34,7 +34,7 @@ use crate::packet::messages::{
     NotifMsg,
 };
 use crate::packet::{AddressMessageType, LabelMessageType, Message, Pdu};
-use crate::southbound;
+use crate::{network, southbound};
 
 // ===== UDP packet receipt =====
 
@@ -269,17 +269,19 @@ fn process_hello(
             let id = instance.state.neighbors.next_id();
             let kalive_interval = instance.core.config.session_ka_interval;
             let nbr = Neighbor::new(id, lsr_id, trans_addr, kalive_interval);
+
+            // The neighbor password (if any) must be set in the TCP listening
+            // socket otherwise incoming SYN requests will be rejected.
             if let Some(password) =
                 instance.core.config.get_neighbor_password(nbr.lsr_id)
             {
-                // The neighbor password (if any) must be set in the TCP
-                // listening socket otherwise incoming SYN requests will be
-                // rejected.
-                nbr.set_listener_md5sig(
+                network::tcp::listen_socket_md5sig_update(
                     &instance.state.ipv4.session_socket,
+                    &nbr.trans_addr,
                     Some(password),
                 );
             }
+
             instance.state.neighbors.insert(nbr)
         }
     };

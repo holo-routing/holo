@@ -51,6 +51,9 @@ pub use crate::socket::mock::{
     TcpStream, UdpSocket,
 };
 
+// Maximum TTL for IPv4 or Hop Limit for IPv6.
+pub const TTL_MAX: u8 = 255;
+
 // Useful type definition.
 type Result<T> = std::io::Result<T>;
 

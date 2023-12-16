@@ -15,6 +15,7 @@ use holo_northbound::configuration::{
 };
 use holo_northbound::paths::control_plane_protocol::bfd;
 use holo_utils::bfd::{SessionKey, State};
+use holo_utils::socket::TTL_MAX;
 use holo_utils::yang::DataNodeRefExt;
 
 use crate::master::Master;
@@ -199,8 +200,8 @@ fn load_callbacks() -> Callbacks<Master> {
             // Get existing session or create a new one.
             let sess_key = SessionKey::new_ip_multihop(src, dst);
             let (sess_idx, sess) = master.sessions.insert(sess_key);
-            sess.config.tx_ttl = Some(255);
-            sess.config.rx_ttl = Some(255);
+            sess.config.tx_ttl = Some(TTL_MAX);
+            sess.config.rx_ttl = Some(TTL_MAX);
             sess.config_enabled = true;
 
             // Initialize session's socket address.

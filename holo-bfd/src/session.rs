@@ -17,7 +17,7 @@ use holo_protocol::InstanceChannelsTx;
 use holo_utils::bfd::{ClientCfg, ClientId, SessionKey, State};
 use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::{IpAddrExt, IpAddrKind};
-use holo_utils::socket::UdpSocket;
+use holo_utils::socket::{UdpSocket, TTL_MAX};
 use holo_utils::task::{IntervalTask, TimeoutTask};
 use holo_utils::Sender;
 use rand::RngCore;
@@ -348,11 +348,11 @@ impl Session {
             SessionKey::IpSingleHop { dst, .. } => {
                 let af = dst.address_family();
                 let src = self.config.src.unwrap_or(IpAddr::unspecified(af));
-                (af, src, 255)
+                (af, src, TTL_MAX)
             }
             SessionKey::IpMultihop { src, dst } => {
                 let af = dst.address_family();
-                let ttl = self.config.tx_ttl.unwrap_or(255);
+                let ttl = self.config.tx_ttl.unwrap_or(TTL_MAX);
                 (af, *src, ttl)
             }
         };

@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use holo_utils::socket::{
     OwnedReadHalf, OwnedWriteHalf, TcpConnInfo, TcpListener, TcpListenerExt,
-    TcpSocket, TcpSocketExt, TcpStream, TcpStreamExt,
+    TcpSocket, TcpSocketExt, TcpStream, TcpStreamExt, TTL_MAX,
 };
 use holo_utils::task::TimeoutTask;
 use holo_utils::{capabilities, Sender, UnboundedReceiver};
@@ -46,7 +46,7 @@ pub(crate) async fn listen_socket(
 
         // Set socket options.
         socket.set_ipv4_tos(libc::IPTOS_PREC_INTERNETCONTROL)?;
-        socket.set_ttl(255)?;
+        socket.set_ipv4_ttl(TTL_MAX)?;
 
         Ok(socket)
     }
@@ -92,8 +92,8 @@ fn connect_socket(
     socket.set_reuseaddr(true)?;
     socket.set_ipv4_tos(libc::IPTOS_PREC_INTERNETCONTROL)?;
     if gtsm {
-        socket.set_ipv4_ttl(255)?;
-        socket.set_ipv4_minttl(255)?;
+        socket.set_ipv4_ttl(TTL_MAX)?;
+        socket.set_ipv4_minttl(TTL_MAX)?;
     }
 
     socket.bind(sockaddr)?;

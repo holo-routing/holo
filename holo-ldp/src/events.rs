@@ -10,7 +10,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use chrono::Utc;
 use holo_utils::ip::IpNetworkKind;
 use holo_utils::mpls::Label;
-use holo_utils::socket::{TcpConnInfo, TcpStream, TcpStreamExt};
+use holo_utils::socket::{TcpConnInfo, TcpStream, TcpStreamExt, TTL_MAX};
 use tracing::{debug_span, Span};
 
 use crate::collections::{AdjacencyId, NeighborId, NeighborIndex};
@@ -376,7 +376,7 @@ pub(crate) fn process_tcp_accept(
     #[cfg(not(feature = "testing"))]
     {
         if nbr.flags.contains(NeighborFlags::GTSM) {
-            if let Err(error) = stream.set_ipv4_minttl(255) {
+            if let Err(error) = stream.set_ipv4_minttl(TTL_MAX) {
                 IoError::TcpSocketError(error).log();
                 return;
             }

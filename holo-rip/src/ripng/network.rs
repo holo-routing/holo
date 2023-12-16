@@ -9,7 +9,7 @@ use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
 use holo_utils::capabilities;
-use holo_utils::socket::{UdpSocket, UdpSocketExt};
+use holo_utils::socket::{UdpSocket, UdpSocketExt, TTL_MAX};
 
 use crate::network::NetworkVersion;
 use crate::version::Ripng;
@@ -44,8 +44,8 @@ impl NetworkVersion for Ripng {
             // sent from the RIPng port (i.e. periodic advertisement
             // or triggered update packets) must be examined to
             // ensure that the hop count is 255".
-            socket.set_multicast_hopcount_v6(255)?;
-            socket.set_min_hopcount_v6(255)?;
+            socket.set_multicast_hopcount_v6(TTL_MAX)?;
+            socket.set_min_hopcount_v6(TTL_MAX)?;
 
             Ok(socket)
         }

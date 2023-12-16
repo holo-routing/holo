@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use holo_utils::bfd::PathType;
 use holo_utils::ip::{AddressFamily, IpAddrExt};
-use holo_utils::socket::{UdpSocket, UdpSocketExt};
+use holo_utils::socket::{UdpSocket, UdpSocketExt, TTL_MAX};
 use holo_utils::{capabilities, Sender};
 use nix::sys::socket::{self, ControlMessageOwned};
 use serde::{Deserialize, Serialize};
@@ -59,11 +59,11 @@ pub(crate) fn socket_rx(
             PathType::IpSingleHop => match af {
                 AddressFamily::Ipv4 => {
                     socket.set_ipv4_pktinfo(true)?;
-                    socket.set_ipv4_minttl(255)?;
+                    socket.set_ipv4_minttl(TTL_MAX)?;
                 }
                 AddressFamily::Ipv6 => {
                     socket.set_ipv6_pktinfo(true)?;
-                    socket.set_min_hopcount_v6(255)?;
+                    socket.set_min_hopcount_v6(TTL_MAX)?;
                 }
             },
             PathType::IpMultihop => {
@@ -256,7 +256,7 @@ pub(crate) async fn read_loop(
                     PathType::IpMultihop => {
                         let src = src.ip();
                         // TODO: get packet's TTL using IP_RECVTTL/IPV6_HOPLIMIT
-                        let ttl = 255;
+                        let ttl = TTL_MAX;
                         PacketInfo::IpMultihop { src, dst, ttl }
                     }
                 };

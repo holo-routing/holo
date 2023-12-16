@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use holo_utils::bfd::PathType;
 use holo_utils::ip::{AddressFamily, IpAddrExt};
-use holo_utils::socket::{UdpSocket, UdpSocketExt, TTL_MAX};
+use holo_utils::socket::{SocketExt, UdpSocket, UdpSocketExt, TTL_MAX};
 use holo_utils::{capabilities, Sender};
 use nix::sys::socket::{self, ControlMessageOwned};
 use serde::{Deserialize, Serialize};
@@ -63,7 +63,7 @@ pub(crate) fn socket_rx(
                 }
                 AddressFamily::Ipv6 => {
                     socket.set_ipv6_pktinfo(true)?;
-                    socket.set_min_hopcount_v6(TTL_MAX)?;
+                    socket.set_ipv6_min_hopcount(TTL_MAX)?;
                 }
             },
             PathType::IpMultihop => {
@@ -121,11 +121,11 @@ pub(crate) fn socket_tx(
         match af {
             AddressFamily::Ipv4 => {
                 socket.set_ipv4_tos(libc::IPTOS_PREC_INTERNETCONTROL)?;
-                socket.set_ttl(ttl as u32)?;
+                socket.set_ipv4_ttl(ttl)?;
             }
             AddressFamily::Ipv6 => {
                 socket.set_ipv6_tclass(libc::IPTOS_PREC_INTERNETCONTROL)?;
-                socket.set_unicast_hops_v6(ttl as u32)?;
+                socket.set_ipv6_unicast_hops(ttl)?;
             }
         }
 

@@ -57,8 +57,89 @@ pub const TTL_MAX: u8 = 255;
 // Useful type definition.
 type Result<T> = std::io::Result<T>;
 
+// Extension methods for all socket types.
+pub trait SocketExt: Sized + AsRawFd {
+    // Sets the value of the IP_TOS option for this socket.
+    fn set_ipv4_tos(&self, tos: u8) -> Result<()> {
+        let optval = tos as c_int;
+
+        setsockopt(
+            self,
+            libc::IPPROTO_IP,
+            libc::IP_TOS,
+            &optval as *const _ as *const libc::c_void,
+            std::mem::size_of::<i32>() as libc::socklen_t,
+        )
+    }
+
+    // Sets the value of the IP_MINTTL option for this socket.
+    fn set_ipv4_minttl(&self, ttl: u8) -> Result<()> {
+        let optval = ttl as c_int;
+
+        setsockopt(
+            self,
+            libc::IPPROTO_IP,
+            libc::IP_MINTTL,
+            &optval as *const _ as *const libc::c_void,
+            std::mem::size_of::<i32>() as libc::socklen_t,
+        )
+    }
+
+    // Sets the value of the IP_TTL option for this socket.
+    fn set_ipv4_ttl(&self, ttl: u8) -> Result<()> {
+        let optval = ttl as c_int;
+
+        setsockopt(
+            self,
+            libc::IPPROTO_IP,
+            libc::IP_TTL,
+            &optval as *const _ as *const libc::c_void,
+            std::mem::size_of::<i32>() as libc::socklen_t,
+        )
+    }
+
+    // Sets the value of the IPV6_TCLASS option for this socket.
+    fn set_ipv6_tclass(&self, dscp: u8) -> Result<()> {
+        let optval = dscp as c_int;
+
+        setsockopt(
+            self,
+            libc::IPPROTO_IPV6,
+            libc::IPV6_TCLASS,
+            &optval as *const _ as *const libc::c_void,
+            std::mem::size_of::<i32>() as libc::socklen_t,
+        )
+    }
+
+    // Sets the value of the IPV6_MINHOPCOUNT option for this socket.
+    fn set_ipv6_min_hopcount(&self, hopcount: u8) -> Result<()> {
+        let optval = hopcount as c_int;
+
+        setsockopt(
+            self,
+            libc::IPPROTO_IPV6,
+            libc::IPV6_MINHOPCOUNT,
+            &optval as *const _ as *const libc::c_void,
+            std::mem::size_of::<i32>() as libc::socklen_t,
+        )
+    }
+
+    // Sets the value of the IPV6_UNICAST_HOPS option for this socket.
+    fn set_ipv6_unicast_hops(&self, hops: u8) -> Result<()> {
+        let optval = hops as c_int;
+
+        setsockopt(
+            self,
+            libc::IPPROTO_IPV6,
+            libc::IPV6_UNICAST_HOPS,
+            &optval as *const _ as *const libc::c_void,
+            std::mem::size_of::<i32>() as libc::socklen_t,
+        )
+    }
+}
+
 // Extension methods for UdpSocket.
-pub trait UdpSocketExt {
+pub trait UdpSocketExt: SocketExt {
     // Creates a UDP socket not bound to any address.
     #[allow(clippy::new_ret_no_self)]
     fn new(af: AddressFamily) -> Result<UdpSocket>;
@@ -74,112 +155,188 @@ pub trait UdpSocketExt {
         &self,
         multiaddr: &Ipv4Addr,
         ifindex: u32,
-    ) -> Result<()>;
+    ) -> Result<()> {
+        let multiaddr: u32 = (*multiaddr).into();
+
+        let optval = ip_mreqn {
+            imr_multiaddr: libc::in_addr {
+                s_addr: multiaddr.to_be(),
+            },
+            imr_address: libc::in_addr { s_addr: 0 },
+            imr_ifindex: ifindex as c_int,
+        };
+
+        setsockopt(
+            self,
+            libc::IPPROTO_IP,
+            libc::IP_ADD_MEMBERSHIP,
+            &optval as *const _ as *const c_void,
+            std::mem::size_of::<ip_mreqn>() as libc::socklen_t,
+        )
+    }
 
     // Executes an operation of the IP_DROP_MEMBERSHIP type.
     fn leave_multicast_ifindex_v4(
         &self,
         multiaddr: &Ipv4Addr,
         ifindex: u32,
-    ) -> Result<()>;
+    ) -> Result<()> {
+        let multiaddr: u32 = (*multiaddr).into();
+
+        let optval = ip_mreqn {
+            imr_multiaddr: libc::in_addr {
+                s_addr: multiaddr.to_be(),
+            },
+            imr_address: libc::in_addr { s_addr: 0 },
+            imr_ifindex: ifindex as c_int,
+        };
+
+        setsockopt(
+            self,
+            libc::IPPROTO_IP,
+            libc::IP_DROP_MEMBERSHIP,
+            &optval as *const _ as *const c_void,
+            std::mem::size_of::<ip_mreqn>() as libc::socklen_t,
+        )
+    }
 
     // Sets the value of the IP_MULTICAST_IF option for this socket.
-    fn set_multicast_if_v4(&self, ifindex: u32) -> Result<()>;
+    fn set_multicast_if_v4(&self, ifindex: u32) -> Result<()> {
+        let optval = ip_mreqn {
+            imr_multiaddr: libc::in_addr { s_addr: 0 },
+            imr_address: libc::in_addr { s_addr: 0 },
+            imr_ifindex: ifindex as i32,
+        };
+
+        setsockopt(
+            self,
+            libc::IPPROTO_IP,
+            libc::IP_MULTICAST_IF,
+            &optval as *const _ as *const c_void,
+            std::mem::size_of::<ip_mreqn>() as libc::socklen_t,
+        )
+    }
 
     // Sets the value of the IPV6_MULTICAST_IF option for this socket.
-    fn set_multicast_if_v6(&self, ifindex: u32) -> Result<()>;
+    fn set_multicast_if_v6(&self, ifindex: u32) -> Result<()> {
+        let optval = ifindex as i32;
 
-    // Sets the value of the IP_TOS option for this socket.
-    fn set_ipv4_tos(&self, tos: u8) -> Result<()>;
-
-    // Sets the value of the IP_MINTTL option for this socket.
-    fn set_ipv4_minttl(&self, ttl: u8) -> Result<()>;
-
-    // Sets the value of the IPV6_TCLASS option for this socket.
-    fn set_ipv6_tclass(&self, dscp: u8) -> Result<()>;
-
-    // Sets the value of the IPV6_UNICAST_HOPS option for this socket.
-    fn set_unicast_hops_v6(&self, hops: u32) -> Result<()>;
+        setsockopt(
+            self,
+            libc::IPPROTO_IPV6,
+            libc::IPV6_MULTICAST_IF,
+            &optval as *const _ as *const c_void,
+            std::mem::size_of::<i32>() as libc::socklen_t,
+        )
+    }
 
     // Sets the value of the IPV6_MULTICAST_HOPS option for this socket.
-    fn set_multicast_hopcount_v6(&self, hopcount: u8) -> Result<()>;
+    fn set_ipv6_multicast_hopcount(&self, hopcount: u8) -> Result<()> {
+        let optval = hopcount as c_int;
 
-    // Sets the value of the IPV6_MINHOPCOUNT option for this socket.
-    fn set_min_hopcount_v6(&self, hopcount: u8) -> Result<()>;
+        setsockopt(
+            self,
+            libc::IPPROTO_IPV6,
+            libc::IPV6_MULTICAST_HOPS,
+            &optval as *const _ as *const libc::c_void,
+            std::mem::size_of::<i32>() as libc::socklen_t,
+        )
+    }
 
     // Sets the value of the IP_PKTINFO option for this socket.
-    fn set_ipv4_pktinfo(&self, value: bool) -> Result<()>;
+    fn set_ipv4_pktinfo(&self, value: bool) -> Result<()> {
+        let optval = value as c_int;
+
+        setsockopt(
+            self,
+            libc::IPPROTO_IP,
+            libc::IP_PKTINFO,
+            &optval as *const _ as *const libc::c_void,
+            std::mem::size_of::<i32>() as libc::socklen_t,
+        )
+    }
 
     // Sets the value of the IPV6_RECVPKTINFO option for this socket.
-    fn set_ipv6_pktinfo(&self, value: bool) -> Result<()>;
+    fn set_ipv6_pktinfo(&self, value: bool) -> Result<()> {
+        let optval = value as c_int;
+
+        setsockopt(
+            self,
+            libc::IPPROTO_IPV6,
+            libc::IPV6_RECVPKTINFO,
+            &optval as *const _ as *const libc::c_void,
+            std::mem::size_of::<i32>() as libc::socklen_t,
+        )
+    }
 }
 
-// Extension methods for TcpSocket.
-pub trait TcpSocketExt {
-    // Sets the value of the IP_MINTTL option for this socket.
-    fn set_ipv4_minttl(&self, ttl: u8) -> Result<()>;
-
-    // Sets the value of the IP_TTL option for this socket.
-    fn set_ipv4_ttl(&self, ttl: u8) -> Result<()>;
-
-    // Sets the value of the IP_TOS option for this socket.
-    fn set_ipv4_tos(&self, tos: u8) -> Result<()>;
-
+// Extension methods for TcpSocket, TcpListener and TcpStream.
+pub trait TcpSocketExt: SocketExt {
     // Sets the value of the IPV6_V6ONLY option for this socket.
-    fn set_ipv6_only(&self, enable: bool) -> Result<()>;
+    fn set_ipv6_only(&self, enable: bool) -> Result<()> {
+        let optval = enable as c_int;
 
-    // Sets the value of the IPV6_TCLASS option for this socket.
-    fn set_ipv6_tclass(&self, dscp: u8) -> Result<()>;
+        setsockopt(
+            self,
+            libc::IPPROTO_IPV6,
+            libc::IPV6_V6ONLY,
+            &optval as *const _ as *const libc::c_void,
+            std::mem::size_of::<i32>() as libc::socklen_t,
+        )
+    }
 
     // Sets the value of the TCP_MD5SIG option for this socket.
     fn set_md5sig(
         &self,
         dst: &SocketAddr,
         password: Option<&str>,
-    ) -> Result<()>;
+    ) -> Result<()> {
+        let mut optval = tcp_md5sig {
+            tcpm_addr: (*dst).into(),
+            tcpm_flags: 0,
+            tcpm_prefixlen: 0,
+            tcpm_keylen: 0,
+            __tcpm_pad: 0,
+            tcpm_key: [0; 108],
+        };
+        if let Some(password) = password {
+            optval.tcpm_keylen = password.len() as u16;
+            optval.tcpm_key[..password.len()]
+                .copy_from_slice(password.as_bytes());
+        }
+
+        setsockopt(
+            self,
+            libc::IPPROTO_TCP,
+            libc::TCP_MD5SIG,
+            &optval as *const _ as *const libc::c_void,
+            std::mem::size_of::<tcp_md5sig>() as libc::socklen_t,
+        )
+    }
 }
 
 // Extension methods for TcpStream.
-pub trait TcpStreamExt {
+pub trait TcpStreamExt: TcpSocketExt {
     // Returns address and port information about the TCP connection.
     fn conn_info(&self) -> Result<TcpConnInfo>;
-
-    // Sets the value of the IP_MINTTL option for this socket.
-    fn set_ipv4_minttl(&self, ttl: u8) -> Result<()>;
-}
-
-// Extension methods for TcpListener.
-pub trait TcpListenerExt {
-    // Sets the value of the IP_TOS option for this socket.
-    fn set_ipv4_tos(&self, tos: u8) -> Result<()>;
-
-    // Sets the value of the IPV6_TCLASS option for this socket.
-    fn set_ipv6_tclass(&self, dscp: u8) -> Result<()>;
-
-    // Sets the value of the TCP_MD5SIG option for this socket.
-    fn set_md5sig(
-        &self,
-        dst: &SocketAddr,
-        password: Option<&str>,
-    ) -> Result<()>;
 }
 
 // Extension methods for Socket.
-pub trait SocketExt {
+pub trait RawSocketExt: SocketExt {
     // Sets the value of the IP_PKTINFO option for this socket.
     fn set_ipv4_pktinfo(&self, value: bool) -> Result<()>;
 
     // Sets the value of the IPV6_CHECKSUM option for this socket.
     fn set_ipv6_checksum(&self, offset: i32) -> Result<()>;
 
-    // Sets the value of the IPV6_TCLASS option for this socket.
-    fn set_ipv6_tclass(&self, dscp: u8) -> Result<()>;
-
     // Sets the value of the IPV6_RECVPKTINFO option for this socket.
     fn set_ipv6_pktinfo(&self, value: bool) -> Result<()>;
 }
 
 // ===== impl UdpSocket =====
+
+#[cfg(not(feature = "testing"))]
+impl SocketExt for UdpSocket {}
 
 #[cfg(not(feature = "testing"))]
 impl UdpSocketExt for UdpSocket {
@@ -209,274 +366,23 @@ impl UdpSocketExt for UdpSocket {
         socket.bind(&addr.into())?;
         UdpSocket::from_std(socket.into())
     }
-
-    fn join_multicast_ifindex_v4(
-        &self,
-        multiaddr: &Ipv4Addr,
-        ifindex: u32,
-    ) -> Result<()> {
-        let multiaddr: u32 = (*multiaddr).into();
-
-        let optval = ip_mreqn {
-            imr_multiaddr: libc::in_addr {
-                s_addr: multiaddr.to_be(),
-            },
-            imr_address: libc::in_addr { s_addr: 0 },
-            imr_ifindex: ifindex as c_int,
-        };
-
-        setsockopt(
-            self,
-            libc::IPPROTO_IP,
-            libc::IP_ADD_MEMBERSHIP,
-            &optval as *const _ as *const c_void,
-            std::mem::size_of::<ip_mreqn>() as libc::socklen_t,
-        )
-    }
-
-    fn leave_multicast_ifindex_v4(
-        &self,
-        multiaddr: &Ipv4Addr,
-        ifindex: u32,
-    ) -> Result<()> {
-        let multiaddr: u32 = (*multiaddr).into();
-
-        let optval = ip_mreqn {
-            imr_multiaddr: libc::in_addr {
-                s_addr: multiaddr.to_be(),
-            },
-            imr_address: libc::in_addr { s_addr: 0 },
-            imr_ifindex: ifindex as c_int,
-        };
-
-        setsockopt(
-            self,
-            libc::IPPROTO_IP,
-            libc::IP_DROP_MEMBERSHIP,
-            &optval as *const _ as *const c_void,
-            std::mem::size_of::<ip_mreqn>() as libc::socklen_t,
-        )
-    }
-
-    fn set_multicast_if_v4(&self, ifindex: u32) -> Result<()> {
-        let optval = ip_mreqn {
-            imr_multiaddr: libc::in_addr { s_addr: 0 },
-            imr_address: libc::in_addr { s_addr: 0 },
-            imr_ifindex: ifindex as i32,
-        };
-
-        setsockopt(
-            self,
-            libc::IPPROTO_IP,
-            libc::IP_MULTICAST_IF,
-            &optval as *const _ as *const c_void,
-            std::mem::size_of::<ip_mreqn>() as libc::socklen_t,
-        )
-    }
-
-    fn set_multicast_if_v6(&self, ifindex: u32) -> Result<()> {
-        let optval = ifindex as i32;
-
-        setsockopt(
-            self,
-            libc::IPPROTO_IPV6,
-            libc::IPV6_MULTICAST_IF,
-            &optval as *const _ as *const c_void,
-            std::mem::size_of::<i32>() as libc::socklen_t,
-        )
-    }
-
-    fn set_ipv4_tos(&self, tos: u8) -> Result<()> {
-        let optval = tos as c_int;
-
-        setsockopt(
-            self,
-            libc::IPPROTO_IP,
-            libc::IP_TOS,
-            &optval as *const _ as *const libc::c_void,
-            std::mem::size_of::<i32>() as libc::socklen_t,
-        )
-    }
-
-    fn set_ipv4_minttl(&self, ttl: u8) -> Result<()> {
-        let optval = ttl as c_int;
-
-        setsockopt(
-            self,
-            libc::IPPROTO_IP,
-            libc::IP_MINTTL,
-            &optval as *const _ as *const libc::c_void,
-            std::mem::size_of::<i32>() as libc::socklen_t,
-        )
-    }
-
-    fn set_ipv6_tclass(&self, dscp: u8) -> Result<()> {
-        let optval = dscp as c_int;
-
-        setsockopt(
-            self,
-            libc::IPPROTO_IPV6,
-            libc::IPV6_TCLASS,
-            &optval as *const _ as *const libc::c_void,
-            std::mem::size_of::<i32>() as libc::socklen_t,
-        )
-    }
-
-    fn set_unicast_hops_v6(&self, hops: u32) -> Result<()> {
-        let optval = hops as c_int;
-
-        setsockopt(
-            self,
-            libc::IPPROTO_IPV6,
-            libc::IPV6_UNICAST_HOPS,
-            &optval as *const _ as *const libc::c_void,
-            std::mem::size_of::<i32>() as libc::socklen_t,
-        )
-    }
-
-    fn set_multicast_hopcount_v6(&self, hopcount: u8) -> Result<()> {
-        let optval = hopcount as c_int;
-
-        setsockopt(
-            self,
-            libc::IPPROTO_IPV6,
-            libc::IPV6_MULTICAST_HOPS,
-            &optval as *const _ as *const libc::c_void,
-            std::mem::size_of::<i32>() as libc::socklen_t,
-        )
-    }
-
-    fn set_min_hopcount_v6(&self, hopcount: u8) -> Result<()> {
-        let optval = hopcount as c_int;
-
-        setsockopt(
-            self,
-            libc::IPPROTO_IPV6,
-            libc::IPV6_MINHOPCOUNT,
-            &optval as *const _ as *const libc::c_void,
-            std::mem::size_of::<i32>() as libc::socklen_t,
-        )
-    }
-
-    fn set_ipv4_pktinfo(&self, value: bool) -> Result<()> {
-        let optval = value as c_int;
-
-        setsockopt(
-            self,
-            libc::IPPROTO_IP,
-            libc::IP_PKTINFO,
-            &optval as *const _ as *const libc::c_void,
-            std::mem::size_of::<i32>() as libc::socklen_t,
-        )
-    }
-
-    fn set_ipv6_pktinfo(&self, value: bool) -> Result<()> {
-        let optval = value as c_int;
-
-        setsockopt(
-            self,
-            libc::IPPROTO_IPV6,
-            libc::IPV6_RECVPKTINFO,
-            &optval as *const _ as *const libc::c_void,
-            std::mem::size_of::<i32>() as libc::socklen_t,
-        )
-    }
 }
 
 // ===== impl TcpSocket =====
 
 #[cfg(not(feature = "testing"))]
-impl TcpSocketExt for TcpSocket {
-    fn set_ipv4_minttl(&self, ttl: u8) -> Result<()> {
-        let optval = ttl as c_int;
+impl SocketExt for TcpSocket {}
 
-        setsockopt(
-            self,
-            libc::IPPROTO_IP,
-            libc::IP_MINTTL,
-            &optval as *const _ as *const libc::c_void,
-            std::mem::size_of::<i32>() as libc::socklen_t,
-        )
-    }
-
-    fn set_ipv4_ttl(&self, ttl: u8) -> Result<()> {
-        let optval = ttl as c_int;
-
-        setsockopt(
-            self,
-            libc::IPPROTO_IP,
-            libc::IP_TTL,
-            &optval as *const _ as *const libc::c_void,
-            std::mem::size_of::<i32>() as libc::socklen_t,
-        )
-    }
-
-    fn set_ipv4_tos(&self, tos: u8) -> Result<()> {
-        let optval = tos as c_int;
-
-        setsockopt(
-            self,
-            libc::IPPROTO_IP,
-            libc::IP_TOS,
-            &optval as *const _ as *const libc::c_void,
-            std::mem::size_of::<i32>() as libc::socklen_t,
-        )
-    }
-
-    fn set_ipv6_only(&self, enable: bool) -> Result<()> {
-        let optval = enable as c_int;
-
-        setsockopt(
-            self,
-            libc::IPPROTO_IPV6,
-            libc::IPV6_V6ONLY,
-            &optval as *const _ as *const libc::c_void,
-            std::mem::size_of::<i32>() as libc::socklen_t,
-        )
-    }
-
-    fn set_ipv6_tclass(&self, dscp: u8) -> Result<()> {
-        let optval = dscp as c_int;
-
-        setsockopt(
-            self,
-            libc::IPPROTO_IPV6,
-            libc::IPV6_TCLASS,
-            &optval as *const _ as *const libc::c_void,
-            std::mem::size_of::<i32>() as libc::socklen_t,
-        )
-    }
-
-    fn set_md5sig(
-        &self,
-        dst: &SocketAddr,
-        password: Option<&str>,
-    ) -> Result<()> {
-        let mut optval = tcp_md5sig {
-            tcpm_addr: (*dst).into(),
-            tcpm_flags: 0,
-            tcpm_prefixlen: 0,
-            tcpm_keylen: 0,
-            __tcpm_pad: 0,
-            tcpm_key: [0; 108],
-        };
-        if let Some(password) = password {
-            optval.tcpm_keylen = password.len() as u16;
-            optval.tcpm_key[..password.len()]
-                .copy_from_slice(password.as_bytes());
-        }
-
-        setsockopt(
-            self,
-            libc::IPPROTO_TCP,
-            libc::TCP_MD5SIG,
-            &optval as *const _ as *const libc::c_void,
-            std::mem::size_of::<tcp_md5sig>() as libc::socklen_t,
-        )
-    }
-}
+#[cfg(not(feature = "testing"))]
+impl TcpSocketExt for TcpSocket {}
 
 // ===== impl TcpStream =====
+
+#[cfg(not(feature = "testing"))]
+impl SocketExt for TcpStream {}
+
+#[cfg(not(feature = "testing"))]
+impl TcpSocketExt for TcpStream {}
 
 #[cfg(not(feature = "testing"))]
 impl TcpStreamExt for TcpStream {
@@ -491,81 +397,23 @@ impl TcpStreamExt for TcpStream {
             remote_port: remote_addr.port(),
         })
     }
-
-    fn set_ipv4_minttl(&self, ttl: u8) -> Result<()> {
-        let optval = ttl as c_int;
-
-        setsockopt(
-            self,
-            libc::IPPROTO_IP,
-            libc::IP_MINTTL,
-            &optval as *const _ as *const libc::c_void,
-            std::mem::size_of::<i32>() as libc::socklen_t,
-        )
-    }
 }
 
 // ===== impl TcpListener =====
 
 #[cfg(not(feature = "testing"))]
-impl TcpListenerExt for TcpListener {
-    fn set_ipv4_tos(&self, tos: u8) -> Result<()> {
-        let optval = tos as c_int;
+impl SocketExt for TcpListener {}
 
-        setsockopt(
-            self,
-            libc::IPPROTO_IP,
-            libc::IP_TOS,
-            &optval as *const _ as *const libc::c_void,
-            std::mem::size_of::<i32>() as libc::socklen_t,
-        )
-    }
-
-    fn set_ipv6_tclass(&self, dscp: u8) -> Result<()> {
-        let optval = dscp as c_int;
-
-        setsockopt(
-            self,
-            libc::IPPROTO_IPV6,
-            libc::IPV6_TCLASS,
-            &optval as *const _ as *const libc::c_void,
-            std::mem::size_of::<i32>() as libc::socklen_t,
-        )
-    }
-
-    fn set_md5sig(
-        &self,
-        dst: &SocketAddr,
-        password: Option<&str>,
-    ) -> Result<()> {
-        let mut optval = tcp_md5sig {
-            tcpm_addr: (*dst).into(),
-            tcpm_flags: 0,
-            tcpm_prefixlen: 0,
-            tcpm_keylen: 0,
-            __tcpm_pad: 0,
-            tcpm_key: [0; 108],
-        };
-        if let Some(password) = password {
-            optval.tcpm_keylen = password.len() as u16;
-            optval.tcpm_key[..password.len()]
-                .copy_from_slice(password.as_bytes());
-        }
-
-        setsockopt(
-            self,
-            libc::IPPROTO_TCP,
-            libc::TCP_MD5SIG,
-            &optval as *const _ as *const libc::c_void,
-            std::mem::size_of::<tcp_md5sig>() as libc::socklen_t,
-        )
-    }
-}
+#[cfg(not(feature = "testing"))]
+impl TcpSocketExt for TcpListener {}
 
 // ===== impl Socket =====
 
 #[cfg(not(feature = "testing"))]
-impl SocketExt for Socket {
+impl SocketExt for Socket {}
+
+#[cfg(not(feature = "testing"))]
+impl RawSocketExt for Socket {
     fn set_ipv4_pktinfo(&self, value: bool) -> Result<()> {
         let optval = value as c_int;
 
@@ -585,18 +433,6 @@ impl SocketExt for Socket {
             self,
             libc::IPPROTO_IPV6,
             libc::IPV6_CHECKSUM,
-            &optval as *const _ as *const libc::c_void,
-            std::mem::size_of::<i32>() as libc::socklen_t,
-        )
-    }
-
-    fn set_ipv6_tclass(&self, dscp: u8) -> Result<()> {
-        let optval = dscp as c_int;
-
-        setsockopt(
-            self,
-            libc::IPPROTO_IPV6,
-            libc::IPV6_TCLASS,
             &optval as *const _ as *const libc::c_void,
             std::mem::size_of::<i32>() as libc::socklen_t,
         )

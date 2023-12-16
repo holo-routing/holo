@@ -9,7 +9,7 @@ use std::str::FromStr;
 use std::sync::{Arc, LazyLock as Lazy};
 
 use holo_utils::ip::{AddressFamily, IpAddrExt};
-use holo_utils::socket::{UdpSocket, UdpSocketExt};
+use holo_utils::socket::{SocketExt, UdpSocket, UdpSocketExt};
 use holo_utils::{capabilities, Sender};
 use tokio::sync::mpsc::error::SendError;
 

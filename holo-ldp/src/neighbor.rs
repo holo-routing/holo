@@ -14,7 +14,7 @@ use bitflags::bitflags;
 use chrono::{DateTime, Utc};
 use holo_utils::ip::AddressFamily;
 use holo_utils::mpls::Label;
-use holo_utils::socket::{TcpConnInfo, TcpListener, TcpListenerExt, TcpStream};
+use holo_utils::socket::{TcpConnInfo, TcpListener, TcpSocketExt, TcpStream};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{Sender, UnboundedSender};
 use ipnetwork::IpNetwork;

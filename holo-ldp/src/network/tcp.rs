@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use holo_utils::socket::{
-    OwnedReadHalf, OwnedWriteHalf, TcpConnInfo, TcpListener, TcpListenerExt,
+    OwnedReadHalf, OwnedWriteHalf, SocketExt, TcpConnInfo, TcpListener,
     TcpSocket, TcpSocketExt, TcpStream, TcpStreamExt, TTL_MAX,
 };
 use holo_utils::task::TimeoutTask;

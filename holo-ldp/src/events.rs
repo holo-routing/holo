@@ -10,7 +10,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use chrono::Utc;
 use holo_utils::ip::IpNetworkKind;
 use holo_utils::mpls::Label;
-use holo_utils::socket::{TcpConnInfo, TcpStream, TcpStreamExt, TTL_MAX};
+use holo_utils::socket::{SocketExt, TcpConnInfo, TcpStream, TTL_MAX};
 use tracing::{debug_span, Span};
 
 use crate::collections::{AdjacencyId, NeighborId, NeighborIndex};

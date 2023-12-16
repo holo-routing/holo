@@ -10,7 +10,7 @@ use std::sync::LazyLock as Lazy;
 
 use bytes::{Buf, Bytes};
 use holo_utils::capabilities;
-use holo_utils::socket::{Socket, SocketExt};
+use holo_utils::socket::{RawSocketExt, Socket};
 use ipnetwork::Ipv4Network;
 use nix::sys::socket::{self, SockaddrIn};
 use socket2::InterfaceIndexOrAddress;

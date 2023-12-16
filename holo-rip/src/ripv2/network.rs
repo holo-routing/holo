@@ -9,7 +9,7 @@ use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
 use holo_utils::capabilities;
-use holo_utils::socket::{UdpSocket, UdpSocketExt};
+use holo_utils::socket::{SocketExt, UdpSocket, UdpSocketExt};
 
 use crate::network::NetworkVersion;
 use crate::version::Ripv2;

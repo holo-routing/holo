@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::sync::LazyLock as Lazy;
 
 use async_trait::async_trait;
@@ -49,6 +49,22 @@ pub enum Event {
 pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
     Lazy::new(load_validation_callbacks);
 pub static CALLBACKS: Lazy<Callbacks<Master>> = Lazy::new(load_callbacks);
+
+// ===== configuration structs =====
+
+#[derive(Debug)]
+pub struct SessionCfg {
+    // Common parameters.
+    pub local_multiplier: u8,
+    pub min_tx: u32,
+    pub min_rx: u32,
+    pub admin_down: bool,
+    // IP single-hop parameters.
+    pub src: Option<IpAddr>,
+    // IP multihop parameters.
+    pub tx_ttl: Option<u8>,
+    pub rx_ttl: Option<u8>,
+}
 
 // ===== callbacks =====
 
@@ -417,4 +433,28 @@ fn validate_interval(interval: u32) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+// ===== configuration defaults =====
+
+impl Default for SessionCfg {
+    fn default() -> SessionCfg {
+        let local_multiplier =
+            bfd::ip_sh::sessions::session::local_multiplier::DFLT;
+        let min_tx =
+            bfd::ip_sh::sessions::session::desired_min_tx_interval::DFLT;
+        let min_rx =
+            bfd::ip_sh::sessions::session::required_min_rx_interval::DFLT;
+        let admin_down = bfd::ip_sh::sessions::session::admin_down::DFLT;
+
+        SessionCfg {
+            local_multiplier,
+            min_tx,
+            min_rx,
+            admin_down,
+            src: None,
+            tx_ttl: None,
+            rx_ttl: None,
+        }
+    }
 }

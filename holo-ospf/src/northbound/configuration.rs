@@ -4,17 +4,18 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::net::Ipv4Addr;
 use std::sync::LazyLock as Lazy;
 
 use async_trait::async_trait;
 use enum_as_inner::EnumAsInner;
 use holo_northbound::configuration::{
-    Callbacks, CallbacksBuilder, Provider, ValidationCallbacks,
-    ValidationCallbacksBuilder,
+    Callbacks, CallbacksBuilder, InheritableConfig, Provider,
+    ValidationCallbacks, ValidationCallbacksBuilder,
 };
 use holo_northbound::paths::control_plane_protocol::ospf;
+use holo_utils::bfd;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
@@ -81,6 +82,82 @@ pub static CALLBACKS_OSPFV2: Lazy<Callbacks<Instance<Ospfv2>>> =
     Lazy::new(load_callbacks_ospfv2);
 pub static CALLBACKS_OSPFV3: Lazy<Callbacks<Instance<Ospfv3>>> =
     Lazy::new(load_callbacks_ospfv3);
+
+// ===== configuration structs =====
+
+#[derive(Debug)]
+pub struct InstanceCfg {
+    pub af: Option<AddressFamily>,
+    pub enabled: bool,
+    pub router_id: Option<Ipv4Addr>,
+    pub preference: Preference,
+    pub gr: InstanceGrCfg,
+    pub max_paths: u16,
+    pub spf_initial_delay: u32,
+    pub spf_short_delay: u32,
+    pub spf_long_delay: u32,
+    pub spf_hold_down: u32,
+    pub spf_time_to_learn: u32,
+    pub stub_router: bool,
+    pub extended_lsa: bool,
+    pub sr_enabled: bool,
+    pub instance_id: u8,
+}
+
+#[derive(Debug)]
+pub struct Preference {
+    pub intra_area: u8,
+    pub inter_area: u8,
+    pub external: u8,
+}
+
+#[derive(Debug)]
+pub struct InstanceGrCfg {
+    pub helper_enabled: bool,
+    pub helper_strict_lsa_checking: bool,
+}
+
+#[derive(Debug)]
+pub struct AreaCfg {
+    pub area_type: AreaType,
+    pub summary: bool,
+    pub default_cost: u32,
+}
+
+#[derive(Debug)]
+pub struct RangeCfg {
+    pub advertise: bool,
+    pub cost: Option<u32>,
+}
+
+#[derive(Debug)]
+pub struct InterfaceCfg<V: Version> {
+    pub instance_id: InheritableConfig<u8>,
+    pub if_type: InterfaceType,
+    pub passive: bool,
+    pub priority: u8,
+    pub hello_interval: u16,
+    pub dead_interval: u16,
+    pub retransmit_interval: u16,
+    pub transmit_delay: u16,
+    pub enabled: bool,
+    pub cost: u16,
+    pub mtu_ignore: bool,
+    pub static_nbrs: BTreeMap<V::NetIpAddr, StaticNbr>,
+    pub auth_keychain: Option<String>,
+    pub auth_keyid: Option<u32>,
+    pub auth_key: Option<String>,
+    pub auth_algo: Option<CryptoAlgo>,
+    pub bfd_enabled: bool,
+    pub bfd_params: bfd::ClientCfg,
+}
+
+#[derive(Debug)]
+pub struct StaticNbr {
+    pub cost: Option<u16>,
+    pub poll_interval: u16,
+    pub priority: u8,
+}
 
 // ===== callbacks =====
 
@@ -1444,5 +1521,161 @@ where
 {
     fn default() -> ListEntry<V> {
         ListEntry::None
+    }
+}
+
+// ===== configuration defaults =====
+
+impl Default for InstanceCfg {
+    fn default() -> InstanceCfg {
+        let enabled = ospf::enabled::DFLT;
+        let max_paths = ospf::spf_control::paths::DFLT;
+        let spf_initial_delay =
+            ospf::spf_control::ietf_spf_delay::initial_delay::DFLT;
+        let spf_short_delay =
+            ospf::spf_control::ietf_spf_delay::short_delay::DFLT;
+        let spf_long_delay =
+            ospf::spf_control::ietf_spf_delay::long_delay::DFLT;
+        let spf_hold_down = ospf::spf_control::ietf_spf_delay::hold_down::DFLT;
+        let spf_time_to_learn =
+            ospf::spf_control::ietf_spf_delay::time_to_learn::DFLT;
+        let extended_lsa = ospf::extended_lsa_support::DFLT;
+        let sr_enabled = ospf::segment_routing::enabled::DFLT;
+        let instance_id = ospf::instance_id::DFLT;
+
+        InstanceCfg {
+            af: None,
+            enabled,
+            router_id: None,
+            preference: Default::default(),
+            gr: Default::default(),
+            max_paths,
+            spf_initial_delay,
+            spf_short_delay,
+            spf_long_delay,
+            spf_hold_down,
+            spf_time_to_learn,
+            stub_router: false,
+            extended_lsa,
+            sr_enabled,
+            instance_id,
+        }
+    }
+}
+
+impl Default for Preference {
+    fn default() -> Preference {
+        let intra_area = ospf::preference::all::DFLT;
+        let inter_area = ospf::preference::all::DFLT;
+        let external = ospf::preference::all::DFLT;
+
+        Preference {
+            intra_area,
+            inter_area,
+            external,
+        }
+    }
+}
+
+impl Default for InstanceGrCfg {
+    fn default() -> InstanceGrCfg {
+        let helper_enabled = ospf::graceful_restart::helper_enabled::DFLT;
+        let helper_strict_lsa_checking =
+            ospf::graceful_restart::helper_strict_lsa_checking::DFLT;
+
+        InstanceGrCfg {
+            helper_enabled,
+            helper_strict_lsa_checking,
+        }
+    }
+}
+
+impl Default for AreaCfg {
+    fn default() -> AreaCfg {
+        let area_type = ospf::areas::area::area_type::DFLT;
+        let area_type = AreaType::try_from_yang(area_type).unwrap();
+        let summary = ospf::areas::area::summary::DFLT;
+        let default_cost = ospf::areas::area::default_cost::DFLT;
+
+        AreaCfg {
+            area_type,
+            summary,
+            default_cost,
+        }
+    }
+}
+
+impl Default for RangeCfg {
+    fn default() -> RangeCfg {
+        let advertise = ospf::areas::area::ranges::range::advertise::DFLT;
+
+        RangeCfg {
+            advertise,
+            cost: None,
+        }
+    }
+}
+
+impl<V> Default for InterfaceCfg<V>
+where
+    V: Version,
+{
+    fn default() -> InterfaceCfg<V> {
+        let instance_id = ospf::instance_id::DFLT;
+        let if_type =
+            ospf::areas::area::interfaces::interface::interface_type::DFLT;
+        let if_type = InterfaceType::try_from_yang(if_type).unwrap();
+        let passive = ospf::areas::area::interfaces::interface::passive::DFLT;
+        let priority = ospf::areas::area::interfaces::interface::priority::DFLT;
+        let hello_interval =
+            ospf::areas::area::interfaces::interface::hello_interval::DFLT;
+        let dead_interval =
+            ospf::areas::area::interfaces::interface::dead_interval::DFLT;
+        let retransmit_interval =
+            ospf::areas::area::interfaces::interface::retransmit_interval::DFLT;
+        let transmit_delay =
+            ospf::areas::area::interfaces::interface::transmit_delay::DFLT;
+        let enabled = ospf::areas::area::interfaces::interface::enabled::DFLT;
+        let cost = ospf::areas::area::interfaces::interface::cost::DFLT;
+        let mtu_ignore =
+            ospf::areas::area::interfaces::interface::mtu_ignore::DFLT;
+        let bfd_enabled =
+            ospf::areas::area::interfaces::interface::bfd::enabled::DFLT;
+
+        InterfaceCfg {
+            instance_id: InheritableConfig::new(instance_id),
+            if_type,
+            passive,
+            priority,
+            hello_interval,
+            dead_interval,
+            retransmit_interval,
+            transmit_delay,
+            enabled,
+            cost,
+            mtu_ignore,
+            static_nbrs: Default::default(),
+            auth_keychain: None,
+            auth_keyid: None,
+            auth_key: None,
+            auth_algo: None,
+            bfd_enabled,
+            bfd_params: Default::default(),
+        }
+    }
+}
+
+impl Default for StaticNbr {
+    fn default() -> StaticNbr {
+        let poll_interval =
+            ospf::areas::area::interfaces::interface::static_neighbors::neighbor::poll_interval::DFLT;
+        let priority =
+            ospf::areas::area::interfaces::interface::static_neighbors::neighbor::priority::DFLT;
+
+        StaticNbr {
+            cost: None,
+            poll_interval,
+            priority,
+        }
     }
 }

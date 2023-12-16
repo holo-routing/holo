@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use std::sync::LazyLock as Lazy;
 
@@ -21,8 +22,8 @@ use holo_utils::yang::DataNodeRefExt;
 use crate::collections::{InterfaceIndex, TargetedNbrIndex};
 use crate::debug::InterfaceInactiveReason;
 use crate::discovery::TargetedNbr;
-use crate::instance::{Instance, InstanceIpv4Cfg};
-use crate::interface::{Interface, InterfaceIpv4Cfg};
+use crate::instance::Instance;
+use crate::interface::Interface;
 use crate::{neighbor, network};
 
 #[derive(Debug, Default, EnumAsInner)]
@@ -57,6 +58,52 @@ pub enum Event {
 pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
     Lazy::new(load_validation_callbacks);
 pub static CALLBACKS: Lazy<Callbacks<Instance>> = Lazy::new(load_callbacks);
+
+// ===== configuration structs =====
+
+#[derive(Debug)]
+pub struct InstanceCfg {
+    pub router_id: Option<Ipv4Addr>,
+    pub session_ka_holdtime: u16,
+    pub session_ka_interval: u16,
+    pub password: Option<String>,
+    pub interface_hello_holdtime: u16,
+    pub interface_hello_interval: u16,
+    pub targeted_hello_holdtime: u16,
+    pub targeted_hello_interval: u16,
+    pub targeted_hello_accept: bool,
+    pub ipv4: Option<InstanceIpv4Cfg>,
+    pub neighbors: HashMap<Ipv4Addr, NeighborCfg>,
+}
+
+#[derive(Debug)]
+pub struct InstanceIpv4Cfg {
+    pub enabled: bool,
+}
+
+#[derive(Debug)]
+pub struct InterfaceCfg {
+    pub hello_holdtime: u16,
+    pub hello_interval: u16,
+    pub ipv4: Option<InterfaceIpv4Cfg>,
+}
+
+#[derive(Debug)]
+pub struct InterfaceIpv4Cfg {
+    pub enabled: bool,
+}
+
+#[derive(Debug, Default)]
+pub struct NeighborCfg {
+    pub password: Option<String>,
+}
+
+#[derive(Debug)]
+pub struct TargetedNbrCfg {
+    pub enabled: bool,
+    pub hello_holdtime: u16,
+    pub hello_interval: u16,
+}
 
 // ===== callbacks =====
 
@@ -550,4 +597,87 @@ fn validate_crypto_algo(algo: &str) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+// ===== configuration defaults =====
+
+impl Default for InstanceCfg {
+    fn default() -> InstanceCfg {
+        let session_ka_holdtime = mpls_ldp::peers::session_ka_holdtime::DFLT;
+        let session_ka_interval = mpls_ldp::peers::session_ka_interval::DFLT;
+        let interface_hello_holdtime =
+            mpls_ldp::discovery::interfaces::hello_holdtime::DFLT;
+        let interface_hello_interval =
+            mpls_ldp::discovery::interfaces::hello_interval::DFLT;
+        let targeted_hello_holdtime =
+            mpls_ldp::discovery::targeted::hello_holdtime::DFLT;
+        let targeted_hello_interval =
+            mpls_ldp::discovery::targeted::hello_interval::DFLT;
+        let targeted_hello_accept =
+            mpls_ldp::discovery::targeted::hello_accept::enabled::DFLT;
+
+        InstanceCfg {
+            router_id: None,
+            session_ka_holdtime,
+            session_ka_interval,
+            password: None,
+            interface_hello_holdtime,
+            interface_hello_interval,
+            targeted_hello_holdtime,
+            targeted_hello_interval,
+            targeted_hello_accept,
+            ipv4: None,
+            neighbors: Default::default(),
+        }
+    }
+}
+
+impl Default for InstanceIpv4Cfg {
+    fn default() -> InstanceIpv4Cfg {
+        let enabled =
+            mpls_ldp::discovery::targeted::address_families::ipv4::target::enabled::DFLT;
+
+        InstanceIpv4Cfg { enabled }
+    }
+}
+
+impl Default for InterfaceCfg {
+    fn default() -> InterfaceCfg {
+        let hello_holdtime =
+            mpls_ldp::discovery::interfaces::hello_holdtime::DFLT;
+        let hello_interval =
+            mpls_ldp::discovery::interfaces::hello_interval::DFLT;
+
+        InterfaceCfg {
+            hello_holdtime,
+            hello_interval,
+            ipv4: None,
+        }
+    }
+}
+
+impl Default for InterfaceIpv4Cfg {
+    fn default() -> InterfaceIpv4Cfg {
+        let enabled =
+            mpls_ldp::discovery::interfaces::interface::address_families::ipv4::enabled::DFLT;
+
+        InterfaceIpv4Cfg { enabled }
+    }
+}
+
+impl Default for TargetedNbrCfg {
+    fn default() -> TargetedNbrCfg {
+        let enabled =
+            mpls_ldp::discovery::targeted::address_families::ipv4::target::enabled::DFLT;
+        let hello_holdtime =
+            mpls_ldp::discovery::targeted::hello_holdtime::DFLT;
+        let hello_interval =
+            mpls_ldp::discovery::targeted::hello_interval::DFLT;
+
+        TargetedNbrCfg {
+            enabled,
+            hello_holdtime,
+            hello_interval,
+        }
+    }
 }

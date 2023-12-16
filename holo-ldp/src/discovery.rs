@@ -10,7 +10,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use holo_northbound::paths::control_plane_protocol::mpls_ldp;
 use holo_utils::socket::UdpSocket;
 use holo_utils::task::{IntervalTask, TimeoutTask};
 use holo_utils::Sender;
@@ -21,6 +20,7 @@ use crate::collections::{
 use crate::debug::Debug;
 use crate::error::IoError;
 use crate::instance::{InstanceState, InstanceUp};
+use crate::northbound::configuration::TargetedNbrCfg;
 use crate::northbound::notification;
 use crate::packet::messages::hello::{
     HelloFlags, HelloMsg, TlvCommonHelloParams, TlvConfigSeqNo,
@@ -76,13 +76,6 @@ pub struct TargetedNbr {
     pub dynamic: bool,
     // Hello Tx interval task.
     pub hello_interval_task: Option<IntervalTask>,
-}
-
-#[derive(Debug)]
-pub struct TargetedNbrCfg {
-    pub enabled: bool,
-    pub hello_holdtime: u16,
-    pub hello_interval: u16,
 }
 
 // ===== impl Adjacency =====
@@ -340,25 +333,6 @@ impl TargetedNbr {
 impl Drop for TargetedNbr {
     fn drop(&mut self) {
         Debug::TargetedNbrDelete(&self.addr).log();
-    }
-}
-
-// ===== impl TargetedNbrCfg =====
-
-impl Default for TargetedNbrCfg {
-    fn default() -> TargetedNbrCfg {
-        let enabled =
-            mpls_ldp::discovery::targeted::address_families::ipv4::target::enabled::DFLT;
-        let hello_holdtime =
-            mpls_ldp::discovery::targeted::hello_holdtime::DFLT;
-        let hello_interval =
-            mpls_ldp::discovery::targeted::hello_interval::DFLT;
-
-        TargetedNbrCfg {
-            enabled,
-            hello_holdtime,
-            hello_interval,
-        }
     }
 }
 

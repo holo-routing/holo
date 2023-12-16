@@ -10,17 +10,13 @@ use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
-use holo_northbound::configuration::InheritableConfig;
-use holo_northbound::paths::control_plane_protocol::ospf;
 use holo_protocol::InstanceChannelsTx;
-use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
 use holo_utils::keychain::{Key, Keychains};
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
-use holo_utils::{bfd, UnboundedSender};
-use holo_yang::TryFromYang;
+use holo_utils::UnboundedSender;
 use ipnetwork::{Ipv4Network, Ipv6Network};
 use ism::{Event, State};
 use smallvec::smallvec;
@@ -34,6 +30,7 @@ use crate::instance::{Instance, InstanceUpView};
 use crate::lsdb::{LsaEntry, LsaOriginateEvent};
 use crate::neighbor::{nsm, Neighbor, NeighborNetId};
 use crate::network::{MulticastAddr, SendDestination};
+use crate::northbound::configuration::InterfaceCfg;
 use crate::northbound::notification;
 use crate::packet::auth::AuthMethod;
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
@@ -66,28 +63,6 @@ pub struct InterfaceSys<V: Version> {
     pub unnumbered: bool,
     // OSPFv3: link-local address.
     pub linklocal_addr: Option<Ipv6Network>,
-}
-
-#[derive(Debug)]
-pub struct InterfaceCfg<V: Version> {
-    pub instance_id: InheritableConfig<u8>,
-    pub if_type: InterfaceType,
-    pub passive: bool,
-    pub priority: u8,
-    pub hello_interval: u16,
-    pub dead_interval: u16,
-    pub retransmit_interval: u16,
-    pub transmit_delay: u16,
-    pub enabled: bool,
-    pub cost: u16,
-    pub mtu_ignore: bool,
-    pub static_nbrs: BTreeMap<V::NetIpAddr, StaticNbr>,
-    pub auth_keychain: Option<String>,
-    pub auth_keyid: Option<u32>,
-    pub auth_key: Option<String>,
-    pub auth_algo: Option<CryptoAlgo>,
-    pub bfd_enabled: bool,
-    pub bfd_params: bfd::ClientCfg,
 }
 
 #[derive(Debug)]
@@ -152,13 +127,6 @@ pub enum InterfaceType {
     NonBroadcast,
     PointToMultipoint,
     PointToPoint,
-}
-
-#[derive(Debug)]
-pub struct StaticNbr {
-    pub cost: Option<u16>,
-    pub poll_interval: u16,
-    pub priority: u8,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -979,57 +947,6 @@ where
     }
 }
 
-// ===== impl InterfaceCfg =====
-
-impl<V> Default for InterfaceCfg<V>
-where
-    V: Version,
-{
-    fn default() -> InterfaceCfg<V> {
-        let instance_id = ospf::instance_id::DFLT;
-        let if_type =
-            ospf::areas::area::interfaces::interface::interface_type::DFLT;
-        let if_type = InterfaceType::try_from_yang(if_type).unwrap();
-        let passive = ospf::areas::area::interfaces::interface::passive::DFLT;
-        let priority = ospf::areas::area::interfaces::interface::priority::DFLT;
-        let hello_interval =
-            ospf::areas::area::interfaces::interface::hello_interval::DFLT;
-        let dead_interval =
-            ospf::areas::area::interfaces::interface::dead_interval::DFLT;
-        let retransmit_interval =
-            ospf::areas::area::interfaces::interface::retransmit_interval::DFLT;
-        let transmit_delay =
-            ospf::areas::area::interfaces::interface::transmit_delay::DFLT;
-        let enabled = ospf::areas::area::interfaces::interface::enabled::DFLT;
-        let cost = ospf::areas::area::interfaces::interface::cost::DFLT;
-        let mtu_ignore =
-            ospf::areas::area::interfaces::interface::mtu_ignore::DFLT;
-        let bfd_enabled =
-            ospf::areas::area::interfaces::interface::bfd::enabled::DFLT;
-
-        InterfaceCfg {
-            instance_id: InheritableConfig::new(instance_id),
-            if_type,
-            passive,
-            priority,
-            hello_interval,
-            dead_interval,
-            retransmit_interval,
-            transmit_delay,
-            enabled,
-            cost,
-            mtu_ignore,
-            static_nbrs: Default::default(),
-            auth_keychain: None,
-            auth_keyid: None,
-            auth_key: None,
-            auth_algo: None,
-            bfd_enabled,
-            bfd_params: Default::default(),
-        }
-    }
-}
-
 // ===== impl InterfaceState =====
 
 impl<V> Default for InterfaceState<V>
@@ -1158,23 +1075,6 @@ where
             wait_timer: Default::default(),
             ls_update_timer: Default::default(),
             ls_delayed_ack: Default::default(),
-        }
-    }
-}
-
-// ===== impl StaticNbr =====
-
-impl Default for StaticNbr {
-    fn default() -> StaticNbr {
-        let poll_interval =
-            ospf::areas::area::interfaces::interface::static_neighbors::neighbor::poll_interval::DFLT;
-        let priority =
-            ospf::areas::area::interfaces::interface::static_neighbors::neighbor::priority::DFLT;
-
-        StaticNbr {
-            cost: None,
-            poll_interval,
-            priority,
         }
     }
 }

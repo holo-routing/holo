@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::atomic::{self, AtomicU32};
 use std::sync::Arc;
@@ -12,7 +12,6 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use derive_new::new;
 use enum_as_inner::EnumAsInner;
-use holo_northbound::paths::control_plane_protocol::mpls_ldp;
 use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
 };
@@ -30,8 +29,8 @@ use crate::discovery::TargetedNbr;
 use crate::error::{Error, IoError};
 use crate::fec::Fec;
 use crate::interface::Interface;
-use crate::neighbor::NeighborCfg;
 use crate::network::{tcp, udp};
+use crate::northbound::configuration::InstanceCfg;
 use crate::tasks::messages::input::{
     AdjTimeoutMsg, NbrBackoffTimeoutMsg, NbrKaTimeoutMsg, NbrRxPduMsg,
     TcpAcceptMsg, TcpConnectMsg, UdpRxPduMsg,
@@ -82,26 +81,6 @@ pub struct InstanceSys {
     pub router_id: Option<Ipv4Addr>,
     pub ipv4_addr_list: BTreeSet<Ipv4Network>,
     pub ipv6_addr_list: BTreeSet<Ipv6Network>,
-}
-
-#[derive(Debug)]
-pub struct InstanceCfg {
-    pub router_id: Option<Ipv4Addr>,
-    pub session_ka_holdtime: u16,
-    pub session_ka_interval: u16,
-    pub password: Option<String>,
-    pub interface_hello_holdtime: u16,
-    pub interface_hello_interval: u16,
-    pub targeted_hello_holdtime: u16,
-    pub targeted_hello_interval: u16,
-    pub targeted_hello_accept: bool,
-    pub ipv4: Option<InstanceIpv4Cfg>,
-    pub neighbors: HashMap<Ipv4Addr, NeighborCfg>,
-}
-
-#[derive(Debug)]
-pub struct InstanceIpv4Cfg {
-    pub enabled: bool,
 }
 
 #[derive(Debug)]
@@ -526,48 +505,6 @@ impl InstanceCfg {
         }
 
         self.password.as_deref()
-    }
-}
-
-impl Default for InstanceCfg {
-    fn default() -> InstanceCfg {
-        let session_ka_holdtime = mpls_ldp::peers::session_ka_holdtime::DFLT;
-        let session_ka_interval = mpls_ldp::peers::session_ka_interval::DFLT;
-        let interface_hello_holdtime =
-            mpls_ldp::discovery::interfaces::hello_holdtime::DFLT;
-        let interface_hello_interval =
-            mpls_ldp::discovery::interfaces::hello_interval::DFLT;
-        let targeted_hello_holdtime =
-            mpls_ldp::discovery::targeted::hello_holdtime::DFLT;
-        let targeted_hello_interval =
-            mpls_ldp::discovery::targeted::hello_interval::DFLT;
-        let targeted_hello_accept =
-            mpls_ldp::discovery::targeted::hello_accept::enabled::DFLT;
-
-        InstanceCfg {
-            router_id: None,
-            session_ka_holdtime,
-            session_ka_interval,
-            password: None,
-            interface_hello_holdtime,
-            interface_hello_interval,
-            targeted_hello_holdtime,
-            targeted_hello_interval,
-            targeted_hello_accept,
-            ipv4: None,
-            neighbors: Default::default(),
-        }
-    }
-}
-
-// ===== impl InstanceIpv4Cfg =====
-
-impl Default for InstanceIpv4Cfg {
-    fn default() -> InstanceIpv4Cfg {
-        let enabled =
-            mpls_ldp::discovery::targeted::address_families::ipv4::target::enabled::DFLT;
-
-        InstanceIpv4Cfg { enabled }
     }
 }
 

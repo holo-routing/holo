@@ -9,9 +9,7 @@ use std::net::Ipv4Addr;
 
 use chrono::{DateTime, Utc};
 use derive_new::new;
-use holo_northbound::paths::control_plane_protocol::ospf;
 use holo_utils::ip::IpNetworkKind;
-use holo_yang::TryFromYang;
 
 use crate::collections::{
     AreaId, AreaIndex, Areas, Arena, Interfaces, Lsdb, LsdbId,
@@ -20,6 +18,7 @@ use crate::debug::LsaFlushReason;
 use crate::instance::InstanceUpView;
 use crate::interface::Interface;
 use crate::lsdb::{LsaEntry, LsaEntryFlags, LSA_INFINITY};
+use crate::northbound::configuration::{AreaCfg, RangeCfg};
 use crate::packet::lsa::{LsaKey, LsaRouterFlagsVersion};
 use crate::packet::PacketType;
 use crate::route::{
@@ -44,14 +43,6 @@ pub struct Area<V: Version> {
     pub ranges: HashMap<V::IpNetwork, Range>,
     // Area interfaces.
     pub interfaces: Interfaces<V>,
-}
-
-// OSPF area configuration.
-#[derive(Debug)]
-pub struct AreaCfg {
-    pub area_type: AreaType,
-    pub summary: bool,
-    pub default_cost: u32,
 }
 
 // OSPF area state.
@@ -89,13 +80,6 @@ pub enum AreaType {
 pub struct Range {
     pub config: RangeCfg,
     pub cost: u32,
-}
-
-// OSPF area range configuration.
-#[derive(Debug)]
-pub struct RangeCfg {
-    pub advertise: bool,
-    pub cost: Option<u32>,
 }
 
 // Represents the possible locations of the OSPF Options field.
@@ -174,23 +158,6 @@ where
     }
 }
 
-// ===== impl AreaCfg =====
-
-impl Default for AreaCfg {
-    fn default() -> AreaCfg {
-        let area_type = ospf::areas::area::area_type::DFLT;
-        let area_type = AreaType::try_from_yang(area_type).unwrap();
-        let summary = ospf::areas::area::summary::DFLT;
-        let default_cost = ospf::areas::area::default_cost::DFLT;
-
-        AreaCfg {
-            area_type,
-            summary,
-            default_cost,
-        }
-    }
-}
-
 // ===== impl AreaState =====
 
 impl<V> Default for AreaState<V>
@@ -208,19 +175,6 @@ where
             spf_run_count: 0,
             discontinuity_time: Utc::now(),
             version: Default::default(),
-        }
-    }
-}
-
-// ===== impl RangeCfg =====
-
-impl Default for RangeCfg {
-    fn default() -> RangeCfg {
-        let advertise = ospf::areas::area::ranges::range::advertise::DFLT;
-
-        RangeCfg {
-            advertise,
-            cost: None,
         }
     }
 }

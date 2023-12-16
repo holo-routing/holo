@@ -4,14 +4,13 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use enum_as_inner::EnumAsInner;
 use generational_arena::{Arena, Index};
-use holo_northbound::paths::control_plane_protocol::rip;
 use holo_protocol::InstanceChannelsTx;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::{IpNetworkKind, SocketAddrKind};
@@ -19,15 +18,14 @@ use holo_utils::socket::UdpSocket;
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::task::Task;
 use holo_utils::UnboundedSender;
-use holo_yang::TryFromYang;
 use tokio::sync::mpsc;
 
 use crate::debug::{Debug, InterfaceInactiveReason};
 use crate::error::{Error, IoError};
 use crate::instance::{Instance, InstanceState};
 use crate::network::SendDestination;
+use crate::northbound::configuration::InterfaceCfg;
 use crate::packet::AuthCtx;
-use crate::route::Metric;
 use crate::tasks::messages::output::UdpTxPduMsg;
 use crate::version::Version;
 use crate::{output, tasks};
@@ -66,19 +64,6 @@ pub struct InterfaceSys<V: Version> {
     pub ifindex: Option<u32>,
     pub mtu: Option<u32>,
     pub addr_list: BTreeSet<V::IpNetwork>,
-}
-
-#[derive(Debug)]
-pub struct InterfaceCfg<V: Version> {
-    pub cost: Metric,
-    pub explicit_neighbors: HashSet<V::IpAddr>,
-    pub no_listen: bool,
-    pub passive: bool,
-    pub split_horizon: SplitHorizon,
-    pub invalid_interval: u16,
-    pub flush_interval: u16,
-    pub auth_key: Option<String>,
-    pub auth_algo: Option<CryptoAlgo>,
 }
 
 #[derive(Debug)]
@@ -472,35 +457,6 @@ where
             ifindex: None,
             mtu: None,
             addr_list: Default::default(),
-        }
-    }
-}
-
-// ===== impl InterfaceCfg =====
-
-impl<V> Default for InterfaceCfg<V>
-where
-    V: Version,
-{
-    fn default() -> InterfaceCfg<V> {
-        let cost = Metric::from(rip::interfaces::interface::cost::DFLT);
-        let split_horizon = rip::interfaces::interface::split_horizon::DFLT;
-        let split_horizon = SplitHorizon::try_from_yang(split_horizon).unwrap();
-        let invalid_interval =
-            rip::interfaces::interface::timers::invalid_interval::DFLT;
-        let flush_interval =
-            rip::interfaces::interface::timers::flush_interval::DFLT;
-
-        InterfaceCfg {
-            cost,
-            explicit_neighbors: Default::default(),
-            no_listen: false,
-            passive: false,
-            split_horizon,
-            invalid_interval,
-            flush_interval,
-            auth_key: None,
-            auth_algo: None,
         }
     }
 }

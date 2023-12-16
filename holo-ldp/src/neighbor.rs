@@ -24,7 +24,8 @@ use crate::collections::{NeighborId, NeighborIndex};
 use crate::debug::Debug;
 use crate::error::Error;
 use crate::fec::{Fec, LabelMapping, LabelRequest};
-use crate::instance::{InstanceCfg, InstanceState, InstanceUp};
+use crate::instance::{InstanceState, InstanceUp};
+use crate::northbound::configuration::InstanceCfg;
 use crate::northbound::notification;
 use crate::packet::message::MessageType;
 use crate::packet::messages::address::TlvAddressList;
@@ -131,11 +132,6 @@ pub enum LabelDistMode {
 pub enum LabelAdvMode {
     DownstreamUnsolicited,
     DownstreamOnDemand,
-}
-
-#[derive(Debug, Default)]
-pub struct NeighborCfg {
-    pub password: Option<String>,
 }
 
 // Session Initialization FSM:

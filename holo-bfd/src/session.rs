@@ -25,6 +25,7 @@ use rand::RngCore;
 use crate::debug::Debug;
 use crate::error::{Error, IoError};
 use crate::master::Master;
+use crate::northbound::configuration::SessionCfg;
 use crate::northbound::notification;
 use crate::packet::{DiagnosticCode, Packet, PacketFlags};
 use crate::tasks::messages::input::DetectTimerMsg;
@@ -46,20 +47,6 @@ pub struct Session {
     pub state: SessionState,
     pub statistics: SessionStatistics,
     pub clients: HashMap<ClientId, Option<ClientCfg>>,
-}
-
-#[derive(Debug)]
-pub struct SessionCfg {
-    // Common parameters.
-    pub local_multiplier: u8,
-    pub min_tx: u32,
-    pub min_rx: u32,
-    pub admin_down: bool,
-    // IP single-hop parameters.
-    pub src: Option<IpAddr>,
-    // IP multihop parameters.
-    pub tx_ttl: Option<u8>,
-    pub rx_ttl: Option<u8>,
 }
 
 #[derive(Debug)]
@@ -420,30 +407,6 @@ impl Session {
 impl Drop for Session {
     fn drop(&mut self) {
         Debug::SessionDelete(&self.key).log();
-    }
-}
-
-// ===== impl SessionCfg =====
-
-impl Default for SessionCfg {
-    fn default() -> SessionCfg {
-        let local_multiplier =
-            bfd::ip_sh::sessions::session::local_multiplier::DFLT;
-        let min_tx =
-            bfd::ip_sh::sessions::session::desired_min_tx_interval::DFLT;
-        let min_rx =
-            bfd::ip_sh::sessions::session::required_min_rx_interval::DFLT;
-        let admin_down = bfd::ip_sh::sessions::session::admin_down::DFLT;
-
-        SessionCfg {
-            local_multiplier,
-            min_tx,
-            min_rx,
-            admin_down,
-            src: None,
-            tx_ttl: None,
-            rx_ttl: None,
-        }
     }
 }
 

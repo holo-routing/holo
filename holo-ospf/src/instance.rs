@@ -12,7 +12,6 @@ use std::time::Instant;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use holo_northbound::paths::control_plane_protocol::ospf;
 use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
 };
@@ -33,6 +32,7 @@ use crate::error::Error;
 use crate::interface::{ism, Interface};
 use crate::lsdb::{LsaEntry, LsaLogEntry, LsaOriginateEvent};
 use crate::neighbor::{nsm, Neighbor};
+use crate::northbound::configuration::InstanceCfg;
 use crate::northbound::notification;
 use crate::route::{RouteNet, RouteNetFlags};
 use crate::spf::{SpfLogEntry, SpfTriggerLsa};
@@ -66,31 +66,6 @@ pub struct Instance<V: Version> {
 #[derive(Debug, Default)]
 pub struct InstanceSys {
     pub router_id: Option<Ipv4Addr>,
-}
-
-#[derive(Debug)]
-pub struct InstanceCfg {
-    pub af: Option<AddressFamily>,
-    pub enabled: bool,
-    pub router_id: Option<Ipv4Addr>,
-    pub preference: Preference,
-    pub gr: InstanceGrCfg,
-    pub max_paths: u16,
-    pub spf_initial_delay: u32,
-    pub spf_short_delay: u32,
-    pub spf_long_delay: u32,
-    pub spf_hold_down: u32,
-    pub spf_time_to_learn: u32,
-    pub stub_router: bool,
-    pub extended_lsa: bool,
-    pub sr_enabled: bool,
-    pub instance_id: u8,
-}
-
-#[derive(Debug)]
-pub struct InstanceGrCfg {
-    pub helper_enabled: bool,
-    pub helper_strict_lsa_checking: bool,
 }
 
 #[derive(Debug)]
@@ -136,13 +111,6 @@ pub struct InstanceArenas<V: Version> {
     pub interfaces: Arena<Interface<V>>,
     pub neighbors: Arena<Neighbor<V>>,
     pub lsa_entries: Arena<LsaEntry<V>>,
-}
-
-#[derive(Debug)]
-pub struct Preference {
-    pub intra_area: u8,
-    pub inter_area: u8,
-    pub external: u8,
 }
 
 #[derive(Clone, Debug)]
@@ -582,76 +550,6 @@ where
 {
     fn drop(&mut self) {
         Debug::<V>::InstanceDelete.log();
-    }
-}
-
-// ===== impl InstanceCfg =====
-
-impl Default for InstanceCfg {
-    fn default() -> InstanceCfg {
-        let enabled = ospf::enabled::DFLT;
-        let max_paths = ospf::spf_control::paths::DFLT;
-        let spf_initial_delay =
-            ospf::spf_control::ietf_spf_delay::initial_delay::DFLT;
-        let spf_short_delay =
-            ospf::spf_control::ietf_spf_delay::short_delay::DFLT;
-        let spf_long_delay =
-            ospf::spf_control::ietf_spf_delay::long_delay::DFLT;
-        let spf_hold_down = ospf::spf_control::ietf_spf_delay::hold_down::DFLT;
-        let spf_time_to_learn =
-            ospf::spf_control::ietf_spf_delay::time_to_learn::DFLT;
-        let extended_lsa = ospf::extended_lsa_support::DFLT;
-        let sr_enabled = ospf::segment_routing::enabled::DFLT;
-        let instance_id = ospf::instance_id::DFLT;
-
-        InstanceCfg {
-            af: None,
-            enabled,
-            router_id: None,
-            preference: Default::default(),
-            gr: Default::default(),
-            max_paths,
-            spf_initial_delay,
-            spf_short_delay,
-            spf_long_delay,
-            spf_hold_down,
-            spf_time_to_learn,
-            stub_router: false,
-            extended_lsa,
-            sr_enabled,
-            instance_id,
-        }
-    }
-}
-
-// ===== impl InstanceGrCfg =====
-
-impl Default for InstanceGrCfg {
-    fn default() -> InstanceGrCfg {
-        let helper_enabled = ospf::graceful_restart::helper_enabled::DFLT;
-        let helper_strict_lsa_checking =
-            ospf::graceful_restart::helper_strict_lsa_checking::DFLT;
-
-        InstanceGrCfg {
-            helper_enabled,
-            helper_strict_lsa_checking,
-        }
-    }
-}
-
-// ===== impl Preference =====
-
-impl Default for Preference {
-    fn default() -> Preference {
-        let intra_area = ospf::preference::all::DFLT;
-        let inter_area = ospf::preference::all::DFLT;
-        let external = ospf::preference::all::DFLT;
-
-        Preference {
-            intra_area,
-            inter_area,
-            external,
-        }
     }
 }
 

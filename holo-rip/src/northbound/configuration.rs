@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::collections::HashSet;
 use std::sync::LazyLock as Lazy;
 use std::time::Duration;
 
@@ -58,6 +59,31 @@ pub static CALLBACKS_RIPV2: Lazy<Callbacks<Instance<Ripv2>>> =
     Lazy::new(load_callbacks_ripv2);
 pub static CALLBACKS_RIPNG: Lazy<Callbacks<Instance<Ripng>>> =
     Lazy::new(load_callbacks_ripng);
+
+// ===== configuration structs =====
+
+#[derive(Debug)]
+pub struct InstanceCfg {
+    pub default_metric: Metric,
+    pub distance: u8,
+    pub triggered_update_threshold: u8,
+    pub update_interval: u16,
+    pub invalid_interval: u16,
+    pub flush_interval: u16,
+}
+
+#[derive(Debug)]
+pub struct InterfaceCfg<V: Version> {
+    pub cost: Metric,
+    pub explicit_neighbors: HashSet<V::IpAddr>,
+    pub no_listen: bool,
+    pub passive: bool,
+    pub split_horizon: SplitHorizon,
+    pub invalid_interval: u16,
+    pub flush_interval: u16,
+    pub auth_key: Option<String>,
+    pub auth_algo: Option<CryptoAlgo>,
+}
 
 // ===== callbacks =====
 
@@ -489,5 +515,54 @@ where
 {
     fn default() -> ListEntry<V> {
         ListEntry::None
+    }
+}
+
+// ===== configuration defaults =====
+
+impl Default for InstanceCfg {
+    fn default() -> InstanceCfg {
+        let default_metric = Metric::from(rip::default_metric::DFLT);
+        let distance = rip::distance::DFLT;
+        let triggered_update_threshold = rip::triggered_update_threshold::DFLT;
+        let update_interval = rip::timers::update_interval::DFLT;
+        let invalid_interval = rip::timers::invalid_interval::DFLT;
+        let flush_interval = rip::timers::flush_interval::DFLT;
+
+        InstanceCfg {
+            default_metric,
+            distance,
+            triggered_update_threshold,
+            update_interval,
+            invalid_interval,
+            flush_interval,
+        }
+    }
+}
+
+impl<V> Default for InterfaceCfg<V>
+where
+    V: Version,
+{
+    fn default() -> InterfaceCfg<V> {
+        let cost = Metric::from(rip::interfaces::interface::cost::DFLT);
+        let split_horizon = rip::interfaces::interface::split_horizon::DFLT;
+        let split_horizon = SplitHorizon::try_from_yang(split_horizon).unwrap();
+        let invalid_interval =
+            rip::interfaces::interface::timers::invalid_interval::DFLT;
+        let flush_interval =
+            rip::interfaces::interface::timers::flush_interval::DFLT;
+
+        InterfaceCfg {
+            cost,
+            explicit_neighbors: Default::default(),
+            no_listen: false,
+            passive: false,
+            split_horizon,
+            invalid_interval,
+            flush_interval,
+            auth_key: None,
+            auth_algo: None,
+        }
     }
 }

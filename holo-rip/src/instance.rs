@@ -13,7 +13,6 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use enum_as_inner::EnumAsInner;
-use holo_northbound::paths::control_plane_protocol::rip;
 use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
 };
@@ -27,8 +26,9 @@ use crate::debug::{Debug, InstanceInactiveReason, InterfaceInactiveReason};
 use crate::error::Error;
 use crate::interface::Interfaces;
 use crate::neighbor::Neighbor;
+use crate::northbound::configuration::InstanceCfg;
 use crate::packet::Command;
-use crate::route::{Metric, Route};
+use crate::route::Route;
 use crate::tasks::messages::input::{
     InitialUpdateMsg, NbrTimeoutMsg, RouteGcTimeoutMsg, RouteTimeoutMsg,
     TriggeredUpdMsg, TriggeredUpdTimeoutMsg, UdpRxPduMsg, UpdateIntervalMsg,
@@ -74,16 +74,6 @@ pub struct InstanceCore<V: Version> {
 #[derive(Debug, Default)]
 pub struct InstanceSys {
     pub router_id: Option<Ipv4Addr>,
-}
-
-#[derive(Debug)]
-pub struct InstanceCfg {
-    pub default_metric: Metric,
-    pub distance: u8,
-    pub triggered_update_threshold: u8,
-    pub update_interval: u16,
-    pub invalid_interval: u16,
-    pub flush_interval: u16,
 }
 
 #[derive(Debug)]
@@ -420,28 +410,6 @@ where
         }
 
         instance
-    }
-}
-
-// ===== impl InstanceCfg =====
-
-impl Default for InstanceCfg {
-    fn default() -> InstanceCfg {
-        let default_metric = Metric::from(rip::default_metric::DFLT);
-        let distance = rip::distance::DFLT;
-        let triggered_update_threshold = rip::triggered_update_threshold::DFLT;
-        let update_interval = rip::timers::update_interval::DFLT;
-        let invalid_interval = rip::timers::invalid_interval::DFLT;
-        let flush_interval = rip::timers::flush_interval::DFLT;
-
-        InstanceCfg {
-            default_metric,
-            distance,
-            triggered_update_threshold,
-            update_interval,
-            invalid_interval,
-            flush_interval,
-        }
     }
 }
 

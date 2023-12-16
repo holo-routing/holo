@@ -10,7 +10,6 @@ use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::time::Duration;
 
-use holo_northbound::paths::control_plane_protocol::mpls_ldp;
 use holo_utils::socket::{UdpSocket, UdpSocketExt};
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::task::IntervalTask;
@@ -20,6 +19,7 @@ use crate::collections::{InterfaceId, InterfaceIndex};
 use crate::debug::{Debug, InterfaceInactiveReason};
 use crate::error::{Error, IoError};
 use crate::instance::{InstanceState, InstanceUp};
+use crate::northbound::configuration::InterfaceCfg;
 use crate::packet::messages::hello::{
     HelloFlags, HelloMsg, TlvCommonHelloParams, TlvConfigSeqNo,
     TlvIpv4TransAddr,
@@ -43,18 +43,6 @@ pub struct InterfaceSys {
     pub ifindex: Option<u32>,
     pub ipv4_addr_list: BTreeSet<Ipv4Network>,
     pub ipv6_addr_list: BTreeSet<Ipv6Network>,
-}
-
-#[derive(Debug)]
-pub struct InterfaceCfg {
-    pub hello_holdtime: u16,
-    pub hello_interval: u16,
-    pub ipv4: Option<InterfaceIpv4Cfg>,
-}
-
-#[derive(Debug)]
-pub struct InterfaceIpv4Cfg {
-    pub enabled: bool,
 }
 
 #[derive(Debug)]
@@ -314,33 +302,5 @@ impl InterfaceSys {
     pub(crate) fn local_ipv4_addr(&self) -> IpAddr {
         let addr = self.ipv4_addr_list.iter().next().unwrap();
         IpAddr::from(addr.ip())
-    }
-}
-
-// ===== impl InterfaceCfg =====
-
-impl Default for InterfaceCfg {
-    fn default() -> InterfaceCfg {
-        let hello_holdtime =
-            mpls_ldp::discovery::interfaces::hello_holdtime::DFLT;
-        let hello_interval =
-            mpls_ldp::discovery::interfaces::hello_interval::DFLT;
-
-        InterfaceCfg {
-            hello_holdtime,
-            hello_interval,
-            ipv4: None,
-        }
-    }
-}
-
-// ===== impl InterfaceIpv4Cfg =====
-
-impl Default for InterfaceIpv4Cfg {
-    fn default() -> InterfaceIpv4Cfg {
-        let enabled =
-            mpls_ldp::discovery::interfaces::interface::address_families::ipv4::enabled::DFLT;
-
-        InterfaceIpv4Cfg { enabled }
     }
 }

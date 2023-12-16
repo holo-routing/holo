@@ -220,8 +220,8 @@ pub(crate) async fn nbr_read_loop(
     nbr_raddr: IpAddr,
     nbr_pdu_rxp: Sender<NbrRxPduMsg>,
 ) -> Result<(), SendError<NbrRxPduMsg>> {
-    let mut buf: [u8; Pdu::MAX_SIZE] = [0; Pdu::MAX_SIZE];
-    let mut data: Vec<u8> = vec![];
+    let mut buf = [0; Pdu::MAX_SIZE];
+    let mut data = Vec::with_capacity(Pdu::MAX_SIZE);
 
     // PDU header validation closure.
     let validate_pdu_hdr = move |lsr_id, label_space| {
@@ -242,44 +242,34 @@ pub(crate) async fn nbr_read_loop(
         validate_msg_hdr: None,
     };
 
-    'network_loop: loop {
+    loop {
         // Read data from the network.
-        let num_bytes = match stream.read(&mut buf).await {
-            Ok(num_bytes) => num_bytes,
+        match stream.read(&mut buf).await {
+            Ok(0) => {
+                // Notify that the connection was closed by the remote end.
+                let msg = NbrRxPduMsg {
+                    nbr_id,
+                    pdu: Err(Error::TcpConnClosed(nbr_lsr_id)),
+                };
+                nbr_pdu_rxp.send(msg).await?;
+                return Ok(());
+            }
+            Ok(num_bytes) => data.extend_from_slice(&buf[0..num_bytes]),
             Err(error) => {
                 IoError::TcpRecvError(error).log();
                 continue;
             }
         };
-        if num_bytes == 0 {
-            // Notify that the connection was closed by the remote end.
-            let msg = NbrRxPduMsg {
-                nbr_id,
-                pdu: Err(Error::TcpConnClosed(nbr_lsr_id)),
-            };
-            nbr_pdu_rxp.send(msg).await?;
-            return Ok(());
-        }
-        data.extend_from_slice(&buf[0..num_bytes]);
 
         // Decode PDU(s).
-        loop {
-            match Pdu::get_pdu_size(&data, &cxt) {
-                Ok(pdu_size) => {
-                    let pdu = Pdu::decode(&data[0..pdu_size], &cxt).map_err(
-                        |error| Error::NbrPduDecodeError(nbr_lsr_id, error),
-                    );
-                    data.drain(0..pdu_size);
+        while let Ok(pdu_size) = Pdu::get_pdu_size(&data, &cxt) {
+            let pdu = Pdu::decode(&data[0..pdu_size], &cxt)
+                .map_err(|error| Error::NbrPduDecodeError(nbr_lsr_id, error));
+            data.drain(0..pdu_size);
 
-                    // Notify that the LDP message was received.
-                    let msg = NbrRxPduMsg { nbr_id, pdu };
-                    nbr_pdu_rxp.send(msg).await?;
-                }
-                Err(_) => {
-                    // Try again later once more data arrives.
-                    continue 'network_loop;
-                }
-            }
+            // Notify that the LDP message was received.
+            let msg = NbrRxPduMsg { nbr_id, pdu };
+            nbr_pdu_rxp.send(msg).await?;
         }
     }
 }

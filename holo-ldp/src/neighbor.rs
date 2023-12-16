@@ -5,7 +5,7 @@
 //
 
 use std::collections::{btree_map, BTreeMap, BTreeSet};
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr};
 use std::sync::atomic::{self, AtomicU32, AtomicU64};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -532,8 +532,7 @@ impl Neighbor {
     ) {
         #[cfg(not(feature = "testing"))]
         {
-            let dst = SocketAddr::new(self.trans_addr, 0);
-            if let Err(error) = socket.set_md5sig(&dst, password) {
+            if let Err(error) = socket.set_md5sig(&self.trans_addr, password) {
                 IoError::TcpAuthError(error).log();
             }
         }

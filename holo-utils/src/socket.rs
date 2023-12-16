@@ -286,13 +286,10 @@ pub trait TcpSocketExt: SocketExt {
     }
 
     // Sets the value of the TCP_MD5SIG option for this socket.
-    fn set_md5sig(
-        &self,
-        dst: &SocketAddr,
-        password: Option<&str>,
-    ) -> Result<()> {
+    fn set_md5sig(&self, dst: &IpAddr, password: Option<&str>) -> Result<()> {
+        let dst = SocketAddr::from((*dst, 0));
         let mut optval = tcp_md5sig {
-            tcpm_addr: (*dst).into(),
+            tcpm_addr: dst.into(),
             tcpm_flags: 0,
             tcpm_prefixlen: 0,
             tcpm_keylen: 0,

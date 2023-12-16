@@ -111,11 +111,15 @@ pub(crate) async fn connect(
     let socket =
         connect_socket(local_addr, gtsm).map_err(IoError::TcpSocketError)?;
 
+    // Set the TCP MD5 password.
+    if let Some(password) = password {
+        if let Err(error) = socket.set_md5sig(&remote_addr, Some(&password)) {
+            IoError::TcpAuthError(error).log();
+        }
+    }
+
     // Connect to remote address on the LDP port.
     let sockaddr = SocketAddr::from((remote_addr, network::LDP_PORT));
-    if let Err(error) = socket.set_md5sig(&sockaddr, password.as_deref()) {
-        IoError::TcpAuthError(error).log();
-    }
     let stream = socket
         .connect(sockaddr)
         .await

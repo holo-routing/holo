@@ -113,9 +113,9 @@ pub(crate) async fn connect(
 
     // Set the TCP MD5 password.
     if let Some(password) = password {
-        if let Err(error) = socket.set_md5sig(&remote_addr, Some(&password)) {
-            IoError::TcpAuthError(error).log();
-        }
+        socket
+            .set_md5sig(&remote_addr, Some(password))
+            .map_err(IoError::TcpAuthError)?;
     }
 
     // Connect to remote address on the LDP port.

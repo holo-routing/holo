@@ -313,6 +313,19 @@ pub trait TcpSocketExt: SocketExt {
             std::mem::size_of::<tcp_md5sig>() as libc::socklen_t,
         )
     }
+
+    // Sets the value of the TCP_MAXSEG option on this socket.
+    fn set_mss(&self, mss: u32) -> Result<()> {
+        let optval = mss as c_int;
+
+        setsockopt(
+            self,
+            libc::IPPROTO_IP,
+            libc::TCP_MAXSEG,
+            &optval as *const _ as *const libc::c_void,
+            std::mem::size_of::<i32>() as libc::socklen_t,
+        )
+    }
 }
 
 // Extension methods for TcpStream.

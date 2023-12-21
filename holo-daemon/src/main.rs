@@ -120,8 +120,8 @@ fn privdrop(user: &str) -> nix::Result<()> {
 
     // Drop to unprivileged user and group.
     if let Some(user) = User::from_name(user)? {
-        //nix::unistd::chroot(&user.dir)?;
-        //nix::unistd::chdir("/")?;
+        nix::unistd::chroot(&user.dir)?;
+        nix::unistd::chdir("/")?;
         nix::unistd::setgroups(&[user.gid])?;
         nix::unistd::setresgid(user.gid, user.gid, user.gid)?;
         nix::unistd::setresuid(user.uid, user.uid, user.uid)?;

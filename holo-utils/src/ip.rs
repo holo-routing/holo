@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::borrow::Cow;
 use std::convert::TryInto;
 use std::net::{
     IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6,
@@ -207,10 +208,10 @@ impl std::fmt::Display for AddressFamily {
 }
 
 impl ToYang for AddressFamily {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            AddressFamily::Ipv4 => "ipv4".to_owned(),
-            AddressFamily::Ipv6 => "ipv6".to_owned(),
+            AddressFamily::Ipv4 => "ipv4".into(),
+            AddressFamily::Ipv6 => "ipv6".into(),
         }
     }
 }

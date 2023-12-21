@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::borrow::Cow;
 use std::fmt::Write;
 
 use holo_yang::{ToYang, ToYangBits, TryFromYang};
@@ -25,112 +26,110 @@ use crate::{ospfv2, ospfv3, spf};
 // ===== ToYang implementations =====
 
 impl ToYang for PacketType {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            PacketType::Hello => "hello".to_owned(),
-            PacketType::DbDesc => "database-description".to_owned(),
-            PacketType::LsRequest => "link-state-request".to_owned(),
-            PacketType::LsUpdate => "link-state-update".to_owned(),
-            PacketType::LsAck => "link-state-ack".to_owned(),
+            PacketType::Hello => "hello".into(),
+            PacketType::DbDesc => "database-description".into(),
+            PacketType::LsRequest => "link-state-request".into(),
+            PacketType::LsUpdate => "link-state-update".into(),
+            PacketType::LsAck => "link-state-ack".into(),
         }
     }
 }
 
 impl ToYang for ism::State {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            ism::State::Down => "down".to_owned(),
-            ism::State::Loopback => "loopback".to_owned(),
-            ism::State::Waiting => "waiting".to_owned(),
-            ism::State::PointToPoint => "point-to-point".to_owned(),
-            ism::State::DrOther => "dr-other".to_owned(),
-            ism::State::Backup => "bdr".to_owned(),
-            ism::State::Dr => "dr".to_owned(),
+            ism::State::Down => "down".into(),
+            ism::State::Loopback => "loopback".into(),
+            ism::State::Waiting => "waiting".into(),
+            ism::State::PointToPoint => "point-to-point".into(),
+            ism::State::DrOther => "dr-other".into(),
+            ism::State::Backup => "bdr".into(),
+            ism::State::Dr => "dr".into(),
         }
     }
 }
 
 impl ToYang for nsm::State {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            nsm::State::Down => "down".to_owned(),
-            nsm::State::Attempt => "attempt".to_owned(),
-            nsm::State::Init => "init".to_owned(),
-            nsm::State::TwoWay => "2-way".to_owned(),
-            nsm::State::ExStart => "exstart".to_owned(),
-            nsm::State::Exchange => "exchange".to_owned(),
-            nsm::State::Loading => "loading".to_owned(),
-            nsm::State::Full => "full".to_owned(),
+            nsm::State::Down => "down".into(),
+            nsm::State::Attempt => "attempt".into(),
+            nsm::State::Init => "init".into(),
+            nsm::State::TwoWay => "2-way".into(),
+            nsm::State::ExStart => "exstart".into(),
+            nsm::State::Exchange => "exchange".into(),
+            nsm::State::Loading => "loading".into(),
+            nsm::State::Full => "full".into(),
         }
     }
 }
 
 impl ToYang for spf::fsm::State {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            spf::fsm::State::Quiet => "quiet".to_owned(),
-            spf::fsm::State::ShortWait => "short-wait".to_owned(),
-            spf::fsm::State::LongWait => "long-wait".to_owned(),
+            spf::fsm::State::Quiet => "quiet".into(),
+            spf::fsm::State::ShortWait => "short-wait".into(),
+            spf::fsm::State::LongWait => "long-wait".into(),
         }
     }
 }
 
 impl ToYang for LsaLogReason {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            LsaLogReason::Refresh => "lsa-refresh".to_owned(),
-            LsaLogReason::ContentChange => "lsa-content-change".to_owned(),
-            LsaLogReason::Purge => "lsa-purge".to_owned(),
+            LsaLogReason::Refresh => "lsa-refresh".into(),
+            LsaLogReason::ContentChange => "lsa-content-change".into(),
+            LsaLogReason::Purge => "lsa-purge".into(),
         }
     }
 }
 
 impl ToYang for SpfLogType {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            SpfLogType::Full => "full".to_owned(),
-            SpfLogType::Intra => "intra".to_owned(),
-            SpfLogType::Inter => "inter".to_owned(),
-            SpfLogType::External => "external".to_owned(),
+            SpfLogType::Full => "full".into(),
+            SpfLogType::Intra => "intra".into(),
+            SpfLogType::Inter => "inter".into(),
+            SpfLogType::External => "external".into(),
         }
     }
 }
 
 impl ToYang for InterfaceCfgError {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            InterfaceCfgError::AfBitClear => "option-mismatch".to_owned(),
-            InterfaceCfgError::AreaIdMismatch(..) => "area-mismatch".to_owned(),
+            InterfaceCfgError::AfBitClear => "option-mismatch".into(),
+            InterfaceCfgError::AreaIdMismatch(..) => "area-mismatch".into(),
             InterfaceCfgError::HelloMaskMismatch(..) => {
-                "net-mask-mismatch".to_owned()
+                "net-mask-mismatch".into()
             }
             InterfaceCfgError::HelloIntervalMismatch(..) => {
-                "hello-interval-mismatch".to_owned()
+                "hello-interval-mismatch".into()
             }
             InterfaceCfgError::DeadIntervalMismatch(..) => {
-                "dead-interval-mismatch".to_owned()
+                "dead-interval-mismatch".into()
             }
             InterfaceCfgError::ExternalRoutingCapabilityMismatch(..) => {
-                "option-mismatch".to_owned()
+                "option-mismatch".into()
             }
-            InterfaceCfgError::MtuMismatch(..) => "mtu-mismatch".to_owned(),
+            InterfaceCfgError::MtuMismatch(..) => "mtu-mismatch".into(),
             InterfaceCfgError::DuplicateRouterId(..) => {
-                "duplicate-router-id".to_owned()
+                "duplicate-router-id".into()
             }
         }
     }
 }
 
 impl ToYang for LsaValidationError {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            LsaValidationError::InvalidChecksum => {
-                "invalid-checksum".to_owned()
-            }
-            LsaValidationError::InvalidLsaAge => "invalid-age".to_owned(),
-            LsaValidationError::InvalidLsaSeqNo => "invalid-seq-num".to_owned(),
+            LsaValidationError::InvalidChecksum => "invalid-checksum".into(),
+            LsaValidationError::InvalidLsaAge => "invalid-age".into(),
+            LsaValidationError::InvalidLsaSeqNo => "invalid-seq-num".into(),
             LsaValidationError::Ospfv2RouterLsaIdMismatch => {
-                "ospfv2-router-lsa-id-mismatch".to_owned()
+                "ospfv2-router-lsa-id-mismatch".into()
             }
         }
     }
@@ -211,30 +210,30 @@ impl ToYangBits for AdjSidFlags {
 }
 
 impl ToYang for GrReason {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            GrReason::Unknown => "unknown".to_owned(),
-            GrReason::SoftwareRestart => "software-restart".to_owned(),
-            GrReason::SoftwareUpgrade => "software-upgrade".to_owned(),
+            GrReason::Unknown => "unknown".into(),
+            GrReason::SoftwareRestart => "software-restart".into(),
+            GrReason::SoftwareUpgrade => "software-upgrade".into(),
             GrReason::ControlProcessorSwitchover => {
-                "control-processor-switchover".to_owned()
+                "control-processor-switchover".into()
             }
         }
     }
 }
 
 impl ToYang for GrExitReason {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            GrExitReason::Completed => "completed".to_owned(),
-            GrExitReason::TimedOut => "timed-out".to_owned(),
-            GrExitReason::TopologyChanged => "topology-changed".to_owned(),
+            GrExitReason::Completed => "completed".into(),
+            GrExitReason::TimedOut => "timed-out".into(),
+            GrExitReason::TopologyChanged => "topology-changed".into(),
         }
     }
 }
 
 impl ToYang for ospfv2::packet::lsa::LsaAsExternalFlags {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         use ospfv2::packet::lsa::LsaAsExternalFlags;
 
         let mut bits = String::new();
@@ -242,7 +241,7 @@ impl ToYang for ospfv2::packet::lsa::LsaAsExternalFlags {
             write!(bits, "E").unwrap();
         }
 
-        bits
+        bits.into()
     }
 }
 
@@ -272,31 +271,27 @@ impl ToYangBits for ospfv2::packet::Options {
 }
 
 impl ToYang for ospfv2::packet::lsa::LsaType {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         use ospfv2::packet::lsa::LsaTypeCode;
 
         match self.type_code() {
-            Some(LsaTypeCode::Router) => "ospfv2-router-lsa".to_owned(),
-            Some(LsaTypeCode::Network) => "ospfv2-network-lsa".to_owned(),
+            Some(LsaTypeCode::Router) => "ospfv2-router-lsa".into(),
+            Some(LsaTypeCode::Network) => "ospfv2-network-lsa".into(),
             Some(LsaTypeCode::SummaryNetwork) => {
-                "ospfv2-network-summary-lsa".to_owned()
+                "ospfv2-network-summary-lsa".into()
             }
             Some(LsaTypeCode::SummaryRouter) => {
-                "ospfv2-asbr-summary-lsa".to_owned()
+                "ospfv2-asbr-summary-lsa".into()
             }
-            Some(LsaTypeCode::AsExternal) => {
-                "ospfv2-as-external-lsa".to_owned()
-            }
+            Some(LsaTypeCode::AsExternal) => "ospfv2-as-external-lsa".into(),
             Some(LsaTypeCode::OpaqueLink) => {
-                "ospfv2-link-scope-opaque-lsa".to_owned()
+                "ospfv2-link-scope-opaque-lsa".into()
             }
             Some(LsaTypeCode::OpaqueArea) => {
-                "ospfv2-area-scope-opaque-lsa".to_owned()
+                "ospfv2-area-scope-opaque-lsa".into()
             }
-            Some(LsaTypeCode::OpaqueAs) => {
-                "ospfv2-as-scope-opaque-lsa".to_owned()
-            }
-            None => "ospfv2-unknown-lsa-type".to_owned(),
+            Some(LsaTypeCode::OpaqueAs) => "ospfv2-as-scope-opaque-lsa".into(),
+            None => "ospfv2-unknown-lsa-type".into(),
         }
     }
 }
@@ -324,30 +319,28 @@ impl ToYangBits for ospfv2::packet::lsa::LsaRouterFlags {
 }
 
 impl ToYang for ospfv2::packet::lsa::LsaRouterLinkType {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         use ospfv2::packet::lsa::LsaRouterLinkType;
 
         match self {
-            LsaRouterLinkType::PointToPoint => "point-to-point-link".to_owned(),
-            LsaRouterLinkType::TransitNetwork => {
-                "transit-network-link".to_owned()
-            }
-            LsaRouterLinkType::StubNetwork => "stub-network-link".to_owned(),
-            LsaRouterLinkType::VirtualLink => "virtual-link".to_owned(),
+            LsaRouterLinkType::PointToPoint => "point-to-point-link".into(),
+            LsaRouterLinkType::TransitNetwork => "transit-network-link".into(),
+            LsaRouterLinkType::StubNetwork => "stub-network-link".into(),
+            LsaRouterLinkType::VirtualLink => "virtual-link".into(),
         }
     }
 }
 
 impl ToYang for ospfv2::packet::lsa_opaque::ExtPrefixRouteType {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         use ospfv2::packet::lsa_opaque::ExtPrefixRouteType;
 
         match self {
-            ExtPrefixRouteType::Unspecified => "unspecified".to_owned(),
-            ExtPrefixRouteType::IntraArea => "intra-area".to_owned(),
-            ExtPrefixRouteType::InterArea => "inter-area".to_owned(),
-            ExtPrefixRouteType::AsExternal => "external".to_owned(),
-            ExtPrefixRouteType::NssaExternal => "nssa".to_owned(),
+            ExtPrefixRouteType::Unspecified => "unspecified".into(),
+            ExtPrefixRouteType::IntraArea => "intra-area".into(),
+            ExtPrefixRouteType::InterArea => "inter-area".into(),
+            ExtPrefixRouteType::AsExternal => "external".into(),
+            ExtPrefixRouteType::NssaExternal => "nssa".into(),
         }
     }
 }
@@ -369,56 +362,51 @@ impl ToYangBits for ospfv2::packet::lsa_opaque::LsaExtPrefixFlags {
 }
 
 impl ToYang for ospfv3::packet::lsa::LsaType {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         use ospfv3::packet::lsa::LsaFunctionCode;
 
         match self.function_code() {
-            Some(LsaFunctionCode::Router) => "ospfv3-router-lsa".to_owned(),
-            Some(LsaFunctionCode::Network) => "ospfv3-network-lsa".to_owned(),
+            Some(LsaFunctionCode::Router) => "ospfv3-router-lsa".into(),
+            Some(LsaFunctionCode::Network) => "ospfv3-network-lsa".into(),
             Some(LsaFunctionCode::InterAreaPrefix) => {
-                "ospfv3-inter-area-prefix-lsa".to_owned()
+                "ospfv3-inter-area-prefix-lsa".into()
             }
             Some(LsaFunctionCode::InterAreaRouter) => {
-                "ospfv3-inter-area-router-lsa".to_owned()
+                "ospfv3-inter-area-router-lsa".into()
             }
             Some(LsaFunctionCode::AsExternal) => {
-                "ospfv3-external-lsa-type".to_owned()
+                "ospfv3-external-lsa-type".into()
             }
-            Some(LsaFunctionCode::Link) => "ospfv3-link-lsa".to_owned(),
+            Some(LsaFunctionCode::Link) => "ospfv3-link-lsa".into(),
             Some(LsaFunctionCode::IntraAreaPrefix) => {
-                "ospfv3-intra-area-prefix-lsa".to_owned()
+                "ospfv3-intra-area-prefix-lsa".into()
             }
             Some(LsaFunctionCode::RouterInfo) => {
-                "ospfv3-router-information-lsa".to_owned()
+                "ospfv3-router-information-lsa".into()
             }
-            Some(LsaFunctionCode::Grace) => {
-                "holo-ospf:ospfv3-grace-lsa".to_owned()
-            }
+            Some(LsaFunctionCode::Grace) => "holo-ospf:ospfv3-grace-lsa".into(),
             Some(LsaFunctionCode::ExtRouter) => {
-                "ietf-ospfv3-extended-lsa:ospfv3-e-router-lsa".to_owned()
+                "ietf-ospfv3-extended-lsa:ospfv3-e-router-lsa".into()
             }
             Some(LsaFunctionCode::ExtNetwork) => {
-                "ietf-ospfv3-extended-lsa:ospfv3-e-network-lsa".to_owned()
+                "ietf-ospfv3-extended-lsa:ospfv3-e-network-lsa".into()
             }
             Some(LsaFunctionCode::ExtInterAreaPrefix) => {
-                "ietf-ospfv3-extended-lsa:ospfv3-e-inter-area-prefix-lsa"
-                    .to_owned()
+                "ietf-ospfv3-extended-lsa:ospfv3-e-inter-area-prefix-lsa".into()
             }
             Some(LsaFunctionCode::ExtInterAreaRouter) => {
-                "ietf-ospfv3-extended-lsa:ospfv3-e-inter-area-router-lsa"
-                    .to_owned()
+                "ietf-ospfv3-extended-lsa:ospfv3-e-inter-area-router-lsa".into()
             }
             Some(LsaFunctionCode::ExtAsExternal) => {
-                "ietf-ospfv3-extended-lsa:ospfv3-e-external-lsa-type".to_owned()
+                "ietf-ospfv3-extended-lsa:ospfv3-e-external-lsa-type".into()
             }
             Some(LsaFunctionCode::ExtLink) => {
-                "ietf-ospfv3-extended-lsa:ospfv3-e-link-lsa".to_owned()
+                "ietf-ospfv3-extended-lsa:ospfv3-e-link-lsa".into()
             }
             Some(LsaFunctionCode::ExtIntraAreaPrefix) => {
-                "ietf-ospfv3-extended-lsa:ospfv3-e-intra-area-prefix-lsa"
-                    .to_owned()
+                "ietf-ospfv3-extended-lsa:ospfv3-e-intra-area-prefix-lsa".into()
             }
-            None => "ospfv3-unknown-lsa-type".to_owned(),
+            None => "ospfv3-unknown-lsa-type".into(),
         }
     }
 }
@@ -446,21 +434,19 @@ impl ToYangBits for ospfv3::packet::lsa::LsaRouterFlags {
 }
 
 impl ToYang for ospfv3::packet::lsa::LsaRouterLinkType {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         use ospfv3::packet::lsa::LsaRouterLinkType;
 
         match self {
-            LsaRouterLinkType::PointToPoint => "point-to-point-link".to_owned(),
-            LsaRouterLinkType::TransitNetwork => {
-                "transit-network-link".to_owned()
-            }
-            LsaRouterLinkType::VirtualLink => "virtual-link".to_owned(),
+            LsaRouterLinkType::PointToPoint => "point-to-point-link".into(),
+            LsaRouterLinkType::TransitNetwork => "transit-network-link".into(),
+            LsaRouterLinkType::VirtualLink => "virtual-link".into(),
         }
     }
 }
 
 impl ToYang for ospfv3::packet::lsa::LsaAsExternalFlags {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         use ospfv3::packet::lsa::LsaAsExternalFlags;
 
         let mut bits = String::new();
@@ -474,7 +460,7 @@ impl ToYang for ospfv3::packet::lsa::LsaAsExternalFlags {
             write!(bits, "T").unwrap();
         }
 
-        bits
+        bits.into()
     }
 }
 

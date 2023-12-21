@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::borrow::Cow;
+
 use holo_yang::{ToYang, TryFromYang};
 
 use crate::interface::SplitHorizon;
@@ -12,10 +14,10 @@ use crate::route::RouteType;
 // ===== ToYang implementations =====
 
 impl ToYang for RouteType {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            RouteType::Connected => "connected".to_owned(),
-            RouteType::Rip => "rip".to_owned(),
+            RouteType::Connected => "connected".into(),
+            RouteType::Rip => "rip".into(),
         }
     }
 }

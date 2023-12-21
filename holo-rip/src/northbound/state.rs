@@ -245,7 +245,7 @@ fn load_callbacks_ripv2() -> Callbacks<Instance<Ripv2>> {
         .path(rip::ipv4::routes::route::route_type::PATH)
         .get_element_string(|_instance, args| {
             let route = args.list_entry.as_ipv4_route().unwrap();
-            Some(route.route_type.to_yang())
+            Some(route.route_type.to_yang().into())
         })
         .path(rip::ipv4::routes::route::metric::PATH)
         .get_element_u8(|_instance, args| {
@@ -341,7 +341,7 @@ fn load_callbacks_ripng() -> Callbacks<Instance<Ripng>> {
         .path(rip::ipv6::routes::route::route_type::PATH)
         .get_element_string(|_instance, args| {
             let route = args.list_entry.as_ipv6_route().unwrap();
-            Some(route.route_type.to_yang())
+            Some(route.route_type.to_yang().into())
         })
         .path(rip::ipv6::routes::route::metric::PATH)
         .get_element_u8(|_instance, args| {

@@ -8,6 +8,7 @@
 
 pub mod serde;
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock as Lazy, OnceLock};
 
@@ -222,7 +223,7 @@ pub static YANG_FEATURES: Lazy<HashMap<&'static str, Vec<&'static str>>> =
 
 pub trait ToYang {
     // Return YANG textual representation of the value.
-    fn to_yang(&self) -> String;
+    fn to_yang(&self) -> Cow<'static, str>;
 }
 
 pub trait ToYangBits {

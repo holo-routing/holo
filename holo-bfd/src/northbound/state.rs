@@ -116,7 +116,7 @@ fn load_callbacks() -> Callbacks<Master> {
         .path(bfd::ip_sh::sessions::session::path_type::PATH)
         .get_element_string(|_master, args| {
             let sess = args.list_entry.as_session().unwrap();
-            Some(sess.key.path_type().to_yang())
+            Some(sess.key.path_type().to_yang().into())
         })
         .path(bfd::ip_sh::sessions::session::ip_encapsulation::PATH)
         .get_element_bool(|_master, _args| {
@@ -153,17 +153,17 @@ fn load_callbacks() -> Callbacks<Master> {
         .path(bfd::ip_sh::sessions::session::session_running::local_state::PATH)
         .get_element_string(|_master, args| {
             let sess = args.list_entry.as_session().unwrap();
-            Some(sess.state.local_state.to_yang())
+            Some(sess.state.local_state.to_yang().into())
         })
         .path(bfd::ip_sh::sessions::session::session_running::remote_state::PATH)
         .get_element_string(|_master, args| {
             let sess = args.list_entry.as_session().unwrap();
-            sess.state.remote.as_ref().map(|remote| remote.state.to_yang())
+            sess.state.remote.as_ref().map(|remote| remote.state.to_yang().into())
         })
         .path(bfd::ip_sh::sessions::session::session_running::local_diagnostic::PATH)
         .get_element_string(|_master, args| {
             let sess = args.list_entry.as_session().unwrap();
-            Some(sess.state.local_diag.to_yang())
+            Some(sess.state.local_diag.to_yang().into())
         })
         .path(bfd::ip_sh::sessions::session::session_running::remote_diagnostic::PATH)
         .get_element_string(|_master, args| {
@@ -171,7 +171,7 @@ fn load_callbacks() -> Callbacks<Master> {
             sess.state.remote.as_ref()
                 .map(|remote| remote.diag)
                 .and_then(DiagnosticCode::from_u8)
-                .map(|diag| diag.to_yang())
+                .map(|diag| diag.to_yang().into())
         })
         .path(bfd::ip_sh::sessions::session::session_running::remote_authenticated::PATH)
         .get_element_bool(|_master, _args| {
@@ -310,7 +310,7 @@ fn load_callbacks() -> Callbacks<Master> {
         .path(bfd::ip_mh::session_groups::session_group::sessions::path_type::PATH)
         .get_element_string(|_master, args| {
             let sess = args.list_entry.as_session().unwrap();
-            Some(sess.key.path_type().to_yang())
+            Some(sess.key.path_type().to_yang().into())
         })
         .path(bfd::ip_mh::session_groups::session_group::sessions::ip_encapsulation::PATH)
         .get_element_bool(|_master, _args| {
@@ -347,17 +347,17 @@ fn load_callbacks() -> Callbacks<Master> {
         .path(bfd::ip_mh::session_groups::session_group::sessions::session_running::local_state::PATH)
         .get_element_string(|_master, args| {
             let sess = args.list_entry.as_session().unwrap();
-            Some(sess.state.local_state.to_yang())
+            Some(sess.state.local_state.to_yang().into())
         })
         .path(bfd::ip_mh::session_groups::session_group::sessions::session_running::remote_state::PATH)
         .get_element_string(|_master, args| {
             let sess = args.list_entry.as_session().unwrap();
-            sess.state.remote.as_ref().map(|remote| remote.state.to_yang())
+            sess.state.remote.as_ref().map(|remote| remote.state.to_yang().into())
         })
         .path(bfd::ip_mh::session_groups::session_group::sessions::session_running::local_diagnostic::PATH)
         .get_element_string(|_master, args| {
             let sess = args.list_entry.as_session().unwrap();
-            Some(sess.state.local_diag.to_yang())
+            Some(sess.state.local_diag.to_yang().into())
         })
         .path(bfd::ip_mh::session_groups::session_group::sessions::session_running::remote_diagnostic::PATH)
         .get_element_string(|_master, args| {
@@ -365,7 +365,7 @@ fn load_callbacks() -> Callbacks<Master> {
             sess.state.remote.as_ref()
                 .map(|remote| remote.diag)
                 .and_then(DiagnosticCode::from_u8)
-                .map(|diag| diag.to_yang())
+                .map(|diag| diag.to_yang().into())
         })
         .path(bfd::ip_mh::session_groups::session_group::sessions::session_running::remote_authenticated::PATH)
         .get_element_bool(|_master, _args| {

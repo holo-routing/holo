@@ -92,7 +92,7 @@ where
             instance
                 .state
                 .as_ref()
-                .map(|state| state.spf_delay_state.to_yang())
+                .map(|state| state.spf_delay_state.to_yang().into())
         })
         .path(ospf::spf_control::ietf_spf_delay::remaining_time_to_learn::PATH)
         .attributes(NodeAttributes::TIME)
@@ -187,7 +187,7 @@ where
         .path(ospf::local_rib::route::route_type::PATH)
         .get_element_string(|_instance, args| {
             let (_, route) = args.list_entry.as_route().unwrap();
-            Some(route.path_type.to_yang())
+            Some(route.path_type.to_yang().into())
         })
         .path(ospf::local_rib::route::route_tag::PATH)
         .get_element_u32(|_instance, args| {
@@ -300,7 +300,7 @@ where
         .path(ospf::spf_log::event::spf_type::PATH)
         .get_element_string(|_instance, args| {
             let log = args.list_entry.as_spf_log().unwrap();
-            Some(log.spf_type.to_yang())
+            Some(log.spf_type.to_yang().into())
         })
         .path(ospf::spf_log::event::schedule_timestamp::PATH)
         .attributes(NodeAttributes::TIME)
@@ -397,7 +397,7 @@ where
         .path(ospf::lsa_log::event::reason::PATH)
         .get_element_string(|_instance, args| {
             let log = args.list_entry.as_lsa_log().unwrap();
-            Some(log.reason.to_yang())
+            Some(log.reason.to_yang().into())
         })
         .path(ospf::areas::area::PATH)
         .get_iterate(|instance, _args| {
@@ -514,7 +514,7 @@ where
         .path(ospf::areas::area::interfaces::interface::state::PATH)
         .get_element_string(|_instance, args| {
             let iface = args.list_entry.as_interface().unwrap();
-            Some(iface.state.ism_state.to_yang())
+            Some(iface.state.ism_state.to_yang().into())
         })
         .path(ospf::areas::area::interfaces::interface::hello_timer::PATH)
         .attributes(NodeAttributes::TIME)
@@ -782,7 +782,7 @@ where
         .path(ospf::areas::area::interfaces::interface::neighbors::neighbor::state::PATH)
         .get_element_string(|_instance, args| {
             let (_, nbr) = args.list_entry.as_neighbor().unwrap();
-            Some(nbr.state.to_yang())
+            Some(nbr.state.to_yang().into())
         })
         .path(ospf::areas::area::interfaces::interface::neighbors::neighbor::dead_timer::PATH)
         .attributes(NodeAttributes::TIME)
@@ -813,7 +813,7 @@ where
         .path(ospf::areas::area::interfaces::interface::neighbors::neighbor::graceful_restart::restart_reason::PATH)
         .get_element_string(|_instance, args| {
             let (_, nbr) = args.list_entry.as_neighbor().unwrap();
-            nbr.gr.as_ref().map(|gr| gr.restart_reason.to_yang())
+            nbr.gr.as_ref().map(|gr| gr.restart_reason.to_yang().into())
         })
         .path(ospf::areas::area::interfaces::interface::neighbors::neighbor::graceful_restart::grace_timer::PATH)
         .attributes(NodeAttributes::TIME)
@@ -926,7 +926,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         .get_element_string(|_instance, args| {
             let lse: &LsaEntry<Ospfv2> = args.list_entry.as_as_lsa().unwrap();
             let lsa = &lse.data;
-            Some(lsa.hdr.lsa_type.to_yang())
+            Some(lsa.hdr.lsa_type.to_yang().into())
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::header::adv_router::PATH)
         .get_element_ipv4(|_instance, args| {
@@ -1014,7 +1014,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             let lse: &LsaEntry<Ospfv2> = args.list_entry.as_as_lsa().unwrap();
             let lsa = &lse.data;
             let lsa_body = lsa.body.as_as_external().unwrap();
-            Some(lsa_body.flags.to_yang())
+            Some(lsa_body.flags.to_yang().into())
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::external::topologies::topology::metric::PATH)
         .get_element_u32(|_instance, args| {
@@ -1182,7 +1182,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         })
         .get_element_string(|_instance, args| {
             let algo = args.list_entry.as_sr_algo().unwrap();
-            Some(algo.to_yang())
+            Some(algo.to_yang().into())
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::opaque::ri_opaque::sid_range_tlvs::sid_range_tlv::PATH)
         .get_iterate(|_instance, args| {
@@ -1265,7 +1265,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::opaque::extended_prefix_opaque::extended_prefix_tlv::route_type::PATH)
         .get_element_string(|_instance, args| {
             let tlv = args.list_entry.as_ospfv2_ext_prefix_tlv().unwrap();
-            Some(tlv.route_type.to_yang())
+            Some(tlv.route_type.to_yang().into())
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::opaque::extended_prefix_opaque::extended_prefix_tlv::flags::extended_prefix_flags::PATH)
         .get_iterate(|_instance, args| {
@@ -1434,7 +1434,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         .get_element_string(|_instance, args| {
             let lse: &LsaEntry<Ospfv2> = args.list_entry.as_area_lsa().unwrap();
             let lsa = &lse.data;
-            Some(lsa.hdr.lsa_type.to_yang())
+            Some(lsa.hdr.lsa_type.to_yang().into())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::header::adv_router::PATH)
         .get_element_ipv4(|_instance, args| {
@@ -1513,7 +1513,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::router::links::link::r#type::PATH)
         .get_element_string(|_instance, args| {
             let rtr_link = args.list_entry.as_ospfv2_router_lsa_link().unwrap();
-            Some(rtr_link.link_type.to_yang())
+            Some(rtr_link.link_type.to_yang().into())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::router::links::link::topologies::topology::PATH)
         .get_iterate(|_instance, args| {
@@ -1749,7 +1749,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         })
         .get_element_string(|_instance, args| {
             let algo = args.list_entry.as_sr_algo().unwrap();
-            Some(algo.to_yang())
+            Some(algo.to_yang().into())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::sid_range_tlvs::sid_range_tlv::PATH)
         .get_iterate(|_instance, args| {
@@ -1832,7 +1832,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::extended_prefix_opaque::extended_prefix_tlv::route_type::PATH)
         .get_element_string(|_instance, args| {
             let tlv = args.list_entry.as_ospfv2_ext_prefix_tlv().unwrap();
-            Some(tlv.route_type.to_yang())
+            Some(tlv.route_type.to_yang().into())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::extended_prefix_opaque::extended_prefix_tlv::flags::extended_prefix_flags::PATH)
         .get_iterate(|_instance, args| {
@@ -1903,7 +1903,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::extended_prefix_opaque::extended_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::algorithm::PATH)
         .get_element_string(|_instance, args| {
             let prefix_sid = args.list_entry.as_ospfv2_prefix_sid().unwrap();
-            Some(prefix_sid.algo.to_yang())
+            Some(prefix_sid.algo.to_yang().into())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::extended_prefix_opaque::extended_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::sid::PATH)
         .get_element_u32(|_instance, args| {
@@ -1944,7 +1944,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             if let Some(lsa_body) = lsa.body.as_opaque_area()
                 && let Some(lsa_body) = lsa_body.as_ext_link()
                 && let Some(tlv) = &lsa_body.link {
-                    Some(tlv.link_type.to_yang())
+                    Some(tlv.link_type.to_yang().into())
             } else {
                 None
             }
@@ -2164,7 +2164,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             let lse: &LsaEntry<Ospfv2> =
                 args.list_entry.as_interface_lsa().unwrap();
             let lsa = &lse.data;
-            Some(lsa.hdr.lsa_type.to_yang())
+            Some(lsa.hdr.lsa_type.to_yang().into())
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::header::adv_router::PATH)
         .get_element_ipv4(|_instance, args| {
@@ -2387,7 +2387,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         })
         .get_element_string(|_instance, args| {
             let algo = args.list_entry.as_sr_algo().unwrap();
-            Some(algo.to_yang())
+            Some(algo.to_yang().into())
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::sid_range_tlvs::sid_range_tlv::PATH)
         .get_iterate(|_instance, args| {
@@ -2571,7 +2571,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
                 && let Some(lsa_body) = lsa_body.as_grace()
                 && let Some(gr_reason) = &lsa_body.gr_reason
                 && let Some(gr_reason) = GrReason::from_u8(gr_reason.get()) {
-                    Some(gr_reason.to_yang())
+                    Some(gr_reason.to_yang().into())
             } else {
                 None
             }
@@ -2619,7 +2619,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_element_string(|_instance, args| {
             let lse: &LsaEntry<Ospfv3> = args.list_entry.as_as_lsa().unwrap();
             let lsa = &lse.data;
-            Some(lsa.hdr.lsa_type.to_yang())
+            Some(lsa.hdr.lsa_type.to_yang().into())
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::header::adv_router::PATH)
         .get_element_ipv4(|_instance, args| {
@@ -2697,14 +2697,14 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let lsa = &lse.data;
             lsa.body
                 .as_std_as_external()
-                .map(|lsa_body| lsa_body.flags.to_yang())
+                .map(|lsa_body| lsa_body.flags.to_yang().into())
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::as_external::referenced_ls_type::PATH)
         .get_element_string(|_instance, args| {
             let lse: &LsaEntry<Ospfv3> = args.list_entry.as_as_lsa().unwrap();
             let lsa = &lse.data;
             lsa.body.as_std_as_external().and_then(|lsa_body| {
-                lsa_body.ref_lsa_type.map(|lsa_type| lsa_type.to_yang())
+                lsa_body.ref_lsa_type.map(|lsa_type| lsa_type.to_yang().into())
             })
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::as_external::unknown_referenced_ls_type::PATH)
@@ -2886,7 +2886,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         })
         .get_element_string(|_instance, args| {
             let algo = args.list_entry.as_sr_algo().unwrap();
-            Some(algo.to_yang())
+            Some(algo.to_yang().into())
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::router_information::sid_range_tlvs::sid_range_tlv::PATH)
         .get_iterate(|_instance, args| {
@@ -3092,7 +3092,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_element_string(|_instance, args| {
             let lse: &LsaEntry<Ospfv3> = args.list_entry.as_area_lsa().unwrap();
             let lsa = &lse.data;
-            Some(lsa.hdr.lsa_type.to_yang())
+            Some(lsa.hdr.lsa_type.to_yang().into())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::header::adv_router::PATH)
         .get_element_ipv4(|_instance, args| {
@@ -3185,7 +3185,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router::links::link::r#type::PATH)
         .get_element_string(|_instance, args| {
             let rtr_link = args.list_entry.as_ospfv3_router_lsa_link().unwrap();
-            Some(rtr_link.link_type.to_yang())
+            Some(rtr_link.link_type.to_yang().into())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router::links::link::metric::PATH)
         .get_element_u16(|_instance, args| {
@@ -3337,7 +3337,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let lsa = &lse.data;
             lsa.body
                 .as_std_intra_area_prefix()
-                .map(|lsa_body| lsa_body.ref_lsa_type.to_yang())
+                .map(|lsa_body| lsa_body.ref_lsa_type.to_yang().into())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::intra_area_prefix::unknown_referenced_ls_type::PATH)
         .get_element_u16(|_instance, args| {
@@ -3499,7 +3499,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         })
         .get_element_string(|_instance, args| {
             let algo = args.list_entry.as_sr_algo().unwrap();
-            Some(algo.to_yang())
+            Some(algo.to_yang().into())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::sid_range_tlvs::sid_range_tlv::PATH)
         .get_iterate(|_instance, args| {
@@ -3634,7 +3634,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::r#type::PATH)
         .get_element_string(|_instance, args| {
             let rtr_link = args.list_entry.as_ospfv3_router_lsa_link().unwrap();
-            Some(rtr_link.link_type.to_yang())
+            Some(rtr_link.link_type.to_yang().into())
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::metric::PATH)
         .get_element_u16(|_instance, args| {
@@ -4182,7 +4182,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let lse: &LsaEntry<Ospfv3> =
                 args.list_entry.as_interface_lsa().unwrap();
             let lsa = &lse.data;
-            Some(lsa.hdr.lsa_type.to_yang())
+            Some(lsa.hdr.lsa_type.to_yang().into())
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::header::adv_router::PATH)
         .get_element_ipv4(|_instance, args| {
@@ -4727,7 +4727,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             if let Some(lsa_body) = lsa.body.as_grace()
                 && let Some(gr_reason) = &lsa_body.gr_reason
                 && let Some(gr_reason) = GrReason::from_u8(gr_reason.get()) {
-                    Some(gr_reason.to_yang())
+                    Some(gr_reason.to_yang().into())
             } else {
                 None
             }

@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::borrow::Cow;
 use std::collections::BTreeSet;
 use std::net::IpAddr;
 
@@ -196,11 +197,11 @@ impl Nexthop {
 // ===== impl NexthopSpecial =====
 
 impl ToYang for NexthopSpecial {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            NexthopSpecial::Blackhole => "blackhole".to_owned(),
-            NexthopSpecial::Unreachable => "unreachable".to_owned(),
-            NexthopSpecial::Prohibit => "prohibit".to_owned(),
+            NexthopSpecial::Blackhole => "blackhole".into(),
+            NexthopSpecial::Unreachable => "unreachable".into(),
+            NexthopSpecial::Prohibit => "prohibit".into(),
         }
     }
 }
@@ -219,12 +220,12 @@ impl TryFromYang for NexthopSpecial {
 // ===== impl OspfRouteType =====
 
 impl ToYang for OspfRouteType {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            OspfRouteType::IntraArea => "intra-area".to_owned(),
-            OspfRouteType::InterArea => "inter-area".to_owned(),
-            OspfRouteType::Type1External => "external-1".to_owned(),
-            OspfRouteType::Type2External => "external-2".to_owned(),
+            OspfRouteType::IntraArea => "intra-area".into(),
+            OspfRouteType::InterArea => "inter-area".into(),
+            OspfRouteType::Type1External => "external-1".into(),
+            OspfRouteType::Type2External => "external-2".into(),
         }
     }
 }

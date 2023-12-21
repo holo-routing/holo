@@ -65,7 +65,7 @@ fn load_callbacks() -> Callbacks<Instance> {
     CallbacksBuilder::default()
         .path(mpls_ldp::global::address_families::ipv4::label_distribution_control_mode::PATH)
         .get_element_string(|_instance, _args| {
-            let mode = LabelDistMode::Independent.to_yang();
+            let mode = LabelDistMode::Independent.to_yang().into();
             Some(mode)
         })
         .path(mpls_ldp::global::address_families::ipv4::bindings::address::PATH)
@@ -126,7 +126,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::global::address_families::ipv4::bindings::address::advertisement_type::PATH)
         .get_element_string(|_instance, args| {
             let binding = args.list_entry.as_addr_binding().unwrap();
-            Some(binding.adv_type.to_yang())
+            Some(binding.adv_type.to_yang().into())
         })
         .path(mpls_ldp::global::address_families::ipv4::bindings::address::peer::lsr_id::PATH)
         .get_element_ipv4(|_instance, args| {
@@ -196,7 +196,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::global::address_families::ipv4::bindings::fec_label::peer::label::PATH)
         .get_element_string(|_instance, args| {
             let binding = args.list_entry.as_label_binding().unwrap();
-            Some(binding.label.to_yang())
+            Some(binding.label.to_yang().into())
         })
         .path(mpls_ldp::global::address_families::ipv4::bindings::fec_label::peer::used_in_forwarding::PATH)
         .get_element_bool(|_instance, args| {
@@ -440,7 +440,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .get_element_string(|_instance, args| {
             let nbr = args.list_entry.as_neighbor().unwrap();
             if nbr.is_operational() {
-                Some(LabelAdvMode::DownstreamUnsolicited.to_yang())
+                Some(LabelAdvMode::DownstreamUnsolicited.to_yang().into())
             } else {
                 None
             }
@@ -448,13 +448,13 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::peers::peer::label_advertisement_mode::peer::PATH)
         .get_element_string(|_instance, args| {
             let nbr = args.list_entry.as_neighbor().unwrap();
-            nbr.rcvd_label_adv_mode.as_ref().map(|mode| mode.to_yang())
+            nbr.rcvd_label_adv_mode.as_ref().map(|mode| mode.to_yang().into())
         })
         .path(mpls_ldp::peers::peer::label_advertisement_mode::negotiated::PATH)
         .get_element_string(|_instance, args| {
             let nbr = args.list_entry.as_neighbor().unwrap();
             if nbr.is_operational() {
-                Some(LabelAdvMode::DownstreamUnsolicited.to_yang())
+                Some(LabelAdvMode::DownstreamUnsolicited.to_yang().into())
             } else {
                 None
             }
@@ -498,7 +498,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::peers::peer::session_state::PATH)
         .get_element_string(|_instance, args| {
             let nbr = args.list_entry.as_neighbor().unwrap();
-            Some(nbr.state.to_yang())
+            Some(nbr.state.to_yang().into())
         })
         .path(mpls_ldp::peers::peer::tcp_connection::local_address::PATH)
         .get_element_ip(|_instance, args| {

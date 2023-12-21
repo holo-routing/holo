@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::borrow::Cow;
+
 use holo_yang::{ToYang, TryFromYang};
 use num_derive::FromPrimitive;
 use serde::{Deserialize, Serialize};
@@ -50,14 +52,14 @@ impl CryptoAlgo {
 }
 
 impl ToYang for CryptoAlgo {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            CryptoAlgo::Md5 => "ietf-key-chain:md5".to_owned(),
-            CryptoAlgo::Sha1 => "ietf-key-chain:sha-1".to_owned(),
-            CryptoAlgo::HmacSha1 => "ietf-key-chain:hmac-sha-1".to_owned(),
-            CryptoAlgo::HmacSha256 => "ietf-key-chain:hmac-sha-256".to_owned(),
-            CryptoAlgo::HmacSha384 => "ietf-key-chain:hmac-sha-384".to_owned(),
-            CryptoAlgo::HmacSha512 => "ietf-key-chain:hmac-sha-512".to_owned(),
+            CryptoAlgo::Md5 => "ietf-key-chain:md5".into(),
+            CryptoAlgo::Sha1 => "ietf-key-chain:sha-1".into(),
+            CryptoAlgo::HmacSha1 => "ietf-key-chain:hmac-sha-1".into(),
+            CryptoAlgo::HmacSha256 => "ietf-key-chain:hmac-sha-256".into(),
+            CryptoAlgo::HmacSha384 => "ietf-key-chain:hmac-sha-384".into(),
+            CryptoAlgo::HmacSha512 => "ietf-key-chain:hmac-sha-512".into(),
         }
     }
 }

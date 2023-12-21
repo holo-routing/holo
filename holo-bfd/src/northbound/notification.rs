@@ -51,8 +51,8 @@ fn state_change_singlehop(
         remote_discr = remote.discr.to_string();
         args.push((base::remote_discr::PATH, Some(remote_discr.as_str())));
     }
-    args.push((base::new_state::PATH, Some(new_state.as_str())));
-    args.push((base::state_change_reason::PATH, Some(diag.as_str())));
+    args.push((base::new_state::PATH, Some(new_state.as_ref())));
+    args.push((base::state_change_reason::PATH, Some(diag.as_ref())));
     if let Some(time) = &sess.statistics.last_state_change_time {
         last_state_change_time = time.to_rfc3339();
         args.push((
@@ -66,7 +66,7 @@ fn state_change_singlehop(
         args.push((base::source_addr::PATH, Some(src_addr.as_str())));
     }
     args.push((base::session_index::PATH, Some(sess_index.as_str())));
-    args.push((base::path_type::PATH, Some(path_type.as_str())));
+    args.push((base::path_type::PATH, Some(path_type.as_ref())));
     args.push((base::interface::PATH, Some(ifname)));
     args.push((base::echo_enabled::PATH, Some("false")));
     notification::send(nb_tx, base::PATH, &args);
@@ -96,8 +96,8 @@ fn state_change_multihop(
         remote_discr = remote.discr.to_string();
         args.push((base::remote_discr::PATH, Some(remote_discr.as_str())));
     }
-    args.push((base::new_state::PATH, Some(new_state.as_str())));
-    args.push((base::state_change_reason::PATH, Some(diag.as_str())));
+    args.push((base::new_state::PATH, Some(new_state.as_ref())));
+    args.push((base::state_change_reason::PATH, Some(diag.as_ref())));
     if let Some(time) = &sess.statistics.last_state_change_time {
         last_state_change_time = time.to_rfc3339();
         args.push((
@@ -108,6 +108,6 @@ fn state_change_multihop(
     args.push((base::dest_addr::PATH, Some(dst.as_str())));
     args.push((base::source_addr::PATH, Some(src_addr.as_str())));
     args.push((base::session_index::PATH, Some(sess_index.as_str())));
-    args.push((base::path_type::PATH, Some(path_type.as_str())));
+    args.push((base::path_type::PATH, Some(path_type.as_ref())));
     notification::send(nb_tx, base::PATH, &args);
 }

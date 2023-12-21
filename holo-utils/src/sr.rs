@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::borrow::Cow;
 use std::collections::{BTreeSet, HashMap};
 
 use derive_new::new;
@@ -75,15 +76,15 @@ pub struct SrCfgPrefixSid {
 // ===== impl IgpAlgoType =====
 
 impl ToYang for IgpAlgoType {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         match self {
             IgpAlgoType::Spf => {
                 "ietf-segment-routing-common:prefix-sid-algorithm-shortest-path"
-                    .to_owned()
+                    .into()
             }
             IgpAlgoType::StrictSpf => {
                 "ietf-segment-routing-common:prefix-sid-algorithm-strict-spf"
-                    .to_owned()
+                    .into()
             }
         }
     }

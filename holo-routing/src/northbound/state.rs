@@ -189,7 +189,7 @@ fn load_callbacks() -> Callbacks<Master> {
         .get_element_string(|_master, args| {
             let (dest, _) = args.list_entry.as_route().unwrap();
             if let RouteDestination::Label(label) = *dest {
-                Some(label.to_yang())
+                Some(label.to_yang().into())
             } else {
                 None
             }
@@ -215,7 +215,7 @@ fn load_callbacks() -> Callbacks<Master> {
             if route.nexthops.len() == 1 {
                 let nexthop = route.nexthops.first().unwrap();
                 if let Nexthop::Special(nexthop) = nexthop {
-                    return Some(nexthop.to_yang());
+                    return Some(nexthop.to_yang().into());
                 }
             }
 
@@ -264,7 +264,7 @@ fn load_callbacks() -> Callbacks<Master> {
         .path(ribs::rib::routes::route::next_hop::mpls_label_stack::entry::label::PATH)
         .get_element_string(|_master, args| {
             let (_, label) = args.list_entry.as_label().unwrap();
-            Some(label.to_yang())
+            Some(label.to_yang().into())
         })
         .path(ribs::rib::routes::route::next_hop::next_hop_list::next_hop::PATH)
         .get_iterate(|_master, args| {
@@ -313,7 +313,7 @@ fn load_callbacks() -> Callbacks<Master> {
         .path(ribs::rib::routes::route::next_hop::next_hop_list::next_hop::mpls_label_stack::entry::label::PATH)
         .get_element_string(|_master, args| {
             let (_, label) = args.list_entry.as_label().unwrap();
-            Some(label.to_yang())
+            Some(label.to_yang().into())
         })
         .path(ribs::rib::routes::route::source_protocol::PATH)
         .get_element_string(|_master, args| {
@@ -321,7 +321,7 @@ fn load_callbacks() -> Callbacks<Master> {
             if dest.is_label() {
                 None
             } else {
-                Some(route.protocol.to_yang())
+                Some(route.protocol.to_yang().into())
             }
         })
         .path(ribs::rib::routes::route::active::PATH)
@@ -371,7 +371,7 @@ fn load_callbacks() -> Callbacks<Master> {
         .get_element_string(|_master, args| {
             let (_, route) = args.list_entry.as_route().unwrap();
             if let RouteOpaqueAttrs::Ospf { route_type } = &route.opaque_attrs {
-                Some(route_type.to_yang())
+                Some(route_type.to_yang().into())
             } else {
                 None
             }

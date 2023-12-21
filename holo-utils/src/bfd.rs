@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::borrow::Cow;
 use std::net::IpAddr;
 
 use derive_new::new;
@@ -60,10 +61,10 @@ pub struct ClientCfg {
 // ===== impl PathType =====
 
 impl ToYang for PathType {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            PathType::IpSingleHop => "ietf-bfd-types:path-ip-sh".to_owned(),
-            PathType::IpMultihop => "ietf-bfd-types:path-ip-mh".to_owned(),
+            PathType::IpSingleHop => "ietf-bfd-types:path-ip-sh".into(),
+            PathType::IpMultihop => "ietf-bfd-types:path-ip-mh".into(),
         }
     }
 }
@@ -82,12 +83,12 @@ impl SessionKey {
 // ===== impl State =====
 
 impl ToYang for State {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            State::AdminDown => "adminDown".to_owned(),
-            State::Down => "down".to_owned(),
-            State::Init => "init".to_owned(),
-            State::Up => "up".to_owned(),
+            State::AdminDown => "adminDown".into(),
+            State::Down => "down".into(),
+            State::Init => "init".into(),
+            State::Up => "up".into(),
         }
     }
 }

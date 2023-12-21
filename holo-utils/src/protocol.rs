@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::borrow::Cow;
 use std::str::FromStr;
 
 use holo_yang::{ToYang, TryFromYang};
@@ -61,16 +62,16 @@ impl FromStr for Protocol {
 }
 
 impl ToYang for Protocol {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            Protocol::BFD => "ietf-bfd-types:bfdv1".to_owned(),
-            Protocol::DIRECT => "ietf-routing:direct".to_owned(),
-            Protocol::LDP => "ietf-mpls-ldp:mpls-ldp".to_owned(),
-            Protocol::OSPFV2 => "ietf-ospf:ospfv2".to_owned(),
-            Protocol::OSPFV3 => "ietf-ospf:ospfv3".to_owned(),
-            Protocol::RIPV2 => "ietf-rip:ripv2".to_owned(),
-            Protocol::RIPNG => "ietf-rip:ripng".to_owned(),
-            Protocol::STATIC => "ietf-routing:static".to_owned(),
+            Protocol::BFD => "ietf-bfd-types:bfdv1".into(),
+            Protocol::DIRECT => "ietf-routing:direct".into(),
+            Protocol::LDP => "ietf-mpls-ldp:mpls-ldp".into(),
+            Protocol::OSPFV2 => "ietf-ospf:ospfv2".into(),
+            Protocol::OSPFV3 => "ietf-ospf:ospfv3".into(),
+            Protocol::RIPV2 => "ietf-rip:ripv2".into(),
+            Protocol::RIPNG => "ietf-rip:ripng".into(),
+            Protocol::STATIC => "ietf-routing:static".into(),
         }
     }
 }

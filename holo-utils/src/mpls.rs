@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::borrow::Cow;
 use std::collections::BTreeSet;
 
 use derive_new::new;
@@ -92,27 +93,25 @@ impl std::fmt::Display for Label {
 }
 
 impl ToYang for Label {
-    fn to_yang(&self) -> String {
+    fn to_yang(&self) -> Cow<'static, str> {
         match self.0 {
             Label::IPV4_EXPLICIT_NULL => {
-                "ietf-routing-types:ipv4-explicit-null-label".to_owned()
+                "ietf-routing-types:ipv4-explicit-null-label".into()
             }
             Label::ROUTER_ALERT => {
-                "ietf-routing-types:router-alert-label".to_owned()
+                "ietf-routing-types:router-alert-label".into()
             }
             Label::IPV6_EXPLICIT_NULL => {
-                "ietf-routing-types:ipv6-explicit-null-label".to_owned()
+                "ietf-routing-types:ipv6-explicit-null-label".into()
             }
             Label::IMPLICIT_NULL => {
-                "ietf-routing-types:implicit-null-label".to_owned()
+                "ietf-routing-types:implicit-null-label".into()
             }
-            Label::ELI => {
-                "ietf-routing-types:entropy-label-indicator".to_owned()
-            }
-            Label::GAL => "ietf-routing-types:gal-label".to_owned(),
-            Label::OAM_ALERT => "ietf-routing-types:oam-alert-label".to_owned(),
-            Label::EXTENSION => "ietf-routing-types:extension-label".to_owned(),
-            _ => format!("{}", self.0),
+            Label::ELI => "ietf-routing-types:entropy-label-indicator".into(),
+            Label::GAL => "ietf-routing-types:gal-label".into(),
+            Label::OAM_ALERT => "ietf-routing-types:oam-alert-label".into(),
+            Label::EXTENSION => "ietf-routing-types:extension-label".into(),
+            _ => self.0.to_string().into(),
         }
     }
 }

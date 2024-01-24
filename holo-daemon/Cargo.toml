@@ -7,7 +7,7 @@ edition.workspace = true
 
 [dependencies]
 console-subscriber = "0.1.8"
-prost-types = "0.11"
+prost-types = "0.12"
 toml = "0.5"
 tokio-uring = { version = "0.4", optional = true }
 tokio-stream = "0.1"

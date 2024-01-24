@@ -97,8 +97,8 @@ impl proto::Northbound for NorthboundService {
 
         // Convert and relay gRPC request to the northbound.
         let data_type = api::DataType::try_from(grpc_request.r#type)?;
-        let encoding = proto::Encoding::from_i32(grpc_request.encoding)
-            .ok_or_else(|| Status::invalid_argument("Invalid data encoding"))?;
+        let encoding = proto::Encoding::try_from(grpc_request.encoding)
+            .map_err(|_| Status::invalid_argument("Invalid data encoding"))?;
         let path = (!grpc_request.path.is_empty()).then_some(grpc_request.path);
         let nb_request = api::client::Request::Get(api::client::GetRequest {
             data_type,
@@ -149,8 +149,8 @@ impl proto::Northbound for NorthboundService {
         let config_tree = grpc_request.config.ok_or_else(|| {
             Status::invalid_argument("Missing 'config' field")
         })?;
-        let encoding = proto::Encoding::from_i32(config_tree.encoding)
-            .ok_or_else(|| Status::invalid_argument("Invalid data encoding"))?;
+        let encoding = proto::Encoding::try_from(config_tree.encoding)
+            .map_err(|_| Status::invalid_argument("Invalid data encoding"))?;
         let config = DataTree::parse_string(
             yang_ctx,
             &config_tree.data,
@@ -194,11 +194,13 @@ impl proto::Northbound for NorthboundService {
         let config_tree = grpc_request.config.ok_or_else(|| {
             Status::invalid_argument("Missing 'config' field")
         })?;
-        let encoding = proto::Encoding::from_i32(config_tree.encoding)
-            .ok_or_else(|| Status::invalid_argument("Invalid data encoding"))?;
+        let encoding = proto::Encoding::try_from(config_tree.encoding)
+            .map_err(|_| Status::invalid_argument("Invalid data encoding"))?;
         let operation =
-            proto::commit_request::Operation::from_i32(grpc_request.operation)
-                .ok_or(Status::invalid_argument("Invalid commit operation"))?;
+            proto::commit_request::Operation::try_from(grpc_request.operation)
+                .map_err(|_| {
+                    Status::invalid_argument("Invalid commit operation")
+                })?;
         let config = match operation {
             proto::commit_request::Operation::Merge => {
                 let config = DataTree::parse_string(
@@ -275,8 +277,8 @@ impl proto::Northbound for NorthboundService {
         let data = grpc_request
             .data
             .ok_or_else(|| Status::invalid_argument("Missing 'data' field"))?;
-        let encoding = proto::Encoding::from_i32(data.encoding)
-            .ok_or_else(|| Status::invalid_argument("Invalid data encoding"))?;
+        let encoding = proto::Encoding::try_from(data.encoding)
+            .map_err(|_| Status::invalid_argument("Invalid data encoding"))?;
         let data = DataTree::parse_op_string(
             yang_ctx,
             &data.data,
@@ -386,8 +388,8 @@ impl proto::Northbound for NorthboundService {
         let nb_response = responder_rx.await.unwrap()?;
 
         // Convert and relay northbound response to the gRPC client.
-        let encoding = proto::Encoding::from_i32(grpc_request.encoding)
-            .ok_or_else(|| Status::invalid_argument("Invalid data encoding"))?;
+        let encoding = proto::Encoding::try_from(grpc_request.encoding)
+            .map_err(|_| Status::invalid_argument("Invalid data encoding"))?;
         let config = nb_response
             .dtree
             .print_string(
@@ -460,15 +462,13 @@ impl TryFrom<i32> for api::DataType {
     type Error = Status;
 
     fn try_from(data_type: i32) -> Result<Self, Self::Error> {
-        match proto::get_request::DataType::from_i32(data_type) {
-            Some(proto::get_request::DataType::All) => Ok(api::DataType::All),
-            Some(proto::get_request::DataType::Config) => {
+        match proto::get_request::DataType::try_from(data_type) {
+            Ok(proto::get_request::DataType::All) => Ok(api::DataType::All),
+            Ok(proto::get_request::DataType::Config) => {
                 Ok(api::DataType::Configuration)
             }
-            Some(proto::get_request::DataType::State) => {
-                Ok(api::DataType::State)
-            }
-            None => Err(Status::invalid_argument("Invalid data type")),
+            Ok(proto::get_request::DataType::State) => Ok(api::DataType::State),
+            Err(_) => Err(Status::invalid_argument("Invalid data type")),
         }
     }
 }

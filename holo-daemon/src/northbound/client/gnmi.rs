@@ -101,24 +101,24 @@ impl proto::GNmi for GNmiService {
 
         // Get data type.
         let data_type =
-            match proto::get_request::DataType::from_i32(grpc_request.r#type) {
-                Some(proto::get_request::DataType::All) => api::DataType::All,
-                Some(proto::get_request::DataType::Config) => {
+            match proto::get_request::DataType::try_from(grpc_request.r#type) {
+                Ok(proto::get_request::DataType::All) => api::DataType::All,
+                Ok(proto::get_request::DataType::Config) => {
                     api::DataType::Configuration
                 }
-                Some(
+                Ok(
                     proto::get_request::DataType::State
                     | proto::get_request::DataType::Operational,
                 ) => api::DataType::State,
-                None => {
+                Err(_) => {
                     return Err(Status::invalid_argument("Invalid data type"))
                 }
             };
 
         // Get encoding type.
-        let encoding = match proto::Encoding::from_i32(grpc_request.encoding) {
-            Some(proto::Encoding::Proto) => proto::Encoding::Proto,
-            Some(proto::Encoding::JsonIetf) => proto::Encoding::JsonIetf,
+        let encoding = match proto::Encoding::try_from(grpc_request.encoding) {
+            Ok(proto::Encoding::Proto) => proto::Encoding::Proto,
+            Ok(proto::Encoding::JsonIetf) => proto::Encoding::JsonIetf,
             _ => return Err(Status::invalid_argument("Invalid data encoding")),
         };
 

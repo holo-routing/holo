@@ -41,7 +41,7 @@ where
     fn yang_modules() -> &'static [&'static str] {
         &[
             "ietf-ospf",
-            "ietf-ospf-sr",
+            "ietf-ospf-sr-mpls",
             "ietf-ospfv3-extended-lsa",
             "holo-ospf",
             "holo-ospf-dev",

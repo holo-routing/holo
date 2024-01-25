@@ -1314,7 +1314,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             // TODO: implement me!
             None
         })
-        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::opaque::extended_prefix_opaque::extended_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::prefix_sid_flags::bits::PATH)
+        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::opaque::extended_prefix_opaque::extended_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::prefix_sid_flags::flags::PATH)
         .get_iterate(|_instance, _args| {
             // TODO: implement me!
             None
@@ -1885,7 +1885,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
                 .map(ListEntry::Ospfv2PrefixSid);
             Some(Box::new(iter))
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::extended_prefix_opaque::extended_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::prefix_sid_flags::bits::PATH)
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::extended_prefix_opaque::extended_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::prefix_sid_flags::flags::PATH)
         .get_iterate(|_instance, args| {
             let prefix_sid = args.parent_list_entry.as_ospfv2_prefix_sid().unwrap();
             let flags = prefix_sid.flags.to_yang_bits();
@@ -2029,7 +2029,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
                 None
             }
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::extended_link_opaque::extended_link_tlv::adj_sid_sub_tlvs::adj_sid_sub_tlv::adj_sid_flags::bits::PATH)
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::extended_link_opaque::extended_link_tlv::adj_sid_sub_tlvs::adj_sid_sub_tlv::adj_sid_flags::flags::PATH)
         .get_iterate(|_instance, args| {
             let adj_sid = args.parent_list_entry.as_ospfv2_adj_sid().unwrap();
             let flags = adj_sid.flags.to_yang_bits();
@@ -2072,7 +2072,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
                 None
             }
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::extended_link_opaque::extended_link_tlv::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::lan_adj_sid_flags::bits::PATH)
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::extended_link_opaque::extended_link_tlv::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::lan_adj_sid_flags::flags::PATH)
         .get_iterate(|_instance, args| {
             let adj_sid = args.parent_list_entry.as_ospfv2_adj_sid().unwrap();
             let flags = adj_sid.flags.to_yang_bits();
@@ -2490,7 +2490,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         .get_iterate(|_instance, _args| {
             None
         })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::extended_prefix_opaque::extended_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::prefix_sid_flags::bits::PATH)
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::extended_prefix_opaque::extended_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::prefix_sid_flags::flags::PATH)
         .get_iterate(|_instance, _args| {
             None
         })
@@ -3049,7 +3049,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             // TODO: implement me!
             None
         })
-        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::bits::PATH)
+        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::flags::PATH)
         .get_iterate(|_instance, _args| {
             // TODO: implement me!
             None
@@ -3677,7 +3677,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
                 .map(ListEntry::Ospfv3AdjSid);
             Some(Box::new(iter))
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::adj_sid_sub_tlvs::adj_sid_sub_tlv::adj_sid_flags::bits::PATH)
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::adj_sid_sub_tlvs::adj_sid_sub_tlv::adj_sid_flags::flags::PATH)
         .get_iterate(|_instance, args| {
             let adj_sid = args.parent_list_entry.as_ospfv3_adj_sid().unwrap();
             let flags = adj_sid.flags.to_yang_bits();
@@ -3708,7 +3708,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
                 .map(ListEntry::Ospfv3AdjSid);
             Some(Box::new(iter))
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::lan_adj_sid_flags::bits::PATH)
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::lan_adj_sid_flags::flags::PATH)
         .get_iterate(|_instance, args| {
             let adj_sid = args.parent_list_entry.as_ospfv3_adj_sid().unwrap();
             let flags = adj_sid.flags.to_yang_bits();
@@ -3897,7 +3897,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
                 None
             }
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::bits::PATH)
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::flags::PATH)
         .get_iterate(|_instance, args| {
             let prefix_sid = args.parent_list_entry.as_ospfv3_prefix_sid().unwrap();
             let flags = prefix_sid.flags.to_yang_bits();
@@ -4127,7 +4127,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
                 .map(ListEntry::Ospfv3PrefixSid);
             Some(Box::new(iter))
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::bits::PATH)
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::flags::PATH)
         .get_iterate(|_instance, args| {
             let prefix_sid = args.parent_list_entry.as_ospfv3_prefix_sid().unwrap();
             let flags = prefix_sid.flags.to_yang_bits();
@@ -4624,7 +4624,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             // TODO: implement me!
             None
         })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::bits::PATH)
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::flags::PATH)
         .get_iterate(|_instance, _args| {
             // TODO: implement me!
             None

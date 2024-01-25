@@ -92,8 +92,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-netconf-acm@2018-02-14.yang"),
         EmbeddedModuleKey::new("ietf-ospf", Some("2022-10-19"), None, None) =>
             include_str!("../modules/ietf/ietf-ospf@2022-10-19.yang"),
-        EmbeddedModuleKey::new("ietf-ospf-sr", Some("2023-07-09"), None, None) =>
-            include_str!("../modules/ietf/ietf-ospf-sr@2023-07-09.yang"),
+        EmbeddedModuleKey::new("ietf-ospf-sr-mpls", Some("2024-01-18"), None, None) =>
+            include_str!("../modules/ietf/ietf-ospf-sr-mpls@2024-01-18.yang"),
         EmbeddedModuleKey::new("ietf-ospfv3-extended-lsa", Some("2024-01-16"), None, None) =>
             include_str!("../modules/ietf/ietf-ospfv3-extended-lsa@2024-01-16.yang"),
         EmbeddedModuleKey::new("ietf-rip", Some("2020-02-20"), None, None) =>
@@ -132,8 +132,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/deviations/ietf-key-chain-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-ospf-holo-deviations", None, None, None) =>
             include_str!("../modules/deviations/ietf-ospf-holo-deviations.yang"),
-        EmbeddedModuleKey::new("ietf-ospf-sr-holo-deviations", None, None, None) =>
-            include_str!("../modules/deviations/ietf-ospf-sr-holo-deviations.yang"),
+        EmbeddedModuleKey::new("ietf-ospf-sr-mpls-holo-deviations", None, None, None) =>
+            include_str!("../modules/deviations/ietf-ospf-sr-mpls-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-ospfv3-extended-lsa-holo-deviations", None, None, None) =>
             include_str!("../modules/deviations/ietf-ospfv3-extended-lsa-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-rip-holo-deviations", None, None, None) =>
@@ -175,7 +175,7 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
             "ietf-mpls",
             "ietf-mpls-ldp",
             "ietf-ospf",
-            "ietf-ospf-sr",
+            "ietf-ospf-sr-mpls",
             "ietf-ospfv3-extended-lsa",
             "ietf-rip",
             "holo-ospf",

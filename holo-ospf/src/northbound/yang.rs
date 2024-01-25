@@ -166,19 +166,19 @@ impl ToYangBits for PrefixSidFlags {
         let mut flags = vec![];
 
         if self.contains(PrefixSidFlags::NP) {
-            flags.push("ietf-ospf-sr:np-bit");
+            flags.push("ietf-ospf-sr-mpls:np-bit");
         }
         if self.contains(PrefixSidFlags::M) {
-            flags.push("ietf-ospf-sr:m-bit");
+            flags.push("ietf-ospf-sr-mpls:m-bit");
         }
         if self.contains(PrefixSidFlags::E) {
-            flags.push("ietf-ospf-sr:e-bit");
+            flags.push("ietf-ospf-sr-mpls:e-bit");
         }
         if self.contains(PrefixSidFlags::V) {
-            flags.push("ietf-ospf-sr:v-bit");
+            flags.push("ietf-ospf-sr-mpls:v-bit");
         }
         if self.contains(PrefixSidFlags::L) {
-            flags.push("ietf-ospf-sr:l-bit");
+            flags.push("ietf-ospf-sr-mpls:l-bit");
         }
 
         flags
@@ -190,19 +190,19 @@ impl ToYangBits for AdjSidFlags {
         let mut flags = vec![];
 
         if self.contains(AdjSidFlags::B) {
-            flags.push("ietf-ospf-sr:b-bit");
+            flags.push("ietf-ospf-sr-mpls:b-bit");
         }
         if self.contains(AdjSidFlags::V) {
-            flags.push("ietf-ospf-sr:vi-bit");
+            flags.push("ietf-ospf-sr-mpls:vi-bit");
         }
         if self.contains(AdjSidFlags::L) {
-            flags.push("ietf-ospf-sr:lo-bit");
+            flags.push("ietf-ospf-sr-mpls:lo-bit");
         }
         if self.contains(AdjSidFlags::G) {
-            flags.push("ietf-ospf-sr:g-bit");
+            flags.push("ietf-ospf-sr-mpls:g-bit");
         }
         if self.contains(AdjSidFlags::P) {
-            flags.push("ietf-ospf-sr:p-bit");
+            flags.push("ietf-ospf-sr-mpls:p-bit");
         }
 
         flags

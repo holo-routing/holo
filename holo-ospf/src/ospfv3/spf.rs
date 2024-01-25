@@ -492,17 +492,14 @@ impl SpfVersion<Self> for Ospfv3 {
             .filter(|lsa| !lsa.hdr.is_maxage())
             .filter_map(|lsa| {
                 let lsa_body = lsa.body.as_inter_area_prefix().unwrap();
-                if lsa_body.prefix_options.contains(PrefixOptions::NU) {
-                    None
-                } else {
-                    Some(SpfInterAreaNetwork {
+                (!lsa_body.prefix_options.contains(PrefixOptions::NU))
+                    .then_some(SpfInterAreaNetwork {
                         adv_rtr: lsa.hdr.adv_rtr,
                         prefix: lsa_body.prefix,
                         prefix_options: lsa_body.prefix_options,
                         metric: lsa_body.metric,
                         prefix_sids: lsa_body.prefix_sids.clone(),
                     })
-                }
             })
     }
 
@@ -539,10 +536,8 @@ impl SpfVersion<Self> for Ospfv3 {
             .filter(|lsa| !lsa.hdr.is_maxage())
             .filter_map(|lsa| {
                 let lsa_body = lsa.body.as_as_external().unwrap();
-                if lsa_body.prefix_options.contains(PrefixOptions::NU) {
-                    None
-                } else {
-                    Some(SpfExternalNetwork {
+                (!lsa_body.prefix_options.contains(PrefixOptions::NU))
+                    .then_some(SpfExternalNetwork {
                         adv_rtr: lsa.hdr.adv_rtr,
                         e_bit: lsa_body.flags.contains(LsaAsExternalFlags::E),
                         prefix: lsa_body.prefix,
@@ -551,7 +546,6 @@ impl SpfVersion<Self> for Ospfv3 {
                         fwd_addr: lsa_body.fwd_addr,
                         tag: lsa_body.tag,
                     })
-                }
             })
     }
 

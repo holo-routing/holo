@@ -18,7 +18,7 @@ use ipnetwork::{Ipv4Network, Ipv6Network};
 use crate::collections::{InterfaceId, InterfaceIndex};
 use crate::debug::{Debug, InterfaceInactiveReason};
 use crate::error::{Error, IoError};
-use crate::instance::{InstanceState, InstanceUp};
+use crate::instance::{InstanceState, InstanceUpView};
 use crate::northbound::configuration::InterfaceCfg;
 use crate::packet::messages::hello::{
     HelloFlags, HelloMsg, TlvCommonHelloParams, TlvConfigSeqNo,
@@ -91,40 +91,48 @@ impl Interface {
     }
 
     pub(crate) fn stop(
-        instance: &mut InstanceUp,
-        iface_idx: InterfaceIndex,
+        &mut self,
+        instance: &mut InstanceUpView<'_>,
         reason: InterfaceInactiveReason,
     ) {
-        let iface = &mut instance.core.interfaces[iface_idx];
-        let iface_id = iface.id;
+        Debug::InterfaceStop(&self.name, reason).log();
 
-        Debug::InterfaceStop(&iface.name, reason).log();
-
-        iface
-            .system
+        self.system
             .leave_multicast_ipv4(&instance.state.ipv4.disc_socket);
-        iface.state = None;
-        Interface::delete_adjacencies(instance, iface_id);
+        self.state = None;
+
+        // Delete adjacencies.
+        let adjacencies = &mut instance.state.ipv4.adjacencies;
+        for adj_idx in adjacencies
+            .get_by_iface(&self.name)
+            .iter()
+            .flat_map(|adjs| adjs.values().cloned())
+            .collect::<Vec<InterfaceIndex>>()
+        {
+            discovery::adjacency_delete(
+                instance,
+                adj_idx,
+                StatusCode::Shutdown,
+            );
+        }
     }
 
     // Enables or disables the interface if necessary.
-    pub(crate) fn update(instance: &mut InstanceUp, iface_idx: InterfaceIndex) {
-        let iface = &mut instance.core.interfaces[iface_idx];
-
-        match iface.is_ready() {
-            Ok(()) if !iface.is_active() => {
+    pub(crate) fn update(&mut self, instance: &mut InstanceUpView<'_>) {
+        match self.is_ready() {
+            Ok(()) if !self.is_active() => {
                 // Attempt to activate interface.
-                if let Err(error) = iface.start(&instance.state) {
+                if let Err(error) = self.start(instance.state) {
                     Error::InterfaceStartError(
-                        iface.name.clone(),
+                        self.name.clone(),
                         Box::new(error),
                     )
                     .log();
                 }
             }
-            Err(reason) if iface.is_active() => {
+            Err(reason) if self.is_active() => {
                 // Deactivate interface.
-                Interface::stop(instance, iface_idx, reason);
+                self.stop(instance, reason);
             }
             _ => (),
         }
@@ -224,23 +232,6 @@ impl Interface {
         self.state
             .as_ref()
             .map(|state| state.hello_interval_task.remaining())
-    }
-
-    fn delete_adjacencies(instance: &mut InstanceUp, iface_id: InterfaceId) {
-        let adjacencies = &mut instance.state.ipv4.adjacencies;
-
-        for adj_idx in adjacencies
-            .get_by_iface(iface_id)
-            .iter()
-            .flat_map(|adjs| adjs.values().cloned())
-            .collect::<Vec<InterfaceIndex>>()
-        {
-            discovery::adjacency_delete(
-                instance,
-                adj_idx,
-                StatusCode::Shutdown,
-            );
-        }
     }
 }
 

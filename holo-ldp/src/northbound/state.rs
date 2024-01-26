@@ -64,16 +64,15 @@ pub enum AdvertisementType {
 fn load_callbacks() -> Callbacks<Instance> {
     CallbacksBuilder::default()
         .path(mpls_ldp::global::address_families::ipv4::label_distribution_control_mode::PATH)
-        .get_element_string(|_instance, _args| {
+        .get_element_string(|_instance: &Instance, _args| {
             let mode = LabelDistMode::Independent.to_yang().into();
             Some(mode)
         })
         .path(mpls_ldp::global::address_families::ipv4::bindings::address::PATH)
         .get_iterate(|instance, _args| {
-            if let Instance::Up(instance) = instance {
+            if let Some(instance_state) = &instance.state {
                 // Skip if there's no neighbor in the operational state.
-                if !instance
-                    .state
+                if !instance_state
                     .neighbors
                     .iter()
                     .any(|nbr| nbr.is_operational())
@@ -83,7 +82,7 @@ fn load_callbacks() -> Callbacks<Instance> {
 
                 // Advertised addresses.
                 let advertised =
-                    instance.core.system.ipv4_addr_list.iter().map(
+                    instance.system.ipv4_addr_list.iter().map(
                         |addr| {
                             let binding = AddrBinding::new(
                                 addr.ip(),
@@ -95,8 +94,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                     );
 
                 // Received addresses.
-                let received = instance
-                    .state
+                let received = instance_state
                     .neighbors
                     .iter()
                     .flat_map(|nbr| {
@@ -140,9 +138,8 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .path(mpls_ldp::global::address_families::ipv4::bindings::fec_label::PATH)
         .get_iterate(|instance, _args| {
-            if let Instance::Up(instance) = instance {
-                let iter = instance
-                    .state
+            if let Some(instance_state) = &instance.state {
+                let iter = instance_state
                     .fecs
                     .values()
                     .filter(|fec| fec.inner.prefix.is_ipv4())
@@ -158,7 +155,6 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .path(mpls_ldp::global::address_families::ipv4::bindings::fec_label::peer::PATH)
         .get_iterate(|instance, args| {
-            let instance = instance.as_up().unwrap();
             let fec = args.parent_list_entry.as_fec().unwrap();
 
             // Advertised label mappings.
@@ -177,6 +173,8 @@ fn load_callbacks() -> Callbacks<Instance> {
             let received = fec.inner.downstream.iter().filter_map(|(lsr_id, mapping)| {
                 instance
                     .state
+                    .as_ref()
+                    .unwrap()
                     .neighbors
                     .get_by_lsr_id(lsr_id)
                     .map(|(_, nbr)| {
@@ -205,9 +203,8 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .path(mpls_ldp::discovery::interfaces::interface::PATH)
         .get_iterate(|instance, _args| {
-            if let Instance::Up(instance) = instance {
+            if instance.is_active() {
                 let iter = instance
-                    .core
                     .interfaces
                     .iter()
                     .filter(|iface| iface.is_active())
@@ -227,13 +224,14 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .path(mpls_ldp::discovery::interfaces::interface::address_families::ipv4::hello_adjacencies::hello_adjacency::PATH)
         .get_iterate(|instance, args| {
-            let instance = instance.as_up().unwrap();
             let iface = args.parent_list_entry.as_interface().unwrap();
             let iter = instance
                 .state
+                .as_ref()
+                .unwrap()
                 .ipv4
                 .adjacencies
-                .iter_by_iface(&iface.id)
+                .iter_by_iface(&iface.name)
                 .into_iter()
                 .flatten()
                 .map(ListEntry::InterfaceAdj);
@@ -260,9 +258,8 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::discovery::interfaces::interface::address_families::ipv4::hello_adjacencies::hello_adjacency::next_hello::PATH)
         .attributes(NodeAttributes::TIME)
         .get_element_u16(|instance, args| {
-            let instance = instance.as_up().unwrap();
             let adj = args.list_entry.as_interface_adj().unwrap();
-            let remaining = adj.next_hello(instance);
+            let remaining = adj.next_hello(&instance.interfaces, &instance.tneighbors);
             Some(u16::try_from(remaining.as_secs()).unwrap_or(u16::MAX))
         })
         .path(mpls_ldp::discovery::interfaces::interface::address_families::ipv4::hello_adjacencies::hello_adjacency::statistics::discontinuity_time::PATH)
@@ -294,13 +291,12 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .path(mpls_ldp::discovery::targeted::address_families::ipv4::hello_adjacencies::hello_adjacency::PATH)
         .get_iterate(|instance, _args| {
-            if let Instance::Up(instance) = instance {
-                let iter = instance
-                    .state
+            if let Some(instance_state) = &instance.state {
+                let iter = instance_state
                     .ipv4
                     .adjacencies
                     .iter()
-                    .filter(|adj| adj.source.iface_id.is_none())
+                    .filter(|adj| adj.source.ifname.is_none())
                     .map(ListEntry::TargetedNbrAdj);
                 Some(Box::new(iter))
             } else {
@@ -328,9 +324,8 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::discovery::targeted::address_families::ipv4::hello_adjacencies::hello_adjacency::next_hello::PATH)
         .attributes(NodeAttributes::TIME)
         .get_element_u16(|instance, args| {
-            let instance = instance.as_up().unwrap();
             let adj = args.list_entry.as_targeted_nbr_adj().unwrap();
-            let remaining = adj.next_hello(instance);
+            let remaining = adj.next_hello(&instance.interfaces, &instance.tneighbors);
             Some(u16::try_from(remaining.as_secs()).unwrap_or(u16::MAX))
         })
         .path(mpls_ldp::discovery::targeted::address_families::ipv4::hello_adjacencies::hello_adjacency::statistics::discontinuity_time::PATH)
@@ -367,9 +362,8 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .path(mpls_ldp::peers::peer::PATH)
         .get_iterate(|instance, _args| {
-            if let Instance::Up(instance) = instance {
-                let iter = instance
-                    .state
+            if let Some(instance_state) = &instance.state {
+                let iter = instance_state
                     .neighbors
                     .iter()
                     .map(ListEntry::Neighbor);
@@ -380,10 +374,11 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .path(mpls_ldp::peers::peer::address_families::ipv4::hello_adjacencies::hello_adjacency::PATH)
         .get_iterate(|instance, args| {
-            let instance = instance.as_up().unwrap();
             let nbr = args.parent_list_entry.as_neighbor().unwrap();
             let iter = instance
                 .state
+                .as_ref()
+                .unwrap()
                 .ipv4
                 .adjacencies
                 .iter_by_lsr_id(&nbr.lsr_id)
@@ -413,9 +408,8 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::peers::peer::address_families::ipv4::hello_adjacencies::hello_adjacency::next_hello::PATH)
         .attributes(NodeAttributes::TIME)
         .get_element_u16(|instance, args| {
-            let instance = instance.as_up().unwrap();
             let adj = args.list_entry.as_neighbor_adj().unwrap();
-            let remaining = adj.next_hello(instance);
+            let remaining = adj.next_hello(&instance.interfaces, &instance.tneighbors);
             Some(u16::try_from(remaining.as_secs()).unwrap_or(u16::MAX))
         })
         .path(mpls_ldp::peers::peer::address_families::ipv4::hello_adjacencies::hello_adjacency::statistics::discontinuity_time::PATH)
@@ -700,12 +694,13 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .path(mpls_ldp::peers::peer::statistics::total_fec_label_bindings::PATH)
         .get_element_u32(|instance, args| {
-            let instance = instance.as_up().unwrap();
             let nbr = args.list_entry.as_neighbor().unwrap();
             let total = nbr
                 .rcvd_mappings
                 .keys()
-                .map(|prefix| instance.state.fecs.get(prefix).unwrap())
+                .map(|prefix| {
+                    instance.state.as_ref().unwrap().fecs.get(prefix).unwrap()
+                })
                 .filter(|fec| fec.is_nbr_nexthop(nbr))
                 .count();
             Some(u32::try_from(total).unwrap_or(u32::MAX))

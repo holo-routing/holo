@@ -13,12 +13,14 @@ use holo_utils::mpls::Label;
 use holo_utils::socket::{SocketExt, TcpConnInfo, TcpStream, TTL_MAX};
 use tracing::{debug_span, Span};
 
-use crate::collections::{AdjacencyId, NeighborId, NeighborIndex};
+use crate::collections::{
+    AdjacencyId, Interfaces, NeighborId, NeighborIndex, TargetedNbrs,
+};
 use crate::debug::Debug;
 use crate::discovery::{self, Adjacency, AdjacencySource, TargetedNbr};
 use crate::error::{Error, IoError};
 use crate::fec::{Fec, LabelMapping, LabelRequest};
-use crate::instance::InstanceUp;
+use crate::instance::InstanceUpView;
 use crate::neighbor::{fsm, LabelAdvMode, Neighbor, NeighborFlags};
 use crate::northbound::notification;
 use crate::packet::error::DecodeError;
@@ -39,29 +41,32 @@ use crate::{network, southbound};
 // ===== UDP packet receipt =====
 
 pub(crate) fn process_udp_pdu(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
+    interfaces: &mut Interfaces,
+    tneighbors: &mut TargetedNbrs,
     src_addr: IpAddr,
     pdu: Result<Pdu, DecodeError>,
     multicast: bool,
 ) {
     match multicast {
-        true => process_udp_pdu_multicast(instance, src_addr, pdu),
-        false => process_udp_pdu_unicast(instance, src_addr, pdu),
+        true => process_udp_pdu_multicast(instance, interfaces, src_addr, pdu),
+        false => process_udp_pdu_unicast(instance, tneighbors, src_addr, pdu),
     }
 }
 
 fn process_udp_pdu_multicast(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
+    interfaces: &mut Interfaces,
     src_addr: IpAddr,
     pdu: Result<Pdu, DecodeError>,
 ) {
     // Lookup interface.
-    let (_, iface) = match instance.core.interfaces.get_by_addr(&src_addr) {
+    let (_, iface) = match interfaces.get_by_addr(&src_addr) {
         Some(value) => value,
         None => return,
     };
 
-    let source = AdjacencySource::new(Some(iface.id), src_addr);
+    let source = AdjacencySource::new(Some(iface.name.clone()), src_addr);
 
     // Handle decode error.
     let mut pdu = match pdu {
@@ -97,7 +102,8 @@ fn process_udp_pdu_multicast(
 }
 
 fn process_udp_pdu_unicast(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
+    tneighbors: &mut TargetedNbrs,
     src_addr: IpAddr,
     pdu: Result<Pdu, DecodeError>,
 ) {
@@ -119,27 +125,26 @@ fn process_udp_pdu_unicast(
         }
 
         // Find targeted neighbor (or create a dynamic one if possible).
-        let (tnbr_idx, tnbr) =
-            match instance.core.tneighbors.get_mut_by_addr(&src_addr) {
-                Some(value) => value,
-                None => {
-                    if !hello.params.flags.contains(HelloFlags::REQ_TARGETED)
-                        || !instance.core.config.targeted_hello_accept
-                    {
-                        return;
-                    }
-                    instance.core.tneighbors.insert(src_addr)
+        let (tnbr_idx, tnbr) = match tneighbors.get_mut_by_addr(&src_addr) {
+            Some(value) => value,
+            None => {
+                if !hello.params.flags.contains(HelloFlags::REQ_TARGETED)
+                    || !instance.config.targeted_hello_accept
+                {
+                    return;
                 }
-            };
+                tneighbors.insert(src_addr)
+            }
+        };
         tnbr.dynamic = hello.params.flags.contains(HelloFlags::REQ_TARGETED)
-            && instance.core.config.targeted_hello_accept;
+            && instance.config.targeted_hello_accept;
 
         //
         // The targeted neighbor might need to be activated or deactivated
         // depending whether the hello's message 'R' bit changed.
         //
-        TargetedNbr::update(instance, tnbr_idx);
-        let tnbr = &instance.core.tneighbors[tnbr_idx];
+        TargetedNbr::update(instance, tneighbors, tnbr_idx);
+        let tnbr = &tneighbors[tnbr_idx];
         if !tnbr.is_active() {
             return;
         }
@@ -164,7 +169,7 @@ fn process_udp_pdu_unicast(
 }
 
 fn process_udp_pdu_error(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     source: AdjacencySource,
     error: DecodeError,
 ) {
@@ -181,7 +186,7 @@ fn process_udp_pdu_error(
 }
 
 fn process_hello(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     local_addr: IpAddr,
     source: AdjacencySource,
     lsr_id: Ipv4Addr,
@@ -246,15 +251,10 @@ fn process_hello(
         );
         adj.reset(holdtime_negotiated, &instance.tx.protocol_input.adj_timeout);
 
-        let ifname = adj.source.iface_id.map(|iface_id| {
-            let (_, iface) =
-                instance.core.interfaces.get_by_id(iface_id).unwrap();
-            iface.name.as_str()
-        });
         notification::mpls_ldp_hello_adjacency_event(
             &instance.tx.nb,
-            &instance.core.name,
-            ifname,
+            instance.name,
+            adj.source.ifname.as_deref(),
             &adj.source.addr,
             true,
         );
@@ -267,13 +267,13 @@ fn process_hello(
         Some(nbr) => nbr,
         None => {
             let id = instance.state.neighbors.next_id();
-            let kalive_interval = instance.core.config.session_ka_interval;
+            let kalive_interval = instance.config.session_ka_interval;
             let nbr = Neighbor::new(id, lsr_id, trans_addr, kalive_interval);
 
             // The neighbor password (if any) must be set in the TCP listening
             // socket otherwise incoming SYN requests will be rejected.
             if let Some(password) =
-                instance.core.config.get_neighbor_password(nbr.lsr_id)
+                instance.config.get_neighbor_password(nbr.lsr_id)
             {
                 network::tcp::listen_socket_md5sig_update(
                     &instance.state.ipv4.session_socket,
@@ -310,7 +310,7 @@ fn process_hello(
         && nbr.tasks.connect.is_none()
         && nbr.tasks.backoff_timeout.is_none()
     {
-        let password = instance.core.config.get_neighbor_password(nbr.lsr_id);
+        let password = instance.config.get_neighbor_password(nbr.lsr_id);
         nbr.connect(
             instance.state.ipv4.trans_addr,
             password,
@@ -322,7 +322,8 @@ fn process_hello(
 // ===== hello adjacency timeout  =====
 
 pub(crate) fn process_adj_timeout(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
+    tneighbors: &mut TargetedNbrs,
     adj_id: AdjacencyId,
 ) -> Result<(), Error> {
     // Lookup adjacency.
@@ -331,12 +332,12 @@ pub(crate) fn process_adj_timeout(
     Debug::AdjacencyTimeout(&adj.source, &adj.lsr_id).log();
 
     // Remove the corresponding dynamic targeted neighbor, if any.
-    if adj.source.iface_id.is_none() {
+    if adj.source.ifname.is_none() {
         if let Some((tnbr_idx, tnbr)) =
-            instance.core.tneighbors.get_mut_by_addr(&adj.source.addr)
+            tneighbors.get_mut_by_addr(&adj.source.addr)
         {
             tnbr.dynamic = false;
-            TargetedNbr::update(instance, tnbr_idx);
+            TargetedNbr::update(instance, tneighbors, tnbr_idx);
         }
     }
 
@@ -349,7 +350,7 @@ pub(crate) fn process_adj_timeout(
 // ===== TCP connection request =====
 
 pub(crate) fn process_tcp_accept(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     stream: TcpStream,
     conn_info: TcpConnInfo,
 ) {
@@ -400,7 +401,7 @@ pub(crate) fn process_tcp_accept(
 // ===== TCP connection established =====
 
 pub(crate) fn process_tcp_connect(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     nbr_id: NeighborId,
     stream: TcpStream,
     conn_info: TcpConnInfo,
@@ -427,7 +428,7 @@ pub(crate) fn process_tcp_connect(
 // ===== neighbor PDU receipt =====
 
 pub(crate) fn process_nbr_pdu(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     nbr_id: NeighborId,
     pdu: Result<Pdu, Error>,
 ) -> Result<(), Error> {
@@ -464,7 +465,7 @@ pub(crate) fn process_nbr_pdu(
 }
 
 fn process_nbr_pdu_decode_error(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     nbr_idx: NeighborIndex,
     error: DecodeError,
 ) {
@@ -482,7 +483,7 @@ fn process_nbr_pdu_decode_error(
 }
 
 fn process_nbr_msgs(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     nbr_idx: NeighborIndex,
     messages: VecDeque<Message>,
 ) {
@@ -514,7 +515,7 @@ fn process_nbr_msgs(
 }
 
 fn process_nbr_msg(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     nbr_idx: NeighborIndex,
     msg: Message,
 ) -> Result<(), Error> {
@@ -548,7 +549,7 @@ fn process_nbr_msg(
 }
 
 fn process_nbr_msg_notification(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     nbr_idx: NeighborIndex,
     msg: NotifMsg,
 ) -> Result<(), Error> {
@@ -579,7 +580,7 @@ fn process_nbr_msg_notification(
 }
 
 fn process_nbr_msg_init(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     nbr_idx: NeighborIndex,
     msg: InitMsg,
 ) -> Result<(), Error> {
@@ -606,7 +607,7 @@ fn process_nbr_msg_init(
     // Update keepalive holdtime.
     let kalive_holdtime_rcvd = msg.params.keepalive_time;
     let kalive_holdtime_negotiated = std::cmp::min(
-        instance.core.config.session_ka_holdtime,
+        instance.config.session_ka_holdtime,
         kalive_holdtime_rcvd,
     );
     nbr.kalive_holdtime_rcvd = Some(kalive_holdtime_rcvd);
@@ -651,7 +652,7 @@ fn process_nbr_msg_init(
 }
 
 fn process_nbr_msg_keepalive(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     nbr_idx: NeighborIndex,
     msg: KeepaliveMsg,
 ) -> Result<(), Error> {
@@ -676,7 +677,7 @@ fn process_nbr_msg_keepalive(
 }
 
 fn process_nbr_msg_address(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     nbr_idx: NeighborIndex,
     msg: AddressMsg,
 ) -> Result<(), Error> {
@@ -735,7 +736,7 @@ fn process_nbr_msg_address(
         if old_fec_status != fec.is_operational() {
             notification::mpls_ldp_fec_event(
                 &instance.tx.nb,
-                &instance.core.name,
+                instance.name,
                 fec,
             );
         }
@@ -756,7 +757,7 @@ fn process_nbr_msg_address(
 }
 
 fn process_nbr_msg_label(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     nbr_idx: NeighborIndex,
     msg: LabelMsg,
 ) -> Result<(), Error> {
@@ -804,7 +805,7 @@ fn process_nbr_msg_label(
 }
 
 pub(crate) fn process_nbr_msg_label_mapping(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     nbr_idx: NeighborIndex,
     label: Label,
     fec_elem: FecElem,
@@ -887,11 +888,7 @@ pub(crate) fn process_nbr_msg_label_mapping(
     }
 
     if old_fec_status != fec.is_operational() {
-        notification::mpls_ldp_fec_event(
-            &instance.tx.nb,
-            &instance.core.name,
-            fec,
-        );
+        notification::mpls_ldp_fec_event(&instance.tx.nb, instance.name, fec);
     }
 
     // LMp.13 & LMp.16: Record the mapping from this peer.
@@ -905,7 +902,7 @@ pub(crate) fn process_nbr_msg_label_mapping(
 }
 
 fn process_nbr_msg_label_request(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     nbr_idx: NeighborIndex,
     msg: &LabelMsg,
     fec_elem: FecElem,
@@ -981,7 +978,7 @@ fn process_nbr_msg_label_request(
 }
 
 fn process_nbr_msg_label_request_wcard(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     nbr_idx: NeighborIndex,
     msg: &LabelMsg,
     wcard: TypedWildcardFecElem,
@@ -1028,7 +1025,7 @@ fn process_nbr_msg_label_request_wcard(
 }
 
 fn process_nbr_msg_label_withdraw(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     nbr_idx: NeighborIndex,
     msg: &LabelMsg,
     fec_elem: FecElem,
@@ -1066,11 +1063,7 @@ fn process_nbr_msg_label_withdraw(
     }
 
     if old_fec_status != fec.is_operational() {
-        notification::mpls_ldp_fec_event(
-            &instance.tx.nb,
-            &instance.core.name,
-            fec,
-        );
+        notification::mpls_ldp_fec_event(&instance.tx.nb, instance.name, fec);
     }
 
     // LWd.2: send label release.
@@ -1088,7 +1081,7 @@ fn process_nbr_msg_label_withdraw(
 }
 
 fn process_nbr_msg_label_withdraw_wcard(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     nbr_idx: NeighborIndex,
     msg: &LabelMsg,
     wcard: FecElemWildcard,
@@ -1137,7 +1130,7 @@ fn process_nbr_msg_label_withdraw_wcard(
         if old_fec_status != fec.is_operational() {
             notification::mpls_ldp_fec_event(
                 &instance.tx.nb,
-                &instance.core.name,
+                instance.name,
                 fec,
             );
         }
@@ -1157,7 +1150,7 @@ fn process_nbr_msg_label_withdraw_wcard(
 }
 
 fn process_nbr_msg_label_release(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     nbr_idx: NeighborIndex,
     msg: &LabelMsg,
     fec_elem: FecElem,
@@ -1200,7 +1193,7 @@ fn process_nbr_msg_label_release(
 }
 
 fn process_nbr_msg_label_release_wcard(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     nbr_idx: NeighborIndex,
     msg: &LabelMsg,
     wcard: FecElemWildcard,
@@ -1245,7 +1238,7 @@ fn process_nbr_msg_label_release_wcard(
 }
 
 fn process_nbr_msg_label_abort_request(
-    _instance: &mut InstanceUp,
+    _instance: &mut InstanceUpView<'_>,
     _nbr_idx: NeighborIndex,
     _msg: &LabelMsg,
     _fec_elem: FecElem,
@@ -1257,7 +1250,7 @@ fn process_nbr_msg_label_abort_request(
 }
 
 fn process_nbr_msg_capability(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     nbr_idx: NeighborIndex,
     msg: CapabilityMsg,
 ) -> Result<(), Error> {
@@ -1291,7 +1284,7 @@ fn process_nbr_msg_capability(
 // ===== neighbor keepalive timeout =====
 
 pub(crate) fn process_nbr_ka_timeout(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     nbr_id: NeighborId,
 ) -> Result<(), Error> {
     // Lookup neighbor.
@@ -1312,7 +1305,7 @@ pub(crate) fn process_nbr_ka_timeout(
 // ===== neighbor initialization backoff timeout =====
 
 pub(crate) fn process_nbr_backoff_timeout(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     lsr_id: Ipv4Addr,
 ) {
     // Lookup neighbor.
@@ -1324,7 +1317,7 @@ pub(crate) fn process_nbr_backoff_timeout(
     Debug::NbrInitBackoffTimeout(&nbr.lsr_id).log();
 
     nbr.tasks.backoff_timeout = None;
-    let password = instance.core.config.get_neighbor_password(nbr.lsr_id);
+    let password = instance.config.get_neighbor_password(nbr.lsr_id);
     nbr.connect(
         instance.state.ipv4.trans_addr,
         password,

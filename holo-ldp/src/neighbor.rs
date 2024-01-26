@@ -24,7 +24,7 @@ use crate::collections::{NeighborId, NeighborIndex};
 use crate::debug::Debug;
 use crate::error::Error;
 use crate::fec::{Fec, LabelMapping, LabelRequest};
-use crate::instance::{InstanceState, InstanceUp};
+use crate::instance::{InstanceState, InstanceUpView};
 use crate::northbound::configuration::InstanceCfg;
 use crate::northbound::notification;
 use crate::packet::message::MessageType;
@@ -217,7 +217,7 @@ impl Neighbor {
     }
 
     pub(crate) fn fsm(
-        instance: &mut InstanceUp,
+        instance: &mut InstanceUpView<'_>,
         nbr_idx: NeighborIndex,
         event: fsm::Event,
     ) {
@@ -239,7 +239,7 @@ impl Neighbor {
                 {
                     notification::mpls_ldp_peer_event(
                         &instance.tx.nb,
-                        &instance.core.name,
+                        instance.name,
                         nbr,
                     );
                 }
@@ -318,7 +318,7 @@ impl Neighbor {
     }
 
     fn fsm_action(
-        instance: &mut InstanceUp,
+        instance: &mut InstanceUpView<'_>,
         nbr_idx: NeighborIndex,
         action: fsm::Action,
     ) {
@@ -326,7 +326,7 @@ impl Neighbor {
         match action {
             fsm::Action::SendInitAndKeepalive => {
                 // Send initilization message.
-                nbr.send_init(&instance.core.config, &instance.state.msg_id);
+                nbr.send_init(instance.config, &instance.state.msg_id);
 
                 // Send keepalive message.
                 nbr.send_keepalive(&instance.state.msg_id);
@@ -338,7 +338,7 @@ impl Neighbor {
             }
             fsm::Action::SendInit => {
                 // Send initilization message.
-                nbr.send_init(&instance.core.config, &instance.state.msg_id);
+                nbr.send_init(instance.config, &instance.state.msg_id);
                 Neighbor::fsm(instance, nbr_idx, fsm::Event::InitSent);
             }
             fsm::Action::SendKeepalive => {
@@ -364,7 +364,6 @@ impl Neighbor {
 
                 // Send address message;
                 let addr_list = instance
-                    .core
                     .system
                     .ipv4_addr_list
                     .iter()
@@ -411,7 +410,7 @@ impl Neighbor {
                     if old_fec_status != fec.is_operational() {
                         notification::mpls_ldp_fec_event(
                             &instance.tx.nb,
-                            &instance.core.name,
+                            instance.name,
                             fec,
                         );
                     }

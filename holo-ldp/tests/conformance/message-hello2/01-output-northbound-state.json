@@ -987,14 +987,6 @@
                       "hello-adjacencies": {
                         "hello-adjacency": [
                           {
-                            "local-address": "10.0.1.2",
-                            "adjacent-address": "10.0.1.4",
-                            "hello-holdtime": {
-                              "adjacent": 15,
-                              "negotiated": 15
-                            }
-                          },
-                          {
                             "local-address": "10.0.2.2",
                             "adjacent-address": "10.0.2.4",
                             "hello-holdtime": {
@@ -1005,6 +997,14 @@
                           {
                             "local-address": "10.0.3.2",
                             "adjacent-address": "10.0.3.4",
+                            "hello-holdtime": {
+                              "adjacent": 15,
+                              "negotiated": 15
+                            }
+                          },
+                          {
+                            "local-address": "10.0.1.2",
+                            "adjacent-address": "10.0.1.4",
                             "hello-holdtime": {
                               "adjacent": 15,
                               "negotiated": 15

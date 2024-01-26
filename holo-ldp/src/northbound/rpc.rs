@@ -13,7 +13,7 @@ use holo_utils::yang::DataNodeRefExt;
 use yang2::data::Data;
 
 use crate::discovery;
-use crate::instance::{Instance, InstanceUp};
+use crate::instance::{Instance, InstanceUpView};
 use crate::neighbor::{self, Neighbor};
 use crate::packet::messages::notification::StatusCode;
 
@@ -35,8 +35,8 @@ fn load_callbacks() -> Callbacks<Instance> {
                 );
 
                 // Clear peers.
-                if let Instance::Up(instance) = instance {
-                    clear_peers(instance, lsr_id, lspace_id);
+                if let Some((mut instance, _, _)) = instance.as_up() {
+                    clear_peers(&mut instance, lsr_id, lspace_id);
                 }
 
                 Ok(())
@@ -61,9 +61,9 @@ fn load_callbacks() -> Callbacks<Instance> {
                 );
 
                 // Clear adjacencies.
-                if let Instance::Up(instance) = instance {
+                if let Some((mut instance, _, _)) = instance.as_up() {
                     clear_adjacencies(
-                        instance,
+                        &mut instance,
                         nexthop_ifname,
                         nexthop_addr,
                         tnbr_addr,
@@ -85,8 +85,8 @@ fn load_callbacks() -> Callbacks<Instance> {
                 );
 
                 // Clear peers.
-                if let Instance::Up(instance) = instance {
-                    clear_statistics(instance, lsr_id, lspace_id);
+                if let Some((mut instance, _, _)) = instance.as_up() {
+                    clear_statistics(&mut instance, lsr_id, lspace_id);
                 }
 
                 Ok(())
@@ -106,7 +106,7 @@ impl Provider for Instance {
 // ===== helper functions =====
 
 fn clear_peers(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     lsr_id: Option<Ipv4Addr>,
     lspace_id: Option<u16>,
 ) {
@@ -137,7 +137,7 @@ fn clear_peers(
 }
 
 fn clear_adjacencies(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     nexthop_ifname: Option<String>,
     nexthop_addr: Option<IpAddr>,
     tnbr_addr: Option<IpAddr>,
@@ -153,11 +153,9 @@ fn clear_adjacencies(
         let adj = &adjacencies[adj_idx];
 
         // Filter by source.
-        if let Some(iface_id) = adj.source.iface_id {
+        if let Some(ifname) = &adj.source.ifname {
             if let Some(nexthop_ifname) = &nexthop_ifname {
-                let (_, iface) =
-                    instance.core.interfaces.get_by_id(iface_id).unwrap();
-                if iface.name != *nexthop_ifname {
+                if *ifname != *nexthop_ifname {
                     continue;
                 }
             }
@@ -178,7 +176,7 @@ fn clear_adjacencies(
 }
 
 fn clear_statistics(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     lsr_id: Option<Ipv4Addr>,
     lspace_id: Option<u16>,
 ) {

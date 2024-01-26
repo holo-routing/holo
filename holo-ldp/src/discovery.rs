@@ -15,11 +15,12 @@ use holo_utils::task::{IntervalTask, TimeoutTask};
 use holo_utils::Sender;
 
 use crate::collections::{
-    AdjacencyId, AdjacencyIndex, InterfaceId, Neighbors, TargetedNbrIndex,
+    AdjacencyId, AdjacencyIndex, Interfaces, Neighbors, TargetedNbrIndex,
+    TargetedNbrs,
 };
 use crate::debug::Debug;
 use crate::error::IoError;
-use crate::instance::{InstanceState, InstanceUp};
+use crate::instance::{InstanceState, InstanceUpView};
 use crate::northbound::configuration::TargetedNbrCfg;
 use crate::northbound::notification;
 use crate::packet::messages::hello::{
@@ -56,10 +57,10 @@ pub struct Adjacency {
     pub timeout_task: Option<TimeoutTask>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct AdjacencySource {
-    // Optional interface index (None for targeted adjacencies).
-    pub iface_id: Option<InterfaceId>,
+    // Optional interface name (None for targeted adjacencies).
+    pub ifname: Option<String>,
     // Source IP address.
     pub addr: IpAddr,
 }
@@ -136,19 +137,19 @@ impl Adjacency {
         self.timeout_task.as_ref().map(TimeoutTask::remaining)
     }
 
-    pub(crate) fn next_hello(&self, instance: &InstanceUp) -> Duration {
-        match self.source.iface_id {
-            Some(iface_id) => {
-                let (_, iface) =
-                    instance.core.interfaces.get_by_id(iface_id).unwrap();
+    pub(crate) fn next_hello(
+        &self,
+        interfaces: &Interfaces,
+        tneighbors: &TargetedNbrs,
+    ) -> Duration {
+        match &self.source.ifname {
+            Some(ifname) => {
+                let (_, iface) = interfaces.get_by_name(ifname).unwrap();
                 iface.next_hello().unwrap()
             }
             None => {
-                let (_, tnbr) = instance
-                    .core
-                    .tneighbors
-                    .get_by_addr(&self.source.addr)
-                    .unwrap();
+                let (_, tnbr) =
+                    tneighbors.get_by_addr(&self.source.addr).unwrap();
                 tnbr.next_hello().unwrap()
             }
         }
@@ -164,11 +165,8 @@ impl Drop for Adjacency {
 // ===== impl AdjacencySource =====
 
 impl AdjacencySource {
-    pub(crate) fn new(
-        iface_id: Option<InterfaceId>,
-        addr: IpAddr,
-    ) -> AdjacencySource {
-        AdjacencySource { iface_id, addr }
+    pub(crate) fn new(ifname: Option<String>, addr: IpAddr) -> AdjacencySource {
+        AdjacencySource { ifname, addr }
     }
 }
 
@@ -203,22 +201,20 @@ impl TargetedNbr {
     }
 
     pub(crate) fn stop(
-        instance: &mut InstanceUp,
-        tnbr_idx: TargetedNbrIndex,
+        &mut self,
+        instance: &mut InstanceUpView<'_>,
         delete_adjacency: bool,
     ) {
-        let tnbr = &mut instance.core.tneighbors[tnbr_idx];
-
-        Debug::TargetedNbrStop(&tnbr.addr).log();
+        Debug::TargetedNbrStop(&self.addr).log();
 
         // Stop hello tx.
-        tnbr.hello_interval_task = None;
+        self.hello_interval_task = None;
 
         // Delete adjacency (if any).
         if delete_adjacency {
             let source = AdjacencySource {
-                iface_id: None,
-                addr: tnbr.addr,
+                ifname: None,
+                addr: self.addr,
             };
             if let Some((adj_idx, _)) =
                 instance.state.ipv4.adjacencies.get_by_source(&source)
@@ -229,22 +225,23 @@ impl TargetedNbr {
     }
 
     pub(crate) fn update(
-        instance: &mut InstanceUp,
+        instance: &mut InstanceUpView<'_>,
+        tneighbors: &mut TargetedNbrs,
         tnbr_idx: TargetedNbrIndex,
     ) {
-        let tnbr = &mut instance.core.tneighbors[tnbr_idx];
+        let tnbr = &mut tneighbors[tnbr_idx];
 
         let is_ready = tnbr.is_ready();
         let remove = tnbr.remove_check();
 
         if !tnbr.is_active() && is_ready {
-            tnbr.start(&instance.state);
+            tnbr.start(instance.state);
         } else if tnbr.is_active() && !is_ready {
-            TargetedNbr::stop(instance, tnbr_idx, true);
+            tnbr.stop(instance, true);
         }
 
         if remove {
-            instance.core.tneighbors.delete(tnbr_idx);
+            tneighbors.delete(tnbr_idx);
         }
     }
 
@@ -339,25 +336,22 @@ impl Drop for TargetedNbr {
 // ===== global functions =====
 
 pub(crate) fn adjacency_delete(
-    instance: &mut InstanceUp,
+    instance: &mut InstanceUpView<'_>,
     adj_idx: AdjacencyIndex,
     status_code: StatusCode,
 ) {
     let adjacencies = &mut instance.state.ipv4.adjacencies;
     let adj = &adjacencies[adj_idx];
     let lsr_id = adj.lsr_id;
-    let source = adj.source;
-    let ifname = source.iface_id.map(|iface_id| {
-        let (_, iface) = instance.core.interfaces.get_by_id(iface_id).unwrap();
-        iface.name.as_str()
-    });
+    let ifname = adj.source.ifname.clone();
+    let addr = adj.source.addr;
 
     adjacencies.delete(adj_idx);
     notification::mpls_ldp_hello_adjacency_event(
         &instance.tx.nb,
-        &instance.core.name,
-        ifname,
-        &source.addr,
+        instance.name,
+        ifname.as_deref(),
+        &addr,
         false,
     );
     Neighbors::delete_check(instance, &lsr_id, status_code);

@@ -18,8 +18,7 @@ use maplit::btreeset;
 
 use crate::debug::Debug;
 use crate::fec::Fec;
-use crate::instance::{Instance, InstanceUp};
-use crate::interface::Interface;
+use crate::instance::{Instance, InstanceUpView};
 use crate::northbound::notification;
 use crate::packet::AddressMessageType;
 use crate::{events, southbound};
@@ -44,7 +43,7 @@ fn local_label_update(fec: &mut Fec, label_manager: &Mutex<LabelManager>) {
     fec.inner.local_label = label;
 }
 
-fn process_new_fec(instance: &mut InstanceUp, prefix: IpNetwork) {
+fn process_new_fec(instance: &mut InstanceUpView<'_>, prefix: IpNetwork) {
     let fec = instance.state.fecs.get_mut(&prefix).unwrap();
 
     // FEC.1: perform lsr label distribution procedure.
@@ -83,7 +82,7 @@ pub(crate) async fn process_router_id_update(
     instance: &mut Instance,
     router_id: Option<Ipv4Addr>,
 ) {
-    instance.core_mut().system.router_id = router_id;
+    instance.system.router_id = router_id;
     instance.update().await;
 }
 
@@ -91,23 +90,20 @@ pub(crate) fn process_iface_update(
     instance: &mut Instance,
     msg: InterfaceUpdateMsg,
 ) {
-    let instance = match instance {
-        Instance::Up(instance) => instance,
-        _ => return,
+    let Some((mut instance, interfaces, _)) = instance.as_up() else {
+        return;
     };
 
-    if let Some((iface_idx, iface)) = instance
-        .core
-        .interfaces
-        .update_ifindex(&msg.ifname, Some(msg.ifindex))
+    if let Some((_, iface)) =
+        interfaces.update_ifindex(&msg.ifname, Some(msg.ifindex))
     {
         iface.system.flags = msg.flags;
-        Interface::update(instance, iface_idx);
+        iface.update(&mut instance);
     }
 }
 
 pub(crate) fn process_addr_add(instance: &mut Instance, msg: AddressMsg) {
-    let Instance::Up(instance) = instance else {
+    let Some((mut instance, interfaces, _)) = instance.as_up() else {
         return;
     };
 
@@ -115,7 +111,7 @@ pub(crate) fn process_addr_add(instance: &mut Instance, msg: AddressMsg) {
     match msg.addr {
         IpNetwork::V4(addr) => {
             if !msg.flags.contains(AddressFlags::UNNUMBERED)
-                && instance.core.system.ipv4_addr_list.insert(addr)
+                && instance.system.ipv4_addr_list.insert(addr)
             {
                 // Inform neighbors about new address.
                 for nbr in instance
@@ -133,18 +129,16 @@ pub(crate) fn process_addr_add(instance: &mut Instance, msg: AddressMsg) {
             }
         }
         IpNetwork::V6(addr) => {
-            instance.core.system.ipv6_addr_list.insert(addr);
+            instance.system.ipv6_addr_list.insert(addr);
         }
     }
 
-    if let Some((iface_idx, iface)) =
-        instance.core.interfaces.get_mut_by_name(&msg.ifname)
-    {
+    if let Some((_, iface)) = interfaces.get_mut_by_name(&msg.ifname) {
         match msg.addr {
             IpNetwork::V4(addr) => {
                 if iface.system.ipv4_addr_list.insert(addr) {
                     // Check if LDP needs to be activated on this interface.
-                    Interface::update(instance, iface_idx);
+                    iface.update(&mut instance);
                 }
             }
             IpNetwork::V6(addr) => {
@@ -155,7 +149,7 @@ pub(crate) fn process_addr_add(instance: &mut Instance, msg: AddressMsg) {
 }
 
 pub(crate) fn process_addr_del(instance: &mut Instance, msg: AddressMsg) {
-    let Instance::Up(instance) = instance else {
+    let Some((mut instance, interfaces, _)) = instance.as_up() else {
         return;
     };
 
@@ -163,7 +157,7 @@ pub(crate) fn process_addr_del(instance: &mut Instance, msg: AddressMsg) {
     match msg.addr {
         IpNetwork::V4(addr) => {
             if !msg.flags.contains(AddressFlags::UNNUMBERED)
-                && instance.core.system.ipv4_addr_list.remove(&addr)
+                && instance.system.ipv4_addr_list.remove(&addr)
             {
                 // Inform neighbors about deleted address.
                 for nbr in instance
@@ -181,18 +175,16 @@ pub(crate) fn process_addr_del(instance: &mut Instance, msg: AddressMsg) {
             }
         }
         IpNetwork::V6(addr) => {
-            instance.core.system.ipv6_addr_list.remove(&addr);
+            instance.system.ipv6_addr_list.remove(&addr);
         }
     }
 
-    if let Some((iface_idx, iface)) =
-        instance.core.interfaces.get_mut_by_name(&msg.ifname)
-    {
+    if let Some((_, iface)) = interfaces.get_mut_by_name(&msg.ifname) {
         match msg.addr {
             IpNetwork::V4(addr) => {
                 if iface.system.ipv4_addr_list.remove(&addr) {
                     // Check if LDP needs to be disabled on this interface.
-                    Interface::update(instance, iface_idx);
+                    iface.update(&mut instance);
                 }
             }
             IpNetwork::V6(addr) => {
@@ -203,9 +195,8 @@ pub(crate) fn process_addr_del(instance: &mut Instance, msg: AddressMsg) {
 }
 
 pub(crate) fn process_route_add(instance: &mut Instance, msg: RouteMsg) {
-    let instance = match instance {
-        Instance::Up(instance) => instance,
-        _ => return,
+    let Some((mut instance, _, _)) = instance.as_up() else {
+        return;
     };
 
     // Find or create new FEC.
@@ -238,11 +229,7 @@ pub(crate) fn process_route_add(instance: &mut Instance, msg: RouteMsg) {
     }
 
     if old_fec_status != fec.is_operational() {
-        notification::mpls_ldp_fec_event(
-            &instance.tx.nb,
-            &instance.core.name,
-            fec,
-        );
+        notification::mpls_ldp_fec_event(&instance.tx.nb, instance.name, fec);
     }
 
     // Find newly added nexthops.
@@ -260,13 +247,12 @@ pub(crate) fn process_route_add(instance: &mut Instance, msg: RouteMsg) {
 
     // Allocate new label if necessary.
     local_label_update(fec, &instance.shared.label_manager);
-    process_new_fec(instance, prefix);
+    process_new_fec(&mut instance, prefix);
 }
 
 pub(crate) fn process_route_del(instance: &mut Instance, msg: RouteKeyMsg) {
-    let instance = match instance {
-        Instance::Up(instance) => instance,
-        _ => return,
+    let Some((instance, _, _)) = instance.as_up() else {
+        return;
     };
 
     let prefix = msg.prefix;
@@ -306,7 +292,7 @@ pub(crate) fn process_route_del(instance: &mut Instance, msg: RouteKeyMsg) {
         if old_fec_status != fec.is_operational() {
             notification::mpls_ldp_fec_event(
                 &instance.tx.nb,
-                &instance.core.name,
+                instance.name,
                 fec,
             );
         }

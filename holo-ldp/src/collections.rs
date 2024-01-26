@@ -11,7 +11,7 @@ use generational_arena::{Arena, Index};
 
 use crate::discovery::{Adjacency, AdjacencySource, TargetedNbr};
 use crate::error::Error;
-use crate::instance::InstanceUp;
+use crate::instance::InstanceUpView;
 use crate::interface::Interface;
 use crate::neighbor::{self, Neighbor};
 use crate::network;
@@ -50,7 +50,7 @@ pub struct Adjacencies {
     // Adjacency binary tree keyed by LSR-ID (1:N).
     lsr_id_tree: BTreeMap<Ipv4Addr, BTreeMap<AdjacencySource, AdjacencyIndex>>,
     // Adjacency hash table keyed by interface index (1:N).
-    iface_tree: HashMap<InterfaceId, BTreeMap<AdjacencySource, AdjacencyIndex>>,
+    iface_tree: HashMap<String, BTreeMap<AdjacencySource, AdjacencyIndex>>,
     // Next available ID.
     next_id: AdjacencyId,
 }
@@ -141,6 +141,7 @@ impl Interfaces {
     }
 
     // Returns a reference to the interface corresponding to the given ID.
+    #[allow(dead_code)]
     pub(crate) fn get_by_id(
         &self,
         id: InterfaceId,
@@ -273,6 +274,7 @@ impl Interfaces {
     // Returns an iterator over all interface indexes.
     //
     // Interfaces are ordered by their names.
+    #[allow(dead_code)]
     pub(crate) fn indexes(&self) -> impl Iterator<Item = InterfaceIndex> + '_ {
         self.name_tree.values().cloned()
     }
@@ -311,16 +313,16 @@ impl Adjacencies {
         // Link adjacency to different collections.
         let adj = &mut self.arena[adj_idx];
         self.id_tree.insert(adj.id, adj_idx);
-        self.source_tree.insert(adj.source, adj_idx);
+        self.source_tree.insert(adj.source.clone(), adj_idx);
         self.lsr_id_tree
             .entry(adj.lsr_id)
             .or_default()
-            .insert(adj.source, adj_idx);
-        if let Some(iface_id) = adj.source.iface_id {
+            .insert(adj.source.clone(), adj_idx);
+        if let Some(ifname) = &adj.source.ifname {
             self.iface_tree
-                .entry(iface_id)
+                .entry(ifname.clone())
                 .or_default()
-                .insert(adj.source, adj_idx);
+                .insert(adj.source.clone(), adj_idx);
         }
 
         // Return a mutable reference to the moved adjacency.
@@ -342,9 +344,9 @@ impl Adjacencies {
                 o.remove_entry();
             }
         }
-        if let Some(iface_id) = adj.source.iface_id {
+        if let Some(ifname) = &adj.source.ifname {
             if let hash_map::Entry::Occupied(mut o) =
-                self.iface_tree.entry(iface_id)
+                self.iface_tree.entry(ifname.clone())
             {
                 let tree = o.get_mut();
                 tree.remove(&adj.source);
@@ -418,9 +420,9 @@ impl Adjacencies {
     // Returns a list of all adjacencies associated to the given interface.
     pub(crate) fn get_by_iface(
         &self,
-        iface_id: InterfaceId,
+        ifname: &str,
     ) -> Option<&BTreeMap<AdjacencySource, AdjacencyIndex>> {
-        self.iface_tree.get(&iface_id)
+        self.iface_tree.get(ifname)
     }
 
     // Returns an iterator visiting all adjacencies.
@@ -438,11 +440,11 @@ impl Adjacencies {
     // Adjacencies are ordered by their sources.
     pub(crate) fn iter_by_iface(
         &self,
-        iface_id: &InterfaceId,
+        ifname: &str,
     ) -> Option<impl Iterator<Item = &'_ Adjacency> + '_> {
         Some(
             self.iface_tree
-                .get(iface_id)?
+                .get(ifname)?
                 .iter()
                 .map(|(_, adj_idx)| &self.arena[*adj_idx]),
         )
@@ -628,7 +630,7 @@ impl Neighbors {
 
     // Delete neighbor if its last adjacency was deleted.
     pub(crate) fn delete_check(
-        instance: &mut InstanceUp,
+        instance: &mut InstanceUpView<'_>,
         lsr_id: &Ipv4Addr,
         status_code: StatusCode,
     ) {

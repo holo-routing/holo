@@ -23,7 +23,6 @@ use crate::collections::{InterfaceIndex, TargetedNbrIndex};
 use crate::debug::InterfaceInactiveReason;
 use crate::discovery::TargetedNbr;
 use crate::instance::Instance;
-use crate::interface::Interface;
 use crate::{neighbor, network};
 
 #[derive(Debug, Default, EnumAsInner)]
@@ -112,7 +111,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::global::lsr_id::PATH)
         .modify_apply(|instance, args| {
             let router_id = args.dnode.get_ipv4();
-            instance.core_mut().config.router_id = Some(router_id);
+            instance.config.router_id = Some(router_id);
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InstanceUpdate);
@@ -120,7 +119,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             event_queue.insert(Event::CfgSeqNumberUpdate);
         })
         .delete_apply(|instance, args| {
-            instance.core_mut().config.router_id = None;
+            instance.config.router_id = None;
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InstanceUpdate);
@@ -129,14 +128,14 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .path(mpls_ldp::global::address_families::ipv4::PATH)
         .create_apply(|instance, args| {
-            instance.core_mut().config.ipv4 = Some(InstanceIpv4Cfg::default());
+            instance.config.ipv4 = Some(InstanceIpv4Cfg::default());
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InstanceUpdate);
             event_queue.insert(Event::CfgSeqNumberUpdate);
         })
         .delete_apply(|instance, args| {
-            instance.core_mut().config.ipv4 = None;
+            instance.config.ipv4 = None;
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InstanceUpdate);
@@ -144,7 +143,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::global::address_families::ipv4::enabled::PATH)
         .modify_apply(|instance, args| {
             let enabled = args.dnode.get_bool();
-            instance.core_mut().config.ipv4.as_mut().unwrap().enabled = enabled;
+            instance.config.ipv4.as_mut().unwrap().enabled = enabled;
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InstanceUpdate);
@@ -153,9 +152,9 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::discovery::interfaces::hello_holdtime::PATH)
         .modify_apply(|instance, args| {
             let hello_holdtime = args.dnode.get_u16();
-            instance.core_mut().config.interface_hello_holdtime =
+            instance.config.interface_hello_holdtime =
                 hello_holdtime;
-            for iface in instance.core_mut().interfaces.iter_mut() {
+            for iface in instance.interfaces.iter_mut() {
                 iface.config.hello_holdtime = hello_holdtime;
             }
 
@@ -165,9 +164,9 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::discovery::interfaces::hello_interval::PATH)
         .modify_apply(|instance, args| {
             let hello_interval = args.dnode.get_u16();
-            instance.core_mut().config.interface_hello_interval =
+            instance.config.interface_hello_interval =
                 hello_interval;
-            for iface in instance.core_mut().interfaces.iter_mut() {
+            for iface in instance.interfaces.iter_mut() {
                 iface.config.hello_interval = hello_interval;
             }
 
@@ -177,7 +176,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::discovery::interfaces::interface::PATH)
         .create_apply(|instance, args| {
             let ifname = args.dnode.get_string_relative("name").unwrap();
-            let (iface_idx, _) = instance.core_mut().interfaces.insert(&ifname);
+            let (iface_idx, _) = instance.interfaces.insert(&ifname);
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InterfaceUpdate(iface_idx));
@@ -194,7 +193,6 @@ fn load_callbacks() -> Callbacks<Instance> {
         .lookup(|instance, _list_entry, dnode| {
             let ifname = dnode.get_string_relative("./name").unwrap();
             instance
-                .core_mut()
                 .interfaces
                 .get_mut_by_name(&ifname)
                 .map(|(iface_idx, _)| ListEntry::Interface(iface_idx))
@@ -203,7 +201,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::discovery::interfaces::interface::address_families::ipv4::PATH)
         .create_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
-            let iface = &mut instance.core_mut().interfaces[iface_idx];
+            let iface = &mut instance.interfaces[iface_idx];
 
             iface.config.ipv4 = Some(InterfaceIpv4Cfg::default());
 
@@ -213,7 +211,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .delete_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
-            let iface = &mut instance.core_mut().interfaces[iface_idx];
+            let iface = &mut instance.interfaces[iface_idx];
 
             iface.config.ipv4 = None;
 
@@ -224,7 +222,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::discovery::interfaces::interface::address_families::ipv4::enabled::PATH)
         .modify_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
-            let iface = &mut instance.core_mut().interfaces[iface_idx];
+            let iface = &mut instance.interfaces[iface_idx];
 
             let enabled = args.dnode.get_bool();
             iface.config.ipv4.as_mut().unwrap().enabled = enabled;
@@ -236,8 +234,8 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::discovery::targeted::hello_holdtime::PATH)
         .modify_apply(|instance, args| {
             let hello_holdtime = args.dnode.get_u16();
-            instance.core_mut().config.targeted_hello_holdtime = hello_holdtime;
-            for tnbr in instance.core_mut().tneighbors.iter_mut() {
+            instance.config.targeted_hello_holdtime = hello_holdtime;
+            for tnbr in instance.tneighbors.iter_mut() {
                 tnbr.config.hello_holdtime = hello_holdtime;
             }
 
@@ -247,8 +245,8 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::discovery::targeted::hello_interval::PATH)
         .modify_apply(|instance, args| {
             let hello_interval = args.dnode.get_u16();
-            instance.core_mut().config.targeted_hello_interval = hello_interval;
-            for tnbr in instance.core_mut().tneighbors.iter_mut() {
+            instance.config.targeted_hello_interval = hello_interval;
+            for tnbr in instance.tneighbors.iter_mut() {
                 tnbr.config.hello_interval = hello_interval;
             }
 
@@ -258,7 +256,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::discovery::targeted::hello_accept::enabled::PATH)
         .modify_apply(|instance, args| {
             let enabled = args.dnode.get_bool();
-            instance.core_mut().config.targeted_hello_accept = enabled;
+            instance.config.targeted_hello_accept = enabled;
 
             let event_queue = args.event_queue;
             if !enabled {
@@ -271,12 +269,12 @@ fn load_callbacks() -> Callbacks<Instance> {
             // Nothing to do.
         })
         .delete_apply(|instance, args| {
-            for tnbr in instance.core_mut().tneighbors.iter_mut() {
+            for tnbr in instance.tneighbors.iter_mut() {
                 tnbr.config.enabled = false;
             }
 
             let event_queue = args.event_queue;
-            for tnbr_idx in instance.core().tneighbors.indexes() {
+            for tnbr_idx in instance.tneighbors.indexes() {
                 event_queue.insert(Event::TargetedNbrRemoveCheck(tnbr_idx));
             }
             event_queue.insert(Event::CfgSeqNumberUpdate);
@@ -285,7 +283,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .create_apply(|instance, args| {
             let addr = args.dnode.get_ip_relative("adjacent-address").unwrap();
             let (tnbr_index, tnbr) =
-                instance.core_mut().tneighbors.insert(addr);
+                instance.tneighbors.insert(addr);
             tnbr.configured = true;
 
             let event_queue = args.event_queue;
@@ -294,7 +292,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .delete_apply(|instance, args| {
             let tnbr_idx = args.list_entry.into_targeted_nbr().unwrap();
-            let tnbr = &mut instance.core_mut().tneighbors[tnbr_idx];
+            let tnbr = &mut instance.tneighbors[tnbr_idx];
 
             tnbr.configured = false;
 
@@ -305,7 +303,6 @@ fn load_callbacks() -> Callbacks<Instance> {
         .lookup(|instance, _list_entry, dnode| {
             let addr = dnode.get_ip_relative("./adjacent-address").unwrap();
             instance
-                .core_mut()
                 .tneighbors
                 .get_mut_by_addr(&addr)
                 .map(|(tnbr_idx, _)| ListEntry::TargetedNbr(tnbr_idx))
@@ -314,7 +311,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::discovery::targeted::address_families::ipv4::target::enabled::PATH)
         .modify_apply(|instance, args| {
             let tnbr_idx = args.list_entry.into_targeted_nbr().unwrap();
-            let tnbr = &mut instance.core_mut().tneighbors[tnbr_idx];
+            let tnbr = &mut instance.tneighbors[tnbr_idx];
 
             let enabled = args.dnode.get_bool();
             tnbr.config.enabled = enabled;
@@ -326,7 +323,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::peers::authentication::key::PATH)
         .modify_apply(|instance, args| {
             let password = args.dnode.get_string();
-            instance.core_mut().config.password = Some(password);
+            instance.config.password = Some(password);
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::ResetNeighbors);
@@ -335,7 +332,7 @@ fn load_callbacks() -> Callbacks<Instance> {
 
         })
         .delete_apply(|instance, args| {
-            instance.core_mut().config.password = None;
+            instance.config.password = None;
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::ResetNeighbors);
@@ -352,7 +349,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::peers::session_ka_holdtime::PATH)
         .modify_apply(|instance, args| {
             let holdtime = args.dnode.get_u16();
-            instance.core_mut().config.session_ka_holdtime = holdtime;
+            instance.config.session_ka_holdtime = holdtime;
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::StopInitBackoff);
@@ -361,7 +358,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::peers::session_ka_interval::PATH)
         .modify_apply(|instance, args| {
             let interval = args.dnode.get_u16();
-            instance.core_mut().config.session_ka_interval = interval;
+            instance.config.session_ka_interval = interval;
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::CfgSeqNumberUpdate);
@@ -369,11 +366,11 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::peers::peer::PATH)
         .create_apply(|instance, args| {
             let lsr_id = args.dnode.get_ipv4_relative("lsr-id").unwrap();
-            instance.core_mut().config.neighbors.insert(lsr_id, Default::default());
+            instance.config.neighbors.insert(lsr_id, Default::default());
         })
         .delete_apply(|instance, args| {
             let lsr_id = args.list_entry.into_neighbor().unwrap();
-            instance.core_mut().config.neighbors.remove(&lsr_id);
+            instance.config.neighbors.remove(&lsr_id);
         })
         .lookup(|_instance, _list_entry, dnode| {
             let lsr_id = dnode.get_ipv4_relative("lsr-id").unwrap();
@@ -382,7 +379,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::peers::peer::authentication::key::PATH)
         .modify_apply(|instance, args| {
             let lsr_id = args.list_entry.into_neighbor().unwrap();
-            let nbr_cfg = instance.core_mut().config.neighbors.get_mut(&lsr_id).unwrap();
+            let nbr_cfg = instance.config.neighbors.get_mut(&lsr_id).unwrap();
 
             let password = args.dnode.get_string();
             nbr_cfg.password = Some(password);
@@ -394,7 +391,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .delete_apply(|instance, args| {
             let lsr_id = args.list_entry.into_neighbor().unwrap();
-            let nbr_cfg = instance.core_mut().config.neighbors.get_mut(&lsr_id).unwrap();
+            let nbr_cfg = instance.config.neighbors.get_mut(&lsr_id).unwrap();
 
             nbr_cfg.password = None;
 
@@ -455,24 +452,25 @@ impl Provider for Instance {
         match event {
             Event::InstanceUpdate => self.update().await,
             Event::InterfaceUpdate(iface_idx) => {
-                if let Instance::Up(instance) = self {
-                    Interface::update(instance, iface_idx);
+                if let Some((mut instance, interfaces, _)) = self.as_up() {
+                    let iface = &mut interfaces[iface_idx];
+                    iface.update(&mut instance);
                 }
             }
             Event::InterfaceDelete(iface_idx) => {
                 // Stop interface if it's active.
-                if let Instance::Up(instance) = self {
-                    let iface = &mut instance.core.interfaces[iface_idx];
+                if let Some((mut instance, interfaces, _)) = self.as_up() {
+                    let iface = &mut interfaces[iface_idx];
                     if iface.is_active() {
                         let reason = InterfaceInactiveReason::AdminDown;
-                        Interface::stop(instance, iface_idx, reason);
+                        iface.stop(&mut instance, reason);
                     }
                 }
 
-                self.core_mut().interfaces.delete(iface_idx);
+                self.interfaces.delete(iface_idx);
             }
             Event::InterfaceQuerySouthbound(ifname) => {
-                if let Instance::Up(instance) = self {
+                if let Some((instance, _, _)) = self.as_up() {
                     let _ = instance.tx.ibus.send(IbusMsg::InterfaceQuery {
                         ifname,
                         af: Some(AddressFamily::Ipv4),
@@ -480,46 +478,48 @@ impl Provider for Instance {
                 }
             }
             Event::TargetedNbrUpdate(tnbr_idx) => {
-                if let Instance::Up(instance) = self {
-                    TargetedNbr::update(instance, tnbr_idx);
+                if let Some((mut instance, _, tneighbors)) = self.as_up() {
+                    TargetedNbr::update(&mut instance, tneighbors, tnbr_idx);
                 }
             }
             Event::TargetedNbrRemoveCheck(tnbr_idx) => {
-                let tnbr = &self.core().tneighbors[tnbr_idx];
+                let tnbr = &self.tneighbors[tnbr_idx];
                 if !tnbr.remove_check() {
                     return;
                 }
 
                 // Stop targeted neighbor if it's active.
-                if let Instance::Up(instance) = self {
-                    let tnbr = &instance.core.tneighbors[tnbr_idx];
+                if let Some((mut instance, _, tneighbors)) = self.as_up() {
+                    let tnbr = &mut tneighbors[tnbr_idx];
                     if tnbr.is_active() {
-                        TargetedNbr::stop(instance, tnbr_idx, true);
+                        tnbr.stop(&mut instance, true);
                     }
                 }
 
-                self.core_mut().tneighbors.delete(tnbr_idx);
+                self.tneighbors.delete(tnbr_idx);
             }
             Event::TargetedNbrRemoveDynamic => {
-                if let Instance::Up(instance) = self {
-                    for tnbr_idx in
-                        instance.core.tneighbors.indexes().collect::<Vec<_>>()
-                    {
-                        let tnbr = &mut instance.core.tneighbors[tnbr_idx];
+                if let Some((mut instance, _, tneighbors)) = self.as_up() {
+                    for tnbr_idx in tneighbors.indexes().collect::<Vec<_>>() {
+                        let tnbr = &mut tneighbors[tnbr_idx];
                         tnbr.dynamic = false;
-                        TargetedNbr::update(instance, tnbr_idx);
+                        TargetedNbr::update(
+                            &mut instance,
+                            tneighbors,
+                            tnbr_idx,
+                        );
                     }
                 }
             }
             Event::StopInitBackoff => {
-                if let Instance::Up(instance) = self {
+                if let Some((instance, _, _)) = self.as_up() {
                     for nbr in instance.state.neighbors.iter_mut() {
                         nbr.stop_backoff_timeout();
                     }
                 }
             }
             Event::ResetNeighbors => {
-                if let Instance::Up(instance) = self {
+                if let Some((instance, _, _)) = self.as_up() {
                     for nbr in instance.state.neighbors.iter_mut() {
                         // Send Shutdown notification.
                         if nbr.state != neighbor::fsm::State::NonExistent {
@@ -532,7 +532,7 @@ impl Provider for Instance {
                 }
             }
             Event::ResetNeighbor(lsr_id) => {
-                if let Instance::Up(instance) = self {
+                if let Some((instance, _, _)) = self.as_up() {
                     if let Some((_, nbr)) =
                         instance.state.neighbors.get_mut_by_lsr_id(&lsr_id)
                     {
@@ -547,12 +547,10 @@ impl Provider for Instance {
                 }
             }
             Event::UpdateNeighborsAuth => {
-                if let Instance::Up(instance) = self {
+                if let Some((instance, _, _)) = self.as_up() {
                     for nbr in instance.state.neighbors.iter_mut() {
-                        let password = instance
-                            .core
-                            .config
-                            .get_neighbor_password(nbr.lsr_id);
+                        let password =
+                            instance.config.get_neighbor_password(nbr.lsr_id);
                         network::tcp::listen_socket_md5sig_update(
                             &instance.state.ipv4.session_socket,
                             &nbr.trans_addr,
@@ -562,14 +560,12 @@ impl Provider for Instance {
                 }
             }
             Event::UpdateNeighborAuth(lsr_id) => {
-                if let Instance::Up(instance) = self {
+                if let Some((instance, _, _)) = self.as_up() {
                     if let Some((_, nbr)) =
                         instance.state.neighbors.get_by_lsr_id(&lsr_id)
                     {
-                        let password = instance
-                            .core
-                            .config
-                            .get_neighbor_password(nbr.lsr_id);
+                        let password =
+                            instance.config.get_neighbor_password(nbr.lsr_id);
                         network::tcp::listen_socket_md5sig_update(
                             &instance.state.ipv4.session_socket,
                             &nbr.trans_addr,
@@ -579,9 +575,22 @@ impl Provider for Instance {
                 }
             }
             Event::CfgSeqNumberUpdate => {
-                if let Instance::Up(instance) = self {
+                if let Some((instance, interfaces, tneighbors)) = self.as_up() {
                     instance.state.cfg_seqno += 1;
-                    instance.sync_hello_tx();
+
+                    // Synchronize interfaces.
+                    for iface in
+                        interfaces.iter_mut().filter(|iface| iface.is_active())
+                    {
+                        iface.sync_hello_tx(instance.state);
+                    }
+
+                    // Synchronize targeted neighbors.
+                    for tnbr in
+                        tneighbors.iter_mut().filter(|tnbr| tnbr.is_active())
+                    {
+                        tnbr.sync_hello_tx(instance.state);
+                    }
                 }
             }
         }

@@ -11,7 +11,6 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_new::new;
-use enum_as_inner::EnumAsInner;
 use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
 };
@@ -28,7 +27,6 @@ use crate::debug::{Debug, InstanceInactiveReason, InterfaceInactiveReason};
 use crate::discovery::TargetedNbr;
 use crate::error::{Error, IoError};
 use crate::fec::Fec;
-use crate::interface::Interface;
 use crate::network::{tcp, udp};
 use crate::northbound::configuration::InstanceCfg;
 use crate::tasks::messages::input::{
@@ -38,42 +36,24 @@ use crate::tasks::messages::input::{
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
 use crate::{events, southbound, tasks};
 
-#[allow(clippy::large_enum_variant)]
-#[derive(Debug, EnumAsInner)]
-pub enum Instance {
-    Up(InstanceUp),
-    Down(InstanceDown),
-    // This state is required to allow in-place mutations of Instance.
-    Transitioning,
-}
-
-pub type InstanceUp = InstanceCommon<InstanceState>;
-pub type InstanceDown = InstanceCommon<InstanceStateDown>;
-
 #[derive(Debug)]
-pub struct InstanceCommon<State> {
-    // Instance state-independent data.
-    pub core: InstanceCore,
-    // Instance state-dependent data.
-    pub state: State,
-    // Instance Tx channels.
-    pub tx: InstanceChannelsTx<Instance>,
-    // Shared data.
-    pub shared: InstanceShared,
-}
-
-#[derive(Debug)]
-pub struct InstanceCore {
+pub struct Instance {
     // Instance name.
     pub name: String,
     // Instance system data.
     pub system: InstanceSys,
     // Instance configuration data.
     pub config: InstanceCfg,
+    // Instance state-dependent data.
+    pub state: Option<InstanceState>,
     // Instance interfaces.
     pub interfaces: Interfaces,
     // Instance targeted neighbors (configured or learned).
     pub tneighbors: TargetedNbrs,
+    // Instance Tx channels.
+    pub tx: InstanceChannelsTx<Instance>,
+    // Shared data.
+    pub shared: InstanceShared,
 }
 
 #[derive(Debug, Default)]
@@ -120,9 +100,6 @@ pub struct InstanceIpv4State {
     pub adjacencies: Adjacencies,
 }
 
-#[derive(Debug)]
-pub struct InstanceStateDown();
-
 #[derive(Clone, Debug)]
 pub struct ProtocolInputChannelsTx {
     // UDP Rx event.
@@ -159,6 +136,15 @@ pub struct ProtocolInputChannelsRx {
     pub nbr_backoff_timeout: Receiver<NbrBackoffTimeoutMsg>,
 }
 
+pub struct InstanceUpView<'a> {
+    pub name: &'a str,
+    pub system: &'a mut InstanceSys,
+    pub config: &'a InstanceCfg,
+    pub state: &'a mut InstanceState,
+    pub tx: &'a InstanceChannelsTx<Instance>,
+    pub shared: &'a InstanceShared,
+}
+
 // ===== impl Instance =====
 
 impl Instance {
@@ -182,14 +168,24 @@ impl Instance {
 
     async fn try_start(&mut self, router_id: Ipv4Addr) {
         let trans_addr = router_id;
-        let proto_input_tx = &self.as_down().unwrap().tx.protocol_input;
+        let proto_input_tx = &self.tx.protocol_input;
 
         match InstanceState::new(router_id, trans_addr, proto_input_tx).await {
             Ok(state) => {
-                let instance = std::mem::replace(self, Instance::Transitioning)
-                    .into_down()
-                    .unwrap();
-                *self = Instance::Up(instance.start(state));
+                Debug::InstanceStart.log();
+
+                // Store instance initial state.
+                self.state = Some(state);
+
+                // Try to start interfaces and targeted neighbors.
+                let (mut instance, interfaces, tneighbors) =
+                    self.as_up().unwrap();
+                for iface in interfaces.iter_mut() {
+                    iface.update(&mut instance);
+                }
+                for tnbr_idx in tneighbors.indexes().collect::<Vec<_>>() {
+                    TargetedNbr::update(&mut instance, tneighbors, tnbr_idx);
+                }
             }
             Err(error) => {
                 Error::InstanceStartError(Box::new(error)).log();
@@ -202,14 +198,28 @@ impl Instance {
             return;
         }
 
-        let instance = std::mem::replace(self, Instance::Transitioning)
-            .into_up()
-            .unwrap();
-        *self = Instance::Down(instance.stop(reason));
+        Debug::InstanceStop(reason).log();
+
+        // Stop interfaces and targeted neighbors.
+        let (mut instance, interfaces, tneighbors) = self.as_up().unwrap();
+        for iface in interfaces.iter_mut() {
+            if iface.is_active() {
+                let reason = InterfaceInactiveReason::InstanceDown;
+                iface.stop(&mut instance, reason);
+            }
+        }
+        for tnbr in tneighbors.iter_mut() {
+            if tnbr.is_active() {
+                tnbr.stop(&mut instance, true);
+            }
+        }
+
+        // Clear instance state.
+        self.state = None;
     }
 
-    fn is_active(&self) -> bool {
-        matches!(self, Instance::Up(_))
+    pub(crate) fn is_active(&self) -> bool {
+        self.state.is_some()
     }
 
     // Returns whether the instance is ready for LDP operation.
@@ -217,8 +227,8 @@ impl Instance {
         &self,
         router_id: Option<Ipv4Addr>,
     ) -> Result<(), InstanceInactiveReason> {
-        if self.core().config.ipv4.is_none()
-            || !self.core().config.ipv4.as_ref().unwrap().enabled
+        if self.config.ipv4.is_none()
+            || !self.config.ipv4.as_ref().unwrap().enabled
         {
             return Err(InstanceInactiveReason::AdminDown);
         }
@@ -231,30 +241,30 @@ impl Instance {
     }
 
     fn get_router_id(&self) -> Option<Ipv4Addr> {
-        if self.core().config.router_id.is_some() {
-            self.core().config.router_id
-        } else if self.core().system.router_id.is_some() {
-            self.core().system.router_id
+        if self.config.router_id.is_some() {
+            self.config.router_id
+        } else if self.system.router_id.is_some() {
+            self.system.router_id
         } else {
             None
         }
     }
 
-    #[inline]
-    pub(crate) fn core(&self) -> &InstanceCore {
-        match self {
-            Instance::Up(instance) => &instance.core,
-            Instance::Down(instance) => &instance.core,
-            Instance::Transitioning => unreachable!(),
-        }
-    }
-
-    #[inline]
-    pub(crate) fn core_mut(&mut self) -> &mut InstanceCore {
-        match self {
-            Instance::Up(instance) => &mut instance.core,
-            Instance::Down(instance) => &mut instance.core,
-            Instance::Transitioning => unreachable!(),
+    pub(crate) fn as_up(
+        &mut self,
+    ) -> Option<(InstanceUpView<'_>, &mut Interfaces, &mut TargetedNbrs)> {
+        if let Some(state) = &mut self.state {
+            let instance = InstanceUpView {
+                name: &self.name,
+                system: &mut self.system,
+                config: &self.config,
+                state,
+                tx: &self.tx,
+                shared: &self.shared,
+            };
+            Some((instance, &mut self.interfaces, &mut self.tneighbors))
+        } else {
+            None
         }
     }
 }
@@ -275,25 +285,21 @@ impl ProtocolInstance for Instance {
     ) -> Instance {
         Debug::InstanceCreate.log();
 
-        Instance::Down(InstanceDown {
-            core: InstanceCore {
-                name,
-                system: Default::default(),
-                config: Default::default(),
-                interfaces: Default::default(),
-                tneighbors: Default::default(),
-            },
-            state: InstanceStateDown(),
+        Instance {
+            name,
+            system: Default::default(),
+            config: Default::default(),
+            state: None,
+            interfaces: Default::default(),
+            tneighbors: Default::default(),
             tx,
             shared,
-        })
+        }
     }
 
     async fn init(&mut self) {
-        let instance = self.as_down().unwrap();
-
         // Request information about the system Router ID.
-        southbound::tx::router_id_query(&instance.tx.ibus);
+        southbound::tx::router_id_query(&self.tx.ibus);
     }
 
     async fn shutdown(mut self) {
@@ -310,8 +316,10 @@ impl ProtocolInstance for Instance {
 
     fn process_protocol_msg(&mut self, msg: ProtocolInputMsg) {
         // Ignore event if the instance isn't active.
-        if let Instance::Up(instance) = self {
-            if let Err(error) = instance.process_protocol_msg(msg) {
+        if let Some((mut instance, interfaces, tneighbors)) = self.as_up() {
+            if let Err(error) =
+                process_protocol_msg(&mut instance, interfaces, tneighbors, msg)
+            {
                 error.log();
             }
         }
@@ -352,139 +360,6 @@ impl ProtocolInstance for Instance {
     #[cfg(feature = "testing")]
     fn test_dir() -> String {
         format!("{}/tests/conformance", env!("CARGO_MANIFEST_DIR"),)
-    }
-}
-
-// ===== impl InstanceCommon =====
-
-// Active LDP instance.
-impl InstanceCommon<InstanceState> {
-    fn process_protocol_msg(
-        &mut self,
-        msg: ProtocolInputMsg,
-    ) -> Result<(), Error> {
-        match msg {
-            // Received UDP discovery PDU.
-            ProtocolInputMsg::UdpRxPdu(msg) => {
-                events::process_udp_pdu(
-                    self,
-                    msg.src_addr,
-                    msg.pdu,
-                    msg.multicast,
-                );
-            }
-            // Adjacency's timeout has expired.
-            ProtocolInputMsg::AdjTimeout(msg) => {
-                events::process_adj_timeout(self, msg.adj_id)?;
-            }
-            // Accepted TCP connection request.
-            ProtocolInputMsg::TcpAccept(mut msg) => {
-                events::process_tcp_accept(self, msg.stream(), msg.conn_info);
-            }
-            // Established TCP connection.
-            ProtocolInputMsg::TcpConnect(mut msg) => {
-                events::process_tcp_connect(
-                    self,
-                    msg.nbr_id,
-                    msg.stream(),
-                    msg.conn_info,
-                )?;
-            }
-            // Received PDU from neighbor.
-            ProtocolInputMsg::NbrRxPdu(msg) => {
-                events::process_nbr_pdu(self, msg.nbr_id, msg.pdu)?;
-            }
-            // Neighbor's keepalive timeout has expired.
-            ProtocolInputMsg::NbrKaTimeout(msg) => {
-                events::process_nbr_ka_timeout(self, msg.nbr_id)?;
-            }
-            // Neighbor's backoff timeout has expired.
-            ProtocolInputMsg::NbrBackoffTimeout(msg) => {
-                events::process_nbr_backoff_timeout(self, msg.lsr_id);
-            }
-        }
-
-        Ok(())
-    }
-
-    pub(crate) fn sync_hello_tx(&mut self) {
-        // Synchronize interfaces.
-        for iface in self
-            .core
-            .interfaces
-            .iter_mut()
-            .filter(|iface| iface.is_active())
-        {
-            iface.sync_hello_tx(&self.state);
-        }
-
-        // Synchronize targeted neighbors.
-        for tnbr in self
-            .core
-            .tneighbors
-            .iter_mut()
-            .filter(|tnbr| tnbr.is_active())
-        {
-            tnbr.sync_hello_tx(&self.state);
-        }
-    }
-
-    fn stop(
-        mut self,
-        reason: InstanceInactiveReason,
-    ) -> InstanceCommon<InstanceStateDown> {
-        Debug::InstanceStop(reason).log();
-
-        // Stop interfaces.
-        for iface_idx in self.core.interfaces.indexes().collect::<Vec<_>>() {
-            let iface = &self.core.interfaces[iface_idx];
-            if iface.is_active() {
-                let reason = InterfaceInactiveReason::InstanceDown;
-                Interface::stop(&mut self, iface_idx, reason);
-            }
-        }
-
-        // Stop targeted neighbors.
-        for tnbr_idx in self.core.tneighbors.indexes().collect::<Vec<_>>() {
-            let tnbr = &self.core.tneighbors[tnbr_idx];
-            if tnbr.is_active() {
-                TargetedNbr::stop(&mut self, tnbr_idx, true);
-            }
-        }
-
-        InstanceCommon::<InstanceStateDown> {
-            core: self.core,
-            state: InstanceStateDown(),
-            tx: self.tx,
-            shared: self.shared,
-        }
-    }
-}
-
-// Inactive LDP instance.
-impl InstanceCommon<InstanceStateDown> {
-    fn start(self, state: InstanceState) -> InstanceCommon<InstanceState> {
-        Debug::InstanceStart.log();
-
-        let mut instance = InstanceCommon::<InstanceState> {
-            core: self.core,
-            state,
-            tx: self.tx,
-            shared: self.shared,
-        };
-
-        // Try to start interfaces.
-        for iface_idx in instance.core.interfaces.indexes().collect::<Vec<_>>()
-        {
-            Interface::update(&mut instance, iface_idx);
-        }
-
-        // Try to start targeted neighbors.
-        for tnbr_idx in instance.core.tneighbors.indexes().collect::<Vec<_>>() {
-            TargetedNbr::update(&mut instance, tnbr_idx);
-        }
-
-        instance
     }
 }
 
@@ -625,6 +500,58 @@ async fn process_ibus_msg(
         }
         // Ignore other events.
         _ => {}
+    }
+
+    Ok(())
+}
+
+fn process_protocol_msg(
+    instance: &mut InstanceUpView<'_>,
+    interfaces: &mut Interfaces,
+    tneighbors: &mut TargetedNbrs,
+    msg: ProtocolInputMsg,
+) -> Result<(), Error> {
+    match msg {
+        // Received UDP discovery PDU.
+        ProtocolInputMsg::UdpRxPdu(msg) => {
+            events::process_udp_pdu(
+                instance,
+                interfaces,
+                tneighbors,
+                msg.src_addr,
+                msg.pdu,
+                msg.multicast,
+            );
+        }
+        // Adjacency's timeout has expired.
+        ProtocolInputMsg::AdjTimeout(msg) => {
+            events::process_adj_timeout(instance, tneighbors, msg.adj_id)?;
+        }
+        // Accepted TCP connection request.
+        ProtocolInputMsg::TcpAccept(mut msg) => {
+            events::process_tcp_accept(instance, msg.stream(), msg.conn_info);
+        }
+        // Established TCP connection.
+        ProtocolInputMsg::TcpConnect(mut msg) => {
+            events::process_tcp_connect(
+                instance,
+                msg.nbr_id,
+                msg.stream(),
+                msg.conn_info,
+            )?;
+        }
+        // Received PDU from neighbor.
+        ProtocolInputMsg::NbrRxPdu(msg) => {
+            events::process_nbr_pdu(instance, msg.nbr_id, msg.pdu)?;
+        }
+        // Neighbor's keepalive timeout has expired.
+        ProtocolInputMsg::NbrKaTimeout(msg) => {
+            events::process_nbr_ka_timeout(instance, msg.nbr_id)?;
+        }
+        // Neighbor's backoff timeout has expired.
+        ProtocolInputMsg::NbrBackoffTimeout(msg) => {
+            events::process_nbr_backoff_timeout(instance, msg.lsr_id);
+        }
     }
 
     Ok(())

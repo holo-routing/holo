@@ -241,13 +241,7 @@ impl Instance {
     }
 
     fn get_router_id(&self) -> Option<Ipv4Addr> {
-        if self.config.router_id.is_some() {
-            self.config.router_id
-        } else if self.system.router_id.is_some() {
-            self.system.router_id
-        } else {
-            None
-        }
+        self.config.router_id.or(self.system.router_id)
     }
 
     pub(crate) fn as_up(

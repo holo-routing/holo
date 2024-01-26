@@ -9,12 +9,12 @@ use holo_yang as yang;
 use yang2::schema::SchemaNode;
 
 // Generate fully-prefixed schema path.
-fn gen_fully_prefixed_path(snode: &SchemaNode) -> String {
+fn gen_fully_prefixed_path(snode: &SchemaNode<'_>) -> String {
     let mut path = String::new();
 
     for snode in snode
         .inclusive_ancestors()
-        .collect::<Vec<SchemaNode>>()
+        .collect::<Vec<SchemaNode<'_>>>()
         .iter()
         .rev()
     {

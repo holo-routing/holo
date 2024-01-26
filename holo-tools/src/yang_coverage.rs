@@ -51,7 +51,10 @@ impl std::fmt::Display for Coverage {
 
 // ===== helper functions =====
 
-fn load_deviation_modules(yang_ctx: &mut Context, matches: &clap::ArgMatches) {
+fn load_deviation_modules(
+    yang_ctx: &mut Context,
+    matches: &clap::ArgMatches<'_>,
+) {
     if let Some(modules) = matches.values_of("module") {
         for module_name in modules.rev() {
             yang::load_deviations(yang_ctx, module_name);
@@ -103,7 +106,7 @@ fn count_nodes(yang_ctx: &Context) -> BTreeMap<String, NodeCounters<usize>> {
     counters
 }
 
-fn calculate_coverage(mut yang_ctx: Context, matches: &clap::ArgMatches) {
+fn calculate_coverage(mut yang_ctx: Context, matches: &clap::ArgMatches<'_>) {
     // Calculate node totals before applying deviations.
     let pre_dev = count_nodes(&yang_ctx);
 
@@ -147,7 +150,7 @@ fn calculate_coverage(mut yang_ctx: Context, matches: &clap::ArgMatches) {
 
 fn generate_tree_diff(
     mut yang_ctx: Context,
-    matches: &clap::ArgMatches,
+    matches: &clap::ArgMatches<'_>,
     module_name: &str,
 ) {
     // TODO: check if this is still necessary.

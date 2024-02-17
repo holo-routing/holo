@@ -151,6 +151,29 @@ Holo supports the following IETF RFCs and Internet drafts:
 * RFC 5882 - Generic Application of Bidirectional Forwarding Detection (BFD)
 * RFC 5883 - Bidirectional Forwarding Detection (BFD) for Multihop Paths
 
+##### BGP
+
+* RFC 1997 - BGP Communities Attribute
+* RFC 2385 - Protection of BGP Sessions via the TCP MD5 Signature Option
+* RFC 2545 - Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing
+* RFC 2918 - Route Refresh Capability for BGP-4
+* RFC 4271 - A Border Gateway Protocol 4 (BGP-4)
+* RFC 4360 - BGP Extended Communities Attribute
+* RFC 4486 - Subcodes for BGP Cease Notification Message
+* RFC 4760 - Multiprotocol Extensions for BGP-4
+* RFC 5082 - The Generalized TTL Security Mechanism (GTSM)
+* RFC 5492 - Capabilities Advertisement with BGP-4
+* RFC 5668 - 4-Octet AS Specific BGP Extended Community
+* RFC 5701 - IPv6 Address Specific BGP Extended Community Attribute
+* RFC 6286 - Autonomous-System-Wide Unique BGP Identifier for BGP-4
+* RFC 6608 - Subcodes for BGP Finite State Machine Error
+* RFC 6793 - BGP Support for Four-Octet Autonomous System (AS) Number Space
+* RFC 7606 - Revised Error Handling for BGP UPDATE Messages
+* RFC 7607 - Codification of AS 0 Processing
+* RFC 8092 - BGP Large Communities Attribute
+* RFC 8212 - Default External BGP (EBGP) Route Propagation Behavior without Policies
+* RFC 8642 - Policy Behavior for Well-Known BGP Communities
+
 ##### MPLS LDP
 
 * RFC 5036 - LDP Specification
@@ -192,6 +215,8 @@ Holo supports the following IETF RFCs and Internet drafts:
 | ietf-bfd-ip-mh@2022-09-22 | 100.00% | 100.00% | - | 100.00% | [100.00%](http://westphal.com.br/holo/ietf-bfd-ip-mh.html) |
 | ietf-bfd-ip-sh@2022-09-22 | 100.00% | 100.00% | - | 100.00% | [100.00%](http://westphal.com.br/holo/ietf-bfd-ip-sh.html) |
 | ietf-bfd@2022-09-22 | 100.00% | 100.00% | - | - | [100.00%](http://westphal.com.br/holo/ietf-bfd.html) |
+| ietf-bgp-policy@2023-07-05 | 100.00% | - | - | - | [100.00%](http://westphal.com.br/holo/ietf-bgp-policy.html) |
+| ietf-bgp@2023-07-05 | 32.38% | 87.86% | - | - | [61.39%](http://westphal.com.br/holo/ietf-bgp.html) |
 | ietf-interfaces@2018-01-09 | 100.00% | 0.00% | - | - | [22.22%](http://westphal.com.br/holo/ietf-interfaces.html) |
 | ietf-ip@2018-01-09 | 17.39% | 0.00% | - | - | [13.33%](http://westphal.com.br/holo/ietf-ip.html) |
 | ietf-ipv4-unicast-routing@2018-03-13 | 100.00% | 100.00% | - | - | [100.00%](http://westphal.com.br/holo/ietf-ipv4-unicast-routing.html) |

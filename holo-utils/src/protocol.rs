@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "lowercase")]
 pub enum Protocol {
     BFD,
+    BGP,
     DIRECT,
     LDP,
     OSPFV2,
@@ -32,6 +33,7 @@ impl std::fmt::Display for Protocol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Protocol::BFD => write!(f, "bfd"),
+            Protocol::BGP => write!(f, "bgp"),
             Protocol::DIRECT => write!(f, "direct"),
             Protocol::LDP => write!(f, "ldp"),
             Protocol::OSPFV2 => write!(f, "ospfv2"),
@@ -49,6 +51,7 @@ impl FromStr for Protocol {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_ref() {
             "bfd" => Ok(Protocol::BFD),
+            "bgp" => Ok(Protocol::BGP),
             "direct" => Ok(Protocol::DIRECT),
             "ldp" => Ok(Protocol::LDP),
             "ospfv2" => Ok(Protocol::OSPFV2),
@@ -65,6 +68,7 @@ impl ToYang for Protocol {
     fn to_yang(&self) -> Cow<'static, str> {
         match self {
             Protocol::BFD => "ietf-bfd-types:bfdv1".into(),
+            Protocol::BGP => "ietf-bgp:bgp".into(),
             Protocol::DIRECT => "ietf-routing:direct".into(),
             Protocol::LDP => "ietf-mpls-ldp:mpls-ldp".into(),
             Protocol::OSPFV2 => "ietf-ospf:ospfv2".into(),
@@ -80,6 +84,7 @@ impl TryFromYang for Protocol {
     fn try_from_yang(identity: &str) -> Option<Protocol> {
         match identity {
             "ietf-bfd-types:bfdv1" => Some(Protocol::BFD),
+            "ietf-bgp:bgp" => Some(Protocol::BGP),
             "ietf-routing:direct" => Some(Protocol::DIRECT),
             "ietf-mpls-ldp:mpls-ldp" => Some(Protocol::LDP),
             "ietf-ospf:ospfv2" => Some(Protocol::OSPFV2),

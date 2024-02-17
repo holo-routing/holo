@@ -1,0 +1,78 @@
+module holo-bgp {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/holo-bgp";
+  prefix holo-bgp;
+
+  import ietf-routing {
+    prefix rt;
+  }
+
+  import iana-bgp-types {
+    prefix bt;
+  }
+
+  import iana-bgp-notification {
+    prefix bn;
+  }
+
+  import ietf-bgp {
+    prefix bgp;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines augment statements for the ietf-bgp
+     module.";
+
+  /*
+   * Identities.
+   */
+
+  identity unknown-error {
+    base bn:bgp-notification;
+    description
+      "Unknown error code";
+  }
+
+  identity graceful-restart {
+    base bt:bgp-capability;
+    description
+      "Graceful restart functionality";
+    reference
+      "RFC 4724: Graceful Restart Mechanism for BGP.";
+  }
+
+  identity add-paths {
+    base bt:bgp-capability;
+    description
+      "Advertisement of multiple paths for the same address prefix
+       without the new paths implicitly replacing any previous
+       ones.";
+    reference
+      "RFC 7911: Advertisement of Multiple Paths in BGP.";
+  }
+
+  identity enhanced-route-refresh {
+    base bt:bgp-capability;
+    description
+      "The BGP enhanced route-refresh functionality";
+    reference
+      "RFC 7313: Enhanced Route Refresh Capability for BGP-4";
+  }
+
+  /*
+   * Augmentations.
+   */
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:neighbor/"
+        + "bgp:transport/bgp:secure-session/bgp:options/bgp:option/bgp:md5" {
+    leaf md5-key-string {
+      type string;
+      description
+        "Key string in ASCII format.";
+    }
+  }
+}

@@ -15,6 +15,7 @@ use std::sync::{Arc, Mutex};
 use pickledb::PickleDb;
 
 pub mod bfd;
+pub mod bgp;
 pub mod bytes;
 pub mod capabilities;
 pub mod crypto;

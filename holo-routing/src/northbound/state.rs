@@ -393,6 +393,7 @@ impl Provider for Master {
     fn nested_callbacks() -> Option<Vec<CallbackKey>> {
         let keys = [
             holo_bfd::northbound::state::CALLBACKS.keys(),
+            holo_bgp::northbound::state::CALLBACKS.keys(),
             holo_ldp::northbound::state::CALLBACKS.keys(),
             holo_ospf::northbound::state::CALLBACKS_OSPFV2.keys(),
             holo_ospf::northbound::state::CALLBACKS_OSPFV3.keys(),

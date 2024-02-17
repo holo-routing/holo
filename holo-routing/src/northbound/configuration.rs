@@ -660,6 +660,7 @@ impl Provider for Master {
     fn nested_callbacks() -> Option<Vec<CallbackKey>> {
         let keys = [
             holo_bfd::northbound::configuration::CALLBACKS.keys(),
+            holo_bgp::northbound::configuration::CALLBACKS.keys(),
             holo_ldp::northbound::configuration::CALLBACKS.keys(),
             holo_ospf::northbound::configuration::CALLBACKS_OSPFV2.keys(),
             holo_ospf::northbound::configuration::CALLBACKS_OSPFV3.keys(),
@@ -716,6 +717,18 @@ impl Provider for Master {
                     Protocol::BFD => {
                         // Nothing to do, the BFD task runs permanently.
                         return;
+                    }
+                    Protocol::BGP => {
+                        use holo_bgp::instance::Instance;
+
+                        spawn_protocol_task::<Instance>(
+                            name,
+                            &self.nb_tx,
+                            &self.ibus_tx,
+                            Default::default(),
+                            self.shared.clone(),
+                            Some(event_recorder_config),
+                        )
                     }
                     Protocol::DIRECT => {
                         // This protocol type can not be configured.

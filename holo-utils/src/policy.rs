@@ -13,11 +13,47 @@ use holo_yang::TryFromYang;
 use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
 
+use crate::bgp::{self, AfiSafi, Comm, ExtComm, Extv6Comm, LargeComm, Origin};
 use crate::ip::AddressFamily;
 use crate::protocol::Protocol;
 
 // Type aliases.
 pub type Policies = BTreeMap<String, Arc<Policy>>;
+
+// Routing policy configuration.
+#[derive(Clone, Debug, Default)]
+pub struct ApplyPolicyCfg {
+    // TODO: "ordered-by user"
+    pub import_policy: BTreeSet<String>,
+    pub default_import_policy: DefaultPolicyType,
+    // TODO: "ordered-by user"
+    pub export_policy: BTreeSet<String>,
+    pub default_export_policy: DefaultPolicyType,
+}
+
+#[derive(Debug)]
+#[derive(Deserialize, Serialize)]
+pub enum PolicyType {
+    Import,
+    Export,
+}
+
+#[derive(Debug)]
+#[derive(Deserialize, Serialize)]
+pub enum PolicyResult<T> {
+    Accept(T),
+    Reject,
+}
+
+// Default policy type.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub enum DefaultPolicyType {
+    // TODO should be RejectRoute
+    #[default]
+    AcceptRoute,
+    RejectRoute,
+}
 
 // Route type.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -40,9 +76,9 @@ pub enum RouteType {
 #[derive(Clone, Copy, Debug)]
 #[derive(Deserialize, Serialize)]
 pub enum MetricModification {
-    SetMetric,
-    AddMetric,
-    SubtractMetric,
+    Set,
+    Add,
+    Subtract,
 }
 
 // Route metric types.
@@ -105,6 +141,7 @@ pub struct MatchSets {
     pub prefixes: BTreeMap<(String, AddressFamily), PrefixSet>,
     pub neighbors: BTreeMap<String, NeighborSet>,
     pub tags: BTreeMap<String, TagSet>,
+    pub bgp: BgpMatchSets,
 }
 
 // List of IPv4 or IPv6 prefixes that are matched as part of a policy.
@@ -132,6 +169,18 @@ pub struct TagSet {
     pub tags: BTreeSet<u32>,
 }
 
+// BGP sets of attributes used in policy match statements.
+#[derive(Clone, Debug, Default)]
+#[derive(Deserialize, Serialize)]
+pub struct BgpMatchSets {
+    pub as_paths: BTreeMap<String, BTreeSet<u32>>,
+    pub comms: BTreeMap<String, BTreeSet<Comm>>,
+    pub ext_comms: BTreeMap<String, BTreeSet<ExtComm>>,
+    pub extv6_comms: BTreeMap<String, BTreeSet<Extv6Comm>>,
+    pub large_comms: BTreeMap<String, BTreeSet<LargeComm>>,
+    pub nexthops: BTreeMap<String, BTreeSet<BgpNexthop>>,
+}
+
 // Policy definition.
 #[derive(Clone, Debug)]
 #[derive(Deserialize, Serialize)]
@@ -139,6 +188,7 @@ pub struct Policy {
     // Name of the policy.
     pub name: String,
     // List of statements.
+    // TODO: "ordered-by user"
     pub stmts: BTreeMap<String, PolicyStmt>,
 }
 
@@ -164,6 +214,7 @@ pub enum PolicyConditionType {
     MatchNeighborSet,
     MatchTagSet,
     MatchRouteType,
+    Bgp(BgpPolicyConditionType),
 }
 
 // Policy condition statement.
@@ -177,6 +228,83 @@ pub enum PolicyCondition {
     MatchNeighborSet(String),
     MatchTagSet(String),
     MatchRouteType(BTreeSet<RouteType>),
+    Bgp(BgpPolicyCondition),
+}
+
+// BGP policy condition statement type.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Deserialize, Serialize)]
+pub enum BgpPolicyConditionType {
+    LocalPref,
+    Med,
+    Origin,
+    MatchAfiSafi,
+    MatchNeighbor,
+    RouteType,
+    CommCount,
+    AsPathLen,
+    MatchCommSet,
+    MatchExtCommSet,
+    MatchExtv6CommSet,
+    MatchLargeCommSet,
+    MatchAsPathSet,
+    MatchNexthopSet,
+}
+
+// BGP policy condition statement.
+#[derive(Clone, Debug, EnumAsInner)]
+#[derive(Deserialize, Serialize)]
+pub enum BgpPolicyCondition {
+    LocalPref {
+        value: u32,
+        op: BgpEqOperator,
+    },
+    Med {
+        value: u32,
+        op: BgpEqOperator,
+    },
+    Origin(Origin),
+    MatchAfiSafi {
+        values: BTreeSet<AfiSafi>,
+        match_type: MatchSetRestrictedType,
+    },
+    MatchNeighbor {
+        value: BTreeSet<IpAddr>,
+        match_type: MatchSetRestrictedType,
+    },
+    RouteType(bgp::RouteType),
+    CommCount {
+        value: u32,
+        op: BgpEqOperator,
+    },
+    AsPathLen {
+        value: u32,
+        op: BgpEqOperator,
+    },
+    MatchCommSet {
+        value: String,
+        match_type: MatchSetType,
+    },
+    MatchExtCommSet {
+        value: String,
+        match_type: MatchSetType,
+    },
+    MatchExtv6CommSet {
+        value: String,
+        match_type: MatchSetType,
+    },
+    MatchLargeCommSet {
+        value: String,
+        match_type: MatchSetType,
+    },
+    MatchAsPathSet {
+        value: String,
+        match_type: MatchSetType,
+    },
+    MatchNexthopSet {
+        value: String,
+        match_type: MatchSetRestrictedType,
+    },
 }
 
 // Policy action statement type.
@@ -185,12 +313,12 @@ pub enum PolicyCondition {
 pub enum PolicyActionType {
     Accept,
     SetMetric,
-    SetMetricMod,
     SetMetricType,
     SetRouteLevel,
     SetRoutePref,
     SetTag,
     SetAppTag,
+    Bgp(BgpPolicyActionType),
 }
 
 // Policy action statement.
@@ -198,13 +326,113 @@ pub enum PolicyActionType {
 #[derive(Deserialize, Serialize)]
 pub enum PolicyAction {
     Accept(bool),
-    SetMetric(u32),
-    SetMetricMod(MetricModification),
+    SetMetric {
+        value: u32,
+        mod_type: MetricModification,
+    },
     SetMetricType(MetricType),
     SetRouteLevel(RouteLevel),
     SetRoutePref(u16),
     SetTag(u32),
     SetAppTag(u32),
+    Bgp(BgpPolicyAction),
+}
+
+// BGP policy action statement type.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Deserialize, Serialize)]
+pub enum BgpPolicyActionType {
+    SetRouteOrigin,
+    SetLocalPref,
+    SetNexthop,
+    SetMed,
+    SetAsPathPrepent,
+    SetComm,
+    SetExtComm,
+    SetExtv6Comm,
+    SetLargeComm,
+}
+
+// BGP policy action statement.
+#[derive(Clone, Debug)]
+#[derive(Deserialize, Serialize)]
+pub enum BgpPolicyAction {
+    SetRouteOrigin(Origin),
+    SetLocalPref(u32),
+    SetNexthop(BgpNexthop),
+    SetMed(BgpSetMed),
+    SetAsPathPrepent {
+        asn: u32,
+        repeat: Option<u8>,
+    },
+    SetComm {
+        options: BgpSetCommOptions,
+        method: BgpSetCommMethod<Comm>,
+    },
+    SetExtComm {
+        options: BgpSetCommOptions,
+        method: BgpSetCommMethod<ExtComm>,
+    },
+    SetExtv6Comm {
+        options: BgpSetCommOptions,
+        method: BgpSetCommMethod<Extv6Comm>,
+    },
+    SetLargeComm {
+        options: BgpSetCommOptions,
+        method: BgpSetCommMethod<LargeComm>,
+    },
+}
+
+#[derive(Clone, Copy, Debug)]
+#[derive(Deserialize, Serialize)]
+pub enum BgpEqOperator {
+    Equal,
+    LessThanOrEqual,
+    GreaterThanOrEqual,
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Deserialize, Serialize)]
+pub enum BgpNexthop {
+    Addr(IpAddr),
+    NexthopSelf,
+}
+
+#[derive(Clone, Debug)]
+#[derive(Deserialize, Serialize)]
+pub enum BgpSetMed {
+    Add(u32),
+    Subtract(u32),
+    Set(u32),
+    Igp,
+    MedPlusIgp,
+}
+
+#[derive(Clone, Copy, Debug)]
+#[derive(Deserialize, Serialize)]
+pub enum BgpSetCommOptions {
+    Add,
+    Remove,
+    Replace,
+}
+
+#[derive(Clone, Debug)]
+#[derive(Deserialize, Serialize)]
+pub enum BgpSetCommMethod<T: Eq + Ord + PartialEq + PartialOrd> {
+    Inline(BTreeSet<T>),
+    Reference(String),
+}
+
+// ===== impl DefaultPolicyType =====
+
+impl TryFromYang for DefaultPolicyType {
+    fn try_from_yang(value: &str) -> Option<DefaultPolicyType> {
+        match value {
+            "accept-route" => Some(DefaultPolicyType::AcceptRoute),
+            "reject-route" => Some(DefaultPolicyType::RejectRoute),
+            _ => None,
+        }
+    }
 }
 
 // ===== impl RouteType =====
@@ -249,9 +477,9 @@ impl TryFromYang for RouteType {
 impl TryFromYang for MetricModification {
     fn try_from_yang(value: &str) -> Option<MetricModification> {
         match value {
-            "set-metric" => Some(MetricModification::SetMetric),
-            "add-metric" => Some(MetricModification::AddMetric),
-            "subtract-metric" => Some(MetricModification::SubtractMetric),
+            "set-metric" => Some(MetricModification::Set),
+            "add-metric" => Some(MetricModification::Add),
+            "subtract-metric" => Some(MetricModification::Subtract),
             _ => None,
         }
     }
@@ -303,6 +531,19 @@ impl TryFromYang for RouteLevel {
 
 // ===== impl MatchSetType =====
 
+impl MatchSetType {
+    pub fn compare<T>(&self, a: &BTreeSet<T>, b: &BTreeSet<T>) -> bool
+    where
+        T: Eq + Ord + PartialEq + PartialOrd,
+    {
+        match self {
+            MatchSetType::Any => !a.is_disjoint(b),
+            MatchSetType::All => a.is_superset(b),
+            MatchSetType::Invert => a.is_disjoint(b),
+        }
+    }
+}
+
 impl TryFromYang for MatchSetType {
     fn try_from_yang(identity: &str) -> Option<MatchSetType> {
         match identity {
@@ -315,6 +556,18 @@ impl TryFromYang for MatchSetType {
 }
 
 // ===== impl MatchSetRestrictedType =====
+
+impl MatchSetRestrictedType {
+    pub fn compare<T>(&self, a: &BTreeSet<T>, b: &T) -> bool
+    where
+        T: Eq + Ord + PartialEq + PartialOrd,
+    {
+        match self {
+            MatchSetRestrictedType::Any => a.contains(b),
+            MatchSetRestrictedType::Invert => !a.contains(b),
+        }
+    }
+}
 
 impl TryFromYang for MatchSetRestrictedType {
     fn try_from_yang(identity: &str) -> Option<MatchSetRestrictedType> {
@@ -384,6 +637,9 @@ impl PolicyCondition {
             PolicyCondition::MatchRouteType(..) => {
                 PolicyConditionType::MatchRouteType
             }
+            PolicyCondition::Bgp(cond) => {
+                PolicyConditionType::Bgp(cond.as_type())
+            }
         }
     }
 }
@@ -394,13 +650,107 @@ impl PolicyAction {
     fn as_type(&self) -> PolicyActionType {
         match self {
             PolicyAction::Accept(..) => PolicyActionType::Accept,
-            PolicyAction::SetMetric(..) => PolicyActionType::SetMetric,
-            PolicyAction::SetMetricMod(..) => PolicyActionType::SetMetricMod,
+            PolicyAction::SetMetric { .. } => PolicyActionType::SetMetric,
             PolicyAction::SetMetricType(..) => PolicyActionType::SetMetricType,
             PolicyAction::SetRouteLevel(..) => PolicyActionType::SetRouteLevel,
             PolicyAction::SetRoutePref(..) => PolicyActionType::SetRoutePref,
             PolicyAction::SetTag(..) => PolicyActionType::SetTag,
             PolicyAction::SetAppTag(..) => PolicyActionType::SetAppTag,
+            PolicyAction::Bgp(action) => {
+                PolicyActionType::Bgp(action.as_type())
+            }
+        }
+    }
+}
+
+// ===== impl BgpPolicyCondition =====
+
+impl BgpPolicyCondition {
+    fn as_type(&self) -> BgpPolicyConditionType {
+        match self {
+            BgpPolicyCondition::LocalPref { .. } => {
+                BgpPolicyConditionType::LocalPref
+            }
+            BgpPolicyCondition::Med { .. } => BgpPolicyConditionType::Med,
+            BgpPolicyCondition::Origin(..) => BgpPolicyConditionType::Origin,
+            BgpPolicyCondition::MatchAfiSafi { .. } => {
+                BgpPolicyConditionType::MatchAfiSafi
+            }
+            BgpPolicyCondition::MatchNeighbor { .. } => {
+                BgpPolicyConditionType::MatchNeighbor
+            }
+            BgpPolicyCondition::RouteType(..) => {
+                BgpPolicyConditionType::RouteType
+            }
+            BgpPolicyCondition::CommCount { .. } => {
+                BgpPolicyConditionType::CommCount
+            }
+            BgpPolicyCondition::AsPathLen { .. } => {
+                BgpPolicyConditionType::AsPathLen
+            }
+            BgpPolicyCondition::MatchCommSet { .. } => {
+                BgpPolicyConditionType::MatchCommSet
+            }
+            BgpPolicyCondition::MatchExtCommSet { .. } => {
+                BgpPolicyConditionType::MatchExtCommSet
+            }
+            BgpPolicyCondition::MatchExtv6CommSet { .. } => {
+                BgpPolicyConditionType::MatchExtv6CommSet
+            }
+            BgpPolicyCondition::MatchLargeCommSet { .. } => {
+                BgpPolicyConditionType::MatchLargeCommSet
+            }
+            BgpPolicyCondition::MatchAsPathSet { .. } => {
+                BgpPolicyConditionType::MatchAsPathSet
+            }
+            BgpPolicyCondition::MatchNexthopSet { .. } => {
+                BgpPolicyConditionType::MatchNexthopSet
+            }
+        }
+    }
+}
+
+// ===== impl BgpPolicyAction =====
+
+impl BgpPolicyAction {
+    fn as_type(&self) -> BgpPolicyActionType {
+        match self {
+            BgpPolicyAction::SetRouteOrigin(..) => {
+                BgpPolicyActionType::SetRouteOrigin
+            }
+            BgpPolicyAction::SetLocalPref(..) => {
+                BgpPolicyActionType::SetLocalPref
+            }
+            BgpPolicyAction::SetNexthop(..) => BgpPolicyActionType::SetNexthop,
+            BgpPolicyAction::SetMed(..) => BgpPolicyActionType::SetMed,
+            BgpPolicyAction::SetAsPathPrepent { .. } => {
+                BgpPolicyActionType::SetAsPathPrepent
+            }
+            BgpPolicyAction::SetComm { .. } => BgpPolicyActionType::SetComm,
+            BgpPolicyAction::SetExtComm { .. } => {
+                BgpPolicyActionType::SetExtComm
+            }
+            BgpPolicyAction::SetExtv6Comm { .. } => {
+                BgpPolicyActionType::SetExtv6Comm
+            }
+            BgpPolicyAction::SetLargeComm { .. } => {
+                BgpPolicyActionType::SetLargeComm
+            }
+        }
+    }
+}
+
+// ===== impl BgpEqOperator =====
+
+impl BgpEqOperator {
+    pub fn compare<T>(&self, a: &T, b: &T) -> bool
+    where
+        T: Eq + Ord + PartialEq + PartialOrd,
+    {
+        match self {
+            BgpEqOperator::Equal => *a == *b,
+            BgpEqOperator::LessThanOrEqual => *a <= *b,
+            BgpEqOperator::GreaterThanOrEqual => *a >= *b,
         }
     }
 }

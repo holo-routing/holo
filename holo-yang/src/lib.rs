@@ -115,11 +115,15 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
         EmbeddedModuleKey::new("ietf-tcp-common", Some("2023-04-17"), None, None) =>
             include_str!("../modules/ietf/ietf-tcp-common@2023-04-17.yang"),
         // IETF Holo augmentations
+        EmbeddedModuleKey::new("holo-bgp", None, None, None) =>
+            include_str!("../modules/augmentations/holo-bgp.yang"),
         EmbeddedModuleKey::new("holo-ospf", None, None, None) =>
             include_str!("../modules/augmentations/holo-ospf.yang"),
         EmbeddedModuleKey::new("holo-ospf-dev", None, None, None) =>
             include_str!("../modules/augmentations/holo-ospf-dev.yang"),
         // IETF Holo deviations
+        EmbeddedModuleKey::new("ietf-bgp-holo-deviations", None, None, None) =>
+            include_str!("../modules/deviations/ietf-bgp-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-mpls-ldp-holo-deviations", None, None, None) =>
             include_str!("../modules/deviations/ietf-mpls-ldp-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-interfaces-holo-deviations", None, None, None) =>
@@ -157,10 +161,14 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
     Lazy::new(|| {
         vec![
             "iana-if-type",
+            "iana-bgp-notification",
+            "iana-bgp-types",
             "ietf-bfd-ip-mh",
             "ietf-bfd-ip-sh",
             "ietf-bfd-types",
             "ietf-bfd",
+            "ietf-bgp",
+            "ietf-bgp-policy",
             "ietf-routing-types",
             "ietf-interfaces",
             "ietf-ip",
@@ -178,6 +186,8 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
             "ietf-ospf-sr-mpls",
             "ietf-ospfv3-extended-lsa",
             "ietf-rip",
+            "ietf-tcp",
+            "holo-bgp",
             "holo-ospf",
             "holo-ospf-dev",
         ]
@@ -187,6 +197,10 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
 pub static YANG_FEATURES: Lazy<HashMap<&'static str, Vec<&'static str>>> =
     Lazy::new(|| {
         hashmap! {
+            "iana-bgp-types" => vec![
+                "route-refresh",
+                "ttl-security",
+            ],
             "ietf-bfd-types" => vec![
                 "client-base-cfg-parms",
                 "single-minimum-interval",

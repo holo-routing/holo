@@ -16,10 +16,9 @@ use holo_northbound::paths::routing_policy;
 use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
 use holo_utils::policy::{
-    IpPrefixRange, MatchSetRestrictedType, MatchSetType, MetricModification,
-    MetricType, NeighborSet, Policy, PolicyAction, PolicyActionType,
-    PolicyCondition, PolicyConditionType, PolicyStmt, PrefixSet, RouteLevel,
-    RouteType, TagSet,
+    IpPrefixRange, MatchSetRestrictedType, MatchSetType, MetricType,
+    NeighborSet, Policy, PolicyAction, PolicyActionType, PolicyCondition,
+    PolicyConditionType, PolicyStmt, PrefixSet, RouteLevel, RouteType, TagSet,
 };
 use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
@@ -209,6 +208,114 @@ fn load_callbacks() -> Callbacks<Master> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::MatchSetsUpdate);
+        })
+        .path(routing_policy::defined_sets::bgp_defined_sets::as_path_sets::as_path_set::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .lookup(|_master, _list_entry, _dnode| {
+            // TODO: implement me!
+            todo!();
+        })
+        .path(routing_policy::defined_sets::bgp_defined_sets::as_path_sets::as_path_set::member::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::defined_sets::bgp_defined_sets::community_sets::community_set::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .lookup(|_master, _list_entry, _dnode| {
+            // TODO: implement me!
+            todo!();
+        })
+        .path(routing_policy::defined_sets::bgp_defined_sets::community_sets::community_set::member::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::defined_sets::bgp_defined_sets::ext_community_sets::ext_community_set::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .lookup(|_master, _list_entry, _dnode| {
+            // TODO: implement me!
+            todo!();
+        })
+        .path(routing_policy::defined_sets::bgp_defined_sets::ext_community_sets::ext_community_set::member::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::defined_sets::bgp_defined_sets::ipv6_ext_community_sets::ipv6_ext_community_set::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .lookup(|_master, _list_entry, _dnode| {
+            // TODO: implement me!
+            todo!();
+        })
+        .path(routing_policy::defined_sets::bgp_defined_sets::ipv6_ext_community_sets::ipv6_ext_community_set::member::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::defined_sets::bgp_defined_sets::large_community_sets::large_community_set::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .lookup(|_master, _list_entry, _dnode| {
+            // TODO: implement me!
+            todo!();
+        })
+        .path(routing_policy::defined_sets::bgp_defined_sets::large_community_sets::large_community_set::member::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::defined_sets::bgp_defined_sets::next_hop_sets::next_hop_set::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .lookup(|_master, _list_entry, _dnode| {
+            // TODO: implement me!
+            todo!();
+        })
+        .path(routing_policy::defined_sets::bgp_defined_sets::next_hop_sets::next_hop_set::next_hop::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
         })
         .path(routing_policy::policy_definitions::policy_definition::PATH)
         .create_apply(|master, args| {
@@ -455,6 +562,252 @@ fn load_callbacks() -> Callbacks<Master> {
             let event_queue = args.event_queue;
             event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::local_pref::value::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::local_pref::eq::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::local_pref::lt_or_eq::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::local_pref::gt_or_eq::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::med::value::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::med::eq::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::med::lt_or_eq::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::med::gt_or_eq::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::origin_eq::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_afi_safi::afi_safi_in::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_afi_safi::match_set_options::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_neighbor::neighbor_eq::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_neighbor::match_set_options::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::route_type::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::community_count::community_count::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::community_count::eq::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::community_count::lt_or_eq::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::community_count::gt_or_eq::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::as_path_length::as_path_length::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::as_path_length::eq::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::as_path_length::lt_or_eq::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::as_path_length::gt_or_eq::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_community_set::community_set::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_community_set::match_set_options::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_ext_community_set::ext_community_set::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_ext_community_set::ext_community_match_kind::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_ext_community_set::match_set_options::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_ipv6_ext_community_set::ipv6_ext_community_set::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_ipv6_ext_community_set::ipv6_ext_community_match_kind::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_ipv6_ext_community_set::match_set_options::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_large_community_set::large_community_set::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_large_community_set::match_set_options::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_as_path_set::as_path_set::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_as_path_set::match_set_options::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_next_hop_set::next_hop_set::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_next_hop_set::match_set_options::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::policy_result::PATH)
         .modify_apply(|master, args| {
             let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
@@ -479,49 +832,18 @@ fn load_callbacks() -> Callbacks<Master> {
             event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::set_metric::metric_modification::PATH)
-        .modify_apply(|master, args| {
-            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
-            let policy = master.policies.get_mut(&policy_name).unwrap();
-            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
-
-            let metric_mod = args.dnode.get_string();
-            let metric_mod = MetricModification::try_from_yang(&metric_mod).unwrap();
-            stmt.action_add(PolicyAction::SetMetricMod(metric_mod));
-
-            let event_queue = args.event_queue;
-            event_queue.insert(Event::PolicyChange(policy.name.clone()));
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
         })
-        .delete_apply(|master, args| {
-            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
-            let policy = master.policies.get_mut(&policy_name).unwrap();
-            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
-
-            stmt.action_remove(PolicyActionType::SetMetricMod);
-
-            let event_queue = args.event_queue;
-            event_queue.insert(Event::PolicyChange(policy.name.clone()));
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
         })
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::set_metric::metric::PATH)
-        .modify_apply(|master, args| {
-            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
-            let policy = master.policies.get_mut(&policy_name).unwrap();
-            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
-
-            let metric = args.dnode.get_u32();
-            stmt.action_add(PolicyAction::SetMetric(metric));
-
-            let event_queue = args.event_queue;
-            event_queue.insert(Event::PolicyChange(policy.name.clone()));
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
         })
-        .delete_apply(|master, args| {
-            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
-            let policy = master.policies.get_mut(&policy_name).unwrap();
-            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
-
-            stmt.action_remove(PolicyActionType::SetMetric);
-
-            let event_queue = args.event_queue;
-            event_queue.insert(Event::PolicyChange(policy.name.clone()));
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
         })
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::set_metric_type::metric_type::PATH)
         .modify_apply(|master, args| {
@@ -636,6 +958,132 @@ fn load_callbacks() -> Callbacks<Master> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::PolicyChange(policy.name.clone()));
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_route_origin::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_local_pref::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_next_hop::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_med::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_as_path_prepend::repeat_n::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_as_path_prepend::asn::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_community::options::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_community::communities::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_community::community_set_ref::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_ext_community::options::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_ext_community::communities::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_ext_community::ext_community_set_ref::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_ipv6_ext_community::options::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_ipv6_ext_community::communities::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_ipv6_ext_community::ipv6_ext_community_set_ref::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_large_community::options::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_large_community::communities::PATH)
+        .create_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_large_community::large_community_set_ref::PATH)
+        .modify_apply(|_master, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_master, _args| {
+            // TODO: implement me!
         })
         .build()
 }

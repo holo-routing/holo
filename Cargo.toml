@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "holo-bfd",
+  "holo-bgp",
   "holo-cli",
   "holo-daemon",
   "holo-interface",
@@ -35,6 +36,7 @@ check_keyword = "0.2"
 clap = "2.33"
 chrono = { version = "0.4", features = ["serde"] }
 criterion = "0.4"
+crossbeam-channel = "0.5"
 derive-new = "0.5"
 enum-as-inner = "0.6"
 futures = "0.3"

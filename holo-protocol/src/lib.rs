@@ -190,7 +190,11 @@ where
                         InstanceMsg::Northbound(msg)
                     }
                     msg = instance_channels_rx.ibus.recv() => {
-                        InstanceMsg::Ibus(msg.unwrap())
+                        if let Ok(msg) = msg {
+                            InstanceMsg::Ibus(msg)
+                        } else {
+                            continue;
+                        }
                     }
                     msg = instance_channels_rx.protocol_input.recv() => {
                         InstanceMsg::Protocol(msg.unwrap())

@@ -32,6 +32,7 @@ yang2.workspace = true
 
 holo-interface = { path = "../holo-interface" }
 holo-bfd = { path = "../holo-bfd", optional = true }
+holo-bgp = { path = "../holo-bgp", optional = true }
 holo-keychain = { path = "../holo-keychain" }
 holo-ldp = { path = "../holo-ldp", optional = true }
 holo-northbound = { path = "../holo-northbound" }
@@ -54,8 +55,9 @@ name = "holod"
 path = "src/main.rs"
 
 [features]
-default = ["bfd", "ldp", "ospf", "rip"]
+default = ["bfd", "bgp", "ldp", "ospf", "rip"]
 bfd = ["holo-bfd"]
+bgp = ["holo-bgp"]
 ldp = ["holo-ldp"]
 ospf = ["holo-ospf"]
 rip = ["holo-rip"]

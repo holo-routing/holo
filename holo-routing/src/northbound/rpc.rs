@@ -15,6 +15,7 @@ use crate::Master;
 impl Provider for Master {
     fn nested_callbacks() -> Option<Vec<CallbackKey>> {
         let keys = [
+            holo_bgp::northbound::rpc::CALLBACKS.keys(),
             holo_ldp::northbound::rpc::CALLBACKS.keys(),
             holo_ospf::northbound::rpc::CALLBACKS_OSPFV2.keys(),
             holo_ospf::northbound::rpc::CALLBACKS_OSPFV3.keys(),
@@ -62,6 +63,9 @@ fn find_instance(
     rpc: DataNodeRef<'_>,
 ) -> Result<(Protocol, Option<String>), String> {
     let (protocol, name) = match rpc.schema().module().name() {
+        "ietf-bgp" => {
+            todo!()
+        }
         "ietf-mpls-ldp" => {
             let protocol = Protocol::LDP;
             let name = match rpc.path().as_ref() {

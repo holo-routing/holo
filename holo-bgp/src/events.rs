@@ -522,15 +522,9 @@ where
                 }
 
                 if update {
-                    // Prepend local AS number when advertising to eBGP
-                    // neighbors.
+                    // Update route's attributes before transmission.
                     let mut attrs = rpinfo.attrs;
-                    if nbr.peer_type == PeerType::External {
-                        attrs.base.as_path.prepend(instance.config.asn);
-                    }
-
-                    // Update the next-hop attribute if necessary.
-                    A::nexthop_tx_change(nbr, &mut attrs.base);
+                    attrs_tx_update::<A>(nbr, instance.config.asn, &mut attrs);
 
                     // Update neighbor's Tx queue.
                     let update_queue = A::update_queue(&mut nbr.update_queues);
@@ -552,6 +546,33 @@ where
     nbr.message_list_send(msg_list);
 
     Ok(())
+}
+
+fn attrs_tx_update<A>(nbr: &Neighbor, local_asn: u32, attrs: &mut Attrs)
+where
+    A: AddressFamily,
+{
+    match nbr.peer_type {
+        PeerType::Internal => {
+            // Attach LOCAL_PREF with default value if it's missing.
+            if attrs.base.local_pref.is_none() {
+                attrs.base.local_pref = Some(rib::DFLT_LOCAL_PREF);
+            }
+        }
+        PeerType::External => {
+            // Prepend local AS number.
+            attrs.base.as_path.prepend(local_asn);
+
+            // Do not propagate the MULTI_EXIT_DISC attribute.
+            attrs.base.med = None;
+
+            // Remove the LOCAL_PREF attribute.
+            attrs.base.local_pref = None;
+        }
+    }
+
+    // Update the next-hop attribute based on the address family if necessary.
+    A::nexthop_tx_change(nbr, &mut attrs.base);
 }
 
 // ===== BGP decision process =====

@@ -44,7 +44,7 @@ pub(crate) fn neighbor_apply(
     nbr_addr: IpAddr,
     afi_safi: AfiSafi,
     routes: Vec<(IpNetwork, RoutePolicyInfo)>,
-    policies: &Vec<Arc<Policy>>,
+    policies: &[Arc<Policy>],
     match_sets: &MatchSets,
     default_policy: DefaultPolicyType,
     policy_resultp: &UnboundedSender<PolicyResultMsg>,
@@ -59,7 +59,7 @@ pub(crate) fn neighbor_apply(
                 prefix,
                 rpinfo,
                 policies,
-                &match_sets,
+                match_sets,
                 default_policy,
             );
 
@@ -85,7 +85,7 @@ fn process_policies(
     afi_safi: AfiSafi,
     prefix: IpNetwork,
     mut rpinfo: RoutePolicyInfo,
-    policies: &Vec<Arc<Policy>>,
+    policies: &[Arc<Policy>],
     match_sets: &MatchSets,
     default_policy: DefaultPolicyType,
 ) -> PolicyResult<RoutePolicyInfo> {
@@ -187,7 +187,7 @@ fn process_stmt_condition(
             BgpPolicyCondition::MatchCommSet { value, match_type } => {
                 if let Some(comm) = &attrs.comm {
                     let set = match_sets.bgp.comms.get(value).unwrap();
-                    match_type.compare(&set, &comm.0)
+                    match_type.compare(set, &comm.0)
                 } else {
                     false
                 }
@@ -196,7 +196,7 @@ fn process_stmt_condition(
             BgpPolicyCondition::MatchExtCommSet { value, match_type } => {
                 if let Some(ext_comm) = &attrs.ext_comm {
                     let set = match_sets.bgp.ext_comms.get(value).unwrap();
-                    match_type.compare(&set, &ext_comm.0)
+                    match_type.compare(set, &ext_comm.0)
                 } else {
                     false
                 }
@@ -205,7 +205,7 @@ fn process_stmt_condition(
             BgpPolicyCondition::MatchExtv6CommSet { value, match_type } => {
                 if let Some(extv6_comm) = &attrs.extv6_comm {
                     let set = match_sets.bgp.extv6_comms.get(value).unwrap();
-                    match_type.compare(&set, &extv6_comm.0)
+                    match_type.compare(set, &extv6_comm.0)
                 } else {
                     false
                 }
@@ -214,7 +214,7 @@ fn process_stmt_condition(
             BgpPolicyCondition::MatchLargeCommSet { value, match_type } => {
                 if let Some(large_comm) = &attrs.large_comm {
                     let set = match_sets.bgp.large_comms.get(value).unwrap();
-                    match_type.compare(&set, &large_comm.0)
+                    match_type.compare(set, &large_comm.0)
                 } else {
                     false
                 }
@@ -223,7 +223,7 @@ fn process_stmt_condition(
             BgpPolicyCondition::MatchAsPathSet { value, match_type } => {
                 let set = match_sets.bgp.as_paths.get(value).unwrap();
                 let asns = attrs.base.as_path.iter().collect();
-                match_type.compare(&set, &asns)
+                match_type.compare(set, &asns)
             }
             // "match-next-hop-set"
             BgpPolicyCondition::MatchNexthopSet { value, match_type } => {
@@ -232,7 +232,7 @@ fn process_stmt_condition(
                     None => BgpNexthop::NexthopSelf,
                 };
                 let set = match_sets.bgp.nexthops.get(value).unwrap();
-                match_type.compare(&set, &nexthop)
+                match_type.compare(set, &nexthop)
             }
         },
         // Ignore unsupported conditions.

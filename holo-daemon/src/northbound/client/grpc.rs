@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::convert::TryFrom;
 use std::pin::Pin;
 use std::time::SystemTime;
 

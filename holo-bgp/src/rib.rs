@@ -321,7 +321,7 @@ impl Route {
             ) = (&self.origin, &other.origin)
         {
             let reason = RouteRejectReason::HigherRouterId;
-            match a.cmp(&b) {
+            match a.cmp(b) {
                 Ordering::Less => {
                     return RouteCompare::Preferred(reason);
                 }
@@ -341,7 +341,7 @@ impl Route {
         ) = (&self.origin, &other.origin)
         {
             let reason = RouteRejectReason::HigherPeerAddress;
-            match a.cmp(&b) {
+            match a.cmp(b) {
                 Ordering::Less => {
                     return RouteCompare::Preferred(reason);
                 }

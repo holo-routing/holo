@@ -66,6 +66,7 @@ pub struct LargeComm(pub [u8; 12]);
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
+#[repr(u32)]
 pub enum WellKnownCommunities {
     NoExport = 0xFFFFFF01,
     NoAdvertise = 0xFFFFFF02,

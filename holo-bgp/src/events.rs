@@ -166,7 +166,7 @@ fn process_nbr_update(
                 rib,
                 reach.prefixes.clone(),
                 attrs,
-                &instance.shared,
+                instance.shared,
                 &instance.state.policy_apply_tasks,
             );
         } else {
@@ -192,7 +192,7 @@ fn process_nbr_update(
                         rib,
                         prefixes,
                         attrs,
-                        &instance.shared,
+                        instance.shared,
                         &instance.state.policy_apply_tasks,
                     );
                 }
@@ -208,7 +208,7 @@ fn process_nbr_update(
                         rib,
                         prefixes,
                         attrs,
-                        &instance.shared,
+                        instance.shared,
                         &instance.state.policy_apply_tasks,
                     );
                 }
@@ -248,7 +248,7 @@ fn process_nbr_update(
     }
 
     // Schedule the BGP Decision Process.
-    instance.state.schedule_decision_process(&instance.tx);
+    instance.state.schedule_decision_process(instance.tx);
 
     Ok(())
 }
@@ -467,7 +467,7 @@ where
     }
 
     // Schedule the BGP Decision Process.
-    instance.state.schedule_decision_process(&instance.tx);
+    instance.state.schedule_decision_process(instance.tx);
 
     Ok(())
 }
@@ -634,7 +634,7 @@ where
                 nbr,
                 table,
                 &reach,
-                &instance.shared,
+                instance.shared,
                 &instance.state.policy_apply_tasks,
             );
         }
@@ -652,7 +652,7 @@ fn withdraw_routes<A>(
 {
     // Update Adj-RIB-Out.
     for prefix in routes {
-        let dest = table.prefixes.get_mut(&prefix).unwrap();
+        let dest = table.prefixes.get_mut(prefix).unwrap();
         dest.adj_out_pre.remove(&nbr.remote_addr);
         if dest.adj_out_post.remove(&nbr.remote_addr).is_some() {
             let update_queue = A::update_queue(&mut nbr.update_queues);
@@ -682,12 +682,11 @@ pub(crate) fn advertise_routes<A>(
         // peer, the receiving BGP speaker SHALL NOT re-distribute the
         // routing information contained in that UPDATE message to other
         // internal peers".
-        if route.route_type == RouteType::Internal {
-            if let RouteOrigin::Neighbor { remote_addr, .. } = &route.origin
-                && *remote_addr == nbr.remote_addr
-            {
-                return false;
-            }
+        if route.route_type == RouteType::Internal
+            && let RouteOrigin::Neighbor { remote_addr, .. } = &route.origin
+            && *remote_addr == nbr.remote_addr
+        {
+            return false;
         }
 
         true
@@ -695,7 +694,7 @@ pub(crate) fn advertise_routes<A>(
 
     // Update pre-policy Adj-RIB-Out routes.
     for (prefix, route) in routes.clone() {
-        let dest = table.prefixes.get_mut(&prefix).unwrap();
+        let dest = table.prefixes.get_mut(prefix).unwrap();
         dest.adj_out_pre.insert(nbr.remote_addr, route.clone());
     }
 

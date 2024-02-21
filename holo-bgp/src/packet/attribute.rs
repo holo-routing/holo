@@ -668,7 +668,7 @@ impl AsPath {
             .iter()
             .map(|segment| match segment.seg_type {
                 AsPathSegmentType::Set => 1,
-                AsPathSegmentType::Sequence => segment.members.iter().count(),
+                AsPathSegmentType::Sequence => segment.members.len(),
                 // RFC 5065 - Section 5.3:
                 // "When comparing routes using AS_PATH length, CONFED_SEQUENCE
                 // and CONFED_SETs SHOULD NOT be counted".

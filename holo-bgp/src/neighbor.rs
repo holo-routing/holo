@@ -242,7 +242,7 @@ impl Neighbor {
             fsm::State::Connect => match event {
                 fsm::Event::Start => None,
                 fsm::Event::Stop(_) => {
-                    self.session_close(rib, &instance.tx, None);
+                    self.session_close(rib, instance.tx, None);
                     Some(fsm::State::Idle)
                 }
                 fsm::Event::Connected(stream, conn_info) => {
@@ -262,12 +262,12 @@ impl Neighbor {
                     Some(fsm::State::OpenSent)
                 }
                 fsm::Event::ConnFail => {
-                    self.session_close(rib, &instance.tx, None);
+                    self.session_close(rib, instance.tx, None);
                     Some(fsm::State::Idle)
                 }
                 fsm::Event::RcvdError(error) => {
                     let msg = NotificationMsg::from(error);
-                    self.session_close(rib, &instance.tx, Some(msg));
+                    self.session_close(rib, instance.tx, Some(msg));
                     Some(fsm::State::Idle)
                 }
                 fsm::Event::Timer(fsm::Timer::ConnectRetry) => {
@@ -279,7 +279,7 @@ impl Neighbor {
                 }
                 _ => {
                     // FSM error.
-                    self.session_close(rib, &instance.tx, None);
+                    self.session_close(rib, instance.tx, None);
                     Some(fsm::State::Idle)
                 }
             },
@@ -287,7 +287,7 @@ impl Neighbor {
             fsm::State::Active => match event {
                 fsm::Event::Start => None,
                 fsm::Event::Stop(_) => {
-                    self.session_close(rib, &instance.tx, None);
+                    self.session_close(rib, instance.tx, None);
                     Some(fsm::State::Idle)
                 }
                 fsm::Event::Connected(stream, conn_info) => {
@@ -307,12 +307,12 @@ impl Neighbor {
                     Some(fsm::State::OpenSent)
                 }
                 fsm::Event::ConnFail => {
-                    self.session_close(rib, &instance.tx, None);
+                    self.session_close(rib, instance.tx, None);
                     Some(fsm::State::Idle)
                 }
                 fsm::Event::RcvdError(error) => {
                     let msg = NotificationMsg::from(error);
-                    self.session_close(rib, &instance.tx, Some(msg));
+                    self.session_close(rib, instance.tx, Some(msg));
                     Some(fsm::State::Idle)
                 }
                 fsm::Event::Timer(fsm::Timer::ConnectRetry) => {
@@ -324,7 +324,7 @@ impl Neighbor {
                 }
                 _ => {
                     // FSM error.
-                    self.session_close(rib, &instance.tx, None);
+                    self.session_close(rib, instance.tx, None);
                     Some(fsm::State::Idle)
                 }
             },
@@ -332,11 +332,11 @@ impl Neighbor {
             fsm::State::OpenSent => match event {
                 fsm::Event::Start => None,
                 fsm::Event::Stop(msg) => {
-                    self.session_close(rib, &instance.tx, msg);
+                    self.session_close(rib, instance.tx, msg);
                     Some(fsm::State::Idle)
                 }
                 fsm::Event::ConnFail => {
-                    self.session_close(rib, &instance.tx, None);
+                    self.session_close(rib, instance.tx, None);
                     self.connect_retry_start(
                         &instance.tx.protocol_input.nbr_timer,
                     );
@@ -344,7 +344,7 @@ impl Neighbor {
                 }
                 fsm::Event::RcvdError(error) => {
                     let msg = NotificationMsg::from(error);
-                    self.session_close(rib, &instance.tx, Some(msg));
+                    self.session_close(rib, instance.tx, Some(msg));
                     Some(fsm::State::Idle)
                 }
                 fsm::Event::RcvdOpen(msg) => {
@@ -355,7 +355,7 @@ impl Neighbor {
                     let error_code = ErrorCode::HoldTimerExpired;
                     let error_subcode = 0;
                     let msg = NotificationMsg::new(error_code, error_subcode);
-                    self.session_close(rib, &instance.tx, Some(msg));
+                    self.session_close(rib, instance.tx, Some(msg));
                     Some(fsm::State::Idle)
                 }
                 _ => {
@@ -364,7 +364,7 @@ impl Neighbor {
                     let error_subcode =
                         FsmErrorSubcode::UnexpectedMessageInOpenSent;
                     let msg = NotificationMsg::new(error_code, error_subcode);
-                    self.session_close(rib, &instance.tx, Some(msg));
+                    self.session_close(rib, instance.tx, Some(msg));
                     Some(fsm::State::Idle)
                 }
             },
@@ -372,16 +372,16 @@ impl Neighbor {
             fsm::State::OpenConfirm => match event {
                 fsm::Event::Start => None,
                 fsm::Event::Stop(msg) => {
-                    self.session_close(rib, &instance.tx, msg);
+                    self.session_close(rib, instance.tx, msg);
                     Some(fsm::State::Idle)
                 }
                 fsm::Event::ConnFail => {
-                    self.session_close(rib, &instance.tx, None);
+                    self.session_close(rib, instance.tx, None);
                     Some(fsm::State::Idle)
                 }
                 fsm::Event::RcvdError(error) => {
                     let msg = NotificationMsg::from(error);
-                    self.session_close(rib, &instance.tx, Some(msg));
+                    self.session_close(rib, instance.tx, Some(msg));
                     Some(fsm::State::Idle)
                 }
                 fsm::Event::RcvdOpen(_msg) => {
@@ -389,7 +389,7 @@ impl Neighbor {
                     Some(fsm::State::Idle)
                 }
                 fsm::Event::RcvdNotif(_) => {
-                    self.session_close(rib, &instance.tx, None);
+                    self.session_close(rib, instance.tx, None);
                     Some(fsm::State::Idle)
                 }
                 fsm::Event::RcvdKalive => {
@@ -400,7 +400,7 @@ impl Neighbor {
                     let error_code = ErrorCode::HoldTimerExpired;
                     let error_subcode = 0;
                     let msg = NotificationMsg::new(error_code, error_subcode);
-                    self.session_close(rib, &instance.tx, Some(msg));
+                    self.session_close(rib, instance.tx, Some(msg));
                     Some(fsm::State::Idle)
                 }
                 _ => {
@@ -409,7 +409,7 @@ impl Neighbor {
                     let error_subcode =
                         FsmErrorSubcode::UnexpectedMessageInOpenConfirm;
                     let msg = NotificationMsg::new(error_code, error_subcode);
-                    self.session_close(rib, &instance.tx, Some(msg));
+                    self.session_close(rib, instance.tx, Some(msg));
                     Some(fsm::State::Idle)
                 }
             },
@@ -417,20 +417,20 @@ impl Neighbor {
             fsm::State::Established => match event {
                 fsm::Event::Start => None,
                 fsm::Event::Stop(msg) => {
-                    self.session_close(rib, &instance.tx, msg);
+                    self.session_close(rib, instance.tx, msg);
                     Some(fsm::State::Idle)
                 }
                 fsm::Event::ConnFail => {
-                    self.session_close(rib, &instance.tx, None);
+                    self.session_close(rib, instance.tx, None);
                     Some(fsm::State::Idle)
                 }
                 fsm::Event::RcvdError(error) => {
                     let msg = NotificationMsg::from(error);
-                    self.session_close(rib, &instance.tx, Some(msg));
+                    self.session_close(rib, instance.tx, Some(msg));
                     Some(fsm::State::Idle)
                 }
                 fsm::Event::RcvdNotif(_) => {
-                    self.session_close(rib, &instance.tx, None);
+                    self.session_close(rib, instance.tx, None);
                     Some(fsm::State::Idle)
                 }
                 fsm::Event::RcvdKalive | fsm::Event::RcvdUpdate => {
@@ -441,7 +441,7 @@ impl Neighbor {
                     let error_code = ErrorCode::HoldTimerExpired;
                     let error_subcode = 0;
                     let msg = NotificationMsg::new(error_code, error_subcode);
-                    self.session_close(rib, &instance.tx, Some(msg));
+                    self.session_close(rib, instance.tx, Some(msg));
                     Some(fsm::State::Idle)
                 }
                 _ => {
@@ -450,7 +450,7 @@ impl Neighbor {
                     let error_subcode =
                         FsmErrorSubcode::UnexpectedMessageInEstablished;
                     let msg = NotificationMsg::new(error_code, error_subcode);
-                    self.session_close(rib, &instance.tx, Some(msg));
+                    self.session_close(rib, instance.tx, Some(msg));
                     Some(fsm::State::Idle)
                 }
             },
@@ -620,10 +620,10 @@ impl Neighbor {
     // as they are sent all at once.
     pub(crate) fn message_list_send(&mut self, msg_list: Vec<Message>) {
         for msg in &msg_list {
-            Debug::NbrMsgTx(&self.remote_addr, &msg).log();
+            Debug::NbrMsgTx(&self.remote_addr, msg).log();
 
             // Update statistics.
-            self.statistics.msgs_sent.update(&msg);
+            self.statistics.msgs_sent.update(msg);
 
             // Keep track of the last sent notification.
             if let Message::Notification(msg) = &msg {
@@ -709,7 +709,7 @@ impl Neighbor {
                 }
                 _ => None,
             };
-            self.session_close(&mut instance.state.rib, &instance.tx, msg);
+            self.session_close(&mut instance.state.rib, instance.tx, msg);
 
             // Transition to the Idle state.
             return fsm::State::Idle;
@@ -892,7 +892,7 @@ impl Neighbor {
             self,
             table,
             &routes,
-            &instance.shared,
+            instance.shared,
             &instance.state.policy_apply_tasks,
         );
     }

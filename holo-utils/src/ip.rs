@@ -5,7 +5,6 @@
 //
 
 use std::borrow::Cow;
-use std::convert::TryInto;
 use std::net::{
     IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6,
 };

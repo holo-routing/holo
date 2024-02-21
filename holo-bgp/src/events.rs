@@ -331,7 +331,10 @@ fn process_nbr_unreach_prefixes<A>(
     // Remove routes from Adj-RIB-In.
     let table = A::table(&mut rib.tables);
     for prefix in nlri_prefixes {
-        let dest = table.prefixes.entry(prefix).or_default();
+        let Some(dest) = table.prefixes.get_mut(&prefix) else {
+            continue;
+        };
+
         dest.adj_in_pre.remove(&nbr.remote_addr);
         dest.adj_in_post.remove(&nbr.remote_addr);
 

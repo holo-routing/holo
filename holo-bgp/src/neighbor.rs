@@ -883,9 +883,8 @@ impl Neighbor {
             .prefixes
             .iter()
             .filter_map(|(prefix, dest)| {
-                dest.local.as_ref().map(|route| (prefix, &route.0))
+                dest.local.as_ref().map(|route| (*prefix, route.0.clone()))
             })
-            .map(|(prefix, route)| (*prefix, route.clone()))
             .collect::<Vec<_>>();
 
         // Advertise the best routes.

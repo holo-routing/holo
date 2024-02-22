@@ -705,6 +705,16 @@ impl AsPath {
         }
     }
 
+    pub(crate) fn replace(&mut self, from: u32, to: u32) {
+        for segment in self.segments.iter_mut() {
+            for member in segment.members.iter_mut() {
+                if *member == from {
+                    *member = to;
+                }
+            }
+        }
+    }
+
     pub(crate) fn contains(&self, asn: u32) -> bool {
         self.segments.iter().any(|segment| segment.contains(asn))
     }

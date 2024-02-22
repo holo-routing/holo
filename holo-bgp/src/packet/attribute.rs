@@ -1400,6 +1400,10 @@ impl<T: CommType> CommList<T> {
     fn length(&self) -> u16 {
         ATTR_MIN_LEN_EXT + (self.0.len() * T::LENGTH) as u16
     }
+
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &T> {
+        self.0.iter()
+    }
 }
 
 // ===== helper functions =====

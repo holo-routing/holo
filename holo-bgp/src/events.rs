@@ -9,7 +9,7 @@ use std::net::IpAddr;
 
 use chrono::Utc;
 use holo_protocol::InstanceShared;
-use holo_utils::bgp::RouteType;
+use holo_utils::bgp::{RouteType, WellKnownCommunities};
 use holo_utils::ip::{IpAddrKind, IpNetworkKind};
 use holo_utils::policy::{PolicyResult, PolicyType};
 use holo_utils::socket::{TcpConnInfo, TcpStream};
@@ -726,6 +726,28 @@ pub(crate) fn advertise_routes<A>(
             && *remote_addr == nbr.remote_addr
         {
             return false;
+        }
+
+        // Handle well-known communities.
+        if let Some(comm) = &route.attrs.comm {
+            for comm in comm
+                .value
+                .iter()
+                .filter_map(|comm| WellKnownCommunities::from_u32(comm.0))
+            {
+                // Do not advertise to any other peer.
+                if comm == WellKnownCommunities::NoAdvertise {
+                    return false;
+                }
+
+                // Do not advertise to external peers.
+                if nbr.peer_type == PeerType::External
+                    && (comm == WellKnownCommunities::NoExport
+                        || comm == WellKnownCommunities::NoExportSubconfed)
+                {
+                    return false;
+                }
+            }
         }
 
         true

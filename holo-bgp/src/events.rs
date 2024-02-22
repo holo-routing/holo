@@ -698,6 +698,14 @@ pub(crate) fn advertise_routes<A>(
     // Create an iterator over the best routes, filtering out routes that
     // should not be redistributed to this neighbor.
     let routes = routes.iter().filter(|(_, route)| {
+        // Suppress advertisements to peers if their AS number is present
+        // in the AS path of the route, unless overridden by configuration.
+        if !nbr.config.as_path_options.disable_peer_as_filter
+            && route.attrs.base.value.as_path.contains(nbr.config.peer_as)
+        {
+            return false;
+        }
+
         // RFC 4271 - Section 9.2:
         // "When a BGP speaker receives an UPDATE message from an internal
         // peer, the receiving BGP speaker SHALL NOT re-distribute the

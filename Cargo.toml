@@ -79,5 +79,10 @@ unsafe_code = "forbid"
 too_many_arguments = "allow"
 
 [profile.release]
-lto = true
-codegen-units = 1
+lto = true		# Enable link-time optimization for improved runtime performance
+codegen-units = 1	# Set the number of codegen units to 1 to increase optimization opportunities
+
+[profile.small]
+inherits = "release"	# Inherit settings from the release profile
+opt-level = "z"		# Optimize for small binary size
+strip = true		# Strip symbols to further reduce binary size

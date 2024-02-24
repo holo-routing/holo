@@ -96,7 +96,6 @@ pub enum RouteOrigin {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-#[derive(Deserialize, Serialize)]
 pub struct RouteAttrs {
     pub base: Arc<AttrSet<BaseAttrs>>,
     pub comm: Option<Arc<AttrSet<Comms>>>,

@@ -70,7 +70,6 @@ pub struct Route {
     pub attrs: RouteAttrs,
     pub route_type: RouteType,
     pub last_modified: Instant,
-    pub eligible: bool,
     pub ineligible_reason: Option<RouteIneligibleReason>,
     pub reject_reason: Option<RouteRejectReason>,
 }
@@ -176,7 +175,6 @@ impl Route {
             attrs,
             route_type,
             last_modified: Instant::now(),
-            eligible: true,
             ineligible_reason: None,
             reject_reason: None,
         }
@@ -188,6 +186,10 @@ impl Route {
             attrs: self.attrs.get(),
             route_type: self.route_type,
         }
+    }
+
+    pub(crate) fn is_eligible(&self) -> bool {
+        self.ineligible_reason.is_none()
     }
 
     fn compare(
@@ -455,7 +457,7 @@ where
         .values()
         .filter_map(|adj_rib| adj_rib.in_post.as_ref())
         .filter(|route| {
-            route.eligible
+            route.is_eligible()
                 && route.compare(best_route, selection_cfg, Some(mpath_cfg))
                     == RouteCompare::MultipathEqual
         })
@@ -479,13 +481,11 @@ pub(crate) fn best_path(
         .values_mut()
         .filter_map(|adj_rib| adj_rib.in_post.as_mut())
     {
-        adj_in_route.eligible = true;
         adj_in_route.reject_reason = None;
         adj_in_route.ineligible_reason = None;
 
         // First, check if the route is eligible.
         if adj_in_route.attrs.base.value.as_path.contains(local_asn) {
-            adj_in_route.eligible = false;
             adj_in_route.ineligible_reason =
                 Some(RouteIneligibleReason::AsLoop);
             continue;

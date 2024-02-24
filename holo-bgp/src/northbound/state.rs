@@ -854,7 +854,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::loc_rib::routes::route::eligible_route::PATH)
         .get_element_bool(|_instance, args| {
             let (_, route) = args.list_entry.as_rib_v4_loc_route().unwrap();
-            Some(route.eligible)
+            Some(route.is_eligible())
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::loc_rib::routes::route::ineligible_reason::PATH)
         .get_element_string(|_instance, args| {
@@ -965,7 +965,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_in_pre::routes::route::eligible_route::PATH)
         .get_element_bool(|_instance, args| {
             let (_, route) = args.list_entry.as_rib_v4_adj_in_pre_route().unwrap();
-            Some(route.eligible)
+            Some(route.is_eligible())
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_in_pre::routes::route::ineligible_reason::PATH)
         .get_element_string(|_instance, args| {
@@ -1062,7 +1062,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_in_post::routes::route::eligible_route::PATH)
         .get_element_bool(|_instance, args| {
             let (_, route) = args.list_entry.as_rib_v4_adj_in_post_route().unwrap();
-            Some(route.eligible)
+            Some(route.is_eligible())
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_in_post::routes::route::ineligible_reason::PATH)
         .get_element_string(|_instance, args| {
@@ -1164,7 +1164,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_out_pre::routes::route::eligible_route::PATH)
         .get_element_bool(|_instance, args| {
             let (_, route) = args.list_entry.as_rib_v4_adj_out_pre_route().unwrap();
-            Some(route.eligible)
+            Some(route.is_eligible())
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_out_pre::routes::route::ineligible_reason::PATH)
         .get_element_string(|_instance, args| {
@@ -1261,7 +1261,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_out_post::routes::route::eligible_route::PATH)
         .get_element_bool(|_instance, args| {
             let (_, route) = args.list_entry.as_rib_v4_adj_out_post_route().unwrap();
-            Some(route.eligible)
+            Some(route.is_eligible())
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_out_post::routes::route::ineligible_reason::PATH)
         .get_element_string(|_instance, args| {
@@ -1355,7 +1355,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::loc_rib::routes::route::eligible_route::PATH)
         .get_element_bool(|_instance, args| {
             let (_, route) = args.list_entry.as_rib_v6_loc_route().unwrap();
-            Some(route.eligible)
+            Some(route.is_eligible())
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::loc_rib::routes::route::ineligible_reason::PATH)
         .get_element_string(|_instance, args| {
@@ -1466,7 +1466,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_in_pre::routes::route::eligible_route::PATH)
         .get_element_bool(|_instance, args| {
             let (_, route) = args.list_entry.as_rib_v6_adj_in_pre_route().unwrap();
-            Some(route.eligible)
+            Some(route.is_eligible())
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_in_pre::routes::route::ineligible_reason::PATH)
         .get_element_string(|_instance, args| {
@@ -1563,7 +1563,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_in_post::routes::route::eligible_route::PATH)
         .get_element_bool(|_instance, args| {
             let (_, route) = args.list_entry.as_rib_v6_adj_in_post_route().unwrap();
-            Some(route.eligible)
+            Some(route.is_eligible())
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_in_post::routes::route::ineligible_reason::PATH)
         .get_element_string(|_instance, args| {
@@ -1665,7 +1665,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_out_pre::routes::route::eligible_route::PATH)
         .get_element_bool(|_instance, args| {
             let (_, route) = args.list_entry.as_rib_v6_adj_out_pre_route().unwrap();
-            Some(route.eligible)
+            Some(route.is_eligible())
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_out_pre::routes::route::ineligible_reason::PATH)
         .get_element_string(|_instance, args| {
@@ -1762,7 +1762,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_out_post::routes::route::eligible_route::PATH)
         .get_element_bool(|_instance, args| {
             let (_, route) = args.list_entry.as_rib_v6_adj_out_post_route().unwrap();
-            Some(route.eligible)
+            Some(route.is_eligible())
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_out_post::routes::route::ineligible_reason::PATH)
         .get_element_string(|_instance, args| {

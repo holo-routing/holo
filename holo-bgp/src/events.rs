@@ -164,7 +164,7 @@ fn process_nbr_update(
             process_nbr_reach_prefixes::<Ipv4Unicast>(
                 nbr,
                 rib,
-                reach.prefixes.clone(),
+                reach.prefixes,
                 attrs,
                 instance.config.asn,
                 instance.shared,

@@ -5,7 +5,6 @@
 //
 
 use std::collections::BTreeSet;
-use std::net::IpAddr;
 
 use holo_utils::ibus::{IbusMsg, IbusSender};
 use holo_utils::protocol::Protocol;
@@ -14,7 +13,7 @@ use holo_utils::southbound::{
 };
 use ipnetwork::IpNetwork;
 
-use crate::rib::Route;
+use crate::rib::LocalRoute;
 
 // ===== global functions =====
 
@@ -25,12 +24,12 @@ pub(crate) fn router_id_query(ibus_tx: &IbusSender) {
 pub(crate) fn route_install(
     ibus_tx: &IbusSender,
     prefix: impl Into<IpNetwork>,
-    route: &Route,
-    nexthops: &BTreeSet<IpAddr>,
+    route: &LocalRoute,
     distance: u8,
 ) {
     // Fill-in nexthops.
-    let nexthops = nexthops
+    let nexthops = route
+        .nexthops
         .iter()
         .map(|nexthop| Nexthop::Address {
             // TODO

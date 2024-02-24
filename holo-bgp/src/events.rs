@@ -409,7 +409,7 @@ fn process_nbr_route_refresh_af<A>(
     let table = A::table(&mut instance.state.rib.tables);
     let update_queue = A::update_queue(&mut nbr.update_queues);
     for (prefix, dest) in &table.prefixes {
-        let (route, _) = dest.local.as_ref().unwrap();
+        let route = dest.local.as_ref().unwrap();
         let attrs = route.attrs.get();
         update_queue.reach.entry(attrs).or_default().insert(*prefix);
     }

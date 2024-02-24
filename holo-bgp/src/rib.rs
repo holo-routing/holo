@@ -52,7 +52,7 @@ pub struct RoutingTable<A: AddressFamily> {
 
 #[derive(Debug, Default)]
 pub struct Destination {
-    pub local: Option<(Box<Route>, BTreeSet<IpAddr>)>,
+    pub local: Option<Box<LocalRoute>>,
     pub adj_rib: BTreeMap<IpAddr, AdjRib>,
 }
 
@@ -62,6 +62,15 @@ pub struct AdjRib {
     pub in_post: Option<Box<Route>>,
     pub out_pre: Option<Box<Route>>,
     pub out_post: Option<Box<Route>>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LocalRoute {
+    pub origin: RouteOrigin,
+    pub attrs: RouteAttrs,
+    pub route_type: RouteType,
+    pub last_modified: Instant,
+    pub nexthops: BTreeSet<IpAddr>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -537,27 +546,37 @@ pub(crate) fn loc_rib_update<A>(
             compute_nexthops::<A>(dest, &best_route, selection_cfg, mpath_cfg);
 
         // Return early if no change in Loc-RIB is needed.
-        if let Some((loc_route, loc_nexthops)) = &dest.local
-            && *loc_route == best_route
-            && *loc_nexthops == nexthops
+        if let Some(local_route) = &dest.local
+            && local_route.origin == best_route.origin
+            && local_route.attrs == best_route.attrs
+            && local_route.route_type == best_route.route_type
+            && local_route.nexthops == nexthops
         {
             return;
         }
 
-        // Install route in the global RIB.
+        // Create new local route.
+        let local_route = LocalRoute {
+            origin: best_route.origin,
+            attrs: best_route.attrs,
+            route_type: best_route.route_type,
+            last_modified: best_route.last_modified,
+            nexthops,
+        };
+
+        // Install local route in the global RIB.
         southbound::tx::route_install(
             ibus_tx,
             prefix,
-            &best_route,
-            &nexthops,
+            &local_route,
             match best_route.route_type {
                 RouteType::Internal => distance_cfg.internal,
                 RouteType::External => distance_cfg.external,
             },
         );
 
-        // Insert route into the Loc-RIB.
-        dest.local = Some((best_route, nexthops));
+        // Insert local route into the Loc-RIB.
+        dest.local = Some(Box::new(local_route));
     } else {
         Debug::BestPathNotFound(prefix.into()).log();
 

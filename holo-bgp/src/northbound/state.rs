@@ -25,7 +25,7 @@ use crate::packet::attribute::{
 };
 use crate::packet::consts::{Afi, AttrFlags, Safi};
 use crate::packet::message::{AddPathTuple, Capability};
-use crate::rib::{AttrSet, Route};
+use crate::rib::{AttrSet, LocalRoute, Route};
 
 pub static CALLBACKS: Lazy<Callbacks<Instance>> = Lazy::new(load_callbacks);
 
@@ -53,8 +53,8 @@ pub enum ListEntry<'a> {
     RibAsPathSegmentMember(u32),
     RibClusterList(Ipv4Addr),
     RibNeighbor(AfiSafi, &'a Neighbor),
-    RibV4LocRoute(&'a Ipv4Network, &'a Route),
-    RibV6LocRoute(&'a Ipv6Network, &'a Route),
+    RibV4LocRoute(&'a Ipv4Network, &'a LocalRoute),
+    RibV6LocRoute(&'a Ipv6Network, &'a LocalRoute),
     RibV4AdjInPreRoute(&'a Ipv4Network, &'a Route),
     RibV6AdjInPreRoute(&'a Ipv6Network, &'a Route),
     RibV4AdjInPostRoute(&'a Ipv4Network, &'a Route),
@@ -815,7 +815,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                 && let Some(state) = &instance.state {
                 let iter = state.rib.tables.ipv4_unicast.prefixes.iter().filter_map(
                     |(prefix, dest)| {
-                        dest.local.as_ref().map(|(route, _)| {
+                        dest.local.as_ref().map(|route| {
                             ListEntry::RibV4LocRoute(prefix, route)
                         })
                     },
@@ -852,14 +852,12 @@ fn load_callbacks() -> Callbacks<Instance> {
             Some(route.last_modified)
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::loc_rib::routes::route::eligible_route::PATH)
-        .get_element_bool(|_instance, args| {
-            let (_, route) = args.list_entry.as_rib_v4_loc_route().unwrap();
-            Some(route.is_eligible())
+        .get_element_bool(|_instance, _args| {
+            None
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::loc_rib::routes::route::ineligible_reason::PATH)
-        .get_element_string(|_instance, args| {
-            let (_, route) = args.list_entry.as_rib_v4_loc_route().unwrap();
-            route.ineligible_reason.as_ref().map(|r| r.to_yang().into())
+        .get_element_string(|_instance, _args| {
+            None
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::loc_rib::routes::route::unknown_attributes::unknown_attribute::PATH)
         .get_iterate(|_instance, args| {
@@ -898,9 +896,8 @@ fn load_callbacks() -> Callbacks<Instance> {
             Some(attr.value.to_vec())
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::loc_rib::routes::route::reject_reason::PATH)
-        .get_element_string(|_instance, args| {
-            let (_, route) = args.list_entry.as_rib_v4_loc_route().unwrap();
-            route.reject_reason.as_ref().map(|r| r.to_yang().into())
+        .get_element_string(|_instance, _args| {
+            None
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::PATH)
         .get_iterate(|instance, args| {
@@ -1316,7 +1313,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                 && let Some(state) = &instance.state {
                 let iter = state.rib.tables.ipv6_unicast.prefixes.iter().filter_map(
                     |(prefix, dest)| {
-                        dest.local.as_ref().map(|(route, _)| {
+                        dest.local.as_ref().map(|route| {
                             ListEntry::RibV6LocRoute(prefix, route)
                         })
                     },
@@ -1353,14 +1350,12 @@ fn load_callbacks() -> Callbacks<Instance> {
             Some(route.last_modified)
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::loc_rib::routes::route::eligible_route::PATH)
-        .get_element_bool(|_instance, args| {
-            let (_, route) = args.list_entry.as_rib_v6_loc_route().unwrap();
-            Some(route.is_eligible())
+        .get_element_bool(|_instance, _args| {
+            None
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::loc_rib::routes::route::ineligible_reason::PATH)
-        .get_element_string(|_instance, args| {
-            let (_, route) = args.list_entry.as_rib_v6_loc_route().unwrap();
-            route.ineligible_reason.as_ref().map(|r| r.to_yang().into())
+        .get_element_string(|_instance, _args| {
+            None
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::loc_rib::routes::route::unknown_attributes::unknown_attribute::PATH)
         .get_iterate(|_instance, args| {
@@ -1399,9 +1394,8 @@ fn load_callbacks() -> Callbacks<Instance> {
             Some(attr.value.to_vec())
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::loc_rib::routes::route::reject_reason::PATH)
-        .get_element_string(|_instance, args| {
-            let (_, route) = args.list_entry.as_rib_v6_loc_route().unwrap();
-            route.reject_reason.as_ref().map(|r| r.to_yang().into())
+        .get_element_string(|_instance, _args| {
+            None
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::PATH)
         .get_iterate(|instance, args| {

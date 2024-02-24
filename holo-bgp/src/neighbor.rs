@@ -31,7 +31,7 @@ use crate::packet::message::{
     Capability, DecodeCxt, EncodeCxt, FourOctetAsNumber, KeepaliveMsg, Message,
     NotificationMsg, OpenMsg,
 };
-use crate::rib::Rib;
+use crate::rib::{Rib, Route};
 use crate::tasks::messages::input::{NbrRxMsg, NbrTimerMsg, TcpConnectMsg};
 use crate::tasks::messages::output::NbrTxMsg;
 #[cfg(feature = "testing")]
@@ -883,7 +883,17 @@ impl Neighbor {
             .prefixes
             .iter()
             .filter_map(|(prefix, dest)| {
-                dest.local.as_ref().map(|route| (*prefix, route.0.clone()))
+                dest.local.as_ref().map(|route| {
+                    let route = Route {
+                        origin: route.origin,
+                        attrs: route.attrs.clone(),
+                        route_type: route.route_type,
+                        last_modified: route.last_modified,
+                        ineligible_reason: None,
+                        reject_reason: None,
+                    };
+                    (*prefix, Box::new(route))
+                })
             })
             .collect::<Vec<_>>();
 

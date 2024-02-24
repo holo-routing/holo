@@ -377,14 +377,20 @@ impl RouteAttrs {
 // ===== impl AttrSetsCxt =====
 
 impl AttrSetsCxt {
-    pub(crate) fn get_route_attr_sets(&mut self, attrs: Attrs) -> RouteAttrs {
+    pub(crate) fn get_route_attr_sets(&mut self, attrs: &Attrs) -> RouteAttrs {
         RouteAttrs {
-            base: self.base.get(attrs.base),
-            comm: attrs.comm.map(|comm| self.comm.get(comm)),
-            ext_comm: attrs.ext_comm.map(|c| self.ext_comm.get(c)),
-            extv6_comm: attrs.extv6_comm.map(|c| self.extv6_comm.get(c)),
-            large_comm: attrs.large_comm.map(|c| self.large_comm.get(c)),
-            unknown: attrs.unknown,
+            base: self.base.get(&attrs.base),
+            comm: attrs.comm.as_ref().map(|c| self.comm.get(c)),
+            ext_comm: attrs.ext_comm.as_ref().map(|c| self.ext_comm.get(c)),
+            extv6_comm: attrs
+                .extv6_comm
+                .as_ref()
+                .map(|c| self.extv6_comm.get(c)),
+            large_comm: attrs
+                .large_comm
+                .as_ref()
+                .map(|c| self.large_comm.get(c)),
+            unknown: attrs.unknown.clone(),
         }
     }
 }
@@ -395,8 +401,8 @@ impl<T> AttrSets<T>
 where
     T: Clone + Eq + Ord + PartialEq + PartialOrd,
 {
-    fn get(&mut self, attr: T) -> Arc<AttrSet<T>> {
-        if let Some(attr_set) = self.tree.get(&attr) {
+    fn get(&mut self, attr: &T) -> Arc<AttrSet<T>> {
+        if let Some(attr_set) = self.tree.get(attr) {
             Arc::clone(attr_set)
         } else {
             self.next_index += 1;
@@ -404,7 +410,7 @@ where
                 index: self.next_index,
                 value: attr.clone(),
             });
-            self.tree.insert(attr, Arc::clone(&attr_set));
+            self.tree.insert(attr.clone(), Arc::clone(&attr_set));
             attr_set
         }
     }

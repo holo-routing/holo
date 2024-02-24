@@ -290,7 +290,7 @@ fn process_nbr_reach_prefixes<A>(
 
     // Update pre-policy Adj-RIB-In routes.
     let table = A::table(&mut rib.tables);
-    let route_attrs = rib.attr_sets.get_route_attr_sets(attrs.clone());
+    let route_attrs = rib.attr_sets.get_route_attr_sets(&attrs);
     for prefix in &nlri_prefixes {
         let dest = table.prefixes.entry(*prefix).or_default();
         let route = Route::new(origin, route_attrs.clone(), route_type);
@@ -462,7 +462,7 @@ where
             PolicyResult::Accept(rpinfo) => {
                 let route = Route::new(
                     rpinfo.origin,
-                    rib.attr_sets.get_route_attr_sets(rpinfo.attrs),
+                    rib.attr_sets.get_route_attr_sets(&rpinfo.attrs),
                     rpinfo.route_type,
                 );
                 dest.adj_in_post.insert(nbr.remote_addr, route);
@@ -513,7 +513,7 @@ where
             PolicyResult::Accept(rpinfo) => {
                 let route = Route::new(
                     rpinfo.origin,
-                    rib.attr_sets.get_route_attr_sets(rpinfo.attrs.clone()),
+                    rib.attr_sets.get_route_attr_sets(&rpinfo.attrs),
                     rpinfo.route_type,
                 );
 

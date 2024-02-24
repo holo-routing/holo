@@ -131,7 +131,7 @@ fn process_pdu_request<V>(
         return;
     }
 
-    // The response should be sent to the requestor's address and port.
+    // The response should be sent to the requester's address and port.
     let dst = SendDestination::Unicast(src);
 
     // Check if it's a request to send the entire routing table.
@@ -149,7 +149,7 @@ fn process_pdu_request<V>(
         // RTE. If there is no explicit route to the specified destination, put
         // infinity in the metric field. Once all the entries have been filled
         // in, change the command from Request to Response and send the datagram
-        // back to the requestor.
+        // back to the requester.
         for rte in pdu.rtes_mut() {
             if let Some(rte) = rte.as_route_mut() {
                 let metric = if let Some(route) =

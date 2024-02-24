@@ -704,7 +704,7 @@ fn iterate_leaf<'a, P>(
 where
     P: Provider,
 {
-    // Ignore config leafs and list keys.
+    // Ignore config leaves and list keys.
     if snode.is_config() || snode.is_list_key() {
         return Ok(());
     }
@@ -718,7 +718,7 @@ where
         Debug::GetElementCallback(path, &value).log();
 
         if value.is_some() {
-            // Empty leafs don't have a value.
+            // Empty leaves don't have a value.
             if snode.base_type().unwrap() == DataValueType::Empty {
                 value = None;
             }

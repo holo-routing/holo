@@ -325,7 +325,7 @@ impl Neighbor {
         let nbr = &mut instance.state.neighbors[nbr_idx];
         match action {
             fsm::Action::SendInitAndKeepalive => {
-                // Send initilization message.
+                // Send initialization message.
                 nbr.send_init(instance.config, &instance.state.msg_id);
 
                 // Send keepalive message.
@@ -337,7 +337,7 @@ impl Neighbor {
                 );
             }
             fsm::Action::SendInit => {
-                // Send initilization message.
+                // Send initialization message.
                 nbr.send_init(instance.config, &instance.state.msg_id);
                 Neighbor::fsm(instance, nbr_idx, fsm::Event::InitSent);
             }

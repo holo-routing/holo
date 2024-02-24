@@ -125,7 +125,7 @@ impl CallbackOp {
                     return false;
                 }
 
-                // Only optional leafs can be deleted, or leafs whose
+                // Only optional leaves can be deleted, or leaves whose
                 // parent is a case statement.
                 if let Some(parent) = snode.ancestors().next() {
                     if parent.kind() == SchemaNodeKind::Case {

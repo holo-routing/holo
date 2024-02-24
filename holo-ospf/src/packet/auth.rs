@@ -114,7 +114,7 @@ where
             mac.update(&HMAC_APAD[..digest_size - Ipv4Addr::LENGTH]);
         }
         Some(IpAddr::V6(addr)) => {
-            // RFC 7166 Secion 4.5 says:
+            // RFC 7166 Section 4.5 says:
             // "Apad is a value that is the same length as the hash output or
             // message digest. The first 16 octets contain the IPv6 source
             // address followed by the hexadecimal value 0x878FE1F3 repeated

@@ -629,7 +629,7 @@ impl AsPath {
             four_byte_asn_cap || attr_type == AttrType::As4Path;
 
         // Decode AS Path segments.
-        let mut segments = VecDeque::new();
+        let mut segments = VecDeque::with_capacity(1);
         while buf.remaining() > 0 {
             let segment =
                 AsPathSegment::decode(buf, attr_type, four_byte_asns)?;

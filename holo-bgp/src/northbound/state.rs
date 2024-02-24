@@ -916,19 +916,21 @@ fn load_callbacks() -> Callbacks<Instance> {
                 None
             }
         })
-
-
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_in_pre::routes::route::PATH)
         .get_iterate(|instance, args| {
             let (_, nbr) = args.parent_list_entry.as_rib_neighbor().unwrap();
             if let Some(state) = &instance.state {
-                let iter = state.rib.tables.ipv4_unicast.prefixes.iter().filter_map(
-                    |(prefix, dest)| {
-                        dest.adj_in_pre.get(&nbr.remote_addr).map(|route| {
-                            ListEntry::RibV4AdjInPreRoute(prefix, route)
-                        })
-                    },
-                );
+                let iter =
+                    state.rib.tables.ipv4_unicast.prefixes.iter().filter_map(
+                        |(prefix, dest)| {
+                            dest.adj_rib
+                                .get(&nbr.remote_addr)
+                                .and_then(|adj_rib| adj_rib.in_pre.as_ref())
+                                .map(|route| {
+                                    ListEntry::RibV4AdjInPreRoute(prefix, route)
+                                })
+                        },
+                    );
                 Some(Box::new(iter))
             } else {
                 None
@@ -1015,13 +1017,17 @@ fn load_callbacks() -> Callbacks<Instance> {
         .get_iterate(|instance, args| {
             let (_, nbr) = args.parent_list_entry.as_rib_neighbor().unwrap();
             if let Some(state) = &instance.state {
-                let iter = state.rib.tables.ipv4_unicast.prefixes.iter().filter_map(
-                    |(prefix, dest)| {
-                        dest.adj_in_post.get(&nbr.remote_addr).map(|route| {
-                            ListEntry::RibV4AdjInPostRoute(prefix, route)
-                        })
-                    },
-                );
+                let iter =
+                    state.rib.tables.ipv4_unicast.prefixes.iter().filter_map(
+                        |(prefix, dest)| {
+                            dest.adj_rib
+                                .get(&nbr.remote_addr)
+                                .and_then(|adj_rib| adj_rib.in_post.as_ref())
+                                .map(|route| {
+                                    ListEntry::RibV4AdjInPostRoute(prefix, route)
+                                })
+                        },
+                    );
                 Some(Box::new(iter))
             } else {
                 None
@@ -1113,13 +1119,17 @@ fn load_callbacks() -> Callbacks<Instance> {
         .get_iterate(|instance, args| {
             let (_, nbr) = args.parent_list_entry.as_rib_neighbor().unwrap();
             if let Some(state) = &instance.state {
-                let iter = state.rib.tables.ipv4_unicast.prefixes.iter().filter_map(
-                    |(prefix, dest)| {
-                        dest.adj_out_pre.get(&nbr.remote_addr).map(|route| {
-                            ListEntry::RibV4AdjOutPreRoute(prefix, route)
-                        })
-                    },
-                );
+                let iter =
+                    state.rib.tables.ipv4_unicast.prefixes.iter().filter_map(
+                        |(prefix, dest)| {
+                            dest.adj_rib
+                                .get(&nbr.remote_addr)
+                                .and_then(|adj_rib| adj_rib.out_pre.as_ref())
+                                .map(|route| {
+                                    ListEntry::RibV4AdjOutPreRoute(prefix, route)
+                                })
+                        },
+                    );
                 Some(Box::new(iter))
             } else {
                 None
@@ -1206,13 +1216,17 @@ fn load_callbacks() -> Callbacks<Instance> {
         .get_iterate(|instance, args| {
             let (_, nbr) = args.parent_list_entry.as_rib_neighbor().unwrap();
             if let Some(state) = &instance.state {
-                let iter = state.rib.tables.ipv4_unicast.prefixes.iter().filter_map(
-                    |(prefix, dest)| {
-                        dest.adj_out_post.get(&nbr.remote_addr).map(|route| {
-                            ListEntry::RibV4AdjOutPostRoute(prefix, route)
-                        })
-                    },
-                );
+                let iter =
+                    state.rib.tables.ipv4_unicast.prefixes.iter().filter_map(
+                        |(prefix, dest)| {
+                            dest.adj_rib
+                                .get(&nbr.remote_addr)
+                                .and_then(|adj_rib| adj_rib.out_post.as_ref())
+                                .map(|route| {
+                                    ListEntry::RibV4AdjOutPostRoute(prefix, route)
+                                })
+                        },
+                    );
                 Some(Box::new(iter))
             } else {
                 None
@@ -1407,13 +1421,17 @@ fn load_callbacks() -> Callbacks<Instance> {
         .get_iterate(|instance, args| {
             let (_, nbr) = args.parent_list_entry.as_rib_neighbor().unwrap();
             if let Some(state) = &instance.state {
-                let iter = state.rib.tables.ipv6_unicast.prefixes.iter().filter_map(
-                    |(prefix, dest)| {
-                        dest.adj_in_post.get(&nbr.remote_addr).map(|route| {
-                            ListEntry::RibV6AdjInPreRoute(prefix, route)
-                        })
-                    },
-                );
+                let iter =
+                    state.rib.tables.ipv6_unicast.prefixes.iter().filter_map(
+                        |(prefix, dest)| {
+                            dest.adj_rib
+                                .get(&nbr.remote_addr)
+                                .and_then(|adj_rib| adj_rib.in_pre.as_ref())
+                                .map(|route| {
+                                    ListEntry::RibV6AdjInPreRoute(prefix, route)
+                                })
+                        },
+                    );
                 Some(Box::new(iter))
             } else {
                 None
@@ -1500,13 +1518,17 @@ fn load_callbacks() -> Callbacks<Instance> {
         .get_iterate(|instance, args| {
             let (_, nbr) = args.parent_list_entry.as_rib_neighbor().unwrap();
             if let Some(state) = &instance.state {
-                let iter = state.rib.tables.ipv6_unicast.prefixes.iter().filter_map(
-                    |(prefix, dest)| {
-                        dest.adj_in_post.get(&nbr.remote_addr).map(|route| {
-                            ListEntry::RibV6AdjInPostRoute(prefix, route)
-                        })
-                    },
-                );
+                let iter =
+                    state.rib.tables.ipv6_unicast.prefixes.iter().filter_map(
+                        |(prefix, dest)| {
+                            dest.adj_rib
+                                .get(&nbr.remote_addr)
+                                .and_then(|adj_rib| adj_rib.in_post.as_ref())
+                                .map(|route| {
+                                    ListEntry::RibV6AdjInPostRoute(prefix, route)
+                                })
+                        },
+                    );
                 Some(Box::new(iter))
             } else {
                 None
@@ -1598,13 +1620,17 @@ fn load_callbacks() -> Callbacks<Instance> {
         .get_iterate(|instance, args| {
             let (_, nbr) = args.parent_list_entry.as_rib_neighbor().unwrap();
             if let Some(state) = &instance.state {
-                let iter = state.rib.tables.ipv6_unicast.prefixes.iter().filter_map(
-                    |(prefix, dest)| {
-                        dest.adj_out_pre.get(&nbr.remote_addr).map(|route| {
-                            ListEntry::RibV6AdjOutPreRoute(prefix, route)
-                        })
-                    },
-                );
+                let iter =
+                    state.rib.tables.ipv6_unicast.prefixes.iter().filter_map(
+                        |(prefix, dest)| {
+                            dest.adj_rib
+                                .get(&nbr.remote_addr)
+                                .and_then(|adj_rib| adj_rib.out_pre.as_ref())
+                                .map(|route| {
+                                    ListEntry::RibV6AdjOutPreRoute(prefix, route)
+                                })
+                        },
+                    );
                 Some(Box::new(iter))
             } else {
                 None
@@ -1691,13 +1717,17 @@ fn load_callbacks() -> Callbacks<Instance> {
         .get_iterate(|instance, args| {
             let (_, nbr) = args.parent_list_entry.as_rib_neighbor().unwrap();
             if let Some(state) = &instance.state {
-                let iter = state.rib.tables.ipv6_unicast.prefixes.iter().filter_map(
-                    |(prefix, dest)| {
-                        dest.adj_out_post.get(&nbr.remote_addr).map(|route| {
-                            ListEntry::RibV6AdjOutPostRoute(prefix, route)
-                        })
-                    },
-                );
+                let iter =
+                    state.rib.tables.ipv6_unicast.prefixes.iter().filter_map(
+                        |(prefix, dest)| {
+                            dest.adj_rib
+                                .get(&nbr.remote_addr)
+                                .and_then(|adj_rib| adj_rib.out_post.as_ref())
+                                .map(|route| {
+                                    ListEntry::RibV6AdjOutPostRoute(prefix, route)
+                                })
+                        },
+                    );
                 Some(Box::new(iter))
             } else {
                 None

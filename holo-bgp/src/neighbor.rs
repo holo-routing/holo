@@ -904,10 +904,7 @@ impl Neighbor {
     {
         let table = A::table(&mut rib.tables);
         for (prefix, dest) in &mut table.prefixes {
-            dest.adj_in_pre.remove(&self.remote_addr);
-            dest.adj_in_post.remove(&self.remote_addr);
-            dest.adj_out_pre.remove(&self.remote_addr);
-            dest.adj_out_post.remove(&self.remote_addr);
+            dest.adj_rib.remove(&self.remote_addr);
             table.queued_prefixes.insert(*prefix);
         }
     }

@@ -52,11 +52,16 @@ pub struct RoutingTable<A: AddressFamily> {
 
 #[derive(Debug, Default)]
 pub struct Destination {
-    pub local: Option<(Route, BTreeSet<IpAddr>)>,
-    pub adj_in_pre: BTreeMap<IpAddr, Route>,
-    pub adj_in_post: BTreeMap<IpAddr, Route>,
-    pub adj_out_pre: BTreeMap<IpAddr, Route>,
-    pub adj_out_post: BTreeMap<IpAddr, Route>,
+    pub local: Option<(Box<Route>, BTreeSet<IpAddr>)>,
+    pub adj_rib: BTreeMap<IpAddr, AdjRib>,
+}
+
+#[derive(Debug, Default)]
+pub struct AdjRib {
+    pub in_pre: Option<Box<Route>>,
+    pub in_post: Option<Box<Route>>,
+    pub out_pre: Option<Box<Route>>,
+    pub out_post: Option<Box<Route>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -446,8 +451,9 @@ where
         RouteType::Internal => mpath_cfg.ibgp_max_paths,
         RouteType::External => mpath_cfg.ebgp_max_paths,
     };
-    dest.adj_in_post
+    dest.adj_rib
         .values()
+        .filter_map(|adj_rib| adj_rib.in_post.as_ref())
         .filter(|route| {
             route.eligible
                 && route.compare(best_route, selection_cfg, Some(mpath_cfg))
@@ -464,11 +470,15 @@ pub(crate) fn best_path(
     dest: &mut Destination,
     local_asn: u32,
     selection_cfg: &RouteSelectionCfg,
-) -> Option<Route> {
+) -> Option<Box<Route>> {
     let mut best_route = None;
 
     // Iterate over each post-policy Adj-RIB-In route for the destination.
-    for adj_in_route in dest.adj_in_post.values_mut() {
+    for adj_in_route in dest
+        .adj_rib
+        .values_mut()
+        .filter_map(|adj_rib| adj_rib.in_post.as_mut())
+    {
         adj_in_route.eligible = true;
         adj_in_route.reject_reason = None;
         adj_in_route.ineligible_reason = None;
@@ -511,7 +521,7 @@ pub(crate) fn best_path(
 pub(crate) fn loc_rib_update<A>(
     prefix: A::IpNetwork,
     dest: &mut Destination,
-    best_route: Option<Route>,
+    best_route: Option<Box<Route>>,
     selection_cfg: &RouteSelectionCfg,
     mpath_cfg: &MultipathCfg,
     distance_cfg: &DistanceCfg,

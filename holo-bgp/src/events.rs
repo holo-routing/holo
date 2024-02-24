@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::btree_map;
 use std::net::IpAddr;
 
 use chrono::Utc;
@@ -293,8 +292,9 @@ fn process_nbr_reach_prefixes<A>(
     let route_attrs = rib.attr_sets.get_route_attr_sets(&attrs);
     for prefix in &nlri_prefixes {
         let dest = table.prefixes.entry(*prefix).or_default();
+        let adj_rib = dest.adj_rib.entry(nbr.remote_addr).or_default();
         let route = Route::new(origin, route_attrs.clone(), route_type);
-        dest.adj_in_pre.insert(nbr.remote_addr, route);
+        adj_rib.in_pre = Some(Box::new(route));
     }
 
     // Get policy configuration for the address family.
@@ -344,9 +344,12 @@ fn process_nbr_unreach_prefixes<A>(
         let Some(dest) = table.prefixes.get_mut(&prefix) else {
             continue;
         };
+        let Some(adj_rib) = dest.adj_rib.get_mut(&nbr.remote_addr) else {
+            continue;
+        };
 
-        dest.adj_in_pre.remove(&nbr.remote_addr);
-        dest.adj_in_post.remove(&nbr.remote_addr);
+        adj_rib.in_pre = None;
+        adj_rib.in_post = None;
 
         // Enqueue prefix for the BGP Decision Process.
         table.queued_prefixes.insert(prefix);
@@ -456,6 +459,7 @@ where
         // Get RIB destination.
         let prefix = A::IpNetwork::get(prefix).unwrap();
         let dest = table.prefixes.entry(prefix).or_default();
+        let adj_rib = dest.adj_rib.entry(nbr.remote_addr).or_default();
 
         // Update post-policy Adj-RIB-In routes.
         match result {
@@ -465,10 +469,10 @@ where
                     rib.attr_sets.get_route_attr_sets(&rpinfo.attrs),
                     rpinfo.route_type,
                 );
-                dest.adj_in_post.insert(nbr.remote_addr, route);
+                adj_rib.in_post = Some(Box::new(route));
             }
             PolicyResult::Reject => {
-                dest.adj_in_post.remove(&nbr.remote_addr);
+                adj_rib.in_post = None;
             }
         }
 
@@ -507,6 +511,7 @@ where
         // Get RIB destination.
         let prefix = A::IpNetwork::get(prefix).unwrap();
         let dest = table.prefixes.entry(prefix).or_default();
+        let adj_rib = dest.adj_rib.entry(nbr.remote_addr).or_default();
 
         // Update post-policy Adj-RIB-Out routes.
         match result {
@@ -518,19 +523,18 @@ where
                 );
 
                 let mut update = false;
-                match dest.adj_out_post.entry(nbr.remote_addr) {
-                    btree_map::Entry::Occupied(mut entry) => {
-                        if entry.get_mut().attrs != route.attrs {
-                            entry.insert(route);
-                            update = true;
-                        }
-                    }
-                    btree_map::Entry::Vacant(entry) => {
-                        entry.insert(route);
+                if let Some(adj_rib_route) = &mut adj_rib.out_post {
+                    if adj_rib_route.attrs != route.attrs {
+                        *adj_rib_route = Box::new(route);
                         update = true;
                     }
+                } else {
+                    adj_rib.out_post = Some(Box::new(route));
+                    update = true;
                 }
 
+                // If the Adj-RIB-Out was updated, enqueue the route for
+                // transmission.
                 if update {
                     // Update route's attributes before transmission.
                     let mut attrs = rpinfo.attrs;
@@ -542,7 +546,7 @@ where
                 }
             }
             PolicyResult::Reject => {
-                if dest.adj_out_post.remove(&nbr.remote_addr).is_some() {
+                if adj_rib.out_post.take().is_some() {
                     // Update neighbor's Tx queue.
                     let update_queue = A::update_queue(&mut nbr.update_queues);
                     update_queue.unreach.insert(prefix);
@@ -684,8 +688,12 @@ fn withdraw_routes<A>(
     // Update Adj-RIB-Out.
     for prefix in routes {
         let dest = table.prefixes.get_mut(prefix).unwrap();
-        dest.adj_out_pre.remove(&nbr.remote_addr);
-        if dest.adj_out_post.remove(&nbr.remote_addr).is_some() {
+        let Some(adj_rib) = dest.adj_rib.get_mut(&nbr.remote_addr) else {
+            continue;
+        };
+
+        adj_rib.out_pre = None;
+        if adj_rib.out_post.take().is_some() {
             let update_queue = A::update_queue(&mut nbr.update_queues);
             update_queue.unreach.insert(*prefix);
         }
@@ -699,7 +707,7 @@ fn withdraw_routes<A>(
 pub(crate) fn advertise_routes<A>(
     nbr: &mut Neighbor,
     table: &mut RoutingTable<A>,
-    routes: &[(A::IpNetwork, Route)],
+    routes: &[(A::IpNetwork, Box<Route>)],
     shared: &InstanceShared,
     policy_apply_tasks: &PolicyApplyTasks,
 ) where
@@ -756,7 +764,8 @@ pub(crate) fn advertise_routes<A>(
     // Update pre-policy Adj-RIB-Out routes.
     for (prefix, route) in routes.clone() {
         let dest = table.prefixes.get_mut(prefix).unwrap();
-        dest.adj_out_pre.insert(nbr.remote_addr, route.clone());
+        let adj_rib = dest.adj_rib.entry(nbr.remote_addr).or_default();
+        adj_rib.out_pre = Some(route.clone());
     }
 
     // Get policy configuration for the address family.

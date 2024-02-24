@@ -75,7 +75,7 @@ pub(crate) fn process_udp_packet(
         sess.poll_sequence_terminate();
 
         // The peer is aware of the updated interval timers, so we can now
-        // effectivelly use them.
+        // effectively use them.
         sess.state.curr_min_tx = sess.desired_tx_interval();
         sess.state.curr_min_rx = sess.required_min_rx();
         sess.update_tx_interval();

@@ -203,7 +203,7 @@ fn process_hello(
         .map(|tlv| tlv.0.into())
         .unwrap_or_else(|| source.addr);
 
-    // Create new adjacency or udpate existing one.
+    // Create new adjacency or update existing one.
     if let Some((_, adj)) =
         instance.state.ipv4.adjacencies.get_mut_by_source(&source)
     {
@@ -769,7 +769,7 @@ fn process_nbr_msg_label(
         return Err(Error::NbrSentError(nbr.lsr_id, StatusCode::Shutdown));
     }
 
-    // Process each FEC element separetely.
+    // Process each FEC element separately.
     for fec_elem in &msg.fec.0 {
         match msg.msg_type {
             LabelMessageType::LabelMapping => {

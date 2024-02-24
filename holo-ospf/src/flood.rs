@@ -72,7 +72,7 @@ where
     let lsa_key = lsa.hdr.key();
 
     // Keep track that this LSA was flooded back out the receiving interface.
-    // This information is relevent when deciding whether or not to send a
+    // This information is relevant when deciding whether or not to send a
     // delayed ack later.
     let mut flooded_back = false;
 

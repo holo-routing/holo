@@ -189,7 +189,7 @@ impl PduVersion<Ipv6Addr, Ipv6Network, DecodeError> for Pdu {
     // RFC 2080 - Section 2.1 says:
     // "The determination of the number of RTEs which may be put into a given
     // message is a function of the medium's MTU, the number of octets of header
-    // information preceeding the RIPng message, the size of the RIPng header,
+    // information preceding the RIPng message, the size of the RIPng header,
     // and the size of an RTE.  The formula is:
     //
     //             +-                                                   -+
@@ -271,7 +271,7 @@ impl Rte {
         // A next hop RTE is identified by a value of 0xFF in the metric field
         // of an RTE. The prefix field specifies the IPv6 address of the next
         // hop. The route tag and prefix length in the next hop RTE must be set
-        // to zero on sending and ignored on receiption.
+        // to zero on sending and ignored on reception.
         if metric == 0xFF {
             // An address specified as a next hop must be a link-local address.
             if !addr.is_unicast_link_local() {

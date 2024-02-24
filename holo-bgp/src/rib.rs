@@ -295,7 +295,7 @@ impl Route {
 
         // Compare IGP costs.
         if !selection_cfg.ignore_next_hop_igp_metric {
-            // TODO: not implemened yet.
+            // TODO: not implemented yet.
         }
 
         // If multipath is enabled, routes are considered equal under specific

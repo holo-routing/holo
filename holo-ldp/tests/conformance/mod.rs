@@ -1145,7 +1145,7 @@ async fn tcp_accept1() {
 // Test description:
 //
 // Accepted TCP connection that matches an adjacency should prompt the creation
-// of a new neighor in the NON EXISTENT state.
+// of a new neighbor in the NON EXISTENT state.
 //
 // Input:
 //  * Protocol: LDP Hello message from 10.0.1.10 (new neighbor)

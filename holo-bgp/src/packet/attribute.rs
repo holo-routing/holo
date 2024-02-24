@@ -37,7 +37,7 @@ pub struct Attrs {
     pub ext_comm: Option<ExtComms>,
     pub extv6_comm: Option<Extv6Comms>,
     pub large_comm: Option<LargeComms>,
-    pub unknown: Vec<UnknownAttr>,
+    pub unknown: Box<[UnknownAttr]>,
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -498,7 +498,7 @@ impl Attrs {
                 ext_comm,
                 extv6_comm,
                 large_comm,
-                unknown,
+                unknown: unknown.into(),
             });
         }
         Ok(attrs)

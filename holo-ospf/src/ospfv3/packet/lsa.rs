@@ -12,7 +12,7 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use derive_new::new;
 use enum_as_inner::EnumAsInner;
 use holo_utils::bytes::{BytesExt, BytesMutExt};
-use holo_utils::ip::{AddressFamily, IpAddrExt};
+use holo_utils::ip::{AddressFamily, IpAddrExt, Ipv4AddrExt, Ipv6AddrExt};
 use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid};
 use ipnetwork::IpNetwork;
@@ -2891,9 +2891,18 @@ fn decode_prefix(
     buf: &mut Bytes,
 ) -> DecodeResult<IpNetwork> {
     let plen_wire = prefix_wire_len(plen);
-    let mut prefix_bytes = vec![0; plen_wire];
-    buf.copy_to_slice(&mut prefix_bytes);
-    let prefix = IpAddr::from_slice(af, &prefix_bytes);
+    let prefix = match af {
+        AddressFamily::Ipv4 => {
+            let mut prefix_bytes = [0; Ipv4Addr::LENGTH];
+            buf.copy_to_slice(&mut prefix_bytes[..plen_wire]);
+            Ipv4Addr::from(prefix_bytes).into()
+        }
+        AddressFamily::Ipv6 => {
+            let mut prefix_bytes = [0; Ipv6Addr::LENGTH];
+            buf.copy_to_slice(&mut prefix_bytes[..plen_wire]);
+            Ipv6Addr::from(prefix_bytes).into()
+        }
+    };
     IpNetwork::new(prefix, plen).map_err(|_| DecodeError::InvalidIpPrefix)
 }
 

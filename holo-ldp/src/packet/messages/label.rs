@@ -4,11 +4,12 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::net::IpAddr;
+use std::net::{Ipv4Addr, Ipv6Addr};
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::ip::{
-    AddressFamily, IpAddrExt, IpNetworkExt, Ipv4NetworkExt, Ipv6NetworkExt,
+    AddressFamily, IpAddrExt, IpNetworkExt, Ipv4AddrExt, Ipv4NetworkExt,
+    Ipv6AddrExt, Ipv6NetworkExt,
 };
 use holo_utils::mpls::Label;
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
@@ -478,10 +479,19 @@ impl FecElem {
                 }
 
                 // Parse prefix.
-                let mut prefix_bytes = vec![0; plen_wire];
-                buf.copy_to_slice(&mut prefix_bytes);
+                let prefix = match af {
+                    AddressFamily::Ipv4 => {
+                        let mut prefix_bytes = [0; Ipv4Addr::LENGTH];
+                        buf.copy_to_slice(&mut prefix_bytes[..plen_wire]);
+                        Ipv4Addr::from(prefix_bytes).into()
+                    }
+                    AddressFamily::Ipv6 => {
+                        let mut prefix_bytes = [0; Ipv6Addr::LENGTH];
+                        buf.copy_to_slice(&mut prefix_bytes[..plen_wire]);
+                        Ipv6Addr::from(prefix_bytes).into()
+                    }
+                };
                 *tlv_rlen -= plen_wire as u16;
-                let prefix = IpAddr::from_slice(af, &prefix_bytes);
                 IpNetwork::new(prefix, plen)
                     .map(|prefix| FecElem::Prefix(prefix.apply_mask()))
                     .map_err(|_| DecodeError::InvalidTlvValue(tlvi.clone()))

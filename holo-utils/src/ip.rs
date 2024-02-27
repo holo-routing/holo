@@ -34,9 +34,6 @@ pub trait IpAddrExt {
     // Returns vector of bytes that make up this address.
     fn bytes(&self) -> Vec<u8>;
 
-    // Creates an IpAddr from a slice of bytes.
-    fn from_slice(af: AddressFamily, bytes: &[u8]) -> IpAddr;
-
     // Returns true if this is an usable address.
     fn is_usable(&self) -> bool;
 
@@ -48,9 +45,6 @@ pub trait IpAddrExt {
 pub trait Ipv4AddrExt {
     const LENGTH: usize;
 
-    // Creates an Ipv4Addr from a slice of bytes.
-    fn from_slice(bytes: &[u8]) -> Ipv4Addr;
-
     // Returns true if this is an usable address.
     fn is_usable(&self) -> bool;
 }
@@ -58,9 +52,6 @@ pub trait Ipv4AddrExt {
 // Extension methods for Ipv6Addr.
 pub trait Ipv6AddrExt {
     const LENGTH: usize;
-
-    // Creates an Ip6Addr from a slice of bytes.
-    fn from_slice(bytes: &[u8]) -> Ipv6Addr;
 
     // Returns true if this is an usable address.
     fn is_usable(&self) -> bool;
@@ -242,13 +233,6 @@ impl IpAddrExt for IpAddr {
         }
     }
 
-    fn from_slice(af: AddressFamily, bytes: &[u8]) -> IpAddr {
-        match af {
-            AddressFamily::Ipv4 => Ipv4Addr::from_slice(bytes).into(),
-            AddressFamily::Ipv6 => Ipv6Addr::from_slice(bytes).into(),
-        }
-    }
-
     fn is_usable(&self) -> bool {
         !(self.is_loopback() || self.is_multicast() || self.is_unspecified())
     }
@@ -283,13 +267,6 @@ impl IpAddrKind for IpAddr {
 impl Ipv4AddrExt for Ipv4Addr {
     const LENGTH: usize = 4;
 
-    fn from_slice(bytes: &[u8]) -> Ipv4Addr {
-        let mut bytes = bytes.to_vec();
-        bytes.resize(4, 0);
-        let bytes: [u8; 4] = bytes[..].try_into().unwrap();
-        Ipv4Addr::from(bytes)
-    }
-
     fn is_usable(&self) -> bool {
         !(self.is_loopback()
             || self.is_broadcast()
@@ -319,13 +296,6 @@ impl IpAddrKind for Ipv4Addr {
 
 impl Ipv6AddrExt for Ipv6Addr {
     const LENGTH: usize = 16;
-
-    fn from_slice(bytes: &[u8]) -> Ipv6Addr {
-        let mut bytes = bytes.to_vec();
-        bytes.resize(16, 0);
-        let bytes: [u8; 16] = bytes[..].try_into().unwrap();
-        Ipv6Addr::from(bytes)
-    }
 
     fn is_usable(&self) -> bool {
         !(self.is_loopback() || self.is_multicast() || self.is_unspecified())

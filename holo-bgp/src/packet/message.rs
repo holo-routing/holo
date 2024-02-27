@@ -994,9 +994,9 @@ pub(crate) fn decode_ipv4_prefix(
     }
 
     // Parse prefix address (variable length).
-    let mut prefix_bytes = vec![0; plen_wire];
-    buf.copy_to_slice(&mut prefix_bytes);
-    let prefix = Ipv4Addr::from_slice(&prefix_bytes);
+    let mut prefix_bytes = [0; Ipv4Addr::LENGTH];
+    buf.copy_to_slice(&mut prefix_bytes[..plen_wire]);
+    let prefix = Ipv4Addr::from(prefix_bytes);
     let prefix = Ipv4Network::new(prefix, plen)
         .map(|prefix| prefix.apply_mask())
         .map_err(|_| UpdateMessageError::InvalidNetworkField)?;
@@ -1023,9 +1023,9 @@ pub(crate) fn decode_ipv6_prefix(
     }
 
     // Parse prefix address (variable length).
-    let mut prefix_bytes = vec![0; plen_wire];
-    buf.copy_to_slice(&mut prefix_bytes);
-    let prefix = Ipv6Addr::from_slice(&prefix_bytes);
+    let mut prefix_bytes = [0; Ipv6Addr::LENGTH];
+    buf.copy_to_slice(&mut prefix_bytes[..plen_wire]);
+    let prefix = Ipv6Addr::from(prefix_bytes);
     let prefix = Ipv6Network::new(prefix, plen)
         .map(|prefix| prefix.apply_mask())
         .map_err(|_| UpdateMessageError::InvalidNetworkField)?;

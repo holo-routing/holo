@@ -16,9 +16,20 @@ use tracing::error;
 
 use crate::rib::Route;
 
+// Route protocol types as defined in the rtnetlink.h kernel header.
 const NETLINK_PROTO_UNSPEC: u8 = 0;
+const NETLINK_PROTO_BGP: u8 = 186;
 const NETLINK_PROTO_OSPF: u8 = 188;
 const NETLINK_PROTO_RIP: u8 = 189;
+
+fn netlink_protocol(protocol: Protocol) -> u8 {
+    match protocol {
+        Protocol::BGP => NETLINK_PROTO_BGP,
+        Protocol::OSPFV2 | Protocol::OSPFV3 => NETLINK_PROTO_OSPF,
+        Protocol::RIPV2 | Protocol::RIPNG => NETLINK_PROTO_RIP,
+        _ => NETLINK_PROTO_UNSPEC,
+    }
+}
 
 pub(crate) async fn ip_route_install(
     handle: &Handle,
@@ -29,11 +40,7 @@ pub(crate) async fn ip_route_install(
     let mut request = handle.route().add();
 
     // Set route protocol.
-    let protocol = match route.protocol {
-        Protocol::OSPFV2 | Protocol::OSPFV3 => NETLINK_PROTO_OSPF,
-        Protocol::RIPV2 | Protocol::RIPNG => NETLINK_PROTO_RIP,
-        _ => NETLINK_PROTO_UNSPEC,
-    };
+    let protocol = netlink_protocol(route.protocol);
     request = request.protocol(protocol);
 
     match prefix {
@@ -113,11 +120,7 @@ pub(crate) async fn ip_route_uninstall(
     let mut request = handle.route().add();
 
     // Set route protocol.
-    let protocol = match protocol {
-        Protocol::OSPFV2 | Protocol::OSPFV3 => NETLINK_PROTO_OSPF,
-        Protocol::RIPV2 | Protocol::RIPNG => NETLINK_PROTO_RIP,
-        _ => NETLINK_PROTO_UNSPEC,
-    };
+    let protocol = netlink_protocol(protocol);
     request = request.protocol(protocol);
 
     match prefix {

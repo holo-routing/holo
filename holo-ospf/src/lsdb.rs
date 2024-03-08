@@ -611,7 +611,7 @@ pub(crate) fn originate_check<V>(
         }
 
         // Perform the MinLSInterval check.
-        if lsdb.delayed_orig.get(&lsa_key).is_some()
+        if lsdb.delayed_orig.contains_key(&lsa_key)
             || lsa_min_orig_interval_check(old_lse)
         {
             Debug::<V>::LsaOriginateMinInterval(&lsa.hdr).log();

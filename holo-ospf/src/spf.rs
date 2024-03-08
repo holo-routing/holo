@@ -630,7 +630,7 @@ fn run_area<V>(
             }
 
             // Check if the link's vertex is already on the shortest-path tree.
-            if spt.get(&link.id).is_some() {
+            if spt.contains_key(&link.id) {
                 continue;
             }
 

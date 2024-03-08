@@ -397,9 +397,11 @@ impl Neighbor {
                     let old_fec_status = fec.is_operational();
 
                     // Uninstall mapping received from this neighbor (if any).
-                    for nexthop in fec.nexthops.values_mut().filter(|nexthop| {
-                        nbr.addr_list.get(&nexthop.addr).is_some()
-                    }) {
+                    for nexthop in fec
+                        .nexthops
+                        .values_mut()
+                        .filter(|nexthop| nbr.addr_list.contains(&nexthop.addr))
+                    {
                         southbound::tx::label_uninstall(
                             &instance.tx.ibus,
                             &fec.inner,

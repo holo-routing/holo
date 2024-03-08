@@ -189,7 +189,7 @@ impl Nexthop {
             },
         ) = (self, other)
         {
-            *labels1 = labels2.clone()
+            labels1.clone_from(labels2)
         }
     }
 }

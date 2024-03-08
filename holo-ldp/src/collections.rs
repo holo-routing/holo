@@ -762,7 +762,7 @@ impl Neighbors {
         addr: &IpAddr,
     ) -> Option<(NeighborIndex, &Neighbor)> {
         for (nbr_idx, nbr) in &self.arena {
-            if nbr.addr_list.get(addr).is_some() {
+            if nbr.addr_list.contains(addr) {
                 return Some((nbr_idx, nbr));
             }
         }
@@ -780,7 +780,7 @@ impl Neighbors {
         addr: &IpAddr,
     ) -> Option<(NeighborIndex, &Neighbor)> {
         for (nbr_idx, nbr) in &mut self.arena {
-            if nbr.addr_list.get(addr).is_some() {
+            if nbr.addr_list.contains(addr) {
                 return Some((nbr_idx, nbr));
             }
         }

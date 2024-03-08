@@ -668,7 +668,7 @@ impl Neighbor {
         }
 
         // Keep track of the advertised capabilities.
-        self.capabilities_adv = capabilities.clone();
+        self.capabilities_adv.clone_from(&capabilities);
 
         // Fill-in and send message.
         let msg = Message::Open(OpenMsg {
@@ -924,7 +924,7 @@ impl Neighbor {
         // Check if the corresponding multi-protocol capability has been
         // negotiated.
         let cap = Capability::MultiProtocol { afi, safi };
-        if self.capabilities_nego.get(&cap).is_some() {
+        if self.capabilities_nego.contains(&cap) {
             return true;
         }
 

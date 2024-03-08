@@ -68,7 +68,7 @@ impl Session {
     }
 
     pub(crate) fn update_hostname(&mut self, hostname: &str) {
-        self.hostname = hostname.to_owned();
+        hostname.clone_into(&mut self.hostname);
         self.update_prompt();
     }
 

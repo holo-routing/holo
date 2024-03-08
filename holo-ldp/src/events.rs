@@ -846,7 +846,7 @@ pub(crate) fn process_nbr_msg_label_mapping(
         if old_label != label && !req_response {
             // LMp.10a.
             for nexthop in fec.nexthops.values_mut() {
-                if nbr.addr_list.get(&nexthop.addr).is_none() {
+                if !nbr.addr_list.contains(&nexthop.addr) {
                     continue;
                 }
 
@@ -868,7 +868,7 @@ pub(crate) fn process_nbr_msg_label_mapping(
     // LMp.11 - 12: consider multiple nexthops in order to support multipath.
     for nexthop in fec.nexthops.values_mut() {
         // LMp.15: install FEC in the FIB.
-        if nbr.addr_list.get(&nexthop.addr).is_none() {
+        if !nbr.addr_list.contains(&nexthop.addr) {
             continue;
         }
 
@@ -943,7 +943,7 @@ fn process_nbr_msg_label_request(
     // LRq.3: is MsgSource the next hop?
     let fec = instance.state.fecs.get_mut(&prefix).unwrap();
     for nexthop in fec.nexthops.values() {
-        if nbr.addr_list.get(&nexthop.addr).is_none() {
+        if !nbr.addr_list.contains(&nexthop.addr) {
             continue;
         }
 
@@ -1050,7 +1050,7 @@ fn process_nbr_msg_label_withdraw(
 
     // LWd.1: remove label from forwarding/switching use.
     for nexthop in fec.nexthops.values_mut() {
-        if nbr.addr_list.get(&nexthop.addr).is_none() {
+        if !nbr.addr_list.contains(&nexthop.addr) {
             continue;
         }
 
@@ -1111,7 +1111,7 @@ fn process_nbr_msg_label_withdraw_wcard(
 
         // LWd.1: remove label from forwarding/switching use.
         for nexthop in fec.nexthops.values_mut() {
-            if nbr.addr_list.get(&nexthop.addr).is_none() {
+            if !nbr.addr_list.contains(&nexthop.addr) {
                 continue;
             }
 

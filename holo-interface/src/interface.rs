@@ -69,7 +69,7 @@ impl Interfaces {
                 // Update the existing interface with the new information.
                 if iface.name != ifname {
                     self.name_tree.remove(&iface.name);
-                    iface.name = ifname.clone();
+                    iface.name.clone_from(&ifname);
                     self.name_tree.insert(ifname.clone(), iface_idx);
                 }
                 iface.mtu = mtu;

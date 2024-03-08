@@ -947,8 +947,8 @@ where
     // (7 - errata 3974) If there is an instance of the LSA on the sending
     // neighbor's Link state request list, an error has occurred in the
     // Database Exchange process.
-    if nbr.lists.ls_request.get(&lsa_key).is_some()
-        || nbr.lists.ls_request_pending.get(&lsa_key).is_some()
+    if nbr.lists.ls_request.contains_key(&lsa_key)
+        || nbr.lists.ls_request_pending.contains_key(&lsa_key)
     {
         // Restart the Database Exchange process.
         nbr.fsm(

@@ -268,7 +268,7 @@ pub(crate) async fn nbr_read_loop(
             // Keep track of received capabilities as they influence how some
             // messages should be decoded.
             if let Ok(Message::Open(msg)) = &msg {
-                cxt.capabilities = msg.capabilities.clone();
+                cxt.capabilities.clone_from(&msg.capabilities);
             }
 
             // Notify that the BGP message was received.

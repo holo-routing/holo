@@ -486,7 +486,7 @@ impl Route {
 
     // Replaces the nexthops in this route with the provided set of nexthops.
     fn replace_nexthops(&mut self, other_nhs: &BTreeSet<Nexthop>) {
-        self.nexthops = other_nhs.clone();
+        self.nexthops.clone_from(other_nhs);
     }
 
     // Replaces the provided next hop labels from another set into this route.

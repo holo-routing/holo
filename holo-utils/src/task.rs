@@ -70,10 +70,10 @@ enum Message {
 
 impl<T> Task<T> {
     /// Spawns a new asynchronous task, returning a handle for it.
-    pub fn spawn<Fut: Future<Output = T>>(future: Fut) -> Task<T>
+    pub fn spawn<Fut>(future: Fut) -> Task<T>
     where
-        Fut: Future + Send + 'static,
-        Fut::Output: Send + 'static,
+        Fut: Future<Output = T> + Send + 'static,
+        T: Send + 'static,
     {
         Task {
             join_handle: task::spawn(future),

@@ -240,7 +240,7 @@ pub(crate) fn process_route_add(instance: &mut Instance, msg: RouteMsg) {
             _ => continue,
         };
 
-        if fec.nexthops.get(&msg_nexthop_addr).is_none() {
+        if !fec.nexthops.contains_key(&msg_nexthop_addr) {
             fec.nexthop_add(msg_nexthop_addr, Some(msg_nexthop_ifindex));
         }
     }

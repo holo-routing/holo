@@ -376,7 +376,7 @@ fn process_nbr_route_refresh(
     // session establishment time via capability advertisement, the speaker
     // shall ignore such a message.
     let cap = Capability::MultiProtocol { afi, safi };
-    if nbr.capabilities_adv.get(&cap).is_none() {
+    if !nbr.capabilities_adv.contains(&cap) {
         return Ok(());
     }
 

@@ -89,7 +89,7 @@ impl Fec {
     pub(crate) fn is_nbr_nexthop(&self, nbr: &Neighbor) -> bool {
         self.nexthops
             .values()
-            .any(|nexthop| nbr.addr_list.get(&nexthop.addr).is_some())
+            .any(|nexthop| nbr.addr_list.contains(&nexthop.addr))
     }
 
     pub(crate) fn is_operational(&self) -> bool {

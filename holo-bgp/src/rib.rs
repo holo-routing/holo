@@ -13,6 +13,7 @@ use std::time::Instant;
 use holo_utils::bgp::RouteType;
 use holo_utils::ibus::IbusSender;
 use holo_utils::protocol::Protocol;
+use prefix_trie::map::PrefixMap;
 use serde::{Deserialize, Serialize};
 
 use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
@@ -46,7 +47,7 @@ pub struct RoutingTables {
 
 #[derive(Debug)]
 pub struct RoutingTable<A: AddressFamily> {
-    pub prefixes: BTreeMap<A::IpNetwork, Destination>,
+    pub prefixes: PrefixMap<A::IpNetwork, Destination>,
     pub queued_prefixes: BTreeSet<A::IpNetwork>,
 }
 

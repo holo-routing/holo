@@ -16,6 +16,7 @@ derive-new.workspace = true
 enum-as-inner.workspace = true
 futures.workspace = true
 ipnetwork.workspace = true
+prefix-trie.workspace = true
 rtnetlink.workspace = true
 tokio.workspace = true
 tracing.workspace = true

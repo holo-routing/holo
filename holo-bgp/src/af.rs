@@ -33,7 +33,7 @@ pub trait AddressFamily: Sized {
     // The type of IP address used by this address family.
     type IpAddr: IpAddrKind;
     // The type of IP network used by this address family.
-    type IpNetwork: IpNetworkKind<Self::IpAddr>;
+    type IpNetwork: IpNetworkKind<Self::IpAddr> + prefix_trie::Prefix;
 
     // Get the routing table for this address family from the provided
     // `RoutingTables`.

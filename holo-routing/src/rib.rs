@@ -20,14 +20,15 @@ use holo_utils::southbound::{
 };
 use holo_utils::{UnboundedReceiver, UnboundedSender};
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
+use prefix_trie::map::PrefixMap;
 use tokio::sync::mpsc;
 
 use crate::{ibus, netlink};
 
 #[derive(Debug)]
 pub struct Rib {
-    pub ipv4: BTreeMap<Ipv4Network, BTreeMap<u32, Route>>,
-    pub ipv6: BTreeMap<Ipv6Network, BTreeMap<u32, Route>>,
+    pub ipv4: PrefixMap<Ipv4Network, BTreeMap<u32, Route>>,
+    pub ipv6: PrefixMap<Ipv6Network, BTreeMap<u32, Route>>,
     pub mpls: BTreeMap<Label, Route>,
     pub ip_update_queue: BTreeSet<IpNetwork>,
     pub mpls_update_queue: BTreeSet<Label>,

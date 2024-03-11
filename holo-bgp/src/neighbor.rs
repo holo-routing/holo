@@ -913,7 +913,7 @@ impl Neighbor {
         A: AddressFamily,
     {
         let table = A::table(&mut rib.tables);
-        for (prefix, dest) in &mut table.prefixes {
+        for (prefix, dest) in table.prefixes.iter_mut() {
             dest.adj_rib.remove(&self.remote_addr);
             table.queued_prefixes.insert(*prefix);
         }

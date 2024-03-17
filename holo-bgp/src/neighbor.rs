@@ -28,8 +28,8 @@ use crate::packet::consts::{
     Afi, ErrorCode, FsmErrorSubcode, Safi, AS_TRANS, BGP_VERSION,
 };
 use crate::packet::message::{
-    Capability, DecodeCxt, EncodeCxt, FourOctetAsNumber, KeepaliveMsg, Message,
-    NotificationMsg, OpenMsg,
+    Capability, DecodeCxt, EncodeCxt, KeepaliveMsg, Message,
+    NegotiatedCapability, NotificationMsg, OpenMsg,
 };
 use crate::rib::{Rib, Route};
 use crate::tasks::messages::input::{NbrRxMsg, NbrTimerMsg, TcpConnectMsg};
@@ -54,7 +54,7 @@ pub struct Neighbor {
     pub holdtime_nego: Option<u16>,
     pub capabilities_adv: BTreeSet<Capability>,
     pub capabilities_rcvd: BTreeSet<Capability>,
-    pub capabilities_nego: BTreeSet<Capability>,
+    pub capabilities_nego: BTreeSet<NegotiatedCapability>,
     pub notification_sent: Option<(DateTime<Utc>, NotificationMsg)>,
     pub notification_rcvd: Option<(DateTime<Utc>, NotificationMsg)>,
     pub last_established: Option<DateTime<Utc>>,
@@ -549,7 +549,16 @@ impl Neighbor {
         // Compute the negotiated capabilities.
         self.capabilities_nego = self
             .capabilities_adv
-            .intersection(&self.capabilities_rcvd)
+            .iter()
+            .map(|cap| cap.as_negotiated())
+            .collect::<BTreeSet<_>>()
+            .intersection(
+                &self
+                    .capabilities_rcvd
+                    .iter()
+                    .map(|cap| cap.as_negotiated())
+                    .collect::<BTreeSet<_>>(),
+            )
             .cloned()
             .collect();
 
@@ -644,7 +653,7 @@ impl Neighbor {
         let mut capabilities: BTreeSet<_> = [
             Capability::RouteRefresh,
             Capability::FourOctetAsNumber {
-                asn: FourOctetAsNumber(instance_cfg.asn),
+                asn: instance_cfg.asn,
             },
         ]
         .into();
@@ -923,7 +932,7 @@ impl Neighbor {
     pub(crate) fn is_af_enabled(&self, afi: Afi, safi: Safi) -> bool {
         // Check if the corresponding multi-protocol capability has been
         // negotiated.
-        let cap = Capability::MultiProtocol { afi, safi };
+        let cap = NegotiatedCapability::MultiProtocol { afi, safi };
         if self.capabilities_nego.contains(&cap) {
             return true;
         }

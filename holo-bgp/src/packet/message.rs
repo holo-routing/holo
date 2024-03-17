@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::cmp::Ordering;
 use std::collections::BTreeSet;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
@@ -99,6 +98,7 @@ pub struct OpenMsg {
     pub identifier: Ipv4Addr,
     pub capabilities: BTreeSet<Capability>,
 }
+
 //
 // Capabilities Optional Parameter.
 //
@@ -113,19 +113,29 @@ pub struct OpenMsg {
 // ~                              ~
 // +------------------------------+
 //
-#[derive(Clone, Debug, EnumAsInner, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(EnumAsInner)]
 #[derive(Deserialize, Serialize)]
 pub enum Capability {
     MultiProtocol { afi: Afi, safi: Safi },
-    FourOctetAsNumber { asn: FourOctetAsNumber },
+    FourOctetAsNumber { asn: u32 },
     AddPath(BTreeSet<AddPathTuple>),
     RouteRefresh,
     EnhancedRouteRefresh,
 }
 
-#[derive(Clone, Copy, Debug)]
+// This is a stripped down version of `Capability`, containing only data that
+// is relevant in terms of capability negotiation.
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(EnumAsInner)]
 #[derive(Deserialize, Serialize)]
-pub struct FourOctetAsNumber(pub u32);
+pub enum NegotiatedCapability {
+    MultiProtocol { afi: Afi, safi: Safi },
+    FourOctetAsNumber,
+    AddPath,
+    RouteRefresh,
+    EnhancedRouteRefresh,
+}
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
@@ -244,14 +254,14 @@ pub struct RouteRefreshMsg {
 
 // BGP message decoding context.
 pub struct EncodeCxt {
-    pub capabilities: BTreeSet<Capability>,
+    pub capabilities: BTreeSet<NegotiatedCapability>,
 }
 
 // BGP message decoding context.
 pub struct DecodeCxt {
     pub peer_type: PeerType,
     pub peer_as: u32,
-    pub capabilities: BTreeSet<Capability>,
+    pub capabilities: BTreeSet<NegotiatedCapability>,
 }
 
 // ===== impl Message =====
@@ -479,7 +489,7 @@ impl OpenMsg {
             .iter()
             .find_map(|cap| {
                 if let Capability::FourOctetAsNumber { asn } = cap {
-                    Some(asn.0)
+                    Some(*asn)
                 } else {
                     None
                 }
@@ -505,7 +515,7 @@ impl Capability {
             Capability::FourOctetAsNumber { asn } => {
                 buf.put_u8(CapabilityCode::FourOctetAsNumber as u8);
                 buf.put_u8(0);
-                buf.put_u32(asn.0);
+                buf.put_u32(*asn);
             }
             Capability::AddPath(tuples) => {
                 buf.put_u8(CapabilityCode::AddPath as u8);
@@ -568,9 +578,7 @@ impl Capability {
                 }
 
                 let asn = buf_cap.get_u32();
-                Capability::FourOctetAsNumber {
-                    asn: FourOctetAsNumber(asn),
-                }
+                Capability::FourOctetAsNumber { asn }
             }
             Some(CapabilityCode::AddPath) => {
                 if cap_len % 4 != 0 {
@@ -634,33 +642,21 @@ impl Capability {
             }
         }
     }
-}
 
-// ===== impl FourOctetAsNumber =====
-
-// The "Support for 4-octet AS number" capability is unique in that it contains
-// additional data (the local AS number) other than the capability itself.
-//
-// Once a neighborship is formed, the negotiated capabilities result from the
-// intersection of advertised and received capabilities. As the AS numbers of
-// the two neighbors may differ, the intersection might not include the "Support
-// for 4-octet AS number" capability. To address this, the following equality
-// traits are implemented to always consider AS numbers within the capability
-// as equal, even when they are not.
-impl PartialEq for FourOctetAsNumber {
-    fn eq(&self, _other: &Self) -> bool {
-        true
-    }
-}
-impl Eq for FourOctetAsNumber {}
-impl PartialOrd for FourOctetAsNumber {
-    fn partial_cmp(&self, _other: &Self) -> Option<Ordering> {
-        Some(Ordering::Equal)
-    }
-}
-impl Ord for FourOctetAsNumber {
-    fn cmp(&self, _other: &Self) -> Ordering {
-        Ordering::Equal
+    pub fn as_negotiated(&self) -> NegotiatedCapability {
+        match *self {
+            Capability::MultiProtocol { afi, safi } => {
+                NegotiatedCapability::MultiProtocol { afi, safi }
+            }
+            Capability::FourOctetAsNumber { .. } => {
+                NegotiatedCapability::FourOctetAsNumber
+            }
+            Capability::AddPath { .. } => NegotiatedCapability::AddPath,
+            Capability::RouteRefresh => NegotiatedCapability::RouteRefresh,
+            Capability::EnhancedRouteRefresh => {
+                NegotiatedCapability::EnhancedRouteRefresh
+            }
+        }
     }
 }
 

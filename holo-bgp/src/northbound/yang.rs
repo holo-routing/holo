@@ -12,11 +12,11 @@ use num_traits::FromPrimitive;
 use crate::neighbor::{fsm, PeerType};
 use crate::northbound::configuration::PrivateAsRemove;
 use crate::packet::consts::{
-    AddPathMode, AsPathSegmentType, CeaseSubcode, ErrorCode, FsmErrorSubcode,
-    MessageHeaderErrorSubcode, OpenMessageErrorSubcode,
+    AddPathMode, AsPathSegmentType, CapabilityCode, CeaseSubcode, ErrorCode,
+    FsmErrorSubcode, MessageHeaderErrorSubcode, OpenMessageErrorSubcode,
     RouteRefreshErrorSubcode, Safi, UpdateMessageErrorSubcode,
 };
-use crate::packet::message::{Capability, NotificationMsg};
+use crate::packet::message::NotificationMsg;
 use crate::rib::{RouteIneligibleReason, RouteOrigin, RouteRejectReason};
 
 // ===== ToYang implementations =====
@@ -62,16 +62,16 @@ impl ToYang for AddPathMode {
     }
 }
 
-impl ToYang for Capability {
+impl ToYang for CapabilityCode {
     fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            Capability::MultiProtocol { .. } => "iana-bgp-types:mp-bgp".into(),
-            Capability::FourOctetAsNumber { .. } => {
-                "iana-bgp-types:asn32".into()
+            CapabilityCode::MultiProtocol => "iana-bgp-types:mp-bgp".into(),
+            CapabilityCode::FourOctetAsNumber => "iana-bgp-types:asn32".into(),
+            CapabilityCode::AddPath => "holo-bgp:add-paths".into(),
+            CapabilityCode::RouteRefresh => {
+                "iana-bgp-types:route-refresh".into()
             }
-            Capability::AddPath { .. } => "holo-bgp:add-paths".into(),
-            Capability::RouteRefresh => "iana-bgp-types:route-refresh".into(),
-            Capability::EnhancedRouteRefresh => {
+            CapabilityCode::EnhancedRouteRefresh => {
                 "holo-bgp:enhanced-route-refresh".into()
             }
         }

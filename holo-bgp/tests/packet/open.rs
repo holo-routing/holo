@@ -9,9 +9,7 @@ use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
 use holo_bgp::packet::consts::{Afi, Safi, BGP_VERSION};
-use holo_bgp::packet::message::{
-    Capability, FourOctetAsNumber, Message, OpenMsg,
-};
+use holo_bgp::packet::message::{Capability, Message, OpenMsg};
 
 use super::{test_decode_msg, test_encode_msg};
 
@@ -78,9 +76,7 @@ static OPEN3: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
                     afi: Afi::Ipv6,
                     safi: Safi::Unicast,
                 },
-                Capability::FourOctetAsNumber {
-                    asn: FourOctetAsNumber(65550),
-                },
+                Capability::FourOctetAsNumber { asn: 65550 },
                 Capability::RouteRefresh,
                 Capability::EnhancedRouteRefresh,
             ]

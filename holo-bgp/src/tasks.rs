@@ -61,7 +61,7 @@ pub mod messages {
 
     use crate::error::NbrRxError;
     use crate::neighbor::fsm;
-    use crate::packet::message::{Capability, Message};
+    use crate::packet::message::{Message, NegotiatedCapability};
     use crate::policy::RoutePolicyInfo;
 
     // Type aliases.
@@ -165,7 +165,7 @@ pub mod messages {
                 nbr_addr: IpAddr,
                 msg_list: Vec<Message>,
             },
-            UpdateCapabilities(BTreeSet<Capability>),
+            UpdateCapabilities(BTreeSet<NegotiatedCapability>),
         }
 
         #[derive(Debug, Serialize)]

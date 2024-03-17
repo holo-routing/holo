@@ -23,7 +23,7 @@ use crate::packet::error::{AttrError, UpdateMessageError};
 use crate::packet::message::{
     decode_ipv4_prefix, decode_ipv6_prefix, encode_ipv4_prefix,
     encode_ipv6_prefix, DecodeCxt, EncodeCxt, MpReachNlri, MpUnreachNlri,
-    ReachNlri,
+    NegotiatedCapability, ReachNlri,
 };
 
 pub const ATTR_MIN_LEN: u16 = 3;
@@ -131,8 +131,7 @@ impl Attrs {
         // Check whether the 4-octet AS number capability has been negotiated.
         let four_byte_asn_cap = cxt
             .capabilities
-            .iter()
-            .any(|cap| cap.is_four_octet_as_number());
+            .contains(&NegotiatedCapability::FourOctetAsNumber);
 
         // RFC 7606 - Section 5.1:
         // "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if present) SHALL
@@ -280,8 +279,7 @@ impl Attrs {
         // Check whether the 4-octet AS number capability has been negotiated.
         let four_byte_asn_cap = cxt
             .capabilities
-            .iter()
-            .any(|cap| cap.is_four_octet_as_number());
+            .contains(&NegotiatedCapability::FourOctetAsNumber);
 
         // List of parsed attributes.
         let mut attr_list = HashSet::new();

@@ -8,7 +8,7 @@ use std::sync::LazyLock as Lazy;
 use criterion::{criterion_group, criterion_main, Criterion};
 use holo_bgp::packet::consts::{Afi, Safi, BGP_VERSION};
 use holo_bgp::packet::message::{
-    Capability, EncodeCxt, FourOctetAsNumber, Message, OpenMsg,
+    Capability, EncodeCxt, Message, NegotiatedCapability, OpenMsg,
 };
 
 static MESSAGE: Lazy<Message> = Lazy::new(|| {
@@ -26,9 +26,7 @@ static MESSAGE: Lazy<Message> = Lazy::new(|| {
                 afi: Afi::Ipv6,
                 safi: Safi::Unicast,
             },
-            Capability::FourOctetAsNumber {
-                asn: FourOctetAsNumber(65550),
-            },
+            Capability::FourOctetAsNumber { asn: 65550 },
             Capability::RouteRefresh,
             Capability::EnhancedRouteRefresh,
         ]
@@ -38,10 +36,7 @@ static MESSAGE: Lazy<Message> = Lazy::new(|| {
 
 fn msg_encode(n: u64) {
     let cxt = EncodeCxt {
-        capabilities: [Capability::FourOctetAsNumber {
-            asn: FourOctetAsNumber(n as u32),
-        }]
-        .into(),
+        capabilities: [NegotiatedCapability::FourOctetAsNumber].into(),
     };
 
     for _ in 0..n {

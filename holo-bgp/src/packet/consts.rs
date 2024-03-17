@@ -53,19 +53,19 @@ pub enum CapabilityCode {
     // RFC 2918
     RouteRefresh = 2,
     // RFC 5291
-    OutboundRouteFiltering = 3,
+    //OutboundRouteFiltering = 3,
     // RFC 8950
-    ExtendedNextHop = 5,
+    //ExtendedNextHop = 5,
     // RFC 8654
-    ExtendedMessage = 6,
+    //ExtendedMessage = 6,
     // RFC 8205
-    BgpSec = 7,
+    //BgpSec = 7,
     // RFC 8277
-    MultipleLabels = 8,
+    //MultipleLabels = 8,
     // RFC 9234
-    BgpRole = 9,
+    //BgpRole = 9,
     // RFC 4724
-    GracefulRestart = 64,
+    //GracefulRestart = 64,
     // RFC 6793
     FourOctetAsNumber = 65,
     // RFC7911

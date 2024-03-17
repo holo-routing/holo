@@ -12,7 +12,7 @@ mod update;
 
 use holo_bgp::neighbor::PeerType;
 use holo_bgp::packet::message::{
-    Capability, DecodeCxt, EncodeCxt, FourOctetAsNumber, Message,
+    DecodeCxt, EncodeCxt, Message, NegotiatedCapability,
 };
 
 //
@@ -21,10 +21,7 @@ use holo_bgp::packet::message::{
 
 fn test_encode_msg(bytes_expected: &[u8], msg: &Message) {
     let cxt = EncodeCxt {
-        capabilities: [Capability::FourOctetAsNumber {
-            asn: FourOctetAsNumber(65550),
-        }]
-        .into(),
+        capabilities: [NegotiatedCapability::FourOctetAsNumber].into(),
     };
 
     let bytes_actual = msg.encode(&cxt);
@@ -37,10 +34,7 @@ fn test_decode_msg(bytes: &[u8], msg_expected: &Message) {
     let cxt = DecodeCxt {
         peer_type: PeerType::Internal,
         peer_as: 65550,
-        capabilities: [Capability::FourOctetAsNumber {
-            asn: FourOctetAsNumber(65550),
-        }]
-        .into(),
+        capabilities: [NegotiatedCapability::FourOctetAsNumber].into(),
     };
 
     let msg_actual = Message::decode(&bytes, &cxt).unwrap();

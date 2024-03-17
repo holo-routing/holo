@@ -263,7 +263,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::neighbors::neighbor::capabilities::advertised_capabilities::name::PATH)
         .get_element_string(|_instance, args| {
             let (_, cap) = args.list_entry.as_capability_adv().unwrap();
-            Some(cap.to_yang().into())
+            Some(cap.code().to_yang().into())
         })
         .path(bgp::neighbors::neighbor::capabilities::advertised_capabilities::value::mpbgp::afi::PATH)
         .get_element_string(|_instance, args| {
@@ -285,7 +285,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::neighbors::neighbor::capabilities::advertised_capabilities::value::asn32::r#as::PATH)
         .get_element_u32(|_instance, args| {
             let (_, cap) = args.list_entry.as_capability_adv().unwrap();
-            cap.as_four_octet_as_number().map(|asn| asn.0)
+            cap.as_four_octet_as_number().copied()
         })
         .path(bgp::neighbors::neighbor::capabilities::advertised_capabilities::value::add_paths::afi_safis::PATH)
         .get_iterate(|_instance, args| {
@@ -325,7 +325,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::neighbors::neighbor::capabilities::received_capabilities::name::PATH)
         .get_element_string(|_instance, args| {
             let (_, cap) = args.list_entry.as_capability_rcvd().unwrap();
-            Some(cap.to_yang().into())
+            Some(cap.code().to_yang().into())
         })
         .path(bgp::neighbors::neighbor::capabilities::received_capabilities::value::mpbgp::afi::PATH)
         .get_element_string(|_instance, args| {
@@ -347,7 +347,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::neighbors::neighbor::capabilities::received_capabilities::value::asn32::r#as::PATH)
         .get_element_u32(|_instance, args| {
             let (_, cap) = args.list_entry.as_capability_rcvd().unwrap();
-            cap.as_four_octet_as_number().map(|asn| asn.0)
+            cap.as_four_octet_as_number().copied()
         })
         .path(bgp::neighbors::neighbor::capabilities::received_capabilities::value::add_paths::afi_safis::PATH)
         .get_iterate(|_instance, args| {
@@ -380,7 +380,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             let iter = nbr
                 .capabilities_adv
                 .iter()
-                .map(|cap| cap.to_yang().into())
+                .map(|cap| cap.code().to_yang().into())
                 .dedup()
                 .map(ListEntry::CapabilityNego);
             Some(Box::new(iter))

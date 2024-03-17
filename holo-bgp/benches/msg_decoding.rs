@@ -4,18 +4,13 @@ use std::hint::black_box;
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use holo_bgp::neighbor::PeerType;
-use holo_bgp::packet::message::{
-    Capability, DecodeCxt, FourOctetAsNumber, Message,
-};
+use holo_bgp::packet::message::{DecodeCxt, Message, NegotiatedCapability};
 
 fn msg_decode(n: u64) {
     let cxt = DecodeCxt {
         peer_type: PeerType::Internal,
         peer_as: n as u32,
-        capabilities: [Capability::FourOctetAsNumber {
-            asn: FourOctetAsNumber(n as u32),
-        }]
-        .into(),
+        capabilities: [NegotiatedCapability::FourOctetAsNumber].into(),
     };
 
     let bytes = vec![

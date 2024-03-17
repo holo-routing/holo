@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::collections::BTreeSet;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 
@@ -268,7 +269,12 @@ pub(crate) async fn nbr_read_loop(
             // Keep track of received capabilities as they influence how some
             // messages should be decoded.
             if let Ok(Message::Open(msg)) = &msg {
-                cxt.capabilities.clone_from(&msg.capabilities);
+                let capabilities = msg
+                    .capabilities
+                    .iter()
+                    .map(|cap| cap.as_negotiated())
+                    .collect::<BTreeSet<_>>();
+                cxt.capabilities = capabilities;
             }
 
             // Notify that the BGP message was received.

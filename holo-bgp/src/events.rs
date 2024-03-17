@@ -713,56 +713,11 @@ pub(crate) fn advertise_routes<A>(
 ) where
     A: AddressFamily,
 {
-    // Create an iterator over the best routes, filtering out routes that
-    // should not be redistributed to this neighbor.
-    let routes = routes.iter().filter(|(_, route)| {
-        // Suppress advertisements to peers if their AS number is present
-        // in the AS path of the route, unless overridden by configuration.
-        if !nbr.config.as_path_options.disable_peer_as_filter
-            && route.attrs.base.value.as_path.contains(nbr.config.peer_as)
-        {
-            return false;
-        }
-
-        // RFC 4271 - Section 9.2:
-        // "When a BGP speaker receives an UPDATE message from an internal
-        // peer, the receiving BGP speaker SHALL NOT re-distribute the
-        // routing information contained in that UPDATE message to other
-        // internal peers".
-        if route.route_type == RouteType::Internal
-            && let RouteOrigin::Neighbor { remote_addr, .. } = &route.origin
-            && *remote_addr == nbr.remote_addr
-        {
-            return false;
-        }
-
-        // Handle well-known communities.
-        if let Some(comm) = &route.attrs.comm {
-            for comm in comm
-                .value
-                .iter()
-                .filter_map(|comm| WellKnownCommunities::from_u32(comm.0))
-            {
-                // Do not advertise to any other peer.
-                if comm == WellKnownCommunities::NoAdvertise {
-                    return false;
-                }
-
-                // Do not advertise to external peers.
-                if nbr.peer_type == PeerType::External
-                    && (comm == WellKnownCommunities::NoExport
-                        || comm == WellKnownCommunities::NoExportSubconfed)
-                {
-                    return false;
-                }
-            }
-        }
-
-        true
-    });
-
     // Update pre-policy Adj-RIB-Out routes.
-    for (prefix, route) in routes.clone() {
+    for (prefix, route) in routes
+        .iter()
+        .filter(|(_, route)| neighbor_redistribute_filter(nbr, route))
+    {
         let dest = table.prefixes.get_mut(prefix).unwrap();
         let adj_rib = dest.adj_rib.entry(nbr.remote_addr).or_default();
         adj_rib.out_pre = Some(route.clone());
@@ -783,6 +738,7 @@ pub(crate) fn advertise_routes<A>(
         afi_safi: A::AFI_SAFI,
         routes: routes
             .into_iter()
+            .filter(|(_, route)| neighbor_redistribute_filter(nbr, route))
             .map(|(prefix, route)| ((*prefix).into(), route.policy_info()))
             .collect(),
         policies: apply_policy_cfg
@@ -794,4 +750,51 @@ pub(crate) fn advertise_routes<A>(
         default_policy: apply_policy_cfg.default_export_policy,
     };
     policy_apply_tasks.enqueue(msg);
+}
+
+// Determines whether to redistribute a route to a neighbor.
+fn neighbor_redistribute_filter(nbr: &Neighbor, route: &Route) -> bool {
+    // Suppress advertisements to peers if their AS number is present
+    // in the AS path of the route, unless overridden by configuration.
+    if !nbr.config.as_path_options.disable_peer_as_filter
+        && route.attrs.base.value.as_path.contains(nbr.config.peer_as)
+    {
+        return false;
+    }
+
+    // RFC 4271 - Section 9.2:
+    // "When a BGP speaker receives an UPDATE message from an internal
+    // peer, the receiving BGP speaker SHALL NOT re-distribute the
+    // routing information contained in that UPDATE message to other
+    // internal peers".
+    if route.route_type == RouteType::Internal
+        && let RouteOrigin::Neighbor { remote_addr, .. } = &route.origin
+        && *remote_addr == nbr.remote_addr
+    {
+        return false;
+    }
+
+    // Handle well-known communities.
+    if let Some(comm) = &route.attrs.comm {
+        for comm in comm
+            .value
+            .iter()
+            .filter_map(|comm| WellKnownCommunities::from_u32(comm.0))
+        {
+            // Do not advertise to any other peer.
+            if comm == WellKnownCommunities::NoAdvertise {
+                return false;
+            }
+
+            // Do not advertise to external peers.
+            if nbr.peer_type == PeerType::External
+                && (comm == WellKnownCommunities::NoExport
+                    || comm == WellKnownCommunities::NoExportSubconfed)
+            {
+                return false;
+            }
+        }
+    }
+
+    true
 }

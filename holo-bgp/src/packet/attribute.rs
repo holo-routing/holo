@@ -238,6 +238,18 @@ impl Attrs {
         if let Some(large_comm) = &self.large_comm {
             large_comm.encode(buf);
         }
+
+        // Unknown optional transitive attributes.
+        for unknown_attr in self.unknown.iter() {
+            buf.put_u8(unknown_attr.flags.bits());
+            buf.put_u8(unknown_attr.attr_type);
+            if unknown_attr.flags.contains(AttrFlags::EXTENDED) {
+                buf.put_u16(unknown_attr.length);
+            } else {
+                buf.put_u8(unknown_attr.length as u8);
+            }
+            buf.put_slice(&unknown_attr.value);
+        }
     }
 
     pub(crate) fn decode(

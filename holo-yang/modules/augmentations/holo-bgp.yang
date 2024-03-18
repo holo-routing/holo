@@ -11,6 +11,10 @@ module holo-bgp {
     prefix bt;
   }
 
+  import iana-bgp-rib-types {
+    prefix brt;
+  }
+
   import iana-bgp-notification {
     prefix bn;
   }
@@ -29,6 +33,12 @@ module holo-bgp {
   /*
    * Identities.
    */
+
+  identity ineligible-unresolvable {
+    base brt:ineligible-route-reason;
+    description
+      "Route was ineligible due to CLUSTER_LIST loop";
+  }
 
   identity unknown-error {
     base bn:bgp-notification;

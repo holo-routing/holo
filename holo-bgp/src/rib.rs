@@ -5,7 +5,7 @@
 //
 
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{btree_map, hash_map, BTreeMap, BTreeSet, HashMap};
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 use std::time::Instant;
@@ -49,6 +49,7 @@ pub struct RoutingTables {
 pub struct RoutingTable<A: AddressFamily> {
     pub prefixes: PrefixMap<A::IpNetwork, Destination>,
     pub queued_prefixes: BTreeSet<A::IpNetwork>,
+    pub nht: HashMap<IpAddr, NhtEntry<A>>,
 }
 
 #[derive(Debug, Default)]
@@ -79,6 +80,7 @@ pub struct Route {
     pub origin: RouteOrigin,
     pub attrs: RouteAttrs,
     pub route_type: RouteType,
+    pub igp_cost: Option<u32>,
     pub last_modified: Instant,
     pub ineligible_reason: Option<RouteIneligibleReason>,
     pub reject_reason: Option<RouteRejectReason>,
@@ -128,12 +130,19 @@ pub struct AttrSet<T> {
     pub value: T,
 }
 
+#[derive(Debug, Eq, PartialEq)]
+pub struct NhtEntry<A: AddressFamily> {
+    pub metric: Option<u32>,
+    pub prefixes: BTreeMap<A::IpNetwork, u32>,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RouteIneligibleReason {
     ClusterLoop,
     AsLoop,
     Originator,
     Confed,
+    Unresolvable,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -167,6 +176,7 @@ where
         RoutingTable {
             prefixes: Default::default(),
             queued_prefixes: Default::default(),
+            nht: Default::default(),
         }
     }
 }
@@ -183,6 +193,7 @@ impl Route {
             origin,
             attrs,
             route_type,
+            igp_cost: None,
             last_modified: Instant::now(),
             ineligible_reason: None,
             reject_reason: None,
@@ -295,7 +306,20 @@ impl Route {
 
         // Compare IGP costs.
         if !selection_cfg.ignore_next_hop_igp_metric {
-            // TODO: not implemented yet.
+            let a = self.igp_cost;
+            let b = other.igp_cost;
+            let reason = RouteRejectReason::NexthopCostHigher;
+            match a.cmp(&b) {
+                Ordering::Less => {
+                    return RouteCompare::LessPreferred(reason);
+                }
+                Ordering::Greater => {
+                    return RouteCompare::Preferred(reason);
+                }
+                Ordering::Equal => {
+                    // Move to next tie-breaker.
+                }
+            }
         }
 
         // If multipath is enabled, routes are considered equal under specific
@@ -441,6 +465,20 @@ impl<T> Default for AttrSets<T> {
     }
 }
 
+// ===== impl NhtEntry =====
+
+impl<A> Default for NhtEntry<A>
+where
+    A: AddressFamily,
+{
+    fn default() -> NhtEntry<A> {
+        NhtEntry {
+            metric: Default::default(),
+            prefixes: Default::default(),
+        }
+    }
+}
+
 // ===== helper functions =====
 
 fn compute_nexthops<A>(
@@ -477,11 +515,15 @@ where
 
 // ===== global functions =====
 
-pub(crate) fn best_path(
+pub(crate) fn best_path<A>(
     dest: &mut Destination,
     local_asn: u32,
+    nht: &HashMap<IpAddr, NhtEntry<A>>,
     selection_cfg: &RouteSelectionCfg,
-) -> Option<Box<Route>> {
+) -> Option<Box<Route>>
+where
+    A: AddressFamily,
+{
     let mut best_route = None;
 
     // Iterate over each post-policy Adj-RIB-In route for the destination.
@@ -499,6 +541,15 @@ pub(crate) fn best_path(
                 Some(RouteIneligibleReason::AsLoop);
             continue;
         }
+
+        // Get interior cost to the route's nexthop.
+        let nexthop = A::nexthop_rx_extract(&adj_in_route.attrs.base.value);
+        adj_in_route.igp_cost = nht.get(&nexthop).and_then(|nht| nht.metric);
+        if adj_in_route.igp_cost.is_none() {
+            adj_in_route.ineligible_reason =
+                Some(RouteIneligibleReason::Unresolvable);
+            continue;
+        };
 
         // Compare the current route with the best route found so far.
         match &mut best_route {
@@ -590,5 +641,51 @@ pub(crate) fn loc_rib_update<A>(
 
         // Remove route from the Loc-RIB.
         dest.local = None;
+    }
+}
+
+pub(crate) fn nexthop_track<A>(
+    nht: &mut HashMap<IpAddr, NhtEntry<A>>,
+    prefix: A::IpNetwork,
+    route: &Route,
+    ibus_tx: &IbusSender,
+) where
+    A: AddressFamily,
+{
+    let addr = A::nexthop_rx_extract(&route.attrs.base.value);
+    let nht = nht.entry(addr).or_insert_with(|| {
+        southbound::tx::nexthop_track(ibus_tx, addr);
+        Default::default()
+    });
+    *nht.prefixes.entry(prefix).or_default() += 1;
+}
+
+pub(crate) fn nexthop_untrack<A>(
+    nht: &mut HashMap<IpAddr, NhtEntry<A>>,
+    prefix: &A::IpNetwork,
+    route: &Route,
+    ibus_tx: &IbusSender,
+) where
+    A: AddressFamily,
+{
+    let addr = A::nexthop_rx_extract(&route.attrs.base.value);
+    let hash_map::Entry::Occupied(mut nht_e) = nht.entry(addr) else {
+        return;
+    };
+
+    let nht = nht_e.get_mut();
+    let btree_map::Entry::Occupied(mut prefix_e) = nht.prefixes.entry(*prefix)
+    else {
+        return;
+    };
+
+    let count = prefix_e.get_mut();
+    *count -= 1;
+    if *count == 0 {
+        prefix_e.remove();
+        if nht.prefixes.is_empty() {
+            southbound::tx::nexthop_untrack(ibus_tx, addr);
+            nht_e.remove();
+        }
     }
 }

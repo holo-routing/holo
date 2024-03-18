@@ -30,6 +30,7 @@ pub enum Debug<'a> {
     NbrAttrError(AttrType, AttrError),
     BestPathFound(IpNetwork, &'a Route),
     BestPathNotFound(IpNetwork),
+    NhtUpdate(IpAddr, Option<u32>),
 }
 
 // Reason why an BGP instance is inactive.
@@ -105,6 +106,14 @@ impl<'a> Debug<'a> {
                 // Parent span(s): bgp-instance
                 debug!(%prefix, "{}", self);
             }
+            Debug::NhtUpdate(addr, metric) => {
+                // Parent span(s): bgp-instance
+                if let Some(metric) = metric {
+                    debug!(%addr, %metric, "{}", self);
+                } else {
+                    debug!(%addr, metric="unreachable", "{}", self);
+                }
+            }
         }
     }
 }
@@ -144,6 +153,9 @@ impl<'a> std::fmt::Display for Debug<'a> {
             }
             Debug::BestPathNotFound(..) => {
                 write!(f, "best path not found")
+            }
+            Debug::NhtUpdate(..) => {
+                write!(f, "nexthop tracking update")
             }
         }
     }

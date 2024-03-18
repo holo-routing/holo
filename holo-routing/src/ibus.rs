@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::net::IpAddr;
+
 use holo_utils::ibus::{IbusMsg, IbusSender};
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{RouteKeyMsg, RouteMsg};
@@ -47,6 +49,14 @@ pub(crate) async fn process_msg(master: &mut Master, msg: IbusMsg) {
         IbusMsg::KeychainDel(keychain_name) => {
             // Remove the local copy of the keychain.
             master.shared.keychains.remove(&keychain_name);
+        }
+        IbusMsg::NexthopTrack(addr) => {
+            // Nexthop tracking registration.
+            master.rib.nht_add(addr, &master.ibus_tx);
+        }
+        IbusMsg::NexthopUntrack(addr) => {
+            // Nexthop tracking unregistration.
+            master.rib.nht_del(addr);
         }
         IbusMsg::PolicyMatchSetsUpd(match_sets) => {
             // Update the local copy of the policy match sets.
@@ -116,6 +126,16 @@ pub(crate) fn notify_redistribute_del(
 ) {
     let msg = RouteKeyMsg { protocol, prefix };
     let msg = IbusMsg::RouteRedistributeDel(msg);
+    send(ibus_tx, msg);
+}
+
+// Sends route redistribute delete notification.
+pub(crate) fn notify_nht_update(
+    ibus_tx: &IbusSender,
+    addr: IpAddr,
+    metric: Option<u32>,
+) {
+    let msg = IbusMsg::NexthopUpd { addr, metric };
     send(ibus_tx, msg);
 }
 

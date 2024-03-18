@@ -4,13 +4,14 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::{btree_map, BTreeMap, BTreeSet};
+use std::collections::{btree_map, BTreeMap, BTreeSet, HashMap};
+use std::net::IpAddr;
 
 use bitflags::bitflags;
 use chrono::{DateTime, Utc};
 use derive_new::new;
 use holo_utils::ibus::IbusSender;
-use holo_utils::ip::IpNetworkExt;
+use holo_utils::ip::{IpNetworkExt, Ipv4NetworkExt, Ipv6NetworkExt};
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{
@@ -21,6 +22,7 @@ use holo_utils::{UnboundedReceiver, UnboundedSender};
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use prefix_trie::map::PrefixMap;
 use tokio::sync::mpsc;
+use tracing::debug;
 
 use crate::{ibus, netlink};
 
@@ -29,6 +31,7 @@ pub struct Rib {
     pub ipv4: PrefixMap<Ipv4Network, BTreeMap<u32, Route>>,
     pub ipv6: PrefixMap<Ipv6Network, BTreeMap<u32, Route>>,
     pub mpls: BTreeMap<Label, Route>,
+    pub nht: HashMap<IpAddr, Option<u32>>,
     pub ip_update_queue: BTreeSet<IpNetwork>,
     pub mpls_update_queue: BTreeSet<Label>,
     pub update_queue_tx: UnboundedSender<()>,
@@ -298,6 +301,26 @@ impl Rib {
         }
     }
 
+    // Nexthop tracking registration.
+    pub(crate) fn nht_add(&mut self, addr: IpAddr, ibus_tx: &IbusSender) {
+        debug!(%addr, "nexthop tracking add");
+        let metric = self.nht_evaluate(&addr);
+        ibus::notify_nht_update(ibus_tx, addr, metric);
+        self.nht.entry(addr).or_insert(metric);
+    }
+
+    // Nexthop tracking unregistration.
+    pub(crate) fn nht_del(&mut self, addr: IpAddr) {
+        debug!(%addr, "nexthop tracking delete");
+        self.nht.remove(&addr);
+    }
+
+    // Evaluates the reachability of the given nexthop address and returns
+    // the metric of the route used to reach it.
+    fn nht_evaluate(&self, addr: &IpAddr) -> Option<u32> {
+        self.prefix_longest_match(addr).map(|route| route.metric)
+    }
+
     // Processes routes present in the update queue.
     pub(crate) async fn process_rib_update_queue(
         &mut self,
@@ -395,6 +418,21 @@ impl Rib {
             // Install the route using the netlink handle.
             netlink::mpls_route_install(netlink_handle, label, route).await;
         }
+
+        // Reevaluate all registered nexthops.
+        let mut nht = std::mem::take(&mut self.nht);
+        for (addr, metric) in &mut nht {
+            let new_metric = self.nht_evaluate(addr);
+            if new_metric != *metric {
+                debug!(
+                    %addr, old_metric = ?metric, ?new_metric,
+                    "nexthop tracking update"
+                );
+                *metric = new_metric;
+                ibus::notify_nht_update(ibus_tx, *addr, *metric);
+            }
+        }
+        self.nht = nht;
     }
 
     // Returns RIB entry associated to the given IP prefix.
@@ -403,6 +441,29 @@ impl Rib {
             IpNetwork::V4(prefix) => self.ipv4.entry(prefix).or_default(),
             IpNetwork::V6(prefix) => self.ipv6.entry(prefix).or_default(),
         }
+    }
+
+    pub(crate) fn prefix_longest_match(&self, addr: &IpAddr) -> Option<&Route> {
+        let lpm = match addr {
+            IpAddr::V4(addr) => {
+                let prefix =
+                    Ipv4Network::new(*addr, Ipv4Network::MAX_PREFIXLEN)
+                        .unwrap();
+                let (_, lpm) = self.ipv4.get_lpm(&prefix)?;
+                lpm
+            }
+            IpAddr::V6(addr) => {
+                let prefix =
+                    Ipv6Network::new(*addr, Ipv6Network::MAX_PREFIXLEN)
+                        .unwrap();
+                let (_, lpm) = self.ipv6.get_lpm(&prefix)?;
+                lpm
+            }
+        };
+        lpm.values()
+            .next()
+            .filter(|route| route.flags.contains(RouteFlags::ACTIVE))
+            .filter(|route| !route.flags.contains(RouteFlags::REMOVED))
     }
 
     // Adds IP route to the update queue.
@@ -425,6 +486,7 @@ impl Default for Rib {
             ipv4: Default::default(),
             ipv6: Default::default(),
             mpls: Default::default(),
+            nht: Default::default(),
             ip_update_queue: Default::default(),
             mpls_update_queue: Default::default(),
             update_queue_tx,

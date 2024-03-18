@@ -5,6 +5,7 @@
 //
 
 use std::collections::BTreeSet;
+use std::net::IpAddr;
 
 use holo_utils::ibus::{IbusMsg, IbusSender};
 use holo_utils::protocol::Protocol;
@@ -63,5 +64,15 @@ pub(crate) fn route_uninstall(
         prefix: prefix.into(),
     };
     let msg = IbusMsg::RouteIpDel(msg);
+    let _ = ibus_tx.send(msg);
+}
+
+pub(crate) fn nexthop_track(ibus_tx: &IbusSender, addr: IpAddr) {
+    let msg = IbusMsg::NexthopTrack(addr);
+    let _ = ibus_tx.send(msg);
+}
+
+pub(crate) fn nexthop_untrack(ibus_tx: &IbusSender, addr: IpAddr) {
+    let msg = IbusMsg::NexthopUntrack(addr);
     let _ = ibus_tx.send(msg);
 }

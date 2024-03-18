@@ -9,6 +9,7 @@ use std::net::IpAddr;
 use chrono::Utc;
 use holo_protocol::InstanceShared;
 use holo_utils::bgp::{RouteType, WellKnownCommunities};
+use holo_utils::ibus::IbusSender;
 use holo_utils::ip::{IpAddrKind, IpNetworkKind};
 use holo_utils::policy::{PolicyResult, PolicyType};
 use holo_utils::socket::{TcpConnInfo, TcpStream};
@@ -152,6 +153,7 @@ fn process_nbr_update(
     msg: UpdateMsg,
 ) -> Result<(), Error> {
     let rib = &mut instance.state.rib;
+    let ibus_tx = &instance.tx.ibus;
 
     // Process IPv4 reachable NLRIs.
     //
@@ -175,6 +177,7 @@ fn process_nbr_update(
                 nbr,
                 rib,
                 reach.prefixes,
+                ibus_tx,
             );
         }
     }
@@ -220,12 +223,12 @@ fn process_nbr_update(
             match mp_reach {
                 MpReachNlri::Ipv4Unicast { prefixes, .. } => {
                     process_nbr_unreach_prefixes::<Ipv4Unicast>(
-                        nbr, rib, prefixes,
+                        nbr, rib, prefixes, ibus_tx,
                     );
                 }
                 MpReachNlri::Ipv6Unicast { prefixes, .. } => {
                     process_nbr_unreach_prefixes::<Ipv6Unicast>(
-                        nbr, rib, prefixes,
+                        nbr, rib, prefixes, ibus_tx,
                     );
                 }
             }
@@ -234,17 +237,26 @@ fn process_nbr_update(
 
     // Process IPv4 unreachable NLRIs.
     if let Some(unreach) = msg.unreach {
-        process_nbr_unreach_prefixes::<Ipv4Unicast>(nbr, rib, unreach.prefixes);
+        process_nbr_unreach_prefixes::<Ipv4Unicast>(
+            nbr,
+            rib,
+            unreach.prefixes,
+            ibus_tx,
+        );
     }
 
     // Process multiprotocol unreachable NLRIs.
     if let Some(mp_unreach) = msg.mp_unreach {
         match mp_unreach {
             MpUnreachNlri::Ipv4Unicast { prefixes } => {
-                process_nbr_unreach_prefixes::<Ipv4Unicast>(nbr, rib, prefixes);
+                process_nbr_unreach_prefixes::<Ipv4Unicast>(
+                    nbr, rib, prefixes, ibus_tx,
+                );
             }
             MpUnreachNlri::Ipv6Unicast { prefixes } => {
-                process_nbr_unreach_prefixes::<Ipv6Unicast>(nbr, rib, prefixes);
+                process_nbr_unreach_prefixes::<Ipv6Unicast>(
+                    nbr, rib, prefixes, ibus_tx,
+                );
             }
         }
     }
@@ -330,6 +342,7 @@ fn process_nbr_unreach_prefixes<A>(
     nbr: &Neighbor,
     rib: &mut Rib,
     nlri_prefixes: Vec<A::IpNetwork>,
+    ibus_tx: &IbusSender,
 ) where
     A: AddressFamily,
 {
@@ -349,7 +362,9 @@ fn process_nbr_unreach_prefixes<A>(
         };
 
         adj_rib.in_pre = None;
-        adj_rib.in_post = None;
+        if let Some(route) = adj_rib.in_post.take() {
+            rib::nexthop_untrack(&mut table.nht, &prefix, &route, ibus_tx);
+        }
 
         // Enqueue prefix for the BGP Decision Process.
         table.queued_prefixes.insert(prefix);
@@ -469,10 +484,34 @@ where
                     rib.attr_sets.get_route_attr_sets(&rpinfo.attrs),
                     rpinfo.route_type,
                 );
+
+                // Update nexthop tracking.
+                if let Some(old_route) = adj_rib.in_post.take() {
+                    rib::nexthop_untrack(
+                        &mut table.nht,
+                        &prefix,
+                        &old_route,
+                        &instance.tx.ibus,
+                    );
+                }
+                rib::nexthop_track(
+                    &mut table.nht,
+                    prefix,
+                    &route,
+                    &instance.tx.ibus,
+                );
+
                 adj_rib.in_post = Some(Box::new(route));
             }
             PolicyResult::Reject => {
-                adj_rib.in_post = None;
+                if let Some(route) = adj_rib.in_post.take() {
+                    rib::nexthop_untrack(
+                        &mut table.nht,
+                        &prefix,
+                        &route,
+                        &instance.tx.ibus,
+                    );
+                }
             }
         }
 
@@ -627,8 +666,12 @@ where
         };
 
         // Perform best-path selection for the destination.
-        let best_route =
-            rib::best_path(dest, instance.config.asn, selection_cfg);
+        let best_route = rib::best_path::<A>(
+            dest,
+            instance.config.asn,
+            &table.nht,
+            selection_cfg,
+        );
 
         // Update the Loc-RIB with the best path.
         rib::loc_rib_update::<A>(

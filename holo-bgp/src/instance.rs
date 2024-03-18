@@ -435,6 +435,10 @@ async fn process_ibus_msg(
     msg: IbusMsg,
 ) -> Result<(), Error> {
     match msg {
+        IbusMsg::NexthopUpd { addr, metric } => {
+            // Nexthop tracking update notification.
+            southbound::rx::process_nht_update(instance, addr, metric);
+        }
         IbusMsg::RouterIdUpdate(router_id) => {
             // Router ID update notification.
             southbound::rx::process_router_id_update(instance, router_id).await;

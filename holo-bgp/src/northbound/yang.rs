@@ -286,6 +286,9 @@ impl ToYang for RouteIneligibleReason {
             RouteIneligibleReason::Confed => {
                 "iana-bgp-rib-types:ineligible-confed".into()
             }
+            RouteIneligibleReason::Unresolvable => {
+                "holo-bgp:ineligible-unresolvable".into()
+            }
         }
     }
 }

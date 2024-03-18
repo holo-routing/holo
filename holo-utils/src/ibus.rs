@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::net::Ipv4Addr;
+use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -62,6 +62,15 @@ pub enum IbusMsg {
     KeychainUpd(Arc<Keychain>),
     // Keychain delete notification.
     KeychainDel(String),
+    // Nexthop tracking registration.
+    NexthopTrack(IpAddr),
+    // Nexthop tracking unregistration.
+    NexthopUntrack(IpAddr),
+    // Nexthop tracking update.
+    NexthopUpd {
+        addr: IpAddr,
+        metric: Option<u32>,
+    },
     // Policy match sets update notification.
     PolicyMatchSetsUpd(Arc<MatchSets>),
     // Policy definition update notification.

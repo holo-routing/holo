@@ -13,6 +13,7 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use holo_protocol::InstanceChannelsTx;
 use holo_utils::bgp::AfiSafi;
+use holo_utils::ibus::IbusSender;
 use holo_utils::socket::{TcpConnInfo, TcpStream, TTL_MAX};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{Sender, UnboundedSender};
@@ -36,7 +37,7 @@ use crate::tasks::messages::input::{NbrRxMsg, NbrTimerMsg, TcpConnectMsg};
 use crate::tasks::messages::output::NbrTxMsg;
 #[cfg(feature = "testing")]
 use crate::tasks::messages::ProtocolOutputMsg;
-use crate::{events, tasks};
+use crate::{events, rib, tasks};
 
 // Large hold-time used during session initialization.
 const LARGE_HOLDTIME: u16 = 240;
@@ -595,8 +596,8 @@ impl Neighbor {
         self.capabilities_adv.clear();
         self.capabilities_rcvd.clear();
         self.capabilities_nego.clear();
-        self.clear_routes::<Ipv4Unicast>(rib);
-        self.clear_routes::<Ipv6Unicast>(rib);
+        self.clear_routes::<Ipv4Unicast>(rib, &instance_tx.ibus);
+        self.clear_routes::<Ipv6Unicast>(rib, &instance_tx.ibus);
         self.tasks = Default::default();
         self.msg_txp = None;
 
@@ -897,6 +898,7 @@ impl Neighbor {
                         origin: route.origin,
                         attrs: route.attrs.clone(),
                         route_type: route.route_type,
+                        igp_cost: None,
                         last_modified: route.last_modified,
                         ineligible_reason: None,
                         reject_reason: None,
@@ -917,13 +919,27 @@ impl Neighbor {
     }
 
     // Clears the Adj-RIB-In and Adj-RIB-Out for the given address family.
-    fn clear_routes<A>(&mut self, rib: &mut Rib)
+    fn clear_routes<A>(&mut self, rib: &mut Rib, ibus_tx: &IbusSender)
     where
         A: AddressFamily,
     {
         let table = A::table(&mut rib.tables);
         for (prefix, dest) in table.prefixes.iter_mut() {
-            dest.adj_rib.remove(&self.remote_addr);
+            // Clear the Adj-RIB-In and Adj-RIB-Out.
+            if let Some(adj_rib) = dest.adj_rib.remove(&self.remote_addr).take()
+            {
+                // Update nexthop tracking.
+                if let Some(adj_in_route) = &adj_rib.in_post {
+                    rib::nexthop_untrack(
+                        &mut table.nht,
+                        prefix,
+                        &adj_in_route,
+                        ibus_tx,
+                    );
+                }
+            }
+
+            // Enqueue prefix for the BGP Decision Process.
             table.queued_prefixes.insert(*prefix);
         }
     }

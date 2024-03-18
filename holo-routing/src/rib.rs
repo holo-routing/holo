@@ -4,8 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::{btree_map, BTreeMap, BTreeSet, HashMap};
-use std::net::IpAddr;
+use std::collections::{btree_map, BTreeMap, BTreeSet};
 
 use bitflags::bitflags;
 use chrono::{DateTime, Utc};
@@ -16,7 +15,7 @@ use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{
     AddressFlags, AddressMsg, LabelInstallMsg, LabelUninstallMsg, Nexthop,
-    NexthopSpecial, RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
+    RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
 };
 use holo_utils::{UnboundedReceiver, UnboundedSender};
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
@@ -54,19 +53,6 @@ bitflags! {
         const ACTIVE = 0x01;
         const REMOVED = 0x02;
     }
-}
-
-#[derive(Debug, Default)]
-pub struct StaticRoute {
-    pub nexthop_single: StaticRouteNexthop,
-    pub nexthop_special: Option<NexthopSpecial>,
-    pub nexthop_list: HashMap<String, StaticRouteNexthop>,
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct StaticRouteNexthop {
-    pub ifname: Option<String>,
-    pub addr: Option<IpAddr>,
 }
 
 // ===== impl Rib =====

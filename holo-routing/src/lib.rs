@@ -28,7 +28,8 @@ use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 use tracing::Instrument;
 
-use crate::rib::{Rib, StaticRoute};
+use crate::northbound::configuration::StaticRoute;
+use crate::rib::Rib;
 
 pub struct Master {
     // Northbound Tx channel.

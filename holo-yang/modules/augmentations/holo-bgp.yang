@@ -37,7 +37,7 @@ module holo-bgp {
   identity ineligible-unresolvable {
     base brt:ineligible-route-reason;
     description
-      "Route was ineligible due to CLUSTER_LIST loop";
+      "Route was ineligible due to unresolvable next-hop";
   }
 
   identity unknown-error {

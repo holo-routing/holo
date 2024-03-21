@@ -121,7 +121,8 @@ impl Rib {
     }
 
     // Adds IP route to the RIB.
-    pub(crate) async fn ip_route_add(&mut self, msg: RouteMsg) {
+    pub(crate) async fn ip_route_add(&mut self, mut msg: RouteMsg) {
+        msg.nexthops = self.resolve_nexthops(msg.nexthops);
         let rib_prefix = self.prefix_entry(msg.prefix);
         match rib_prefix.entry(msg.distance) {
             btree_map::Entry::Vacant(v) => {
@@ -173,7 +174,8 @@ impl Rib {
     }
 
     // Adds MPLS route to the RIB.
-    pub(crate) async fn mpls_route_add(&mut self, msg: LabelInstallMsg) {
+    pub(crate) async fn mpls_route_add(&mut self, mut msg: LabelInstallMsg) {
+        msg.nexthops = self.resolve_nexthops(msg.nexthops);
         match self.mpls.entry(msg.label) {
             btree_map::Entry::Vacant(v) => {
                 // If the MPLS route does not exist, create a new entry.
@@ -443,7 +445,8 @@ impl Rib {
         }
     }
 
-    pub(crate) fn prefix_longest_match(&self, addr: &IpAddr) -> Option<&Route> {
+    // Returns the longest matching route for the given IP address.
+    fn prefix_longest_match(&self, addr: &IpAddr) -> Option<&Route> {
         let lpm = match addr {
             IpAddr::V4(addr) => {
                 let prefix =
@@ -464,6 +467,31 @@ impl Rib {
             .next()
             .filter(|route| route.flags.contains(RouteFlags::ACTIVE))
             .filter(|route| !route.flags.contains(RouteFlags::REMOVED))
+    }
+
+    // Resolves the recursive next-hops in the provided set of next-hops.
+    //
+    // Note that only one level of recursion is resolved. If the resolved
+    // next-hops contain recursive next-hops themselves, those will not be
+    // resolved further.
+    fn resolve_nexthops(
+        &self,
+        nexthops: BTreeSet<Nexthop>,
+    ) -> BTreeSet<Nexthop> {
+        nexthops
+            .into_iter()
+            .map(|mut nexthop| {
+                if let Nexthop::Recursive { addr, resolved, .. } = &mut nexthop
+                {
+                    if let Some(route) = self.prefix_longest_match(addr) {
+                        resolved.clone_from(&route.nexthops);
+                    } else {
+                        debug!(%addr, "failed to resolve recursive nexthop");
+                    }
+                }
+                nexthop
+            })
+            .collect()
     }
 
     // Adds IP route to the update queue.

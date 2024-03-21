@@ -227,7 +227,15 @@ fn load_callbacks() -> Callbacks<Master> {
 
             if route.nexthops.len() == 1 {
                 let nexthop = route.nexthops.first().unwrap();
-                if let Nexthop::Address { addr: IpAddr::V4(addr), .. } = nexthop {
+                if let Nexthop::Address {
+                    addr: IpAddr::V4(addr),
+                    ..
+                }
+                | Nexthop::Recursive {
+                    addr: IpAddr::V4(addr),
+                    ..
+                } = nexthop
+                {
                     return Some(*addr);
                 }
             }
@@ -240,7 +248,15 @@ fn load_callbacks() -> Callbacks<Master> {
 
             if route.nexthops.len() == 1 {
                 let nexthop = route.nexthops.first().unwrap();
-                if let Nexthop::Address { addr: IpAddr::V6(addr), .. } = nexthop {
+                if let Nexthop::Address {
+                    addr: IpAddr::V6(addr),
+                    ..
+                }
+                | Nexthop::Recursive {
+                    addr: IpAddr::V6(addr),
+                    ..
+                } = nexthop
+                {
                     return Some(*addr);
                 }
             }
@@ -285,20 +301,36 @@ fn load_callbacks() -> Callbacks<Master> {
         .path(ribs::rib::routes::route::next_hop::next_hop_list::next_hop::ipv4_address::PATH)
         .get_element_ipv4(|_master, args| {
             let nexthop = args.list_entry.as_nexthop().unwrap();
-            if let Nexthop::Address { addr: IpAddr::V4(addr), .. } = nexthop {
-                Some(*addr)
-            } else {
-                None
+            if let Nexthop::Address {
+                addr: IpAddr::V4(addr),
+                ..
             }
+            | Nexthop::Recursive {
+                addr: IpAddr::V4(addr),
+                ..
+            } = nexthop
+            {
+                return Some(*addr);
+            }
+
+            None
         })
         .path(ribs::rib::routes::route::next_hop::next_hop_list::next_hop::ipv6_address::PATH)
         .get_element_ipv6(|_master, args| {
             let nexthop = args.list_entry.as_nexthop().unwrap();
-            if let Nexthop::Address { addr: IpAddr::V6(addr), .. } = nexthop {
-                Some(*addr)
-            } else {
-                None
+            if let Nexthop::Address {
+                addr: IpAddr::V6(addr),
+                ..
             }
+            | Nexthop::Recursive {
+                addr: IpAddr::V6(addr),
+                ..
+            } = nexthop
+            {
+                return Some(*addr);
+            }
+
+            None
         })
         .path(ribs::rib::routes::route::next_hop::next_hop_list::next_hop::mpls_label_stack::entry::PATH)
         .get_iterate(|_master, args| {

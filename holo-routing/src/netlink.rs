@@ -4,14 +4,14 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use capctl::caps::CapState;
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::Nexthop;
 use ipnetwork::IpNetwork;
-use rtnetlink::{new_connection, Handle};
+use rtnetlink::{new_connection, Handle, RouteAddRequest};
 use tracing::error;
 
 use crate::rib::Route;
@@ -52,24 +52,7 @@ pub(crate) async fn ip_route_install(
                 .destination_prefix(prefix.ip(), prefix.prefix());
 
             // Add nexthops.
-            for nexthop in route.nexthops.iter() {
-                request = match nexthop {
-                    Nexthop::Address { addr, ifindex, .. } => {
-                        if let IpAddr::V4(addr) = addr {
-                            request.gateway(*addr).output_interface(*ifindex)
-                        } else {
-                            request
-                        }
-                    }
-                    Nexthop::Interface { ifindex } => {
-                        request.output_interface(*ifindex)
-                    }
-                    Nexthop::Special(_) => {
-                        // TODO: not supported by the `rtnetlink` crate yet.
-                        request
-                    }
-                };
-            }
+            request = add_nexthops_ipv4(request, route.nexthops.iter());
 
             // Execute request.
             if let Err(error) = request.execute().await {
@@ -84,24 +67,7 @@ pub(crate) async fn ip_route_install(
                 .destination_prefix(prefix.ip(), prefix.prefix());
 
             // Add nexthops.
-            for nexthop in route.nexthops.iter() {
-                request = match nexthop {
-                    Nexthop::Address { addr, ifindex, .. } => {
-                        if let IpAddr::V6(addr) = addr {
-                            request.gateway(*addr).output_interface(*ifindex)
-                        } else {
-                            request
-                        }
-                    }
-                    Nexthop::Interface { ifindex } => {
-                        request.output_interface(*ifindex)
-                    }
-                    Nexthop::Special(_) => {
-                        // TODO: not supported by the `rtnetlink` crate yet.
-                        request
-                    }
-                };
-            }
+            request = add_nexthops_ipv6(request, route.nexthops.iter());
 
             // Execute request.
             if let Err(error) = request.execute().await {
@@ -109,6 +75,64 @@ pub(crate) async fn ip_route_install(
             }
         }
     }
+}
+
+fn add_nexthops_ipv4<'a>(
+    mut request: RouteAddRequest<Ipv4Addr>,
+    nexthops: impl Iterator<Item = &'a Nexthop>,
+) -> RouteAddRequest<Ipv4Addr> {
+    for nexthop in nexthops {
+        request = match nexthop {
+            Nexthop::Address { addr, ifindex, .. } => {
+                if let IpAddr::V4(addr) = addr {
+                    request.gateway(*addr).output_interface(*ifindex)
+                } else {
+                    request
+                }
+            }
+            Nexthop::Interface { ifindex } => {
+                request.output_interface(*ifindex)
+            }
+            Nexthop::Special(_) => {
+                // TODO: not supported by the `rtnetlink` crate yet.
+                request
+            }
+            Nexthop::Recursive { resolved, .. } => {
+                add_nexthops_ipv4(request, resolved.iter())
+            }
+        };
+    }
+
+    request
+}
+
+fn add_nexthops_ipv6<'a>(
+    mut request: RouteAddRequest<Ipv6Addr>,
+    nexthops: impl Iterator<Item = &'a Nexthop>,
+) -> RouteAddRequest<Ipv6Addr> {
+    for nexthop in nexthops {
+        request = match nexthop {
+            Nexthop::Address { addr, ifindex, .. } => {
+                if let IpAddr::V6(addr) = addr {
+                    request.gateway(*addr).output_interface(*ifindex)
+                } else {
+                    request
+                }
+            }
+            Nexthop::Interface { ifindex } => {
+                request.output_interface(*ifindex)
+            }
+            Nexthop::Special(_) => {
+                // TODO: not supported by the `rtnetlink` crate yet.
+                request
+            }
+            Nexthop::Recursive { resolved, .. } => {
+                add_nexthops_ipv6(request, resolved.iter())
+            }
+        };
+    }
+
+    request
 }
 
 pub(crate) async fn ip_route_uninstall(

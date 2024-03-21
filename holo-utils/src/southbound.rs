@@ -47,6 +47,11 @@ pub enum Nexthop {
         ifindex: u32,
     },
     Special(NexthopSpecial),
+    Recursive {
+        addr: IpAddr,
+        labels: Vec<Label>,
+        resolved: BTreeSet<Nexthop>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]

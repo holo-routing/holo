@@ -32,11 +32,10 @@ pub(crate) fn route_install(
     let nexthops = route
         .nexthops
         .iter()
-        .map(|nexthop| Nexthop::Address {
-            // TODO
-            ifindex: 0,
+        .map(|nexthop| Nexthop::Recursive {
             addr: *nexthop,
             labels: vec![],
+            resolved: Default::default(),
         })
         .collect::<BTreeSet<_>>();
 

@@ -106,24 +106,38 @@ impl ToYang for Origin {
     }
 }
 
+// ===== impl WellKnownCommunities =====
+
+impl ToYang for WellKnownCommunities {
+    fn to_yang(&self) -> Cow<'static, str> {
+        match self {
+            WellKnownCommunities::NoExport => {
+                "iana-bgp-community-types:no-export".into()
+            }
+            WellKnownCommunities::NoAdvertise => {
+                "iana-bgp-community-types:no-advertise".into()
+            }
+            WellKnownCommunities::NoExportSubconfed => {
+                "iana-bgp-community-types:no-export-subconfed".into()
+            }
+        }
+    }
+}
+
 // ===== impl Comm =====
 
 impl ToYang for Comm {
     fn to_yang(&self) -> Cow<'static, str> {
         match WellKnownCommunities::from_u32(self.0) {
-            Some(WellKnownCommunities::NoExport) => {
-                "iana-bgp-community-types:no-export".into()
-            }
-            Some(WellKnownCommunities::NoAdvertise) => {
-                "iana-bgp-community-types:no-advertise".into()
-            }
-            Some(WellKnownCommunities::NoExportSubconfed) => {
-                "iana-bgp-community-types:no-export-subconfed".into()
+            Some(comm) => {
+                // Return well-known community identity.
+                comm.to_yang()
             }
             None => {
-                let asn = self.0 >> 16;
+                // Return community as plain integer.
+                let global = self.0 >> 16;
                 let local = self.0 & 0xFFFF;
-                format!("{}:{}", asn, local).into()
+                format!("{}:{}", global, local).into()
             }
         }
     }

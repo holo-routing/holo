@@ -577,7 +577,12 @@ where
                 if update {
                     // Update route's attributes before transmission.
                     let mut attrs = rpinfo.attrs;
-                    attrs_tx_update::<A>(nbr, instance.config.asn, &mut attrs);
+                    attrs_tx_update::<A>(
+                        nbr,
+                        instance.config.asn,
+                        rpinfo.origin.is_local(),
+                        &mut attrs,
+                    );
 
                     // Update neighbor's Tx queue.
                     let update_queue = A::update_queue(&mut nbr.update_queues);
@@ -601,8 +606,12 @@ where
     Ok(())
 }
 
-fn attrs_tx_update<A>(nbr: &Neighbor, local_asn: u32, attrs: &mut Attrs)
-where
+fn attrs_tx_update<A>(
+    nbr: &Neighbor,
+    local_asn: u32,
+    local: bool,
+    attrs: &mut Attrs,
+) where
     A: AddressFamily,
 {
     match nbr.peer_type {
@@ -625,7 +634,7 @@ where
     }
 
     // Update the next-hop attribute based on the address family if necessary.
-    A::nexthop_tx_change(nbr, &mut attrs.base);
+    A::nexthop_tx_change(nbr, local, &mut attrs.base);
 }
 
 // ===== BGP decision process =====

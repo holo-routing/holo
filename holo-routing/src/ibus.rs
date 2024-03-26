@@ -89,6 +89,12 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
             // Remove MPLS route from the LIB.
             master.rib.mpls_route_del(msg);
         }
+        IbusMsg::RouteRedistributeDump { protocol, af } => {
+            // Redistribute all requested routes.
+            master
+                .rib
+                .redistribute_request(protocol, af, &master.ibus_tx);
+        }
         // Ignore other events.
         _ => {}
     }

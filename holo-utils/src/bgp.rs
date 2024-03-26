@@ -35,12 +35,13 @@ pub enum RouteType {
     External,
 }
 
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
 pub enum Origin {
     Igp = 0,
     Egp = 1,
+    #[default]
     Incomplete = 2,
 }
 

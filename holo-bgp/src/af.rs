@@ -49,7 +49,7 @@ pub trait AddressFamily: Sized {
     fn nexthop_rx_extract(attrs: &BaseAttrs) -> IpAddr;
 
     // Modify the next hop(s) for transmission.
-    fn nexthop_tx_change(nbr: &Neighbor, attrs: &mut BaseAttrs);
+    fn nexthop_tx_change(nbr: &Neighbor, local: bool, attrs: &mut BaseAttrs);
 
     // Build BGP UPDATE messages based on the provided update queue.
     fn build_updates(queue: &mut NeighborUpdateQueue<Self>) -> Vec<Message>;
@@ -85,29 +85,36 @@ impl AddressFamily for Ipv4Unicast {
         attrs.nexthop.unwrap()
     }
 
-    fn nexthop_tx_change(nbr: &Neighbor, attrs: &mut BaseAttrs) {
+    fn nexthop_tx_change(nbr: &Neighbor, local: bool, attrs: &mut BaseAttrs) {
+        // Get source address of the BGP session.
+        let session_src = match nbr.conn_info.as_ref().unwrap().local_addr {
+            IpAddr::V4(addr) => {
+                // BGP over IPv4.
+                addr
+            }
+            IpAddr::V6(_addr) => {
+                // BGP over IPv6.
+                //
+                // TODO: use IPv4 address of the corresponding system interface.
+                Ipv4Addr::UNSPECIFIED
+            }
+        };
+
+        // Handle locally originated routes.
+        if local {
+            attrs.nexthop = Some(session_src.into());
+            return;
+        }
+
         match nbr.peer_type {
             PeerType::Internal => {
                 // Next hop isn't modified.
             }
             PeerType::External => {
                 if !nbr.shared_subnet {
-                    // Update next hop.
-                    match nbr.conn_info.as_ref().unwrap().local_addr {
-                        IpAddr::V4(src_addr) => {
-                            // BGP over IPv4.
-                            //
-                            // Use source address of the eBGP session.
-                            attrs.nexthop = Some(src_addr.into())
-                        }
-                        IpAddr::V6(_src_addr) => {
-                            // BGP over IPv6.
-                            //
-                            // TODO: use IPv4 address of the corresponding
-                            // system interface.
-                            attrs.nexthop = None;
-                        }
-                    }
+                    // Update next hop using the source address of the eBGP
+                    // session.
+                    attrs.nexthop = Some(session_src.into());
                 } else {
                     // Next hop isn't modified (eBGP next hop optimization).
                 }
@@ -202,7 +209,28 @@ impl AddressFamily for Ipv6Unicast {
             .unwrap_or(attrs.nexthop.unwrap())
     }
 
-    fn nexthop_tx_change(nbr: &Neighbor, attrs: &mut BaseAttrs) {
+    fn nexthop_tx_change(nbr: &Neighbor, local: bool, attrs: &mut BaseAttrs) {
+        // Get source address of the BGP session.
+        let session_src = match nbr.conn_info.as_ref().unwrap().local_addr {
+            IpAddr::V4(addr) => {
+                // BGP over IPv4 (IPv4-mapped IPv6 address).
+                addr.to_ipv6_mapped()
+            }
+            IpAddr::V6(addr) => {
+                // BGP over IPv6.
+                addr
+            }
+        };
+
+        // Handle locally originated routes.
+        if local {
+            attrs.nexthop = Some(session_src.into());
+            if nbr.shared_subnet {
+                // TODO: update link-local next hop.
+            }
+            return;
+        }
+
         match nbr.peer_type {
             PeerType::Internal => {
                 // Global next hop isn't modified.
@@ -211,23 +239,9 @@ impl AddressFamily for Ipv6Unicast {
             }
             PeerType::External => {
                 if !nbr.shared_subnet {
-                    // Update global next hop.
-                    match nbr.conn_info.as_ref().unwrap().local_addr {
-                        IpAddr::V4(src_addr) => {
-                            // BGP over IPv4.
-                            //
-                            // Use source address of the eBGP session
-                            // (IPv4-mapped IPv6 address).
-                            attrs.nexthop =
-                                Some(src_addr.to_ipv6_mapped().into())
-                        }
-                        IpAddr::V6(src_addr) => {
-                            // BGP over IPv6.
-                            //
-                            // Use source address of the eBGP session.
-                            attrs.nexthop = Some(src_addr.into())
-                        }
-                    }
+                    // Update global next hop using the source address of the
+                    // eBGP session.
+                    attrs.nexthop = Some(session_src.into());
 
                     // Unset link-local next hop.
                     attrs.ll_nexthop = None;

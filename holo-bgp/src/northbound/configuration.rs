@@ -6,7 +6,7 @@
 
 #![allow(clippy::derivable_impls)]
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::LazyLock as Lazy;
 
@@ -18,8 +18,10 @@ use holo_northbound::configuration::{
 };
 use holo_northbound::paths::control_plane_protocol::bgp;
 use holo_utils::bgp::AfiSafi;
-use holo_utils::ip::IpAddrKind;
+use holo_utils::ibus::IbusMsg;
+use holo_utils::ip::{AddressFamily, IpAddrKind};
 use holo_utils::policy::{ApplyPolicyCfg, DefaultPolicyType};
+use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
 
@@ -34,6 +36,7 @@ pub enum ListEntry {
     #[default]
     None,
     AfiSafi(AfiSafi),
+    Redistribution(AfiSafi, Protocol),
     Neighbor(IpAddr),
     NeighborAfiSafi(IpAddr, AfiSafi),
 }
@@ -48,6 +51,7 @@ pub enum Event {
     NeighborDelete(IpAddr),
     NeighborReset(IpAddr, NotificationMsg),
     NeighborUpdateAuth(IpAddr),
+    RedistributeRequest(Protocol, AddressFamily),
 }
 
 pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
@@ -89,6 +93,7 @@ pub struct InstanceAfiSafiCfg {
     pub prefix_limit: PrefixLimitCfg,
     pub send_default_route: bool,
     pub apply_policy: ApplyPolicyCfg,
+    pub redistribution: HashMap<Protocol, RedistributionCfg>,
 }
 
 #[derive(Debug)]
@@ -152,6 +157,9 @@ pub struct PrefixLimitCfg {
     pub teardown: bool,
     pub idle_time: Option<u32>,
 }
+
+#[derive(Debug, Default)]
+pub struct RedistributionCfg {}
 
 #[derive(Debug)]
 pub struct AsPathOptions {
@@ -455,6 +463,30 @@ fn load_callbacks() -> Callbacks<Instance> {
             let send = args.dnode.get_bool();
             afi_safi.send_default_route = send;
         })
+        .path(bgp::global::afi_safis::afi_safi::ipv4_unicast::redistribution::PATH)
+        .create_apply(|instance, args| {
+            let afi_safi = args.list_entry.into_afi_safi().unwrap();
+            let afi_safi = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
+
+            let protocol = args.dnode.get_string_relative("./type").unwrap();
+            let protocol = Protocol::try_from_yang(&protocol).unwrap();
+            afi_safi.redistribution.insert(protocol, Default::default());
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::RedistributeRequest(protocol, AddressFamily::Ipv4));
+        })
+        .delete_apply(|instance, args| {
+            let (afi_safi, protocol) = args.list_entry.into_redistribution().unwrap();
+            let afi_safi = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
+
+            afi_safi.redistribution.remove(&protocol);
+        })
+        .lookup(|_instance, list_entry, dnode| {
+            let afi_safi = list_entry.into_afi_safi().unwrap();
+            let protocol = dnode.get_string_relative("./type").unwrap();
+            let protocol = Protocol::try_from_yang(&protocol).unwrap();
+            ListEntry::Redistribution(afi_safi, protocol)
+        })
         .path(bgp::global::afi_safis::afi_safi::ipv6_unicast::prefix_limit::max_prefixes::PATH)
         .modify_apply(|instance, args| {
             let afi_safi = args.list_entry.into_afi_safi().unwrap();
@@ -513,6 +545,30 @@ fn load_callbacks() -> Callbacks<Instance> {
 
             let send = args.dnode.get_bool();
             afi_safi.send_default_route = send;
+        })
+        .path(bgp::global::afi_safis::afi_safi::ipv6_unicast::redistribution::PATH)
+        .create_apply(|instance, args| {
+            let afi_safi = args.list_entry.into_afi_safi().unwrap();
+            let afi_safi = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
+
+            let protocol = args.dnode.get_string_relative("./type").unwrap();
+            let protocol = Protocol::try_from_yang(&protocol).unwrap();
+            afi_safi.redistribution.insert(protocol, Default::default());
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::RedistributeRequest(protocol, AddressFamily::Ipv6));
+        })
+        .delete_apply(|instance, args| {
+            let (afi_safi, protocol) = args.list_entry.into_redistribution().unwrap();
+            let afi_safi = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
+
+            afi_safi.redistribution.remove(&protocol);
+        })
+        .lookup(|_instance, list_entry, dnode| {
+            let afi_safi = list_entry.into_afi_safi().unwrap();
+            let protocol = dnode.get_string_relative("./type").unwrap();
+            let protocol = Protocol::try_from_yang(&protocol).unwrap();
+            ListEntry::Redistribution(afi_safi, protocol)
         })
         .path(bgp::global::apply_policy::import_policy::PATH)
         .create_apply(|instance, args| {
@@ -1297,6 +1353,12 @@ impl Provider for Instance {
                     );
                 }
             }
+            Event::RedistributeRequest(protocol, af) => {
+                let _ = self.tx.ibus.send(IbusMsg::RouteRedistributeDump {
+                    protocol,
+                    af: Some(af),
+                });
+            }
         }
     }
 }
@@ -1355,6 +1417,7 @@ impl Default for InstanceAfiSafiCfg {
             prefix_limit: Default::default(),
             send_default_route: false,
             apply_policy: Default::default(),
+            redistribution: Default::default(),
         }
     }
 }

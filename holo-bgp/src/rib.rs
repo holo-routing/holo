@@ -56,6 +56,7 @@ pub struct RoutingTable<A: AddressFamily> {
 pub struct Destination {
     pub local: Option<Box<LocalRoute>>,
     pub adj_rib: BTreeMap<IpAddr, AdjRib>,
+    pub redistribute: Option<Box<Route>>,
 }
 
 #[derive(Debug, Default)]
@@ -72,7 +73,7 @@ pub struct LocalRoute {
     pub attrs: RouteAttrs,
     pub route_type: RouteType,
     pub last_modified: Instant,
-    pub nexthops: BTreeSet<IpAddr>,
+    pub nexthops: Option<BTreeSet<IpAddr>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -399,6 +400,14 @@ impl Route {
     }
 }
 
+// ===== impl RouteOrigin =====
+
+impl RouteOrigin {
+    pub(crate) fn is_local(&self) -> bool {
+        matches!(self, RouteOrigin::Protocol { .. })
+    }
+}
+
 // ===== impl RouteAttrs =====
 
 impl RouteAttrs {
@@ -486,13 +495,19 @@ fn compute_nexthops<A>(
     best_route: &Route,
     selection_cfg: &RouteSelectionCfg,
     mpath_cfg: &MultipathCfg,
-) -> BTreeSet<IpAddr>
+) -> Option<BTreeSet<IpAddr>>
 where
     A: AddressFamily,
 {
+    // Handle locally originated routes.
+    if best_route.origin.is_local() {
+        return None;
+    }
+
     // If multipath isn't enabled, return the nexthop of the best route.
     if !mpath_cfg.enabled {
-        return [A::nexthop_rx_extract(&best_route.attrs.base.value)].into();
+        let nexthop = A::nexthop_rx_extract(&best_route.attrs.base.value);
+        return Some([nexthop].into());
     }
 
     // Otherwise, return as many ECMP nexthops as allowed by the configuration.
@@ -500,7 +515,8 @@ where
         RouteType::Internal => mpath_cfg.ibgp_max_paths,
         RouteType::External => mpath_cfg.ebgp_max_paths,
     };
-    dest.adj_rib
+    let nexthops = dest
+        .adj_rib
         .values()
         .filter_map(|adj_rib| adj_rib.in_post.as_ref())
         .filter(|route| {
@@ -510,7 +526,8 @@ where
         })
         .map(|route| A::nexthop_rx_extract(&route.attrs.base.value))
         .take(max_paths as usize)
-        .collect()
+        .collect();
+    Some(nexthops)
 }
 
 // ===== global functions =====
@@ -526,46 +543,50 @@ where
 {
     let mut best_route = None;
 
-    // Iterate over each post-policy Adj-RIB-In route for the destination.
-    for adj_in_route in dest
+    // Iterate over each Adj-RIB-In route for the destination.
+    for route in dest
         .adj_rib
         .values_mut()
+        // Pick the post-policy routes.
         .filter_map(|adj_rib| adj_rib.in_post.as_mut())
+        // Consider locally redistributed routes too.
+        .chain(dest.redistribute.as_mut().into_iter())
     {
-        adj_in_route.reject_reason = None;
-        adj_in_route.ineligible_reason = None;
+        route.reject_reason = None;
+        route.ineligible_reason = None;
 
         // First, check if the route is eligible.
-        if adj_in_route.attrs.base.value.as_path.contains(local_asn) {
-            adj_in_route.ineligible_reason =
-                Some(RouteIneligibleReason::AsLoop);
+        if route.attrs.base.value.as_path.contains(local_asn) {
+            route.ineligible_reason = Some(RouteIneligibleReason::AsLoop);
             continue;
         }
 
         // Get interior cost to the route's nexthop.
-        let nexthop = A::nexthop_rx_extract(&adj_in_route.attrs.base.value);
-        adj_in_route.igp_cost = nht.get(&nexthop).and_then(|nht| nht.metric);
-        if adj_in_route.igp_cost.is_none() {
-            adj_in_route.ineligible_reason =
-                Some(RouteIneligibleReason::Unresolvable);
-            continue;
-        };
+        if !route.origin.is_local() {
+            let nexthop = A::nexthop_rx_extract(&route.attrs.base.value);
+            route.igp_cost = nht.get(&nexthop).and_then(|nht| nht.metric);
+            if route.igp_cost.is_none() {
+                route.ineligible_reason =
+                    Some(RouteIneligibleReason::Unresolvable);
+                continue;
+            };
+        }
 
         // Compare the current route with the best route found so far.
         match &mut best_route {
             None => {
                 // Initialize the best route with the first eligible route.
-                best_route = Some(adj_in_route)
+                best_route = Some(route)
             }
             Some(best_route) => {
                 // Update the best route if the current route is preferred.
-                match adj_in_route.compare(best_route, selection_cfg, None) {
+                match route.compare(best_route, selection_cfg, None) {
                     RouteCompare::Preferred(reason) => {
                         best_route.reject_reason = Some(reason);
-                        *best_route = adj_in_route;
+                        *best_route = route;
                     }
                     RouteCompare::LessPreferred(reason) => {
-                        adj_in_route.reject_reason = Some(reason);
+                        route.reject_reason = Some(reason);
                     }
                     RouteCompare::MultipathEqual
                     | RouteCompare::MultipathDifferent => unreachable!(),
@@ -616,15 +637,17 @@ pub(crate) fn loc_rib_update<A>(
         };
 
         // Install local route in the global RIB.
-        southbound::tx::route_install(
-            ibus_tx,
-            prefix,
-            &local_route,
-            match best_route.route_type {
-                RouteType::Internal => distance_cfg.internal,
-                RouteType::External => distance_cfg.external,
-            },
-        );
+        if !local_route.origin.is_local() {
+            southbound::tx::route_install(
+                ibus_tx,
+                prefix,
+                &local_route,
+                match best_route.route_type {
+                    RouteType::Internal => distance_cfg.internal,
+                    RouteType::External => distance_cfg.external,
+                },
+            );
+        }
 
         // Insert local route into the Loc-RIB.
         dest.local = Some(Box::new(local_route));

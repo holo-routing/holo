@@ -32,6 +32,7 @@ pub(crate) fn route_install(
     let nexthops = route
         .nexthops
         .iter()
+        .flat_map(|nexthops| nexthops.iter())
         .map(|nexthop| Nexthop::Recursive {
             addr: *nexthop,
             labels: vec![],

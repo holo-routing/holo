@@ -111,9 +111,19 @@ fn load_callbacks() -> Callbacks<Instance> {
             // TODO: implement me!
             None
         })
+        .path(bgp::global::afi_safis::afi_safi::ipv4_unicast::redistribution::PATH)
+        .get_iterate(|_instance, _args| {
+            // No operational data under this list.
+            None
+        })
         .path(bgp::global::afi_safis::afi_safi::ipv6_unicast::prefix_limit::prefix_limit_exceeded::PATH)
         .get_element_bool(|_instance, _args| {
             // TODO: implement me!
+            None
+        })
+        .path(bgp::global::afi_safis::afi_safi::ipv6_unicast::redistribution::PATH)
+        .get_iterate(|_instance, _args| {
+            // No operational data under this list.
             None
         })
         .path(bgp::global::apply_policy::import_policy::PATH)

@@ -11,7 +11,9 @@ use bitflags::bitflags;
 use chrono::{DateTime, Utc};
 use derive_new::new;
 use holo_utils::ibus::IbusSender;
-use holo_utils::ip::{IpNetworkExt, Ipv4NetworkExt, Ipv6NetworkExt};
+use holo_utils::ip::{
+    AddressFamily, IpNetworkExt, Ipv4NetworkExt, Ipv6NetworkExt,
+};
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{
@@ -435,6 +437,40 @@ impl Rib {
             }
         }
         self.nht = nht;
+    }
+
+    // Processes route redistribution request.
+    pub(crate) fn redistribute_request(
+        &mut self,
+        protocol: Protocol,
+        af: Option<AddressFamily>,
+        ibus_tx: &IbusSender,
+    ) {
+        debug!(%protocol, "route redistribution request");
+
+        let redistribute_prefix = |prefix, routes: &BTreeMap<u32, Route>| {
+            if let Some(best_route) = routes
+                .values()
+                .find(|route| route.protocol == protocol)
+                .filter(|route| {
+                    route.flags.contains(RouteFlags::ACTIVE)
+                        && !route.flags.contains(RouteFlags::REMOVED)
+                })
+            {
+                ibus::notify_redistribute_add(ibus_tx, prefix, best_route);
+            }
+        };
+
+        if af.is_none() || af == Some(AddressFamily::Ipv4) {
+            for (prefix, routes) in &self.ipv4 {
+                redistribute_prefix((*prefix).into(), routes);
+            }
+        }
+        if af.is_none() || af == Some(AddressFamily::Ipv6) {
+            for (prefix, routes) in &self.ipv6 {
+                redistribute_prefix((*prefix).into(), routes);
+            }
+        }
     }
 
     // Returns RIB entry associated to the given IP prefix.

@@ -458,6 +458,14 @@ async fn process_ibus_msg(
             // Remove the local copy of the policy definition.
             instance.shared.policies.remove(&policy_name);
         }
+        IbusMsg::RouteRedistributeAdd(msg) => {
+            // Route redistribute update notification.
+            southbound::rx::process_route_add(instance, msg);
+        }
+        IbusMsg::RouteRedistributeDel(msg) => {
+            // Route redistribute delete notification.
+            southbound::rx::process_route_del(instance, msg);
+        }
         // Ignore other events.
         _ => {}
     }

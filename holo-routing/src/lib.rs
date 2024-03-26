@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+#![feature(let_chains)]
 #![feature(lazy_cell)]
 
 mod ibus;

@@ -85,4 +85,44 @@ module holo-bgp {
         "Key string in ASCII format.";
     }
   }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/bgp:bgp/bgp:global/"
+        + "bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast" {
+    list redistribution {
+      key "type";
+      description
+        "Parameters relating to route redistribution for the AFI-SAFI";
+
+      leaf type {
+        type identityref {
+          base rt:control-plane-protocol;
+        }
+        description
+          "Type of the control-plane protocol -- an identity
+           derived from the 'control-plane-protocol'
+           base identity.";
+      }
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/bgp:bgp/bgp:global/"
+        + "bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast" {
+    list redistribution {
+      key "type";
+      description
+        "Parameters relating to route redistribution for the AFI-SAFI";
+
+      leaf type {
+        type identityref {
+          base rt:control-plane-protocol;
+        }
+        description
+          "Type of the control-plane protocol -- an identity
+           derived from the 'control-plane-protocol'
+           base identity.";
+      }
+    }
+  }
 }

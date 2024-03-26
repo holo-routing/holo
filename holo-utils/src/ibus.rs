@@ -14,6 +14,7 @@ use crate::bfd;
 use crate::ip::AddressFamily;
 use crate::keychain::Keychain;
 use crate::policy::{MatchSets, Policy};
+use crate::protocol::Protocol;
 use crate::southbound::{
     AddressMsg, InterfaceUpdateMsg, LabelInstallMsg, LabelUninstallMsg,
     RouteKeyMsg, RouteMsg,
@@ -89,6 +90,11 @@ pub enum IbusMsg {
     RouteMplsAdd(LabelInstallMsg),
     // Request to uninstall MPLS route from the LIB.
     RouteMplsDel(LabelUninstallMsg),
+    // Request to redistribute routes.
+    RouteRedistributeDump {
+        protocol: Protocol,
+        af: Option<AddressFamily>,
+    },
     // Route redistribute update notification.
     RouteRedistributeAdd(RouteMsg),
     // Route redistribute delete notification.

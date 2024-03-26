@@ -29,7 +29,7 @@ use crate::packet::message::{
 pub const ATTR_MIN_LEN: u16 = 3;
 pub const ATTR_MIN_LEN_EXT: u16 = 4;
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
 pub struct Attrs {
     pub base: BaseAttrs,
@@ -40,7 +40,7 @@ pub struct Attrs {
     pub unknown: Box<[UnknownAttr]>,
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
 pub struct BaseAttrs {
     pub origin: Origin,

@@ -16,6 +16,7 @@ use holo_yang::{ToYang, TryFromYang};
 use itertools::Itertools;
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::FromPrimitive;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 // Configurable (AFI,SAFI) tuples.
@@ -124,6 +125,23 @@ impl ToYang for WellKnownCommunities {
     }
 }
 
+impl TryFromYang for WellKnownCommunities {
+    fn try_from_yang(value: &str) -> Option<WellKnownCommunities> {
+        match value {
+            "iana-bgp-community-types:no-export" => {
+                Some(WellKnownCommunities::NoExport)
+            }
+            "iana-bgp-community-types:no-advertise" => {
+                Some(WellKnownCommunities::NoAdvertise)
+            }
+            "iana-bgp-community-types:no-export-subconfed" => {
+                Some(WellKnownCommunities::NoExportSubconfed)
+            }
+            _ => None,
+        }
+    }
+}
+
 // ===== impl Comm =====
 
 impl ToYang for Comm {
@@ -140,6 +158,33 @@ impl ToYang for Comm {
                 format!("{}:{}", global, local).into()
             }
         }
+    }
+}
+
+impl TryFromYang for Comm {
+    fn try_from_yang(value: &str) -> Option<Comm> {
+        // Parse well-known community identity.
+        if let Some(comm) = WellKnownCommunities::try_from_yang(value) {
+            return Some(Comm(comm as u32));
+        }
+
+        // Parse plain integer community.
+        if let Ok(comm) = value.parse::<u32>() {
+            return Some(Comm(comm));
+        }
+
+        // Parse community in the "global:local" format.
+        let re = Regex::new(r"^([0-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-5][0-9]{3}|66[0-4][0-9]{2}|665[0-2][0-9]|6653[0-5]):([0-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-5][0-9]{3}|66[0-4][0-9]{2}|665[0-2][0-9]|6653[0-5])$").unwrap();
+        if let Some(captures) = re.captures(value) {
+            let global =
+                captures.get(1).unwrap().as_str().parse::<u32>().unwrap();
+            let local =
+                captures.get(2).unwrap().as_str().parse::<u32>().unwrap();
+            let comm = (global << 16) | local;
+            return Some(Comm(comm));
+        }
+
+        None
     }
 }
 
@@ -195,5 +240,28 @@ impl ToYang for LargeComm {
             u32::from_be_bytes(self.0[8..12].try_into().unwrap()),
         )
         .into()
+    }
+}
+
+impl TryFromYang for LargeComm {
+    fn try_from_yang(value: &str) -> Option<LargeComm> {
+        // Parse large community in the "global:local:local" format.
+        let re = Regex::new(r#"^(?:(?:4[0-2][0-9][0-4][0-9][0-6][0-7][0-2][0-9][0-6])|(?:[1-3][0-9]{9}|[1-9]([0-9]{1,7})?[0-9]|[0-9])):(?:(?:4[0-2][0-9][0-4][0-9][0-6][0-7][0-2][0-9][0-6])|(?:[1-3][0-9]{9}|[1-9]([0-9]{1,7})?[0-9]|[0-9])):(?:(?:4[0-2][0-9][0-4][0-9][0-6][0-7][0-2][0-9][0-6])|(?:[1-3][0-9]{9}|[1-9]([0-9]{1,7})?[0-9]|[0-9]))$"#).unwrap();
+        if let Some(captures) = re.captures(value) {
+            let global =
+                captures.get(1).unwrap().as_str().parse::<u32>().unwrap();
+            let local1 =
+                captures.get(2).unwrap().as_str().parse::<u32>().unwrap();
+            let local2 =
+                captures.get(3).unwrap().as_str().parse::<u32>().unwrap();
+
+            let mut comm = [0u8; 12];
+            comm[..4].copy_from_slice(&global.to_be_bytes());
+            comm[4..8].copy_from_slice(&local1.to_be_bytes());
+            comm[8..].copy_from_slice(&local2.to_be_bytes());
+            return Some(LargeComm(comm));
+        }
+
+        None
     }
 }

@@ -57,6 +57,7 @@ pickledb = "0.5"
 prefix-trie = { version = "0.3", features = ["ipnetwork"]  }
 prost = "0.12"
 rand = "0.8.5"
+regex = "1.10"
 rtnetlink = "0.13"
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0"

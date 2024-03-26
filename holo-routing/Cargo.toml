@@ -6,8 +6,6 @@ license.workspace = true
 edition.workspace = true
 
 [dependencies]
-regex = "1.5"
-
 async-trait.workspace = true
 bitflags.workspace = true
 capctl.workspace = true
@@ -17,6 +15,7 @@ enum-as-inner.workspace = true
 futures.workspace = true
 ipnetwork.workspace = true
 prefix-trie.workspace = true
+regex.workspace = true
 rtnetlink.workspace = true
 tokio.workspace = true
 tracing.workspace = true

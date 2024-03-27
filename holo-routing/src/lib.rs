@@ -90,7 +90,7 @@ impl Master {
                     .await;
                 }
                 Ok(msg) = ibus_rx.recv() => {
-                    ibus::process_msg(self, msg).await;
+                    ibus::process_msg(self, msg);
                 }
                 Some(_) = self.rib.update_queue_rx.recv() => {
                     self.rib

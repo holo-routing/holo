@@ -16,7 +16,7 @@ use crate::{Interface, Master};
 
 // ===== global functions =====
 
-pub(crate) async fn process_msg(master: &mut Master, msg: IbusMsg) {
+pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
     match msg {
         // Interface update notification.
         IbusMsg::InterfaceUpd(msg) => {
@@ -32,12 +32,12 @@ pub(crate) async fn process_msg(master: &mut Master, msg: IbusMsg) {
         // Interface address addition notification.
         IbusMsg::InterfaceAddressAdd(msg) => {
             // Add connected route to the RIB.
-            master.rib.connected_route_add(msg).await;
+            master.rib.connected_route_add(msg);
         }
         // Interface address delete notification.
         IbusMsg::InterfaceAddressDel(msg) => {
             // Remove connected route from the RIB.
-            master.rib.connected_route_del(msg).await;
+            master.rib.connected_route_del(msg);
         }
         IbusMsg::KeychainUpd(keychain) => {
             // Update the local copy of the keychain.
@@ -75,19 +75,19 @@ pub(crate) async fn process_msg(master: &mut Master, msg: IbusMsg) {
         }
         IbusMsg::RouteIpAdd(msg) => {
             // Add route to the RIB.
-            master.rib.ip_route_add(msg).await;
+            master.rib.ip_route_add(msg);
         }
         IbusMsg::RouteIpDel(msg) => {
             // Remove route from the RIB.
-            master.rib.ip_route_del(msg).await;
+            master.rib.ip_route_del(msg);
         }
         IbusMsg::RouteMplsAdd(msg) => {
             // Add MPLS route to the LIB.
-            master.rib.mpls_route_add(msg).await;
+            master.rib.mpls_route_add(msg);
         }
         IbusMsg::RouteMplsDel(msg) => {
             // Remove MPLS route from the LIB.
-            master.rib.mpls_route_del(msg).await;
+            master.rib.mpls_route_del(msg);
         }
         // Ignore other events.
         _ => {}

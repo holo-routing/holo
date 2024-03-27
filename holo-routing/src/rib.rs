@@ -62,7 +62,7 @@ bitflags! {
 
 impl Rib {
     // Adds connected route to the RIB.
-    pub(crate) async fn connected_route_add(&mut self, msg: AddressMsg) {
+    pub(crate) fn connected_route_add(&mut self, msg: AddressMsg) {
         // Ignore unnumbered addresses.
         if msg.flags.contains(AddressFlags::UNNUMBERED) {
             return;
@@ -99,7 +99,7 @@ impl Rib {
     }
 
     // Removes connected route from the RIB.
-    pub(crate) async fn connected_route_del(&mut self, msg: AddressMsg) {
+    pub(crate) fn connected_route_del(&mut self, msg: AddressMsg) {
         // Ignore unnumbered addresses.
         if msg.flags.contains(AddressFlags::UNNUMBERED) {
             return;
@@ -121,7 +121,7 @@ impl Rib {
     }
 
     // Adds IP route to the RIB.
-    pub(crate) async fn ip_route_add(&mut self, mut msg: RouteMsg) {
+    pub(crate) fn ip_route_add(&mut self, mut msg: RouteMsg) {
         msg.nexthops = self.resolve_nexthops(msg.nexthops);
         let rib_prefix = self.prefix_entry(msg.prefix);
         match rib_prefix.entry(msg.distance) {
@@ -157,7 +157,7 @@ impl Rib {
     }
 
     // Removes IP route from the RIB.
-    pub(crate) async fn ip_route_del(&mut self, msg: RouteKeyMsg) {
+    pub(crate) fn ip_route_del(&mut self, msg: RouteKeyMsg) {
         let rib_prefix = self.prefix_entry(msg.prefix);
 
         // Find IP route entry from the same advertising protocol.
@@ -174,7 +174,7 @@ impl Rib {
     }
 
     // Adds MPLS route to the RIB.
-    pub(crate) async fn mpls_route_add(&mut self, mut msg: LabelInstallMsg) {
+    pub(crate) fn mpls_route_add(&mut self, mut msg: LabelInstallMsg) {
         msg.nexthops = self.resolve_nexthops(msg.nexthops);
         match self.mpls.entry(msg.label) {
             btree_map::Entry::Vacant(v) => {
@@ -229,7 +229,7 @@ impl Rib {
     }
 
     // Removes MPLS route from the RIB.
-    pub(crate) async fn mpls_route_del(&mut self, msg: LabelUninstallMsg) {
+    pub(crate) fn mpls_route_del(&mut self, msg: LabelUninstallMsg) {
         // Find MPLS route entry.
         let btree_map::Entry::Occupied(mut o) = self.mpls.entry(msg.label)
         else {

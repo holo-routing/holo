@@ -25,11 +25,13 @@ use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
 
-use crate::instance::Instance;
+use crate::af::{Ipv4Unicast, Ipv6Unicast};
+use crate::instance::{Instance, InstanceUpView};
 use crate::neighbor::{fsm, Neighbor, PeerType};
 use crate::network;
 use crate::packet::consts::{CeaseSubcode, ErrorCode};
 use crate::packet::message::NotificationMsg;
+use crate::rib::RouteOrigin;
 
 #[derive(Debug, Default, EnumAsInner)]
 pub enum ListEntry {
@@ -52,6 +54,7 @@ pub enum Event {
     NeighborReset(IpAddr, NotificationMsg),
     NeighborUpdateAuth(IpAddr),
     RedistributeRequest(Protocol, AddressFamily),
+    RedistributeDelete(Protocol, AfiSafi),
 }
 
 pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
@@ -480,6 +483,9 @@ fn load_callbacks() -> Callbacks<Instance> {
             let afi_safi = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
 
             afi_safi.redistribution.remove(&protocol);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::RedistributeDelete(protocol, AfiSafi::Ipv4Unicast));
         })
         .lookup(|_instance, list_entry, dnode| {
             let afi_safi = list_entry.into_afi_safi().unwrap();
@@ -563,6 +569,9 @@ fn load_callbacks() -> Callbacks<Instance> {
             let afi_safi = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
 
             afi_safi.redistribution.remove(&protocol);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::RedistributeDelete(protocol, AfiSafi::Ipv6Unicast));
         })
         .lookup(|_instance, list_entry, dnode| {
             let afi_safi = list_entry.into_afi_safi().unwrap();
@@ -1359,8 +1368,54 @@ impl Provider for Instance {
                     af: Some(af),
                 });
             }
+            Event::RedistributeDelete(protocol, afi_safi) => {
+                let Some((mut instance, _)) = self.as_up() else {
+                    return;
+                };
+
+                match afi_safi {
+                    AfiSafi::Ipv4Unicast => {
+                        redistribute_delete::<Ipv4Unicast>(
+                            &mut instance,
+                            protocol,
+                        );
+                    }
+                    AfiSafi::Ipv6Unicast => {
+                        redistribute_delete::<Ipv6Unicast>(
+                            &mut instance,
+                            protocol,
+                        );
+                    }
+                }
+            }
         }
     }
+}
+
+// ===== helper functions =====
+
+fn redistribute_delete<A>(instance: &mut InstanceUpView<'_>, protocol: Protocol)
+where
+    A: crate::af::AddressFamily,
+{
+    let table = A::table(&mut instance.state.rib.tables);
+    for (prefix, dest) in table.prefixes.iter_mut() {
+        let Some(route) = &dest.redistribute else {
+            continue;
+        };
+        if route.origin != RouteOrigin::Protocol(protocol) {
+            continue;
+        }
+
+        // Remove redistributed route.
+        dest.redistribute = None;
+
+        // Enqueue prefix for the BGP Decision Process.
+        table.queued_prefixes.insert(*prefix);
+    }
+
+    // Schedule the BGP Decision Process.
+    instance.state.schedule_decision_process(instance.tx);
 }
 
 // ===== configuration defaults =====

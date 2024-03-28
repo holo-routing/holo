@@ -654,16 +654,13 @@ pub(crate) fn loc_rib_update<A>(
     } else {
         Debug::BestPathNotFound(prefix.into()).log();
 
-        // Return early if no change in Loc-RIB is needed.
-        if dest.local.is_none() {
-            return;
-        }
-
-        // Uninstall route from the global RIB.
-        southbound::tx::route_uninstall(ibus_tx, prefix);
-
         // Remove route from the Loc-RIB.
-        dest.local = None;
+        if let Some(local_route) = dest.local.take()
+            && !local_route.origin.is_local()
+        {
+            // Uninstall route from the global RIB.
+            southbound::tx::route_uninstall(ibus_tx, prefix);
+        }
     }
 }
 

@@ -24,7 +24,7 @@ use holo_utils::{UnboundedReceiver, UnboundedSender};
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use prefix_trie::map::PrefixMap;
 use tokio::sync::mpsc;
-use tracing::debug;
+use tracing::{debug, warn};
 
 use crate::{ibus, netlink, Interface};
 
@@ -553,7 +553,7 @@ impl Rib {
                             resolved.clone_from(&route.nexthops);
                         }
                     } else {
-                        debug!(%addr, "failed to resolve recursive nexthop");
+                        warn!(%addr, "failed to resolve recursive nexthop");
                     }
                 }
                 nexthop

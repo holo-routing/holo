@@ -32,7 +32,7 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
         // Interface address addition notification.
         IbusMsg::InterfaceAddressAdd(msg) => {
             // Add connected route to the RIB.
-            master.rib.connected_route_add(msg);
+            master.rib.connected_route_add(msg, &master.interfaces);
         }
         // Interface address delete notification.
         IbusMsg::InterfaceAddressDel(msg) => {

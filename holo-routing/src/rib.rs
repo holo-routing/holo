@@ -26,7 +26,7 @@ use prefix_trie::map::PrefixMap;
 use tokio::sync::mpsc;
 use tracing::debug;
 
-use crate::{ibus, netlink};
+use crate::{ibus, netlink, Interface};
 
 #[derive(Debug)]
 pub struct Rib {
@@ -64,15 +64,27 @@ bitflags! {
 
 impl Rib {
     // Adds connected route to the RIB.
-    pub(crate) fn connected_route_add(&mut self, msg: AddressMsg) {
+    pub(crate) fn connected_route_add(
+        &mut self,
+        msg: AddressMsg,
+        interfaces: &BTreeMap<String, Interface>,
+    ) {
         // Ignore unnumbered addresses.
         if msg.flags.contains(AddressFlags::UNNUMBERED) {
             return;
         }
 
+        // Lookup interface.
+        let Some(iface) = interfaces.get(&msg.ifname) else {
+            return;
+        };
+
         let prefix = msg.addr.apply_mask();
         let rib_prefix = self.prefix_entry(prefix);
         let distance = 0;
+        let nexthop = Nexthop::Interface {
+            ifindex: iface.ifindex,
+        };
         match rib_prefix.entry(distance) {
             btree_map::Entry::Vacant(v) => {
                 // If the IP route does not exist, create a new entry.
@@ -82,7 +94,7 @@ impl Rib {
                     0,
                     None,
                     RouteOpaqueAttrs::None,
-                    Default::default(),
+                    [nexthop].into(),
                     Utc::now(),
                     RouteFlags::empty(),
                 ));
@@ -517,10 +529,29 @@ impl Rib {
         nexthops
             .into_iter()
             .map(|mut nexthop| {
-                if let Nexthop::Recursive { addr, resolved, .. } = &mut nexthop
+                if let Nexthop::Recursive {
+                    addr,
+                    resolved,
+                    labels,
+                } = &mut nexthop
                 {
                     if let Some(route) = self.prefix_longest_match(addr) {
-                        resolved.clone_from(&route.nexthops);
+                        if route.protocol == Protocol::DIRECT
+                            && let Some(Nexthop::Interface { ifindex }) =
+                                route.nexthops.first()
+                        {
+                            // When recursing over connected routes, preserve
+                            // the original next-hop address.
+                            *resolved = [Nexthop::Address {
+                                ifindex: *ifindex,
+                                addr: *addr,
+                                labels: labels.clone(),
+                            }]
+                            .into();
+                        } else {
+                            // Copy next-hops of the resolving route.
+                            resolved.clone_from(&route.nexthops);
+                        }
                     } else {
                         debug!(%addr, "failed to resolve recursive nexthop");
                     }

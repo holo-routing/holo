@@ -39,7 +39,7 @@ jobs:
       - name: Generate test result and coverage report
         run: |
           cargo install cargo2junit grcov;
-          cargo test $CARGO_OPTIONS -p holo-bfd -p holo-ldp -p holo-ospf -p holo-rip -- -Z unstable-options --format json | cargo2junit > results.xml;
+          cargo test $CARGO_OPTIONS -p holo-bfd -p holo-bgp -p holo-ldp -p holo-ospf -p holo-rip -- -Z unstable-options --format json | cargo2junit > results.xml;
           grcov . -s . -t lcov --llvm --ignore-not-existing --ignore "/*" --ignore "holo-*/tests/*" -o lcov.info;
       - name: Upload test results
         uses: EnricoMi/publish-unit-test-result-action@v1

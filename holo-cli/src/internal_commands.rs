@@ -5,6 +5,7 @@
 //
 
 use std::fmt::Write;
+use std::process::{Command, Stdio};
 
 use holo_yang::YANG_CTX;
 use indextree::NodeId;
@@ -32,17 +33,24 @@ fn get_opt_arg(args: &mut ParsedArgs, name: &str) -> Option<String> {
     None
 }
 
-fn page_output(
-    session: &Session,
-    data: &str,
-) -> Result<(), minus::error::MinusError> {
+fn page_output(session: &Session, data: &str) -> Result<(), std::io::Error> {
     if session.use_pager() {
-        let pager = minus::Pager::new();
-        pager.set_exit_strategy(minus::ExitStrategy::PagerQuit)?;
-        pager.set_run_no_overflow(false)?;
-        pager.set_text(data)?;
-        minus::page_all(pager)?;
+        use std::io::Write;
+
+        // Spawn the pager process.
+        let mut pager = Command::new("less")
+            // Exit immediately if the data fits on one screen.
+            .arg("-F")
+            .stdin(Stdio::piped())
+            .spawn()?;
+
+        // Feed the data to the pager.
+        pager.stdin.as_mut().unwrap().write_all(data.as_bytes())?;
+
+        // Wait for the pager process to finish.
+        pager.wait()?;
     } else {
+        // Print the data directly to the console.
         println!("{}", data);
     }
 

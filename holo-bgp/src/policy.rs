@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 use derive_new::new;
 use holo_utils::bgp::{AfiSafi, RouteType};
+use holo_utils::ip::IpNetworkKind;
 use holo_utils::policy::{
     BgpNexthop, BgpPolicyAction, BgpPolicyCondition, BgpSetCommMethod,
     BgpSetCommOptions, BgpSetMed, DefaultPolicyType, MatchSets,
@@ -126,7 +127,7 @@ fn process_policies(
 fn process_stmt_condition(
     nbr_addr: &IpAddr,
     afi_safi: AfiSafi,
-    _prefix: &IpNetwork,
+    prefix: &IpNetwork,
     rpinfo: &RoutePolicyInfo,
     condition: &PolicyCondition,
     match_sets: &MatchSets,
@@ -139,9 +140,14 @@ fn process_stmt_condition(
             true
         }
         // "match-prefix-set"
-        PolicyCondition::MatchPrefixSet(_value) => {
-            // TODO
-            true
+        PolicyCondition::MatchPrefixSet(value) => {
+            let af = prefix.address_family();
+            let set = match_sets.prefixes.get(&(value.clone(), af)).unwrap();
+            set.prefixes.iter().any(|range| {
+                prefix.ip() == range.prefix.ip()
+                    && prefix.prefix() >= range.masklen_lower
+                    && prefix.prefix() <= range.masklen_upper
+            })
         }
         // "match-neighbor-set"
         PolicyCondition::MatchNeighborSet(value) => {

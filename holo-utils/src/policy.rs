@@ -49,9 +49,8 @@ pub enum PolicyResult<T> {
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub enum DefaultPolicyType {
-    // TODO should be RejectRoute
-    #[default]
     AcceptRoute,
+    #[default]
     RejectRoute,
 }
 

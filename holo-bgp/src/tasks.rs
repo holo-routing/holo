@@ -116,6 +116,11 @@ pub mod messages {
                 afi_safi: AfiSafi,
                 routes: Vec<(IpNetwork, PolicyResult<RoutePolicyInfo>)>,
             },
+            Redistribute {
+                afi_safi: AfiSafi,
+                prefix: IpNetwork,
+                result: PolicyResult<RoutePolicyInfo>,
+            },
         }
 
         impl TcpAcceptMsg {
@@ -175,6 +180,14 @@ pub mod messages {
                 nbr_addr: IpAddr,
                 afi_safi: AfiSafi,
                 routes: Vec<(IpNetwork, RoutePolicyInfo)>,
+                policies: Vec<Arc<Policy>>,
+                match_sets: Arc<MatchSets>,
+                default_policy: DefaultPolicyType,
+            },
+            Redistribute {
+                afi_safi: AfiSafi,
+                prefix: IpNetwork,
+                route: RoutePolicyInfo,
                 policies: Vec<Arc<Policy>>,
                 match_sets: Arc<MatchSets>,
                 default_policy: DefaultPolicyType,
@@ -437,6 +450,24 @@ pub(crate) fn policy_apply(
                             nbr_addr,
                             afi_safi,
                             routes,
+                            &policies,
+                            &match_sets,
+                            default_policy,
+                            &policy_resultp,
+                        );
+                    }
+                    messages::output::PolicyApplyMsg::Redistribute {
+                        afi_safi,
+                        prefix,
+                        route,
+                        policies,
+                        match_sets,
+                        default_policy,
+                    } => {
+                        policy::redistribute_apply(
+                            afi_safi,
+                            prefix,
+                            route,
                             &policies,
                             &match_sets,
                             default_policy,

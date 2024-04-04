@@ -318,7 +318,7 @@ fn process_nbr_reach_prefixes<A>(
         .unwrap_or(&nbr.config.apply_policy);
 
     // Enqueue import policy application.
-    let rpinfo = RoutePolicyInfo::new(origin, attrs, route_type);
+    let rpinfo = RoutePolicyInfo::new(origin, route_type, None, None, attrs);
     let msg = PolicyApplyMsg::Neighbor {
         policy_type: PolicyType::Import,
         nbr_addr: nbr.remote_addr,
@@ -635,6 +635,49 @@ fn attrs_tx_update<A>(
 
     // Update the next-hop attribute based on the address family if necessary.
     A::nexthop_tx_change(nbr, local, &mut attrs.base);
+}
+
+// ===== redistribute policy import result =====
+
+pub(crate) fn process_redistribute_policy_import<A>(
+    instance: &mut InstanceUpView<'_>,
+    prefix: IpNetwork,
+    result: PolicyResult<RoutePolicyInfo>,
+) -> Result<(), Error>
+where
+    A: AddressFamily,
+{
+    let rib = &mut instance.state.rib;
+    let table = A::table(&mut rib.tables);
+    let prefix = A::IpNetwork::get(prefix).unwrap();
+
+    match result {
+        PolicyResult::Accept(rpinfo) => {
+            // Get prefix RIB entry.
+            let dest = table.prefixes.entry(prefix).or_default();
+
+            // Update redistributed route in the RIB.
+            let route_attrs = rib.attr_sets.get_route_attr_sets(&rpinfo.attrs);
+            let route = Route::new(
+                rpinfo.origin,
+                route_attrs.clone(),
+                RouteType::Internal,
+            );
+            dest.redistribute = Some(Box::new(route));
+        }
+        PolicyResult::Reject => {
+            // Remove redistributed route from the RIB.
+            if let Some(dest) = table.prefixes.get_mut(&prefix) {
+                dest.redistribute = None;
+            }
+        }
+    }
+
+    // Enqueue prefix and schedule the BGP Decision Process.
+    table.queued_prefixes.insert(prefix);
+    instance.state.schedule_decision_process(instance.tx);
+
+    Ok(())
 }
 
 // ===== BGP decision process =====

@@ -14,8 +14,9 @@ use ipnetwork::IpNetwork;
 use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
 use crate::debug::Debug;
 use crate::instance::{Instance, InstanceUpView};
-use crate::packet::attribute::Attrs;
-use crate::rib::{Route, RouteOrigin};
+use crate::policy::RoutePolicyInfo;
+use crate::rib::RouteOrigin;
+use crate::tasks::messages::output::PolicyApplyMsg;
 
 // ===== global functions =====
 
@@ -47,13 +48,12 @@ pub(crate) fn process_route_add(instance: &mut Instance, msg: RouteMsg) {
         return;
     };
 
-    let proto = msg.protocol;
     match msg.prefix {
-        IpNetwork::V4(prefix) => {
-            process_route_add_af::<Ipv4Unicast>(&mut instance, prefix, proto);
+        IpNetwork::V4(..) => {
+            process_route_add_af::<Ipv4Unicast>(&mut instance, msg);
         }
-        IpNetwork::V6(prefix) => {
-            process_route_add_af::<Ipv6Unicast>(&mut instance, prefix, proto);
+        IpNetwork::V6(..) => {
+            process_route_add_af::<Ipv6Unicast>(&mut instance, msg);
         }
     }
 }
@@ -91,42 +91,50 @@ fn process_nht_update_af<A>(
     }
 }
 
-fn process_route_add_af<A>(
-    instance: &mut InstanceUpView<'_>,
-    prefix: A::IpNetwork,
-    protocol: Protocol,
-) where
+fn process_route_add_af<A>(instance: &mut InstanceUpView<'_>, msg: RouteMsg)
+where
     A: AddressFamily,
 {
-    // Get prefix RIB entry.
-    let rib = &mut instance.state.rib;
-    let table = A::table(&mut rib.tables);
-    let dest = table.prefixes.entry(prefix).or_default();
-
-    // Get redistribution configuration for the address family and route
+    // Check if redistribution is enabled for this address family and route
     // protocol.
-    let Some(_redistribute_cfg) = instance
+    if instance
         .config
         .afi_safi
         .get(&A::AFI_SAFI)
-        .and_then(|afi_safi| afi_safi.redistribution.get(&protocol))
-    else {
-        dest.redistribute = None;
+        .and_then(|afi_safi| afi_safi.redistribution.get(&msg.protocol))
+        .is_none()
+    {
         return;
+    }
+
+    // Get policy configuration for the address family.
+    let apply_policy_cfg = &instance
+        .config
+        .afi_safi
+        .get(&A::AFI_SAFI)
+        .map(|afi_safi| &afi_safi.apply_policy)
+        .unwrap_or(&instance.config.apply_policy);
+
+    // Enqueue import policy application.
+    let msg = PolicyApplyMsg::Redistribute {
+        afi_safi: A::AFI_SAFI,
+        prefix: msg.prefix,
+        route: RoutePolicyInfo::new(
+            RouteOrigin::Protocol(msg.protocol),
+            RouteType::Internal,
+            msg.tag,
+            Some(msg.opaque_attrs),
+            Default::default(),
+        ),
+        policies: apply_policy_cfg
+            .import_policy
+            .iter()
+            .map(|policy| instance.shared.policies.get(policy).unwrap().clone())
+            .collect(),
+        match_sets: instance.shared.policy_match_sets.clone(),
+        default_policy: apply_policy_cfg.default_import_policy,
     };
-
-    // TODO: Apply redistribute routing policy, if any.
-    let attrs = Attrs::default();
-
-    // Update redistributed route in the RIB.
-    let route_attrs = rib.attr_sets.get_route_attr_sets(&attrs);
-    let origin = RouteOrigin::Protocol(protocol);
-    let route = Route::new(origin, route_attrs.clone(), RouteType::Internal);
-    dest.redistribute = Some(Box::new(route));
-
-    // Enqueue prefix and schedule the BGP Decision Process.
-    table.queued_prefixes.insert(prefix);
-    instance.state.schedule_decision_process(instance.tx);
+    instance.state.policy_apply_tasks.enqueue(msg);
 }
 
 fn process_route_del_af<A>(

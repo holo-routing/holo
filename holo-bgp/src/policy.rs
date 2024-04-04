@@ -17,6 +17,7 @@ use holo_utils::policy::{
     MetricModification, Policy, PolicyAction, PolicyCondition, PolicyResult,
     PolicyType,
 };
+use holo_utils::southbound::RouteOpaqueAttrs;
 use holo_utils::UnboundedSender;
 use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
@@ -27,13 +28,15 @@ use crate::tasks::messages::input::PolicyResultMsg;
 
 // Represents a simplified version of `Route`, containing only information
 // relevant for the application of routing policies.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
 pub struct RoutePolicyInfo {
     pub origin: RouteOrigin,
-    pub attrs: Attrs,
     pub route_type: RouteType,
+    pub tag: Option<u32>,
+    pub opaque_attrs: Option<RouteOpaqueAttrs>,
+    pub attrs: Attrs,
 }
 
 // ===== global functions =====
@@ -55,7 +58,6 @@ pub(crate) fn neighbor_apply(
         .into_iter()
         .map(|(prefix, rpinfo)| {
             let result = process_policies(
-                nbr_addr,
                 afi_safi,
                 prefix,
                 rpinfo,
@@ -77,12 +79,40 @@ pub(crate) fn neighbor_apply(
     });
 }
 
+// Applies redistribution import routing policies to the provided route and
+// sends the resulting policy decision to the specified channel.
+pub(crate) fn redistribute_apply(
+    afi_safi: AfiSafi,
+    prefix: IpNetwork,
+    rpinfo: RoutePolicyInfo,
+    policies: &[Arc<Policy>],
+    match_sets: &MatchSets,
+    default_policy: DefaultPolicyType,
+    policy_resultp: &UnboundedSender<PolicyResultMsg>,
+) {
+    // Process routing policies.
+    let result = process_policies(
+        afi_safi,
+        prefix,
+        rpinfo,
+        policies,
+        match_sets,
+        default_policy,
+    );
+
+    // Send the resulting policy decision to the specified channel.
+    let _ = policy_resultp.send(PolicyResultMsg::Redistribute {
+        afi_safi,
+        prefix,
+        result,
+    });
+}
+
 // ===== helper functions =====
 
 // Processes routing policies for a specific route and returns the policy
 // result.
 fn process_policies(
-    nbr_addr: IpAddr,
     afi_safi: AfiSafi,
     prefix: IpNetwork,
     mut rpinfo: RoutePolicyInfo,
@@ -96,7 +126,7 @@ fn process_policies(
         // Check if all conditions in the policy statement are satisfied.
         if !stmt.conditions.values().all(|condition| {
             process_stmt_condition(
-                &nbr_addr, afi_safi, &prefix, &rpinfo, condition, match_sets,
+                afi_safi, &prefix, &rpinfo, condition, match_sets,
             )
         }) {
             continue;
@@ -106,7 +136,7 @@ fn process_policies(
 
         // Process actions defined in the policy statement.
         for action in stmt.actions.values() {
-            if !process_stmt_action(&mut rpinfo, action, match_sets) {
+            if !process_stmt_action(&mut rpinfo.attrs, action, match_sets) {
                 return PolicyResult::Reject;
             }
         }
@@ -125,7 +155,6 @@ fn process_policies(
 //
 // Returns a boolean value indicating whether the condition is met.
 fn process_stmt_condition(
-    nbr_addr: &IpAddr,
     afi_safi: AfiSafi,
     prefix: &IpNetwork,
     rpinfo: &RoutePolicyInfo,
@@ -134,6 +163,12 @@ fn process_stmt_condition(
 ) -> bool {
     let attrs = &rpinfo.attrs;
     match condition {
+        // "source-protocol"
+        PolicyCondition::SrcProtocol(value)
+            if let RouteOrigin::Protocol(protocol) = &rpinfo.origin =>
+        {
+            protocol == value
+        }
         // "match-interface"
         PolicyCondition::MatchInterface(_value) => {
             // TODO
@@ -150,97 +185,129 @@ fn process_stmt_condition(
             })
         }
         // "match-neighbor-set"
-        PolicyCondition::MatchNeighborSet(value) => {
+        PolicyCondition::MatchNeighborSet(value)
+            if let RouteOrigin::Neighbor { remote_addr, .. } =
+                &rpinfo.origin =>
+        {
             let set = match_sets.neighbors.get(value).unwrap();
-            set.addrs.contains(nbr_addr)
+            set.addrs.contains(remote_addr)
+        }
+        // "match-tag-set"
+        PolicyCondition::MatchTagSet(value) => {
+            if let Some(tag) = &rpinfo.tag {
+                let set = match_sets.tags.get(value).unwrap();
+                set.tags.contains(tag)
+            } else {
+                false
+            }
+        }
+        // "match-route-type"
+        PolicyCondition::MatchRouteType(_value)
+            if let Some(_opaque_attrs) = &rpinfo.opaque_attrs =>
+        {
+            // TODO
+            true
         }
         // "bgp-conditions"
-        PolicyCondition::Bgp(condition) => match condition {
-            // "local-pref"
-            BgpPolicyCondition::LocalPref { value, op } => {
-                match attrs.base.local_pref {
-                    Some(local_pref) => op.compare(value, &local_pref),
+        PolicyCondition::Bgp(condition)
+            if let RouteOrigin::Neighbor { remote_addr, .. } =
+                &rpinfo.origin =>
+        {
+            match condition {
+                // "local-pref"
+                BgpPolicyCondition::LocalPref { value, op } => {
+                    match attrs.base.local_pref {
+                        Some(local_pref) => op.compare(value, &local_pref),
+                        None => false,
+                    }
+                }
+                // "med"
+                BgpPolicyCondition::Med { value, op } => match attrs.base.med {
+                    Some(med) => op.compare(value, &med),
                     None => false,
+                },
+                // "origin-eq"
+                BgpPolicyCondition::Origin(origin) => {
+                    attrs.base.origin == *origin
+                }
+                // "match-afi-safi"
+                BgpPolicyCondition::MatchAfiSafi { values, match_type } => {
+                    match_type.compare(values, &afi_safi)
+                }
+                // "match-neighbor"
+                BgpPolicyCondition::MatchNeighbor { value, match_type } => {
+                    match_type.compare(value, remote_addr)
+                }
+                // "route-type"
+                BgpPolicyCondition::RouteType(value) => {
+                    rpinfo.route_type == *value
+                }
+                // "community-count"
+                BgpPolicyCondition::CommCount { value, op } => {
+                    match &attrs.comm {
+                        Some(comm) => op.compare(value, &(comm.0.len() as u32)),
+                        None => false,
+                    }
+                }
+                // "as-path-length"
+                BgpPolicyCondition::AsPathLen { value, op } => {
+                    op.compare(value, &(attrs.base.as_path.path_length()))
+                }
+                // "match-community-set"
+                BgpPolicyCondition::MatchCommSet { value, match_type } => {
+                    if let Some(comm) = &attrs.comm {
+                        let set = match_sets.bgp.comms.get(value).unwrap();
+                        match_type.compare(set, &comm.0)
+                    } else {
+                        false
+                    }
+                }
+                // "match-ext-community-set"
+                BgpPolicyCondition::MatchExtCommSet { value, match_type } => {
+                    if let Some(ext_comm) = &attrs.ext_comm {
+                        let set = match_sets.bgp.ext_comms.get(value).unwrap();
+                        match_type.compare(set, &ext_comm.0)
+                    } else {
+                        false
+                    }
+                }
+                // "match-ipv6-ext-community-set"
+                BgpPolicyCondition::MatchExtv6CommSet { value, match_type } => {
+                    if let Some(extv6_comm) = &attrs.extv6_comm {
+                        let set =
+                            match_sets.bgp.extv6_comms.get(value).unwrap();
+                        match_type.compare(set, &extv6_comm.0)
+                    } else {
+                        false
+                    }
+                }
+                // "match-large-community-set"
+                BgpPolicyCondition::MatchLargeCommSet { value, match_type } => {
+                    if let Some(large_comm) = &attrs.large_comm {
+                        let set =
+                            match_sets.bgp.large_comms.get(value).unwrap();
+                        match_type.compare(set, &large_comm.0)
+                    } else {
+                        false
+                    }
+                }
+                // "match-as-path-set"
+                BgpPolicyCondition::MatchAsPathSet { value, match_type } => {
+                    let set = match_sets.bgp.as_paths.get(value).unwrap();
+                    let asns = attrs.base.as_path.iter().collect();
+                    match_type.compare(set, &asns)
+                }
+                // "match-next-hop-set"
+                BgpPolicyCondition::MatchNexthopSet { value, match_type } => {
+                    let nexthop = match attrs.base.nexthop {
+                        Some(nexthop) => BgpNexthop::Addr(nexthop),
+                        None => BgpNexthop::NexthopSelf,
+                    };
+                    let set = match_sets.bgp.nexthops.get(value).unwrap();
+                    match_type.compare(set, &nexthop)
                 }
             }
-            // "med"
-            BgpPolicyCondition::Med { value, op } => match attrs.base.med {
-                Some(med) => op.compare(value, &med),
-                None => false,
-            },
-            // "origin-eq"
-            BgpPolicyCondition::Origin(origin) => attrs.base.origin == *origin,
-            // "match-afi-safi"
-            BgpPolicyCondition::MatchAfiSafi { values, match_type } => {
-                match_type.compare(values, &afi_safi)
-            }
-            // "match-neighbor"
-            BgpPolicyCondition::MatchNeighbor { value, match_type } => {
-                match_type.compare(value, nbr_addr)
-            }
-            // "route-type"
-            BgpPolicyCondition::RouteType(value) => rpinfo.route_type == *value,
-            // "community-count"
-            BgpPolicyCondition::CommCount { value, op } => match &attrs.comm {
-                Some(comm) => op.compare(value, &(comm.0.len() as u32)),
-                None => false,
-            },
-            // "as-path-length"
-            BgpPolicyCondition::AsPathLen { value, op } => {
-                op.compare(value, &(attrs.base.as_path.path_length()))
-            }
-            // "match-community-set"
-            BgpPolicyCondition::MatchCommSet { value, match_type } => {
-                if let Some(comm) = &attrs.comm {
-                    let set = match_sets.bgp.comms.get(value).unwrap();
-                    match_type.compare(set, &comm.0)
-                } else {
-                    false
-                }
-            }
-            // "match-ext-community-set"
-            BgpPolicyCondition::MatchExtCommSet { value, match_type } => {
-                if let Some(ext_comm) = &attrs.ext_comm {
-                    let set = match_sets.bgp.ext_comms.get(value).unwrap();
-                    match_type.compare(set, &ext_comm.0)
-                } else {
-                    false
-                }
-            }
-            // "match-ipv6-ext-community-set"
-            BgpPolicyCondition::MatchExtv6CommSet { value, match_type } => {
-                if let Some(extv6_comm) = &attrs.extv6_comm {
-                    let set = match_sets.bgp.extv6_comms.get(value).unwrap();
-                    match_type.compare(set, &extv6_comm.0)
-                } else {
-                    false
-                }
-            }
-            // "match-large-community-set"
-            BgpPolicyCondition::MatchLargeCommSet { value, match_type } => {
-                if let Some(large_comm) = &attrs.large_comm {
-                    let set = match_sets.bgp.large_comms.get(value).unwrap();
-                    match_type.compare(set, &large_comm.0)
-                } else {
-                    false
-                }
-            }
-            // "match-as-path-set"
-            BgpPolicyCondition::MatchAsPathSet { value, match_type } => {
-                let set = match_sets.bgp.as_paths.get(value).unwrap();
-                let asns = attrs.base.as_path.iter().collect();
-                match_type.compare(set, &asns)
-            }
-            // "match-next-hop-set"
-            BgpPolicyCondition::MatchNexthopSet { value, match_type } => {
-                let nexthop = match attrs.base.nexthop {
-                    Some(nexthop) => BgpNexthop::Addr(nexthop),
-                    None => BgpNexthop::NexthopSelf,
-                };
-                let set = match_sets.bgp.nexthops.get(value).unwrap();
-                match_type.compare(set, &nexthop)
-            }
-        },
+        }
         // Ignore unsupported conditions.
         _ => true,
     }
@@ -251,11 +318,10 @@ fn process_stmt_condition(
 // Returns a boolean value indicating whether the route should be accepted or
 // not.
 fn process_stmt_action(
-    rpinfo: &mut RoutePolicyInfo,
+    attrs: &mut Attrs,
     action: &PolicyAction,
     match_sets: &MatchSets,
 ) -> bool {
-    let attrs = &mut rpinfo.attrs;
     match action {
         // "policy-result"
         PolicyAction::Accept(accept) => {

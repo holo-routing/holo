@@ -204,8 +204,10 @@ impl Route {
     pub(crate) fn policy_info(&self) -> RoutePolicyInfo {
         RoutePolicyInfo {
             origin: self.origin,
-            attrs: self.attrs.get(),
             route_type: self.route_type,
+            tag: None,
+            opaque_attrs: None,
+            attrs: self.attrs.get(),
         }
     }
 

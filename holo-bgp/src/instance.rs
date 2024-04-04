@@ -544,6 +544,22 @@ fn process_protocol_msg(
                     )?
                 }
             },
+            PolicyResultMsg::Redistribute {
+                afi_safi,
+                prefix,
+                result,
+            } => match afi_safi {
+                AfiSafi::Ipv4Unicast => {
+                    events::process_redistribute_policy_import::<Ipv4Unicast>(
+                        instance, prefix, result,
+                    )?
+                }
+                AfiSafi::Ipv6Unicast => {
+                    events::process_redistribute_policy_import::<Ipv6Unicast>(
+                        instance, prefix, result,
+                    )?
+                }
+            },
         },
         // Decision process.
         ProtocolInputMsg::TriggerDecisionProcess(_) => {

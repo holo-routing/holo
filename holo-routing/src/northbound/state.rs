@@ -424,15 +424,23 @@ impl Provider for Master {
 
     fn nested_callbacks() -> Option<Vec<CallbackKey>> {
         let keys = [
+            #[cfg(feature = "bfd")]
             holo_bfd::northbound::state::CALLBACKS.keys(),
+            #[cfg(feature = "bgp")]
             holo_bgp::northbound::state::CALLBACKS.keys(),
+            #[cfg(feature = "ldp")]
             holo_ldp::northbound::state::CALLBACKS.keys(),
+            #[cfg(feature = "ospf")]
             holo_ospf::northbound::state::CALLBACKS_OSPFV2.keys(),
+            #[cfg(feature = "ospf")]
             holo_ospf::northbound::state::CALLBACKS_OSPFV3.keys(),
+            #[cfg(feature = "rip")]
             holo_rip::northbound::state::CALLBACKS_RIPV2.keys(),
+            #[cfg(feature = "rip")]
             holo_rip::northbound::state::CALLBACKS_RIPNG.keys(),
         ]
-        .concat();
+        .into_iter()
+        .collect();
 
         Some(keys)
     }

@@ -18,7 +18,6 @@ use holo_northbound::paths::control_plane_protocol;
 use holo_northbound::paths::routing::ribs;
 use holo_northbound::paths::routing::segment_routing::sr_mpls;
 use holo_northbound::{CallbackKey, NbDaemonSender};
-use holo_protocol::spawn_protocol_task;
 use holo_utils::ibus::{IbusMsg, SrCfgEvent};
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::mpls::LabelRange;
@@ -674,15 +673,23 @@ impl Provider for Master {
 
     fn nested_callbacks() -> Option<Vec<CallbackKey>> {
         let keys = [
+            #[cfg(feature = "bfd")]
             holo_bfd::northbound::configuration::CALLBACKS.keys(),
+            #[cfg(feature = "bgp")]
             holo_bgp::northbound::configuration::CALLBACKS.keys(),
+            #[cfg(feature = "ldp")]
             holo_ldp::northbound::configuration::CALLBACKS.keys(),
+            #[cfg(feature = "ospf")]
             holo_ospf::northbound::configuration::CALLBACKS_OSPFV2.keys(),
+            #[cfg(feature = "ospf")]
             holo_ospf::northbound::configuration::CALLBACKS_OSPFV3.keys(),
+            #[cfg(feature = "rip")]
             holo_rip::northbound::configuration::CALLBACKS_RIPV2.keys(),
+            #[cfg(feature = "rip")]
             holo_rip::northbound::configuration::CALLBACKS_RIPNG.keys(),
         ]
-        .concat();
+        .into_iter()
+        .collect();
 
         Some(keys)
     }
@@ -724,104 +731,7 @@ impl Provider for Master {
     async fn process_event(&mut self, event: Event) {
         match event {
             Event::InstanceStart { protocol, name } => {
-                let instance_id = InstanceId::new(protocol, name.clone());
-                let event_recorder_config = self.event_recorder_config.clone();
-
-                // Start protocol instance.
-                let nb_daemon_tx = match protocol {
-                    Protocol::BFD => {
-                        // Nothing to do, the BFD task runs permanently.
-                        return;
-                    }
-                    Protocol::BGP => {
-                        use holo_bgp::instance::Instance;
-
-                        spawn_protocol_task::<Instance>(
-                            name,
-                            &self.nb_tx,
-                            &self.ibus_tx,
-                            Default::default(),
-                            self.shared.clone(),
-                            Some(event_recorder_config),
-                        )
-                    }
-                    Protocol::DIRECT => {
-                        // This protocol type can not be configured.
-                        unreachable!()
-                    }
-                    Protocol::LDP => {
-                        use holo_ldp::instance::Instance;
-
-                        spawn_protocol_task::<Instance>(
-                            name,
-                            &self.nb_tx,
-                            &self.ibus_tx,
-                            Default::default(),
-                            self.shared.clone(),
-                            Some(event_recorder_config),
-                        )
-                    }
-                    Protocol::OSPFV2 => {
-                        use holo_ospf::instance::Instance;
-                        use holo_ospf::version::Ospfv2;
-
-                        spawn_protocol_task::<Instance<Ospfv2>>(
-                            name,
-                            &self.nb_tx,
-                            &self.ibus_tx,
-                            Default::default(),
-                            self.shared.clone(),
-                            Some(event_recorder_config),
-                        )
-                    }
-                    Protocol::OSPFV3 => {
-                        use holo_ospf::instance::Instance;
-                        use holo_ospf::version::Ospfv3;
-
-                        spawn_protocol_task::<Instance<Ospfv3>>(
-                            name,
-                            &self.nb_tx,
-                            &self.ibus_tx,
-                            Default::default(),
-                            self.shared.clone(),
-                            Some(event_recorder_config),
-                        )
-                    }
-                    Protocol::RIPV2 => {
-                        use holo_rip::instance::Instance;
-                        use holo_rip::version::Ripv2;
-
-                        spawn_protocol_task::<Instance<Ripv2>>(
-                            name,
-                            &self.nb_tx,
-                            &self.ibus_tx,
-                            Default::default(),
-                            self.shared.clone(),
-                            Some(event_recorder_config),
-                        )
-                    }
-                    Protocol::RIPNG => {
-                        use holo_rip::instance::Instance;
-                        use holo_rip::version::Ripng;
-
-                        spawn_protocol_task::<Instance<Ripng>>(
-                            name,
-                            &self.nb_tx,
-                            &self.ibus_tx,
-                            Default::default(),
-                            self.shared.clone(),
-                            Some(event_recorder_config),
-                        )
-                    }
-                    Protocol::STATIC => {
-                        // Nothing to do.
-                        return;
-                    }
-                };
-
-                // Keep track of northbound channel associated to the protocol
-                // type and name.
-                self.instances.insert(instance_id, nb_daemon_tx);
+                instance_start(self, protocol, name);
             }
             Event::StaticRouteInstall(prefix) => {
                 let route = self.static_routes.get(&prefix).unwrap();
@@ -896,6 +806,120 @@ impl Provider for Master {
 }
 
 // ===== helper functions =====
+
+#[allow(unreachable_code, unused_imports, unused_variables)]
+fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
+    use holo_protocol::spawn_protocol_task;
+
+    let instance_id = InstanceId::new(protocol, name.clone());
+    let event_recorder_config = master.event_recorder_config.clone();
+
+    // Start protocol instance.
+    let nb_daemon_tx = match protocol {
+        Protocol::BFD => {
+            // Nothing to do, the BFD task runs permanently.
+            return;
+        }
+        #[cfg(feature = "bgp")]
+        Protocol::BGP => {
+            use holo_bgp::instance::Instance;
+
+            spawn_protocol_task::<Instance>(
+                name,
+                &master.nb_tx,
+                &master.ibus_tx,
+                Default::default(),
+                master.shared.clone(),
+                Some(event_recorder_config),
+            )
+        }
+        Protocol::DIRECT => {
+            // This protocol type can not be configured.
+            unreachable!()
+        }
+        #[cfg(feature = "ldp")]
+        Protocol::LDP => {
+            use holo_ldp::instance::Instance;
+
+            spawn_protocol_task::<Instance>(
+                name,
+                &master.nb_tx,
+                &master.ibus_tx,
+                Default::default(),
+                master.shared.clone(),
+                Some(event_recorder_config),
+            )
+        }
+        #[cfg(feature = "ospf")]
+        Protocol::OSPFV2 => {
+            use holo_ospf::instance::Instance;
+            use holo_ospf::version::Ospfv2;
+
+            spawn_protocol_task::<Instance<Ospfv2>>(
+                name,
+                &master.nb_tx,
+                &master.ibus_tx,
+                Default::default(),
+                master.shared.clone(),
+                Some(event_recorder_config),
+            )
+        }
+        #[cfg(feature = "ospf")]
+        Protocol::OSPFV3 => {
+            use holo_ospf::instance::Instance;
+            use holo_ospf::version::Ospfv3;
+
+            spawn_protocol_task::<Instance<Ospfv3>>(
+                name,
+                &master.nb_tx,
+                &master.ibus_tx,
+                Default::default(),
+                master.shared.clone(),
+                Some(event_recorder_config),
+            )
+        }
+        #[cfg(feature = "rip")]
+        Protocol::RIPV2 => {
+            use holo_rip::instance::Instance;
+            use holo_rip::version::Ripv2;
+
+            spawn_protocol_task::<Instance<Ripv2>>(
+                name,
+                &master.nb_tx,
+                &master.ibus_tx,
+                Default::default(),
+                master.shared.clone(),
+                Some(event_recorder_config),
+            )
+        }
+        #[cfg(feature = "rip")]
+        Protocol::RIPNG => {
+            use holo_rip::instance::Instance;
+            use holo_rip::version::Ripng;
+
+            spawn_protocol_task::<Instance<Ripng>>(
+                name,
+                &master.nb_tx,
+                &master.ibus_tx,
+                Default::default(),
+                master.shared.clone(),
+                Some(event_recorder_config),
+            )
+        }
+        Protocol::STATIC => {
+            // Nothing to do.
+            return;
+        }
+        _ => {
+            // Nothing to do.
+            return;
+        }
+    };
+
+    // Keep track of northbound channel associated to the protocol
+    // type and name.
+    master.instances.insert(instance_id, nb_daemon_tx);
+}
 
 fn static_nexthop_get(
     interfaces: &BTreeMap<String, Interface>,

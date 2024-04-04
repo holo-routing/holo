@@ -15,14 +15,21 @@ use crate::Master;
 impl Provider for Master {
     fn nested_callbacks() -> Option<Vec<CallbackKey>> {
         let keys = [
+            #[cfg(feature = "bgp")]
             holo_bgp::northbound::rpc::CALLBACKS.keys(),
+            #[cfg(feature = "ldp")]
             holo_ldp::northbound::rpc::CALLBACKS.keys(),
+            #[cfg(feature = "ospf")]
             holo_ospf::northbound::rpc::CALLBACKS_OSPFV2.keys(),
+            #[cfg(feature = "ospf")]
             holo_ospf::northbound::rpc::CALLBACKS_OSPFV3.keys(),
+            #[cfg(feature = "rip")]
             holo_rip::northbound::rpc::CALLBACKS_RIPV2.keys(),
+            #[cfg(feature = "rip")]
             holo_rip::northbound::rpc::CALLBACKS_RIPNG.keys(),
         ]
-        .concat();
+        .into_iter()
+        .collect();
 
         Some(keys)
     }

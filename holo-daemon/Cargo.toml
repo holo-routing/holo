@@ -76,11 +76,11 @@ policy = ["holo-policy", "holo-routing"]
 routing = ["holo-routing", "holo-interface"]
 
 # Protocols
-bfd = ["holo-bfd", "holo-routing"]
-bgp = ["holo-bgp", "holo-routing"]
-ldp = ["holo-ldp", "holo-routing"]
-ospf = ["holo-ospf", "holo-routing"]
-rip = ["holo-rip", "holo-routing"]
+bfd = ["holo-bfd", "holo-routing/bfd"]
+bgp = ["holo-bgp", "holo-routing/bgp"]
+ldp = ["holo-ldp", "holo-routing/ldp"]
+ospf = ["holo-ospf", "holo-routing/ospf"]
+rip = ["holo-rip", "holo-routing/rip"]
 
 # Other features
 io_uring = ["tokio-uring"]

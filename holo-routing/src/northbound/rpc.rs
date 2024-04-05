@@ -14,7 +14,7 @@ use crate::Master;
 
 impl Provider for Master {
     fn nested_callbacks() -> Option<Vec<CallbackKey>> {
-        let keys = [
+        let keys: Vec<Vec<CallbackKey>> = vec![
             #[cfg(feature = "bgp")]
             holo_bgp::northbound::rpc::CALLBACKS.keys(),
             #[cfg(feature = "ldp")]
@@ -27,11 +27,9 @@ impl Provider for Master {
             holo_rip::northbound::rpc::CALLBACKS_RIPV2.keys(),
             #[cfg(feature = "rip")]
             holo_rip::northbound::rpc::CALLBACKS_RIPNG.keys(),
-        ]
-        .into_iter()
-        .collect();
+        ];
 
-        Some(keys)
+        Some(keys.concat())
     }
 
     fn relay_rpc(

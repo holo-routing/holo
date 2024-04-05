@@ -423,7 +423,7 @@ impl Provider for Master {
     }
 
     fn nested_callbacks() -> Option<Vec<CallbackKey>> {
-        let keys = [
+        let keys: Vec<Vec<CallbackKey>> = vec![
             #[cfg(feature = "bfd")]
             holo_bfd::northbound::state::CALLBACKS.keys(),
             #[cfg(feature = "bgp")]
@@ -438,11 +438,9 @@ impl Provider for Master {
             holo_rip::northbound::state::CALLBACKS_RIPV2.keys(),
             #[cfg(feature = "rip")]
             holo_rip::northbound::state::CALLBACKS_RIPNG.keys(),
-        ]
-        .into_iter()
-        .collect();
+        ];
 
-        Some(keys)
+        Some(keys.concat())
     }
 }
 

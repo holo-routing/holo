@@ -21,15 +21,23 @@ tokio.workspace = true
 tracing.workspace = true
 yang2.workspace = true
 
-holo-bfd = { path = "../holo-bfd" }
-holo-bgp = { path = "../holo-bgp" }
-holo-ldp = { path = "../holo-ldp" }
 holo-northbound = { path = "../holo-northbound" }
-holo-ospf = { path = "../holo-ospf" }
 holo-protocol = { path = "../holo-protocol" }
-holo-rip = { path = "../holo-rip" }
 holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
 
+holo-bfd = { path = "../holo-bfd", optional = true }
+holo-bgp = { path = "../holo-bgp", optional = true }
+holo-ldp = { path = "../holo-ldp", optional = true }
+holo-ospf = { path = "../holo-ospf", optional = true }
+holo-rip = { path = "../holo-rip", optional = true }
+
 [lints]
 workspace = true
+
+[features]
+bfd = ["holo-bfd"]
+bgp = ["holo-bgp"]
+ldp = ["holo-ldp"]
+ospf = ["holo-ospf"]
+rip = ["holo-rip"]

@@ -19,7 +19,7 @@ use holo_northbound::{
     process_northbound_msg, NbDaemonReceiver, NbDaemonSender, NbProviderSender,
     ProviderBase,
 };
-use holo_protocol::{event_recorder, spawn_protocol_task, InstanceShared};
+use holo_protocol::{event_recorder, InstanceShared};
 use holo_utils::ibus::{IbusReceiver, IbusSender};
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::InterfaceFlags;
@@ -139,17 +139,22 @@ pub fn start(
         ibus::request_addresses(&master.ibus_tx);
 
         // Start BFD task.
-        let name = "main".to_owned();
-        let instance_id = InstanceId::new(Protocol::BFD, name.clone());
-        let nb_daemon_tx = spawn_protocol_task::<holo_bfd::master::Master>(
-            name,
-            &master.nb_tx,
-            &master.ibus_tx,
-            Default::default(),
-            shared,
-            Some(master.event_recorder_config.clone()),
-        );
-        master.instances.insert(instance_id, nb_daemon_tx);
+        #[cfg(feature = "bfd")]
+        {
+            use holo_protocol::spawn_protocol_task;
+
+            let name = "main".to_owned();
+            let instance_id = InstanceId::new(Protocol::BFD, name.clone());
+            let nb_daemon_tx = spawn_protocol_task::<holo_bfd::master::Master>(
+                name,
+                &master.nb_tx,
+                &master.ibus_tx,
+                Default::default(),
+                shared,
+                Some(master.event_recorder_config.clone()),
+            );
+            master.instances.insert(instance_id, nb_daemon_tx);
+        }
 
         // Run task main loop.
         let span = Master::debug_span("");

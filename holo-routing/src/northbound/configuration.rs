@@ -672,7 +672,7 @@ impl Provider for Master {
     }
 
     fn nested_callbacks() -> Option<Vec<CallbackKey>> {
-        let keys = [
+        let keys: Vec<Vec<CallbackKey>> = vec![
             #[cfg(feature = "bfd")]
             holo_bfd::northbound::configuration::CALLBACKS.keys(),
             #[cfg(feature = "bgp")]
@@ -687,11 +687,9 @@ impl Provider for Master {
             holo_rip::northbound::configuration::CALLBACKS_RIPV2.keys(),
             #[cfg(feature = "rip")]
             holo_rip::northbound::configuration::CALLBACKS_RIPNG.keys(),
-        ]
-        .into_iter()
-        .collect();
+        ];
 
-        Some(keys)
+        Some(keys.concat())
     }
 
     fn relay_changes(
@@ -905,10 +903,6 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
                 master.shared.clone(),
                 Some(event_recorder_config),
             )
-        }
-        Protocol::STATIC => {
-            // Nothing to do.
-            return;
         }
         _ => {
             // Nothing to do.

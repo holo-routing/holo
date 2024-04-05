@@ -17,6 +17,7 @@ use holo_northbound::configuration::{
 use holo_northbound::paths::control_plane_protocol;
 use holo_northbound::paths::routing::ribs;
 use holo_northbound::paths::routing::segment_routing::sr_mpls;
+use holo_northbound::paths::routing::bier;
 use holo_northbound::{CallbackKey, NbDaemonSender};
 use holo_utils::ibus::{IbusMsg, SrCfgEvent};
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
@@ -26,6 +27,7 @@ use holo_utils::southbound::{
     Nexthop, NexthopSpecial, RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
 };
 use holo_utils::sr::{IgpAlgoType, SidLastHopBehavior, SrCfgPrefixSid};
+use holo_utils::bier::{UnderlayProtocolType, Bsl, BierSubDomainCfg, SubDomainId};
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
 use ipnetwork::IpNetwork;
@@ -46,6 +48,7 @@ pub enum ListEntry {
     StaticRoute(IpNetwork),
     StaticRouteNexthop(IpNetwork, String),
     SrCfgPrefixSid(IpNetwork, IgpAlgoType),
+    BierCfgSubDomain(SubDomainId, AddressFamily),
 }
 
 #[derive(Debug, EnumAsInner)]
@@ -61,6 +64,7 @@ pub enum Event {
     SrCfgUpdate,
     SrCfgLabelRangeUpdate,
     SrCfgPrefixSidUpdate(AddressFamily),
+    BierCfgUpdate,
 }
 
 // ===== configuration structs =====
@@ -625,6 +629,183 @@ fn load_callbacks() -> Callbacks<Master> {
         .delete_apply(|_master, _args| {
             // Nothing to do.
         })
+        .path(bier::sub_domain::PATH)
+        .create_apply(|master, args| {
+            // debug!("{:#?}", args.dnode.find_xpath("./address-family").unwrap().next().unwrap().get_string());
+            let sd_id = args.dnode.get_u8_relative("./sub-domain-id").unwrap();
+            let addr_family = args.dnode.get_af_relative("./address-family").unwrap();
+            let bfr_prefix = args.dnode.get_prefix_relative("./bfr-prefix").unwrap();
+
+            assert!(bfr_prefix.address_family() == addr_family);
+
+            let underlay_protocol = args.dnode.get_string_relative("./underlay-protocol-type").unwrap();
+            let underlay_protocol = UnderlayProtocolType::try_from_yang(&underlay_protocol).unwrap();
+            let mt_id = args.dnode.get_u8_relative("./mt-id").unwrap();
+            let bfr_id = args.dnode.get_u16_relative("./bfr-id").unwrap();
+            let bsl = args.dnode.get_string_relative("./bsl").unwrap();
+            let bsl = Bsl::try_from_yang(&bsl).unwrap();
+            let ipa = args.dnode.get_u8_relative("./igp-algorithm").unwrap();
+            let bar = args.dnode.get_u8_relative("./bier-algorithm").unwrap();
+            let load_balance_num = args.dnode.get_u8_relative("./load-balance-num").unwrap();
+            let sd_cfg = BierSubDomainCfg { sd_id, addr_family, bfr_prefix, underlay_protocol,
+                mt_id, bfr_id, bsl, ipa, bar, load_balance_num };
+            master.bier_config.sd_cfg.insert((sd_id, addr_family), sd_cfg);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+        })
+        .delete_apply(|master, args| {
+            let sd_id = args.dnode.get_u8_relative("./sub-domain-id").unwrap();
+            let addr_family = args.dnode.get_af_relative("./address-family").unwrap();
+            master.bier_config.sd_cfg.remove(&(sd_id, addr_family));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+        })
+        .lookup(|_master, _list_entry, dnode| {
+            let sd_id = dnode.get_u8_relative("./sub-domain-id").unwrap();
+            let addr_family = dnode.get_af_relative("./address-family").unwrap();
+            ListEntry::BierCfgSubDomain(sd_id, addr_family)
+        })
+        .path(bier::sub_domain::bfr_prefix::PATH)
+        .modify_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .path(bier::sub_domain::underlay_protocol_type::PATH)
+        .modify_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .path(bier::sub_domain::mt_id::PATH)
+        .modify_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .path(bier::sub_domain::bfr_id::PATH)
+        .modify_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .path(bier::sub_domain::bsl::PATH)
+        .modify_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .path(bier::sub_domain::igp_algorithm::PATH)
+        .modify_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .path(bier::sub_domain::bier_algorithm::PATH)
+        .modify_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .path(bier::sub_domain::load_balance_num::PATH)
+        .modify_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .path(bier::sub_domain::encapsulation::PATH)
+        .create_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .lookup(|_context, _list_entry, _dnode| {
+            // TODO: implement me!
+            todo!();
+        })
+        .path(bier::sub_domain::encapsulation::max_si::PATH)
+        .modify_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .path(bier::sub_domain::encapsulation::in_bift_id::in_bift_id_base::PATH)
+        .modify_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .path(bier::sub_domain::encapsulation::in_bift_id::in_bift_id_encoding::PATH)
+        .modify_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .path(bier::bift::PATH)
+        .create_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .lookup(|_context, _list_entry, _dnode| {
+            // TODO: implement me!
+            todo!();
+        })
+        .path(bier::bift::birt_bitstringlength::PATH)
+        .create_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .lookup(|_context, _list_entry, _dnode| {
+            // TODO: implement me!
+            todo!();
+        })
+        .path(bier::bift::birt_bitstringlength::bfr_nbr::PATH)
+        .create_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .lookup(|_context, _list_entry, _dnode| {
+            // TODO: implement me!
+            todo!();
+        })
+        .path(bier::bift::birt_bitstringlength::bfr_nbr::encapsulation_type::PATH)
+        .modify_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .path(bier::bift::birt_bitstringlength::bfr_nbr::out_bift_id::out_bift_id::PATH)
+        .modify_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .path(bier::bift::birt_bitstringlength::bfr_nbr::out_bift_id::out_bift_id_encoding::PATH)
+        .modify_apply(|_context, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_context, _args| {
+            // TODO: implement me!
+        })
         .build()
 }
 
@@ -798,6 +979,15 @@ impl Provider for Master {
                 let _ = self
                     .ibus_tx
                     .send(IbusMsg::SrCfgEvent(SrCfgEvent::PrefixSidUpdate(af)));
+            }
+            Event::BierCfgUpdate => {
+                // Update the shared BIER configuration by creating a new reference-counted copy.
+                self.shared.bier_config = Arc::new(self.bier_config.clone());
+
+                // Notify protocol instances about the updated SR configuration.
+                let _ = self
+                    .ibus_tx
+                    .send(IbusMsg::BierCfgUpd(self.shared.bier_config.clone()));
             }
         }
     }

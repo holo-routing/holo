@@ -28,6 +28,7 @@ pub mod protocol;
 pub mod socket;
 pub mod southbound;
 pub mod sr;
+pub mod bier;
 pub mod task;
 pub mod yang;
 

@@ -20,6 +20,7 @@ use crate::southbound::{
     RouteKeyMsg, RouteMsg,
 };
 use crate::sr::SrCfg;
+use crate::bier::BierCfg;
 
 // Useful type definition(s).
 pub type IbusReceiver = Receiver<IbusMsg>;
@@ -103,6 +104,8 @@ pub enum IbusMsg {
     SrCfgUpd(Arc<SrCfg>),
     // Segment Routing configuration event.
     SrCfgEvent(SrCfgEvent),
+    // BIER configuration update.
+    BierCfgUpd(Arc<BierCfg>),
 }
 
 // Type of Segment Routing configuration change.

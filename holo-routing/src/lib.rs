@@ -24,6 +24,7 @@ use holo_utils::ibus::{IbusReceiver, IbusSender};
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::sr::SrCfg;
+use holo_utils::bier::BierCfg;
 use holo_utils::Database;
 use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
@@ -53,6 +54,8 @@ pub struct Master {
     pub sr_config: SrCfg,
     // Protocol instances.
     pub instances: BTreeMap<InstanceId, NbDaemonSender>,
+    // BIER configuration data.
+    pub bier_config: BierCfg,
 }
 
 #[derive(Debug, Eq, Hash, PartialEq, PartialOrd, new, Ord)]
@@ -133,6 +136,7 @@ pub fn start(
             static_routes: Default::default(),
             sr_config: Default::default(),
             instances: Default::default(),
+            bier_config: Default::default(),
         };
 
         // Request information about all interfaces addresses.

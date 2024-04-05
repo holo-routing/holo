@@ -1,6 +1,6 @@
 [package]
 name = "holo-yang"
-version = "0.5.4"
+version = "0.5.5"
 authors.workspace = true
 license.workspace = true
 edition.workspace = true

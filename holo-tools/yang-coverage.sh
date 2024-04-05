@@ -12,6 +12,7 @@ cargo run --bin yang_coverage --\
   -m ietf-routing-policy\
   -m ietf-segment-routing\
   -m ietf-segment-routing-mpls\
+  -m ietf-bier\
   -m ietf-key-chain\
   -m ietf-bfd\
   -m ietf-bfd-ip-mh\

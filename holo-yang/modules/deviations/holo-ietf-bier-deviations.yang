@@ -1,0 +1,291 @@
+module holo-ietf-bier-deviations {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/holo-ietf-bier-deviations";
+  prefix holo-ietf-bier-deviations;
+
+  import ietf-routing {
+    prefix rt;
+  }
+
+  import ietf-bier {
+    prefix bier;
+  }
+
+  import iana-routing-types {
+    prefix iana-rt-types;
+    reference
+      "RFC 8294: Common YANG Data Types for the Routing Area";
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines deviation statements for the ietf-bier
+     module.";
+
+  typedef bsl {
+    type enumeration {
+      enum "64-bit"{
+        description
+          "bitstringlength is 64";
+        }
+        enum "128-bit"{
+          description
+            "bitstringlength is 128";
+        }
+        enum "256-bit"{
+          description
+            "bitstringlength is 256";
+        }
+        enum "512-bit"{
+          description
+            "bitstringlength is 512";
+        }
+        enum "1024-bit"{
+          description
+            "bitstringlength is 1024";
+        }
+        enum "2048-bit"{
+          description
+            "bitstringlength is 2048";
+        }
+        enum "4096-bit"{
+          description
+            "bitstringlength is 4096";
+        }
+    }
+    default
+      "256-bit";
+    description
+      "list of the bitstringlength type to be supported.";
+  }
+
+  deviation "/bier:bfr-id-collision" {
+    deviate not-supported;
+  }
+
+  deviation "/bier:bfr-id-collision/bier:bfr-id-collision" {
+    deviate not-supported;
+  }
+
+  deviation "/bier:bfr-id-collision/bier:bfr-id-collision/bier:received-bfr-id" {
+    deviate not-supported;
+  }
+
+  deviation "/bier:bfr-id-out-of-range" {
+    deviate not-supported;
+  }
+
+  deviation "/bier:bfr-id-out-of-range/bier:received-bfr-id" {
+    deviate not-supported;
+  }
+
+  deviation "/bier:bfr-zero" {
+    deviate not-supported;
+  }
+
+  deviation "/bier:bfr-zero/bier:ipv4-bfr-prefix" {
+    deviate not-supported;
+  }
+
+  deviation "/bier:bfr-zero/bier:ipv6-bfr-prefix" {
+    deviate not-supported;
+  }
+
+  deviation "/bier:sub-domain-id-collision" {
+    deviate not-supported;
+  }
+
+  deviation "/bier:sub-domain-id-collision/bier:received-sub-domain-id" {
+    deviate not-supported;
+  }
+
+  deviation "/bier:sub-domain-id-collision/bier:received-mt-id" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/bier:bier" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/bier:bier/bier:sub-domain" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/bier:bier/bier:sub-domain/bier:sub-domain-id" {
+    deviate replace {
+      type uint8;
+    }
+  }
+
+  deviation "/rt:routing/bier:bier/bier:sub-domain/bier:address-family" {
+    deviate replace {
+      type iana-rt-types:address-family;
+    }
+  }
+
+  deviation "/rt:routing/bier:bier/bier:sub-domain/bier:bfr-prefix" {
+    deviate add {
+      mandatory "true";
+    }
+  }
+
+  deviation "/rt:routing/bier:bier/bier:sub-domain/bier:underlay-protocol-type" {
+    deviate add {
+      mandatory "true";
+    }
+  }
+
+  deviation "/rt:routing/bier:bier/bier:sub-domain/bier:mt-id" {
+    deviate replace {
+      type uint8;
+    }
+    deviate add {
+      default "0";
+    }
+  }
+
+  deviation "/rt:routing/bier:bier/bier:sub-domain/bier:bfr-id" {
+    deviate add {
+      mandatory "true";
+    }
+  }
+
+  deviation "/rt:routing/bier:bier/bier:sub-domain/bier:bsl" {
+    deviate replace {
+      type bsl;
+    }
+    deviate add {
+      mandatory "true";
+    }
+  }
+
+  /*
+  deviation "/rt:routing/bier:bier/bier:sub-domain/bier:igp-algorithm" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/bier:bier/bier:sub-domain/bier:bier-algorithm" {
+    deviate add {
+      default "0";
+    }
+  }
+
+  deviation "/rt:routing/bier:bier/bier:sub-domain/bier:load-balance-num" {
+    deviate add {
+      default "16";
+    }
+  }
+
+  /*
+  deviation "/rt:routing/bier:bier/bier:sub-domain/bier:encapsulation" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/bier:bier/bier:sub-domain/bier:encapsulation/bier:bsl" {
+    deviate replace {
+      type bsl;
+    }
+  }
+
+  /*
+  deviation "/rt:routing/bier:bier/bier:sub-domain/bier:encapsulation/bier:encapsulation-type" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/bier:bier/bier:sub-domain/bier:encapsulation/bier:max-si" {
+    deviate replace {
+      type uint8;
+    }
+    deviate add {
+      mandatory "true";
+    }
+  }
+
+  deviation "/rt:routing/bier:bier/bier:sub-domain/bier:encapsulation/bier:in-bift-id/bier:in-bift-id" {
+    deviate delete {
+      default "in-bift-id-base";
+    }
+    deviate add {
+      mandatory "true";
+    }
+  }
+
+  /*
+  deviation "/rt:routing/bier:bier/bier:sub-domain/bier:encapsulation/bier:in-bift-id/bier:in-bift-id/bier:in-bift-id-base" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/bier:bier/bier:sub-domain/bier:encapsulation/bier:in-bift-id/bier:in-bift-id/bier:in-bift-id-base/bier:in-bift-id-base" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/bier:bier/bier:sub-domain/bier:encapsulation/bier:in-bift-id/bier:in-bift-id/bier:in-bift-id-encoding" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/bier:bier/bier:sub-domain/bier:encapsulation/bier:in-bift-id/bier:in-bift-id/bier:in-bift-id-encoding/bier:in-bift-id-encoding" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/bier:bier/bier:bift" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/bier:bier/bier:bift/bier:bfr-id" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/bier:bier/bier:bift/bier:birt-bitstringlength" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/bier:bier/bier:bift/bier:birt-bitstringlength/bier:bsl" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/bier:bier/bier:bift/bier:birt-bitstringlength/bier:bfr-nbr" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/bier:bier/bier:bift/bier:birt-bitstringlength/bier:bfr-nbr/bier:bfr-nbr" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/bier:bier/bier:bift/bier:birt-bitstringlength/bier:bfr-nbr/bier:encapsulation-type" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/bier:bier/bier:bift/bier:birt-bitstringlength/bier:bfr-nbr/bier:out-bift-id" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/bier:bier/bier:bift/bier:birt-bitstringlength/bier:bfr-nbr/bier:out-bift-id/bier:out-bift-id" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/bier:bier/bier:bift/bier:birt-bitstringlength/bier:bfr-nbr/bier:out-bift-id/bier:out-bift-id/bier:out-bift-id" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/bier:bier/bier:bift/bier:birt-bitstringlength/bier:bfr-nbr/bier:out-bift-id/bier:out-bift-id/bier:out-bift-id/bier:out-bift-id" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/bier:bier/bier:bift/bier:birt-bitstringlength/bier:bfr-nbr/bier:out-bift-id/bier:out-bift-id/bier:out-bift-id-encoding" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/bier:bier/bier:bift/bier:birt-bitstringlength/bier:bfr-nbr/bier:out-bift-id/bier:out-bift-id/bier:out-bift-id-encoding/bier:out-bift-id-encoding" {
+    deviate not-supported;
+  }
+}

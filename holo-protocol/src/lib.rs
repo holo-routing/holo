@@ -16,6 +16,7 @@ use holo_northbound as northbound;
 use holo_northbound::{
     process_northbound_msg, NbDaemonReceiver, NbDaemonSender, NbProviderSender,
 };
+use holo_utils::bier::BierCfg;
 use holo_utils::ibus::{IbusMsg, IbusReceiver, IbusSender};
 use holo_utils::keychain::Keychains;
 use holo_utils::mpls::LabelManager;
@@ -96,6 +97,8 @@ pub struct InstanceShared {
     pub policies: Policies,
     // Global Segment Routing configuration.
     pub sr_config: Arc<SrCfg>,
+    // Global BIER configuration.
+    pub bier_config: Arc<BierCfg>,
     // Event recorder configuration.
     pub event_recorder_config: Option<event_recorder::Config>,
 }
@@ -155,6 +158,7 @@ impl std::fmt::Debug for InstanceShared {
             .field("policy_match_sets", &self.policy_match_sets)
             .field("policies", &self.policies)
             .field("sr_config", &self.sr_config)
+            .field("bier_config", &self.bier_config)
             .finish()
     }
 }

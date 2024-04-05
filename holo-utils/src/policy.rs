@@ -137,6 +137,7 @@ pub enum MatchSetRestrictedType {
 #[derive(Clone, Debug, Default)]
 #[derive(Deserialize, Serialize)]
 pub struct MatchSets {
+    #[serde(with = "vectorize")]
     pub prefixes: BTreeMap<(String, AddressFamily), PrefixSet>,
     pub neighbors: BTreeMap<String, NeighborSet>,
     pub tags: BTreeMap<String, TagSet>,
@@ -198,7 +199,9 @@ pub struct PolicyStmt {
     pub name: String,
     pub prefix_set_match_type: MatchSetRestrictedType,
     pub tag_set_match_type: MatchSetType,
+    #[serde(with = "vectorize")]
     pub conditions: BTreeMap<PolicyConditionType, PolicyCondition>,
+    #[serde(with = "vectorize")]
     pub actions: BTreeMap<PolicyActionType, PolicyAction>,
 }
 

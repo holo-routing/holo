@@ -102,6 +102,15 @@ pub struct InstanceCfg {
     pub extended_lsa: bool,
     pub sr_enabled: bool,
     pub instance_id: u8,
+    pub bier: BierOspfCfg,
+}
+
+#[derive(Debug)]
+pub struct BierOspfCfg {
+    pub mt_id: u16,
+    pub enabled: bool,
+    pub advertise: bool,
+    pub receive: bool,
 }
 
 #[derive(Debug)]
@@ -778,6 +787,30 @@ where
             let mtu_ignore = args.dnode.get_bool();
             iface.config.mtu_ignore = mtu_ignore;
         })
+        .path(ospf::bier_ospf_cfg::mt_id::PATH)
+        .modify_apply(|instance, args| {
+            let mt_id = args.dnode.get_u16();
+            instance.config.bier.mt_id = mt_id;
+        })
+        .delete_apply(|instance, _args| {
+            let mt_id = 0;
+            instance.config.bier.mt_id = mt_id;
+        })
+        .path(ospf::bier_ospf_cfg::bier::enable::PATH)
+        .modify_apply(|instance, args| {
+            let enable = args.dnode.get_bool();
+            instance.config.bier.enabled = enable;
+        })
+        .path(ospf::bier_ospf_cfg::bier::advertise::PATH)
+        .modify_apply(|instance, args| {
+            let advertise = args.dnode.get_bool();
+            instance.config.bier.advertise = advertise;
+        })
+        .path(ospf::bier_ospf_cfg::bier::receive::PATH)
+        .modify_apply(|instance, args| {
+            let receive = args.dnode.get_bool();
+            instance.config.bier.receive = receive;
+       })
         .build()
 }
 
@@ -1559,6 +1592,21 @@ impl Default for InstanceCfg {
             extended_lsa,
             sr_enabled,
             instance_id,
+            bier: Default::default(),
+        }
+    }
+}
+
+impl Default for BierOspfCfg {
+    fn default() -> Self {
+        let enabled = ospf::bier_ospf_cfg::bier::enable::DFLT;
+        let advertise = ospf::bier_ospf_cfg::bier::advertise::DFLT;
+        let receive = ospf::bier_ospf_cfg::bier::receive::DFLT;
+        Self {
+            mt_id: 0,
+            enabled,
+            advertise,
+            receive,
         }
     }
 }

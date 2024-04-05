@@ -19,6 +19,7 @@ use holo_northbound::{
     ProviderBase,
 };
 use holo_protocol::{event_recorder, InstanceShared};
+use holo_utils::bier::BierCfg;
 use holo_utils::ibus::{IbusReceiver, IbusSender};
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::InterfaceFlags;
@@ -50,6 +51,8 @@ pub struct Master {
     pub static_routes: BTreeMap<IpNetwork, StaticRoute>,
     // SR configuration data.
     pub sr_config: SrCfg,
+    // BIER configuration data.
+    pub bier_config: BierCfg,
     // Protocol instances.
     pub instances: BTreeMap<InstanceId, NbDaemonSender>,
 }
@@ -131,6 +134,7 @@ pub fn start(
             rib: Default::default(),
             static_routes: Default::default(),
             sr_config: Default::default(),
+            bier_config: Default::default(),
             instances: Default::default(),
         };
 

@@ -16,6 +16,7 @@ use pickledb::PickleDb;
 
 pub mod bfd;
 pub mod bgp;
+pub mod bier;
 pub mod bytes;
 pub mod capabilities;
 pub mod crypto;

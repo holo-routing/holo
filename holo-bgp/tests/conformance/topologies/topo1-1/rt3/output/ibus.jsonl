@@ -1,0 +1,8 @@
+"RouterIdQuery"
+{"RouteRedistributeDump":{"protocol":"direct","af":"Ipv4"}}
+{"NexthopTrack":"10.0.2.1"}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"1.1.1.1/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"10.0.2.1","labels":[],"resolved":[]}}]}}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"2.2.2.2/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"10.0.2.1","labels":[],"resolved":[]}}]}}
+{"NexthopTrack":"4.4.4.4"}
+{"NexthopTrack":"10.0.3.2"}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"4.4.4.4/32","distance":200,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"4.4.4.4","labels":[],"resolved":[]}}]}}

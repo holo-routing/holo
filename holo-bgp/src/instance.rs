@@ -409,6 +409,7 @@ impl ProtocolInputChannelsTx {
 impl MessageReceiver<ProtocolInputMsg> for ProtocolInputChannelsRx {
     async fn recv(&mut self) -> Option<ProtocolInputMsg> {
         tokio::select! {
+            biased;
             msg = self.tcp_accept.recv() => {
                 msg.map(ProtocolInputMsg::TcpAccept)
             }

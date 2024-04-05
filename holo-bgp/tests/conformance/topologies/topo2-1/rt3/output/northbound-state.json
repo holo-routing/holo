@@ -1,0 +1,656 @@
+{
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-bgp:bgp",
+          "name": "test",
+          "ietf-bgp:bgp": {
+            "global": {
+              "afi-safis": {
+                "afi-safi": [
+                  {
+                    "name": "iana-bgp-types:ipv4-unicast",
+                    "statistics": {
+                      "total-prefixes": 6
+                    }
+                  }
+                ]
+              },
+              "statistics": {
+                "total-prefixes": 6
+              }
+            },
+            "neighbors": {
+              "neighbor": [
+                {
+                  "remote-address": "10.0.4.2",
+                  "local-address": "10.0.4.3",
+                  "peer-type": "external",
+                  "identifier": "2.2.2.2",
+                  "timers": {
+                    "negotiated-hold-time": 90
+                  },
+                  "session-state": "established",
+                  "capabilities": {
+                    "advertised-capabilities": [
+                      {
+                        "code": 1,
+                        "index": 0,
+                        "name": "iana-bgp-types:mp-bgp",
+                        "value": {
+                          "mpbgp": {
+                            "afi": "ipv4",
+                            "safi": "unicast-safi",
+                            "name": "iana-bgp-types:ipv4-unicast"
+                          }
+                        }
+                      },
+                      {
+                        "code": 65,
+                        "index": 1,
+                        "name": "iana-bgp-types:asn32",
+                        "value": {
+                          "asn32": {
+                            "as": 65003
+                          }
+                        }
+                      },
+                      {
+                        "code": 2,
+                        "index": 2,
+                        "name": "iana-bgp-types:route-refresh"
+                      }
+                    ],
+                    "received-capabilities": [
+                      {
+                        "code": 1,
+                        "index": 0,
+                        "name": "iana-bgp-types:mp-bgp",
+                        "value": {
+                          "mpbgp": {
+                            "afi": "ipv4",
+                            "safi": "unicast-safi",
+                            "name": "iana-bgp-types:ipv4-unicast"
+                          }
+                        }
+                      },
+                      {
+                        "code": 65,
+                        "index": 1,
+                        "name": "iana-bgp-types:asn32",
+                        "value": {
+                          "asn32": {
+                            "as": 65002
+                          }
+                        }
+                      },
+                      {
+                        "code": 2,
+                        "index": 2,
+                        "name": "iana-bgp-types:route-refresh"
+                      }
+                    ],
+                    "negotiated-capabilities": [
+                      "iana-bgp-types:mp-bgp",
+                      "iana-bgp-types:asn32",
+                      "iana-bgp-types:route-refresh"
+                    ]
+                  }
+                },
+                {
+                  "remote-address": "10.0.5.6",
+                  "local-address": "10.0.5.3",
+                  "peer-type": "external",
+                  "identifier": "6.6.6.6",
+                  "timers": {
+                    "negotiated-hold-time": 90
+                  },
+                  "session-state": "established",
+                  "capabilities": {
+                    "advertised-capabilities": [
+                      {
+                        "code": 1,
+                        "index": 0,
+                        "name": "iana-bgp-types:mp-bgp",
+                        "value": {
+                          "mpbgp": {
+                            "afi": "ipv4",
+                            "safi": "unicast-safi",
+                            "name": "iana-bgp-types:ipv4-unicast"
+                          }
+                        }
+                      },
+                      {
+                        "code": 65,
+                        "index": 1,
+                        "name": "iana-bgp-types:asn32",
+                        "value": {
+                          "asn32": {
+                            "as": 65003
+                          }
+                        }
+                      },
+                      {
+                        "code": 2,
+                        "index": 2,
+                        "name": "iana-bgp-types:route-refresh"
+                      }
+                    ],
+                    "received-capabilities": [
+                      {
+                        "code": 1,
+                        "index": 0,
+                        "name": "iana-bgp-types:mp-bgp",
+                        "value": {
+                          "mpbgp": {
+                            "afi": "ipv4",
+                            "safi": "unicast-safi",
+                            "name": "iana-bgp-types:ipv4-unicast"
+                          }
+                        }
+                      },
+                      {
+                        "code": 65,
+                        "index": 1,
+                        "name": "iana-bgp-types:asn32",
+                        "value": {
+                          "asn32": {
+                            "as": 65006
+                          }
+                        }
+                      },
+                      {
+                        "code": 2,
+                        "index": 2,
+                        "name": "iana-bgp-types:route-refresh"
+                      }
+                    ],
+                    "negotiated-capabilities": [
+                      "iana-bgp-types:mp-bgp",
+                      "iana-bgp-types:asn32",
+                      "iana-bgp-types:route-refresh"
+                    ]
+                  }
+                }
+              ]
+            },
+            "rib": {
+              "attr-sets": {
+                "attr-set": [
+                  {
+                    "index": "1",
+                    "attributes": {
+                      "origin": "incomplete"
+                    }
+                  },
+                  {
+                    "index": "2",
+                    "attributes": {
+                      "origin": "incomplete",
+                      "as-path": {
+                        "segment": [
+                          {
+                            "type": "iana-bgp-types:as-sequence",
+                            "member": [
+                              65002
+                            ]
+                          }
+                        ]
+                      },
+                      "next-hop": "10.0.4.2"
+                    }
+                  },
+                  {
+                    "index": "3",
+                    "attributes": {
+                      "origin": "incomplete",
+                      "as-path": {
+                        "segment": [
+                          {
+                            "type": "iana-bgp-types:as-sequence",
+                            "member": [
+                              65002,
+                              65001
+                            ]
+                          }
+                        ]
+                      },
+                      "next-hop": "10.0.4.2"
+                    }
+                  },
+                  {
+                    "index": "4",
+                    "attributes": {
+                      "origin": "incomplete",
+                      "as-path": {
+                        "segment": [
+                          {
+                            "type": "iana-bgp-types:as-sequence",
+                            "member": [
+                              65002,
+                              65001,
+                              65004
+                            ]
+                          }
+                        ]
+                      },
+                      "next-hop": "10.0.4.2"
+                    }
+                  },
+                  {
+                    "index": "5",
+                    "attributes": {
+                      "origin": "incomplete",
+                      "as-path": {
+                        "segment": [
+                          {
+                            "type": "iana-bgp-types:as-sequence",
+                            "member": [
+                              65002,
+                              65001,
+                              65005
+                            ]
+                          }
+                        ]
+                      },
+                      "next-hop": "10.0.4.2"
+                    }
+                  },
+                  {
+                    "index": "6",
+                    "attributes": {
+                      "origin": "incomplete",
+                      "as-path": {
+                        "segment": [
+                          {
+                            "type": "iana-bgp-types:as-sequence",
+                            "member": [
+                              65006
+                            ]
+                          }
+                        ]
+                      },
+                      "next-hop": "10.0.5.6"
+                    }
+                  },
+                  {
+                    "index": "7",
+                    "attributes": {
+                      "origin": "incomplete",
+                      "as-path": {
+                        "segment": [
+                          {
+                            "type": "iana-bgp-types:as-sequence",
+                            "member": [
+                              65006,
+                              65004
+                            ]
+                          }
+                        ]
+                      },
+                      "next-hop": "10.0.5.6"
+                    }
+                  },
+                  {
+                    "index": "8",
+                    "attributes": {
+                      "origin": "incomplete",
+                      "as-path": {
+                        "segment": [
+                          {
+                            "type": "iana-bgp-types:as-sequence",
+                            "member": [
+                              65006,
+                              65004,
+                              65001
+                            ]
+                          }
+                        ]
+                      },
+                      "next-hop": "10.0.5.6"
+                    }
+                  },
+                  {
+                    "index": "9",
+                    "attributes": {
+                      "origin": "incomplete",
+                      "as-path": {
+                        "segment": [
+                          {
+                            "type": "iana-bgp-types:as-sequence",
+                            "member": [
+                              65006,
+                              65005
+                            ]
+                          }
+                        ]
+                      },
+                      "next-hop": "10.0.5.6"
+                    }
+                  }
+                ]
+              },
+              "afi-safis": {
+                "afi-safi": [
+                  {
+                    "name": "iana-bgp-types:ipv4-unicast",
+                    "ipv4-unicast": {
+                      "loc-rib": {
+                        "routes": {
+                          "route": [
+                            {
+                              "prefix": "1.1.1.1/32",
+                              "origin": "10.0.4.2",
+                              "path-id": 0,
+                              "attr-index": "3"
+                            },
+                            {
+                              "prefix": "2.2.2.2/32",
+                              "origin": "10.0.4.2",
+                              "path-id": 0,
+                              "attr-index": "2"
+                            },
+                            {
+                              "prefix": "3.3.3.3/32",
+                              "origin": "ietf-routing:direct",
+                              "path-id": 0,
+                              "attr-index": "1"
+                            },
+                            {
+                              "prefix": "4.4.4.4/32",
+                              "origin": "10.0.5.6",
+                              "path-id": 0,
+                              "attr-index": "7"
+                            },
+                            {
+                              "prefix": "5.5.5.5/32",
+                              "origin": "10.0.5.6",
+                              "path-id": 0,
+                              "attr-index": "9"
+                            },
+                            {
+                              "prefix": "6.6.6.6/32",
+                              "origin": "10.0.5.6",
+                              "path-id": 0,
+                              "attr-index": "6"
+                            }
+                          ]
+                        }
+                      },
+                      "neighbors": {
+                        "neighbor": [
+                          {
+                            "neighbor-address": "10.0.4.2",
+                            "adj-rib-in-pre": {
+                              "routes": {
+                                "route": [
+                                  {
+                                    "prefix": "1.1.1.1/32",
+                                    "path-id": 0,
+                                    "attr-index": "3",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "2.2.2.2/32",
+                                    "path-id": 0,
+                                    "attr-index": "2",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "4.4.4.4/32",
+                                    "path-id": 0,
+                                    "attr-index": "4",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "5.5.5.5/32",
+                                    "path-id": 0,
+                                    "attr-index": "5",
+                                    "eligible-route": true
+                                  }
+                                ]
+                              }
+                            },
+                            "adj-rib-in-post": {
+                              "routes": {
+                                "route": [
+                                  {
+                                    "prefix": "1.1.1.1/32",
+                                    "path-id": 0,
+                                    "attr-index": "3",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "2.2.2.2/32",
+                                    "path-id": 0,
+                                    "attr-index": "2",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "4.4.4.4/32",
+                                    "path-id": 0,
+                                    "attr-index": "4",
+                                    "eligible-route": true,
+                                    "reject-reason": "iana-bgp-rib-types:as-path-longer"
+                                  },
+                                  {
+                                    "prefix": "5.5.5.5/32",
+                                    "path-id": 0,
+                                    "attr-index": "5",
+                                    "eligible-route": true,
+                                    "reject-reason": "iana-bgp-rib-types:as-path-longer"
+                                  }
+                                ]
+                              }
+                            },
+                            "adj-rib-out-pre": {
+                              "routes": {
+                                "route": [
+                                  {
+                                    "prefix": "3.3.3.3/32",
+                                    "path-id": 0,
+                                    "attr-index": "1",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "4.4.4.4/32",
+                                    "path-id": 0,
+                                    "attr-index": "7",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "5.5.5.5/32",
+                                    "path-id": 0,
+                                    "attr-index": "9",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "6.6.6.6/32",
+                                    "path-id": 0,
+                                    "attr-index": "6",
+                                    "eligible-route": true
+                                  }
+                                ]
+                              }
+                            },
+                            "adj-rib-out-post": {
+                              "routes": {
+                                "route": [
+                                  {
+                                    "prefix": "3.3.3.3/32",
+                                    "path-id": 0,
+                                    "attr-index": "1",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "4.4.4.4/32",
+                                    "path-id": 0,
+                                    "attr-index": "7",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "5.5.5.5/32",
+                                    "path-id": 0,
+                                    "attr-index": "9",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "6.6.6.6/32",
+                                    "path-id": 0,
+                                    "attr-index": "6",
+                                    "eligible-route": true
+                                  }
+                                ]
+                              }
+                            }
+                          },
+                          {
+                            "neighbor-address": "10.0.5.6",
+                            "adj-rib-in-pre": {
+                              "routes": {
+                                "route": [
+                                  {
+                                    "prefix": "1.1.1.1/32",
+                                    "path-id": 0,
+                                    "attr-index": "8",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "4.4.4.4/32",
+                                    "path-id": 0,
+                                    "attr-index": "7",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "5.5.5.5/32",
+                                    "path-id": 0,
+                                    "attr-index": "9",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "6.6.6.6/32",
+                                    "path-id": 0,
+                                    "attr-index": "6",
+                                    "eligible-route": true
+                                  }
+                                ]
+                              }
+                            },
+                            "adj-rib-in-post": {
+                              "routes": {
+                                "route": [
+                                  {
+                                    "prefix": "1.1.1.1/32",
+                                    "path-id": 0,
+                                    "attr-index": "8",
+                                    "eligible-route": true,
+                                    "reject-reason": "iana-bgp-rib-types:as-path-longer"
+                                  },
+                                  {
+                                    "prefix": "4.4.4.4/32",
+                                    "path-id": 0,
+                                    "attr-index": "7",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "5.5.5.5/32",
+                                    "path-id": 0,
+                                    "attr-index": "9",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "6.6.6.6/32",
+                                    "path-id": 0,
+                                    "attr-index": "6",
+                                    "eligible-route": true
+                                  }
+                                ]
+                              }
+                            },
+                            "adj-rib-out-pre": {
+                              "routes": {
+                                "route": [
+                                  {
+                                    "prefix": "1.1.1.1/32",
+                                    "path-id": 0,
+                                    "attr-index": "3",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "2.2.2.2/32",
+                                    "path-id": 0,
+                                    "attr-index": "2",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "3.3.3.3/32",
+                                    "path-id": 0,
+                                    "attr-index": "1",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "4.4.4.4/32",
+                                    "path-id": 0,
+                                    "attr-index": "4",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "5.5.5.5/32",
+                                    "path-id": 0,
+                                    "attr-index": "5",
+                                    "eligible-route": true
+                                  }
+                                ]
+                              }
+                            },
+                            "adj-rib-out-post": {
+                              "routes": {
+                                "route": [
+                                  {
+                                    "prefix": "1.1.1.1/32",
+                                    "path-id": 0,
+                                    "attr-index": "3",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "2.2.2.2/32",
+                                    "path-id": 0,
+                                    "attr-index": "2",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "3.3.3.3/32",
+                                    "path-id": 0,
+                                    "attr-index": "1",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "4.4.4.4/32",
+                                    "path-id": 0,
+                                    "attr-index": "4",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "5.5.5.5/32",
+                                    "path-id": 0,
+                                    "attr-index": "5",
+                                    "eligible-route": true
+                                  }
+                                ]
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

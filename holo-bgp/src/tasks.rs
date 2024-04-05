@@ -180,16 +180,22 @@ pub mod messages {
                 nbr_addr: IpAddr,
                 afi_safi: AfiSafi,
                 routes: Vec<(IpNetwork, RoutePolicyInfo)>,
+                #[serde(skip)]
                 policies: Vec<Arc<Policy>>,
+                #[serde(skip)]
                 match_sets: Arc<MatchSets>,
+                #[serde(skip)]
                 default_policy: DefaultPolicyType,
             },
             Redistribute {
                 afi_safi: AfiSafi,
                 prefix: IpNetwork,
                 route: RoutePolicyInfo,
+                #[serde(skip)]
                 policies: Vec<Arc<Policy>>,
+                #[serde(skip)]
                 match_sets: Arc<MatchSets>,
+                #[serde(skip)]
                 default_policy: DefaultPolicyType,
             },
         }
@@ -480,14 +486,7 @@ pub(crate) fn policy_apply(
     }
     #[cfg(feature = "testing")]
     {
-        let proto_output_tx = proto_output_tx.clone();
-        Task::spawn_blocking(move || {
-            // Relay message to the test framework.
-            while let Ok(msg) = policy_applyc.recv() {
-                let msg = messages::ProtocolOutputMsg::PolicyApply(msg);
-                let _ = proto_output_tx.blocking_send(msg);
-            }
-        })
+        Task::spawn_blocking(move || {})
     }
 }
 

@@ -18,6 +18,7 @@ use crate::rib::Route;
 
 // Route protocol types as defined in the rtnetlink.h kernel header.
 const NETLINK_PROTO_UNSPEC: u8 = 0;
+const NETLINK_PROTO_STATIC: u8 = 4;
 const NETLINK_PROTO_BGP: u8 = 186;
 const NETLINK_PROTO_OSPF: u8 = 188;
 const NETLINK_PROTO_RIP: u8 = 189;
@@ -27,6 +28,7 @@ fn netlink_protocol(protocol: Protocol) -> u8 {
         Protocol::BGP => NETLINK_PROTO_BGP,
         Protocol::OSPFV2 | Protocol::OSPFV3 => NETLINK_PROTO_OSPF,
         Protocol::RIPV2 | Protocol::RIPNG => NETLINK_PROTO_RIP,
+        Protocol::STATIC => NETLINK_PROTO_STATIC,
         _ => NETLINK_PROTO_UNSPEC,
     }
 }

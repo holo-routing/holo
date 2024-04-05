@@ -36,7 +36,7 @@ use crate::packet::lsa::{
 };
 use crate::packet::tlv::{
     PrefixSidFlags, RouterInfoCaps, RouterInfoCapsTlv, SidLabelRangeTlv,
-    SrAlgoTlv, SrLocalBlockTlv,
+    SrAlgoTlv, SrLocalBlockTlv, BierSubTlv,
 };
 use crate::route::{SummaryNet, SummaryNetFlags, SummaryRtr};
 use crate::version::Ospfv3;
@@ -717,6 +717,7 @@ fn lsa_orig_intra_area_prefix(
     arenas: &InstanceArenas<Ospfv3>,
 ) {
     let sr_config = &instance.shared.sr_config;
+    let bier_config = &instance.shared.bier_config;
     let lsdb_id = LsdbId::Area(area.id);
     let extended_lsa = instance.config.extended_lsa;
     let adv_rtr = instance.state.router_id;
@@ -815,6 +816,16 @@ fn lsa_orig_intra_area_prefix(
                     .prefix_sids
                     .insert(algo, PrefixSid::new(flags, algo, sid));
             }
+        }
+
+        // Add BIER Sub-TLV(s)
+        if instance.config.bier.enabled {
+            bier_config.sd_cfg.iter().for_each(|((sd_id, addr_family), sd_cfg)|{
+                if addr_family == &AddressFamily::Ipv6 && sd_cfg.bfr_prefix == prefix {
+                    let bier = BierSubTlv::new(*sd_id, sd_cfg.mt_id, sd_cfg.bfr_id, sd_cfg.bar, sd_cfg.ipa);
+                    entry.bier.push(bier);
+                }
+            });
         }
 
         prefixes.push(entry);

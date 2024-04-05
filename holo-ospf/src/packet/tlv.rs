@@ -267,12 +267,120 @@ pub enum GrReason {
     ControlProcessorSwitchover = 3,
 }
 
+//
+// BIER Sub-TLV.
+//
+// Encoding format:
+//
+//  0                   1                   2                   3
+//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |              Type             |             Length            |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// | Sub-domain-ID |      MT-ID    |              BFR-id           |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |     BAR       |     IPA       |        Reserved               |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |                      Sub-TLVs (variable)                      |
+// +-                                                             -+
+// |                                                               |
+//
+#[derive(Clone, Debug, Eq, new, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct BierSubTlv {
+    pub sub_domain_id: u8,
+    pub mt_id: u8,
+    pub bfr_id: u16,
+    pub bar: u8,
+    pub ipa: u8,
+}
+
+//
+// Bier MPLS Encapsulation Sub-Tlv
+//
+// Encoding format:
+//
+//   0                   1                   2                   3
+//   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//   |              Type             |             Length            |
+//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//   |     Max SI    |                     Label                     |
+//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//   |BS Len |                     Reserved                          |
+//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+#[derive(Clone, Debug, Eq, new, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct BierMplsEncapSubTlv {
+    pub max_si: u8,
+    pub label: Label,
+    pub bs_len: u8,
+}
+
 #[derive(Clone, Debug, Eq, new, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct UnknownTlv {
     pub tlv_type: u16,
     pub length: u16,
     pub value: Bytes,
+}
+
+// ===== impl BierSubTlv =====
+
+impl BierSubTlv {
+    pub(crate) fn decode(_tlv_len: u16, buf: &mut Bytes) -> DecodeResult<Self> {
+        let sub_domain_id = buf.get_u8();
+        let mt_id = buf.get_u8();
+        let bfr_id = buf.get_u16();
+        let bar = buf.get_u8();
+        let ipa = buf.get_u8();
+        let _reserved = buf.get_u16();
+
+        while buf.remaining() >= TLV_HDR_SIZE as usize {
+            // Parse Sub-TLV type.
+            let _stlv_type = buf.get_u16();
+
+            // Parse and validate Sub-TLV length.
+            let stlv_len = buf.get_u16();
+            let stlv_wlen = tlv_wire_len(stlv_len);
+            if stlv_wlen as usize > buf.remaining() {
+                return Err(DecodeError::InvalidTlvLength(stlv_len));
+            }
+
+            // TODO
+            // Parse Sub-TLV value.
+            /*let mut buf_stlv = buf.copy_to_bytes(stlv_wlen as usize);
+            match stlv_type {
+                SUBTLV_BIER_MPLS_ENCAP => {
+                },
+                _ => {
+                    // Ignore unknown Sub-TLV
+                }
+            }*/
+
+        }
+
+        Ok(BierSubTlv {
+            sub_domain_id,
+            mt_id,
+            bfr_id,
+            bar,
+            ipa,
+        })
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut, stlv_type: impl ToPrimitive) {
+        let start_pos = tlv_encode_start(buf, stlv_type);
+        buf.put_u8(self.sub_domain_id);
+        buf.put_u8(self.mt_id);
+        buf.put_u16(self.bfr_id);
+        buf.put_u8(self.bar);
+        buf.put_u8(self.ipa);
+        buf.put_u16(0);
+        // TODO: encode sub-tlvs
+        tlv_encode_end(buf, start_pos);
+    }
 }
 
 // ===== impl RouterInfoCapsTlv =====

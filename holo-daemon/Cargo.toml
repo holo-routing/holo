@@ -30,17 +30,17 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 yang2.workspace = true
 
-holo-interface = { path = "../holo-interface" }
+holo-interface = { path = "../holo-interface", optional = true  }
 holo-bfd = { path = "../holo-bfd", optional = true }
 holo-bgp = { path = "../holo-bgp", optional = true }
-holo-keychain = { path = "../holo-keychain" }
+holo-keychain = { path = "../holo-keychain", optional = true }
 holo-ldp = { path = "../holo-ldp", optional = true }
 holo-northbound = { path = "../holo-northbound" }
 holo-ospf = { path = "../holo-ospf", optional = true }
-holo-policy = { path = "../holo-policy" }
+holo-policy = { path = "../holo-policy", optional = true }
 holo-protocol = { path = "../holo-protocol" }
 holo-rip = { path = "../holo-rip", optional = true }
-holo-routing = { path = "../holo-routing" }
+holo-routing = { path = "../holo-routing", optional = true  }
 holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
 
@@ -55,10 +55,32 @@ name = "holod"
 path = "src/main.rs"
 
 [features]
-default = ["bfd", "bgp", "ldp", "ospf", "rip"]
-bfd = ["holo-bfd"]
-bgp = ["holo-bgp"]
-ldp = ["holo-ldp"]
-ospf = ["holo-ospf"]
-rip = ["holo-rip"]
+default = [
+  # Base components
+  "interface",
+  "keychain",
+  "policy",
+  "routing",
+  # Protocols
+  "bfd",
+  "bgp",
+  "ldp",
+  "ospf",
+  "rip",
+]
+
+# Base components
+interface = ["holo-interface"]
+keychain = ["holo-keychain"]
+policy = ["holo-policy", "holo-routing"]
+routing = ["holo-routing", "holo-interface"]
+
+# Protocols
+bfd = ["holo-bfd", "holo-routing"]
+bgp = ["holo-bgp", "holo-routing"]
+ldp = ["holo-ldp", "holo-routing"]
+ospf = ["holo-ospf", "holo-routing"]
+rip = ["holo-rip", "holo-routing"]
+
+# Other features
 io_uring = ["tokio-uring"]

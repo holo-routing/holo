@@ -16,6 +16,7 @@ use holo_northbound::state::NodeAttributes;
 use holo_northbound::{
     api as papi, CallbackKey, CallbackOp, NbDaemonSender, NbProviderReceiver,
 };
+use holo_utils::ibus::{IbusReceiver, IbusSender};
 use holo_utils::task::TimeoutTask;
 use holo_utils::{Database, Receiver, Sender, UnboundedReceiver};
 use holo_yang::YANG_CTX;
@@ -623,43 +624,57 @@ impl Default for ConfirmedCommit {
 // ===== helper functions =====
 
 // Starts base data providers.
+#[allow(unused_mut, unused_variables)]
 fn start_providers(
     config: &Config,
     db: Database,
 ) -> (NbProviderReceiver, Vec<NbDaemonSender>) {
     let mut providers = Vec::new();
     let (provider_tx, provider_rx) = mpsc::unbounded_channel();
-    let (ibus_tx, ibus_rx) = broadcast::channel(1024);
+    let (ibus_tx, ibus_rx): (IbusSender, IbusReceiver) =
+        broadcast::channel(1024);
 
     // Start holo-routing.
-    let daemon_tx = holo_routing::start(
-        provider_tx.clone(),
-        ibus_tx.clone(),
-        ibus_tx.subscribe(),
-        db,
-        config.event_recorder.clone(),
-    );
-    providers.push(daemon_tx);
+    #[cfg(feature = "routing")]
+    {
+        let daemon_tx = holo_routing::start(
+            provider_tx.clone(),
+            ibus_tx.clone(),
+            ibus_tx.subscribe(),
+            db,
+            config.event_recorder.clone(),
+        );
+        providers.push(daemon_tx);
+    }
 
     // Start holo-interface.
-    let daemon_tx = holo_interface::start(
-        provider_tx.clone(),
-        ibus_tx.clone(),
-        ibus_tx.subscribe(),
-    );
-    providers.push(daemon_tx);
+    #[cfg(feature = "interface")]
+    {
+        let daemon_tx = holo_interface::start(
+            provider_tx.clone(),
+            ibus_tx.clone(),
+            ibus_tx.subscribe(),
+        );
+        providers.push(daemon_tx);
+    }
 
     // Start holo-keychain.
-    let daemon_tx = holo_keychain::start(
-        provider_tx.clone(),
-        ibus_tx.clone(),
-        ibus_tx.subscribe(),
-    );
-    providers.push(daemon_tx);
+    #[cfg(feature = "keychain")]
+    {
+        let daemon_tx = holo_keychain::start(
+            provider_tx.clone(),
+            ibus_tx.clone(),
+            ibus_tx.subscribe(),
+        );
+        providers.push(daemon_tx);
+    }
 
     // Start holo-policy.
-    let daemon_tx = holo_policy::start(provider_tx, ibus_tx, ibus_rx);
-    providers.push(daemon_tx);
+    #[cfg(feature = "policy")]
+    {
+        let daemon_tx = holo_policy::start(provider_tx, ibus_tx, ibus_rx);
+        providers.push(daemon_tx);
+    }
 
     (provider_rx, providers)
 }

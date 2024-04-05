@@ -10,6 +10,7 @@ use holo_northbound::ProviderBase;
 use holo_yang as yang;
 use holo_yang::YANG_CTX;
 
+#[allow(dead_code)]
 fn modules_add<P: ProviderBase>(modules: &mut Vec<&'static str>) {
     modules.extend(P::yang_modules().iter());
 }
@@ -30,9 +31,16 @@ pub(crate) fn create_context() {
     }
 
     // Add core modules.
+    #[cfg(feature = "interface")]
     modules_add::<holo_interface::Master>(&mut modules);
+
+    #[cfg(feature = "routing")]
     modules_add::<holo_routing::Master>(&mut modules);
+
+    #[cfg(feature = "keychain")]
     modules_add::<holo_keychain::Master>(&mut modules);
+
+    #[cfg(feature = "policy")]
     modules_add::<holo_policy::Master>(&mut modules);
 
     // Add protocol modules based on enabled features.

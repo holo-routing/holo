@@ -21,6 +21,7 @@ use holo_utils::southbound::RouteOpaqueAttrs;
 use holo_utils::UnboundedSender;
 use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 
 use crate::packet::attribute::{Attrs, CommList, CommType};
 use crate::rib::RouteOrigin;
@@ -30,6 +31,7 @@ use crate::tasks::messages::input::PolicyResultMsg;
 // relevant for the application of routing policies.
 #[derive(Clone, Debug)]
 #[derive(new)]
+#[skip_serializing_none]
 #[derive(Deserialize, Serialize)]
 pub struct RoutePolicyInfo {
     pub origin: RouteOrigin,

@@ -13,6 +13,7 @@ use holo_utils::bytes::{BytesExt, BytesMutExt};
 use holo_utils::ip::{Ipv4AddrExt, Ipv6AddrExt};
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 
 use crate::debug::Debug;
 use crate::neighbor::PeerType;
@@ -30,6 +31,7 @@ pub const ATTR_MIN_LEN: u16 = 3;
 pub const ATTR_MIN_LEN_EXT: u16 = 4;
 
 #[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
+#[skip_serializing_none]
 #[derive(Deserialize, Serialize)]
 pub struct Attrs {
     pub base: BaseAttrs,
@@ -41,6 +43,7 @@ pub struct Attrs {
 }
 
 #[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
+#[skip_serializing_none]
 #[derive(Deserialize, Serialize)]
 pub struct BaseAttrs {
     pub origin: Origin,

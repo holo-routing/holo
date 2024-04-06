@@ -16,6 +16,7 @@ use holo_utils::ip::{
 use ipnetwork::{Ipv4Network, Ipv6Network};
 use num_traits::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 
 use crate::neighbor::PeerType;
 use crate::packet::attribute::Attrs;
@@ -163,6 +164,7 @@ pub struct AddPathTuple {
 // +-----------------------------------------------------+
 //
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[skip_serializing_none]
 #[derive(Deserialize, Serialize)]
 pub struct UpdateMsg {
     pub reach: Option<ReachNlri>,

@@ -343,9 +343,20 @@ impl InstanceState {
             });
         }
 
-        // Create routing policy tasks.
+        // Create routing policy tasks, spawning as many tasks as the number of
+        // available CPUs for efficient use of all cores. In testing mode, spawn
+        // a single task.
         let (policy_tx, policy_rx) = crossbeam_channel::unbounded();
-        let num_cpus = std::thread::available_parallelism().unwrap().get();
+        let num_cpus = {
+            #[cfg(not(feature = "testing"))]
+            {
+                std::thread::available_parallelism().unwrap().get()
+            }
+            #[cfg(feature = "testing")]
+            {
+                1
+            }
+        };
         let tasks = (0..num_cpus)
             .map(|_| {
                 tasks::policy_apply(

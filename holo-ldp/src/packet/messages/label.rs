@@ -15,6 +15,7 @@ use holo_utils::mpls::Label;
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::message::{
@@ -96,14 +97,14 @@ use crate::packet::DecodeCxt;
 // |                     Optional Parameters                       |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[skip_serializing_none]
+#[derive(Deserialize, Serialize)]
 pub struct LabelMsg {
     pub msg_id: u32,
     pub msg_type: LabelMessageType,
     pub fec: TlvFec,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub label: Option<TlvLabel>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub request_id: Option<TlvLabelRequestId>,
 }
 

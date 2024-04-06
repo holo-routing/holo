@@ -6,6 +6,7 @@
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::message::{
@@ -33,12 +34,12 @@ use crate::packet::DecodeCxt;
 // |                     TLV_N                                     |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[skip_serializing_none]
+#[derive(Deserialize, Serialize)]
 pub struct CapabilityMsg {
     pub msg_id: u32,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub twcard_fec: Option<TlvCapTwcardFec>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub unrec_notif: Option<TlvCapUnrecNotif>,
 }
 

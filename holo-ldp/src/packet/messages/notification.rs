@@ -8,6 +8,7 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::message::{
@@ -35,19 +36,16 @@ use crate::packet::DecodeCxt;
 // |                     Optional Parameters                       |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[skip_serializing_none]
+#[derive(Deserialize, Serialize)]
 pub struct NotifMsg {
     pub msg_id: u32,
     pub status: TlvStatus,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub ext_status: Option<TlvExtStatus>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub returned_pdu: Option<TlvReturnedPdu>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub returned_msg: Option<TlvReturnedMsg>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub returned_tlvs: Option<TlvReturnedTlvs>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub fec: Option<TlvFec>,
 }
 

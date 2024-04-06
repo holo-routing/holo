@@ -39,7 +39,7 @@ pub struct Attrs {
     pub ext_comm: Option<ExtComms>,
     pub extv6_comm: Option<Extv6Comms>,
     pub large_comm: Option<LargeComms>,
-    pub unknown: Box<[UnknownAttr]>,
+    pub unknown: Option<Box<[UnknownAttr]>>,
 }
 
 #[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
@@ -242,15 +242,17 @@ impl Attrs {
         }
 
         // Unknown optional transitive attributes.
-        for unknown_attr in self.unknown.iter() {
-            buf.put_u8(unknown_attr.flags.bits());
-            buf.put_u8(unknown_attr.attr_type);
-            if unknown_attr.flags.contains(AttrFlags::EXTENDED) {
-                buf.put_u16(unknown_attr.length);
-            } else {
-                buf.put_u8(unknown_attr.length as u8);
+        if let Some(unknown) = &self.unknown {
+            for unknown_attr in unknown.iter() {
+                buf.put_u8(unknown_attr.flags.bits());
+                buf.put_u8(unknown_attr.attr_type);
+                if unknown_attr.flags.contains(AttrFlags::EXTENDED) {
+                    buf.put_u16(unknown_attr.length);
+                } else {
+                    buf.put_u8(unknown_attr.length as u8);
+                }
+                buf.put_slice(&unknown_attr.value);
             }
-            buf.put_slice(&unknown_attr.value);
         }
     }
 
@@ -511,7 +513,11 @@ impl Attrs {
                 ext_comm,
                 extv6_comm,
                 large_comm,
-                unknown: unknown.into(),
+                unknown: if unknown.is_empty() {
+                    None
+                } else {
+                    Some(unknown.into())
+                },
             });
         }
         Ok(attrs)

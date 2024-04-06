@@ -874,8 +874,12 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::loc_rib::routes::route::unknown_attributes::unknown_attribute::PATH)
         .get_iterate(|_instance, args| {
             let (_, route) = args.parent_list_entry.as_rib_v4_loc_route().unwrap();
-            let iter = route.attrs.unknown.iter().map(ListEntry::RouteUnknownAttr);
-            Some(Box::new(iter))
+            if let Some(unknown) = &route.attrs.unknown {
+                let iter = unknown.iter().map(ListEntry::RouteUnknownAttr);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::loc_rib::routes::route::unknown_attributes::unknown_attribute::optional::PATH)
         .get_element_bool(|_instance, args| {
@@ -984,8 +988,12 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_in_pre::routes::route::unknown_attributes::unknown_attribute::PATH)
         .get_iterate(|_instance, args| {
             let (_, route) = args.parent_list_entry.as_rib_v4_adj_in_pre_route().unwrap();
-            let iter = route.attrs.unknown.iter().map(ListEntry::RouteUnknownAttr);
-            Some(Box::new(iter))
+            if let Some(unknown) = &route.attrs.unknown {
+                let iter = unknown.iter().map(ListEntry::RouteUnknownAttr);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_in_pre::routes::route::unknown_attributes::unknown_attribute::optional::PATH)
         .get_element_bool(|_instance, args| {
@@ -1086,8 +1094,12 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_in_post::routes::route::unknown_attributes::unknown_attribute::PATH)
         .get_iterate(|_instance, args| {
             let (_, route) = args.parent_list_entry.as_rib_v4_adj_in_post_route().unwrap();
-            let iter = route.attrs.unknown.iter().map(ListEntry::RouteUnknownAttr);
-            Some(Box::new(iter))
+            if let Some(unknown) = &route.attrs.unknown {
+                let iter = unknown.iter().map(ListEntry::RouteUnknownAttr);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_in_post::routes::route::unknown_attributes::unknown_attribute::optional::PATH)
         .get_element_bool(|_instance, args| {
@@ -1183,8 +1195,12 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_out_pre::routes::route::unknown_attributes::unknown_attribute::PATH)
         .get_iterate(|_instance, args| {
             let (_, route) = args.parent_list_entry.as_rib_v4_adj_out_pre_route().unwrap();
-            let iter = route.attrs.unknown.iter().map(ListEntry::RouteUnknownAttr);
-            Some(Box::new(iter))
+            if let Some(unknown) = &route.attrs.unknown {
+                let iter = unknown.iter().map(ListEntry::RouteUnknownAttr);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_out_pre::routes::route::unknown_attributes::unknown_attribute::optional::PATH)
         .get_element_bool(|_instance, args| {
@@ -1280,8 +1296,12 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_out_post::routes::route::unknown_attributes::unknown_attribute::PATH)
         .get_iterate(|_instance, args| {
             let (_, route) = args.parent_list_entry.as_rib_v4_adj_out_post_route().unwrap();
-            let iter = route.attrs.unknown.iter().map(ListEntry::RouteUnknownAttr);
-            Some(Box::new(iter))
+            if let Some(unknown) = &route.attrs.unknown {
+                let iter = unknown.iter().map(ListEntry::RouteUnknownAttr);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_out_post::routes::route::unknown_attributes::unknown_attribute::optional::PATH)
         .get_element_bool(|_instance, args| {
@@ -1372,8 +1392,12 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::loc_rib::routes::route::unknown_attributes::unknown_attribute::PATH)
         .get_iterate(|_instance, args| {
             let (_, route) = args.parent_list_entry.as_rib_v6_loc_route().unwrap();
-            let iter = route.attrs.unknown.iter().map(ListEntry::RouteUnknownAttr);
-            Some(Box::new(iter))
+            if let Some(unknown) = &route.attrs.unknown {
+                let iter = unknown.iter().map(ListEntry::RouteUnknownAttr);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::loc_rib::routes::route::unknown_attributes::unknown_attribute::optional::PATH)
         .get_element_bool(|_instance, args| {
@@ -1482,8 +1506,12 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_in_pre::routes::route::unknown_attributes::unknown_attribute::PATH)
         .get_iterate(|_instance, args| {
             let (_, route) = args.parent_list_entry.as_rib_v6_adj_in_pre_route().unwrap();
-            let iter = route.attrs.unknown.iter().map(ListEntry::RouteUnknownAttr);
-            Some(Box::new(iter))
+            if let Some(unknown) = &route.attrs.unknown {
+                let iter = unknown.iter().map(ListEntry::RouteUnknownAttr);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_in_pre::routes::route::unknown_attributes::unknown_attribute::optional::PATH)
         .get_element_bool(|_instance, args| {
@@ -1584,8 +1612,12 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_in_post::routes::route::unknown_attributes::unknown_attribute::PATH)
         .get_iterate(|_instance, args| {
             let (_, route) = args.parent_list_entry.as_rib_v6_adj_in_post_route().unwrap();
-            let iter = route.attrs.unknown.iter().map(ListEntry::RouteUnknownAttr);
-            Some(Box::new(iter))
+            if let Some(unknown) = &route.attrs.unknown {
+                let iter = unknown.iter().map(ListEntry::RouteUnknownAttr);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_in_post::routes::route::unknown_attributes::unknown_attribute::optional::PATH)
         .get_element_bool(|_instance, args| {
@@ -1681,8 +1713,12 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_out_pre::routes::route::unknown_attributes::unknown_attribute::PATH)
         .get_iterate(|_instance, args| {
             let (_, route) = args.parent_list_entry.as_rib_v6_adj_out_pre_route().unwrap();
-            let iter = route.attrs.unknown.iter().map(ListEntry::RouteUnknownAttr);
-            Some(Box::new(iter))
+            if let Some(unknown) = &route.attrs.unknown {
+                let iter = unknown.iter().map(ListEntry::RouteUnknownAttr);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_out_pre::routes::route::unknown_attributes::unknown_attribute::optional::PATH)
         .get_element_bool(|_instance, args| {
@@ -1778,8 +1814,12 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_out_post::routes::route::unknown_attributes::unknown_attribute::PATH)
         .get_iterate(|_instance, args| {
             let (_, route) = args.parent_list_entry.as_rib_v6_adj_out_post_route().unwrap();
-            let iter = route.attrs.unknown.iter().map(ListEntry::RouteUnknownAttr);
-            Some(Box::new(iter))
+            if let Some(unknown) = &route.attrs.unknown {
+                let iter = unknown.iter().map(ListEntry::RouteUnknownAttr);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
         .path(bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_out_post::routes::route::unknown_attributes::unknown_attribute::optional::PATH)
         .get_element_bool(|_instance, args| {

@@ -106,7 +106,7 @@ pub struct RouteAttrs {
     pub ext_comm: Option<Arc<AttrSet<ExtComms>>>,
     pub extv6_comm: Option<Arc<AttrSet<Extv6Comms>>>,
     pub large_comm: Option<Arc<AttrSet<LargeComms>>>,
-    pub unknown: Box<[UnknownAttr]>,
+    pub unknown: Option<Box<[UnknownAttr]>>,
 }
 
 #[derive(Debug, Default)]

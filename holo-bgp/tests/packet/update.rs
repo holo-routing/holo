@@ -135,7 +135,7 @@ static UPDATE2: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
                 large_comm: Some(CommList(
                     [LargeComm([0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1])].into(),
                 )),
-                unknown: Box::new([]),
+                unknown: None,
             }),
         }),
     )

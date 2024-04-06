@@ -410,7 +410,9 @@ fn process_nbr_route_refresh(
 
     // Send UPDATE message(s) to the neighbor.
     let msg_list = nbr.update_queues.build_updates();
-    nbr.message_list_send(msg_list);
+    if !msg_list.is_empty() {
+        nbr.message_list_send(msg_list);
+    }
 
     Ok(())
 }
@@ -601,7 +603,9 @@ where
 
     // Send UPDATE message(s) to the neighbor.
     let msg_list = nbr.update_queues.build_updates();
-    nbr.message_list_send(msg_list);
+    if !msg_list.is_empty() {
+        nbr.message_list_send(msg_list);
+    }
 
     Ok(())
 }
@@ -796,7 +800,9 @@ fn withdraw_routes<A>(
 
     // Send UPDATE message(s) to the neighbor.
     let msg_list = nbr.update_queues.build_updates();
-    nbr.message_list_send(msg_list);
+    if !msg_list.is_empty() {
+        nbr.message_list_send(msg_list);
+    }
 }
 
 pub(crate) fn advertise_routes<A>(
@@ -827,24 +833,27 @@ pub(crate) fn advertise_routes<A>(
         .unwrap_or(&nbr.config.apply_policy);
 
     // Enqueue export policy application.
-    let msg = PolicyApplyMsg::Neighbor {
-        policy_type: PolicyType::Export,
-        nbr_addr: nbr.remote_addr,
-        afi_safi: A::AFI_SAFI,
-        routes: routes
-            .into_iter()
-            .filter(|(_, route)| neighbor_redistribute_filter(nbr, route))
-            .map(|(prefix, route)| ((*prefix).into(), route.policy_info()))
-            .collect(),
-        policies: apply_policy_cfg
-            .export_policy
-            .iter()
-            .map(|policy| shared.policies.get(policy).unwrap().clone())
-            .collect(),
-        match_sets: shared.policy_match_sets.clone(),
-        default_policy: apply_policy_cfg.default_export_policy,
-    };
-    policy_apply_tasks.enqueue(msg);
+    let routes = routes
+        .into_iter()
+        .filter(|(_, route)| neighbor_redistribute_filter(nbr, route))
+        .map(|(prefix, route)| ((*prefix).into(), route.policy_info()))
+        .collect::<Vec<_>>();
+    if !routes.is_empty() {
+        let msg = PolicyApplyMsg::Neighbor {
+            policy_type: PolicyType::Export,
+            nbr_addr: nbr.remote_addr,
+            afi_safi: A::AFI_SAFI,
+            routes,
+            policies: apply_policy_cfg
+                .export_policy
+                .iter()
+                .map(|policy| shared.policies.get(policy).unwrap().clone())
+                .collect(),
+            match_sets: shared.policy_match_sets.clone(),
+            default_policy: apply_policy_cfg.default_export_policy,
+        };
+        policy_apply_tasks.enqueue(msg);
+    }
 }
 
 // Determines whether to redistribute a route to a neighbor.

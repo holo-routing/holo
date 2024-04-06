@@ -481,11 +481,11 @@ pub(crate) fn policy_apply(
     #[cfg(feature = "testing")]
     {
         let proto_output_tx = proto_output_tx.clone();
-        Task::spawn(async move {
+        Task::spawn_blocking(move || {
             // Relay message to the test framework.
             while let Ok(msg) = policy_applyc.recv() {
                 let msg = messages::ProtocolOutputMsg::PolicyApply(msg);
-                let _ = proto_output_tx.send(msg).await;
+                let _ = proto_output_tx.blocking_send(msg);
             }
         })
     }

@@ -162,6 +162,7 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
         vec![
             "iana-if-type",
             "iana-bgp-notification",
+            "iana-bgp-rib-types",
             "iana-bgp-types",
             "ietf-bfd-ip-mh",
             "ietf-bfd-ip-sh",

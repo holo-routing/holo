@@ -19,14 +19,8 @@ pub(crate) fn create_context() {
     let mut modules = Vec::new();
 
     // Add data type modules.
-    for module_name in [
-        "iana-if-type",
-        "iana-bgp-notification",
-        "iana-bgp-rib-types",
-        "iana-bgp-types",
-        "ietf-routing-types",
-        "ietf-bfd-types",
-    ] {
+    for module_name in ["iana-if-type", "ietf-routing-types", "ietf-bfd-types"]
+    {
         modules.push(module_name);
     }
 

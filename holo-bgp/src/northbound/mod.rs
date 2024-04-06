@@ -20,7 +20,13 @@ use crate::instance::Instance;
 
 impl ProviderBase for Instance {
     fn yang_modules() -> &'static [&'static str] {
-        &["ietf-bgp", "holo-bgp"]
+        &[
+            "iana-bgp-notification",
+            "iana-bgp-rib-types",
+            "iana-bgp-types",
+            "ietf-bgp",
+            "holo-bgp",
+        ]
     }
 
     fn top_level_node(&self) -> String {

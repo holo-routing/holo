@@ -666,7 +666,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::rib::attr_sets::attr_set::attributes::atomic_aggregate::PATH)
         .get_element_bool(|_instance, args| {
             let attr_set = args.list_entry.as_rib_base_attrs().unwrap();
-            Some(attr_set.value.atomic_aggregate)
+            attr_set.value.atomic_aggregate.map(|_| true)
         })
         .path(bgp::rib::attr_sets::attr_set::attributes::originator_id::PATH)
         .get_element_ipv4(|_instance, args| {

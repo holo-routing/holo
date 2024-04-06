@@ -118,7 +118,7 @@ static UPDATE2: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
                         identifier: Ipv4Addr::from_str("2.2.2.2").unwrap(),
                     }),
                     as4_aggregator: None,
-                    atomic_aggregate: true,
+                    atomic_aggregate: Some(()),
                     originator_id: Some(Ipv4Addr::from_str("1.1.1.1").unwrap()),
                     cluster_list: Some(ClusterList(
                         [Ipv4Addr::from_str("3.3.3.3").unwrap()].into(),

@@ -55,7 +55,7 @@ pub struct BaseAttrs {
     pub local_pref: Option<u32>,
     pub aggregator: Option<Aggregator>,
     pub as4_aggregator: Option<Aggregator>,
-    pub atomic_aggregate: bool,
+    pub atomic_aggregate: Option<()>,
     pub originator_id: Option<Ipv4Addr>,
     pub cluster_list: Option<ClusterList>,
 }
@@ -177,7 +177,7 @@ impl Attrs {
         }
 
         // ATOMIC_AGGREGATE attribute.
-        if self.base.atomic_aggregate {
+        if self.base.atomic_aggregate.is_some() {
             atomic_aggregate::encode(buf);
         }
 
@@ -271,7 +271,7 @@ impl Attrs {
         let mut local_pref = None;
         let mut aggregator = None;
         let mut as4_aggregator = None;
-        let mut atomic_aggregate = false;
+        let mut atomic_aggregate = None;
         let mut originator_id = None;
         let mut cluster_list = None;
         let mut comm = None;
@@ -534,7 +534,7 @@ impl Attrs {
         if self.base.local_pref.is_some() {
             length += local_pref::length();
         }
-        if self.base.atomic_aggregate {
+        if self.base.atomic_aggregate.is_some() {
             length += atomic_aggregate::length();
         }
         if let Some(aggregator) = &self.base.aggregator {
@@ -915,13 +915,13 @@ mod atomic_aggregate {
 
     pub(super) fn decode(
         buf: &mut Bytes,
-        atomic_aggregate: &mut bool,
+        atomic_aggregate: &mut Option<()>,
     ) -> Result<(), AttrError> {
         if buf.remaining() != LEN as usize {
             return Err(AttrError::Discard);
         }
 
-        *atomic_aggregate = true;
+        *atomic_aggregate = Some(());
         Ok(())
     }
 

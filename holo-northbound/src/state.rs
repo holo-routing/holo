@@ -67,6 +67,8 @@ bitflags! {
         const LS_CKSUM = 0x0040;
         // Link State in raw format.
         const LS_RAW = 0x0080;
+        // Layer four port number.
+        const PORT_NO = 0x0100;
     }
 }
 

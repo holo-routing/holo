@@ -500,6 +500,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             nbr.conn_info.as_ref().map(|conn_info| conn_info.local_addr)
         })
         .path(mpls_ldp::peers::peer::tcp_connection::local_port::PATH)
+        .attributes(NodeAttributes::PORT_NO)
         .get_element_u16(|_instance, args| {
             let nbr = args.list_entry.as_neighbor().unwrap();
             nbr.conn_info.as_ref().map(|conn_info| conn_info.local_port)
@@ -510,6 +511,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             nbr.conn_info.as_ref().map(|conn_info| conn_info.remote_addr)
         })
         .path(mpls_ldp::peers::peer::tcp_connection::remote_port::PATH)
+        .attributes(NodeAttributes::PORT_NO)
         .get_element_u16(|_instance, args| {
             let nbr = args.list_entry.as_neighbor().unwrap();
             nbr.conn_info.as_ref().map(|conn_info| conn_info.remote_port)

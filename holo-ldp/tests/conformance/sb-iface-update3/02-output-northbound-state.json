@@ -445,9 +445,7 @@
                   "session-state": "operational",
                   "tcp-connection": {
                     "local-address": "2.2.2.2",
-                    "local-port": 646,
-                    "remote-address": "4.4.4.4",
-                    "remote-port": 39091
+                    "remote-address": "4.4.4.4"
                   },
                   "statistics": {
                     "total-addresses": 5,

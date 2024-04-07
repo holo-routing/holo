@@ -138,10 +138,12 @@ fn load_callbacks() -> Callbacks<Master> {
             sess.state.remote.as_ref().map(|remote| remote.multiplier)
         })
         .path(bfd::ip_sh::sessions::session::source_port::PATH)
+        .attributes(NodeAttributes::PORT_NO)
         .get_element_u16(|_master, _args| {
             Some(*network::PORT_SRC_RANGE.start())
         })
         .path(bfd::ip_sh::sessions::session::dest_port::PATH)
+        .attributes(NodeAttributes::PORT_NO)
         .get_element_u16(|_master, _args| {
             Some(network::PORT_DST_SINGLE_HOP)
         })
@@ -332,10 +334,12 @@ fn load_callbacks() -> Callbacks<Master> {
             sess.state.remote.as_ref().map(|remote| remote.multiplier)
         })
         .path(bfd::ip_mh::session_groups::session_group::sessions::source_port::PATH)
+        .attributes(NodeAttributes::PORT_NO)
         .get_element_u16(|_master, _args| {
             Some(*network::PORT_SRC_RANGE.start())
         })
         .path(bfd::ip_mh::session_groups::session_group::sessions::dest_port::PATH)
+        .attributes(NodeAttributes::PORT_NO)
         .get_element_u16(|_master, _args| {
             Some(network::PORT_DST_MULTIHOP)
         })

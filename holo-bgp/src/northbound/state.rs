@@ -166,11 +166,13 @@ fn load_callbacks() -> Callbacks<Instance> {
             nbr.conn_info.as_ref().map(|conn_info| conn_info.local_addr)
         })
         .path(bgp::neighbors::neighbor::local_port::PATH)
+        .attributes(NodeAttributes::PORT_NO)
         .get_element_u16(|_instance, args| {
             let nbr = args.list_entry.as_neighbor().unwrap();
             nbr.conn_info.as_ref().map(|conn_info| conn_info.local_port)
         })
         .path(bgp::neighbors::neighbor::remote_port::PATH)
+        .attributes(NodeAttributes::PORT_NO)
         .get_element_u16(|_instance, args| {
             let nbr = args.list_entry.as_neighbor().unwrap();
             nbr.conn_info.as_ref().map(|conn_info| conn_info.remote_port)

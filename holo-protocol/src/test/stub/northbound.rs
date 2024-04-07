@@ -134,7 +134,8 @@ impl NorthboundStub {
                     | NodeAttributes::LS_AGE
                     | NodeAttributes::LS_SEQNO
                     | NodeAttributes::LS_CKSUM
-                    | NodeAttributes::LS_RAW,
+                    | NodeAttributes::LS_RAW
+                    | NodeAttributes::PORT_NO,
             ),
             responder: Some(responder_tx),
         });

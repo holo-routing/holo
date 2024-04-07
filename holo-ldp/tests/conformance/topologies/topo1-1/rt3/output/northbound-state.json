@@ -436,9 +436,7 @@
                   "session-state": "operational",
                   "tcp-connection": {
                     "local-address": "3.3.3.3",
-                    "local-port": 46503,
-                    "remote-address": "1.1.1.1",
-                    "remote-port": 646
+                    "remote-address": "1.1.1.1"
                   },
                   "statistics": {
                     "total-addresses": 3,
@@ -487,9 +485,7 @@
                   "session-state": "operational",
                   "tcp-connection": {
                     "local-address": "3.3.3.3",
-                    "local-port": 646,
-                    "remote-address": "4.4.4.4",
-                    "remote-port": 42203
+                    "remote-address": "4.4.4.4"
                   },
                   "statistics": {
                     "total-addresses": 3,

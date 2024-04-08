@@ -2,7 +2,6 @@
 members = [
   "holo-bfd",
   "holo-bgp",
-  "holo-cli",
   "holo-daemon",
   "holo-interface",
   "holo-keychain",
@@ -17,7 +16,7 @@ members = [
   "holo-utils",
   "holo-yang",
 ]
-default-members = ["holo-daemon", "holo-cli"]
+default-members = ["holo-daemon"]
 resolver = "2"
 
 [workspace.package]

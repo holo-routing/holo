@@ -75,7 +75,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             if instance.state.is_some() {
                 let iter = [AfiSafi::Ipv4Unicast, AfiSafi::Ipv6Unicast]
                     .into_iter()
-                    .filter(|afi_safi| instance.config.afi_safi.contains_key(&afi_safi))
+                    .filter(|afi_safi| instance.config.afi_safi.contains_key(afi_safi))
                     .map(ListEntry::GlobalAfiSafi);
                 Some(Box::new(iter))
             } else {
@@ -815,7 +815,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             if instance.state.is_some() {
                 let iter = [AfiSafi::Ipv4Unicast, AfiSafi::Ipv6Unicast]
                     .into_iter()
-                    .filter(|afi_safi| instance.config.afi_safi.contains_key(&afi_safi))
+                    .filter(|afi_safi| instance.config.afi_safi.contains_key(afi_safi))
                     .map(ListEntry::Rib);
                 Some(Box::new(iter))
             } else {

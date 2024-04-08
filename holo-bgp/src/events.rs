@@ -834,7 +834,7 @@ pub(crate) fn advertise_routes<A>(
 
     // Enqueue export policy application.
     let routes = routes
-        .into_iter()
+        .iter()
         .filter(|(_, route)| neighbor_redistribute_filter(nbr, route))
         .map(|(prefix, route)| ((*prefix).into(), route.policy_info()))
         .collect::<Vec<_>>();

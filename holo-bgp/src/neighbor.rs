@@ -933,7 +933,7 @@ impl Neighbor {
                     rib::nexthop_untrack(
                         &mut table.nht,
                         prefix,
-                        &adj_in_route,
+                        adj_in_route,
                         ibus_tx,
                     );
                 }

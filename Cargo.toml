@@ -25,6 +25,7 @@ version = "0.4.0"
 authors = ["Renato Westphal <renatowestphal@gmail.com>"]
 license = "MIT"
 edition = "2021"
+repository = "https://github.com/holo-routing/holo"
 
 [workspace.dependencies]
 async-trait = "0.1"

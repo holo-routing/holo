@@ -4,13 +4,12 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-// use derive_new::new;
+use derive_new::new;
 use ipnetwork::IpNetwork;
 
 use holo_yang::{ToYang, TryFromYang};
 use crate::{
     ip::AddressFamily,
-    // policy::IpPrefixRange,
 };
 
 pub type SubDomainId = u8;
@@ -26,7 +25,7 @@ pub struct BierCfg {
 }
 
 #[derive(Clone, Debug)]
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, new)]
 pub struct BierSubDomainCfg {
     pub sd_id: SubDomainId,
     pub addr_family: AddressFamily,
@@ -38,14 +37,26 @@ pub struct BierSubDomainCfg {
     pub ipa: u8,
     pub bar: u8,
     pub load_balance_num: u8,
-    // #[serde(with = "vectorize")]
-    // encap: BTreeMap<(Bsl, EncapsulationType), Encapsulation>,
+    pub encap: BTreeMap<(Bsl, BierEncapsulationType), BierEncapsulation>,
 }
+
+pub type BierInBiftIdBase = u32;
+pub type BierInBiftIdEncoding = bool;
 
 #[derive(Clone, Debug)]
 #[derive(Deserialize, Serialize)]
-pub struct Encapsulation {
-    // TODO
+pub enum BierInBiftId {
+    Base(BierInBiftIdBase),
+    Encoding(BierInBiftIdEncoding),
+}
+
+#[derive(Clone, Debug, new)]
+#[derive(Deserialize, Serialize)]
+pub struct BierEncapsulation {
+    pub bsl: Bsl,
+    pub encap_type: BierEncapsulationType,
+    pub max_si: u8,
+    pub in_bift_id: BierInBiftId,
 }
 
 #[derive(Clone, Debug)]
@@ -54,9 +65,9 @@ pub struct BierBiftCfg {
     // TODO
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 #[derive(Deserialize, Serialize)]
-pub enum EncapsulationType {
+pub enum BierEncapsulationType {
     Mpls,
     Ipv6,
     Ethernet,
@@ -70,7 +81,7 @@ pub enum UnderlayProtocolType {
     Bgp,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 #[derive(Deserialize, Serialize)]
 pub enum Bsl {
     _64,
@@ -81,6 +92,8 @@ pub enum Bsl {
     _2048,
     _4096,
 }
+
+// ===== YANG impl =====
 
 impl TryFromYang for UnderlayProtocolType {
     fn try_from_yang(value: &str) -> Option<Self> {
@@ -94,7 +107,7 @@ impl TryFromYang for UnderlayProtocolType {
 }
 
 impl TryFromYang for Bsl {
-    fn try_from_yang(value: &str) -> Option<Bsl> {
+    fn try_from_yang(value: &str) -> Option<Self> {
         match value {
             "64-bit" => Some(Bsl::_64),
             "128-bit" => Some(Bsl::_128),
@@ -108,18 +121,18 @@ impl TryFromYang for Bsl {
     }
 }
 
-impl TryFromYang for EncapsulationType {
-    fn try_from_yang(value: &str) -> Option<EncapsulationType> {
+impl TryFromYang for BierEncapsulationType {
+    fn try_from_yang(value: &str) -> Option<Self> {
         match value {
-            "ietf-bier:bier-encapsulation-mpls" => Some(EncapsulationType::Mpls),
-            "ietf-bier:bier-encapsulation-ipv6" => Some(EncapsulationType::Ipv6),
-            "ietf-bier:bier-encapsulation-ethernet" => Some(EncapsulationType::Ethernet),
+            "ietf-bier:bier-encapsulation-mpls" => Some(BierEncapsulationType::Mpls),
+            "ietf-bier:bier-encapsulation-ipv6" => Some(BierEncapsulationType::Ipv6),
+            "ietf-bier:bier-encapsulation-ethernet" => Some(BierEncapsulationType::Ethernet),
             _ => None,
         }
     }
 }
 
-impl ToYang for EncapsulationType {
+impl ToYang for BierEncapsulationType {
     fn to_yang(&self) -> Cow<'static, str> {
         match self {
             Self::Mpls => "ietf-bier:bier-encapsulation-mpls".into(),

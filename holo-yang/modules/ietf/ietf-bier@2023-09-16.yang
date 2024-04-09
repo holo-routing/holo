@@ -301,7 +301,8 @@ module ietf-bier {
         }
         
         leaf max-si {
-          type uint16;
+          //type uint16;
+          type uint8;
           description
             "Maximum Set Identifier.The SI value in the subdomain
                     is an integer from 0 to max-si.";
@@ -334,8 +335,8 @@ module ietf-bier {
           }
         }
       }
-      }
-      list bift {
+    }
+    list bift {
             key "bfr-id";
             description
               "BIER forwarding tabel.";
@@ -403,7 +404,7 @@ module ietf-bier {
                 }
           }
      }
-        }
+  }
 
   notification bfr-id-collision {
     description

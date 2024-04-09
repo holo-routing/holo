@@ -129,7 +129,7 @@ module ietf-bier-holo-deviations {
     deviate not-supported;
   }
   */
-
+  /*
   deviation "/rt:routing/bier:bier/bier:sub-domain/bier:encapsulation" {
     deviate not-supported;
   }
@@ -168,7 +168,7 @@ module ietf-bier-holo-deviations {
 
   deviation "/rt:routing/bier:bier/bier:sub-domain/bier:encapsulation/bier:in-bift-id/bier:in-bift-id/bier:in-bift-id-encoding/bier:in-bift-id-encoding" {
     deviate not-supported;
-  }
+  }*/
 
   deviation "/rt:routing/bier:bier/bier:bift" {
     deviate not-supported;

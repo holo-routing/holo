@@ -1,16 +1,12 @@
-use std::{
-    collections::{HashMap, BTreeMap},
-    borrow::Cow,
-};
+use std::borrow::Cow;
+use std::collections::{BTreeMap, HashMap};
 
-use serde::{Deserialize, Serialize};
 use derive_new::new;
-use ipnetwork::IpNetwork;
-
 use holo_yang::{ToYang, TryFromYang};
-use crate::{
-    ip::AddressFamily,
-};
+use ipnetwork::IpNetwork;
+use serde::{Deserialize, Serialize};
+
+use crate::ip::AddressFamily;
 
 pub type SubDomainId = u8;
 pub type BfrId = u16;
@@ -43,14 +39,14 @@ pub struct BierSubDomainCfg {
 pub type BierInBiftIdBase = u32;
 pub type BierInBiftIdEncoding = bool;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
 pub enum BierInBiftId {
     Base(BierInBiftIdBase),
     Encoding(BierInBiftIdEncoding),
 }
 
-#[derive(Clone, Debug, new)]
+#[derive(Clone, Debug, new, Eq, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
 pub struct BierEncapsulation {
     pub bsl: Bsl,
@@ -124,9 +120,15 @@ impl TryFromYang for Bsl {
 impl TryFromYang for BierEncapsulationType {
     fn try_from_yang(value: &str) -> Option<Self> {
         match value {
-            "ietf-bier:bier-encapsulation-mpls" => Some(BierEncapsulationType::Mpls),
-            "ietf-bier:bier-encapsulation-ipv6" => Some(BierEncapsulationType::Ipv6),
-            "ietf-bier:bier-encapsulation-ethernet" => Some(BierEncapsulationType::Ethernet),
+            "ietf-bier:bier-encapsulation-mpls" => {
+                Some(BierEncapsulationType::Mpls)
+            }
+            "ietf-bier:bier-encapsulation-ipv6" => {
+                Some(BierEncapsulationType::Ipv6)
+            }
+            "ietf-bier:bier-encapsulation-ethernet" => {
+                Some(BierEncapsulationType::Ethernet)
+            }
             _ => None,
         }
     }

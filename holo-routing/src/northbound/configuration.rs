@@ -19,7 +19,7 @@ use holo_northbound::paths::routing::ribs;
 use holo_northbound::paths::routing::segment_routing::sr_mpls;
 use holo_northbound::paths::routing::bier;
 use holo_northbound::{CallbackKey, NbDaemonSender};
-use holo_utils::ibus::{IbusMsg, SrCfgEvent};
+use holo_utils::ibus::{IbusMsg, SrCfgEvent, BierCfgEvent};
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::mpls::LabelRange;
 use holo_utils::protocol::Protocol;
@@ -34,8 +34,6 @@ use holo_utils::bier::{
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
 use ipnetwork::IpNetwork;
-
-use tracing::debug;
 
 use crate::northbound::REGEX_PROTOCOLS;
 use crate::{InstanceId, Interface, Master};
@@ -71,7 +69,7 @@ pub enum Event {
     SrCfgLabelRangeUpdate,
     SrCfgPrefixSidUpdate(AddressFamily),
     BierCfgUpdate,
-    BierCfgEncapUpdate,
+    BierCfgEncapUpdate(SubDomainId, AddressFamily, Bsl, BierEncapsulationType),
 }
 
 // ===== configuration structs =====
@@ -803,7 +801,7 @@ fn load_callbacks() -> Callbacks<Master> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::BierCfgUpdate);
-            event_queue.insert(Event::BierCfgEncapUpdate);
+            event_queue.insert(Event::BierCfgEncapUpdate(sd_id, addr_family, bsl, encap_type));
         })
         .delete_apply(|context, args| {
             let bsl = args.dnode.get_string_relative("./bsl").unwrap();
@@ -817,7 +815,6 @@ fn load_callbacks() -> Callbacks<Master> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::BierCfgUpdate);
-            event_queue.insert(Event::BierCfgEncapUpdate);
         })
         .lookup(|_context, _list_entry, dnode| {
             let bsl = dnode.get_string_relative("./bsl").unwrap();
@@ -840,7 +837,7 @@ fn load_callbacks() -> Callbacks<Master> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::BierCfgUpdate);
-            event_queue.insert(Event::BierCfgEncapUpdate);
+            event_queue.insert(Event::BierCfgEncapUpdate(sd_id, addr_family, bsl, encap_type));
         })
         .delete_apply(|_context, _args| {
             // Nothing to do.
@@ -859,7 +856,7 @@ fn load_callbacks() -> Callbacks<Master> {
 
                 let event_queue = args.event_queue;
                 event_queue.insert(Event::BierCfgUpdate);
-                event_queue.insert(Event::BierCfgEncapUpdate);
+                event_queue.insert(Event::BierCfgEncapUpdate(sd_id, addr_family, bsl, encap_type));
             }
         })
         .delete_apply(|_context, _args| {
@@ -879,7 +876,7 @@ fn load_callbacks() -> Callbacks<Master> {
 
                 let event_queue = args.event_queue;
                 event_queue.insert(Event::BierCfgUpdate);
-                event_queue.insert(Event::BierCfgEncapUpdate);
+                event_queue.insert(Event::BierCfgEncapUpdate(sd_id, addr_family, bsl, encap_type));
             }
         })
         .delete_apply(|_context, _args| {
@@ -1141,8 +1138,10 @@ impl Provider for Master {
                     .ibus_tx
                     .send(IbusMsg::BierCfgUpd(self.shared.bier_config.clone()));
             }
-            Event::BierCfgEncapUpdate => {
-                // TODO
+            Event::BierCfgEncapUpdate(sd_id, addr_family, bsl, encap_type) => {
+                let _ = self
+                    .ibus_tx
+                    .send(IbusMsg::BierCfgEvent(BierCfgEvent::EncapUpdate(sd_id, addr_family, bsl, encap_type)));
             }
         }
     }

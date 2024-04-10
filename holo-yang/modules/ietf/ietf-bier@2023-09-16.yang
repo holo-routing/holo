@@ -112,7 +112,7 @@ module ietf-bier {
         "This identity represents ethernet encapsulation for bier.";
   }
 
-  /*identity address-family {
+  identity address-family {
     description
       "Base identity from which identities describing address
       families are derived.";
@@ -126,7 +126,7 @@ module ietf-bier {
     base address-family;
       description
         "This identity represents an IPv6 address family.";
-  }*/
+  }
 
   /* typedef */
   typedef underlay-protocol-type {
@@ -153,39 +153,24 @@ module ietf-bier {
 
   typedef bsl {
     type enumeration {
-    	enum "64-bit"{
-        	description
-                "bitstringlength is 64";
-        }
-        enum "128-bit"{
-        	description
-                "bitstringlength is 128";
-        }
-        enum "256-bit"{
-        	description
-            	"bitstringlength is 256";
-        }
-        enum "512-bit"{
-        	description
-            	"bitstringlength is 512";
-        }
-        enum "1024-bit"{
-        	description
-                "bitstringlength is 1024";
-        }
-        enum "2048-bit"{
-        	description
-                "bitstringlength is 2048";
-        }
-        enum "4096-bit"{
-            description
-                 "bitstringlength is 4096";
-        }
+      enum IS-IS {
+        description
+           "This BIER subdomains configuration can be read and
+                   advertise by BIER enabled IS-IS.";
+      }
+      enum OSPF {
+        description
+          "This BIER subdomains configuration can be read and
+                  advertise by BIER enabled OSPF.";
+      }
+      enum BGP {
+        description
+          "This BIER subdomains configuration can be read and
+                  advertise by BIER enabled BGP.";
+      }
     }
-    default
-    	"256-bit";
     description
-    	"list of the bitstringlength type to be supported.";
+      "list of the underlay protocol to be supported.";
   }
 
   augment "/rt:routing" {
@@ -200,16 +185,15 @@ module ietf-bier {
           "The parameters of the BIER subdomain. ";
           
         leaf sub-domain-id {
-          type uint8;
+          type uint16;
           description
             "The bier sub-domain-id";
         }
 
         leaf address-family {
-          type iana-rt-types:address-family;
-          /*type identityref {
+          type identityref {
             base address-family;
-          }*/
+          }
           mandatory true;
           description
             "Address family.";
@@ -228,7 +212,7 @@ module ietf-bier {
         }
 
         leaf mt-id {
-          type uint8;
+          type uint16;
           description
             "The multi-topology identifier";
         }
@@ -301,8 +285,7 @@ module ietf-bier {
         }
         
         leaf max-si {
-          //type uint16;
-          type uint8;
+          type uint16;
           description
             "Maximum Set Identifier.The SI value in the subdomain
                     is an integer from 0 to max-si.";

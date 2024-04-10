@@ -882,7 +882,7 @@ fn load_callbacks() -> Callbacks<Master> {
         .delete_apply(|_context, _args| {
             // Nothing to do.
         })
-        .path(bier::bift::PATH)
+        /*.path(bier::bift::PATH)
         .create_apply(|_context, _args| {
             // TODO: implement me!
         })
@@ -935,7 +935,7 @@ fn load_callbacks() -> Callbacks<Master> {
         })
         .delete_apply(|_context, _args| {
             // TODO: implement me!
-        })
+        })*/
         .build()
 }
 

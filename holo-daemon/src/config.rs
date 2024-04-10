@@ -187,7 +187,7 @@ impl Default for Grpc {
     fn default() -> Grpc {
         Grpc {
             enabled: true,
-            address: "[::1]:50051".to_owned(),
+            address: "[::]:50051".to_owned(),
             tls: Default::default(),
         }
     }
@@ -199,7 +199,7 @@ impl Default for Gnmi {
     fn default() -> Gnmi {
         Gnmi {
             enabled: true,
-            address: "[::1]:10161".to_owned(),
+            address: "[::]:10161".to_owned(),
             tls: Default::default(),
         }
     }

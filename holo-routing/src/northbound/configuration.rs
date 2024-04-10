@@ -882,60 +882,6 @@ fn load_callbacks() -> Callbacks<Master> {
         .delete_apply(|_context, _args| {
             // Nothing to do.
         })
-        /*.path(bier::bift::PATH)
-        .create_apply(|_context, _args| {
-            // TODO: implement me!
-        })
-        .delete_apply(|_context, _args| {
-            // TODO: implement me!
-        })
-        .lookup(|_context, _list_entry, _dnode| {
-            // TODO: implement me!
-            todo!();
-        })
-        .path(bier::bift::birt_bitstringlength::PATH)
-        .create_apply(|_context, _args| {
-            // TODO: implement me!
-        })
-        .delete_apply(|_context, _args| {
-            // TODO: implement me!
-        })
-        .lookup(|_context, _list_entry, _dnode| {
-            // TODO: implement me!
-            todo!();
-        })
-        .path(bier::bift::birt_bitstringlength::bfr_nbr::PATH)
-        .create_apply(|_context, _args| {
-            // TODO: implement me!
-        })
-        .delete_apply(|_context, _args| {
-            // TODO: implement me!
-        })
-        .lookup(|_context, _list_entry, _dnode| {
-            // TODO: implement me!
-            todo!();
-        })
-        .path(bier::bift::birt_bitstringlength::bfr_nbr::encapsulation_type::PATH)
-        .modify_apply(|_context, _args| {
-            // TODO: implement me!
-        })
-        .delete_apply(|_context, _args| {
-            // TODO: implement me!
-        })
-        .path(bier::bift::birt_bitstringlength::bfr_nbr::out_bift_id::out_bift_id::PATH)
-        .modify_apply(|_context, _args| {
-            // TODO: implement me!
-        })
-        .delete_apply(|_context, _args| {
-            // TODO: implement me!
-        })
-        .path(bier::bift::birt_bitstringlength::bfr_nbr::out_bift_id::out_bift_id_encoding::PATH)
-        .modify_apply(|_context, _args| {
-            // TODO: implement me!
-        })
-        .delete_apply(|_context, _args| {
-            // TODO: implement me!
-        })*/
         .build()
 }
 

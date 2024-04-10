@@ -418,21 +418,6 @@ fn load_callbacks() -> Callbacks<Master> {
             // TODO: implement me!
             None
         })
-        /*.path(bier::bift::PATH)
-        .get_iterate(|_context, _args| {
-            // TODO: implement me!
-            None
-        })
-        .path(bier::bift::birt_bitstringlength::PATH)
-        .get_iterate(|_context, _args| {
-            // TODO: implement me!
-            None
-        })
-        .path(bier::bift::birt_bitstringlength::bfr_nbr::PATH)
-        .get_iterate(|_context, _args| {
-            // TODO: implement me!
-            None
-        })*/
         .build()
 }
 

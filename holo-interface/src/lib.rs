@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-#![feature(lazy_cell)]
+#![feature(lazy_cell, let_chains)]
 
 mod ibus;
 mod interface;
@@ -21,6 +21,7 @@ use tokio::sync::mpsc;
 use tracing::Instrument;
 
 use crate::interface::Interfaces;
+use crate::netlink::NetlinkMonitor;
 
 #[derive(Debug)]
 pub struct Master {
@@ -28,6 +29,8 @@ pub struct Master {
     pub nb_tx: NbProviderSender,
     // Internal bus Tx channel.
     pub ibus_tx: IbusSender,
+    // Netlink socket.
+    pub netlink_handle: rtnetlink::Handle,
     // List of interfaces.
     pub interfaces: Interfaces,
 }
@@ -39,11 +42,9 @@ impl Master {
         &mut self,
         mut nb_rx: NbDaemonReceiver,
         mut ibus_rx: IbusReceiver,
+        mut netlink_rx: NetlinkMonitor,
     ) {
         let mut resources = vec![];
-
-        // Netlink initialization.
-        let mut netlink_monitor = netlink::init(self).await;
 
         loop {
             tokio::select! {
@@ -55,11 +56,11 @@ impl Master {
                     )
                     .await;
                 }
-                Some((msg, _)) = netlink_monitor.next() => {
-                    netlink::process_msg(self, msg);
-                }
                 Ok(msg) = ibus_rx.recv() => {
                     ibus::process_msg(self, msg);
+                }
+                Some((msg, _)) = netlink_rx.next() => {
+                    netlink::process_msg(self, msg).await;
                 }
             }
         }
@@ -76,15 +77,25 @@ pub fn start(
     let (nb_daemon_tx, nb_daemon_rx) = mpsc::channel(4);
 
     tokio::spawn(async move {
-        let span = Master::debug_span("");
+        // Initialize netlink socket.
+        let (netlink_handle, netlink_rx) = netlink::init().await;
+
         let mut master = Master {
             nb_tx,
             ibus_tx,
+            netlink_handle,
             interfaces: Default::default(),
         };
 
+        // Fetch interface information from the kernel.
+        netlink::start(&mut master).await;
+
         // Run task main loop.
-        master.run(nb_daemon_rx, ibus_rx).instrument(span).await;
+        let span = Master::debug_span("");
+        master
+            .run(nb_daemon_rx, ibus_rx, netlink_rx)
+            .instrument(span)
+            .await;
     });
 
     nb_daemon_tx

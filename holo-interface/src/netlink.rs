@@ -8,6 +8,7 @@
 
 use std::net::{Ipv4Addr, Ipv6Addr};
 
+use capctl::caps::CapState;
 use futures::channel::mpsc::UnboundedReceiver;
 use futures::TryStreamExt;
 use holo_utils::southbound::InterfaceFlags;
@@ -20,14 +21,22 @@ use netlink_packet_route::constants::{
 use netlink_packet_route::rtnl::RtnlMessage;
 use netlink_packet_route::{AddressMessage, LinkMessage};
 use netlink_sys::{AsyncSocket, SocketAddr};
-use rtnetlink::new_connection;
-use tracing::trace;
+use rtnetlink::{new_connection, Handle};
+use tracing::{error, trace};
 
+use crate::interface::Owner;
 use crate::Master;
+
+pub type NetlinkMonitor =
+    UnboundedReceiver<(NetlinkMessage<RtnlMessage>, SocketAddr)>;
 
 // ===== helper functions =====
 
-fn process_newlink_msg(master: &mut Master, msg: LinkMessage, notify: bool) {
+async fn process_newlink_msg(
+    master: &mut Master,
+    msg: LinkMessage,
+    notify: bool,
+) {
     use netlink_packet_route::link::nlas::Nla;
 
     trace!(?msg, "received RTM_NEWLINK message");
@@ -58,18 +67,29 @@ fn process_newlink_msg(master: &mut Master, msg: LinkMessage, notify: bool) {
     let ibus_tx = notify.then_some(&master.ibus_tx);
     master
         .interfaces
-        .update(ifname, ifindex, mtu, flags, ibus_tx);
+        .update(ifname, ifindex, mtu, flags, &master.netlink_handle, ibus_tx)
+        .await;
 }
 
-fn process_dellink_msg(master: &mut Master, msg: LinkMessage, notify: bool) {
+async fn process_dellink_msg(
+    master: &mut Master,
+    msg: LinkMessage,
+    notify: bool,
+) {
     trace!(?msg, "received RTM_DELLINK message");
 
     // Fetch interface ifindex.
     let ifindex = msg.header.index;
 
     // Remove interface.
-    let ibus_tx = notify.then_some(&master.ibus_tx);
-    master.interfaces.remove(ifindex, ibus_tx);
+    if let Some(iface) = master.interfaces.get_by_ifindex(ifindex) {
+        let ibus_tx = notify.then_some(&master.ibus_tx);
+        let ifname = iface.name.clone();
+        master
+            .interfaces
+            .remove(&ifname, Owner::SYSTEM, &master.netlink_handle, ibus_tx)
+            .await;
+    }
 }
 
 fn process_newaddr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
@@ -155,14 +175,47 @@ fn parse_address(
 
 // ===== global functions =====
 
-pub(crate) fn process_msg(
+pub(crate) async fn addr_install(
+    handle: &Handle,
+    ifindex: u32,
+    addr: &IpNetwork,
+) {
+    // Create netlink request.
+    let request = handle.address().add(ifindex, addr.ip(), addr.prefix());
+
+    // Execute request.
+    if let Err(error) = request.execute().await {
+        error!(%ifindex, %addr, %error, "failed to install interface address");
+    }
+}
+
+pub(crate) async fn addr_uninstall(
+    handle: &Handle,
+    ifindex: u32,
+    addr: &IpNetwork,
+) {
+    // Create netlink request.
+    let mut request = handle.address().add(ifindex, addr.ip(), addr.prefix());
+
+    // Execute request.
+    let request = handle.address().del(request.message_mut().clone());
+    if let Err(error) = request.execute().await {
+        error!(%ifindex, %addr, %error, "failed to uninstall interface address");
+    }
+}
+
+pub(crate) async fn process_msg(
     master: &mut Master,
     msg: NetlinkMessage<RtnlMessage>,
 ) {
     if let NetlinkPayload::InnerMessage(msg) = msg.payload {
         match msg {
-            RtnlMessage::NewLink(msg) => process_newlink_msg(master, msg, true),
-            RtnlMessage::DelLink(msg) => process_dellink_msg(master, msg, true),
+            RtnlMessage::NewLink(msg) => {
+                process_newlink_msg(master, msg, true).await
+            }
+            RtnlMessage::DelLink(msg) => {
+                process_dellink_msg(master, msg, true).await
+            }
             RtnlMessage::NewAddress(msg) => {
                 process_newaddr_msg(master, msg, true)
             }
@@ -174,26 +227,19 @@ pub(crate) fn process_msg(
     }
 }
 
-pub(crate) async fn init(
-    master: &mut Master,
-) -> UnboundedReceiver<(NetlinkMessage<RtnlMessage>, SocketAddr)> {
-    // Create netlink socket.
-    let (conn, handle, _) =
-        new_connection().expect("Failed to create netlink socket");
-    tokio::spawn(conn);
-
+pub(crate) async fn start(master: &mut Master) {
     // Fetch interface information.
-    let mut links = handle.link().get().execute();
+    let mut links = master.netlink_handle.link().get().execute();
     while let Some(msg) = links
         .try_next()
         .await
         .expect("Failed to fetch interface information")
     {
-        process_newlink_msg(master, msg, false);
+        process_newlink_msg(master, msg, false).await;
     }
 
     // Fetch address information.
-    let mut addresses = handle.address().get().execute();
+    let mut addresses = master.netlink_handle.address().get().execute();
     while let Some(msg) = addresses
         .try_next()
         .await
@@ -201,6 +247,26 @@ pub(crate) async fn init(
     {
         process_newaddr_msg(master, msg, false);
     }
+}
+
+pub(crate) async fn init() -> (Handle, NetlinkMonitor) {
+    // Create netlink socket.
+    let (conn, handle, _) =
+        new_connection().expect("Failed to create netlink socket");
+
+    // Spawn the netlink connection on a separate thread with permanent elevated
+    // capabilities.
+    std::thread::spawn(|| {
+        // Raise capabilities.
+        let mut caps = CapState::get_current().unwrap();
+        caps.effective = caps.permitted;
+        if let Err(error) = caps.set_current() {
+            error!("failed to update current capabilities: {}", error);
+        }
+
+        // Serve requests initiated by the netlink handle.
+        futures::executor::block_on(conn)
+    });
 
     // Start netlink monitor.
     let (mut conn, _, monitor) =
@@ -216,5 +282,5 @@ pub(crate) async fn init(
         .expect("Failed to bind netlink socket");
     tokio::spawn(conn);
 
-    monitor
+    (handle, monitor)
 }

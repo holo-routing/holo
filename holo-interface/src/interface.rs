@@ -7,13 +7,15 @@
 use std::collections::{BTreeMap, HashMap};
 use std::net::{IpAddr, Ipv4Addr};
 
+use bitflags::bitflags;
 use generational_arena::{Arena, Index};
 use holo_utils::ibus::IbusSender;
 use holo_utils::ip::Ipv4NetworkExt;
 use holo_utils::southbound::{AddressFlags, InterfaceFlags};
 use ipnetwork::{IpNetwork, Ipv4Network};
 
-use crate::ibus;
+use crate::northbound::configuration::InterfaceCfg;
+use crate::{ibus, netlink};
 
 #[derive(Debug, Default)]
 pub struct Interfaces {
@@ -30,10 +32,12 @@ pub struct Interfaces {
 #[derive(Debug)]
 pub struct Interface {
     pub name: String,
-    pub ifindex: u32,
-    pub mtu: u32,
+    pub config: InterfaceCfg,
+    pub ifindex: Option<u32>,
+    pub mtu: Option<u32>,
     pub flags: InterfaceFlags,
     pub addresses: BTreeMap<IpNetwork, InterfaceAddress>,
+    pub owner: Owner,
 }
 
 #[derive(Debug)]
@@ -42,25 +46,80 @@ pub struct InterfaceAddress {
     pub flags: AddressFlags,
 }
 
+bitflags! {
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+    pub struct Owner: u8 {
+        const CONFIG = 0x01;
+        const SYSTEM = 0x02;
+    }
+}
+
+// ===== impl Interface =====
+
+impl Interface {
+    // Applies the interface configuration.
+    //
+    // This method should only be called after the interface has been created
+    // at the OS-level.
+    async fn apply_config(
+        &self,
+        ifindex: u32,
+        netlink_handle: &rtnetlink::Handle,
+    ) {
+        // Install interface addresses.
+        for addr in &self.config.addr_list {
+            netlink::addr_install(netlink_handle, ifindex, addr).await;
+        }
+    }
+}
+
 // ===== impl Interfaces =====
 
 impl Interfaces {
+    // Adds an interface.
+    pub(crate) fn add(&mut self, ifname: String) {
+        if let Some(iface) = self.get_mut_by_name(&ifname) {
+            iface.owner.insert(Owner::CONFIG);
+            return;
+        }
+
+        // If the interface does not exist, create a new entry.
+        let iface = Interface {
+            name: ifname.clone(),
+            config: Default::default(),
+            ifindex: None,
+            mtu: None,
+            flags: InterfaceFlags::default(),
+            addresses: Default::default(),
+            owner: Owner::CONFIG,
+        };
+
+        let iface_idx = self.arena.insert(iface);
+        self.name_tree.insert(ifname.clone(), iface_idx);
+    }
+
     // Adds or updates the interface with the specified attributes.
-    pub(crate) fn update(
+    pub(crate) async fn update(
         &mut self,
         ifname: String,
         ifindex: u32,
         mtu: u32,
         flags: InterfaceFlags,
+        netlink_handle: &rtnetlink::Handle,
         ibus_tx: Option<&IbusSender>,
     ) {
-        match self.ifindex_tree.get(&ifindex).copied() {
+        match self
+            .ifindex_tree
+            .get(&ifindex)
+            .or_else(|| self.name_tree.get(&ifname))
+            .copied()
+        {
             Some(iface_idx) => {
                 let iface = &mut self.arena[iface_idx];
 
                 // If nothing of interest has changed, return early.
                 if iface.name == ifname
-                    && iface.mtu == mtu
+                    && iface.mtu == Some(mtu)
                     && iface.flags == flags
                 {
                     return;
@@ -72,17 +131,28 @@ impl Interfaces {
                     iface.name.clone_from(&ifname);
                     self.name_tree.insert(ifname.clone(), iface_idx);
                 }
-                iface.mtu = mtu;
+                iface.owner.insert(Owner::SYSTEM);
+                iface.mtu = Some(mtu);
                 iface.flags = flags;
+
+                // In case the interface exists only in the configuration,
+                // initialize its ifindex and apply any pre-existing
+                // configuration options.
+                if iface.ifindex.is_none() {
+                    iface.ifindex = Some(ifindex);
+                    iface.apply_config(ifindex, netlink_handle).await;
+                }
             }
             None => {
                 // If the interface does not exist, create a new entry.
                 let iface = Interface {
                     name: ifname.clone(),
-                    ifindex,
-                    mtu,
+                    config: Default::default(),
+                    ifindex: Some(ifindex),
+                    mtu: Some(mtu),
                     flags,
                     addresses: Default::default(),
+                    owner: Owner::SYSTEM,
                 };
 
                 let iface_idx = self.arena.insert(iface);
@@ -98,24 +168,45 @@ impl Interfaces {
     }
 
     // Removes the specified interface identified by its ifindex.
-    pub(crate) fn remove(
+    pub(crate) async fn remove(
         &mut self,
-        ifindex: u32,
+        ifname: &str,
+        owner: Owner,
+        netlink_handle: &rtnetlink::Handle,
         ibus_tx: Option<&IbusSender>,
     ) {
-        let Some(iface_idx) = self.ifindex_tree.get(&ifindex).copied() else {
+        let Some(iface_idx) = self.name_tree.get(ifname).copied() else {
             return;
         };
+        let iface = &mut self.arena[iface_idx];
+
+        // When the interface is unconfigured, uninstall all configured
+        // addresses associated with it.
+        if owner == Owner::CONFIG
+            && let Some(ifindex) = iface.ifindex
+        {
+            for addr in &iface.config.addr_list {
+                netlink::addr_uninstall(netlink_handle, ifindex, addr).await;
+            }
+        }
+
+        // Remove interface only when it's both not present in the configuration
+        // and not available in the kernel.
+        iface.owner.remove(owner);
+        if !iface.owner.is_empty() {
+            return;
+        }
 
         // Notify protocol instances.
-        let iface = &self.arena[iface_idx];
         if let Some(ibus_tx) = ibus_tx {
             ibus::notify_interface_del(ibus_tx, iface.name.clone());
         }
 
         // Remove interface.
         self.name_tree.remove(&iface.name);
-        self.ifindex_tree.remove(&iface.ifindex);
+        if let Some(ifindex) = iface.ifindex {
+            self.ifindex_tree.remove(&ifindex);
+        }
         self.arena.remove(iface_idx);
 
         // Check if the Router ID needs to be updated.

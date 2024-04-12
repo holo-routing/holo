@@ -27,7 +27,17 @@ fn load_callbacks() -> Callbacks<Master> {
     CallbacksBuilder::default()
         .path(interfaces::interface::PATH)
         .get_iterate(|_master, _args| {
-            // TODO: implement me!
+            // No operational data under this list.
+            None
+        })
+        .path(interfaces::interface::ipv4::address::PATH)
+        .get_iterate(|_context, _args| {
+            // No operational data under this list.
+            None
+        })
+        .path(interfaces::interface::ipv6::address::PATH)
+        .get_iterate(|_context, _args| {
+            // No operational data under this list.
             None
         })
         .build()

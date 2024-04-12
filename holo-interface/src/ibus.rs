@@ -24,8 +24,8 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
                 notify_interface_update(
                     &master.ibus_tx,
                     iface.name.clone(),
-                    iface.ifindex,
-                    iface.mtu,
+                    iface.ifindex.unwrap_or(0),
+                    iface.mtu.unwrap_or(0),
                     iface.flags,
                 );
 
@@ -44,8 +44,8 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
                 notify_interface_update(
                     &master.ibus_tx,
                     iface.name.clone(),
-                    iface.ifindex,
-                    iface.mtu,
+                    iface.ifindex.unwrap_or(0),
+                    iface.mtu.unwrap_or(0),
                     iface.flags,
                 );
 

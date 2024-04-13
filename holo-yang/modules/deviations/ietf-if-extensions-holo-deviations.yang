@@ -1,0 +1,28 @@
+module ietf-if-extensions-holo-deviations {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/ietf-if-extensions-holo-deviations";
+  prefix ietf-if-extensions-holo-deviations;
+
+  import ietf-interfaces {
+    prefix if;
+  }
+
+  import ietf-if-extensions {
+    prefix if-ext;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines deviation statements for the ietf-if-extensions
+     module.";
+
+  deviation "/if:interfaces/if:interface/if:statistics/if-ext:in-discard-unknown-encaps" {
+    deviate not-supported;
+  }
+
+  deviation "/if:interfaces/if:interface/if-ext:forwarding-mode" {
+    deviate not-supported;
+  }
+}

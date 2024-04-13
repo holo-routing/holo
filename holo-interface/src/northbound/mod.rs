@@ -17,7 +17,12 @@ use crate::Master;
 
 impl ProviderBase for Master {
     fn yang_modules() -> &'static [&'static str] {
-        &["ietf-interfaces", "ietf-ip"]
+        &[
+            "ietf-if-extensions",
+            "ietf-if-vlan-encapsulation",
+            "ietf-interfaces",
+            "ietf-ip",
+        ]
     }
 
     fn top_level_node(&self) -> String {

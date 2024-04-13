@@ -1,0 +1,51 @@
+module ietf-if-vlan-encapsulation-holo-deviations {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/ietf-if-vlan-encapsulation-holo-deviations";
+  prefix ietf-if-vlan-encapsulation-holo-deviations;
+
+  import ietf-interfaces {
+    prefix if;
+  }
+
+  import ietf-if-extensions {
+    prefix if-ext;
+  }
+
+  import ietf-if-vlan-encapsulation {
+    prefix if-vlan;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines deviation statements for the ietf-if-vlan-encapsulation
+     module.";
+
+  deviation "/if:interfaces/if:interface/if-ext:encapsulation/if-ext:encaps-type/if-vlan:dot1q-vlan/if-vlan:dot1q-vlan/if-vlan:outer-tag" {
+    deviate delete {
+      must 'tag-type = "dot1q-types:s-vlan" or '
+         + 'tag-type = "dot1q-types:c-vlan"';
+    }
+  }
+
+  deviation "/if:interfaces/if:interface/if-ext:encapsulation/if-ext:encaps-type/if-vlan:dot1q-vlan/if-vlan:dot1q-vlan/if-vlan:outer-tag/if-vlan:tag-type" {
+    deviate not-supported;
+  }
+
+  deviation "/if:interfaces/if:interface/if-ext:encapsulation/if-ext:encaps-type/if-vlan:dot1q-vlan/if-vlan:dot1q-vlan/if-vlan:second-tag" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/if:interfaces/if:interface/if-ext:encapsulation/if-ext:encaps-type/if-vlan:dot1q-vlan/if-vlan:dot1q-vlan/if-vlan:second-tag/if-vlan:tag-type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/if-ext:encapsulation/if-ext:encaps-type/if-vlan:dot1q-vlan/if-vlan:dot1q-vlan/if-vlan:second-tag/if-vlan:vlan-id" {
+    deviate not-supported;
+  }
+  */
+}

@@ -27,6 +27,9 @@ pub static YANG_CTX: OnceLock<Arc<Context>> = OnceLock::new();
 // default doesn't support loading YANG modules from the filesystem.
 pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
     hashmap! {
+        // IEEE modules
+        EmbeddedModuleKey::new("ieee802-dot1q-types", Some("2022-01-19"), None, None) =>
+            include_str!("../modules/ieee/ieee802-dot1q-types@2022-01-19.yang"),
         // IETF modules
         EmbeddedModuleKey::new("iana-bfd-types", Some("2021-10-21"), None, None) =>
             include_str!("../modules/ietf/iana-bfd-types@2021-10-21.yang"),
@@ -70,6 +73,10 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-bgp-rib-tables@2023-07-05.yang"),
         EmbeddedModuleKey::new("ietf-bgp-policy", Some("2023-07-05"), None, None) =>
             include_str!("../modules/ietf/ietf-bgp-policy@2023-07-05.yang"),
+        EmbeddedModuleKey::new("ietf-if-extensions", Some("2023-01-26"), None, None) =>
+            include_str!("../modules/ietf/ietf-if-extensions@2023-01-26.yang"),
+        EmbeddedModuleKey::new("ietf-if-vlan-encapsulation", Some("2023-01-26"), None, None) =>
+            include_str!("../modules/ietf/ietf-if-vlan-encapsulation@2023-01-26.yang"),
         EmbeddedModuleKey::new("ietf-interfaces", Some("2018-02-20"), None, None) =>
             include_str!("../modules/ietf/ietf-interfaces@2018-02-20.yang"),
         EmbeddedModuleKey::new("ietf-ip", Some("2018-02-22"), None, None) =>
@@ -126,6 +133,10 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/deviations/ietf-bgp-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-mpls-ldp-holo-deviations", None, None, None) =>
             include_str!("../modules/deviations/ietf-mpls-ldp-holo-deviations.yang"),
+        EmbeddedModuleKey::new("ietf-if-extensions-holo-deviations", None, None, None) =>
+            include_str!("../modules/deviations/ietf-if-extensions-holo-deviations.yang"),
+        EmbeddedModuleKey::new("ietf-if-vlan-encapsulation-holo-deviations", None, None, None) =>
+            include_str!("../modules/deviations/ietf-if-vlan-encapsulation-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-interfaces-holo-deviations", None, None, None) =>
             include_str!("../modules/deviations/ietf-interfaces-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-ip-holo-deviations", None, None, None) =>
@@ -160,6 +171,9 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
 pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
     Lazy::new(|| {
         vec![
+            // IEEE modules
+            "ieee802-dot1q-types",
+            // IETF modules
             "iana-if-type",
             "iana-bgp-notification",
             "iana-bgp-rib-types",
@@ -171,6 +185,8 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
             "ietf-bgp",
             "ietf-bgp-policy",
             "ietf-routing-types",
+            "ietf-if-extensions",
+            "ietf-if-vlan-encapsulation",
             "ietf-interfaces",
             "ietf-ip",
             "ietf-key-chain",
@@ -188,6 +204,7 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
             "ietf-ospfv3-extended-lsa",
             "ietf-rip",
             "ietf-tcp",
+            // IETF Holo augmentations
             "holo-bgp",
             "holo-ospf",
             "holo-ospf-dev",
@@ -209,6 +226,9 @@ pub static YANG_FEATURES: Lazy<HashMap<&'static str, Vec<&'static str>>> =
             "ietf-key-chain" => vec![
                 "hex-key-string",
                 "independent-send-accept-lifetime",
+            ],
+            "ietf-if-extensions" => vec![
+                "sub-interfaces",
             ],
             "ietf-ospf" => vec![
                 "bfd",

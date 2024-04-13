@@ -204,6 +204,21 @@ pub(crate) async fn mtu_change(handle: &Handle, ifindex: u32, mtu: u32) {
     }
 }
 
+pub(crate) async fn vlan_create(
+    handle: &Handle,
+    name: String,
+    parent_ifindex: u32,
+    vlan_id: u16,
+) {
+    // Create netlink request.
+    let request = handle.link().add().vlan(name, parent_ifindex, vlan_id);
+
+    // Execute request.
+    if let Err(error) = request.execute().await {
+        error!(%parent_ifindex, %vlan_id, %error, "failed to create VLAN interface");
+    }
+}
+
 pub(crate) async fn addr_install(
     handle: &Handle,
     ifindex: u32,

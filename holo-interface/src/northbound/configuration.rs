@@ -41,6 +41,7 @@ pub enum Event {
     InterfaceDelete(String),
     AdminStatusChange(String, bool),
     MtuChange(String, u32),
+    VlanCreate(String, u16),
     AddressInstall(String, IpNetwork),
     AddressUninstall(String, IpNetwork),
 }
@@ -51,6 +52,8 @@ pub enum Event {
 pub struct InterfaceCfg {
     pub enabled: bool,
     pub mtu: Option<u32>,
+    pub parent: Option<String>,
+    pub vlan_id: Option<u16>,
     pub addr_list: BTreeSet<IpNetwork>,
 }
 
@@ -95,6 +98,31 @@ fn load_callbacks() -> Callbacks<Master> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::AdminStatusChange(ifname, enabled));
+        })
+        .path(interfaces::interface::parent_interface::PATH)
+        .modify_apply(|master, args| {
+            let ifname = args.list_entry.into_interface().unwrap();
+            let parent = args.dnode.get_string();
+
+            let iface = master.interfaces.get_mut_by_name(&ifname).unwrap();
+            iface.config.parent = Some(parent);
+        })
+        .delete_apply(|master, args| {
+            let ifname = args.list_entry.into_interface().unwrap();
+
+            let iface = master.interfaces.get_mut_by_name(&ifname).unwrap();
+            iface.config.parent = None;
+        })
+        .path(interfaces::interface::encapsulation::dot1q_vlan::outer_tag::vlan_id::PATH)
+        .modify_apply(|master, args| {
+            let ifname = args.list_entry.into_interface().unwrap();
+            let vlan_id = args.dnode.get_u16();
+
+            let iface = master.interfaces.get_mut_by_name(&ifname).unwrap();
+            iface.config.vlan_id = Some(vlan_id);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::VlanCreate(ifname, vlan_id));
         })
         .path(interfaces::interface::ipv4::PATH)
         .create_apply(|_context, _args| {
@@ -288,6 +316,24 @@ impl Provider for Master {
                         .await;
                 }
             }
+            Event::VlanCreate(ifname, vlan_id) => {
+                // If the parent interface is active, create VLAN subinterface
+                // using the netlink handle.
+                if let Some(iface) = self.interfaces.get_by_name(&ifname)
+                    && iface.ifindex.is_none()
+                    && let Some(parent) = &iface.config.parent
+                    && let Some(parent) = self.interfaces.get_by_name(parent)
+                    && let Some(parent_ifindex) = parent.ifindex
+                {
+                    netlink::vlan_create(
+                        &self.netlink_handle,
+                        iface.name.clone(),
+                        parent_ifindex,
+                        vlan_id,
+                    )
+                    .await;
+                }
+            }
             Event::AddressInstall(ifname, addr) => {
                 // If the interface is active, install the address using the
                 // netlink handle.
@@ -325,6 +371,8 @@ impl Default for InterfaceCfg {
         InterfaceCfg {
             enabled,
             mtu: None,
+            parent: None,
+            vlan_id: None,
             addr_list: Default::default(),
         }
     }

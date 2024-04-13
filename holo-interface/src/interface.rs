@@ -65,6 +65,7 @@ impl Interface {
         &self,
         ifindex: u32,
         netlink_handle: &rtnetlink::Handle,
+        interfaces: &Interfaces,
     ) {
         // Set administrative status.
         netlink::admin_status_change(
@@ -73,6 +74,22 @@ impl Interface {
             self.config.enabled,
         )
         .await;
+
+        // Create VLAN subinterface.
+        if let Some(vlan_id) = self.config.vlan_id
+            && self.ifindex.is_none()
+            && let Some(parent) = &self.config.parent
+            && let Some(parent) = interfaces.get_by_name(parent)
+            && let Some(parent_ifindex) = parent.ifindex
+        {
+            netlink::vlan_create(
+                netlink_handle,
+                self.name.clone(),
+                parent_ifindex,
+                vlan_id,
+            )
+            .await;
+        }
 
         // Set MTU.
         if let Some(mtu) = self.config.mtu {
@@ -153,7 +170,9 @@ impl Interfaces {
                 // configuration options.
                 if iface.ifindex.is_none() {
                     iface.ifindex = Some(ifindex);
-                    iface.apply_config(ifindex, netlink_handle).await;
+
+                    let iface = &self.arena[iface_idx];
+                    iface.apply_config(ifindex, netlink_handle, self).await;
                 }
             }
             None => {

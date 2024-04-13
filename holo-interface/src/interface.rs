@@ -66,6 +66,14 @@ impl Interface {
         ifindex: u32,
         netlink_handle: &rtnetlink::Handle,
     ) {
+        // Set administrative status.
+        netlink::admin_status_change(
+            netlink_handle,
+            ifindex,
+            self.config.enabled,
+        )
+        .await;
+
         // Install interface addresses.
         for addr in &self.config.addr_list {
             netlink::addr_install(netlink_handle, ifindex, addr).await;

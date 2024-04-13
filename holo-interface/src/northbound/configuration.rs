@@ -36,14 +36,16 @@ pub enum Resource {}
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Event {
     InterfaceDelete(String),
+    AdminStatusChange(String, bool),
     AddressInstall(String, IpNetwork),
     AddressUninstall(String, IpNetwork),
 }
 
 // ===== configuration structs =====
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct InterfaceCfg {
+    pub enabled: bool,
     pub addr_list: BTreeSet<IpNetwork>,
 }
 
@@ -79,8 +81,15 @@ fn load_callbacks() -> Callbacks<Master> {
             // TODO: implement me!
         })
         .path(interfaces::interface::enabled::PATH)
-        .modify_apply(|_master, _args| {
-            // TODO: implement me!
+        .modify_apply(|master, args| {
+            let ifname = args.list_entry.into_interface().unwrap();
+            let enabled = args.dnode.get_bool();
+
+            let iface = master.interfaces.get_mut_by_name(&ifname).unwrap();
+            iface.config.enabled = enabled;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::AdminStatusChange(ifname, enabled));
         })
         .path(interfaces::interface::ipv4::PATH)
         .create_apply(|_context, _args| {
@@ -195,6 +204,20 @@ impl Provider for Master {
                     .remove(&ifname, Owner::CONFIG, &self.netlink_handle, None)
                     .await;
             }
+            Event::AdminStatusChange(ifname, enabled) => {
+                // If the interface is active, change its administrative status
+                // using the netlink handle.
+                if let Some(iface) = self.interfaces.get_by_name(&ifname)
+                    && let Some(ifindex) = iface.ifindex
+                {
+                    netlink::admin_status_change(
+                        &self.netlink_handle,
+                        ifindex,
+                        enabled,
+                    )
+                    .await;
+                }
+            }
             Event::AddressInstall(ifname, addr) => {
                 // If the interface is active, install the address using the
                 // netlink handle.
@@ -219,6 +242,19 @@ impl Provider for Master {
                     .await;
                 }
             }
+        }
+    }
+}
+
+// ===== configuration defaults =====
+
+impl Default for InterfaceCfg {
+    fn default() -> InterfaceCfg {
+        let enabled = interfaces::interface::enabled::DFLT;
+
+        InterfaceCfg {
+            enabled,
+            addr_list: Default::default(),
         }
     }
 }

@@ -74,6 +74,11 @@ impl Interface {
         )
         .await;
 
+        // Set MTU.
+        if let Some(mtu) = self.config.mtu {
+            netlink::mtu_change(netlink_handle, ifindex, mtu).await;
+        }
+
         // Install interface addresses.
         for addr in &self.config.addr_list {
             netlink::addr_install(netlink_handle, ifindex, addr).await;

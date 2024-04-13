@@ -10,7 +10,8 @@ use std::sync::LazyLock as Lazy;
 use async_trait::async_trait;
 use enum_as_inner::EnumAsInner;
 use holo_northbound::configuration::{
-    self, Callbacks, CallbacksBuilder, Provider,
+    self, Callbacks, CallbacksBuilder, Provider, ValidationCallbacks,
+    ValidationCallbacksBuilder,
 };
 use holo_northbound::paths::interfaces;
 use holo_utils::yang::DataNodeRefExt;
@@ -19,6 +20,8 @@ use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use crate::interface::Owner;
 use crate::{netlink, Master};
 
+static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
+    Lazy::new(load_validation_callbacks);
 static CALLBACKS: Lazy<configuration::Callbacks<Master>> =
     Lazy::new(load_callbacks);
 
@@ -37,6 +40,7 @@ pub enum Resource {}
 pub enum Event {
     InterfaceDelete(String),
     AdminStatusChange(String, bool),
+    MtuChange(String, u32),
     AddressInstall(String, IpNetwork),
     AddressUninstall(String, IpNetwork),
 }
@@ -46,6 +50,7 @@ pub enum Event {
 #[derive(Debug)]
 pub struct InterfaceCfg {
     pub enabled: bool,
+    pub mtu: Option<u32>,
     pub addr_list: BTreeSet<IpNetwork>,
 }
 
@@ -102,6 +107,23 @@ fn load_callbacks() -> Callbacks<Master> {
         .modify_apply(|_context, _args| {
             // TODO: implement me!
         })
+        .path(interfaces::interface::ipv4::mtu::PATH)
+        .modify_apply(|master, args| {
+            let ifname = args.list_entry.into_interface().unwrap();
+            let mtu = args.dnode.get_u16() as u32;
+
+            let iface = master.interfaces.get_mut_by_name(&ifname).unwrap();
+            iface.config.mtu = Some(mtu);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::MtuChange(ifname, mtu));
+        })
+        .delete_apply(|master, args| {
+            let ifname = args.list_entry.into_interface().unwrap();
+
+            let iface = master.interfaces.get_mut_by_name(&ifname).unwrap();
+            iface.config.mtu = None;
+        })
         .path(interfaces::interface::ipv4::address::PATH)
         .create_apply(|master, args| {
             let ifname = args.list_entry.into_interface().unwrap();
@@ -149,6 +171,23 @@ fn load_callbacks() -> Callbacks<Master> {
         .modify_apply(|_context, _args| {
             // TODO: implement me!
         })
+        .path(interfaces::interface::ipv6::mtu::PATH)
+        .modify_apply(|master, args| {
+            let ifname = args.list_entry.into_interface().unwrap();
+            let mtu = args.dnode.get_u32();
+
+            let iface = master.interfaces.get_mut_by_name(&ifname).unwrap();
+            iface.config.mtu = Some(mtu);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::MtuChange(ifname, mtu));
+        })
+        .delete_apply(|master, args| {
+            let ifname = args.list_entry.into_interface().unwrap();
+
+            let iface = master.interfaces.get_mut_by_name(&ifname).unwrap();
+            iface.config.mtu = None;
+        })
         .path(interfaces::interface::ipv6::address::PATH)
         .create_apply(|master, args| {
             let ifname = args.list_entry.into_interface().unwrap();
@@ -185,6 +224,23 @@ fn load_callbacks() -> Callbacks<Master> {
         .build()
 }
 
+fn load_validation_callbacks() -> ValidationCallbacks {
+    ValidationCallbacksBuilder::default()
+        .path(interfaces::interface::PATH)
+        .validate(|args| {
+            // Validate MTUs.
+            if let Some(mtu4) = args.dnode.get_u16_relative("./ipv4/mtu")
+                && let Some(mtu6) = args.dnode.get_u32_relative("./ipv6/mtu")
+                && mtu4 as u32 != mtu6
+            {
+                return Err("IPv4 MTU and IPv6 MTU must be the same".to_owned());
+            }
+
+            Ok(())
+        })
+        .build()
+}
+
 // ===== impl Master =====
 
 #[async_trait]
@@ -192,6 +248,10 @@ impl Provider for Master {
     type ListEntry = ListEntry;
     type Event = Event;
     type Resource = Resource;
+
+    fn validation_callbacks() -> Option<&'static ValidationCallbacks> {
+        Some(&VALIDATION_CALLBACKS)
+    }
 
     fn callbacks() -> Option<&'static Callbacks<Master>> {
         Some(&CALLBACKS)
@@ -216,6 +276,16 @@ impl Provider for Master {
                         enabled,
                     )
                     .await;
+                }
+            }
+            Event::MtuChange(ifname, mtu) => {
+                // If the interface is active, change its MTU using the netlink
+                // handle.
+                if let Some(iface) = self.interfaces.get_by_name(&ifname)
+                    && let Some(ifindex) = iface.ifindex
+                {
+                    netlink::mtu_change(&self.netlink_handle, ifindex, mtu)
+                        .await;
                 }
             }
             Event::AddressInstall(ifname, addr) => {
@@ -254,6 +324,7 @@ impl Default for InterfaceCfg {
 
         InterfaceCfg {
             enabled,
+            mtu: None,
             addr_list: Default::default(),
         }
     }

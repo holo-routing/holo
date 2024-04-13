@@ -194,6 +194,16 @@ pub(crate) async fn admin_status_change(
     }
 }
 
+pub(crate) async fn mtu_change(handle: &Handle, ifindex: u32, mtu: u32) {
+    // Create netlink request.
+    let request = handle.link().set(ifindex).mtu(mtu);
+
+    // Execute request.
+    if let Err(error) = request.execute().await {
+        error!(%ifindex, %mtu, %error, "failed to change interface's MTU");
+    }
+}
+
 pub(crate) async fn addr_install(
     handle: &Handle,
     ifindex: u32,

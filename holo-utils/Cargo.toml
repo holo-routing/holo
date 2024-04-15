@@ -35,6 +35,10 @@ holo-yang = { path = "../holo-yang" }
 [lints.rust]
 rust_2018_idioms = "warn"
 
+[lints.clippy]
+too_many_arguments = "allow"
+manual_range_contains = "allow"
+
 [features]
 default = []
 testing = []

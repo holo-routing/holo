@@ -8,10 +8,11 @@ Holo uses unstable Rust features, so building it from the source code requires a
 
 If you don't already have Rust in your system, the best way to install it is via [rustup](https://rustup.rs/) (be sure to choose the nightly toolchain).
 
-2. Clone Holo's git repository
+2. Clone Holo's git repositories
 
 ```
 $ git clone https://github.com/holo-routing/holo.git
+$ git clone https://github.com/holo-routing/holo-cli.git
 ```
 
 3. Install build dependencies:
@@ -28,6 +29,8 @@ You can install them using your system's package manager. For example, on Debian
 ```
 $ cd holo/
 $ cargo build --release
+$ cd ../holo-cli/
+$ cargo build --release
 ```
 
 5. Add `holo` user and group:
@@ -39,7 +42,7 @@ $ cargo build --release
 
 6. Installation
 
-Copy the `holod` and `holo-cli` binaries from the `target/release` directory to your preferred location.
+Copy the `holod` and `holo-cli` binaries from the `target/release` directories to your preferred location.
 
 Alternatively, you can use `cargo install` to install these binaries into the `$HOME/.cargo/bin` directory.
 

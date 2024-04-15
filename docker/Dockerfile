@@ -16,7 +16,7 @@ WORKDIR /usr/src/holo
 COPY . .
 RUN cargo build --release
 
-# holo-cli (order is important as holo-cli is using protobuf file in holo)
+# holo-cli
 # ==============================================================================
 
 RUN git clone https://github.com/holo-routing/holo-cli.git /usr/src/holo-cli

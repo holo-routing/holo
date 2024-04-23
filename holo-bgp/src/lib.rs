@@ -8,7 +8,7 @@
     feature = "testing",
     allow(dead_code, unused_variables, unused_imports)
 )]
-#![feature(if_let_guard, let_chains, lazy_cell)]
+#![feature(extract_if, if_let_guard, let_chains, lazy_cell)]
 
 pub mod af;
 pub mod debug;

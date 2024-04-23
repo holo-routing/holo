@@ -12,11 +12,12 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use holo_protocol::InstanceChannelsTx;
-use holo_utils::bgp::AfiSafi;
+use holo_utils::bgp::{AfiSafi, RouteType, WellKnownCommunities};
 use holo_utils::ibus::IbusSender;
 use holo_utils::socket::{TcpConnInfo, TcpStream, TTL_MAX};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{Sender, UnboundedSender};
+use num_traits::FromPrimitive;
 use tokio::sync::mpsc;
 
 use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
@@ -32,7 +33,7 @@ use crate::packet::message::{
     Capability, DecodeCxt, EncodeCxt, KeepaliveMsg, Message,
     NegotiatedCapability, NotificationMsg, OpenMsg,
 };
-use crate::rib::{Rib, Route};
+use crate::rib::{Rib, Route, RouteOrigin};
 use crate::tasks::messages::input::{NbrRxMsg, NbrTimerMsg, TcpConnectMsg};
 use crate::tasks::messages::output::NbrTxMsg;
 #[cfg(feature = "testing")]
@@ -906,13 +907,14 @@ impl Neighbor {
                     (*prefix, Box::new(route))
                 })
             })
+            .filter(|(_, route)| self.distribute_filter(route))
             .collect::<Vec<_>>();
 
         // Advertise the best routes.
         events::advertise_routes::<A>(
             self,
             table,
-            &routes,
+            routes,
             instance.shared,
             &instance.state.policy_apply_tasks,
         );
@@ -942,6 +944,53 @@ impl Neighbor {
             // Enqueue prefix for the BGP Decision Process.
             table.queued_prefixes.insert(*prefix);
         }
+    }
+
+    // Determines whether the given route is eligible for distribution.
+    pub(crate) fn distribute_filter(&self, route: &Route) -> bool {
+        // Suppress advertisements to peers if their AS number is present
+        // in the AS path of the route, unless overridden by configuration.
+        if !self.config.as_path_options.disable_peer_as_filter
+            && route.attrs.base.value.as_path.contains(self.config.peer_as)
+        {
+            return false;
+        }
+
+        // RFC 4271 - Section 9.2:
+        // "When a BGP speaker receives an UPDATE message from an internal
+        // peer, the receiving BGP speaker SHALL NOT re-distribute the
+        // routing information contained in that UPDATE message to other
+        // internal peers".
+        if route.route_type == RouteType::Internal
+            && let RouteOrigin::Neighbor { remote_addr, .. } = &route.origin
+            && *remote_addr == self.remote_addr
+        {
+            return false;
+        }
+
+        // Handle well-known communities.
+        if let Some(comm) = &route.attrs.comm {
+            for comm in comm
+                .value
+                .iter()
+                .filter_map(|comm| WellKnownCommunities::from_u32(comm.0))
+            {
+                // Do not advertise to any other peer.
+                if comm == WellKnownCommunities::NoAdvertise {
+                    return false;
+                }
+
+                // Do not advertise to external peers.
+                if self.peer_type == PeerType::External
+                    && (comm == WellKnownCommunities::NoExport
+                        || comm == WellKnownCommunities::NoExportSubconfed)
+                {
+                    return false;
+                }
+            }
+        }
+
+        true
     }
 
     // Check if the given address-family is enabled for this session.

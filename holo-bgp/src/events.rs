@@ -8,7 +8,7 @@ use std::net::IpAddr;
 
 use chrono::Utc;
 use holo_protocol::InstanceShared;
-use holo_utils::bgp::{RouteType, WellKnownCommunities};
+use holo_utils::bgp::RouteType;
 use holo_utils::ibus::IbusSender;
 use holo_utils::ip::{IpAddrKind, IpNetworkKind};
 use holo_utils::policy::{PolicyResult, PolicyType};
@@ -757,17 +757,29 @@ where
             continue;
         }
 
+        // Evaluate routes eligible for distribution to this neighbor.
+        //
+        // Any routes that fail to meet the distribution criteria are marked
+        // as unreachable to ensure previous advertisements are withdrawn.
+        let mut nbr_unreach = unreach.clone();
+        let mut nbr_reach = reach.clone();
+        nbr_unreach.extend(
+            nbr_reach
+                .extract_if(|(_, route)| !nbr.distribute_filter(route))
+                .map(|(prefix, _)| prefix),
+        );
+
         // Withdraw unfeasible routes immediately.
-        if !unreach.is_empty() {
-            withdraw_routes::<A>(nbr, table, &unreach);
+        if !nbr_unreach.is_empty() {
+            withdraw_routes::<A>(nbr, table, &nbr_unreach);
         }
 
         // Advertise best routes.
-        if !reach.is_empty() {
+        if !nbr_reach.is_empty() {
             advertise_routes::<A>(
                 nbr,
                 table,
-                &reach,
+                nbr_reach,
                 instance.shared,
                 &instance.state.policy_apply_tasks,
             );
@@ -808,17 +820,14 @@ fn withdraw_routes<A>(
 pub(crate) fn advertise_routes<A>(
     nbr: &mut Neighbor,
     table: &mut RoutingTable<A>,
-    routes: &[(A::IpNetwork, Box<Route>)],
+    routes: Vec<(A::IpNetwork, Box<Route>)>,
     shared: &InstanceShared,
     policy_apply_tasks: &PolicyApplyTasks,
 ) where
     A: AddressFamily,
 {
     // Update pre-policy Adj-RIB-Out routes.
-    for (prefix, route) in routes
-        .iter()
-        .filter(|(_, route)| neighbor_redistribute_filter(nbr, route))
-    {
+    for (prefix, route) in &routes {
         let dest = table.prefixes.get_mut(prefix).unwrap();
         let adj_rib = dest.adj_rib.entry(nbr.remote_addr).or_default();
         adj_rib.out_pre = Some(route.clone());
@@ -834,9 +843,8 @@ pub(crate) fn advertise_routes<A>(
 
     // Enqueue export policy application.
     let routes = routes
-        .iter()
-        .filter(|(_, route)| neighbor_redistribute_filter(nbr, route))
-        .map(|(prefix, route)| ((*prefix).into(), route.policy_info()))
+        .into_iter()
+        .map(|(prefix, route)| (prefix.into(), route.policy_info()))
         .collect::<Vec<_>>();
     if !routes.is_empty() {
         let msg = PolicyApplyMsg::Neighbor {
@@ -854,51 +862,4 @@ pub(crate) fn advertise_routes<A>(
         };
         policy_apply_tasks.enqueue(msg);
     }
-}
-
-// Determines whether to redistribute a route to a neighbor.
-fn neighbor_redistribute_filter(nbr: &Neighbor, route: &Route) -> bool {
-    // Suppress advertisements to peers if their AS number is present
-    // in the AS path of the route, unless overridden by configuration.
-    if !nbr.config.as_path_options.disable_peer_as_filter
-        && route.attrs.base.value.as_path.contains(nbr.config.peer_as)
-    {
-        return false;
-    }
-
-    // RFC 4271 - Section 9.2:
-    // "When a BGP speaker receives an UPDATE message from an internal
-    // peer, the receiving BGP speaker SHALL NOT re-distribute the
-    // routing information contained in that UPDATE message to other
-    // internal peers".
-    if route.route_type == RouteType::Internal
-        && let RouteOrigin::Neighbor { remote_addr, .. } = &route.origin
-        && *remote_addr == nbr.remote_addr
-    {
-        return false;
-    }
-
-    // Handle well-known communities.
-    if let Some(comm) = &route.attrs.comm {
-        for comm in comm
-            .value
-            .iter()
-            .filter_map(|comm| WellKnownCommunities::from_u32(comm.0))
-        {
-            // Do not advertise to any other peer.
-            if comm == WellKnownCommunities::NoAdvertise {
-                return false;
-            }
-
-            // Do not advertise to external peers.
-            if nbr.peer_type == PeerType::External
-                && (comm == WellKnownCommunities::NoExport
-                    || comm == WellKnownCommunities::NoExportSubconfed)
-            {
-                return false;
-            }
-        }
-    }
-
-    true
 }

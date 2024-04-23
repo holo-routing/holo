@@ -27,7 +27,7 @@ use crate::packet::message::{
     Capability, Message, MpReachNlri, MpUnreachNlri, RouteRefreshMsg, UpdateMsg,
 };
 use crate::policy::RoutePolicyInfo;
-use crate::rib::{Rib, Route, RouteOrigin, RoutingTable};
+use crate::rib::{AttrSetsCxt, Rib, Route, RouteOrigin, RoutingTable};
 use crate::tasks::messages::output::PolicyApplyMsg;
 use crate::{network, rib};
 
@@ -306,7 +306,7 @@ fn process_nbr_reach_prefixes<A>(
         let dest = table.prefixes.entry(*prefix).or_default();
         let adj_rib = dest.adj_rib.entry(nbr.remote_addr).or_default();
         let route = Route::new(origin, route_attrs.clone(), route_type);
-        adj_rib.in_pre = Some(Box::new(route));
+        adj_rib.update_in_pre(Box::new(route), &mut rib.attr_sets);
     }
 
     // Get policy configuration for the address family.
@@ -361,8 +361,8 @@ fn process_nbr_unreach_prefixes<A>(
             continue;
         };
 
-        adj_rib.in_pre = None;
-        if let Some(route) = adj_rib.in_post.take() {
+        adj_rib.remove_in_pre(&mut rib.attr_sets);
+        if let Some(route) = adj_rib.remove_in_post(&mut rib.attr_sets) {
             rib::nexthop_untrack(&mut table.nht, &prefix, &route, ibus_tx);
         }
 
@@ -503,7 +503,7 @@ where
                     &instance.tx.ibus,
                 );
 
-                adj_rib.in_post = Some(Box::new(route));
+                adj_rib.update_in_post(Box::new(route), &mut rib.attr_sets);
             }
             PolicyResult::Reject => {
                 if let Some(route) = adj_rib.in_post.take() {
@@ -570,7 +570,8 @@ where
                         update = true;
                     }
                 } else {
-                    adj_rib.out_post = Some(Box::new(route));
+                    adj_rib
+                        .update_out_post(Box::new(route), &mut rib.attr_sets);
                     update = true;
                 }
 
@@ -734,6 +735,7 @@ where
             prefix,
             dest,
             best_route.clone(),
+            &mut instance.state.rib.attr_sets,
             selection_cfg,
             mpath_cfg,
             &instance.config.distance,
@@ -771,7 +773,12 @@ where
 
         // Withdraw unfeasible routes immediately.
         if !nbr_unreach.is_empty() {
-            withdraw_routes::<A>(nbr, table, &nbr_unreach);
+            withdraw_routes::<A>(
+                nbr,
+                table,
+                &nbr_unreach,
+                &mut instance.state.rib.attr_sets,
+            );
         }
 
         // Advertise best routes.
@@ -781,6 +788,7 @@ where
                 table,
                 nbr_reach,
                 instance.shared,
+                &mut instance.state.rib.attr_sets,
                 &instance.state.policy_apply_tasks,
             );
         }
@@ -793,6 +801,7 @@ fn withdraw_routes<A>(
     nbr: &mut Neighbor,
     table: &mut RoutingTable<A>,
     routes: &[A::IpNetwork],
+    attr_sets: &mut AttrSetsCxt,
 ) where
     A: AddressFamily,
 {
@@ -803,8 +812,8 @@ fn withdraw_routes<A>(
             continue;
         };
 
-        adj_rib.out_pre = None;
-        if adj_rib.out_post.take().is_some() {
+        adj_rib.remove_out_pre(attr_sets);
+        if adj_rib.remove_out_post(attr_sets).is_some() {
             let update_queue = A::update_queue(&mut nbr.update_queues);
             update_queue.unreach.insert(*prefix);
         }
@@ -822,6 +831,7 @@ pub(crate) fn advertise_routes<A>(
     table: &mut RoutingTable<A>,
     routes: Vec<(A::IpNetwork, Box<Route>)>,
     shared: &InstanceShared,
+    attr_sets: &mut AttrSetsCxt,
     policy_apply_tasks: &PolicyApplyTasks,
 ) where
     A: AddressFamily,
@@ -830,7 +840,7 @@ pub(crate) fn advertise_routes<A>(
     for (prefix, route) in &routes {
         let dest = table.prefixes.get_mut(prefix).unwrap();
         let adj_rib = dest.adj_rib.entry(nbr.remote_addr).or_default();
-        adj_rib.out_pre = Some(route.clone());
+        adj_rib.update_out_pre(route.clone(), attr_sets);
     }
 
     // Get policy configuration for the address family.

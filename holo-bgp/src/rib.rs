@@ -182,6 +182,99 @@ where
     }
 }
 
+// ===== impl AdjRib =====
+
+impl AdjRib {
+    fn remove(
+        table: &mut Option<Box<Route>>,
+        attr_sets: &mut AttrSetsCxt,
+    ) -> Option<Box<Route>> {
+        let route = table.take();
+
+        // Check attribute sets that might need to be removed.
+        if let Some(route) = &route {
+            attr_sets.remove_route_attr_sets(&route.attrs);
+        }
+
+        route
+    }
+
+    fn update(
+        table: &mut Option<Box<Route>>,
+        route: Box<Route>,
+        attr_sets: &mut AttrSetsCxt,
+    ) {
+        // Check attribute sets that might need to be removed.
+        if let Some(old_route) = table.take()
+            && old_route.attrs != route.attrs
+        {
+            attr_sets.remove_route_attr_sets(&old_route.attrs);
+        }
+
+        *table = Some(route)
+    }
+
+    pub(crate) fn remove_in_pre(
+        &mut self,
+        attr_sets: &mut AttrSetsCxt,
+    ) -> Option<Box<Route>> {
+        Self::remove(&mut self.in_pre, attr_sets)
+    }
+
+    pub(crate) fn remove_in_post(
+        &mut self,
+        attr_sets: &mut AttrSetsCxt,
+    ) -> Option<Box<Route>> {
+        Self::remove(&mut self.in_post, attr_sets)
+    }
+
+    pub(crate) fn remove_out_pre(
+        &mut self,
+        attr_sets: &mut AttrSetsCxt,
+    ) -> Option<Box<Route>> {
+        Self::remove(&mut self.out_pre, attr_sets)
+    }
+
+    pub(crate) fn remove_out_post(
+        &mut self,
+        attr_sets: &mut AttrSetsCxt,
+    ) -> Option<Box<Route>> {
+        Self::remove(&mut self.out_post, attr_sets)
+    }
+
+    pub(crate) fn update_in_pre(
+        &mut self,
+        route: Box<Route>,
+        attr_sets: &mut AttrSetsCxt,
+    ) {
+        Self::update(&mut self.in_pre, route, attr_sets);
+    }
+
+    pub(crate) fn update_in_post(
+        &mut self,
+        route: Box<Route>,
+        attr_sets: &mut AttrSetsCxt,
+    ) {
+        Self::update(&mut self.in_post, route, attr_sets);
+    }
+
+    pub(crate) fn update_out_pre(
+        &mut self,
+        route: Box<Route>,
+        attr_sets: &mut AttrSetsCxt,
+    ) {
+        Self::update(&mut self.out_pre, route, attr_sets);
+    }
+
+    pub(crate) fn update_out_post(
+        &mut self,
+        route: Box<Route>,
+        attr_sets: &mut AttrSetsCxt,
+    ) {
+        Self::update(&mut self.out_post, route, attr_sets);
+    }
+}
+
 // ===== impl Route =====
 
 impl Route {
@@ -444,6 +537,33 @@ impl AttrSetsCxt {
             unknown: attrs.unknown.clone(),
         }
     }
+
+    pub(crate) fn remove_route_attr_sets(&mut self, route_attrs: &RouteAttrs) {
+        let base = &route_attrs.base;
+        if Arc::strong_count(base) == 2 {
+            self.base.tree.remove(&base.value);
+        }
+        if let Some(comm) = &route_attrs.comm
+            && Arc::strong_count(comm) == 2
+        {
+            self.comm.tree.remove(&comm.value);
+        }
+        if let Some(ext_comm) = &route_attrs.ext_comm
+            && Arc::strong_count(ext_comm) == 2
+        {
+            self.ext_comm.tree.remove(&ext_comm.value);
+        }
+        if let Some(extv6_comm) = &route_attrs.extv6_comm
+            && Arc::strong_count(extv6_comm) == 2
+        {
+            self.extv6_comm.tree.remove(&extv6_comm.value);
+        }
+        if let Some(large_comm) = &route_attrs.large_comm
+            && Arc::strong_count(large_comm) == 2
+        {
+            self.large_comm.tree.remove(&large_comm.value);
+        }
+    }
 }
 
 // ===== impl AttrSets =====
@@ -605,6 +725,7 @@ pub(crate) fn loc_rib_update<A>(
     prefix: A::IpNetwork,
     dest: &mut Destination,
     best_route: Option<Box<Route>>,
+    attr_sets: &mut AttrSetsCxt,
     selection_cfg: &RouteSelectionCfg,
     mpath_cfg: &MultipathCfg,
     distance_cfg: &DistanceCfg,
@@ -660,6 +781,9 @@ pub(crate) fn loc_rib_update<A>(
         if let Some(local_route) = dest.local.take()
             && !local_route.origin.is_local()
         {
+            // Check attribute sets that might need to be removed.
+            attr_sets.remove_route_attr_sets(&local_route.attrs);
+
             // Uninstall route from the global RIB.
             southbound::tx::route_uninstall(ibus_tx, prefix);
         }

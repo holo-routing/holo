@@ -916,6 +916,7 @@ impl Neighbor {
             table,
             routes,
             instance.shared,
+            &mut instance.state.rib.attr_sets,
             &instance.state.policy_apply_tasks,
         );
     }

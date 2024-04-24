@@ -633,6 +633,10 @@ fn start_providers(
     let (provider_tx, provider_rx) = mpsc::unbounded_channel();
     let (ibus_tx, ibus_rx): (IbusSender, IbusReceiver) =
         broadcast::channel(1024);
+    let ibus_rx_routing = ibus_tx.subscribe();
+    let ibus_rx_interface = ibus_tx.subscribe();
+    let ibus_rx_keychain = ibus_tx.subscribe();
+    let ibus_rx_policy = ibus_rx;
 
     // Start holo-routing.
     #[cfg(feature = "routing")]
@@ -640,7 +644,7 @@ fn start_providers(
         let daemon_tx = holo_routing::start(
             provider_tx.clone(),
             ibus_tx.clone(),
-            ibus_tx.subscribe(),
+            ibus_rx_routing,
             db,
             config.event_recorder.clone(),
         );
@@ -653,7 +657,7 @@ fn start_providers(
         let daemon_tx = holo_interface::start(
             provider_tx.clone(),
             ibus_tx.clone(),
-            ibus_tx.subscribe(),
+            ibus_rx_interface,
         );
         providers.push(daemon_tx);
     }
@@ -664,7 +668,7 @@ fn start_providers(
         let daemon_tx = holo_keychain::start(
             provider_tx.clone(),
             ibus_tx.clone(),
-            ibus_tx.subscribe(),
+            ibus_rx_keychain,
         );
         providers.push(daemon_tx);
     }
@@ -672,7 +676,8 @@ fn start_providers(
     // Start holo-policy.
     #[cfg(feature = "policy")]
     {
-        let daemon_tx = holo_policy::start(provider_tx, ibus_tx, ibus_rx);
+        let daemon_tx =
+            holo_policy::start(provider_tx, ibus_tx, ibus_rx_policy);
         providers.push(daemon_tx);
     }
 

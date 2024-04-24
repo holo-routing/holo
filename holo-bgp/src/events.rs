@@ -717,7 +717,7 @@ where
     let queued_prefixes = std::mem::take(&mut table.queued_prefixes);
     let mut reach = vec![];
     let mut unreach = vec![];
-    for prefix in queued_prefixes {
+    for prefix in queued_prefixes.iter().copied() {
         let Some(dest) = table.prefixes.get_mut(&prefix) else {
             continue;
         };
@@ -791,6 +791,25 @@ where
                 &mut instance.state.rib.attr_sets,
                 &instance.state.policy_apply_tasks,
             );
+        }
+    }
+
+    // Remove routing table entries that no longer hold any data.
+    for prefix in queued_prefixes {
+        if let prefix_trie::map::Entry::Occupied(mut entry) =
+            table.prefixes.entry(prefix)
+        {
+            let dest = entry.get();
+            if dest.local.is_none()
+                && dest.adj_rib.values().all(|adj_rib| {
+                    adj_rib.in_pre.is_none()
+                        && adj_rib.in_post.is_none()
+                        && adj_rib.out_pre.is_none()
+                        && adj_rib.out_post.is_none()
+                })
+            {
+                entry.remove();
+            }
         }
     }
 

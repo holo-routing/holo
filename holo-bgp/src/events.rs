@@ -488,11 +488,11 @@ where
                 );
 
                 // Update nexthop tracking.
-                if let Some(old_route) = adj_rib.in_post.take() {
+                if let Some(old_route) = adj_rib.in_post() {
                     rib::nexthop_untrack(
                         &mut table.nht,
                         &prefix,
-                        &old_route,
+                        old_route,
                         &instance.tx.ibus,
                     );
                 }
@@ -506,7 +506,8 @@ where
                 adj_rib.update_in_post(Box::new(route), &mut rib.attr_sets);
             }
             PolicyResult::Reject => {
-                if let Some(route) = adj_rib.in_post.take() {
+                if let Some(route) = adj_rib.remove_in_post(&mut rib.attr_sets)
+                {
                     rib::nexthop_untrack(
                         &mut table.nht,
                         &prefix,
@@ -563,21 +564,17 @@ where
                     rpinfo.route_type,
                 );
 
-                let mut update = false;
-                if let Some(adj_rib_route) = &mut adj_rib.out_post {
-                    if adj_rib_route.attrs != route.attrs {
-                        *adj_rib_route = Box::new(route);
-                        update = true;
-                    }
+                // Check if the Adj-RIB-Out was updated.
+                let update = if let Some(adj_rib_route) = adj_rib.out_post() {
+                    adj_rib_route.attrs != route.attrs
                 } else {
+                    true
+                };
+
+                if update {
                     adj_rib
                         .update_out_post(Box::new(route), &mut rib.attr_sets);
-                    update = true;
-                }
 
-                // If the Adj-RIB-Out was updated, enqueue the route for
-                // transmission.
-                if update {
                     // Update route's attributes before transmission.
                     let mut attrs = rpinfo.attrs;
                     attrs_tx_update::<A>(
@@ -593,7 +590,7 @@ where
                 }
             }
             PolicyResult::Reject => {
-                if adj_rib.out_post.take().is_some() {
+                if adj_rib.remove_out_post(&mut rib.attr_sets).is_some() {
                     // Update neighbor's Tx queue.
                     let update_queue = A::update_queue(&mut nbr.update_queues);
                     update_queue.unreach.insert(prefix);
@@ -802,10 +799,10 @@ where
             let dest = entry.get();
             if dest.local.is_none()
                 && dest.adj_rib.values().all(|adj_rib| {
-                    adj_rib.in_pre.is_none()
-                        && adj_rib.in_post.is_none()
-                        && adj_rib.out_pre.is_none()
-                        && adj_rib.out_post.is_none()
+                    adj_rib.in_pre().is_none()
+                        && adj_rib.in_post().is_none()
+                        && adj_rib.out_pre().is_none()
+                        && adj_rib.out_post().is_none()
                 })
             {
                 entry.remove();

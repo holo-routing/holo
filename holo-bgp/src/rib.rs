@@ -61,10 +61,10 @@ pub struct Destination {
 
 #[derive(Debug, Default)]
 pub struct AdjRib {
-    pub in_pre: Option<Box<Route>>,
-    pub in_post: Option<Box<Route>>,
-    pub out_pre: Option<Box<Route>>,
-    pub out_post: Option<Box<Route>>,
+    in_pre: Option<Box<Route>>,
+    in_post: Option<Box<Route>>,
+    out_pre: Option<Box<Route>>,
+    out_post: Option<Box<Route>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -212,6 +212,22 @@ impl AdjRib {
         }
 
         *table = Some(route)
+    }
+
+    pub(crate) fn in_pre(&self) -> Option<&Box<Route>> {
+        self.in_pre.as_ref()
+    }
+
+    pub(crate) fn in_post(&self) -> Option<&Box<Route>> {
+        self.in_post.as_ref()
+    }
+
+    pub(crate) fn out_pre(&self) -> Option<&Box<Route>> {
+        self.out_pre.as_ref()
+    }
+
+    pub(crate) fn out_post(&self) -> Option<&Box<Route>> {
+        self.out_post.as_ref()
     }
 
     pub(crate) fn remove_in_pre(
@@ -791,14 +807,14 @@ pub(crate) fn loc_rib_update<A>(
         Debug::BestPathNotFound(prefix.into()).log();
 
         // Remove route from the Loc-RIB.
-        if let Some(local_route) = dest.local.take()
-            && !local_route.origin.is_local()
-        {
+        if let Some(local_route) = dest.local.take() {
             // Check attribute sets that might need to be removed.
             attr_sets.remove_route_attr_sets(&local_route.attrs);
 
             // Uninstall route from the global RIB.
-            southbound::tx::route_uninstall(ibus_tx, prefix);
+            if !local_route.origin.is_local() {
+                southbound::tx::route_uninstall(ibus_tx, prefix);
+            }
         }
     }
 }

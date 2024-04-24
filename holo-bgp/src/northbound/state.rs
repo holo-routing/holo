@@ -940,7 +940,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                         |(prefix, dest)| {
                             dest.adj_rib
                                 .get(&nbr.remote_addr)
-                                .and_then(|adj_rib| adj_rib.in_pre.as_ref())
+                                .and_then(|adj_rib| adj_rib.in_pre())
                                 .map(|route| {
                                     ListEntry::RibV4AdjInPreRoute(prefix, route)
                                 })
@@ -1041,7 +1041,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                         |(prefix, dest)| {
                             dest.adj_rib
                                 .get(&nbr.remote_addr)
-                                .and_then(|adj_rib| adj_rib.in_post.as_ref())
+                                .and_then(|adj_rib| adj_rib.in_post())
                                 .map(|route| {
                                     ListEntry::RibV4AdjInPostRoute(prefix, route)
                                 })
@@ -1147,7 +1147,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                         |(prefix, dest)| {
                             dest.adj_rib
                                 .get(&nbr.remote_addr)
-                                .and_then(|adj_rib| adj_rib.out_pre.as_ref())
+                                .and_then(|adj_rib| adj_rib.out_pre())
                                 .map(|route| {
                                     ListEntry::RibV4AdjOutPreRoute(prefix, route)
                                 })
@@ -1248,7 +1248,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                         |(prefix, dest)| {
                             dest.adj_rib
                                 .get(&nbr.remote_addr)
-                                .and_then(|adj_rib| adj_rib.out_post.as_ref())
+                                .and_then(|adj_rib| adj_rib.out_post())
                                 .map(|route| {
                                     ListEntry::RibV4AdjOutPostRoute(prefix, route)
                                 })
@@ -1458,7 +1458,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                         |(prefix, dest)| {
                             dest.adj_rib
                                 .get(&nbr.remote_addr)
-                                .and_then(|adj_rib| adj_rib.in_pre.as_ref())
+                                .and_then(|adj_rib| adj_rib.in_pre())
                                 .map(|route| {
                                     ListEntry::RibV6AdjInPreRoute(prefix, route)
                                 })
@@ -1559,7 +1559,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                         |(prefix, dest)| {
                             dest.adj_rib
                                 .get(&nbr.remote_addr)
-                                .and_then(|adj_rib| adj_rib.in_post.as_ref())
+                                .and_then(|adj_rib| adj_rib.in_post())
                                 .map(|route| {
                                     ListEntry::RibV6AdjInPostRoute(prefix, route)
                                 })
@@ -1665,7 +1665,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                         |(prefix, dest)| {
                             dest.adj_rib
                                 .get(&nbr.remote_addr)
-                                .and_then(|adj_rib| adj_rib.out_pre.as_ref())
+                                .and_then(|adj_rib| adj_rib.out_pre())
                                 .map(|route| {
                                     ListEntry::RibV6AdjOutPreRoute(prefix, route)
                                 })
@@ -1766,7 +1766,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                         |(prefix, dest)| {
                             dest.adj_rib
                                 .get(&nbr.remote_addr)
-                                .and_then(|adj_rib| adj_rib.out_post.as_ref())
+                                .and_then(|adj_rib| adj_rib.out_post())
                                 .map(|route| {
                                     ListEntry::RibV6AdjOutPostRoute(prefix, route)
                                 })

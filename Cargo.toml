@@ -79,8 +79,9 @@ rust_2018_idioms = "warn"
 unsafe_code = "forbid"
 
 [workspace.lints.clippy]
-too_many_arguments = "allow"
+borrowed_box = "allow"
 manual_range_contains = "allow"
+too_many_arguments = "allow"
 
 [profile.release]
 lto = true		# Enable link-time optimization for improved runtime performance

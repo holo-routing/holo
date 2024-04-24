@@ -929,10 +929,9 @@ impl Neighbor {
         let table = A::table(&mut rib.tables);
         for (prefix, dest) in table.prefixes.iter_mut() {
             // Clear the Adj-RIB-In and Adj-RIB-Out.
-            if let Some(adj_rib) = dest.adj_rib.remove(&self.remote_addr).take()
-            {
+            if let Some(mut adj_rib) = dest.adj_rib.remove(&self.remote_addr) {
                 // Update nexthop tracking.
-                if let Some(adj_in_route) = &adj_rib.in_post {
+                if let Some(adj_in_route) = adj_rib.in_post() {
                     rib::nexthop_untrack(
                         &mut table.nht,
                         prefix,
@@ -940,6 +939,11 @@ impl Neighbor {
                         ibus_tx,
                     );
                 }
+
+                adj_rib.remove_in_pre(&mut rib.attr_sets);
+                adj_rib.remove_in_post(&mut rib.attr_sets);
+                adj_rib.remove_out_pre(&mut rib.attr_sets);
+                adj_rib.remove_out_post(&mut rib.attr_sets);
             }
 
             // Enqueue prefix for the BGP Decision Process.

@@ -570,15 +570,28 @@ impl AttrSetsCxt {
 
 impl<T> AttrSets<T>
 where
-    T: Clone + Eq + Ord + PartialEq + PartialOrd,
+    T: Clone + Eq + std::hash::Hash + Ord + PartialEq + PartialOrd,
 {
     fn get(&mut self, attr: &T) -> Arc<AttrSet<T>> {
         if let Some(attr_set) = self.tree.get(attr) {
             Arc::clone(attr_set)
         } else {
-            self.next_index += 1;
+            let index = {
+                #[cfg(not(feature = "deterministic"))]
+                {
+                    self.next_index += 1;
+                    self.next_index
+                }
+                #[cfg(feature = "deterministic")]
+                {
+                    use std::hash::{DefaultHasher, Hasher};
+                    let mut hasher = DefaultHasher::new();
+                    attr.hash(&mut hasher);
+                    hasher.finish()
+                }
+            };
             let attr_set = Arc::new(AttrSet {
-                index: self.next_index,
+                index,
                 value: attr.clone(),
             });
             self.tree.insert(attr.clone(), Arc::clone(&attr_set));

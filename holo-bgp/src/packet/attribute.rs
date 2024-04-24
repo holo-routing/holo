@@ -42,7 +42,7 @@ pub struct Attrs {
     pub unknown: Option<Box<[UnknownAttr]>>,
 }
 
-#[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[skip_serializing_none]
 #[derive(Deserialize, Serialize)]
 pub struct BaseAttrs {
@@ -60,27 +60,27 @@ pub struct BaseAttrs {
     pub cluster_list: Option<ClusterList>,
 }
 
-#[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
 pub struct AsPath {
     pub segments: VecDeque<AsPathSegment>,
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
 pub struct AsPathSegment {
     pub seg_type: AsPathSegmentType,
     pub members: VecDeque<u32>,
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
 pub struct Aggregator {
     pub asn: u32,
     pub identifier: Ipv4Addr,
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
 pub struct ClusterList(pub BTreeSet<Ipv4Addr>);
 
@@ -90,12 +90,12 @@ pub type ExtComm = holo_utils::bgp::ExtComm;
 pub type Extv6Comm = holo_utils::bgp::Extv6Comm;
 pub type LargeComm = holo_utils::bgp::LargeComm;
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
 pub struct CommList<T: CommType>(pub BTreeSet<T>);
 
 pub trait CommType:
-    Clone + std::fmt::Debug + Eq + Ord + PartialEq + PartialOrd
+    Clone + std::fmt::Debug + Eq + std::hash::Hash + Ord + PartialEq + PartialOrd
 {
     const TYPE: AttrType;
     const LENGTH: usize;

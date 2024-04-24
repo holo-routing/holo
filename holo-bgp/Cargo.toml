@@ -36,7 +36,7 @@ holo-yang = { path = "../holo-yang" }
 [dev-dependencies]
 criterion.workspace = true
 
-holo-bgp = { path = ".", features = ["testing"] }
+holo-bgp = { path = ".", features = ["testing", "deterministic"] }
 holo-protocol = { path = "../holo-protocol", features = ["testing"] }
 holo-utils = { path = "../holo-utils", features = ["testing"] }
 
@@ -46,6 +46,7 @@ workspace = true
 [features]
 default = []
 testing = []
+deterministic = []
 
 [[bench]]
 name = "msg_encoding"

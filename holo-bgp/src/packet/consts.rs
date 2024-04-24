@@ -314,7 +314,7 @@ pub enum AttrType {
 // BGP Origin.
 pub type Origin = holo_utils::bgp::Origin;
 
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
 pub enum AsPathSegmentType {

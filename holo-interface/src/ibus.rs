@@ -8,11 +8,10 @@ use std::net::Ipv4Addr;
 
 use holo_utils::ibus::{IbusMsg, IbusSender};
 use holo_utils::ip::IpNetworkKind;
-use holo_utils::southbound::{
-    AddressFlags, AddressMsg, InterfaceFlags, InterfaceUpdateMsg,
-};
+use holo_utils::southbound::{AddressFlags, AddressMsg, InterfaceUpdateMsg};
 use ipnetwork::IpNetwork;
 
+use crate::interface::Interface;
 use crate::Master;
 
 // ===== global functions =====
@@ -21,13 +20,7 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
     match msg {
         IbusMsg::InterfaceDump => {
             for iface in master.interfaces.iter() {
-                notify_interface_update(
-                    &master.ibus_tx,
-                    iface.name.clone(),
-                    iface.ifindex.unwrap_or(0),
-                    iface.mtu.unwrap_or(0),
-                    iface.flags,
-                );
+                notify_interface_update(&master.ibus_tx, iface);
 
                 for iface_addr in iface.addresses.values() {
                     notify_addr_add(
@@ -41,13 +34,7 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
         }
         IbusMsg::InterfaceQuery { ifname, af } => {
             if let Some(iface) = master.interfaces.get_by_name(&ifname) {
-                notify_interface_update(
-                    &master.ibus_tx,
-                    iface.name.clone(),
-                    iface.ifindex.unwrap_or(0),
-                    iface.mtu.unwrap_or(0),
-                    iface.flags,
-                );
+                notify_interface_update(&master.ibus_tx, iface);
 
                 for iface_addr in
                     iface.addresses.values().filter(|iface_addr| match af {
@@ -83,18 +70,12 @@ pub(crate) fn notify_router_id_update(
     notify(ibus_tx, msg);
 }
 
-pub(crate) fn notify_interface_update(
-    ibus_tx: &IbusSender,
-    ifname: String,
-    ifindex: u32,
-    mtu: u32,
-    flags: InterfaceFlags,
-) {
+pub(crate) fn notify_interface_update(ibus_tx: &IbusSender, iface: &Interface) {
     let msg = IbusMsg::InterfaceUpd(InterfaceUpdateMsg {
-        ifname,
-        ifindex,
-        mtu,
-        flags,
+        ifname: iface.name.clone(),
+        ifindex: iface.ifindex.unwrap_or(0),
+        mtu: iface.mtu.unwrap_or(0),
+        flags: iface.flags,
     });
     notify(ibus_tx, msg);
 }

@@ -155,6 +155,11 @@ impl Interfaces {
                     return;
                 }
 
+                // Check if the interface operational status has changed.
+                let status_change =
+                    iface.flags.contains(InterfaceFlags::OPERATIVE)
+                        != flags.contains(InterfaceFlags::OPERATIVE);
+
                 // Update the existing interface with the new information.
                 if iface.name != ifname {
                     self.name_tree.remove(&iface.name);
@@ -164,6 +169,29 @@ impl Interfaces {
                 iface.owner.insert(Owner::SYSTEM);
                 iface.mtu = Some(mtu);
                 iface.flags = flags;
+
+                // Notify protocol instances about the interface update.
+                //
+                // Additionally, if the operational status of the interface has
+                // changed, either readvertise or withdraw its addresses.
+                if let Some(ibus_tx) = ibus_tx {
+                    ibus::notify_interface_update(ibus_tx, iface);
+
+                    if status_change {
+                        for addr in iface.addresses.values() {
+                            let ifname = iface.name.clone();
+                            if iface.flags.contains(InterfaceFlags::OPERATIVE) {
+                                ibus::notify_addr_add(
+                                    ibus_tx, ifname, addr.addr, addr.flags,
+                                );
+                            } else {
+                                ibus::notify_addr_del(
+                                    ibus_tx, ifname, addr.addr, addr.flags,
+                                );
+                            }
+                        }
+                    }
+                }
 
                 // In case the interface exists only in the configuration,
                 // initialize its ifindex and apply any pre-existing
@@ -187,15 +215,15 @@ impl Interfaces {
                     owner: Owner::SYSTEM,
                 };
 
+                // Notify protocol instances about the interface update.
+                if let Some(ibus_tx) = ibus_tx {
+                    ibus::notify_interface_update(ibus_tx, &iface);
+                }
+
                 let iface_idx = self.arena.insert(iface);
                 self.name_tree.insert(ifname.clone(), iface_idx);
                 self.ifindex_tree.insert(ifindex, iface_idx);
             }
-        }
-
-        // Notify protocol instances about the interface update.
-        if let Some(ibus_tx) = ibus_tx {
-            ibus::notify_interface_update(ibus_tx, ifname, ifindex, mtu, flags);
         }
     }
 

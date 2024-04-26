@@ -397,10 +397,10 @@ fn process_nbr_route_refresh(
 
     match (afi, safi) {
         (Afi::Ipv4, Safi::Unicast) => {
-            process_nbr_route_refresh_af::<Ipv4Unicast>(instance, nbr)
+            nbr.resend_adj_rib_out::<Ipv4Unicast>(instance);
         }
         (Afi::Ipv6, Safi::Unicast) => {
-            process_nbr_route_refresh_af::<Ipv6Unicast>(instance, nbr)
+            nbr.resend_adj_rib_out::<Ipv6Unicast>(instance);
         }
         _ => {
             // Ignore unsupported AFI/SAFI combination.
@@ -415,36 +415,6 @@ fn process_nbr_route_refresh(
     }
 
     Ok(())
-}
-
-fn process_nbr_route_refresh_af<A>(
-    instance: &mut InstanceUpView<'_>,
-    nbr: &mut Neighbor,
-) where
-    A: AddressFamily,
-{
-    let table = A::table(&mut instance.state.rib.tables);
-    for (prefix, dest) in &table.prefixes {
-        let Some(adj_rib) = dest.adj_rib.get(&nbr.remote_addr) else {
-            continue;
-        };
-        let Some(route) = adj_rib.out_post() else {
-            continue;
-        };
-
-        // Update route's attributes before transmission.
-        let mut attrs = route.attrs.get();
-        attrs_tx_update::<A>(
-            nbr,
-            instance.config.asn,
-            route.origin.is_local(),
-            &mut attrs,
-        );
-
-        // Update neighbor's Tx queue.
-        let update_queue = A::update_queue(&mut nbr.update_queues);
-        update_queue.reach.entry(attrs).or_default().insert(*prefix);
-    }
 }
 
 // ===== neighbor expired timeout =====
@@ -592,11 +562,11 @@ where
 
                     // Update route's attributes before transmission.
                     let mut attrs = rpinfo.attrs;
-                    attrs_tx_update::<A>(
+                    rib::attrs_tx_update::<A>(
+                        &mut attrs,
                         nbr,
                         instance.config.asn,
                         rpinfo.origin.is_local(),
-                        &mut attrs,
                     );
 
                     // Update neighbor's Tx queue.
@@ -621,37 +591,6 @@ where
     }
 
     Ok(())
-}
-
-fn attrs_tx_update<A>(
-    nbr: &Neighbor,
-    local_asn: u32,
-    local: bool,
-    attrs: &mut Attrs,
-) where
-    A: AddressFamily,
-{
-    match nbr.peer_type {
-        PeerType::Internal => {
-            // Attach LOCAL_PREF with default value if it's missing.
-            if attrs.base.local_pref.is_none() {
-                attrs.base.local_pref = Some(rib::DFLT_LOCAL_PREF);
-            }
-        }
-        PeerType::External => {
-            // Prepend local AS number.
-            attrs.base.as_path.prepend(local_asn);
-
-            // Do not propagate the MULTI_EXIT_DISC attribute.
-            attrs.base.med = None;
-
-            // Remove the LOCAL_PREF attribute.
-            attrs.base.local_pref = None;
-        }
-    }
-
-    // Update the next-hop attribute based on the address family if necessary.
-    A::nexthop_tx_change(nbr, local, &mut attrs.base);
 }
 
 // ===== redistribute policy import result =====

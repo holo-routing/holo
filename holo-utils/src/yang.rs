@@ -16,6 +16,7 @@ use crate::ip::AddressFamily;
 
 /// Extension methods for DataNodeRef.
 pub trait DataNodeRefExt {
+    fn exists(&self, path: &str) -> bool;
     fn get_u8(&self) -> u8;
     fn get_u8_relative(&self, path: &str) -> Option<u8>;
     fn get_u16(&self) -> u16;
@@ -55,6 +56,10 @@ pub trait DataNodeRefExt {
 // ===== impl DataNodeRef =====
 
 impl<'a> DataNodeRefExt for DataNodeRef<'a> {
+    fn exists(&self, path: &str) -> bool {
+        self.find_xpath(path).unwrap().next().is_some()
+    }
+
     fn get_u8(&self) -> u8 {
         if let DataValue::Uint8(value) =
             self.value().expect("data node doesn't hold any value")

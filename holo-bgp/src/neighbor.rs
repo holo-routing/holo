@@ -17,7 +17,7 @@ use holo_utils::ibus::IbusSender;
 use holo_utils::socket::{TcpConnInfo, TcpStream, TTL_MAX};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{Sender, UnboundedSender};
-use num_traits::FromPrimitive;
+use num_traits::{FromPrimitive, ToPrimitive};
 use tokio::sync::mpsc;
 
 use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
@@ -26,13 +26,14 @@ use crate::error::Error;
 use crate::instance::{Instance, InstanceUpView};
 use crate::northbound::configuration::{InstanceCfg, NeighborCfg};
 use crate::northbound::notification;
+use crate::northbound::rpc::ClearType;
 use crate::packet::attribute::Attrs;
 use crate::packet::consts::{
-    Afi, ErrorCode, FsmErrorSubcode, Safi, AS_TRANS, BGP_VERSION,
+    Afi, CeaseSubcode, ErrorCode, FsmErrorSubcode, Safi, AS_TRANS, BGP_VERSION,
 };
 use crate::packet::message::{
     Capability, DecodeCxt, EncodeCxt, KeepaliveMsg, Message,
-    NegotiatedCapability, NotificationMsg, OpenMsg,
+    NegotiatedCapability, NotificationMsg, OpenMsg, RouteRefreshMsg,
 };
 use crate::rib::{Rib, Route, RouteOrigin};
 use crate::tasks::messages::input::{NbrRxMsg, NbrTimerMsg, TcpConnectMsg};
@@ -929,6 +930,37 @@ impl Neighbor {
         );
     }
 
+    // Re-send the current Adj-RIB-Out.
+    pub(crate) fn resend_adj_rib_out<A>(
+        &mut self,
+        instance: &mut InstanceUpView<'_>,
+    ) where
+        A: AddressFamily,
+    {
+        let table = A::table(&mut instance.state.rib.tables);
+        for (prefix, dest) in &table.prefixes {
+            let Some(adj_rib) = dest.adj_rib.get(&self.remote_addr) else {
+                continue;
+            };
+            let Some(route) = adj_rib.out_post() else {
+                continue;
+            };
+
+            // Update route's attributes before transmission.
+            let mut attrs = route.attrs.get();
+            rib::attrs_tx_update::<A>(
+                &mut attrs,
+                self,
+                instance.config.asn,
+                route.origin.is_local(),
+            );
+
+            // Update neighbor's Tx queue.
+            let update_queue = A::update_queue(&mut self.update_queues);
+            update_queue.reach.entry(attrs).or_default().insert(*prefix);
+        }
+    }
+
     // Clears the Adj-RIB-In and Adj-RIB-Out for the given address family.
     fn clear_routes<A>(&mut self, rib: &mut Rib, ibus_tx: &IbusSender)
     where
@@ -956,6 +988,63 @@ impl Neighbor {
 
             // Enqueue prefix for the BGP Decision Process.
             table.queued_prefixes.insert(*prefix);
+        }
+    }
+
+    // Clears the neighbor session.
+    pub(crate) fn clear_session(
+        &mut self,
+        instance: &mut InstanceUpView<'_>,
+        clear_type: ClearType,
+    ) {
+        match clear_type {
+            ClearType::Admin => {
+                // Close the session with the "Administrative Reset" subcode.
+                let msg = NotificationMsg::new(
+                    ErrorCode::Cease,
+                    CeaseSubcode::AdministrativeReset,
+                );
+                self.fsm_event(instance, fsm::Event::Stop(Some(msg)));
+            }
+            ClearType::Hard => {
+                // Close the session with the "Hard Reset" subcode.
+                let msg = NotificationMsg::new(
+                    ErrorCode::Cease,
+                    CeaseSubcode::HardReset,
+                );
+                self.fsm_event(instance, fsm::Event::Stop(Some(msg)));
+            }
+            ClearType::Soft => {
+                // Re-send the current Adj-RIB-Out to this neighbor.
+                self.resend_adj_rib_out::<Ipv4Unicast>(instance);
+                self.resend_adj_rib_out::<Ipv6Unicast>(instance);
+                let msg_list = self.update_queues.build_updates();
+                if !msg_list.is_empty() {
+                    self.message_list_send(msg_list);
+                }
+            }
+            ClearType::SoftInbound => {
+                // Request the Adj-RIB-In for this neighbor to be re-sent.
+                for (afi, safi) in self
+                    .capabilities_nego
+                    .iter()
+                    .filter_map(|cap| {
+                        if let NegotiatedCapability::MultiProtocol {
+                            afi,
+                            safi,
+                        } = cap
+                        {
+                            Some((afi.to_u16().unwrap(), safi.to_u8().unwrap()))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                {
+                    let msg = RouteRefreshMsg { afi, safi };
+                    self.message_send(Message::RouteRefresh(msg));
+                }
+            }
         }
     }
 

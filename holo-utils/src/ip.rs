@@ -11,7 +11,7 @@ use std::net::{
 
 use holo_yang::{ToYang, TryFromYang};
 use ipnetwork::{IpNetwork, IpNetworkError, Ipv4Network, Ipv6Network};
-use num_derive::FromPrimitive;
+use num_derive::{FromPrimitive, ToPrimitive};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -19,7 +19,8 @@ use serde::{Deserialize, Serialize};
 //
 // IANA registry:
 // http://www.iana.org/assignments/address-family-numbers
-#[derive(Clone, Copy, Debug, Eq, Ord, FromPrimitive, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
 pub enum AddressFamily {
     Ipv4 = 1,

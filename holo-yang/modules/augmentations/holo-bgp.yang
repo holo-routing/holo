@@ -77,6 +77,19 @@ module holo-bgp {
    */
 
   augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:clear/bgp:input" {
+    leaf remote-addr {
+      type leafref {
+        path "/rt:routing/rt:control-plane-protocols/"
+          + "rt:control-plane-protocol/bgp:bgp/bgp:neighbors/"
+          + "bgp:neighbor/bgp:remote-address";
+      }
+      description
+        "IP address of the neighbor";
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
         + "rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:neighbor/"
         + "bgp:transport/bgp:secure-session/bgp:options/bgp:option/bgp:md5" {
     leaf md5-key-string {

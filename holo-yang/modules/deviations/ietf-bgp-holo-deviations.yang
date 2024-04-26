@@ -876,6 +876,20 @@ module ietf-bgp-holo-deviations {
   }
   */
 
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:clear/bgp:input/bgp:clear-at" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:clear/bgp:output" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:clear/bgp:output/bgp:clear-finished-at" {
+    deviate not-supported;
+  }
+  */
+
   /*
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:established" {
     deviate not-supported;

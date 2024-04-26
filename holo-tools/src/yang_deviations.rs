@@ -45,7 +45,11 @@ fn main() {
     // Initialize YANG context.
     let mut yang_ctx = yang::new_context();
 
-    // Load YANG module.
+    // Load base YANG modules that define features used by other modules.
+    yang::load_module(&mut yang_ctx, "ietf-bfd-types");
+    yang::load_module(&mut yang_ctx, "iana-bgp-types");
+
+    // Load requested YANG module.
     yang::load_module(&mut yang_ctx, module_name);
     let module = yang_ctx
         .get_module_latest(module_name)

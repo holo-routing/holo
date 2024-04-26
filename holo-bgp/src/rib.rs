@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
 use crate::debug::Debug;
+use crate::neighbor::{Neighbor, PeerType};
 use crate::northbound::configuration::{
     DistanceCfg, MultipathCfg, RouteSelectionCfg,
 };
@@ -817,6 +818,37 @@ pub(crate) fn loc_rib_update<A>(
             }
         }
     }
+}
+
+pub(crate) fn attrs_tx_update<A>(
+    attrs: &mut Attrs,
+    nbr: &Neighbor,
+    local_asn: u32,
+    local: bool,
+) where
+    A: AddressFamily,
+{
+    match nbr.peer_type {
+        PeerType::Internal => {
+            // Attach LOCAL_PREF with default value if it's missing.
+            if attrs.base.local_pref.is_none() {
+                attrs.base.local_pref = Some(DFLT_LOCAL_PREF);
+            }
+        }
+        PeerType::External => {
+            // Prepend local AS number.
+            attrs.base.as_path.prepend(local_asn);
+
+            // Do not propagate the MULTI_EXIT_DISC attribute.
+            attrs.base.med = None;
+
+            // Remove the LOCAL_PREF attribute.
+            attrs.base.local_pref = None;
+        }
+    }
+
+    // Update the next-hop attribute based on the address family if necessary.
+    A::nexthop_tx_change(nbr, local, &mut attrs.base);
 }
 
 pub(crate) fn nexthop_track<A>(

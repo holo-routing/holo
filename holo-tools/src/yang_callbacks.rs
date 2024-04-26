@@ -265,6 +265,7 @@ fn main() {
 
     // Load base YANG modules that define features used by other modules.
     yang::load_module(&mut yang_ctx, "ietf-bfd-types");
+    yang::load_module(&mut yang_ctx, "iana-bgp-types");
 
     // Load provided YANG module.
     yang::load_module(&mut yang_ctx, module_name);

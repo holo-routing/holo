@@ -5,6 +5,7 @@
 //
 
 use holo_northbound::rpc::Provider;
+use holo_northbound::yang::control_plane_protocol;
 use holo_northbound::{CallbackKey, NbDaemonSender};
 use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
@@ -69,7 +70,11 @@ fn find_instance(
 ) -> Result<(Protocol, Option<String>), String> {
     let (protocol, name) = match rpc.schema().module().name() {
         "ietf-bgp" => {
-            todo!()
+            let protocol = Protocol::BGP;
+            let name = rpc.get_string_relative(
+                control_plane_protocol::name::PATH.as_ref(),
+            );
+            (protocol, name)
         }
         "ietf-mpls-ldp" => {
             let protocol = Protocol::LDP;

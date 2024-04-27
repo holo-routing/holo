@@ -50,16 +50,16 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "outgoing-interface": "eth-sw1",
-                        "next-hop": "10.0.1.2"
-                      },
-                      {
                         "outgoing-interface": "eth-rt5-1",
                         "next-hop": "5.5.5.5"
                       },
                       {
                         "outgoing-interface": "eth-rt5-2",
                         "next-hop": "5.5.5.5"
+                      },
+                      {
+                        "outgoing-interface": "eth-sw1",
+                        "next-hop": "10.0.1.2"
                       }
                     ]
                   },

@@ -927,6 +927,42 @@
                   }
                 },
                 {
+                  "lsr-id": "10.10.10.10",
+                  "label-space-id": 0,
+                  "address-families": {
+                    "ipv4": {
+                      "hello-adjacencies": {
+                        "hello-adjacency": [
+                          {
+                            "local-address": "10.0.1.2",
+                            "adjacent-address": "10.0.1.10",
+                            "hello-holdtime": {
+                              "adjacent": 15,
+                              "negotiated": 15
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "received-peer-state": {
+                    "capability": {
+                      "end-of-lib": {
+                        "enabled": false
+                      },
+                      "typed-wildcard-fec": {
+                        "enabled": false
+                      }
+                    }
+                  },
+                  "session-state": "non-existent",
+                  "statistics": {
+                    "total-addresses": 0,
+                    "total-labels": 0,
+                    "total-fec-label-bindings": 0
+                  }
+                },
+                {
                   "lsr-id": "3.3.3.3",
                   "label-space-id": 0,
                   "address-families": {
@@ -1030,42 +1066,6 @@
                     "total-addresses": 5,
                     "total-labels": 14,
                     "total-fec-label-bindings": 6
-                  }
-                },
-                {
-                  "lsr-id": "10.10.10.10",
-                  "label-space-id": 0,
-                  "address-families": {
-                    "ipv4": {
-                      "hello-adjacencies": {
-                        "hello-adjacency": [
-                          {
-                            "local-address": "10.0.1.2",
-                            "adjacent-address": "10.0.1.10",
-                            "hello-holdtime": {
-                              "adjacent": 15,
-                              "negotiated": 15
-                            }
-                          }
-                        ]
-                      }
-                    }
-                  },
-                  "received-peer-state": {
-                    "capability": {
-                      "end-of-lib": {
-                        "enabled": false
-                      },
-                      "typed-wildcard-fec": {
-                        "enabled": false
-                      }
-                    }
-                  },
-                  "session-state": "non-existent",
-                  "statistics": {
-                    "total-addresses": 0,
-                    "total-labels": 0,
-                    "total-fec-label-bindings": 0
                   }
                 }
               ]

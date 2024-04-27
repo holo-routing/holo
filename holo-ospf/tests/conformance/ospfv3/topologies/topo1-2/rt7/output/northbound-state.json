@@ -20,7 +20,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt6",
-                        "next-hop": "fe80::a0fe:b2ff:fe79:ebdc"
+                        "next-hop": "fe80::94ef:6fff:fe5f:77c4"
                       }
                     ]
                   },
@@ -33,7 +33,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt6",
-                        "next-hop": "fe80::a0fe:b2ff:fe79:ebdc"
+                        "next-hop": "fe80::94ef:6fff:fe5f:77c4"
                       }
                     ]
                   },
@@ -407,9 +407,9 @@
                         "name": "eth-rt6",
                         "state": "dr",
                         "dr-router-id": "7.7.7.7",
-                        "dr-ip-addr": "fe80::80fb:34ff:fe76:112",
+                        "dr-ip-addr": "fe80::3c3a:5cff:fecc:23c0",
                         "bdr-router-id": "6.6.6.6",
-                        "bdr-ip-addr": "fe80::a0fe:b2ff:fe79:ebdc",
+                        "bdr-ip-addr": "fe80::94ef:6fff:fe5f:77c4",
                         "statistics": {
                           "link-scope-lsa-count": 2,
                           "database": {
@@ -425,11 +425,11 @@
                           "neighbor": [
                             {
                               "neighbor-router-id": "6.6.6.6",
-                              "address": "fe80::a0fe:b2ff:fe79:ebdc",
+                              "address": "fe80::94ef:6fff:fe5f:77c4",
                               "dr-router-id": "7.7.7.7",
-                              "dr-ip-addr": "fe80::80fb:34ff:fe76:112",
+                              "dr-ip-addr": "fe80::3c3a:5cff:fecc:23c0",
                               "bdr-router-id": "6.6.6.6",
-                              "bdr-ip-addr": "fe80::a0fe:b2ff:fe79:ebdc",
+                              "bdr-ip-addr": "fe80::94ef:6fff:fe5f:77c4",
                               "state": "full",
                               "statistics": {
                                 "nbr-retrans-qlen": 0
@@ -464,7 +464,7 @@
                                               "af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::a0fe:b2ff:fe79:ebdc",
+                                          "link-local-interface-address": "fe80::94ef:6fff:fe5f:77c4",
                                           "num-of-prefixes": 0
                                         }
                                       }
@@ -491,7 +491,7 @@
                                               "af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::80fb:34ff:fe76:112",
+                                          "link-local-interface-address": "fe80::3c3a:5cff:fecc:23c0",
                                           "num-of-prefixes": 0
                                         }
                                       }

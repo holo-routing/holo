@@ -20,7 +20,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt3",
-                        "next-hop": "fe80::c88d:cfff:fe88:5e18"
+                        "next-hop": "fe80::444a:34ff:feca:fa78"
                       }
                     ]
                   },
@@ -33,7 +33,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt3",
-                        "next-hop": "fe80::c88d:cfff:fe88:5e18"
+                        "next-hop": "fe80::444a:34ff:feca:fa78"
                       }
                     ]
                   },
@@ -46,7 +46,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt3",
-                        "next-hop": "fe80::c88d:cfff:fe88:5e18"
+                        "next-hop": "fe80::444a:34ff:feca:fa78"
                       }
                     ]
                   },
@@ -59,7 +59,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt3",
-                        "next-hop": "fe80::c88d:cfff:fe88:5e18"
+                        "next-hop": "fe80::444a:34ff:feca:fa78"
                       }
                     ]
                   },
@@ -72,7 +72,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt3",
-                        "next-hop": "fe80::c88d:cfff:fe88:5e18"
+                        "next-hop": "fe80::444a:34ff:feca:fa78"
                       }
                     ]
                   },
@@ -90,7 +90,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt7",
-                        "next-hop": "fe80::9c0f:ffff:fe72:fdf1"
+                        "next-hop": "fe80::9870:87ff:fec9:f923"
                       }
                     ]
                   },
@@ -103,7 +103,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt3",
-                        "next-hop": "fe80::c88d:cfff:fe88:5e18"
+                        "next-hop": "fe80::444a:34ff:feca:fa78"
                       }
                     ]
                   },
@@ -754,7 +754,7 @@
                           "neighbor": [
                             {
                               "neighbor-router-id": "3.3.3.3",
-                              "address": "fe80::c88d:cfff:fe88:5e18",
+                              "address": "fe80::444a:34ff:feca:fa78",
                               "state": "full",
                               "statistics": {
                                 "nbr-retrans-qlen": 0
@@ -790,7 +790,7 @@
                                               "af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::c88d:cfff:fe88:5e18",
+                                          "link-local-interface-address": "fe80::444a:34ff:feca:fa78",
                                           "num-of-prefixes": 0
                                         }
                                       }
@@ -818,7 +818,7 @@
                                               "af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::f011:87ff:feb3:1260",
+                                          "link-local-interface-address": "fe80::fcc1:82ff:fe83:a148",
                                           "num-of-prefixes": 0
                                         }
                                       }
@@ -1141,7 +1141,7 @@
                           "neighbor": [
                             {
                               "neighbor-router-id": "7.7.7.7",
-                              "address": "fe80::9c0f:ffff:fe72:fdf1",
+                              "address": "fe80::9870:87ff:fec9:f923",
                               "state": "full",
                               "statistics": {
                                 "nbr-retrans-qlen": 0
@@ -1176,7 +1176,7 @@
                                               "af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::50af:3dff:fe58:9ebc",
+                                          "link-local-interface-address": "fe80::605c:4aff:feb7:227d",
                                           "num-of-prefixes": 0
                                         }
                                       }
@@ -1203,7 +1203,7 @@
                                               "af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::9c0f:ffff:fe72:fdf1",
+                                          "link-local-interface-address": "fe80::9870:87ff:fec9:f923",
                                           "num-of-prefixes": 0
                                         }
                                       }

@@ -1,6 +1,6 @@
 {"ietf-ospf:if-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"eth-rt4"},"state":"point-to-point"}}
 {"ietf-ospf:if-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"lo"},"state":"loopback"}}
-{"ietf-ospf:nbr-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"eth-rt4"},"neighbor-router-id":"4.4.4.4","neighbor-ip-addr":"fe80::a82e:92ff:fea6:9aa9","state":"init"}}
-{"ietf-ospf:nbr-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"eth-rt4"},"neighbor-router-id":"4.4.4.4","neighbor-ip-addr":"fe80::a82e:92ff:fea6:9aa9","state":"exstart"}}
-{"ietf-ospf:nbr-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"eth-rt4"},"neighbor-router-id":"4.4.4.4","neighbor-ip-addr":"fe80::a82e:92ff:fea6:9aa9","state":"exchange"}}
-{"ietf-ospf:nbr-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"eth-rt4"},"neighbor-router-id":"4.4.4.4","neighbor-ip-addr":"fe80::a82e:92ff:fea6:9aa9","state":"full"}}
+{"ietf-ospf:nbr-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"eth-rt4"},"neighbor-router-id":"4.4.4.4","neighbor-ip-addr":"fe80::8cb3:d4ff:fe9f:b17f","state":"init"}}
+{"ietf-ospf:nbr-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"eth-rt4"},"neighbor-router-id":"4.4.4.4","neighbor-ip-addr":"fe80::8cb3:d4ff:fe9f:b17f","state":"exstart"}}
+{"ietf-ospf:nbr-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"eth-rt4"},"neighbor-router-id":"4.4.4.4","neighbor-ip-addr":"fe80::8cb3:d4ff:fe9f:b17f","state":"exchange"}}
+{"ietf-ospf:nbr-state-change":{"routing-protocol-name":"test","address-family":"ipv6","interface":{"interface":"eth-rt4"},"neighbor-router-id":"4.4.4.4","neighbor-ip-addr":"fe80::8cb3:d4ff:fe9f:b17f","state":"full"}}

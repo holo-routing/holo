@@ -624,11 +624,11 @@
                                   "lsa-id": "5.5.5.5",
                                   "type": "ospfv2-router-lsa",
                                   "adv-router": "5.5.5.5",
-                                  "length": 132
+                                  "length": 120
                                 },
                                 "body": {
                                   "router": {
-                                    "num-of-links": 9,
+                                    "num-of-links": 8,
                                     "links": {
                                       "link": [
                                         {
@@ -700,19 +700,6 @@
                                           "link-id": "10.0.6.0",
                                           "link-data": "255.255.255.0",
                                           "type": "stub-network-link",
-                                          "topologies": {
-                                            "topology": [
-                                              {
-                                                "mt-id": 0,
-                                                "metric": 10
-                                              }
-                                            ]
-                                          }
-                                        },
-                                        {
-                                          "link-id": "6.6.6.6",
-                                          "link-data": "10.0.8.5",
-                                          "type": "point-to-point-link",
                                           "topologies": {
                                             "topology": [
                                               {
@@ -1163,7 +1150,7 @@
                               "address": "10.0.2.2",
                               "state": "full",
                               "statistics": {
-                                "nbr-retrans-qlen": 2
+                                "nbr-retrans-qlen": 3
                               }
                             }
                           ]
@@ -1182,7 +1169,7 @@
                               "address": "10.0.3.2",
                               "state": "full",
                               "statistics": {
-                                "nbr-retrans-qlen": 2
+                                "nbr-retrans-qlen": 3
                               }
                             }
                           ]
@@ -1228,7 +1215,7 @@
                               "address": "10.0.7.6",
                               "state": "full",
                               "statistics": {
-                                "nbr-retrans-qlen": 2
+                                "nbr-retrans-qlen": 3
                               }
                             }
                           ]

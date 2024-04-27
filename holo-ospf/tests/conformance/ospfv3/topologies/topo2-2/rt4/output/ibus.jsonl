@@ -4,8 +4,8 @@
 {"InterfaceQuery":{"ifname":"eth-rt5","af":"Ipv6"}}
 {"InterfaceQuery":{"ifname":"eth-rt6","af":"Ipv6"}}
 {"InterfaceQuery":{"ifname":"lo","af":"Ipv6"}}
-{"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::2/128","distance":110,"metric":10,"tag":null,"nexthops":[{"Address":{"ifindex":4,"addr":"fe80::5c39:bdff:fef2:2533","labels":[]}},{"Address":{"ifindex":6,"addr":"fe80::68b9:44ff:fe63:f91d","labels":[]}}]}}
-{"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::5/128","distance":110,"metric":10,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::6013:79ff:fe52:7348","labels":[]}}]}}
-{"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::6/128","distance":110,"metric":10,"tag":null,"nexthops":[{"Address":{"ifindex":7,"addr":"fe80::188b:ff:fe2e:ca14","labels":[]}}]}}
-{"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::1/128","distance":110,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":4,"addr":"fe80::5c39:bdff:fef2:2533","labels":[]}},{"Address":{"ifindex":6,"addr":"fe80::68b9:44ff:fe63:f91d","labels":[]}}]}}
-{"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::3/128","distance":110,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":4,"addr":"fe80::5c39:bdff:fef2:2533","labels":[]}},{"Address":{"ifindex":6,"addr":"fe80::68b9:44ff:fe63:f91d","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::2/128","distance":110,"metric":10,"tag":null,"nexthops":[{"Address":{"ifindex":4,"addr":"fe80::8c98:2cff:fee5:4673","labels":[]}},{"Address":{"ifindex":6,"addr":"fe80::34b0:7ff:feb0:84ae","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::5/128","distance":110,"metric":10,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::400f:34ff:feeb:576d","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::6/128","distance":110,"metric":10,"tag":null,"nexthops":[{"Address":{"ifindex":7,"addr":"fe80::dc79:3eff:fef5:45fa","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::1/128","distance":110,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":4,"addr":"fe80::8c98:2cff:fee5:4673","labels":[]}},{"Address":{"ifindex":6,"addr":"fe80::34b0:7ff:feb0:84ae","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::3/128","distance":110,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":4,"addr":"fe80::8c98:2cff:fee5:4673","labels":[]}},{"Address":{"ifindex":6,"addr":"fe80::34b0:7ff:feb0:84ae","labels":[]}}]}}

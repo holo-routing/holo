@@ -20,7 +20,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt4",
-                        "next-hop": "fe80::a82e:92ff:fea6:9aa9"
+                        "next-hop": "fe80::8cb3:d4ff:fe9f:b17f"
                       }
                     ]
                   },
@@ -33,7 +33,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt4",
-                        "next-hop": "fe80::a82e:92ff:fea6:9aa9"
+                        "next-hop": "fe80::8cb3:d4ff:fe9f:b17f"
                       }
                     ]
                   },
@@ -46,7 +46,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt4",
-                        "next-hop": "fe80::a82e:92ff:fea6:9aa9"
+                        "next-hop": "fe80::8cb3:d4ff:fe9f:b17f"
                       }
                     ]
                   },
@@ -59,7 +59,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt4",
-                        "next-hop": "fe80::a82e:92ff:fea6:9aa9"
+                        "next-hop": "fe80::8cb3:d4ff:fe9f:b17f"
                       }
                     ]
                   },
@@ -72,7 +72,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt4",
-                        "next-hop": "fe80::a82e:92ff:fea6:9aa9"
+                        "next-hop": "fe80::8cb3:d4ff:fe9f:b17f"
                       }
                     ]
                   },
@@ -90,7 +90,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt4",
-                        "next-hop": "fe80::a82e:92ff:fea6:9aa9"
+                        "next-hop": "fe80::8cb3:d4ff:fe9f:b17f"
                       }
                     ]
                   },
@@ -103,7 +103,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt4",
-                        "next-hop": "fe80::a82e:92ff:fea6:9aa9"
+                        "next-hop": "fe80::8cb3:d4ff:fe9f:b17f"
                       }
                     ]
                   },
@@ -116,7 +116,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt4",
-                        "next-hop": "fe80::a82e:92ff:fea6:9aa9"
+                        "next-hop": "fe80::8cb3:d4ff:fe9f:b17f"
                       }
                     ]
                   },
@@ -277,8 +277,8 @@
                                 },
                                 "body": {
                                   "inter-area-prefix": {
-                                    "metric": 20,
-                                    "prefix": "2001:db8:1000::2/128",
+                                    "metric": 10,
+                                    "prefix": "2001:db8:1000::3/128",
                                     "prefix-options": {
                                       "prefix-options": [
                                         "la-bit"
@@ -297,17 +297,12 @@
                                   "lsa-id": 3,
                                   "type": "ospfv3-inter-area-prefix-lsa",
                                   "adv-router": "4.4.4.4",
-                                  "length": 44
+                                  "length": 36
                                 },
                                 "body": {
                                   "inter-area-prefix": {
-                                    "metric": 10,
-                                    "prefix": "2001:db8:1000::3/128",
-                                    "prefix-options": {
-                                      "prefix-options": [
-                                        "la-bit"
-                                      ]
-                                    }
+                                    "metric": 20,
+                                    "prefix": "3000::/64"
                                   }
                                 }
                               }
@@ -321,12 +316,17 @@
                                   "lsa-id": 4,
                                   "type": "ospfv3-inter-area-prefix-lsa",
                                   "adv-router": "4.4.4.4",
-                                  "length": 36
+                                  "length": 44
                                 },
                                 "body": {
                                   "inter-area-prefix": {
-                                    "metric": 20,
-                                    "prefix": "3000::/64"
+                                    "metric": 30,
+                                    "prefix": "2001:db8:1000::1/128",
+                                    "prefix-options": {
+                                      "prefix-options": [
+                                        "la-bit"
+                                      ]
+                                    }
                                   }
                                 }
                               }
@@ -344,8 +344,8 @@
                                 },
                                 "body": {
                                   "inter-area-prefix": {
-                                    "metric": 30,
-                                    "prefix": "2001:db8:1000::1/128",
+                                    "metric": 20,
+                                    "prefix": "2001:db8:1000::2/128",
                                     "prefix-options": {
                                       "prefix-options": [
                                         "la-bit"
@@ -576,7 +576,7 @@
                           "neighbor": [
                             {
                               "neighbor-router-id": "4.4.4.4",
-                              "address": "fe80::a82e:92ff:fea6:9aa9",
+                              "address": "fe80::8cb3:d4ff:fe9f:b17f",
                               "state": "full",
                               "statistics": {
                                 "nbr-retrans-qlen": 0
@@ -611,7 +611,7 @@
                                               "af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::a82e:92ff:fea6:9aa9",
+                                          "link-local-interface-address": "fe80::8cb3:d4ff:fe9f:b17f",
                                           "num-of-prefixes": 0
                                         }
                                       }
@@ -638,7 +638,7 @@
                                               "af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::583b:82ff:fe26:5fbf",
+                                          "link-local-interface-address": "fe80::c887:30ff:feb5:74a1",
                                           "num-of-prefixes": 0
                                         }
                                       }

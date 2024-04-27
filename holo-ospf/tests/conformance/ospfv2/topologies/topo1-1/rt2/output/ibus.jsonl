@@ -7,8 +7,8 @@
 {"RouteIpAdd":{"protocol":"ospfv2","prefix":"10.0.3.0/24","distance":110,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":4,"addr":"10.0.2.3","labels":[]}}]}}
 {"RouteIpAdd":{"protocol":"ospfv2","prefix":"10.0.4.0/24","distance":110,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":4,"addr":"10.0.2.3","labels":[]}}]}}
 {"RouteIpAdd":{"protocol":"ospfv2","prefix":"4.4.4.4/32","distance":110,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":4,"addr":"10.0.2.3","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv2","prefix":"5.5.5.5/32","distance":110,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":4,"addr":"10.0.2.3","labels":[]}}]}}
 {"RouteIpAdd":{"protocol":"ospfv2","prefix":"6.6.6.6/32","distance":110,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":4,"addr":"10.0.2.3","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv2","prefix":"7.7.7.7/32","distance":110,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":4,"addr":"10.0.2.3","labels":[]}}]}}
 {"RouteIpAdd":{"protocol":"ospfv2","prefix":"10.0.5.0/24","distance":110,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":4,"addr":"10.0.2.3","labels":[]}}]}}
 {"RouteIpAdd":{"protocol":"ospfv2","prefix":"10.0.6.0/24","distance":110,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":4,"addr":"10.0.2.3","labels":[]}}]}}
-{"RouteIpAdd":{"protocol":"ospfv2","prefix":"5.5.5.5/32","distance":110,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":4,"addr":"10.0.2.3","labels":[]}}]}}
-{"RouteIpAdd":{"protocol":"ospfv2","prefix":"7.7.7.7/32","distance":110,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":4,"addr":"10.0.2.3","labels":[]}}]}}

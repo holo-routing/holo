@@ -20,7 +20,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt1",
-                        "next-hop": "fe80::c09f:efff:fe18:4853"
+                        "next-hop": "fe80::30af:77ff:fe0f:f73a"
                       }
                     ]
                   },
@@ -38,7 +38,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt3",
-                        "next-hop": "fe80::74d3:daff:fe64:feef"
+                        "next-hop": "fe80::847e:f6ff:fe24:3c0a"
                       }
                     ]
                   },
@@ -51,7 +51,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt3",
-                        "next-hop": "fe80::74d3:daff:fe64:feef"
+                        "next-hop": "fe80::847e:f6ff:fe24:3c0a"
                       }
                     ]
                   },
@@ -64,7 +64,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt3",
-                        "next-hop": "fe80::74d3:daff:fe64:feef"
+                        "next-hop": "fe80::847e:f6ff:fe24:3c0a"
                       }
                     ]
                   },
@@ -77,7 +77,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt3",
-                        "next-hop": "fe80::74d3:daff:fe64:feef"
+                        "next-hop": "fe80::847e:f6ff:fe24:3c0a"
                       }
                     ]
                   },
@@ -90,7 +90,7 @@
                     "next-hop": [
                       {
                         "outgoing-interface": "eth-rt3",
-                        "next-hop": "fe80::74d3:daff:fe64:feef"
+                        "next-hop": "fe80::847e:f6ff:fe24:3c0a"
                       }
                     ]
                   },
@@ -746,7 +746,7 @@
                           "neighbor": [
                             {
                               "neighbor-router-id": "3.3.3.3",
-                              "address": "fe80::74d3:daff:fe64:feef",
+                              "address": "fe80::847e:f6ff:fe24:3c0a",
                               "state": "full",
                               "statistics": {
                                 "nbr-retrans-qlen": 0
@@ -782,7 +782,7 @@
                                               "af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::6c4f:5cff:feb2:9941",
+                                          "link-local-interface-address": "fe80::9062:89ff:feb3:e4dc",
                                           "num-of-prefixes": 1,
                                           "prefixes": {
                                             "prefix": [
@@ -817,7 +817,7 @@
                                               "af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::74d3:daff:fe64:feef",
+                                          "link-local-interface-address": "fe80::847e:f6ff:fe24:3c0a",
                                           "num-of-prefixes": 1,
                                           "prefixes": {
                                             "prefix": [
@@ -966,17 +966,12 @@
                                   "lsa-id": 1,
                                   "type": "ospfv3-inter-area-prefix-lsa",
                                   "adv-router": "2.2.2.2",
-                                  "length": 44
+                                  "length": 36
                                 },
                                 "body": {
                                   "inter-area-prefix": {
                                     "metric": 10,
-                                    "prefix": "2001:db8:1000::3/128",
-                                    "prefix-options": {
-                                      "prefix-options": [
-                                        "la-bit"
-                                      ]
-                                    }
+                                    "prefix": "3000::/64"
                                   }
                                 }
                               }
@@ -990,12 +985,17 @@
                                   "lsa-id": 2,
                                   "type": "ospfv3-inter-area-prefix-lsa",
                                   "adv-router": "2.2.2.2",
-                                  "length": 36
+                                  "length": 44
                                 },
                                 "body": {
                                   "inter-area-prefix": {
                                     "metric": 10,
-                                    "prefix": "3000::/64"
+                                    "prefix": "2001:db8:1000::3/128",
+                                    "prefix-options": {
+                                      "prefix-options": [
+                                        "la-bit"
+                                      ]
+                                    }
                                   }
                                 }
                               }
@@ -1037,8 +1037,8 @@
                                 },
                                 "body": {
                                   "inter-area-prefix": {
-                                    "metric": 20,
-                                    "prefix": "2001:db8:1000::6/128",
+                                    "metric": 30,
+                                    "prefix": "2001:db8:1000::5/128",
                                     "prefix-options": {
                                       "prefix-options": [
                                         "la-bit"
@@ -1061,8 +1061,8 @@
                                 },
                                 "body": {
                                   "inter-area-prefix": {
-                                    "metric": 30,
-                                    "prefix": "2001:db8:1000::5/128",
+                                    "metric": 20,
+                                    "prefix": "2001:db8:1000::6/128",
                                     "prefix-options": {
                                       "prefix-options": [
                                         "la-bit"
@@ -1269,7 +1269,7 @@
                           "neighbor": [
                             {
                               "neighbor-router-id": "1.1.1.1",
-                              "address": "fe80::c09f:efff:fe18:4853",
+                              "address": "fe80::30af:77ff:fe0f:f73a",
                               "state": "full",
                               "statistics": {
                                 "nbr-retrans-qlen": 0
@@ -1305,7 +1305,7 @@
                                               "af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::c09f:efff:fe18:4853",
+                                          "link-local-interface-address": "fe80::30af:77ff:fe0f:f73a",
                                           "num-of-prefixes": 0
                                         }
                                       }
@@ -1333,7 +1333,7 @@
                                               "af-bit"
                                             ]
                                           },
-                                          "link-local-interface-address": "fe80::b809:94ff:feb1:d25c",
+                                          "link-local-interface-address": "fe80::a4eb:42ff:fe60:59f4",
                                           "num-of-prefixes": 0
                                         }
                                       }

@@ -33,43 +33,29 @@ fn state_change_singlehop(
     nb_tx: &NbProviderSender,
     sess: &Session,
 ) {
-    use paths::singlehop_notification as base;
+    use paths::singlehop_notification::{self, SinglehopNotification};
 
-    let local_discr = sess.state.local_discr.to_string();
-    let remote_discr;
-    let diag = sess.state.local_diag.to_yang();
-    let last_state_change_time;
-    let new_state = sess.state.local_state.to_yang();
-    let dst = dst.to_string();
-    let src_addr;
-    let sess_index = sess.id.to_string();
-    let path_type = sess.key.path_type().to_yang();
-
-    let mut args = vec![];
-    args.push((base::local_discr::PATH, Some(local_discr.as_str())));
-    if let Some(remote) = &sess.state.remote {
-        remote_discr = remote.discr.to_string();
-        args.push((base::remote_discr::PATH, Some(remote_discr.as_str())));
-    }
-    args.push((base::new_state::PATH, Some(new_state.as_ref())));
-    args.push((base::state_change_reason::PATH, Some(diag.as_ref())));
-    if let Some(time) = &sess.statistics.last_state_change_time {
-        last_state_change_time = time.to_rfc3339();
-        args.push((
-            base::time_of_last_state_change::PATH,
-            Some(last_state_change_time.as_str()),
-        ));
-    }
-    args.push((base::dest_addr::PATH, Some(dst.as_str())));
-    if let Some(addr) = &sess.config.src {
-        src_addr = addr.to_string();
-        args.push((base::source_addr::PATH, Some(src_addr.as_str())));
-    }
-    args.push((base::session_index::PATH, Some(sess_index.as_str())));
-    args.push((base::path_type::PATH, Some(path_type.as_ref())));
-    args.push((base::interface::PATH, Some(ifname)));
-    args.push((base::echo_enabled::PATH, Some("false")));
-    notification::send(nb_tx, base::PATH, &args);
+    let data = SinglehopNotification {
+        local_discr: Some(sess.state.local_discr.to_string().into()),
+        remote_discr: sess
+            .state
+            .remote
+            .as_ref()
+            .map(|remote| remote.discr.to_string().into()),
+        new_state: Some(sess.state.local_state.to_yang()),
+        state_change_reason: Some(sess.state.local_diag.to_yang()),
+        time_of_last_state_change: sess
+            .statistics
+            .last_state_change_time
+            .map(|time| time.to_rfc3339().into()),
+        dest_addr: Some(dst.to_string().into()),
+        source_addr: sess.config.src.map(|src| src.to_string().into()),
+        session_index: Some(sess.id.to_string().into()),
+        path_type: Some(sess.key.path_type().to_yang()),
+        interface: Some(ifname.into()),
+        echo_enabled: Some("false".into()),
+    };
+    notification::send(nb_tx, singlehop_notification::PATH, data);
 }
 
 fn state_change_multihop(
@@ -78,36 +64,25 @@ fn state_change_multihop(
     nb_tx: &NbProviderSender,
     sess: &Session,
 ) {
-    use paths::multihop_notification as base;
+    use paths::multihop_notification::{self, MultihopNotification};
 
-    let local_discr = sess.state.local_discr.to_string();
-    let remote_discr;
-    let diag = sess.state.local_diag.to_yang();
-    let last_state_change_time;
-    let new_state = sess.state.local_state.to_yang();
-    let dst = dst.to_string();
-    let src_addr = src.to_string();
-    let sess_index = sess.id.to_string();
-    let path_type = sess.key.path_type().to_yang();
-
-    let mut args = vec![];
-    args.push((base::local_discr::PATH, Some(local_discr.as_str())));
-    if let Some(remote) = &sess.state.remote {
-        remote_discr = remote.discr.to_string();
-        args.push((base::remote_discr::PATH, Some(remote_discr.as_str())));
-    }
-    args.push((base::new_state::PATH, Some(new_state.as_ref())));
-    args.push((base::state_change_reason::PATH, Some(diag.as_ref())));
-    if let Some(time) = &sess.statistics.last_state_change_time {
-        last_state_change_time = time.to_rfc3339();
-        args.push((
-            base::time_of_last_state_change::PATH,
-            Some(last_state_change_time.as_str()),
-        ));
-    }
-    args.push((base::dest_addr::PATH, Some(dst.as_str())));
-    args.push((base::source_addr::PATH, Some(src_addr.as_str())));
-    args.push((base::session_index::PATH, Some(sess_index.as_str())));
-    args.push((base::path_type::PATH, Some(path_type.as_ref())));
-    notification::send(nb_tx, base::PATH, &args);
+    let data = MultihopNotification {
+        local_discr: Some(sess.state.local_discr.to_string().into()),
+        remote_discr: sess
+            .state
+            .remote
+            .as_ref()
+            .map(|remote| remote.discr.to_string().into()),
+        new_state: Some(sess.state.local_state.to_yang()),
+        state_change_reason: Some(sess.state.local_diag.to_yang()),
+        time_of_last_state_change: sess
+            .statistics
+            .last_state_change_time
+            .map(|time| time.to_rfc3339().into()),
+        dest_addr: Some(dst.to_string().into()),
+        source_addr: Some(src.to_string().into()),
+        session_index: Some(sess.id.to_string().into()),
+        path_type: Some(sess.key.path_type().to_yang()),
+    };
+    notification::send(nb_tx, multihop_notification::PATH, data);
 }

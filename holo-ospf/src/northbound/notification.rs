@@ -26,18 +26,18 @@ pub(crate) fn if_state_change<V>(
 ) where
     V: Version,
 {
-    use paths::if_state_change as base;
+    use paths::if_state_change::interface::Interface;
+    use paths::if_state_change::{self, IfStateChange};
 
-    let af = instance.state.af.to_yang();
-    let state = iface.state.ism_state.to_yang();
-
-    let args = [
-        (base::routing_protocol_name::PATH, Some(instance.name)),
-        (base::address_family::PATH, Some(&af)),
-        (base::interface::interface::PATH, Some(&iface.name)),
-        (base::state::PATH, Some(&state)),
-    ];
-    notification::send(&instance.tx.nb, base::PATH, &args);
+    let data = IfStateChange {
+        routing_protocol_name: Some(instance.name.into()),
+        address_family: Some(instance.state.af.to_yang()),
+        interface: Some(Interface {
+            interface: Some(iface.name.as_str().into()),
+        }),
+        state: Some(iface.state.ism_state.to_yang()),
+    };
+    notification::send(&instance.tx.nb, if_state_change::PATH, data);
 }
 
 pub(crate) fn if_config_error<V>(
@@ -49,22 +49,20 @@ pub(crate) fn if_config_error<V>(
 ) where
     V: Version,
 {
-    use paths::if_config_error as base;
+    use paths::if_config_error::interface::Interface;
+    use paths::if_config_error::{self, IfConfigError};
 
-    let af = instance.state.af.to_yang();
-    let src = src.to_string();
-    let pkt_type = pkt_type.to_yang();
-    let error = error.to_yang();
-
-    let args = [
-        (base::routing_protocol_name::PATH, Some(instance.name)),
-        (base::address_family::PATH, Some(&af)),
-        (base::interface::interface::PATH, Some(ifname)),
-        (base::packet_source::PATH, Some(&src)),
-        (base::packet_type::PATH, Some(&pkt_type)),
-        (base::error::PATH, Some(&error)),
-    ];
-    notification::send(&instance.tx.nb, base::PATH, &args);
+    let data = IfConfigError {
+        routing_protocol_name: Some(instance.name.into()),
+        address_family: Some(instance.state.af.to_yang()),
+        interface: Some(Interface {
+            interface: Some(ifname.into()),
+        }),
+        packet_source: Some(src.to_string().into()),
+        packet_type: Some(pkt_type.to_yang()),
+        error: Some(error.to_yang()),
+    };
+    notification::send(&instance.tx.nb, if_config_error::PATH, data);
 }
 
 pub(crate) fn nbr_state_change<V>(
@@ -74,22 +72,20 @@ pub(crate) fn nbr_state_change<V>(
 ) where
     V: Version,
 {
-    use paths::nbr_state_change as base;
+    use paths::nbr_state_change::interface::Interface;
+    use paths::nbr_state_change::{self, NbrStateChange};
 
-    let af = instance.state.af.to_yang();
-    let nbr_router_id = nbr.router_id.to_string();
-    let nbr_addr = nbr.src.to_string();
-    let state = nbr.state.to_yang();
-
-    let args = [
-        (base::routing_protocol_name::PATH, Some(instance.name)),
-        (base::address_family::PATH, Some(&af)),
-        (base::interface::interface::PATH, Some(&iface.name)),
-        (base::neighbor_router_id::PATH, Some(&nbr_router_id)),
-        (base::neighbor_ip_addr::PATH, Some(&nbr_addr)),
-        (base::state::PATH, Some(&state)),
-    ];
-    notification::send(&instance.tx.nb, base::PATH, &args);
+    let data = NbrStateChange {
+        routing_protocol_name: Some(instance.name.into()),
+        address_family: Some(instance.state.af.to_yang()),
+        interface: Some(Interface {
+            interface: Some(iface.name.as_str().into()),
+        }),
+        neighbor_router_id: Some(nbr.router_id.to_string().into()),
+        neighbor_ip_addr: Some(nbr.src.to_string().into()),
+        state: Some(nbr.state.to_yang()),
+    };
+    notification::send(&instance.tx.nb, nbr_state_change::PATH, data);
 }
 
 pub(crate) fn nbr_restart_helper_enter<V>(
@@ -100,23 +96,28 @@ pub(crate) fn nbr_restart_helper_enter<V>(
 ) where
     V: Version,
 {
-    use paths::nbr_restart_helper_status_change as base;
+    use paths::nbr_restart_helper_status_change::interface::Interface;
+    use paths::nbr_restart_helper_status_change::{
+        self, NbrRestartHelperStatusChange,
+    };
 
-    let af = instance.state.af.to_yang();
-    let nbr_router_id = nbr.router_id.to_string();
-    let nbr_addr = nbr.src.to_string();
-    let age = age.to_string();
-
-    let args = [
-        (base::routing_protocol_name::PATH, Some(instance.name)),
-        (base::address_family::PATH, Some(&af)),
-        (base::interface::interface::PATH, Some(&iface.name)),
-        (base::neighbor_router_id::PATH, Some(&nbr_router_id)),
-        (base::neighbor_ip_addr::PATH, Some(&nbr_addr)),
-        (base::status::PATH, Some("helping")),
-        (base::age::PATH, Some(&age)),
-    ];
-    notification::send(&instance.tx.nb, base::PATH, &args);
+    let data = NbrRestartHelperStatusChange {
+        routing_protocol_name: Some(instance.name.into()),
+        address_family: Some(instance.state.af.to_yang()),
+        interface: Some(Interface {
+            interface: Some(iface.name.as_str().into()),
+        }),
+        neighbor_router_id: Some(nbr.router_id.to_string().into()),
+        neighbor_ip_addr: Some(nbr.src.to_string().into()),
+        status: Some("helping".into()),
+        age: Some(age.to_string().into()),
+        exit_reason: None,
+    };
+    notification::send(
+        &instance.tx.nb,
+        nbr_restart_helper_status_change::PATH,
+        data,
+    );
 }
 
 pub(crate) fn nbr_restart_helper_exit<V>(
@@ -127,23 +128,28 @@ pub(crate) fn nbr_restart_helper_exit<V>(
 ) where
     V: Version,
 {
-    use paths::nbr_restart_helper_status_change as base;
+    use paths::nbr_restart_helper_status_change::interface::Interface;
+    use paths::nbr_restart_helper_status_change::{
+        self, NbrRestartHelperStatusChange,
+    };
 
-    let af = instance.state.af.to_yang();
-    let nbr_router_id = nbr.router_id.to_string();
-    let nbr_addr = nbr.src.to_string();
-    let reason = reason.to_yang();
-
-    let args = [
-        (base::routing_protocol_name::PATH, Some(instance.name)),
-        (base::address_family::PATH, Some(&af)),
-        (base::interface::interface::PATH, Some(&iface.name)),
-        (base::neighbor_router_id::PATH, Some(&nbr_router_id)),
-        (base::neighbor_ip_addr::PATH, Some(&nbr_addr)),
-        (base::status::PATH, Some("not-helping")),
-        (base::exit_reason::PATH, Some(&reason)),
-    ];
-    notification::send(&instance.tx.nb, base::PATH, &args);
+    let data = NbrRestartHelperStatusChange {
+        routing_protocol_name: Some(instance.name.into()),
+        address_family: Some(instance.state.af.to_yang()),
+        interface: Some(Interface {
+            interface: Some(iface.name.as_str().into()),
+        }),
+        neighbor_router_id: Some(nbr.router_id.to_string().into()),
+        neighbor_ip_addr: Some(nbr.src.to_string().into()),
+        status: Some("not-helping".into()),
+        age: None,
+        exit_reason: Some(reason.to_yang()),
+    };
+    notification::send(
+        &instance.tx.nb,
+        nbr_restart_helper_status_change::PATH,
+        data,
+    );
 }
 
 pub(crate) fn if_rx_bad_packet<V>(
@@ -153,20 +159,20 @@ pub(crate) fn if_rx_bad_packet<V>(
 ) where
     V: Version,
 {
-    use paths::if_rx_bad_packet as base;
+    use paths::if_rx_bad_packet::interface::Interface;
+    use paths::if_rx_bad_packet::{self, IfRxBadPacket};
 
-    let af = instance.state.af.to_yang();
-    let src = src.to_string();
-
-    let args = [
-        (base::routing_protocol_name::PATH, Some(instance.name)),
-        (base::address_family::PATH, Some(&af)),
-        (base::interface::interface::PATH, Some(&iface.name)),
-        (base::packet_source::PATH, Some(&src)),
+    let data = IfRxBadPacket {
+        routing_protocol_name: Some(instance.name.into()),
+        address_family: Some(instance.state.af.to_yang()),
+        interface: Some(Interface {
+            interface: Some(iface.name.as_str().into()),
+        }),
+        packet_source: Some(src.to_string().into()),
         // TODO: set the packet-type whenever possible.
-        //(base::packet_type::PATH, None),
-    ];
-    notification::send(&instance.tx.nb, base::PATH, &args);
+        packet_type: None,
+    };
+    notification::send(&instance.tx.nb, if_rx_bad_packet::PATH, data);
 }
 
 pub(crate) fn if_rx_bad_lsa<V>(
@@ -176,17 +182,14 @@ pub(crate) fn if_rx_bad_lsa<V>(
 ) where
     V: Version,
 {
-    use paths::if_rx_bad_lsa as base;
+    use paths::if_rx_bad_lsa::{self, IfRxBadLsa};
 
-    let src = src.to_string();
-    let error = error.to_yang();
-
-    let args = [
-        (base::routing_protocol_name::PATH, Some(instance.name)),
-        (base::packet_source::PATH, Some(&src)),
-        (base::error::PATH, Some(&error)),
-    ];
-    notification::send(&instance.tx.nb, base::PATH, &args);
+    let data = IfRxBadLsa {
+        routing_protocol_name: Some(instance.name.into()),
+        packet_source: Some(src.to_string().into()),
+        error: Some(error.to_yang()),
+    };
+    notification::send(&instance.tx.nb, if_rx_bad_lsa::PATH, data);
 }
 
 pub(crate) fn sr_index_out_of_range<V>(
@@ -196,15 +199,18 @@ pub(crate) fn sr_index_out_of_range<V>(
 ) where
     V: Version,
 {
-    use paths::segment_routing_index_out_of_range as base;
+    use paths::segment_routing_index_out_of_range::{
+        self, SegmentRoutingIndexOutOfRange,
+    };
 
-    let nbr_router_id = nbr_router_id.to_string();
-    let index = index.to_string();
-
-    let args = [
-        (base::routing_protocol::PATH, Some(instance.name)),
-        (base::received_target::PATH, Some(&nbr_router_id)),
-        (base::received_index::PATH, Some(&index)),
-    ];
-    notification::send(&instance.tx.nb, base::PATH, &args);
+    let data = SegmentRoutingIndexOutOfRange {
+        received_target: Some(nbr_router_id.to_string().into()),
+        received_index: Some(index.to_string().into()),
+        routing_protocol: Some(instance.name.into()),
+    };
+    notification::send(
+        &instance.tx.nb,
+        segment_routing_index_out_of_range::PATH,
+        data,
+    );
 }

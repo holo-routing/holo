@@ -4,27 +4,21 @@
 // SPDX-License-Identifier: MIT
 //
 
-use holo_yang::{YangPath, YANG_CTX};
+use holo_yang::{YangObject, YANG_CTX};
 use yang2::data::DataTree;
 
 use crate::api::provider::Notification;
-use crate::debug::Debug;
 use crate::NbProviderSender;
 
 pub fn send(
     nb_tx: &NbProviderSender,
-    path: YangPath,
-    args: &[(YangPath, Option<&str>)],
+    path: impl AsRef<str>,
+    data: impl YangObject,
 ) {
     let yang_ctx = YANG_CTX.get().unwrap();
-    let mut data = DataTree::new(yang_ctx);
-
-    // Add arguments.
-    for (arg, value) in args {
-        data.new_path(arg.as_str(), *value, false).unwrap();
-    }
-
-    Debug::Notification(path, args).log();
-
-    nb_tx.send(Notification { data }).unwrap();
+    let mut dtree = DataTree::new(yang_ctx);
+    let mut dnode =
+        dtree.new_path(path.as_ref(), None, false).unwrap().unwrap();
+    data.init_data_node(&mut dnode);
+    nb_tx.send(Notification { data: dtree }).unwrap();
 }

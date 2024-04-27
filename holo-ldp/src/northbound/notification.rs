@@ -11,22 +11,26 @@ use holo_northbound::{notification, paths, NbProviderSender};
 use crate::fec::Fec;
 use crate::neighbor::Neighbor;
 
+// ===== global functions =====
+
 pub(crate) fn mpls_ldp_peer_event(
     nb_tx: &NbProviderSender,
     instance_name: &str,
     nbr: &Neighbor,
 ) {
-    use paths::mpls_ldp_peer_event as base;
+    use paths::mpls_ldp_peer_event::peer::Peer;
+    use paths::mpls_ldp_peer_event::{self, MplsLdpPeerEvent};
 
-    let event_type = if nbr.is_operational() { "up" } else { "down" };
-    let lsr_id = nbr.lsr_id.to_string();
-
-    let args = [
-        (base::event_type::PATH, Some(event_type)),
-        (base::peer::protocol_name::PATH, Some(instance_name)),
-        (base::peer::lsr_id::PATH, Some(&lsr_id)),
-    ];
-    notification::send(nb_tx, base::PATH, &args);
+    let event_type = event_type(nbr.is_operational());
+    let data = MplsLdpPeerEvent {
+        event_type: Some(event_type.into()),
+        peer: Some(Peer {
+            protocol_name: Some(instance_name.into()),
+            lsr_id: Some(nbr.lsr_id.to_string().into()),
+            label_space_id: None,
+        }),
+    };
+    notification::send(nb_tx, mpls_ldp_peer_event::PATH, data);
 }
 
 pub(crate) fn mpls_ldp_hello_adjacency_event(
@@ -36,21 +40,25 @@ pub(crate) fn mpls_ldp_hello_adjacency_event(
     addr: &IpAddr,
     created: bool,
 ) {
-    use paths::mpls_ldp_hello_adjacency_event as base;
+    use paths::mpls_ldp_hello_adjacency_event::link::Link;
+    use paths::mpls_ldp_hello_adjacency_event::targeted::Targeted;
+    use paths::mpls_ldp_hello_adjacency_event::{
+        self, MplsLdpHelloAdjacencyEvent,
+    };
 
-    let event_type = if created { "up" } else { "down" };
-    let addr_str = addr.to_string();
-
-    let mut args = vec![];
-    args.push((base::event_type::PATH, Some(event_type)));
-    args.push((base::protocol_name::PATH, Some(instance_name)));
-    if let Some(ifname) = ifname {
-        args.push((base::link::next_hop_interface::PATH, Some(ifname)));
-        args.push((base::link::next_hop_address::PATH, Some(&addr_str)));
-    } else {
-        args.push((base::targeted::target_address::PATH, Some(&addr_str)));
-    }
-    notification::send(nb_tx, base::PATH, &args);
+    let event_type = event_type(created);
+    let data = MplsLdpHelloAdjacencyEvent {
+        protocol_name: Some(instance_name.into()),
+        event_type: Some(event_type.into()),
+        targeted: ifname.is_none().then_some(Targeted {
+            target_address: Some(addr.to_string().into()),
+        }),
+        link: ifname.map(|ifname| Link {
+            next_hop_interface: Some(ifname.into()),
+            next_hop_address: Some(addr.to_string().into()),
+        }),
+    };
+    notification::send(nb_tx, mpls_ldp_hello_adjacency_event::PATH, data);
 }
 
 pub(crate) fn mpls_ldp_fec_event(
@@ -58,15 +66,23 @@ pub(crate) fn mpls_ldp_fec_event(
     instance_name: &str,
     fec: &Fec,
 ) {
-    use paths::mpls_ldp_fec_event as base;
+    use paths::mpls_ldp_fec_event::{self, MplsLdpFecEvent};
 
-    let event_type = if fec.is_operational() { "up" } else { "down" };
-    let fec_str = fec.inner.prefix.to_string();
+    let event_type = event_type(fec.is_operational());
+    let data = MplsLdpFecEvent {
+        event_type: Some(event_type.into()),
+        protocol_name: Some(instance_name.into()),
+        fec: Some(fec.inner.prefix.to_string().into()),
+    };
+    notification::send(nb_tx, mpls_ldp_fec_event::PATH, data);
+}
 
-    let args = [
-        (base::event_type::PATH, Some(event_type)),
-        (base::protocol_name::PATH, Some(instance_name)),
-        (base::fec::PATH, Some(&fec_str)),
-    ];
-    notification::send(nb_tx, base::PATH, &args);
+// ===== helper functions =====
+
+fn event_type(up: bool) -> &'static str {
+    if up {
+        "up"
+    } else {
+        "down"
+    }
 }

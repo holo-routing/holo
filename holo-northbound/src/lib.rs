@@ -16,6 +16,7 @@ pub mod notification;
 pub mod rpc;
 pub mod state;
 
+#[allow(unused_variables)]
 #[allow(clippy::module_inception)]
 pub mod paths;
 

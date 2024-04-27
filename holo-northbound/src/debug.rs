@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: MIT
 //
 
-use holo_yang::YangPath;
 use tracing::{debug, debug_span, trace, trace_span};
 
 use crate::configuration::CommitPhase;
@@ -18,7 +17,6 @@ pub enum Debug<'a> {
     RpcCallback(&'a str),
     GetIterateCallback(&'a str),
     GetElementCallback(&'a str, &'a Option<String>),
-    Notification(YangPath, &'a [(YangPath, Option<&'a str>)]),
 }
 
 // ===== impl Debug =====
@@ -57,11 +55,6 @@ impl<'a> Debug<'a> {
                 trace_span!("northbound")
                     .in_scope(|| trace!(%path, ?value, "{}", self));
             }
-            Debug::Notification(path, arguments) => {
-                debug_span!("northbound").in_scope(|| {
-                    debug!(%path, ?arguments, "{}", self);
-                });
-            }
         }
     }
 }
@@ -86,9 +79,6 @@ impl<'a> std::fmt::Display for Debug<'a> {
             }
             Debug::GetElementCallback(..) => {
                 write!(f, "get element callback")
-            }
-            Debug::Notification(..) => {
-                write!(f, "notification")
             }
         }
     }

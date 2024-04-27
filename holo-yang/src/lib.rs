@@ -17,6 +17,7 @@ use tracing::error;
 use yang2::context::{
     Context, ContextFlags, EmbeddedModuleKey, EmbeddedModules,
 };
+use yang2::data::DataNodeRef;
 
 // Global YANG context.
 pub static YANG_CTX: OnceLock<Arc<Context>> = OnceLock::new();
@@ -271,6 +272,16 @@ pub trait TryFromYang: Sized {
     fn try_from_yang(identity: &str) -> Option<Self>;
 }
 
+// A trait representing YANG objects (containers or lists).
+//
+// This trait is automatically implemented for all structs generated from
+// YANG definitions at build-time.
+pub trait YangObject {
+    // Initialize a given YANG data node with attributes from the current
+    // object.
+    fn init_data_node(&self, dnode: &mut DataNodeRef<'_>);
+}
+
 //
 // YANG path type.
 //
@@ -295,6 +306,12 @@ impl YangPath {
 impl std::fmt::Display for YangPath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl AsRef<str> for YangPath {
+    fn as_ref(&self) -> &str {
+        self.0
     }
 }
 

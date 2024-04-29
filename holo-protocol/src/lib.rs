@@ -24,6 +24,7 @@ use holo_utils::mpls::LabelManager;
 use holo_utils::policy::{MatchSets, Policies};
 use holo_utils::protocol::Protocol;
 use holo_utils::sr::SrCfg;
+use holo_utils::bier::BierCfg;
 use holo_utils::task::Task;
 use holo_utils::{Database, Receiver, Sender};
 use serde::de::DeserializeOwned;
@@ -98,6 +99,8 @@ pub struct InstanceShared {
     pub policies: Policies,
     // Global Segment Routing configuration.
     pub sr_config: Arc<SrCfg>,
+    // Global BIER configuration.
+    pub bier_config: Arc<BierCfg>,
 }
 
 /// Instance input message.
@@ -155,6 +158,7 @@ impl std::fmt::Debug for InstanceShared {
             .field("policy_match_sets", &self.policy_match_sets)
             .field("policies", &self.policies)
             .field("sr_config", &self.sr_config)
+            .field("bier_config", &self.bier_config)
             .finish()
     }
 }

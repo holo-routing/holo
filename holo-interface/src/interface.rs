@@ -97,8 +97,9 @@ impl Interface {
         }
 
         // Install interface addresses.
-        for addr in &self.config.addr_list {
-            netlink::addr_install(netlink_handle, ifindex, addr).await;
+        for (addr, plen) in &self.config.addr_list {
+            let addr = IpNetwork::new(*addr, *plen).unwrap();
+            netlink::addr_install(netlink_handle, ifindex, &addr).await;
         }
     }
 }
@@ -245,8 +246,9 @@ impl Interfaces {
         if owner == Owner::CONFIG
             && let Some(ifindex) = iface.ifindex
         {
-            for addr in &iface.config.addr_list {
-                netlink::addr_uninstall(netlink_handle, ifindex, addr).await;
+            for (addr, plen) in &iface.config.addr_list {
+                let addr = IpNetwork::new(*addr, *plen).unwrap();
+                netlink::addr_uninstall(netlink_handle, ifindex, &addr).await;
             }
         }
 

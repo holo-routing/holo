@@ -4,7 +4,8 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
+use std::net::IpAddr;
 use std::sync::LazyLock as Lazy;
 
 use async_trait::async_trait;
@@ -15,7 +16,7 @@ use holo_northbound::configuration::{
 };
 use holo_northbound::paths::interfaces;
 use holo_utils::yang::DataNodeRefExt;
-use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
+use ipnetwork::IpNetwork;
 
 use crate::interface::Owner;
 use crate::{netlink, Master};
@@ -30,7 +31,7 @@ pub enum ListEntry {
     #[default]
     None,
     Interface(String),
-    Address(String, IpNetwork),
+    Address(String, IpAddr),
 }
 
 #[derive(Debug)]
@@ -42,8 +43,8 @@ pub enum Event {
     AdminStatusChange(String, bool),
     MtuChange(String, u32),
     VlanCreate(String, u16),
-    AddressInstall(String, IpNetwork),
-    AddressUninstall(String, IpNetwork),
+    AddressInstall(String, IpAddr, u8),
+    AddressUninstall(String, IpAddr, u8),
 }
 
 // ===== configuration structs =====
@@ -54,7 +55,7 @@ pub struct InterfaceCfg {
     pub mtu: Option<u32>,
     pub parent: Option<String>,
     pub vlan_id: Option<u16>,
-    pub addr_list: BTreeSet<IpNetwork>,
+    pub addr_list: BTreeMap<IpAddr, u8>,
 }
 
 // ===== callbacks =====
@@ -155,35 +156,41 @@ fn load_callbacks() -> Callbacks<Master> {
         .path(interfaces::interface::ipv4::address::PATH)
         .create_apply(|master, args| {
             let ifname = args.list_entry.into_interface().unwrap();
-            let addr = args.dnode.get_ipv4_relative("./ip").unwrap();
+            let addr = args.dnode.get_ipv4_relative("./ip").unwrap().into();
             let plen = args.dnode.get_u8_relative("./prefix-length").unwrap();
-            let addr = Ipv4Network::new(addr, plen).unwrap().into();
 
             let iface = master.interfaces.get_mut_by_name(&ifname).unwrap();
-            iface.config.addr_list.insert(addr);
+            iface.config.addr_list.insert(addr, plen);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::AddressInstall(ifname, addr));
+            event_queue.insert(Event::AddressInstall(ifname, addr, plen));
         })
         .delete_apply(|master, args| {
             let (ifname, addr) = args.list_entry.into_address().unwrap();
 
+            let plen = args.dnode.get_u8_relative("./prefix-length").unwrap();
             let iface = master.interfaces.get_mut_by_name(&ifname).unwrap();
             iface.config.addr_list.remove(&addr);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::AddressUninstall(ifname, addr));
+            event_queue.insert(Event::AddressUninstall(ifname, addr, plen));
         })
         .lookup(|_master, list_entry, dnode| {
             let ifname = list_entry.into_interface().unwrap();
             let addr = dnode.get_ipv4_relative("./ip").unwrap();
-            let plen = dnode.get_u8_relative("./prefix-length").unwrap();
-            let addr = Ipv4Network::new(addr, plen).unwrap();
             ListEntry::Address(ifname, addr.into())
         })
         .path(interfaces::interface::ipv4::address::prefix_length::PATH)
-        .modify_apply(|_master, _args| {
-            // TODO: implement me!
+        .modify_apply(|master, args| {
+            let (ifname, addr) = args.list_entry.into_address().unwrap();
+
+            let iface = master.interfaces.get_mut_by_name(&ifname).unwrap();
+            let plen = args.dnode.get_u8();
+            let old_plen = iface.config.addr_list.insert(addr, plen).unwrap();
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::AddressUninstall(ifname.clone(), addr, old_plen));
+            event_queue.insert(Event::AddressInstall(ifname, addr, plen));
         })
         .delete_apply(|_master, _args| {
             // Nothing to do.
@@ -219,35 +226,41 @@ fn load_callbacks() -> Callbacks<Master> {
         .path(interfaces::interface::ipv6::address::PATH)
         .create_apply(|master, args| {
             let ifname = args.list_entry.into_interface().unwrap();
-            let addr = args.dnode.get_ipv6_relative("./ip").unwrap();
+            let addr = args.dnode.get_ipv6_relative("./ip").unwrap().into();
             let plen = args.dnode.get_u8_relative("./prefix-length").unwrap();
-            let addr = Ipv6Network::new(addr, plen).unwrap().into();
 
             let iface = master.interfaces.get_mut_by_name(&ifname).unwrap();
-            iface.config.addr_list.insert(addr);
+            iface.config.addr_list.insert(addr, plen);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::AddressInstall(ifname, addr));
+            event_queue.insert(Event::AddressInstall(ifname, addr, plen));
         })
         .delete_apply(|master, args| {
             let (ifname, addr) = args.list_entry.into_address().unwrap();
 
+            let plen = args.dnode.get_u8_relative("./prefix-length").unwrap();
             let iface = master.interfaces.get_mut_by_name(&ifname).unwrap();
             iface.config.addr_list.remove(&addr);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::AddressUninstall(ifname, addr));
+            event_queue.insert(Event::AddressUninstall(ifname, addr, plen));
         })
         .lookup(|_master, list_entry, dnode| {
             let ifname = list_entry.into_interface().unwrap();
             let addr = dnode.get_ipv6_relative("./ip").unwrap();
-            let plen = dnode.get_u8_relative("./prefix-length").unwrap();
-            let addr = Ipv6Network::new(addr, plen).unwrap();
             ListEntry::Address(ifname, addr.into())
         })
         .path(interfaces::interface::ipv6::address::prefix_length::PATH)
-        .modify_apply(|_master, _args| {
-            // TODO: implement me!
+        .modify_apply(|master, args| {
+            let (ifname, addr) = args.list_entry.into_address().unwrap();
+
+            let iface = master.interfaces.get_mut_by_name(&ifname).unwrap();
+            let plen = args.dnode.get_u8();
+            let old_plen = iface.config.addr_list.insert(addr, plen).unwrap();
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::AddressUninstall(ifname.clone(), addr, old_plen));
+            event_queue.insert(Event::AddressInstall(ifname, addr, plen));
         })
         .build()
 }
@@ -334,22 +347,24 @@ impl Provider for Master {
                     .await;
                 }
             }
-            Event::AddressInstall(ifname, addr) => {
+            Event::AddressInstall(ifname, addr, plen) => {
                 // If the interface is active, install the address using the
                 // netlink handle.
                 if let Some(iface) = self.interfaces.get_by_name(&ifname)
                     && let Some(ifindex) = iface.ifindex
                 {
+                    let addr = IpNetwork::new(addr, plen).unwrap();
                     netlink::addr_install(&self.netlink_handle, ifindex, &addr)
                         .await;
                 }
             }
-            Event::AddressUninstall(ifname, addr) => {
+            Event::AddressUninstall(ifname, addr, plen) => {
                 // If the interface is active, uninstall the address using the
                 // netlink handle.
                 if let Some(iface) = self.interfaces.get_by_name(&ifname)
                     && let Some(ifindex) = iface.ifindex
                 {
+                    let addr = IpNetwork::new(addr, plen).unwrap();
                     netlink::addr_uninstall(
                         &self.netlink_handle,
                         ifindex,

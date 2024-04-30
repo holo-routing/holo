@@ -447,7 +447,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::neighbors::neighbor::errors::sent::last_error_subcode::PATH)
         .get_element_u8(|_instance, args| {
             let nbr = args.list_entry.as_neighbor().unwrap();
-            nbr.notification_sent.as_ref().map(|(_, notif)| notif.error_code)
+            nbr.notification_sent.as_ref().map(|(_, notif)| notif.error_subcode)
         })
         .path(bgp::neighbors::neighbor::errors::sent::last_error_data::PATH)
         .get_element_binary(|_instance, args| {

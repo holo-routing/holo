@@ -78,20 +78,36 @@ fn main() {
     );
 
     // "not-supported" deviations.
+    fn print_deviation(snode: &SchemaNode<'_>) {
+        println!(
+            "\
+        \n  /*\
+        \n  deviation \"{}\" {{\
+        \n    deviate not-supported;\
+        \n  }}\
+        \n  */",
+            gen_fully_prefixed_path(snode),
+        );
+    }
     for snode in yang_ctx
         .traverse()
         .filter(|snode| snode.is_status_current())
         .filter(|snode| snode.module() == module)
     {
-        println!(
-            "\
-            \n  /*\
-            \n  deviation \"{}\" {{\
-            \n    deviate not-supported;\
-            \n  }}\
-            \n  */",
-            gen_fully_prefixed_path(&snode),
-        );
+        print_deviation(&snode);
+        if let Some(actions) = snode.actions() {
+            for snode in actions.into_iter().flat_map(|snode| snode.traverse())
+            {
+                print_deviation(&snode);
+            }
+        }
+        if let Some(notifications) = snode.notifications() {
+            for snode in
+                notifications.into_iter().flat_map(|snode| snode.traverse())
+            {
+                print_deviation(&snode);
+            }
+        }
     }
 
     // Footer.

@@ -877,6 +877,42 @@ module ietf-bgp-holo-deviations {
   */
 
   /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:established" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:established/bgp:remote-address" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:backward-transition/bgp:notification-received/bgp:last-encapsulated-error" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:backward-transition/bgp:notification-received/bgp:last-encapsulated-error-code" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:backward-transition/bgp:notification-received/bgp:last-encapsulated-error-subcode" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:backward-transition/bgp:notification-sent/bgp:last-encapsulated-error" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:backward-transition/bgp:notification-sent/bgp:last-encapsulated-error-code" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:backward-transition/bgp:notification-sent/bgp:last-encapsulated-error-subcode" {
+    deviate not-supported;
+  }
+
+  /*
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:neighbor" {
     deviate not-supported;
   }

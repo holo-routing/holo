@@ -5,6 +5,7 @@
 //
 
 pub mod configuration;
+pub mod notification;
 pub mod rpc;
 pub mod state;
 pub mod yang;

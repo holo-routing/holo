@@ -1,0 +1,3 @@
+{"ietf-routing:routing":{"control-plane-protocols":{"control-plane-protocol":[{"type":"ietf-bgp:bgp","name":"test","ietf-bgp:bgp":{"neighbors":{"established":{"remote-address":"10.0.7.5"}}}}]}}}
+{"ietf-routing:routing":{"control-plane-protocols":{"control-plane-protocol":[{"type":"ietf-bgp:bgp","name":"test","ietf-bgp:bgp":{"neighbors":{"established":{"remote-address":"10.0.5.3"}}}}]}}}
+{"ietf-routing:routing":{"control-plane-protocols":{"control-plane-protocol":[{"type":"ietf-bgp:bgp","name":"test","ietf-bgp:bgp":{"neighbors":{"established":{"remote-address":"10.0.6.4"}}}}]}}}

@@ -25,6 +25,7 @@ use crate::debug::Debug;
 use crate::error::Error;
 use crate::instance::{Instance, InstanceUpView};
 use crate::northbound::configuration::{InstanceCfg, NeighborCfg};
+use crate::northbound::notification;
 use crate::packet::attribute::Attrs;
 use crate::packet::consts::{
     Afi, ErrorCode, FsmErrorSubcode, Safi, AS_TRANS, BGP_VERSION,
@@ -481,6 +482,13 @@ impl Neighbor {
     ) {
         Debug::NbrFsmTransition(&self.remote_addr, &self.state, &next_state)
             .log();
+
+        // Send YANG-modeled notification.
+        if next_state == fsm::State::Established {
+            notification::established(instance, self);
+        } else if self.state == fsm::State::Established {
+            notification::backward_transition(instance, self);
+        }
 
         // Keep track of the time that the BGP session last transitioned in or
         // out of the Established state.

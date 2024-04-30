@@ -9,18 +9,13 @@ use std::fmt::Write;
 use std::path::PathBuf;
 
 use check_keyword::CheckKeyword;
+use convert_case::{Boundary, Case, Casing};
 use holo_yang as yang;
 use holo_yang::YANG_IMPLEMENTED_MODULES;
 use yang2::schema::{DataValue, SchemaNode, SchemaNodeKind, SchemaPathFormat};
 
-fn snode_normalized_name(snode: &SchemaNode<'_>) -> String {
+fn snode_normalized_name(snode: &SchemaNode<'_>, case: Case) -> String {
     let mut name = snode.name().to_owned();
-
-    // Replace hyphens by underscores.
-    name = str::replace(&name, "-", "_");
-
-    // Handle Rust reserved keywords.
-    name = name.into_safe();
 
     // HACK: distinguish nodes with the same names but different namespaces.
     if matches!(
@@ -28,15 +23,24 @@ fn snode_normalized_name(snode: &SchemaNode<'_>) -> String {
         "destination-prefix" | "address" | "next-hop-address"
     ) {
         if snode.module().name() == "ietf-ipv4-unicast-routing" {
-            name.insert_str(0, "ipv4_");
+            name.insert_str(0, "ipv4-");
         }
         if snode.module().name() == "ietf-ipv6-unicast-routing" {
-            name.insert_str(0, "ipv6_");
+            name.insert_str(0, "ipv6-");
         }
         if snode.module().name() == "ietf-mpls" {
-            name.insert_str(0, "mpls_");
+            name.insert_str(0, "mpls-");
         }
     }
+
+    // Case conversion.
+    name = name
+        .from_case(Case::Kebab)
+        .without_boundaries(&[Boundary::DigitUpper, Boundary::DigitLower])
+        .to_case(case);
+
+    // Handle Rust reserved keywords.
+    name = name.into_safe();
 
     name
 }
@@ -45,7 +49,7 @@ fn generate_paths(output: &mut String, snode: SchemaNode<'_>, level: usize) {
     let indent = " ".repeat(level * 2);
 
     if !snode.is_schema_only() {
-        let name = snode_normalized_name(&snode);
+        let name = snode_normalized_name(&snode, Case::Snake);
 
         // Generate module.
         writeln!(output, "{}pub mod {} {{", indent, name).unwrap();
@@ -96,7 +100,10 @@ fn generate_paths(output: &mut String, snode: SchemaNode<'_>, level: usize) {
                 .list_keys()
                 .map(|snode| {
                     // TODO: require real types for extra type safety.
-                    format!("{}: impl ToString", snode_normalized_name(&snode))
+                    format!(
+                        "{}: impl ToString",
+                        snode_normalized_name(&snode, Case::Snake)
+                    )
                 })
                 .collect::<Vec<_>>()
                 .join(", ");
@@ -108,7 +115,10 @@ fn generate_paths(output: &mut String, snode: SchemaNode<'_>, level: usize) {
             let fmt_args = snode
                 .list_keys()
                 .map(|snode| {
-                    format!("{}.to_string()", snode_normalized_name(&snode))
+                    format!(
+                        "{}.to_string()",
+                        snode_normalized_name(&snode, Case::Snake)
+                    )
                 })
                 .collect::<Vec<_>>()
                 .join(", ");

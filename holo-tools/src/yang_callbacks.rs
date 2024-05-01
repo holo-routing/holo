@@ -112,7 +112,6 @@ fn rpc_callbacks(yang_ctx: &Context, module: SchemaModule<'_>) {
         .filter(|snode| snode.module() == module)
     {
         let path = snode_module_path(&snode);
-
         if CallbackOp::Rpc.is_valid(&snode) {
             println!(
                 "        .path({})\
@@ -124,6 +123,24 @@ fn rpc_callbacks(yang_ctx: &Context, module: SchemaModule<'_>) {
                \n        }})",
                 path
             );
+        }
+
+        if let Some(actions) = snode.actions() {
+            for snode in actions {
+                let path = snode_module_path(&snode);
+                if CallbackOp::Rpc.is_valid(&snode) {
+                    println!(
+                        "        .path({})\
+                       \n        .rpc(|_context, _args| {{\
+                       \n            Box::pin(async move {{\
+                       \n                // TODO: implement me!\
+                       \n                Ok(())\
+                       \n            }})\
+                       \n        }})",
+                        path
+                    );
+                }
+            }
         }
     }
 

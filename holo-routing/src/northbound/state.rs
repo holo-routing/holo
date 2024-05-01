@@ -10,8 +10,8 @@ use std::sync::LazyLock as Lazy;
 use derive_new::new;
 use enum_as_inner::EnumAsInner;
 use holo_northbound::paths::control_plane_protocol;
-use holo_northbound::paths::routing::ribs;
 use holo_northbound::paths::routing::segment_routing::sr_mpls;
+use holo_northbound::paths::routing::{bier, ribs};
 use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, Provider,
 };
@@ -407,6 +407,16 @@ fn load_callbacks() -> Callbacks<Master> {
             } else {
                 None
             }
+        })
+        .path(bier::sub_domain::PATH)
+        .get_iterate(|_context, _args| {
+            // TODO: implement me!
+            None
+        })
+        .path(bier::sub_domain::encapsulation::PATH)
+        .get_iterate(|_context, _args| {
+            // TODO: implement me!
+            None
         })
         .build()
 }

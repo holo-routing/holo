@@ -424,10 +424,25 @@ fn process_nbr_route_refresh_af<A>(
     A: AddressFamily,
 {
     let table = A::table(&mut instance.state.rib.tables);
-    let update_queue = A::update_queue(&mut nbr.update_queues);
     for (prefix, dest) in &table.prefixes {
-        let route = dest.local.as_ref().unwrap();
-        let attrs = route.attrs.get();
+        let Some(adj_rib) = dest.adj_rib.get(&nbr.remote_addr) else {
+            continue;
+        };
+        let Some(route) = adj_rib.out_post() else {
+            continue;
+        };
+
+        // Update route's attributes before transmission.
+        let mut attrs = route.attrs.get();
+        attrs_tx_update::<A>(
+            nbr,
+            instance.config.asn,
+            route.origin.is_local(),
+            &mut attrs,
+        );
+
+        // Update neighbor's Tx queue.
+        let update_queue = A::update_queue(&mut nbr.update_queues);
         update_queue.reach.entry(attrs).or_default().insert(*prefix);
     }
 }

@@ -14,7 +14,7 @@ use holo_northbound::configuration::{
     self, Callbacks, CallbacksBuilder, Provider, ValidationCallbacks,
     ValidationCallbacksBuilder,
 };
-use holo_northbound::paths::interfaces;
+use holo_northbound::yang::interfaces;
 use holo_utils::yang::DataNodeRefExt;
 use ipnetwork::IpNetwork;
 

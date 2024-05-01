@@ -13,7 +13,7 @@ use holo_northbound::configuration::{
     Callbacks, CallbacksBuilder, Provider, ValidationCallbacks,
     ValidationCallbacksBuilder,
 };
-use holo_northbound::paths::control_plane_protocol::bfd;
+use holo_northbound::yang::control_plane_protocol::bfd;
 use holo_utils::bfd::{SessionKey, State};
 use holo_utils::socket::TTL_MAX;
 use holo_utils::yang::DataNodeRefExt;

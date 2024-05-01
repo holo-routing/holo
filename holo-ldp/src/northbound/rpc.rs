@@ -7,8 +7,8 @@
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::LazyLock as Lazy;
 
-use holo_northbound::paths;
 use holo_northbound::rpc::{Callbacks, CallbacksBuilder, Provider};
+use holo_northbound::yang;
 use holo_utils::yang::DataNodeRefExt;
 use yang2::data::Data;
 
@@ -23,7 +23,7 @@ pub static CALLBACKS: Lazy<Callbacks<Instance>> = Lazy::new(load_callbacks);
 
 fn load_callbacks() -> Callbacks<Instance> {
     CallbacksBuilder::<Instance>::default()
-        .path(paths::mpls_ldp_clear_peer::PATH)
+        .path(yang::mpls_ldp_clear_peer::PATH)
         .rpc(|instance, args| {
             Box::pin(async move {
                 let rpc = args.data.find_path(args.rpc_path).unwrap();
@@ -42,7 +42,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                 Ok(())
             })
         })
-        .path(paths::mpls_ldp_clear_hello_adjacency::PATH)
+        .path(yang::mpls_ldp_clear_hello_adjacency::PATH)
         .rpc(|instance, args| {
             Box::pin(async move {
                 let rpc = args.data.find_path(args.rpc_path).unwrap();
@@ -73,7 +73,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                 Ok(())
             })
         })
-        .path(paths::mpls_ldp_clear_peer_statistics::PATH)
+        .path(yang::mpls_ldp_clear_peer_statistics::PATH)
         .rpc(|instance, args| {
             Box::pin(async move {
                 let rpc = args.data.find_path(args.rpc_path).unwrap();

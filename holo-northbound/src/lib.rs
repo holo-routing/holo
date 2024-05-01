@@ -18,7 +18,7 @@ pub mod state;
 
 #[allow(unused_variables)]
 #[allow(clippy::module_inception)]
-pub mod paths;
+pub mod yang;
 
 use derive_new::new;
 use holo_utils::{Receiver, Sender, UnboundedReceiver, UnboundedSender};

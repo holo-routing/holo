@@ -14,7 +14,7 @@ use holo_northbound::configuration::{
     Callbacks, CallbacksBuilder, Provider, ValidationCallbacks,
     ValidationCallbacksBuilder,
 };
-use holo_northbound::paths::control_plane_protocol::mpls_ldp;
+use holo_northbound::yang::control_plane_protocol::mpls_ldp;
 use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
 use holo_utils::yang::DataNodeRefExt;

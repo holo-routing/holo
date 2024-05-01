@@ -9,10 +9,10 @@ use std::sync::{atomic, LazyLock as Lazy};
 
 use derive_new::new;
 use enum_as_inner::EnumAsInner;
-use holo_northbound::paths::control_plane_protocol::mpls_ldp;
 use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, NodeAttributes, Provider,
 };
+use holo_northbound::yang::control_plane_protocol::mpls_ldp;
 use holo_utils::mpls::Label;
 use holo_yang::ToYang;
 

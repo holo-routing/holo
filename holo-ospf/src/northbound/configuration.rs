@@ -14,7 +14,7 @@ use holo_northbound::configuration::{
     Callbacks, CallbacksBuilder, InheritableConfig, Provider,
     ValidationCallbacks, ValidationCallbacksBuilder,
 };
-use holo_northbound::paths::control_plane_protocol::ospf;
+use holo_northbound::yang::control_plane_protocol::ospf;
 use holo_utils::bfd;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ibus::IbusMsg;

@@ -7,10 +7,10 @@
 use std::sync::LazyLock as Lazy;
 
 use enum_as_inner::EnumAsInner;
-use holo_northbound::paths::control_plane_protocol::rip;
 use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, NodeAttributes, Provider,
 };
+use holo_northbound::yang::control_plane_protocol::rip;
 use holo_yang::ToYang;
 
 use crate::instance::Instance;

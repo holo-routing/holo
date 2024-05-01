@@ -14,9 +14,9 @@ use holo_northbound::configuration::{
     self, Callbacks, CallbacksBuilder, ConfigChanges, Provider,
     ValidationCallbacks, ValidationCallbacksBuilder,
 };
-use holo_northbound::paths::control_plane_protocol;
-use holo_northbound::paths::routing::ribs;
-use holo_northbound::paths::routing::segment_routing::sr_mpls;
+use holo_northbound::yang::control_plane_protocol;
+use holo_northbound::yang::routing::ribs;
+use holo_northbound::yang::routing::segment_routing::sr_mpls;
 use holo_northbound::{CallbackKey, NbDaemonSender};
 use holo_utils::ibus::{IbusMsg, SrCfgEvent};
 use holo_utils::ip::{AddressFamily, IpNetworkKind};

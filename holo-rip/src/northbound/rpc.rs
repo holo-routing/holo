@@ -6,8 +6,8 @@
 
 use std::sync::LazyLock as Lazy;
 
-use holo_northbound::paths;
 use holo_northbound::rpc::{Callbacks, CallbacksBuilder, Provider};
+use holo_northbound::yang;
 
 use crate::instance::{Instance, InstanceUp};
 use crate::route::RouteType;
@@ -26,7 +26,7 @@ where
     V: Version,
 {
     CallbacksBuilder::<Instance<V>>::default()
-        .path(paths::clear_rip_route::PATH)
+        .path(yang::clear_rip_route::PATH)
         .rpc(|instance, _args| {
             Box::pin(async move {
                 // Clear routes.

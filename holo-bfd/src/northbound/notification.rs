@@ -6,7 +6,7 @@
 
 use std::net::IpAddr;
 
-use holo_northbound::{notification, paths, NbProviderSender};
+use holo_northbound::{notification, yang, NbProviderSender};
 use holo_utils::bfd::SessionKey;
 use holo_yang::ToYang;
 
@@ -33,7 +33,7 @@ fn state_change_singlehop(
     nb_tx: &NbProviderSender,
     sess: &Session,
 ) {
-    use paths::singlehop_notification::{self, SinglehopNotification};
+    use yang::singlehop_notification::{self, SinglehopNotification};
 
     let data = SinglehopNotification {
         local_discr: Some(sess.state.local_discr.to_string().into()),
@@ -64,7 +64,7 @@ fn state_change_multihop(
     nb_tx: &NbProviderSender,
     sess: &Session,
 ) {
-    use paths::multihop_notification::{self, MultihopNotification};
+    use yang::multihop_notification::{self, MultihopNotification};
 
     let data = MultihopNotification {
         local_discr: Some(sess.state.local_discr.to_string().into()),

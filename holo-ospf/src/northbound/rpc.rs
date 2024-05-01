@@ -6,8 +6,8 @@
 
 use std::sync::LazyLock as Lazy;
 
-use holo_northbound::paths;
 use holo_northbound::rpc::{Callbacks, CallbacksBuilder, Provider};
+use holo_northbound::yang;
 use holo_utils::yang::DataNodeRefExt;
 use yang2::data::Data;
 
@@ -27,7 +27,7 @@ where
     V: Version,
 {
     CallbacksBuilder::<Instance<V>>::default()
-        .path(paths::clear_neighbor::PATH)
+        .path(yang::clear_neighbor::PATH)
         .rpc(|instance, args| {
             Box::pin(async move {
                 let rpc = args.data.find_path(args.rpc_path).unwrap();
@@ -43,7 +43,7 @@ where
                 Ok(())
             })
         })
-        .path(paths::clear_database::PATH)
+        .path(yang::clear_database::PATH)
         .rpc(|instance, _args| {
             Box::pin(async move {
                 // Clear database.

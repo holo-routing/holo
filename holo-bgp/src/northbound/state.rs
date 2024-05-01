@@ -8,10 +8,10 @@ use std::net::Ipv4Addr;
 use std::sync::{atomic, Arc, LazyLock as Lazy};
 
 use enum_as_inner::EnumAsInner;
-use holo_northbound::paths::control_plane_protocol::bgp;
 use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, NodeAttributes, Provider,
 };
+use holo_northbound::yang::control_plane_protocol::bgp;
 use holo_utils::bgp::AfiSafi;
 use holo_yang::ToYang;
 use ipnetwork::{Ipv4Network, Ipv6Network};

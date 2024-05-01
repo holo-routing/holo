@@ -12,7 +12,7 @@ use std::sync::{atomic, Arc};
 use chrono::{DateTime, Utc};
 use derive_new::new;
 use generational_arena::{Arena, Index};
-use holo_northbound::paths::control_plane_protocol::bfd;
+use holo_northbound::yang::control_plane_protocol::bfd;
 use holo_protocol::InstanceChannelsTx;
 use holo_utils::bfd::{ClientCfg, ClientId, SessionKey, State};
 use holo_utils::ibus::IbusMsg;

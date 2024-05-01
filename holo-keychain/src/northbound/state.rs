@@ -7,10 +7,10 @@
 use std::sync::LazyLock as Lazy;
 
 use enum_as_inner::EnumAsInner;
-use holo_northbound::paths::key_chains;
 use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, Provider,
 };
+use holo_northbound::yang::key_chains;
 use holo_utils::keychain::{Keychain, KeychainKey};
 
 use crate::Master;

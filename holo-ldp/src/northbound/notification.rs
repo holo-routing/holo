@@ -6,7 +6,7 @@
 
 use std::net::IpAddr;
 
-use holo_northbound::{notification, paths, NbProviderSender};
+use holo_northbound::{notification, yang, NbProviderSender};
 
 use crate::fec::Fec;
 use crate::neighbor::Neighbor;
@@ -18,8 +18,8 @@ pub(crate) fn mpls_ldp_peer_event(
     instance_name: &str,
     nbr: &Neighbor,
 ) {
-    use paths::mpls_ldp_peer_event::peer::Peer;
-    use paths::mpls_ldp_peer_event::{self, MplsLdpPeerEvent};
+    use yang::mpls_ldp_peer_event::peer::Peer;
+    use yang::mpls_ldp_peer_event::{self, MplsLdpPeerEvent};
 
     let event_type = event_type(nbr.is_operational());
     let data = MplsLdpPeerEvent {
@@ -40,9 +40,9 @@ pub(crate) fn mpls_ldp_hello_adjacency_event(
     addr: &IpAddr,
     created: bool,
 ) {
-    use paths::mpls_ldp_hello_adjacency_event::link::Link;
-    use paths::mpls_ldp_hello_adjacency_event::targeted::Targeted;
-    use paths::mpls_ldp_hello_adjacency_event::{
+    use yang::mpls_ldp_hello_adjacency_event::link::Link;
+    use yang::mpls_ldp_hello_adjacency_event::targeted::Targeted;
+    use yang::mpls_ldp_hello_adjacency_event::{
         self, MplsLdpHelloAdjacencyEvent,
     };
 
@@ -66,7 +66,7 @@ pub(crate) fn mpls_ldp_fec_event(
     instance_name: &str,
     fec: &Fec,
 ) {
-    use paths::mpls_ldp_fec_event::{self, MplsLdpFecEvent};
+    use yang::mpls_ldp_fec_event::{self, MplsLdpFecEvent};
 
     let event_type = event_type(fec.is_operational());
     let data = MplsLdpFecEvent {

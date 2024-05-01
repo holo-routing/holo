@@ -12,7 +12,7 @@ use enum_as_inner::EnumAsInner;
 use holo_northbound::configuration::{
     self, Callbacks, CallbacksBuilder, Provider,
 };
-use holo_northbound::paths::routing_policy;
+use holo_northbound::yang::routing_policy;
 use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
 use holo_utils::policy::{

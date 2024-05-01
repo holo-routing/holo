@@ -9,10 +9,10 @@ use std::sync::LazyLock as Lazy;
 use std::time::Instant;
 
 use enum_as_inner::EnumAsInner;
-use holo_northbound::paths::control_plane_protocol::ospf;
 use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, NodeAttributes, Provider,
 };
+use holo_northbound::yang::control_plane_protocol::ospf;
 use holo_utils::sr::IgpAlgoType;
 use holo_yang::{ToYang, ToYangBits};
 use itertools::Itertools;

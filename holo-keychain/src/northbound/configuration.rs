@@ -13,7 +13,7 @@ use enum_as_inner::EnumAsInner;
 use holo_northbound::configuration::{
     self, Callbacks, CallbacksBuilder, Provider,
 };
-use holo_northbound::paths::key_chains;
+use holo_northbound::yang::key_chains;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ibus::IbusMsg;
 use holo_utils::keychain::{Key, Keychain, KeychainKey};

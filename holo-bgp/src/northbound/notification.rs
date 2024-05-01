@@ -5,8 +5,8 @@
 //
 
 use holo_northbound::notification;
-use holo_northbound::paths::control_plane_protocol;
-use holo_northbound::paths::control_plane_protocol::bgp;
+use holo_northbound::yang::control_plane_protocol;
+use holo_northbound::yang::control_plane_protocol::bgp;
 use holo_utils::protocol::Protocol;
 use holo_yang::ToYang;
 

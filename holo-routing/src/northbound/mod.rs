@@ -10,7 +10,7 @@ pub mod state;
 
 use std::sync::LazyLock as Lazy;
 
-use holo_northbound::paths::control_plane_protocol;
+use holo_northbound::yang::control_plane_protocol;
 use holo_northbound::ProviderBase;
 use regex::Regex;
 use tracing::{debug_span, Span};

@@ -6,10 +6,10 @@
 
 use std::sync::LazyLock as Lazy;
 
-use holo_northbound::paths::interfaces;
 use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, Provider,
 };
+use holo_northbound::yang::interfaces;
 
 use crate::Master;
 

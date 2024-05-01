@@ -9,12 +9,12 @@ use std::sync::LazyLock as Lazy;
 
 use derive_new::new;
 use enum_as_inner::EnumAsInner;
-use holo_northbound::paths::control_plane_protocol;
-use holo_northbound::paths::routing::ribs;
-use holo_northbound::paths::routing::segment_routing::sr_mpls;
 use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, Provider,
 };
+use holo_northbound::yang::control_plane_protocol;
+use holo_northbound::yang::routing::ribs;
+use holo_northbound::yang::routing::segment_routing::sr_mpls;
 use holo_northbound::{CallbackKey, NbDaemonSender};
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;

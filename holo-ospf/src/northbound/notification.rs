@@ -6,7 +6,7 @@
 
 use std::net::Ipv4Addr;
 
-use holo_northbound::{notification, paths};
+use holo_northbound::{notification, yang};
 use holo_yang::ToYang;
 
 use crate::error::InterfaceCfgError;
@@ -26,8 +26,8 @@ pub(crate) fn if_state_change<V>(
 ) where
     V: Version,
 {
-    use paths::if_state_change::interface::Interface;
-    use paths::if_state_change::{self, IfStateChange};
+    use yang::if_state_change::interface::Interface;
+    use yang::if_state_change::{self, IfStateChange};
 
     let data = IfStateChange {
         routing_protocol_name: Some(instance.name.into()),
@@ -49,8 +49,8 @@ pub(crate) fn if_config_error<V>(
 ) where
     V: Version,
 {
-    use paths::if_config_error::interface::Interface;
-    use paths::if_config_error::{self, IfConfigError};
+    use yang::if_config_error::interface::Interface;
+    use yang::if_config_error::{self, IfConfigError};
 
     let data = IfConfigError {
         routing_protocol_name: Some(instance.name.into()),
@@ -72,8 +72,8 @@ pub(crate) fn nbr_state_change<V>(
 ) where
     V: Version,
 {
-    use paths::nbr_state_change::interface::Interface;
-    use paths::nbr_state_change::{self, NbrStateChange};
+    use yang::nbr_state_change::interface::Interface;
+    use yang::nbr_state_change::{self, NbrStateChange};
 
     let data = NbrStateChange {
         routing_protocol_name: Some(instance.name.into()),
@@ -96,8 +96,8 @@ pub(crate) fn nbr_restart_helper_enter<V>(
 ) where
     V: Version,
 {
-    use paths::nbr_restart_helper_status_change::interface::Interface;
-    use paths::nbr_restart_helper_status_change::{
+    use yang::nbr_restart_helper_status_change::interface::Interface;
+    use yang::nbr_restart_helper_status_change::{
         self, NbrRestartHelperStatusChange,
     };
 
@@ -128,8 +128,8 @@ pub(crate) fn nbr_restart_helper_exit<V>(
 ) where
     V: Version,
 {
-    use paths::nbr_restart_helper_status_change::interface::Interface;
-    use paths::nbr_restart_helper_status_change::{
+    use yang::nbr_restart_helper_status_change::interface::Interface;
+    use yang::nbr_restart_helper_status_change::{
         self, NbrRestartHelperStatusChange,
     };
 
@@ -159,8 +159,8 @@ pub(crate) fn if_rx_bad_packet<V>(
 ) where
     V: Version,
 {
-    use paths::if_rx_bad_packet::interface::Interface;
-    use paths::if_rx_bad_packet::{self, IfRxBadPacket};
+    use yang::if_rx_bad_packet::interface::Interface;
+    use yang::if_rx_bad_packet::{self, IfRxBadPacket};
 
     let data = IfRxBadPacket {
         routing_protocol_name: Some(instance.name.into()),
@@ -182,7 +182,7 @@ pub(crate) fn if_rx_bad_lsa<V>(
 ) where
     V: Version,
 {
-    use paths::if_rx_bad_lsa::{self, IfRxBadLsa};
+    use yang::if_rx_bad_lsa::{self, IfRxBadLsa};
 
     let data = IfRxBadLsa {
         routing_protocol_name: Some(instance.name.into()),
@@ -199,7 +199,7 @@ pub(crate) fn sr_index_out_of_range<V>(
 ) where
     V: Version,
 {
-    use paths::segment_routing_index_out_of_range::{
+    use yang::segment_routing_index_out_of_range::{
         self, SegmentRoutingIndexOutOfRange,
     };
 

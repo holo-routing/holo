@@ -11,7 +11,7 @@ use std::pin::Pin;
 use holo_yang::YangPath;
 use tokio::sync::oneshot;
 use yang2::data::{DataNodeRef, DataTree};
-use yang2::schema::SchemaNodeKind;
+use yang2::schema::{SchemaNodeKind, SchemaPathFormat};
 
 use crate::debug::Debug;
 use crate::error::Error;
@@ -145,19 +145,20 @@ where
 async fn process_rpc_local<P>(
     provider: &mut P,
     mut data: DataTree,
-    rpc_path: String,
+    rpc_data_path: String,
+    rpc_schema_path: String,
 ) -> Result<api::daemon::RpcResponse, Error>
 where
     P: Provider,
 {
     if let Some(callbacks) = P::callbacks() {
-        Debug::RpcCallback(&rpc_path).log();
+        Debug::RpcCallback(&rpc_data_path).log();
 
-        let key = CallbackKey::new(rpc_path, CallbackOp::Rpc);
+        let key = CallbackKey::new(rpc_schema_path, CallbackOp::Rpc);
         if let Some(cb) = callbacks.get(&key) {
             let args = CallbackArgs {
                 data: &mut data,
-                rpc_path: &key.path,
+                rpc_path: &rpc_data_path,
             };
             (*cb)(provider, args).await.map_err(Error::RpcCallback)?;
         }
@@ -213,13 +214,14 @@ where
     P: Provider,
 {
     let rpc = find_rpc(&data)?;
-    let rpc_path = rpc.path().to_owned();
+    let rpc_data_path = rpc.path().to_owned();
+    let rpc_schema_path = rpc.schema().path(SchemaPathFormat::DATA);
 
     if let Some(children_nb_tx) =
         provider.relay_rpc(rpc).map_err(Error::RpcRelay)?
     {
         process_rpc_relayed(data, children_nb_tx).await
     } else {
-        process_rpc_local(provider, data, rpc_path).await
+        process_rpc_local(provider, data, rpc_data_path, rpc_schema_path).await
     }
 }

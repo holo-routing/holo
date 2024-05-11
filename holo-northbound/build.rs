@@ -232,17 +232,7 @@ fn generate_object_struct(
         .filter(|snode| snode.kind() != SchemaNodeKind::LeafList)
     {
         empty = false;
-        if snode.kind() == SchemaNodeKind::Choice {
-            for snode in snode
-                .children()
-                .filter(|snode| snode.is_status_current())
-                .flat_map(|snode| snode.children())
-            {
-                generate_field(output, &snode, level + 1);
-            }
-        } else {
-            generate_field(output, &snode, level + 1);
-        }
+        generate_field(output, &snode, level + 1);
     }
     if empty {
         writeln!(
@@ -274,23 +264,24 @@ fn generate_object_struct(
         .filter(|snode| snode.kind() != SchemaNodeKind::List)
         .filter(|snode| snode.kind() != SchemaNodeKind::LeafList)
     {
-        if snode.kind() == SchemaNodeKind::Choice {
-            for snode in snode
-                .children()
-                .filter(|snode| snode.is_status_current())
-                .flat_map(|snode| snode.children())
-            {
-                generate_field_to_yang(output, &snode, level + 2);
-            }
-        } else {
-            generate_field_to_yang(output, &snode, level + 2);
-        }
+        generate_field_to_yang(output, &snode, level + 2);
     }
     writeln!(output, "{}    }}", indent).unwrap();
     writeln!(output, "{}  }}", indent).unwrap();
 }
 
 fn generate_field(output: &mut String, snode: &SchemaNode<'_>, level: usize) {
+    if snode.kind() == SchemaNodeKind::Choice {
+        for snode in snode
+            .children()
+            .filter(|snode| snode.is_status_current())
+            .flat_map(|snode| snode.children())
+        {
+            generate_field(output, &snode, level);
+        }
+        return;
+    }
+
     let indent = " ".repeat(level * 2);
     let field_name = snode_normalized_name(snode, Case::Snake);
     if snode.kind() == SchemaNodeKind::Container {
@@ -318,6 +309,17 @@ fn generate_field_to_yang(
     snode: &SchemaNode<'_>,
     level: usize,
 ) {
+    if snode.kind() == SchemaNodeKind::Choice {
+        for snode in snode
+            .children()
+            .filter(|snode| snode.is_status_current())
+            .flat_map(|snode| snode.children())
+        {
+            generate_field_to_yang(output, &snode, level);
+        }
+        return;
+    }
+
     let indent = " ".repeat(level * 2);
     let field_name = snode_normalized_name(snode, Case::Snake);
     let module = snode.module();

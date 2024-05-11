@@ -374,7 +374,7 @@ fn generate_field_to_yang(
 
 fn main() {
     let dst = PathBuf::from(env::var("OUT_DIR").unwrap());
-    let out_file = dst.join("paths.rs");
+    let out_file = dst.join("yang.rs");
 
     // Create YANG context and load all implemented modules.
     let mut yang_ctx = yang::new_context();

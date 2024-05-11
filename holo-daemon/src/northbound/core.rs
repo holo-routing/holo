@@ -18,6 +18,7 @@ use holo_northbound::{
 };
 use holo_utils::ibus::{IbusReceiver, IbusSender};
 use holo_utils::task::TimeoutTask;
+use holo_utils::yang::SchemaNodeExt;
 use holo_utils::{Database, Receiver, Sender, UnboundedReceiver};
 use holo_yang::YANG_CTX;
 use pickledb::PickleDb;
@@ -28,7 +29,6 @@ use yang2::data::{
     Data, DataDiffFlags, DataFormat, DataPrinterFlags, DataTree,
     DataValidationFlags,
 };
-use yang2::schema::SchemaPathFormat;
 
 use crate::config::Config;
 use crate::northbound::client::{api as capi, gnmi, grpc};
@@ -750,9 +750,9 @@ fn validate_callbacks(callbacks: &BTreeMap<CallbackKey, NbDaemonSender>) {
             CallbackOp::GetIterate,
             CallbackOp::GetElement,
         ] {
+            let path = snode.data_path();
             if operation.is_valid(&snode) {
-                let path = snode.path(SchemaPathFormat::DATA);
-                let cb_key = CallbackKey::new(path, operation);
+                let cb_key = CallbackKey::new(path.clone(), operation);
                 if callbacks.get(&cb_key).is_none() {
                     error!(?operation, path = %cb_key.path, "missing callback");
                     errors += 1;

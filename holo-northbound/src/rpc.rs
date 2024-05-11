@@ -8,10 +8,11 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 
+use holo_utils::yang::SchemaNodeExt;
 use holo_yang::YangPath;
 use tokio::sync::oneshot;
 use yang2::data::{DataNodeRef, DataTree};
-use yang2::schema::{SchemaNodeKind, SchemaPathFormat};
+use yang2::schema::SchemaNodeKind;
 
 use crate::debug::Debug;
 use crate::error::Error;
@@ -215,7 +216,7 @@ where
 {
     let rpc = find_rpc(&data)?;
     let rpc_data_path = rpc.path().to_owned();
-    let rpc_schema_path = rpc.schema().path(SchemaPathFormat::DATA);
+    let rpc_schema_path = rpc.schema().data_path();
 
     if let Some(children_nb_tx) =
         provider.relay_rpc(rpc).map_err(Error::RpcRelay)?

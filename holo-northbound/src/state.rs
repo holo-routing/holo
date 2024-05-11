@@ -12,14 +12,13 @@ use std::time::{Duration, Instant};
 use bitflags::bitflags;
 use chrono::{DateTime, Utc};
 use derive_new::new;
+use holo_utils::yang::SchemaNodeExt;
 use holo_yang::{YangPath, YANG_CTX};
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
 use yang2::data::{DataNodeRef, DataTree};
-use yang2::schema::{
-    DataValueType, SchemaModule, SchemaNode, SchemaNodeKind, SchemaPathFormat,
-};
+use yang2::schema::{DataValueType, SchemaModule, SchemaNode, SchemaNodeKind};
 
 use crate::debug::Debug;
 use crate::error::Error;
@@ -712,7 +711,7 @@ where
     }
 
     // Find GetElement callback.
-    let snode_path = snode.path(SchemaPathFormat::DATA);
+    let snode_path = snode.data_path();
     let cb_key = CallbackKey::new(snode_path, CallbackOp::GetElement);
     if let Some(cb) = cbs.get_element(&cb_key, attr_filter) {
         let mut value = cb.invoke(provider, list_entry);
@@ -746,7 +745,7 @@ fn iterate_list<'a, P>(
 where
     P: Provider,
 {
-    let snode_path = snode.path(SchemaPathFormat::DATA);
+    let snode_path = snode.data_path();
     let cb_key = CallbackKey::new(snode_path, CallbackOp::GetIterate);
 
     if let Some(cb) = cbs.get_iterate(&cb_key, attr_filter) {
@@ -852,7 +851,7 @@ where
 {
     if snode.is_state() && !snode.is_np_container() {
         // Find GetElement callback.
-        let snode_path = snode.path(SchemaPathFormat::DATA);
+        let snode_path = snode.data_path();
         let cb_key = CallbackKey::new(snode_path, CallbackOp::GetElement);
         if let Some(cb) = cbs.get_element(&cb_key, attr_filter) {
             let value = cb.invoke(provider, list_entry);
@@ -951,7 +950,7 @@ where
         .iter()
         .rev()
     {
-        let snode_path = dnode.schema().path(SchemaPathFormat::DATA);
+        let snode_path = dnode.schema().data_path();
         let cb_key = CallbackKey::new(snode_path, CallbackOp::GetIterate);
 
         // Obtain the list entry keys.
@@ -1020,9 +1019,7 @@ where
         let mut relay_list = vec![];
 
         let list_entry = lookup_list_entry(provider, cbs, &dnode);
-        let snode = yang_ctx
-            .find_path(&dnode.schema().path(SchemaPathFormat::DATA))
-            .unwrap();
+        let snode = yang_ctx.find_path(&dnode.schema().data_path()).unwrap();
 
         // Check if the provider implements the child node.
         if !is_module_implemented::<P>(&snode.module()) {

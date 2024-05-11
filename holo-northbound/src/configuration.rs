@@ -8,11 +8,12 @@ use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use holo_utils::yang::SchemaNodeExt;
 use holo_yang::YangPath;
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
 use yang2::data::{Data, DataDiff, DataDiffOp, DataNodeRef, DataTree};
-use yang2::schema::{SchemaNodeKind, SchemaPathFormat};
+use yang2::schema::SchemaNodeKind;
 
 use crate::debug::Debug;
 use crate::error::Error;
@@ -530,7 +531,7 @@ where
         .into_iter()
         .rev()
     {
-        let path = dnode.schema().path(SchemaPathFormat::DATA);
+        let path = dnode.schema().data_path();
         if let Some(cb) = callbacks.get_lookup(path) {
             list_entry = (*cb)(provider, list_entry, dnode);
         }
@@ -552,9 +553,7 @@ where
             .iter()
             .flat_map(|dnode| dnode.traverse())
         {
-            if let Some(cb) =
-                callbacks.get(&dnode.schema().path(SchemaPathFormat::DATA))
-            {
+            if let Some(cb) = callbacks.get(&dnode.schema().data_path()) {
                 let path = dnode.path();
                 Debug::ValidationCallback(&path).log();
 
@@ -590,10 +589,8 @@ pub fn changes_from_diff(diff: &DataDiff) -> ConfigChanges {
                         continue;
                     };
 
-                    let cb_key = CallbackKey::new(
-                        dnode.schema().path(SchemaPathFormat::DATA),
-                        operation,
-                    );
+                    let cb_key =
+                        CallbackKey::new(dnode.schema().data_path(), operation);
                     changes.push((cb_key, dnode.path().to_owned()));
                 }
             }
@@ -601,7 +598,7 @@ pub fn changes_from_diff(diff: &DataDiff) -> ConfigChanges {
                 let snode = dnode.schema();
                 if CallbackOp::Delete.is_valid(&snode) {
                     let cb_key = CallbackKey::new(
-                        dnode.schema().path(SchemaPathFormat::DATA),
+                        dnode.schema().data_path(),
                         CallbackOp::Delete,
                     );
                     changes.push((cb_key, dnode.path().to_owned()));
@@ -616,7 +613,7 @@ pub fn changes_from_diff(diff: &DataDiff) -> ConfigChanges {
                     }
 
                     let cb_key = CallbackKey::new(
-                        dnode.schema().path(SchemaPathFormat::DATA),
+                        dnode.schema().data_path(),
                         CallbackOp::Delete,
                     );
                     changes.push((cb_key, dnode.path().to_owned()));
@@ -629,7 +626,7 @@ pub fn changes_from_diff(diff: &DataDiff) -> ConfigChanges {
                 }
 
                 let cb_key = CallbackKey::new(
-                    dnode.schema().path(SchemaPathFormat::DATA),
+                    dnode.schema().data_path(),
                     CallbackOp::Modify,
                 );
                 changes.push((cb_key, dnode.path().to_owned()));

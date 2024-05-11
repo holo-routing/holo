@@ -9,6 +9,7 @@ pub mod stub;
 use std::sync::{Arc, Once};
 
 use derive_new::new;
+use holo_utils::yang::ContextExt;
 use holo_utils::Receiver;
 use holo_yang as yang;
 use holo_yang::{YANG_CTX, YANG_IMPLEMENTED_MODULES};
@@ -47,6 +48,7 @@ fn init_yang() {
     for module_name in YANG_IMPLEMENTED_MODULES.iter().rev() {
         yang::load_deviations(&mut yang_ctx, module_name);
     }
+    yang_ctx.cache_data_paths();
     YANG_CTX.set(Arc::new(yang_ctx)).unwrap();
 }
 

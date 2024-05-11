@@ -7,6 +7,7 @@
 use std::sync::Arc;
 
 use holo_northbound::ProviderBase;
+use holo_utils::yang::ContextExt;
 use holo_yang as yang;
 use holo_yang::YANG_CTX;
 
@@ -76,5 +77,6 @@ pub(crate) fn create_context() {
     for module_name in modules.iter().rev() {
         yang::load_deviations(&mut yang_ctx, module_name);
     }
+    yang_ctx.cache_data_paths();
     YANG_CTX.set(Arc::new(yang_ctx)).unwrap();
 }

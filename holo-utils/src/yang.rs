@@ -4,15 +4,28 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::ffi::CString;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::str::FromStr;
 
 use holo_yang::TryFromYang;
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
+use yang2::context::Context;
 use yang2::data::{Data, DataNodeRef};
-use yang2::schema::DataValue;
+use yang2::schema::{DataValue, SchemaNode, SchemaPathFormat};
 
 use crate::ip::AddressFamily;
+
+/// Extension methods for Context.
+pub trait ContextExt {
+    fn cache_data_paths(&self);
+}
+
+/// Extension methods for SchemaNode.
+pub trait SchemaNodeExt {
+    fn cache_data_path(&self);
+    fn data_path(&self) -> String;
+}
 
 /// Extension methods for DataNodeRef.
 pub trait DataNodeRefExt {
@@ -51,6 +64,48 @@ pub trait DataNodeRefExt {
     fn get_prefix6_relative(&self, path: &str) -> Option<Ipv6Network>;
     fn get_af(&self) -> AddressFamily;
     fn get_af_relative(&self, path: &str) -> Option<AddressFamily>;
+}
+
+// ===== impl Context =====
+
+impl ContextExt for Context {
+    fn cache_data_paths(&self) {
+        for snode in self.traverse() {
+            snode.cache_data_path();
+            if let Some(actions) = snode.actions() {
+                for action in actions {
+                    for snode in action.traverse() {
+                        snode.cache_data_path();
+                    }
+                }
+            }
+            if let Some(notifications) = snode.notifications() {
+                for notification in notifications {
+                    for snode in notification.traverse() {
+                        snode.cache_data_path();
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ===== impl SchemaNode =====
+
+impl<'a> SchemaNodeExt for SchemaNode<'a> {
+    fn cache_data_path(&self) {
+        let data_path = self.path(SchemaPathFormat::DATA);
+        let data_path = CString::new(data_path).unwrap();
+        unsafe { self.set_private(data_path.into_raw() as _) };
+    }
+
+    fn data_path(&self) -> String {
+        let data_path = self
+            .get_private()
+            .expect("Schema node private pointer uninitialized");
+        let data_path = unsafe { std::ffi::CStr::from_ptr(data_path as _) };
+        data_path.to_str().expect("Invalid UTF-8").to_owned()
+    }
 }
 
 // ===== impl DataNodeRef =====

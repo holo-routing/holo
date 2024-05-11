@@ -16,6 +16,164 @@ use holo_yang as yang;
 use holo_yang::YANG_IMPLEMENTED_MODULES;
 use yang2::schema::{DataValue, SchemaNode, SchemaNodeKind, SchemaPathFormat};
 
+struct StructBuilder<'a> {
+    level: usize,
+    name: String,
+    fields: Vec<SchemaNode<'a>>,
+}
+
+// ===== impl StructBuilder =====
+
+impl<'a> StructBuilder<'a> {
+    fn new(level: usize, snode: &SchemaNode<'a>) -> Self {
+        let mut fields = Vec::new();
+        for snode in snode.children() {
+            Self::extract_fields(snode, &mut fields);
+        }
+
+        StructBuilder {
+            level,
+            name: snode_normalized_name(snode, Case::Pascal),
+            fields,
+        }
+    }
+
+    fn extract_fields(snode: SchemaNode<'a>, fields: &mut Vec<SchemaNode<'a>>) {
+        if !snode.is_status_current() {
+            return;
+        }
+
+        match snode.kind() {
+            SchemaNodeKind::List | SchemaNodeKind::LeafList => {
+                // Ignore.
+            }
+            SchemaNodeKind::Choice => {
+                for snode in snode
+                    .children()
+                    .filter(|snode| snode.is_status_current())
+                    .flat_map(|snode| snode.children())
+                {
+                    Self::extract_fields(snode, fields);
+                }
+            }
+            SchemaNodeKind::Container => {
+                let mut container_fields = Vec::new();
+                for snode in snode.children() {
+                    Self::extract_fields(snode, &mut container_fields);
+                }
+                if !container_fields.is_empty() {
+                    fields.push(snode);
+                }
+            }
+            _ => {
+                fields.push(snode);
+            }
+        }
+    }
+
+    fn generate(self, output: &mut String) {
+        let indent1 = " ".repeat((self.level + 1) * 2);
+        let indent2 = " ".repeat((self.level + 2) * 2);
+        let indent3 = " ".repeat((self.level + 3) * 2);
+        let indent4 = " ".repeat((self.level + 4) * 2);
+
+        // Struct definition.
+        writeln!(output, "{}pub struct {}<'a> {{", indent1, self.name).unwrap();
+        for snode in &self.fields {
+            let field_name = snode_normalized_name(snode, Case::Snake);
+            let field_type = if snode.kind() == SchemaNodeKind::Container {
+                format!(
+                    "{}::{}<'a>",
+                    snode_normalized_name(snode, Case::Snake),
+                    snode_normalized_name(snode, Case::Pascal)
+                )
+            } else {
+                "Cow<'a, str>".to_owned()
+            };
+
+            writeln!(
+                output,
+                "{}pub {}: Option<{}>,",
+                indent2, field_name, field_type,
+            )
+            .unwrap();
+        }
+        writeln!(output, "{}}}", indent1).unwrap();
+
+        // YangObject trait implementation.
+        writeln!(output).unwrap();
+        writeln!(
+            output,
+            "{}impl<'a> YangObject for {}<'a> {{",
+            indent1, self.name
+        )
+        .unwrap();
+        writeln!(
+            output,
+            "{}fn init_data_node(&self, dnode: &mut DataNodeRef<'_>) {{",
+            indent2
+        )
+        .unwrap();
+        for snode in &self.fields {
+            let field_name = snode_normalized_name(snode, Case::Snake);
+            let module = snode.module();
+
+            writeln!(
+                output,
+                "{}if let Some({}) = &self.{} {{",
+                indent3, field_name, field_name
+            )
+            .unwrap();
+
+            if let Some(parent_snode) = snode.ancestors().next()
+                && snode.module() != parent_snode.module()
+            {
+                writeln!(
+                    output,
+                    "{}let module = YANG_CTX.get().unwrap().get_module_latest(\"{}\").unwrap();",
+                    indent4,
+                    module.name()
+                )
+                .unwrap();
+                writeln!(output, "{}let module = Some(&module);", indent4)
+                    .unwrap();
+            } else {
+                writeln!(output, "{}let module = None;", indent4).unwrap();
+            }
+
+            if snode.kind() == SchemaNodeKind::Container {
+                writeln!(
+                    output,
+                    "{}let mut dnode = dnode.new_inner(module, \"{}\").unwrap();",
+                    indent4,
+                    snode.name()
+                )
+                .unwrap();
+                writeln!(
+                    output,
+                    "{}{}.init_data_node(&mut dnode);",
+                    indent4, field_name
+                )
+                .unwrap();
+            } else {
+                writeln!(
+                    output,
+                    "{}dnode.new_term(module, \"{}\", {}).unwrap();",
+                    indent4,
+                    snode.name(),
+                    field_name
+                )
+                .unwrap();
+            }
+            writeln!(output, "{}}}", indent3).unwrap();
+        }
+        writeln!(output, "{}}}", indent2).unwrap();
+        writeln!(output, "{}}}", indent1).unwrap();
+    }
+}
+
+// ===== helper functions =====
+
 fn snode_normalized_name(snode: &SchemaNode<'_>, case: Case) -> String {
     let mut name = snode.name().to_owned();
 
@@ -80,7 +238,10 @@ fn generate_module(output: &mut String, snode: &SchemaNode<'_>, level: usize) {
                 | SchemaNodeKind::List
                 | SchemaNodeKind::Notification
         ) {
-            generate_object_struct(output, snode, level);
+            let builder = StructBuilder::new(level, snode);
+            if !builder.fields.is_empty() {
+                builder.generate(output);
+            }
         }
     }
 
@@ -215,164 +376,7 @@ fn generate_list_keys_fn(
     .unwrap();
 }
 
-fn generate_object_struct(
-    output: &mut String,
-    snode: &SchemaNode<'_>,
-    level: usize,
-) {
-    let indent = " ".repeat(level * 2);
-
-    let struct_name = snode_normalized_name(snode, Case::Pascal);
-    writeln!(output, "{}  pub struct {}<'a> {{", indent, struct_name).unwrap();
-    let mut empty = true;
-    for snode in snode
-        .children()
-        .filter(|snode| snode.is_status_current())
-        .filter(|snode| snode.kind() != SchemaNodeKind::List)
-        .filter(|snode| snode.kind() != SchemaNodeKind::LeafList)
-    {
-        empty = false;
-        generate_field(output, &snode, level + 1);
-    }
-    if empty {
-        writeln!(
-            output,
-            "{}    _marker: std::marker::PhantomData<&'a str>,",
-            indent
-        )
-        .unwrap();
-    }
-    writeln!(output, "{}  }}", indent).unwrap();
-
-    // Generate YangObject trait implementation.
-    writeln!(output).unwrap();
-    writeln!(
-        output,
-        "{}  impl<'a> YangObject for {}<'a> {{",
-        indent, struct_name
-    )
-    .unwrap();
-    writeln!(
-        output,
-        "{}    fn init_data_node(&self, dnode: &mut DataNodeRef<'_>) {{",
-        indent
-    )
-    .unwrap();
-    for snode in snode
-        .children()
-        .filter(|snode| snode.is_status_current())
-        .filter(|snode| snode.kind() != SchemaNodeKind::List)
-        .filter(|snode| snode.kind() != SchemaNodeKind::LeafList)
-    {
-        generate_field_to_yang(output, &snode, level + 2);
-    }
-    writeln!(output, "{}    }}", indent).unwrap();
-    writeln!(output, "{}  }}", indent).unwrap();
-}
-
-fn generate_field(output: &mut String, snode: &SchemaNode<'_>, level: usize) {
-    if snode.kind() == SchemaNodeKind::Choice {
-        for snode in snode
-            .children()
-            .filter(|snode| snode.is_status_current())
-            .flat_map(|snode| snode.children())
-        {
-            generate_field(output, &snode, level);
-        }
-        return;
-    }
-
-    let indent = " ".repeat(level * 2);
-    let field_name = snode_normalized_name(snode, Case::Snake);
-    if snode.kind() == SchemaNodeKind::Container {
-        writeln!(
-            output,
-            "{}  pub {}: Option<{}::{}<'a>>,",
-            indent,
-            field_name,
-            snode_normalized_name(snode, Case::Snake),
-            snode_normalized_name(snode, Case::Pascal)
-        )
-        .unwrap();
-    } else {
-        writeln!(
-            output,
-            "{}  pub {}: Option<Cow<'a, str>>,",
-            indent, field_name
-        )
-        .unwrap();
-    }
-}
-
-fn generate_field_to_yang(
-    output: &mut String,
-    snode: &SchemaNode<'_>,
-    level: usize,
-) {
-    if snode.kind() == SchemaNodeKind::Choice {
-        for snode in snode
-            .children()
-            .filter(|snode| snode.is_status_current())
-            .flat_map(|snode| snode.children())
-        {
-            generate_field_to_yang(output, &snode, level);
-        }
-        return;
-    }
-
-    let indent = " ".repeat(level * 2);
-    let field_name = snode_normalized_name(snode, Case::Snake);
-    let module = snode.module();
-
-    writeln!(
-        output,
-        "{}  if let Some({}) = &self.{} {{",
-        indent, field_name, field_name
-    )
-    .unwrap();
-
-    if let Some(parent_snode) = snode.ancestors().next()
-        && snode.module() != parent_snode.module()
-    {
-        writeln!(
-            output,
-            "{}    let module = YANG_CTX.get().unwrap().get_module_latest(\"{}\").unwrap();",
-            indent,
-            module.name()
-        )
-        .unwrap();
-        writeln!(output, "{}    let module = Some(&module);", indent,).unwrap();
-    } else {
-        writeln!(output, "{}    let module = None;", indent,).unwrap();
-    }
-
-    if snode.kind() == SchemaNodeKind::Container {
-        writeln!(
-            output,
-            "{}    let mut dnode = dnode.new_inner(module, \"{}\").unwrap();",
-            indent,
-            snode.name()
-        )
-        .unwrap();
-        writeln!(
-            output,
-            "{}    {}.init_data_node(&mut dnode);",
-            indent, field_name
-        )
-        .unwrap();
-    } else {
-        writeln!(
-            output,
-            "{}    dnode.new_term(module, \"{}\", {}).unwrap();",
-            indent,
-            snode.name(),
-            field_name
-        )
-        .unwrap();
-    }
-
-    writeln!(output, "{}  }}", indent).unwrap();
-}
+// ===== main =====
 
 fn main() {
     let dst = PathBuf::from(env::var("OUT_DIR").unwrap());

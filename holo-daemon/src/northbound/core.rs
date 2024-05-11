@@ -474,8 +474,6 @@ impl Northbound {
         candidate: &Arc<DataTree>,
         changes: &[ConfigChange],
     ) -> std::result::Result<(), northbound::error::Error> {
-        let mut handles = Vec::new();
-
         // Spawn one task per data provider.
         for daemon_tx in self.providers.iter() {
             // Batch all changes that should be sent to this provider.
@@ -508,10 +506,8 @@ impl Northbound {
                 daemon_tx.send(request).await.unwrap();
                 responder_rx.await.unwrap()
             });
-            handles.push(handle);
-        }
-        // Wait for all tasks to complete.
-        for handle in handles {
+
+            // Wait for task to complete.
             handle.await.unwrap()?;
         }
 
@@ -638,19 +634,6 @@ fn start_providers(
     let ibus_rx_keychain = ibus_tx.subscribe();
     let ibus_rx_policy = ibus_rx;
 
-    // Start holo-routing.
-    #[cfg(feature = "routing")]
-    {
-        let daemon_tx = holo_routing::start(
-            provider_tx.clone(),
-            ibus_tx.clone(),
-            ibus_rx_routing,
-            db,
-            config.event_recorder.clone(),
-        );
-        providers.push(daemon_tx);
-    }
-
     // Start holo-interface.
     #[cfg(feature = "interface")]
     {
@@ -676,8 +659,24 @@ fn start_providers(
     // Start holo-policy.
     #[cfg(feature = "policy")]
     {
-        let daemon_tx =
-            holo_policy::start(provider_tx, ibus_tx, ibus_rx_policy);
+        let daemon_tx = holo_policy::start(
+            provider_tx.clone(),
+            ibus_tx.clone(),
+            ibus_rx_policy,
+        );
+        providers.push(daemon_tx);
+    }
+
+    // Start holo-routing.
+    #[cfg(feature = "routing")]
+    {
+        let daemon_tx = holo_routing::start(
+            provider_tx,
+            ibus_tx,
+            ibus_rx_routing,
+            db,
+            config.event_recorder.clone(),
+        );
         providers.push(daemon_tx);
     }
 

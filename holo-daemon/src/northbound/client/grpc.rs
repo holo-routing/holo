@@ -519,7 +519,11 @@ pub(crate) fn start(
 
     tokio::spawn(async move {
         server
-            .add_service(proto::NorthboundServer::new(service))
+            .add_service(
+                proto::NorthboundServer::new(service)
+                    .max_encoding_message_size(usize::MAX)
+                    .max_decoding_message_size(usize::MAX),
+            )
             .serve(address)
             .await
             .expect("Failed to start gRPC service");

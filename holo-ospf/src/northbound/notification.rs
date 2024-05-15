@@ -5,6 +5,7 @@
 //
 
 use std::net::Ipv4Addr;
+use std::time::Duration;
 
 use holo_northbound::{notification, yang};
 use holo_yang::ToYang;
@@ -52,13 +53,14 @@ pub(crate) fn if_config_error<V>(
     use yang::if_config_error::interface::Interface;
     use yang::if_config_error::{self, IfConfigError};
 
+    let src = (*src).into();
     let data = IfConfigError {
         routing_protocol_name: Some(instance.name.into()),
         address_family: Some(instance.state.af.to_yang()),
         interface: Some(Interface {
             interface: Some(ifname.into()),
         }),
-        packet_source: Some(src.to_string().into()),
+        packet_source: Some(&src),
         packet_type: Some(pkt_type.to_yang()),
         error: Some(error.to_yang()),
     };
@@ -75,6 +77,7 @@ pub(crate) fn nbr_state_change<V>(
     use yang::nbr_state_change::interface::Interface;
     use yang::nbr_state_change::{self, NbrStateChange};
 
+    let nbr_src = nbr.src.into();
     let data = NbrStateChange {
         routing_protocol_name: Some(instance.name.into()),
         address_family: Some(instance.state.af.to_yang()),
@@ -82,7 +85,7 @@ pub(crate) fn nbr_state_change<V>(
             interface: Some(iface.name.as_str().into()),
         }),
         neighbor_router_id: Some(nbr.router_id.to_string().into()),
-        neighbor_ip_addr: Some(nbr.src.to_string().into()),
+        neighbor_ip_addr: Some(&nbr_src),
         state: Some(nbr.state.to_yang()),
     };
     notification::send(&instance.tx.nb, nbr_state_change::PATH, data);
@@ -101,6 +104,8 @@ pub(crate) fn nbr_restart_helper_enter<V>(
         self, NbrRestartHelperStatusChange,
     };
 
+    let nbr_src = nbr.src.into();
+    let age = Duration::from_secs(age.into());
     let data = NbrRestartHelperStatusChange {
         routing_protocol_name: Some(instance.name.into()),
         address_family: Some(instance.state.af.to_yang()),
@@ -108,9 +113,9 @@ pub(crate) fn nbr_restart_helper_enter<V>(
             interface: Some(iface.name.as_str().into()),
         }),
         neighbor_router_id: Some(nbr.router_id.to_string().into()),
-        neighbor_ip_addr: Some(nbr.src.to_string().into()),
+        neighbor_ip_addr: Some(&nbr_src),
         status: Some("helping".into()),
-        age: Some(age.to_string().into()),
+        age: Some(&age),
         exit_reason: None,
     };
     notification::send(
@@ -133,6 +138,7 @@ pub(crate) fn nbr_restart_helper_exit<V>(
         self, NbrRestartHelperStatusChange,
     };
 
+    let nbr_src = nbr.src.into();
     let data = NbrRestartHelperStatusChange {
         routing_protocol_name: Some(instance.name.into()),
         address_family: Some(instance.state.af.to_yang()),
@@ -140,7 +146,7 @@ pub(crate) fn nbr_restart_helper_exit<V>(
             interface: Some(iface.name.as_str().into()),
         }),
         neighbor_router_id: Some(nbr.router_id.to_string().into()),
-        neighbor_ip_addr: Some(nbr.src.to_string().into()),
+        neighbor_ip_addr: Some(&nbr_src),
         status: Some("not-helping".into()),
         age: None,
         exit_reason: Some(reason.to_yang()),
@@ -162,13 +168,14 @@ pub(crate) fn if_rx_bad_packet<V>(
     use yang::if_rx_bad_packet::interface::Interface;
     use yang::if_rx_bad_packet::{self, IfRxBadPacket};
 
+    let src = src.into();
     let data = IfRxBadPacket {
         routing_protocol_name: Some(instance.name.into()),
         address_family: Some(instance.state.af.to_yang()),
         interface: Some(Interface {
             interface: Some(iface.name.as_str().into()),
         }),
-        packet_source: Some(src.to_string().into()),
+        packet_source: Some(&src),
         // TODO: set the packet-type whenever possible.
         packet_type: None,
     };
@@ -184,9 +191,10 @@ pub(crate) fn if_rx_bad_lsa<V>(
 {
     use yang::if_rx_bad_lsa::{self, IfRxBadLsa};
 
+    let src = src.into();
     let data = IfRxBadLsa {
         routing_protocol_name: Some(instance.name.into()),
-        packet_source: Some(src.to_string().into()),
+        packet_source: Some(&src),
         error: Some(error.to_yang()),
     };
     notification::send(&instance.tx.nb, if_rx_bad_lsa::PATH, data);
@@ -205,7 +213,7 @@ pub(crate) fn sr_index_out_of_range<V>(
 
     let data = SegmentRoutingIndexOutOfRange {
         received_target: Some(nbr_router_id.to_string().into()),
-        received_index: Some(index.to_string().into()),
+        received_index: Some(index),
         routing_protocol: Some(instance.name.into()),
     };
     notification::send(

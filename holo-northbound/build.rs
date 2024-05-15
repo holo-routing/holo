@@ -14,7 +14,58 @@ use check_keyword::CheckKeyword;
 use convert_case::{Boundary, Case, Casing};
 use holo_yang as yang;
 use holo_yang::YANG_IMPLEMENTED_MODULES;
-use yang2::schema::{DataValue, SchemaNode, SchemaNodeKind, SchemaPathFormat};
+use yang2::schema::{
+    DataValue, DataValueType, SchemaNode, SchemaNodeKind, SchemaPathFormat,
+};
+
+const HEADER: &str = r#"
+use std::borrow::Cow;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::time::{Duration, Instant};
+
+use chrono::{DateTime, Utc};
+use holo_yang::{YangObject, YangPath, YANG_CTX};
+use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
+use yang2::data::DataNodeRef;
+use yang2::schema::SchemaModule;
+
+fn timer_secs16_to_yang(timer: &Duration) -> String {
+    let remaining = timer.as_secs();
+    // Round up the remaining time to 1 in case it's less than one second.
+    let remaining = if remaining == 0 { 1 } else { remaining };
+    let remaining = u16::try_from(remaining).unwrap_or(u16::MAX);
+    remaining.to_string()
+}
+
+#[allow(dead_code)]
+fn timer_secs32_to_yang(timer: &Duration) -> String {
+    let remaining = timer.as_secs();
+    // Round up the remaining time to 1 in case it's less than one second.
+    let remaining = if remaining == 0 { 1 } else { remaining };
+    let remaining = u32::try_from(remaining).unwrap_or(u32::MAX);
+    remaining.to_string()
+}
+
+fn timer_millis_to_yang(timer: &Duration) -> String {
+    let remaining = timer.as_millis();
+    // Round up the remaining time to 1 in case it's less than one millisecond.
+    let remaining = if remaining == 0 { 1 } else { remaining };
+    let remaining = u32::try_from(remaining).unwrap_or(u32::MAX);
+    remaining.to_string()
+}
+
+fn timeticks_to_yang(timeticks: &Instant) -> String {
+    let uptime = Instant::now() - *timeticks;
+    let uptime = u32::try_from(uptime.as_millis() / 10).unwrap_or(u32::MAX);
+    uptime.to_string()
+}
+
+fn timeticks64_to_yang(timeticks: &Instant) -> String {
+    let uptime = Instant::now() - *timeticks;
+    let uptime = u64::try_from(uptime.as_millis() / 10).unwrap_or(u64::MAX);
+    uptime.to_string()
+}
+"#;
 
 struct StructBuilder<'a> {
     level: usize,
@@ -88,13 +139,21 @@ impl<'a> StructBuilder<'a> {
                     snode_normalized_name(snode, Case::Pascal)
                 )
             } else {
-                "Cow<'a, str>".to_owned()
+                snode_type_map(snode).to_owned()
             };
 
             writeln!(
                 output,
                 "{}pub {}: Option<{}>,",
                 indent2, field_name, field_type,
+            )
+            .unwrap();
+        }
+        if self.fields.iter().all(|snode| snode_is_base_type(snode)) {
+            writeln!(
+                output,
+                "{}_marker: std::marker::PhantomData<&'a str>,",
+                indent2
             )
             .unwrap();
         }
@@ -112,6 +171,12 @@ impl<'a> StructBuilder<'a> {
             output,
             "{}fn init_data_node(&self, dnode: &mut DataNodeRef<'_>) {{",
             indent2
+        )
+        .unwrap();
+        writeln!(
+            output,
+            "{}let module: Option<&SchemaModule<'_>> = None;",
+            indent3
         )
         .unwrap();
         for snode in &self.fields {
@@ -137,8 +202,6 @@ impl<'a> StructBuilder<'a> {
                 .unwrap();
                 writeln!(output, "{}let module = Some(&module);", indent4)
                     .unwrap();
-            } else {
-                writeln!(output, "{}let module = None;", indent4).unwrap();
             }
 
             if snode.kind() == SchemaNodeKind::Container {
@@ -156,12 +219,13 @@ impl<'a> StructBuilder<'a> {
                 )
                 .unwrap();
             } else {
+                let value = snode_type_value(snode, &field_name);
                 writeln!(
                     output,
                     "{}dnode.new_term(module, \"{}\", {}).unwrap();",
                     indent4,
                     snode.name(),
-                    field_name
+                    value
                 )
                 .unwrap();
             }
@@ -206,6 +270,133 @@ fn snode_normalized_name(snode: &SchemaNode<'_>, case: Case) -> String {
     name = name.into_safe();
 
     name
+}
+
+fn snode_is_base_type(snode: &SchemaNode<'_>) -> bool {
+    matches!(
+        snode.base_type(),
+        Some(
+            DataValueType::Uint8
+                | DataValueType::Uint16
+                | DataValueType::Uint32
+                | DataValueType::Uint64
+                | DataValueType::Int8
+                | DataValueType::Int16
+                | DataValueType::Int32
+                | DataValueType::Int64
+                | DataValueType::Bool
+                | DataValueType::Empty
+        )
+    )
+}
+
+fn snode_typedef_map(snode: &SchemaNode<'_>) -> Option<&'static str> {
+    match snode.typedef_name().as_deref() {
+        Some("ip-address") => Some("&'a IpAddr"),
+        Some("ipv4-address") => Some("&'a Ipv4Addr"),
+        Some("ipv6-address") => Some("&'a Ipv6Addr"),
+        Some("ip-prefix") => Some("&'a IpNetwork"),
+        Some("ipv4-prefix") => Some("&'a Ipv4Network"),
+        Some("ipv6-prefix") => Some("&'a Ipv6Network"),
+        Some("date-and-time") => Some("&'a DateTime<Utc>"),
+        Some("timer-value-seconds16") => Some("&'a Duration"),
+        Some("timer-value-seconds32") => Some("&'a Duration"),
+        Some("timer-value-milliseconds") => Some("&'a Duration"),
+        Some("timeticks") => Some("&'a Instant"),
+        Some("timeticks64") => Some("&'a Instant"),
+        _ => None,
+    }
+}
+
+fn snode_typedef_value(
+    snode: &SchemaNode<'_>,
+    field_name: &str,
+) -> Option<String> {
+    match snode.typedef_name().as_deref() {
+        Some("ip-address") | Some("ipv4-address") | Some("ipv6-address")
+        | Some("ip-prefix") | Some("ipv4-prefix") | Some("ipv6-prefix") => {
+            Some(format!("Some(&{}.to_string())", field_name))
+        }
+        Some("date-and-time") => {
+            Some(format!("Some(&{}.to_rfc3339())", field_name))
+        }
+        Some("timer-value-seconds16") => {
+            Some(format!("Some(&timer_secs16_to_yang({}))", field_name))
+        }
+        Some("timer-value-seconds32") => {
+            Some(format!("Some(&timer_secs32_to_yang({}))", field_name))
+        }
+        Some("timer-value-milliseconds") => {
+            Some(format!("Some(&timer_millis_to_yang({}))", field_name))
+        }
+        Some("timeticks") => {
+            Some(format!("Some(&timeticks_to_yang({}))", field_name))
+        }
+        Some("timeticks64") => {
+            Some(format!("Some(&timeticks64_to_yang({}))", field_name))
+        }
+        _ => None,
+    }
+}
+
+fn snode_type_map(snode: &SchemaNode<'_>) -> &'static str {
+    if let Some(typedef) = snode_typedef_map(snode) {
+        return typedef;
+    }
+
+    match snode.base_type().unwrap() {
+        DataValueType::Unknown => panic!("Unknown leaf type"),
+        DataValueType::Uint8 => "u8",
+        DataValueType::Uint16 => "u16",
+        DataValueType::Uint32 => "u32",
+        DataValueType::Uint64 => "u64",
+        DataValueType::Int8 => "i8",
+        DataValueType::Int16 => "i16",
+        DataValueType::Int32 => "i32",
+        DataValueType::Int64 => "i64",
+        DataValueType::Bool => "bool",
+        DataValueType::Empty => "()",
+        DataValueType::String
+        | DataValueType::Union
+        | DataValueType::Dec64
+        | DataValueType::Enum
+        | DataValueType::IdentityRef
+        | DataValueType::InstanceId
+        | DataValueType::LeafRef
+        | DataValueType::Binary
+        | DataValueType::Bits => "Cow<'a, str>",
+    }
+}
+
+fn snode_type_value(snode: &SchemaNode<'_>, field_name: &str) -> String {
+    if let Some(typedef_value) = snode_typedef_value(snode, field_name) {
+        return typedef_value;
+    }
+
+    match snode.base_type().unwrap() {
+        DataValueType::Unknown => panic!("Unknown leaf type"),
+        DataValueType::Uint8
+        | DataValueType::Uint16
+        | DataValueType::Uint32
+        | DataValueType::Uint64
+        | DataValueType::Int8
+        | DataValueType::Int16
+        | DataValueType::Int32
+        | DataValueType::Int64
+        | DataValueType::Bool => {
+            format!("Some(&{}.to_string())", field_name)
+        }
+        DataValueType::Empty => "None".to_owned(),
+        DataValueType::String
+        | DataValueType::Union
+        | DataValueType::Dec64
+        | DataValueType::Enum
+        | DataValueType::IdentityRef
+        | DataValueType::InstanceId
+        | DataValueType::LeafRef
+        | DataValueType::Binary
+        | DataValueType::Bits => format!("Some({})", field_name),
+    }
 }
 
 fn generate_module(output: &mut String, snode: &SchemaNode<'_>, level: usize) {
@@ -393,11 +584,7 @@ fn main() {
 
     // Generate file header.
     let mut output = String::new();
-    writeln!(output, "use std::borrow::Cow;").unwrap();
-    writeln!(output, "use holo_yang::{{YangObject, YangPath, YANG_CTX}};")
-        .unwrap();
-    writeln!(output, "use yang2::data::DataNodeRef;").unwrap();
-    writeln!(output).unwrap();
+    writeln!(output, "{}", HEADER).unwrap();
 
     // Generate modules.
     for snode in yang_ctx

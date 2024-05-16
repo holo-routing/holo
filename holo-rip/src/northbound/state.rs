@@ -4,13 +4,16 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::borrow::Cow;
 use std::sync::LazyLock as Lazy;
 
 use enum_as_inner::EnumAsInner;
 use holo_northbound::state::{
-    Callbacks, CallbacksBuilder, ListEntryKind, NodeAttributes, Provider,
+    Callbacks, CallbacksBuilder, ListEntryKind, Provider,
 };
 use holo_northbound::yang::control_plane_protocol::rip;
+use holo_utils::num::SaturatingInto;
+use holo_utils::option::OptionExt;
 use holo_yang::ToYang;
 
 use crate::instance::Instance;
@@ -41,140 +44,105 @@ fn load_callbacks<V>() -> Callbacks<Instance<V>>
 where
     V: Version,
 {
-    CallbacksBuilder::default()
+    CallbacksBuilder::<Instance<V>>::default()
+        .path(rip::PATH)
+        .get_object(|instance, _args| {
+            use rip::Rip;
+            let mut next_triggered_update = None;
+            let mut num_of_routes = None;
+            if let Instance::Up(instance) = instance {
+                next_triggered_update = instance
+                    .state
+                    .next_triggered_update()
+                    .map(|d| d.as_secs().saturating_into());
+                num_of_routes =
+                    Some(instance.state.routes.len().saturating_into());
+            }
+            Box::new(Rip {
+                next_triggered_update: next_triggered_update
+                    .ignore_in_testing(),
+                num_of_routes,
+            })
+        })
         .path(rip::interfaces::interface::PATH)
         .get_iterate(|instance, _args| {
-            if let Instance::Up(instance) = instance {
-                let iter =
-                    instance.core.interfaces.iter().map(ListEntry::Interface);
-                Some(Box::new(iter))
-            } else {
-                None
-            }
+            let Instance::Up(instance) = instance else {
+                return None;
+            };
+            let iter =
+                instance.core.interfaces.iter().map(ListEntry::Interface);
+            Some(Box::new(iter))
         })
-        .path(rip::interfaces::interface::neighbors::neighbor::PATH)
-        .get_iterate(|_instance, _args| {
-            // No operational data under this list.
-            None
-        })
-        .path(rip::interfaces::interface::oper_status::PATH)
-        .get_element_string(|_instance, args| {
+        .get_object(|instance, args| {
+            use rip::interfaces::interface::Interface;
             let iface = args.list_entry.as_interface().unwrap();
-            let status = if iface.is_active() { "up" } else { "down" };
-            Some(status.to_owned())
-        })
-        .path(rip::interfaces::interface::next_full_update::PATH)
-        .attributes(NodeAttributes::TIME)
-        .get_element_u32(|instance, args| {
-            let iface = args.list_entry.as_interface().unwrap();
-            if iface.is_active() {
-                // The same update interval is shared by all interfaces.
-                instance.as_up().map(|instance| {
-                    let remaining = instance.state.next_update();
-                    u32::try_from(remaining.as_secs()).unwrap_or(u32::MAX)
-                })
-            } else {
-                None
-            }
-        })
-        .path(rip::interfaces::interface::valid_address::PATH)
-        .get_element_bool(|_instance, args| {
-            let iface = args.list_entry.as_interface().unwrap();
-            Some(!iface.core().system.addr_list.is_empty())
-        })
-        .path(rip::interfaces::interface::statistics::discontinuity_time::PATH)
-        .attributes(NodeAttributes::TIME)
-        .get_element_date_and_time(|_instance, args| {
-            let iface = args.list_entry.as_interface().unwrap();
-            if let Interface::Up(iface) = iface {
-                iface.state.statistics.discontinuity_time
-            } else {
-                None
-            }
-        })
-        .path(rip::interfaces::interface::statistics::bad_packets_rcvd::PATH)
-        .attributes(NodeAttributes::COUNTER)
-        .get_element_u32(|_instance, args| {
-            let iface = args.list_entry.as_interface().unwrap();
-            if let Interface::Up(iface) = iface {
-                Some(iface.state.statistics.bad_packets_rcvd)
-            } else {
-                None
-            }
-        })
-        .path(rip::interfaces::interface::statistics::bad_routes_rcvd::PATH)
-        .attributes(NodeAttributes::COUNTER)
-        .get_element_u32(|_instance, args| {
-            let iface = args.list_entry.as_interface().unwrap();
-            if let Interface::Up(iface) = iface {
-                Some(iface.state.statistics.bad_routes_rcvd)
-            } else {
-                None
-            }
-        })
-        .path(rip::interfaces::interface::statistics::updates_sent::PATH)
-        .attributes(NodeAttributes::COUNTER)
-        .get_element_u32(|_instance, args| {
-            let iface = args.list_entry.as_interface().unwrap();
-            if let Interface::Up(iface) = iface {
-                Some(iface.state.statistics.updates_sent)
-            } else {
-                None
-            }
-        })
-        .path(rip::next_triggered_update::PATH)
-        .attributes(NodeAttributes::TIME)
-        .get_element_u32(|instance, _args| {
-            instance.as_up().and_then(|instance| {
-                instance.state.next_triggered_update().map(|remaining| {
-                    u32::try_from(remaining.as_secs()).unwrap_or(u32::MAX)
-                })
+            Box::new(Interface {
+                interface: iface.core().name.as_str().into(),
+                oper_status: Some(
+                    (if iface.is_active() { "up" } else { "down" }).into(),
+                ),
+                next_full_update: iface
+                    .is_active()
+                    .then(|| {
+                        // The same update interval is shared by all interfaces.
+                        instance
+                            .as_up()
+                            .unwrap()
+                            .state
+                            .next_update()
+                            .as_secs()
+                            .saturating_into()
+                    })
+                    .ignore_in_testing(),
+                valid_address: Some(!iface.core().system.addr_list.is_empty()),
             })
         })
-        .path(rip::num_of_routes::PATH)
-        .get_element_u32(|instance, _args| {
-            if let Instance::Up(instance) = instance {
-                let num_of_routes = u32::try_from(instance.state.routes.len())
-                    .unwrap_or(u32::MAX);
-                Some(num_of_routes)
-            } else {
-                None
+        .path(rip::interfaces::interface::statistics::PATH)
+        .get_object(|_instance, args| {
+            use rip::interfaces::interface::statistics::Statistics;
+            let iface = args.list_entry.as_interface().unwrap();
+            let mut discontinuity_time = None;
+            let mut bad_packets_rcvd = None;
+            let mut bad_routes_rcvd = None;
+            let mut updates_sent = None;
+            if let Interface::Up(iface) = iface {
+                discontinuity_time =
+                    iface.state.statistics.discontinuity_time.as_ref();
+                bad_packets_rcvd =
+                    Some(iface.state.statistics.bad_packets_rcvd);
+                bad_routes_rcvd = Some(iface.state.statistics.bad_routes_rcvd);
+                updates_sent = Some(iface.state.statistics.updates_sent);
             }
-        })
-        .path(rip::statistics::discontinuity_time::PATH)
-        .attributes(NodeAttributes::TIME)
-        .get_element_date_and_time(|instance, _args| {
-            instance.as_up().and_then(|instance| {
-                instance.state.statistics.discontinuity_time
+            Box::new(Statistics {
+                discontinuity_time: discontinuity_time.ignore_in_testing(),
+                bad_packets_rcvd: bad_packets_rcvd.ignore_in_testing(),
+                bad_routes_rcvd: bad_routes_rcvd.ignore_in_testing(),
+                updates_sent: updates_sent.ignore_in_testing(),
             })
         })
-        .path(rip::statistics::requests_rcvd::PATH)
-        .attributes(NodeAttributes::COUNTER)
-        .get_element_u32(|instance, _args| {
-            instance
-                .as_up()
-                .map(|instance| instance.state.statistics.requests_rcvd)
-        })
-        .path(rip::statistics::requests_sent::PATH)
-        .attributes(NodeAttributes::COUNTER)
-        .get_element_u32(|instance, _args| {
-            instance
-                .as_up()
-                .map(|instance| instance.state.statistics.requests_sent)
-        })
-        .path(rip::statistics::responses_rcvd::PATH)
-        .attributes(NodeAttributes::COUNTER)
-        .get_element_u32(|instance, _args| {
-            instance
-                .as_up()
-                .map(|instance| instance.state.statistics.responses_rcvd)
-        })
-        .path(rip::statistics::responses_sent::PATH)
-        .attributes(NodeAttributes::COUNTER)
-        .get_element_u32(|instance, _args| {
-            instance
-                .as_up()
-                .map(|instance| instance.state.statistics.responses_sent)
+        .path(rip::statistics::PATH)
+        .get_object(|instance, _args| {
+            use rip::statistics::Statistics;
+            let mut discontinuity_time = None;
+            let mut requests_rcvd = None;
+            let mut requests_sent = None;
+            let mut responses_rcvd = None;
+            let mut responses_sent = None;
+            if let Instance::Up(instance) = instance {
+                discontinuity_time =
+                    instance.state.statistics.discontinuity_time.as_ref();
+                requests_rcvd = Some(instance.state.statistics.requests_rcvd);
+                requests_sent = Some(instance.state.statistics.requests_sent);
+                responses_rcvd = Some(instance.state.statistics.responses_rcvd);
+                responses_sent = Some(instance.state.statistics.responses_sent);
+            }
+            Box::new(Statistics {
+                discontinuity_time: discontinuity_time.ignore_in_testing(),
+                requests_rcvd: requests_rcvd.ignore_in_testing(),
+                requests_sent: requests_sent.ignore_in_testing(),
+                responses_rcvd: responses_rcvd.ignore_in_testing(),
+                responses_sent: responses_sent.ignore_in_testing(),
+            })
         })
         .build()
 }
@@ -184,93 +152,59 @@ fn load_callbacks_ripv2() -> Callbacks<Instance<Ripv2>> {
     CallbacksBuilder::new(core_cbs)
         .path(rip::ipv4::neighbors::neighbor::PATH)
         .get_iterate(|instance, _args| {
-            if let Instance::Up(instance) = instance {
-                let iter = instance
-                    .state
-                    .neighbors
-                    .values()
-                    .map(ListEntry::Ipv4Neighbor);
-                Some(Box::new(iter))
-            } else {
-                None
-            }
+            let Instance::Up(instance) = instance else {
+                return None;
+            };
+            let iter = instance
+                .state
+                .neighbors
+                .values()
+                .map(ListEntry::Ipv4Neighbor);
+            Some(Box::new(iter))
         })
-        .path(rip::ipv4::neighbors::neighbor::last_update::PATH)
-        .attributes(NodeAttributes::TIME)
-        .get_element_date_and_time(|_instance, args| {
+        .get_object(|_instance, args| {
+            use rip::ipv4::neighbors::neighbor::Neighbor;
             let nbr = args.list_entry.as_ipv4_neighbor().unwrap();
-            Some(nbr.last_update)
-        })
-        .path(rip::ipv4::neighbors::neighbor::bad_packets_rcvd::PATH)
-        .attributes(NodeAttributes::COUNTER)
-        .get_element_u32(|_instance, args| {
-            let nbr = args.list_entry.as_ipv4_neighbor().unwrap();
-            Some(nbr.bad_packets_rcvd)
-        })
-        .path(rip::ipv4::neighbors::neighbor::bad_routes_rcvd::PATH)
-        .attributes(NodeAttributes::COUNTER)
-        .get_element_u32(|_instance, args| {
-            let nbr = args.list_entry.as_ipv4_neighbor().unwrap();
-            Some(nbr.bad_routes_rcvd)
+            Box::new(Neighbor {
+                ipv4_address: Cow::Borrowed(&nbr.addr),
+                last_update: Some(&nbr.last_update).ignore_in_testing(),
+                bad_packets_rcvd: Some(nbr.bad_packets_rcvd)
+                    .ignore_in_testing(),
+                bad_routes_rcvd: Some(nbr.bad_routes_rcvd).ignore_in_testing(),
+            })
         })
         .path(rip::ipv4::routes::route::PATH)
         .get_iterate(|instance, _args| {
-            if let Instance::Up(instance) = instance {
-                let iter =
-                    instance.state.routes.values().map(ListEntry::Ipv4Route);
-                Some(Box::new(iter))
-            } else {
-                None
-            }
+            let Instance::Up(instance) = instance else {
+                return None;
+            };
+            let iter = instance.state.routes.values().map(ListEntry::Ipv4Route);
+            Some(Box::new(iter))
         })
-        .path(rip::ipv4::routes::route::next_hop::PATH)
-        .get_element_ipv4(|_instance, args| {
+        .get_object(|instance, args| {
+            use rip::ipv4::routes::route::Route;
             let route = args.list_entry.as_ipv4_route().unwrap();
-            route.nexthop
-        })
-        .path(rip::ipv4::routes::route::interface::PATH)
-        .get_element_string(|instance, args| {
-            let instance = instance.as_up().unwrap();
-            let route = args.list_entry.as_ipv4_route().unwrap();
-            if let Some((_, iface)) =
-                instance.core.interfaces.get_by_ifindex(route.ifindex)
-            {
-                Some(iface.core().name.clone())
-            } else {
-                None
-            }
-        })
-        .path(rip::ipv4::routes::route::redistributed::PATH)
-        .get_element_bool(|_instance, _args| Some(false))
-        .path(rip::ipv4::routes::route::route_type::PATH)
-        .get_element_string(|_instance, args| {
-            let route = args.list_entry.as_ipv4_route().unwrap();
-            Some(route.route_type.to_yang().into())
-        })
-        .path(rip::ipv4::routes::route::metric::PATH)
-        .get_element_u8(|_instance, args| {
-            let route = args.list_entry.as_ipv4_route().unwrap();
-            Some(route.metric.get())
-        })
-        .path(rip::ipv4::routes::route::expire_time::PATH)
-        .attributes(NodeAttributes::TIME)
-        .get_element_u16(|_instance, args| {
-            let route = args.list_entry.as_ipv4_route().unwrap();
-            route.timeout_remaining().map(|remaining| {
-                u16::try_from(remaining.as_secs()).unwrap_or(u16::MAX)
+            Box::new(Route {
+                ipv4_prefix: Cow::Borrowed(&route.prefix),
+                next_hop: route.nexthop.as_ref().map(Cow::Borrowed),
+                interface: instance
+                    .core()
+                    .interfaces
+                    .get_by_ifindex(route.ifindex)
+                    .map(|(_, iface)| iface.core().name.as_str().into()),
+                redistributed: Some(false),
+                route_type: Some(route.route_type.to_yang()),
+                metric: Some(route.metric.get()),
+                expire_time: route
+                    .timeout_remaining()
+                    .map(|d| d.as_secs().saturating_into())
+                    .ignore_in_testing(),
+                deleted: Some(false),
+                need_triggered_update: Some(
+                    route.flags.contains(RouteFlags::CHANGED),
+                ),
+                inactive: Some(route.garbage_collect_task.is_some()),
             })
-        })
-        .path(rip::ipv4::routes::route::deleted::PATH)
-        .get_element_bool(|_instance, _args| Some(false))
-        .path(rip::ipv4::routes::route::need_triggered_update::PATH)
-        .get_element_bool(|_instance, args| {
-            let route = args.list_entry.as_ipv4_route().unwrap();
-            Some(route.flags.contains(RouteFlags::CHANGED))
-        })
-        .path(rip::ipv4::routes::route::inactive::PATH)
-        .get_element_bool(|_instance, args| {
-            let route = args.list_entry.as_ipv4_route().unwrap();
-            Some(route.garbage_collect_task.is_some())
         })
         .build()
 }
@@ -280,93 +214,59 @@ fn load_callbacks_ripng() -> Callbacks<Instance<Ripng>> {
     CallbacksBuilder::new(core_cbs)
         .path(rip::ipv6::neighbors::neighbor::PATH)
         .get_iterate(|instance, _args| {
-            if let Instance::Up(instance) = instance {
-                let iter = instance
-                    .state
-                    .neighbors
-                    .values()
-                    .map(ListEntry::Ipv6Neighbor);
-                Some(Box::new(iter))
-            } else {
-                None
-            }
+            let Instance::Up(instance) = instance else {
+                return None;
+            };
+            let iter = instance
+                .state
+                .neighbors
+                .values()
+                .map(ListEntry::Ipv6Neighbor);
+            Some(Box::new(iter))
         })
-        .path(rip::ipv6::neighbors::neighbor::last_update::PATH)
-        .attributes(NodeAttributes::TIME)
-        .get_element_date_and_time(|_instance, args| {
+        .get_object(|_instance, args| {
+            use rip::ipv6::neighbors::neighbor::Neighbor;
             let nbr = args.list_entry.as_ipv6_neighbor().unwrap();
-            Some(nbr.last_update)
-        })
-        .path(rip::ipv6::neighbors::neighbor::bad_packets_rcvd::PATH)
-        .attributes(NodeAttributes::COUNTER)
-        .get_element_u32(|_instance, args| {
-            let nbr = args.list_entry.as_ipv6_neighbor().unwrap();
-            Some(nbr.bad_packets_rcvd)
-        })
-        .path(rip::ipv6::neighbors::neighbor::bad_routes_rcvd::PATH)
-        .attributes(NodeAttributes::COUNTER)
-        .get_element_u32(|_instance, args| {
-            let nbr = args.list_entry.as_ipv6_neighbor().unwrap();
-            Some(nbr.bad_routes_rcvd)
+            Box::new(Neighbor {
+                ipv6_address: Cow::Borrowed(&nbr.addr),
+                last_update: Some(&nbr.last_update).ignore_in_testing(),
+                bad_packets_rcvd: Some(nbr.bad_packets_rcvd)
+                    .ignore_in_testing(),
+                bad_routes_rcvd: Some(nbr.bad_routes_rcvd).ignore_in_testing(),
+            })
         })
         .path(rip::ipv6::routes::route::PATH)
         .get_iterate(|instance, _args| {
-            if let Instance::Up(instance) = instance {
-                let iter =
-                    instance.state.routes.values().map(ListEntry::Ipv6Route);
-                Some(Box::new(iter))
-            } else {
-                None
-            }
+            let Instance::Up(instance) = instance else {
+                return None;
+            };
+            let iter = instance.state.routes.values().map(ListEntry::Ipv6Route);
+            Some(Box::new(iter))
         })
-        .path(rip::ipv6::routes::route::next_hop::PATH)
-        .get_element_ipv6(|_instance, args| {
+        .get_object(|instance, args| {
+            use rip::ipv6::routes::route::Route;
             let route = args.list_entry.as_ipv6_route().unwrap();
-            route.nexthop
-        })
-        .path(rip::ipv6::routes::route::interface::PATH)
-        .get_element_string(|instance, args| {
-            let instance = instance.as_up().unwrap();
-            let route = args.list_entry.as_ipv6_route().unwrap();
-            if let Some((_, iface)) =
-                instance.core.interfaces.get_by_ifindex(route.ifindex)
-            {
-                Some(iface.core().name.clone())
-            } else {
-                None
-            }
-        })
-        .path(rip::ipv6::routes::route::redistributed::PATH)
-        .get_element_bool(|_instance, _args| Some(false))
-        .path(rip::ipv6::routes::route::route_type::PATH)
-        .get_element_string(|_instance, args| {
-            let route = args.list_entry.as_ipv6_route().unwrap();
-            Some(route.route_type.to_yang().into())
-        })
-        .path(rip::ipv6::routes::route::metric::PATH)
-        .get_element_u8(|_instance, args| {
-            let route = args.list_entry.as_ipv6_route().unwrap();
-            Some(route.metric.get())
-        })
-        .path(rip::ipv6::routes::route::expire_time::PATH)
-        .attributes(NodeAttributes::TIME)
-        .get_element_u16(|_instance, args| {
-            let route = args.list_entry.as_ipv6_route().unwrap();
-            route.timeout_remaining().map(|remaining| {
-                u16::try_from(remaining.as_secs()).unwrap_or(u16::MAX)
+            Box::new(Route {
+                ipv6_prefix: Cow::Borrowed(&route.prefix),
+                next_hop: route.nexthop.as_ref().map(Cow::Borrowed),
+                interface: instance
+                    .core()
+                    .interfaces
+                    .get_by_ifindex(route.ifindex)
+                    .map(|(_, iface)| iface.core().name.as_str().into()),
+                redistributed: Some(false),
+                route_type: Some(route.route_type.to_yang()),
+                metric: Some(route.metric.get()),
+                expire_time: route
+                    .timeout_remaining()
+                    .map(|d| d.as_secs().saturating_into())
+                    .ignore_in_testing(),
+                deleted: Some(false),
+                need_triggered_update: Some(
+                    route.flags.contains(RouteFlags::CHANGED),
+                ),
+                inactive: Some(route.garbage_collect_task.is_some()),
             })
-        })
-        .path(rip::ipv6::routes::route::deleted::PATH)
-        .get_element_bool(|_instance, _args| Some(false))
-        .path(rip::ipv6::routes::route::need_triggered_update::PATH)
-        .get_element_bool(|_instance, args| {
-            let route = args.list_entry.as_ipv6_route().unwrap();
-            Some(route.flags.contains(RouteFlags::CHANGED))
-        })
-        .path(rip::ipv6::routes::route::inactive::PATH)
-        .get_element_bool(|_instance, args| {
-            let route = args.list_entry.as_ipv6_route().unwrap();
-            Some(route.garbage_collect_task.is_some())
         })
         .build()
 }
@@ -388,38 +288,4 @@ where
 
 // ===== impl ListEntry =====
 
-impl<'a, V> ListEntryKind for ListEntry<'a, V>
-where
-    V: Version,
-{
-    fn get_keys(&self) -> Option<String> {
-        match self {
-            ListEntry::None => None,
-            ListEntry::Interface(iface) => {
-                use rip::interfaces::interface::list_keys;
-                let keys = list_keys(&iface.core().name);
-                Some(keys)
-            }
-            ListEntry::Ipv4Neighbor(nbr) => {
-                use rip::ipv4::neighbors::neighbor::list_keys;
-                let keys = list_keys(nbr.addr);
-                Some(keys)
-            }
-            ListEntry::Ipv4Route(route) => {
-                use rip::ipv4::routes::route::list_keys;
-                let keys = list_keys(route.prefix);
-                Some(keys)
-            }
-            ListEntry::Ipv6Neighbor(nbr) => {
-                use rip::ipv6::neighbors::neighbor::list_keys;
-                let keys = list_keys(nbr.addr);
-                Some(keys)
-            }
-            ListEntry::Ipv6Route(route) => {
-                use rip::ipv6::routes::route::list_keys;
-                let keys = list_keys(route.prefix);
-                Some(keys)
-            }
-        }
-    }
-}
+impl<'a, V> ListEntryKind for ListEntry<'a, V> where V: Version {}

@@ -4,14 +4,17 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::borrow::Cow;
 use std::sync::{atomic, LazyLock as Lazy};
 
 use enum_as_inner::EnumAsInner;
 use holo_northbound::state::{
-    Callbacks, CallbacksBuilder, ListEntryKind, NodeAttributes, Provider,
+    Callbacks, CallbacksBuilder, ListEntryKind, Provider,
 };
 use holo_northbound::yang::control_plane_protocol::bfd;
-use holo_utils::bfd::{SessionKey, State};
+use holo_utils::bfd::{PathType, State};
+use holo_utils::num::SaturatingInto;
+use holo_utils::option::OptionExt;
 use holo_yang::ToYang;
 use num_traits::FromPrimitive;
 
@@ -32,423 +35,157 @@ pub enum ListEntry<'a> {
 // ===== callbacks =====
 
 fn load_callbacks() -> Callbacks<Master> {
-    CallbacksBuilder::default()
-        .path(bfd::summary::number_of_sessions::PATH)
-        .get_element_u32(|master: &Master, _args| {
-            let count = master.sessions.iter().count();
-            Some(count as u32)
+    CallbacksBuilder::<Master>::default()
+        .path(bfd::summary::PATH)
+        .get_object(|master, _args| {
+            use bfd::summary::Summary;
+            Box::new(Summary {
+                number_of_sessions: Some(master.sessions_count(None, None).saturating_into()),
+                number_of_sessions_up: Some(master.sessions_count(None, Some(State::Up)).saturating_into()),
+                number_of_sessions_down: Some(master.sessions_count(None, Some(State::Down)).saturating_into()),
+                number_of_sessions_admin_down: Some(master.sessions_count(None, Some(State::AdminDown)).saturating_into()),
+            })
         })
-        .path(bfd::summary::number_of_sessions_up::PATH)
-        .get_element_u32(|master: &Master, _args| {
-            let count = master
-                .sessions
-                .iter()
-                .filter(|sess| sess.state.local_state == State::Up)
-                .count();
-            Some(count as u32)
-        })
-        .path(bfd::summary::number_of_sessions_down::PATH)
-        .get_element_u32(|master: &Master, _args| {
-            let count = master
-                .sessions
-                .iter()
-                .filter(|sess| sess.state.local_state == State::Down)
-                .count();
-            Some(count as u32)
-        })
-        .path(bfd::summary::number_of_sessions_admin_down::PATH)
-        .get_element_u32(|master: &Master, _args| {
-            let count = master
-                .sessions
-                .iter()
-                .filter(|sess| sess.state.local_state == State::AdminDown)
-                .count();
-            Some(count as u32)
-        })
-        .path(bfd::ip_sh::summary::number_of_sessions::PATH)
-        .get_element_u32(|master: &Master, _args| {
-            let count = master
-                .sessions
-                .iter()
-                .filter(|sess| sess.key.is_ip_single_hop())
-                .count();
-            Some(count as u32)
-        })
-        .path(bfd::ip_sh::summary::number_of_sessions_up::PATH)
-        .get_element_u32(|master: &Master, _args| {
-            let count = master
-                .sessions
-                .iter()
-                .filter(|sess| sess.key.is_ip_single_hop())
-                .filter(|sess| sess.state.local_state == State::Up)
-                .count();
-            Some(count as u32)
-        })
-        .path(bfd::ip_sh::summary::number_of_sessions_down::PATH)
-        .get_element_u32(|master: &Master, _args| {
-            let count = master
-                .sessions
-                .iter()
-                .filter(|sess| sess.key.is_ip_single_hop())
-                .filter(|sess| sess.state.local_state == State::Down)
-                .count();
-            Some(count as u32)
-        })
-        .path(bfd::ip_sh::summary::number_of_sessions_admin_down::PATH)
-        .get_element_u32(|master: &Master, _args| {
-            let count = master
-                .sessions
-                .iter()
-                .filter(|sess| sess.key.is_ip_single_hop())
-                .filter(|sess| sess.state.local_state == State::AdminDown)
-                .count();
-            Some(count as u32)
-        })
-        .path(bfd::ip_sh::sessions::session::PATH)
-        .get_iterate(|master, _args| {
-            let iter = master
-                .sessions
-                .iter()
-                .filter(|sess| sess.key.is_ip_single_hop())
-                .map(ListEntry::Session);
-            Some(Box::new(iter))
-        })
-        .path(bfd::ip_sh::sessions::session::path_type::PATH)
-        .get_element_string(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            Some(sess.key.path_type().to_yang().into())
-        })
-        .path(bfd::ip_sh::sessions::session::ip_encapsulation::PATH)
-        .get_element_bool(|_master, _args| {
-            Some(true)
-        })
-        .path(bfd::ip_sh::sessions::session::local_discriminator::PATH)
-        .get_element_u32(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            Some(sess.state.local_discr)
-        })
-        .path(bfd::ip_sh::sessions::session::remote_discriminator::PATH)
-        .get_element_u32(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            sess.state.remote.as_ref().map(|remote| remote.discr)
-        })
-        .path(bfd::ip_sh::sessions::session::remote_multiplier::PATH)
-        .get_element_u8(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            sess.state.remote.as_ref().map(|remote| remote.multiplier)
-        })
-        .path(bfd::ip_sh::sessions::session::source_port::PATH)
-        .attributes(NodeAttributes::PORT_NO)
-        .get_element_u16(|_master, _args| {
-            Some(*network::PORT_SRC_RANGE.start())
-        })
-        .path(bfd::ip_sh::sessions::session::dest_port::PATH)
-        .attributes(NodeAttributes::PORT_NO)
-        .get_element_u16(|_master, _args| {
-            Some(network::PORT_DST_SINGLE_HOP)
-        })
-        .path(bfd::ip_sh::sessions::session::session_running::session_index::PATH)
-        .get_element_u32(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            Some(sess.id as u32)
-        })
-        .path(bfd::ip_sh::sessions::session::session_running::local_state::PATH)
-        .get_element_string(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            Some(sess.state.local_state.to_yang().into())
-        })
-        .path(bfd::ip_sh::sessions::session::session_running::remote_state::PATH)
-        .get_element_string(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            sess.state.remote.as_ref().map(|remote| remote.state.to_yang().into())
-        })
-        .path(bfd::ip_sh::sessions::session::session_running::local_diagnostic::PATH)
-        .get_element_string(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            Some(sess.state.local_diag.to_yang().into())
-        })
-        .path(bfd::ip_sh::sessions::session::session_running::remote_diagnostic::PATH)
-        .get_element_string(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            sess.state.remote.as_ref()
-                .map(|remote| remote.diag)
-                .and_then(DiagnosticCode::from_u8)
-                .map(|diag| diag.to_yang().into())
-        })
-        .path(bfd::ip_sh::sessions::session::session_running::remote_authenticated::PATH)
-        .get_element_bool(|_master, _args| {
-            // TODO: BFD authentication isn't supported yet.
-            Some(false)
-        })
-        .path(bfd::ip_sh::sessions::session::session_running::detection_mode::PATH)
-        .get_element_string(|_master, _args| {
-            // Use hardcoded value for now.
-            Some("async-without-echo".to_owned())
-        })
-        .path(bfd::ip_sh::sessions::session::session_running::negotiated_tx_interval::PATH)
-        .get_element_u32(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            sess.negotiated_tx_interval()
-        })
-        .path(bfd::ip_sh::sessions::session::session_running::negotiated_rx_interval::PATH)
-        .get_element_u32(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            sess.negotiated_rx_interval()
-        })
-        .path(bfd::ip_sh::sessions::session::session_running::detection_time::PATH)
-        .get_element_u32(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            sess.detection_time()
-        })
-        .path(bfd::ip_sh::sessions::session::session_statistics::create_time::PATH)
-        .attributes(NodeAttributes::TIME)
-        .get_element_date_and_time(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            Some(sess.statistics.create_time)
-        })
-        .path(bfd::ip_sh::sessions::session::session_statistics::last_down_time::PATH)
-        .attributes(NodeAttributes::TIME)
-        .get_element_date_and_time(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            sess.statistics.last_down_time
-        })
-        .path(bfd::ip_sh::sessions::session::session_statistics::last_up_time::PATH)
-        .attributes(NodeAttributes::TIME)
-        .get_element_date_and_time(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            sess.statistics.last_up_time
-        })
-        .path(bfd::ip_sh::sessions::session::session_statistics::down_count::PATH)
-        .attributes(NodeAttributes::COUNTER)
-        .get_element_u32(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            Some(sess.statistics.down_count)
-        })
-        .path(bfd::ip_sh::sessions::session::session_statistics::admin_down_count::PATH)
-        .attributes(NodeAttributes::COUNTER)
-        .get_element_u32(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            Some(sess.statistics.admin_down_count)
-        })
-        .path(bfd::ip_sh::sessions::session::session_statistics::receive_packet_count::PATH)
-        .attributes(NodeAttributes::COUNTER)
-        .get_element_u64(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            Some(sess.statistics.rx_packet_count)
-        })
-        .path(bfd::ip_sh::sessions::session::session_statistics::send_packet_count::PATH)
-        .attributes(NodeAttributes::COUNTER)
-        .get_element_u64(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            Some(sess.statistics.tx_packet_count.load(atomic::Ordering::Relaxed))
-        })
-        .path(bfd::ip_sh::sessions::session::session_statistics::receive_invalid_packet_count::PATH)
-        .attributes(NodeAttributes::COUNTER)
-        .get_element_u64(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            Some(sess.statistics.rx_error_count)
-        })
-        .path(bfd::ip_sh::sessions::session::session_statistics::send_failed_packet_count::PATH)
-        .attributes(NodeAttributes::COUNTER)
-        .get_element_u64(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            Some(sess.statistics.tx_error_count.load(atomic::Ordering::Relaxed))
-        })
-        .path(bfd::ip_sh::interfaces::PATH)
-        .get_iterate(|_master, _args| None)
-        .path(bfd::ip_mh::summary::number_of_sessions::PATH)
-        .get_element_u32(|master, _args| {
-            let count = master
-                .sessions
-                .iter()
-                .filter(|sess| sess.key.is_ip_multihop())
-                .count();
-            Some(count as u32)
-        })
-        .path(bfd::ip_mh::summary::number_of_sessions_up::PATH)
-        .get_element_u32(|master, _args| {
-            let count = master
-                .sessions
-                .iter()
-                .filter(|sess| sess.key.is_ip_multihop())
-                .filter(|sess| sess.state.local_state == State::Up)
-                .count();
-            Some(count as u32)
-        })
-        .path(bfd::ip_mh::summary::number_of_sessions_down::PATH)
-        .get_element_u32(|master, _args| {
-            let count = master
-                .sessions
-                .iter()
-                .filter(|sess| sess.key.is_ip_multihop())
-                .filter(|sess| sess.state.local_state == State::Down)
-                .count();
-            Some(count as u32)
-        })
-        .path(bfd::ip_mh::summary::number_of_sessions_admin_down::PATH)
-        .get_element_u32(|master, _args| {
-            let count = master
-                .sessions
-                .iter()
-                .filter(|sess| sess.key.is_ip_multihop())
-                .filter(|sess| sess.state.local_state == State::AdminDown)
-                .count();
-            Some(count as u32)
+        .path(bfd::ip_mh::summary::PATH)
+        .get_object(|master, _args| {
+            use bfd::ip_mh::summary::Summary;
+            let path_type = Some(PathType::IpMultihop);
+            Box::new(Summary {
+                number_of_sessions: Some(master.sessions_count(path_type, None).saturating_into()),
+                number_of_sessions_up: Some(master.sessions_count(path_type, Some(State::Up)).saturating_into()),
+                number_of_sessions_down: Some(master.sessions_count(path_type, Some(State::Down)).saturating_into()),
+                number_of_sessions_admin_down: Some(master.sessions_count(path_type, Some(State::AdminDown)).saturating_into()),
+            })
         })
         .path(bfd::ip_mh::session_groups::session_group::PATH)
         .get_iterate(|master, _args| {
-            let iter = master
-                .sessions
-                .iter()
-                .filter(|sess| sess.key.is_ip_multihop())
-                .map(ListEntry::Session);
+            let iter = master.sessions.iter().filter(|sess| sess.key.is_ip_multihop()).map(ListEntry::Session);
             Some(Box::new(iter))
+        })
+        .get_object(|_master, args| {
+            use bfd::ip_mh::session_groups::session_group::SessionGroup;
+            let sess = args.list_entry.as_session().unwrap();
+            let (src, dst) = sess.key.as_ip_multihop().unwrap();
+            Box::new(SessionGroup {
+                source_addr: Cow::Borrowed(src),
+                dest_addr: Cow::Borrowed(dst),
+            })
         })
         .path(bfd::ip_mh::session_groups::session_group::sessions::PATH)
         .get_iterate(|_master, args| {
             let sess = args.parent_list_entry.as_session().unwrap();
             Some(Box::new(std::iter::once(ListEntry::Session(sess))))
         })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::path_type::PATH)
-        .get_element_string(|_master, args| {
+        .get_object(|_master, args| {
+            use bfd::ip_mh::session_groups::session_group::sessions::Sessions;
             let sess = args.list_entry.as_session().unwrap();
-            Some(sess.key.path_type().to_yang().into())
+            Box::new(Sessions {
+                path_type: Some(sess.key.path_type().to_yang()),
+                ip_encapsulation: Some(true),
+                local_discriminator: Some(sess.state.local_discr),
+                remote_discriminator: sess.state.remote.as_ref().map(|remote| remote.discr),
+                remote_multiplier: sess.state.remote.as_ref().map(|remote| remote.multiplier),
+                source_port: Some(*network::PORT_SRC_RANGE.start()).ignore_in_testing(),
+                dest_port: Some(network::PORT_DST_MULTIHOP).ignore_in_testing(),
+            })
         })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::ip_encapsulation::PATH)
-        .get_element_bool(|_master, _args| {
-            Some(true)
-        })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::local_discriminator::PATH)
-        .get_element_u32(|_master, args| {
+        .path(bfd::ip_mh::session_groups::session_group::sessions::session_running::PATH)
+        .get_object(|_master, args| {
+            use bfd::ip_mh::session_groups::session_group::sessions::session_running::SessionRunning;
             let sess = args.list_entry.as_session().unwrap();
-            Some(sess.state.local_discr)
+            Box::new(SessionRunning {
+                session_index: Some(sess.id as u32),
+                local_state: Some(sess.state.local_state.to_yang()),
+                remote_state: sess.state.remote.as_ref().map(|remote| remote.state.to_yang()),
+                local_diagnostic: Some(sess.state.local_diag.to_yang()),
+                remote_diagnostic: sess.state.remote.as_ref().map(|remote| remote.diag).and_then(DiagnosticCode::from_u8).map(|diag| diag.to_yang()),
+                remote_authenticated: Some(false),
+                detection_mode: Some("async-without-echo".into()),
+                negotiated_tx_interval: sess.negotiated_tx_interval(),
+                negotiated_rx_interval: sess.negotiated_rx_interval(),
+                detection_time: sess.detection_time(),
+            })
         })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::remote_discriminator::PATH)
-        .get_element_u32(|_master, args| {
+        .path(bfd::ip_mh::session_groups::session_group::sessions::session_statistics::PATH)
+        .get_object(|_master, args| {
+            use bfd::ip_mh::session_groups::session_group::sessions::session_statistics::SessionStatistics;
             let sess = args.list_entry.as_session().unwrap();
-            sess.state.remote.as_ref().map(|remote| remote.discr)
+            Box::new(SessionStatistics {
+                create_time: Some(&sess.statistics.create_time).ignore_in_testing(),
+                last_down_time: sess.statistics.last_down_time.as_ref().ignore_in_testing(),
+                last_up_time: sess.statistics.last_up_time.as_ref().ignore_in_testing(),
+                down_count: Some(sess.statistics.down_count).ignore_in_testing(),
+                admin_down_count: Some(sess.statistics.admin_down_count).ignore_in_testing(),
+                receive_packet_count: Some(sess.statistics.rx_packet_count).ignore_in_testing(),
+                send_packet_count: Some(sess.statistics.tx_packet_count.load(atomic::Ordering::Relaxed)).ignore_in_testing(),
+                receive_invalid_packet_count: Some(sess.statistics.rx_error_count).ignore_in_testing(),
+                send_failed_packet_count: Some(sess.statistics.tx_error_count.load(atomic::Ordering::Relaxed)).ignore_in_testing(),
+            })
         })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::remote_multiplier::PATH)
-        .get_element_u8(|_master, args| {
+        .path(bfd::ip_sh::summary::PATH)
+        .get_object(|master, _args| {
+            use bfd::ip_sh::summary::Summary;
+            let path_type = Some(PathType::IpSingleHop);
+            Box::new(Summary {
+                number_of_sessions: Some(master.sessions_count(path_type, None).saturating_into()),
+                number_of_sessions_up: Some(master.sessions_count(path_type, Some(State::Up)).saturating_into()),
+                number_of_sessions_down: Some(master.sessions_count(path_type, Some(State::Down)).saturating_into()),
+                number_of_sessions_admin_down: Some(master.sessions_count(path_type, Some(State::AdminDown)).saturating_into()),
+            })
+        })
+        .path(bfd::ip_sh::sessions::session::PATH)
+        .get_iterate(|master, _args| {
+            let iter = master.sessions.iter().filter(|sess| sess.key.is_ip_single_hop()).map(ListEntry::Session);
+            Some(Box::new(iter))
+        })
+        .get_object(|_master, args| {
+            use bfd::ip_sh::sessions::session::Session;
             let sess = args.list_entry.as_session().unwrap();
-            sess.state.remote.as_ref().map(|remote| remote.multiplier)
+            let (ifname, dst) = sess.key.as_ip_single_hop().unwrap();
+            Box::new(Session {
+                interface: ifname.into(),
+                dest_addr: Cow::Borrowed(dst),
+                path_type: Some(sess.key.path_type().to_yang()),
+                ip_encapsulation: Some(true),
+                local_discriminator: Some(sess.state.local_discr),
+                remote_discriminator: sess.state.remote.as_ref().map(|remote| remote.discr),
+                remote_multiplier: sess.state.remote.as_ref().map(|remote| remote.multiplier),
+                source_port: Some(*network::PORT_SRC_RANGE.start()).ignore_in_testing(),
+                dest_port: Some(network::PORT_DST_SINGLE_HOP).ignore_in_testing(),
+            })
         })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::source_port::PATH)
-        .attributes(NodeAttributes::PORT_NO)
-        .get_element_u16(|_master, _args| {
-            Some(*network::PORT_SRC_RANGE.start())
-        })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::dest_port::PATH)
-        .attributes(NodeAttributes::PORT_NO)
-        .get_element_u16(|_master, _args| {
-            Some(network::PORT_DST_MULTIHOP)
-        })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::session_running::session_index::PATH)
-        .get_element_u32(|_master, args| {
+        .path(bfd::ip_sh::sessions::session::session_running::PATH)
+        .get_object(|_master, args| {
+            use bfd::ip_sh::sessions::session::session_running::SessionRunning;
             let sess = args.list_entry.as_session().unwrap();
-            Some(sess.id as u32)
+            Box::new(SessionRunning {
+                session_index: Some(sess.id as u32),
+                local_state: Some(sess.state.local_state.to_yang()),
+                remote_state: sess.state.remote.as_ref().map(|remote| remote.state.to_yang()),
+                local_diagnostic: Some(sess.state.local_diag.to_yang()),
+                remote_diagnostic: sess.state.remote.as_ref().map(|remote| remote.diag).and_then(DiagnosticCode::from_u8).map(|diag| diag.to_yang()),
+                remote_authenticated: Some(false),
+                detection_mode: Some("async-without-echo".into()),
+                negotiated_tx_interval: sess.negotiated_tx_interval(),
+                negotiated_rx_interval: sess.negotiated_rx_interval(),
+                detection_time: sess.detection_time(),
+            })
         })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::session_running::local_state::PATH)
-        .get_element_string(|_master, args| {
+        .path(bfd::ip_sh::sessions::session::session_statistics::PATH)
+        .get_object(|_master, args| {
+            use bfd::ip_sh::sessions::session::session_statistics::SessionStatistics;
             let sess = args.list_entry.as_session().unwrap();
-            Some(sess.state.local_state.to_yang().into())
-        })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::session_running::remote_state::PATH)
-        .get_element_string(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            sess.state.remote.as_ref().map(|remote| remote.state.to_yang().into())
-        })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::session_running::local_diagnostic::PATH)
-        .get_element_string(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            Some(sess.state.local_diag.to_yang().into())
-        })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::session_running::remote_diagnostic::PATH)
-        .get_element_string(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            sess.state.remote.as_ref()
-                .map(|remote| remote.diag)
-                .and_then(DiagnosticCode::from_u8)
-                .map(|diag| diag.to_yang().into())
-        })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::session_running::remote_authenticated::PATH)
-        .get_element_bool(|_master, _args| {
-            // TODO: BFD authentication isn't supported yet.
-            Some(false)
-        })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::session_running::detection_mode::PATH)
-        .get_element_string(|_master, _args| {
-            // Use hardcoded value for now.
-            Some("async-without-echo".to_owned())
-        })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::session_running::negotiated_tx_interval::PATH)
-        .get_element_u32(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            sess.negotiated_tx_interval()
-        })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::session_running::negotiated_rx_interval::PATH)
-        .get_element_u32(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            sess.negotiated_rx_interval()
-        })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::session_running::detection_time::PATH)
-        .get_element_u32(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            sess.detection_time()
-        })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::session_statistics::create_time::PATH)
-        .attributes(NodeAttributes::TIME)
-        .get_element_date_and_time(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            Some(sess.statistics.create_time)
-        })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::session_statistics::last_down_time::PATH)
-        .attributes(NodeAttributes::TIME)
-        .get_element_date_and_time(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            sess.statistics.last_down_time
-        })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::session_statistics::last_up_time::PATH)
-        .attributes(NodeAttributes::TIME)
-        .get_element_date_and_time(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            sess.statistics.last_up_time
-        })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::session_statistics::down_count::PATH)
-        .attributes(NodeAttributes::COUNTER)
-        .get_element_u32(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            Some(sess.statistics.down_count)
-        })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::session_statistics::admin_down_count::PATH)
-        .attributes(NodeAttributes::COUNTER)
-        .get_element_u32(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            Some(sess.statistics.admin_down_count)
-        })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::session_statistics::receive_packet_count::PATH)
-        .attributes(NodeAttributes::COUNTER)
-        .get_element_u64(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            Some(sess.statistics.rx_packet_count)
-        })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::session_statistics::send_packet_count::PATH)
-        .attributes(NodeAttributes::COUNTER)
-        .get_element_u64(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            Some(sess.statistics.tx_packet_count.load(atomic::Ordering::Relaxed))
-        })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::session_statistics::receive_invalid_packet_count::PATH)
-        .attributes(NodeAttributes::COUNTER)
-        .get_element_u64(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            Some(sess.statistics.rx_error_count)
-        })
-        .path(bfd::ip_mh::session_groups::session_group::sessions::session_statistics::send_failed_packet_count::PATH)
-        .attributes(NodeAttributes::COUNTER)
-        .get_element_u64(|_master, args| {
-            let sess = args.list_entry.as_session().unwrap();
-            Some(sess.statistics.tx_error_count.load(atomic::Ordering::Relaxed))
+            Box::new(SessionStatistics {
+                create_time: Some(&sess.statistics.create_time).ignore_in_testing(),
+                last_down_time: sess.statistics.last_down_time.as_ref().ignore_in_testing(),
+                last_up_time: sess.statistics.last_up_time.as_ref().ignore_in_testing(),
+                down_count: Some(sess.statistics.down_count).ignore_in_testing(),
+                admin_down_count: Some(sess.statistics.admin_down_count).ignore_in_testing(),
+                receive_packet_count: Some(sess.statistics.rx_packet_count).ignore_in_testing(),
+                send_packet_count: Some(sess.statistics.tx_packet_count.load(atomic::Ordering::Relaxed)).ignore_in_testing(),
+                receive_invalid_packet_count: Some(sess.statistics.rx_error_count).ignore_in_testing(),
+                send_failed_packet_count: Some(sess.statistics.tx_error_count.load(atomic::Ordering::Relaxed)).ignore_in_testing(),
+            })
         })
         .build()
 }
@@ -467,22 +204,4 @@ impl Provider for Master {
 
 // ===== impl ListEntry =====
 
-impl<'a> ListEntryKind for ListEntry<'a> {
-    fn get_keys(&self) -> Option<String> {
-        match self {
-            ListEntry::None => None,
-            ListEntry::Session(sess) => match &sess.key {
-                SessionKey::IpSingleHop { ifname, dst } => {
-                    use bfd::ip_sh::sessions::session::list_keys;
-                    let keys = list_keys(ifname, dst);
-                    Some(keys)
-                }
-                SessionKey::IpMultihop { src, dst } => {
-                    use bfd::ip_mh::session_groups::session_group::list_keys;
-                    let keys = list_keys(src, dst);
-                    Some(keys)
-                }
-            },
-        }
-    }
-}
+impl<'a> ListEntryKind for ListEntry<'a> {}

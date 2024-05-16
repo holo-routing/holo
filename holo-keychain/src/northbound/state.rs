@@ -17,7 +17,8 @@ use crate::Master;
 
 pub static CALLBACKS: Lazy<Callbacks<Master>> = Lazy::new(load_callbacks);
 
-#[derive(Debug, Default, EnumAsInner)]
+#[derive(Debug, Default)]
+#[derive(EnumAsInner)]
 pub enum ListEntry<'a> {
     #[default]
     None,
@@ -28,16 +29,19 @@ pub enum ListEntry<'a> {
 // ===== callbacks =====
 
 fn load_callbacks() -> Callbacks<Master> {
-    CallbacksBuilder::default()
+    CallbacksBuilder::<Master>::default()
         .path(key_chains::key_chain::PATH)
-        .get_iterate(|master: &Master, _args| {
+        .get_iterate(|master, _args| {
             let iter = master.keychains.values().map(ListEntry::Keychain);
             Some(Box::new(iter))
         })
-        .path(key_chains::key_chain::last_modified_timestamp::PATH)
-        .get_element_date_and_time(|_master, args| {
+        .get_object(|_master, args| {
+            use key_chains::key_chain::KeyChain;
             let keychain = args.list_entry.as_keychain().unwrap();
-            keychain.last_modified
+            Box::new(KeyChain {
+                name: keychain.name.as_str().into(),
+                last_modified_timestamp: keychain.last_modified.as_ref(),
+            })
         })
         .path(key_chains::key_chain::key::PATH)
         .get_iterate(|_master, args| {
@@ -45,15 +49,14 @@ fn load_callbacks() -> Callbacks<Master> {
             let iter = keychain.keys.values().map(ListEntry::Key);
             Some(Box::new(iter))
         })
-        .path(key_chains::key_chain::key::send_lifetime_active::PATH)
-        .get_element_bool(|_master, args| {
+        .get_object(|_master, args| {
+            use key_chains::key_chain::key::Key;
             let key = args.list_entry.as_key().unwrap();
-            Some(key.send_lifetime.is_active())
-        })
-        .path(key_chains::key_chain::key::accept_lifetime_active::PATH)
-        .get_element_bool(|_master, args| {
-            let key = args.list_entry.as_key().unwrap();
-            Some(key.accept_lifetime.is_active())
+            Box::new(Key {
+                key_id: key.data.id,
+                send_lifetime_active: Some(key.send_lifetime.is_active()),
+                accept_lifetime_active: Some(key.accept_lifetime.is_active()),
+            })
         })
         .build()
 }
@@ -72,20 +75,4 @@ impl Provider for Master {
 
 // ===== impl ListEntry =====
 
-impl<'a> ListEntryKind for ListEntry<'a> {
-    fn get_keys(&self) -> Option<String> {
-        match self {
-            ListEntry::None => None,
-            ListEntry::Keychain(keychain) => {
-                use key_chains::key_chain::list_keys;
-                let keys = list_keys(&keychain.name);
-                Some(keys)
-            }
-            ListEntry::Key(key) => {
-                use key_chains::key_chain::key::list_keys;
-                let keys = list_keys(key.data.id);
-                Some(keys)
-            }
-        }
-    }
-}
+impl<'a> ListEntryKind for ListEntry<'a> {}

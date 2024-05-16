@@ -12,7 +12,6 @@ use chrono::{DateTime, Utc};
 use derive_new::new;
 use holo_northbound as northbound;
 use holo_northbound::configuration::{CommitPhase, ConfigChange};
-use holo_northbound::state::NodeAttributes;
 use holo_northbound::{
     api as papi, CallbackKey, CallbackOp, NbDaemonSender, NbProviderReceiver,
 };
@@ -541,7 +540,6 @@ impl Northbound {
             let request =
                 papi::daemon::Request::Get(papi::daemon::GetRequest {
                     path: path.map(String::from),
-                    attr_filter: Some(NodeAttributes::DEV),
                     responder: Some(responder_tx),
                 });
             daemon_tx.send(request).await.unwrap();
@@ -748,7 +746,7 @@ fn validate_callbacks(callbacks: &BTreeMap<CallbackKey, NbDaemonSender>) {
             CallbackOp::Lookup,
             CallbackOp::Rpc,
             CallbackOp::GetIterate,
-            CallbackOp::GetElement,
+            CallbackOp::GetObject,
         ] {
             let path = snode.data_path();
             if operation.is_valid(&snode) {

@@ -6,21 +6,14 @@
 
 use std::collections::HashMap;
 use std::fmt::Write;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-use std::time::{Duration, Instant};
 
-use bitflags::bitflags;
-use chrono::{DateTime, Utc};
 use derive_new::new;
 use holo_utils::yang::SchemaNodeExt;
-use holo_yang::{YangPath, YANG_CTX};
-use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
-use serde::{Deserialize, Serialize};
+use holo_yang::{YangObject, YangPath, YANG_CTX};
 use tokio::sync::oneshot;
 use yang2::data::{DataNodeRef, DataTree};
-use yang2::schema::{DataValueType, SchemaModule, SchemaNode, SchemaNodeKind};
+use yang2::schema::{SchemaModule, SchemaNode, SchemaNodeKind};
 
-use crate::debug::Debug;
 use crate::error::Error;
 use crate::{api, CallbackKey, CallbackOp, NbDaemonSender, ProviderBase};
 
@@ -31,44 +24,13 @@ use crate::{api, CallbackKey, CallbackOp, NbDaemonSender, ProviderBase};
 pub struct Callbacks<P: Provider>(HashMap<CallbackKey, CallbacksNode<P>>);
 
 pub struct CallbacksNode<P: Provider> {
-    attributes: NodeAttributes,
     get_iterate: Option<GetIterateCb<P>>,
-    get_element: Option<GetElementCb<P>>,
+    get_object: Option<GetObjectCb<P>>,
 }
 
 pub struct CallbacksBuilder<P: Provider> {
     path: Option<YangPath>,
-    attributes: NodeAttributes,
     callbacks: Callbacks<P>,
-}
-
-//
-// Node attributes.
-//
-
-bitflags! {
-    #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-    #[serde(transparent)]
-    pub struct NodeAttributes: u16 {
-        // Development-specific data used by unit tests only.
-        const DEV = 0x0001;
-        // Time-related information (e.g. remaining time, up-time, etc).
-        const TIME = 0x0002;
-        // Statistics counter (e.g. number of received messages).
-        const COUNTER = 0x0004;
-        // Log registering events of some sort (e.g. SPF runs).
-        const LOG = 0x0008;
-        // Link State age.
-        const LS_AGE = 0x0010;
-        // Link State sequence number.
-        const LS_SEQNO = 0x0020;
-        // Link State checksum (or sum of Link State checksums).
-        const LS_CKSUM = 0x0040;
-        // Link State in raw format.
-        const LS_RAW = 0x0080;
-        // Layer four port number.
-        const PORT_NO = 0x0100;
-    }
 }
 
 //
@@ -89,42 +51,14 @@ pub struct GetIterateArgs<'a, 'b, P: Provider> {
 }
 
 //
-// GetElement callback.
+// GetObject callback.
 //
 
-pub type GetElementCbType<P: Provider, LeafType> =
-    for<'a, 'b> fn(&'a P, GetElementArgs<'a, 'b, P>) -> Option<LeafType>;
-
-pub enum GetElementCb<P: Provider> {
-    Uint8(GetElementCbType<P, u8>),
-    Uint16(GetElementCbType<P, u16>),
-    Uint32(GetElementCbType<P, u32>),
-    Uint64(GetElementCbType<P, u64>),
-    Binary(GetElementCbType<P, Vec<u8>>),
-    Bool(GetElementCbType<P, bool>),
-    Empty(GetElementCbType<P, ()>),
-    Container(GetElementCbType<P, ()>),
-    Int8(GetElementCbType<P, i8>),
-    Int16(GetElementCbType<P, i16>),
-    Int32(GetElementCbType<P, i32>),
-    Int64(GetElementCbType<P, i64>),
-    IpAddr(GetElementCbType<P, IpAddr>),
-    Ipv4Addr(GetElementCbType<P, Ipv4Addr>),
-    Ipv6Addr(GetElementCbType<P, Ipv6Addr>),
-    IpPrefix(GetElementCbType<P, IpNetwork>),
-    Ipv4Prefix(GetElementCbType<P, Ipv4Network>),
-    Ipv6Prefix(GetElementCbType<P, Ipv6Network>),
-    DateAndTime(GetElementCbType<P, DateTime<Utc>>),
-    TimerValueSecs16(GetElementCbType<P, Duration>),
-    TimerValueSecs32(GetElementCbType<P, Duration>),
-    TimerValueMillis(GetElementCbType<P, Duration>),
-    Timeticks(GetElementCbType<P, Instant>),
-    Timeticks64(GetElementCbType<P, Instant>),
-    String(GetElementCbType<P, String>),
-}
+pub type GetObjectCb<P: Provider> =
+    for<'a, 'b> fn(&'a P, GetObjectArgs<'a, 'b, P>) -> Box<dyn YangObject + 'a>;
 
 #[derive(Debug)]
-pub struct GetElementArgs<'a, 'b, P: Provider> {
+pub struct GetObjectArgs<'a, 'b, P: Provider> {
     pub list_entry: &'b P::ListEntry<'a>,
 }
 
@@ -140,8 +74,6 @@ struct RelayedRequest {
 //
 
 pub trait ListEntryKind: std::fmt::Debug + Default {
-    fn get_keys(&self) -> Option<String>;
-
     fn child_task(&self) -> Option<NbDaemonSender> {
         None
     }
@@ -171,38 +103,16 @@ impl<P> Callbacks<P>
 where
     P: Provider,
 {
-    fn get_iterate(
-        &self,
-        key: &CallbackKey,
-        attr_filter: Option<&NodeAttributes>,
-    ) -> Option<&GetIterateCb<P>> {
+    fn get_iterate(&self, key: &CallbackKey) -> Option<&GetIterateCb<P>> {
         let node = self.0.get(key)?;
-
-        // Apply node attribute filter.
-        if let Some(attr_filter) = attr_filter {
-            if attr_filter.intersects(node.attributes) {
-                return None;
-            }
-        }
 
         node.get_iterate.as_ref()
     }
 
-    fn get_element(
-        &self,
-        key: &CallbackKey,
-        attr_filter: Option<&NodeAttributes>,
-    ) -> Option<&GetElementCb<P>> {
+    fn get_object(&self, key: &CallbackKey) -> Option<&GetObjectCb<P>> {
         let node = self.0.get(key)?;
 
-        // Apply node attribute filter.
-        if let Some(attr_filter) = attr_filter {
-            if attr_filter.intersects(node.attributes) {
-                return None;
-            }
-        }
-
-        node.get_element.as_ref()
+        node.get_object.as_ref()
     }
 
     pub fn keys(&self) -> Vec<CallbackKey> {
@@ -240,9 +150,8 @@ where
 {
     fn default() -> Self {
         CallbacksNode {
-            attributes: NodeAttributes::empty(),
             get_iterate: None,
-            get_element: None,
+            get_object: None,
         }
     }
 }
@@ -256,7 +165,6 @@ where
     pub fn new(callbacks: Callbacks<P>) -> Self {
         CallbacksBuilder {
             path: None,
-            attributes: NodeAttributes::empty(),
             callbacks,
         }
     }
@@ -264,13 +172,6 @@ where
     #[must_use]
     pub fn path(mut self, path: YangPath) -> Self {
         self.path = Some(path);
-        self.attributes = NodeAttributes::empty();
-        self
-    }
-
-    #[must_use]
-    pub fn attributes(mut self, attributes: NodeAttributes) -> Self {
-        self.attributes = attributes;
         self
     }
 
@@ -279,171 +180,17 @@ where
         let path = self.path.unwrap().to_string();
         let key = CallbackKey::new(path, CallbackOp::GetIterate);
         let node = self.callbacks.0.entry(key).or_default();
-        node.attributes = self.attributes;
         node.get_iterate = Some(cb);
         self
     }
 
     #[must_use]
-    fn get_element(mut self, cb: GetElementCb<P>) -> Self {
+    pub fn get_object(mut self, cb: GetObjectCb<P>) -> Self {
         let path = self.path.unwrap().to_string();
-        let key = CallbackKey::new(path, CallbackOp::GetElement);
+        let key = CallbackKey::new(path, CallbackOp::GetObject);
         let node = self.callbacks.0.entry(key).or_default();
-        node.attributes = self.attributes;
-        node.get_element = Some(cb);
+        node.get_object = Some(cb);
         self
-    }
-
-    #[must_use]
-    pub fn get_element_u8(self, cb: GetElementCbType<P, u8>) -> Self {
-        self.get_element(GetElementCb::Uint8(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_u16(self, cb: GetElementCbType<P, u16>) -> Self {
-        self.get_element(GetElementCb::Uint16(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_u32(self, cb: GetElementCbType<P, u32>) -> Self {
-        self.get_element(GetElementCb::Uint32(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_u64(self, cb: GetElementCbType<P, u64>) -> Self {
-        self.get_element(GetElementCb::Uint64(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_binary(self, cb: GetElementCbType<P, Vec<u8>>) -> Self {
-        self.get_element(GetElementCb::Binary(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_bool(self, cb: GetElementCbType<P, bool>) -> Self {
-        self.get_element(GetElementCb::Bool(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_empty(self, cb: GetElementCbType<P, ()>) -> Self {
-        self.get_element(GetElementCb::Empty(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_container(self, cb: GetElementCbType<P, ()>) -> Self {
-        self.get_element(GetElementCb::Container(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_i8(self, cb: GetElementCbType<P, i8>) -> Self {
-        self.get_element(GetElementCb::Int8(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_i16(self, cb: GetElementCbType<P, i16>) -> Self {
-        self.get_element(GetElementCb::Int16(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_i32(self, cb: GetElementCbType<P, i32>) -> Self {
-        self.get_element(GetElementCb::Int32(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_i64(self, cb: GetElementCbType<P, i64>) -> Self {
-        self.get_element(GetElementCb::Int64(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_ip(self, cb: GetElementCbType<P, IpAddr>) -> Self {
-        self.get_element(GetElementCb::IpAddr(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_ipv4(self, cb: GetElementCbType<P, Ipv4Addr>) -> Self {
-        self.get_element(GetElementCb::Ipv4Addr(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_ipv6(self, cb: GetElementCbType<P, Ipv6Addr>) -> Self {
-        self.get_element(GetElementCb::Ipv6Addr(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_prefix(
-        self,
-        cb: GetElementCbType<P, IpNetwork>,
-    ) -> Self {
-        self.get_element(GetElementCb::IpPrefix(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_prefixv4(
-        self,
-        cb: GetElementCbType<P, Ipv4Network>,
-    ) -> Self {
-        self.get_element(GetElementCb::Ipv4Prefix(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_prefixv6(
-        self,
-        cb: GetElementCbType<P, Ipv6Network>,
-    ) -> Self {
-        self.get_element(GetElementCb::Ipv6Prefix(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_date_and_time(
-        self,
-        cb: GetElementCbType<P, DateTime<Utc>>,
-    ) -> Self {
-        self.get_element(GetElementCb::DateAndTime(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_timervalue_secs16(
-        self,
-        cb: GetElementCbType<P, Duration>,
-    ) -> Self {
-        self.get_element(GetElementCb::TimerValueSecs16(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_timervalue_secs32(
-        self,
-        cb: GetElementCbType<P, Duration>,
-    ) -> Self {
-        self.get_element(GetElementCb::TimerValueSecs32(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_timervalue_millis(
-        self,
-        cb: GetElementCbType<P, Duration>,
-    ) -> Self {
-        self.get_element(GetElementCb::TimerValueMillis(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_timeticks(
-        self,
-        cb: GetElementCbType<P, Instant>,
-    ) -> Self {
-        self.get_element(GetElementCb::Timeticks(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_timeticks64(
-        self,
-        cb: GetElementCbType<P, Instant>,
-    ) -> Self {
-        self.get_element(GetElementCb::Timeticks64(cb))
-    }
-
-    #[must_use]
-    pub fn get_element_string(self, cb: GetElementCbType<P, String>) -> Self {
-        self.get_element(GetElementCb::String(cb))
     }
 
     #[must_use]
@@ -459,144 +206,7 @@ where
     fn default() -> Self {
         CallbacksBuilder {
             path: None,
-            attributes: NodeAttributes::empty(),
             callbacks: Callbacks::default(),
-        }
-    }
-}
-
-// ===== impl GetElementCb =====
-
-impl<P> GetElementCb<P>
-where
-    P: Provider,
-{
-    fn invoke<'a>(
-        &self,
-        provider: &'a P,
-        list_entry: &P::ListEntry<'a>,
-    ) -> Option<String> {
-        // Build parameters.
-        let args = GetElementArgs { list_entry };
-
-        // Invoke the callback and return an optional string.
-        match self {
-            GetElementCb::Uint8(cb) => {
-                (*cb)(provider, args).map(|v| v.to_string())
-            }
-            GetElementCb::Uint16(cb) => {
-                (*cb)(provider, args).map(|v| v.to_string())
-            }
-            GetElementCb::Uint32(cb) => {
-                (*cb)(provider, args).map(|v| v.to_string())
-            }
-            GetElementCb::Uint64(cb) => {
-                (*cb)(provider, args).map(|v| v.to_string())
-            }
-            GetElementCb::Binary(cb) => {
-                use base64::Engine;
-
-                (*cb)(provider, args).map(|v| {
-                    base64::engine::general_purpose::STANDARD.encode(v)
-                })
-            }
-            GetElementCb::Bool(cb) => {
-                (*cb)(provider, args).map(|v| v.to_string())
-            }
-            GetElementCb::Empty(cb) => {
-                (*cb)(provider, args).map(|_| String::new())
-            }
-            GetElementCb::Container(cb) => {
-                (*cb)(provider, args).map(|_| String::new())
-            }
-            GetElementCb::Int8(cb) => {
-                (*cb)(provider, args).map(|v| v.to_string())
-            }
-            GetElementCb::Int16(cb) => {
-                (*cb)(provider, args).map(|v| v.to_string())
-            }
-            GetElementCb::Int32(cb) => {
-                (*cb)(provider, args).map(|v| v.to_string())
-            }
-            GetElementCb::Int64(cb) => {
-                (*cb)(provider, args).map(|v| v.to_string())
-            }
-            GetElementCb::IpAddr(cb) => {
-                (*cb)(provider, args).map(|v| v.to_string())
-            }
-            GetElementCb::Ipv4Addr(cb) => {
-                (*cb)(provider, args).map(|v| v.to_string())
-            }
-            GetElementCb::Ipv6Addr(cb) => {
-                (*cb)(provider, args).map(|v| v.to_string())
-            }
-            GetElementCb::IpPrefix(cb) => {
-                (*cb)(provider, args).map(|v| v.to_string())
-            }
-            GetElementCb::Ipv4Prefix(cb) => {
-                (*cb)(provider, args).map(|v| v.to_string())
-            }
-            GetElementCb::Ipv6Prefix(cb) => {
-                (*cb)(provider, args).map(|v| v.to_string())
-            }
-            GetElementCb::DateAndTime(cb) => {
-                (*cb)(provider, args).map(|v| v.to_rfc3339())
-            }
-            GetElementCb::TimerValueSecs16(cb) => {
-                (*cb)(provider, args)
-                    .map(|v| {
-                        let remaining = v.as_secs();
-                        // Round up the remaining time to 1 in case it's less
-                        // than one second.
-                        let remaining =
-                            if remaining == 0 { 1 } else { remaining };
-                        let remaining =
-                            u16::try_from(remaining).unwrap_or(u16::MAX);
-                        remaining.to_string()
-                    })
-                    .or(Some("not-set".to_owned()))
-            }
-            GetElementCb::TimerValueSecs32(cb) => {
-                (*cb)(provider, args)
-                    .map(|v| {
-                        let remaining = v.as_secs();
-                        // Round up the remaining time to 1 in case it's less
-                        // than one second.
-                        let remaining =
-                            if remaining == 0 { 1 } else { remaining };
-                        let remaining =
-                            u32::try_from(remaining).unwrap_or(u32::MAX);
-                        remaining.to_string()
-                    })
-                    .or(Some("not-set".to_owned()))
-            }
-            GetElementCb::TimerValueMillis(cb) => {
-                (*cb)(provider, args)
-                    .map(|v| {
-                        let remaining = v.as_millis();
-                        // Round up the remaining time to 1 in case it's less
-                        // than one millisecond.
-                        let remaining =
-                            if remaining == 0 { 1 } else { remaining };
-                        let remaining =
-                            u32::try_from(remaining).unwrap_or(u32::MAX);
-                        remaining.to_string()
-                    })
-                    .or(Some("not-set".to_owned()))
-            }
-            GetElementCb::Timeticks(cb) => (*cb)(provider, args).map(|v| {
-                let uptime = Instant::now() - v;
-                let uptime =
-                    u32::try_from(uptime.as_millis() / 10).unwrap_or(u32::MAX);
-                uptime.to_string()
-            }),
-            GetElementCb::Timeticks64(cb) => (*cb)(provider, args).map(|v| {
-                let uptime = Instant::now() - v;
-                let uptime =
-                    u64::try_from(uptime.as_millis() / 10).unwrap_or(u64::MAX);
-                uptime.to_string()
-            }),
-            GetElementCb::String(cb) => (*cb)(provider, args),
         }
     }
 }
@@ -606,10 +216,8 @@ where
 fn iterate_node<'a, P>(
     provider: &'a P,
     cbs: &Callbacks<P>,
-    attr_filter: Option<&NodeAttributes>,
-    dtree: &mut DataTree,
+    dnode: &mut DataNodeRef<'_>,
     snode: &SchemaNode<'_>,
-    parent_path: &str,
     list_entry: &P::ListEntry<'a>,
     relay_list: &mut Vec<RelayedRequest>,
     first: bool,
@@ -617,116 +225,21 @@ fn iterate_node<'a, P>(
 where
     P: Provider,
 {
-    // Update data path.
-    let path = if first || snode.is_schema_only() {
-        parent_path.to_owned()
-    } else {
-        // TODO: include the namespace only when necessary.
-        //let snode_parent = snode.ancestors().next().unwrap();
-        format!("{}/{}:{}", parent_path, snode.module().name(), snode.name())
-    };
-
     match snode.kind() {
-        SchemaNodeKind::Leaf => {
-            iterate_leaf(
-                provider,
-                cbs,
-                attr_filter,
-                dtree,
-                snode,
-                &path,
-                list_entry,
-            )?;
-        }
-        SchemaNodeKind::LeafList => {
-            iterate_list(
-                provider,
-                cbs,
-                attr_filter,
-                dtree,
-                snode,
-                &path,
-                list_entry,
-                relay_list,
-            )?;
-        }
         SchemaNodeKind::List => {
-            iterate_list(
-                provider,
-                cbs,
-                attr_filter,
-                dtree,
-                snode,
-                &path,
-                list_entry,
-                relay_list,
-            )?;
+            iterate_list(provider, cbs, dnode, snode, list_entry, relay_list)?;
         }
         SchemaNodeKind::Container => {
             iterate_container(
-                provider,
-                cbs,
-                attr_filter,
-                dtree,
-                snode,
-                &path,
-                list_entry,
-                relay_list,
+                provider, cbs, dnode, snode, list_entry, relay_list, first,
             )?;
         }
         SchemaNodeKind::Choice | SchemaNodeKind::Case => {
             iterate_children(
-                provider,
-                cbs,
-                attr_filter,
-                dtree,
-                snode,
-                &path,
-                list_entry,
-                relay_list,
+                provider, cbs, dnode, snode, list_entry, relay_list,
             )?;
         }
-
         _ => (),
-    }
-
-    Ok(())
-}
-
-fn iterate_leaf<'a, P>(
-    provider: &'a P,
-    cbs: &Callbacks<P>,
-    attr_filter: Option<&NodeAttributes>,
-    dtree: &mut DataTree,
-    snode: &SchemaNode<'_>,
-    path: &str,
-    list_entry: &P::ListEntry<'a>,
-) -> Result<(), Error>
-where
-    P: Provider,
-{
-    // Ignore config leaves and list keys.
-    if snode.is_config() || snode.is_list_key() {
-        return Ok(());
-    }
-
-    // Find GetElement callback.
-    let snode_path = snode.data_path();
-    let cb_key = CallbackKey::new(snode_path, CallbackOp::GetElement);
-    if let Some(cb) = cbs.get_element(&cb_key, attr_filter) {
-        let mut value = cb.invoke(provider, list_entry);
-
-        Debug::GetElementCallback(path, &value).log();
-
-        if value.is_some() {
-            // Empty leaves don't have a value.
-            if snode.base_type().unwrap() == DataValueType::Empty {
-                value = None;
-            }
-            let _ = dtree
-                .new_path(path, value.as_deref(), false)
-                .map_err(Error::YangInvalidData)?;
-        }
     }
 
     Ok(())
@@ -735,10 +248,8 @@ where
 fn iterate_list<'a, P>(
     provider: &'a P,
     cbs: &Callbacks<P>,
-    attr_filter: Option<&NodeAttributes>,
-    dtree: &mut DataTree,
+    dnode: &mut DataNodeRef<'_>,
     snode: &SchemaNode<'_>,
-    path: &str,
     parent_list_entry: &P::ListEntry<'a>,
     relay_list: &mut Vec<RelayedRequest>,
 ) -> Result<(), Error>
@@ -748,25 +259,13 @@ where
     let snode_path = snode.data_path();
     let cb_key = CallbackKey::new(snode_path, CallbackOp::GetIterate);
 
-    if let Some(cb) = cbs.get_iterate(&cb_key, attr_filter) {
-        Debug::GetIterateCallback(path).log();
-
-        let args = GetIterateArgs { parent_list_entry };
-        if let Some(list_iter) = (*cb)(provider, args) {
-            // Used by keyless lists.
-            let mut position = 1;
-
+    if let Some(cb) = cbs.get_iterate(&cb_key) {
+        if let Some(list_iter) =
+            (*cb)(provider, GetIterateArgs { parent_list_entry })
+        {
             for list_entry in list_iter {
                 iterate_list_entry(
-                    provider,
-                    cbs,
-                    attr_filter,
-                    dtree,
-                    snode,
-                    path,
-                    list_entry,
-                    &mut position,
-                    relay_list,
+                    provider, cbs, dnode, snode, list_entry, relay_list,
                 )?;
             }
         }
@@ -778,60 +277,57 @@ where
 fn iterate_list_entry<'a, P>(
     provider: &'a P,
     cbs: &Callbacks<P>,
-    attr_filter: Option<&NodeAttributes>,
-    dtree: &mut DataTree,
+    dnode: &mut DataNodeRef<'_>,
     snode: &SchemaNode<'_>,
-    path: &str,
     list_entry: P::ListEntry<'a>,
-    position: &mut u32,
     relay_list: &mut Vec<RelayedRequest>,
 ) -> Result<(), Error>
 where
     P: Provider,
 {
-    // Build path of list entry.
-    let path_entry = if !snode.is_keyless_list() {
-        let keys = list_entry.get_keys();
-        format!("{}{}", path, keys.unwrap_or_default())
-    } else {
-        let path = format!("{}[{}]", path, position);
-        *position += 1;
-        path
+    let module = snode.module();
+    let snode_path = snode.data_path();
+    let cb_key = CallbackKey::new(snode_path, CallbackOp::GetObject);
+
+    let mut dnode = match cbs.get_object(&cb_key) {
+        // Keyed list.
+        Some(cb) => {
+            // Get YANG object from callback.
+            let obj = (*cb)(
+                provider,
+                GetObjectArgs {
+                    list_entry: &list_entry,
+                },
+            );
+
+            // Get list keys.
+            let keys = obj.list_keys();
+
+            // Add list entry node.
+            let mut dnode =
+                dnode.new_list(Some(&module), snode.name(), &keys).unwrap();
+
+            // Initialize list entry.
+            obj.into_data_node(&mut dnode);
+            dnode
+        }
+        // Keyless list.
+        None => {
+            // Add list entry node.
+            let keys = String::new();
+            dnode.new_list(Some(&module), snode.name(), &keys).unwrap()
+        }
     };
 
-    match snode.kind() {
-        SchemaNodeKind::LeafList => {
-            iterate_leaf(
-                provider,
-                cbs,
-                attr_filter,
-                dtree,
-                snode,
-                path,
-                &list_entry,
-            )?;
-        }
-        SchemaNodeKind::List => {
-            // Create list entry in the data tree.
-            if !snode.is_keyless_list() {
-                let _ = dtree
-                    .new_path(&path_entry, None, false)
-                    .map_err(Error::YangInvalidData)?;
-            }
-
-            iterate_children(
-                provider,
-                cbs,
-                attr_filter,
-                dtree,
-                snode,
-                &path_entry,
-                &list_entry,
-                relay_list,
-            )?;
-        }
-        _ => unreachable!(),
-    }
+    // Iterate over child nodes.
+    iterate_children(
+        provider,
+        cbs,
+        &mut dnode,
+        snode,
+        &list_entry,
+        relay_list,
+    )?;
 
     Ok(())
 }
@@ -839,43 +335,44 @@ where
 fn iterate_container<'a, P>(
     provider: &'a P,
     cbs: &Callbacks<P>,
-    attr_filter: Option<&NodeAttributes>,
-    dtree: &mut DataTree,
+    dnode: &mut DataNodeRef<'_>,
     snode: &SchemaNode<'_>,
-    path: &str,
     list_entry: &P::ListEntry<'a>,
     relay_list: &mut Vec<RelayedRequest>,
+    first: bool,
 ) -> Result<(), Error>
 where
     P: Provider,
 {
-    if snode.is_state() && !snode.is_np_container() {
-        // Find GetElement callback.
-        let snode_path = snode.data_path();
-        let cb_key = CallbackKey::new(snode_path, CallbackOp::GetElement);
-        if let Some(cb) = cbs.get_element(&cb_key, attr_filter) {
-            let value = cb.invoke(provider, list_entry);
+    let mut dnode = dnode.clone();
+    let mut dnode_container;
 
-            Debug::GetElementCallback(path, &value).log();
+    // Add container node.
+    let dnode = if first {
+        &mut dnode
+    } else {
+        let module = snode.module();
+        dnode_container = dnode.new_inner(Some(&module), snode.name()).unwrap();
+        &mut dnode_container
+    };
 
-            if value.is_some() {
-                let _ = dtree
-                    .new_path(path, None, false)
-                    .map_err(Error::YangInvalidData)?;
-            }
-        }
+    // Find GetObject callback.
+    let snode_path = snode.data_path();
+    let cb_key = CallbackKey::new(snode_path, CallbackOp::GetObject);
+    if let Some(cb) = cbs.get_object(&cb_key) {
+        // Invoke the callback and return an optional string.
+        let obj = (*cb)(provider, GetObjectArgs { list_entry });
+
+        // Initialize container node.
+        obj.into_data_node(dnode);
     }
 
-    iterate_children(
-        provider,
-        cbs,
-        attr_filter,
-        dtree,
-        snode,
-        path,
-        list_entry,
-        relay_list,
-    )?;
+    iterate_children(provider, cbs, dnode, snode, list_entry, relay_list)?;
+
+    // Delete container if it's empty.
+    if dnode.children().next().is_none() {
+        dnode.remove();
+    }
 
     Ok(())
 }
@@ -883,10 +380,8 @@ where
 fn iterate_children<'a, P>(
     provider: &'a P,
     cbs: &Callbacks<P>,
-    attr_filter: Option<&NodeAttributes>,
-    dtree: &mut DataTree,
+    dnode: &mut DataNodeRef<'_>,
     snode: &SchemaNode<'_>,
-    path: &str,
     list_entry: &P::ListEntry<'a>,
     relay_list: &mut Vec<RelayedRequest>,
 ) -> Result<(), Error>
@@ -900,11 +395,14 @@ where
             if let Some(child_nb_tx) = list_entry.child_task() {
                 // Prepare request to child task.
                 let (responder_tx, responder_rx) = oneshot::channel();
-                let path =
-                    format!("{}/{}:{}", path, module.name(), snode.name());
+                let path = format!(
+                    "{}/{}:{}",
+                    dnode.path(),
+                    module.name(),
+                    snode.name()
+                );
                 let request = api::daemon::GetRequest {
                     path: Some(path),
-                    attr_filter: attr_filter.copied(),
                     responder: Some(responder_tx),
                 };
                 relay_list.push(RelayedRequest::new(
@@ -917,15 +415,7 @@ where
         }
 
         iterate_node(
-            provider,
-            cbs,
-            attr_filter,
-            dtree,
-            &snode,
-            path,
-            list_entry,
-            relay_list,
-            false,
+            provider, cbs, dnode, &snode, list_entry, relay_list, false,
         )?;
     }
 
@@ -950,8 +440,17 @@ where
         .iter()
         .rev()
     {
+        // Get list callbacks.
         let snode_path = dnode.schema().data_path();
-        let cb_key = CallbackKey::new(snode_path, CallbackOp::GetIterate);
+        let cb_key =
+            CallbackKey::new(snode_path.clone(), CallbackOp::GetIterate);
+        let Some(cb_iterate) = cbs.get_iterate(&cb_key) else {
+            continue;
+        };
+        let cb_key = CallbackKey::new(snode_path, CallbackOp::GetObject);
+        let Some(cb_get) = cbs.get_object(&cb_key) else {
+            continue;
+        };
 
         // Obtain the list entry keys.
         let list_keys =
@@ -966,16 +465,18 @@ where
             });
 
         // Find the list entry associated to the provided path.
-        if let Some(cb) = cbs.get_iterate(&cb_key, None) {
-            let args = GetIterateArgs {
+        if let Some(mut list_iter) = (*cb_iterate)(
+            provider,
+            GetIterateArgs {
                 parent_list_entry: &list_entry,
-            };
-            if let Some(mut list_iter) = (*cb)(provider, args) {
-                if let Some(entry) = list_iter
-                    .find(|entry| list_keys == entry.get_keys().unwrap())
-                {
-                    list_entry = entry;
-                }
+            },
+        ) {
+            if let Some(entry) = list_iter.find(|entry| {
+                let obj =
+                    (*cb_get)(provider, GetObjectArgs { list_entry: entry });
+                list_keys == obj.list_keys()
+            }) {
+                list_entry = entry;
             }
         }
     }
@@ -998,26 +499,23 @@ where
 pub(crate) async fn process_get<P>(
     provider: &P,
     path: Option<String>,
-    attr_filter: Option<NodeAttributes>,
 ) -> Result<api::daemon::GetResponse, Error>
 where
     P: Provider,
 {
     let yang_ctx = YANG_CTX.get().unwrap();
 
-    // TODO: support Get without path
-    let path = path.unwrap_or_default();
+    let mut dtree = DataTree::new(yang_ctx);
 
     // Populate data tree with path requested by the user.
-    let mut dtree = DataTree::new(yang_ctx);
-    let dnode = dtree
-        .new_path(&path, None, false)
-        .map_err(Error::YangInvalidPath)?
-        .unwrap();
-
     if let Some(cbs) = P::callbacks() {
         let mut relay_list = vec![];
 
+        let path = path.unwrap_or_default();
+        let mut dnode = dtree
+            .new_path(&path, None, false)
+            .map_err(Error::YangInvalidPath)?
+            .unwrap();
         let list_entry = lookup_list_entry(provider, cbs, &dnode);
         let snode = yang_ctx.find_path(&dnode.schema().data_path()).unwrap();
 
@@ -1028,7 +526,6 @@ where
                 let (responder_tx, responder_rx) = oneshot::channel();
                 let request = api::daemon::GetRequest {
                     path: Some(path),
-                    attr_filter,
                     responder: Some(responder_tx),
                 };
                 relay_list.push(RelayedRequest::new(
@@ -1043,10 +540,8 @@ where
                 iterate_children(
                     provider,
                     cbs,
-                    attr_filter.as_ref(),
-                    &mut dtree,
+                    &mut dnode,
                     &snode,
-                    &path,
                     &list_entry,
                     &mut relay_list,
                 )?;
@@ -1054,10 +549,8 @@ where
                 iterate_node(
                     provider,
                     cbs,
-                    attr_filter.as_ref(),
-                    &mut dtree,
+                    &mut dnode,
                     &snode,
-                    &path,
                     &list_entry,
                     &mut relay_list,
                     true,

@@ -278,7 +278,13 @@ pub trait TryFromYang: Sized {
 pub trait YangObject {
     // Initialize a given YANG data node with attributes from the current
     // object.
-    fn init_data_node(&self, dnode: &mut DataNodeRef<'_>);
+    fn into_data_node(self, dnode: &mut DataNodeRef<'_>);
+
+    // Return the keys of the list, or an empty string for containers or keyless
+    // lists.
+    fn list_keys(&self) -> String {
+        String::new()
+    }
 }
 
 //

@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::borrow::Cow;
 use std::net::IpAddr;
 
 use holo_northbound::{notification, yang, NbProviderSender};
@@ -44,8 +45,8 @@ fn state_change_singlehop(
             .statistics
             .last_state_change_time
             .as_ref(),
-        dest_addr: Some(dst),
-        source_addr: sess.config.src.as_ref(),
+        dest_addr: Some(Cow::Borrowed(dst)),
+        source_addr: sess.config.src.as_ref().map(Cow::Borrowed),
         session_index: Some(sess.id as u32),
         path_type: Some(sess.key.path_type().to_yang()),
         interface: Some(ifname.into()),
@@ -71,8 +72,8 @@ fn state_change_multihop(
             .statistics
             .last_state_change_time
             .as_ref(),
-        dest_addr: Some(dst),
-        source_addr: Some(src),
+        dest_addr: Some(Cow::Borrowed(dst)),
+        source_addr: Some(Cow::Borrowed(src)),
         session_index: Some(sess.id as u32),
         path_type: Some(sess.key.path_type().to_yang()),
     };

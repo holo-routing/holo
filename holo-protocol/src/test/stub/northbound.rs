@@ -7,7 +7,6 @@
 use std::sync::Arc;
 
 use holo_northbound::configuration::{self, CommitPhase, ConfigChanges};
-use holo_northbound::state::NodeAttributes;
 use holo_northbound::{api, NbDaemonSender};
 use holo_yang::YANG_CTX;
 use tokio::sync::oneshot;
@@ -127,16 +126,6 @@ impl NorthboundStub {
         let (responder_tx, responder_rx) = oneshot::channel();
         let request = api::daemon::Request::Get(api::daemon::GetRequest {
             path: Some(path.to_owned()),
-            attr_filter: Some(
-                NodeAttributes::TIME
-                    | NodeAttributes::COUNTER
-                    | NodeAttributes::LOG
-                    | NodeAttributes::LS_AGE
-                    | NodeAttributes::LS_SEQNO
-                    | NodeAttributes::LS_CKSUM
-                    | NodeAttributes::LS_RAW
-                    | NodeAttributes::PORT_NO,
-            ),
             responder: Some(responder_tx),
         });
 

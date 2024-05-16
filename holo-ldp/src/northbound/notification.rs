@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::borrow::Cow;
 use std::net::IpAddr;
 
 use holo_northbound::{notification, yang, NbProviderSender};
@@ -26,7 +27,7 @@ pub(crate) fn mpls_ldp_peer_event(
         event_type: Some(event_type.into()),
         peer: Some(Peer {
             protocol_name: Some(instance_name.into()),
-            lsr_id: Some(nbr.lsr_id.to_string().into()),
+            lsr_id: Some(Cow::Owned(nbr.lsr_id)),
             label_space_id: None,
         }),
     };
@@ -51,11 +52,11 @@ pub(crate) fn mpls_ldp_hello_adjacency_event(
         protocol_name: Some(instance_name.into()),
         event_type: Some(event_type.into()),
         targeted: ifname.is_none().then_some(Targeted {
-            target_address: Some(addr),
+            target_address: Some(Cow::Borrowed(addr)),
         }),
         link: ifname.map(|ifname| Link {
             next_hop_interface: Some(ifname.into()),
-            next_hop_address: Some(addr),
+            next_hop_address: Some(Cow::Borrowed(addr)),
         }),
     };
     notification::send(nb_tx, mpls_ldp_hello_adjacency_event::PATH, data);
@@ -72,7 +73,7 @@ pub(crate) fn mpls_ldp_fec_event(
     let data = MplsLdpFecEvent {
         event_type: Some(event_type.into()),
         protocol_name: Some(instance_name.into()),
-        fec: Some(&fec.inner.prefix),
+        fec: Some(Cow::Borrowed(&fec.inner.prefix)),
     };
     notification::send(nb_tx, mpls_ldp_fec_event::PATH, data);
 }

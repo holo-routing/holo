@@ -5,6 +5,7 @@
 //
 
 #![feature(extract_if)]
+#![feature(unsized_fn_params)]
 #![allow(type_alias_bounds)]
 
 mod debug;
@@ -17,7 +18,7 @@ pub mod rpc;
 pub mod state;
 
 #[allow(unused_variables)]
-#[allow(clippy::module_inception)]
+#[allow(clippy::module_inception, clippy::needless_borrow)]
 pub mod yang;
 
 use derive_new::new;
@@ -38,7 +39,7 @@ pub enum CallbackOp {
     Lookup,
     Rpc,
     GetIterate,
-    GetElement,
+    GetObject,
 }
 
 /// YANG callback key.
@@ -80,7 +81,7 @@ impl CallbackOp {
             CallbackOp::Lookup => CallbackOp::lookup_is_valid(snode),
             CallbackOp::Rpc => CallbackOp::rpc_is_valid(snode),
             CallbackOp::GetIterate => CallbackOp::get_iterate_is_valid(snode),
-            CallbackOp::GetElement => CallbackOp::get_element_is_valid(snode),
+            CallbackOp::GetObject => CallbackOp::get_object_is_valid(snode),
         }
     }
 
@@ -91,7 +92,7 @@ impl CallbackOp {
 
         match snode.kind() {
             SchemaNodeKind::Leaf => {
-                snode.base_type().unwrap() == DataValueType::Empty
+                snode.leaf_type().unwrap().base_type() == DataValueType::Empty
             }
             SchemaNodeKind::Container => !snode.is_np_container(),
             SchemaNodeKind::LeafList | SchemaNodeKind::List => true,
@@ -107,7 +108,8 @@ impl CallbackOp {
         match snode.kind() {
             SchemaNodeKind::Leaf => {
                 // List keys can't be modified.
-                !(snode.base_type().unwrap() == DataValueType::Empty
+                !(snode.leaf_type().unwrap().base_type()
+                    == DataValueType::Empty
                     || snode.is_list_key())
             }
             _ => false,
@@ -165,26 +167,51 @@ impl CallbackOp {
             return false;
         }
 
-        matches!(
-            snode.kind(),
-            SchemaNodeKind::List | SchemaNodeKind::LeafList
-        )
-    }
-
-    fn get_element_is_valid(snode: &SchemaNode<'_>) -> bool {
-        if !snode.is_state() || snode.is_list_key() {
+        if snode.kind() != SchemaNodeKind::List {
             return false;
         }
 
-        match snode.kind() {
-            SchemaNodeKind::Leaf | SchemaNodeKind::LeafList => true,
-            SchemaNodeKind::Container => !snode.is_np_container(),
-            _ => false,
+        snode.traverse().any(|snode| snode.is_state())
+    }
+
+    fn get_object_is_valid(snode: &SchemaNode<'_>) -> bool {
+        if !matches!(
+            snode.kind(),
+            SchemaNodeKind::List | SchemaNodeKind::Container
+        ) {
+            return false;
         }
+
+        if !snode.traverse().any(|snode| snode.is_state()) {
+            return false;
+        }
+
+        snode.children().any(|snode| {
+            if snode.is_list_key() {
+                return true;
+            }
+
+            if !snode.is_state() {
+                return false;
+            }
+
+            contains_leaf_or_leaflist(&snode)
+        })
     }
 }
 
 // ===== helper functions =====
+
+fn contains_leaf_or_leaflist(snode: &SchemaNode<'_>) -> bool {
+    match snode.kind() {
+        SchemaNodeKind::Leaf | SchemaNodeKind::LeafList => true,
+        SchemaNodeKind::Choice => snode
+            .children()
+            .flat_map(|snode| snode.children())
+            .any(|snode| contains_leaf_or_leaflist(&snode)),
+        _ => false,
+    }
+}
 
 fn process_get_callbacks<Provider>() -> api::daemon::GetCallbacksResponse
 where
@@ -248,9 +275,7 @@ pub async fn process_northbound_msg<Provider>(
             }
         }
         api::daemon::Request::Get(request) => {
-            let response =
-                state::process_get(provider, request.path, request.attr_filter)
-                    .await;
+            let response = state::process_get(provider, request.path).await;
             if let Some(responder) = request.responder {
                 responder.send(response).unwrap();
             }

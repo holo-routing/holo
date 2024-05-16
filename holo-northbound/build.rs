@@ -15,7 +15,8 @@ use convert_case::{Boundary, Case, Casing};
 use holo_yang as yang;
 use holo_yang::YANG_IMPLEMENTED_MODULES;
 use yang2::schema::{
-    DataValue, DataValueType, SchemaNode, SchemaNodeKind, SchemaPathFormat,
+    DataValue, DataValueType, SchemaLeafType, SchemaNode, SchemaNodeKind,
+    SchemaPathFormat,
 };
 
 const HEADER: &str = r#"
@@ -26,10 +27,20 @@ use std::time::{Duration, Instant};
 use chrono::{DateTime, Utc};
 use holo_yang::{YangObject, YangPath, YANG_CTX};
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
+use itertools::Itertools;
 use yang2::data::DataNodeRef;
 use yang2::schema::SchemaModule;
 
-fn timer_secs16_to_yang(timer: &Duration) -> String {
+fn binary_to_yang(value: &[u8]) -> String {
+    use base64::Engine;
+    base64::engine::general_purpose::STANDARD.encode(value)
+}
+
+fn hex_string_to_yang(value: &[u8]) -> String {
+    value.iter().map(|byte| format!("{:02x}", byte)).join(":")
+}
+
+fn timer_secs16_to_yang(timer: Cow<'_, Duration>) -> String {
     let remaining = timer.as_secs();
     // Round up the remaining time to 1 in case it's less than one second.
     let remaining = if remaining == 0 { 1 } else { remaining };
@@ -38,7 +49,7 @@ fn timer_secs16_to_yang(timer: &Duration) -> String {
 }
 
 #[allow(dead_code)]
-fn timer_secs32_to_yang(timer: &Duration) -> String {
+fn timer_secs32_to_yang(timer: Cow<'_, Duration>) -> String {
     let remaining = timer.as_secs();
     // Round up the remaining time to 1 in case it's less than one second.
     let remaining = if remaining == 0 { 1 } else { remaining };
@@ -46,7 +57,7 @@ fn timer_secs32_to_yang(timer: &Duration) -> String {
     remaining.to_string()
 }
 
-fn timer_millis_to_yang(timer: &Duration) -> String {
+fn timer_millis_to_yang(timer: Cow<'_, Duration>) -> String {
     let remaining = timer.as_millis();
     // Round up the remaining time to 1 in case it's less than one millisecond.
     let remaining = if remaining == 0 { 1 } else { remaining };
@@ -54,29 +65,33 @@ fn timer_millis_to_yang(timer: &Duration) -> String {
     remaining.to_string()
 }
 
-fn timeticks_to_yang(timeticks: &Instant) -> String {
+fn timeticks_to_yang(timeticks: Cow<'_, Instant>) -> String {
     let uptime = Instant::now() - *timeticks;
     let uptime = u32::try_from(uptime.as_millis() / 10).unwrap_or(u32::MAX);
     uptime.to_string()
 }
 
-fn timeticks64_to_yang(timeticks: &Instant) -> String {
+fn timeticks64_to_yang(timeticks: Cow<'_, Instant>) -> String {
     let uptime = Instant::now() - *timeticks;
     let uptime = u64::try_from(uptime.as_millis() / 10).unwrap_or(u64::MAX);
     uptime.to_string()
+}
+
+fn fletcher_checksum16_to_yang(cksum: u16) -> String {
+    format!("{:#06x}", cksum)
 }
 "#;
 
 struct StructBuilder<'a> {
     level: usize,
-    name: String,
+    snode: SchemaNode<'a>,
     fields: Vec<SchemaNode<'a>>,
 }
 
 // ===== impl StructBuilder =====
 
 impl<'a> StructBuilder<'a> {
-    fn new(level: usize, snode: &SchemaNode<'a>) -> Self {
+    fn new(level: usize, snode: SchemaNode<'a>) -> Self {
         let mut fields = Vec::new();
         for snode in snode.children() {
             Self::extract_fields(snode, &mut fields);
@@ -84,7 +99,7 @@ impl<'a> StructBuilder<'a> {
 
         StructBuilder {
             level,
-            name: snode_normalized_name(snode, Case::Pascal),
+            snode,
             fields,
         }
     }
@@ -95,30 +110,32 @@ impl<'a> StructBuilder<'a> {
         }
 
         match snode.kind() {
-            SchemaNodeKind::List | SchemaNodeKind::LeafList => {
+            SchemaNodeKind::List => {
                 // Ignore.
             }
             SchemaNodeKind::Choice => {
-                for snode in snode
-                    .children()
-                    .filter(|snode| snode.is_status_current())
-                    .flat_map(|snode| snode.children())
+                for snode in snode.children().flat_map(|snode| snode.children())
                 {
                     Self::extract_fields(snode, fields);
                 }
             }
             SchemaNodeKind::Container => {
-                let mut container_fields = Vec::new();
-                for snode in snode.children() {
-                    Self::extract_fields(snode, &mut container_fields);
+                if snode.is_within_notification() {
+                    let mut container_fields = Vec::new();
+                    for snode in snode.children() {
+                        Self::extract_fields(snode, &mut container_fields);
+                    }
+                    if !container_fields.is_empty() {
+                        fields.push(snode);
+                    }
                 }
-                if !container_fields.is_empty() {
+            }
+            SchemaNodeKind::Leaf | SchemaNodeKind::LeafList => {
+                if !snode.is_config() || snode.is_list_key() {
                     fields.push(snode);
                 }
             }
-            _ => {
-                fields.push(snode);
-            }
+            _ => {}
         }
     }
 
@@ -127,29 +144,66 @@ impl<'a> StructBuilder<'a> {
         let indent2 = " ".repeat((self.level + 2) * 2);
         let indent3 = " ".repeat((self.level + 3) * 2);
         let indent4 = " ".repeat((self.level + 4) * 2);
+        let indent5 = " ".repeat((self.level + 5) * 2);
+        let lifetime = if self.snode.is_within_notification()
+            || self.fields.iter().any(|snode| {
+                !snode
+                    .leaf_type()
+                    .is_some_and(|leaf_type| leaf_type_is_builtin(&leaf_type))
+            }) {
+            "<'a>"
+        } else {
+            ""
+        };
 
         // Struct definition.
-        writeln!(output, "{}pub struct {}<'a> {{", indent1, self.name).unwrap();
+        let name = snode_normalized_name(&self.snode, Case::Pascal);
+        if self.snode.kind() != SchemaNodeKind::List
+            || self.snode.is_keyless_list()
+        {
+            writeln!(output, "{}#[derive(Default)]", indent1).unwrap();
+        }
+        writeln!(output, "{}pub struct {}{} {{", indent1, name, lifetime)
+            .unwrap();
         for snode in &self.fields {
             let field_name = snode_normalized_name(snode, Case::Snake);
-            let field_type = if snode.kind() == SchemaNodeKind::Container {
-                format!(
-                    "{}::{}<'a>",
-                    snode_normalized_name(snode, Case::Snake),
-                    snode_normalized_name(snode, Case::Pascal)
-                )
-            } else {
-                snode_type_map(snode).to_owned()
+            let field_type = match snode.kind() {
+                SchemaNodeKind::Container => {
+                    format!(
+                        "Option<{}::{}<'a>>",
+                        snode_normalized_name(snode, Case::Snake),
+                        snode_normalized_name(snode, Case::Pascal)
+                    )
+                }
+                SchemaNodeKind::Leaf => {
+                    let leaf_type = snode.leaf_type().unwrap();
+                    let field_type = leaf_type_map(&leaf_type).to_owned();
+                    if snode.is_list_key() {
+                        field_type
+                    } else {
+                        format!("Option<{}>", field_type)
+                    }
+                }
+                SchemaNodeKind::LeafList => {
+                    let leaf_type = snode.leaf_type().unwrap();
+                    format!(
+                        "Option<Box<dyn Iterator<Item = {}> + 'a>>",
+                        leaf_type_map(&leaf_type)
+                    )
+                }
+                _ => unreachable!(),
             };
 
-            writeln!(
-                output,
-                "{}pub {}: Option<{}>,",
-                indent2, field_name, field_type,
-            )
-            .unwrap();
+            writeln!(output, "{}pub {}: {},", indent2, field_name, field_type,)
+                .unwrap();
         }
-        if self.fields.iter().all(|snode| snode_is_base_type(snode)) {
+        if self.snode.is_within_notification()
+            && self.fields.iter().all(|snode| {
+                snode
+                    .leaf_type()
+                    .is_some_and(|leaf_type| leaf_type_is_builtin(&leaf_type))
+            })
+        {
             writeln!(
                 output,
                 "{}_marker: std::marker::PhantomData<&'a str>,",
@@ -163,13 +217,15 @@ impl<'a> StructBuilder<'a> {
         writeln!(output).unwrap();
         writeln!(
             output,
-            "{}impl<'a> YangObject for {}<'a> {{",
-            indent1, self.name
+            "{}impl{} YangObject for {}{} {{",
+            indent1, lifetime, name, lifetime
         )
         .unwrap();
+
+        // into_data_node() function implementation.
         writeln!(
             output,
-            "{}fn init_data_node(&self, dnode: &mut DataNodeRef<'_>) {{",
+            "{}fn into_data_node(self, dnode: &mut DataNodeRef<'_>) {{",
             indent2
         )
         .unwrap();
@@ -179,13 +235,13 @@ impl<'a> StructBuilder<'a> {
             indent3
         )
         .unwrap();
-        for snode in &self.fields {
+        for snode in self.fields.iter().filter(|snode| !snode.is_list_key()) {
             let field_name = snode_normalized_name(snode, Case::Snake);
             let module = snode.module();
 
             writeln!(
                 output,
-                "{}if let Some({}) = &self.{} {{",
+                "{}if let Some({}) = self.{} {{",
                 indent3, field_name, field_name
             )
             .unwrap();
@@ -193,45 +249,90 @@ impl<'a> StructBuilder<'a> {
             if let Some(parent_snode) = snode.ancestors().next()
                 && snode.module() != parent_snode.module()
             {
-                writeln!(
-                    output,
-                    "{}let module = YANG_CTX.get().unwrap().get_module_latest(\"{}\").unwrap();",
-                    indent4,
-                    module.name()
-                )
-                .unwrap();
+                writeln!(output, "{}let module = YANG_CTX.get().unwrap().get_module_latest(\"{}\").unwrap();", indent4, module.name()).unwrap();
                 writeln!(output, "{}let module = Some(&module);", indent4)
                     .unwrap();
             }
 
-            if snode.kind() == SchemaNodeKind::Container {
-                writeln!(
-                    output,
-                    "{}let mut dnode = dnode.new_inner(module, \"{}\").unwrap();",
-                    indent4,
-                    snode.name()
-                )
-                .unwrap();
-                writeln!(
-                    output,
-                    "{}{}.init_data_node(&mut dnode);",
-                    indent4, field_name
-                )
-                .unwrap();
-            } else {
-                let value = snode_type_value(snode, &field_name);
-                writeln!(
-                    output,
-                    "{}dnode.new_term(module, \"{}\", {}).unwrap();",
-                    indent4,
-                    snode.name(),
-                    value
-                )
-                .unwrap();
+            match snode.kind() {
+                SchemaNodeKind::Container => {
+                    writeln!(output, "{}let mut dnode = dnode.new_inner(module, \"{}\").unwrap();", indent4, snode.name()).unwrap();
+                    writeln!(
+                        output,
+                        "{}{}.into_data_node(&mut dnode);",
+                        indent4, field_name
+                    )
+                    .unwrap();
+                }
+                SchemaNodeKind::Leaf => {
+                    let leaf_type = snode.leaf_type().unwrap();
+                    let value = leaf_type_value(&leaf_type, &field_name);
+                    writeln!(
+                        output,
+                        "{}dnode.new_term(module, \"{}\", {}).unwrap();",
+                        indent4,
+                        snode.name(),
+                        value
+                    )
+                    .unwrap();
+                }
+                SchemaNodeKind::LeafList => {
+                    let leaf_type = snode.leaf_type().unwrap();
+                    writeln!(
+                        output,
+                        "{}for element in {} {{",
+                        indent4, field_name
+                    )
+                    .unwrap();
+                    let value = leaf_type_value(&leaf_type, "element");
+                    writeln!(
+                        output,
+                        "{}dnode.new_term(module, \"{}\", {}).unwrap();",
+                        indent5,
+                        snode.name(),
+                        value
+                    )
+                    .unwrap();
+                    writeln!(output, "{}}}", indent4).unwrap();
+                }
+                _ => unreachable!(),
             }
             writeln!(output, "{}}}", indent3).unwrap();
         }
         writeln!(output, "{}}}", indent2).unwrap();
+
+        // list_keys() function implementation.
+        if self.snode.kind() == SchemaNodeKind::List
+            && !self.snode.is_keyless_list()
+        {
+            writeln!(output, "{}fn list_keys(&self) -> String {{", indent2)
+                .unwrap();
+
+            let fmt_string = self
+                .snode
+                .list_keys()
+                .map(|snode| format!("[{}='{{}}']", snode.name()))
+                .collect::<Vec<_>>()
+                .join("");
+            let fmt_args = self
+                .snode
+                .list_keys()
+                .map(|snode| {
+                    let field_name = snode_normalized_name(&snode, Case::Snake);
+                    format!("self.{}", field_name)
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            writeln!(
+                output,
+                "{}format!(\"{}\", {})",
+                indent3, fmt_string, fmt_args
+            )
+            .unwrap();
+            writeln!(output, "{}}}", indent2).unwrap();
+        }
+
         writeln!(output, "{}}}", indent1).unwrap();
     }
 }
@@ -272,51 +373,54 @@ fn snode_normalized_name(snode: &SchemaNode<'_>, case: Case) -> String {
     name
 }
 
-fn snode_is_base_type(snode: &SchemaNode<'_>) -> bool {
+fn leaf_type_is_builtin(leaf_type: &SchemaLeafType<'_>) -> bool {
     matches!(
-        snode.base_type(),
-        Some(
-            DataValueType::Uint8
-                | DataValueType::Uint16
-                | DataValueType::Uint32
-                | DataValueType::Uint64
-                | DataValueType::Int8
-                | DataValueType::Int16
-                | DataValueType::Int32
-                | DataValueType::Int64
-                | DataValueType::Bool
-                | DataValueType::Empty
-        )
+        leaf_type.base_type(),
+        DataValueType::Uint8
+            | DataValueType::Uint16
+            | DataValueType::Uint32
+            | DataValueType::Uint64
+            | DataValueType::Int8
+            | DataValueType::Int16
+            | DataValueType::Int32
+            | DataValueType::Int64
+            | DataValueType::Bool
+            | DataValueType::Empty
     )
 }
 
-fn snode_typedef_map(snode: &SchemaNode<'_>) -> Option<&'static str> {
-    match snode.typedef_name().as_deref() {
-        Some("ip-address") => Some("&'a IpAddr"),
-        Some("ipv4-address") => Some("&'a Ipv4Addr"),
-        Some("ipv6-address") => Some("&'a Ipv6Addr"),
-        Some("ip-prefix") => Some("&'a IpNetwork"),
-        Some("ipv4-prefix") => Some("&'a Ipv4Network"),
-        Some("ipv6-prefix") => Some("&'a Ipv6Network"),
+fn leaf_typedef_map(leaf_type: &SchemaLeafType<'_>) -> Option<&'static str> {
+    match leaf_type.typedef_name().as_deref() {
+        Some("ip-address") => Some("Cow<'a, IpAddr>"),
+        Some("ipv4-address" | "dotted-quad" | "router-id") => {
+            Some("Cow<'a, Ipv4Addr>")
+        }
+        Some("ipv6-address") => Some("Cow<'a, Ipv6Addr>"),
+        Some("ip-prefix") => Some("Cow<'a, IpNetwork>"),
+        Some("ipv4-prefix") => Some("Cow<'a, Ipv4Network>"),
+        Some("ipv6-prefix") => Some("Cow<'a, Ipv6Network>"),
         Some("date-and-time") => Some("&'a DateTime<Utc>"),
-        Some("timer-value-seconds16") => Some("&'a Duration"),
-        Some("timer-value-seconds32") => Some("&'a Duration"),
-        Some("timer-value-milliseconds") => Some("&'a Duration"),
-        Some("timeticks") => Some("&'a Instant"),
-        Some("timeticks64") => Some("&'a Instant"),
+        Some("timer-value-seconds16") => Some("Cow<'a, Duration>"),
+        Some("timer-value-seconds32") => Some("Cow<'a, Duration>"),
+        Some("timer-value-milliseconds") => Some("Cow<'a, Duration>"),
+        Some("timeticks") => Some("Cow<'a, Instant>"),
+        Some("timeticks64") => Some("Cow<'a, Instant>"),
+        Some("hex-string") => Some("&'a [u8]"),
+        // ietf-ospf
+        Some("fletcher-checksum16-type") => Some("u16"),
         _ => None,
     }
 }
 
-fn snode_typedef_value(
-    snode: &SchemaNode<'_>,
+fn leaf_typedef_value(
+    leaf_type: &SchemaLeafType<'_>,
     field_name: &str,
 ) -> Option<String> {
-    match snode.typedef_name().as_deref() {
-        Some("ip-address") | Some("ipv4-address") | Some("ipv6-address")
-        | Some("ip-prefix") | Some("ipv4-prefix") | Some("ipv6-prefix") => {
-            Some(format!("Some(&{}.to_string())", field_name))
-        }
+    match leaf_type.typedef_name().as_deref() {
+        Some(
+            "ip-address" | "ipv4-address" | "dotted-quad" | "router-id"
+            | "ipv6-address" | "ip-prefix" | "ipv4-prefix" | "ipv6-prefix",
+        ) => Some(format!("Some(&{}.to_string())", field_name)),
         Some("date-and-time") => {
             Some(format!("Some(&{}.to_rfc3339())", field_name))
         }
@@ -335,16 +439,24 @@ fn snode_typedef_value(
         Some("timeticks64") => {
             Some(format!("Some(&timeticks64_to_yang({}))", field_name))
         }
+        Some("hex-string") => {
+            Some(format!("Some(&hex_string_to_yang({}))", field_name))
+        }
+        // ietf-ospf
+        Some("fletcher-checksum16-type") => Some(format!(
+            "Some(&fletcher_checksum16_to_yang({}))",
+            field_name
+        )),
         _ => None,
     }
 }
 
-fn snode_type_map(snode: &SchemaNode<'_>) -> &'static str {
-    if let Some(typedef) = snode_typedef_map(snode) {
+fn leaf_type_map(leaf_type: &SchemaLeafType<'_>) -> &'static str {
+    if let Some(typedef) = leaf_typedef_map(leaf_type) {
         return typedef;
     }
 
-    match snode.base_type().unwrap() {
+    match leaf_type.base_type() {
         DataValueType::Unknown => panic!("Unknown leaf type"),
         DataValueType::Uint8 => "u8",
         DataValueType::Uint16 => "u16",
@@ -356,24 +468,27 @@ fn snode_type_map(snode: &SchemaNode<'_>) -> &'static str {
         DataValueType::Int64 => "i64",
         DataValueType::Bool => "bool",
         DataValueType::Empty => "()",
+        DataValueType::Binary => "&'a [u8]",
         DataValueType::String
         | DataValueType::Union
         | DataValueType::Dec64
         | DataValueType::Enum
         | DataValueType::IdentityRef
         | DataValueType::InstanceId
-        | DataValueType::LeafRef
-        | DataValueType::Binary
         | DataValueType::Bits => "Cow<'a, str>",
+        DataValueType::LeafRef => {
+            let real_type = leaf_type.leafref_real_type().unwrap();
+            leaf_type_map(&real_type)
+        }
     }
 }
 
-fn snode_type_value(snode: &SchemaNode<'_>, field_name: &str) -> String {
-    if let Some(typedef_value) = snode_typedef_value(snode, field_name) {
+fn leaf_type_value(leaf_type: &SchemaLeafType<'_>, field_name: &str) -> String {
+    if let Some(typedef_value) = leaf_typedef_value(leaf_type, field_name) {
         return typedef_value;
     }
 
-    match snode.base_type().unwrap() {
+    match leaf_type.base_type() {
         DataValueType::Unknown => panic!("Unknown leaf type"),
         DataValueType::Uint8
         | DataValueType::Uint16
@@ -387,15 +502,20 @@ fn snode_type_value(snode: &SchemaNode<'_>, field_name: &str) -> String {
             format!("Some(&{}.to_string())", field_name)
         }
         DataValueType::Empty => "None".to_owned(),
+        DataValueType::Binary => {
+            format!("Some(&binary_to_yang({}))", field_name)
+        }
         DataValueType::String
         | DataValueType::Union
         | DataValueType::Dec64
         | DataValueType::Enum
         | DataValueType::IdentityRef
         | DataValueType::InstanceId
-        | DataValueType::LeafRef
-        | DataValueType::Binary
-        | DataValueType::Bits => format!("Some({})", field_name),
+        | DataValueType::Bits => format!("Some(&{})", field_name),
+        DataValueType::LeafRef => {
+            let real_type = leaf_type.leafref_real_type().unwrap();
+            leaf_type_value(&real_type, field_name)
+        }
     }
 }
 
@@ -417,11 +537,6 @@ fn generate_module(output: &mut String, snode: &SchemaNode<'_>, level: usize) {
             generate_default_value(output, snode, default, level);
         }
 
-        // Generate "list_keys()" function.
-        if snode.kind() == SchemaNodeKind::List {
-            generate_list_keys_fn(output, snode, level);
-        }
-
         // Generate object struct.
         if matches!(
             snode.kind(),
@@ -429,7 +544,7 @@ fn generate_module(output: &mut String, snode: &SchemaNode<'_>, level: usize) {
                 | SchemaNodeKind::List
                 | SchemaNodeKind::Notification
         ) {
-            let builder = StructBuilder::new(level, snode);
+            let builder = StructBuilder::new(level, snode.clone());
             if !builder.fields.is_empty() {
                 builder.generate(output);
             }
@@ -470,20 +585,24 @@ fn generate_paths(output: &mut String, snode: &SchemaNode<'_>, level: usize) {
     )
     .unwrap();
 
-    // Generate data path relative to the nearest parent list.
-    if let Some(snode_parent_list) = snode
-        .ancestors()
-        .find(|snode| snode.kind() == SchemaNodeKind::List)
-    {
-        let path_parent_list = snode_parent_list.path(SchemaPathFormat::DATA);
-        let relative_path = &path[path_parent_list.len()..];
+    // For notifications, generate data path relative to the nearest parent
+    // list.
+    if snode.kind() == SchemaNodeKind::Notification {
+        if let Some(snode_parent_list) = snode
+            .ancestors()
+            .find(|snode| snode.kind() == SchemaNodeKind::List)
+        {
+            let path_parent_list =
+                snode_parent_list.path(SchemaPathFormat::DATA);
+            let relative_path = &path[path_parent_list.len()..];
 
-        writeln!(
-            output,
-            "{}  pub const RELATIVE_PATH: &str = \"{}\";",
-            indent, relative_path
-        )
-        .unwrap();
+            writeln!(
+                output,
+                "{}  pub const RELATIVE_PATH: &str = \"{}\";",
+                indent, relative_path
+            )
+            .unwrap();
+        }
     }
 }
 
@@ -518,51 +637,6 @@ fn generate_default_value(
         output,
         "{}  pub const DFLT: {} = {};",
         indent, dflt_type, dflt_value,
-    )
-    .unwrap();
-}
-
-fn generate_list_keys_fn(
-    output: &mut String,
-    snode: &SchemaNode<'_>,
-    level: usize,
-) {
-    let indent = " ".repeat(level * 2);
-
-    let args = snode
-        .list_keys()
-        .map(|snode| {
-            // TODO: require real types for extra type safety.
-            format!(
-                "{}: impl ToString",
-                snode_normalized_name(&snode, Case::Snake)
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(", ");
-    let fmt_string = snode
-        .list_keys()
-        .map(|snode| format!("[{}='{{}}']", snode.name()))
-        .collect::<Vec<_>>()
-        .join("");
-    let fmt_args = snode
-        .list_keys()
-        .map(|snode| {
-            format!(
-                "{}.to_string()",
-                snode_normalized_name(&snode, Case::Snake)
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(", ");
-
-    writeln!(
-        output,
-        "{}  #[allow(clippy::useless_format)]\n\
-             {}  pub fn list_keys({}) -> String {{\n\
-             {}    format!(\"{}\", {})\n\
-             {}  }}",
-        indent, indent, args, indent, fmt_string, fmt_args, indent,
     )
     .unwrap();
 }

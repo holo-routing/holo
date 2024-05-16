@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use tracing::{debug, debug_span, trace, trace_span};
+use tracing::{debug, debug_span, trace};
 
 use crate::configuration::CommitPhase;
 use crate::{api, CallbackOp};
@@ -15,8 +15,6 @@ pub enum Debug<'a> {
     ValidationCallback(&'a str),
     ConfigurationCallback(CommitPhase, CallbackOp, &'a str),
     RpcCallback(&'a str),
-    GetIterateCallback(&'a str),
-    GetElementCallback(&'a str, &'a Option<String>),
 }
 
 // ===== impl Debug =====
@@ -47,14 +45,6 @@ impl<'a> Debug<'a> {
                 debug_span!("northbound")
                     .in_scope(|| debug!(%path, "{}", self));
             }
-            Debug::GetIterateCallback(path) => {
-                trace_span!("northbound")
-                    .in_scope(|| trace!(%path, "{}", self));
-            }
-            Debug::GetElementCallback(path, value) => {
-                trace_span!("northbound")
-                    .in_scope(|| trace!(%path, ?value, "{}", self));
-            }
         }
     }
 }
@@ -73,12 +63,6 @@ impl<'a> std::fmt::Display for Debug<'a> {
             }
             Debug::RpcCallback(..) => {
                 write!(f, "rpc callback")
-            }
-            Debug::GetIterateCallback(..) => {
-                write!(f, "get iterate callback")
-            }
-            Debug::GetElementCallback(..) => {
-                write!(f, "get element callback")
             }
         }
     }

@@ -9,7 +9,6 @@ use std::sync::LazyLock as Lazy;
 use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, Provider,
 };
-use holo_northbound::yang::interfaces;
 
 use crate::Master;
 
@@ -24,23 +23,7 @@ pub enum ListEntry {
 // ===== callbacks =====
 
 fn load_callbacks() -> Callbacks<Master> {
-    CallbacksBuilder::default()
-        .path(interfaces::interface::PATH)
-        .get_iterate(|_master, _args| {
-            // No operational data under this list.
-            None
-        })
-        .path(interfaces::interface::ipv4::address::PATH)
-        .get_iterate(|_context, _args| {
-            // No operational data under this list.
-            None
-        })
-        .path(interfaces::interface::ipv6::address::PATH)
-        .get_iterate(|_context, _args| {
-            // No operational data under this list.
-            None
-        })
-        .build()
+    CallbacksBuilder::default().build()
 }
 
 // ===== impl Master =====
@@ -57,8 +40,4 @@ impl Provider for Master {
 
 // ===== impl ListEntry =====
 
-impl ListEntryKind for ListEntry {
-    fn get_keys(&self) -> Option<String> {
-        None
-    }
-}
+impl ListEntryKind for ListEntry {}

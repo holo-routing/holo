@@ -662,6 +662,26 @@ impl Capability {
     }
 }
 
+// ===== impl NegotiatedCapability =====
+
+impl NegotiatedCapability {
+    pub fn code(&self) -> CapabilityCode {
+        match self {
+            NegotiatedCapability::MultiProtocol { .. } => {
+                CapabilityCode::MultiProtocol
+            }
+            NegotiatedCapability::FourOctetAsNumber => {
+                CapabilityCode::FourOctetAsNumber
+            }
+            NegotiatedCapability::AddPath => CapabilityCode::AddPath,
+            NegotiatedCapability::RouteRefresh => CapabilityCode::RouteRefresh,
+            NegotiatedCapability::EnhancedRouteRefresh => {
+                CapabilityCode::EnhancedRouteRefresh
+            }
+        }
+    }
+}
+
 // ===== impl UpdateMsg =====
 
 impl UpdateMsg {

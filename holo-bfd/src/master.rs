@@ -11,7 +11,7 @@ use derive_new::new;
 use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
 };
-use holo_utils::bfd::PathType;
+use holo_utils::bfd::{PathType, State};
 use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
 use holo_utils::protocol::Protocol;
@@ -96,6 +96,26 @@ impl Master {
         } else if !ip_mh_sessions && self.udp_mh_rx_tasks.is_some() {
             self.udp_mh_rx_tasks = None;
         }
+    }
+
+    // Counts the number of sessions that match the given path type and local
+    // state.
+    pub(crate) fn sessions_count(
+        &self,
+        path_type: Option<PathType>,
+        local_state: Option<State>,
+    ) -> usize {
+        self.sessions
+            .iter()
+            .filter(|sess| match path_type {
+                Some(path_type) => sess.key.path_type() == path_type,
+                None => true,
+            })
+            .filter(|sess| match local_state {
+                Some(local_state) => sess.state.local_state == local_state,
+                None => true,
+            })
+            .count()
     }
 }
 

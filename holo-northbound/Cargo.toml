@@ -12,6 +12,7 @@ bitflags.workspace = true
 chrono.workspace = true
 derive-new.workspace = true
 ipnetwork.workspace = true
+itertools.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
@@ -25,8 +26,8 @@ holo-yang = { path = "../holo-yang" }
 holo-utils = { path = "../holo-utils" }
 
 [build-dependencies]
-convert_case = "0.6"
 check_keyword.workspace = true
+convert_case.workspace = true
 yang2.workspace = true
 holo-yang = { path = "../holo-yang" }
 

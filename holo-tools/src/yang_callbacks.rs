@@ -4,18 +4,17 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::fmt::Write;
-
 use check_keyword::CheckKeyword;
 use clap::{App, Arg};
+use convert_case::{Boundary, Case, Casing};
 use holo_northbound::CallbackOp;
 use holo_yang as yang;
 use yang2::context::Context;
-use yang2::schema::{DataValueType, SchemaModule, SchemaNode, SchemaNodeKind};
+use yang2::schema::{SchemaModule, SchemaNode, SchemaNodeKind};
 
-fn snode_module_path(snode: &SchemaNode<'_>) -> String {
+fn snode_module(snode: &SchemaNode<'_>) -> String {
     let snodes = snode.inclusive_ancestors().collect::<Vec<_>>();
-    let mut path = snodes
+    snodes
         .iter()
         .rev()
         .filter(|snode| !snode.is_schema_only())
@@ -27,9 +26,45 @@ fn snode_module_path(snode: &SchemaNode<'_>) -> String {
             name.into_safe()
         })
         .collect::<Vec<String>>()
-        .join("::");
-    write!(path, "::PATH").unwrap();
-    path
+        .join("::")
+}
+
+fn snode_module_path(snode: &SchemaNode<'_>) -> String {
+    format!("{}::PATH", snode_module(snode))
+}
+
+fn snode_normalized_name(snode: &SchemaNode<'_>, case: Case) -> String {
+    let mut name = snode.name().to_owned();
+
+    // HACK: distinguish nodes with the same names but different namespaces.
+    if matches!(
+        snode.name(),
+        "destination-address"
+            | "destination-prefix"
+            | "address"
+            | "next-hop-address"
+    ) {
+        if snode.module().name() == "ietf-ipv4-unicast-routing" {
+            name.insert_str(0, "ipv4-");
+        }
+        if snode.module().name() == "ietf-ipv6-unicast-routing" {
+            name.insert_str(0, "ipv6-");
+        }
+        if snode.module().name() == "ietf-mpls" {
+            name.insert_str(0, "mpls-");
+        }
+    }
+
+    // Case conversion.
+    name = name
+        .from_case(Case::Kebab)
+        .without_boundaries(&[Boundary::DigitUpper, Boundary::DigitLower])
+        .to_case(case);
+
+    // Handle Rust reserved keywords.
+    name = name.into_safe();
+
+    name
 }
 
 fn config_callbacks(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
@@ -165,12 +200,15 @@ fn state_callbacks(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
         .filter(|snode| modules.iter().any(|module| snode.module() == *module))
     {
         let get_iterate = CallbackOp::GetIterate.is_valid(&snode);
-        let get_element = CallbackOp::GetElement.is_valid(&snode);
-        if !get_iterate && !get_element {
+        let get_object = CallbackOp::GetObject.is_valid(&snode);
+        if !get_iterate && !get_object {
             continue;
         }
 
         // Print path.
+        let indent1 = " ".repeat(2 * 4);
+        let indent2 = " ".repeat(3 * 4);
+        let indent3 = " ".repeat(4 * 4);
         let path = snode_module_path(&snode);
         println!("        .path({})", path);
 
@@ -182,50 +220,31 @@ fn state_callbacks(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
                \n        }})"
             );
         }
-        if get_element {
-            let suffix = if snode.kind() == SchemaNodeKind::Container {
-                "container"
-            } else {
-                match snode.base_type().unwrap() {
-                    DataValueType::Unknown => panic!("Unknown leaf type"),
-                    // TODO
-                    DataValueType::Binary => "string",
-                    DataValueType::Uint8 => "u8",
-                    DataValueType::Uint16 => "u16",
-                    DataValueType::Uint32 => "u32",
-                    DataValueType::Uint64 => "u64",
-                    DataValueType::String => "string",
-                    // TODO
-                    DataValueType::Bits => "string",
-                    DataValueType::Bool => "bool",
-                    // TODO
-                    DataValueType::Dec64 => "string",
-                    // TODO
-                    DataValueType::Empty => "empty",
-                    // TODO
-                    DataValueType::Enum => "string",
-                    // TODO
-                    DataValueType::IdentityRef => "string",
-                    // TODO
-                    DataValueType::InstanceId => "string",
-                    // TODO
-                    DataValueType::LeafRef => "string",
-                    // TODO
-                    DataValueType::Union => "string",
-                    DataValueType::Int8 => "i8",
-                    DataValueType::Int16 => "i16",
-                    DataValueType::Int32 => "i32",
-                    DataValueType::Int64 => "i64",
-                }
-            };
-
+        if get_object {
+            let struct_name = snode_normalized_name(&snode, Case::Pascal);
+            println!("{}.get_object(|_context, _args| {{", indent1);
             println!(
-                "        .get_element_{}(|_context, _args| {{\
-               \n            // TODO: implement me!\
-               \n            None\
-               \n        }})",
-                suffix
+                "{}use {}::{};",
+                indent2,
+                snode_module(&snode),
+                struct_name
             );
+            println!("{}Box::new({} {{", indent2, struct_name);
+            for snode in snode
+                .children()
+                .filter(|snode| {
+                    matches!(
+                        snode.kind(),
+                        SchemaNodeKind::Leaf | SchemaNodeKind::LeafList
+                    )
+                })
+                .filter(|snode| snode.is_state() || snode.is_list_key())
+            {
+                let field_name = snode_normalized_name(&snode, Case::Snake);
+                println!("{}{}: todo!(),", indent3, field_name);
+            }
+            println!("{}}})", indent2);
+            println!("{}}})", indent1);
         }
     }
 

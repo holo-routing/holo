@@ -464,6 +464,19 @@ impl ToYang for ospfv3::packet::lsa::LsaAsExternalFlags {
     }
 }
 
+impl ToYangBits for ospfv3::packet::lsa::LsaAsExternalFlags {
+    fn to_yang_bits(&self) -> Vec<&'static str> {
+        use ospfv3::packet::lsa::LsaAsExternalFlags;
+
+        let mut options = vec![];
+        if self.contains(LsaAsExternalFlags::E) {
+            options.push("ietf-ospfv3-extended-lsa:e-bit");
+        }
+
+        options
+    }
+}
+
 impl ToYangBits for ospfv3::packet::Options {
     fn to_yang_bits(&self) -> Vec<&'static str> {
         use ospfv3::packet::Options;

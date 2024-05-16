@@ -23,6 +23,8 @@ pub mod ibus;
 pub mod ip;
 pub mod keychain;
 pub mod mpls;
+pub mod num;
+pub mod option;
 pub mod policy;
 pub mod protocol;
 pub mod socket;

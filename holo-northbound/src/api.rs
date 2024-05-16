@@ -13,7 +13,7 @@ use yang2::data::DataTree;
 
 use crate::configuration::{CommitPhase, ConfigChanges};
 use crate::error::Error;
-use crate::{state, CallbackKey};
+use crate::CallbackKey;
 
 // Daemon -> Provider requests.
 pub mod daemon {
@@ -73,7 +73,6 @@ pub mod daemon {
     #[derive(Debug, Deserialize, Serialize)]
     pub struct GetRequest {
         pub path: Option<String>,
-        pub attr_filter: Option<state::NodeAttributes>,
         #[serde(skip)]
         pub responder: Option<Responder<Result<GetResponse, Error>>>,
     }

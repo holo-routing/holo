@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-#![feature(lazy_cell, let_chains)]
+#![feature(let_chains)]
 
 mod ibus;
 mod interface;

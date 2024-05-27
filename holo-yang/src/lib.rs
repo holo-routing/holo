@@ -4,8 +4,6 @@
 // SPDX-License-Identifier: MIT
 //
 
-#![feature(lazy_cell)]
-
 pub mod serde;
 
 use std::borrow::Cow;

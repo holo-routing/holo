@@ -1,5 +1,3 @@
-#![feature(lazy_cell)]
-
 use std::collections::VecDeque;
 use std::hint::black_box;
 use std::net::Ipv4Addr;

@@ -8,7 +8,7 @@
     feature = "testing",
     allow(dead_code, unused_variables, unused_imports)
 )]
-#![feature(let_chains, lazy_cell)]
+#![feature(let_chains)]
 
 pub mod debug;
 pub mod error;

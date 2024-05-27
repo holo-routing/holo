@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-#![feature(ip, lazy_cell)]
+#![feature(ip)]
 #![cfg_attr(
     feature = "testing",
     allow(dead_code, unused_variables, unused_imports)

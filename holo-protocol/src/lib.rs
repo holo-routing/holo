@@ -4,8 +4,6 @@
 // SPDX-License-Identifier: MIT
 //
 
-#![feature(lazy_cell)]
-
 pub mod event_recorder;
 #[cfg(feature = "testing")]
 pub mod test;

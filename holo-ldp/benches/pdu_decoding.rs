@@ -1,5 +1,3 @@
-#![feature(lazy_cell)]
-
 use std::hint::black_box;
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::LazyLock as Lazy;

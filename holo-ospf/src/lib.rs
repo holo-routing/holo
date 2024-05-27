@@ -9,7 +9,7 @@
     allow(dead_code, unused_variables, unused_imports)
 )]
 #![allow(type_alias_bounds)]
-#![feature(btree_extract_if, hash_extract_if, ip, let_chains, lazy_cell)]
+#![feature(btree_extract_if, hash_extract_if, ip, let_chains)]
 
 pub mod area;
 pub mod collections;

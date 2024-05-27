@@ -5,7 +5,6 @@
 //
 
 #![feature(let_chains)]
-#![feature(lazy_cell)]
 
 mod ibus;
 mod netlink;

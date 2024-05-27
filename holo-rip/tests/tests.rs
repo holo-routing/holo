@@ -4,7 +4,5 @@
 // SPDX-License-Identifier: MIT
 //
 
-#![feature(lazy_cell)]
-
 mod conformance;
 mod packet;

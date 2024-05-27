@@ -166,19 +166,19 @@ impl ToYangBits for PrefixSidFlags {
         let mut flags = vec![];
 
         if self.contains(PrefixSidFlags::NP) {
-            flags.push("ietf-ospf-sr-mpls:np-bit");
+            flags.push("ietf-ospf-sr-mpls:np-flag");
         }
         if self.contains(PrefixSidFlags::M) {
-            flags.push("ietf-ospf-sr-mpls:m-bit");
+            flags.push("ietf-ospf-sr-mpls:m-flag");
         }
         if self.contains(PrefixSidFlags::E) {
-            flags.push("ietf-ospf-sr-mpls:e-bit");
+            flags.push("ietf-ospf-sr-mpls:e-flag");
         }
         if self.contains(PrefixSidFlags::V) {
-            flags.push("ietf-ospf-sr-mpls:v-bit");
+            flags.push("ietf-ospf-sr-mpls:v-flag");
         }
         if self.contains(PrefixSidFlags::L) {
-            flags.push("ietf-ospf-sr-mpls:l-bit");
+            flags.push("ietf-ospf-sr-mpls:l-flag");
         }
 
         flags
@@ -190,19 +190,19 @@ impl ToYangBits for AdjSidFlags {
         let mut flags = vec![];
 
         if self.contains(AdjSidFlags::B) {
-            flags.push("ietf-ospf-sr-mpls:b-bit");
+            flags.push("ietf-ospf-sr-mpls:b-flag");
         }
         if self.contains(AdjSidFlags::V) {
-            flags.push("ietf-ospf-sr-mpls:vi-bit");
+            flags.push("ietf-ospf-sr-mpls:vi-flag");
         }
         if self.contains(AdjSidFlags::L) {
-            flags.push("ietf-ospf-sr-mpls:lo-bit");
+            flags.push("ietf-ospf-sr-mpls:lo-flag");
         }
         if self.contains(AdjSidFlags::G) {
-            flags.push("ietf-ospf-sr-mpls:g-bit");
+            flags.push("ietf-ospf-sr-mpls:g-flag");
         }
         if self.contains(AdjSidFlags::P) {
-            flags.push("ietf-ospf-sr-mpls:p-bit");
+            flags.push("ietf-ospf-sr-mpls:p-flag");
         }
 
         flags
@@ -449,18 +449,18 @@ impl ToYang for ospfv3::packet::lsa::LsaAsExternalFlags {
     fn to_yang(&self) -> Cow<'static, str> {
         use ospfv3::packet::lsa::LsaAsExternalFlags;
 
-        let mut bits = String::new();
+        let mut bits = Vec::new();
         if self.contains(LsaAsExternalFlags::E) {
-            write!(bits, "E").unwrap();
+            bits.push("E");
         }
         if self.contains(LsaAsExternalFlags::F) {
-            write!(bits, "F").unwrap();
+            bits.push("F");
         }
         if self.contains(LsaAsExternalFlags::T) {
-            write!(bits, "T").unwrap();
+            bits.push("T");
         }
 
-        bits.into()
+        bits.join(" ").into()
     }
 }
 

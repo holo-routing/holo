@@ -15,6 +15,7 @@ tokio.workspace = true
 yang2.workspace = true
 
 holo-bfd = { path = "../holo-bfd", features = ["testing"] }
+holo-bgp = { path = "../holo-bgp", features = ["testing"] }
 holo-ldp = { path = "../holo-ldp", features = ["testing"] }
 holo-rip = { path = "../holo-rip", features = ["testing"] }
 holo-northbound = { path = "../holo-northbound" }

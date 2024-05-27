@@ -32,7 +32,7 @@ fn snode_module_path(snode: &SchemaNode<'_>) -> String {
     path
 }
 
-fn config_callbacks(yang_ctx: &Context, module: SchemaModule<'_>) {
+fn config_callbacks(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
     // Header.
     println!(
         "\
@@ -45,7 +45,7 @@ fn config_callbacks(yang_ctx: &Context, module: SchemaModule<'_>) {
         .traverse()
         .filter(|snode| !snode.is_schema_only())
         .filter(|snode| snode.is_status_current())
-        .filter(|snode| snode.module() == module)
+        .filter(|snode| modules.iter().any(|module| snode.module() == *module))
     {
         let create = CallbackOp::Create.is_valid(&snode);
         let modify = CallbackOp::Modify.is_valid(&snode);
@@ -96,7 +96,7 @@ fn config_callbacks(yang_ctx: &Context, module: SchemaModule<'_>) {
     println!("}}");
 }
 
-fn rpc_callbacks(yang_ctx: &Context, module: SchemaModule<'_>) {
+fn rpc_callbacks(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
     // Header.
     println!(
         "\
@@ -109,7 +109,7 @@ fn rpc_callbacks(yang_ctx: &Context, module: SchemaModule<'_>) {
         .traverse()
         .filter(|snode| !snode.is_schema_only())
         .filter(|snode| snode.is_status_current())
-        .filter(|snode| snode.module() == module)
+        .filter(|snode| modules.iter().any(|module| snode.module() == *module))
     {
         let path = snode_module_path(&snode);
         if CallbackOp::Rpc.is_valid(&snode) {
@@ -149,7 +149,7 @@ fn rpc_callbacks(yang_ctx: &Context, module: SchemaModule<'_>) {
     println!("}}");
 }
 
-fn state_callbacks(yang_ctx: &Context, module: SchemaModule<'_>) {
+fn state_callbacks(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
     // Header.
     println!(
         "\
@@ -162,7 +162,7 @@ fn state_callbacks(yang_ctx: &Context, module: SchemaModule<'_>) {
         .traverse()
         .filter(|snode| !snode.is_schema_only())
         .filter(|snode| snode.is_status_current())
-        .filter(|snode| snode.module() == module)
+        .filter(|snode| modules.iter().any(|module| snode.module() == *module))
     {
         let get_iterate = CallbackOp::GetIterate.is_valid(&snode);
         let get_element = CallbackOp::GetElement.is_valid(&snode);
@@ -246,6 +246,7 @@ fn main() {
                 .long("module")
                 .help("YANG module name")
                 .value_name("MODULE")
+                .multiple(true)
                 .required(true),
         )
         .arg(
@@ -257,7 +258,7 @@ fn main() {
         )
         .get_matches();
 
-    let module_name = matches.value_of("MODULE").unwrap();
+    let module_names = matches.values_of("MODULE").unwrap().collect::<Vec<_>>();
     let cb_type = matches.value_of("CALLBACK_TYPE").unwrap();
 
     // Initialize context.
@@ -268,17 +269,24 @@ fn main() {
     yang::load_module(&mut yang_ctx, "iana-bgp-types");
 
     // Load provided YANG module.
-    yang::load_module(&mut yang_ctx, module_name);
-    yang::load_deviations(&mut yang_ctx, module_name);
-    let module = yang_ctx
-        .get_module_latest(module_name)
-        .expect("Failed to find loaded module");
+    for module_name in &module_names {
+        yang::load_module(&mut yang_ctx, module_name);
+        yang::load_deviations(&mut yang_ctx, module_name);
+    }
 
-    // Check callback type.
+    // Generate callbacks.
+    let modules = module_names
+        .into_iter()
+        .map(|module_name| {
+            yang_ctx
+                .get_module_latest(module_name)
+                .expect("Failed to find loaded module")
+        })
+        .collect::<Vec<_>>();
     match cb_type {
-        "config" => config_callbacks(&yang_ctx, module),
-        "rpc" => rpc_callbacks(&yang_ctx, module),
-        "state" => state_callbacks(&yang_ctx, module),
+        "config" => config_callbacks(&yang_ctx, modules),
+        "rpc" => rpc_callbacks(&yang_ctx, modules),
+        "state" => state_callbacks(&yang_ctx, modules),
         _ => panic!("Unknown callback type"),
     }
 }

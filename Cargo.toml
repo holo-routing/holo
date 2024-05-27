@@ -75,7 +75,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 yang2 = { version = "0.12", features = ["bundled"] }
 
 [workspace.lints.rust]
-rust_2018_idioms = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
 unsafe_code = "forbid"
 
 [workspace.lints.clippy]

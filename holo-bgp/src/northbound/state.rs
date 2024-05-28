@@ -78,8 +78,8 @@ fn load_callbacks() -> Callbacks<Instance> {
             let afi_safi = args.list_entry.as_global_afi_safi().unwrap();
             let state = instance.state.as_ref().unwrap();
             let total_prefixes = match afi_safi {
-                AfiSafi::Ipv4Unicast => state.rib.tables.ipv4_unicast.prefixes.iter().count(),
-                AfiSafi::Ipv6Unicast => state.rib.tables.ipv6_unicast.prefixes.iter().count(),
+                AfiSafi::Ipv4Unicast => state.rib.tables.ipv4_unicast.prefixes.len(),
+                AfiSafi::Ipv6Unicast => state.rib.tables.ipv6_unicast.prefixes.len(),
             };
             Box::new(Statistics {
                 // TODO
@@ -92,8 +92,8 @@ fn load_callbacks() -> Callbacks<Instance> {
             use bgp::global::statistics::Statistics;
             let mut total_prefixes = None;
             if let Some(state) = &instance.state {
-                let total_ipv4 = state.rib.tables.ipv4_unicast.prefixes.iter().count();
-                let total_ipv6 = state.rib.tables.ipv6_unicast.prefixes.iter().count();
+                let total_ipv4 = state.rib.tables.ipv4_unicast.prefixes.len();
+                let total_ipv6 = state.rib.tables.ipv6_unicast.prefixes.len();
                 total_prefixes = Some(total_ipv4 as u32 + total_ipv6 as u32);
             }
             Box::new(Statistics {

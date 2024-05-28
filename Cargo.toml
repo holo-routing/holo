@@ -55,7 +55,7 @@ netlink-sys = "0.8"
 num-derive = "0.4"
 num-traits = "0.2"
 pickledb = "0.5"
-prefix-trie = { version = "0.3", features = ["ipnetwork"]  }
+prefix-trie = { version = "0.4.1", features = ["ipnetwork"]  }
 prost = "0.12"
 rand = "0.8.5"
 regex = "1.10"

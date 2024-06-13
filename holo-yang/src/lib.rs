@@ -11,7 +11,6 @@ use std::collections::HashMap;
 use std::sync::{Arc, LazyLock as Lazy, OnceLock};
 
 use maplit::hashmap;
-use tracing::error;
 use yang2::context::{
     Context, ContextFlags, EmbeddedModuleKey, EmbeddedModules,
 };
@@ -339,8 +338,7 @@ pub fn load_module(ctx: &mut Context, name: &str) {
         .map(|features| features.as_slice())
         .unwrap_or_else(|| &[]);
     if let Err(error) = ctx.load_module(name, None, features) {
-        error!(%error, "failed to load YANG module");
-        std::process::exit(1);
+        panic!("failed to load YANG module: {}", error);
     }
 }
 

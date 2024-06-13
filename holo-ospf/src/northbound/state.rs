@@ -3087,21 +3087,21 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_object(|_instance, _args| unreachable!())
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::PATH)
         .get_object(|_instance, _args| unreachable!())
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv6_link_local_tlv::PATH)
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv6_link_local_addr_tlv::PATH)
         .get_object(|_instance, args| {
-            use ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv6_link_local_tlv::Ipv6LinkLocalTlv;
-            Box::new(Ipv6LinkLocalTlv {
+            use ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv6_link_local_addr_tlv::Ipv6LinkLocalAddrTlv;
+            Box::new(Ipv6LinkLocalAddrTlv {
                 link_local_address: args.list_entry.as_ospfv3_link_local_addr().copied().and_then(Ipv6Addr::get).map(Cow::Owned),
             })
         })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv6_link_local_tlv::sub_tlvs::PATH)
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv6_link_local_addr_tlv::sub_tlvs::PATH)
         .get_iterate(|_instance, _args| {
             // TODO: implement me!
             None
         })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv6_link_local_tlv::sub_tlvs::unknown_sub_tlv::PATH)
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv6_link_local_addr_tlv::sub_tlvs::unknown_sub_tlv::PATH)
         .get_object(|_instance, args| {
-            use ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv6_link_local_tlv::sub_tlvs::unknown_sub_tlv::UnknownSubTlv;
+            use ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv6_link_local_addr_tlv::sub_tlvs::unknown_sub_tlv::UnknownSubTlv;
             let Some(tlv) = args.list_entry.as_unknown_tlv() else { return Box::new(UnknownSubTlv::default()) };
             Box::new(UnknownSubTlv {
                 r#type: Some(tlv.tlv_type),
@@ -3109,21 +3109,21 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
                 value: Some(tlv.value.as_ref()),
             })
         })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv4_link_local_tlv::PATH)
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv4_link_local_addr_tlv::PATH)
         .get_object(|_instance, args| {
-            use ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv4_link_local_tlv::Ipv4LinkLocalTlv;
-            Box::new(Ipv4LinkLocalTlv {
+            use ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv4_link_local_addr_tlv::Ipv4LinkLocalAddrTlv;
+            Box::new(Ipv4LinkLocalAddrTlv {
                 link_local_address: args.list_entry.as_ospfv3_link_local_addr().copied().and_then(Ipv4Addr::get).map(Cow::Owned),
             })
         })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv4_link_local_tlv::sub_tlvs::PATH)
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv4_link_local_addr_tlv::sub_tlvs::PATH)
         .get_iterate(|_instance, _args| {
             // TODO: implement me!
             None
         })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv4_link_local_tlv::sub_tlvs::unknown_sub_tlv::PATH)
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv4_link_local_addr_tlv::sub_tlvs::unknown_sub_tlv::PATH)
         .get_object(|_instance, args| {
-            use ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv4_link_local_tlv::sub_tlvs::unknown_sub_tlv::UnknownSubTlv;
+            use ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv4_link_local_addr_tlv::sub_tlvs::unknown_sub_tlv::UnknownSubTlv;
             let Some(tlv) = args.list_entry.as_unknown_tlv() else { return Box::new(UnknownSubTlv::default()) };
             Box::new(UnknownSubTlv {
                 r#type: Some(tlv.tlv_type),

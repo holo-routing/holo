@@ -31,6 +31,7 @@ holo-bgp = { path = "../holo-bgp", optional = true }
 holo-ldp = { path = "../holo-ldp", optional = true }
 holo-ospf = { path = "../holo-ospf", optional = true }
 holo-rip = { path = "../holo-rip", optional = true }
+holo-vrrp = { path = "../holo-vrrp", optional = true }
 
 [lints]
 workspace = true
@@ -41,3 +42,4 @@ bgp = ["holo-bgp"]
 ldp = ["holo-ldp"]
 ospf = ["holo-ospf"]
 rip = ["holo-rip"]
+vrrp = ["holo-vrrp"]

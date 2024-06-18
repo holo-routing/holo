@@ -119,6 +119,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-tcp@2022-09-11.yang"),
         EmbeddedModuleKey::new("ietf-tcp-common", Some("2023-04-17"), None, None) =>
             include_str!("../modules/ietf/ietf-tcp-common@2023-04-17.yang"),
+        EmbeddedModuleKey::new("ietf-vrrp", Some("2018-03-13"), None, None) =>
+            include_str!("../modules/ietf/ietf-vrrp@2018-03-13.yang"),
         // IETF Holo augmentations
         EmbeddedModuleKey::new("holo-bgp", None, None, None) =>
             include_str!("../modules/augmentations/holo-bgp.yang"),
@@ -126,6 +128,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/augmentations/holo-ospf.yang"),
         EmbeddedModuleKey::new("holo-ospf-dev", None, None, None) =>
             include_str!("../modules/augmentations/holo-ospf-dev.yang"),
+        EmbeddedModuleKey::new("holo-vrrp", None, None, None) =>
+            include_str!("../modules/augmentations/holo-vrrp.yang"),
         // IETF Holo deviations
         EmbeddedModuleKey::new("ietf-bgp-holo-deviations", None, None, None) =>
             include_str!("../modules/deviations/ietf-bgp-holo-deviations.yang"),
@@ -159,6 +163,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/deviations/ietf-routing-policy-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-segment-routing-mpls-holo-deviations", None, None, None) =>
             include_str!("../modules/deviations/ietf-segment-routing-mpls-holo-deviations.yang"),
+        EmbeddedModuleKey::new("ietf-vrrp-holo-deviations", None, None, None) =>
+            include_str!("../modules/deviations/ietf-vrrp-holo-deviations.yang"),
     }
 });
 
@@ -202,10 +208,12 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
             "ietf-ospfv3-extended-lsa",
             "ietf-rip",
             "ietf-tcp",
+            "ietf-vrrp",
             // IETF Holo augmentations
             "holo-bgp",
             "holo-ospf",
             "holo-ospf-dev",
+            "holo-vrrp",
         ]
     });
 

@@ -68,6 +68,11 @@ pub(crate) fn create_context() {
         modules_add::<Instance<Ripv2>>(&mut modules);
         modules_add::<Instance<Ripng>>(&mut modules);
     }
+    #[cfg(feature = "vrrp")]
+    {
+        use holo_vrrp::instance::Instance;
+        modules_add::<Instance>(&mut modules);
+    }
 
     // Create YANG context and load all required modules and their deviations.
     let mut yang_ctx = yang::new_context();

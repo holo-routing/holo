@@ -42,6 +42,7 @@ holo-protocol = { path = "../holo-protocol" }
 holo-rip = { path = "../holo-rip", optional = true }
 holo-routing = { path = "../holo-routing", optional = true  }
 holo-utils = { path = "../holo-utils" }
+holo-vrrp = { path = "../holo-vrrp", optional = true  }
 holo-yang = { path = "../holo-yang" }
 
 [build-dependencies]
@@ -67,6 +68,7 @@ default = [
   "ldp",
   "ospf",
   "rip",
+  "vrrp",
 ]
 
 # Base components
@@ -81,6 +83,7 @@ bgp = ["holo-bgp", "holo-routing/bgp"]
 ldp = ["holo-ldp", "holo-routing/ldp"]
 ospf = ["holo-ospf", "holo-routing/ospf"]
 rip = ["holo-rip", "holo-routing/rip"]
+vrrp = ["holo-vrrp", "holo-routing/vrrp"]
 
 # Other features
 io_uring = ["tokio-uring"]

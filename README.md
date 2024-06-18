@@ -208,6 +208,10 @@ Holo supports the following IETF RFCs and Internet drafts:
 * RFC 2453 - RIP Version 2
 * RFC 4822 - RIPv2 Cryptographic Authentication
 
+##### VRRP
+
+* RFC 3768 - Virtual Router Redundancy Protocol (VRRP)
+
 ##### IETF YANG implementation coverage
 
 | Module | Configuration | State | RPCs | Notifications | Total |
@@ -234,6 +238,7 @@ Holo supports the following IETF RFCs and Internet drafts:
 | ietf-routing@2018-03-13 | 100.00% | 85.71% | - | - | [92.31%](http://westphal.com.br/holo/ietf-routing.html) |
 | ietf-segment-routing-mpls@2021-05-26 | 62.50% | 0.00% | - | 23.53% | [32.76%](http://westphal.com.br/holo/ietf-segment-routing-mpls.html) |
 | ietf-segment-routing@2021-05-26 | 100.00% | - | - | - | [100.00%](http://westphal.com.br/holo/ietf-segment-routing.html) |
+| ietf-vrrp@2018-03-13 | 51.06% | 60.47% | - | 41.67% | [53.92%](http://westphal.com.br/holo/ietf-vrrp@2018-03-13.coverage.md) |
 
 ## Funding
 

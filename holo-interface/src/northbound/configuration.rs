@@ -4,21 +4,23 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::net::IpAddr;
 use std::sync::LazyLock as Lazy;
 
 use async_trait::async_trait;
 use enum_as_inner::EnumAsInner;
 use holo_northbound::configuration::{
-    self, Callbacks, CallbacksBuilder, Provider, ValidationCallbacks,
-    ValidationCallbacksBuilder,
+    self, Callbacks, CallbacksBuilder, ConfigChanges, Provider,
+    ValidationCallbacks, ValidationCallbacksBuilder,
 };
 use holo_northbound::yang::interfaces;
+use holo_northbound::{CallbackKey, NbDaemonSender};
 use holo_utils::yang::DataNodeRefExt;
 use ipnetwork::IpNetwork;
 
 use crate::interface::Owner;
+use crate::northbound::REGEX_VRRP;
 use crate::{netlink, Master};
 
 static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
@@ -296,6 +298,41 @@ impl Provider for Master {
 
     fn callbacks() -> Option<&'static Callbacks<Master>> {
         Some(&CALLBACKS)
+    }
+
+    fn nested_callbacks() -> Option<Vec<CallbackKey>> {
+        let keys: Vec<Vec<CallbackKey>> = vec![
+            #[cfg(feature = "vrrp")]
+            holo_vrrp::northbound::configuration::CALLBACKS.keys(),
+        ];
+
+        Some(keys.concat())
+    }
+
+    fn relay_changes(
+        &self,
+        changes: ConfigChanges,
+    ) -> Vec<(ConfigChanges, NbDaemonSender)> {
+        // Create hash table that maps changes to the appropriate child
+        // instances.
+        let mut changes_map: HashMap<String, ConfigChanges> = HashMap::new();
+        for change in changes {
+            // HACK: parse interface name from VRRP configuration changes.
+            let caps = REGEX_VRRP.captures(&change.1).unwrap();
+            let ifname = caps.get(1).unwrap().as_str().to_owned();
+
+            // Move configuration change to the appropriate interface bucket.
+            changes_map.entry(ifname).or_default().push(change);
+        }
+        changes_map
+            .into_iter()
+            .filter_map(|(ifname, changes)| {
+                self.interfaces
+                    .get_by_name(&ifname)
+                    .and_then(|iface| iface.vrrp.clone())
+                    .map(|nb_tx| (changes, nb_tx))
+            })
+            .collect::<Vec<_>>()
     }
 
     async fn process_event(&mut self, event: Event) {

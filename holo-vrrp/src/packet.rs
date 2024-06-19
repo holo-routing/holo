@@ -9,9 +9,6 @@ use std::net::{IpAddr, Ipv4Addr};
 //use bitflags::bitflags;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::{BytesExt, BytesMutExt};
-//use holo_utils::bytes::TLS_BUF;
-//use num_derive::FromPrimitive;
-//use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
 // Type aliases.
@@ -73,18 +70,21 @@ pub enum DecodeError {
 pub enum PacketLengthError {
 
     // A maximum number of 16 IP addresses are allowed for 
-    // VRRP. 
-    AddressCount(u8),
+    // VRRP. Referenced from count_ip field
+    AddressCount(usize),
 
     // specified on the vrrp-ietf. when length of the 
     // vrrp packet is less than 16 bytes. 
-    TooLow(u8),
+    TooShort(usize),
 
-    // customized. while for addresscount we look for the count_ip 
-    // field in the header, in case the total length of the IP address 
-    // is not specified correctly there, we will also manually look
-    // if there are too many bytes in the whole packet. 
-    TooHigh(u8),
+    // total 
+    TooLong(usize),
+
+    // when the number of ips specified under count_ip
+    // does not correspond to the actual length of the packet
+    // (total_length = 16 + (4 * no of ips))
+    CorruptedLength
+
 }
 
 // ===== impl Packet =====
@@ -109,12 +109,41 @@ impl VRRPPacket {
     }
 
     // Decodes VRRP packet from a bytes buffer.
-    pub fn decode(data: &[u8]) -> Result<Self, DecodeError> {
+    pub fn decode(data: &[u8]) -> Result<Self, DecodeError> { 
+
+        // 1. pkt length verification
+        let pkt_size = data.len();
+        let count_ip = data[3];
+
+        if pkt_size < 16 { 
+            return Err(DecodeError::PacketLengthError(PacketLengthError::TooShort(pkt_size)))
+        }
+        
+        if pkt_size > 80 {
+            return Err(DecodeError::PacketLengthError(PacketLengthError::TooLong(pkt_size)))
+        }
+
+        if count_ip > 16 {
+            return Err(
+                DecodeError::PacketLengthError(PacketLengthError::AddressCount(count_ip as usize))
+            )
+        }
+
+        // check if the ip_count has been verified with the actual length
+        // A Mallory may have tried carrying out something naughty
+        if (count_ip * 4) + 16 != pkt_size as u8 {
+            return Err(
+                DecodeError::PacketLengthError(PacketLengthError::CorruptedLength)
+            )
+        }
+        
+
+
         let mut buf: Bytes = Bytes::copy_from_slice(data);
         let ver_type = buf.get_u8();
         let vrid = buf.get_u8();
         let priority = buf.get_u8();
-        let count_ip = buf.get_u8();
+        let count_ip = buf.get_u8();    
         let auth_type = buf.get_u8();
         let adver_int = buf.get_u8();
         let checksum = buf.get_u16();
@@ -125,6 +154,7 @@ impl VRRPPacket {
         }
         let auth_data = buf.get_u32();
         let auth_data2 = buf.get_u32();
+
 
         Ok(Self {
             ver_type,
@@ -167,14 +197,17 @@ impl std::fmt::Display for DecodeError {
 impl std::fmt::Display for PacketLengthError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PacketLengthError::TooHigh(rx_len) => {
+            PacketLengthError::TooLong(rx_len) => {
                 write!(f, "Too many bytes for VRRP packet: {rx_len}")
             },
-            PacketLengthError::TooLow(rx_len) => {
+            PacketLengthError::TooShort(rx_len) => {
                 write!(f, "Not enough bytes for VRRP packets: {rx_len}")
             },
             PacketLengthError::AddressCount(rx_count) => {
                 write!(f, "Too many IP addresses {rx_count}")
+            },
+            PacketLengthError::CorruptedLength => {
+                write!(f, "Count_ip not corresponding with no of bytes in packet")
             },
         }
     }

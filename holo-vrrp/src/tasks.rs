@@ -43,7 +43,7 @@ pub mod messages {
 
     use serde::{Deserialize, Serialize};
 
-    use crate::packet::{DecodeError, Packet};
+    use crate::packet::{DecodeError, VRRPPacket};
 
     // Type aliases.
     pub type ProtocolInputMsg = input::ProtocolMsg;
@@ -62,7 +62,7 @@ pub mod messages {
         #[derive(Debug, Deserialize, Serialize)]
         pub struct NetRxPacketMsg {
             pub src: IpAddr,
-            pub packet: Result<Packet, DecodeError>,
+            pub packet: Result<VRRPPacket, DecodeError>,
         }
     }
 
@@ -77,7 +77,7 @@ pub mod messages {
 
         #[derive(Clone, Debug, Serialize)]
         pub struct NetTxPacketMsg {
-            pub packet: Packet,
+            pub packet: VRRPPacket,
             pub src: IpAddr,
             pub dst: IpAddr,
         }

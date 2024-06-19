@@ -8,7 +8,7 @@ use std::net::IpAddr;
 
 use tracing::{debug, debug_span};
 
-use crate::packet::Packet;
+use crate::packet::VRRPPacket;
 
 // VRRP debug messages.
 #[derive(Debug)]
@@ -18,8 +18,8 @@ pub enum Debug<'a> {
     InstanceStart,
     InstanceStop(InstanceInactiveReason),
     // Network
-    PacketRx(&'a IpAddr, &'a Packet),
-    PacketTx(&'a IpAddr, &'a Packet),
+    PacketRx(&'a IpAddr, &'a VRRPPacket),
+    PacketTx(&'a IpAddr, &'a VRRPPacket),
 }
 
 // Reason why an VRRP instance is inactive.

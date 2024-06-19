@@ -42,7 +42,7 @@ pub type DecodeResult<T> = Result<T, DecodeError>;
 //
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
-pub struct Packet {
+pub struct VRRPPacket {
     // version + type [4 bits each]
     ver_type: u8, 
     vrid: u8,
@@ -63,14 +63,33 @@ pub struct Packet {
 #[derive(Deserialize, Serialize)]
 pub enum DecodeError {
     ChecksumError,
-    PacketLengthError(u8),
+    PacketLengthError(PacketLengthError),
     IpTtlError(u8),
     VersionError(u8)
+}
+ 
+#[derive(Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub enum PacketLengthError {
+
+    // A maximum number of 16 IP addresses are allowed for 
+    // VRRP. 
+    AddressCount(u8),
+
+    // specified on the vrrp-ietf. when length of the 
+    // vrrp packet is less than 16 bytes. 
+    TooLow(u8),
+
+    // customized. while for addresscount we look for the count_ip 
+    // field in the header, in case the total length of the IP address 
+    // is not specified correctly there, we will also manually look
+    // if there are too many bytes in the whole packet. 
+    TooHigh(u8),
 }
 
 // ===== impl Packet =====
 
-impl Packet {
+impl VRRPPacket {
     // Encodes VRRP packet into a bytes buffer.
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::with_capacity(114);
@@ -131,15 +150,32 @@ impl std::fmt::Display for DecodeError {
             DecodeError::ChecksumError => {
                 write!(f, "Checksum is not valid")
             },
-            DecodeError::PacketLengthError(rx_length) => {
-                write!(f, "Packet length too low: {rx_length}")
-            },
+            
             DecodeError::IpTtlError(rx_ttl) => {
                 write!(f, "TTL less than 255: {rx_ttl}")
             },
             DecodeError::VersionError(rx_version) => {
                 write!(f, "Invalid version: {rx_version}")
             }
+            DecodeError::PacketLengthError(err) => {
+                std::fmt::Display::fmt(err, f)
+            }
+        }
+    }
+}
+
+impl std::fmt::Display for PacketLengthError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PacketLengthError::TooHigh(rx_len) => {
+                write!(f, "Too many bytes for VRRP packet: {rx_len}")
+            },
+            PacketLengthError::TooLow(rx_len) => {
+                write!(f, "Not enough bytes for VRRP packets: {rx_len}")
+            },
+            PacketLengthError::AddressCount(rx_count) => {
+                write!(f, "Too many IP addresses {rx_count}")
+            },
         }
     }
 }

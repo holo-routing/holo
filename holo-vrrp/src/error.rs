@@ -6,17 +6,21 @@
 
 use std::net::IpAddr;
 
-use tracing::warn;
+use tracing::{warn, warn_span};
 
-// BGP errors.
+// VRRP errors.
 #[derive(Debug)]
 pub enum Error {
     // I/O errors
     IoError(IoError),
-    // TODO other errors
+
+    // other errors
+    VridError,
+    AddressListError(Vec<IpAddr>, Vec<IpAddr>),
+    IntervalError
 }
 
-// BGP I/O errors.
+// VRRP I/O errors.
 #[derive(Debug)]
 pub enum IoError {
     SocketError(std::io::Error),
@@ -34,6 +38,21 @@ impl Error {
         match self {
             Error::IoError(error) => {
                 error.log();
+            },
+            Error::VridError => {
+                warn_span!("virtual_router").in_scope(|| {
+                    warn!("{}", self)
+                });
+            },
+            Error::AddressListError(_, _) => {
+                warn_span!("virtual_router").in_scope(|| {
+                    warn!("{}", self)
+                });
+            },
+            Error::IntervalError => {
+                warn_span!("virtual_router").in_scope(|| {
+                    warn!("{}", self)
+                });
             }
         }
     }
@@ -43,6 +62,15 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::IoError(error) => error.fmt(f),
+            Error::VridError => {
+                write!(f, "virtual router id(VRID) not matching locally configured")
+            },
+            Error::AddressListError(..) => {
+                write!(f, "received address list not matching local address list")
+            },
+            Error::IntervalError => {
+                write!(f, "received advert interval not matching local configured advert interval")
+            }
         }
     }
 }

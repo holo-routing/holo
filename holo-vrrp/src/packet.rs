@@ -115,22 +115,30 @@ impl VRRPPacket {
         let pkt_size = data.len();
         let count_ip = data[3];
 
+        // with the minimum number of valid IP addresses being 0,
+        // The minimum number of bytes for the VRRP packet is 16
         if pkt_size < 16 { 
             return Err(DecodeError::PacketLengthError(PacketLengthError::TooShort(pkt_size)))
         }
         
+        // with the max number of valid IP addresses being 16, 
+        // The maximum number of bytes the VRRP packet can be is 80
         if pkt_size > 80 {
             return Err(DecodeError::PacketLengthError(PacketLengthError::TooLong(pkt_size)))
         }
 
+        // max number of IP addresses allowed. 
+        // This will be based on the count_ip field  
         if count_ip > 16 {
             return Err(
                 DecodeError::PacketLengthError(PacketLengthError::AddressCount(count_ip as usize))
             )
         }
 
-        // check if the ip_count has been verified with the actual length
-        // A Mallory may have tried carrying out something naughty
+        // A Malory may have declared a wrong number of ips 
+        // in count_ip than they actually have in the body. This may 
+        // lead to trying to read data that is either out of bounds or 
+        // fully not reading data sent. 
         if (count_ip * 4) + 16 != pkt_size as u8 {
             return Err(
                 DecodeError::PacketLengthError(PacketLengthError::CorruptedLength)

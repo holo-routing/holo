@@ -24,6 +24,8 @@ serde_with.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 yang2.workspace = true
+socket2.workspace = true
+capctl.workspace = true
 
 holo-northbound = { path = "../holo-northbound" }
 holo-protocol = { path = "../holo-protocol" }
@@ -41,3 +43,5 @@ workspace = true
 [features]
 default = []
 testing = []
+
+

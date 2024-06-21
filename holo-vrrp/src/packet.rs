@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: MIT
 //
-
+use crate::consts::*;
 use std::net::{IpAddr, Ipv4Addr};
 
 //use bitflags::bitflags;
@@ -40,22 +40,60 @@ pub type DecodeResult<T> = Result<T, DecodeError>;
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct VRRPPacket {
-    // version + type [4 bits each]
-    ver_type: u8, 
-    vrid: u8,
-    priority: u8,
-    count_ip: u8,
-    auth_type: u8,
-    adver_int: u8,
-    checksum: u16,
-    ip_addresses: Vec<Ipv4Addr>,
+    pub version: u8,
+    pub hdr_type: u8,
+    pub vrid: u8,
+    pub priority: u8,
+    pub count_ip: u8,
+    pub auth_type: u8,
+    pub adver_int: u8,
+    pub checksum: u16,
+    pub ip_addresses: Vec<Ipv4Addr>,
 
     // the following two are only used for backward compatibility. 
-    auth_data: u32,
-    auth_data2: u32
+    pub auth_data: u32,
+    pub auth_data2: u32
 }
 
-// VRRP decode errors.
+
+// IP packet header
+//
+//  0                   1                   2                   3
+//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |Version|  IHL  |Type of Service|          Total Length         |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |         Identification        |Flags|      Fragment Offset    |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |  Time to Live |    Protocol   |         Header Checksum       |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |                       Source Address                          |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |                    Destination Address                        |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |                    Options                    |    Padding    |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct IPv4Paket {
+    pub version: u8,
+    pub ihl: u8,
+    pub tos: u8,
+    pub total_length: u16,
+    pub identification: u16,
+    pub flags: u8,
+    pub offset: u16,
+    pub ttl: u8,
+    pub protocol: u8,
+    pub checksum: u16,
+    pub src_address: Ipv4Addr,
+    pub dst_address: Ipv4Addr,
+    pub options: Option<u32>,
+    pub padding: Option<u8>
+}
+
+
 #[derive(Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub enum DecodeError {
@@ -87,40 +125,6 @@ pub enum PacketLengthError {
 }
 
 
-// IP packet header
-//
-//  0                   1                   2                   3
-//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// |Version|  IHL  |Type of Service|          Total Length         |
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// |         Identification        |Flags|      Fragment Offset    |
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// |  Time to Live |    Protocol   |         Header Checksum       |
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// |                       Source Address                          |
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// |                    Destination Address                        |
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// |                    Options                    |    Padding    |
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// 
-struct IPv4Paket {
-    version: u8,
-    ihl: u8,
-    tos: u8,
-    total_length: u16,
-    identification: u16,
-    flags: u8,
-    offset: u16,
-    ttl: u8,
-    protocol: u8,
-    checksum: u16,
-    src_address: Ipv4Addr,
-    dst_address: Ipv4Addr,
-    options: Option<u32>,
-    padding: Option<u8>
-}
 
 // ===== impl Packet =====
 
@@ -128,7 +132,7 @@ impl VRRPPacket {
     // Encodes VRRP packet into a bytes buffer.
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::with_capacity(114);
-        buf.put_u8(self.ver_type);
+        let ver_type = (self.version << 4) | self.hdr_type;
         buf.put_u8(self.vrid);
         buf.put_u8(self.priority);
         buf.put_u8(self.count_ip);
@@ -144,7 +148,7 @@ impl VRRPPacket {
     }
 
     // Decodes VRRP packet from a bytes buffer.
-    pub fn decode(data: &[u8]) -> Result<Self, DecodeError> { 
+    pub fn decode(data: &[u8]) -> DecodeResult<Self> { 
 
         // 1. pkt length verification
         let pkt_size = data.len();
@@ -152,19 +156,19 @@ impl VRRPPacket {
 
         // with the minimum number of valid IP addresses being 0,
         // The minimum number of bytes for the VRRP packet is 16
-        if pkt_size < 16 { 
+        if pkt_size < VRRP_MIN_PKT_LENGTH { 
             return Err(DecodeError::PacketLengthError(PacketLengthError::TooShort(pkt_size)))
         }
         
         // with the max number of valid IP addresses being 16, 
         // The maximum number of bytes the VRRP packet can be is 80
-        if pkt_size > 80 {
+        if pkt_size > VRRP_MAX_PKT_LENGTH {
             return Err(DecodeError::PacketLengthError(PacketLengthError::TooLong(pkt_size)))
         }
 
         // max number of IP addresses allowed. 
         // This will be based on the count_ip field  
-        if count_ip > 16 {
+        if count_ip as usize > VRRP_MAX_IP_COUNT {
             return Err(
                 DecodeError::PacketLengthError(PacketLengthError::AddressCount(count_ip as usize))
             )
@@ -184,6 +188,8 @@ impl VRRPPacket {
 
         let mut buf: Bytes = Bytes::copy_from_slice(data);
         let ver_type = buf.get_u8();
+        let version = ver_type >> 4;
+        let hdr_type = ver_type & 0x0F;
         let vrid = buf.get_u8();
         let priority = buf.get_u8();
         let count_ip = buf.get_u8();    
@@ -200,7 +206,8 @@ impl VRRPPacket {
 
 
         Ok(Self {
-            ver_type,
+            version,
+            hdr_type,
             vrid,
             priority,
             count_ip,
@@ -244,13 +251,37 @@ impl IPv4Paket {
         buf
     }
 
-    pub fn decode(data: &[u8]) -> Self {
+    pub fn decode(data: &[u8]) -> DecodeResult<Self> {
         let mut buf = Bytes::copy_from_slice(data);
+
 
         // ver_ihl -> version[4 bits] + ihl[4 bits]
         let ver_ihl = buf.get_u8();
         let version = ver_ihl >> 4;
-        let ihl = ver_ihl &0x0F;
+        let ihl = ver_ihl & 0x0F;
+
+        // verify if header length matches packet information
+        // A Malory may have declared a wrong number of ips 
+        // in count_ip than they actually have in the body. This may 
+        // lead to trying to read data that is either out of bounds or 
+        // fully not reading data sent. 
+        if ihl as usize != data.len() / 4 {
+            return Err(DecodeError::PacketLengthError(
+                PacketLengthError::CorruptedLength
+            ));
+        }
+
+        if ihl < (IP_HDR_MIN_LENGTH as u8 / 4) {
+            return Err(DecodeError::PacketLengthError(
+                PacketLengthError::TooShort(ihl as usize * 4)
+            ))
+        }
+
+        if ihl > (IP_HDR_MAX_LENGTH as u8 / 4) {
+            return Err(DecodeError::PacketLengthError(
+                PacketLengthError::TooLong(ihl as usize * 4)
+            ));
+        }
         
         let tos = buf.get_u8();
         let total_length = buf.get_u16();
@@ -269,12 +300,13 @@ impl IPv4Paket {
 
         let mut options: Option<u32> = None;
         let mut padding: Option<u8> = None;
-        if ihl > 20 {
+
+        if ihl > IP_HDR_MIN_LENGTH as u8 {
             let opt_pad = buf.get_u32();
             options = Some(opt_pad >> 8);
             padding = Some((opt_pad & 0xFF) as u8);
         }
-        Self {
+        Ok(Self {
             version,
             ihl,
             tos,
@@ -289,7 +321,7 @@ impl IPv4Paket {
             dst_address,
             options,
             padding
-        }
+        })
     }
 }
 

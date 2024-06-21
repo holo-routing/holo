@@ -189,7 +189,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let old_plen = iface.config.addr_list.insert(addr, plen).unwrap();
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::AddressUninstall(ifname.clone(), addr, old_plen));
+            //event_queue.insert(Event::AddressUninstall(ifname.clone(), addr, old_plen));
             event_queue.insert(Event::AddressInstall(ifname, addr, plen));
         })
         .delete_apply(|_master, _args| {

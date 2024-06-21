@@ -245,7 +245,7 @@ impl IPv4Paket {
     }
 
     pub fn decode(data: &[u8]) -> Self {
-        let buf = Bytes::copy_from_slice(data);
+        let mut buf = Bytes::copy_from_slice(data);
 
         // ver_ihl -> version[4 bits] + ihl[4 bits]
         let ver_ihl = buf.get_u8();
@@ -258,7 +258,7 @@ impl IPv4Paket {
 
         // flag_off -> flags[4 bits] + offset[12 bits]
         let flag_off = buf.get_u16();
-        let flags: u8 = flag_off >> 12;
+        let flags: u8 = (flag_off >> 12) as u8;
         let offset: u16 = flag_off & 0xFFF; 
 
         let ttl = buf.get_u8();
@@ -267,12 +267,12 @@ impl IPv4Paket {
         let src_address = buf.get_ipv4();
         let dst_address = buf.get_ipv4();
 
-        let options: Option<u32> = None;
-        let padding: Option<u8> = None;
+        let mut options: Option<u32> = None;
+        let mut padding: Option<u8> = None;
         if ihl > 20 {
             let opt_pad = buf.get_u32();
             options = Some(opt_pad >> 8);
-            padding = Some(opt_pad & 0xFF);
+            padding = Some((opt_pad & 0xFF) as u8);
         }
         Self {
             version,

@@ -68,7 +68,6 @@ pub enum DecodeError {
 #[derive(Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub enum PacketLengthError {
-
     // A maximum number of 16 IP addresses are allowed for 
     // VRRP. Referenced from count_ip field
     AddressCount(usize),
@@ -85,6 +84,42 @@ pub enum PacketLengthError {
     // (total_length = 16 + (4 * no of ips))
     CorruptedLength
 
+}
+
+
+// IP packet header
+//
+//  0                   1                   2                   3
+//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |Version|  IHL  |Type of Service|          Total Length         |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |         Identification        |Flags|      Fragment Offset    |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |  Time to Live |    Protocol   |         Header Checksum       |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |                       Source Address                          |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |                    Destination Address                        |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |                    Options                    |    Padding    |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// 
+struct IPv4Paket {
+    version: u8,
+    ihl: u8,
+    tos: u8,
+    total_length: u16,
+    identification: u16,
+    flags: u8,
+    offset: u16,
+    ttl: u8,
+    protocol: u8,
+    checksum: u16,
+    src_address: Ipv4Addr,
+    dst_address: Ipv4Addr,
+    options: Option<u32>,
+    padding: Option<u8>
 }
 
 // ===== impl Packet =====
@@ -177,6 +212,84 @@ impl VRRPPacket {
             auth_data2
         })
 
+    }
+}
+
+impl IPv4Paket {
+    fn encode(&self) -> BytesMut {
+        let mut buf = BytesMut::new();
+        
+        // ver_ihl -> version[4 bits] + ihl[4 bits] 
+        let ver_ihl: u8 = (self.version << 4) | self.ihl;
+        buf.put_u8(ver_ihl);
+        buf.put_u8(self.tos);
+        buf.put_u16(self.total_length);
+        buf.put_u16(self.identification);
+
+        // flag_off -> flags[4 bits] + offset[12 bits]
+        let flag_off: u16 = ((self.flags as u16) << 12) | self.offset;
+        buf.put_u16(flag_off);
+        buf.put_u8(self.ttl);
+        buf.put_u8(self.protocol);
+        buf.put_u16(self.checksum);
+        buf.put_ipv4(&self.src_address);
+        buf.put_ipv4(&self.dst_address);
+
+        // the header length for IP is between 20 and 24
+        // when 24, the options and padding fields are present. 
+        if let (Some(options), Some(padding)) = (self.options, self.padding) {
+            let opt_pad: u32 = (options << 8) | (padding as u32);
+            buf.put_u32(opt_pad);
+        }
+        buf
+    }
+
+    pub fn decode(data: &[u8]) -> Self {
+        let buf = Bytes::copy_from_slice(data);
+
+        // ver_ihl -> version[4 bits] + ihl[4 bits]
+        let ver_ihl = buf.get_u8();
+        let version = ver_ihl >> 4;
+        let ihl = ver_ihl &0x0F;
+        
+        let tos = buf.get_u8();
+        let total_length = buf.get_u16();
+        let identification = buf.get_u16();
+
+        // flag_off -> flags[4 bits] + offset[12 bits]
+        let flag_off = buf.get_u16();
+        let flags: u8 = flag_off >> 12;
+        let offset: u16 = flag_off & 0xFFF; 
+
+        let ttl = buf.get_u8();
+        let protocol = buf.get_u8();
+        let checksum = buf.get_u16();
+        let src_address = buf.get_ipv4();
+        let dst_address = buf.get_ipv4();
+
+        let options: Option<u32> = None;
+        let padding: Option<u8> = None;
+        if ihl > 20 {
+            let opt_pad = buf.get_u32();
+            options = Some(opt_pad >> 8);
+            padding = Some(opt_pad & 0xFF);
+        }
+        Self {
+            version,
+            ihl,
+            tos,
+            total_length,
+            identification,
+            flags,
+            offset,
+            ttl,
+            protocol,
+            checksum,
+            src_address,
+            dst_address,
+            options,
+            padding
+        }
     }
 }
 

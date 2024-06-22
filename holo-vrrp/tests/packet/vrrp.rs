@@ -89,3 +89,16 @@ fn test_count_ip_corrupted() {
         Err(DecodeError::PacketLengthError(PacketLengthError::CorruptedLength))
     );
 }
+
+#[test]
+fn test_invalid_checksum() {
+    let data = &mut valid_pkt_data();
+    data[6] = 0x01;
+    data[7] = 0xde;
+
+    let pkt = VRRPPacket::decode(data);
+    assert_eq!(
+        pkt, 
+        Err(DecodeError::ChecksumError)
+    );
+}

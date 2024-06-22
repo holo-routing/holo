@@ -100,3 +100,18 @@ fn test_header_too_long() {
         Err(DecodeError::PacketLengthError(PacketLengthError::TooLong(28)))
     );
 }
+
+#[test]
+fn test_invalid_checksum() {
+    let mut data = &mut valid_pkt_data();
+    
+    // change the checksum fields to be sth invalid
+    data[10] = 0x10;
+    data[11] = 0x01;
+
+    let pkt = IPv4Paket::decode(data);
+    assert_eq!(
+        pkt, 
+        Err(DecodeError::ChecksumError)
+    );
+}

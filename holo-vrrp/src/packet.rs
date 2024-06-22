@@ -196,6 +196,12 @@ impl VRRPPacket {
         let auth_type = buf.get_u8();
         let adver_int = buf.get_u8();
         let checksum = buf.get_u16();
+
+        // confirm checksum. checksum position is the third item in 16 bit words
+        let calculated_checksum = checksum::calculate(data, 3);
+        if calculated_checksum != checksum {
+            return Err(DecodeError::ChecksumError);
+        }
         
         let mut ip_addresses: Vec<Ipv4Addr> = vec![];
         for addr in 0..count_ip {
@@ -295,6 +301,12 @@ impl IPv4Paket {
         let ttl = buf.get_u8();
         let protocol = buf.get_u8();
         let checksum = buf.get_u16();
+        // confirm checksum. checksum position is the 5th 16 bit word
+        let calculated_checksum = checksum::calculate(data, 5);
+        if calculated_checksum != checksum {
+            return Err(DecodeError::ChecksumError);
+        }
+
         let src_address = buf.get_ipv4();
         let dst_address = buf.get_ipv4();
 
@@ -322,6 +334,46 @@ impl IPv4Paket {
             options,
             padding
         })
+    }
+
+
+}
+
+
+mod checksum {
+    pub(super) fn calculate(data: &[u8], checksum_position: usize) -> u16 {
+        let mut result: u16 = 0;
+        
+        // since data is in u8's, we need pairs of the data to get u16
+        for (i, pair) in data.chunks(2).enumerate() {
+            // the fifth pair is the checksum field, which is ignored
+            if i == checksum_position {
+                continue
+            }
+
+            result = add_values(
+                result, 
+                ((pair[0] as u16) << 8) | pair[1] as u16
+            );
+        }
+
+        // do a one's complement to get the sum
+        !result
+
+    }
+
+    fn add_values(mut first: u16, mut second: u16) -> u16 {
+        let mut carry: u32 = 10;
+        let mut result: u16 = 0;
+        
+        while carry != 0 {
+            let tmp_res = (first as u32 + second as u32) as u32;
+            result = (tmp_res & 0xFFFF) as u16;
+            carry = tmp_res >> 16;
+            first = result as u16;
+            second = carry as u16;    
+        }
+        result
     }
 }
 

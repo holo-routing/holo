@@ -38,8 +38,6 @@ pub struct Master {
     pub ibus_tx: IbusSender,
     // Shared data among all protocol instances.
     pub shared: InstanceShared,
-    // Event recorder configuration.
-    pub event_recorder_config: event_recorder::Config,
     // Netlink socket.
     pub netlink_handle: rtnetlink::Handle,
     // List of interfaces.
@@ -119,13 +117,13 @@ pub fn start(
     tokio::spawn(async move {
         let shared = InstanceShared {
             db: Some(db),
+            event_recorder_config: Some(event_recorder_config),
             ..Default::default()
         };
         let mut master = Master {
             nb_tx,
             ibus_tx,
             shared: shared.clone(),
-            event_recorder_config,
             netlink_handle: netlink::init(),
             interfaces: Default::default(),
             rib: Default::default(),
@@ -150,7 +148,6 @@ pub fn start(
                 &master.ibus_tx,
                 Default::default(),
                 shared,
-                Some(master.event_recorder_config.clone()),
             );
             master.instances.insert(instance_id, nb_daemon_tx);
         }

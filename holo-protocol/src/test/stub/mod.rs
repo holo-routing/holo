@@ -272,7 +272,6 @@ where
         channels,
         test_rx,
         InstanceShared::default(),
-        None,
     );
 
     // Get northbound stub.

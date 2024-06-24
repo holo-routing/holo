@@ -96,6 +96,8 @@ pub struct InstanceShared {
     pub policies: Policies,
     // Global Segment Routing configuration.
     pub sr_config: Arc<SrCfg>,
+    // Event recorder configuration.
+    pub event_recorder_config: Option<event_recorder::Config>,
 }
 
 /// Instance input message.
@@ -295,7 +297,6 @@ async fn run<P>(
         TestMsg<P::ProtocolOutputMsg>,
     >,
     shared: InstanceShared,
-    event_recorder_config: Option<event_recorder::Config>,
 ) where
     P: ProtocolInstance,
 {
@@ -325,7 +326,9 @@ async fn run<P>(
     );
 
     // Get event recorder.
-    let event_record = event_recorder_config
+    let event_record = shared
+        .event_recorder_config
+        .clone()
         .filter(|config| config.enabled)
         .and_then(|config| EventRecorder::new(P::PROTOCOL, &name, config));
 
@@ -359,7 +362,6 @@ pub fn spawn_protocol_task<P>(
         TestMsg<P::ProtocolOutputMsg>,
     >,
     shared: InstanceShared,
-    event_recorder_config: Option<event_recorder::Config>,
 ) -> NbDaemonSender
 where
     P: ProtocolInstance,
@@ -381,7 +383,6 @@ where
             #[cfg(feature = "testing")]
             test_rx,
             shared,
-            event_recorder_config,
         )
         .instrument(span)
         .await;

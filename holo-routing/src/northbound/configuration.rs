@@ -810,7 +810,6 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
     use holo_protocol::spawn_protocol_task;
 
     let instance_id = InstanceId::new(protocol, name.clone());
-    let event_recorder_config = master.event_recorder_config.clone();
 
     // Start protocol instance.
     let nb_daemon_tx = match protocol {
@@ -828,7 +827,6 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
                 &master.ibus_tx,
                 Default::default(),
                 master.shared.clone(),
-                Some(event_recorder_config),
             )
         }
         Protocol::DIRECT => {
@@ -845,7 +843,6 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
                 &master.ibus_tx,
                 Default::default(),
                 master.shared.clone(),
-                Some(event_recorder_config),
             )
         }
         #[cfg(feature = "ospf")]
@@ -859,7 +856,6 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
                 &master.ibus_tx,
                 Default::default(),
                 master.shared.clone(),
-                Some(event_recorder_config),
             )
         }
         #[cfg(feature = "ospf")]
@@ -873,7 +869,6 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
                 &master.ibus_tx,
                 Default::default(),
                 master.shared.clone(),
-                Some(event_recorder_config),
             )
         }
         #[cfg(feature = "rip")]
@@ -887,7 +882,6 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
                 &master.ibus_tx,
                 Default::default(),
                 master.shared.clone(),
-                Some(event_recorder_config),
             )
         }
         #[cfg(feature = "rip")]
@@ -901,7 +895,6 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
                 &master.ibus_tx,
                 Default::default(),
                 master.shared.clone(),
-                Some(event_recorder_config),
             )
         }
         _ => {

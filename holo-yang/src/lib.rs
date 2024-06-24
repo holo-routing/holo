@@ -256,6 +256,9 @@ pub static YANG_FEATURES: Lazy<HashMap<&'static str, Vec<&'static str>>> =
             "ietf-segment-routing-common" => vec![
                 "sid-last-hop-behavior",
             ],
+            "ietf-vrrp" => vec![
+                "validate-interval-errors",
+            ],
         }
     });
 

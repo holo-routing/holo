@@ -40,6 +40,15 @@ module ietf-vrrp-holo-deviations {
   }
   */
 
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:version" {
+    deviate replace {
+      mandatory false;
+    }
+    deviate add {
+      default "vrrp:vrrp-v2";
+    }
+  }
+
   /*
   deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:version" {
     deviate not-supported;
@@ -76,11 +85,9 @@ module ietf-vrrp-holo-deviations {
   }
   */
 
-  /*
   deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:accept-mode" {
     deviate not-supported;
   }
-  */
 
   /*
   deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:advertise-interval-choice" {
@@ -100,11 +107,9 @@ module ietf-vrrp-holo-deviations {
   }
   */
 
-  /*
   deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:advertise-interval-choice/vrrp:v3" {
     deviate not-supported;
   }
-  */
 
   /*
   deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:advertise-interval-choice/vrrp:v3/vrrp:advertise-interval-centi-sec" {
@@ -112,12 +117,10 @@ module ietf-vrrp-holo-deviations {
   }
   */
 
-  /*
   deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track" {
     deviate not-supported;
   }
-  */
-
+  
   /*
   deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:interfaces" {
     deviate not-supported;
@@ -524,11 +527,9 @@ module ietf-vrrp-holo-deviations {
   }
   */
 
-  /*
   deviation "/vrrp:vrrp" {
     deviate not-supported;
   }
-  */
 
   /*
   deviation "/vrrp:vrrp/vrrp:virtual-routers" {
@@ -596,11 +597,9 @@ module ietf-vrrp-holo-deviations {
   }
   */
 
-  /*
   deviation "/vrrp:vrrp-protocol-error-event" {
     deviate not-supported;
   }
-  */
 
   /*
   deviation "/vrrp:vrrp-protocol-error-event/vrrp:protocol-error-reason" {

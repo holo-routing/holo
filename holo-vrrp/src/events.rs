@@ -16,6 +16,7 @@ pub(crate) fn process_packet(
     _instance: &mut Instance,
     _src: IpAddr,
     _packet: DecodeResult<VRRPPacket>,
+
 ) -> Result<(), Error> {
     // TODO
 

@@ -6,8 +6,7 @@
 
 #![allow(clippy::derivable_impls)]
 
-use std::collections::{BTreeMap, HashMap};
-use std::net::{IpAddr, Ipv4Addr};
+use std::collections::BTreeSet;
 use std::sync::LazyLock as Lazy;
 
 use async_trait::async_trait;
@@ -18,127 +17,124 @@ use holo_northbound::configuration::{
 };
 use holo_northbound::yang::interfaces;
 use holo_utils::yang::DataNodeRefExt;
-use holo_yang::TryFromYang;
+
+use ipnetwork::Ipv4Network;
 
 use crate::instance::Instance;
+use crate::interface::Interface;
 
 #[derive(Debug, Default, EnumAsInner)]
 pub enum ListEntry {
     #[default]
     None,
+
+    Vrid(u8),
 }
 
 #[derive(Debug)]
 pub enum Resource {}
 
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum Event {}
+
+pub enum Event {
+    InstanceCreate { vrid: u8 },
+    InstanceDelete { vrid: u8 },
+}
 
 pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
     Lazy::new(load_validation_callbacks);
-pub static CALLBACKS: Lazy<Callbacks<Instance>> = Lazy::new(load_callbacks);
+pub static CALLBACKS: Lazy<Callbacks<Interface>> = Lazy::new(load_callbacks);
 
 // ===== configuration structs =====
 
 #[derive(Debug)]
-pub struct InstanceCfg {}
+pub struct InstanceCfg {
+    pub log_state_change: bool,
+    pub preempt: bool,
+    pub priority: u8,
+    pub advertise_interval: u8,
+    pub virtual_addresses: BTreeSet<Ipv4Network>,
+}
 
 // ===== callbacks =====
 
-fn load_callbacks() -> Callbacks<Instance> {
-    CallbacksBuilder::<Instance>::default()
+fn load_callbacks() -> Callbacks<Interface> {
+    CallbacksBuilder::<Interface>::default()
         .path(interfaces::interface::ipv4::vrrp::vrrp_instance::PATH)
-        .create_apply(|_instance, _args| {
-            // TODO: implement me!
+        .create_apply(|interface, args| {
+            let vrid = args.dnode.get_u8_relative("./vrid").unwrap();
+            let instance = Instance::new();
+            interface.instances.insert(vrid, instance);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceCreate { vrid });
         })
-        .delete_apply(|_instance, _args| {
-            // TODO: implement me!
+        .delete_apply(|_interface, args| {
+            let vrid = args.list_entry.into_vrid().unwrap();
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceDelete { vrid });
         })
-        .lookup(|_instance, _list_entry, _dnode| {
-            // TODO: implement me!
-            todo!();
+        .lookup(|_instance, _list_entry, dnode| {
+            let vrid = dnode.get_u8_relative("./vrid").unwrap();
+            ListEntry::Vrid(vrid)
         })
         .path(interfaces::interface::ipv4::vrrp::vrrp_instance::version::PATH)
-        .modify_apply(|_instance, _args| {
-            // TODO: implement me!
+        .modify_apply(|_interface, _args| {
+            // Nothing to do.
         })
         .path(interfaces::interface::ipv4::vrrp::vrrp_instance::log_state_change::PATH)
-        .modify_apply(|_instance, _args| {
-            // TODO: implement me!
+        .modify_apply(|interface, args| {
+            let vrid = args.list_entry.into_vrid().unwrap();
+            let instance = interface.instances.get_mut(&vrid).unwrap();
+
+            let log_state_change = args.dnode.get_bool();
+            instance.config.log_state_change = log_state_change;
         })
         .path(interfaces::interface::ipv4::vrrp::vrrp_instance::preempt::enabled::PATH)
-        .modify_apply(|_instance, _args| {
-            // TODO: implement me!
-        })
-        .path(interfaces::interface::ipv4::vrrp::vrrp_instance::preempt::hold_time::PATH)
-        .modify_apply(|_instance, _args| {
-            // TODO: implement me!
+        .modify_apply(|interface, args| {
+            let vrid = args.list_entry.into_vrid().unwrap();
+            let instance = interface.instances.get_mut(&vrid).unwrap();
+
+            let preempt = args.dnode.get_bool();
+            instance.config.preempt = preempt;
         })
         .path(interfaces::interface::ipv4::vrrp::vrrp_instance::priority::PATH)
-        .modify_apply(|_instance, _args| {
-            // TODO: implement me!
-        })
-        .path(interfaces::interface::ipv4::vrrp::vrrp_instance::accept_mode::PATH)
-        .modify_apply(|_instance, _args| {
-            // TODO: implement me!
-        })
-        .delete_apply(|_instance, _args| {
-            // TODO: implement me!
+        .modify_apply(|interface, args| {
+            let vrid = args.list_entry.into_vrid().unwrap();
+            let instance = interface.instances.get_mut(&vrid).unwrap();
+
+            let priority = args.dnode.get_u8();
+            instance.config.priority = priority;
         })
         .path(interfaces::interface::ipv4::vrrp::vrrp_instance::advertise_interval_sec::PATH)
-        .modify_apply(|_instance, _args| {
-            // TODO: implement me!
+        .modify_apply(|interface, args| {
+            let vrid = args.list_entry.into_vrid().unwrap();
+            let instance = interface.instances.get_mut(&vrid).unwrap();
+
+            let advertise_interval = args.dnode.get_u8();
+            instance.config.advertise_interval = advertise_interval;
         })
-        .delete_apply(|_instance, _args| {
-            // TODO: implement me!
-        })
-        .path(interfaces::interface::ipv4::vrrp::vrrp_instance::advertise_interval_centi_sec::PATH)
-        .modify_apply(|_instance, _args| {
-            // TODO: implement me!
-        })
-        .delete_apply(|_instance, _args| {
-            // TODO: implement me!
-        })
-        .path(interfaces::interface::ipv4::vrrp::vrrp_instance::track::interfaces::interface::PATH)
-        .create_apply(|_instance, _args| {
-            // TODO: implement me!
-        })
-        .delete_apply(|_instance, _args| {
-            // TODO: implement me!
-        })
-        .lookup(|_instance, _list_entry, _dnode| {
-            // TODO: implement me!
-            todo!();
-        })
-        .path(interfaces::interface::ipv4::vrrp::vrrp_instance::track::interfaces::interface::priority_decrement::PATH)
-        .modify_apply(|_instance, _args| {
-            // TODO: implement me!
-        })
-        .path(interfaces::interface::ipv4::vrrp::vrrp_instance::track::networks::network::PATH)
-        .create_apply(|_instance, _args| {
-            // TODO: implement me!
-        })
-        .delete_apply(|_instance, _args| {
-            // TODO: implement me!
-        })
-        .lookup(|_instance, _list_entry, _dnode| {
-            // TODO: implement me!
-            todo!();
-        })
-        .path(interfaces::interface::ipv4::vrrp::vrrp_instance::track::networks::network::priority_decrement::PATH)
-        .modify_apply(|_instance, _args| {
-            // TODO: implement me!
+        .delete_apply(|_interface, _args| {
+            // Nothing to do.
         })
         .path(interfaces::interface::ipv4::vrrp::vrrp_instance::virtual_ipv4_addresses::virtual_ipv4_address::PATH)
-        .create_apply(|_instance, _args| {
-            // TODO: implement me!
+        .create_apply(|interface, args| {
+            let vrid = args.list_entry.into_vrid().unwrap();
+            let instance = interface.instances.get_mut(&vrid).unwrap();
+
+            let addr = args.dnode.get_prefix4();
+            instance.config.virtual_addresses.insert(addr);
         })
-        .delete_apply(|_instance, _args| {
-            // TODO: implement me!
+        .delete_apply(|interface, args| {
+            let vrid = args.list_entry.into_vrid().unwrap();
+            let instance = interface.instances.get_mut(&vrid).unwrap();
+
+            let addr = args.dnode.get_prefix4();
+            instance.config.virtual_addresses.remove(&addr);
         })
         .lookup(|_instance, _list_entry, _dnode| {
-            // TODO: implement me!
-            todo!();
+            ListEntry::None
         })
         .build()
 }
@@ -147,10 +143,10 @@ fn load_validation_callbacks() -> ValidationCallbacks {
     ValidationCallbacksBuilder::default().build()
 }
 
-// ===== impl Instance =====
+// ===== impl Interface =====
 
 #[async_trait]
-impl Provider for Instance {
+impl Provider for Interface {
     type ListEntry = ListEntry;
     type Event = Event;
     type Resource = Resource;
@@ -159,12 +155,20 @@ impl Provider for Instance {
         Some(&VALIDATION_CALLBACKS)
     }
 
-    fn callbacks() -> Option<&'static Callbacks<Instance>> {
+    fn callbacks() -> Option<&'static Callbacks<Interface>> {
         Some(&CALLBACKS)
     }
 
     async fn process_event(&mut self, event: Event) {
-        // TODO
+
+        match event {
+            Event::InstanceCreate { vrid } => {
+                // TODO
+            }
+            Event::InstanceDelete { vrid } => {
+                // TODO
+            }
+        }
     }
 }
 
@@ -172,6 +176,19 @@ impl Provider for Instance {
 
 impl Default for InstanceCfg {
     fn default() -> InstanceCfg {
-        InstanceCfg {}
+        use interfaces::interface::ipv4::vrrp;
+
+        let log_state_change = vrrp::vrrp_instance::log_state_change::DFLT;
+        let preempt = vrrp::vrrp_instance::preempt::enabled::DFLT;
+        let priority = vrrp::vrrp_instance::priority::DFLT;
+        let advertise_interval =
+            vrrp::vrrp_instance::advertise_interval_sec::DFLT;
+        InstanceCfg {
+            log_state_change,
+            preempt,
+            priority,
+            advertise_interval,
+            virtual_addresses: Default::default(),
+        }
     }
 }

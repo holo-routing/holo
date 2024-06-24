@@ -3,10 +3,24 @@ module holo-vrrp {
   namespace "http://holo-routing.org/yang/holo-vrrp";
   prefix holo-vrrp;
 
+  import ietf-routing {
+    prefix rt;
+  }
+
   organization
     "Holo Routing Stack";
 
   description
     "This module defines augment statements for the ietf-vrrp
      module.";
+
+  /*
+   * Identities.
+   */
+
+  identity vrrp {
+    base rt:routing-protocol;
+    description
+      "VRRP protocol.";
+  }
 }

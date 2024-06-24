@@ -17,6 +17,7 @@ ipnetwork.workspace = true
 netlink-packet-route.workspace = true
 netlink-packet-core.workspace = true
 netlink-sys.workspace = true
+regex.workspace = true
 rtnetlink.workspace = true
 tokio.workspace = true
 tracing.workspace = true
@@ -26,5 +27,10 @@ holo-northbound = { path = "../holo-northbound" }
 holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
 
+holo-vrrp = { path = "../holo-vrrp", optional = true }
+
 [lints]
 workspace = true
+
+[features]
+vrrp = ["holo-vrrp"]

@@ -70,8 +70,8 @@ pub(crate) fn create_context() {
     }
     #[cfg(feature = "vrrp")]
     {
-        use holo_vrrp::instance::Instance;
-        modules_add::<Instance>(&mut modules);
+        use holo_vrrp::interface::Interface;
+        modules_add::<Interface>(&mut modules);
     }
 
     // Create YANG context and load all required modules and their deviations.

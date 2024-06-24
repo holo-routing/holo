@@ -9,6 +9,7 @@ use std::net::{IpAddr, Ipv4Addr};
 //use bitflags::bitflags;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::{BytesExt, BytesMutExt};
+
 use serde::{Deserialize, Serialize};
 
 // Type aliases.
@@ -374,6 +375,29 @@ mod checksum {
             second = carry as u16;    
         }
         result
+=======
+pub struct Packet {
+    // TODO
+}
+
+// VRRP decode errors.
+#[derive(Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub enum DecodeError {
+    // TODO
+}
+
+// ===== impl Packet =====
+
+impl Packet {
+    // Encodes VRRP packet into a bytes buffer.
+    pub fn encode(&self) -> BytesMut {
+        todo!()
+    }
+
+    // Decodes VRRP packet from a bytes buffer.
+    pub fn decode(_data: &[u8]) -> Result<Self, DecodeError> {
+        todo!()
     }
 }
 
@@ -415,6 +439,7 @@ impl std::fmt::Display for PacketLengthError {
                 write!(f, "Count_ip not corresponding with no of bytes in packet")
             },
         }
+
     }
 }
 

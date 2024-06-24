@@ -10,14 +10,13 @@ pub mod state;
 pub mod yang;
 
 use holo_northbound::ProviderBase;
-use holo_yang::ToYang;
 use tracing::{debug_span, Span};
 
-use crate::instance::Instance;
+use crate::interface::Interface;
 
-// ===== impl Instance =====
+// ===== impl Interface =====
 
-impl ProviderBase for Instance {
+impl ProviderBase for Interface {
     fn yang_modules() -> &'static [&'static str] {
         &["ietf-vrrp", "holo-vrrp"]
     }
@@ -27,10 +26,10 @@ impl ProviderBase for Instance {
         String::new()
     }
 
-    fn debug_span(name: &str) -> Span {
-        debug_span!("vrrp-instance", %name)
+    fn debug_span(interface: &str) -> Span {
+        debug_span!("vrrp", %interface)
     }
 }
 
 // No RPC/Actions to implement.
-impl holo_northbound::rpc::Provider for Instance {}
+impl holo_northbound::rpc::Provider for Interface {}

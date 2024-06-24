@@ -9,11 +9,10 @@ use std::sync::Arc;
 use holo_utils::socket::{AsyncFd, Socket};
 //use std::time::Duration;
 use holo_utils::task::Task;
-use holo_utils::{Sender, UnboundedReceiver, UnboundedSender};
+use holo_utils::{Sender, UnboundedReceiver};
 use tracing::{debug_span, Instrument};
 
-use crate::debug::Debug;
-//use crate::network;
+use crate::network;
 
 //
 // VRRP tasks diagram:
@@ -42,7 +41,7 @@ pub mod messages {
 
     use serde::{Deserialize, Serialize};
 
-    use crate::packet::{DecodeError, Packet};
+    use crate::packet::{DecodeError, VRRPPacket as Packet};
 
     // Type aliases.
     pub type ProtocolInputMsg = input::ProtocolMsg;
@@ -108,7 +107,7 @@ pub(crate) fn net_rx(
         Task::spawn(
             async move {
                 let _span_enter = span.enter();
-                //let _ = network::read_loop(socket, net_packet_rxp).await;
+                let _ = network::read_loop(socket_vrrp, net_packet_rxp).await;
             }
             .in_current_span(),
         )
@@ -140,7 +139,8 @@ pub(crate) fn net_tx(
         Task::spawn(
             async move {
                 let _span_enter = span.enter();
-                //network::write_loop(socket, net_packet_txc).await;
+                network::write_loop(socket_vrrp, socket_arp, net_packet_txc)
+                    .await;
             }
             .in_current_span(),
         )

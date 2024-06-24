@@ -15,7 +15,6 @@ use crate::packet::VRRPPacket as Packet;
 pub enum Debug<'a> {
     InstanceCreate,
     InstanceDelete,
-
     // Network
     PacketRx(&'a IpAddr, &'a Packet),
     PacketTx(&'a IpAddr, &'a Packet),
@@ -57,12 +56,6 @@ impl<'a> std::fmt::Display for Debug<'a> {
             }
             Debug::InstanceDelete => {
                 write!(f, "instance deleted")
-            }
-            Debug::InstanceStart => {
-                write!(f, "starting instance")
-            }
-            Debug::InstanceStop(..) => {
-                write!(f, "stopping instance")
             }
             Debug::PacketRx(..) | Debug::PacketTx(..) => {
                 write!(f, "packet")

@@ -7,16 +7,15 @@
 use std::net::IpAddr;
 
 use crate::error::Error;
-use crate::instance::Instance;
-use crate::packet::{DecodeResult, VRRPPacket};
+use crate::interface::Interface;
+use crate::packet::{DecodeResult, VRRPPacket as Packet};
 
 // ===== Network packet receipt =====
 
 pub(crate) fn process_packet(
-    _instance: &mut Instance,
+    _interface: &mut Interface,
     _src: IpAddr,
-    _packet: DecodeResult<VRRPPacket>,
-
+    _packet: DecodeResult<Packet>,
 ) -> Result<(), Error> {
     // TODO
 

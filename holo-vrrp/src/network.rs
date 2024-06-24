@@ -12,7 +12,7 @@ use holo_utils::{Sender, UnboundedReceiver};
 use tokio::sync::mpsc::error::SendError;
 
 use crate::error::IoError;
-use crate::packet::Packet;
+use crate::packet::VRRPPacket as Packet;
 use crate::tasks::messages::input::NetRxPacketMsg;
 use crate::tasks::messages::output::NetTxPacketMsg;
 

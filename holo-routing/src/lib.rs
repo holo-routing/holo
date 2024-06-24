@@ -118,7 +118,7 @@ pub fn start(
 
     tokio::spawn(async move {
         let shared = InstanceShared {
-            db: Some(db.clone()),
+            db: Some(db),
             ..Default::default()
         };
         let mut master = Master {

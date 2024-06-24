@@ -126,7 +126,7 @@ impl Interfaces {
         };
 
         let iface_idx = self.arena.insert(iface);
-        self.name_tree.insert(ifname.clone(), iface_idx);
+        self.name_tree.insert(ifname, iface_idx);
     }
 
     // Adds or updates the interface with the specified attributes.

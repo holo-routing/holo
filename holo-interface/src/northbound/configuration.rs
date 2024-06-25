@@ -4,21 +4,24 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::net::IpAddr;
 use std::sync::LazyLock as Lazy;
 
 use async_trait::async_trait;
 use enum_as_inner::EnumAsInner;
 use holo_northbound::configuration::{
-    self, Callbacks, CallbacksBuilder, Provider, ValidationCallbacks,
-    ValidationCallbacksBuilder,
+    self, Callbacks, CallbacksBuilder, ConfigChanges, Provider,
+    ValidationCallbacks, ValidationCallbacksBuilder,
 };
 use holo_northbound::yang::interfaces;
+use holo_northbound::{CallbackKey, NbDaemonSender};
+use holo_protocol::spawn_protocol_task;
 use holo_utils::yang::DataNodeRefExt;
 use ipnetwork::IpNetwork;
 
 use crate::interface::Owner;
+use crate::northbound::REGEX_VRRP;
 use crate::{netlink, Master};
 
 static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
@@ -45,6 +48,7 @@ pub enum Event {
     VlanCreate(String, u16),
     AddressInstall(String, IpAddr, u8),
     AddressUninstall(String, IpAddr, u8),
+    VrrpStart(String),
 }
 
 // ===== configuration structs =====
@@ -66,7 +70,18 @@ fn load_callbacks() -> Callbacks<Master> {
         .create_apply(|master, args| {
             let ifname = args.dnode.get_string_relative("./name").unwrap();
 
-            master.interfaces.add(ifname);
+            master.interfaces.add(ifname.clone());
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::VrrpStart(ifname));
+        })
+        .create_prepare(|master, args| {
+            let ifname = args.dnode.get_string_relative("./name").unwrap();
+            master.interfaces.add(ifname.clone());
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::VrrpStart(ifname));
+
+            Ok(())
         })
         .delete_apply(|_master, args| {
             let ifname = args.list_entry.into_interface().unwrap();
@@ -302,6 +317,48 @@ impl Provider for Master {
         Some(&CALLBACKS)
     }
 
+    fn nested_callbacks() -> Option<Vec<CallbackKey>> {
+        let keys: Vec<Vec<CallbackKey>> = vec![
+            #[cfg(feature = "vrrp")]
+            holo_vrrp::northbound::configuration::CALLBACKS.keys(),
+        ];
+
+        Some(keys.concat())
+    }
+
+    fn relay_changes(
+        &self,
+        changes: ConfigChanges,
+    ) -> Vec<(ConfigChanges, NbDaemonSender)> {
+        // Create hash table that maps changes to the appropriate child
+        // instances.
+        let mut changes_map: HashMap<String, ConfigChanges> = HashMap::new();
+        for change in changes {
+            // HACK: parse interface name from VRRP configuration changes.
+            let caps = REGEX_VRRP.captures(&change.1).unwrap();
+            let ifname = caps.get(1).unwrap().as_str().to_owned();
+
+            // Move configuration change to the appropriate interface bucket.
+            changes_map.entry(ifname).or_default().push(change);
+        }
+        changes_map
+            .into_iter()
+            .filter_map(|(ifname, changes)| {
+                self.interfaces
+                    .get_by_name(&ifname)
+                    .and_then(|iface| iface.vrrp.clone())
+                    .map(|nb_tx| (changes, nb_tx))
+            })
+            .collect::<Vec<_>>()
+    }
+
+    fn relay_validation(&self) -> Vec<NbDaemonSender> {
+        self.interfaces
+            .iter()
+            .filter_map(|iface| iface.vrrp.clone())
+            .collect()
+    }
+
     async fn process_event(&mut self, event: Event) {
         match event {
             Event::InterfaceDelete(ifname) => {
@@ -375,6 +432,25 @@ impl Provider for Master {
                         &addr,
                     )
                     .await;
+                }
+            }
+            Event::VrrpStart(ifname) => {
+                #[cfg(feature = "vrrp")]
+                {
+                    if let Some(iface) =
+                        self.interfaces.get_mut_by_name(&ifname)
+                    {
+                        let vrrp = spawn_protocol_task::<
+                            holo_vrrp::interface::Interface,
+                        >(
+                            ifname,
+                            &self.nb_tx,
+                            &self.ibus_tx,
+                            Default::default(),
+                            self.shared.clone(),
+                        );
+                        iface.vrrp = Some(vrrp);
+                    }
                 }
             }
         }

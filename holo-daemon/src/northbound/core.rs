@@ -15,6 +15,7 @@ use holo_northbound::configuration::{CommitPhase, ConfigChange};
 use holo_northbound::{
     api as papi, CallbackKey, CallbackOp, NbDaemonSender, NbProviderReceiver,
 };
+use holo_protocol::InstanceShared;
 use holo_utils::ibus::{IbusReceiver, IbusSender};
 use holo_utils::task::TimeoutTask;
 use holo_utils::yang::SchemaNodeExt;
@@ -646,6 +647,12 @@ fn start_providers(
     let ibus_rx_policy = ibus_tx.subscribe();
     let ibus_rx_system = ibus_rx;
 
+    let shared = InstanceShared {
+        db: Some(db),
+        event_recorder_config: Some(config.event_recorder.clone()),
+        ..Default::default()
+    };
+
     // Start holo-interface.
     #[cfg(feature = "interface")]
     {
@@ -653,6 +660,7 @@ fn start_providers(
             provider_tx.clone(),
             ibus_tx.clone(),
             ibus_rx_interface,
+            shared.clone(),
         );
         providers.push(daemon_tx);
     }
@@ -693,13 +701,8 @@ fn start_providers(
     // Start holo-routing.
     #[cfg(feature = "routing")]
     {
-        let daemon_tx = holo_routing::start(
-            provider_tx,
-            ibus_tx,
-            ibus_rx_routing,
-            db,
-            config.event_recorder.clone(),
-        );
+        let daemon_tx =
+            holo_routing::start(provider_tx, ibus_tx, ibus_rx_routing, shared);
         providers.push(daemon_tx);
     }
 

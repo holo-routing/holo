@@ -16,7 +16,7 @@ use crate::Master;
 
 // ===== global functions =====
 
-pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
+pub(crate) async fn process_msg(master: &mut Master, msg: IbusMsg) {
     match msg {
         IbusMsg::InterfaceDump => {
             for iface in master.interfaces.iter() {
@@ -56,6 +56,43 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
                 &master.ibus_tx,
                 master.interfaces.router_id(),
             );
+        }
+        IbusMsg::CreateMacVlan(msg) => {
+            master
+                .interfaces
+                .create_macvlan_interface(
+                    &master.netlink_handle,
+                    &msg.parent_name,
+                    msg.mac_address,
+                    msg.name,
+                )
+                .await;
+        }
+        IbusMsg::InterfaceIpAddRequest(msg) => {
+            let _ = master
+                .interfaces
+                .add_iface_address(
+                    &master.netlink_handle,
+                    msg.ifindex,
+                    msg.addr,
+                )
+                .await;
+        }
+        IbusMsg::InterfaceIpDeleteRequest(msg) => {
+            let _ = master
+                .interfaces
+                .delete_iface_address(
+                    &master.netlink_handle,
+                    msg.ifindex,
+                    msg.addr,
+                )
+                .await;
+        }
+        IbusMsg::InterfaceDeleteRequest(ifindex) => {
+            let _ = master
+                .interfaces
+                .delete_iface(&master.netlink_handle, ifindex)
+                .await;
         }
         // Ignore other events.
         _ => {}

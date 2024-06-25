@@ -16,6 +16,7 @@ members = [
   "holo-system",
   "holo-tools",
   "holo-utils",
+  "holo-vrrp",
   "holo-yang",
 ]
 default-members = ["holo-daemon"]

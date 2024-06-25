@@ -44,6 +44,7 @@ holo-rip = { path = "../holo-rip", optional = true }
 holo-routing = { path = "../holo-routing", optional = true  }
 holo-system = { path = "../holo-system", optional = true }
 holo-utils = { path = "../holo-utils" }
+holo-vrrp = { path = "../holo-vrrp", optional = true  }
 holo-yang = { path = "../holo-yang" }
 
 [build-dependencies]
@@ -71,6 +72,7 @@ default = [
   "ldp",
   "ospf",
   "rip",
+  "vrrp",
 ]
 
 # Base components
@@ -87,6 +89,7 @@ isis = ["dep:holo-isis", "holo-routing/isis"]
 ldp = ["dep:holo-ldp", "holo-routing/ldp"]
 ospf = ["dep:holo-ospf", "holo-routing/ospf"]
 rip = ["dep:holo-rip", "holo-routing/rip"]
+vrrp = ["holo-vrrp", "holo-interface/vrrp"]
 
 # Other features
 tokio_console = ["dep:console-subscriber"]

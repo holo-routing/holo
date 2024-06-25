@@ -9,6 +9,7 @@ use std::net::{IpAddr, Ipv4Addr};
 
 use bitflags::bitflags;
 use generational_arena::{Arena, Index};
+use holo_northbound::NbDaemonSender;
 use holo_utils::ibus::IbusSender;
 use holo_utils::ip::Ipv4NetworkExt;
 use holo_utils::southbound::{AddressFlags, InterfaceFlags};
@@ -39,6 +40,7 @@ pub struct Interface {
     pub addresses: BTreeMap<IpNetwork, InterfaceAddress>,
     pub mac_address: [u8; 6],
     pub owner: Owner,
+    pub vrrp: Option<NbDaemonSender>,
 }
 
 #[derive(Debug)]
@@ -123,8 +125,9 @@ impl Interfaces {
             mtu: None,
             flags: InterfaceFlags::default(),
             addresses: Default::default(),
-            owner: Owner::CONFIG,
             mac_address: Default::default(),
+            owner: Owner::CONFIG,
+            vrrp: None,
         };
 
         let iface_idx = self.arena.insert(iface);
@@ -218,8 +221,9 @@ impl Interfaces {
                     mtu: Some(mtu),
                     flags,
                     addresses: Default::default(),
-                    owner: Owner::SYSTEM,
                     mac_address,
+                    owner: Owner::SYSTEM,
+                    vrrp: None,
                 };
 
                 // Notify protocol instances about the interface update.
@@ -397,6 +401,63 @@ impl Interfaces {
             if let Some(ibus_tx) = ibus_tx {
                 ibus::notify_router_id_update(ibus_tx, self.router_id);
             }
+        }
+    }
+
+    // create macvlan interface
+    //
+    // the parent_name is the name of the interface that will be the parent of
+    // the macvlan interface being create. mvlan name is the macvlan name of the interface being created.
+    pub(crate) async fn create_macvlan_interface(
+        &self,
+        netlink_handle: &rtnetlink::Handle,
+        parent_name: &str,
+        mac_address: Option<[u8; 6]>,
+        mvlan_name: String,
+    ) {
+        if let Some(interface) = self.get_by_name(parent_name) {
+            if let Some(ifindex) = interface.ifindex {
+                let _ = netlink::macvlan_create(
+                    netlink_handle,
+                    mvlan_name,
+                    mac_address,
+                    ifindex,
+                )
+                .await;
+            }
+        }
+    }
+
+    pub(crate) async fn delete_iface(
+        &self,
+        netlink_handle: &rtnetlink::Handle,
+        ifindex: u32,
+    ) {
+        if self.get_by_ifindex(ifindex).is_some() {
+            let _ = netlink::iface_delete(netlink_handle, ifindex).await;
+        }
+    }
+
+    // adds an IP address to an interface
+    pub(crate) async fn add_iface_address(
+        &self,
+        netlink_handle: &rtnetlink::Handle,
+        ifindex: u32,
+        addr: IpNetwork,
+    ) {
+        if self.get_by_ifindex(ifindex).is_some() {
+            netlink::addr_install(netlink_handle, ifindex, &addr).await;
+        }
+    }
+
+    pub(crate) async fn delete_iface_address(
+        &self,
+        netlink_handle: &rtnetlink::Handle,
+        ifindex: u32,
+        addr: IpNetwork,
+    ) {
+        if self.get_by_ifindex(ifindex).is_some() {
+            netlink::addr_uninstall(netlink_handle, ifindex, &addr).await;
         }
     }
 

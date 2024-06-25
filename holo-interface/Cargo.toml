@@ -18,6 +18,7 @@ netlink-packet-route.workspace = true
 netlink-packet-core.workspace = true
 netlink-packet-utils.workspace = true
 netlink-sys.workspace = true
+regex.workspace = true
 rtnetlink.workspace = true
 tokio.workspace = true
 tracing.workspace = true
@@ -25,8 +26,14 @@ yang3.workspace = true
 libc.workspace = true
 
 holo-northbound = { path = "../holo-northbound" }
+holo-protocol = { path = "../holo-protocol" }
 holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
 
+holo-vrrp = { path = "../holo-vrrp", optional = true }
+
 [lints]
 workspace = true
+
+[features]
+vrrp = ["holo-vrrp"]

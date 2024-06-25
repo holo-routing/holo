@@ -1,0 +1,34 @@
+[package]
+name = "holo-vrrp"
+version.workspace = true
+authors = ["Paul Wekesa <paul1tw1@gmail.com>"]
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+bytes.workspace = true
+chrono.workspace = true
+enum-as-inner.workspace = true
+ipnetwork.workspace = true
+libc.workspace = true
+nix.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+socket2.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+holo-northbound = { path = "../holo-northbound" }
+holo-protocol = { path = "../holo-protocol" }
+holo-utils = { path = "../holo-utils" }
+holo-yang = { path = "../holo-yang" }
+
+[dev-dependencies]
+holo-vrrp = { path = ".", features = ["testing"] }
+holo-protocol = { path = "../holo-protocol", features = ["testing"] }
+holo-utils = { path = "../holo-utils", features = ["testing"] }
+
+[features]
+default = []
+testing = []

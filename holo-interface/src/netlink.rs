@@ -26,6 +26,8 @@ use tracing::{error, trace};
 use crate::interface::Owner;
 use crate::Master;
 
+pub const MACVLAN_MODE_BRIDGE: u32 = 4;
+
 pub type NetlinkMonitor =
     UnboundedReceiver<(NetlinkMessage<RouteNetlinkMessage>, SocketAddr)>;
 
@@ -231,6 +233,47 @@ pub(crate) async fn vlan_create(
     // Execute request.
     if let Err(error) = request.execute().await {
         error!(%parent_ifindex, %vlan_id, %error, "failed to create VLAN interface");
+    }
+}
+
+/// Creates MacVlan interface
+/// uses RTM_NEWLINK.
+///
+/// # Arguments
+///
+/// * `parent_ifindex` - index of the primary interface this macvlan will be bridging from
+/// * `name` - name of the macvlan link that we will be creating
+pub(crate) async fn macvlan_create(
+    handle: &Handle,
+    name: String,
+    mac_address: Option<[u8; 6]>,
+    parent_ifindex: u32,
+) {
+    // Create netlink request
+    let mut request = handle.link().add().macvlan(
+        name.clone(),
+        parent_ifindex,
+        MACVLAN_MODE_BRIDGE,
+    );
+
+    if let Some(address) = mac_address {
+        request = request.address(address.to_vec());
+    }
+
+    // Execute request.
+    if let Err(error) = request.execute().await {
+        error!(%parent_ifindex, %name, %error, "Failed to create MacVlan interface");
+    }
+}
+
+// Removes an interface completely from the system.
+//
+// At the moment, will mostly be used for uninstalling
+// Macvlan interfaces when we are removing a VRRP instance.
+pub(crate) async fn iface_delete(handle: &Handle, ifindex: u32) {
+    let request = handle.link().del(ifindex);
+    if let Err(err) = request.execute().await {
+        error!(%ifindex, %err, "failed to delete interface.");
     }
 }
 

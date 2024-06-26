@@ -19,6 +19,6 @@ pub fn send(
     let mut dtree = DataTree::new(yang_ctx);
     let mut dnode =
         dtree.new_path(path.as_ref(), None, false).unwrap().unwrap();
-    data.into_data_node(&mut dnode);
+    Box::new(data).into_data_node(&mut dnode);
     nb_tx.send(Notification { data: dtree }).unwrap();
 }

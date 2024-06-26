@@ -170,7 +170,7 @@ impl<'a> StructBuilder<'a> {
             let field_type = match snode.kind() {
                 SchemaNodeKind::Container => {
                     format!(
-                        "Option<{}::{}<'a>>",
+                        "Option<Box<{}::{}<'a>>>",
                         snode_normalized_name(snode, Case::Snake),
                         snode_normalized_name(snode, Case::Pascal)
                     )
@@ -225,7 +225,7 @@ impl<'a> StructBuilder<'a> {
         // into_data_node() function implementation.
         writeln!(
             output,
-            "{}fn into_data_node(self, dnode: &mut DataNodeRef<'_>) {{",
+            "{}fn into_data_node(self: Box<Self>, dnode: &mut DataNodeRef<'_>) {{",
             indent2
         )
         .unwrap();

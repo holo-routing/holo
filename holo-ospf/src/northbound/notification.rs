@@ -34,9 +34,9 @@ pub(crate) fn if_state_change<V>(
     let data = IfStateChange {
         routing_protocol_name: Some(instance.name.into()),
         address_family: Some(instance.state.af.to_yang()),
-        interface: Some(Interface {
+        interface: Some(Box::new(Interface {
             interface: Some(iface.name.as_str().into()),
-        }),
+        })),
         state: Some(iface.state.ism_state.to_yang()),
     };
     notification::send(&instance.tx.nb, if_state_change::PATH, data);
@@ -57,9 +57,9 @@ pub(crate) fn if_config_error<V>(
     let data = IfConfigError {
         routing_protocol_name: Some(instance.name.into()),
         address_family: Some(instance.state.af.to_yang()),
-        interface: Some(Interface {
+        interface: Some(Box::new(Interface {
             interface: Some(ifname.into()),
-        }),
+        })),
         packet_source: Some(Cow::Owned((*src).into())),
         packet_type: Some(pkt_type.to_yang()),
         error: Some(error.to_yang()),
@@ -80,9 +80,9 @@ pub(crate) fn nbr_state_change<V>(
     let data = NbrStateChange {
         routing_protocol_name: Some(instance.name.into()),
         address_family: Some(instance.state.af.to_yang()),
-        interface: Some(Interface {
+        interface: Some(Box::new(Interface {
             interface: Some(iface.name.as_str().into()),
-        }),
+        })),
         neighbor_router_id: Some(Cow::Borrowed(&nbr.router_id)),
         neighbor_ip_addr: Some(Cow::Owned(nbr.src.into())),
         state: Some(nbr.state.to_yang()),
@@ -106,9 +106,9 @@ pub(crate) fn nbr_restart_helper_enter<V>(
     let data = NbrRestartHelperStatusChange {
         routing_protocol_name: Some(instance.name.into()),
         address_family: Some(instance.state.af.to_yang()),
-        interface: Some(Interface {
+        interface: Some(Box::new(Interface {
             interface: Some(iface.name.as_str().into()),
-        }),
+        })),
         neighbor_router_id: Some(Cow::Borrowed(&nbr.router_id)),
         neighbor_ip_addr: Some(Cow::Owned(nbr.src.into())),
         status: Some("helping".into()),
@@ -138,9 +138,9 @@ pub(crate) fn nbr_restart_helper_exit<V>(
     let data = NbrRestartHelperStatusChange {
         routing_protocol_name: Some(instance.name.into()),
         address_family: Some(instance.state.af.to_yang()),
-        interface: Some(Interface {
+        interface: Some(Box::new(Interface {
             interface: Some(iface.name.as_str().into()),
-        }),
+        })),
         neighbor_router_id: Some(Cow::Borrowed(&nbr.router_id)),
         neighbor_ip_addr: Some(Cow::Owned(nbr.src.into())),
         status: Some("not-helping".into()),
@@ -167,9 +167,9 @@ pub(crate) fn if_rx_bad_packet<V>(
     let data = IfRxBadPacket {
         routing_protocol_name: Some(instance.name.into()),
         address_family: Some(instance.state.af.to_yang()),
-        interface: Some(Interface {
+        interface: Some(Box::new(Interface {
             interface: Some(iface.name.as_str().into()),
-        }),
+        })),
         packet_source: Some(Cow::Owned(src.into())),
         // TODO: set the packet-type whenever possible.
         packet_type: None,

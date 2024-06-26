@@ -40,19 +40,23 @@ pub(crate) fn backward_transition(
     let data = BackwardTransition {
         remote_addr: Some(Cow::Borrowed(&nbr.remote_addr)),
         notification_received: nbr.notification_rcvd.as_ref().map(
-            |(time, notif)| NotificationReceived {
-                last_notification: Some(time),
-                last_error: Some(notif.to_yang()),
-                last_error_code: Some(notif.error_code),
-                last_error_subcode: Some(notif.error_subcode),
+            |(time, notif)| {
+                Box::new(NotificationReceived {
+                    last_notification: Some(time),
+                    last_error: Some(notif.to_yang()),
+                    last_error_code: Some(notif.error_code),
+                    last_error_subcode: Some(notif.error_subcode),
+                })
             },
         ),
         notification_sent: nbr.notification_sent.as_ref().map(
-            |(time, notif)| NotificationSent {
-                last_notification: Some(time),
-                last_error: Some(notif.to_yang()),
-                last_error_code: Some(notif.error_code),
-                last_error_subcode: Some(notif.error_subcode),
+            |(time, notif)| {
+                Box::new(NotificationSent {
+                    last_notification: Some(time),
+                    last_error: Some(notif.to_yang()),
+                    last_error_code: Some(notif.error_code),
+                    last_error_subcode: Some(notif.error_subcode),
+                })
             },
         ),
     };

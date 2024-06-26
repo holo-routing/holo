@@ -5,7 +5,6 @@
 //
 
 #![feature(extract_if)]
-#![feature(unsized_fn_params)]
 #![allow(type_alias_bounds)]
 
 mod debug;

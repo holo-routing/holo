@@ -285,6 +285,9 @@ where
     ) -> State {
         Debug::<V>::InterfaceStart(&self.name).log();
 
+        // Initialize source address.
+        self.state.src_addr = Some(V::src_addr(&self.system));
+
         if !self.is_passive() {
             self.state.auth = self.auth(&instance.shared.keychains);
 
@@ -303,9 +306,6 @@ where
                     return State::Down;
                 }
             }
-
-            // Initialize source address.
-            self.state.src_addr = Some(V::src_addr(&self.system));
 
             // Start Hello Tx task.
             self.hello_interval_start(area, instance);

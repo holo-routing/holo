@@ -3,9 +3,9 @@
 //
 // SPDX-License-Identifier: MIT
 //
-use std::net::Ipv4Addr;
 
-//use bitflags::bitflags;
+use crate::error::{self, Error, GlobalError, VirtualRouterError};
+use std::net::Ipv4Addr;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use serde::{Deserialize, Serialize};
@@ -95,29 +95,28 @@ pub struct Ipv4Packet {
 #[derive(Deserialize, Serialize)]
 pub enum DecodeError {
     ChecksumError,
-    PacketLengthError(PacketLengthError),
-    IpTtlError(u8),
-    VersionError(u8),
+    PacketLengthError,
+    IpTtlError,
+    VersionError,
 }
 
-#[derive(Debug, Eq, PartialEq)]
-#[derive(Deserialize, Serialize)]
-pub enum PacketLengthError {
-    // A maximum number of 16 IP addresses are allowed for
-    // VRRP. Referenced from count_ip field
-    AddressCount(usize),
-
-    // specified on the vrrp-ietf. when length of the
-    // vrrp packet is less than 16 bytes.
-    TooShort(usize),
-
-    // total
-    TooLong(usize),
-
-    // when the number of ips specified under count_ip
-    // does not correspond to the actual length of the packet
-    // (total_length = 16 + (4 * no of ips))
-    CorruptedLength,
+impl DecodeError {
+    pub fn err(&self) -> error::Error {
+        match self {
+            DecodeError::ChecksumError => {
+                Error::GlobalError(GlobalError::ChecksumError)
+            },
+            DecodeError::PacketLengthError => {
+                Error::VirtualRouterError(VirtualRouterError::PacketLengthError)
+            },
+            DecodeError::IpTtlError => {
+                Error::GlobalError(GlobalError::IpTtlError)
+            },
+            DecodeError::VersionError => {
+                Error::GlobalError(GlobalError::VersionError)
+            },
+        }
+    }
 }
 
 // ===== impl Packet =====
@@ -131,6 +130,7 @@ impl VrrpPacket {
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::with_capacity(114);
         let ver_type = (self.version << 4) | self.hdr_type;
+        buf.put_u8(ver_type);
         buf.put_u8(self.vrid);
         buf.put_u8(self.priority);
         buf.put_u8(self.count_ip);
@@ -140,6 +140,7 @@ impl VrrpPacket {
         for addr in &self.ip_addresses {
             buf.put_ipv4(addr);
         }
+
         buf.put_u32(self.auth_data);
         buf.put_u32(self.auth_data2);
         buf
@@ -151,40 +152,15 @@ impl VrrpPacket {
         let pkt_size = data.len();
         let count_ip = data[3];
 
-        // with the minimum number of valid IP addresses being 0,
-        // The minimum number of bytes for the VRRP packet is 16
-        if pkt_size < Self::MIN_PKT_LENGTH {
-            return Err(DecodeError::PacketLengthError(
-                PacketLengthError::TooShort(pkt_size),
-            ));
-        }
+        if pkt_size < Self::MIN_PKT_LENGTH 
+            || pkt_size >Self::MAX_PKT_LENGTH 
+            || count_ip as usize > Self::MAX_IP_COUNT //  too many Virtual IPs being described
+            || (count_ip * 4) + 16 != pkt_size as u8 // length of packet is not same as length expected (as calculated from count_ip)
+            {
+                return Err(DecodeError::PacketLengthError)
+            }
 
-        // with the max number of valid IP addresses being 16,
-        // The maximum number of bytes the VRRP packet can be is 80
-        if pkt_size > Self::MAX_PKT_LENGTH {
-            return Err(DecodeError::PacketLengthError(
-                PacketLengthError::TooLong(pkt_size),
-            ));
-        }
-
-        // max number of IP addresses allowed.
-        // This will be based on the count_ip field
-        if count_ip as usize > Self::MAX_IP_COUNT {
-            return Err(DecodeError::PacketLengthError(
-                PacketLengthError::AddressCount(count_ip as usize),
-            ));
-        }
-
-        // A Malory may have declared a wrong number of ips
-        // in count_ip than they actually have in the body. This may
-        // lead to trying to read data that is either out of bounds or
-        // fully not reading data sent.
-        if (count_ip * 4) + 16 != pkt_size as u8 {
-            return Err(DecodeError::PacketLengthError(
-                PacketLengthError::CorruptedLength,
-            ));
-        }
-
+        
         let mut buf: Bytes = Bytes::copy_from_slice(data);
         let ver_type = buf.get_u8();
         let version = ver_type >> 4;
@@ -206,6 +182,7 @@ impl VrrpPacket {
         for addr in 0..count_ip {
             ip_addresses.push(buf.get_ipv4());
         }
+
         let auth_data = buf.get_u32();
         let auth_data2 = buf.get_u32();
 
@@ -219,8 +196,8 @@ impl VrrpPacket {
             adver_int,
             checksum,
             ip_addresses,
-            auth_data,
-            auth_data2,
+            auth_data: auth_data,
+            auth_data2: auth_data2,
         })
     }
 }
@@ -271,21 +248,15 @@ impl Ipv4Packet {
         // lead to trying to read data that is either out of bounds or
         // fully not reading data sent.
         if ihl as usize != data.len() / 4 {
-            return Err(DecodeError::PacketLengthError(
-                PacketLengthError::CorruptedLength,
-            ));
+            return Err(DecodeError::PacketLengthError);
         }
 
         if ihl < (Self::MIN_HDR_LENGTH as u8 / 4) {
-            return Err(DecodeError::PacketLengthError(
-                PacketLengthError::TooShort(ihl as usize * 4),
-            ));
+            return Err(DecodeError::PacketLengthError);
         }
 
         if ihl > (Self::MAX_HDR_LENGTH as u8 / 4) {
-            return Err(DecodeError::PacketLengthError(
-                PacketLengthError::TooLong(ihl as usize * 4),
-            ));
+            return Err(DecodeError::PacketLengthError);
         }
 
         let tos = buf.get_u8();
@@ -336,8 +307,8 @@ impl Ipv4Packet {
     }
 }
 
-mod checksum {
-    pub(super) fn calculate(data: &[u8], checksum_position: usize) -> u16 {
+pub mod checksum {
+    pub fn calculate(data: &[u8], checksum_position: usize) -> u16 {
         let mut result: u16 = 0;
 
         // since data is in u8's, we need pairs of the data to get u16
@@ -374,44 +345,9 @@ mod checksum {
 
 impl std::fmt::Display for DecodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            DecodeError::ChecksumError => {
-                write!(f, "Checksum is not valid")
-            }
-
-            DecodeError::IpTtlError(rx_ttl) => {
-                write!(f, "TTL less than 255: {rx_ttl}")
-            }
-            DecodeError::VersionError(rx_version) => {
-                write!(f, "Invalid version: {rx_version}")
-            }
-            DecodeError::PacketLengthError(err) => {
-                std::fmt::Display::fmt(err, f)
-            }
-        }
+        self.err().fmt(f)
     }
 }
 
-impl std::fmt::Display for PacketLengthError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            PacketLengthError::TooLong(rx_len) => {
-                write!(f, "Too many bytes for VRRP packet: {rx_len}")
-            }
-            PacketLengthError::TooShort(rx_len) => {
-                write!(f, "Not enough bytes for VRRP packets: {rx_len}")
-            }
-            PacketLengthError::AddressCount(rx_count) => {
-                write!(f, "Too many IP addresses {rx_count}")
-            }
-            PacketLengthError::CorruptedLength => {
-                write!(
-                    f,
-                    "Count_ip not corresponding with no of bytes in packet"
-                )
-            }
-        }
-    }
-}
 
 impl std::error::Error for DecodeError {}

@@ -6,7 +6,7 @@
 
 use std::net::Ipv4Addr;
 
-use holo_vrrp::packet::{DecodeError, Ipv4Packet, PacketLengthError};
+use holo_vrrp::packet::{DecodeError, Ipv4Packet};
 
 // the ipv4 Packet header details that will be used in IPV4 tests.
 //  It may have slight modifications based on the specific test
@@ -65,9 +65,7 @@ fn test_hdr_length_corruption() {
     let pkt = Ipv4Packet::decode(data);
     assert_eq!(
         pkt,
-        Err(DecodeError::PacketLengthError(
-            PacketLengthError::CorruptedLength
-        ))
+        Err(DecodeError::PacketLengthError)
     );
 }
 
@@ -79,9 +77,7 @@ fn test_header_too_short() {
     let pkt = Ipv4Packet::decode(&data);
     assert_eq!(
         pkt,
-        Err(DecodeError::PacketLengthError(PacketLengthError::TooShort(
-            12
-        )))
+        Err(DecodeError::PacketLengthError)
     );
 }
 
@@ -92,15 +88,13 @@ fn test_header_too_long() {
     let pkt = Ipv4Packet::decode(data);
     assert_eq!(
         pkt,
-        Err(DecodeError::PacketLengthError(PacketLengthError::TooLong(
-            28
-        )))
+        Err(DecodeError::PacketLengthError)
     );
 }
 
 #[test]
 fn test_invalid_checksum() {
-    let mut data = &mut valid_pkt_data();
+    let data = &mut valid_pkt_data();
 
     // change the checksum fields to be sth invalid
     data[10] = 0x10;

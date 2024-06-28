@@ -18,10 +18,9 @@ use crate::packet::VrrpPacket;
 use crate::tasks::messages::input::NetRxPacketMsg;
 use crate::tasks::messages::output::NetTxPacketMsg;
 
-pub(crate) fn socket_vrrp(_ifname: &str) -> Result<Socket, std::io::Error> {
+pub fn socket_vrrp(_ifname: &str) -> Result<Socket, std::io::Error> {
     #[cfg(not(feature = "testing"))]
     {
-        // TODO
         let socket = capabilities::raise(|| {
             Socket::new(Domain::IPV4, Type::RAW, Some(Protocol::from(112)))
         })?;
@@ -51,14 +50,28 @@ pub(crate) fn socket_arp(_ifname: &str) -> Result<Socket, std::io::Error> {
 }
 
 #[cfg(not(feature = "testing"))]
-async fn send_packet_vrrp(
-    _socket: &AsyncFd<Socket>,
+pub async fn send_packet_vrrp(
+    socket: &AsyncFd<Socket>,
     _src: IpAddr,
     _dst: IpAddr,
-    _packet: VrrpPacket,
-) -> Result<(), IoError> {
-    // TODO
-    Ok(())
+    packet: VrrpPacket,
+) -> Result<usize, IoError> {
+    use std::net::{Ipv4Addr, SocketAddrV4};
+
+    let buf: &[u8] = &packet.encode();
+    let saddr = SocketAddrV4::new(Ipv4Addr::new(224, 0, 0, 8), 0);
+
+    socket
+        .async_io(tokio::io::Interest::WRITABLE, |sock| {
+            sock.send_to(
+                &buf, 
+                &saddr.into()
+            )
+            .map_err(|errno| errno.into())
+        })
+        .await
+        .map_err(IoError::SendError)
+    
 }
 
 #[cfg(not(feature = "testing"))]

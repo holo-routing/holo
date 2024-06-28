@@ -4,8 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use bytes::Buf;
-use holo_vrrp::packet::{DecodeError, PacketLengthError, VrrpPacket};
+use holo_vrrp::packet::{DecodeError, VrrpPacket};
 
 /*
 generally in the packet tests we will use the following packet structure
@@ -44,9 +43,7 @@ fn test_pkt_too_short() {
     let vrrp_pkt = VrrpPacket::decode(&[0x00; 10]);
     assert_eq!(
         vrrp_pkt,
-        Err(DecodeError::PacketLengthError(PacketLengthError::TooShort(
-            10
-        )))
+        Err(DecodeError::PacketLengthError)
     );
 }
 
@@ -56,9 +53,7 @@ fn test_pkt_too_long() {
     let vrrp_pkt = VrrpPacket::decode(&[0x00; 100]);
     assert_eq!(
         vrrp_pkt,
-        Err(DecodeError::PacketLengthError(PacketLengthError::TooLong(
-            100
-        )))
+        Err(DecodeError::PacketLengthError)
     );
 }
 
@@ -71,9 +66,7 @@ fn test_count_ip_too_high() {
     let vrrp_pkt = VrrpPacket::decode(data);
     assert_eq!(
         vrrp_pkt,
-        Err(DecodeError::PacketLengthError(
-            PacketLengthError::AddressCount(17)
-        ))
+        Err(DecodeError::PacketLengthError)
     );
 }
 
@@ -86,9 +79,7 @@ fn test_count_ip_corrupted() {
     let vrrp_pkt = VrrpPacket::decode(data);
     assert_eq!(
         vrrp_pkt,
-        Err(DecodeError::PacketLengthError(
-            PacketLengthError::CorruptedLength
-        ))
+        Err(DecodeError::PacketLengthError)
     );
 }
 

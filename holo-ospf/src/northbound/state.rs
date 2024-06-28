@@ -5,6 +5,7 @@
 //
 
 use std::borrow::Cow;
+use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::sync::LazyLock as Lazy;
 use std::time::Instant;
@@ -18,6 +19,7 @@ use holo_utils::ip::IpAddrKind;
 use holo_utils::num::SaturatingInto;
 use holo_utils::option::OptionExt;
 use holo_utils::protocol::Protocol;
+use holo_utils::sr::IgpAlgoType;
 use holo_yang::{ToYang, ToYangBits};
 use num_traits::FromPrimitive;
 
@@ -75,8 +77,10 @@ pub enum ListEntry<'a, V: Version> {
     // OSPFv3
     Ospfv3RouterLsaLink(&'a ospfv3::packet::lsa::LsaRouterLink),
     Ospfv3LinkLsaPrefix(&'a ospfv3::packet::lsa::LsaLinkPrefix),
+    Ospfv3AdjSids(&'a Vec<ospfv3::packet::lsa::AdjSid>),
     Ospfv3AdjSid(&'a ospfv3::packet::lsa::AdjSid),
     Ospfv3IntraAreaLsaPrefix(&'a ospfv3::packet::lsa::LsaIntraAreaPrefixEntry),
+    Ospfv3PrefixSids(&'a BTreeMap<IgpAlgoType, ospfv3::packet::lsa::PrefixSid>),
     Ospfv3PrefixSid(&'a ospfv3::packet::lsa::PrefixSid),
     Ospfv3LinkLocalAddr(IpAddr),
 }
@@ -1958,28 +1962,23 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
                 value: Some(tlv.value.as_ref()),
             })
         })
-        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PATH)
+        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PATH)
         .get_iterate(|_instance, args| {
-            let lse: &LsaEntry<Ospfv3> = args.parent_list_entry.as_as_lsa().unwrap();
-            let lsa = &lse.data;
-            if let Some(lsa_body) = lsa.body.as_ext_as_external() {
-                let iter = lsa_body.prefix_sids.values().map(ListEntry::Ospfv3PrefixSid);
-                Some(Box::new(iter))
-            } else {
-                None
-            }
+            let prefix_sids = args.parent_list_entry.as_ospfv3_prefix_sids()?;
+            let iter = prefix_sids.values().map(ListEntry::Ospfv3PrefixSid);
+            Some(Box::new(iter))
         })
         .get_object(|_instance, args| {
-            use ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PrefixSidSubTlv;
+            use ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PrefixSidSubTlv;
             let prefix_sid = args.list_entry.as_ospfv3_prefix_sid().unwrap();
             Box::new(PrefixSidSubTlv {
                 algorithm: Some(prefix_sid.algo.to_yang()),
                 sid: Some(prefix_sid.sid.value()),
             })
         })
-        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::PATH)
+        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::PATH)
         .get_object(|_instance, args| {
-            use ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::Ospfv3PrefixSidFlags;
+            use ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::Ospfv3PrefixSidFlags;
             let prefix_sid = args.list_entry.as_ospfv3_prefix_sid().unwrap();
             let iter = prefix_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
             Box::new(Ospfv3PrefixSidFlags {
@@ -2390,7 +2389,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::sub_tlvs::PATH)
         .get_iterate(|_instance, args| {
             let tlv = args.parent_list_entry.as_ospfv3_router_lsa_link().unwrap();
-            let iter = tlv.unknown_stlvs.iter().map(ListEntry::UnknownTlv);
+            let iter = tlv.unknown_stlvs.iter().map(ListEntry::UnknownTlv).chain(std::iter::once(ListEntry::Ospfv3AdjSids(&tlv.adj_sids)));
             Some(Box::new(iter))
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::sub_tlvs::unknown_sub_tlv::PATH)
@@ -2403,37 +2402,37 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
                 value: Some(tlv.value.as_ref()),
             })
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::adj_sid_sub_tlvs::adj_sid_sub_tlv::PATH)
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::sub_tlvs::adj_sid_sub_tlvs::adj_sid_sub_tlv::PATH)
         .get_iterate(|_instance, args| {
-            let rtr_link = args.parent_list_entry.as_ospfv3_router_lsa_link().unwrap();
-            let iter = rtr_link.adj_sids.iter().filter(|adj_sid| adj_sid.nbr_router_id.is_none()).map(ListEntry::Ospfv3AdjSid);
+            let adj_sids = args.parent_list_entry.as_ospfv3_adj_sids()?;
+            let iter = adj_sids.iter().filter(|adj_sid| adj_sid.nbr_router_id.is_none()).map(ListEntry::Ospfv3AdjSid);
             Some(Box::new(iter))
         })
         .get_object(|_instance, args| {
-            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::adj_sid_sub_tlvs::adj_sid_sub_tlv::AdjSidSubTlv;
+            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::sub_tlvs::adj_sid_sub_tlvs::adj_sid_sub_tlv::AdjSidSubTlv;
             let adj_sid = args.list_entry.as_ospfv3_adj_sid().unwrap();
             Box::new(AdjSidSubTlv {
                 weight: Some(adj_sid.weight),
                 sid: Some(adj_sid.sid.value()),
             })
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::adj_sid_sub_tlvs::adj_sid_sub_tlv::adj_sid_flags::PATH)
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::sub_tlvs::adj_sid_sub_tlvs::adj_sid_sub_tlv::adj_sid_flags::PATH)
         .get_object(|_instance, args| {
-            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::adj_sid_sub_tlvs::adj_sid_sub_tlv::adj_sid_flags::AdjSidFlags;
+            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::sub_tlvs::adj_sid_sub_tlvs::adj_sid_sub_tlv::adj_sid_flags::AdjSidFlags;
             let adj_sid = args.list_entry.as_ospfv3_adj_sid().unwrap();
             let iter = adj_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
             Box::new(AdjSidFlags {
                 flags: Some(Box::new(iter)),
             })
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::PATH)
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::sub_tlvs::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::PATH)
         .get_iterate(|_instance, args| {
-            let rtr_link = args.parent_list_entry.as_ospfv3_router_lsa_link().unwrap();
-            let iter = rtr_link.adj_sids.iter().filter(|adj_sid| adj_sid.nbr_router_id.is_some()).map(ListEntry::Ospfv3AdjSid);
+            let adj_sids = args.parent_list_entry.as_ospfv3_adj_sids()?;
+            let iter = adj_sids.iter().filter(|adj_sid| adj_sid.nbr_router_id.is_some()).map(ListEntry::Ospfv3AdjSid);
             Some(Box::new(iter))
         })
         .get_object(|_instance, args| {
-            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::LanAdjSidSubTlv;
+            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::sub_tlvs::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::LanAdjSidSubTlv;
             let adj_sid = args.list_entry.as_ospfv3_adj_sid().unwrap();
             Box::new(LanAdjSidSubTlv {
                 weight: Some(adj_sid.weight),
@@ -2441,9 +2440,9 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
                 sid: Some(adj_sid.sid.value()),
             })
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::lan_adj_sid_flags::PATH)
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::sub_tlvs::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::lan_adj_sid_flags::PATH)
         .get_object(|_instance, args| {
-            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::lan_adj_sid_flags::LanAdjSidFlags;
+            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::sub_tlvs::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::lan_adj_sid_flags::LanAdjSidFlags;
             let adj_sid = args.list_entry.as_ospfv3_adj_sid().unwrap();
             let iter = adj_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
             Box::new(LanAdjSidFlags {
@@ -2548,8 +2547,8 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_iterate(|_instance, args| {
             let lse: &LsaEntry<Ospfv3> = args.parent_list_entry.as_area_lsa().unwrap();
             let lsa = &lse.data;
-            if let Some(lsa_body) = lsa.body.as_ext_inter_area_router() {
-                let iter = lsa_body.unknown_stlvs.iter().map(ListEntry::UnknownTlv);
+            if let Some(lsa_body) = lsa.body.as_ext_inter_area_prefix() {
+                let iter = lsa_body.unknown_stlvs.iter().map(ListEntry::UnknownTlv).chain(std::iter::once(ListEntry::Ospfv3PrefixSids(&lsa_body.prefix_sids)));
                 Some(Box::new(iter))
             } else {
                 None
@@ -2565,28 +2564,23 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
                 value: Some(tlv.value.as_ref()),
             })
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PATH)
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::sub_tlvs::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PATH)
         .get_iterate(|_instance, args| {
-            let lse: &LsaEntry<Ospfv3> = args.parent_list_entry.as_area_lsa().unwrap();
-            let lsa = &lse.data;
-            if let Some(lsa_body) = lsa.body.as_ext_inter_area_prefix() {
-                let iter = lsa_body.prefix_sids.values().map(ListEntry::Ospfv3PrefixSid);
-                Some(Box::new(iter))
-            } else {
-                None
-            }
+            let prefix_sids = args.parent_list_entry.as_ospfv3_prefix_sids()?;
+            let iter = prefix_sids.values().map(ListEntry::Ospfv3PrefixSid);
+            Some(Box::new(iter))
         })
         .get_object(|_instance, args| {
-            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PrefixSidSubTlv;
+            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::sub_tlvs::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PrefixSidSubTlv;
             let prefix_sid = args.list_entry.as_ospfv3_prefix_sid().unwrap();
             Box::new(PrefixSidSubTlv {
                 algorithm: Some(prefix_sid.algo.to_yang()),
                 sid: Some(prefix_sid.sid.value()),
             })
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::PATH)
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::sub_tlvs::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::PATH)
         .get_object(|_instance, args| {
-            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::Ospfv3PrefixSidFlags;
+            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::sub_tlvs::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::Ospfv3PrefixSidFlags;
             let prefix_sid = args.list_entry.as_ospfv3_prefix_sid().unwrap();
             let iter = prefix_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
             Box::new(Ospfv3PrefixSidFlags {
@@ -2726,7 +2720,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::PATH)
         .get_iterate(|_instance, args| {
             let prefix = args.parent_list_entry.as_ospfv3_intra_area_lsa_prefix().unwrap();
-            let iter = prefix.unknown_stlvs.iter().map(ListEntry::UnknownTlv);
+            let iter = prefix.unknown_stlvs.iter().map(ListEntry::UnknownTlv).chain(std::iter::once(ListEntry::Ospfv3PrefixSids(&prefix.prefix_sids)));
             Some(Box::new(iter))
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::unknown_sub_tlv::PATH)
@@ -2739,23 +2733,23 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
                 value: Some(tlv.value.as_ref()),
             })
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PATH)
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PATH)
         .get_iterate(|_instance, args| {
-            let prefix = args.parent_list_entry.as_ospfv3_intra_area_lsa_prefix().unwrap();
-            let iter = prefix.prefix_sids.values().map(ListEntry::Ospfv3PrefixSid);
+            let prefix_sids = args.parent_list_entry.as_ospfv3_prefix_sids()?;
+            let iter = prefix_sids.values().map(ListEntry::Ospfv3PrefixSid);
             Some(Box::new(iter))
         })
         .get_object(|_instance, args| {
-            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PrefixSidSubTlv;
+            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PrefixSidSubTlv;
             let prefix_sid = args.list_entry.as_ospfv3_prefix_sid().unwrap();
             Box::new(PrefixSidSubTlv {
                 algorithm: Some(prefix_sid.algo.to_yang()),
                 sid: Some(prefix_sid.sid.value()),
             })
         })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::PATH)
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::PATH)
         .get_object(|_instance, args| {
-            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::Ospfv3PrefixSidFlags;
+            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::Ospfv3PrefixSidFlags;
             let prefix_sid = args.list_entry.as_ospfv3_prefix_sid().unwrap();
             let iter = prefix_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
             Box::new(Ospfv3PrefixSidFlags {
@@ -3082,10 +3076,10 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
                 value: Some(tlv.value.as_ref()),
             })
         })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PATH)
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::sub_tlvs::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PATH)
         .get_iterate(|_instance, _args| None)
         .get_object(|_instance, _args| unreachable!())
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::PATH)
+        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::sub_tlvs::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::PATH)
         .get_object(|_instance, _args| unreachable!())
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv6_link_local_addr_tlv::PATH)
         .get_object(|_instance, args| {

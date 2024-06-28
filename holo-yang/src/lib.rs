@@ -97,8 +97,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-netconf-acm@2018-02-14.yang"),
         EmbeddedModuleKey::new("ietf-ospf", Some("2022-10-19"), None, None) =>
             include_str!("../modules/ietf/ietf-ospf@2022-10-19.yang"),
-        EmbeddedModuleKey::new("ietf-ospf-sr-mpls", Some("2024-01-18"), None, None) =>
-            include_str!("../modules/ietf/ietf-ospf-sr-mpls@2024-01-18.yang"),
+        EmbeddedModuleKey::new("ietf-ospf-sr-mpls", Some("2024-06-19"), None, None) =>
+            include_str!("../modules/ietf/ietf-ospf-sr-mpls@2024-06-19.yang"),
         EmbeddedModuleKey::new("ietf-ospfv3-extended-lsa", Some("2024-06-07"), None, None) =>
             include_str!("../modules/ietf/ietf-ospfv3-extended-lsa@2024-06-07.yang"),
         EmbeddedModuleKey::new("ietf-rip", Some("2020-02-20"), None, None) =>

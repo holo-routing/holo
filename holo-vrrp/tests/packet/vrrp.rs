@@ -41,20 +41,14 @@ fn test_valid_decoding() {
 #[test]
 fn test_pkt_too_short() {
     let vrrp_pkt = VrrpPacket::decode(&[0x00; 10]);
-    assert_eq!(
-        vrrp_pkt,
-        Err(DecodeError::PacketLengthError)
-    );
+    assert_eq!(vrrp_pkt, Err(DecodeError::PacketLengthError));
 }
 
 // the length of the entire packet is too long
 #[test]
 fn test_pkt_too_long() {
     let vrrp_pkt = VrrpPacket::decode(&[0x00; 100]);
-    assert_eq!(
-        vrrp_pkt,
-        Err(DecodeError::PacketLengthError)
-    );
+    assert_eq!(vrrp_pkt, Err(DecodeError::PacketLengthError));
 }
 
 // test when the packet is too long in length
@@ -64,10 +58,7 @@ fn test_count_ip_too_high() {
     let data: &mut [u8] = &mut valid_pkt_data();
     data[3] = 17;
     let vrrp_pkt = VrrpPacket::decode(data);
-    assert_eq!(
-        vrrp_pkt,
-        Err(DecodeError::PacketLengthError)
-    );
+    assert_eq!(vrrp_pkt, Err(DecodeError::PacketLengthError));
 }
 
 // let us claim we have 3 ip addresses yet we have only one
@@ -77,10 +68,7 @@ fn test_count_ip_corrupted() {
     let data: &mut [u8] = &mut valid_pkt_data();
     data[3] = 3;
     let vrrp_pkt = VrrpPacket::decode(data);
-    assert_eq!(
-        vrrp_pkt,
-        Err(DecodeError::PacketLengthError)
-    );
+    assert_eq!(vrrp_pkt, Err(DecodeError::PacketLengthError));
 }
 
 #[test]

@@ -4,7 +4,10 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::{fmt::{Debug, Display}, net::IpAddr};
+use std::{
+    fmt::{Debug, Display},
+    net::IpAddr,
+};
 
 use tracing::{warn, warn_span};
 
@@ -16,7 +19,7 @@ pub enum Error {
 
     // ietf yang specific errors
     GlobalError(GlobalError),
-    VirtualRouterError(VirtualRouterError)
+    VirtualRouterError(VirtualRouterError),
 }
 
 #[derive(Debug)]
@@ -24,14 +27,14 @@ pub enum GlobalError {
     ChecksumError,
     IpTtlError,
     VersionError,
-    VridError
+    VridError,
 }
 
 #[derive(Debug)]
 pub enum VirtualRouterError {
     AddressListError,
     IntervalError,
-    PacketLengthError
+    PacketLengthError,
 }
 
 // VRRP I/O errors.
@@ -90,8 +93,10 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::IoError(error) => std::fmt::Display::fmt(error, f),
-            Error::GlobalError(error) => std::fmt::Display::fmt(error, f), 
-            Error::VirtualRouterError(error) => std::fmt::Display::fmt(error, f)
+            Error::GlobalError(error) => std::fmt::Display::fmt(error, f),
+            Error::VirtualRouterError(error) => {
+                std::fmt::Display::fmt(error, f)
+            }
         }
     }
 }
@@ -101,16 +106,19 @@ impl std::fmt::Display for GlobalError {
         match self {
             GlobalError::ChecksumError => {
                 write!(f, "incorrect checksum received")
-            },
+            }
             GlobalError::IpTtlError => {
                 write!(f, "invalid ttl received. IP ttl for vrrp should always be 255")
-            },
+            }
             GlobalError::VersionError => {
-                write!(f, "invalid VRRP version received. only version 2 accepted")
-            },
+                write!(
+                    f,
+                    "invalid VRRP version received. only version 2 accepted"
+                )
+            }
             GlobalError::VridError => {
                 write!(f, "vrid received is not in the configured VRIDs")
-            },
+            }
         }
     }
 }
@@ -120,13 +128,13 @@ impl std::fmt::Display for VirtualRouterError {
         match self {
             VirtualRouterError::AddressListError => {
                 write!(f, "VRRP address received not in configured addresses")
-            },
+            }
             VirtualRouterError::IntervalError => {
                 write!(f, "VRRP interval received not match locally configured interval")
-            },
+            }
             VirtualRouterError::PacketLengthError => {
                 write!(f, "the VRRP packet should be between 16 bytes and 80 bytes. received packet not in range.")
-            },
+            }
         }
     }
 }

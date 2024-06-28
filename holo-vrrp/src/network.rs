@@ -63,15 +63,11 @@ pub async fn send_packet_vrrp(
 
     socket
         .async_io(tokio::io::Interest::WRITABLE, |sock| {
-            sock.send_to(
-                &buf, 
-                &saddr.into()
-            )
-            .map_err(|errno| errno.into())
+            sock.send_to(&buf, &saddr.into())
+                .map_err(|errno| errno.into())
         })
         .await
         .map_err(IoError::SendError)
-    
 }
 
 #[cfg(not(feature = "testing"))]

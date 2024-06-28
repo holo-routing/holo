@@ -63,10 +63,7 @@ fn test_hdr_length_corruption() {
     data[0] = 0x44;
 
     let pkt = Ipv4Packet::decode(data);
-    assert_eq!(
-        pkt,
-        Err(DecodeError::PacketLengthError)
-    );
+    assert_eq!(pkt, Err(DecodeError::PacketLengthError));
 }
 
 #[test]
@@ -75,10 +72,7 @@ fn test_header_too_short() {
         0x43, 0x00, 0x00, 0x34, 0x6c, 0xb8, 0x40, 0x00, 0x33, 0x06, 0xfe, 0x74,
     ];
     let pkt = Ipv4Packet::decode(&data);
-    assert_eq!(
-        pkt,
-        Err(DecodeError::PacketLengthError)
-    );
+    assert_eq!(pkt, Err(DecodeError::PacketLengthError));
 }
 
 #[test]
@@ -86,10 +80,7 @@ fn test_header_too_long() {
     let data = &mut [0x00; 28];
     data[0] = 0x47;
     let pkt = Ipv4Packet::decode(data);
-    assert_eq!(
-        pkt,
-        Err(DecodeError::PacketLengthError)
-    );
+    assert_eq!(pkt, Err(DecodeError::PacketLengthError));
 }
 
 #[test]

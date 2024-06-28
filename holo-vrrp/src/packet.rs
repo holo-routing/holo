@@ -5,10 +5,10 @@
 //
 
 use crate::error::{self, Error, GlobalError, VirtualRouterError};
-use std::net::Ipv4Addr;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use serde::{Deserialize, Serialize};
+use std::net::Ipv4Addr;
 
 // Type aliases.
 pub type DecodeResult<T> = Result<T, DecodeError>;
@@ -105,16 +105,16 @@ impl DecodeError {
         match self {
             DecodeError::ChecksumError => {
                 Error::GlobalError(GlobalError::ChecksumError)
-            },
+            }
             DecodeError::PacketLengthError => {
                 Error::VirtualRouterError(VirtualRouterError::PacketLengthError)
-            },
+            }
             DecodeError::IpTtlError => {
                 Error::GlobalError(GlobalError::IpTtlError)
-            },
+            }
             DecodeError::VersionError => {
                 Error::GlobalError(GlobalError::VersionError)
-            },
+            }
         }
     }
 }
@@ -152,15 +152,14 @@ impl VrrpPacket {
         let pkt_size = data.len();
         let count_ip = data[3];
 
-        if pkt_size < Self::MIN_PKT_LENGTH 
-            || pkt_size >Self::MAX_PKT_LENGTH 
-            || count_ip as usize > Self::MAX_IP_COUNT //  too many Virtual IPs being described
-            || (count_ip * 4) + 16 != pkt_size as u8 // length of packet is not same as length expected (as calculated from count_ip)
-            {
-                return Err(DecodeError::PacketLengthError)
-            }
+        if pkt_size < Self::MIN_PKT_LENGTH
+            || pkt_size > Self::MAX_PKT_LENGTH
+            || count_ip as usize > Self::MAX_IP_COUNT
+            || (count_ip * 4) + 16 != pkt_size as u8
+        {
+            return Err(DecodeError::PacketLengthError);
+        }
 
-        
         let mut buf: Bytes = Bytes::copy_from_slice(data);
         let ver_type = buf.get_u8();
         let version = ver_type >> 4;
@@ -348,6 +347,5 @@ impl std::fmt::Display for DecodeError {
         self.err().fmt(f)
     }
 }
-
 
 impl std::error::Error for DecodeError {}

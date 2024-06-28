@@ -11,9 +11,7 @@ use bitflags::bitflags;
 use chrono::{DateTime, Utc};
 use derive_new::new;
 use holo_utils::ibus::IbusSender;
-use holo_utils::ip::{
-    AddressFamily, IpNetworkExt, Ipv4NetworkExt, Ipv6NetworkExt,
-};
+use holo_utils::ip::{AddressFamily, IpNetworkExt, Ipv4AddrExt, Ipv6AddrExt};
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{
@@ -497,16 +495,12 @@ impl Rib {
     fn prefix_longest_match(&self, addr: &IpAddr) -> Option<&Route> {
         let lpm = match addr {
             IpAddr::V4(addr) => {
-                let prefix =
-                    Ipv4Network::new(*addr, Ipv4Network::MAX_PREFIXLEN)
-                        .unwrap();
+                let prefix = addr.to_host_prefix();
                 let (_, lpm) = self.ipv4.get_lpm(&prefix)?;
                 lpm
             }
             IpAddr::V6(addr) => {
-                let prefix =
-                    Ipv6Network::new(*addr, Ipv6Network::MAX_PREFIXLEN)
-                        .unwrap();
+                let prefix = addr.to_host_prefix();
                 let (_, lpm) = self.ipv6.get_lpm(&prefix)?;
                 lpm
             }

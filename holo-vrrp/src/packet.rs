@@ -91,6 +91,21 @@ pub struct Ipv4Packet {
     pub padding: Option<u8>,
 }
 
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct ArpPacket {
+    pub hw_type: u16,
+    pub proto_type: u16,
+    pub hw_length: u8,
+    pub proto_length: u8,
+    pub operation: u16,
+    pub sender_hw_address: [u8; 6], // src mac 
+    pub sender_proto_address: [u8; 4], // src ip
+    pub target_hw_address: [u8; 6], // src mac 
+    pub target_proto_address: [u8; 4] // src ip
+}
+
 #[derive(Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub enum DecodeError {
@@ -303,6 +318,61 @@ impl Ipv4Packet {
             options,
             padding,
         })
+    }
+}
+
+
+impl ArpPacket {
+    pub fn encode(&self) -> BytesMut {
+        let mut buf = BytesMut::with_capacity(28);
+        buf.put_u16(self.hw_type);
+        buf.put_u16(self.proto_type);
+        buf.put_u8(self.hw_length);
+        buf.put_u8(self.proto_length);
+        buf.put_u16(self.operation);
+
+        for x in self.sender_hw_address { buf.put_u8(x); }
+        for x in self.sender_proto_address { buf.put_u8(x); }
+        for x in self.target_hw_address { buf.put_u8(x) }
+        for x in self.target_proto_address { buf.put_u8(x) }
+        buf
+    }
+
+    pub fn decode(data: &[u8]) ->DecodeResult<Self> {
+        if data.len() != 28 {
+            return Err(DecodeError::PacketLengthError)
+        }
+        let mut buf = Bytes::copy_from_slice(data);
+
+        let hw_type = buf.get_u16();
+        let proto_type = buf.get_u16();
+        let hw_length = buf.get_u8();
+        let proto_length = buf.get_u8();
+        let operation = buf.get_u16();
+        let mut sender_hw_address: [u8; 6] = [0_u8; 6];
+        for x in 0..6 { sender_hw_address[x] = buf.get_u8(); }
+
+        let mut sender_proto_address: [u8; 4] = [0_u8; 4];
+        for x in 0..4 { sender_proto_address[x] = buf.get_u8(); }
+
+        let mut target_hw_address: [u8; 6] = [0_u8; 6];
+        for x in 0..6 { target_hw_address[x] = buf.get_u8(); }
+
+        let mut target_proto_address: [u8; 4] = [0_u8; 4];
+        for x in 0..4 { target_hw_address[x] = buf.get_u8(); }
+
+        Ok(Self {
+            hw_type,
+            proto_type,
+            hw_length,
+            proto_length,
+            operation,
+            sender_hw_address,
+            sender_proto_address,
+            target_hw_address,
+            target_proto_address,
+        })
+
     }
 }
 

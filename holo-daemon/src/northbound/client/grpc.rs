@@ -98,6 +98,7 @@ impl proto::Northbound for NorthboundService {
         let data_type = api::DataType::try_from(grpc_request.r#type)?;
         let encoding = proto::Encoding::try_from(grpc_request.encoding)
             .map_err(|_| Status::invalid_argument("Invalid data encoding"))?;
+        let with_defaults = grpc_request.with_defaults;
         let path = (!grpc_request.path.is_empty()).then_some(grpc_request.path);
         let nb_request = api::client::Request::Get(api::client::GetRequest {
             data_type,
@@ -110,12 +111,13 @@ impl proto::Northbound for NorthboundService {
         let nb_response = responder_rx.await.unwrap()?;
 
         // Convert and relay northbound response to the gRPC client.
+        let mut printer_flags = DataPrinterFlags::WITH_SIBLINGS;
+        if with_defaults {
+            printer_flags.insert(DataPrinterFlags::WD_ALL);
+        }
         let data = nb_response
             .dtree
-            .print_string(
-                DataFormat::from(encoding),
-                DataPrinterFlags::WITH_SIBLINGS,
-            )
+            .print_string(DataFormat::from(encoding), printer_flags)
             .map_err(|error| Status::internal(error.to_string()))?
             .unwrap_or_default();
         let grpc_response = proto::GetResponse {

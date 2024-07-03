@@ -93,8 +93,11 @@ message GetRequest {
   // Encoding to be used.
   Encoding encoding = 2;
 
+  // Include implicit default nodes.
+  bool with_defaults = 3;
+
   // Requested YANG path.
-  string path = 3;
+  string path = 4;
 }
 
 message GetResponse {

@@ -516,12 +516,20 @@ impl Northbound {
     // Gets a full or partial copy of the running configuration.
     fn get_configuration(&self, path: Option<&str>) -> Result<DataTree> {
         match path {
-            Some(path) => self
-                .running_config
-                .find_path(path)
-                .map_err(Error::YangInvalidPath)?
-                .duplicate(true)
-                .map_err(Error::YangInternal),
+            Some(path) => {
+                let yang_ctx = YANG_CTX.get().unwrap();
+                let mut dtree = DataTree::new(yang_ctx);
+                for dnode in self
+                    .running_config
+                    .find_xpath(path)
+                    .map_err(Error::YangInvalidPath)?
+                {
+                    let subtree =
+                        dnode.duplicate(true).map_err(Error::YangInternal)?;
+                    dtree.merge(&subtree).map_err(Error::YangInternal)?;
+                }
+                Ok(dtree)
+            }
             None => {
                 self.running_config.duplicate().map_err(Error::YangInternal)
             }

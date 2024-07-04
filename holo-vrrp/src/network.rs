@@ -9,10 +9,10 @@ use std::net::{IpAddr, SocketAddrV4, Ipv4Addr};
 use std::os::fd::FromRawFd;
 use std::sync::Arc;
 
-use holo_utils::socket::AsyncFd;
+use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::{capabilities, Sender, UnboundedReceiver};
 use libc::{socket, AF_PACKET, ETH_P_ALL, ETH_P_ARP, SOCK_RAW};
-use socket2::{Domain, Protocol, Type, Socket};
+use socket2::{Domain, Protocol, Type};
 use tokio::sync::mpsc::error::SendError;
 
 use crate::error::IoError;

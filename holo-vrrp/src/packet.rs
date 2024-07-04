@@ -121,7 +121,7 @@ impl ARPframe {
             hardware_type:  arp_pkt.hw_type.to_be(),
             protocol_type:  arp_pkt.proto_type.to_be(),
             hw_addr_len:    arp_pkt.hw_length,
-            proto_addr_len: arp_pkt.hw_length,
+            proto_addr_len: arp_pkt.proto_length,
             opcode:         arp_pkt.operation.to_be(),
             
             sender_hw_addr:     arp_pkt.sender_hw_address,

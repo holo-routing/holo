@@ -91,6 +91,54 @@ pub struct Ipv4Packet {
     pub padding: Option<u8>,
 }
 
+#[repr(C)]
+pub struct ARPframe {
+    // Ethernet Header
+    pub dst_mac: [u8; 6], // destination MAC address
+    pub src_mac: [u8; 6], // source MAC address
+    pub ethertype: u16,   // ether type
+
+    // ARP
+    pub hardware_type: u16,         // network link type (0x1=ethernet)
+    pub protocol_type: u16,         // upper-layer protocol for resolution
+    pub hw_addr_len: u8,            // length of hardware address (bytes)
+    pub proto_addr_len: u8,         // upper-layer protocol address length
+    pub opcode: u16,                // operation (0x1=request, 0x2=reply)
+    pub sender_hw_addr: [u8; 6],    // sender hardware address
+    pub sender_proto_addr: [u8; 4], // internetwork address of sender
+    pub target_hw_addr: [u8; 6],    // hardware address of target
+    pub target_proto_addr: [u8; 4], // internetwork address of target
+}
+
+impl ARPframe {
+    pub fn new(eth_pkt: EthernetFrame, arp_pkt: ArpPacket) -> Self {
+        Self {
+            dst_mac:        eth_pkt.dst_mac,
+            src_mac:        eth_pkt.src_mac,
+            ethertype:      eth_pkt.ethertype.to_be(),
+
+
+            hardware_type:  arp_pkt.hw_type.to_be(),
+            protocol_type:  arp_pkt.proto_type.to_be(),
+            hw_addr_len:    arp_pkt.hw_length,
+            proto_addr_len: arp_pkt.hw_length,
+            opcode:         arp_pkt.operation.to_be(),
+            
+            sender_hw_addr:     arp_pkt.sender_hw_address,
+            sender_proto_addr:  arp_pkt.sender_proto_address,
+            target_hw_addr:     arp_pkt.target_hw_address,
+            target_proto_addr:  arp_pkt.target_proto_address,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct EthernetFrame {
+    pub dst_mac: [u8; 6],
+    pub src_mac: [u8; 6],
+    pub ethertype: u16
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
@@ -321,6 +369,30 @@ impl Ipv4Packet {
     }
 }
 
+impl EthernetFrame {
+    pub fn encode(&self) -> BytesMut {
+        let mut buf = BytesMut::with_capacity(14);
+        self.dst_mac.iter().for_each(|i| buf.put_u8(*i));
+        self.src_mac.iter().for_each(|i| buf.put_u8(*i));
+        buf.put_u16(self.ethertype);
+        buf
+    }
+
+    pub fn decode(data: &[u8]) -> DecodeResult<Self> {
+        let mut buf = Bytes::copy_from_slice(data);
+        let mut dst_mac: [u8; 6] = [0u8; 6];
+        let mut src_mac: [u8; 6] = [0u8; 6];
+        
+        for x in 0..6 { dst_mac[x] = buf.get_u8(); }
+        for x in 0..6 { src_mac[x] = buf.get_u8(); }
+
+        Ok(Self {
+            dst_mac,
+            src_mac,
+            ethertype: buf.get_u16(),
+        })
+    }
+}
 
 impl ArpPacket {
     pub fn encode(&self) -> BytesMut {
@@ -372,8 +444,8 @@ impl ArpPacket {
             target_hw_address,
             target_proto_address,
         })
-
     }
+
 }
 
 pub mod checksum {

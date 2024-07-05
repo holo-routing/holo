@@ -70,17 +70,17 @@ default = [
 ]
 
 # Base components
-interface = ["holo-interface"]
-keychain = ["holo-keychain"]
-policy = ["holo-policy", "holo-routing"]
-routing = ["holo-routing", "holo-interface"]
+interface = ["dep:holo-interface"]
+keychain = ["dep:holo-keychain"]
+policy = ["dep:holo-policy", "dep:holo-routing"]
+routing = ["dep:holo-routing", "dep:holo-interface"]
 
 # Protocols
-bfd = ["holo-bfd", "holo-routing/bfd"]
-bgp = ["holo-bgp", "holo-routing/bgp"]
-ldp = ["holo-ldp", "holo-routing/ldp"]
-ospf = ["holo-ospf", "holo-routing/ospf"]
-rip = ["holo-rip", "holo-routing/rip"]
+bfd = ["dep:holo-bfd", "holo-routing/bfd"]
+bgp = ["dep:holo-bgp", "holo-routing/bgp"]
+ldp = ["dep:holo-ldp", "holo-routing/ldp"]
+ospf = ["dep:holo-ospf", "holo-routing/ospf"]
+rip = ["dep:holo-rip", "holo-routing/rip"]
 
 # Other features
-io_uring = ["tokio-uring"]
+io_uring = ["dep:tokio-uring"]

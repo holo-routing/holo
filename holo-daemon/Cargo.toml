@@ -6,7 +6,7 @@ license.workspace = true
 edition.workspace = true
 
 [dependencies]
-console-subscriber = "0.3"
+console-subscriber = { version = "0.3", optional = true }
 prost-types = "0.12"
 toml = "0.5"
 tokio-uring = { version = "0.5", optional = true }
@@ -83,4 +83,5 @@ ospf = ["dep:holo-ospf", "holo-routing/ospf"]
 rip = ["dep:holo-rip", "holo-routing/rip"]
 
 # Other features
+tokio_console = ["dep:console-subscriber"]
 io_uring = ["dep:tokio-uring"]

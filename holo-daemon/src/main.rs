@@ -23,7 +23,7 @@ use tracing_appender::rolling;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::Layer;
 
-fn init_tracing(config: &config::Logging, tokio_console: bool) {
+fn init_tracing(config: &config::Logging) {
     // Enable logging to journald.
     let journald = config.journald.enabled.then(|| {
         tracing_journald::layer().expect("couldn't connect to journald")
@@ -78,29 +78,38 @@ fn init_tracing(config: &config::Logging, tokio_console: bool) {
         layer.with_filter(log_level_filter)
     });
 
-    // Enable tokio-console instrumentation.
-    let console = tokio_console.then(console_subscriber::spawn);
-
     // Configure the tracing fmt layer.
-    let env_filter = tracing_subscriber::EnvFilter::builder()
-        .with_default_directive("holo=debug".parse().unwrap())
-        .from_env_lossy();
-    let env_filter = match tokio_console {
-        true => {
-            // Enable targets needed by the console.
-            env_filter
-                .add_directive("tokio=trace".parse().unwrap())
-                .add_directive("runtime=trace".parse().unwrap())
-        }
-        false => env_filter,
-    };
-    tracing_subscriber::registry()
-        .with(env_filter)
-        .with(journald)
-        .with(file)
-        .with(stdout)
-        .with(console)
-        .init();
+    #[cfg(feature = "tokio_console")]
+    {
+        // Enable tokio-console instrumentation.
+        let console = console_subscriber::spawn();
+        let env_filter = tracing_subscriber::EnvFilter::builder()
+            .with_default_directive("holo=debug".parse().unwrap())
+            .from_env_lossy();
+        // Enable targets needed by the console.
+        let env_filter = env_filter
+            .add_directive("tokio=trace".parse().unwrap())
+            .add_directive("runtime=trace".parse().unwrap());
+        tracing_subscriber::registry()
+            .with(env_filter)
+            .with(journald)
+            .with(file)
+            .with(stdout)
+            .with(console)
+            .init();
+    }
+    #[cfg(not(feature = "tokio_console"))]
+    {
+        let env_filter = tracing_subscriber::EnvFilter::builder()
+            .with_default_directive("holo=debug".parse().unwrap())
+            .from_env_lossy();
+        tracing_subscriber::registry()
+            .with(env_filter)
+            .with(journald)
+            .with(file)
+            .with(stdout)
+            .init();
+    }
 }
 
 fn init_db<P: AsRef<Path>>(
@@ -174,7 +183,7 @@ fn main() {
     }
 
     // Initialize tracing.
-    init_tracing(&config.logging, config.tokio_console.enabled);
+    init_tracing(&config.logging);
 
     // Initialize non-volatile storage.
     let db = init_db(&config.database_path)

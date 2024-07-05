@@ -47,11 +47,6 @@ database_path = "/var/run/holo/holo.db"
     # Sets whether or not an event’s source code file path and line number are displayed
     show_source = false
 
-# Instrumentation using tokio-console (a diagnostics and debugging tool)
-[tokio_console]
-  # Enable or disable
-  enabled = false
-
 # Event recorder (useful for bug reporting)
 [event_recorder]
   # Enable or disable the event recorder

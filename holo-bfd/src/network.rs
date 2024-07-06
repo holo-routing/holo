@@ -214,7 +214,7 @@ pub(crate) async fn read_loop(
                     Ok(msg) => {
                         // Retrieve source and destination addresses.
                         let src = get_packet_src(msg.address.as_ref());
-                        let dst = get_packet_dst(msg.cmsgs());
+                        let dst = get_packet_dst(msg.cmsgs().unwrap());
                         Ok((src, dst, msg.bytes))
                     }
                     Err(errno) => Err(errno.into()),

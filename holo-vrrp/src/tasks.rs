@@ -8,8 +8,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use holo_utils::socket::{AsyncFd, Socket};
-//use std::time::Duration;
-use holo_utils::task::{Task, TimeoutTask};
+use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{Sender, UnboundedReceiver};
 use tracing::{debug_span, Instrument};
 
@@ -173,8 +172,9 @@ fn set_timer(instance: &mut Instance) {
             instance.timer = VrrpTimer::MasterDownTimer(timer);
         }
         crate::instance::State::Master => {
-            let timer = TimeoutTask::new(
+            let timer = IntervalTask::new(
                 Duration::from_secs(instance.config.advertise_interval as u64),
+                true,
                 move || async move {},
             );
             instance.timer = VrrpTimer::AdverTimer(timer);

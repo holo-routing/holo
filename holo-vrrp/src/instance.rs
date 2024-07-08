@@ -7,7 +7,7 @@
 use std::net::Ipv4Addr;
 
 use chrono::{DateTime, Utc};
-use holo_utils::task::TimeoutTask;
+use holo_utils::task::{IntervalTask, TimeoutTask};
 
 use crate::northbound::configuration::InstanceCfg;
 use crate::packet::VrrpPacket;
@@ -27,7 +27,7 @@ pub struct Instance {
 #[derive(Debug)]
 pub enum VrrpTimer {
     Null,
-    AdverTimer(TimeoutTask),
+    AdverTimer(IntervalTask),
     MasterDownTimer(TimeoutTask),
 }
 

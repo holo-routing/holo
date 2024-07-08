@@ -97,7 +97,7 @@ pub fn send_packet_arp(
     use crate::packet::ARPframe;
     let mut arpframe = ARPframe::new(eth_frame, arp_packet);
 
-    let c_ifname = match CString::new(ifname.clone()) {
+    let c_ifname = match CString::new(ifname) {
         Ok(c_ifname) => c_ifname,
         Err(err) => {
             return Err(IoError::SocketError(std::io::Error::new(

@@ -5,7 +5,7 @@
 //
 
 use holo_utils::Responder;
-use yang2::data::{DataDiff, DataTree};
+use yang3::data::{DataDiff, DataTree};
 
 use crate::northbound::core::Transaction;
 use crate::northbound::Result;

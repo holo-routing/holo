@@ -368,6 +368,12 @@ module ietf-rip-holo-deviations {
   }
   */
 
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/rip:rip/rip:interfaces/rip:interface/rip:timers" {
+    deviate delete {
+      must 'invalid-interval >= (update-interval * 3)';
+    }
+  }
+
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/rip:rip/rip:interfaces/rip:interface/rip:timers/rip:update-interval" {
     deviate not-supported;
   }

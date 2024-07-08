@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use holo_utils::Responder;
 use serde::{Deserialize, Serialize};
-use yang2::data::DataTree;
+use yang3::data::DataTree;
 
 use crate::configuration::{CommitPhase, ConfigChanges};
 use crate::error::Error;

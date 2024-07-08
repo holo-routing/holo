@@ -14,8 +14,8 @@ use tokio_stream::wrappers::ReceiverStream;
 use tonic::transport::{Server, ServerTlsConfig};
 use tonic::{Request, Response, Status, Streaming};
 use tracing::{debug, debug_span, error, trace};
-use yang2::data::{Data, DataFormat, DataPrinterFlags, DataTree};
-use yang2::schema::SchemaNodeKind;
+use yang3::data::{Data, DataFormat, DataPrinterFlags, DataTree};
+use yang3::schema::SchemaNodeKind;
 
 use crate::config;
 use crate::northbound::client::api;

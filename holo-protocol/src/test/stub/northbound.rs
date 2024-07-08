@@ -10,7 +10,7 @@ use holo_northbound::configuration::{self, CommitPhase, ConfigChanges};
 use holo_northbound::{api, NbDaemonSender};
 use holo_yang::YANG_CTX;
 use tokio::sync::oneshot;
-use yang2::data::{
+use yang3::data::{
     Data, DataDiff, DataDiffFlags, DataFormat, DataOperation, DataParserFlags,
     DataPrinterFlags, DataTree, DataValidationFlags,
 };

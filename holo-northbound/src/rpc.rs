@@ -11,8 +11,8 @@ use std::pin::Pin;
 use holo_utils::yang::SchemaNodeExt;
 use holo_yang::YangPath;
 use tokio::sync::oneshot;
-use yang2::data::{DataNodeRef, DataTree};
-use yang2::schema::SchemaNodeKind;
+use yang3::data::{DataNodeRef, DataTree};
+use yang3::schema::SchemaNodeKind;
 
 use crate::debug::Debug;
 use crate::error::Error;

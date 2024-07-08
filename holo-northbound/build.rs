@@ -14,7 +14,7 @@ use check_keyword::CheckKeyword;
 use convert_case::{Boundary, Case, Casing};
 use holo_yang as yang;
 use holo_yang::YANG_IMPLEMENTED_MODULES;
-use yang2::schema::{
+use yang3::schema::{
     DataValue, DataValueType, SchemaLeafType, SchemaNode, SchemaNodeKind,
     SchemaPathFormat,
 };
@@ -28,8 +28,8 @@ use chrono::{DateTime, Utc};
 use holo_yang::{YangObject, YangPath, YANG_CTX};
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use itertools::Itertools;
-use yang2::data::DataNodeRef;
-use yang2::schema::SchemaModule;
+use yang3::data::DataNodeRef;
+use yang3::schema::SchemaModule;
 
 fn binary_to_yang(value: &[u8]) -> String {
     use base64::Engine;

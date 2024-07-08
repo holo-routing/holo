@@ -11,8 +11,8 @@ use derive_new::new;
 use holo_utils::yang::SchemaNodeExt;
 use holo_yang::{YangObject, YangPath, YANG_CTX};
 use tokio::sync::oneshot;
-use yang2::data::{DataNodeRef, DataTree};
-use yang2::schema::{SchemaModule, SchemaNode, SchemaNodeKind};
+use yang3::data::{DataNodeRef, DataTree};
+use yang3::schema::{SchemaModule, SchemaNode, SchemaNodeKind};
 
 use crate::error::Error;
 use crate::{api, CallbackKey, CallbackOp, NbDaemonSender, ProviderBase};

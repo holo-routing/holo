@@ -160,28 +160,24 @@ pub(crate) fn net_tx(
     }
 }
 
-fn set_timer(
-    instance: &mut Instance
-) {
-
+fn set_timer(instance: &mut Instance) {
     match instance.state.state {
-        
         crate::instance::State::Initialize => {
             instance.timer = VrrpTimer::Null;
-        },
+        }
         crate::instance::State::Backup => {
             let timer = TimeoutTask::new(
                 Duration::from_secs(instance.state.master_down_interval as u64),
-                move || async move { }
+                move || async move {},
             );
             instance.timer = VrrpTimer::MasterDownTimer(timer);
-        },
+        }
         crate::instance::State::Master => {
             let timer = TimeoutTask::new(
                 Duration::from_secs(instance.config.advertise_interval as u64),
-                move || async move { }
+                move || async move {},
             );
             instance.timer = VrrpTimer::AdverTimer(timer);
-        },
+        }
     }
 }

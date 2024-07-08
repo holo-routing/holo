@@ -4,10 +4,8 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::{
-    fmt::{Debug, Display},
-    net::IpAddr,
-};
+use std::fmt::{Debug, Display};
+use std::net::IpAddr;
 
 use tracing::{warn, warn_span};
 

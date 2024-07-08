@@ -9,28 +9,26 @@ use std::net::Ipv4Addr;
 use chrono::{DateTime, Utc};
 use holo_utils::task::TimeoutTask;
 
-use crate::{northbound::configuration::InstanceCfg, packet::VrrpPacket};
+use crate::northbound::configuration::InstanceCfg;
+use crate::packet::VrrpPacket;
 
 #[derive(Debug)]
 pub struct Instance {
-    
     // Instance configuration data.
     pub config: InstanceCfg,
-    
+
     // Instance state data.
     pub state: InstanceState,
 
-    // timers 
+    // timers
     pub timer: VrrpTimer,
-
 }
-
 
 #[derive(Debug)]
 pub enum VrrpTimer {
     Null,
     AdverTimer(TimeoutTask),
-    MasterDownTimer(TimeoutTask)
+    MasterDownTimer(TimeoutTask),
 }
 
 #[derive(Debug)]
@@ -104,7 +102,7 @@ impl Instance {
         Instance {
             config: Default::default(),
             state: InstanceState::new(),
-            timer: VrrpTimer::Null
+            timer: VrrpTimer::Null,
         }
     }
 }

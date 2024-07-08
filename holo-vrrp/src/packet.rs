@@ -4,11 +4,13 @@
 // SPDX-License-Identifier: MIT
 //
 
-use crate::error::{self, Error, GlobalError, VirtualRouterError};
+use std::net::Ipv4Addr;
+
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use serde::{Deserialize, Serialize};
-use std::net::Ipv4Addr;
+
+use crate::error::{self, Error, GlobalError, VirtualRouterError};
 
 // Type aliases.
 pub type DecodeResult<T> = Result<T, DecodeError>;
@@ -99,35 +101,34 @@ pub struct ARPframe {
     pub ethertype: u16,   // ether type
 
     // ARP
-    pub hardware_type: u16,         // network link type (0x1=ethernet)
-    pub protocol_type: u16,         // upper-layer protocol for resolution
-    pub hw_addr_len: u8,            // length of hardware address (bytes)
-    pub proto_addr_len: u8,         // upper-layer protocol address length
-    pub opcode: u16,                // operation (0x1=request, 0x2=reply)
-    pub sender_hw_addr: [u8; 6],    // sender hardware address
+    pub hardware_type: u16, // network link type (0x1=ethernet)
+    pub protocol_type: u16, // upper-layer protocol for resolution
+    pub hw_addr_len: u8,    // length of hardware address (bytes)
+    pub proto_addr_len: u8, // upper-layer protocol address length
+    pub opcode: u16,        // operation (0x1=request, 0x2=reply)
+    pub sender_hw_addr: [u8; 6], // sender hardware address
     pub sender_proto_addr: [u8; 4], // internetwork address of sender
-    pub target_hw_addr: [u8; 6],    // hardware address of target
+    pub target_hw_addr: [u8; 6], // hardware address of target
     pub target_proto_addr: [u8; 4], // internetwork address of target
 }
 
 impl ARPframe {
     pub fn new(eth_pkt: EthernetFrame, arp_pkt: ArpPacket) -> Self {
         Self {
-            dst_mac:        eth_pkt.dst_mac,
-            src_mac:        eth_pkt.src_mac,
-            ethertype:      eth_pkt.ethertype.to_be(),
+            dst_mac: eth_pkt.dst_mac,
+            src_mac: eth_pkt.src_mac,
+            ethertype: eth_pkt.ethertype.to_be(),
 
-
-            hardware_type:  arp_pkt.hw_type.to_be(),
-            protocol_type:  arp_pkt.proto_type.to_be(),
-            hw_addr_len:    arp_pkt.hw_length,
+            hardware_type: arp_pkt.hw_type.to_be(),
+            protocol_type: arp_pkt.proto_type.to_be(),
+            hw_addr_len: arp_pkt.hw_length,
             proto_addr_len: arp_pkt.proto_length,
-            opcode:         arp_pkt.operation.to_be(),
-            
-            sender_hw_addr:     arp_pkt.sender_hw_address,
-            sender_proto_addr:  arp_pkt.sender_proto_address,
-            target_hw_addr:     arp_pkt.target_hw_address,
-            target_proto_addr:  arp_pkt.target_proto_address,
+            opcode: arp_pkt.operation.to_be(),
+
+            sender_hw_addr: arp_pkt.sender_hw_address,
+            sender_proto_addr: arp_pkt.sender_proto_address,
+            target_hw_addr: arp_pkt.target_hw_address,
+            target_proto_addr: arp_pkt.target_proto_address,
         }
     }
 }
@@ -137,7 +138,7 @@ impl ARPframe {
 pub struct EthernetFrame {
     pub dst_mac: [u8; 6],
     pub src_mac: [u8; 6],
-    pub ethertype: u16
+    pub ethertype: u16,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -148,10 +149,10 @@ pub struct ArpPacket {
     pub hw_length: u8,
     pub proto_length: u8,
     pub operation: u16,
-    pub sender_hw_address: [u8; 6], // src mac 
+    pub sender_hw_address: [u8; 6],    // src mac
     pub sender_proto_address: [u8; 4], // src ip
-    pub target_hw_address: [u8; 6], // src mac 
-    pub target_proto_address: [u8; 4] // src ip
+    pub target_hw_address: [u8; 6],    // src mac
+    pub target_proto_address: [u8; 4], // src ip
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -264,10 +265,7 @@ impl VrrpPacket {
     }
 
     pub(crate) fn generate_checksum(&mut self) {
-        self.checksum = checksum::calculate(
-            self.encode().chunk(), 
-            3
-        );
+        self.checksum = checksum::calculate(self.encode().chunk(), 3);
     }
 }
 
@@ -389,9 +387,13 @@ impl EthernetFrame {
         let mut buf = Bytes::copy_from_slice(data);
         let mut dst_mac: [u8; 6] = [0u8; 6];
         let mut src_mac: [u8; 6] = [0u8; 6];
-        
-        for x in 0..6 { dst_mac[x] = buf.get_u8(); }
-        for x in 0..6 { src_mac[x] = buf.get_u8(); }
+
+        for x in 0..6 {
+            dst_mac[x] = buf.get_u8();
+        }
+        for x in 0..6 {
+            src_mac[x] = buf.get_u8();
+        }
 
         Ok(Self {
             dst_mac,
@@ -410,16 +412,24 @@ impl ArpPacket {
         buf.put_u8(self.proto_length);
         buf.put_u16(self.operation);
 
-        for x in self.sender_hw_address { buf.put_u8(x); }
-        for x in self.sender_proto_address { buf.put_u8(x); }
-        for x in self.target_hw_address { buf.put_u8(x) }
-        for x in self.target_proto_address { buf.put_u8(x) }
+        for x in self.sender_hw_address {
+            buf.put_u8(x);
+        }
+        for x in self.sender_proto_address {
+            buf.put_u8(x);
+        }
+        for x in self.target_hw_address {
+            buf.put_u8(x)
+        }
+        for x in self.target_proto_address {
+            buf.put_u8(x)
+        }
         buf
     }
 
-    pub fn decode(data: &[u8]) ->DecodeResult<Self> {
+    pub fn decode(data: &[u8]) -> DecodeResult<Self> {
         if data.len() != 28 {
-            return Err(DecodeError::PacketLengthError)
+            return Err(DecodeError::PacketLengthError);
         }
         let mut buf = Bytes::copy_from_slice(data);
 
@@ -429,16 +439,24 @@ impl ArpPacket {
         let proto_length = buf.get_u8();
         let operation = buf.get_u16();
         let mut sender_hw_address: [u8; 6] = [0_u8; 6];
-        for x in 0..6 { sender_hw_address[x] = buf.get_u8(); }
+        for x in 0..6 {
+            sender_hw_address[x] = buf.get_u8();
+        }
 
         let mut sender_proto_address: [u8; 4] = [0_u8; 4];
-        for x in 0..4 { sender_proto_address[x] = buf.get_u8(); }
+        for x in 0..4 {
+            sender_proto_address[x] = buf.get_u8();
+        }
 
         let mut target_hw_address: [u8; 6] = [0_u8; 6];
-        for x in 0..6 { target_hw_address[x] = buf.get_u8(); }
+        for x in 0..6 {
+            target_hw_address[x] = buf.get_u8();
+        }
 
         let mut target_proto_address: [u8; 4] = [0_u8; 4];
-        for x in 0..4 { target_hw_address[x] = buf.get_u8(); }
+        for x in 0..4 {
+            target_hw_address[x] = buf.get_u8();
+        }
 
         Ok(Self {
             hw_type,
@@ -452,7 +470,6 @@ impl ArpPacket {
             target_proto_address,
         })
     }
-
 }
 
 pub mod checksum {

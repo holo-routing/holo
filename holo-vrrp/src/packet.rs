@@ -262,6 +262,13 @@ impl VrrpPacket {
             auth_data2: auth_data2,
         })
     }
+
+    pub(crate) fn generate_checksum(&mut self) {
+        self.checksum = checksum::calculate(
+            self.encode().chunk(), 
+            3
+        );
+    }
 }
 
 impl Ipv4Packet {

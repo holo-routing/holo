@@ -41,6 +41,7 @@ holo-policy = { path = "../holo-policy", optional = true }
 holo-protocol = { path = "../holo-protocol" }
 holo-rip = { path = "../holo-rip", optional = true }
 holo-routing = { path = "../holo-routing", optional = true  }
+holo-system = { path = "../holo-system", optional = true }
 holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
 
@@ -61,6 +62,7 @@ default = [
   "keychain",
   "policy",
   "routing",
+  "system",
   # Protocols
   "bfd",
   "bgp",
@@ -74,6 +76,7 @@ interface = ["dep:holo-interface"]
 keychain = ["dep:holo-keychain"]
 policy = ["dep:holo-policy", "dep:holo-routing"]
 routing = ["dep:holo-routing", "dep:holo-interface"]
+system = ["dep:holo-system"]
 
 # Protocols
 bfd = ["dep:holo-bfd", "holo-routing/bfd"]

@@ -638,7 +638,8 @@ fn start_providers(
     let ibus_rx_routing = ibus_tx.subscribe();
     let ibus_rx_interface = ibus_tx.subscribe();
     let ibus_rx_keychain = ibus_tx.subscribe();
-    let ibus_rx_policy = ibus_rx;
+    let ibus_rx_policy = ibus_tx.subscribe();
+    let ibus_rx_system = ibus_rx;
 
     // Start holo-interface.
     #[cfg(feature = "interface")]
@@ -669,6 +670,17 @@ fn start_providers(
             provider_tx.clone(),
             ibus_tx.clone(),
             ibus_rx_policy,
+        );
+        providers.push(daemon_tx);
+    }
+
+    // Start holo-system.
+    #[cfg(feature = "system")]
+    {
+        let daemon_tx = holo_system::start(
+            provider_tx.clone(),
+            ibus_tx.clone(),
+            ibus_rx_system,
         );
         providers.push(daemon_tx);
     }

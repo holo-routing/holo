@@ -39,6 +39,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/iana-bgp-rib-types@2023-07-05.yang"),
         EmbeddedModuleKey::new("iana-bgp-types", Some("2023-07-05"), None, None) =>
             include_str!("../modules/ietf/iana-bgp-types@2023-07-05.yang"),
+        EmbeddedModuleKey::new("iana-crypt-hash", Some("2014-08-06"), None, None) =>
+            include_str!("../modules/ietf/iana-crypt-hash@2014-08-06.yang"),
         EmbeddedModuleKey::new("iana-if-type", Some("2017-01-19"), None, None) =>
             include_str!("../modules/ietf/iana-if-type@2017-01-19.yang"),
         EmbeddedModuleKey::new("iana-routing-types", Some("2018-10-29"), None, None) =>
@@ -103,6 +105,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-ospfv3-extended-lsa@2024-06-07.yang"),
         EmbeddedModuleKey::new("ietf-rip", Some("2020-02-20"), None, None) =>
             include_str!("../modules/ietf/ietf-rip@2020-02-20.yang"),
+        EmbeddedModuleKey::new("ietf-system", Some("2014-08-06"), None, None) =>
+            include_str!("../modules/ietf/ietf-system@2014-08-06.yang"),
         EmbeddedModuleKey::new("ietf-routing", Some("2018-03-13"), None, None) =>
             include_str!("../modules/ietf/ietf-routing@2018-03-13.yang"),
         EmbeddedModuleKey::new("ietf-routing-policy", Some("2021-10-11"), None, None) =>
@@ -151,6 +155,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/deviations/ietf-ospfv3-extended-lsa-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-rip-holo-deviations", None, None, None) =>
             include_str!("../modules/deviations/ietf-rip-holo-deviations.yang"),
+        EmbeddedModuleKey::new("ietf-system-holo-deviations", None, None, None) =>
+            include_str!("../modules/deviations/ietf-system-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-routing-holo-deviations", None, None, None) =>
             include_str!("../modules/deviations/ietf-routing-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-ipv6-unicast-routing-holo-deviations", None, None, None) =>
@@ -201,6 +207,7 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
             "ietf-ospf-sr-mpls",
             "ietf-ospfv3-extended-lsa",
             "ietf-rip",
+            "ietf-system",
             "ietf-tcp",
             // IETF Holo augmentations
             "holo-bgp",

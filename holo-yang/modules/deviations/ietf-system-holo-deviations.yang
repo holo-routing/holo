@@ -1,0 +1,234 @@
+module ietf-system-holo-deviations {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/ietf-system-holo-deviations";
+  prefix ietf-system-holo-deviations;
+
+  import ietf-system {
+    prefix sys;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines deviation statements for the ietf-system
+     module.";
+
+  /*
+  deviation "/sys:system" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system/sys:contact" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system/sys:hostname" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system/sys:location" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/sys:system/sys:clock" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/sys:system/sys:clock/sys:timezone" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system/sys:clock/sys:timezone/sys:timezone-utc-offset" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system/sys:clock/sys:timezone/sys:timezone-utc-offset/sys:timezone-utc-offset" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/sys:system/sys:dns-resolver" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/sys:system/sys:dns-resolver/sys:search" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system/sys:dns-resolver/sys:server" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system/sys:dns-resolver/sys:server/sys:name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system/sys:dns-resolver/sys:server/sys:transport" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system/sys:dns-resolver/sys:server/sys:transport/sys:udp-and-tcp" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system/sys:dns-resolver/sys:server/sys:transport/sys:udp-and-tcp/sys:udp-and-tcp" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system/sys:dns-resolver/sys:server/sys:transport/sys:udp-and-tcp/sys:udp-and-tcp/sys:address" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system/sys:dns-resolver/sys:options" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system/sys:dns-resolver/sys:options/sys:timeout" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system/sys:dns-resolver/sys:options/sys:attempts" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system-state" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system-state/sys:platform" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system-state/sys:platform/sys:os-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system-state/sys:platform/sys:os-release" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system-state/sys:platform/sys:os-version" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system-state/sys:platform/sys:machine" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system-state/sys:clock" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system-state/sys:clock/sys:current-datetime" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system-state/sys:clock/sys:boot-datetime" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/sys:set-current-datetime" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/sys:set-current-datetime/sys:input" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:set-current-datetime/sys:input/sys:current-datetime" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:set-current-datetime/sys:output" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/sys:system-restart" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/sys:system-restart/sys:input" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system-restart/sys:output" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/sys:system-shutdown" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/sys:system-shutdown/sys:input" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/sys:system-shutdown/sys:output" {
+    deviate not-supported;
+  }
+  */
+}

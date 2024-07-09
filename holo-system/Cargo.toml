@@ -1,0 +1,24 @@
+[package]
+name = "holo-system"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+sysinfo = "0.30"
+
+async-trait.workspace = true
+capctl.workspace = true
+chrono.workspace = true
+derive-new.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+yang3.workspace = true
+
+holo-northbound = { path = "../holo-northbound" }
+holo-utils = { path = "../holo-utils" }
+holo-yang = { path = "../holo-yang" }
+
+[lints]
+workspace = true

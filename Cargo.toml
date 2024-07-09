@@ -12,6 +12,7 @@ members = [
   "holo-protocol",
   "holo-rip",
   "holo-routing",
+  "holo-system",
   "holo-tools",
   "holo-utils",
   "holo-yang",

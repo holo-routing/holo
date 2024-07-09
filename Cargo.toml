@@ -82,6 +82,7 @@ unsafe_code = "forbid"
 [workspace.lints.clippy]
 borrowed_box = "allow"
 manual_range_contains = "allow"
+single_match = "allow"
 too_many_arguments = "allow"
 
 [profile.release]

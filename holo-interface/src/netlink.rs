@@ -4,8 +4,6 @@
 // SPDX-License-Identifier: MIT
 //
 
-#![allow(clippy::single_match)]
-
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use capctl::caps::CapState;

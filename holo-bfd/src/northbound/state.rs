@@ -111,9 +111,9 @@ fn load_callbacks() -> Callbacks<Master> {
             use bfd::ip_mh::session_groups::session_group::sessions::session_statistics::SessionStatistics;
             let sess = args.list_entry.as_session().unwrap();
             Box::new(SessionStatistics {
-                create_time: Some(&sess.statistics.create_time).ignore_in_testing(),
-                last_down_time: sess.statistics.last_down_time.as_ref().ignore_in_testing(),
-                last_up_time: sess.statistics.last_up_time.as_ref().ignore_in_testing(),
+                create_time: Some(Cow::Borrowed(&sess.statistics.create_time)).ignore_in_testing(),
+                last_down_time: sess.statistics.last_down_time.as_ref().map(Cow::Borrowed).ignore_in_testing(),
+                last_up_time: sess.statistics.last_up_time.as_ref().map(Cow::Borrowed).ignore_in_testing(),
                 down_count: Some(sess.statistics.down_count).ignore_in_testing(),
                 admin_down_count: Some(sess.statistics.admin_down_count).ignore_in_testing(),
                 receive_packet_count: Some(sess.statistics.rx_packet_count).ignore_in_testing(),
@@ -176,9 +176,9 @@ fn load_callbacks() -> Callbacks<Master> {
             use bfd::ip_sh::sessions::session::session_statistics::SessionStatistics;
             let sess = args.list_entry.as_session().unwrap();
             Box::new(SessionStatistics {
-                create_time: Some(&sess.statistics.create_time).ignore_in_testing(),
-                last_down_time: sess.statistics.last_down_time.as_ref().ignore_in_testing(),
-                last_up_time: sess.statistics.last_up_time.as_ref().ignore_in_testing(),
+                create_time: Some(Cow::Borrowed(&sess.statistics.create_time)).ignore_in_testing(),
+                last_down_time: sess.statistics.last_down_time.as_ref().map(Cow::Borrowed).ignore_in_testing(),
+                last_up_time: sess.statistics.last_up_time.as_ref().map(Cow::Borrowed).ignore_in_testing(),
                 down_count: Some(sess.statistics.down_count).ignore_in_testing(),
                 admin_down_count: Some(sess.statistics.admin_down_count).ignore_in_testing(),
                 receive_packet_count: Some(sess.statistics.rx_packet_count).ignore_in_testing(),

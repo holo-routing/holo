@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::borrow::Cow;
 use std::sync::LazyLock as Lazy;
 
 use enum_as_inner::EnumAsInner;
@@ -40,7 +41,10 @@ fn load_callbacks() -> Callbacks<Master> {
             let keychain = args.list_entry.as_keychain().unwrap();
             Box::new(KeyChain {
                 name: keychain.name.as_str().into(),
-                last_modified_timestamp: keychain.last_modified.as_ref(),
+                last_modified_timestamp: keychain
+                    .last_modified
+                    .as_ref()
+                    .map(Cow::Borrowed),
             })
         })
         .path(key_chains::key_chain::key::PATH)

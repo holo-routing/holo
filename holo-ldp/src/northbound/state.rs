@@ -211,7 +211,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             use mpls_ldp::discovery::interfaces::interface::address_families::ipv4::hello_adjacencies::hello_adjacency::statistics::Statistics;
             let adj = args.list_entry.as_interface_adj().unwrap();
             Box::new(Statistics {
-                discontinuity_time: Some(&adj.discontinuity_time).ignore_in_testing(),
+                discontinuity_time: Some(Cow::Borrowed(&adj.discontinuity_time)).ignore_in_testing(),
                 hello_received: Some(adj.hello_rcvd).ignore_in_testing(),
                 hello_dropped: Some(adj.hello_dropped).ignore_in_testing(),
             })
@@ -256,7 +256,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             use mpls_ldp::discovery::targeted::address_families::ipv4::hello_adjacencies::hello_adjacency::statistics::Statistics;
             let adj = args.list_entry.as_targeted_nbr_adj().unwrap();
             Box::new(Statistics {
-                discontinuity_time: Some(&adj.discontinuity_time).ignore_in_testing(),
+                discontinuity_time: Some(Cow::Borrowed(&adj.discontinuity_time)).ignore_in_testing(),
                 hello_received: Some(adj.hello_rcvd).ignore_in_testing(),
                 hello_dropped: Some(adj.hello_dropped).ignore_in_testing(),
             })
@@ -318,7 +318,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             use mpls_ldp::peers::peer::address_families::ipv4::hello_adjacencies::hello_adjacency::statistics::Statistics;
             let adj = args.list_entry.as_neighbor_adj().unwrap();
             Box::new(Statistics {
-                discontinuity_time: Some(&adj.discontinuity_time).ignore_in_testing(),
+                discontinuity_time: Some(Cow::Borrowed(&adj.discontinuity_time)).ignore_in_testing(),
                 hello_received: Some(adj.hello_rcvd).ignore_in_testing(),
                 hello_dropped: Some(adj.hello_dropped).ignore_in_testing(),
             })
@@ -388,7 +388,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             let total_labels = nbr.rcvd_mappings.len();
             let total_fec_label_bindings = nbr.rcvd_mappings.keys().map(|prefix| instance.state.as_ref().unwrap().fecs.get(prefix).unwrap()).filter(|fec| fec.is_nbr_nexthop(nbr)).count();
             Box::new(Statistics {
-                discontinuity_time: nbr.statistics.discontinuity_time.as_ref().ignore_in_testing(),
+                discontinuity_time: nbr.statistics.discontinuity_time.as_ref().map(Cow::Borrowed).ignore_in_testing(),
                 total_addresses: Some(total_addresses.saturating_into()),
                 total_labels: Some(total_labels.saturating_into()),
                 total_fec_label_bindings: Some(total_fec_label_bindings.saturating_into()),

@@ -399,7 +399,7 @@ fn leaf_typedef_map(leaf_type: &SchemaLeafType<'_>) -> Option<&'static str> {
         Some("ip-prefix") => Some("Cow<'a, IpNetwork>"),
         Some("ipv4-prefix") => Some("Cow<'a, Ipv4Network>"),
         Some("ipv6-prefix") => Some("Cow<'a, Ipv6Network>"),
-        Some("date-and-time") => Some("&'a DateTime<Utc>"),
+        Some("date-and-time") => Some("Cow<'a, DateTime<Utc>>"),
         Some("timer-value-seconds16") => Some("Cow<'a, Duration>"),
         Some("timer-value-seconds32") => Some("Cow<'a, Duration>"),
         Some("timer-value-milliseconds") => Some("Cow<'a, Duration>"),

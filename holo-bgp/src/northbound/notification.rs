@@ -42,7 +42,7 @@ pub(crate) fn backward_transition(
         notification_received: nbr.notification_rcvd.as_ref().map(
             |(time, notif)| {
                 Box::new(NotificationReceived {
-                    last_notification: Some(time),
+                    last_notification: Some(Cow::Borrowed(time)),
                     last_error: Some(notif.to_yang()),
                     last_error_code: Some(notif.error_code),
                     last_error_subcode: Some(notif.error_subcode),
@@ -52,7 +52,7 @@ pub(crate) fn backward_transition(
         notification_sent: nbr.notification_sent.as_ref().map(
             |(time, notif)| {
                 Box::new(NotificationSent {
-                    last_notification: Some(time),
+                    last_notification: Some(Cow::Borrowed(time)),
                     last_error: Some(notif.to_yang()),
                     last_error_code: Some(notif.error_code),
                     last_error_subcode: Some(notif.error_subcode),

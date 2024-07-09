@@ -154,7 +154,7 @@ fn load_callbacks() -> Callbacks<Master> {
                 route_preference,
                 source_protocol,
                 active: route.flags.contains(RouteFlags::ACTIVE).then_some(()),
-                last_updated: Some(&route.last_updated),
+                last_updated: Some(Cow::Borrowed(&route.last_updated)),
                 ipv4_destination_prefix: dest.as_ipv4().copied().map(Cow::Borrowed),
                 ipv6_destination_prefix: dest.as_ipv6().copied().map(Cow::Borrowed),
                 mpls_enabled: None,

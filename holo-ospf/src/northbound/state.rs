@@ -165,7 +165,7 @@ where
             let mut as_scope_lsa_count = None;
             let mut as_scope_lsa_chksum_sum = None;
             if let Some(state) = &instance.state {
-                discontinuity_time = Some(&state.discontinuity_time).ignore_in_testing();
+                discontinuity_time = Some(Cow::Borrowed(&state.discontinuity_time)).ignore_in_testing();
                 originate_new_lsa_count = Some(state.orig_lsa_count).ignore_in_testing();
                 rx_new_lsas_count = Some(state.rx_lsa_count).ignore_in_testing();
                 as_scope_lsa_count = Some(state.lsdb.lsa_count());
@@ -303,7 +303,7 @@ where
             use ospf::areas::area::statistics::Statistics;
             let area = args.list_entry.as_area().unwrap();
             Box::new(Statistics {
-                discontinuity_time: Some(&area.state.discontinuity_time).ignore_in_testing(),
+                discontinuity_time: Some(Cow::Borrowed(&area.state.discontinuity_time)).ignore_in_testing(),
                 spf_runs_count: Some(area.state.spf_run_count).ignore_in_testing(),
                 abr_count: Some(area.abr_count() as _),
                 asbr_count: Some(area.asbr_count() as _),
@@ -407,7 +407,7 @@ where
             use ospf::areas::area::interfaces::interface::statistics::Statistics;
             let iface = args.list_entry.as_interface().unwrap();
             Box::new(Statistics {
-                discontinuity_time: Some(&iface.state.discontinuity_time).ignore_in_testing(),
+                discontinuity_time: Some(Cow::Borrowed(&iface.state.discontinuity_time)).ignore_in_testing(),
                 if_event_count: Some(iface.state.event_count).ignore_in_testing(),
                 link_scope_lsa_count: Some(iface.state.lsdb.lsa_count()),
                 link_scope_lsa_cksum_sum: Some(iface.state.lsdb.cksum_sum()).ignore_in_testing(),
@@ -485,7 +485,7 @@ where
             use ospf::areas::area::interfaces::interface::neighbors::neighbor::statistics::Statistics;
             let (_, nbr) = args.list_entry.as_neighbor().unwrap();
             Box::new(Statistics {
-                discontinuity_time: Some(&nbr.discontinuity_time).ignore_in_testing(),
+                discontinuity_time: Some(Cow::Borrowed(&nbr.discontinuity_time)).ignore_in_testing(),
                 nbr_event_count: Some(nbr.event_count).ignore_in_testing(),
                 nbr_retrans_qlen: Some(nbr.lists.ls_rxmt.len() as u32),
             })

@@ -1,7 +1,7 @@
-module ietf-key-chain-holo-deviations {
+module holo-ietf-key-chain-deviations {
   yang-version 1.1;
-  namespace "http://holo-routing.org/yang/ietf-key-chain-holo-deviations";
-  prefix ietf-key-chain-holo-deviations;
+  namespace "http://holo-routing.org/yang/holo-ietf-key-chain-deviations";
+  prefix holo-ietf-key-chain-deviations;
 
   import ietf-key-chain {
     prefix key-chain;

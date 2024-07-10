@@ -1,7 +1,7 @@
-module ietf-ospfv3-extended-lsa-holo-deviations {
+module holo-ietf-ospfv3-extended-lsa-deviations {
   yang-version 1.1;
-  namespace "http://holo-routing.org/yang/ietf-ospfv3-extended-lsa-holo-deviations";
-  prefix ietf-ospfv3-extended-lsa-holo-deviations;
+  namespace "http://holo-routing.org/yang/holo-ietf-ospfv3-extended-lsa-deviations";
+  prefix holo-ietf-ospfv3-extended-lsa-deviations;
 
   import ietf-routing {
     prefix rt;

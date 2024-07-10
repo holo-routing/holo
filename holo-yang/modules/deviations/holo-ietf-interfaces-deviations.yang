@@ -1,7 +1,7 @@
-module ietf-interfaces-holo-deviations {
+module holo-ietf-interfaces-deviations {
   yang-version 1.1;
-  namespace "http://holo-routing.org/yang/ietf-interfaces-holo-deviations";
-  prefix ietf-interfaces-holo-deviations;
+  namespace "http://holo-routing.org/yang/holo-ietf-interfaces-deviations";
+  prefix holo-ietf-interfaces-deviations;
 
   import ietf-interfaces {
     prefix if;

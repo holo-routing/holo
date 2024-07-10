@@ -1,7 +1,7 @@
-module ietf-ip-holo-deviations {
+module holo-ietf-ip-deviations {
   yang-version 1.1;
-  namespace "http://holo-routing.org/yang/ietf-ip-holo-deviations";
-  prefix ietf-ip-holo-deviations;
+  namespace "http://holo-routing.org/yang/holo-ietf-ip-deviations";
+  prefix holo-ietf-ip-deviations;
 
   import ietf-interfaces {
     prefix if;

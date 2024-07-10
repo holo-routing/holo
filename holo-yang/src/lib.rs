@@ -131,40 +131,40 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
         EmbeddedModuleKey::new("holo-ospf-dev", None, None, None) =>
             include_str!("../modules/augmentations/holo-ospf-dev.yang"),
         // IETF Holo deviations
-        EmbeddedModuleKey::new("ietf-bgp-holo-deviations", None, None, None) =>
-            include_str!("../modules/deviations/ietf-bgp-holo-deviations.yang"),
-        EmbeddedModuleKey::new("ietf-mpls-ldp-holo-deviations", None, None, None) =>
-            include_str!("../modules/deviations/ietf-mpls-ldp-holo-deviations.yang"),
-        EmbeddedModuleKey::new("ietf-if-extensions-holo-deviations", None, None, None) =>
-            include_str!("../modules/deviations/ietf-if-extensions-holo-deviations.yang"),
-        EmbeddedModuleKey::new("ietf-if-vlan-encapsulation-holo-deviations", None, None, None) =>
-            include_str!("../modules/deviations/ietf-if-vlan-encapsulation-holo-deviations.yang"),
-        EmbeddedModuleKey::new("ietf-interfaces-holo-deviations", None, None, None) =>
-            include_str!("../modules/deviations/ietf-interfaces-holo-deviations.yang"),
-        EmbeddedModuleKey::new("ietf-ip-holo-deviations", None, None, None) =>
-            include_str!("../modules/deviations/ietf-ip-holo-deviations.yang"),
-        EmbeddedModuleKey::new("ietf-mpls-holo-deviations", None, None, None) =>
-            include_str!("../modules/deviations/ietf-mpls-holo-deviations.yang"),
-        EmbeddedModuleKey::new("ietf-key-chain-holo-deviations", None, None, None) =>
-            include_str!("../modules/deviations/ietf-key-chain-holo-deviations.yang"),
-        EmbeddedModuleKey::new("ietf-ospf-holo-deviations", None, None, None) =>
-            include_str!("../modules/deviations/ietf-ospf-holo-deviations.yang"),
-        EmbeddedModuleKey::new("ietf-ospf-sr-mpls-holo-deviations", None, None, None) =>
-            include_str!("../modules/deviations/ietf-ospf-sr-mpls-holo-deviations.yang"),
-        EmbeddedModuleKey::new("ietf-ospfv3-extended-lsa-holo-deviations", None, None, None) =>
-            include_str!("../modules/deviations/ietf-ospfv3-extended-lsa-holo-deviations.yang"),
-        EmbeddedModuleKey::new("ietf-rip-holo-deviations", None, None, None) =>
-            include_str!("../modules/deviations/ietf-rip-holo-deviations.yang"),
-        EmbeddedModuleKey::new("ietf-system-holo-deviations", None, None, None) =>
-            include_str!("../modules/deviations/ietf-system-holo-deviations.yang"),
-        EmbeddedModuleKey::new("ietf-routing-holo-deviations", None, None, None) =>
-            include_str!("../modules/deviations/ietf-routing-holo-deviations.yang"),
-        EmbeddedModuleKey::new("ietf-ipv6-unicast-routing-holo-deviations", None, None, None) =>
-            include_str!("../modules/deviations/ietf-ipv6-unicast-routing-holo-deviations.yang"),
-        EmbeddedModuleKey::new("ietf-routing-policy-holo-deviations", None, None, None) =>
-            include_str!("../modules/deviations/ietf-routing-policy-holo-deviations.yang"),
-        EmbeddedModuleKey::new("ietf-segment-routing-mpls-holo-deviations", None, None, None) =>
-            include_str!("../modules/deviations/ietf-segment-routing-mpls-holo-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-bgp-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-bgp-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-mpls-ldp-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-mpls-ldp-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-if-extensions-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-if-extensions-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-if-vlan-encapsulation-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-if-vlan-encapsulation-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-interfaces-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-interfaces-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-ip-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-ip-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-mpls-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-mpls-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-key-chain-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-key-chain-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-ospf-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-ospf-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-ospf-sr-mpls-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-ospf-sr-mpls-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-ospfv3-extended-lsa-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-ospfv3-extended-lsa-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-rip-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-rip-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-system-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-system-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-routing-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-routing-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-ipv6-unicast-routing-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-ipv6-unicast-routing-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-routing-policy-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-routing-policy-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-segment-routing-mpls-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-segment-routing-mpls-deviations.yang"),
     }
 });
 
@@ -351,7 +351,7 @@ pub fn load_module(ctx: &mut Context, name: &str) {
 
 // Loads a YANG deviations module.
 pub fn load_deviations(ctx: &mut Context, name: &str) {
-    let name = format!("{}-holo-deviations", name);
+    let name = format!("holo-{}-deviations", name);
     // Ignore errors since the deviation module might not exist.
     let _ = ctx.load_module(&name, None, &[]);
 }

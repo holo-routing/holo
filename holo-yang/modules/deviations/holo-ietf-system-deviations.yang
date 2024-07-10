@@ -1,7 +1,7 @@
-module ietf-system-holo-deviations {
+module holo-ietf-system-deviations {
   yang-version 1.1;
-  namespace "http://holo-routing.org/yang/ietf-system-holo-deviations";
-  prefix ietf-system-holo-deviations;
+  namespace "http://holo-routing.org/yang/holo-ietf-system-deviations";
+  prefix holo-ietf-system-deviations;
 
   import ietf-system {
     prefix sys;

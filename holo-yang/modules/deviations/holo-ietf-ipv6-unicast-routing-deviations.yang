@@ -1,7 +1,7 @@
-module ietf-ipv6-unicast-routing-holo-deviations {
+module holo-ietf-ipv6-unicast-routing-deviations {
   yang-version 1.1;
-  namespace "http://holo-routing.org/yang/ietf-ipv6-unicast-routing-holo-deviations";
-  prefix ietf-ipv6-unicast-routing-holo-deviations;
+  namespace "http://holo-routing.org/yang/holo-ietf-ipv6-unicast-routing-deviations";
+  prefix holo-ietf-ipv6-unicast-routing-deviations;
 
   import ietf-interfaces {
     prefix if;

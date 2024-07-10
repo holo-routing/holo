@@ -1,7 +1,7 @@
-module ietf-routing-policy-holo-deviations {
+module holo-ietf-routing-policy-deviations {
   yang-version 1.1;
-  namespace "http://holo-routing.org/yang/ietf-routing-policy-holo-deviations";
-  prefix ietf-routing-policy-holo-deviations;
+  namespace "http://holo-routing.org/yang/holo-ietf-routing-policy-deviations";
+  prefix holo-ietf-routing-policy-deviations;
 
   import ietf-routing-policy {
     prefix rt-pol;

@@ -552,15 +552,11 @@ fn generate_module(output: &mut String, snode: &SchemaNode<'_>, level: usize) {
     }
 
     // Iterate over child nodes.
-    if let Some(actions) = snode.actions() {
-        for snode in actions {
-            generate_module(output, &snode, level + 1);
-        }
+    for snode in snode.actions() {
+        generate_module(output, &snode, level + 1);
     }
-    if let Some(notifications) = snode.notifications() {
-        for snode in notifications {
-            generate_module(output, &snode, level + 1);
-        }
+    for snode in snode.notifications() {
+        generate_module(output, &snode, level + 1);
     }
     for snode in snode.children().filter(|snode| snode.is_status_current()) {
         writeln!(output).unwrap();

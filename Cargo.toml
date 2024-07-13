@@ -74,7 +74,7 @@ tonic = { version = "0.11", features = ["tls"] }
 tonic-build = "0.11"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-yang3 = { version = "0.1", features = ["bundled"] }
+yang3 = { version = "0.5", features = ["bundled"] }
 
 [workspace.lints.rust]
 rust_2018_idioms = { level = "warn", priority = -1 }

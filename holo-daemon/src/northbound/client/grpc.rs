@@ -115,17 +115,10 @@ impl proto::Northbound for NorthboundService {
         if with_defaults {
             printer_flags.insert(DataPrinterFlags::WD_ALL);
         }
-        let data = nb_response
-            .dtree
-            .print_string(DataFormat::from(encoding), printer_flags)
-            .map_err(|error| Status::internal(error.to_string()))?
-            .unwrap_or_default();
+        let data = data_tree_init(&nb_response.dtree, encoding, printer_flags)?;
         let grpc_response = proto::GetResponse {
             timestamp: get_timestamp(),
-            data: Some(proto::DataTree {
-                encoding: encoding as i32,
-                data,
-            }),
+            data: Some(data),
         };
         Ok(Response::new(grpc_response))
     }
@@ -134,7 +127,6 @@ impl proto::Northbound for NorthboundService {
         &self,
         grpc_request: Request<proto::ValidateRequest>,
     ) -> Result<Response<proto::ValidateResponse>, Status> {
-        let yang_ctx = YANG_CTX.get().unwrap();
         let grpc_request = grpc_request.into_inner();
         debug_span!("northbound").in_scope(|| {
             debug_span!("client", name = "grpc").in_scope(|| {
@@ -147,19 +139,10 @@ impl proto::Northbound for NorthboundService {
         let (responder_tx, responder_rx) = oneshot::channel();
 
         // Convert and relay gRPC request to the northbound.
-        let config_tree = grpc_request.config.ok_or_else(|| {
+        let config = grpc_request.config.ok_or_else(|| {
             Status::invalid_argument("Missing 'config' field")
         })?;
-        let encoding = proto::Encoding::try_from(config_tree.encoding)
-            .map_err(|_| Status::invalid_argument("Invalid data encoding"))?;
-        let config = DataTree::parse_string(
-            yang_ctx,
-            &config_tree.data,
-            DataFormat::from(encoding),
-            DataParserFlags::empty(),
-            DataValidationFlags::NO_STATE,
-        )
-        .map_err(|error| Status::invalid_argument(error.to_string()))?;
+        let config = data_tree_get(&config)?;
         let nb_request =
             api::client::Request::Validate(api::client::ValidateRequest {
                 config,
@@ -179,7 +162,6 @@ impl proto::Northbound for NorthboundService {
         &self,
         grpc_request: Request<proto::CommitRequest>,
     ) -> Result<Response<proto::CommitResponse>, Status> {
-        let yang_ctx = YANG_CTX.get().unwrap();
         let grpc_request = grpc_request.into_inner();
         debug_span!("northbound").in_scope(|| {
             debug_span!("client", name = "grpc").in_scope(|| {
@@ -192,11 +174,9 @@ impl proto::Northbound for NorthboundService {
         let (responder_tx, responder_rx) = oneshot::channel();
 
         // Convert and relay gRPC request to the northbound.
-        let config_tree = grpc_request.config.ok_or_else(|| {
+        let config = grpc_request.config.ok_or_else(|| {
             Status::invalid_argument("Missing 'config' field")
         })?;
-        let encoding = proto::Encoding::try_from(config_tree.encoding)
-            .map_err(|_| Status::invalid_argument("Invalid data encoding"))?;
         let operation =
             proto::commit_request::Operation::try_from(grpc_request.operation)
                 .map_err(|_| {
@@ -204,37 +184,15 @@ impl proto::Northbound for NorthboundService {
                 })?;
         let config = match operation {
             proto::commit_request::Operation::Merge => {
-                let config = DataTree::parse_string(
-                    yang_ctx,
-                    &config_tree.data,
-                    DataFormat::from(encoding),
-                    DataParserFlags::empty(),
-                    DataValidationFlags::NO_STATE,
-                )
-                .map_err(|error| Status::invalid_argument(error.to_string()))?;
+                let config = data_tree_get(&config)?;
                 api::CommitConfiguration::Merge(config)
             }
             proto::commit_request::Operation::Replace => {
-                let config = DataTree::parse_string(
-                    yang_ctx,
-                    &config_tree.data,
-                    DataFormat::from(encoding),
-                    DataParserFlags::empty(),
-                    DataValidationFlags::NO_STATE,
-                )
-                .map_err(|error| Status::invalid_argument(error.to_string()))?;
+                let config = data_tree_get(&config)?;
                 api::CommitConfiguration::Replace(config)
             }
             proto::commit_request::Operation::Change => {
-                let diff = DataDiff::parse_string(
-                    yang_ctx,
-                    &config_tree.data,
-                    DataFormat::from(encoding),
-                    DataParserFlags::NO_VALIDATION,
-                    DataValidationFlags::NO_STATE
-                        | DataValidationFlags::PRESENT,
-                )
-                .map_err(|error| Status::invalid_argument(error.to_string()))?;
+                let diff = data_diff_get(&config)?;
                 api::CommitConfiguration::Change(diff)
             }
         };
@@ -262,7 +220,6 @@ impl proto::Northbound for NorthboundService {
         &self,
         grpc_request: Request<proto::ExecuteRequest>,
     ) -> Result<Response<proto::ExecuteResponse>, Status> {
-        let yang_ctx = YANG_CTX.get().unwrap();
         let grpc_request = grpc_request.into_inner();
         debug_span!("northbound").in_scope(|| {
             debug_span!("client", name = "grpc").in_scope(|| {
@@ -280,13 +237,7 @@ impl proto::Northbound for NorthboundService {
             .ok_or_else(|| Status::invalid_argument("Missing 'data' field"))?;
         let encoding = proto::Encoding::try_from(data.encoding)
             .map_err(|_| Status::invalid_argument("Invalid data encoding"))?;
-        let data = DataTree::parse_op_string(
-            yang_ctx,
-            &data.data,
-            DataFormat::from(encoding),
-            DataOperation::RpcYang,
-        )
-        .map_err(|error| Status::invalid_argument(error.to_string()))?;
+        let data = rpc_get(&data)?;
         let nb_request =
             api::client::Request::Execute(api::client::ExecuteRequest {
                 data,
@@ -298,20 +249,9 @@ impl proto::Northbound for NorthboundService {
         let nb_response = responder_rx.await.unwrap()?;
 
         // Convert and relay northbound response to the gRPC client.
-        let data = nb_response
-            .data
-            .print_string(
-                DataFormat::from(encoding),
-                DataPrinterFlags::WITH_SIBLINGS,
-            )
-            .map_err(|error| Status::internal(error.to_string()))?
-            .unwrap_or_default();
-        let grpc_response = proto::ExecuteResponse {
-            data: Some(proto::DataTree {
-                encoding: encoding as i32,
-                data,
-            }),
-        };
+        let printer_flags = DataPrinterFlags::WITH_SIBLINGS;
+        let data = data_tree_init(&nb_response.data, encoding, printer_flags)?;
+        let grpc_response = proto::ExecuteResponse { data: Some(data) };
         Ok(Response::new(grpc_response))
     }
 
@@ -391,19 +331,11 @@ impl proto::Northbound for NorthboundService {
         // Convert and relay northbound response to the gRPC client.
         let encoding = proto::Encoding::try_from(grpc_request.encoding)
             .map_err(|_| Status::invalid_argument("Invalid data encoding"))?;
-        let config = nb_response
-            .dtree
-            .print_string(
-                DataFormat::from(encoding),
-                DataPrinterFlags::WITH_SIBLINGS,
-            )
-            .map_err(|error| Status::internal(error.to_string()))?
-            .unwrap_or_default();
+        let printer_flags = DataPrinterFlags::WITH_SIBLINGS;
+        let config =
+            data_tree_init(&nb_response.dtree, encoding, printer_flags)?;
         let grpc_response = proto::GetTransactionResponse {
-            config: Some(proto::DataTree {
-                encoding: encoding as i32,
-                data: config,
-            }),
+            config: Some(config),
         };
         Ok(Response::new(grpc_response))
     }
@@ -474,7 +406,7 @@ impl TryFrom<i32> for api::DataType {
     }
 }
 
-// ===== global functions =====
+// ===== helper functions =====
 
 fn get_timestamp() -> i64 {
     SystemTime::now()
@@ -482,6 +414,124 @@ fn get_timestamp() -> i64 {
         .expect("System time before UNIX EPOCH!")
         .as_secs() as i64
 }
+
+fn data_tree_init(
+    dtree: &DataTree,
+    encoding: proto::Encoding,
+    printer_flags: DataPrinterFlags,
+) -> Result<proto::DataTree, Status> {
+    let data_format = DataFormat::from(encoding);
+    let data = match data_format {
+        DataFormat::JSON | DataFormat::XML => {
+            let string = dtree
+                .print_string(data_format, printer_flags)
+                .map_err(|error| Status::internal(error.to_string()))?
+                .unwrap_or_default();
+            proto::data_tree::Data::DataString(string)
+        }
+        DataFormat::LYB => {
+            let bytes = dtree
+                .print_bytes(data_format, printer_flags)
+                .map_err(|error| Status::internal(error.to_string()))?
+                .unwrap_or_default();
+            proto::data_tree::Data::DataBytes(bytes)
+        }
+    };
+
+    Ok(proto::DataTree {
+        encoding: encoding as i32,
+        data: Some(data),
+    })
+}
+
+fn data_tree_get(data_tree: &proto::DataTree) -> Result<DataTree, Status> {
+    let yang_ctx = YANG_CTX.get().unwrap();
+    let encoding = proto::Encoding::try_from(data_tree.encoding)
+        .map_err(|_| Status::invalid_argument("Invalid data encoding"))?;
+    let data_format = DataFormat::from(encoding);
+    let parser_flags = DataParserFlags::empty();
+    let validation_flags = DataValidationFlags::NO_STATE;
+    let data = data_tree
+        .data
+        .as_ref()
+        .ok_or_else(|| Status::invalid_argument("Missing 'data' field"))?;
+    match data {
+        proto::data_tree::Data::DataString(data) => DataTree::parse_string(
+            yang_ctx,
+            data,
+            data_format,
+            parser_flags,
+            validation_flags,
+        ),
+        proto::data_tree::Data::DataBytes(data) => DataTree::parse_string(
+            yang_ctx,
+            data,
+            data_format,
+            parser_flags,
+            validation_flags,
+        ),
+    }
+    .map_err(|error| Status::invalid_argument(error.to_string()))
+}
+
+fn data_diff_get(data_tree: &proto::DataTree) -> Result<DataDiff, Status> {
+    let yang_ctx = YANG_CTX.get().unwrap();
+    let encoding = proto::Encoding::try_from(data_tree.encoding)
+        .map_err(|_| Status::invalid_argument("Invalid data encoding"))?;
+    let data_format = DataFormat::from(encoding);
+    let parser_flags = DataParserFlags::NO_VALIDATION;
+    let validation_flags =
+        DataValidationFlags::NO_STATE | DataValidationFlags::PRESENT;
+    let data = data_tree
+        .data
+        .as_ref()
+        .ok_or_else(|| Status::invalid_argument("Missing 'data' field"))?;
+    match data {
+        proto::data_tree::Data::DataString(data) => DataDiff::parse_string(
+            yang_ctx,
+            data,
+            data_format,
+            parser_flags,
+            validation_flags,
+        ),
+        proto::data_tree::Data::DataBytes(data) => DataDiff::parse_string(
+            yang_ctx,
+            data,
+            data_format,
+            parser_flags,
+            validation_flags,
+        ),
+    }
+    .map_err(|error| Status::invalid_argument(error.to_string()))
+}
+
+fn rpc_get(data_tree: &proto::DataTree) -> Result<DataTree, Status> {
+    let yang_ctx = YANG_CTX.get().unwrap();
+    let encoding = proto::Encoding::try_from(data_tree.encoding)
+        .map_err(|_| Status::invalid_argument("Invalid data encoding"))?;
+    let data_format = DataFormat::from(encoding);
+    let data = data_tree
+        .data
+        .as_ref()
+        .ok_or_else(|| Status::invalid_argument("Missing 'data' field"))?;
+    match data {
+        proto::data_tree::Data::DataString(data) => DataTree::parse_op_string(
+            yang_ctx,
+            data,
+            data_format,
+            DataOperation::RpcYang,
+        ),
+        proto::data_tree::Data::DataBytes(data) => DataTree::parse_op_string(
+            yang_ctx,
+            data,
+            data_format,
+            DataOperation::RpcYang,
+        ),
+    }
+    .map_err(|error| Status::invalid_argument(error.to_string()))
+}
+
+// ===== global functions =====
 
 pub(crate) fn start(
     config: &config::Grpc,

@@ -242,6 +242,13 @@ enum Encoding {
 
 // YANG instance data.
 message DataTree {
+  // The encoding format of the data.
   Encoding encoding = 1;
-  string data = 2;
+
+  oneof data {
+    // Data in string format, used for JSON or XML encodings.
+    string data_string = 2;
+    // Data in binary format, used for LYB encoding.
+    bytes data_bytes = 3;
+  }
 }

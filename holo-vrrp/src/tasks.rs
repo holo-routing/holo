@@ -167,7 +167,10 @@ pub(crate) fn set_timer(instance: &mut Instance) {
             instance.timer = VrrpTimer::Null;
         }
         crate::instance::State::Backup => {
-            set_master_down_timer(instance, instance.state.master_down_interval as u64);
+            set_master_down_timer(
+                instance,
+                instance.state.master_down_interval as u64,
+            );
         }
         crate::instance::State::Master => {
             set_adver_timer(instance, instance.config.advertise_interval as u64)
@@ -176,37 +179,32 @@ pub(crate) fn set_timer(instance: &mut Instance) {
 }
 
 pub(crate) fn set_master_down_timer(instance: &mut Instance, period: u64) {
-    let timer = TimeoutTask::new(
-        Duration::from_secs(period),
-        move || async move {}
-    );
+    let timer =
+        TimeoutTask::new(Duration::from_secs(period), move || async move {});
     instance.timer = VrrpTimer::MasterDownTimer(timer);
 }
 
-fn set_adver_timer(instance: &mut Instance, period: u64){
+fn set_adver_timer(instance: &mut Instance, period: u64) {
     let timer = IntervalTask::new(
         Duration::from_secs(period),
         true,
-        move || async move {}
+        move || async move {},
     );
     instance.timer = VrrpTimer::AdverTimer(timer);
 }
 
-
 pub(crate) fn reset_timer(instance: &mut Instance) {
     match instance.timer {
         VrrpTimer::AdverTimer(ref mut t) => {
-            t.reset(
-                Some(Duration::from_secs(instance.config.advertise_interval as u64)),
-            );
-        
-        },
-        VrrpTimer::MasterDownTimer(ref mut t) => { 
-            t.reset(
-                Some(Duration::from_secs(instance.state.master_down_interval as u64))
-            );
-        },
+            t.reset(Some(Duration::from_secs(
+                instance.config.advertise_interval as u64,
+            )));
+        }
+        VrrpTimer::MasterDownTimer(ref mut t) => {
+            t.reset(Some(Duration::from_secs(
+                instance.state.master_down_interval as u64,
+            )));
+        }
         _ => {}
     }
 }
-

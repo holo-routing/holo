@@ -115,9 +115,8 @@ impl Instance {
     }
 
     pub(crate) fn reset_timer(&mut self) {
-       tasks::reset_timer(self); 
+        tasks::reset_timer(self);
     }
-
 }
 
 // ===== impl InstanceState =====
@@ -158,4 +157,3 @@ impl Default for Statistics {
         }
     }
 }
-

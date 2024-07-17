@@ -84,7 +84,6 @@ pub struct ProtocolInputChannelsRx {
 impl Interface {
     fn send_advert(&self, vrid: u8) {
         if let Some(instance) = self.instances.get(&vrid) {
-            
             // send advertisement then reset the timer.
             let mut ip_addresses: Vec<Ipv4Addr> = vec![];
             for addr in &instance.config.virtual_addresses {
@@ -102,13 +101,12 @@ impl Interface {
                 checksum: 0,
                 ip_addresses,
                 auth_data: 0,
-                auth_data2: 0
+                auth_data2: 0,
             };
             packet.generate_checksum();
             //network::send_packet_vrrp(socket, src, dst, packet);
-
         }
-   }
+    }
 }
 
 #[async_trait]
@@ -148,7 +146,7 @@ impl ProtocolInstance for Interface {
         if let Err(error) = match msg {
             // Received network packet.
             ProtocolInputMsg::NetRxPacket(msg) => {
-                events::process_vrrp_packet(self,  msg.packet)
+                events::process_vrrp_packet(self, msg.packet)
             }
         } {
             error.log();

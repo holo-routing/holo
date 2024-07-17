@@ -234,7 +234,6 @@ impl VrrpPacket {
             return Err(DecodeError::PacketLengthError);
         }
 
-
         let checksum = buf.get_u16();
 
         // confirm checksum. checksum position is the third item in 16 bit words

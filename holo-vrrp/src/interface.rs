@@ -5,6 +5,7 @@
 //
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::net::Ipv4Addr;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -22,6 +23,7 @@ use tokio::sync::mpsc;
 
 use crate::error::{Error, IoError};
 use crate::instance::Instance;
+use crate::packet::VrrpPacket;
 use crate::tasks::messages::input::NetRxPacketMsg;
 use crate::tasks::messages::output::NetTxPacketMsg;
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
@@ -79,6 +81,36 @@ pub struct ProtocolInputChannelsRx {
 
 // ===== impl Interface =====
 
+impl Interface {
+    fn send_advert(&self, vrid: u8) {
+        if let Some(instance) = self.instances.get(&vrid) {
+            
+            // send advertisement then reset the timer.
+            let mut ip_addresses: Vec<Ipv4Addr> = vec![];
+            for addr in &instance.config.virtual_addresses {
+                ip_addresses.push(addr.ip());
+            }
+
+            let mut packet = VrrpPacket {
+                version: 2,
+                hdr_type: 1,
+                vrid: u8::default(),
+                priority: instance.config.priority,
+                count_ip: instance.config.virtual_addresses.len() as u8,
+                auth_type: 0,
+                adver_int: instance.config.advertise_interval,
+                checksum: 0,
+                ip_addresses,
+                auth_data: 0,
+                auth_data2: 0
+            };
+            packet.generate_checksum();
+            //network::send_packet_vrrp(socket, src, dst, packet);
+
+        }
+   }
+}
+
 #[async_trait]
 impl ProtocolInstance for Interface {
     const PROTOCOL: Protocol = Protocol::VRRP;
@@ -116,7 +148,7 @@ impl ProtocolInstance for Interface {
         if let Err(error) = match msg {
             // Received network packet.
             ProtocolInputMsg::NetRxPacket(msg) => {
-                events::process_packet(self, msg.src, msg.packet)
+                events::process_vrrp_packet(self,  msg.packet)
             }
         } {
             error.log();

@@ -216,14 +216,6 @@ impl VrrpPacket {
         let pkt_size = data.len();
         let count_ip = data[3];
 
-        if pkt_size < Self::MIN_PKT_LENGTH
-            || pkt_size > Self::MAX_PKT_LENGTH
-            || count_ip as usize > Self::MAX_IP_COUNT
-            || (count_ip * 4) + 16 != pkt_size as u8
-        {
-            return Err(DecodeError::PacketLengthError);
-        }
-
         let mut buf: Bytes = Bytes::copy_from_slice(data);
         let ver_type = buf.get_u8();
         let version = ver_type >> 4;
@@ -233,6 +225,16 @@ impl VrrpPacket {
         let count_ip = buf.get_u8();
         let auth_type = buf.get_u8();
         let adver_int = buf.get_u8();
+
+        if pkt_size < Self::MIN_PKT_LENGTH
+            || pkt_size > Self::MAX_PKT_LENGTH
+            || count_ip as usize > Self::MAX_IP_COUNT
+            || (count_ip * 4) + 16 != pkt_size as u8
+        {
+            return Err(DecodeError::PacketLengthError);
+        }
+
+
         let checksum = buf.get_u16();
 
         // confirm checksum. checksum position is the third item in 16 bit words

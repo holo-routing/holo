@@ -169,10 +169,11 @@ impl Provider for Interface {
     async fn process_event(&mut self, event: Event) {
         match event {
             Event::InstanceCreate { vrid } => {
-                // TODO
+                let instance = Instance::new();
+                self.instances.insert(vrid, instance);
             }
             Event::InstanceDelete { vrid } => {
-                // TODO
+                self.instances.remove(&vrid);
             }
         }
     }

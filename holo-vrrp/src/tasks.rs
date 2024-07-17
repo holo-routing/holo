@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::borrow::BorrowMut;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -159,25 +160,53 @@ pub(crate) fn net_tx(
     }
 }
 
-fn set_timer(instance: &mut Instance) {
+// handling the timers...
+pub(crate) fn set_timer(instance: &mut Instance) {
     match instance.state.state {
         crate::instance::State::Initialize => {
             instance.timer = VrrpTimer::Null;
         }
         crate::instance::State::Backup => {
-            let timer = TimeoutTask::new(
-                Duration::from_secs(instance.state.master_down_interval as u64),
-                move || async move {},
-            );
-            instance.timer = VrrpTimer::MasterDownTimer(timer);
+            set_master_down_timer(instance, instance.state.master_down_interval as u64);
         }
         crate::instance::State::Master => {
-            let timer = IntervalTask::new(
-                Duration::from_secs(instance.config.advertise_interval as u64),
-                true,
-                move || async move {},
-            );
-            instance.timer = VrrpTimer::AdverTimer(timer);
+            set_adver_timer(instance, instance.config.advertise_interval as u64)
         }
     }
 }
+
+pub(crate) fn set_master_down_timer(instance: &mut Instance, period: u64) {
+    let timer = TimeoutTask::new(
+        Duration::from_secs(period),
+        move || async move {}
+    );
+    instance.timer = VrrpTimer::MasterDownTimer(timer);
+}
+
+fn set_adver_timer(instance: &mut Instance, period: u64){
+    let timer = IntervalTask::new(
+        Duration::from_secs(period),
+        true,
+        move || async move {}
+    );
+    instance.timer = VrrpTimer::AdverTimer(timer);
+}
+
+
+pub(crate) fn reset_timer(instance: &mut Instance) {
+    match instance.timer {
+        VrrpTimer::AdverTimer(ref mut t) => {
+            t.reset(
+                Some(Duration::from_secs(instance.config.advertise_interval as u64)),
+            );
+        
+        },
+        VrrpTimer::MasterDownTimer(ref mut t) => { 
+            t.reset(
+                Some(Duration::from_secs(instance.state.master_down_interval as u64))
+            );
+        },
+        _ => {}
+    }
+}
+

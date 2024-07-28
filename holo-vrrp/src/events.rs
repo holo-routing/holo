@@ -14,17 +14,8 @@ use crate::tasks;
 
 // ===== Network packet receipt =====
 
+
 pub(crate) fn process_packet(
-    _interface: &mut Interface,
-    _src: IpAddr,
-    _packet: DecodeResult<VrrpPacket>,
-) -> Result<(), Error> {
-    // TODO
-
-    Ok(())
-}
-
-pub(crate) fn process_vrrp_packet(
     interface: &mut Interface,
     packet: DecodeResult<VrrpPacket>,
 ) -> Result<(), Error> {
@@ -35,7 +26,14 @@ pub(crate) fn process_vrrp_packet(
     instance.state.statistics.adv_rcvd += 1;
 
     match instance.state.state {
-        State::Initialize => {}
+        
+        // RFC 3768 6.4.1
+        State::Initialize => {
+           
+            if instance.config.priority == 255 {
+                interface.send_vrrp_advert(pkt.vrid);
+            }
+        }
         State::Backup => {
             if pkt.priority == 0 {
                 tasks::set_master_down_timer(

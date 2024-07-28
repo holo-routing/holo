@@ -7,6 +7,7 @@
 use core::task;
 use std::borrow::BorrowMut;
 use std::net::Ipv4Addr;
+use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use holo_utils::task::{IntervalTask, TimeoutTask};
@@ -115,8 +116,21 @@ impl Instance {
     }
 
     pub(crate) fn reset_timer(&mut self) {
-        tasks::reset_timer(self);
+        match self.timer {
+            VrrpTimer::AdverTimer(ref mut t) => {
+                t.reset(Some(Duration::from_secs(
+                    self.config.advertise_interval as u64,
+                )));
+            }
+            VrrpTimer::MasterDownTimer(ref mut t) => {
+                t.reset(Some(Duration::from_secs(
+                    self.state.master_down_interval as u64,
+                )));
+            }
+            _ => {}
+        }
     }
+
 }
 
 // ===== impl InstanceState =====

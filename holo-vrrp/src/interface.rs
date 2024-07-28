@@ -9,6 +9,7 @@ use std::net::Ipv4Addr;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use futures::TryStreamExt;
 use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
 };
@@ -19,11 +20,13 @@ use holo_utils::southbound::InterfaceFlags;
 use holo_utils::task::Task;
 use holo_utils::{Receiver, Sender, UnboundedSender};
 use ipnetwork::Ipv4Network;
+use netlink_packet_route::nlas::link::Nla;
+use rtnetlink::new_connection;
 use tokio::sync::mpsc;
 
 use crate::error::{Error, IoError};
 use crate::instance::Instance;
-use crate::packet::VrrpPacket;
+use crate::packet::{ArpPacket, EthernetFrame, VrrpPacket};
 use crate::tasks::messages::input::NetRxPacketMsg;
 use crate::tasks::messages::output::NetTxPacketMsg;
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
@@ -82,7 +85,7 @@ pub struct ProtocolInputChannelsRx {
 // ===== impl Interface =====
 
 impl Interface {
-    fn send_advert(&self, vrid: u8) {
+    pub(crate) fn send_vrrp_advert(&self, vrid: u8) {
         if let Some(instance) = self.instances.get(&vrid) {
             // send advertisement then reset the timer.
             let mut ip_addresses: Vec<Ipv4Addr> = vec![];
@@ -104,9 +107,76 @@ impl Interface {
                 auth_data2: 0,
             };
             packet.generate_checksum();
-            //network::send_packet_vrrp(socket, src, dst, packet);
+            network::send_packet_vrrp(&self.net.socket_vrrp, packet);
         }
     }
+
+     pub(crate) async fn send_gratuitous_arp(&self, vrid: u8) {
+        let ifname  = &self.name;
+
+        if let Some(instance) = self.instances.get(&vrid) {
+
+            // send a gratuitous for each of the 
+            // virutal IP addresses
+            for addr in instance.config.virtual_addresses.clone() {
+
+                let arp_packet = ArpPacket {
+                    hw_type: 1, 
+                    proto_type: 0x0800,
+                    hw_length: 6, 
+                    proto_length: 4,
+                    operation: 1,
+                    sender_hw_address: [0x00, 0x00, 0x5e, 0x00, 0x01, vrid],
+                    sender_proto_address: addr.ip().octets(), 
+                    target_hw_address: [0xff, 0xff, 0xff, 0xff, 0xff, 0xff], // broadcast
+                    target_proto_address:  addr.ip().octets() 
+                };
+
+                let eth_mac = self.get_mac();
+                let mut mac_arr: &mut [u8; 6] = &mut [0u8; 6];
+                if let Some(m_addr) = self.get_mac().await {
+                    for (idx, value) in m_addr.iter().enumerate() {
+                        mac_arr[idx] = *value;
+                    }
+                }
+                let eth_frame = EthernetFrame {
+                    ethertype: 0x806,
+                    dst_mac: [0xff; 6],
+                    src_mac: *mac_arr
+                };
+                let _ = network::send_packet_arp(
+                    &self.net.socket_arp, 
+                    &self.name, 
+                    eth_frame, 
+                    arp_packet
+                );
+
+            }
+
+        }
+    }
+
+    // fetches the interfaces mac address. 
+    // This will be required during the sending of the ARP packet. 
+     pub(crate) async fn get_mac(&self) -> Option<Vec<u8>> {
+        let ifname = self.name.clone();
+        let (connection, handle, _) = new_connection().unwrap();
+        tokio::spawn(connection);
+
+        // get the necessary links then we filter. 
+        let mut links = handle.link().get().match_name(ifname).execute();
+        if let Some(msg) = links.try_next().await.unwrap() {
+            // breaking change if you are to upgrade netlink-packet-route 
+            // package
+            for mac in msg.nlas.clone().into_iter() {
+                if let Nla::Address(mac) = mac {
+                    return Some(mac)
+                }
+            }
+        }
+        return None
+    }
+
 }
 
 #[async_trait]
@@ -146,7 +216,7 @@ impl ProtocolInstance for Interface {
         if let Err(error) = match msg {
             // Received network packet.
             ProtocolInputMsg::NetRxPacket(msg) => {
-                events::process_vrrp_packet(self, msg.packet)
+                events::process_packet(self, msg.packet)
             }
         } {
             error.log();

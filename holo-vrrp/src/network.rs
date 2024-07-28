@@ -62,8 +62,6 @@ pub fn socket_arp(ifname: &str) -> Result<Socket, std::io::Error> {
 #[cfg(not(feature = "testing"))]
 pub(crate) async fn send_packet_vrrp(
     socket: &AsyncFd<Socket>,
-    _src: IpAddr,
-    _dst: IpAddr,
     packet: VrrpPacket,
 ) -> Result<usize, IoError> {
     let buf: &[u8] = &packet.encode();
@@ -78,9 +76,9 @@ pub(crate) async fn send_packet_vrrp(
         .map_err(IoError::SendError)
 }
 
-#[cfg(not(feature = "testing"))]
+//#[cfg(not(feature = "testing"))]
 pub fn send_packet_arp(
-    sock: Socket,
+    sock: &AsyncFd<Socket>,
     ifname: &str,
     eth_frame: EthernetFrame,
     arp_packet: ArpPacket,
@@ -146,7 +144,7 @@ pub(crate) async fn write_loop(
         match msg {
             NetTxPacketMsg::Vrrp { packet, src, dst } => {
                 if let Err(error) =
-                    send_packet_vrrp(&socket_vrrp, src, dst, packet).await
+                    send_packet_vrrp(&socket_vrrp, packet).await
                 {
                     error.log();
                 }

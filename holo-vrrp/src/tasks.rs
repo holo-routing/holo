@@ -37,7 +37,7 @@ use crate::network;
 //                                     +--------------+
 //
 
-// BGP inter-task message types.
+// VRRP inter-task message types.
 pub mod messages {
     use std::net::IpAddr;
 
@@ -173,7 +173,14 @@ pub(crate) fn set_timer(instance: &mut Instance) {
             );
         }
         crate::instance::State::Master => {
-            set_adver_timer(instance, instance.config.advertise_interval as u64)
+            let timer = IntervalTask::new(
+                Duration::from_secs(instance.config.advertise_interval as u64),
+                true,
+                move || async move {
+                    todo!("send VRRP advertisement");
+                },
+            );
+            instance.timer = VrrpTimer::AdverTimer(timer);
         }
     }
 }
@@ -184,27 +191,4 @@ pub(crate) fn set_master_down_timer(instance: &mut Instance, period: u64) {
     instance.timer = VrrpTimer::MasterDownTimer(timer);
 }
 
-fn set_adver_timer(instance: &mut Instance, period: u64) {
-    let timer = IntervalTask::new(
-        Duration::from_secs(period),
-        true,
-        move || async move {},
-    );
-    instance.timer = VrrpTimer::AdverTimer(timer);
-}
 
-pub(crate) fn reset_timer(instance: &mut Instance) {
-    match instance.timer {
-        VrrpTimer::AdverTimer(ref mut t) => {
-            t.reset(Some(Duration::from_secs(
-                instance.config.advertise_interval as u64,
-            )));
-        }
-        VrrpTimer::MasterDownTimer(ref mut t) => {
-            t.reset(Some(Duration::from_secs(
-                instance.state.master_down_interval as u64,
-            )));
-        }
-        _ => {}
-    }
-}

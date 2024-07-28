@@ -25,6 +25,9 @@ tokio.workspace = true
 tracing.workspace = true
 yang2.workspace = true
 socket2.workspace = true
+rtnetlink.workspace = true
+futures.workspace = true 
+netlink-packet-route.workspace = true
 
 holo-northbound = { path = "../holo-northbound" }
 holo-protocol = { path = "../holo-protocol" }

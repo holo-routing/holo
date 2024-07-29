@@ -21,7 +21,7 @@ pub(crate) fn process_iface_update(
 
     iface.system.flags = msg.flags;
     iface.system.ifindex = Some(msg.ifindex);
-
+    iface.system.mac_address = msg.mac_address;
     // TODO: trigger protocol event?
 }
 

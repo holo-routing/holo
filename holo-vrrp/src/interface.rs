@@ -9,7 +9,6 @@ use std::net::Ipv4Addr;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use futures::TryStreamExt;
 use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
 };
@@ -20,8 +19,6 @@ use holo_utils::southbound::InterfaceFlags;
 use holo_utils::task::Task;
 use holo_utils::{Receiver, Sender, UnboundedSender};
 use ipnetwork::Ipv4Network;
-use netlink_packet_route::nlas::link::Nla;
-use rtnetlink::new_connection;
 use tokio::sync::mpsc;
 
 use crate::error::{Error, IoError};
@@ -132,13 +129,7 @@ impl Interface {
                     target_proto_address:  addr.ip().octets() 
                 };
 
-                let eth_mac = self.get_mac();
                 let mut mac_arr: &mut [u8; 6] = &mut [0u8; 6];
-                if let Some(m_addr) = self.get_mac().await {
-                    for (idx, value) in m_addr.iter().enumerate() {
-                        mac_arr[idx] = *value;
-                    }
-                }
                 let eth_frame = EthernetFrame {
                     ethertype: 0x806,
                     dst_mac: [0xff; 6],
@@ -156,26 +147,6 @@ impl Interface {
         }
     }
 
-    // fetches the interfaces mac address. 
-    // This will be required during the sending of the ARP packet. 
-     pub(crate) async fn get_mac(&self) -> Option<Vec<u8>> {
-        let ifname = self.name.clone();
-        let (connection, handle, _) = new_connection().unwrap();
-        tokio::spawn(connection);
-
-        // get the necessary links then we filter. 
-        let mut links = handle.link().get().match_name(ifname).execute();
-        if let Some(msg) = links.try_next().await.unwrap() {
-            // breaking change if you are to upgrade netlink-packet-route 
-            // package
-            for mac in msg.nlas.clone().into_iter() {
-                if let Nla::Address(mac) = mac {
-                    return Some(mac)
-                }
-            }
-        }
-        return None
-    }
 
 }
 

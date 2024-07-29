@@ -45,6 +45,8 @@ async fn process_newlink_msg(
     let ifindex = msg.header.index;
     let mut ifname = None;
     let mut mtu = None;
+    let mut mac_address: Vec<u8> = Vec::default(); 
+
     let mut flags = InterfaceFlags::empty();
     if msg.header.link_layer_type == ARPHRD_LOOPBACK {
         flags.insert(InterfaceFlags::LOOPBACK);
@@ -56,6 +58,7 @@ async fn process_newlink_msg(
         match nla {
             Nla::IfName(nla_ifname) => ifname = Some(nla_ifname),
             Nla::Mtu(nla_mtu) => mtu = Some(nla_mtu),
+            Nla::Address(addr) => mac_address = addr,
             _ => (),
         }
     }
@@ -67,7 +70,7 @@ async fn process_newlink_msg(
     let ibus_tx = notify.then_some(&master.ibus_tx);
     master
         .interfaces
-        .update(ifname, ifindex, mtu, flags, &master.netlink_handle, ibus_tx)
+        .update(ifname, ifindex, mtu, flags, mac_address, &master.netlink_handle, ibus_tx)
         .await;
 }
 

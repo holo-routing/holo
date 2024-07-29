@@ -139,6 +139,7 @@ impl Interfaces {
         ifindex: u32,
         mtu: u32,
         flags: InterfaceFlags,
+        mac_address: Vec<u8>,
         netlink_handle: &rtnetlink::Handle,
         ibus_tx: Option<&IbusSender>,
     ) {
@@ -173,6 +174,7 @@ impl Interfaces {
                 iface.owner.insert(Owner::SYSTEM);
                 iface.mtu = Some(mtu);
                 iface.flags = flags;
+                iface.config.mac_address = mac_address;
 
                 // Notify protocol instances about the interface update.
                 //
@@ -206,6 +208,7 @@ impl Interfaces {
                     let iface = &self.arena[iface_idx];
                     iface.apply_config(ifindex, netlink_handle, self).await;
                 }
+
             }
             None => {
                 // If the interface does not exist, create a new entry.

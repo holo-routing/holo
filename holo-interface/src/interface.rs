@@ -38,7 +38,7 @@ pub struct Interface {
     pub mtu: Option<u32>,
     pub flags: InterfaceFlags,
     pub addresses: BTreeMap<IpNetwork, InterfaceAddress>,
-    pub mac_address: Vec<u8>,
+    pub mac_address: [u8; 6],
     pub owner: Owner,
     pub vrrp: Option<NbDaemonSender>,
 }
@@ -141,7 +141,7 @@ impl Interfaces {
         ifindex: u32,
         mtu: u32,
         flags: InterfaceFlags,
-        mac_address: Vec<u8>,
+        mac_address: [u8; 6],
         netlink_handle: &rtnetlink::Handle,
         ibus_tx: Option<&IbusSender>,
     ) {

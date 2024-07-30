@@ -54,7 +54,7 @@ pub struct InterfaceSys {
     // Interface IPv4 addresses.
     pub addresses: BTreeSet<Ipv4Network>,
     // interface Mac Address
-    pub mac_address: Vec<u8>,
+    pub mac_address: [u8; 6],
 }
 
 #[derive(Debug)]
@@ -135,14 +135,11 @@ impl Interface {
                     target_proto_address:  addr.ip().octets() 
                 };
 
-                let mut mac_addr: &mut [u8; 6] = &mut [0u8; 6];
-                for (idx, item) in self.system.mac_address.iter().enumerate() {
-                    mac_addr[idx] = *item;
-                }
+                let mut mac_addr = self.system.mac_address.clone();
                 let eth_frame = EthernetFrame {
                     ethertype: 0x806,
                     dst_mac: [0xff; 6],
-                    src_mac: *mac_addr
+                    src_mac: mac_addr
                 };
                 let _ = network::send_packet_arp(
                     &self.net.socket_arp, 

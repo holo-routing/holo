@@ -14,6 +14,7 @@ use tracing::{warn, warn_span};
 pub enum Error {
     // I/O errors
     IoError(IoError),
+    InterfaceError(String), 
 
     // vrrp-ietf-yang-2018-03-13 specific errors
     GlobalError(GlobalError),
@@ -54,6 +55,9 @@ impl Error {
             Error::IoError(error) => {
                 error.log();
             }
+            Error::InterfaceError(error) => {
+                warn_span!("vrrp_interface_error").in_scope(|| warn!(error));
+            }
             Error::GlobalError(error) => {
                 match error {
                     GlobalError::ChecksumError => {
@@ -91,6 +95,7 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::IoError(error) => std::fmt::Display::fmt(error, f),
+            Error::InterfaceError(error) => write!(f, "{}", error),
             Error::GlobalError(error) => std::fmt::Display::fmt(error, f),
             Error::VirtualRouterError(error) => {
                 std::fmt::Display::fmt(error, f)

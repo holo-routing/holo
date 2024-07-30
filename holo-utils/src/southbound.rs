@@ -71,7 +71,7 @@ pub struct InterfaceUpdateMsg {
     pub ifindex: u32,
     pub mtu: u32,
     pub flags: InterfaceFlags,
-    pub mac_address: Vec<u8>,
+    pub mac_address: [u8; 6],
 }
 
 #[derive(Clone, Debug)]

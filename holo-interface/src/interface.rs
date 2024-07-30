@@ -38,6 +38,7 @@ pub struct Interface {
     pub mtu: Option<u32>,
     pub flags: InterfaceFlags,
     pub addresses: BTreeMap<IpNetwork, InterfaceAddress>,
+    pub mac_address: Vec<u8>,
     pub owner: Owner,
     pub vrrp: Option<NbDaemonSender>,
 }
@@ -126,6 +127,7 @@ impl Interfaces {
             addresses: Default::default(),
             owner: Owner::CONFIG,
             vrrp: None,
+            mac_address: Default::default(),
         };
 
         let iface_idx = self.arena.insert(iface);
@@ -156,6 +158,7 @@ impl Interfaces {
                 if iface.name == ifname
                     && iface.mtu == Some(mtu)
                     && iface.flags == flags
+                    && iface.mac_address == mac_address
                 {
                     return;
                 }
@@ -174,7 +177,7 @@ impl Interfaces {
                 iface.owner.insert(Owner::SYSTEM);
                 iface.mtu = Some(mtu);
                 iface.flags = flags;
-                iface.config.mac_address = mac_address;
+                iface.mac_address = mac_address;
 
                 // Notify protocol instances about the interface update.
                 //
@@ -221,6 +224,7 @@ impl Interfaces {
                     addresses: Default::default(),
                     owner: Owner::SYSTEM,
                     vrrp: None,
+                    mac_address: Default::default(),
                 };
 
                 // Notify protocol instances about the interface update.

@@ -110,7 +110,7 @@ impl Instance {
         }
     }
 
-    pub(crate) fn transition_state(&mut self, state: State) {
+    pub(crate) fn change_state(&mut self, state: State) {
         self.state.state = state;
         tasks::set_timer(self);
     }

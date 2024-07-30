@@ -121,11 +121,15 @@ impl Interface {
 
                 let arp_packet = ArpPacket {
                     hw_type: 1, 
+                    // for Ipv4 
                     proto_type: 0x0800,
+                    // mac address length
                     hw_length: 6, 
                     proto_length: 4,
                     operation: 1,
-                    sender_hw_address: [0x00, 0x00, 0x5e, 0x00, 0x01, vrid],
+                    // sender hw address is virtual mac.
+                    // https://datatracker.ietf.org/doc/html/rfc3768#section-7.3
+                    sender_hw_address: [0x00, 0x00, 0x5e, 0x00, 0x01, vrid], 
                     sender_proto_address: addr.ip().octets(), 
                     target_hw_address: [0xff, 0xff, 0xff, 0xff, 0xff, 0xff], // broadcast
                     target_proto_address:  addr.ip().octets() 

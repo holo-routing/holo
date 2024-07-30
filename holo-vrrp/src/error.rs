@@ -15,7 +15,7 @@ pub enum Error {
     // I/O errors
     IoError(IoError),
 
-    // ietf yang specific errors
+    // vrrp-ietf-yang-2018-03-13 specific errors
     GlobalError(GlobalError),
     VirtualRouterError(VirtualRouterError),
 }

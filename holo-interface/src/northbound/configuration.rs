@@ -60,7 +60,6 @@ pub struct InterfaceCfg {
     pub parent: Option<String>,
     pub vlan_id: Option<u16>,
     pub addr_list: BTreeMap<IpAddr, u8>,
-    pub mac_address: Vec<u8>,
 }
 
 // ===== callbacks =====
@@ -462,7 +461,6 @@ impl Default for InterfaceCfg {
             parent: None,
             vlan_id: None,
             addr_list: Default::default(),
-            mac_address: Default::default(),
         }
     }
 }

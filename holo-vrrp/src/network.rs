@@ -143,8 +143,7 @@ pub(crate) async fn write_loop(
     while let Some(msg) = net_tx_packetc.recv().await {
         match msg {
             NetTxPacketMsg::Vrrp { packet, src, dst } => {
-                if let Err(error) =
-                    send_packet_vrrp(&socket_vrrp, packet).await
+                if let Err(error) = send_packet_vrrp(&socket_vrrp, packet).await
                 {
                     error.log();
                 }

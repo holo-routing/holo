@@ -14,7 +14,7 @@ use tracing::{warn, warn_span};
 pub enum Error {
     // I/O errors
     IoError(IoError),
-    InterfaceError(String), 
+    InterfaceError(String),
 
     // vrrp-ietf-yang-2018-03-13 specific errors
     GlobalError(GlobalError),

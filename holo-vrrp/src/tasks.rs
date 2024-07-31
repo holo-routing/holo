@@ -69,7 +69,7 @@ pub mod messages {
 
         #[derive(Debug, Deserialize, Serialize)]
         pub struct MasterDownTimerMsg {
-            pub vrid: u8, 
+            pub vrid: u8,
         }
     }
 
@@ -168,24 +168,23 @@ pub(crate) fn net_tx(
 }
 
 // handling the timers...
-pub(crate) fn set_timer( interface: &mut Interface, vrid: u8 
-) {
-    if let Some(instance) = interface.instances.get_mut(&vrid){
+pub(crate) fn set_timer(interface: &mut Interface, vrid: u8) {
+    if let Some(instance) = interface.instances.get_mut(&vrid) {
         match instance.state.state {
             crate::instance::State::Initialize => {
                 instance.timer = VrrpTimer::Null;
             }
             crate::instance::State::Backup => {
-                let duration = Duration::from_secs(instance.state.master_down_interval as u64);
-                set_master_down_timer(
-                    interface, 
-                    vrid, 
-                    duration
+                let duration = Duration::from_secs(
+                    instance.state.master_down_interval as u64,
                 );
+                set_master_down_timer(interface, vrid, duration);
             }
             crate::instance::State::Master => {
                 let timer = IntervalTask::new(
-                    Duration::from_secs(instance.config.advertise_interval as u64),
+                    Duration::from_secs(
+                        instance.config.advertise_interval as u64,
+                    ),
                     true,
                     move || async move {
                         todo!("send VRRP advertisement");
@@ -195,18 +194,19 @@ pub(crate) fn set_timer( interface: &mut Interface, vrid: u8
             }
         }
     }
-
 }
 
 // ==== Set Master Down Timer ====
 pub(crate) fn set_master_down_timer(
-    interface: &mut Interface, vrid: u8, duration: Duration // period: u64
+    interface: &mut Interface,
+    vrid: u8,
+    duration: Duration, // period: u64
 ) {
     let instance = interface.instances.get_mut(&vrid).unwrap();
     let tx = interface.tx.protocol_input.master_down_timer.clone();
 
     let timer = TimeoutTask::new(duration, move || async move {
-        tx.send(messages::input::MasterDownTimerMsg{ vrid });
+        tx.send(messages::input::MasterDownTimerMsg { vrid });
     });
     instance.timer = VrrpTimer::MasterDownTimer(timer);
 }

@@ -125,7 +125,6 @@ impl Instance {
             _ => {}
         }
     }
-
 }
 
 // ===== impl InstanceState =====

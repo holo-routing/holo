@@ -31,7 +31,7 @@ pub struct CallbacksBuilder<P: Provider> {
 
 #[derive(Debug)]
 pub struct CallbackArgs<'a> {
-    pub data: &'a mut DataTree,
+    pub data: &'a mut DataTree<'static>,
     pub rpc_path: &'a str,
 }
 
@@ -58,7 +58,7 @@ pub trait Provider: ProviderBase {
 
     fn relay_rpc(
         &self,
-        _rpc: DataNodeRef<'_>,
+        _rpc: DataNodeRef<'_, '_>,
     ) -> Result<Option<Vec<NbDaemonSender>>, String> {
         Ok(None)
     }
@@ -145,7 +145,7 @@ where
 
 async fn process_rpc_local<P>(
     provider: &mut P,
-    mut data: DataTree,
+    mut data: DataTree<'static>,
     rpc_data_path: String,
     rpc_schema_path: String,
 ) -> Result<api::daemon::RpcResponse, Error>
@@ -170,7 +170,7 @@ where
 }
 
 async fn process_rpc_relayed(
-    mut data: DataTree,
+    mut data: DataTree<'static>,
     children_nb_tx: Vec<NbDaemonSender>,
 ) -> Result<api::daemon::RpcResponse, Error> {
     for nb_tx in children_nb_tx {
@@ -194,7 +194,9 @@ async fn process_rpc_relayed(
     Ok(response)
 }
 
-fn find_rpc(data: &DataTree) -> Result<DataNodeRef<'_>, Error> {
+fn find_rpc<'a>(
+    data: &'a DataTree<'static>,
+) -> Result<DataNodeRef<'a, 'static>, Error> {
     data.traverse()
         .find(|dnode| {
             matches!(
@@ -209,7 +211,7 @@ fn find_rpc(data: &DataTree) -> Result<DataNodeRef<'_>, Error> {
 
 pub(crate) async fn process_rpc<P>(
     provider: &mut P,
-    data: DataTree,
+    data: DataTree<'static>,
 ) -> Result<api::daemon::RpcResponse, Error>
 where
     P: Provider,

@@ -15,7 +15,7 @@ use yang3::data::{
 use crate::YANG_CTX;
 
 // Serialize YANG data tree to JSON.
-pub fn serialize<S>(dtree: &DataTree, s: S) -> Result<S::Ok, S::Error>
+pub fn serialize<S>(dtree: &DataTree<'static>, s: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
@@ -32,7 +32,9 @@ where
 }
 
 // Deserialize YANG data tree from JSON.
-pub fn deserialize<'de, D>(deserializer: D) -> Result<DataTree, D::Error>
+pub fn deserialize<'de, D>(
+    deserializer: D,
+) -> Result<DataTree<'static>, D::Error>
 where
     D: serde::de::Deserializer<'de>,
 {
@@ -51,7 +53,10 @@ where
 pub mod arc {
     use super::*;
 
-    pub fn serialize<S>(dtree: &DataTree, s: S) -> Result<S::Ok, S::Error>
+    pub fn serialize<S>(
+        dtree: &DataTree<'static>,
+        s: S,
+    ) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -60,7 +65,7 @@ pub mod arc {
 
     pub fn deserialize<'de, D>(
         deserializer: D,
-    ) -> Result<Arc<DataTree>, D::Error>
+    ) -> Result<Arc<DataTree<'static>>, D::Error>
     where
         D: serde::de::Deserializer<'de>,
     {

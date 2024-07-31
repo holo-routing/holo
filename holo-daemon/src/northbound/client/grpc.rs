@@ -416,7 +416,7 @@ fn get_timestamp() -> i64 {
 }
 
 fn data_tree_init(
-    dtree: &DataTree,
+    dtree: &DataTree<'static>,
     encoding: proto::Encoding,
     printer_flags: DataPrinterFlags,
 ) -> Result<proto::DataTree, Status> {
@@ -444,7 +444,9 @@ fn data_tree_init(
     })
 }
 
-fn data_tree_get(data_tree: &proto::DataTree) -> Result<DataTree, Status> {
+fn data_tree_get(
+    data_tree: &proto::DataTree,
+) -> Result<DataTree<'static>, Status> {
     let yang_ctx = YANG_CTX.get().unwrap();
     let encoding = proto::Encoding::try_from(data_tree.encoding)
         .map_err(|_| Status::invalid_argument("Invalid data encoding"))?;
@@ -474,7 +476,9 @@ fn data_tree_get(data_tree: &proto::DataTree) -> Result<DataTree, Status> {
     .map_err(|error| Status::invalid_argument(error.to_string()))
 }
 
-fn data_diff_get(data_tree: &proto::DataTree) -> Result<DataDiff, Status> {
+fn data_diff_get(
+    data_tree: &proto::DataTree,
+) -> Result<DataDiff<'static>, Status> {
     let yang_ctx = YANG_CTX.get().unwrap();
     let encoding = proto::Encoding::try_from(data_tree.encoding)
         .map_err(|_| Status::invalid_argument("Invalid data encoding"))?;
@@ -505,7 +509,7 @@ fn data_diff_get(data_tree: &proto::DataTree) -> Result<DataDiff, Status> {
     .map_err(|error| Status::invalid_argument(error.to_string()))
 }
 
-fn rpc_get(data_tree: &proto::DataTree) -> Result<DataTree, Status> {
+fn rpc_get(data_tree: &proto::DataTree) -> Result<DataTree<'static>, Status> {
     let yang_ctx = YANG_CTX.get().unwrap();
     let encoding = proto::Encoding::try_from(data_tree.encoding)
         .map_err(|_| Status::invalid_argument("Invalid data encoding"))?;

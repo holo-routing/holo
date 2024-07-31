@@ -225,7 +225,7 @@ impl<'a> StructBuilder<'a> {
         // into_data_node() function implementation.
         writeln!(
             output,
-            "{}fn into_data_node(self: Box<Self>, dnode: &mut DataNodeRef<'_>) {{",
+            "{}fn into_data_node(self: Box<Self>, dnode: &mut DataNodeRef<'_, '_>) {{",
             indent2
         )
         .unwrap();

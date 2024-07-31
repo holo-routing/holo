@@ -216,7 +216,7 @@ where
 fn iterate_node<'a, P>(
     provider: &'a P,
     cbs: &Callbacks<P>,
-    dnode: &mut DataNodeRef<'_>,
+    dnode: &mut DataNodeRef<'_, '_>,
     snode: &SchemaNode<'_>,
     list_entry: &P::ListEntry<'a>,
     relay_list: &mut Vec<RelayedRequest>,
@@ -248,7 +248,7 @@ where
 fn iterate_list<'a, P>(
     provider: &'a P,
     cbs: &Callbacks<P>,
-    dnode: &mut DataNodeRef<'_>,
+    dnode: &mut DataNodeRef<'_, '_>,
     snode: &SchemaNode<'_>,
     parent_list_entry: &P::ListEntry<'a>,
     relay_list: &mut Vec<RelayedRequest>,
@@ -277,7 +277,7 @@ where
 fn iterate_list_entry<'a, P>(
     provider: &'a P,
     cbs: &Callbacks<P>,
-    dnode: &mut DataNodeRef<'_>,
+    dnode: &mut DataNodeRef<'_, '_>,
     snode: &SchemaNode<'_>,
     list_entry: P::ListEntry<'a>,
     relay_list: &mut Vec<RelayedRequest>,
@@ -335,7 +335,7 @@ where
 fn iterate_container<'a, P>(
     provider: &'a P,
     cbs: &Callbacks<P>,
-    dnode: &mut DataNodeRef<'_>,
+    dnode: &mut DataNodeRef<'_, '_>,
     snode: &SchemaNode<'_>,
     list_entry: &P::ListEntry<'a>,
     relay_list: &mut Vec<RelayedRequest>,
@@ -380,7 +380,7 @@ where
 fn iterate_children<'a, P>(
     provider: &'a P,
     cbs: &Callbacks<P>,
-    dnode: &mut DataNodeRef<'_>,
+    dnode: &mut DataNodeRef<'_, '_>,
     snode: &SchemaNode<'_>,
     list_entry: &P::ListEntry<'a>,
     relay_list: &mut Vec<RelayedRequest>,
@@ -425,7 +425,7 @@ where
 fn lookup_list_entry<'a, P>(
     provider: &'a P,
     cbs: &Callbacks<P>,
-    dnode: &DataNodeRef<'_>,
+    dnode: &DataNodeRef<'_, '_>,
 ) -> P::ListEntry<'a>
 where
     P: Provider,

@@ -20,8 +20,8 @@ use crate::test::stub::UPDATE_OUTPUTS;
 // Stub northbound layer.
 #[derive(Debug)]
 pub struct NorthboundStub {
-    running_config: Arc<DataTree>,
-    state_cache: Option<DataTree>,
+    running_config: Arc<DataTree<'static>>,
+    state_cache: Option<DataTree<'static>>,
     daemon_tx: NbDaemonSender,
 }
 
@@ -121,7 +121,7 @@ impl NorthboundStub {
         self.state_cache = Some(state);
     }
 
-    async fn get_state(&self, path: &str) -> DataTree {
+    async fn get_state(&self, path: &str) -> DataTree<'static> {
         // Prepare request.
         let (responder_tx, responder_rx) = oneshot::channel();
         let request = api::daemon::Request::Get(api::daemon::GetRequest {
@@ -207,7 +207,11 @@ impl NorthboundStub {
         self.state_cache = Some(actual.duplicate().unwrap());
     }
 
-    async fn commit(&mut self, candidate: DataTree, data_diff: DataDiff) {
+    async fn commit(
+        &mut self,
+        candidate: DataTree<'static>,
+        data_diff: DataDiff<'static>,
+    ) {
         // Get configuration changes from data diff.
         let changes = configuration::changes_from_diff(&data_diff);
 
@@ -225,7 +229,7 @@ impl NorthboundStub {
     async fn commit_phase_notify(
         &self,
         phase: CommitPhase,
-        candidate: &Arc<DataTree>,
+        candidate: &Arc<DataTree<'static>>,
         changes: &ConfigChanges,
     ) {
         // Prepare request.
@@ -252,7 +256,7 @@ impl NorthboundStub {
 
 // ===== helper functions =====
 
-fn dtree_print(dtree: &DataTree) -> String {
+fn dtree_print(dtree: &DataTree<'static>) -> String {
     dtree
         .print_string(
             DataFormat::JSON,

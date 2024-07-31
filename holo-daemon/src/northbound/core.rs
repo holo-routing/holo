@@ -35,7 +35,7 @@ use crate::northbound::{db, yang, Error, Result};
 
 pub struct Northbound {
     // YANG-modeled running configuration.
-    running_config: Arc<DataTree>,
+    running_config: Arc<DataTree<'static>>,
 
     // Non-volatile storage.
     db: Database,
@@ -72,7 +72,7 @@ pub struct Transaction {
 
     // Configuration that was committed.
     #[serde(with = "holo_yang::serde::data_tree")]
-    pub configuration: DataTree,
+    pub configuration: DataTree<'static>,
 }
 
 #[derive(Debug)]
@@ -87,7 +87,7 @@ pub struct ConfirmedCommit {
 
 #[derive(Debug)]
 pub struct Rollback {
-    configuration: DataTree,
+    configuration: DataTree<'static>,
     #[allow(dead_code)]
     timeout: TimeoutTask,
 }
@@ -225,7 +225,7 @@ impl Northbound {
     // Processes a `Validate` message received from an external client.
     async fn process_client_validate(
         &mut self,
-        candidate: DataTree,
+        candidate: DataTree<'static>,
     ) -> Result<capi::client::ValidateResponse> {
         let candidate = Arc::new(candidate);
 
@@ -275,7 +275,7 @@ impl Northbound {
     // Processes an `Execute` message received from an external client.
     async fn process_client_execute(
         &mut self,
-        data: DataTree,
+        data: DataTree<'static>,
     ) -> Result<capi::client::ExecuteResponse> {
         let data = self.execute(data).await?;
         Ok(capi::client::ExecuteResponse { data })
@@ -330,7 +330,7 @@ impl Northbound {
     // fails to be validated, or if one or more resources fail to be allocated.
     async fn create_transaction(
         &mut self,
-        candidate: DataTree,
+        candidate: DataTree<'static>,
         comment: String,
         confirmed_timeout: u32,
     ) -> Result<u32> {
@@ -434,7 +434,7 @@ impl Northbound {
     // Request all data providers to validate the candidate configuration.
     async fn validate_notify(
         &mut self,
-        candidate: &Arc<DataTree>,
+        candidate: &Arc<DataTree<'static>>,
     ) -> std::result::Result<(), northbound::error::Error> {
         let mut handles = Vec::new();
 
@@ -470,7 +470,7 @@ impl Northbound {
     async fn commit_phase_notify(
         &mut self,
         phase: CommitPhase,
-        candidate: &Arc<DataTree>,
+        candidate: &Arc<DataTree<'static>>,
         changes: &[ConfigChange],
     ) -> std::result::Result<(), northbound::error::Error> {
         // Spawn one task per data provider.
@@ -514,7 +514,10 @@ impl Northbound {
     }
 
     // Gets a full or partial copy of the running configuration.
-    fn get_configuration(&self, path: Option<&str>) -> Result<DataTree> {
+    fn get_configuration(
+        &self,
+        path: Option<&str>,
+    ) -> Result<DataTree<'static>> {
         match path {
             Some(path) => {
                 let yang_ctx = YANG_CTX.get().unwrap();
@@ -538,7 +541,7 @@ impl Northbound {
 
     // Gets dynamically generated operational data for the provided path. The
     // request might span multiple data providers.
-    async fn get_state(&self, path: Option<&str>) -> Result<DataTree> {
+    async fn get_state(&self, path: Option<&str>) -> Result<DataTree<'static>> {
         let yang_ctx = YANG_CTX.get().unwrap();
         let mut dtree = DataTree::new(yang_ctx);
 
@@ -563,7 +566,10 @@ impl Northbound {
     }
 
     // Invoke a YANG RPC or Action.
-    async fn execute(&self, data: DataTree) -> Result<DataTree> {
+    async fn execute(
+        &self,
+        data: DataTree<'static>,
+    ) -> Result<DataTree<'static>> {
         let yang_ctx = YANG_CTX.get().unwrap();
         let mut dtree = DataTree::new(yang_ctx);
 
@@ -591,7 +597,7 @@ impl Northbound {
 // ===== impl ConfirmedCommit =====
 
 impl ConfirmedCommit {
-    fn start(&mut self, configuration: DataTree, timeout: u32) {
+    fn start(&mut self, configuration: DataTree<'static>, timeout: u32) {
         debug!(%timeout, "starting confirmed commit timeout");
 
         let timeout = self.timeout_task(timeout);

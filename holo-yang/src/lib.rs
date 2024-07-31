@@ -284,7 +284,7 @@ pub trait TryFromYang: Sized {
 pub trait YangObject {
     // Initialize a given YANG data node with attributes from the current
     // object.
-    fn into_data_node(self: Box<Self>, dnode: &mut DataNodeRef<'_>);
+    fn into_data_node(self: Box<Self>, dnode: &mut DataNodeRef<'_, '_>);
 
     // Return the keys of the list, or an empty string for containers or keyless
     // lists.

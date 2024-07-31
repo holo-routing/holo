@@ -60,9 +60,9 @@ pub struct CallbackArgs<'a, P: Provider> {
     pub event_queue: &'a mut BTreeSet<P::Event>,
     pub list_entry: P::ListEntry,
     pub resource: &'a mut Option<P::Resource>,
-    pub old_config: &'a Arc<DataTree>,
-    pub new_config: &'a Arc<DataTree>,
-    pub dnode: DataNodeRef<'a>,
+    pub old_config: &'a Arc<DataTree<'static>>,
+    pub new_config: &'a Arc<DataTree<'static>>,
+    pub dnode: DataNodeRef<'a, 'static>,
 }
 
 //
@@ -80,7 +80,7 @@ pub struct ValidationCallbacksBuilder {
 
 #[derive(Debug)]
 pub struct ValidationCallbackArgs<'a> {
-    pub dnode: DataNodeRef<'a>,
+    pub dnode: DataNodeRef<'a, 'static>,
 }
 
 //
@@ -93,7 +93,7 @@ pub type ConfigChanges = Vec<ConfigChange>;
 pub type CallbackLookup<P: Provider> = for<'a> fn(
     &'a mut P,
     list_entry: P::ListEntry,
-    dnode: DataNodeRef<'a>,
+    dnode: DataNodeRef<'a, 'static>,
 ) -> P::ListEntry;
 
 pub type CallbackPhaseOne<P> =
@@ -396,8 +396,8 @@ impl ValidationCallbacksBuilder {
 async fn process_commit_local<P>(
     provider: &mut P,
     phase: CommitPhase,
-    old_config: &Arc<DataTree>,
-    new_config: &Arc<DataTree>,
+    old_config: &Arc<DataTree<'static>>,
+    new_config: &Arc<DataTree<'static>>,
     changes: &ConfigChanges,
     resources: &mut Vec<Option<P::Resource>>,
 ) -> Result<(), Error>
@@ -478,8 +478,8 @@ where
 async fn process_commit_relayed<P>(
     provider: &P,
     phase: CommitPhase,
-    old_config: &Arc<DataTree>,
-    new_config: &Arc<DataTree>,
+    old_config: &Arc<DataTree<'static>>,
+    new_config: &Arc<DataTree<'static>>,
     relayed_changes: ConfigChanges,
 ) -> Result<(), Error>
 where
@@ -512,7 +512,7 @@ fn lookup_list_entry<P>(
     phase: CommitPhase,
     operation: CallbackOp,
     callbacks: &Callbacks<P>,
-    dnode: &DataNodeRef<'_>,
+    dnode: &DataNodeRef<'_, 'static>,
 ) -> P::ListEntry
 where
     P: Provider,
@@ -542,7 +542,7 @@ where
 
 async fn validate_configuration<P>(
     provider: &P,
-    config: &Arc<DataTree>,
+    config: &Arc<DataTree<'static>>,
 ) -> Result<(), Error>
 where
     P: Provider,
@@ -569,7 +569,7 @@ where
 
 // ===== global functions =====
 
-pub fn changes_from_diff(diff: &DataDiff) -> ConfigChanges {
+pub fn changes_from_diff(diff: &DataDiff<'static>) -> ConfigChanges {
     let mut changes = vec![];
 
     for (op, dnode) in diff.iter() {
@@ -639,7 +639,7 @@ pub fn changes_from_diff(diff: &DataDiff) -> ConfigChanges {
 
 pub(crate) async fn process_validate<P>(
     provider: &P,
-    config: Arc<DataTree>,
+    config: Arc<DataTree<'static>>,
 ) -> Result<api::daemon::ValidateResponse, Error>
 where
     P: Provider,
@@ -670,8 +670,8 @@ where
 pub(crate) async fn process_commit<P>(
     provider: &mut P,
     phase: CommitPhase,
-    old_config: Arc<DataTree>,
-    new_config: Arc<DataTree>,
+    old_config: Arc<DataTree<'static>>,
+    new_config: Arc<DataTree<'static>>,
     mut changes: ConfigChanges,
     resources: &mut Vec<Option<P::Resource>>,
 ) -> Result<api::daemon::CommitResponse, Error>

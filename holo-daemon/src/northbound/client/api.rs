@@ -44,12 +44,12 @@ pub mod client {
 
     #[derive(Debug)]
     pub struct GetResponse {
-        pub dtree: DataTree,
+        pub dtree: DataTree<'static>,
     }
 
     #[derive(Debug)]
     pub struct ValidateRequest {
-        pub config: DataTree,
+        pub config: DataTree<'static>,
         pub responder: Responder<Result<ValidateResponse>>,
     }
 
@@ -71,13 +71,13 @@ pub mod client {
 
     #[derive(Debug)]
     pub struct ExecuteRequest {
-        pub data: DataTree,
+        pub data: DataTree<'static>,
         pub responder: Responder<Result<ExecuteResponse>>,
     }
 
     #[derive(Debug)]
     pub struct ExecuteResponse {
-        pub data: DataTree,
+        pub data: DataTree<'static>,
     }
 
     #[derive(Debug)]
@@ -98,7 +98,7 @@ pub mod client {
 
     #[derive(Debug)]
     pub struct GetTransactionResponse {
-        pub dtree: DataTree,
+        pub dtree: DataTree<'static>,
     }
 
     // ===== impl Request =====
@@ -126,7 +126,7 @@ pub enum DataType {
 
 #[derive(Debug)]
 pub enum CommitConfiguration {
-    Merge(DataTree),
-    Replace(DataTree),
-    Change(DataDiff),
+    Merge(DataTree<'static>),
+    Replace(DataTree<'static>),
+    Change(DataDiff<'static>),
 }

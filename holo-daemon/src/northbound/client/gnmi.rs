@@ -279,7 +279,7 @@ impl proto::GNmi for GNmiService {
 impl GNmiService {
     fn gen_update_ietf_json(
         &self,
-        dtree: DataTree,
+        dtree: DataTree<'static>,
         _models: &[proto::ModelData],
     ) -> Vec<proto::Update> {
         dtree
@@ -343,7 +343,7 @@ impl GNmiService {
 
     fn gen_update_proto(
         &self,
-        dtree: DataTree,
+        dtree: DataTree<'static>,
         _models: &[proto::ModelData],
     ) -> Vec<proto::Update> {
         dtree
@@ -398,7 +398,7 @@ impl GNmiService {
             .collect()
     }
 
-    async fn get_running(&self) -> Result<DataTree, Status> {
+    async fn get_running(&self) -> Result<DataTree<'static>, Status> {
         // Create oneshot channel to receive response back from the northbound.
         let (responder_tx, responder_rx) = oneshot::channel();
 

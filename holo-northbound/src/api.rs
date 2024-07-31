@@ -47,7 +47,7 @@ pub mod daemon {
     #[derive(Debug, Deserialize, Serialize)]
     pub struct ValidateRequest {
         #[serde(with = "holo_yang::serde::data_tree::arc")]
-        pub config: Arc<DataTree>,
+        pub config: Arc<DataTree<'static>>,
         #[serde(skip)]
         pub responder: Option<Responder<Result<ValidateResponse, Error>>>,
     }
@@ -59,9 +59,9 @@ pub mod daemon {
     pub struct CommitRequest {
         pub phase: CommitPhase,
         #[serde(with = "holo_yang::serde::data_tree::arc")]
-        pub old_config: Arc<DataTree>,
+        pub old_config: Arc<DataTree<'static>>,
         #[serde(with = "holo_yang::serde::data_tree::arc")]
-        pub new_config: Arc<DataTree>,
+        pub new_config: Arc<DataTree<'static>>,
         pub changes: ConfigChanges,
         #[serde(skip)]
         pub responder: Option<Responder<Result<CommitResponse, Error>>>,
@@ -79,20 +79,20 @@ pub mod daemon {
 
     #[derive(Debug)]
     pub struct GetResponse {
-        pub data: DataTree,
+        pub data: DataTree<'static>,
     }
 
     #[derive(Debug, Deserialize, Serialize)]
     pub struct RpcRequest {
         #[serde(with = "holo_yang::serde::data_tree")]
-        pub data: DataTree,
+        pub data: DataTree<'static>,
         #[serde(skip)]
         pub responder: Option<Responder<Result<RpcResponse, Error>>>,
     }
 
     #[derive(Debug)]
     pub struct RpcResponse {
-        pub data: DataTree,
+        pub data: DataTree<'static>,
     }
 }
 
@@ -102,6 +102,6 @@ pub mod provider {
 
     #[derive(Debug)]
     pub struct Notification {
-        pub data: DataTree,
+        pub data: DataTree<'static>,
     }
 }

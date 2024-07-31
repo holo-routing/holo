@@ -42,7 +42,7 @@ pub struct InstanceState {
     pub up_time: Option<DateTime<Utc>>,
     pub last_event: Event,
     pub new_master_reason: MasterReason,
-    pub skew_time: u32,
+    pub skew_time: f32,
     pub master_down_interval: u32,
 
     // TODO: interval/timer tasks
@@ -110,11 +110,6 @@ impl Instance {
         }
     }
 
-    pub(crate) fn change_state(&mut self, state: State) {
-        self.state.state = state;
-        tasks::set_timer(self);
-    }
-
     pub(crate) fn reset_timer(&mut self) {
         match self.timer {
             VrrpTimer::AdverTimer(ref mut t) => {
@@ -144,7 +139,7 @@ impl InstanceState {
             last_event: Event::None,
             new_master_reason: MasterReason::NotMaster,
             statistics: Default::default(),
-            skew_time: 0,
+            skew_time: 0.0,
             master_down_interval: 0,
         }
     }

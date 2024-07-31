@@ -11,9 +11,11 @@ use std::time::Duration;
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{Sender, UnboundedReceiver};
+use messages::input::MasterDownTimerMsg;
 use tracing::{debug_span, Instrument};
 
 use crate::instance::{Instance, VrrpTimer};
+use crate::interface::Interface;
 use crate::network;
 
 //
@@ -25,7 +27,7 @@ use crate::network;
 //                                           | |
 //                        northbound_rx (1x) V | (1x) northbound_tx
 //                                     +--------------+
-//                                     |              |
+//           master_down_timer (Nx) -> |              | -> (Nx) master_down_timer
 //                      net_rx (Nx) -> |   instance   | -> (Nx) net_tx
 //                                     |              |
 //                                     +--------------+
@@ -56,13 +58,18 @@ pub mod messages {
         #[derive(Debug, Deserialize, Serialize)]
         pub enum ProtocolMsg {
             NetRxPacket(NetRxPacketMsg),
-            // TODO
+            MasterDownTimer(MasterDownTimerMsg),
         }
 
         #[derive(Debug, Deserialize, Serialize)]
         pub struct NetRxPacketMsg {
             pub src: IpAddr,
             pub packet: Result<VrrpPacket, DecodeError>,
+        }
+
+        #[derive(Debug, Deserialize, Serialize)]
+        pub struct MasterDownTimerMsg {
+            pub vrid: u8, 
         }
     }
 
@@ -161,34 +168,45 @@ pub(crate) fn net_tx(
 }
 
 // handling the timers...
-pub(crate) fn set_timer(instance: &mut Instance) {
-    match instance.state.state {
-        crate::instance::State::Initialize => {
-            instance.timer = VrrpTimer::Null;
-        }
-        crate::instance::State::Backup => {
-            set_master_down_timer(
-                instance,
-                instance.state.master_down_interval as u64,
-            );
-        }
-        crate::instance::State::Master => {
-            let timer = IntervalTask::new(
-                Duration::from_secs(instance.config.advertise_interval as u64),
-                true,
-                move || async move {
-                    todo!("send VRRP advertisement");
-                },
-            );
-            instance.timer = VrrpTimer::AdverTimer(timer);
+pub(crate) fn set_timer( interface: &mut Interface, vrid: u8 
+) {
+    if let Some(instance) = interface.instances.get_mut(&vrid){
+        match instance.state.state {
+            crate::instance::State::Initialize => {
+                instance.timer = VrrpTimer::Null;
+            }
+            crate::instance::State::Backup => {
+                let duration = Duration::from_secs(instance.state.master_down_interval as u64);
+                set_master_down_timer(
+                    interface, 
+                    vrid, 
+                    duration
+                );
+            }
+            crate::instance::State::Master => {
+                let timer = IntervalTask::new(
+                    Duration::from_secs(instance.config.advertise_interval as u64),
+                    true,
+                    move || async move {
+                        todo!("send VRRP advertisement");
+                    },
+                );
+                instance.timer = VrrpTimer::AdverTimer(timer);
+            }
         }
     }
+
 }
 
-pub(crate) fn set_master_down_timer(instance: &mut Instance, period: u64) {
-    let timer =
-        TimeoutTask::new(Duration::from_secs(period), move || async move {});
+// ==== Set Master Down Timer ====
+pub(crate) fn set_master_down_timer(
+    interface: &mut Interface, vrid: u8, duration: Duration // period: u64
+) {
+    let instance = interface.instances.get_mut(&vrid).unwrap();
+    let tx = interface.tx.protocol_input.master_down_timer.clone();
+
+    let timer = TimeoutTask::new(duration, move || async move {
+        tx.send(messages::input::MasterDownTimerMsg{ vrid });
+    });
     instance.timer = VrrpTimer::MasterDownTimer(timer);
 }
-
-

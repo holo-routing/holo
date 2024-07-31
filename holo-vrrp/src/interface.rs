@@ -22,9 +22,9 @@ use ipnetwork::Ipv4Network;
 use tokio::sync::mpsc;
 
 use crate::error::{Error, IoError};
-use crate::instance::Instance;
+use crate::instance::{Instance, State};
 use crate::packet::{ArpPacket, EthernetFrame, VrrpPacket};
-use crate::tasks::messages::input::NetRxPacketMsg;
+use crate::tasks::messages::input::{MasterDownTimerMsg, NetRxPacketMsg};
 use crate::tasks::messages::output::NetTxPacketMsg;
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
 use crate::{events, network, southbound, tasks};
@@ -73,17 +73,28 @@ pub struct InterfaceNet {
 pub struct ProtocolInputChannelsTx {
     // Packet Rx event.
     pub net_packet_rx: Sender<NetRxPacketMsg>,
+    // Master Down event 
+    pub master_down_timer: Sender<MasterDownTimerMsg>,
 }
 
 #[derive(Debug)]
 pub struct ProtocolInputChannelsRx {
     // Packet Rx event.
     pub net_packet_rx: Receiver<NetRxPacketMsg>,
+    // Master Down event
+    pub master_down_timer: Receiver<MasterDownTimerMsg>,
 }
 
 // ===== impl Interface =====
 
 impl Interface {
+    pub(crate) fn change_state(&mut self, vrid: u8, state: State) {
+        if let Some(instance) = self.instances.get_mut(&vrid) {
+            instance.state.state = state;
+            tasks::set_timer(self, vrid);
+        }
+    }
+
     pub(crate) fn send_vrrp_advert(&self, vrid: u8) {
         if let Some(instance) = self.instances.get(&vrid) {
             // send advertisement then reset the timer.
@@ -110,7 +121,7 @@ impl Interface {
         }
     }
 
-     pub(crate) async fn send_gratuitous_arp(&self, vrid: u8) {
+     pub(crate) fn send_gratuitous_arp(&self, vrid: u8) {
         let ifname  = &self.name;
 
         if let Some(instance) = self.instances.get(&vrid) {
@@ -193,7 +204,10 @@ impl ProtocolInstance for Interface {
         if let Err(error) = match msg {
             // Received network packet.
             ProtocolInputMsg::NetRxPacket(msg) => {
-                events::process_packet(self, msg.packet)
+                events::process_vrrp_packet(self, msg.packet)
+            }
+            ProtocolInputMsg::MasterDownTimer(msg) => {
+                events::handle_master_down_timer(self, msg.vrid)
             }
         } {
             error.log();
@@ -203,12 +217,15 @@ impl ProtocolInstance for Interface {
     fn protocol_input_channels(
     ) -> (ProtocolInputChannelsTx, ProtocolInputChannelsRx) {
         let (net_packet_rxp, net_packet_rxc) = mpsc::channel(4);
+        let (master_down_timerp, master_down_timerc) = mpsc::channel(4);
 
         let tx = ProtocolInputChannelsTx {
             net_packet_rx: net_packet_rxp,
+            master_down_timer: master_down_timerp,
         };
         let rx = ProtocolInputChannelsRx {
             net_packet_rx: net_packet_rxc,
+            master_down_timer: master_down_timerc,
         };
 
         (tx, rx)
@@ -274,6 +291,9 @@ impl MessageReceiver<ProtocolInputMsg> for ProtocolInputChannelsRx {
             biased;
             msg = self.net_packet_rx.recv() => {
                 msg.map(ProtocolInputMsg::NetRxPacket)
+            }
+            msg = self.master_down_timer.recv() => {
+                msg.map(ProtocolInputMsg::MasterDownTimer)
             }
         }
     }

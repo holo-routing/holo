@@ -21,7 +21,7 @@ use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::{ToYang, TryFromYang};
-use yang2::data::Data;
+use yang3::data::Data;
 
 use crate::area::{self, AreaType};
 use crate::collections::{AreaIndex, InterfaceIndex};

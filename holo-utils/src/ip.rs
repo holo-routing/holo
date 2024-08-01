@@ -38,6 +38,9 @@ pub trait IpAddrExt {
     // Returns true if this is an usable address.
     fn is_usable(&self) -> bool;
 
+    // Converts this IP address into a host prefix network.
+    fn to_host_prefix(&self) -> IpNetwork;
+
     // Returns an unspecified address of the given address family.
     fn unspecified(af: AddressFamily) -> IpAddr;
 }
@@ -48,6 +51,9 @@ pub trait Ipv4AddrExt {
 
     // Returns true if this is an usable address.
     fn is_usable(&self) -> bool;
+
+    // Converts this IPv4 address into a host prefix network.
+    fn to_host_prefix(&self) -> Ipv4Network;
 }
 
 // Extension methods for Ipv6Addr.
@@ -56,6 +62,9 @@ pub trait Ipv6AddrExt {
 
     // Returns true if this is an usable address.
     fn is_usable(&self) -> bool;
+
+    // Converts this IPv6 address into a host prefix network.
+    fn to_host_prefix(&self) -> Ipv6Network;
 }
 
 // Extension methods for IpNetwork.
@@ -238,6 +247,13 @@ impl IpAddrExt for IpAddr {
         !(self.is_loopback() || self.is_multicast() || self.is_unspecified())
     }
 
+    fn to_host_prefix(&self) -> IpNetwork {
+        match self {
+            IpAddr::V4(addr) => addr.to_host_prefix().into(),
+            IpAddr::V6(addr) => addr.to_host_prefix().into(),
+        }
+    }
+
     fn unspecified(af: AddressFamily) -> IpAddr {
         match af {
             AddressFamily::Ipv4 => IpAddr::V4(Ipv4Addr::UNSPECIFIED),
@@ -274,6 +290,10 @@ impl Ipv4AddrExt for Ipv4Addr {
             || self.is_multicast()
             || self.is_unspecified())
     }
+
+    fn to_host_prefix(&self) -> Ipv4Network {
+        Ipv4Network::new(*self, Ipv4Network::MAX_PREFIXLEN).unwrap()
+    }
 }
 
 impl IpAddrKind for Ipv4Addr {
@@ -300,6 +320,10 @@ impl Ipv6AddrExt for Ipv6Addr {
 
     fn is_usable(&self) -> bool {
         !(self.is_loopback() || self.is_multicast() || self.is_unspecified())
+    }
+
+    fn to_host_prefix(&self) -> Ipv6Network {
+        Ipv6Network::new(*self, Ipv6Network::MAX_PREFIXLEN).unwrap()
     }
 }
 

@@ -147,7 +147,7 @@ impl NetworkVersion<Self> for Ospfv2 {
     }
 
     fn src_from_sockaddr(sockaddr: &SockaddrIn) -> Ipv4Addr {
-        Ipv4Addr::from(sockaddr.ip())
+        sockaddr.ip()
     }
 
     fn validate_ip_hdr(buf: &mut Bytes) -> DecodeResult<()> {

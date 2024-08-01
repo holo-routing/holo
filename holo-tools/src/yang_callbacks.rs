@@ -9,8 +9,8 @@ use clap::{App, Arg};
 use convert_case::{Boundary, Case, Casing};
 use holo_northbound::CallbackOp;
 use holo_yang as yang;
-use yang2::context::Context;
-use yang2::schema::{SchemaModule, SchemaNode, SchemaNodeKind};
+use yang3::context::Context;
+use yang3::schema::{SchemaModule, SchemaNode, SchemaNodeKind};
 
 fn snode_module(snode: &SchemaNode<'_>) -> String {
     let snodes = snode.inclusive_ancestors().collect::<Vec<_>>();

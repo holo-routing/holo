@@ -38,6 +38,9 @@ pub(crate) fn create_context() {
     #[cfg(feature = "policy")]
     modules_add::<holo_policy::Master>(&mut modules);
 
+    #[cfg(feature = "system")]
+    modules_add::<holo_system::Master>(&mut modules);
+
     // Add protocol modules based on enabled features.
     #[cfg(feature = "bfd")]
     {

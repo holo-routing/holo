@@ -1,7 +1,7 @@
-module ietf-bgp-holo-deviations {
+module holo-ietf-bgp-deviations {
   yang-version 1.1;
-  namespace "http://holo-routing.org/yang/ietf-bgp-holo-deviations";
-  prefix ietf-bgp-holo-deviations;
+  namespace "http://holo-routing.org/yang/holo-ietf-bgp-deviations";
+  prefix holo-ietf-bgp-deviations;
 
   import ietf-routing {
     prefix rt;

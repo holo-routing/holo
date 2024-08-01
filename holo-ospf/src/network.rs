@@ -212,7 +212,7 @@ where
                             .address
                             .as_ref()
                             .map(|addr| V::src_from_sockaddr(addr));
-                        let dst = V::get_cmsg_data(msg.cmsgs());
+                        let dst = V::get_cmsg_data(msg.cmsgs().unwrap());
                         Ok((src, dst, msg.bytes))
                     }
                     Err(errno) => Err(errno.into()),

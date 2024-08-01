@@ -11,10 +11,10 @@ use std::collections::HashMap;
 use std::sync::{Arc, LazyLock as Lazy, OnceLock};
 
 use maplit::hashmap;
-use yang2::context::{
+use yang3::context::{
     Context, ContextFlags, EmbeddedModuleKey, EmbeddedModules,
 };
-use yang2::data::DataNodeRef;
+use yang3::data::DataNodeRef;
 
 // Global YANG context.
 pub static YANG_CTX: OnceLock<Arc<Context>> = OnceLock::new();
@@ -39,6 +39,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/iana-bgp-rib-types@2023-07-05.yang"),
         EmbeddedModuleKey::new("iana-bgp-types", Some("2023-07-05"), None, None) =>
             include_str!("../modules/ietf/iana-bgp-types@2023-07-05.yang"),
+        EmbeddedModuleKey::new("iana-crypt-hash", Some("2014-08-06"), None, None) =>
+            include_str!("../modules/ietf/iana-crypt-hash@2014-08-06.yang"),
         EmbeddedModuleKey::new("iana-if-type", Some("2017-01-19"), None, None) =>
             include_str!("../modules/ietf/iana-if-type@2017-01-19.yang"),
         EmbeddedModuleKey::new("iana-routing-types", Some("2018-10-29"), None, None) =>
@@ -97,12 +99,14 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-netconf-acm@2018-02-14.yang"),
         EmbeddedModuleKey::new("ietf-ospf", Some("2022-10-19"), None, None) =>
             include_str!("../modules/ietf/ietf-ospf@2022-10-19.yang"),
-        EmbeddedModuleKey::new("ietf-ospf-sr-mpls", Some("2024-01-18"), None, None) =>
-            include_str!("../modules/ietf/ietf-ospf-sr-mpls@2024-01-18.yang"),
+        EmbeddedModuleKey::new("ietf-ospf-sr-mpls", Some("2024-06-19"), None, None) =>
+            include_str!("../modules/ietf/ietf-ospf-sr-mpls@2024-06-19.yang"),
         EmbeddedModuleKey::new("ietf-ospfv3-extended-lsa", Some("2024-06-07"), None, None) =>
             include_str!("../modules/ietf/ietf-ospfv3-extended-lsa@2024-06-07.yang"),
         EmbeddedModuleKey::new("ietf-rip", Some("2020-02-20"), None, None) =>
             include_str!("../modules/ietf/ietf-rip@2020-02-20.yang"),
+        EmbeddedModuleKey::new("ietf-system", Some("2014-08-06"), None, None) =>
+            include_str!("../modules/ietf/ietf-system@2014-08-06.yang"),
         EmbeddedModuleKey::new("ietf-routing", Some("2018-03-13"), None, None) =>
             include_str!("../modules/ietf/ietf-routing@2018-03-13.yang"),
         EmbeddedModuleKey::new("ietf-routing-policy", Some("2021-10-11"), None, None) =>
@@ -165,6 +169,7 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/deviations/ietf-segment-routing-mpls-holo-deviations.yang"),
         EmbeddedModuleKey::new("ietf-vrrp-holo-deviations", None, None, None) =>
             include_str!("../modules/deviations/ietf-vrrp-holo-deviations.yang"),
+
     }
 });
 
@@ -207,6 +212,7 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
             "ietf-ospf-sr-mpls",
             "ietf-ospfv3-extended-lsa",
             "ietf-rip",
+            "ietf-system",
             "ietf-tcp",
             "ietf-vrrp",
             // IETF Holo augmentations
@@ -355,7 +361,7 @@ pub fn load_module(ctx: &mut Context, name: &str) {
 
 // Loads a YANG deviations module.
 pub fn load_deviations(ctx: &mut Context, name: &str) {
-    let name = format!("{}-holo-deviations", name);
+    let name = format!("holo-{}-deviations", name);
     // Ignore errors since the deviation module might not exist.
     let _ = ctx.load_module(&name, None, &[]);
 }

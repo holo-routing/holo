@@ -93,8 +93,11 @@ message GetRequest {
   // Encoding to be used.
   Encoding encoding = 2;
 
+  // Include implicit default nodes.
+  bool with_defaults = 3;
+
   // Requested YANG path.
-  string path = 3;
+  string path = 4;
 }
 
 message GetResponse {
@@ -239,6 +242,13 @@ enum Encoding {
 
 // YANG instance data.
 message DataTree {
+  // The encoding format of the data.
   Encoding encoding = 1;
-  string data = 2;
+
+  oneof data {
+    // Data in string format, used for JSON or XML encodings.
+    string data_string = 2;
+    // Data in binary format, used for LYB encoding.
+    bytes data_bytes = 3;
+  }
 }

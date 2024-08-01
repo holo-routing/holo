@@ -1,7 +1,7 @@
-module ietf-rip-holo-deviations {
+module holo-ietf-rip-deviations {
   yang-version 1.1;
-  namespace "http://holo-routing.org/yang/ietf-rip-holo-deviations";
-  prefix ietf-rip-holo-deviations;
+  namespace "http://holo-routing.org/yang/holo-ietf-rip-deviations";
+  prefix holo-ietf-rip-deviations;
 
   import ietf-routing {
     prefix rt;
@@ -367,6 +367,12 @@ module ietf-rip-holo-deviations {
     deviate not-supported;
   }
   */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/rip:rip/rip:interfaces/rip:interface/rip:timers" {
+    deviate delete {
+      must 'invalid-interval >= (update-interval * 3)';
+    }
+  }
 
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/rip:rip/rip:interfaces/rip:interface/rip:timers/rip:update-interval" {
     deviate not-supported;

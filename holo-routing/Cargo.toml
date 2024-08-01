@@ -19,7 +19,7 @@ regex.workspace = true
 rtnetlink.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-yang2.workspace = true
+yang3.workspace = true
 
 holo-northbound = { path = "../holo-northbound" }
 holo-protocol = { path = "../holo-protocol" }
@@ -36,8 +36,8 @@ holo-rip = { path = "../holo-rip", optional = true }
 workspace = true
 
 [features]
-bfd = ["holo-bfd"]
-bgp = ["holo-bgp"]
-ldp = ["holo-ldp"]
-ospf = ["holo-ospf"]
-rip = ["holo-rip"]
+bfd = ["dep:holo-bfd"]
+bgp = ["dep:holo-bgp"]
+ldp = ["dep:holo-ldp"]
+ospf = ["dep:holo-ospf"]
+rip = ["dep:holo-rip"]

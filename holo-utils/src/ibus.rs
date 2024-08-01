@@ -44,6 +44,10 @@ pub enum IbusMsg {
         sess_key: bfd::SessionKey,
         state: bfd::State,
     },
+    // Query the current hostname.
+    HostnameQuery,
+    // Hostname update notification.
+    HostnameUpdate(Option<String>),
     // Request to dump information about all interfaces.
     InterfaceDump,
     // Query information about a specific interface.

@@ -25,7 +25,7 @@ use pickledb::PickleDb;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tracing::{debug, error, info, instrument, trace, warn};
-use yang2::data::{
+use yang3::data::{
     Data, DataDiffFlags, DataFormat, DataPrinterFlags, DataTree,
     DataValidationFlags,
 };
@@ -517,12 +517,20 @@ impl Northbound {
     // Gets a full or partial copy of the running configuration.
     fn get_configuration(&self, path: Option<&str>) -> Result<DataTree> {
         match path {
-            Some(path) => self
-                .running_config
-                .find_path(path)
-                .map_err(Error::YangInvalidPath)?
-                .duplicate(true)
-                .map_err(Error::YangInternal),
+            Some(path) => {
+                let yang_ctx = YANG_CTX.get().unwrap();
+                let mut dtree = DataTree::new(yang_ctx);
+                for dnode in self
+                    .running_config
+                    .find_xpath(path)
+                    .map_err(Error::YangInvalidPath)?
+                {
+                    let subtree =
+                        dnode.duplicate(true).map_err(Error::YangInternal)?;
+                    dtree.merge(&subtree).map_err(Error::YangInternal)?;
+                }
+                Ok(dtree)
+            }
             None => {
                 self.running_config.duplicate().map_err(Error::YangInternal)
             }
@@ -631,7 +639,8 @@ fn start_providers(
     let ibus_rx_routing = ibus_tx.subscribe();
     let ibus_rx_interface = ibus_tx.subscribe();
     let ibus_rx_keychain = ibus_tx.subscribe();
-    let ibus_rx_policy = ibus_rx;
+    let ibus_rx_policy = ibus_tx.subscribe();
+    let ibus_rx_system = ibus_rx;
 
     let shared = InstanceShared {
         db: Some(db),
@@ -669,6 +678,17 @@ fn start_providers(
             provider_tx.clone(),
             ibus_tx.clone(),
             ibus_rx_policy,
+        );
+        providers.push(daemon_tx);
+    }
+
+    // Start holo-system.
+    #[cfg(feature = "system")]
+    {
+        let daemon_tx = holo_system::start(
+            provider_tx.clone(),
+            ibus_tx.clone(),
+            ibus_rx_system,
         );
         providers.push(daemon_tx);
     }

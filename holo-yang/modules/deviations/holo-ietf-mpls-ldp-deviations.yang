@@ -1,7 +1,7 @@
-module ietf-mpls-ldp-holo-deviations {
+module holo-ietf-mpls-ldp-deviations {
   yang-version 1.1;
-  namespace "http://holo-routing.org/yang/ietf-mpls-ldp-holo-deviations";
-  prefix ietf-mpls-ldp-holo-deviations;
+  namespace "http://holo-routing.org/yang/holo-ietf-mpls-ldp-deviations";
+  prefix holo-ietf-mpls-ldp-deviations;
 
   import ietf-routing {
     prefix rt;

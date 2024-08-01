@@ -14,7 +14,7 @@ use check_keyword::CheckKeyword;
 use convert_case::{Boundary, Case, Casing};
 use holo_yang as yang;
 use holo_yang::YANG_IMPLEMENTED_MODULES;
-use yang2::schema::{
+use yang3::schema::{
     DataValue, DataValueType, SchemaLeafType, SchemaNode, SchemaNodeKind,
     SchemaPathFormat,
 };
@@ -28,8 +28,8 @@ use chrono::{DateTime, Utc};
 use holo_yang::{YangObject, YangPath, YANG_CTX};
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use itertools::Itertools;
-use yang2::data::DataNodeRef;
-use yang2::schema::SchemaModule;
+use yang3::data::DataNodeRef;
+use yang3::schema::SchemaModule;
 
 fn binary_to_yang(value: &[u8]) -> String {
     use base64::Engine;
@@ -399,7 +399,7 @@ fn leaf_typedef_map(leaf_type: &SchemaLeafType<'_>) -> Option<&'static str> {
         Some("ip-prefix") => Some("Cow<'a, IpNetwork>"),
         Some("ipv4-prefix") => Some("Cow<'a, Ipv4Network>"),
         Some("ipv6-prefix") => Some("Cow<'a, Ipv6Network>"),
-        Some("date-and-time") => Some("&'a DateTime<Utc>"),
+        Some("date-and-time") => Some("Cow<'a, DateTime<Utc>>"),
         Some("timer-value-seconds16") => Some("Cow<'a, Duration>"),
         Some("timer-value-seconds32") => Some("Cow<'a, Duration>"),
         Some("timer-value-milliseconds") => Some("Cow<'a, Duration>"),
@@ -552,15 +552,11 @@ fn generate_module(output: &mut String, snode: &SchemaNode<'_>, level: usize) {
     }
 
     // Iterate over child nodes.
-    if let Some(actions) = snode.actions() {
-        for snode in actions {
-            generate_module(output, &snode, level + 1);
-        }
+    for snode in snode.actions() {
+        generate_module(output, &snode, level + 1);
     }
-    if let Some(notifications) = snode.notifications() {
-        for snode in notifications {
-            generate_module(output, &snode, level + 1);
-        }
+    for snode in snode.notifications() {
+        generate_module(output, &snode, level + 1);
     }
     for snode in snode.children().filter(|snode| snode.is_status_current()) {
         writeln!(output).unwrap();

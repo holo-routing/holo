@@ -16,7 +16,6 @@ pub struct Config {
     pub group: String,
     pub database_path: String,
     pub logging: Logging,
-    pub tokio_console: TokioConsole,
     pub event_recorder: event_recorder::Config,
     pub plugins: Plugins,
 }
@@ -71,12 +70,6 @@ pub enum LoggingFmtStyle {
     Full,
     Json,
     Pretty,
-}
-
-#[derive(Debug, Default, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct TokioConsole {
-    pub enabled: bool,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -139,7 +132,6 @@ impl Default for Config {
             group: "holo".to_owned(),
             database_path: "/var/run/holo/holo.db".to_owned(),
             logging: Default::default(),
-            tokio_console: Default::default(),
             event_recorder: Default::default(),
             plugins: Default::default(),
         }

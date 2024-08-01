@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 use holo_northbound::NbProviderReceiver;
 use holo_utils::ibus::IbusReceiver;
 use holo_utils::Receiver;
-use yang2::data::{Data, DataFormat, DataPrinterFlags};
+use yang3::data::{Data, DataFormat, DataPrinterFlags};
 
 use crate::ProtocolInstance;
 

@@ -9,7 +9,7 @@ use std::sync::LazyLock as Lazy;
 use holo_northbound::rpc::{Callbacks, CallbacksBuilder, Provider};
 use holo_northbound::yang;
 use holo_utils::yang::DataNodeRefExt;
-use yang2::data::Data;
+use yang3::data::Data;
 
 use crate::instance::{Instance, InstanceArenas, InstanceUpView};
 use crate::neighbor::nsm;

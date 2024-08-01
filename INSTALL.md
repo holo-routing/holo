@@ -17,7 +17,7 @@ $ git clone https://github.com/holo-routing/holo-cli.git
 
 3. Install build dependencies:
 
-Holo requires a few dependencies for building and embedding the libyang2 library.
+Holo requires a few dependencies for building and embedding the libyang library.
 You can install them using your system's package manager. For example, on Debian-based systems:
 
 ```

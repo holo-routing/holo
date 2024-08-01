@@ -44,7 +44,8 @@ fn state_change_singlehop(
         time_of_last_state_change: sess
             .statistics
             .last_state_change_time
-            .as_ref(),
+            .as_ref()
+            .map(Cow::Borrowed),
         dest_addr: Some(Cow::Borrowed(dst)),
         source_addr: sess.config.src.as_ref().map(Cow::Borrowed),
         session_index: Some(sess.id as u32),
@@ -71,7 +72,8 @@ fn state_change_multihop(
         time_of_last_state_change: sess
             .statistics
             .last_state_change_time
-            .as_ref(),
+            .as_ref()
+            .map(Cow::Borrowed),
         dest_addr: Some(Cow::Borrowed(dst)),
         source_addr: Some(Cow::Borrowed(src)),
         session_index: Some(sess.id as u32),

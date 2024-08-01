@@ -1,7 +1,7 @@
-module ietf-if-vlan-encapsulation-holo-deviations {
+module holo-ietf-if-vlan-encapsulation-deviations {
   yang-version 1.1;
-  namespace "http://holo-routing.org/yang/ietf-if-vlan-encapsulation-holo-deviations";
-  prefix ietf-if-vlan-encapsulation-holo-deviations;
+  namespace "http://holo-routing.org/yang/holo-ietf-if-vlan-encapsulation-deviations";
+  prefix holo-ietf-if-vlan-encapsulation-deviations;
 
   import ietf-interfaces {
     prefix if;

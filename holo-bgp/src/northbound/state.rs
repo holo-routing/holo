@@ -127,7 +127,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                 identifier: nbr.identifier.map(Cow::Owned),
                 dynamically_configured: None,
                 session_state: Some(nbr.state.to_yang()),
-                last_established: nbr.last_established.as_ref().ignore_in_testing(),
+                last_established: nbr.last_established.as_ref().map(Cow::Borrowed).ignore_in_testing(),
             })
         })
         .path(bgp::neighbors::neighbor::timers::PATH)
@@ -298,7 +298,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             let mut last_error_subcode = None;
             let mut last_error_data = None;
             if let Some((time, notif)) = &nbr.notification_rcvd {
-                last_notification = Some(time);
+                last_notification = Some(Cow::Borrowed(time));
                 last_error = Some(notif.to_yang());
                 last_error_code = Some(notif.error_code);
                 last_error_subcode = Some(notif.error_subcode);
@@ -322,7 +322,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             let mut last_error_subcode = None;
             let mut last_error_data = None;
             if let Some((time, notif)) = &nbr.notification_sent {
-                last_notification = Some(time);
+                last_notification = Some(Cow::Borrowed(time));
                 last_error = Some(notif.to_yang());
                 last_error_code = Some(notif.error_code);
                 last_error_subcode = Some(notif.error_subcode);

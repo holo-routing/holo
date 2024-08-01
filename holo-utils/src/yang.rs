@@ -10,9 +10,9 @@ use std::str::FromStr;
 
 use holo_yang::TryFromYang;
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
-use yang2::context::Context;
-use yang2::data::{Data, DataNodeRef};
-use yang2::schema::{DataValue, SchemaNode, SchemaPathFormat};
+use yang3::context::Context;
+use yang3::data::{Data, DataNodeRef};
+use yang3::schema::{DataValue, SchemaNode, SchemaPathFormat};
 
 use crate::ip::AddressFamily;
 
@@ -72,18 +72,14 @@ impl ContextExt for Context {
     fn cache_data_paths(&self) {
         for snode in self.traverse() {
             snode.cache_data_path();
-            if let Some(actions) = snode.actions() {
-                for action in actions {
-                    for snode in action.traverse() {
-                        snode.cache_data_path();
-                    }
+            for action in snode.actions() {
+                for snode in action.traverse() {
+                    snode.cache_data_path();
                 }
             }
-            if let Some(notifications) = snode.notifications() {
-                for notification in notifications {
-                    for snode in notification.traverse() {
-                        snode.cache_data_path();
-                    }
+            for notification in snode.notifications() {
+                for snode in notification.traverse() {
+                    snode.cache_data_path();
                 }
             }
         }

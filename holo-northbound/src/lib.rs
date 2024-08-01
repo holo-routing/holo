@@ -24,7 +24,7 @@ use derive_new::new;
 use holo_utils::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 use serde::{Deserialize, Serialize};
 use tracing::Span;
-use yang2::schema::{DataValueType, SchemaNode, SchemaNodeKind};
+use yang3::schema::{DataValueType, SchemaNode, SchemaNodeKind};
 
 use crate::debug::Debug;
 

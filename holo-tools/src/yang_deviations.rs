@@ -6,7 +6,7 @@
 
 use clap::{App, Arg};
 use holo_yang as yang;
-use yang2::schema::SchemaNode;
+use yang3::schema::SchemaNode;
 
 // Generate fully-prefixed schema path.
 fn gen_fully_prefixed_path(snode: &SchemaNode<'_>) -> String {
@@ -58,10 +58,10 @@ fn main() {
     // Header.
     println!(
         "\
-        module {}-holo-deviations {{\
+        module holo-{}-deviations {{\
         \n  yang-version 1.1;\
-        \n  namespace \"http://holo-routing.org/yang/{}-holo-deviations\";\
-        \n  prefix {}-holo-deviations;\
+        \n  namespace \"http://holo-routing.org/yang/holo-{}-deviations\";\
+        \n  prefix holo-{}-deviations;\
         \n\
         \n  import {} {{\
         \n    prefix {};\

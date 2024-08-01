@@ -114,7 +114,9 @@ where
                 updates_sent = Some(iface.state.statistics.updates_sent);
             }
             Box::new(Statistics {
-                discontinuity_time: discontinuity_time.ignore_in_testing(),
+                discontinuity_time: discontinuity_time
+                    .map(Cow::Borrowed)
+                    .ignore_in_testing(),
                 bad_packets_rcvd: bad_packets_rcvd.ignore_in_testing(),
                 bad_routes_rcvd: bad_routes_rcvd.ignore_in_testing(),
                 updates_sent: updates_sent.ignore_in_testing(),
@@ -137,7 +139,9 @@ where
                 responses_sent = Some(instance.state.statistics.responses_sent);
             }
             Box::new(Statistics {
-                discontinuity_time: discontinuity_time.ignore_in_testing(),
+                discontinuity_time: discontinuity_time
+                    .map(Cow::Borrowed)
+                    .ignore_in_testing(),
                 requests_rcvd: requests_rcvd.ignore_in_testing(),
                 requests_sent: requests_sent.ignore_in_testing(),
                 responses_rcvd: responses_rcvd.ignore_in_testing(),
@@ -167,7 +171,8 @@ fn load_callbacks_ripv2() -> Callbacks<Instance<Ripv2>> {
             let nbr = args.list_entry.as_ipv4_neighbor().unwrap();
             Box::new(Neighbor {
                 ipv4_address: Cow::Borrowed(&nbr.addr),
-                last_update: Some(&nbr.last_update).ignore_in_testing(),
+                last_update: Some(Cow::Borrowed(&nbr.last_update))
+                    .ignore_in_testing(),
                 bad_packets_rcvd: Some(nbr.bad_packets_rcvd)
                     .ignore_in_testing(),
                 bad_routes_rcvd: Some(nbr.bad_routes_rcvd).ignore_in_testing(),
@@ -229,7 +234,8 @@ fn load_callbacks_ripng() -> Callbacks<Instance<Ripng>> {
             let nbr = args.list_entry.as_ipv6_neighbor().unwrap();
             Box::new(Neighbor {
                 ipv6_address: Cow::Borrowed(&nbr.addr),
-                last_update: Some(&nbr.last_update).ignore_in_testing(),
+                last_update: Some(Cow::Borrowed(&nbr.last_update))
+                    .ignore_in_testing(),
                 bad_packets_rcvd: Some(nbr.bad_packets_rcvd)
                     .ignore_in_testing(),
                 bad_routes_rcvd: Some(nbr.bad_routes_rcvd).ignore_in_testing(),

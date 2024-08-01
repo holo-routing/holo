@@ -76,8 +76,8 @@ pub(crate) async fn send_packet_vrrp(
         .map_err(IoError::SendError)
 }
 
-//#[cfg(not(feature = "testing"))]
-pub fn send_packet_arp(
+#[cfg(not(feature = "testing"))]
+pub async fn send_packet_arp(
     sock: &AsyncFd<Socket>,
     ifname: &str,
     eth_frame: EthernetFrame,

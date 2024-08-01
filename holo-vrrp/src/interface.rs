@@ -95,9 +95,9 @@ impl Interface {
         }
     }
 
-    pub(crate) fn send_vrrp_advert(&self, vrid: u8) {
+    pub(crate) async fn send_vrrp_advert(&self, vrid: u8) {
         if let Some(instance) = self.instances.get(&vrid) {
-            // send advertisement then reset the timer.
+            
             let mut ip_addresses: Vec<Ipv4Addr> = vec![];
             for addr in &instance.config.virtual_addresses {
                 ip_addresses.push(addr.ip());
@@ -117,11 +117,11 @@ impl Interface {
                 auth_data2: 0,
             };
             packet.generate_checksum();
-            network::send_packet_vrrp(&self.net.socket_vrrp, packet);
+            network::send_packet_vrrp(&self.net.socket_vrrp, packet).await;
         }
     }
 
-    pub(crate) fn send_gratuitous_arp(&self, vrid: u8) {
+    pub(crate) async fn send_gratuitous_arp(&self, vrid: u8) {
         let ifname = &self.name;
 
         if let Some(instance) = self.instances.get(&vrid) {
@@ -155,10 +155,11 @@ impl Interface {
                     &self.name,
                     eth_frame,
                     arp_packet,
-                );
+                ).await;
             }
         }
     }
+
 }
 
 #[async_trait]

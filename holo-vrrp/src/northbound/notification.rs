@@ -13,7 +13,7 @@ use holo_yang::ToYang;
 use crate::instance::MasterReason;
 
 // ===== global functions =====
-
+#[allow(unused)]
 pub(crate) fn new_master_event(
     nb_tx: &NbProviderSender,
     addr: Ipv4Addr,

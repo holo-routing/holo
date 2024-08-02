@@ -142,7 +142,7 @@ fn load_validation_callbacks() -> ValidationCallbacks {
         .validate(|args| {
             let version = args.dnode.get_string();
             if version != "ietf-vrrp:vrrp-v2" {
-                return Err(format!("unsupported VRRP version",));
+                return Err("unsupported VRRP version".to_string());
             }
 
             Ok(())

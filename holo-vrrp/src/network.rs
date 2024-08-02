@@ -5,13 +5,12 @@
 //
 
 use std::io;
-use std::net::{IpAddr, Ipv4Addr, SocketAddrV4};
-use std::os::fd::FromRawFd;
+use std::net::{Ipv4Addr, SocketAddrV4};
 use std::sync::Arc;
 
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::{capabilities, Sender, UnboundedReceiver};
-use libc::{socket, AF_PACKET, ETH_P_ALL, ETH_P_ARP, SOCK_RAW};
+use libc::{AF_PACKET, ETH_P_ARP};
 use socket2::{Domain, Protocol, Type};
 use tokio::sync::mpsc::error::SendError;
 
@@ -48,8 +47,8 @@ pub fn socket_arp(ifname: &str) -> Result<Socket, std::io::Error> {
             )
         })?;
         capabilities::raise(|| {
-            sock.bind_device(Some(ifname.as_bytes()));
-            sock.set_broadcast(true);
+            let _ = sock.bind_device(Some(ifname.as_bytes()));
+            let _ = sock.set_broadcast(true);
         });
         Ok(sock)
     }
@@ -70,27 +69,22 @@ pub(crate) async fn send_packet_vrrp(
     socket
         .async_io(tokio::io::Interest::WRITABLE, |sock| {
             sock.send_to(buf, &saddr.into())
-                .map_err(|errno| errno.into())
         })
         .await
         .map_err(IoError::SendError)
 }
 
-//#[cfg(not(feature = "testing"))]
-pub fn send_packet_arp(
+#[cfg(not(feature = "testing"))]
+pub async fn send_packet_arp(
     sock: &AsyncFd<Socket>,
     ifname: &str,
     eth_frame: EthernetFrame,
     arp_packet: ArpPacket,
 ) -> Result<usize, IoError> {
-    use std::ffi::{CString, NulError};
+    use std::ffi::CString;
     use std::os::fd::AsRawFd;
-    use std::os::{self};
 
-    use bytes::Buf;
-    use libc::{
-        c_void, if_indextoname, if_nametoindex, sendto, sockaddr, sockaddr_ll,
-    };
+    use libc::{c_void, sendto, sockaddr, sockaddr_ll};
 
     use crate::packet::ARPframe;
     let mut arpframe = ARPframe::new(eth_frame, arp_packet);
@@ -134,7 +128,7 @@ pub fn send_packet_arp(
     }
 }
 
-#[cfg(not(feature = "testing"))]
+//#[cfg(not(feature = "testing"))]
 pub(crate) async fn write_loop(
     socket_vrrp: Arc<AsyncFd<Socket>>,
     socket_arp: Arc<AsyncFd<Socket>>,
@@ -142,18 +136,23 @@ pub(crate) async fn write_loop(
 ) {
     while let Some(msg) = net_tx_packetc.recv().await {
         match msg {
-            NetTxPacketMsg::Vrrp { packet, src, dst } => {
-                if let Err(error) =
-                    send_packet_vrrp(&socket_vrrp, packet).await
+            NetTxPacketMsg::Vrrp { packet } => {
+                if let Err(error) = send_packet_vrrp(&socket_vrrp, packet).await
                 {
                     error.log();
                 }
             }
-            NetTxPacketMsg::Arp {} => {
-
-                // if let Err(error) = send_packet_arp(&socket_arp).await {
-                //     error.log();
-                // }
+            NetTxPacketMsg::Arp {
+                name,
+                eth_frame,
+                arp_packet,
+            } => {
+                if let Err(error) =
+                    send_packet_arp(&socket_arp, &name, eth_frame, arp_packet)
+                        .await
+                {
+                    error.log();
+                }
             }
         }
     }

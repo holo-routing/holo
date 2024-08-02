@@ -21,7 +21,8 @@ pub enum Debug<'a> {
 }
 
 // ===== impl Debug =====
-
+// allow unused for the log method
+#[allow(unused)]
 impl<'a> Debug<'a> {
     // Log debug message using the tracing API.
     pub(crate) fn log(&self) {

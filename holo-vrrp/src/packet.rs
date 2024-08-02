@@ -214,7 +214,6 @@ impl VrrpPacket {
     pub fn decode(data: &[u8]) -> DecodeResult<Self> {
         // 1. pkt length verification
         let pkt_size = data.len();
-        let count_ip = data[3];
 
         let mut buf: Bytes = Bytes::copy_from_slice(data);
         let ver_type = buf.get_u8();
@@ -226,8 +225,7 @@ impl VrrpPacket {
         let auth_type = buf.get_u8();
         let adver_int = buf.get_u8();
 
-        if pkt_size < Self::MIN_PKT_LENGTH
-            || pkt_size > Self::MAX_PKT_LENGTH
+        if !(Self::MIN_PKT_LENGTH..=Self::MAX_PKT_LENGTH).contains(&pkt_size)
             || count_ip as usize > Self::MAX_IP_COUNT
             || (count_ip * 4) + 16 != pkt_size as u8
         {
@@ -243,7 +241,7 @@ impl VrrpPacket {
         }
 
         let mut ip_addresses: Vec<Ipv4Addr> = vec![];
-        for addr in 0..count_ip {
+        for _ in 0..count_ip {
             ip_addresses.push(buf.get_ipv4());
         }
 
@@ -260,8 +258,8 @@ impl VrrpPacket {
             adver_int,
             checksum,
             ip_addresses,
-            auth_data: auth_data,
-            auth_data2: auth_data2,
+            auth_data,
+            auth_data2,
         })
     }
 
@@ -274,6 +272,7 @@ impl Ipv4Packet {
     const MIN_HDR_LENGTH: usize = 20;
     const MAX_HDR_LENGTH: usize = 24;
 
+    #[allow(unused)]
     fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::new();
 
@@ -386,14 +385,14 @@ impl EthernetFrame {
 
     pub fn decode(data: &[u8]) -> DecodeResult<Self> {
         let mut buf = Bytes::copy_from_slice(data);
-        let mut dst_mac: [u8; 6] = [0u8; 6];
-        let mut src_mac: [u8; 6] = [0u8; 6];
+        let dst_mac: [u8; 6] = [0u8; 6];
+        let src_mac: [u8; 6] = [0u8; 6];
 
-        for x in 0..6 {
-            dst_mac[x] = buf.get_u8();
+        for mut _x in &dst_mac {
+            _x = &buf.get_u8();
         }
-        for x in 0..6 {
-            src_mac[x] = buf.get_u8();
+        for mut _x in &src_mac {
+            _x = &buf.get_u8();
         }
 
         Ok(Self {
@@ -439,24 +438,25 @@ impl ArpPacket {
         let hw_length = buf.get_u8();
         let proto_length = buf.get_u8();
         let operation = buf.get_u16();
-        let mut sender_hw_address: [u8; 6] = [0_u8; 6];
-        for x in 0..6 {
-            sender_hw_address[x] = buf.get_u8();
+
+        let sender_hw_address: [u8; 6] = [0_u8; 6];
+        for mut _x in &sender_hw_address {
+            _x = &buf.get_u8();
         }
 
-        let mut sender_proto_address: [u8; 4] = [0_u8; 4];
-        for x in 0..4 {
-            sender_proto_address[x] = buf.get_u8();
+        let sender_proto_address: [u8; 4] = [0_u8; 4];
+        for mut _x in &sender_proto_address {
+            _x = &buf.get_u8();
         }
 
-        let mut target_hw_address: [u8; 6] = [0_u8; 6];
-        for x in 0..6 {
-            target_hw_address[x] = buf.get_u8();
+        let target_hw_address: [u8; 6] = [0_u8; 6];
+        for mut _x in &target_hw_address {
+            _x = &buf.get_u8();
         }
 
-        let mut target_proto_address: [u8; 4] = [0_u8; 4];
-        for x in 0..4 {
-            target_hw_address[x] = buf.get_u8();
+        let target_proto_address: [u8; 4] = [0_u8; 4];
+        for mut _x in &target_proto_address {
+            _x = &buf.get_u8();
         }
 
         Ok(Self {
@@ -497,10 +497,10 @@ pub mod checksum {
         let mut result: u16 = 0;
 
         while carry != 0 {
-            let tmp_res = (first as u32 + second as u32) as u32;
+            let tmp_res = first as u32 + second as u32;
             result = (tmp_res & 0xFFFF) as u16;
             carry = tmp_res >> 16;
-            first = result as u16;
+            first = result;
             second = carry as u16;
         }
         result

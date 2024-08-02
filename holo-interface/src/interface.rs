@@ -211,7 +211,6 @@ impl Interfaces {
                     let iface = &self.arena[iface_idx];
                     iface.apply_config(ifindex, netlink_handle, self).await;
                 }
-
             }
             None => {
                 // If the interface does not exist, create a new entry.

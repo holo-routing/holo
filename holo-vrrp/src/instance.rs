@@ -4,8 +4,6 @@
 // SPDX-License-Identifier: MIT
 //
 
-use core::task;
-use std::borrow::BorrowMut;
 use std::net::Ipv4Addr;
 use std::time::Duration;
 
@@ -13,8 +11,6 @@ use chrono::{DateTime, Utc};
 use holo_utils::task::{IntervalTask, TimeoutTask};
 
 use crate::northbound::configuration::InstanceCfg;
-use crate::packet::VrrpPacket;
-use crate::{network, tasks};
 
 #[derive(Debug)]
 pub struct Instance {
@@ -125,7 +121,6 @@ impl Instance {
             _ => {}
         }
     }
-
 }
 
 // ===== impl InstanceState =====

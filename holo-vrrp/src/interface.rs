@@ -73,7 +73,7 @@ pub struct InterfaceNet {
 pub struct ProtocolInputChannelsTx {
     // Packet Rx event.
     pub net_packet_rx: Sender<NetRxPacketMsg>,
-    // Master Down event 
+    // Master Down event
     pub master_down_timer: Sender<MasterDownTimerMsg>,
 }
 
@@ -97,7 +97,6 @@ impl Interface {
 
     pub(crate) fn send_vrrp_advert(&self, vrid: u8) {
         if let Some(instance) = self.instances.get(&vrid) {
-            // send advertisement then reset the timer.
             let mut ip_addresses: Vec<Ipv4Addr> = vec![];
             for addr in &instance.config.virtual_addresses {
                 ip_addresses.push(addr.ip());
@@ -117,54 +116,49 @@ impl Interface {
                 auth_data2: 0,
             };
             packet.generate_checksum();
-            network::send_packet_vrrp(&self.net.socket_vrrp, packet);
+            let msg = NetTxPacketMsg::Vrrp { packet };
+            let _ = self.net.net_tx_packetp.send(msg);
         }
     }
 
-     pub(crate) fn send_gratuitous_arp(&self, vrid: u8) {
-        let ifname  = &self.name;
-
+    pub(crate) fn send_gratuitous_arp(&self, vrid: u8) {
         if let Some(instance) = self.instances.get(&vrid) {
-
-            // send a gratuitous for each of the 
+            // send a gratuitous for each of the
             // virutal IP addresses
             for addr in instance.config.virtual_addresses.clone() {
-
                 let arp_packet = ArpPacket {
-                    hw_type: 1, 
-                    // for Ipv4 
+                    hw_type: 1,
+                    // for Ipv4
                     proto_type: 0x0800,
                     // mac address length
-                    hw_length: 6, 
+                    hw_length: 6,
                     proto_length: 4,
                     operation: 1,
                     // sender hw address is virtual mac.
                     // https://datatracker.ietf.org/doc/html/rfc3768#section-7.3
-                    sender_hw_address: [0x00, 0x00, 0x5e, 0x00, 0x01, vrid], 
-                    sender_proto_address: addr.ip().octets(), 
+                    sender_hw_address: [0x00, 0x00, 0x5e, 0x00, 0x01, vrid],
+                    sender_proto_address: addr.ip().octets(),
                     target_hw_address: [0xff, 0xff, 0xff, 0xff, 0xff, 0xff], // broadcast
-                    target_proto_address:  addr.ip().octets() 
+                    target_proto_address: addr.ip().octets(),
                 };
 
-                let mut mac_addr = self.system.mac_address.clone();
+                let mac_addr = self.system.mac_address;
                 let eth_frame = EthernetFrame {
                     ethertype: 0x806,
                     dst_mac: [0xff; 6],
-                    src_mac: mac_addr
+                    src_mac: mac_addr,
                 };
-                let _ = network::send_packet_arp(
-                    &self.net.socket_arp, 
-                    &self.name, 
-                    eth_frame, 
-                    arp_packet
-                );
 
+                let msg = NetTxPacketMsg::Arp {
+                    name: self.name.clone(),
+                    eth_frame,
+                    arp_packet,
+                };
+
+                let _ = self.net.net_tx_packetp.send(msg);
             }
-
         }
     }
-
-
 }
 
 #[async_trait]

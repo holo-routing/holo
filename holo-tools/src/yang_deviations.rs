@@ -99,18 +99,11 @@ fn main() {
         .filter(|snode| snode.module() == module)
     {
         print_deviation(&snode);
-        if let Some(actions) = snode.actions() {
-            for snode in actions.into_iter().flat_map(|snode| snode.traverse())
-            {
-                print_deviation(&snode);
-            }
+        for snode in snode.actions().flat_map(|snode| snode.traverse()) {
+            print_deviation(&snode);
         }
-        if let Some(notifications) = snode.notifications() {
-            for snode in
-                notifications.into_iter().flat_map(|snode| snode.traverse())
-            {
-                print_deviation(&snode);
-            }
+        for snode in snode.notifications().flat_map(|snode| snode.traverse()) {
+            print_deviation(&snode);
         }
     }
 

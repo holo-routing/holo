@@ -22,7 +22,6 @@ pub enum Debug<'a> {
     InstanceDelete,
     InstanceStart,
     InstanceStop(InstanceInactiveReason),
-    InstanceStatusCheck(&'a str),
     NbrFsmEvent(&'a IpAddr, &'a fsm::Event),
     NbrFsmTransition(&'a IpAddr, &'a fsm::State, &'a fsm::State),
     NbrMsgRx(&'a IpAddr, &'a Message),
@@ -55,10 +54,6 @@ impl<'a> Debug<'a> {
             Debug::InstanceStop(reason) => {
                 // Parent span(s): bgp-instance
                 debug!(%reason, "{}", self);
-            }
-            Debug::InstanceStatusCheck(status) => {
-                // Parent span(s): bgp-instance
-                debug!(%status, "{}", self);
             }
             Debug::NbrFsmEvent(nbr_addr, event) => {
                 // Parent span(s): bgp-instance
@@ -132,9 +127,6 @@ impl<'a> std::fmt::Display for Debug<'a> {
             }
             Debug::InstanceStop(..) => {
                 write!(f, "stopping instance")
-            }
-            Debug::InstanceStatusCheck(..) => {
-                write!(f, "checking instance status")
             }
             Debug::NbrFsmEvent(..) => {
                 write!(f, "event")

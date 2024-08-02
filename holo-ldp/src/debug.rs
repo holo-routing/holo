@@ -22,7 +22,6 @@ pub enum Debug<'a> {
     InstanceDelete,
     InstanceStart,
     InstanceStop(InstanceInactiveReason),
-    InstanceStatusCheck(&'a str),
     InterfaceCreate(&'a str),
     InterfaceDelete(&'a str),
     InterfaceStart(&'a str),
@@ -88,10 +87,6 @@ impl<'a> Debug<'a> {
             Debug::InstanceStop(reason) => {
                 // Parent span(s): ldp-instance
                 debug!(%reason, "{}", self);
-            }
-            Debug::InstanceStatusCheck(status) => {
-                // Parent span(s): ldp-instance
-                debug!(%status, "{}", self);
             }
             Debug::InterfaceCreate(name)
             | Debug::InterfaceDelete(name)
@@ -246,9 +241,6 @@ impl<'a> std::fmt::Display for Debug<'a> {
             }
             Debug::InstanceStop(..) => {
                 write!(f, "stopping instance")
-            }
-            Debug::InstanceStatusCheck(..) => {
-                write!(f, "checking instance status")
             }
             Debug::InterfaceCreate(..) => {
                 write!(f, "interface created")

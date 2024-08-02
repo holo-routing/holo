@@ -17,7 +17,6 @@ pub enum Debug<'a, V: Version> {
     InstanceDelete,
     InstanceStart,
     InstanceStop(InstanceInactiveReason),
-    InstanceStatusCheck(&'a str),
     InterfaceCreate(&'a str),
     InterfaceDelete(&'a str),
     InterfaceStart(&'a str),
@@ -74,10 +73,6 @@ where
             Debug::InstanceStop(reason) => {
                 // Parent span(s): rip-instance
                 debug!(%reason, "{}", self);
-            }
-            Debug::InstanceStatusCheck(status) => {
-                // Parent span(s): rip-instance
-                debug!(%status, "{}", self);
             }
             Debug::InterfaceCreate(name)
             | Debug::InterfaceDelete(name)
@@ -160,9 +155,6 @@ where
             }
             Debug::InstanceStop(..) => {
                 write!(f, "stopping instance")
-            }
-            Debug::InstanceStatusCheck(..) => {
-                write!(f, "checking instance status")
             }
             Debug::InterfaceCreate(..) => {
                 write!(f, "interface created")

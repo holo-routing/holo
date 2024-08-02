@@ -1,0 +1,451 @@
+module ietf-bier {
+  yang-version 1.1;
+  namespace "urn:ietf:params:xml:ns:yang:ietf-bier";
+  prefix "bier";
+
+  import ietf-routing {
+    prefix "rt";
+    reference
+      "RFC 8349: A YANG Data Model for Routing Management (NMDA Version)";
+  }
+  import ietf-interfaces {
+    prefix "if";
+    reference
+      "RFC 8343: A YANG Data Model for Interface Management";
+  }
+  import ietf-inet-types {
+    prefix "inet";
+    reference
+      "RFC 6991: Common YANG Data Types";
+  }
+  import ietf-isis {
+    prefix "isis";
+      reference "RFC 9130: YANG Data Model for the IS-IS Protocol";
+  }
+  import ietf-ospf {
+    prefix "ospf";
+      reference "RFC 9129: YANG Data Model for the OSPF Protocol";
+  }
+  import iana-routing-types {
+    prefix iana-rt-types;
+    reference
+      "RFC 8294: Common YANG Data Types for the Routing Area";
+  }
+
+  organization
+    "IETF BIER(Bit Indexed Explicit Replication) Working Group";
+  contact
+    "WG Web:   &lt;https://datatracker.ietf.org/wg/bier/&gt;
+     WG List:  &lt;mailto:bier@ietf.org&gt;
+     WG Chair: Tony Przygienda
+                   &lt;mailto:tonysietf@gmail.com&gt;
+
+     WG Chair: Greg Shepherd
+                   &lt;mailto:gjshep@gmail.com&gt;
+
+
+     Editor:   Ran Chen
+                   &lt;mailto:chen.ran@zte.com.cn&gt;
+     Editor:   Fangwei Hu
+                   &lt;mailto:hu.fangwei@zte.com.cn&gt;
+     Editor:   Zheng Zhang
+                   &lt;mailto:zhang.zheng@zte.com.cn&gt;
+     Editor:   Xianxian Dai
+                   &lt;mailto:dai.xianxian@zte.com.cn&gt;
+     Editor:   Mahesh Sivakumar
+                   &lt;mailto:masivaku@cisco.com&gt;
+    ";
+  description
+    "The YANG module defines a generic configuration model
+         for BIER.;
+
+    This YANG module conforms to the Network Management
+    Datastore Architecture (NMDA), as described in RFC 8242.
+
+    The key words 'MUST', 'MUST NOT', 'REQUIRED', 'SHALL', 'SHALL
+    NOT', 'SHOULD', 'SHOULD NOT', 'RECOMMENDED', 'NOT RECOMMENDED',
+    'MAY', and 'OPTIONAL' in this document are to be interpreted as
+    described in BCP 14 (RFC 2119) (RFC 8174) when, and only when,
+    they appear in all capitals, as shown here.
+
+    Copyright (c) 2022 IETF Trust and the persons identified as
+    authors of the code.  All rights reserved.
+
+    Redistribution and use in source and binary forms, with or
+    without modification, is permitted pursuant to, and subject to
+    the license terms contained in, the Revised BSD License set
+    forth in Section 4.c of the IETF Trust's Legal Provisions
+    Relating to IETF Documents
+    (https://trustee.ietf.org/license-info).
+
+        This version of this YANG module is part of RFC XXXX
+    (https://www.rfc-editor.org/info/rfcXXXX); see the RFC itself
+    for full legal notices.";
+
+        reference
+    "RFC XXXX: YANG Data Model for BIER";
+    revision 2023-09-12 {
+      description
+        "initial version.";
+      reference
+        "RFC XXXX: YANG Data Model for BIER ";
+  }
+
+  /* Identities */
+  identity bier-encapsulation {
+    description
+      "Base identity for BIER encapsulation.";
+  }
+  identity bier-encapsulation-mpls {
+    base bier-encapsulation;
+    description
+      "This identity represents MPLS encapsulation for bier.";
+  }
+  identity bier-encapsulation-ipv6 {
+    base bier-encapsulation;
+    description
+      "This identity represents ipv6 encapsulation for bier.";
+  }
+  identity bier-encapsulation-ethernet {
+    base bier-encapsulation;
+      description
+        "This identity represents ethernet encapsulation for bier.";
+  }
+
+  identity address-family {
+    description
+      "Base identity from which identities describing address
+      families are derived.";
+  }
+  identity ipv4 {
+    base address-family;
+    description
+      "This identity represents an IPv4 address family.";
+  }
+  identity ipv6 {
+    base address-family;
+      description
+        "This identity represents an IPv6 address family.";
+  }
+
+  /* typedef */
+  typedef underlay-protocol-type {
+    type enumeration {
+      enum IS-IS {
+        description
+           "This BIER subdomains configuration can be read and
+                   advertise by BIER enabled IS-IS.";
+      }
+      enum OSPF {
+        description
+          "This BIER subdomains configuration can be read and
+                  advertise by BIER enabled OSPF.";
+      }
+      enum BGP {
+        description
+          "This BIER subdomains configuration can be read and
+                  advertise by BIER enabled BGP.";
+      }
+    }
+    description
+      "List of the underlay protocol to be supported.";
+  }
+
+  typedef bsl {
+    type enumeration {
+      enum IS-IS {
+        description
+           "This BIER subdomains configuration can be read and
+                   advertise by BIER enabled IS-IS.";
+      }
+      enum OSPF {
+        description
+          "This BIER subdomains configuration can be read and
+                  advertise by BIER enabled OSPF.";
+      }
+      enum BGP {
+        description
+          "This BIER subdomains configuration can be read and
+                  advertise by BIER enabled BGP.";
+      }
+    }
+    description
+      "list of the underlay protocol to be supported.";
+  }
+
+  augment "/rt:routing" {
+    description
+      "This augments routing-instance configuration with bier.";
+	container bier {
+      description
+        "BIER subdomain configuration.";
+      list sub-domain {
+        key "sub-domain-id address-family";
+        description
+          "The parameters of the BIER subdomain. ";
+          
+        leaf sub-domain-id {
+          type uint16;
+          description
+            "The bier sub-domain-id";
+        }
+
+        leaf address-family {
+          type identityref {
+            base address-family;
+          }
+          mandatory true;
+          description
+            "Address family.";
+        }
+
+        leaf bfr-prefix {
+          type inet:ip-prefix;
+          description
+            "the bfr prefix.";
+         }
+
+        leaf underlay-protocol-type {
+          type underlay-protocol-type;
+          description
+            "List of the underlay protocol to be supported..";
+        }
+
+        leaf mt-id {
+          type uint16;
+          description
+            "The multi-topology identifier";
+        }
+
+        leaf bfr-id {
+          type uint16;
+          description
+            "Configure the unique BFR-id value within the BIER
+              subdomain for the BFIR/BFER device, and BFR doesnot
+              need a BFR-id, but for diagnostics purposes of the IGP,
+              highly recommended to assign one - but beyond max-si*bls.";
+		}
+
+        leaf bsl {
+          type bsl;
+          description
+            "The length of the bitstring in the BIER encapsulation
+              within the BIER subdomain.";
+        }
+
+        leaf igp-algorithm {
+          type uint8;
+          default "0";
+          description
+            "Calculation type value ranges from 0 to 255 both
+                        inclusive from the IGP Algorithm Types registry
+                        defined under Interior Gateway Protocol (IGP)
+            Parameters IANA registries.If the required calculation
+                        type is Shortest Path First, the value 0 SHOULD appear
+                        in this field.";
+        }
+
+        leaf bier-algorithm {
+          type uint8;
+          description
+            "Calculation type value ranges from 0 to 255 both inclusive
+             from the BIER Algorithm registry.Specifies a BIER-specific
+                   Algorithm and BIER-specific Constraints used to either modify,
+                   enhance, or replace the calculation of underlay paths to reach
+                   other BFRs as defined by the IPA value as defined in RFC9272.";
+       }
+
+      leaf load-balance-num {
+        type uint8;
+        description
+          "The multicast load balance num.";
+       }
+
+      list encapsulation {
+        key "bsl encapsulation-type";
+        description
+          "The BIER encapsulation type.When MPLS is used as the
+                  transport, the Bit Indexed Forwarding Table (BIFT) is
+                  identified by a MPLS Label. When non-MPLS transport is
+                  used, the BIFT is identified by a 20bit value.";
+        leaf bsl {
+          type bsl;
+          description
+            "The length of the bitstring in the BIER encapsulation
+              within the BIER subdomain.";
+        }
+        
+        leaf encapsulation-type {
+          type identityref {
+            base bier-encapsulation;
+          }
+          description
+            "The BIER encapsulation that can be used in either
+              MPLS networks or non-MPLS networks.";
+        }
+        
+        leaf max-si {
+          type uint16;
+          description
+            "Maximum Set Identifier.The SI value in the subdomain
+                    is an integer from 0 to max-si.";
+        }
+        
+        container in-bift-id {
+          description
+            "In BIFT-ID specification.";
+          choice in-bift-id {
+            default "in-bift-id-base";
+            description
+              "Options for specifying in-bift-id";
+            case in-bift-id-base {
+              leaf in-bift-id-base {
+                type uint32;
+                description
+                  "The first BIFT ID value, there are maximum SI+1 BIFT
+                      IDs in total as define in RFC8401.";
+              }
+            }
+            case in-bift-id-encoding {
+              leaf in-bift-id-encoding {
+                type boolean;
+                default "false";
+                description
+                  "setting this attribute to 'true' will enable
+                    calculation of in-bift-id based on <BSL, SD, SI>.";
+              }
+            }
+          }
+        }
+      }
+    }
+    list bift {
+            key "bfr-id";
+            description
+              "BIER forwarding tabel.";
+			
+            leaf bfr-id {
+          type uint16;
+          description
+            "The unique BFR-id value within the BIER
+                    subdomain for the BFIR/BFER device.";
+        }
+            list birt-bitstringlength {
+              key "bsl";
+                  description
+                    "specify BSL's bfr-nbr, encapsulation-type and
+                        out-bift-id in the BIER forwarding tabel.";
+                  leaf bsl {
+                type bsl;
+            description
+              "Configure the bitstring length in BIFT in the
+                          BIER subdomain";
+           }
+          list bfr-nbr {
+            key bfr-nbr;
+            description
+              "bfr-nbr.";
+            leaf bfr-nbr {
+              type inet:ip-prefix;
+              description
+                "bfr-nbr.";
+            }
+            leaf encapsulation-type {
+              type identityref {
+              base bier-encapsulation;
+            }
+              description
+                "The BIER encapsulation that can be used in either
+                         MPLS networks or non-MPLS networks.";
+            }
+                    container out-bift-id {
+                      description
+                        "Out BIFT-ID specification.";
+                      choice out-bift-id {
+                        default "out-bift-id";
+                            description
+                  "Options for specifying out-bift-id";
+                            case out-bift-id {
+                              leaf out-bift-id {
+                              type uint32;
+                  description
+                    "Configure the out-bift-id";
+                  }
+                            }
+                            case out-bift-id-encoding {
+                              leaf out-bift-id-encoding {
+                  type boolean;
+                  default "false";
+                          description
+                    "setting this attribute to 'true' will enable
+                            calculation of out-bift-id based on <BSL,SD,SI>.";
+                    }
+                }
+              }
+            }
+          }
+                }
+          }
+     }
+  }
+
+  notification bfr-id-collision {
+    description
+      "This notification is sent when BFR-id received from
+      different routers collide.";
+    list bfr-id-collision {
+      description
+        "List of BFR-id that collide.";
+           leaf received-bfr-id {
+         type uint16;
+                 description
+                   "Value of the BFR-id received.";
+       }
+        }
+   }
+
+   notification bfr-id-out-of-range {
+     description
+       "This notification is sent when a BFR-id is received
+        that is is larger than locally configured (bsl * max-si).
+                The notification generation must be throttled with at
+                least a 5-second gap between notifications.";
+     leaf received-bfr-id {
+           type uint16;
+           description
+                 "Value of the BFR-id received.";
+         }
+   }
+
+   notification bfr-zero {
+     description
+           "This notification is sent when an invalid value
+		           associated with prefix.";
+         leaf ipv4-bfr-prefix {
+           type inet:ipv4-prefix;
+       description
+         "BIER ipv4 bfr prefix";
+      }
+     leaf ipv6-bfr-prefix{
+       type inet:ipv6-prefix;
+       description
+         "BIER ipv6 bfr prefix";
+      }
+   }
+
+    notification sub-domain-id-collision {
+     description
+           "This notification is sent when sub-domain-id received from
+        different routers collide.";
+         leaf received-sub-domain-id {
+           type uint16;
+           description
+                 "Value of the sub-domain-id received.";
+         }
+     leaf received-mt-id{
+       type uint16;
+       description
+         "Value of the multi-topology ID received.";
+     }
+    }
+  }

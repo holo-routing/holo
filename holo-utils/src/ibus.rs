@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast::{Receiver, Sender};
 
 use crate::bfd;
+use crate::bier::{BierCfg, BierEncapsulationType, Bsl, SubDomainId};
 use crate::ip::AddressFamily;
 use crate::keychain::Keychain;
 use crate::policy::{MatchSets, Policy};
@@ -107,6 +108,10 @@ pub enum IbusMsg {
     SrCfgUpd(Arc<SrCfg>),
     // Segment Routing configuration event.
     SrCfgEvent(SrCfgEvent),
+    // BIER configuration update.
+    BierCfgUpd(Arc<BierCfg>),
+    // BIER configuration event.
+    BierCfgEvent(BierCfgEvent),
 }
 
 // Type of Segment Routing configuration change.
@@ -114,4 +119,10 @@ pub enum IbusMsg {
 pub enum SrCfgEvent {
     LabelRangeUpdate,
     PrefixSidUpdate(AddressFamily),
+}
+
+// Type of BIER configuration events.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum BierCfgEvent {
+    EncapUpdate(SubDomainId, AddressFamily, Bsl, BierEncapsulationType),
 }

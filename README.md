@@ -217,6 +217,7 @@ Holo supports the following IETF RFCs and Internet drafts:
 | ietf-bfd@2022-09-22 | 100.00% | 100.00% | - | - | [100.00%](http://westphal.com.br/holo/ietf-bfd.html) |
 | ietf-bgp-policy@2023-07-05 | 100.00% | - | - | - | [100.00%](http://westphal.com.br/holo/ietf-bgp-policy.html) |
 | ietf-bgp@2023-07-05 | 32.38% | 85.95% | - | - | [60.40%](http://westphal.com.br/holo/ietf-bgp.html) |
+| ietf-bier@2023-09-12 | 65.52% | - | - | 0.00% | [47.50%](http://westphal.com.br/holo/ietf-bier@2023-09-12.coverage.md) |
 | ietf-if-extensions@2023-01-26 | 100.00% | 0.00% | - | - | [50.00%](http://westphal.com.br/holo/ietf-if-extensions.html) |
 | ietf-if-vlan-encapsulation@2023-01-26 | 42.86% | - | - | - | [42.86%](http://westphal.com.br/holo/ietf-if-vlan-encapsulation.html) |
 | ietf-interfaces@2018-01-09 | 100.00% | 0.00% | - | - | [22.22%](http://westphal.com.br/holo/ietf-interfaces.html) |

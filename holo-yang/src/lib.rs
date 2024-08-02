@@ -53,6 +53,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-bfd-types@2022-09-22.yang"),
         EmbeddedModuleKey::new("ietf-bfd", Some("2022-09-22"), None, None) =>
             include_str!("../modules/ietf/ietf-bfd@2022-09-22.yang"),
+        EmbeddedModuleKey::new("ietf-bier", Some("2023-09-16"), None, None) =>
+            include_str!("../modules/ietf/ietf-bier@2023-09-16.yang"),
         EmbeddedModuleKey::new("ietf-bgp", Some("2023-07-05"), None, None) =>
             include_str!("../modules/ietf/ietf-bgp@2023-07-05.yang"),
         EmbeddedModuleKey::new("ietf-bgp", Some("2023-07-05"), Some("ietf-bgp-capabilities"), Some("2023-07-05")) =>
@@ -133,6 +135,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
         // IETF Holo deviations
         EmbeddedModuleKey::new("holo-ietf-bgp-deviations", None, None, None) =>
             include_str!("../modules/deviations/holo-ietf-bgp-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-bier-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-bier-deviations.yang"),
         EmbeddedModuleKey::new("holo-ietf-mpls-ldp-deviations", None, None, None) =>
             include_str!("../modules/deviations/holo-ietf-mpls-ldp-deviations.yang"),
         EmbeddedModuleKey::new("holo-ietf-if-extensions-deviations", None, None, None) =>
@@ -188,6 +192,7 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
             "ietf-bfd",
             "ietf-bgp",
             "ietf-bgp-policy",
+            "ietf-bier",
             "ietf-routing-types",
             "ietf-if-extensions",
             "ietf-if-vlan-encapsulation",

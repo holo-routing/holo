@@ -15,10 +15,14 @@ use holo_northbound::configuration::{
     ValidationCallbacks, ValidationCallbacksBuilder,
 };
 use holo_northbound::yang::control_plane_protocol;
-use holo_northbound::yang::routing::ribs;
 use holo_northbound::yang::routing::segment_routing::sr_mpls;
+use holo_northbound::yang::routing::{bier, ribs};
 use holo_northbound::{CallbackKey, NbDaemonSender};
-use holo_utils::ibus::{IbusMsg, SrCfgEvent};
+use holo_utils::bier::{
+    BierEncapsulation, BierEncapsulationType, BierInBiftId, BierSubDomainCfg,
+    Bsl, SubDomainId, UnderlayProtocolType,
+};
+use holo_utils::ibus::{BierCfgEvent, IbusMsg, SrCfgEvent};
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::mpls::LabelRange;
 use holo_utils::protocol::Protocol;
@@ -46,6 +50,13 @@ pub enum ListEntry {
     StaticRoute(IpNetwork),
     StaticRouteNexthop(IpNetwork, String),
     SrCfgPrefixSid(IpNetwork, IgpAlgoType),
+    BierCfgSubDomain(SubDomainId, AddressFamily),
+    BierCfgEncapsulation(
+        SubDomainId,
+        AddressFamily,
+        Bsl,
+        BierEncapsulationType,
+    ),
 }
 
 #[derive(Debug, EnumAsInner)]
@@ -61,6 +72,8 @@ pub enum Event {
     SrCfgUpdate,
     SrCfgLabelRangeUpdate,
     SrCfgPrefixSidUpdate(AddressFamily),
+    BierCfgUpdate,
+    BierCfgEncapUpdate(SubDomainId, AddressFamily, Bsl, BierEncapsulationType),
 }
 
 // ===== configuration structs =====
@@ -625,6 +638,227 @@ fn load_callbacks() -> Callbacks<Master> {
         .delete_apply(|_master, _args| {
             // Nothing to do.
         })
+        .path(bier::sub_domain::PATH)
+        .create_apply(|master, args| {
+            let sd_id = args.dnode.get_u8_relative("./sub-domain-id").unwrap();
+            let af = args.dnode.get_af_relative("./address-family").unwrap();
+            let bfr_prefix = args.dnode.get_prefix_relative("./bfr-prefix").unwrap();
+            let underlay_protocol = args.dnode.get_string_relative("./underlay-protocol-type").unwrap();
+            let underlay_protocol = UnderlayProtocolType::try_from_yang(&underlay_protocol).unwrap();
+            let bfr_id = args.dnode.get_u16_relative("./bfr-id").unwrap();
+            let bsl = args.dnode.get_string_relative("./bsl").unwrap();
+            let bsl = Bsl::try_from_yang(&bsl).unwrap();
+            let sd_cfg = BierSubDomainCfg {
+                sd_id,
+                af,
+                bfr_prefix,
+                underlay_protocol,
+                mt_id: bier::sub_domain::mt_id::DFLT,
+                bfr_id,
+                bsl,
+                ipa: bier::sub_domain::igp_algorithm::DFLT,
+                bar: bier::sub_domain::bier_algorithm::DFLT,
+                load_balance_num: bier::sub_domain::load_balance_num::DFLT,
+                encap: Default::default(),
+            };
+            master.bier_config.sd_cfg.insert((sd_id, af), sd_cfg);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+        })
+        .delete_apply(|master, args| {
+            let sd_id = args.dnode.get_u8_relative("./sub-domain-id").unwrap();
+            let af = args.dnode.get_af_relative("./address-family").unwrap();
+            master.bier_config.sd_cfg.remove(&(sd_id, af));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+        })
+        .lookup(|_master, _list_entry, dnode| {
+            let sd_id = dnode.get_u8_relative("./sub-domain-id").unwrap();
+            let af = dnode.get_af_relative("./address-family").unwrap();
+            ListEntry::BierCfgSubDomain(sd_id, af)
+        })
+        .path(bier::sub_domain::bfr_prefix::PATH)
+        .modify_apply(|context, args| {
+            let (sd_id, af) = args.list_entry.into_bier_cfg_sub_domain().unwrap();
+            let sd_cfg = context.bier_config.sd_cfg.get_mut(&(sd_id, af)).unwrap();
+
+            let bfr_prefix = args.dnode.get_prefix();
+            sd_cfg.bfr_prefix = bfr_prefix;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+        })
+        .path(bier::sub_domain::underlay_protocol_type::PATH)
+        .modify_apply(|context, args| {
+            let (sd_id, af) = args.list_entry.into_bier_cfg_sub_domain().unwrap();
+            let sd_cfg = context.bier_config.sd_cfg.get_mut(&(sd_id, af)).unwrap();
+
+            let underlay_protocol = args.dnode.get_string();
+            let underlay_protocol = UnderlayProtocolType::try_from_yang(&underlay_protocol).unwrap();
+            sd_cfg.underlay_protocol = underlay_protocol;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+        })
+        .path(bier::sub_domain::mt_id::PATH)
+        .modify_apply(|context, args| {
+            let (sd_id, af) = args.list_entry.into_bier_cfg_sub_domain().unwrap();
+            let sd_cfg = context.bier_config.sd_cfg.get_mut(&(sd_id, af)).unwrap();
+
+            let mt_id = args.dnode.get_u8();
+            sd_cfg.mt_id = mt_id;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+        })
+        .path(bier::sub_domain::bfr_id::PATH)
+        .modify_apply(|context, args| {
+            let (sd_id, af) = args.list_entry.into_bier_cfg_sub_domain().unwrap();
+            let sd_cfg = context.bier_config.sd_cfg.get_mut(&(sd_id, af)).unwrap();
+
+            let bfr_id = args.dnode.get_u16();
+            sd_cfg.bfr_id = bfr_id;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+        })
+        .path(bier::sub_domain::bsl::PATH)
+        .modify_apply(|context, args| {
+            let (sd_id, af) = args.list_entry.into_bier_cfg_sub_domain().unwrap();
+            let sd_cfg = context.bier_config.sd_cfg.get_mut(&(sd_id, af)).unwrap();
+
+            let bsl = args.dnode.get_string();
+            let bsl = Bsl::try_from_yang(&bsl).unwrap();
+            sd_cfg.bsl = bsl;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+        })
+        .path(bier::sub_domain::igp_algorithm::PATH)
+        .modify_apply(|context, args| {
+            let (sd_id, af) = args.list_entry.into_bier_cfg_sub_domain().unwrap();
+            let sd_cfg = context.bier_config.sd_cfg.get_mut(&(sd_id, af)).unwrap();
+
+            let ipa = args.dnode.get_u8();
+            sd_cfg.ipa = ipa;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+        })
+        .path(bier::sub_domain::bier_algorithm::PATH)
+        .modify_apply(|context, args| {
+            let (sd_id, af) = args.list_entry.into_bier_cfg_sub_domain().unwrap();
+            let sd_cfg = context.bier_config.sd_cfg.get_mut(&(sd_id, af)).unwrap();
+
+            let bar = args.dnode.get_u8();
+            sd_cfg.bar = bar;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+        })
+        .path(bier::sub_domain::load_balance_num::PATH)
+        .modify_apply(|context, args| {
+            let (sd_id, af) = args.list_entry.into_bier_cfg_sub_domain().unwrap();
+            let sd_cfg = context.bier_config.sd_cfg.get_mut(&(sd_id, af)).unwrap();
+
+            let load_balance_num = args.dnode.get_u8();
+            sd_cfg.load_balance_num = load_balance_num;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+        })
+        .path(bier::sub_domain::encapsulation::PATH)
+        .create_apply(|context, args| {
+            let (sd_id, af) = args.list_entry.into_bier_cfg_sub_domain().unwrap();
+            let sd_cfg = context.bier_config.sd_cfg.get_mut(&(sd_id, af)).unwrap();
+
+            let bsl = args.dnode.get_string_relative("./bsl").unwrap();
+            let bsl = Bsl::try_from_yang(&bsl).unwrap();
+            let encap_type = args.dnode.get_string_relative("./encapsulation-type").unwrap();
+            let encap_type = BierEncapsulationType::try_from_yang(&encap_type).unwrap();
+            let max_si = args.dnode.get_u8_relative("./max-si").unwrap();
+            let in_bift_id_base = args.dnode.get_u32_relative("./in-bift-id/in-bift-id-base");
+            let in_bift_id_encoding = args.dnode.get_bool_relative("./in-bift-id/in-bift-id-encoding");
+            let in_bift_id = in_bift_id_base
+                .map_or(in_bift_id_encoding.map(BierInBiftId::Encoding), |v| {
+                    Some(BierInBiftId::Base(v))
+                })
+                .unwrap();
+            let encap_cfg = BierEncapsulation::new(bsl, encap_type, max_si, in_bift_id);
+            sd_cfg.encap.insert((bsl, encap_type), encap_cfg);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+            event_queue.insert(Event::BierCfgEncapUpdate(sd_id, af, bsl, encap_type));
+        })
+        .delete_apply(|context, args| {
+            let (sd_id, af) = args.list_entry.into_bier_cfg_sub_domain().unwrap();
+            let sd_cfg = context.bier_config.sd_cfg.get_mut(&(sd_id, af)).unwrap();
+
+            let bsl = args.dnode.get_string_relative("./bsl").unwrap();
+            let bsl = Bsl::try_from_yang(&bsl).unwrap();
+            let encap_type = args.dnode.get_string_relative("./encapsulation-type").unwrap();
+            let encap_type = BierEncapsulationType::try_from_yang(&encap_type).unwrap();
+            sd_cfg.encap.remove(&(bsl, encap_type));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+        })
+        .lookup(|_context, list_entry, dnode| {
+            let (sd_id, af) = list_entry.into_bier_cfg_sub_domain().unwrap();
+            let bsl = dnode.get_string_relative("./bsl").unwrap();
+            let bsl = Bsl::try_from_yang(&bsl).unwrap();
+            let encap_type = dnode.get_string_relative("./encapsulation-type").unwrap();
+            let encap_type = BierEncapsulationType::try_from_yang(&encap_type).unwrap();
+            ListEntry::BierCfgEncapsulation(sd_id, af, bsl, encap_type)
+        })
+        .path(bier::sub_domain::encapsulation::max_si::PATH)
+        .modify_apply(|context, args| {
+            let (sd_id, af, bsl, encap_type) = args.list_entry.into_bier_cfg_encapsulation().unwrap();
+            let sd_cfg = context.bier_config.sd_cfg.get_mut(&(sd_id, af)).unwrap();
+            let encap = sd_cfg.encap.get_mut(&(bsl, encap_type)).unwrap();
+
+            let max_si = args.dnode.get_u8();
+            encap.max_si = max_si;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+            event_queue.insert(Event::BierCfgEncapUpdate(sd_id, af, bsl, encap_type));
+        })
+        .path(bier::sub_domain::encapsulation::in_bift_id::in_bift_id_base::PATH)
+        .modify_apply(|context, args| {
+            let (sd_id, af, bsl, encap_type) = args.list_entry.into_bier_cfg_encapsulation().unwrap();
+            let sd_cfg = context.bier_config.sd_cfg.get_mut(&(sd_id, af)).unwrap();
+            let encap = sd_cfg.encap.get_mut(&(bsl, encap_type)).unwrap();
+
+            let in_bift_id_base = args.dnode.get_u32();
+            encap.in_bift_id = BierInBiftId::Base(in_bift_id_base);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+            event_queue.insert(Event::BierCfgEncapUpdate(sd_id, af, bsl, encap_type));
+        })
+        .delete_apply(|_context, _args| {
+            // Nothing to do.
+        })
+        .path(bier::sub_domain::encapsulation::in_bift_id::in_bift_id_encoding::PATH)
+        .modify_apply(|context, args| {
+            let (sd_id, af, bsl, encap_type) = args.list_entry.into_bier_cfg_encapsulation().unwrap();
+            let sd_cfg = context.bier_config.sd_cfg.get_mut(&(sd_id, af)).unwrap();
+            let encap = sd_cfg.encap.get_mut(&(bsl, encap_type)).unwrap();
+
+            let in_bift_id_encoding = args.dnode.get_bool();
+            encap.in_bift_id = BierInBiftId::Encoding(in_bift_id_encoding);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+            event_queue.insert(Event::BierCfgEncapUpdate(sd_id, af, bsl, encap_type));
+        })
+        .delete_apply(|_context, _args| {
+            // Nothing to do.
+        })
         .build()
 }
 
@@ -648,6 +882,26 @@ fn load_validation_callbacks() -> ValidationCallbacks {
                 return Err(
                     "BFD protocol instance should be named \"main\"".to_owned()
                 );
+            }
+
+            Ok(())
+        })
+        .path(bier::sub_domain::PATH)
+        .validate(|args| {
+            let af = args.dnode.get_af_relative("./address-family").unwrap();
+            let mt_id = args.dnode.get_u8_relative("./mt-id");
+
+            // Enforce configured address family.
+            if let Some(bfr_prefix) =
+                args.dnode.get_prefix_relative("./bfr-prefix")
+                && bfr_prefix.address_family() != af
+            {
+                return Err("Configured address family differs from BFR prefix address family.".to_owned());
+            }
+
+            // Enforce MT-ID value per RFC4915.
+            if let Some(mt_id) = mt_id && mt_id > 128 {
+                return Err("Invalid MT-ID per RFC4915".to_owned());
             }
 
             Ok(())
@@ -798,6 +1052,20 @@ impl Provider for Master {
                 let _ = self
                     .ibus_tx
                     .send(IbusMsg::SrCfgEvent(SrCfgEvent::PrefixSidUpdate(af)));
+            }
+            Event::BierCfgUpdate => {
+                // Update the shared BIER configuration by creating a new reference-counted copy.
+                self.shared.bier_config = Arc::new(self.bier_config.clone());
+
+                // Notify protocol instances about the updated BIER configuration.
+                let _ = self
+                    .ibus_tx
+                    .send(IbusMsg::BierCfgUpd(self.shared.bier_config.clone()));
+            }
+            Event::BierCfgEncapUpdate(sd_id, af, bsl, encap_type) => {
+                let _ = self.ibus_tx.send(IbusMsg::BierCfgEvent(
+                    BierCfgEvent::EncapUpdate(sd_id, af, bsl, encap_type),
+                ));
             }
         }
     }

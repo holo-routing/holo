@@ -38,6 +38,8 @@ jobs:
         run: export PROTOC=/path/to/protoc
       - name: Run Clippy
         run: cargo clippy
+      - name: Run Clippy
+        run: cargo clippy --package holo-tools
 
   test:
     name: Tests and Coverage Report

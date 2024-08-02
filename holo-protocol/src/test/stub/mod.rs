@@ -325,7 +325,7 @@ where
         .map(|entry| entry.unwrap())
     {
         let filename = entry.file_name().into_string().unwrap();
-        let data = std::fs::read_to_string(&entry.path())
+        let data = std::fs::read_to_string(entry.path())
             .expect("failed to read test file");
 
         // Get test step and operation from the filename.

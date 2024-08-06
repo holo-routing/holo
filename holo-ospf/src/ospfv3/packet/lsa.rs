@@ -30,10 +30,10 @@ use crate::packet::lsa::{
     PrefixSidVersion,
 };
 use crate::packet::tlv::{
-    tlv_encode_end, tlv_encode_start, tlv_wire_len, AdjSidFlags, GrReason,
-    GrReasonTlv, GracePeriodTlv, MsdTlv, PrefixSidFlags, RouterFuncCapsTlv,
-    RouterInfoCapsTlv, RouterInfoTlvType, SidLabelRangeTlv, SrAlgoTlv,
-    SrLocalBlockTlv, SrmsPrefTlv, UnknownTlv, TLV_HDR_SIZE, BierSubTlv,
+    tlv_encode_end, tlv_encode_start, tlv_wire_len, AdjSidFlags, BierSubTlv,
+    GrReason, GrReasonTlv, GracePeriodTlv, MsdTlv, PrefixSidFlags,
+    RouterFuncCapsTlv, RouterInfoCapsTlv, RouterInfoTlvType, SidLabelRangeTlv,
+    SrAlgoTlv, SrLocalBlockTlv, SrmsPrefTlv, UnknownTlv, TLV_HDR_SIZE,
 };
 use crate::version::Ospfv3;
 

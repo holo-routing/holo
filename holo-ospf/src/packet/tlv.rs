@@ -9,6 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use bitflags::bitflags;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use derive_new::new;
+use holo_utils::bier::BiftId;
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid};
@@ -293,6 +294,13 @@ pub struct BierSubTlv {
     pub bfr_id: u16,
     pub bar: u8,
     pub ipa: u8,
+    pub subtlvs: Vec<BierSubSubTlv>,
+}
+
+#[derive(Clone, Debug, Eq, new, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub enum BierSubSubTlv {
+    BierEncapSubSubTlv(BierEncapSubSubTlv),
 }
 
 //
@@ -310,12 +318,48 @@ pub struct BierSubTlv {
 //   |BS Len |                     Reserved                          |
 //   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
+// Bier Non-MPLS Encapsulation Sub-Tlv
+//
+// Encoding format:
+//
+//   0                   1                   2                   3
+//   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//   |              Type             |             Length            |
+//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//   |     Max SI    |                   BIFT-id                     |
+//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//   |BS Len |                     Reserved                          |
+//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
 #[derive(Clone, Debug, Eq, new, PartialEq)]
 #[derive(Deserialize, Serialize)]
-pub struct BierMplsEncapSubTlv {
+pub struct BierEncapSubSubTlv {
     pub max_si: u8,
-    pub label: Label,
+    pub id: BierEncapId,
     pub bs_len: u8,
+}
+
+#[derive(Clone, Debug, Eq, new, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub enum BierEncapId {
+    Mpls(Label),
+    NonMpls(BiftId),
+}
+
+impl BierEncapId {
+    fn get(self) -> u32 {
+        match self {
+            Self::Mpls(label) => label.get(),
+            Self::NonMpls(bift_id) => bift_id.get(),
+        }
+    }
+}
+
+#[derive(FromPrimitive, ToPrimitive)]
+pub enum BierSubTlvType {
+    MplsEncap = 41,
+    NonMplsEncap = 42,
 }
 
 #[derive(Clone, Debug, Eq, new, PartialEq)]
@@ -336,10 +380,11 @@ impl BierSubTlv {
         let bar = buf.get_u8();
         let ipa = buf.get_u8();
         let _reserved = buf.get_u16();
+        let mut subtlvs: Vec<BierSubSubTlv> = Vec::new();
 
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse Sub-TLV type.
-            let _stlv_type = buf.get_u16();
+            let stlv_type = buf.get_u16();
 
             // Parse and validate Sub-TLV length.
             let stlv_len = buf.get_u16();
@@ -348,17 +393,36 @@ impl BierSubTlv {
                 return Err(DecodeError::InvalidTlvLength(stlv_len));
             }
 
-            // TODO
             // Parse Sub-TLV value.
-            /*let mut buf_stlv = buf.copy_to_bytes(stlv_wlen as usize);
-            match stlv_type {
-                SUBTLV_BIER_MPLS_ENCAP => {
-                },
-                _ => {
-                    // Ignore unknown Sub-TLV
-                }
-            }*/
+            let mut buf_stlv = buf.copy_to_bytes(stlv_wlen as usize);
+            match BierSubTlvType::from_u16(stlv_type) {
+                Some(stlv_type) => {
+                    match stlv_type {
+                        BierSubTlvType::MplsEncap
+                        | BierSubTlvType::NonMplsEncap => {
+                            let max_si = buf_stlv.get_u8();
+                            let id = buf_stlv.get_u24();
+                            let bs_len = (buf_stlv.get_u8() & 0xf0) >> 4;
 
+                            let id = match stlv_type {
+                                BierSubTlvType::MplsEncap => {
+                                    BierEncapId::Mpls(Label::new(id))
+                                }
+                                BierSubTlvType::NonMplsEncap => {
+                                    BierEncapId::NonMpls(BiftId::new(id))
+                                }
+                            };
+                            subtlvs.push(BierSubSubTlv::BierEncapSubSubTlv(
+                                BierEncapSubSubTlv { max_si, id, bs_len },
+                            ));
+                        }
+                    };
+                }
+                None => {
+                    // Ignore unknown Sub-TLV
+                    continue;
+                }
+            }
         }
 
         Ok(BierSubTlv {
@@ -367,10 +431,15 @@ impl BierSubTlv {
             bfr_id,
             bar,
             ipa,
+            subtlvs,
         })
     }
 
-    pub(crate) fn encode(&self, buf: &mut BytesMut, stlv_type: impl ToPrimitive) {
+    pub(crate) fn encode(
+        &self,
+        buf: &mut BytesMut,
+        stlv_type: impl ToPrimitive,
+    ) {
         let start_pos = tlv_encode_start(buf, stlv_type);
         buf.put_u8(self.sub_domain_id);
         buf.put_u8(self.mt_id);
@@ -378,8 +447,20 @@ impl BierSubTlv {
         buf.put_u8(self.bar);
         buf.put_u8(self.ipa);
         buf.put_u16(0);
-        // TODO: encode sub-tlvs
         tlv_encode_end(buf, start_pos);
+        for subtlv in &self.subtlvs {
+            match subtlv {
+                BierSubSubTlv::BierEncapSubSubTlv(encap) => {
+                    let start_pos =
+                        tlv_encode_start(buf, BierSubTlvType::NonMplsEncap);
+                    buf.put_u8(encap.max_si);
+                    buf.put_u24(encap.id.clone().get());
+                    buf.put_u8(encap.bs_len << 4);
+                    tlv_encode_end(buf, start_pos);
+                }
+                _ => {}
+            }
+        }
     }
 }
 

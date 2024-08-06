@@ -7,6 +7,7 @@
 use std::collections::{hash_map, BTreeMap, HashMap};
 use std::net::{IpAddr, Ipv4Addr};
 
+use holo_utils::bier::{BierEncapsulationType, BierInBiftId, BiftId};
 use holo_utils::ibus::SrCfgEvent;
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::mpls::Label;
@@ -35,8 +36,9 @@ use crate::packet::lsa::{
     Lsa, LsaHdrVersion, LsaKey, LsaScope, LsaTypeVersion, PrefixSidVersion,
 };
 use crate::packet::tlv::{
-    PrefixSidFlags, RouterInfoCaps, RouterInfoCapsTlv, SidLabelRangeTlv,
-    SrAlgoTlv, SrLocalBlockTlv,
+    BierEncapId, BierEncapSubSubTlv, BierSubSubTlv, BierSubTlv, PrefixSidFlags,
+    RouterInfoCaps, RouterInfoCapsTlv, SidLabelRangeTlv, SrAlgoTlv,
+    SrLocalBlockTlv,
 };
 use crate::route::{SummaryNet, SummaryNetFlags, SummaryRtr};
 use crate::version::Ospfv3;
@@ -717,6 +719,7 @@ fn lsa_orig_intra_area_prefix(
     arenas: &InstanceArenas<Ospfv3>,
 ) {
     let sr_config = &instance.shared.sr_config;
+    let bier_config = &instance.shared.bier_config;
     let lsdb_id = LsdbId::Area(area.id);
     let extended_lsa = instance.config.extended_lsa;
     let adv_rtr = instance.state.router_id;
@@ -815,6 +818,66 @@ fn lsa_orig_intra_area_prefix(
                     .prefix_sids
                     .insert(algo, PrefixSid::new(flags, algo, sid));
             }
+        }
+
+        // Add BIER Sub-TLV(s)
+        if instance.config.bier.enabled {
+            bier_config
+                .sd_cfg
+                .iter()
+                // Search for subdomain configuration(s) for current prefix
+                .filter(|((_, af), sd_cfg)| {
+                    af == &AddressFamily::Ipv6 && sd_cfg.bfr_prefix == prefix
+                })
+                .for_each(|((sd_id, _), sd_cfg)| {
+                    // BIER prefix has configured encap ?
+                    let bier_encaps = sd_cfg
+                        .encap
+                        .iter()
+                        .filter_map(|((bsl, encap_type), encap)| {
+                            if let Some(id) = match encap_type {
+                                BierEncapsulationType::Mpls => {
+                                    // TODO: where is the label defined?
+                                    Some(BierEncapId::Mpls(Label::new(0)))
+                                }
+                                _ => {
+                                    if let Some(id) = match encap.in_bift_id {
+                                        BierInBiftId::Base(id) => Some(id),
+                                        BierInBiftId::Encoding(true) => Some(0),
+                                        _ => None,
+                                    } {
+                                        Some(BierEncapId::NonMpls(BiftId::new(
+                                            id,
+                                        )))
+                                    } else {
+                                        None
+                                    }
+                                }
+                            } {
+                                Some(BierSubSubTlv::BierEncapSubSubTlv(
+                                    BierEncapSubSubTlv::new(
+                                        encap.max_si,
+                                        id,
+                                        (*bsl).into(),
+                                    ),
+                                ))
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<BierSubSubTlv>>();
+
+                    let bier = BierSubTlv::new(
+                        *sd_id,
+                        sd_cfg.mt_id,
+                        sd_cfg.bfr_id,
+                        sd_cfg.bar,
+                        sd_cfg.ipa,
+                        bier_encaps,
+                    );
+
+                    entry.bier.push(bier);
+                });
         }
 
         prefixes.push(entry);

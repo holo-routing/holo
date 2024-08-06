@@ -17,6 +17,22 @@ use crate::ip::AddressFamily;
 pub type SubDomainId = u8;
 pub type BfrId = u16;
 
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct BiftId(u32);
+
+impl BiftId {
+    pub const VALUE_MASK: u32 = 0x000FFFFF;
+
+    pub fn new(bift_id: u32) -> Self {
+        Self(bift_id)
+    }
+
+    pub fn get(&self) -> u32 {
+        self.0 & Self::VALUE_MASK
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 #[derive(Deserialize, Serialize)]
 pub struct BierCfg {
@@ -121,6 +137,37 @@ impl TryFromYang for Bsl {
             "2048-bit" => Some(Bsl::_2048),
             "4096-bit" => Some(Bsl::_4096),
             _ => None,
+        }
+    }
+}
+
+impl Into<u8> for Bsl {
+    // Mapping defined in RFC8296, Section 2.1.2
+    fn into(self) -> u8 {
+        match self {
+            Self::_64 => 1,
+            Self::_128 => 2,
+            Self::_256 => 3,
+            Self::_512 => 4,
+            Self::_1024 => 5,
+            Self::_2048 => 6,
+            Self::_4096 => 7,
+        }
+    }
+}
+
+impl TryFrom<u8> for Bsl {
+    type Error = &'static str;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            1 => Ok(Self::_64),
+            2 => Ok(Self::_128),
+            3 => Ok(Self::_256),
+            4 => Ok(Self::_512),
+            5 => Ok(Self::_1024),
+            6 => Ok(Self::_2048),
+            7 => Ok(Self::_4096),
+            _ => Err("Not Supported"),
         }
     }
 }

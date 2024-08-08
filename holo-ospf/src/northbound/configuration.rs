@@ -107,7 +107,7 @@ pub struct InstanceCfg {
 
 #[derive(Debug)]
 pub struct BierOspfCfg {
-    pub mt_id: u16,
+    pub mt_id: u8,
     pub enabled: bool,
     pub advertise: bool,
     pub receive: bool,
@@ -789,7 +789,7 @@ where
         })
         .path(ospf::bier_ospf_cfg::mt_id::PATH)
         .modify_apply(|instance, args| {
-            let mt_id = args.dnode.get_u16();
+            let mt_id = args.dnode.get_u8();
             instance.config.bier.mt_id = mt_id;
         })
         .delete_apply(|instance, _args| {

@@ -73,7 +73,7 @@ module holo-ospf {
      description
            "Defines protocol extensions.";
         leaf mt-id{
-          type uint16 ;
+          type uint8 ;
           description
                 "Multi-topology associated with bier sub-domain.";
          }

@@ -447,7 +447,6 @@ impl BierSubTlv {
         buf.put_u8(self.bar);
         buf.put_u8(self.ipa);
         buf.put_u16(0);
-        tlv_encode_end(buf, start_pos);
         for subtlv in &self.subtlvs {
             match subtlv {
                 BierSubSubTlv::BierEncapSubSubTlv(encap) => {
@@ -455,12 +454,14 @@ impl BierSubTlv {
                         tlv_encode_start(buf, BierSubTlvType::NonMplsEncap);
                     buf.put_u8(encap.max_si);
                     buf.put_u24(encap.id.clone().get());
-                    buf.put_u8(encap.bs_len << 4);
+                    buf.put_u8((encap.bs_len << 4) & 0xf0);
+                    buf.put_u24(0);
                     tlv_encode_end(buf, start_pos);
                 }
                 _ => {}
             }
         }
+        tlv_encode_end(buf, start_pos);
     }
 }
 

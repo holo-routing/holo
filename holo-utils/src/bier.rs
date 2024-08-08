@@ -6,7 +6,9 @@
 
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
+use std::net::IpAddr;
 
+use bytes::BytesMut;
 use derive_new::new;
 use holo_yang::{ToYang, TryFromYang};
 use ipnetwork::IpNetwork;
@@ -16,6 +18,20 @@ use crate::ip::AddressFamily;
 
 pub type SubDomainId = u8;
 pub type BfrId = u16;
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct BierInfo {
+    pub sd_id: SubDomainId,
+    pub bfr_id: BfrId,
+    pub bfr_bss: Vec<Bsl>,
+}
+
+#[derive(Debug)]
+pub struct BirtEntry {
+    pub bfr_prefix: IpAddr,
+    pub bfr_nbr: IpAddr,
+}
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
@@ -113,6 +129,81 @@ pub enum Bsl {
     _4096,
 }
 
+impl From<Bsl> for usize {
+    fn from(val: Bsl) -> Self {
+        match val {
+            Bsl::_64 => 64,
+            Bsl::_128 => 128,
+            Bsl::_256 => 256,
+            Bsl::_512 => 512,
+            Bsl::_1024 => 1024,
+            Bsl::_2048 => 2048,
+            Bsl::_4096 => 4096,
+        }
+    }
+}
+
+impl From<Bsl> for u8 {
+    // Mapping defined in RFC8296, Section 2.1.2
+    fn from(val: Bsl) -> Self {
+        match val {
+            Bsl::_64 => 1,
+            Bsl::_128 => 2,
+            Bsl::_256 => 3,
+            Bsl::_512 => 4,
+            Bsl::_1024 => 5,
+            Bsl::_2048 => 6,
+            Bsl::_4096 => 7,
+        }
+    }
+}
+
+impl TryFrom<u8> for Bsl {
+    type Error = &'static str;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            1 => Ok(Self::_64),
+            2 => Ok(Self::_128),
+            3 => Ok(Self::_256),
+            4 => Ok(Self::_512),
+            5 => Ok(Self::_1024),
+            6 => Ok(Self::_2048),
+            7 => Ok(Self::_4096),
+            _ => Err("Not Supported"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Clone)]
+#[derive(Serialize, Deserialize)]
+pub struct Bitstring {
+    bsl: Bsl,
+    bs: BytesMut,
+}
+
+impl Bitstring {
+    pub fn new(bsl: Bsl) -> Self {
+        Self {
+            bsl,
+            bs: BytesMut::zeroed(bsl.into()),
+        }
+    }
+
+    pub fn from(id: BfrId, bsl: Bsl) -> Self {
+        // pub fn from(bfr: BfrId) -> Self {
+        // TODO: Ensure value fit in bitstring and use SI if required.
+        let byte = id / 8;
+        let idx = (id % 8) + 1;
+        let mut bs = Self::new(bsl);
+        bs.bs[byte as usize] |= 1 << idx;
+        bs
+    }
+
+    pub fn bsl(&self) -> Bsl {
+        self.bsl
+    }
+}
+
 // ===== YANG impl =====
 
 impl TryFromYang for UnderlayProtocolType {
@@ -141,33 +232,16 @@ impl TryFromYang for Bsl {
     }
 }
 
-impl Into<u8> for Bsl {
-    // Mapping defined in RFC8296, Section 2.1.2
-    fn into(self) -> u8 {
+impl ToYang for Bsl {
+    fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            Self::_64 => 1,
-            Self::_128 => 2,
-            Self::_256 => 3,
-            Self::_512 => 4,
-            Self::_1024 => 5,
-            Self::_2048 => 6,
-            Self::_4096 => 7,
-        }
-    }
-}
-
-impl TryFrom<u8> for Bsl {
-    type Error = &'static str;
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            1 => Ok(Self::_64),
-            2 => Ok(Self::_128),
-            3 => Ok(Self::_256),
-            4 => Ok(Self::_512),
-            5 => Ok(Self::_1024),
-            6 => Ok(Self::_2048),
-            7 => Ok(Self::_4096),
-            _ => Err("Not Supported"),
+            Bsl::_64 => "64-bit".into(),
+            Bsl::_128 => "128-bit".into(),
+            Bsl::_256 => "256-bit".into(),
+            Bsl::_512 => "512-bit".into(),
+            Bsl::_1024 => "1024-bit".into(),
+            Bsl::_2048 => "2048-bit".into(),
+            Bsl::_4096 => "4096-bit".into(),
         }
     }
 }

@@ -10,13 +10,14 @@ use std::net::IpAddr;
 use bitflags::bitflags;
 use chrono::{DateTime, Utc};
 use derive_new::new;
+use holo_utils::bier::{BfrId, BirtEntry, Bsl, SubDomainId};
 use holo_utils::ibus::IbusSender;
 use holo_utils::ip::{AddressFamily, IpNetworkExt, Ipv4AddrExt, Ipv6AddrExt};
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{
-    AddressFlags, AddressMsg, LabelInstallMsg, LabelUninstallMsg, Nexthop,
-    RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
+    AddressFlags, AddressMsg, BierNbrInstallMsg, LabelInstallMsg,
+    LabelUninstallMsg, Nexthop, RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
 };
 use holo_utils::{UnboundedReceiver, UnboundedSender};
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
@@ -38,6 +39,11 @@ pub struct Rib {
     pub update_queue_rx: UnboundedReceiver<()>,
 }
 
+#[derive(Debug, Default)]
+pub struct Birt {
+    pub entries: BTreeMap<(SubDomainId, BfrId, Bsl), BirtEntry>,
+}
+
 #[derive(Clone, Debug, new)]
 pub struct Route {
     pub protocol: Protocol,
@@ -55,6 +61,27 @@ bitflags! {
     pub struct RouteFlags: u8 {
         const ACTIVE = 0x01;
         const REMOVED = 0x02;
+    }
+}
+
+// ===== impl Birt =====
+
+impl Birt {
+    pub(crate) fn bier_nbr_add(&mut self, msg: BierNbrInstallMsg) {
+        let bfr_id = msg.bier_info.bfr_id;
+        msg.bier_info.bfr_bss.iter().for_each(|bsl| {
+            if let Some(nexthop) = msg.nexthops.first()
+                && let Nexthop::Address { addr, .. } = nexthop
+            {
+                self.entries
+                    .entry((msg.bier_info.sd_id, bfr_id, *bsl))
+                    .and_modify(|be| be.bfr_nbr = *addr)
+                    .or_insert(BirtEntry {
+                        bfr_prefix: msg.prefix.ip(),
+                        bfr_nbr: (*addr),
+                    });
+            }
+        });
     }
 }
 

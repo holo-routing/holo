@@ -17,8 +17,8 @@ use crate::keychain::Keychain;
 use crate::policy::{MatchSets, Policy};
 use crate::protocol::Protocol;
 use crate::southbound::{
-    AddressMsg, InterfaceUpdateMsg, LabelInstallMsg, LabelUninstallMsg,
-    RouteKeyMsg, RouteMsg,
+    AddressMsg, BierNbrInstallMsg, InterfaceUpdateMsg, LabelInstallMsg,
+    LabelUninstallMsg, RouteKeyMsg, RouteMsg,
 };
 use crate::sr::SrCfg;
 
@@ -112,6 +112,10 @@ pub enum IbusMsg {
     BierCfgUpd(Arc<BierCfg>),
     // BIER configuration event.
     BierCfgEvent(BierCfgEvent),
+    // Request to install an entry in the BIRT
+    RouteBierAdd(BierNbrInstallMsg),
+    // Request to uninstall an entry in the BIRT
+    RouteBierDel(),
 }
 
 // Type of Segment Routing configuration change.

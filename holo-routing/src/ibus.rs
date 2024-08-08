@@ -95,6 +95,9 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
                 .rib
                 .redistribute_request(protocol, af, &master.ibus_tx);
         }
+        IbusMsg::RouteBierAdd(msg) => {
+            master.birt.bier_nbr_add(msg);
+        }
         // Ignore other events.
         _ => {}
     }

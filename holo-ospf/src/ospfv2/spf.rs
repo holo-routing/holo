@@ -491,6 +491,8 @@ impl SpfVersion<Self> for Ospfv2 {
                         prefix_options: Default::default(),
                         metric: 0,
                         prefix_sids,
+                        // FIXME: BIER not supported yet for OSPFv2
+                        bier: Default::default(),
                     });
                 }
                 VertexLsa::Router(lsa) => {
@@ -523,6 +525,8 @@ impl SpfVersion<Self> for Ospfv2 {
                                     prefix_options: Default::default(),
                                     metric,
                                     prefix_sids,
+                                    // FIXME: BIER not supported yet for OSPFv2
+                                    bier: Default::default(),
                                 }
                             }),
                     )

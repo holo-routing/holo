@@ -10,8 +10,8 @@ use std::net::IpAddr;
 use holo_utils::ibus::{IbusMsg, IbusSender};
 use holo_utils::mpls::Label;
 use holo_utils::southbound::{
-    LabelInstallMsg, LabelUninstallMsg, Nexthop, RouteKeyMsg, RouteMsg,
-    RouteOpaqueAttrs,
+    BierNbrInstallMsg, LabelInstallMsg, LabelUninstallMsg, Nexthop,
+    RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
 };
 
 use crate::collections::Arena;
@@ -94,11 +94,22 @@ pub(crate) fn route_install<V>(
         let msg = LabelInstallMsg {
             protocol: V::PROTOCOL,
             label: *sr_label,
-            nexthops,
+            nexthops: nexthops.clone(),
             route: None,
             replace: true,
         };
         let msg = IbusMsg::RouteMplsAdd(msg);
+        let _ = ibus_tx.send(msg);
+    }
+
+    // Install BIER neighbor entry
+    if let Some(bier_info) = &route.bier_info {
+        let msg = BierNbrInstallMsg {
+            bier_info: bier_info.clone(),
+            nexthops,
+            prefix: (*destination).into(),
+        };
+        let msg = IbusMsg::RouteBierAdd(msg);
         let _ = ibus_tx.send(msg);
     }
 }

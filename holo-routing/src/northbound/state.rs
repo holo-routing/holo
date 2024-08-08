@@ -14,8 +14,9 @@ use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, Provider,
 };
 use holo_northbound::yang::control_plane_protocol;
-use holo_northbound::yang::routing::ribs;
+use holo_northbound::yang::routing::{birts, ribs};
 use holo_northbound::{CallbackKey, NbDaemonSender};
+use holo_utils::bier::{BfrId, Bsl};
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{Nexthop, RouteOpaqueAttrs};
@@ -37,6 +38,12 @@ pub enum ListEntry<'a> {
     Route(RouteDestination<'a>, &'a Route),
     Nexthop(&'a Nexthop),
     Label((usize, &'a Label)),
+    SubDomainId(u8),
+    BfrId(BfrId),
+    // FIXME: Should be Bsl but issue with yang-rs
+    Bsl(u8),
+    BirtEntry((u8, IpAddr, IpAddr)),
+    BirtKey((u8, u16, Bsl)),
 }
 
 #[derive(Debug)]
@@ -278,6 +285,54 @@ fn load_callbacks() -> Callbacks<Master> {
                 id: *id as u8,
                 label: Some(label.to_yang()),
             })
+        })
+        .path(birts::birt::PATH)
+        .get_iterate(|master, _args| {
+            let iter = master.birt.entries.keys().map(|(sd_id, _bfr_id, _bsl)| ListEntry::SubDomainId(*sd_id));
+            Some(Box::new(iter))
+        })
+        .get_object(|_master, args| {
+            use birts::birt::Birt;
+            let sub_domain_id = args.list_entry.as_sub_domain_id().unwrap();
+            Box::new(Birt{sub_domain_id: *sub_domain_id})
+        })
+        .path(birts::birt::bfr_id::PATH)
+        .get_iterate(|master, args| {
+            let sd_id_arg = *args.parent_list_entry.as_sub_domain_id().unwrap();
+            let iter = master.birt.entries.keys().filter_map(move |(sd_id, bfr_id, _bsl)| {
+                if *sd_id == sd_id_arg {
+                    Some(ListEntry::BfrId(*bfr_id))
+                } else {
+                    None
+                }
+            });
+            Some(Box::new(iter))
+        })
+        .get_object(|_master, args| {
+            use birts::birt::bfr_id::BfrId;
+            let bfr_id = args.list_entry.as_bfr_id().unwrap();
+            Box::new(BfrId{bfr_id: *bfr_id})
+        })
+        .path(birts::birt::bfr_id::birt_entry::PATH)
+        .get_iterate(|master, args| {
+            let bfr_id_arg = *args.parent_list_entry.as_bfr_id().unwrap();
+            let iter = master.birt.entries.keys().filter_map(move |(sd_id, bfr_id, bsl)| {
+                if *bfr_id == bfr_id_arg {
+                    Some(ListEntry::BirtKey((*sd_id, *bfr_id, *bsl)))
+                } else {
+                    None
+                }
+            });
+            Some(Box::new(iter))
+        })
+        .get_object(|master, args| {
+            use birts::birt::bfr_id::birt_entry::BirtEntry;
+            let birt_key = args.list_entry.as_birt_key().unwrap();
+            let birt_entry = master.birt.entries.get(birt_key).unwrap();
+            let bsl = birt_key.2;
+            let bfr_prefix = Some(Cow::Borrowed(&birt_entry.bfr_prefix));
+            let bfr_nbr = Some(Cow::Borrowed(&birt_entry.bfr_nbr));
+            Box::new(BirtEntry{bsl: bsl.into(), bfr_prefix, bfr_nbr})
         })
         .build()
 }

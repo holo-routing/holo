@@ -820,8 +820,8 @@ fn lsa_orig_intra_area_prefix(
             }
         }
 
-        // Add BIER Sub-TLV(s)
-        if instance.config.bier.enabled {
+        // Add BIER Sub-TLV(s) if BIER is enabled and allowed to advertise
+        if instance.config.bier.enabled && instance.config.bier.advertise {
             bier_config
                 .sd_cfg
                 .iter()
@@ -835,35 +835,29 @@ fn lsa_orig_intra_area_prefix(
                         .encap
                         .iter()
                         .filter_map(|((bsl, encap_type), encap)| {
-                            if let Some(id) = match encap_type {
+                            match encap_type {
                                 BierEncapsulationType::Mpls => {
                                     // TODO: where is the label defined?
                                     Some(BierEncapId::Mpls(Label::new(0)))
                                 }
-                                _ => {
-                                    if let Some(id) = match encap.in_bift_id {
-                                        BierInBiftId::Base(id) => Some(id),
-                                        BierInBiftId::Encoding(true) => Some(0),
-                                        _ => None,
-                                    } {
-                                        Some(BierEncapId::NonMpls(BiftId::new(
-                                            id,
-                                        )))
-                                    } else {
-                                        None
-                                    }
+                                _ => match encap.in_bift_id {
+                                    BierInBiftId::Base(id) => Some(id),
+                                    BierInBiftId::Encoding(true) => Some(0),
+                                    _ => None,
                                 }
-                            } {
-                                Some(BierSubSubTlv::BierEncapSubSubTlv(
+                                .map(|id| {
+                                    BierEncapId::NonMpls(BiftId::new(id))
+                                }),
+                            }
+                            .map(|id| {
+                                BierSubSubTlv::BierEncapSubSubTlv(
                                     BierEncapSubSubTlv::new(
                                         encap.max_si,
                                         id,
                                         (*bsl).into(),
                                     ),
-                                ))
-                            } else {
-                                None
-                            }
+                                )
+                            })
                         })
                         .collect::<Vec<BierSubSubTlv>>();
 

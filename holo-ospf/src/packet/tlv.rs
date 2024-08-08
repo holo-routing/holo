@@ -458,7 +458,6 @@ impl BierSubTlv {
                     buf.put_u24(0);
                     tlv_encode_end(buf, start_pos);
                 }
-                _ => {}
             }
         }
         tlv_encode_end(buf, start_pos);

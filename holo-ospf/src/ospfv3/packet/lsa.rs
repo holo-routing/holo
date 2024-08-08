@@ -2372,6 +2372,7 @@ impl LsaIntraAreaPrefix {
                     // Parse Sub-TLVs.
                     let stlvs = ExtLsaSubTlvs::decode(&mut buf_tlv)?;
                     prefix.prefix_sids = stlvs.prefix_sids;
+                    prefix.bier = stlvs.bier;
                     prefix.unknown_stlvs = stlvs.unknown;
 
                     iap.prefixes.push(prefix);

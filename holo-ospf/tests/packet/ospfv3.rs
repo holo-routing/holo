@@ -610,6 +610,7 @@ static LSA2: Lazy<(Vec<u8>, Lsa<Ospfv3>)> = Lazy::new(|| {
                     value: IpNetwork::from_str("2.2.2.2/32").unwrap(),
                     metric: 0,
                     prefix_sids: Default::default(),
+                    bier: vec![],
                     unknown_stlvs: vec![],
                 }],
                 unknown_tlvs: vec![],
@@ -892,6 +893,7 @@ static EXT_INTRA_AREA_PREFIX_LSA1: Lazy<(Vec<u8>, Lsa<Ospfv3>)> =
                                 }
                             }
                         },
+                        bier: vec![],
                         unknown_stlvs: vec![],
                     }],
                     unknown_tlvs: vec![],

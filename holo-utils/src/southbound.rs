@@ -13,6 +13,7 @@ use holo_yang::{ToYang, TryFromYang};
 use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
 
+use crate::bier::BierInfo;
 use crate::mpls::Label;
 use crate::protocol::Protocol;
 
@@ -98,6 +99,14 @@ pub struct RouteMsg {
 #[derive(Deserialize, Serialize)]
 pub struct RouteKeyMsg {
     pub protocol: Protocol,
+    pub prefix: IpNetwork,
+}
+
+#[derive(Clone, Debug)]
+#[derive(Deserialize, Serialize)]
+pub struct BierNbrInstallMsg {
+    pub bier_info: BierInfo,
+    pub nexthops: BTreeSet<Nexthop>,
     pub prefix: IpNetwork,
 }
 

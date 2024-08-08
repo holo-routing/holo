@@ -30,6 +30,7 @@ impl ProviderBase for Master {
             "ietf-segment-routing-common",
             "ietf-segment-routing-mpls",
             "ietf-bier",
+            "holo-routing",
         ]
     }
 

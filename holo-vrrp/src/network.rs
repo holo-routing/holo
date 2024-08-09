@@ -137,7 +137,7 @@ pub async fn send_packet_arp(
 fn join_multicast(sock: &Socket, ifname: &str) -> Result<(), std::io::Error> {
     let sock = socket2::SockRef::from(sock);
     let ifname = CString::new(ifname).unwrap();
-    let ifindex = unsafe { if_nametoindex(ifname.as_ptr() as *const i8) };
+    let ifindex = unsafe { if_nametoindex(ifname.as_ptr()) };
 
     sock.join_multicast_v4_n(
         &Ipv4Addr::new(224, 0, 0, 18),

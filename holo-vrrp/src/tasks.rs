@@ -25,7 +25,7 @@ use crate::network;
 //                                           | |
 //                        northbound_rx (1x) V | (1x) northbound_tx
 //                                     +--------------+
-//           master_down_timer (Nx) -> |              | -> (Nx) master_down_timer
+//           master_down_timer (Nx) -> |              |
 //                      net_rx (Nx) -> |   instance   | -> (Nx) net_tx
 //                                     |              |
 //                                     +--------------+
@@ -39,8 +39,6 @@ use crate::network;
 
 // VRRP inter-task message types.
 pub mod messages {
-    use std::net::IpAddr;
-
     use serde::{Deserialize, Serialize};
 
     use crate::packet::{DecodeError, VrrpPacket};
@@ -51,6 +49,8 @@ pub mod messages {
 
     // Input messages (child task -> main task).
     pub mod input {
+        use std::net::Ipv4Addr;
+
         use super::*;
 
         #[derive(Debug, Deserialize, Serialize)]
@@ -61,7 +61,7 @@ pub mod messages {
 
         #[derive(Debug, Deserialize, Serialize)]
         pub struct NetRxPacketMsg {
-            pub src: IpAddr,
+            pub src: Ipv4Addr,
             pub packet: Result<VrrpPacket, DecodeError>,
         }
 

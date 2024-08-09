@@ -6,7 +6,7 @@
 
 use std::ffi::CString;
 //use std::io;
-use std::net::{IpAddr, Ipv4Addr, SocketAddrV4};
+use std::net::{Ipv4Addr, SocketAddrV4};
 use std::os::fd::AsRawFd;
 use std::sync::Arc;
 
@@ -211,7 +211,7 @@ pub(crate) async fn read_loop(
         {
             Ok((src, vrrp_pkt)) => {
                 let msg = NetRxPacketMsg {
-                    src: IpAddr::from(src),
+                    src,
                     packet: vrrp_pkt,
                 };
                 net_packet_rxp.send(msg).await.unwrap();

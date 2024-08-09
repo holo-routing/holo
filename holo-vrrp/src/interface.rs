@@ -198,7 +198,7 @@ impl ProtocolInstance for Interface {
         if let Err(error) = match msg {
             // Received network packet.
             ProtocolInputMsg::NetRxPacket(msg) => {
-                events::process_vrrp_packet(self, msg.packet)
+                events::process_vrrp_packet(self, msg.src, msg.packet)
             }
             ProtocolInputMsg::MasterDownTimer(msg) => {
                 events::handle_master_down_timer(self, msg.vrid)

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::net::Ipv4Addr;
 use std::time::Duration;
 
 use crate::error::{Error, IoError};
@@ -13,14 +14,15 @@ use crate::tasks::messages::output::NetTxPacketMsg;
 
 // To collect actions to be executed later
 enum VrrpAction {
-    Initialize(VrrpPacket),
-    Backup(VrrpPacket),
-    Master(VrrpPacket),
+    Initialize(Ipv4Addr, VrrpPacket),
+    Backup(Ipv4Addr, VrrpPacket),
+    Master(Ipv4Addr, VrrpPacket),
 }
 
 // ===== Network packet receipt =====
 pub(crate) fn process_vrrp_packet(
     interface: &mut Interface,
+    src_ip: Ipv4Addr,
     packet: DecodeResult<VrrpPacket>,
 ) -> Result<(), Error> {
     // Handle packet decoding errors
@@ -37,7 +39,7 @@ pub(crate) fn process_vrrp_packet(
     };
 
     // collect the actions that are required
-    let action = match get_vrrp_action(interface, pkt) {
+    let action = match get_vrrp_action(interface, src_ip, pkt) {
         Ok(a) => a,
         Err(e) => return Err(e),
     };
@@ -140,6 +142,7 @@ pub(crate) fn process_arp_packet(
 // configs and incoming packet
 fn get_vrrp_action(
     interface: &mut Interface,
+    src_ip: Ipv4Addr,
     packet: VrrpPacket,
 ) -> Result<VrrpAction, Error> {
     // Handle missing instance
@@ -157,15 +160,15 @@ fn get_vrrp_action(
 
     // Handle the current state
     match instance.state.state {
-        State::Initialize => Ok(VrrpAction::Initialize(packet)),
-        State::Backup => Ok(VrrpAction::Backup(packet)),
-        State::Master => Ok(VrrpAction::Master(packet)),
+        State::Initialize => Ok(VrrpAction::Initialize(src_ip, packet)),
+        State::Backup => Ok(VrrpAction::Backup(src_ip, packet)),
+        State::Master => Ok(VrrpAction::Master(src_ip, packet)),
     }
 }
 
 fn handle_vrrp_actions(interface: &mut Interface, action: VrrpAction) {
     match action {
-        VrrpAction::Initialize(pkt) => {
+        VrrpAction::Initialize(_src, pkt) => {
             let vrid = pkt.vrid;
             if vrid == 255 {
                 interface.send_vrrp_advert(vrid);
@@ -175,7 +178,7 @@ fn handle_vrrp_actions(interface: &mut Interface, action: VrrpAction) {
                 interface.change_state(vrid, State::Backup);
             }
         }
-        VrrpAction::Backup(pkt) => {
+        VrrpAction::Backup(_src, pkt) => {
             let vrid = pkt.vrid;
 
             if let Some(instance) = interface.instances.get_mut(&vrid) {
@@ -197,7 +200,7 @@ fn handle_vrrp_actions(interface: &mut Interface, action: VrrpAction) {
             }
         }
 
-        VrrpAction::Master(pkt) => {
+        VrrpAction::Master(src, pkt) => {
             let vrid = pkt.vrid;
             let mut send_ad = false;
             if let Some(instance) = interface.instances.get_mut(&vrid) {
@@ -205,15 +208,22 @@ fn handle_vrrp_actions(interface: &mut Interface, action: VrrpAction) {
                     send_ad = true;
 
                     instance.reset_timer();
-                } else if pkt.priority > instance.config.priority
-                // TODO: in RFC 3768 page 18, we have a requirement, where If the priority
-                // in the ADVERTISEMENT is equal to the local Priority and the primary IP
-                // Address of the sender is greater than the local primary IP Address, then we
-                // proceed.
-                //
-                // We can get our primary IP address, but purely from the VRRP packet we cannot
-                // get our senders primary.
-                //
+                }
+                //If the Priority in the ADVERTISEMENT is greater than the
+                // local Priority,
+                // or
+                // If the Priority in the ADVERTISEMENT is equal to the local
+                // Priority and the primary IP Address of the sender is greater
+                // than the local primary IP Address
+                else if pkt.priority > instance.config.priority
+                    || ((pkt.priority == instance.config.priority)
+                        && src
+                            > interface
+                                .system
+                                .addresses
+                                .first()
+                                .unwrap()
+                                .network())
                 {
                     interface.change_state(vrid, State::Backup);
                 } else {

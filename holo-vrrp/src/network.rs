@@ -4,31 +4,38 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::io;
-use std::net::{Ipv4Addr, SocketAddrV4};
+use std::ffi::CString;
+//use std::io;
+use std::net::{IpAddr, Ipv4Addr, SocketAddrV4};
+use std::os::fd::AsRawFd;
 use std::sync::Arc;
 
-use holo_utils::socket::{AsyncFd, Socket};
+//use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::{capabilities, Sender, UnboundedReceiver};
-use libc::{AF_PACKET, ETH_P_ARP};
-use socket2::{Domain, Protocol, Type};
+use libc::{if_nametoindex, AF_PACKET, ETH_P_ARP};
+use nix::sys::socket;
+use socket2::{Domain, InterfaceIndexOrAddress, Protocol, Socket, Type};
+use tokio::io::unix::AsyncFd;
 use tokio::sync::mpsc::error::SendError;
 
 use crate::error::IoError;
-use crate::packet::{ArpPacket, EthernetFrame, VrrpPacket};
+use crate::packet::{ArpPacket, EthernetFrame, Ipv4Packet, VrrpPacket};
 use crate::tasks::messages::input::NetRxPacketMsg;
 use crate::tasks::messages::output::NetTxPacketMsg;
 
-pub(crate) fn socket_vrrp(ifname: &str) -> Result<Socket, std::io::Error> {
+pub fn socket_vrrp(ifname: &str) -> Result<Socket, std::io::Error> {
     #[cfg(not(feature = "testing"))]
     {
-        let socket = capabilities::raise(|| {
+        let sock = capabilities::raise(|| {
             Socket::new(Domain::IPV4, Type::RAW, Some(Protocol::from(112)))
         })?;
 
-        capabilities::raise(|| socket.bind_device(Some(ifname.as_bytes())))?;
-        socket.set_broadcast(true)?;
-        Ok(socket)
+        capabilities::raise(|| sock.bind_device(Some(ifname.as_bytes())))?;
+        capabilities::raise(|| sock.set_broadcast(true))?;
+        capabilities::raise(|| sock.set_nonblocking(true))?;
+        capabilities::raise(|| join_multicast(&sock, ifname))?;
+
+        Ok(sock)
     }
     #[cfg(feature = "testing")]
     {
@@ -82,7 +89,6 @@ pub async fn send_packet_arp(
     arp_packet: ArpPacket,
 ) -> Result<usize, IoError> {
     use std::ffi::CString;
-    use std::os::fd::AsRawFd;
 
     use libc::{c_void, sendto, sockaddr, sockaddr_ll};
 
@@ -93,7 +99,7 @@ pub async fn send_packet_arp(
         Ok(c_ifname) => c_ifname,
         Err(err) => {
             return Err(IoError::SocketError(std::io::Error::new(
-                io::ErrorKind::NotFound,
+                std::io::ErrorKind::NotFound,
                 err,
             )))
         }
@@ -122,10 +128,21 @@ pub async fn send_packet_arp(
             ptr_sockaddr,
             std::mem::size_of_val(&sa) as u32,
         ) {
-            -1 => Err(IoError::SendError(io::Error::last_os_error())),
+            -1 => Err(IoError::SendError(std::io::Error::last_os_error())),
             fd => Ok(fd as usize),
         }
     }
+}
+
+fn join_multicast(sock: &Socket, ifname: &str) -> Result<(), std::io::Error> {
+    let sock = socket2::SockRef::from(sock);
+    let ifname = CString::new(ifname).unwrap();
+    let ifindex = unsafe { if_nametoindex(ifname.as_ptr() as *const i8) };
+
+    sock.join_multicast_v4_n(
+        &Ipv4Addr::new(224, 0, 0, 18),
+        &InterfaceIndexOrAddress::Index(ifindex),
+    )
 }
 
 //#[cfg(not(feature = "testing"))]
@@ -160,9 +177,52 @@ pub(crate) async fn write_loop(
 
 #[cfg(not(feature = "testing"))]
 pub(crate) async fn read_loop(
-    _socket_vrrp: Arc<AsyncFd<Socket>>,
-    _net_packet_rxp: Sender<NetRxPacketMsg>,
+    socket_vrrp: Arc<AsyncFd<Socket>>,
+    net_packet_rxp: Sender<NetRxPacketMsg>,
 ) -> Result<(), SendError<NetRxPacketMsg>> {
-    // TODO: receive VRRP packets
-    Ok(())
+    let mut buf = [0; 128];
+    loop {
+        match socket_vrrp
+            .async_io(tokio::io::Interest::READABLE, |sock| {
+                match socket::recv(
+                    sock.as_raw_fd(),
+                    &mut buf,
+                    socket::MsgFlags::empty(),
+                ) {
+                    Ok(msg) => {
+                        let data = &buf[0..msg];
+
+                        // since ip header length is given in number of words
+                        // (4 bytes per word), we multiply by 4 to get the actual
+                        // number of bytes
+                        let ip_header_len = ((data[0] & 0x0f) * 4) as usize;
+
+                        let ip_pkt =
+                            Ipv4Packet::decode(&data[0..ip_header_len])
+                                .unwrap();
+                        let vrrp_pkt =
+                            VrrpPacket::decode(&data[ip_header_len..]);
+                        Ok((ip_pkt.src_address, vrrp_pkt))
+                    }
+                    Err(errno) => Err(errno.into()),
+                }
+            })
+            .await
+        {
+            Ok((src, vrrp_pkt)) => {
+                let msg = NetRxPacketMsg {
+                    src: IpAddr::from(src),
+                    packet: vrrp_pkt,
+                };
+                net_packet_rxp.send(msg).await.unwrap();
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {
+                // retry if the syscall was interrupted
+                continue;
+            }
+            Err(error) => {
+                IoError::RecvError(error).log();
+            }
+        }
+    }
 }

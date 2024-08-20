@@ -51,18 +51,26 @@ pub mod messages {
     pub mod input {
         use std::net::Ipv4Addr;
 
+        use crate::packet::ArpPacket;
+
         use super::*;
 
         #[derive(Debug, Deserialize, Serialize)]
         pub enum ProtocolMsg {
-            NetRxPacket(NetRxPacketMsg),
+            ArpNetRxPacket(ArpNetRxPacketMsg),
+            VrrpNetRxPacket(VrrpNetRxPacketMsg),
             MasterDownTimer(MasterDownTimerMsg),
         }
 
         #[derive(Debug, Deserialize, Serialize)]
-        pub struct NetRxPacketMsg {
+        pub struct VrrpNetRxPacketMsg {
             pub src: Ipv4Addr,
             pub packet: Result<VrrpPacket, DecodeError>,
+        }
+
+        #[derive(Debug, Deserialize, Serialize)]
+        pub struct ArpNetRxPacketMsg {
+            pub packet: Result<ArpPacket, DecodeError>,
         }
 
         #[derive(Debug, Deserialize, Serialize)]
@@ -98,9 +106,9 @@ pub mod messages {
 // ===== VRRP tasks =====
 
 // Network Rx task.
-pub(crate) fn net_rx(
+pub(crate) fn vrrp_net_rx(
     socket_vrrp: Arc<AsyncFd<Socket>>,
-    net_packet_rxp: &Sender<messages::input::NetRxPacketMsg>,
+    net_packet_rxp: &Sender<messages::input::VrrpNetRxPacketMsg>,
 ) -> Task<()> {
     #[cfg(not(feature = "testing"))]
     {
@@ -202,7 +210,7 @@ pub(crate) fn set_master_down_timer(
     duration: Duration, // period: u64
 ) {
     let instance = interface.instances.get_mut(&vrid).unwrap();
-    let tx = interface.tx.protocol_input.master_down_timer.clone();
+    let tx = interface.tx.protocol_input.master_down_timer_tx.clone();
 
     let timer = TimeoutTask::new(duration, move || async move {
         let _ = tx.send(messages::input::MasterDownTimerMsg { vrid }).await;

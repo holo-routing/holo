@@ -19,7 +19,7 @@ enum VrrpAction {
     Master(Ipv4Addr, VrrpPacket),
 }
 
-// ===== Network packet receipt =====
+// ===== Vrrp Network packet receipt =====
 pub(crate) fn process_vrrp_packet(
     interface: &mut Interface,
     src_ip: Ipv4Addr,
@@ -49,7 +49,7 @@ pub(crate) fn process_vrrp_packet(
     Ok(())
 }
 
-#[allow(unused)]
+// ==== Arp Network Packet receipt ====
 pub(crate) fn process_arp_packet(
     interface: &mut Interface,
     packet: DecodeResult<ArpPacket>,
@@ -130,7 +130,7 @@ pub(crate) fn process_arp_packet(
                     eth_frame,
                     arp_packet: arp_response_pkt,
                 };
-                interface.net.net_tx_packetp.send(msg);
+                let _ = interface.net.net_tx_packetp.send(msg);
             }
         }
     }

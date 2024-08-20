@@ -20,7 +20,7 @@ use tokio::sync::mpsc::error::SendError;
 
 use crate::error::IoError;
 use crate::packet::{ArpPacket, EthernetFrame, Ipv4Packet, VrrpPacket};
-use crate::tasks::messages::input::NetRxPacketMsg;
+use crate::tasks::messages::input::VrrpNetRxPacketMsg;
 use crate::tasks::messages::output::NetTxPacketMsg;
 
 pub fn socket_vrrp(ifname: &str) -> Result<Socket, std::io::Error> {
@@ -178,8 +178,8 @@ pub(crate) async fn write_loop(
 #[cfg(not(feature = "testing"))]
 pub(crate) async fn read_loop(
     socket_vrrp: Arc<AsyncFd<Socket>>,
-    net_packet_rxp: Sender<NetRxPacketMsg>,
-) -> Result<(), SendError<NetRxPacketMsg>> {
+    net_packet_rxp: Sender<VrrpNetRxPacketMsg>,
+) -> Result<(), SendError<VrrpNetRxPacketMsg>> {
     let mut buf = [0; 128];
     loop {
         match socket_vrrp
@@ -210,7 +210,7 @@ pub(crate) async fn read_loop(
             .await
         {
             Ok((src, vrrp_pkt)) => {
-                let msg = NetRxPacketMsg {
+                let msg = VrrpNetRxPacketMsg {
                     src,
                     packet: vrrp_pkt,
                 };

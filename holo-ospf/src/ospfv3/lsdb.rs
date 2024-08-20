@@ -8,7 +8,7 @@ use std::collections::{hash_map, BTreeMap, HashMap};
 use std::net::{IpAddr, Ipv4Addr};
 
 use holo_utils::bier::{BierEncapsulationType, BierInBiftId, BiftId};
-use holo_utils::ibus::SrCfgEvent;
+use holo_utils::ibus::{BierCfgEvent, SrCfgEvent};
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid, SidLastHopBehavior};
@@ -281,6 +281,23 @@ impl LsdbVersion<Self> for Ospfv3 {
                     }
                 }
             }
+            LsaOriginateEvent::BierEnableChange => {
+                // Reoriginate Intra-area-prefix-LSA(s) in all areas.
+                for area in arenas.areas.iter() {
+                    lsa_orig_intra_area_prefix(area, instance, arenas);
+                }
+            }
+            LsaOriginateEvent::BierCfgChange { change } => match change {
+                BierCfgEvent::EncapUpdate(af)
+                | BierCfgEvent::SubDomainUpdate(af) => {
+                    if af == instance.state.af {
+                        for area in arenas.areas.iter() {
+                            // Reoriginate Intra-area-prefix-LSA(s) in all areas.
+                            lsa_orig_intra_area_prefix(area, instance, arenas);
+                        }
+                    }
+                }
+            },
         };
 
         Ok(())

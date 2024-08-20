@@ -72,6 +72,7 @@ pub enum Event {
     RerunSpf,
     UpdateSummaries,
     ReinstallRoutes,
+    BierEnableChange(bool),
 }
 
 pub static VALIDATION_CALLBACKS_OSPFV2: Lazy<ValidationCallbacks> =
@@ -791,6 +792,8 @@ where
         .modify_apply(|instance, args| {
             let mt_id = args.dnode.get_u8();
             instance.config.bier.mt_id = mt_id;
+
+            // TODO: should reoriginate LSA
         })
         .delete_apply(|instance, _args| {
             let mt_id = 0;
@@ -800,6 +803,9 @@ where
         .modify_apply(|instance, args| {
             let enable = args.dnode.get_bool();
             instance.config.bier.enabled = enable;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierEnableChange(enable));
         })
         .path(ospf::bier_ospf_cfg::bier::advertise::PATH)
         .modify_apply(|instance, args| {
@@ -1501,6 +1507,22 @@ where
                                 }
                             }
                         }
+                    }
+                }
+            }
+            Event::BierEnableChange(bier_enabled) => {
+                if let Some((instance, _arenas)) = self.as_up() {
+                    // (Re)originate LSAs that might have been affected.
+                    instance
+                        .tx
+                        .protocol_input
+                        .lsa_orig_event(LsaOriginateEvent::BierEnableChange);
+
+                    // Purge BIRT if bier disabled or re-install routes if enabled
+                    if bier_enabled {
+                        self.process_event(Event::ReinstallRoutes).await;
+                    } else {
+                        let _ = instance.tx.ibus.send(IbusMsg::BierPurge);
                     }
                 }
             }

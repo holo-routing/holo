@@ -16,8 +16,9 @@ use holo_utils::ip::{AddressFamily, IpNetworkExt, Ipv4AddrExt, Ipv6AddrExt};
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{
-    AddressFlags, AddressMsg, BierNbrInstallMsg, LabelInstallMsg,
-    LabelUninstallMsg, Nexthop, RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
+    AddressFlags, AddressMsg, BierNbrInstallMsg, BierNbrUninstallMsg,
+    LabelInstallMsg, LabelUninstallMsg, Nexthop, RouteKeyMsg, RouteMsg,
+    RouteOpaqueAttrs,
 };
 use holo_utils::{UnboundedReceiver, UnboundedSender};
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
@@ -82,6 +83,10 @@ impl Birt {
                     });
             }
         });
+    }
+
+    pub(crate) fn bier_nbr_del(&mut self, msg: BierNbrUninstallMsg) {
+        let _ = self.entries.remove(&(msg.sd_id, msg.bfr_id, msg.bsl));
     }
 }
 

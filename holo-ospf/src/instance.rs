@@ -780,12 +780,16 @@ where
         IbusMsg::SrCfgUpd(sr_config) => {
             instance.shared.sr_config = sr_config;
         }
+        // BIER configuration update.
         IbusMsg::BierCfgUpd(bier_config) => {
             instance.shared.bier_config = bier_config.clone();
         }
         // SR configuration event.
         IbusMsg::SrCfgEvent(event) => {
             events::process_sr_cfg_change(instance, event)?
+        }
+        IbusMsg::BierCfgEvent(event) => {
+            events::process_bier_cfg_change(instance, event)?
         }
         // Ignore other events.
         _ => {}

@@ -10,8 +10,8 @@ use std::net::IpAddr;
 use holo_utils::ibus::{IbusMsg, IbusSender};
 use holo_utils::mpls::Label;
 use holo_utils::southbound::{
-    BierNbrInstallMsg, LabelInstallMsg, LabelUninstallMsg, Nexthop,
-    RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
+    BierNbrInstallMsg, BierNbrUninstallMsg, LabelInstallMsg, LabelUninstallMsg,
+    Nexthop, RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
 };
 
 use crate::collections::Arena;
@@ -139,6 +139,19 @@ pub(crate) fn route_uninstall<V>(
         };
         let msg = IbusMsg::RouteMplsDel(msg);
         let _ = ibus_tx.send(msg);
+    }
+
+    // Uninstall BIER neighbor entry
+    if let Some(bier_info) = &route.bier_info {
+        for bsl in &bier_info.bfr_bss {
+            let msg = BierNbrUninstallMsg {
+                sd_id: bier_info.sd_id,
+                bfr_id: bier_info.bfr_id,
+                bsl: *bsl,
+            };
+            let msg = IbusMsg::RouteBierDel(msg);
+            let _ = ibus_tx.send(msg);
+        }
     }
 }
 

@@ -13,7 +13,7 @@ use std::time::Instant;
 use bitflags::bitflags;
 use chrono::Utc;
 use derive_new::new;
-use holo_utils::ibus::SrCfgEvent;
+use holo_utils::ibus::{BierCfgEvent, SrCfgEvent};
 use holo_utils::task::TimeoutTask;
 use holo_utils::UnboundedSender;
 use serde::{Deserialize, Serialize};
@@ -123,6 +123,10 @@ pub enum LsaOriginateEvent {
     GrHelperExit {
         area_id: AreaId,
         iface_id: InterfaceId,
+    },
+    BierEnableChange,
+    BierCfgChange {
+        change: BierCfgEvent,
     },
 }
 

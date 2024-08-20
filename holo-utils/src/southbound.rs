@@ -13,7 +13,7 @@ use holo_yang::{ToYang, TryFromYang};
 use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
 
-use crate::bier::BierInfo;
+use crate::bier::{BfrId, BierInfo, Bsl, SubDomainId};
 use crate::mpls::Label;
 use crate::protocol::Protocol;
 
@@ -108,6 +108,14 @@ pub struct BierNbrInstallMsg {
     pub bier_info: BierInfo,
     pub nexthops: BTreeSet<Nexthop>,
     pub prefix: IpNetwork,
+}
+
+#[derive(Clone, Debug)]
+#[derive(Deserialize, Serialize)]
+pub struct BierNbrUninstallMsg {
+    pub sd_id: SubDomainId,
+    pub bfr_id: BfrId,
+    pub bsl: Bsl,
 }
 
 #[derive(Clone, Debug)]

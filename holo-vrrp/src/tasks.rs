@@ -51,9 +51,8 @@ pub mod messages {
     pub mod input {
         use std::net::Ipv4Addr;
 
-        use crate::packet::ArpPacket;
-
         use super::*;
+        use crate::packet::ArpPacket;
 
         #[derive(Debug, Deserialize, Serialize)]
         pub enum ProtocolMsg {

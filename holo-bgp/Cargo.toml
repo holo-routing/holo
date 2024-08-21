@@ -26,6 +26,7 @@ serde_json.workspace = true
 serde_with.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+twox-hash.workspace = true
 yang3.workspace = true
 
 holo-northbound = { path = "../holo-northbound" }

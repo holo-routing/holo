@@ -601,8 +601,10 @@ where
                 }
                 #[cfg(feature = "deterministic")]
                 {
-                    use std::hash::{DefaultHasher, Hasher};
-                    let mut hasher = DefaultHasher::new();
+                    use std::hash::Hasher;
+
+                    use twox_hash::XxHash64;
+                    let mut hasher = XxHash64::with_seed(0);
                     attr.hash(&mut hasher);
                     hasher.finish()
                 }

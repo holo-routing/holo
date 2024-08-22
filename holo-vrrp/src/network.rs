@@ -7,20 +7,20 @@
 use std::ffi::CString;
 //use std::io;
 use std::net::{Ipv4Addr, SocketAddrV4};
-use std::os::fd::AsRawFd;
+use std::os::fd::{AsRawFd, FromRawFd};
 use std::sync::Arc;
 
 //use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::{capabilities, Sender, UnboundedReceiver};
-use libc::{if_nametoindex, AF_PACKET, ETH_P_ARP};
-use nix::sys::socket;
+use libc::{if_nametoindex, AF_PACKET, ETH_P_ARP, SOCK_RAW};
+use nix::sys::socket::{self, MsgFlags};
 use socket2::{Domain, InterfaceIndexOrAddress, Protocol, Socket, Type};
 use tokio::io::unix::AsyncFd;
 use tokio::sync::mpsc::error::SendError;
 
 use crate::error::IoError;
 use crate::packet::{ArpPacket, EthernetFrame, Ipv4Packet, VrrpPacket};
-use crate::tasks::messages::input::VrrpNetRxPacketMsg;
+use crate::tasks::messages::input::{ArpNetRxPacketMsg, VrrpNetRxPacketMsg};
 use crate::tasks::messages::output::NetTxPacketMsg;
 
 pub fn socket_vrrp(ifname: &str) -> Result<Socket, std::io::Error> {
@@ -175,10 +175,52 @@ pub(crate) async fn write_loop(
     }
 }
 
-#[cfg(not(feature = "testing"))]
-pub(crate) async fn read_loop(
+pub(crate) async fn arp_read_loop(
+    ifname: &str,
+    arp_net_packet_rxp: Sender<ArpNetRxPacketMsg>,
+) -> Result<(), SendError<ArpNetRxPacketMsg>> {
+    let fd = unsafe {
+        match libc::socket(AF_PACKET, SOCK_RAW, ETH_P_ARP.to_be()) {
+            -1 => return Ok(()),
+            fd => fd,
+        }
+    };
+    let sock = unsafe { Socket::from_raw_fd(fd) };
+    let _ = sock.bind_device(Some(ifname.as_bytes()));
+    let af_sock = AsyncFd::new(sock).unwrap();
+
+    let mut buf = [0u8; 42];
+
+    loop {
+        match af_sock
+            .async_io(tokio::io::Interest::READABLE, |_s| {
+                match nix::sys::socket::recv(fd, &mut buf, MsgFlags::empty()) {
+                    Ok(_len) => {
+                        let _eth_frame = EthernetFrame::decode(&buf[..14]);
+                        let arp_packet = ArpPacket::decode(&buf[14..]);
+                        Ok(arp_packet)
+                    }
+                    Err(err) => Err(err.into()),
+                }
+            })
+            .await
+        {
+            Ok(packet) => {
+                let msg = ArpNetRxPacketMsg { packet };
+                let _ = arp_net_packet_rxp.send(msg).await;
+            }
+            Err(_err) => {
+                // remember to introduce error logging here...
+                continue;
+            }
+        }
+    }
+}
+
+//#[cfg(not(feature = "testing"))]
+pub(crate) async fn vrrp_read_loop(
     socket_vrrp: Arc<AsyncFd<Socket>>,
-    net_packet_rxp: Sender<VrrpNetRxPacketMsg>,
+    vrrp_net_packet_rxp: Sender<VrrpNetRxPacketMsg>,
 ) -> Result<(), SendError<VrrpNetRxPacketMsg>> {
     let mut buf = [0; 128];
     loop {
@@ -214,7 +256,7 @@ pub(crate) async fn read_loop(
                     src,
                     packet: vrrp_pkt,
                 };
-                net_packet_rxp.send(msg).await.unwrap();
+                vrrp_net_packet_rxp.send(msg).await.unwrap();
             }
             Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {
                 // retry if the syscall was interrupted

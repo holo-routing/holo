@@ -66,7 +66,8 @@ pub struct InterfaceNet {
     pub socket_arp: Arc<AsyncFd<Socket>>,
     // Network Tx/Rx tasks.
     _net_tx_task: Task<()>,
-    _net_rx_task: Task<()>,
+    _vrrp_net_rx_task: Task<()>,
+    _arp_net_rx_task: Task<()>,
     // Network Tx output channel.
     pub net_tx_packetp: UnboundedSender<NetTxPacketMsg>,
 }
@@ -273,16 +274,21 @@ impl InterfaceNet {
             #[cfg(feature = "testing")]
             &instance_channels_tx.protocol_output,
         );
-        let net_rx_task = tasks::vrrp_net_rx(
+        let vrrp_net_rx_task = tasks::vrrp_net_rx(
             socket_vrrp.clone(),
             &instance_channels_tx.protocol_input.vrrp_net_packet_tx,
+        );
+        let arp_net_rx_task = tasks::arp_net_rx(
+            String::from(ifname),
+            &instance_channels_tx.protocol_input.arp_net_packet_tx,
         );
 
         Ok(InterfaceNet {
             socket_vrrp,
             socket_arp,
             _net_tx_task: net_tx_task,
-            _net_rx_task: net_rx_task,
+            _vrrp_net_rx_task: vrrp_net_rx_task,
+            _arp_net_rx_task: arp_net_rx_task,
             net_tx_packetp,
         })
     }

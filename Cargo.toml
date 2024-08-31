@@ -74,6 +74,7 @@ tonic = { version = "0.11", features = ["tls"] }
 tonic-build = "0.11"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+twox-hash = "1.6"
 yang2 = { version = "0.13", features = ["bundled"] }
 
 [workspace.lints.rust]

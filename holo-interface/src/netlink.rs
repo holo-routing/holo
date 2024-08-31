@@ -19,7 +19,7 @@ use netlink_packet_route::constants::{
     RTNLGRP_IPV6_IFADDR, RTNLGRP_LINK,
 };
 use netlink_packet_route::rtnl::RtnlMessage;
-use netlink_packet_route::{AddressMessage, LinkMessage};
+use netlink_packet_route::{AddressMessage, LinkMessage, MACVLAN_MODE_BRIDGE};
 use netlink_sys::{AsyncSocket, SocketAddr};
 use rtnetlink::{new_connection, Handle};
 use tracing::{error, trace};
@@ -229,6 +229,32 @@ pub(crate) async fn vlan_create(
     // Execute request.
     if let Err(error) = request.execute().await {
         error!(%parent_ifindex, %vlan_id, %error, "failed to create VLAN interface");
+    }
+}
+
+/// Creates MacVlan interface
+/// uses RTM_NEWLINK.
+///
+/// # Arguments
+///
+/// * `parent_ifindex` - index of the primary interface this macvlan will be bridging from
+/// * `name` - name of the macvlan address
+#[allow(dead_code)]
+pub(crate) async fn macvlan_create(
+    handle: &Handle,
+    parent_ifindex: u32,
+    name: String,
+) {
+    // Create netlink request
+    let request = handle.link().add().macvlan(
+        name.clone(),
+        parent_ifindex,
+        MACVLAN_MODE_BRIDGE,
+    );
+
+    // Execute request.
+    if let Err(error) = request.execute().await {
+        error!(%parent_ifindex, %name, %error, "Failed to create MacVlan interface");
     }
 }
 

@@ -5,6 +5,7 @@
 //
 
 //! This file contains BGP definitions that are common to both `holo-bgp` and
+//!
 //! `holo-policy`. In the future, the northbound layer should be restructured
 //! so that `holo-bgp` can handle the BGP-specific policy definitions itself,
 //! eliminating the need for shared definitions.

@@ -47,6 +47,27 @@ pub struct Interface {
     pub shared: InstanceShared,
 }
 
+// as far as vrrp is concerned, this will have
+// nearly all the features of the normal interface
+// but will not hold any VRRP instances etc.
+// it is purely meant for being used together with
+// a VRRP instance as the MacVlan interface when
+// MacVlan is enabled on VRRP.
+#[derive(Debug)]
+pub struct MacVlanInterface {
+    // Interface name.
+    //
+    // Macvlan interface naming for VRRP will be in the format:
+    //   `mvlan-vrrp{primary-interface-ifindex}{vrid}`
+    pub name: String,
+    // Interface system data.
+    pub system: InterfaceSys,
+    // Interface raw sockets and Tx/Rx tasks.
+    pub net: InterfaceNet,
+    // Shared data.
+    pub shared: InstanceShared,
+}
+
 #[derive(Debug, Default)]
 pub struct InterfaceSys {
     // Interface flags.

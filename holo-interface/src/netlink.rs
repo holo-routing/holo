@@ -238,7 +238,7 @@ pub(crate) async fn vlan_create(
 /// # Arguments
 ///
 /// * `parent_ifindex` - index of the primary interface this macvlan will be bridging from
-/// * `name` - name of the macvlan address
+/// * `name` - name of the macvlan link that we will be creating
 #[allow(dead_code)]
 pub(crate) async fn macvlan_create(
     handle: &Handle,

@@ -20,7 +20,7 @@ use holo_utils::yang::DataNodeRefExt;
 use ipnetwork::Ipv4Network;
 
 use crate::instance::Instance;
-use crate::interface::Interface;
+use crate::interface::{Interface, MacVlanInterface};
 
 #[derive(Debug, Default, EnumAsInner)]
 pub enum ListEntry {
@@ -51,6 +51,7 @@ pub struct InstanceCfg {
     pub priority: u8,
     pub advertise_interval: u8,
     pub virtual_addresses: BTreeSet<Ipv4Network>,
+    pub mac_vlan: Option<MacVlanInterface>,
 }
 
 // ===== callbacks =====
@@ -196,6 +197,7 @@ impl Default for InstanceCfg {
             priority,
             advertise_interval,
             virtual_addresses: Default::default(),
+            mac_vlan: None,
         }
     }
 }

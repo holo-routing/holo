@@ -35,9 +35,10 @@ $ cargo build --release
 
 5. Add `holo` user and group:
 
-```
+```sh
 # groupadd -r holo
-# useradd --system --shell /sbin/nologin --home-dir /var/run/holo/ -g holo holo
+# mkdir /var/opt/holo
+# useradd --system --shell /sbin/nologin --home-dir /var/opt/holo/ -g holo holo
 ```
 
 6. Installation

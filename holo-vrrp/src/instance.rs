@@ -99,11 +99,13 @@ pub struct Statistics {
 
 impl Instance {
     pub(crate) fn new() -> Self {
-        Instance {
+        let mut inst = Instance {
             config: Default::default(),
             state: InstanceState::new(),
             timer: VrrpTimer::Null,
-        }
+        };
+        inst.set_advert_interval(inst.config.advertise_interval);
+        inst
     }
 
     pub(crate) fn reset_timer(&mut self) {
@@ -120,6 +122,17 @@ impl Instance {
             }
             _ => {}
         }
+    }
+
+    // advert interval directly affects other state parameters
+    // thus separated in its own function during modification of it.
+    pub(crate) fn set_advert_interval(&mut self, advertisement_interval: u8) {
+        self.config.advertise_interval = advertisement_interval;
+        let skew_time: f32 = (256_f32 - self.config.priority as f32) / 256_f32;
+        let master_down: u32 =
+            (3_u32 * self.config.advertise_interval as u32) + skew_time as u32;
+        self.state.skew_time = skew_time;
+        self.state.master_down_interval = master_down;
     }
 }
 

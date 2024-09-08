@@ -242,8 +242,8 @@ pub(crate) async fn vlan_create(
 #[allow(dead_code)]
 pub(crate) async fn macvlan_create(
     handle: &Handle,
-    parent_ifindex: u32,
     name: String,
+    parent_ifindex: u32,
 ) {
     // Create netlink request
     let request = handle.link().add().macvlan(
@@ -251,7 +251,6 @@ pub(crate) async fn macvlan_create(
         parent_ifindex,
         MACVLAN_MODE_BRIDGE,
     );
-
     // Execute request.
     if let Err(error) = request.execute().await {
         error!(%parent_ifindex, %name, %error, "Failed to create MacVlan interface");

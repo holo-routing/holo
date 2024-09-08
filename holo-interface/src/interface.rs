@@ -404,6 +404,28 @@ impl Interfaces {
         }
     }
 
+    // create macvlan interface
+    //
+    // the parent_name is the name of the interface that will be the parent of
+    // the macvlan interface being create. mvlan name is the macvlan name of the interface being created.
+    pub(crate) async fn create_macvlan_interface(
+        &self,
+        netlink_handle: &rtnetlink::Handle,
+        parent_name: &str,
+        mvlan_name: String,
+    ) {
+        if let Some(interface) = self.get_by_name(parent_name) {
+            if let Some(ifindex) = interface.ifindex {
+                let _ = netlink::macvlan_create(
+                    netlink_handle,
+                    mvlan_name,
+                    ifindex,
+                )
+                .await;
+            }
+        }
+    }
+
     // Returns a reference to the interface corresponding to the given name.
     pub(crate) fn get_by_name(&self, ifname: &str) -> Option<&Interface> {
         self.name_tree

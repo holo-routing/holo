@@ -61,10 +61,13 @@ fn load_callbacks() -> Callbacks<Interface> {
         .path(interfaces::interface::ipv4::vrrp::vrrp_instance::PATH)
         .create_apply(|interface, args| {
             let vrid = args.dnode.get_u8_relative("./vrid").unwrap();
-            let instance = Instance::new();
-            interface.instances.insert(vrid, instance);
+            interface.create_instance(vrid);
 
+            // reminder to remove the following line.
+            // currently up due to state not being properly maintained on startup.  
+            interface.change_state(vrid, crate::instance::State::Backup);
             let event_queue = args.event_queue;
+
             event_queue.insert(Event::InstanceCreate { vrid });
         })
         .delete_apply(|_interface, args| {
@@ -121,7 +124,7 @@ fn load_callbacks() -> Callbacks<Interface> {
             let vrid = args.list_entry.into_vrid().unwrap();
             let instance = interface.instances.get_mut(&vrid).unwrap();
 
-            let addr = args.dnode.get_prefix4();
+            let addr = args.dnode.get_prefix4_relative("ipv4-address").unwrap();
             instance.config.virtual_addresses.insert(addr);
         })
         .delete_apply(|interface, args| {

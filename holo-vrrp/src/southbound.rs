@@ -4,10 +4,13 @@
 // SPDX-License-Identifier: MIT
 //
 
-use holo_utils::southbound::{AddressMsg, InterfaceUpdateMsg};
+use holo_utils::ibus::{IbusMsg, IbusSender};
+use holo_utils::southbound::{
+    AddressMsg, InterfaceUpdateMsg, MacvlanCreateMsg,
+};
 use ipnetwork::IpNetwork;
 
-use crate::interface::Interface;
+use crate::interface::{Interface, MacVlanInterface};
 
 // ===== global functions =====
 
@@ -21,21 +24,47 @@ pub(crate) fn process_iface_update(
         iface.system.flags = msg.flags;
         iface.system.ifindex = Some(msg.ifindex);
         iface.system.mac_address = msg.mac_address;
+
+        // update names for all macvlans
+        for (vrid, instance) in iface.instances.iter_mut() {
+            let name = format!(
+                "mvlan-vrrp-{}-{}",
+                iface.system.ifindex.unwrap_or(0),
+                vrid
+            );
+            if let Some(mvlan) = &mut instance.config.mac_vlan {
+                println!("how???");
+                mvlan.name = name;
+            }
+        }
     }
 
     // check if it is one of the macvlans being updated.
     for (vrid, instance) in iface.instances.iter_mut() {
+        let name = format!(
+            "mvlan-vrrp-{}-{}",
+            iface.system.ifindex.unwrap_or(0),
+            vrid,
+        );
+
         if let Some(mvlan_iface) = &mut instance.config.mac_vlan {
-            let name = format!(
-                "mvlan-vrrp{}{}",
-                iface.system.ifindex.unwrap_or(0),
-                vrid,
-            );
-            if mvlan_iface.name == name {
+            if mvlan_iface.system.ifindex.unwrap() == msg.ifindex {
                 mvlan_iface.system.flags = msg.flags;
                 mvlan_iface.system.ifindex = Some(msg.ifindex);
                 mvlan_iface.system.mac_address = msg.mac_address;
+                return;
             }
+        } else if msg.ifname == name {
+            let mvlan_iface = MacVlanInterface {
+                name,
+                system: crate::interface::InterfaceSys {
+                    flags: msg.flags,
+                    ifindex: Some(msg.ifindex),
+                    addresses: Default::default(),
+                    mac_address: msg.mac_address,
+                },
+            };
+            instance.config.mac_vlan = Some(mvlan_iface);
         }
     }
     // TODO: trigger protocol event?
@@ -63,4 +92,14 @@ pub(crate) fn process_addr_del(iface: &mut Interface, msg: AddressMsg) {
 
         // TODO: trigger protocol event?
     }
+}
+
+// tx messages
+pub(crate) fn create_macvlan_address(
+    name: String,
+    parent_name: String,
+    ibus_tx: &IbusSender,
+) {
+    let msg = MacvlanCreateMsg { parent_name, name };
+    let _ = ibus_tx.send(IbusMsg::CreateMacvlan(msg));
 }

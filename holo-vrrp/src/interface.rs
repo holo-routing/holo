@@ -63,9 +63,6 @@ pub struct MacVlanInterface {
     // Interface system data.
     pub system: InterfaceSys,
     // Interface raw sockets and Tx/Rx tasks.
-    pub net: InterfaceNet,
-    // Shared data.
-    pub shared: InstanceShared,
 }
 
 #[derive(Debug, Default)]
@@ -116,6 +113,20 @@ pub struct ProtocolInputChannelsRx {
 // ===== impl Interface =====
 
 impl Interface {
+    pub(crate) fn create_instance(&mut self, vrid: u8) {
+        let instance = Instance::new();
+        self.instances.insert(vrid, instance);
+
+        //  `mvlan-vrrp{primary-interface-ifindex}{vrid}`
+        let name =
+            format!("mvlan-vrrp-{}-{}", self.system.ifindex.unwrap_or(0), vrid);
+        southbound::create_macvlan_address(
+            name,
+            self.name.clone(),
+            &self.tx.ibus,
+        );
+    }
+
     pub(crate) fn change_state(&mut self, vrid: u8, state: State) {
         if let Some(instance) = self.instances.get_mut(&vrid) {
             instance.state.state = state;

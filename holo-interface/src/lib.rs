@@ -60,7 +60,7 @@ impl Master {
                     .await;
                 }
                 Ok(msg) = ibus_rx.recv() => {
-                    ibus::process_msg(self, msg);
+                    ibus::process_msg(self, msg).await;
                 }
                 Some((msg, _)) = netlink_rx.next() => {
                     netlink::process_msg(self, msg).await;

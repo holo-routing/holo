@@ -17,7 +17,7 @@ use crate::policy::{MatchSets, Policy};
 use crate::protocol::Protocol;
 use crate::southbound::{
     AddressMsg, InterfaceUpdateMsg, LabelInstallMsg, LabelUninstallMsg,
-    RouteKeyMsg, RouteMsg,
+    MacvlanCreateMsg, RouteKeyMsg, RouteMsg,
 };
 use crate::sr::SrCfg;
 
@@ -59,6 +59,8 @@ pub enum IbusMsg {
     InterfaceAddressAdd(AddressMsg),
     // Interface address delete notification.
     InterfaceAddressDel(AddressMsg),
+    // Create a Macvlan Address
+    CreateMacvlan(MacvlanCreateMsg),
     // Keychain update notification.
     KeychainUpd(Arc<Keychain>),
     // Keychain delete notification.

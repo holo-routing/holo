@@ -10,8 +10,8 @@ use std::net::Ipv4Addr;
 
 use bitflags::bitflags;
 use derive_new::new;
-use holo_utils::bier::{BierInfo, Bsl, UnderlayProtocolType};
-use holo_utils::ip::{IpAddrKind, IpNetworkKind};
+use holo_utils::bier::BierInfo;
+use holo_utils::ip::IpAddrKind;
 use holo_utils::mpls::Label;
 use holo_utils::southbound::OspfRouteType;
 use holo_utils::sr::IgpAlgoType;
@@ -24,10 +24,9 @@ use crate::interface::Interface;
 use crate::lsdb::{LsaEntry, LSA_INFINITY};
 use crate::northbound::configuration::InstanceCfg;
 use crate::packet::lsa::{LsaKey, LsaRouterFlagsVersion};
-use crate::packet::tlv::BierSubSubTlv;
 use crate::spf::{SpfPartialComputation, VertexLsaVersion};
 use crate::version::Version;
-use crate::{southbound, sr};
+use crate::{bier, southbound, sr};
 
 // Network routing table entry.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -422,40 +421,7 @@ fn update_rib_intra_area<V>(
 
         // Update BIER Routing Table (BIRT)
         if instance.config.bier.enabled && instance.config.bier.receive {
-            let bier_cfg = &instance.shared.bier_config;
-
-            // 1. Does the BFR match a locally configured BIER sub-domain?
-            stub.bier.iter().for_each(|tlv| {
-                if instance.config.bier.mt_id == tlv.mt_id
-                    && let Some(sd_cfg) = bier_cfg
-                        .sd_cfg
-                        .get(&(tlv.sub_domain_id, stub.prefix.address_family()))
-                    && sd_cfg.underlay_protocol == UnderlayProtocolType::Ospf
-                {
-                    // 2. Register entry in BIRT for each supported bitstring length by the BFR prefix
-                    // TODO: Use BAR and IPA
-
-                    // TODO: Sanity check on bitstring lengths upon LSA reception
-
-                    let bfr_bss: Vec<Bsl> = tlv
-                        .subtlvs
-                        .iter()
-                        .filter_map(|stlv| match stlv {
-                            BierSubSubTlv::BierEncapSubSubTlv(encap) => {
-                                Bsl::try_from(encap.bs_len).ok()
-                            }
-                        })
-                        .collect();
-
-                    if !bfr_bss.is_empty() {
-                        new_route.bier_info = Some(BierInfo {
-                            bfr_bss,
-                            sd_id: tlv.sub_domain_id,
-                            bfr_id: tlv.bfr_id,
-                        })
-                    }
-                }
-            });
+            bier::bier_route_add(instance, &mut new_route, &stub);
         }
 
         // Try to add or update stub route in the RIB.

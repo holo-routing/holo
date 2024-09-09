@@ -41,11 +41,11 @@ impl BiftId {
     pub const VALUE_MASK: u32 = 0x000FFFFF;
 
     pub fn new(bift_id: u32) -> Self {
-        Self(bift_id)
+        Self(bift_id & Self::VALUE_MASK)
     }
 
     pub fn get(&self) -> u32 {
-        self.0 & Self::VALUE_MASK
+        self.0
     }
 }
 

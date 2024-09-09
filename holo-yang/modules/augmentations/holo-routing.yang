@@ -21,50 +21,50 @@ module holo-routing {
 
   description
     "This module defines augment statements for the ietf-routing
-	module.";
+    module.";
 
   augment "/rt:routing" {
-	container birts {
-		description "BIER routing tables";
-		list birt {
-			key "sub-domain-id";
-			description "BIER Routing table";
-			config false;
-			leaf sub-domain-id {
-				config false;
-				type uint8;
-				description "BIER sub-domain-id";
-			}
-			list bfr-id {
-				key "bfr-id";
-				config false;
-				leaf bfr-id {
-					config false;
-					type uint16;
-					description "BFR identifier";
-				}
-				list birt-entry {
-					key "bsl";
-					config false;
-					leaf bsl {
-						config false;
-						// FIXME: should be bier:bsl but got some issues with yang-rs
-						type uint8;
-						description "Bitstring length associated with the current entry";
-					}
-					leaf bfr-prefix {
-						config false;
-						type inet:ip-address;
-						description "BFR's prefix";
-					}
-					leaf bfr-nbr {
-						config false;
-						type inet:ip-address;
-						description "Neighbor BFR prefix";
-					}
-				}
-			}
-		}
+    container birts {
+      description "BIER routing tables";
+      list birt {
+        key "sub-domain-id";
+        description "BIER Routing table";
+        config false;
+        leaf sub-domain-id {
+          config false;
+          type uint8;
+          description "BIER sub-domain-id";
+        }
+        list bfr-id {
+          key "bfr-id";
+          config false;
+          leaf bfr-id {
+            config false;
+            type uint16;
+            description "BFR identifier";
+          }
+          list birt-entry {
+            key "bsl";
+            config false;
+            leaf bsl {
+              config false;
+              // FIXME: should be bier:bsl but got some issues with yang-rs
+              type uint8;
+              description "Bitstring length associated with the current entry";
+            }
+            leaf bfr-prefix {
+              config false;
+              type inet:ip-address;
+              description "BFR's prefix";
+            }
+            leaf bfr-nbr {
+              config false;
+              type inet:ip-address;
+              description "Neighbor BFR prefix";
+            }
+          }
+        }
+      }
 	}
   }
 }

@@ -57,7 +57,7 @@ pub(crate) async fn process_msg(master: &mut Master, msg: IbusMsg) {
                 master.interfaces.router_id(),
             );
         }
-        IbusMsg::CreateMacvlan(msg) => {
+        IbusMsg::CreateMacVlan(msg) => {
             master
                 .interfaces
                 .create_macvlan_interface(
@@ -65,6 +65,12 @@ pub(crate) async fn process_msg(master: &mut Master, msg: IbusMsg) {
                     &msg.parent_name,
                     msg.name,
                 )
+                .await;
+        }
+        IbusMsg::InterfaceMacAddressUpdate { ifname, mac } => {
+            master
+                .interfaces
+                .update_iface_mac_address(&master.netlink_handle, &ifname, mac)
                 .await;
         }
         // Ignore other events.

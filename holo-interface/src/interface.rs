@@ -426,6 +426,24 @@ impl Interfaces {
         }
     }
 
+    pub(crate) async fn update_iface_mac_address(
+        &self,
+        netlink_handle: &rtnetlink::Handle,
+        ifname: &str,
+        mac_address: [u8; 6],
+    ) {
+        if let Some(interface) = self.get_by_name(ifname) {
+            if let Some(ifindex) = interface.ifindex {
+                let _ = netlink::update_iface_mac(
+                    netlink_handle,
+                    ifindex,
+                    &mac_address,
+                )
+                .await;
+            }
+        }
+    }
+
     // Returns a reference to the interface corresponding to the given name.
     pub(crate) fn get_by_name(&self, ifname: &str) -> Option<&Interface> {
         self.name_tree

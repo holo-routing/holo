@@ -33,7 +33,6 @@ pub(crate) fn process_iface_update(
                 vrid
             );
             if let Some(mvlan) = &mut instance.config.mac_vlan {
-                println!("how???");
                 mvlan.name = name;
             }
         }
@@ -67,7 +66,6 @@ pub(crate) fn process_iface_update(
             instance.config.mac_vlan = Some(mvlan_iface);
         }
     }
-    // TODO: trigger protocol event?
 }
 
 pub(crate) fn process_addr_add(iface: &mut Interface, msg: AddressMsg) {
@@ -101,5 +99,14 @@ pub(crate) fn create_macvlan_address(
     ibus_tx: &IbusSender,
 ) {
     let msg = MacvlanCreateMsg { parent_name, name };
-    let _ = ibus_tx.send(IbusMsg::CreateMacvlan(msg));
+    let _ = ibus_tx.send(IbusMsg::CreateMacVlan(msg));
+}
+
+pub(crate) fn update_iface_mac_address(
+    ifname: String,
+    mac: [u8; 6],
+    ibus_tx: &IbusSender,
+) {
+    let msg = IbusMsg::InterfaceMacAddressUpdate { ifname, mac };
+    let _ = ibus_tx.send(msg);
 }

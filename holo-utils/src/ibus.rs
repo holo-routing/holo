@@ -60,7 +60,12 @@ pub enum IbusMsg {
     // Interface address delete notification.
     InterfaceAddressDel(AddressMsg),
     // Create a Macvlan Address
-    CreateMacvlan(MacvlanCreateMsg),
+    CreateMacVlan(MacvlanCreateMsg),
+    // change interface mac address
+    InterfaceMacAddressUpdate {
+        ifname: String,
+        mac: [u8; 6],
+    },
     // Keychain update notification.
     KeychainUpd(Arc<Keychain>),
     // Keychain delete notification.

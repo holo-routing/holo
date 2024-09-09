@@ -239,7 +239,6 @@ pub(crate) async fn vlan_create(
 ///
 /// * `parent_ifindex` - index of the primary interface this macvlan will be bridging from
 /// * `name` - name of the macvlan link that we will be creating
-#[allow(dead_code)]
 pub(crate) async fn macvlan_create(
     handle: &Handle,
     name: String,
@@ -254,6 +253,19 @@ pub(crate) async fn macvlan_create(
     // Execute request.
     if let Err(error) = request.execute().await {
         error!(%parent_ifindex, %name, %error, "Failed to create MacVlan interface");
+    }
+}
+
+// change the Mac address of an interface
+pub(crate) async fn update_iface_mac(
+    handle: &Handle,
+    ifindex: u32,
+    mac_address: &[u8; 6],
+) {
+    let request = handle.link().set(ifindex).address(mac_address.to_vec());
+
+    if let Err(error) = request.execute().await {
+        error!(%ifindex, %error,"Failed to change mac address");
     }
 }
 

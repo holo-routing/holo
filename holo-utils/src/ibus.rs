@@ -117,6 +117,11 @@ pub enum IbusMsg {
     // Request to uninstall an entry in the BIRT.
     RouteBierDel(BierNbrUninstallMsg),
     // Purge the BIRT.
+    /* TODO: Add Protocol argument to BierPurge to specify which BIRT has to be purged.
+     *  E.g., One could ask to purge the BIRT populated by a specific instance
+     *  of OSPFv3 but not those populated by IS-IS.
+     *  See https://github.com/holo-routing/holo/pull/16#discussion_r1729456621.
+     */
     BierPurge,
 }
 

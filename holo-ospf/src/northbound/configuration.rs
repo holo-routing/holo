@@ -788,7 +788,7 @@ where
             let mtu_ignore = args.dnode.get_bool();
             iface.config.mtu_ignore = mtu_ignore;
         })
-        .path(ospf::bier_ospf_cfg::mt_id::PATH)
+        .path(ospf::bier::mt_id::PATH)
         .modify_apply(|instance, args| {
             let mt_id = args.dnode.get_u8();
             instance.config.bier.mt_id = mt_id;
@@ -799,7 +799,7 @@ where
             let mt_id = 0;
             instance.config.bier.mt_id = mt_id;
         })
-        .path(ospf::bier_ospf_cfg::bier::enable::PATH)
+        .path(ospf::bier::bier::enable::PATH)
         .modify_apply(|instance, args| {
             let enable = args.dnode.get_bool();
             instance.config.bier.enabled = enable;
@@ -807,12 +807,12 @@ where
             let event_queue = args.event_queue;
             event_queue.insert(Event::BierEnableChange(enable));
         })
-        .path(ospf::bier_ospf_cfg::bier::advertise::PATH)
+        .path(ospf::bier::bier::advertise::PATH)
         .modify_apply(|instance, args| {
             let advertise = args.dnode.get_bool();
             instance.config.bier.advertise = advertise;
         })
-        .path(ospf::bier_ospf_cfg::bier::receive::PATH)
+        .path(ospf::bier::bier::receive::PATH)
         .modify_apply(|instance, args| {
             let receive = args.dnode.get_bool();
             instance.config.bier.receive = receive;
@@ -1621,9 +1621,9 @@ impl Default for InstanceCfg {
 
 impl Default for BierOspfCfg {
     fn default() -> Self {
-        let enabled = ospf::bier_ospf_cfg::bier::enable::DFLT;
-        let advertise = ospf::bier_ospf_cfg::bier::advertise::DFLT;
-        let receive = ospf::bier_ospf_cfg::bier::receive::DFLT;
+        let enabled = ospf::bier::bier::enable::DFLT;
+        let advertise = ospf::bier::bier::advertise::DFLT;
+        let receive = ospf::bier::bier::receive::DFLT;
         Self {
             mt_id: 0,
             enabled,

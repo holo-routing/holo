@@ -219,7 +219,7 @@ module holo-ospf {
        }
      description
        "This augments ospf protocol configuration with bier.";
-              container bier-ospf-cfg{
+              container bier {
                 uses bier-protocol-extensions;
         description
                       "Control of bier advertisement and reception.";

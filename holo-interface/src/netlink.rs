@@ -13,8 +13,8 @@ use holo_utils::southbound::InterfaceFlags;
 use ipnetwork::IpNetwork;
 use netlink_packet_core::{NetlinkMessage, NetlinkPayload};
 use netlink_packet_route::constants::{
-    AF_INET, AF_INET6, ARPHRD_LOOPBACK, IFF_RUNNING, RTNLGRP_IPV4_IFADDR,
-    RTNLGRP_IPV6_IFADDR, RTNLGRP_LINK,
+    AF_INET, AF_INET6, ARPHRD_LOOPBACK, IFF_BROADCAST, IFF_RUNNING,
+    RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, RTNLGRP_LINK,
 };
 use netlink_packet_route::rtnl::RtnlMessage;
 use netlink_packet_route::{AddressMessage, LinkMessage};
@@ -49,6 +49,9 @@ async fn process_newlink_msg(
     }
     if msg.header.flags & IFF_RUNNING != 0 {
         flags.insert(InterfaceFlags::OPERATIVE);
+    }
+    if msg.header.flags & IFF_BROADCAST != 0 {
+        flags.insert(InterfaceFlags::BROADCAST);
     }
     for nla in msg.nlas.into_iter() {
         match nla {

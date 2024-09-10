@@ -24,6 +24,7 @@ bitflags! {
     pub struct InterfaceFlags: u8 {
         const LOOPBACK = 0x01;
         const OPERATIVE = 0x02;
+        const BROADCAST = 0x04;
     }
 }
 

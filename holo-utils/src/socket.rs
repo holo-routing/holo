@@ -5,10 +5,10 @@
 //
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::os::raw::{c_int, c_void};
+use std::os::raw::{c_int, c_ushort, c_void};
 use std::os::unix::io::AsRawFd;
 
-use libc::ip_mreqn;
+use libc::{ip_mreqn, packet_mreq};
 use serde::{Deserialize, Serialize};
 // Normal build: re-export standard socket types.
 #[cfg(not(feature = "testing"))]
@@ -134,6 +134,48 @@ pub trait SocketExt: Sized + AsRawFd {
             libc::IPV6_UNICAST_HOPS,
             &optval as *const _ as *const libc::c_void,
             std::mem::size_of::<i32>() as libc::socklen_t,
+        )
+    }
+
+    // Executes an operation of the PACKET_ADD_MEMBERSHIP type.
+    fn join_packet_multicast(&self, addr: [u8; 6], ifindex: u32) -> Result<()> {
+        let mut optval = packet_mreq {
+            mr_ifindex: ifindex as c_int,
+            mr_type: libc::PACKET_MR_MULTICAST as c_ushort,
+            mr_alen: 6,
+            mr_address: [0; 8],
+        };
+        optval.mr_address[..6].copy_from_slice(&addr);
+
+        setsockopt(
+            self,
+            libc::SOL_PACKET,
+            libc::PACKET_ADD_MEMBERSHIP,
+            &optval as *const _ as *const c_void,
+            std::mem::size_of::<packet_mreq>() as libc::socklen_t,
+        )
+    }
+
+    // Executes an operation of the PACKET_DROP_MEMBERSHIP type.
+    fn leave_packet_multicast(
+        &self,
+        addr: [u8; 6],
+        ifindex: u32,
+    ) -> Result<()> {
+        let mut optval = packet_mreq {
+            mr_ifindex: ifindex as c_int,
+            mr_type: libc::PACKET_MR_MULTICAST as c_ushort,
+            mr_alen: 6,
+            mr_address: [0; 8],
+        };
+        optval.mr_address[..6].copy_from_slice(&addr);
+
+        setsockopt(
+            self,
+            libc::SOL_PACKET,
+            libc::PACKET_DROP_MEMBERSHIP,
+            &optval as *const _ as *const c_void,
+            std::mem::size_of::<packet_mreq>() as libc::socklen_t,
         )
     }
 }

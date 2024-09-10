@@ -30,7 +30,7 @@ use tokio::sync::mpsc;
 use tracing::Instrument;
 
 use crate::northbound::configuration::StaticRoute;
-use crate::rib::Rib;
+use crate::rib::{Birt, Rib};
 
 pub struct Master {
     // Northbound Tx channel.
@@ -53,6 +53,8 @@ pub struct Master {
     pub bier_config: BierCfg,
     // Protocol instances.
     pub instances: BTreeMap<InstanceId, NbDaemonSender>,
+    // BIER Routing Table (BIRT)
+    pub birt: Birt,
 }
 
 #[derive(Debug, Eq, Hash, PartialEq, PartialOrd, new, Ord)]
@@ -134,6 +136,7 @@ pub fn start(
             sr_config: Default::default(),
             bier_config: Default::default(),
             instances: Default::default(),
+            birt: Default::default(),
         };
 
         // Request information about all interfaces addresses.

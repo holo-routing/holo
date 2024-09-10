@@ -17,6 +17,7 @@ use holo_ospf::packet::lsa::{Lsa, LsaKey};
 use holo_ospf::packet::tlv::*;
 use holo_ospf::packet::{DbDescFlags, Packet, PacketType};
 use holo_ospf::version::Ospfv3;
+use holo_utils::bier::BiftId;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::AddressFamily;
 use holo_utils::keychain::Key;
@@ -610,6 +611,7 @@ static LSA2: Lazy<(Vec<u8>, Lsa<Ospfv3>)> = Lazy::new(|| {
                     value: IpNetwork::from_str("2.2.2.2/32").unwrap(),
                     metric: 0,
                     prefix_sids: Default::default(),
+                    bier: vec![],
                     unknown_stlvs: vec![],
                 }],
                 unknown_tlvs: vec![],
@@ -892,6 +894,59 @@ static EXT_INTRA_AREA_PREFIX_LSA1: Lazy<(Vec<u8>, Lsa<Ospfv3>)> =
                                 }
                             }
                         },
+                        bier: vec![],
+                        unknown_stlvs: vec![],
+                    }],
+                    unknown_tlvs: vec![],
+                }),
+            ),
+        )
+    });
+
+static EXT_INTRA_AREA_PREFIX_LSA_BIER_TLV: Lazy<(Vec<u8>, Lsa<Ospfv3>)> =
+    Lazy::new(|| {
+        (
+            vec![
+                0x00, 0x01, 0xa0, 0x29, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x02, 0x80, 0x00, 0x00, 0x01, 0x93, 0x0d, 0x00, 0x54,
+                0x00, 0x00, 0xa0, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x02, 0x00, 0x06, 0x00, 0x30, 0x00, 0x00, 0x00, 0x00,
+                0x80, 0x22, 0x00, 0x00, 0xfc, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+                0x00, 0x2a, 0x00, 0x14, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x2a, 0x00, 0x08, 0x80, 0x00, 0x00, 0x00,
+                0x30, 0x00, 0x00, 0x00,
+            ],
+            Lsa::new(
+                1,
+                None,
+                Ipv4Addr::from_str("0.0.0.0").unwrap(),
+                Ipv4Addr::from_str("0.0.0.2").unwrap(),
+                0x80000001,
+                LsaBody::IntraAreaPrefix(LsaIntraAreaPrefix {
+                    extended: true,
+                    ref_lsa_type: LsaType(40993),
+                    ref_lsa_id: Ipv4Addr::from_str("0.0.0.0").unwrap(),
+                    ref_adv_rtr: Ipv4Addr::from_str("0.0.0.2").unwrap(),
+                    prefixes: vec![LsaIntraAreaPrefixEntry {
+                        options: PrefixOptions::LA | PrefixOptions::N,
+                        value: IpNetwork::from_str("fc00::1/128").unwrap(),
+                        metric: 0,
+                        prefix_sids: btreemap![],
+                        bier: vec![BierSubTlv {
+                            sub_domain_id: 0,
+                            mt_id: 0,
+                            bfr_id: 2,
+                            bar: 0,
+                            ipa: 0,
+                            subtlvs: vec![BierSubSubTlv::BierEncapSubSubTlv(
+                                BierEncapSubSubTlv {
+                                    max_si: 128,
+                                    id: BierEncapId::NonMpls(BiftId::new(0)),
+                                    bs_len: 3,
+                                },
+                            )],
+                        }],
                         unknown_stlvs: vec![],
                     }],
                     unknown_tlvs: vec![],
@@ -1165,6 +1220,18 @@ fn test_encode_extended_intra_area_prefix_lsa1() {
 fn test_decode_extended_intra_area_prefix_lsa1() {
     let (ref bytes, ref lsa) = *EXT_INTRA_AREA_PREFIX_LSA1;
     test_decode_lsa(bytes, lsa, AddressFamily::Ipv4);
+}
+
+#[test]
+fn test_encode_extended_intra_are_prefix_lsa_bier_tlv_non_mpls_encap() {
+    let (ref bytes, ref lsa) = *EXT_INTRA_AREA_PREFIX_LSA_BIER_TLV;
+    test_encode_lsa(bytes, lsa);
+}
+
+#[test]
+fn test_decode_extended_intra_are_prefix_lsa_bier_tlv_non_mpls_encap() {
+    let (ref bytes, ref lsa) = *EXT_INTRA_AREA_PREFIX_LSA_BIER_TLV;
+    test_decode_lsa(bytes, lsa, AddressFamily::Ipv6);
 }
 
 #[test]

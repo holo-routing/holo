@@ -11,14 +11,14 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast::{Receiver, Sender};
 
 use crate::bfd;
-use crate::bier::{BierCfg, BierEncapsulationType, Bsl, SubDomainId};
+use crate::bier::BierCfg;
 use crate::ip::AddressFamily;
 use crate::keychain::Keychain;
 use crate::policy::{MatchSets, Policy};
 use crate::protocol::Protocol;
 use crate::southbound::{
-    AddressMsg, InterfaceUpdateMsg, LabelInstallMsg, LabelUninstallMsg,
-    RouteKeyMsg, RouteMsg,
+    AddressMsg, BierNbrInstallMsg, BierNbrUninstallMsg, InterfaceUpdateMsg,
+    LabelInstallMsg, LabelUninstallMsg, RouteKeyMsg, RouteMsg,
 };
 use crate::sr::SrCfg;
 
@@ -112,6 +112,17 @@ pub enum IbusMsg {
     BierCfgUpd(Arc<BierCfg>),
     // BIER configuration event.
     BierCfgEvent(BierCfgEvent),
+    // Request to install an entry in the BIRT.
+    RouteBierAdd(BierNbrInstallMsg),
+    // Request to uninstall an entry in the BIRT.
+    RouteBierDel(BierNbrUninstallMsg),
+    // Purge the BIRT.
+    /* TODO: Add Protocol argument to BierPurge to specify which BIRT has to be purged.
+     *  E.g., One could ask to purge the BIRT populated by a specific instance
+     *  of OSPFv3 but not those populated by IS-IS.
+     *  See https://github.com/holo-routing/holo/pull/16#discussion_r1729456621.
+     */
+    BierPurge,
 }
 
 // Type of Segment Routing configuration change.
@@ -124,5 +135,6 @@ pub enum SrCfgEvent {
 // Type of BIER configuration events.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum BierCfgEvent {
-    EncapUpdate(SubDomainId, AddressFamily, Bsl, BierEncapsulationType),
+    SubDomainUpdate(AddressFamily),
+    EncapUpdate(AddressFamily),
 }

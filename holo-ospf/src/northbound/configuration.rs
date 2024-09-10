@@ -72,6 +72,7 @@ pub enum Event {
     RerunSpf,
     UpdateSummaries,
     ReinstallRoutes,
+    BierEnableChange(bool),
 }
 
 pub static VALIDATION_CALLBACKS_OSPFV2: Lazy<ValidationCallbacks> =
@@ -102,6 +103,15 @@ pub struct InstanceCfg {
     pub extended_lsa: bool,
     pub sr_enabled: bool,
     pub instance_id: u8,
+    pub bier: BierOspfCfg,
+}
+
+#[derive(Debug)]
+pub struct BierOspfCfg {
+    pub mt_id: u8,
+    pub enabled: bool,
+    pub advertise: bool,
+    pub receive: bool,
 }
 
 #[derive(Debug)]
@@ -778,6 +788,35 @@ where
             let mtu_ignore = args.dnode.get_bool();
             iface.config.mtu_ignore = mtu_ignore;
         })
+        .path(ospf::bier::mt_id::PATH)
+        .modify_apply(|instance, args| {
+            let mt_id = args.dnode.get_u8();
+            instance.config.bier.mt_id = mt_id;
+
+            // TODO: should reoriginate LSA
+        })
+        .delete_apply(|instance, _args| {
+            let mt_id = 0;
+            instance.config.bier.mt_id = mt_id;
+        })
+        .path(ospf::bier::bier::enable::PATH)
+        .modify_apply(|instance, args| {
+            let enable = args.dnode.get_bool();
+            instance.config.bier.enabled = enable;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierEnableChange(enable));
+        })
+        .path(ospf::bier::bier::advertise::PATH)
+        .modify_apply(|instance, args| {
+            let advertise = args.dnode.get_bool();
+            instance.config.bier.advertise = advertise;
+        })
+        .path(ospf::bier::bier::receive::PATH)
+        .modify_apply(|instance, args| {
+            let receive = args.dnode.get_bool();
+            instance.config.bier.receive = receive;
+       })
         .build()
 }
 
@@ -1471,6 +1510,22 @@ where
                     }
                 }
             }
+            Event::BierEnableChange(bier_enabled) => {
+                if let Some((instance, _arenas)) = self.as_up() {
+                    // (Re)originate LSAs that might have been affected.
+                    instance
+                        .tx
+                        .protocol_input
+                        .lsa_orig_event(LsaOriginateEvent::BierEnableChange);
+
+                    // Purge BIRT if bier disabled or re-install routes if enabled
+                    if bier_enabled {
+                        self.process_event(Event::ReinstallRoutes).await;
+                    } else {
+                        let _ = instance.tx.ibus.send(IbusMsg::BierPurge);
+                    }
+                }
+            }
             Event::RerunSpf => {
                 if let Some((instance, _)) = self.as_up() {
                     instance
@@ -1559,6 +1614,21 @@ impl Default for InstanceCfg {
             extended_lsa,
             sr_enabled,
             instance_id,
+            bier: Default::default(),
+        }
+    }
+}
+
+impl Default for BierOspfCfg {
+    fn default() -> Self {
+        let enabled = ospf::bier::bier::enable::DFLT;
+        let advertise = ospf::bier::bier::advertise::DFLT;
+        let receive = ospf::bier::bier::receive::DFLT;
+        Self {
+            mt_id: 0,
+            enabled,
+            advertise,
+            receive,
         }
     }
 }

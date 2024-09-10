@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use chrono::Utc;
 use holo_utils::bfd;
-use holo_utils::ibus::SrCfgEvent;
+use holo_utils::ibus::{BierCfgEvent, SrCfgEvent};
 
 use crate::area::{Area, AreaType};
 use crate::collections::{
@@ -1426,6 +1426,27 @@ where
         }
     }
 
+    Ok(())
+}
+
+// ===== BIER configuration change event =====
+
+pub(crate) fn process_bier_cfg_change<V>(
+    instance: &mut Instance<V>,
+    change: BierCfgEvent,
+) -> Result<(), Error<V>>
+where
+    V: Version,
+{
+    if let Some((instance, arenas)) = instance.as_up()
+        && instance.config.bier.enabled
+    {
+        V::lsa_orig_event(
+            &instance,
+            arenas,
+            LsaOriginateEvent::BierCfgChange { change },
+        )?;
+    }
     Ok(())
 }
 

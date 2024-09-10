@@ -473,6 +473,7 @@ impl SpfVersion<Self> for Ospfv3 {
                         prefix_options: prefix.options,
                         metric: prefix.metric,
                         prefix_sids: prefix.prefix_sids,
+                        bier: prefix.bier,
                     })
             })
     }

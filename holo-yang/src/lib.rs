@@ -132,6 +132,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/augmentations/holo-ospf.yang"),
         EmbeddedModuleKey::new("holo-ospf-dev", None, None, None) =>
             include_str!("../modules/augmentations/holo-ospf-dev.yang"),
+        EmbeddedModuleKey::new("holo-routing", None, None, None) =>
+            include_str!("../modules/augmentations/holo-routing.yang"),
         // IETF Holo deviations
         EmbeddedModuleKey::new("holo-ietf-bgp-deviations", None, None, None) =>
             include_str!("../modules/deviations/holo-ietf-bgp-deviations.yang"),
@@ -218,6 +220,7 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
             "holo-bgp",
             "holo-ospf",
             "holo-ospf-dev",
+            "holo-routing",
         ]
     });
 

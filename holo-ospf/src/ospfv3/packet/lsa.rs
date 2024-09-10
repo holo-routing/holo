@@ -30,10 +30,10 @@ use crate::packet::lsa::{
     PrefixSidVersion,
 };
 use crate::packet::tlv::{
-    tlv_encode_end, tlv_encode_start, tlv_wire_len, AdjSidFlags, GrReason,
-    GrReasonTlv, GracePeriodTlv, MsdTlv, PrefixSidFlags, RouterFuncCapsTlv,
-    RouterInfoCapsTlv, RouterInfoTlvType, SidLabelRangeTlv, SrAlgoTlv,
-    SrLocalBlockTlv, SrmsPrefTlv, UnknownTlv, TLV_HDR_SIZE,
+    tlv_encode_end, tlv_encode_start, tlv_wire_len, AdjSidFlags, BierSubTlv,
+    GrReason, GrReasonTlv, GracePeriodTlv, MsdTlv, PrefixSidFlags,
+    RouterFuncCapsTlv, RouterInfoCapsTlv, RouterInfoTlvType, SidLabelRangeTlv,
+    SrAlgoTlv, SrLocalBlockTlv, SrmsPrefTlv, UnknownTlv, TLV_HDR_SIZE,
 };
 use crate::version::Ospfv3;
 
@@ -188,6 +188,7 @@ pub enum ExtLsaSubTlv {
     LanAdjSid = 6,
     SidLabel = 7,
     LinkMsd = 9,
+    Bier = 42,
 }
 
 // OSPFv3 Extended-LSA Sub-TLVs.
@@ -242,6 +243,7 @@ pub struct ExtLsaSubTlvs {
     pub route_tag: Option<u32>,
     pub prefix_sids: BTreeMap<IgpAlgoType, PrefixSid>,
     pub adj_sids: Vec<AdjSid>,
+    pub bier: Vec<BierSubTlv>,
     pub unknown: Vec<UnknownTlv>,
 }
 
@@ -885,6 +887,8 @@ pub struct LsaIntraAreaPrefixEntry {
     pub metric: u16,
     #[new(default)]
     pub prefix_sids: BTreeMap<IgpAlgoType, PrefixSid>,
+    #[new(default)]
+    pub bier: Vec<BierSubTlv>,
     #[new(default)]
     pub unknown_stlvs: Vec<UnknownTlv>,
 }
@@ -2368,6 +2372,7 @@ impl LsaIntraAreaPrefix {
                     // Parse Sub-TLVs.
                     let stlvs = ExtLsaSubTlvs::decode(&mut buf_tlv)?;
                     prefix.prefix_sids = stlvs.prefix_sids;
+                    prefix.bier = stlvs.bier;
                     prefix.unknown_stlvs = stlvs.unknown;
 
                     iap.prefixes.push(prefix);
@@ -2449,6 +2454,7 @@ impl LsaIntraAreaPrefixEntry {
     fn sub_tlvs(&self) -> ExtLsaSubTlvs {
         ExtLsaSubTlvs {
             prefix_sids: self.prefix_sids.clone(),
+            bier: self.bier.clone(),
             ..Default::default()
         }
     }
@@ -2732,6 +2738,10 @@ impl ExtLsaSubTlvs {
                         AdjSid::new(flags, weight, nbr_router_id, sid);
                     stlvs.adj_sids.push(adj_sid);
                 }
+                Some(ExtLsaSubTlv::Bier) => {
+                    let bier = BierSubTlv::decode(tlv_len, &mut buf_value)?;
+                    stlvs.bier.push(bier);
+                }
                 _ => {
                     // Save unknown Sub-TLV.
                     let value = buf_value.copy_to_bytes(tlv_len as usize);
@@ -2789,6 +2799,9 @@ impl ExtLsaSubTlvs {
                 Sid::Label(label) => buf.put_u24(label.get()),
             }
             tlv_encode_end(buf, start_pos);
+        }
+        for bier in &self.bier {
+            BierSubTlv::encode(bier, buf, ExtLsaSubTlv::Bier);
         }
     }
 }

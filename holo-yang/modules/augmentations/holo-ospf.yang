@@ -67,6 +67,41 @@ module holo-ospf {
   }
 
   /*
+   * Groupings.
+   */
+  grouping bier-protocol-extensions{
+     description
+           "Defines protocol extensions.";
+        leaf mt-id{
+          type uint8 ;
+          description
+                "Multi-topology associated with bier sub-domain.";
+         }
+    container bier {
+          leaf enable {
+            type boolean;
+                default false;
+                description
+                  "Enables bier protocol extensions.";
+          }
+          leaf advertise {
+                type boolean;
+                default true;
+                description
+                  "Enable to advertise the parameters associated with bier.";
+                }
+          leaf receive {
+                type boolean;
+                default true;
+                description
+                  "Enable to receive the parameters associated with bier.";
+                }
+          description
+                "BIER global config.";
+        }
+   }
+
+  /*
    * Augmentations.
    */
   augment "/rt:routing/rt:control-plane-protocols/"
@@ -174,6 +209,22 @@ module holo-ospf {
       }
     }
   }
+
+   augment "/rt:routing/rt:control-plane-protocols/"
+         + "rt:control-plane-protocol/ospf:ospf" {
+     when "../rt:type = 'ospf:ospfv2' or
+           ../rt:type = 'ospf:ospfv3'" {
+       description
+         "This augments the ospf routing protocol when used";
+       }
+     description
+       "This augments ospf protocol configuration with bier.";
+              container bier {
+                uses bier-protocol-extensions;
+        description
+                      "Control of bier advertisement and reception.";
+              }
+    }
 
   /*
    * Notifications.

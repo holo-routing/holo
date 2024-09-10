@@ -10,6 +10,7 @@ use std::net::Ipv4Addr;
 
 use bitflags::bitflags;
 use derive_new::new;
+use holo_utils::bier::BierInfo;
 use holo_utils::ip::IpAddrKind;
 use holo_utils::mpls::Label;
 use holo_utils::southbound::OspfRouteType;
@@ -25,7 +26,7 @@ use crate::northbound::configuration::InstanceCfg;
 use crate::packet::lsa::{LsaKey, LsaRouterFlagsVersion};
 use crate::spf::{SpfPartialComputation, VertexLsaVersion};
 use crate::version::Version;
-use crate::{southbound, sr};
+use crate::{bier, southbound, sr};
 
 // Network routing table entry.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -41,6 +42,7 @@ pub struct RouteNet<V: Version> {
     pub sr_label: Option<Label>,
     pub nexthops: Nexthops<V::IpAddr>,
     pub flags: RouteNetFlags,
+    pub bier_info: Option<BierInfo>,
 }
 
 bitflags! {
@@ -396,6 +398,7 @@ fn update_rib_intra_area<V>(
             sr_label: None,
             nexthops: stub.vertex.nexthops.clone(),
             flags,
+            bier_info: None,
         };
 
         // Update route's Prefix-SID (if any).
@@ -414,6 +417,11 @@ fn update_rib_intra_area<V>(
                     lsa_entries,
                 );
             }
+        }
+
+        // Update BIER Routing Table (BIRT)
+        if instance.config.bier.enabled && instance.config.bier.receive {
+            bier::bier_route_add(instance, &mut new_route, &stub);
         }
 
         // Try to add or update stub route in the RIB.
@@ -483,6 +491,7 @@ fn update_rib_inter_area_networks<V>(
             sr_label: None,
             nexthops: route_br.nexthops.clone(),
             flags: RouteNetFlags::empty(),
+            bier_info: None,
         };
 
         // Update route's Prefix-SID (if any).
@@ -677,6 +686,7 @@ fn update_rib_external<V>(
             sr_label: None,
             nexthops: route_asbr.nexthops.clone(),
             flags: RouteNetFlags::empty(),
+            bier_info: None,
         };
 
         // Try to add or update external route in the RIB.

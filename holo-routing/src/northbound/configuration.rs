@@ -74,6 +74,7 @@ pub enum Event {
     SrCfgPrefixSidUpdate(AddressFamily),
     BierCfgUpdate,
     BierCfgEncapUpdate(SubDomainId, AddressFamily, Bsl, BierEncapsulationType),
+    BierCfgSubDomainUpdate(AddressFamily),
 }
 
 // ===== configuration structs =====
@@ -665,6 +666,7 @@ fn load_callbacks() -> Callbacks<Master> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::BierCfgUpdate);
+            event_queue.insert(Event::BierCfgSubDomainUpdate(af));
         })
         .delete_apply(|master, args| {
             let sd_id = args.dnode.get_u8_relative("./sub-domain-id").unwrap();
@@ -673,6 +675,7 @@ fn load_callbacks() -> Callbacks<Master> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::BierCfgUpdate);
+            event_queue.insert(Event::BierCfgSubDomainUpdate(af));
         })
         .lookup(|_master, _list_entry, dnode| {
             let sd_id = dnode.get_u8_relative("./sub-domain-id").unwrap();
@@ -689,6 +692,7 @@ fn load_callbacks() -> Callbacks<Master> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::BierCfgUpdate);
+            event_queue.insert(Event::BierCfgSubDomainUpdate(af));
         })
         .path(bier::sub_domain::underlay_protocol_type::PATH)
         .modify_apply(|context, args| {
@@ -701,6 +705,7 @@ fn load_callbacks() -> Callbacks<Master> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::BierCfgUpdate);
+            event_queue.insert(Event::BierCfgSubDomainUpdate(af));
         })
         .path(bier::sub_domain::mt_id::PATH)
         .modify_apply(|context, args| {
@@ -712,6 +717,7 @@ fn load_callbacks() -> Callbacks<Master> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::BierCfgUpdate);
+            event_queue.insert(Event::BierCfgSubDomainUpdate(af));
         })
         .path(bier::sub_domain::bfr_id::PATH)
         .modify_apply(|context, args| {
@@ -723,6 +729,7 @@ fn load_callbacks() -> Callbacks<Master> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::BierCfgUpdate);
+            event_queue.insert(Event::BierCfgSubDomainUpdate(af));
         })
         .path(bier::sub_domain::bsl::PATH)
         .modify_apply(|context, args| {
@@ -735,6 +742,7 @@ fn load_callbacks() -> Callbacks<Master> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::BierCfgUpdate);
+            event_queue.insert(Event::BierCfgSubDomainUpdate(af));
         })
         .path(bier::sub_domain::igp_algorithm::PATH)
         .modify_apply(|context, args| {
@@ -746,6 +754,7 @@ fn load_callbacks() -> Callbacks<Master> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::BierCfgUpdate);
+            event_queue.insert(Event::BierCfgSubDomainUpdate(af));
         })
         .path(bier::sub_domain::bier_algorithm::PATH)
         .modify_apply(|context, args| {
@@ -757,6 +766,7 @@ fn load_callbacks() -> Callbacks<Master> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::BierCfgUpdate);
+            event_queue.insert(Event::BierCfgSubDomainUpdate(af));
         })
         .path(bier::sub_domain::load_balance_num::PATH)
         .modify_apply(|context, args| {
@@ -768,6 +778,7 @@ fn load_callbacks() -> Callbacks<Master> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::BierCfgUpdate);
+            event_queue.insert(Event::BierCfgSubDomainUpdate(af));
         })
         .path(bier::sub_domain::encapsulation::PATH)
         .create_apply(|context, args| {
@@ -1062,9 +1073,14 @@ impl Provider for Master {
                     .ibus_tx
                     .send(IbusMsg::BierCfgUpd(self.shared.bier_config.clone()));
             }
-            Event::BierCfgEncapUpdate(sd_id, af, bsl, encap_type) => {
+            Event::BierCfgEncapUpdate(_sd_id, af, _bsl, _encap_type) => {
+                let _ = self
+                    .ibus_tx
+                    .send(IbusMsg::BierCfgEvent(BierCfgEvent::EncapUpdate(af)));
+            }
+            Event::BierCfgSubDomainUpdate(af) => {
                 let _ = self.ibus_tx.send(IbusMsg::BierCfgEvent(
-                    BierCfgEvent::EncapUpdate(sd_id, af, bsl, encap_type),
+                    BierCfgEvent::SubDomainUpdate(af),
                 ));
             }
         }

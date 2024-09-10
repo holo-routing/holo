@@ -12,6 +12,7 @@
 #![feature(btree_extract_if, hash_extract_if, ip, let_chains)]
 
 pub mod area;
+pub mod bier;
 pub mod collections;
 pub mod debug;
 pub mod error;

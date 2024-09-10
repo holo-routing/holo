@@ -6,7 +6,6 @@ license.workspace = true
 edition.workspace = true
 
 [dependencies]
-fletcher = "0.3"
 internet-checksum = "0.2"
 
 async-trait.workspace = true
@@ -15,6 +14,7 @@ bytes.workspace = true
 chrono.workspace = true
 derive-new.workspace = true
 enum-as-inner.workspace = true
+fletcher.workspace = true
 generational-arena.workspace = true
 hmac.workspace = true
 ipnetwork.workspace = true

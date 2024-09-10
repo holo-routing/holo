@@ -62,12 +62,14 @@ jobs:
           grcov . -s . -t lcov --llvm --ignore-not-existing --ignore "/*" --ignore "holo-*/tests/*" -o lcov.info;
       - name: Upload test results
         uses: EnricoMi/publish-unit-test-result-action@v1
+        if: github.event_name != 'pull_request'
         with:
           check_name: Test Results
           github_token: ${{ secrets.GITHUB_TOKEN }}
           files: results.xml
       - name: Upload to CodeCov
         uses: codecov/codecov-action@v4
+        if: github.event_name != 'pull_request'
         with:
           files: ./lcov.info
           fail_ci_if_error: false

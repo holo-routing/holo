@@ -25,8 +25,6 @@ fn test_encode_msg(bytes_expected: &[u8], msg: &Message) {
     };
 
     let bytes_actual = msg.encode(&cxt);
-    let data = format!("{:#04x?}", bytes_actual.as_ref());
-    let _ = std::fs::write("/tmp/test-data", data);
     assert_eq!(bytes_expected, bytes_actual.as_ref());
 }
 

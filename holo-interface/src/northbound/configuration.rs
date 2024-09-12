@@ -75,10 +75,9 @@ fn load_callbacks() -> Callbacks<Master> {
             let event_queue = args.event_queue;
             event_queue.insert(Event::VrrpStart(ifname));
         })
-        .create_prepare(|master, args| {  
+        .create_prepare(|master, args| {
             let ifname = args.dnode.get_string_relative("./name").unwrap();
             master.interfaces.add(ifname.clone());
-            
             let event_queue = args.event_queue;
             event_queue.insert(Event::VrrpStart(ifname));
 

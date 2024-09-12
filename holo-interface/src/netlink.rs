@@ -250,6 +250,10 @@ pub(crate) async fn macvlan_create(
         parent_ifindex,
         MACVLAN_MODE_BRIDGE,
     );
+    // address() method is added in rtnetlink version 0.14.0. Will be uncommented when the
+    // version upgrade is done in this project.
+    //.address(vec![0x00, 0x00, 0x5e, 0x00, 0x01, 0x1e]);
+
     // Execute request.
     if let Err(error) = request.execute().await {
         error!(%parent_ifindex, %name, %error, "Failed to create MacVlan interface");

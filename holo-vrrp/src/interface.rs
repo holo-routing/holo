@@ -58,7 +58,7 @@ pub struct MacVlanInterface {
     // Interface name.
     //
     // Macvlan interface naming for VRRP will be in the format:
-    //   `mvlan-vrrp{primary-interface-ifindex}{vrid}`
+    //   `mvlan-vrrp-{vrid}`
     pub name: String,
     // Interface system data.
     pub system: InterfaceSys,
@@ -118,8 +118,7 @@ impl Interface {
         self.instances.insert(vrid, instance);
 
         //  `mvlan-vrrp{primary-interface-ifindex}{vrid}`
-        let name =
-            format!("mvlan-vrrp-{}-{}", self.system.ifindex.unwrap_or(0), vrid);
+        let name = format!("mvlan-vrrp-{}", vrid);
         southbound::create_macvlan_address(
             name.clone(),
             self.name.clone(),
@@ -128,7 +127,7 @@ impl Interface {
 
         // change the interface mac address to the virtual MAC adderss
         southbound::update_iface_mac_address(
-            name.clone(),
+            name,
             [0x00, 0x00, 0x5e, 0x00, 0x01, vrid],
             &self.tx.ibus,
         );
@@ -136,6 +135,11 @@ impl Interface {
 
     pub(crate) fn change_state(&mut self, vrid: u8, state: State) {
         if let Some(instance) = self.instances.get_mut(&vrid) {
+            if state == State::Backup {
+                // change admin state of MacVlan to down.
+            } else if state == State::Master {
+                // change admin state of MacVlan to up.
+            }
             instance.state.state = state;
             tasks::set_timer(self, vrid);
         }

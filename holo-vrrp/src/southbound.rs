@@ -27,24 +27,17 @@ pub(crate) fn process_iface_update(
 
         // update names for all macvlans
         for (vrid, instance) in iface.instances.iter_mut() {
-            let name = format!(
-                "mvlan-vrrp-{}-{}",
-                iface.system.ifindex.unwrap_or(0),
-                vrid
-            );
+            let name = format!("mvlan-vrrp-{}", vrid);
             if let Some(mvlan) = &mut instance.config.mac_vlan {
                 mvlan.name = name;
             }
         }
+        return;
     }
 
     // check if it is one of the macvlans being updated.
     for (vrid, instance) in iface.instances.iter_mut() {
-        let name = format!(
-            "mvlan-vrrp-{}-{}",
-            iface.system.ifindex.unwrap_or(0),
-            vrid,
-        );
+        let name = format!("mvlan-vrrp-{}", vrid);
 
         if let Some(mvlan_iface) = &mut instance.config.mac_vlan {
             if mvlan_iface.system.ifindex.unwrap() == msg.ifindex {

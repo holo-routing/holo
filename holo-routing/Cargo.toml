@@ -17,6 +17,7 @@ ipnetwork.workspace = true
 prefix-trie.workspace = true
 regex.workspace = true
 rtnetlink.workspace = true
+netlink-packet-route.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 yang2.workspace = true

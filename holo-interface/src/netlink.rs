@@ -11,15 +11,16 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 use capctl::caps::CapState;
 use futures::channel::mpsc::UnboundedReceiver;
 use futures::TryStreamExt;
+use holo_utils::ip::IpAddrExt;
 use holo_utils::southbound::InterfaceFlags;
 use ipnetwork::IpNetwork;
+use libc::{RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, RTNLGRP_LINK};
 use netlink_packet_core::{NetlinkMessage, NetlinkPayload};
-use netlink_packet_route::constants::{
-    AF_INET, AF_INET6, ARPHRD_LOOPBACK, IFF_RUNNING, RTNLGRP_IPV4_IFADDR,
-    RTNLGRP_IPV6_IFADDR, RTNLGRP_LINK,
+use netlink_packet_route::address::{AddressAttribute, AddressMessage};
+use netlink_packet_route::link::{
+    LinkAttribute, LinkFlag, LinkLayerType, LinkMessage,
 };
-use netlink_packet_route::rtnl::RtnlMessage;
-use netlink_packet_route::{AddressMessage, LinkMessage, MACVLAN_MODE_BRIDGE};
+use netlink_packet_route::RouteNetlinkMessage;
 use netlink_sys::{AsyncSocket, SocketAddr};
 use rtnetlink::{new_connection, Handle};
 use tracing::{error, trace};
@@ -27,8 +28,12 @@ use tracing::{error, trace};
 use crate::interface::Owner;
 use crate::Master;
 
+const AF_INET: u16 = libc::AF_INET as u16;
+const AF_INET6: u16 = libc::AF_INET6 as u16;
+pub const MACVLAN_MODE_BRIDGE: u32 = 4;
+
 pub type NetlinkMonitor =
-    UnboundedReceiver<(NetlinkMessage<RtnlMessage>, SocketAddr)>;
+    UnboundedReceiver<(NetlinkMessage<RouteNetlinkMessage>, SocketAddr)>;
 
 // ===== helper functions =====
 
@@ -37,8 +42,6 @@ async fn process_newlink_msg(
     msg: LinkMessage,
     notify: bool,
 ) {
-    use netlink_packet_route::link::nlas::Nla;
-
     trace!(?msg, "received RTM_NEWLINK message");
 
     // Fetch interface attributes.
@@ -48,17 +51,26 @@ async fn process_newlink_msg(
     let mut mac_address: [u8; 6] = [0u8; 6];
 
     let mut flags = InterfaceFlags::empty();
-    if msg.header.link_layer_type == ARPHRD_LOOPBACK {
+    if msg.header.link_layer_type == LinkLayerType::Loopback {
         flags.insert(InterfaceFlags::LOOPBACK);
     }
-    if msg.header.flags & IFF_RUNNING != 0 {
+
+    // conversion to u32 has been adapted from VecLinkFlags
+    // method of conversion to u32
+    // as implemented from VecLinkFlag:
+    // https://github.com/rust-netlink/netlink-packet-route/blob/aec3fc64b662447da2fbed5f9c9bd565cdea14ec/src/link/link_flag.rs#L174
+    let mut flgs: u32 = 0;
+    for flg in &msg.header.flags {
+        flgs += u32::from(*flg);
+    }
+    if flgs & u32::from(LinkFlag::Running) != 0 {
         flags.insert(InterfaceFlags::OPERATIVE);
     }
-    for nla in msg.nlas.into_iter() {
+    for nla in msg.attributes.into_iter() {
         match nla {
-            Nla::IfName(nla_ifname) => ifname = Some(nla_ifname),
-            Nla::Mtu(nla_mtu) => mtu = Some(nla_mtu),
-            Nla::Address(addr) => {
+            LinkAttribute::IfName(nla_ifname) => ifname = Some(nla_ifname),
+            LinkAttribute::Mtu(nla_mtu) => mtu = Some(nla_mtu),
+            LinkAttribute::Address(addr) => {
                 mac_address = addr.try_into().unwrap_or([0u8; 6]);
             }
             _ => (),
@@ -106,16 +118,14 @@ async fn process_dellink_msg(
 }
 
 fn process_newaddr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
-    use netlink_packet_route::address::nlas::Nla;
-
     trace!(?msg, "received RTM_NEWADDR message");
 
     // Fetch address attributes.
     let mut addr = None;
     let ifindex = msg.header.index;
-    for nla in msg.nlas.into_iter() {
+    for nla in msg.attributes.into_iter() {
         match nla {
-            Nla::Address(nla_addr) => addr = Some(nla_addr),
+            AddressAttribute::Address(nla_addr) => addr = Some(nla_addr),
             _ => (),
         }
     }
@@ -124,9 +134,11 @@ fn process_newaddr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
     };
 
     // Parse address.
-    let Some(addr) =
-        parse_address(msg.header.family, msg.header.prefix_len, addr)
-    else {
+    let Some(addr) = parse_address(
+        msg.header.family.into(),
+        msg.header.prefix_len,
+        addr.bytes(),
+    ) else {
         return;
     };
 
@@ -136,16 +148,14 @@ fn process_newaddr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
 }
 
 fn process_deladdr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
-    use netlink_packet_route::address::nlas::Nla;
-
     trace!(?msg, "received RTM_DELADDR message");
 
     // Fetch address attributes.
     let mut addr = None;
     let ifindex = msg.header.index;
-    for nla in msg.nlas.into_iter() {
+    for nla in msg.attributes.into_iter() {
         match nla {
-            Nla::Address(nla_addr) => addr = Some(nla_addr),
+            AddressAttribute::Address(nla_addr) => addr = Some(nla_addr),
             _ => (),
         }
     }
@@ -154,9 +164,11 @@ fn process_deladdr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
     };
 
     // Parse address.
-    let Some(addr) =
-        parse_address(msg.header.family, msg.header.prefix_len, addr)
-    else {
+    let Some(addr) = parse_address(
+        msg.header.family.into(),
+        msg.header.prefix_len,
+        addr.bytes(),
+    ) else {
         return;
     };
 
@@ -304,20 +316,20 @@ pub(crate) async fn addr_uninstall(
 
 pub(crate) async fn process_msg(
     master: &mut Master,
-    msg: NetlinkMessage<RtnlMessage>,
+    msg: NetlinkMessage<RouteNetlinkMessage>,
 ) {
     if let NetlinkPayload::InnerMessage(msg) = msg.payload {
         match msg {
-            RtnlMessage::NewLink(msg) => {
+            RouteNetlinkMessage::NewLink(msg) => {
                 process_newlink_msg(master, msg, true).await
             }
-            RtnlMessage::DelLink(msg) => {
+            RouteNetlinkMessage::DelLink(msg) => {
                 process_dellink_msg(master, msg, true).await
             }
-            RtnlMessage::NewAddress(msg) => {
+            RouteNetlinkMessage::NewAddress(msg) => {
                 process_newaddr_msg(master, msg, true)
             }
-            RtnlMessage::DelAddress(msg) => {
+            RouteNetlinkMessage::DelAddress(msg) => {
                 process_deladdr_msg(master, msg, true)
             }
             _ => (),

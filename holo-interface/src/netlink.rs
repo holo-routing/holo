@@ -28,8 +28,6 @@ use tracing::{error, trace};
 use crate::interface::Owner;
 use crate::Master;
 
-const AF_INET: u16 = libc::AF_INET as u16;
-const AF_INET6: u16 = libc::AF_INET6 as u16;
 pub const MACVLAN_MODE_BRIDGE: u32 = 4;
 
 pub type NetlinkMonitor =
@@ -55,15 +53,7 @@ async fn process_newlink_msg(
         flags.insert(InterfaceFlags::LOOPBACK);
     }
 
-    // conversion to u32 has been adapted from VecLinkFlags
-    // method of conversion to u32
-    // as implemented from VecLinkFlag:
-    // https://github.com/rust-netlink/netlink-packet-route/blob/aec3fc64b662447da2fbed5f9c9bd565cdea14ec/src/link/link_flag.rs#L174
-    let mut flgs: u32 = 0;
-    for flg in &msg.header.flags {
-        flgs += u32::from(*flg);
-    }
-    if flgs & u32::from(LinkFlag::Running) != 0 {
+    if msg.header.flags.contains(&LinkFlag::Running) {
         flags.insert(InterfaceFlags::OPERATIVE);
     }
     for nla in msg.attributes.into_iter() {
@@ -182,13 +172,13 @@ fn parse_address(
     prefixlen: u8,
     bytes: Vec<u8>,
 ) -> Option<IpNetwork> {
-    let addr = match family as u16 {
-        AF_INET => {
+    let addr = match family as i32 {
+        libc::AF_INET => {
             let mut addr_array: [u8; 4] = [0; 4];
             addr_array.copy_from_slice(&bytes);
             Ipv4Addr::from(addr_array).into()
         }
-        AF_INET6 => {
+        libc::AF_INET6 => {
             let mut addr_array: [u8; 16] = [0; 16];
             addr_array.copy_from_slice(&bytes);
             Ipv6Addr::from(addr_array).into()

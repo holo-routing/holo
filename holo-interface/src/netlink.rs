@@ -9,15 +9,16 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 use capctl::caps::CapState;
 use futures::channel::mpsc::UnboundedReceiver;
 use futures::TryStreamExt;
+use holo_utils::ip::IpAddrExt;
 use holo_utils::southbound::InterfaceFlags;
 use ipnetwork::IpNetwork;
+use libc::{RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, RTNLGRP_LINK};
 use netlink_packet_core::{NetlinkMessage, NetlinkPayload};
-use netlink_packet_route::constants::{
-    AF_INET, AF_INET6, ARPHRD_LOOPBACK, IFF_BROADCAST, IFF_RUNNING,
-    RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, RTNLGRP_LINK,
+use netlink_packet_route::address::{AddressAttribute, AddressMessage};
+use netlink_packet_route::link::{
+    LinkAttribute, LinkFlag, LinkLayerType, LinkMessage,
 };
-use netlink_packet_route::rtnl::RtnlMessage;
-use netlink_packet_route::{AddressMessage, LinkMessage};
+use netlink_packet_route::RouteNetlinkMessage;
 use netlink_sys::{AsyncSocket, SocketAddr};
 use rtnetlink::{new_connection, Handle};
 use tracing::{error, trace};
@@ -26,7 +27,7 @@ use crate::interface::Owner;
 use crate::Master;
 
 pub type NetlinkMonitor =
-    UnboundedReceiver<(NetlinkMessage<RtnlMessage>, SocketAddr)>;
+    UnboundedReceiver<(NetlinkMessage<RouteNetlinkMessage>, SocketAddr)>;
 
 // ===== helper functions =====
 
@@ -35,8 +36,6 @@ async fn process_newlink_msg(
     msg: LinkMessage,
     notify: bool,
 ) {
-    use netlink_packet_route::link::nlas::Nla;
-
     trace!(?msg, "received RTM_NEWLINK message");
 
     // Fetch interface attributes.
@@ -46,20 +45,22 @@ async fn process_newlink_msg(
     let mut mac_address: [u8; 6] = [0u8; 6];
 
     let mut flags = InterfaceFlags::empty();
-    if msg.header.link_layer_type == ARPHRD_LOOPBACK {
+    if msg.header.link_layer_type == LinkLayerType::Loopback {
         flags.insert(InterfaceFlags::LOOPBACK);
     }
-    if msg.header.flags & IFF_RUNNING != 0 {
+
+    if msg.header.flags.contains(&LinkFlag::Running) {
         flags.insert(InterfaceFlags::OPERATIVE);
     }
-    if msg.header.flags & IFF_BROADCAST != 0 {
-        flags.insert(InterfaceFlags::BROADCAST);
+    if msg.header.flags.contains(&LinkFlag::Broadcast) {
+        flags.insert(InterfaceFlags::BROADCAST)
     }
-    for nla in msg.nlas.into_iter() {
+
+    for nla in msg.attributes.into_iter() {
         match nla {
-            Nla::IfName(nla_ifname) => ifname = Some(nla_ifname),
-            Nla::Mtu(nla_mtu) => mtu = Some(nla_mtu),
-            Nla::Address(addr) => {
+            LinkAttribute::IfName(nla_ifname) => ifname = Some(nla_ifname),
+            LinkAttribute::Mtu(nla_mtu) => mtu = Some(nla_mtu),
+            LinkAttribute::Address(addr) => {
                 mac_address = addr.try_into().unwrap_or([0u8; 6]);
             }
             _ => (),
@@ -107,16 +108,14 @@ async fn process_dellink_msg(
 }
 
 fn process_newaddr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
-    use netlink_packet_route::address::nlas::Nla;
-
     trace!(?msg, "received RTM_NEWADDR message");
 
     // Fetch address attributes.
     let mut addr = None;
     let ifindex = msg.header.index;
-    for nla in msg.nlas.into_iter() {
+    for nla in msg.attributes.into_iter() {
         match nla {
-            Nla::Address(nla_addr) => addr = Some(nla_addr),
+            AddressAttribute::Address(nla_addr) => addr = Some(nla_addr),
             _ => (),
         }
     }
@@ -125,9 +124,11 @@ fn process_newaddr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
     };
 
     // Parse address.
-    let Some(addr) =
-        parse_address(msg.header.family, msg.header.prefix_len, addr)
-    else {
+    let Some(addr) = parse_address(
+        msg.header.family.into(),
+        msg.header.prefix_len,
+        addr.bytes(),
+    ) else {
         return;
     };
 
@@ -137,16 +138,14 @@ fn process_newaddr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
 }
 
 fn process_deladdr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
-    use netlink_packet_route::address::nlas::Nla;
-
     trace!(?msg, "received RTM_DELADDR message");
 
     // Fetch address attributes.
     let mut addr = None;
     let ifindex = msg.header.index;
-    for nla in msg.nlas.into_iter() {
+    for nla in msg.attributes.into_iter() {
         match nla {
-            Nla::Address(nla_addr) => addr = Some(nla_addr),
+            AddressAttribute::Address(nla_addr) => addr = Some(nla_addr),
             _ => (),
         }
     }
@@ -155,9 +154,11 @@ fn process_deladdr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
     };
 
     // Parse address.
-    let Some(addr) =
-        parse_address(msg.header.family, msg.header.prefix_len, addr)
-    else {
+    let Some(addr) = parse_address(
+        msg.header.family.into(),
+        msg.header.prefix_len,
+        addr.bytes(),
+    ) else {
         return;
     };
 
@@ -171,13 +172,13 @@ fn parse_address(
     prefixlen: u8,
     bytes: Vec<u8>,
 ) -> Option<IpNetwork> {
-    let addr = match family as u16 {
-        AF_INET => {
+    let addr = match family as i32 {
+        libc::AF_INET => {
             let mut addr_array: [u8; 4] = [0; 4];
             addr_array.copy_from_slice(&bytes);
             Ipv4Addr::from(addr_array).into()
         }
-        AF_INET6 => {
+        libc::AF_INET6 => {
             let mut addr_array: [u8; 16] = [0; 16];
             addr_array.copy_from_slice(&bytes);
             Ipv6Addr::from(addr_array).into()
@@ -264,20 +265,20 @@ pub(crate) async fn addr_uninstall(
 
 pub(crate) async fn process_msg(
     master: &mut Master,
-    msg: NetlinkMessage<RtnlMessage>,
+    msg: NetlinkMessage<RouteNetlinkMessage>,
 ) {
     if let NetlinkPayload::InnerMessage(msg) = msg.payload {
         match msg {
-            RtnlMessage::NewLink(msg) => {
+            RouteNetlinkMessage::NewLink(msg) => {
                 process_newlink_msg(master, msg, true).await
             }
-            RtnlMessage::DelLink(msg) => {
+            RouteNetlinkMessage::DelLink(msg) => {
                 process_dellink_msg(master, msg, true).await
             }
-            RtnlMessage::NewAddress(msg) => {
+            RouteNetlinkMessage::NewAddress(msg) => {
                 process_newaddr_msg(master, msg, true)
             }
-            RtnlMessage::DelAddress(msg) => {
+            RouteNetlinkMessage::DelAddress(msg) => {
                 process_deladdr_msg(master, msg, true)
             }
             _ => (),

@@ -11,25 +11,19 @@ use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::Nexthop;
 use ipnetwork::IpNetwork;
+use netlink_packet_route::route::RouteProtocol;
 use rtnetlink::{new_connection, Handle, RouteAddRequest};
 use tracing::error;
 
 use crate::rib::Route;
 
-// Route protocol types as defined in the rtnetlink.h kernel header.
-const NETLINK_PROTO_UNSPEC: u8 = 0;
-const NETLINK_PROTO_STATIC: u8 = 4;
-const NETLINK_PROTO_BGP: u8 = 186;
-const NETLINK_PROTO_OSPF: u8 = 188;
-const NETLINK_PROTO_RIP: u8 = 189;
-
-fn netlink_protocol(protocol: Protocol) -> u8 {
+fn netlink_protocol(protocol: Protocol) -> RouteProtocol {
     match protocol {
-        Protocol::BGP => NETLINK_PROTO_BGP,
-        Protocol::OSPFV2 | Protocol::OSPFV3 => NETLINK_PROTO_OSPF,
-        Protocol::RIPV2 | Protocol::RIPNG => NETLINK_PROTO_RIP,
-        Protocol::STATIC => NETLINK_PROTO_STATIC,
-        _ => NETLINK_PROTO_UNSPEC,
+        Protocol::BGP => RouteProtocol::Bgp,
+        Protocol::OSPFV2 | Protocol::OSPFV3 => RouteProtocol::Ospf,
+        Protocol::RIPV2 | Protocol::RIPNG => RouteProtocol::Rip,
+        Protocol::STATIC => RouteProtocol::Static,
+        _ => RouteProtocol::Unspec,
     }
 }
 

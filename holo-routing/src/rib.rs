@@ -117,18 +117,26 @@ impl Birt {
 
         // Compute Forwarding BitMasks (F-BMs)
         for ((sd_id, bfr_id, bsl), nbr) in &self.entries {
-            let bfr_bs =
-                Bitstring::from(*bfr_id, *bsl).expect("Invalid BFR-ID");
-
-            // Pattern matching is mandatory as Bitstring does not implement Copy, hence cannot use Entry interface
-            let key = (*sd_id, nbr.bfr_nbr, bfr_bs.si);
-            match bift.get_mut(&key) {
-                Some((e, v)) => {
-                    e.mut_or(bfr_bs).unwrap();
-                    v.push(*bfr_id);
+            match Bitstring::from(*bfr_id, *bsl) {
+                Ok(bfr_bs) => {
+                    // Pattern matching is mandatory as Bitstring does not implement Copy, hence cannot use Entry interface
+                    let key = (*sd_id, nbr.bfr_nbr, bfr_bs.si);
+                    match bift.get_mut(&key) {
+                        Some((e, v)) => match e.mut_or(bfr_bs) {
+                            Ok(()) => {
+                                v.push(*bfr_id);
+                            }
+                            Err(e) => {
+                                e.log();
+                            }
+                        },
+                        None => {
+                            let _ = bift.insert(key, (bfr_bs, vec![*bfr_id]));
+                        }
+                    }
                 }
-                None => {
-                    let _ = bift.insert(key, (bfr_bs, vec![*bfr_id]));
+                Err(e) => {
+                    e.log();
                 }
             }
         }

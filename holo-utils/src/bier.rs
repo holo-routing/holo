@@ -13,6 +13,7 @@ use derive_new::new;
 use holo_yang::{ToYang, TryFromYang};
 use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 
 use crate::ip::AddressFamily;
 
@@ -34,7 +35,6 @@ pub async fn bift_sync(bift: &Bift) {
             .enumerate()
             .flat_map(|(idx, b)| {
                 (0..8)
-                    .into_iter()
                     .filter_map(|i| {
                         if b & (1 << i) != 0 {
                             Some(format!("{}", idx * 8 + i))
@@ -58,6 +58,38 @@ pub async fn bift_sync(bift: &Bift) {
                 .body(body.clone())
                 .send()
                 .await;
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum Error {
+    InvalidBfrId,
+    InvalidBitstring,
+}
+
+impl Error {
+    pub fn log(&self) {
+        match self {
+            Error::InvalidBfrId => {
+                warn!("{}", self);
+            }
+            Error::InvalidBitstring => {
+                warn!("{}", self);
+            }
+        }
+    }
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::InvalidBfrId => {
+                write!(f, "invalid BfrId")
+            }
+            Error::InvalidBitstring => {
+                write!(f, "invalid Bitstring")
+            }
         }
     }
 }
@@ -242,27 +274,27 @@ impl Bitstring {
         }
     }
 
-    pub fn or(&self, rhs: Self) -> Result<Self, ()> {
+    pub fn or(&self, rhs: Self) -> Result<Self, Error> {
         if self.si != rhs.si || self.bsl != rhs.bsl {
-            return Err(());
+            return Err(Error::InvalidBitstring);
         }
         let mut ret = Self::new(self.bsl);
         ret.si = self.si;
         for i in 0..self.bs.len() {
             ret.bs[i] = self.bs[i] | rhs.bs[i];
         }
-        return Ok(ret);
+        Ok(ret)
     }
 
-    pub fn mut_or(&mut self, rhs: Self) -> Result<(), ()> {
+    pub fn mut_or(&mut self, rhs: Self) -> Result<(), Error> {
         let bs = self.or(rhs)?;
         self.bs = bs.bs;
         Ok(())
     }
 
-    pub fn from(id: BfrId, bsl: Bsl) -> Result<Self, ()> {
+    pub fn from(id: BfrId, bsl: Bsl) -> Result<Self, Error> {
         if id == 0 {
-            return Err(());
+            return Err(Error::InvalidBfrId);
         }
         let mut bs = Self::new(bsl);
         let bsl = usize::from(bsl);

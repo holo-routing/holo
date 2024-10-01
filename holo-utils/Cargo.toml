@@ -31,6 +31,7 @@ tracing.workspace = true
 yang3.workspace = true
 
 holo-yang = { path = "../holo-yang" }
+reqwest = "0.12.8"
 
 [lints.rust]
 rust_2018_idioms = "warn"

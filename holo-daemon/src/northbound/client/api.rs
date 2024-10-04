@@ -11,7 +11,6 @@ use crate::northbound::core::Transaction;
 use crate::northbound::Result;
 
 // Daemon -> External client requests.
-#[allow(dead_code)]
 pub mod daemon {}
 
 // External client -> Daemon requests.

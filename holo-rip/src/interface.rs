@@ -535,7 +535,7 @@ where
     }
 
     // Returns a reference to the interface corresponding to the given name.
-    #[allow(dead_code)]
+    #[expect(unused)]
     pub(crate) fn get_by_name(
         &self,
         ifname: &str,
@@ -571,7 +571,7 @@ where
 
     // Returns a mutable reference to the interface corresponding to the given
     // ifindex.
-    #[allow(dead_code)]
+    #[expect(unused)]
     pub(crate) fn get_mut_by_ifindex(
         &mut self,
         ifindex: u32,

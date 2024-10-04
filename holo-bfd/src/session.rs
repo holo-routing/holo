@@ -551,7 +551,7 @@ impl Sessions {
     }
 
     // Returns a reference to the session corresponding to the given ID.
-    #[allow(dead_code)]
+    #[expect(unused)]
     pub(crate) fn get_by_id(
         &self,
         id: SessionId,
@@ -577,7 +577,7 @@ impl Sessions {
     }
 
     // Returns a reference to the session corresponding to the given BFD key.
-    #[allow(dead_code)]
+    #[expect(unused)]
     pub(crate) fn get_by_key(
         &self,
         key: &SessionKey,
@@ -602,7 +602,7 @@ impl Sessions {
 
     // Returns a reference to the session corresponding to the given local
     // discriminator.
-    #[allow(dead_code)]
+    #[expect(unused)]
     pub(crate) fn get_by_discr(
         &self,
         discr: u32,
@@ -627,7 +627,7 @@ impl Sessions {
 
     // Returns a reference to the session corresponding to the given socket
     // address (IP address + ifindex).
-    #[allow(dead_code)]
+    #[expect(unused)]
     pub(crate) fn get_by_sockaddr(
         &self,
         mut sockaddr: SocketAddr,

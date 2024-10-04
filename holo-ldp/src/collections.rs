@@ -141,7 +141,7 @@ impl Interfaces {
     }
 
     // Returns a reference to the interface corresponding to the given ID.
-    #[allow(dead_code)]
+    #[expect(unused)]
     pub(crate) fn get_by_id(
         &self,
         id: InterfaceId,
@@ -155,7 +155,7 @@ impl Interfaces {
 
     // Returns a mutable reference to the interface corresponding to the given
     // ID.
-    #[allow(dead_code)]
+    #[expect(unused)]
     pub(crate) fn get_mut_by_id(
         &mut self,
         id: InterfaceId,
@@ -168,7 +168,6 @@ impl Interfaces {
     }
 
     // Returns a reference to the interface corresponding to the given name.
-    #[allow(dead_code)]
     pub(crate) fn get_by_name(
         &self,
         ifname: &str,
@@ -192,7 +191,7 @@ impl Interfaces {
     }
 
     // Returns a reference to the interface corresponding to the given ifindex.
-    #[allow(dead_code)]
+    #[expect(unused)]
     pub(crate) fn get_by_ifindex(
         &self,
         ifindex: u32,
@@ -205,7 +204,7 @@ impl Interfaces {
 
     // Returns a mutable reference to the interface corresponding to the given
     // ifindex.
-    #[allow(dead_code)]
+    #[expect(unused)]
     pub(crate) fn get_mut_by_ifindex(
         &mut self,
         ifindex: u32,
@@ -239,7 +238,7 @@ impl Interfaces {
     //
     // NOTE: this method scales linearly with the number of interfaces and is
     // intended to be removed in the future.
-    #[allow(dead_code)]
+    #[expect(unused)]
     pub(crate) fn get_mut_by_addr(
         &mut self,
         addr: &IpAddr,
@@ -274,7 +273,7 @@ impl Interfaces {
     // Returns an iterator over all interface indexes.
     //
     // Interfaces are ordered by their names.
-    #[allow(dead_code)]
+    #[expect(unused)]
     pub(crate) fn indexes(&self) -> impl Iterator<Item = InterfaceIndex> + '_ {
         self.name_tree.values().cloned()
     }
@@ -374,7 +373,7 @@ impl Adjacencies {
 
     // Returns a mutable reference to the adjacency corresponding to the given
     // ID.
-    #[allow(dead_code)]
+    #[expect(unused)]
     pub(crate) fn get_mut_by_id(
         &mut self,
         id: AdjacencyId,
@@ -555,7 +554,7 @@ impl TargetedNbrs {
     // Returns an iterator visiting all targeted neighbors.
     //
     // Targeted neighbors are ordered by their addresses.
-    #[allow(dead_code)]
+    #[expect(unused)]
     pub(crate) fn iter(&self) -> impl Iterator<Item = &'_ TargetedNbr> + '_ {
         self.addr_tree
             .values()
@@ -681,7 +680,7 @@ impl Neighbors {
     }
 
     // Returns a reference to the neighbor corresponding to the given ID.
-    #[allow(dead_code)]
+    #[expect(unused)]
     pub(crate) fn get_by_id(
         &self,
         id: NeighborId,
@@ -731,7 +730,7 @@ impl Neighbors {
 
     // Returns a reference to the neighbor corresponding to the given transport
     // address.
-    #[allow(dead_code)]
+    #[expect(unused)]
     pub(crate) fn get_by_trans_addr(
         &self,
         addr: &IpAddr,
@@ -774,7 +773,7 @@ impl Neighbors {
     // address.
     //
     // TODO: introduce global BTreeSet mapping addresses to neighbors.
-    #[allow(dead_code)]
+    #[expect(unused)]
     pub(crate) fn get_mut_by_adv_addr(
         &mut self,
         addr: &IpAddr,

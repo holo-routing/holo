@@ -11,7 +11,6 @@ use holo_utils::yang::ContextExt;
 use holo_yang as yang;
 use holo_yang::YANG_CTX;
 
-#[allow(dead_code)]
 fn modules_add<P: ProviderBase>(modules: &mut Vec<&'static str>) {
     modules.extend(P::yang_modules().iter());
 }

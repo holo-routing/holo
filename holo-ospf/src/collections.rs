@@ -255,7 +255,6 @@ where
     }
 
     // Returns a reference to the area corresponding to the given object key.
-    #[allow(dead_code)]
     pub(crate) fn get_by_key(
         &self,
         key: &AreaKey,
@@ -473,7 +472,7 @@ where
 
     // Returns a mutable reference to the interface corresponding to the given
     // ifindex.
-    #[allow(dead_code)]
+    #[expect(unused)]
     pub(crate) fn get_mut_by_ifindex<'a>(
         &mut self,
         arena: &'a mut Arena<Interface<V>>,
@@ -503,7 +502,6 @@ where
 
     // Returns a reference to the interface corresponding to the given object
     // key.
-    #[allow(dead_code)]
     pub(crate) fn get_by_key<'a>(
         &self,
         arena: &'a Arena<Interface<V>>,
@@ -687,7 +685,7 @@ where
 
     // Returns a reference to the neighbor corresponding to the given object
     // key.
-    #[allow(dead_code)]
+    #[expect(unused)]
     pub(crate) fn get_by_key<'a>(
         &self,
         arena: &'a Arena<Neighbor<V>>,
@@ -973,7 +971,7 @@ where
     // Returns an iterator over all LSA indexes.
     //
     // LSAs are ordered by their keys.
-    #[allow(dead_code)]
+    #[expect(unused)]
     pub(crate) fn indexes(&self) -> impl Iterator<Item = LsaEntryIndex> + '_ {
         self.tree
             .values()

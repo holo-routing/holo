@@ -410,7 +410,6 @@ impl Interfaces {
 
     // Returns a mutable reference to the interface corresponding to the given
     // name.
-    #[allow(dead_code)]
     pub(crate) fn get_mut_by_name(
         &mut self,
         ifname: &str,
@@ -422,7 +421,6 @@ impl Interfaces {
     }
 
     // Returns a reference to the interface corresponding to the given ifindex.
-    #[allow(dead_code)]
     pub(crate) fn get_by_ifindex(&self, ifindex: u32) -> Option<&Interface> {
         self.ifindex_tree
             .get(&ifindex)

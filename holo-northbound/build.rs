@@ -48,7 +48,7 @@ fn timer_secs16_to_yang(timer: Cow<'_, Duration>) -> String {
     remaining.to_string()
 }
 
-#[allow(dead_code)]
+#[expect(unused)]
 fn timer_secs32_to_yang(timer: Cow<'_, Duration>) -> String {
     let remaining = timer.as_secs();
     // Round up the remaining time to 1 in case it's less than one second.

@@ -88,7 +88,7 @@ pub struct ConfirmedCommit {
 #[derive(Debug)]
 pub struct Rollback {
     configuration: DataTree<'static>,
-    #[allow(dead_code)]
+    #[expect(unused)]
     timeout: TimeoutTask,
 }
 

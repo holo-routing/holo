@@ -201,7 +201,6 @@ where
         Ok(())
     }
 
-    #[allow(dead_code)]
     #[inline]
     pub(crate) fn core(&self) -> &InstanceCore<V> {
         match self {

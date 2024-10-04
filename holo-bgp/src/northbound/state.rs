@@ -1032,7 +1032,7 @@ impl Provider for Instance {
 
 // ===== impl ListEntry =====
 
-impl<'a> ListEntryKind for ListEntry<'a> {}
+impl ListEntryKind for ListEntry<'_> {}
 
 // ===== helper functions =====
 

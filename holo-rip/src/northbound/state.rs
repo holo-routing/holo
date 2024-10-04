@@ -294,4 +294,4 @@ where
 
 // ===== impl ListEntry =====
 
-impl<'a, V> ListEntryKind for ListEntry<'a, V> where V: Version {}
+impl<V> ListEntryKind for ListEntry<'_, V> where V: Version {}

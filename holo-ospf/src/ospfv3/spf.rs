@@ -193,7 +193,7 @@ impl SpfVersion<Self> for Ospfv3 {
                 let (iface_idx, iface) = area
                     .interfaces
                     .get_by_ifindex(interfaces, parent_link.iface_id as _)
-                    .ok_or_else(|| Error::SpfNexthopCalcError(dest_id))?;
+                    .ok_or(Error::SpfNexthopCalcError(dest_id))?;
 
                 match dest_lsa {
                     VertexLsa::Router(dest_lsa) => {
@@ -204,7 +204,7 @@ impl SpfVersion<Self> for Ospfv3 {
                             extended_lsa,
                             lsa_entries,
                         )
-                        .ok_or_else(|| Error::SpfNexthopCalcError(dest_id))?;
+                        .ok_or(Error::SpfNexthopCalcError(dest_id))?;
                         let nbr_router_id =
                             dest_lsa.iter().next().unwrap().hdr.adv_rtr;
 
@@ -244,7 +244,7 @@ impl SpfVersion<Self> for Ospfv3 {
                             && Ipv4Addr::from(dest_link.nbr_iface_id)
                                 == parent_lsa.hdr.lsa_id
                     })
-                    .ok_or_else(|| Error::SpfNexthopCalcError(dest_id))?;
+                    .ok_or(Error::SpfNexthopCalcError(dest_id))?;
 
                 // Inherit outgoing interface from the parent network.
                 let iface_idx = parent
@@ -264,7 +264,7 @@ impl SpfVersion<Self> for Ospfv3 {
                     extended_lsa,
                     lsa_entries,
                 )
-                .ok_or_else(|| Error::SpfNexthopCalcError(dest_id))?;
+                .ok_or(Error::SpfNexthopCalcError(dest_id))?;
 
                 // Add nexthop.
                 nexthops.insert(

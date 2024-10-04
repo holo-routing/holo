@@ -560,7 +560,7 @@ impl Sessions {
             .get(&id)
             .copied()
             .map(|sess_idx| (sess_idx, &self.arena[sess_idx]))
-            .ok_or_else(|| Error::SessionIdNotFound(id))
+            .ok_or(Error::SessionIdNotFound(id))
     }
 
     // Returns a mutable reference to the session corresponding to the given
@@ -573,7 +573,7 @@ impl Sessions {
             .get(&id)
             .copied()
             .map(move |sess_idx| (sess_idx, &mut self.arena[sess_idx]))
-            .ok_or_else(|| Error::SessionIdNotFound(id))
+            .ok_or(Error::SessionIdNotFound(id))
     }
 
     // Returns a reference to the session corresponding to the given BFD key.

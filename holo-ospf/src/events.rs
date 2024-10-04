@@ -214,7 +214,7 @@ where
         // Non-Hello packets not matching any active neighbor are discarded.
         let (nbr_idx, nbr) =
             V::get_neighbor(iface, &src, router_id, &mut arenas.neighbors)
-                .ok_or_else(|| Error::UnknownNeighbor(src, router_id))?;
+                .ok_or(Error::UnknownNeighbor(src, router_id))?;
 
         match packet {
             Packet::Hello(_) => unreachable!(),

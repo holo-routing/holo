@@ -215,7 +215,7 @@ where
             .copied()
             .map(|area_idx| (area_idx, &self.arena[area_idx]))
             .filter(|(_, area)| area.id == id)
-            .ok_or_else(|| Error::AreaIdNotFound(id))
+            .ok_or(Error::AreaIdNotFound(id))
     }
 
     // Returns a mutable reference to the area corresponding to the given ID.
@@ -228,7 +228,7 @@ where
             .copied()
             .map(move |area_idx| (area_idx, &mut self.arena[area_idx]))
             .filter(|(_, area)| area.id == id)
-            .ok_or_else(|| Error::AreaIdNotFound(id))
+            .ok_or(Error::AreaIdNotFound(id))
     }
 
     // Returns a reference to the area corresponding to the given area ID.
@@ -416,7 +416,7 @@ where
             .copied()
             .map(|iface_idx| (iface_idx, &arena[iface_idx]))
             .filter(|(_, iface)| iface.id == id)
-            .ok_or_else(|| Error::InterfaceIdNotFound(id))
+            .ok_or(Error::InterfaceIdNotFound(id))
     }
 
     // Returns a mutable reference to the interface corresponding to the given
@@ -431,7 +431,7 @@ where
             .copied()
             .map(move |iface_idx| (iface_idx, &mut arena[iface_idx]))
             .filter(|(_, iface)| iface.id == id)
-            .ok_or_else(|| Error::InterfaceIdNotFound(id))
+            .ok_or(Error::InterfaceIdNotFound(id))
     }
 
     // Returns a reference to the interface corresponding to the given name.
@@ -616,7 +616,7 @@ where
             .copied()
             .map(|nbr_idx| (nbr_idx, &arena[nbr_idx]))
             .filter(|(_, nbr)| nbr.id == id)
-            .ok_or_else(|| Error::NeighborIdNotFound(id))
+            .ok_or(Error::NeighborIdNotFound(id))
     }
 
     // Returns a mutable reference to the neighbor corresponding to the given
@@ -631,7 +631,7 @@ where
             .copied()
             .map(move |nbr_idx| (nbr_idx, &mut arena[nbr_idx]))
             .filter(|(_, nbr)| nbr.id == id)
-            .ok_or_else(|| Error::NeighborIdNotFound(id))
+            .ok_or(Error::NeighborIdNotFound(id))
     }
 
     // Returns a reference to the neighbor corresponding to the given Router ID.
@@ -849,7 +849,7 @@ where
             .copied()
             .map(|lse_idx| (lse_idx, &arena[lse_idx]))
             .filter(|(_, lse)| lse.id == id)
-            .ok_or_else(|| Error::LsaEntryIdNotFound(id))
+            .ok_or(Error::LsaEntryIdNotFound(id))
     }
 
     // Returns a mutable reference to the LSA corresponding to the given
@@ -864,7 +864,7 @@ where
             .copied()
             .map(move |lse_idx| (lse_idx, &mut arena[lse_idx]))
             .filter(|(_, lse)| lse.id == id)
-            .ok_or_else(|| Error::LsaEntryIdNotFound(id))
+            .ok_or(Error::LsaEntryIdNotFound(id))
     }
 
     // Returns a reference to the LSA corresponding to the given LSA key.

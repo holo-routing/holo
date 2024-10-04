@@ -88,7 +88,7 @@ impl ContextExt for Context {
 
 // ===== impl SchemaNode =====
 
-impl<'a> SchemaNodeExt for SchemaNode<'a> {
+impl SchemaNodeExt for SchemaNode<'_> {
     fn cache_data_path(&self) {
         let data_path = self.path(SchemaPathFormat::DATA);
         let data_path = CString::new(data_path).unwrap();
@@ -106,7 +106,7 @@ impl<'a> SchemaNodeExt for SchemaNode<'a> {
 
 // ===== impl DataNodeRef =====
 
-impl<'a, 'b> DataNodeRefExt for DataNodeRef<'a, 'b> {
+impl DataNodeRefExt for DataNodeRef<'_, '_> {
     fn exists(&self, path: &str) -> bool {
         self.find_xpath(path).unwrap().next().is_some()
     }

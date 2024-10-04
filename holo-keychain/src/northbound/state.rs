@@ -79,4 +79,4 @@ impl Provider for Master {
 
 // ===== impl ListEntry =====
 
-impl<'a> ListEntryKind for ListEntry<'a> {}
+impl ListEntryKind for ListEntry<'_> {}

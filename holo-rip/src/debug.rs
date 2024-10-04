@@ -57,7 +57,7 @@ pub enum InterfaceInactiveReason {
 
 // ===== impl Debug =====
 
-impl<'a, V> Debug<'a, V>
+impl<V> Debug<'_, V>
 where
     V: Version,
 {
@@ -138,7 +138,7 @@ where
     }
 }
 
-impl<'a, V> std::fmt::Display for Debug<'a, V>
+impl<V> std::fmt::Display for Debug<'_, V>
 where
     V: Version,
 {

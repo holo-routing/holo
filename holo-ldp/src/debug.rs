@@ -74,7 +74,7 @@ pub enum InterfaceInactiveReason {
 
 // ===== impl Debug =====
 
-impl<'a> Debug<'a> {
+impl Debug<'_> {
     // Log debug message using the tracing API.
     pub(crate) fn log(&self) {
         match self {
@@ -227,7 +227,7 @@ impl<'a> Debug<'a> {
     }
 }
 
-impl<'a> std::fmt::Display for Debug<'a> {
+impl std::fmt::Display for Debug<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Debug::InstanceCreate => {

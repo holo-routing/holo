@@ -145,15 +145,15 @@ impl<'a> StructBuilder<'a> {
         let indent3 = " ".repeat((self.level + 3) * 2);
         let indent4 = " ".repeat((self.level + 4) * 2);
         let indent5 = " ".repeat((self.level + 5) * 2);
-        let lifetime = if self.snode.is_within_notification()
+        let (lifetime, anon_lifetime) = if self.snode.is_within_notification()
             || self.fields.iter().any(|snode| {
                 !snode
                     .leaf_type()
                     .is_some_and(|leaf_type| leaf_type_is_builtin(&leaf_type))
             }) {
-            "<'a>"
+            ("<'a>", "<'_>")
         } else {
-            ""
+            ("", "")
         };
 
         // Struct definition.
@@ -217,8 +217,8 @@ impl<'a> StructBuilder<'a> {
         writeln!(output).unwrap();
         writeln!(
             output,
-            "{}impl{} YangObject for {}{} {{",
-            indent1, lifetime, name, lifetime
+            "{}impl YangObject for {}{} {{",
+            indent1, name, anon_lifetime
         )
         .unwrap();
 

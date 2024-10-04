@@ -372,7 +372,7 @@ impl Provider for Master {
 
 // ===== impl ListEntry =====
 
-impl<'a> ListEntryKind for ListEntry<'a> {
+impl ListEntryKind for ListEntry<'_> {
     fn child_task(&self) -> Option<NbDaemonSender> {
         match self {
             ListEntry::ProtocolInstance(instance) => {

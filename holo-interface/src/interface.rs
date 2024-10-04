@@ -219,7 +219,7 @@ impl Interfaces {
                     flags,
                     addresses: Default::default(),
                     owner: Owner::SYSTEM,
-                    mac_address: Default::default(),
+                    mac_address,
                 };
 
                 // Notify protocol instances about the interface update.

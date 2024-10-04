@@ -593,10 +593,10 @@ pub(crate) fn originate_check<V>(
     let lsa_key = LsaKey::new(lsa_body.lsa_type(), adv_rtr, lsa_id);
 
     // Get next sequence number.
-    let seq_no = match lsdb.get(&arenas.lsa_entries, &lsa_key) {
-        Some((_, old_lse)) => old_lse.data.hdr.seq_no() + 1,
-        None => LSA_INIT_SEQ_NO,
-    };
+    let seq_no = lsdb
+        .get(&arenas.lsa_entries, &lsa_key)
+        .map(|(_, old_lse)| old_lse.data.hdr.seq_no() + 1)
+        .unwrap_or(LSA_INIT_SEQ_NO);
 
     // Make new LSA.
     let lsa = Lsa::new(0, options, lsa_id, adv_rtr, seq_no, lsa_body);

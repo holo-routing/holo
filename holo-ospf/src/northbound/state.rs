@@ -112,9 +112,9 @@ where
                 current_state = Some(state.spf_delay_state.to_yang());
                 remaining_time_to_learn = state.spf_learn_timer.as_ref().map(|task| task.remaining());
                 remaining_hold_down = state.spf_hold_down_timer.as_ref().map(|task| task.remaining());
-                last_event_received = state.spf_last_event_rcvd.as_ref().ignore_in_testing();
+                last_event_received = state.spf_last_event_rcvd.as_ref();
                 next_spf_time = state.spf_delay_timer.as_ref().map(|timer| Instant::now() + timer.remaining());
-                last_spf_time = state.spf_last_time.as_ref().ignore_in_testing();
+                last_spf_time = state.spf_last_time.as_ref();
             }
             Box::new(IetfSpfDelay {
                 current_state,

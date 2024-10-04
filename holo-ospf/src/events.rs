@@ -754,9 +754,6 @@ where
         lsa.encode();
     }
 
-    // Move LSA into a reference-counting pointer.
-    let lsa = Arc::new(lsa);
-
     // (1) Validate the LSA (not only the checksum as specified by the RFC).
     if let Err(error) = lsa.validate() {
         // Send error notification.
@@ -789,13 +786,13 @@ where
         LsdbIndex::As => &instance.state.lsdb,
     };
     let lsa_key = lsa.hdr.key();
-    let lse_tuple = lsdb.get(&arenas.lsa_entries, &lsa_key);
+    let lse = lsdb.get(&arenas.lsa_entries, &lsa_key).map(|(_, lse)| lse);
 
     // (4) If the LSA's LS age is equal to MaxAge, and there is currently no
     // instance of the LSA in the router's link state database, and none of
     // router's neighbors are in states Exchange or Loading.
     if lsa.hdr.is_maxage()
-        && lse_tuple.is_none()
+        && lse.is_none()
         && !arenas.neighbors.iter().any(|(_, nbr)| {
             matches!(nbr.state, nsm::State::Exchange | nsm::State::Loading)
         })
@@ -809,11 +806,10 @@ where
 
     // (5 cont.) There is no database copy, or the received LSA is more
     // recent than the database copy.
-    let lsa_cmp =
-        lse_tuple.map(|(_, lse)| lsa_compare::<V>(&lse.data.hdr, &lsa.hdr));
+    let lsa_cmp = lse.map(|lse| lsa_compare::<V>(&lse.data.hdr, &lsa.hdr));
     if matches!(lsa_cmp, None | Some(Ordering::Less)) {
         // (5.a) MinLSArrival check.
-        if let Some((_, lse)) = lse_tuple {
+        if let Some(lse) = lse {
             if lsdb::lsa_min_arrival_check(lse) {
                 // Log why the LSA is being discarded.
                 Debug::<V>::LsaMinArrivalDiscard(nbr.router_id, &lsa.hdr).log();
@@ -822,6 +818,9 @@ where
                 return false;
             }
         }
+
+        // Move LSA into a reference-counting pointer.
+        let lsa = Arc::new(lsa);
 
         // (5.b) Immediately flood the new LSA out some subset of the
         // router's interfaces.
@@ -920,7 +919,7 @@ where
     // (6 - errata 3974) Check if the received LSA is the same instance as
     // the database copy (i.e., neither one is more recent).
     let nbr = &mut arenas.neighbors[nbr_idx];
-    let (_, lse) = lse_tuple.unwrap();
+    let lse = lse.unwrap();
     if lsa_cmp == Some(Ordering::Equal) {
         // Check if this LSA can be handled as an implied acknowledgment.
         if let btree_map::Entry::Occupied(o) = nbr.lists.ls_rxmt.entry(lsa_key)

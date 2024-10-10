@@ -20,6 +20,7 @@ use crate::rib::Route;
 fn netlink_protocol(protocol: Protocol) -> RouteProtocol {
     match protocol {
         Protocol::BGP => RouteProtocol::Bgp,
+        Protocol::ISIS => RouteProtocol::Isis,
         Protocol::OSPFV2 | Protocol::OSPFV3 => RouteProtocol::Ospf,
         Protocol::RIPV2 | Protocol::RIPNG => RouteProtocol::Rip,
         Protocol::STATIC => RouteProtocol::Static,

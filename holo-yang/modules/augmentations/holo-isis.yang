@@ -1,0 +1,52 @@
+module holo-isis {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/holo-isis";
+  prefix holo-isis;
+
+  import ietf-routing {
+    prefix rt;
+  }
+
+  import ietf-isis {
+    prefix isis;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines augment statements for the ietf-isis
+     module.";
+
+  /*
+   * Augmentations.
+   */
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis/"
+        + "isis:interfaces/isis:interface" {
+    description
+      "IS-IS interface augmentations";
+    leaf state {
+      config false;
+      type enumeration {
+        enum down {
+          description
+            "Interface is in the 'Down' state.";
+        }
+        enum up {
+          description
+            "Interface is in the 'Up' state.";
+        }
+      }
+      description
+        "Interface state.";
+    }
+    leaf circuit-id {
+      config false;
+      type isis:circuit-id;
+      description
+        "Interface circuit ID.";
+    }
+  }
+}

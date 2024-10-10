@@ -1,0 +1,4372 @@
+module holo-ietf-isis-deviations {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/holo-ietf-isis-deviations";
+  prefix holo-ietf-isis-deviations;
+
+  import ietf-routing {
+    prefix rt;
+  }
+
+  import ietf-isis {
+    prefix isis;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines deviation statements for the ietf-isis
+     module.";
+
+  /*
+   * Default values
+   */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:lsp-lifetime" {
+    deviate add {
+      default "1200";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:lsp-refresh" {
+    deviate add {
+      default "900";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:address-families/isis:address-family-list/isis:enabled" {
+    deviate add {
+      default "true";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:paths" {
+    deviate add {
+      default "16";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:lsp-retransmit-interval" {
+    deviate add {
+      default "5";
+    }
+  }
+
+  /*
+   * Type changes
+   */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:lsp-refresh" {
+    deviate replace {
+      type "uint16" {
+        range "120..65535";
+      }
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:preference/isis:granularity" {
+    deviate add {
+      default "coarse";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:preference/isis:granularity/isis:coarse/isis:default" {
+    deviate add {
+      default "115";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:initial-delay" {
+    deviate replace {
+      type "uint32";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:short-delay" {
+    deviate replace {
+      type "uint32";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:long-delay" {
+    deviate replace {
+      type "uint32";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:hold-down" {
+    deviate replace {
+      type "uint32";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:time-to-learn" {
+    deviate replace {
+      type "uint32";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:lsp-pacing-interval" {
+    deviate replace {
+      type "uint32";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:lsp-retransmit-interval" {
+    deviate replace {
+      type "uint16";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:csnp-interval" {
+    deviate replace {
+      type "uint16";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-interval/isis:value" {
+    deviate replace {
+      type "uint16";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-interval/isis:level-1/isis:value" {
+    deviate replace {
+      type "uint16";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-interval/isis:level-2/isis:value" {
+    deviate replace {
+      type "uint16";
+    }
+  }
+
+  /*
+   * Workaround
+   */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:priority" {
+    deviate delete {
+      must '../interface-type = "broadcast"';
+    }
+  }
+
+  /*
+   * Not supported nodes
+   */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:enabled" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:level-type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:system-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:area-address" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:lsp-mtu" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:lsp-lifetime" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:lsp-refresh" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:metric-type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:metric-type/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:metric-type/isis:level-1" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:metric-type/isis:level-1/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:metric-type/isis:level-2" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:metric-type/isis:level-2/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:default-metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:default-metric/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:default-metric/isis:level-1" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:default-metric/isis:level-1/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:default-metric/isis:level-2" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:default-metric/isis:level-2/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:authentication" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:authentication/isis:authentication-type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:authentication/isis:authentication-type/isis:key-chain" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:authentication/isis:authentication-type/isis:key-chain/isis:key-chain" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:authentication/isis:authentication-type/isis:password" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:authentication/isis:authentication-type/isis:password/isis:key" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:authentication/isis:authentication-type/isis:password/isis:crypto-algorithm" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:authentication/isis:level-1" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:authentication/isis:level-1/isis:authentication-type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:authentication/isis:level-1/isis:authentication-type/isis:key-chain" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:authentication/isis:level-1/isis:authentication-type/isis:key-chain/isis:key-chain" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:authentication/isis:level-1/isis:authentication-type/isis:password" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:authentication/isis:level-1/isis:authentication-type/isis:password/isis:key" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:authentication/isis:level-1/isis:authentication-type/isis:password/isis:crypto-algorithm" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:authentication/isis:level-2" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:authentication/isis:level-2/isis:authentication-type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:authentication/isis:level-2/isis:authentication-type/isis:key-chain" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:authentication/isis:level-2/isis:authentication-type/isis:key-chain/isis:key-chain" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:authentication/isis:level-2/isis:authentication-type/isis:password" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:authentication/isis:level-2/isis:authentication-type/isis:password/isis:key" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:authentication/isis:level-2/isis:authentication-type/isis:password/isis:crypto-algorithm" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:mpls" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:mpls/isis:ldp" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:paths" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:initial-delay" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:short-delay" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:long-delay" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:hold-down" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:time-to-learn" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:current-state" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:remaining-time-to-learn" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:remaining-hold-down" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:last-event-received" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:next-spf-time" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:last-spf-time" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:preference" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:preference/isis:granularity" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:preference/isis:granularity/isis:detail" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:preference/isis:granularity/isis:detail/isis:internal" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:preference/isis:granularity/isis:detail/isis:external" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:preference/isis:granularity/isis:coarse" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:preference/isis:granularity/isis:coarse/isis:default" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:overload" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:overload/isis:status" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-log" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-log/isis:event" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-log/isis:event/isis:id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-log/isis:event/isis:spf-type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-log/isis:event/isis:level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-log/isis:event/isis:schedule-timestamp" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-log/isis:event/isis:start-timestamp" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-log/isis:event/isis:end-timestamp" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-log/isis:event/isis:trigger-lsp" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-log/isis:event/isis:trigger-lsp/isis:lsp" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-log/isis:event/isis:trigger-lsp/isis:sequence" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:lsp-log" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:lsp-log/isis:event" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:lsp-log/isis:event/isis:id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:lsp-log/isis:event/isis:level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:lsp-log/isis:event/isis:lsp" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:lsp-log/isis:event/isis:lsp/isis:lsp" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:lsp-log/isis:event/isis:lsp/isis:sequence" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:lsp-log/isis:event/isis:received-timestamp" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:lsp-log/isis:event/isis:reason" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:hostnames" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:hostnames/isis:hostname" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:hostnames/isis:hostname/isis:system-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:hostnames/isis:hostname/isis:hostname" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:lsp-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:decoded-completed" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:raw-data" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:checksum" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:remaining-lifetime" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:sequence" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:attributes" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:attributes/isis:lsp-flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-addresses" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv6-addresses" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-te-routerid" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv6-te-routerid" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:protocol-supported" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:dynamic-hostname" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:authentication" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:authentication/isis:authentication-type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:authentication/isis:authentication-key" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-entries" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-entries/isis:topology" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-entries/isis:topology/isis:mt-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-entries/isis:topology/isis:attributes" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-entries/isis:topology/isis:attributes/isis:flags" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:router-capabilities" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:router-capabilities/isis:router-capability" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:router-capabilities/isis:router-capability/isis:flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:router-capabilities/isis:router-capability/isis:flags/isis:router-capability-flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:router-capabilities/isis:router-capability/isis:unknown-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:router-capabilities/isis:router-capability/isis:unknown-tlvs/isis:unknown-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:router-capabilities/isis:router-capability/isis:unknown-tlvs/isis:unknown-tlv/isis:type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:router-capabilities/isis:router-capability/isis:unknown-tlvs/isis:unknown-tlv/isis:length" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:router-capabilities/isis:router-capability/isis:unknown-tlvs/isis:unknown-tlv/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:links-srlgs" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:links-srlgs/isis:links" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:links-srlgs/isis:links/isis:neighbor-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:links-srlgs/isis:links/isis:flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:links-srlgs/isis:links/isis:link-local-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:links-srlgs/isis:links/isis:link-remote-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:links-srlgs/isis:links/isis:srlgs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:links-srlgs/isis:links/isis:srlgs/isis:srlg" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:unknown-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:unknown-tlvs/isis:unknown-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:unknown-tlvs/isis:unknown-tlv/isis:type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:unknown-tlvs/isis:unknown-tlv/isis:length" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:unknown-tlvs/isis:unknown-tlv/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:is-neighbor" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:is-neighbor/isis:neighbor" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:is-neighbor/isis:neighbor/isis:neighbor-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:is-neighbor/isis:neighbor/isis:instances" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:is-neighbor/isis:neighbor/isis:instances/isis:instance" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:i-e" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:default-metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:default-metric/isis:metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:delay-metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:delay-metric/isis:metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:delay-metric/isis:supported" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:expense-metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:expense-metric/isis:metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:expense-metric/isis:supported" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:error-metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:error-metric/isis:metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:error-metric/isis:supported" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:neighbor-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:metric" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:link-local-id" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:remote-local-id" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:protection-capability" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:switching-capability" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:encoding" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:max-lsp-bandwidths" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:max-lsp-bandwidths/isis:max-lsp-bandwidth" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:max-lsp-bandwidths/isis:max-lsp-bandwidth/isis:priority" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:max-lsp-bandwidths/isis:max-lsp-bandwidth/isis:bandwidth" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:tdm-specific" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:tdm-specific/isis:minimum-lsp-bandwidth" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:tdm-specific/isis:indication" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:psc-specific" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:psc-specific/isis:minimum-lsp-bandwidth" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:psc-specific/isis:mtu" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:admin-group" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:local-if-ipv4-addrs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:local-if-ipv4-addrs/isis:local-if-ipv4-addr" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:remote-if-ipv4-addrs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:remote-if-ipv4-addrs/isis:remote-if-ipv4-addr" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:te-metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:max-bandwidth" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:max-reservable-bandwidth" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unreserved-bandwidths" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unreserved-bandwidths/isis:unreserved-bandwidth" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unreserved-bandwidths/isis:unreserved-bandwidth/isis:priority" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unreserved-bandwidths/isis:unreserved-bandwidth/isis:unreserved-bandwidth" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-delay" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-delay/isis:flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-delay/isis:flags/isis:unidirectional-link-delay-subtlv-flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-delay/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:min-max-unidirectional-link-delay" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:min-max-unidirectional-link-delay/isis:flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:min-max-unidirectional-link-delay/isis:flags/isis:min-max-unidirectional-link-delay-subtlv-flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:min-max-unidirectional-link-delay/isis:min-value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:min-max-unidirectional-link-delay/isis:max-value" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-delay-variation" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-delay-variation/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-loss" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-loss/isis:flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-loss/isis:flags/isis:unidirectional-link-loss-subtlv-flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-loss/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-residual-bandwidth" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-residual-bandwidth/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-available-bandwidth" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-available-bandwidth/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-utilized-bandwidth" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-utilized-bandwidth/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:link-attributes-flags" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unknown-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unknown-tlvs/isis:unknown-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unknown-tlvs/isis:unknown-tlv/isis:type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unknown-tlvs/isis:unknown-tlv/isis:length" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unknown-tlvs/isis:unknown-tlv/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-internal-reachability" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-internal-reachability/isis:prefixes" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-internal-reachability/isis:prefixes/isis:ip-prefix" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-internal-reachability/isis:prefixes/isis:prefix-len" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-internal-reachability/isis:prefixes/isis:i-e" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-internal-reachability/isis:prefixes/isis:default-metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-internal-reachability/isis:prefixes/isis:default-metric/isis:metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-internal-reachability/isis:prefixes/isis:delay-metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-internal-reachability/isis:prefixes/isis:delay-metric/isis:metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-internal-reachability/isis:prefixes/isis:delay-metric/isis:supported" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-internal-reachability/isis:prefixes/isis:expense-metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-internal-reachability/isis:prefixes/isis:expense-metric/isis:metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-internal-reachability/isis:prefixes/isis:expense-metric/isis:supported" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-internal-reachability/isis:prefixes/isis:error-metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-internal-reachability/isis:prefixes/isis:error-metric/isis:metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-internal-reachability/isis:prefixes/isis:error-metric/isis:supported" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-external-reachability" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-external-reachability/isis:prefixes" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-external-reachability/isis:prefixes/isis:ip-prefix" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-external-reachability/isis:prefixes/isis:prefix-len" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-external-reachability/isis:prefixes/isis:i-e" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-external-reachability/isis:prefixes/isis:default-metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-external-reachability/isis:prefixes/isis:default-metric/isis:metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-external-reachability/isis:prefixes/isis:delay-metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-external-reachability/isis:prefixes/isis:delay-metric/isis:metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-external-reachability/isis:prefixes/isis:delay-metric/isis:supported" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-external-reachability/isis:prefixes/isis:expense-metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-external-reachability/isis:prefixes/isis:expense-metric/isis:metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-external-reachability/isis:prefixes/isis:expense-metric/isis:supported" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-external-reachability/isis:prefixes/isis:error-metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-external-reachability/isis:prefixes/isis:error-metric/isis:metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv4-external-reachability/isis:prefixes/isis:error-metric/isis:supported" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-ipv4-reachability" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-ipv4-reachability/isis:prefixes" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-ipv4-reachability/isis:prefixes/isis:up-down" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-ipv4-reachability/isis:prefixes/isis:ip-prefix" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-ipv4-reachability/isis:prefixes/isis:prefix-len" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-ipv4-reachability/isis:prefixes/isis:metric" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-ipv4-reachability/isis:prefixes/isis:tag" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-ipv4-reachability/isis:prefixes/isis:tag64" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-ipv4-reachability/isis:prefixes/isis:external-prefix-flag" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-ipv4-reachability/isis:prefixes/isis:readvertisement-flag" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-ipv4-reachability/isis:prefixes/isis:node-flag" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-ipv4-reachability/isis:prefixes/isis:ipv4-source-router-id" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-ipv4-reachability/isis:prefixes/isis:ipv6-source-router-id" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-ipv4-reachability/isis:prefixes/isis:unknown-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-ipv4-reachability/isis:prefixes/isis:unknown-tlvs/isis:unknown-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-ipv4-reachability/isis:prefixes/isis:unknown-tlvs/isis:unknown-tlv/isis:type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-ipv4-reachability/isis:prefixes/isis:unknown-tlvs/isis:unknown-tlv/isis:length" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-ipv4-reachability/isis:prefixes/isis:unknown-tlvs/isis:unknown-tlv/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:mt-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:neighbor-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:link-local-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:remote-local-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:protection-capability" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:switching-capability" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:encoding" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:max-lsp-bandwidths" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:max-lsp-bandwidths/isis:max-lsp-bandwidth" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:max-lsp-bandwidths/isis:max-lsp-bandwidth/isis:priority" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:max-lsp-bandwidths/isis:max-lsp-bandwidth/isis:bandwidth" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:tdm-specific" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:tdm-specific/isis:minimum-lsp-bandwidth" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:tdm-specific/isis:indication" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:psc-specific" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:psc-specific/isis:minimum-lsp-bandwidth" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability/isis:psc-specific/isis:mtu" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:admin-group" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:local-if-ipv4-addrs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:local-if-ipv4-addrs/isis:local-if-ipv4-addr" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:remote-if-ipv4-addrs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:remote-if-ipv4-addrs/isis:remote-if-ipv4-addr" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:te-metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:max-bandwidth" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:max-reservable-bandwidth" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unreserved-bandwidths" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unreserved-bandwidths/isis:unreserved-bandwidth" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unreserved-bandwidths/isis:unreserved-bandwidth/isis:priority" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unreserved-bandwidths/isis:unreserved-bandwidth/isis:unreserved-bandwidth" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-delay" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-delay/isis:flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-delay/isis:flags/isis:unidirectional-link-delay-subtlv-flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-delay/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:min-max-unidirectional-link-delay" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:min-max-unidirectional-link-delay/isis:flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:min-max-unidirectional-link-delay/isis:flags/isis:min-max-unidirectional-link-delay-subtlv-flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:min-max-unidirectional-link-delay/isis:min-value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:min-max-unidirectional-link-delay/isis:max-value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-delay-variation" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-delay-variation/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-loss" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-loss/isis:flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-loss/isis:flags/isis:unidirectional-link-loss-subtlv-flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-loss/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-residual-bandwidth" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-residual-bandwidth/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-available-bandwidth" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-available-bandwidth/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-utilized-bandwidth" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-utilized-bandwidth/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:link-attributes-flags" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unknown-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unknown-tlvs/isis:unknown-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unknown-tlvs/isis:unknown-tlv/isis:type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unknown-tlvs/isis:unknown-tlv/isis:length" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unknown-tlvs/isis:unknown-tlv/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-extended-ipv4-reachability" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-extended-ipv4-reachability/isis:prefixes" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-extended-ipv4-reachability/isis:prefixes/isis:mt-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-extended-ipv4-reachability/isis:prefixes/isis:up-down" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-extended-ipv4-reachability/isis:prefixes/isis:ip-prefix" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-extended-ipv4-reachability/isis:prefixes/isis:prefix-len" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-extended-ipv4-reachability/isis:prefixes/isis:metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-extended-ipv4-reachability/isis:prefixes/isis:tag" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-extended-ipv4-reachability/isis:prefixes/isis:tag64" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-extended-ipv4-reachability/isis:prefixes/isis:external-prefix-flag" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-extended-ipv4-reachability/isis:prefixes/isis:readvertisement-flag" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-extended-ipv4-reachability/isis:prefixes/isis:node-flag" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-extended-ipv4-reachability/isis:prefixes/isis:ipv4-source-router-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-extended-ipv4-reachability/isis:prefixes/isis:ipv6-source-router-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-extended-ipv4-reachability/isis:prefixes/isis:unknown-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-extended-ipv4-reachability/isis:prefixes/isis:unknown-tlvs/isis:unknown-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-extended-ipv4-reachability/isis:prefixes/isis:unknown-tlvs/isis:unknown-tlv/isis:type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-extended-ipv4-reachability/isis:prefixes/isis:unknown-tlvs/isis:unknown-tlv/isis:length" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-extended-ipv4-reachability/isis:prefixes/isis:unknown-tlvs/isis:unknown-tlv/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-ipv6-reachability" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-ipv6-reachability/isis:prefixes" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-ipv6-reachability/isis:prefixes/isis:mt-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-ipv6-reachability/isis:prefixes/isis:up-down" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-ipv6-reachability/isis:prefixes/isis:ip-prefix" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-ipv6-reachability/isis:prefixes/isis:prefix-len" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-ipv6-reachability/isis:prefixes/isis:metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-ipv6-reachability/isis:prefixes/isis:tag" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-ipv6-reachability/isis:prefixes/isis:tag64" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-ipv6-reachability/isis:prefixes/isis:external-prefix-flag" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-ipv6-reachability/isis:prefixes/isis:readvertisement-flag" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-ipv6-reachability/isis:prefixes/isis:node-flag" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-ipv6-reachability/isis:prefixes/isis:ipv4-source-router-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-ipv6-reachability/isis:prefixes/isis:ipv6-source-router-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-ipv6-reachability/isis:prefixes/isis:unknown-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-ipv6-reachability/isis:prefixes/isis:unknown-tlvs/isis:unknown-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-ipv6-reachability/isis:prefixes/isis:unknown-tlvs/isis:unknown-tlv/isis:type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-ipv6-reachability/isis:prefixes/isis:unknown-tlvs/isis:unknown-tlv/isis:length" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-ipv6-reachability/isis:prefixes/isis:unknown-tlvs/isis:unknown-tlv/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv6-reachability" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv6-reachability/isis:prefixes" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv6-reachability/isis:prefixes/isis:up-down" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv6-reachability/isis:prefixes/isis:ip-prefix" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv6-reachability/isis:prefixes/isis:prefix-len" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv6-reachability/isis:prefixes/isis:metric" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv6-reachability/isis:prefixes/isis:tag" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv6-reachability/isis:prefixes/isis:tag64" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv6-reachability/isis:prefixes/isis:external-prefix-flag" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv6-reachability/isis:prefixes/isis:readvertisement-flag" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv6-reachability/isis:prefixes/isis:node-flag" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv6-reachability/isis:prefixes/isis:ipv4-source-router-id" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv6-reachability/isis:prefixes/isis:ipv6-source-router-id" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv6-reachability/isis:prefixes/isis:unknown-tlvs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv6-reachability/isis:prefixes/isis:unknown-tlvs/isis:unknown-tlv" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv6-reachability/isis:prefixes/isis:unknown-tlvs/isis:unknown-tlv/isis:type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv6-reachability/isis:prefixes/isis:unknown-tlvs/isis:unknown-tlv/isis:length" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv6-reachability/isis:prefixes/isis:unknown-tlvs/isis:unknown-tlv/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:local-rib" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:local-rib/isis:route" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:local-rib/isis:route/isis:prefix" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:local-rib/isis:route/isis:next-hops" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:local-rib/isis:route/isis:next-hops/isis:next-hop" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:local-rib/isis:route/isis:next-hops/isis:next-hop/isis:next-hop" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:local-rib/isis:route/isis:next-hops/isis:next-hop/isis:outgoing-interface" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:local-rib/isis:route/isis:metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:local-rib/isis:route/isis:level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:local-rib/isis:route/isis:route-tag" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:system-counters" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:system-counters/isis:level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:system-counters/isis:level/isis:level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:system-counters/isis:level/isis:corrupted-lsps" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:system-counters/isis:level/isis:authentication-type-fails" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:system-counters/isis:level/isis:authentication-fails" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:system-counters/isis:level/isis:database-overload" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:system-counters/isis:level/isis:own-lsp-purge" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:system-counters/isis:level/isis:manual-address-drop-from-area" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:system-counters/isis:level/isis:max-sequence" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:system-counters/isis:level/isis:sequence-number-skipped" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:system-counters/isis:level/isis:id-len-mismatch" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:system-counters/isis:level/isis:partition-changes" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:system-counters/isis:level/isis:lsp-errors" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:system-counters/isis:level/isis:spf-runs" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:protected-routes" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:protected-routes/isis:address-family-stats" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:protected-routes/isis:address-family-stats/isis:address-family" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:protected-routes/isis:address-family-stats/isis:prefix" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:protected-routes/isis:address-family-stats/isis:alternate" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:protected-routes/isis:address-family-stats/isis:alternate-type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:protected-routes/isis:address-family-stats/isis:best" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:protected-routes/isis:address-family-stats/isis:non-best-reason" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:protected-routes/isis:address-family-stats/isis:protection-available" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:protected-routes/isis:address-family-stats/isis:protection-available/isis:protection-types" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:protected-routes/isis:address-family-stats/isis:alternate-metric-1" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:protected-routes/isis:address-family-stats/isis:alternate-metric-2" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:protected-routes/isis:address-family-stats/isis:alternate-metric-3" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:unprotected-routes" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:unprotected-routes/isis:prefixes" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:unprotected-routes/isis:prefixes/isis:address-family" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:unprotected-routes/isis:prefixes/isis:prefix" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:protection-statistics" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:protection-statistics/isis:frr-protection-method" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:protection-statistics/isis:address-family-stats" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:protection-statistics/isis:address-family-stats/isis:address-family" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:protection-statistics/isis:address-family-stats/isis:total-routes" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:protection-statistics/isis:address-family-stats/isis:unprotected-routes" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:protection-statistics/isis:address-family-stats/isis:protected-routes" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:protection-statistics/isis:address-family-stats/isis:link-protected-routes" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:protection-statistics/isis:address-family-stats/isis:node-protected-routes" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:discontinuity-time" {
+    deviate add {
+      config false;
+    }
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:topologies" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:topologies/isis:topology" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:topologies/isis:topology/isis:name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:topologies/isis:topology/isis:enabled" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:topologies/isis:topology/isis:default-metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:topologies/isis:topology/isis:default-metric/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:topologies/isis:topology/isis:default-metric/isis:level-1" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:topologies/isis:topology/isis:default-metric/isis:level-1/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:topologies/isis:topology/isis:default-metric/isis:level-2" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:topologies/isis:topology/isis:default-metric/isis:level-2/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:enabled" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:level-type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:lsp-pacing-interval" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:lsp-retransmit-interval" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:passive" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:csnp-interval" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-padding" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-padding/isis:enabled" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:mesh-group-enabled" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:mesh-group" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:interface-type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-authentication" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-authentication/isis:authentication-type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-authentication/isis:authentication-type/isis:key-chain" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-authentication/isis:authentication-type/isis:key-chain/isis:key-chain" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-authentication/isis:authentication-type/isis:password" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-authentication/isis:authentication-type/isis:password/isis:key" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-authentication/isis:authentication-type/isis:password/isis:crypto-algorithm" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-authentication/isis:level-1" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-authentication/isis:level-1/isis:authentication-type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-authentication/isis:level-1/isis:authentication-type/isis:key-chain" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-authentication/isis:level-1/isis:authentication-type/isis:key-chain/isis:key-chain" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-authentication/isis:level-1/isis:authentication-type/isis:password" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-authentication/isis:level-1/isis:authentication-type/isis:password/isis:key" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-authentication/isis:level-1/isis:authentication-type/isis:password/isis:crypto-algorithm" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-authentication/isis:level-2" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-authentication/isis:level-2/isis:authentication-type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-authentication/isis:level-2/isis:authentication-type/isis:key-chain" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-authentication/isis:level-2/isis:authentication-type/isis:key-chain/isis:key-chain" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-authentication/isis:level-2/isis:authentication-type/isis:password" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-authentication/isis:level-2/isis:authentication-type/isis:password/isis:key" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-authentication/isis:level-2/isis:authentication-type/isis:password/isis:crypto-algorithm" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-interval" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-interval/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-interval/isis:level-1" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-interval/isis:level-1/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-interval/isis:level-2" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-interval/isis:level-2/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-multiplier" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-multiplier/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-multiplier/isis:level-1" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-multiplier/isis:level-1/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-multiplier/isis:level-2" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-multiplier/isis:level-2/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:priority" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:priority/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:priority/isis:level-1" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:priority/isis:level-1/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:priority/isis:level-2" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:priority/isis:level-2/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:metric/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:metric/isis:level-1" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:metric/isis:level-1/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:metric/isis:level-2" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:metric/isis:level-2/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:mpls" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:mpls/isis:ldp" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:adjacencies" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:adjacencies/isis:adjacency" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:adjacencies/isis:adjacency/isis:neighbor-sys-type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:adjacencies/isis:adjacency/isis:neighbor-sysid" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:adjacencies/isis:adjacency/isis:neighbor-extended-circuit-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:adjacencies/isis:adjacency/isis:neighbor-snpa" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:adjacencies/isis:adjacency/isis:usage" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:adjacencies/isis:adjacency/isis:hold-timer" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:adjacencies/isis:adjacency/isis:neighbor-priority" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:adjacencies/isis:adjacency/isis:lastuptime" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:adjacencies/isis:adjacency/isis:state" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:event-counters" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:event-counters/isis:adjacency-changes" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:event-counters/isis:adjacency-number" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:event-counters/isis:init-fails" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:event-counters/isis:adjacency-rejects" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:event-counters/isis:id-len-mismatch" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:event-counters/isis:max-area-addresses-mismatch" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:event-counters/isis:authentication-type-fails" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:event-counters/isis:authentication-fails" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:event-counters/isis:lan-dis-changes" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:packet-counters" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:packet-counters/isis:level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:packet-counters/isis:level/isis:level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:packet-counters/isis:level/isis:iih" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:packet-counters/isis:level/isis:iih/isis:in" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:packet-counters/isis:level/isis:iih/isis:out" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:packet-counters/isis:level/isis:ish" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:packet-counters/isis:level/isis:ish/isis:in" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:packet-counters/isis:level/isis:ish/isis:out" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:packet-counters/isis:level/isis:esh" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:packet-counters/isis:level/isis:esh/isis:in" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:packet-counters/isis:level/isis:esh/isis:out" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:packet-counters/isis:level/isis:lsp" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:packet-counters/isis:level/isis:lsp/isis:in" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:packet-counters/isis:level/isis:lsp/isis:out" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:packet-counters/isis:level/isis:psnp" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:packet-counters/isis:level/isis:psnp/isis:in" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:packet-counters/isis:level/isis:psnp/isis:out" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:packet-counters/isis:level/isis:csnp" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:packet-counters/isis:level/isis:csnp/isis:in" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:packet-counters/isis:level/isis:csnp/isis:out" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:packet-counters/isis:level/isis:unknown" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:packet-counters/isis:level/isis:unknown/isis:in" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:discontinuity-time" {
+    deviate add {
+      config false;
+    }
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:topologies" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:topologies/isis:topology" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:topologies/isis:topology/isis:name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:topologies/isis:topology/isis:metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:topologies/isis:topology/isis:metric/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:topologies/isis:topology/isis:metric/isis:level-1" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:topologies/isis:topology/isis:metric/isis:level-1/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:topologies/isis:topology/isis:metric/isis:level-2" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:topologies/isis:topology/isis:metric/isis:level-2/isis:value" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:ribs/rt:rib/rt:routes/rt:route/isis:metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:ribs/rt:rib/rt:routes/rt:route/isis:tag" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:ribs/rt:rib/rt:routes/rt:route/isis:route-type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:clear-adjacency" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:clear-adjacency/isis:input" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:clear-adjacency/isis:input/isis:routing-protocol-instance-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:clear-adjacency/isis:input/isis:level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:clear-adjacency/isis:input/isis:interface" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:clear-adjacency/isis:output" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:clear-database" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:clear-database/isis:input" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:clear-database/isis:input/isis:routing-protocol-instance-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:clear-database/isis:input/isis:level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:clear-database/isis:output" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:database-overload" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:database-overload/isis:routing-protocol-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:database-overload/isis:isis-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:database-overload/isis:overload" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-too-large" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-too-large/isis:routing-protocol-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-too-large/isis:isis-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-too-large/isis:interface-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-too-large/isis:interface-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-too-large/isis:extended-circuit-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-too-large/isis:pdu-size" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-too-large/isis:lsp-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:if-state-change" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:if-state-change/isis:routing-protocol-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:if-state-change/isis:isis-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:if-state-change/isis:interface-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:if-state-change/isis:interface-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:if-state-change/isis:extended-circuit-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:if-state-change/isis:state" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:corrupted-lsp-detected" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:corrupted-lsp-detected/isis:routing-protocol-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:corrupted-lsp-detected/isis:isis-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:corrupted-lsp-detected/isis:lsp-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:attempt-to-exceed-max-sequence" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:attempt-to-exceed-max-sequence/isis:routing-protocol-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:attempt-to-exceed-max-sequence/isis:isis-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:attempt-to-exceed-max-sequence/isis:lsp-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:id-len-mismatch" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:id-len-mismatch/isis:routing-protocol-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:id-len-mismatch/isis:isis-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:id-len-mismatch/isis:interface-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:id-len-mismatch/isis:interface-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:id-len-mismatch/isis:extended-circuit-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:id-len-mismatch/isis:pdu-field-len" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:id-len-mismatch/isis:raw-pdu" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:max-area-addresses-mismatch" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:max-area-addresses-mismatch/isis:routing-protocol-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:max-area-addresses-mismatch/isis:isis-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:max-area-addresses-mismatch/isis:interface-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:max-area-addresses-mismatch/isis:interface-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:max-area-addresses-mismatch/isis:extended-circuit-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:max-area-addresses-mismatch/isis:max-area-addresses" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:max-area-addresses-mismatch/isis:raw-pdu" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:own-lsp-purge" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:own-lsp-purge/isis:routing-protocol-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:own-lsp-purge/isis:isis-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:own-lsp-purge/isis:interface-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:own-lsp-purge/isis:interface-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:own-lsp-purge/isis:extended-circuit-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:own-lsp-purge/isis:lsp-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:sequence-number-skipped" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:sequence-number-skipped/isis:routing-protocol-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:sequence-number-skipped/isis:isis-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:sequence-number-skipped/isis:interface-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:sequence-number-skipped/isis:interface-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:sequence-number-skipped/isis:extended-circuit-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:sequence-number-skipped/isis:lsp-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:authentication-type-failure" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:authentication-type-failure/isis:routing-protocol-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:authentication-type-failure/isis:isis-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:authentication-type-failure/isis:interface-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:authentication-type-failure/isis:interface-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:authentication-type-failure/isis:extended-circuit-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:authentication-type-failure/isis:raw-pdu" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:authentication-failure" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:authentication-failure/isis:routing-protocol-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:authentication-failure/isis:isis-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:authentication-failure/isis:interface-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:authentication-failure/isis:interface-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:authentication-failure/isis:extended-circuit-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:authentication-failure/isis:raw-pdu" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:version-skew" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:version-skew/isis:routing-protocol-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:version-skew/isis:isis-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:version-skew/isis:interface-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:version-skew/isis:interface-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:version-skew/isis:extended-circuit-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:version-skew/isis:protocol-version" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:version-skew/isis:raw-pdu" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:area-mismatch" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:area-mismatch/isis:routing-protocol-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:area-mismatch/isis:isis-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:area-mismatch/isis:interface-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:area-mismatch/isis:interface-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:area-mismatch/isis:extended-circuit-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:area-mismatch/isis:raw-pdu" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:rejected-adjacency" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:rejected-adjacency/isis:routing-protocol-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:rejected-adjacency/isis:isis-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:rejected-adjacency/isis:interface-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:rejected-adjacency/isis:interface-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:rejected-adjacency/isis:extended-circuit-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:rejected-adjacency/isis:raw-pdu" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:rejected-adjacency/isis:reason" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:protocols-supported-mismatch" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:protocols-supported-mismatch/isis:routing-protocol-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:protocols-supported-mismatch/isis:isis-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:protocols-supported-mismatch/isis:interface-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:protocols-supported-mismatch/isis:interface-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:protocols-supported-mismatch/isis:extended-circuit-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:protocols-supported-mismatch/isis:raw-pdu" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:protocols-supported-mismatch/isis:protocols" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-error-detected" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-error-detected/isis:routing-protocol-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-error-detected/isis:isis-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-error-detected/isis:interface-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-error-detected/isis:interface-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-error-detected/isis:extended-circuit-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-error-detected/isis:lsp-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-error-detected/isis:raw-pdu" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-error-detected/isis:error-offset" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-error-detected/isis:tlv-type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:adjacency-state-change" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:adjacency-state-change/isis:routing-protocol-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:adjacency-state-change/isis:isis-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:adjacency-state-change/isis:interface-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:adjacency-state-change/isis:interface-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:adjacency-state-change/isis:extended-circuit-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:adjacency-state-change/isis:neighbor" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:adjacency-state-change/isis:neighbor-system-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:adjacency-state-change/isis:state" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:adjacency-state-change/isis:reason" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-received" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-received/isis:routing-protocol-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-received/isis:isis-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-received/isis:interface-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-received/isis:interface-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-received/isis:extended-circuit-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-received/isis:lsp-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-received/isis:sequence" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-received/isis:received-timestamp" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-received/isis:neighbor-system-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-generation" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-generation/isis:routing-protocol-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-generation/isis:isis-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-generation/isis:lsp-id" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-generation/isis:sequence" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis:lsp-generation/isis:send-timestamp" {
+    deviate not-supported;
+  }
+  */
+}

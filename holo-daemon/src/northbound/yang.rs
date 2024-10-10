@@ -51,6 +51,11 @@ pub(crate) fn create_context() {
         use holo_bgp::instance::Instance;
         modules_add::<Instance>(&mut modules);
     }
+    #[cfg(feature = "isis")]
+    {
+        use holo_isis::instance::Instance;
+        modules_add::<Instance>(&mut modules);
+    }
     #[cfg(feature = "ldp")]
     {
         use holo_ldp::instance::Instance;

@@ -9,6 +9,7 @@ use std::collections::BTreeSet;
 use std::net::IpAddr;
 
 use bitflags::bitflags;
+use enum_as_inner::EnumAsInner;
 use holo_yang::{ToYang, TryFromYang};
 use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
@@ -144,11 +145,15 @@ pub struct LabelUninstallMsg {
 // Route opaque attributes.
 #[derive(Clone, Debug, Default)]
 #[derive(Deserialize, Serialize)]
+#[derive(EnumAsInner)]
 pub enum RouteOpaqueAttrs {
     #[default]
     None,
     Ospf {
         route_type: OspfRouteType,
+    },
+    Isis {
+        route_type: IsisRouteType,
     },
 }
 
@@ -160,6 +165,18 @@ pub enum OspfRouteType {
     InterArea,
     Type1External,
     Type2External,
+}
+
+// IS-IS route types.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Deserialize, Serialize)]
+pub enum IsisRouteType {
+    L2IntraArea,
+    L1IntraArea,
+    L2External,
+    L1External,
+    L1InterArea,
+    L1InterAreaExternal,
 }
 
 // ===== impl Nexthop =====
@@ -252,6 +269,23 @@ impl ToYang for OspfRouteType {
             OspfRouteType::InterArea => "inter-area".into(),
             OspfRouteType::Type1External => "external-1".into(),
             OspfRouteType::Type2External => "external-2".into(),
+        }
+    }
+}
+
+// ===== impl IsisRouteType =====
+
+impl ToYang for IsisRouteType {
+    fn to_yang(&self) -> Cow<'static, str> {
+        match self {
+            IsisRouteType::L2IntraArea => "l2-intra-area".into(),
+            IsisRouteType::L1IntraArea => "l1-intra-area".into(),
+            IsisRouteType::L2External => "l2-external".into(),
+            IsisRouteType::L1External => "l1-external".into(),
+            IsisRouteType::L1InterArea => "l1-inter-area".into(),
+            IsisRouteType::L1InterAreaExternal => {
+                "l1-inter-area-external".into()
+            }
         }
     }
 }

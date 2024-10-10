@@ -147,9 +147,10 @@ impl<'a> StructBuilder<'a> {
         let indent5 = " ".repeat((self.level + 5) * 2);
         let (lifetime, anon_lifetime) = if self.snode.is_within_notification()
             || self.fields.iter().any(|snode| {
-                !snode
-                    .leaf_type()
-                    .is_some_and(|leaf_type| leaf_type_is_builtin(&leaf_type))
+                snode.kind() == SchemaNodeKind::LeafList
+                    || !snode.leaf_type().is_some_and(|leaf_type| {
+                        leaf_type_is_builtin(&leaf_type)
+                    })
             }) {
             ("<'a>", "<'_>")
         } else {
@@ -349,6 +350,8 @@ fn snode_normalized_name(snode: &SchemaNode<'_>, case: Case) -> String {
             | "destination-prefix"
             | "address"
             | "next-hop-address"
+            | "clear-database"
+            | "if-state-change"
     ) {
         if snode.module().name() == "ietf-ipv4-unicast-routing" {
             name.insert_str(0, "ipv4-");
@@ -358,6 +361,23 @@ fn snode_normalized_name(snode: &SchemaNode<'_>, case: Case) -> String {
         }
         if snode.module().name() == "ietf-mpls" {
             name.insert_str(0, "mpls-");
+        }
+        if snode.module().name() == "ietf-isis" {
+            name.insert_str(0, "isis-");
+        }
+    }
+    if let Some(snode_parent) = snode.ancestors().next()
+        && snode_parent.module().name() == "ietf-routing"
+    {
+        if snode.module().name() == "ietf-ospf"
+            && matches!(snode.name(), "route-type" | "tag" | "metric")
+        {
+            name.insert_str(0, "ospf-");
+        }
+        if snode.module().name() == "ietf-isis"
+            && matches!(snode.name(), "route-type" | "tag" | "metric")
+        {
+            name.insert_str(0, "isis-");
         }
     }
 

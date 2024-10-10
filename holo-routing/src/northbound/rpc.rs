@@ -18,6 +18,8 @@ impl Provider for Master {
         let keys: Vec<Vec<CallbackKey>> = vec![
             #[cfg(feature = "bgp")]
             holo_bgp::northbound::rpc::CALLBACKS.keys(),
+            #[cfg(feature = "isis")]
+            holo_isis::northbound::rpc::CALLBACKS.keys(),
             #[cfg(feature = "ldp")]
             holo_ldp::northbound::rpc::CALLBACKS.keys(),
             #[cfg(feature = "ospf")]

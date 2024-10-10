@@ -29,6 +29,7 @@ holo-yang = { path = "../holo-yang" }
 
 holo-bfd = { path = "../holo-bfd", optional = true }
 holo-bgp = { path = "../holo-bgp", optional = true }
+holo-isis = { path = "../holo-isis", optional = true }
 holo-ldp = { path = "../holo-ldp", optional = true }
 holo-ospf = { path = "../holo-ospf", optional = true }
 holo-rip = { path = "../holo-rip", optional = true }
@@ -39,6 +40,7 @@ workspace = true
 [features]
 bfd = ["dep:holo-bfd"]
 bgp = ["dep:holo-bgp"]
+isis = ["dep:holo-isis"]
 ldp = ["dep:holo-ldp"]
 ospf = ["dep:holo-ospf"]
 rip = ["dep:holo-rip"]

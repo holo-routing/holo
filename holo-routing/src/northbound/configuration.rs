@@ -942,6 +942,8 @@ impl Provider for Master {
             holo_bfd::northbound::configuration::CALLBACKS.keys(),
             #[cfg(feature = "bgp")]
             holo_bgp::northbound::configuration::CALLBACKS.keys(),
+            #[cfg(feature = "isis")]
+            holo_isis::northbound::configuration::CALLBACKS.keys(),
             #[cfg(feature = "ldp")]
             holo_ldp::northbound::configuration::CALLBACKS.keys(),
             #[cfg(feature = "ospf")]
@@ -1116,6 +1118,18 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
         Protocol::DIRECT => {
             // This protocol type can not be configured.
             unreachable!()
+        }
+        #[cfg(feature = "isis")]
+        Protocol::ISIS => {
+            use holo_isis::instance::Instance;
+
+            spawn_protocol_task::<Instance>(
+                name,
+                &master.nb_tx,
+                &master.ibus_tx,
+                Default::default(),
+                master.shared.clone(),
+            )
         }
         #[cfg(feature = "ldp")]
         Protocol::LDP => {

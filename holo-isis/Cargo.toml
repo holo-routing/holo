@@ -1,0 +1,52 @@
+[package]
+name = "holo-isis"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+bitflags.workspace = true
+bytes.workspace = true
+chrono.workspace = true
+derive-new.workspace = true
+enum-as-inner.workspace = true
+fletcher.workspace = true
+generational-arena.workspace = true
+ipnetwork.workspace = true
+libc.workspace = true
+nix.workspace = true
+num-derive.workspace = true
+num-traits.workspace = true
+prefix-trie.workspace = true
+regex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_with.workspace = true
+smallvec.workspace = true
+socket2.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+yang3.workspace = true
+
+holo-northbound = { path = "../holo-northbound" }
+holo-protocol = { path = "../holo-protocol" }
+holo-utils = { path = "../holo-utils" }
+holo-yang = { path = "../holo-yang" }
+
+[dev-dependencies]
+criterion.workspace = true
+
+holo-isis = { path = ".", features = ["testing", "deterministic"] }
+holo-protocol = { path = "../holo-protocol", features = ["testing"] }
+holo-utils = { path = "../holo-utils", features = ["testing"] }
+
+[lints.clippy]
+len_without_is_empty = "allow"
+too_many_arguments = "allow"
+
+[features]
+default = []
+testing = []
+deterministic = []

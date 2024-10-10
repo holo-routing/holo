@@ -4,6 +4,7 @@ members = [
   "holo-bgp",
   "holo-daemon",
   "holo-interface",
+  "holo-isis",
   "holo-keychain",
   "holo-ldp",
   "holo-northbound",

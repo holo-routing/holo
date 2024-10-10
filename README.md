@@ -18,17 +18,6 @@ automation-driven networks.
 For a description of what a routing protocol is, please refer to this
 [Wikipedia page](https://en.wikipedia.org/wiki/Routing_protocol).
 
-## Architecture
-
-The image below shows the different logical layers of the Holo software stack:
-
-<p align="center">
-  <img src="http://westphal.com.br/holo/holo-layers2.png">
-</p>
-
-Items with a gray background have not been implemented yet.
-For more comprehensive and detailed information, please refer to the [Architecture](https://github.com/holo-routing/holo/wiki/Architecture) page.
-
 ## Features
 
 #### Focus on simplicity and correctness
@@ -40,7 +29,8 @@ implementations built on a robust foundation.  To that end, Holo's
 codebase prioritizes simplicity, modularity, and thorough documentation.
 Thanks to the strictness of the Rust compiler and extensive unit
 tests, it's expected that most regressions will be caught early in the
-development cycle of new features.
+development cycle of new features. For more details, please refer to the
+[Architecture](https://github.com/rwestphal/holo/wiki/Architecture) page.
 
 #### Automation-ready
 
@@ -142,7 +132,7 @@ specific needs.
 
 ## Compliance
 
-Holo supports the following IETF RFCs and Internet drafts:
+Holo supports the following Internet Standards:
 
 ##### BFD
 
@@ -173,6 +163,19 @@ Holo supports the following IETF RFCs and Internet drafts:
 * RFC 8092 - BGP Large Communities Attribute
 * RFC 8212 - Default External BGP (EBGP) Route Propagation Behavior without Policies
 * RFC 8642 - Policy Behavior for Well-Known BGP Communities
+
+##### IS-IS
+
+* ISO/IEC 10589 - Information technology — Telecommunications and information exchange between systems — Intermediate System to Intermediate System intra-domain routeing information exchange protocol for use in conjunction with the protocol for providing the connectionless-mode network service (ISO 8473)
+* RFC 1195 - Use of OSI IS-IS for Routing in TCP/IP and Dual Environments
+* RFC 3719 - Recommendations for Interoperable Networks using Intermediate System to Intermediate System (IS-IS)
+* RFC 3787 - Recommendations for Interoperable IP Networks using Intermediate System to Intermediate System (IS-IS)
+* RFC 5301 - Dynamic Hostname Exchange Mechanism for IS-IS
+* RFC 5304 - IS-IS Cryptographic Authentication
+* RFC 5305 - IS-IS Extensions for Traffic Engineering
+* RFC 5308 - Routing IPv6 with IS-IS
+* RFC 5310 - IS-IS Generic Cryptographic Authentication
+* RFC 8405 - Shortest Path First (SPF) Back-Off Delay Algorithm for Link-State IGPs
 
 ##### MPLS LDP
 
@@ -224,6 +227,7 @@ Holo supports the following IETF RFCs and Internet drafts:
 | ietf-ip@2018-01-09 | 52.17% | 0.00% | - | - | [40.00%](http://westphal.com.br/holo/ietf-ip.html) |
 | ietf-ipv4-unicast-routing@2018-03-13 | 100.00% | 100.00% | - | - | [100.00%](http://westphal.com.br/holo/ietf-ipv4-unicast-routing.html) |
 | ietf-ipv6-unicast-routing@2018-03-13 | 40.62% | 100.00% | - | - | [45.71%](http://westphal.com.br/holo/ietf-ipv6-unicast-routing.html) |
+| ietf-isis@2022-10-19 | 92.66% | 52.21% | 100.00% | 100.00% | [68.81%](http://westphal.com.br/holo/ietf-isis.html) |
 | ietf-key-chain@2017-04-18 | 100.00% | 100.00% | - | - | [100.00%](http://westphal.com.br/holo/ietf-key-chain.html) |
 | ietf-mpls-ldp@2022-03-14 | 86.96% | 92.31% | 100.00% | 100.00% | [92.38%](http://westphal.com.br/holo/ietf-mpls-ldp.html) |
 | ietf-mpls@2020-12-18 | 0.00% | 57.14% | - | - | [35.29%](http://westphal.com.br/holo/ietf-mpls.html) |

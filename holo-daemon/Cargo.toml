@@ -33,6 +33,7 @@ yang3.workspace = true
 holo-interface = { path = "../holo-interface", optional = true  }
 holo-bfd = { path = "../holo-bfd", optional = true }
 holo-bgp = { path = "../holo-bgp", optional = true }
+holo-isis = { path = "../holo-isis", optional = true }
 holo-keychain = { path = "../holo-keychain", optional = true }
 holo-ldp = { path = "../holo-ldp", optional = true }
 holo-northbound = { path = "../holo-northbound" }
@@ -66,6 +67,7 @@ default = [
   # Protocols
   "bfd",
   "bgp",
+  "isis",
   "ldp",
   "ospf",
   "rip",
@@ -81,6 +83,7 @@ system = ["dep:holo-system"]
 # Protocols
 bfd = ["dep:holo-bfd", "holo-routing/bfd"]
 bgp = ["dep:holo-bgp", "holo-routing/bgp"]
+isis = ["dep:holo-isis", "holo-routing/isis"]
 ldp = ["dep:holo-ldp", "holo-routing/ldp"]
 ospf = ["dep:holo-ospf", "holo-routing/ospf"]
 rip = ["dep:holo-rip", "holo-routing/rip"]

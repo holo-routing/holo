@@ -128,6 +128,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
         // IETF Holo augmentations
         EmbeddedModuleKey::new("holo-bgp", None, None, None) =>
             include_str!("../modules/augmentations/holo-bgp.yang"),
+        EmbeddedModuleKey::new("holo-isis", None, None, None) =>
+            include_str!("../modules/augmentations/holo-isis.yang"),
         EmbeddedModuleKey::new("holo-ospf", None, None, None) =>
             include_str!("../modules/augmentations/holo-ospf.yang"),
         EmbeddedModuleKey::new("holo-ospf-dev", None, None, None) =>
@@ -149,6 +151,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/deviations/holo-ietf-interfaces-deviations.yang"),
         EmbeddedModuleKey::new("holo-ietf-ip-deviations", None, None, None) =>
             include_str!("../modules/deviations/holo-ietf-ip-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-isis-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-isis-deviations.yang"),
         EmbeddedModuleKey::new("holo-ietf-mpls-deviations", None, None, None) =>
             include_str!("../modules/deviations/holo-ietf-mpls-deviations.yang"),
         EmbeddedModuleKey::new("holo-ietf-key-chain-deviations", None, None, None) =>
@@ -200,6 +204,7 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
             "ietf-if-vlan-encapsulation",
             "ietf-interfaces",
             "ietf-ip",
+            "ietf-isis",
             "ietf-key-chain",
             "ietf-routing",
             "ietf-routing-policy",
@@ -218,6 +223,7 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
             "ietf-tcp",
             // IETF Holo augmentations
             "holo-bgp",
+            "holo-isis",
             "holo-ospf",
             "holo-ospf-dev",
             "holo-routing",
@@ -243,6 +249,14 @@ pub static YANG_FEATURES: Lazy<HashMap<&'static str, Vec<&'static str>>> =
             ],
             "ietf-if-extensions" => vec![
                 "sub-interfaces",
+            ],
+            "ietf-isis" => vec![
+                "admin-control",
+                "ietf-spf-delay",
+                "key-chain",
+                "lsp-refresh",
+                "max-ecmp",
+                "nlpid-control",
             ],
             "ietf-ospf" => vec![
                 "bfd",

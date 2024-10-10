@@ -19,7 +19,7 @@ use holo_northbound::{CallbackKey, NbDaemonSender};
 use holo_utils::bier::{BfrId, Bsl};
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
-use holo_utils::southbound::{Nexthop, RouteOpaqueAttrs};
+use holo_utils::southbound::Nexthop;
 use holo_yang::ToYang;
 use ipnetwork::{Ipv4Network, Ipv6Network};
 
@@ -136,30 +136,10 @@ fn load_callbacks() -> Callbacks<Master> {
         .get_object(|_master, args| {
             use ribs::rib::routes::route::Route;
             let (dest, route) = args.list_entry.as_route().unwrap();
-            let mut route_preference = None;
-            let mut source_protocol = None;
-            let mut metric = None;
-            let mut tag = None;
-            let mut route_type = None;
-            if !dest.is_label() {
-                route_preference = Some(route.distance);
-                source_protocol = Some(route.protocol.to_yang());
-            }
-            if matches!(route.protocol, Protocol::OSPFV2 | Protocol::OSPFV3) {
-                metric = Some(route.metric);
-                tag = route.tag;
-            }
-            if let RouteOpaqueAttrs::Ospf {
-                route_type: rtype,
-            } = &route.opaque_attrs
-            {
-                route_type = Some(rtype.to_yang());
-            }
-
             // TODO: multiple unimplemented fields.
             Box::new(Route {
-                route_preference,
-                source_protocol,
+                route_preference: (!dest.is_label()).then_some(route.distance),
+                source_protocol: (!dest.is_label()).then_some(route.protocol.to_yang()),
                 active: route.flags.contains(RouteFlags::ACTIVE).then_some(()),
                 last_updated: Some(Cow::Borrowed(&route.last_updated)),
                 ipv4_destination_prefix: dest.as_ipv4().copied().map(Cow::Borrowed),
@@ -168,9 +148,12 @@ fn load_callbacks() -> Callbacks<Master> {
                 mpls_local_label: None,
                 mpls_destination_prefix: dest.as_label().map(|label| label.to_yang()),
                 route_context: None,
-                metric,
-                tag,
-                route_type,
+                ospf_metric: matches!(route.protocol, Protocol::OSPFV2 | Protocol::OSPFV3).then_some(route.metric),
+                ospf_tag: if matches!(route.protocol, Protocol::OSPFV2 | Protocol::OSPFV3) { route.tag } else { None },
+                ospf_route_type: route.opaque_attrs.as_ospf().map(|route_type| route_type.to_yang()),
+                isis_metric: (route.protocol == Protocol::ISIS).then_some(route.metric),
+                isis_tag: None,
+                isis_route_type: route.opaque_attrs.as_isis().map(|route_type| route_type.to_yang()),
             })
         })
         .path(ribs::rib::routes::route::next_hop::PATH)
@@ -354,6 +337,8 @@ impl Provider for Master {
             holo_bfd::northbound::state::CALLBACKS.keys(),
             #[cfg(feature = "bgp")]
             holo_bgp::northbound::state::CALLBACKS.keys(),
+            #[cfg(feature = "isis")]
+            holo_isis::northbound::state::CALLBACKS.keys(),
             #[cfg(feature = "ldp")]
             holo_ldp::northbound::state::CALLBACKS.keys(),
             #[cfg(feature = "ospf")]

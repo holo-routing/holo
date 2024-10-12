@@ -29,6 +29,9 @@ service Northbound {
   // Retrieve the capabilities supported by the target.
   rpc Capabilities(CapabilitiesRequest) returns (CapabilitiesResponse) {}
 
+  // Retrieve the specified schema data from the target.
+  rpc GetSchema(GetSchemaRequest) returns (GetSchemaResponse) {}
+
   // Retrieve configuration data, state data or both from the target.
   rpc Get(GetRequest) returns (GetResponse) {}
 
@@ -69,6 +72,34 @@ message CapabilitiesResponse {
 
   // Supported encodings.
   repeated Encoding supported_encodings = 3;
+}
+
+//
+// RPC: GetSchema()
+//
+message GetSchemaRequest {
+  // The name of the module to retrieve.
+  string module_name = 1;
+
+  // The specific revision of the module (optional).
+  string module_revision = 2;
+
+  // The name of the submodule to retrieve (optional).
+  string submodule_name = 3;
+
+  // The specific revision of the submodule (optional).
+  string submodule_revision = 4;
+
+  // The desired format of the schema output (optional).
+  SchemaFormat format = 5;
+}
+
+message GetSchemaResponse {
+  // - grpc::StatusCode::OK: Success.
+  // - grpc::StatusCode::NOT_FOUND: Schema module not found.
+
+  // The requested schema data.
+  string data = 1;
 }
 
 //
@@ -241,6 +272,12 @@ enum Encoding {
   JSON = 0;
   XML = 1;
   LYB = 2;
+}
+
+// Supported schema formats.
+enum SchemaFormat {
+  YANG = 0;
+  YIN = 1;
 }
 
 // YANG instance data.

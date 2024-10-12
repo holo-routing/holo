@@ -18,6 +18,7 @@ use yang3::data::{
     Data, DataDiff, DataFormat, DataOperation, DataParserFlags,
     DataPrinterFlags, DataTree, DataValidationFlags,
 };
+use yang3::schema::{SchemaOutputFormat, SchemaPrinterFlags};
 
 use crate::northbound::client::api;
 use crate::{config, northbound};
@@ -86,6 +87,65 @@ impl proto::Northbound for NorthboundService {
         };
 
         Ok(Response::new(reply))
+    }
+
+    async fn get_schema(
+        &self,
+        grpc_request: Request<proto::GetSchemaRequest>,
+    ) -> Result<Response<proto::GetSchemaResponse>, Status> {
+        let grpc_request = grpc_request.into_inner();
+        debug_span!("northbound").in_scope(|| {
+            debug_span!("client", name = "grpc").in_scope(|| {
+                debug!("received GetSchema() request");
+                trace!("{:?}", grpc_request);
+            });
+        });
+
+        // Lookup schema module.
+        let yang_ctx = YANG_CTX.get().unwrap();
+        let module_name = grpc_request.module_name;
+        let module_rev = get_optional_string(grpc_request.module_revision);
+        let submodule_name = get_optional_string(grpc_request.submodule_name);
+        let submodule_rev =
+            get_optional_string(grpc_request.submodule_revision);
+        let format = proto::SchemaFormat::try_from(grpc_request.format)
+            .map_err(|_| Status::invalid_argument("Invalid schema format"))?;
+
+        // Get module.
+        let module = match module_rev {
+            Some(module_rev) => {
+                yang_ctx.get_module(&module_name, Some(&module_rev))
+            }
+            None => yang_ctx.get_module_latest(&module_name),
+        }
+        .ok_or_else(|| Status::not_found("YANG module not found"))?;
+
+        let data = match submodule_name {
+            Some(submodule_name) => {
+                // Get submodule.
+                let submodule = match submodule_rev {
+                    Some(submodule_rev) => module
+                        .get_submodule(&submodule_name, Some(&submodule_rev)),
+                    None => module.get_submodule_latest(&submodule_name),
+                }
+                .ok_or_else(|| Status::not_found("YANG submodule not found"))?;
+
+                // Print submodule data based on the requested format.
+                submodule
+                    .print_string(format.into(), SchemaPrinterFlags::empty())
+                    .expect("Failed to print YANG submodule")
+            }
+            None => {
+                // Print module data based on the requested format.
+                module
+                    .print_string(format.into(), SchemaPrinterFlags::empty())
+                    .expect("Failed to print YANG module")
+            }
+        };
+
+        // Return schema data to the gRPC client.
+        let grpc_response = proto::GetSchemaResponse { data };
+        Ok(Response::new(grpc_response))
     }
 
     async fn get(
@@ -400,6 +460,15 @@ impl From<proto::Encoding> for DataFormat {
     }
 }
 
+impl From<proto::SchemaFormat> for SchemaOutputFormat {
+    fn from(format: proto::SchemaFormat) -> SchemaOutputFormat {
+        match format {
+            proto::SchemaFormat::Yang => SchemaOutputFormat::YANG,
+            proto::SchemaFormat::Yin => SchemaOutputFormat::YIN,
+        }
+    }
+}
+
 impl TryFrom<i32> for api::DataType {
     type Error = Status;
 
@@ -422,6 +491,14 @@ fn get_timestamp() -> i64 {
         .duration_since(SystemTime::UNIX_EPOCH)
         .expect("System time before UNIX EPOCH!")
         .as_secs() as i64
+}
+
+fn get_optional_string(data: String) -> Option<String> {
+    if data.is_empty() {
+        None
+    } else {
+        Some(data)
+    }
 }
 
 fn data_tree_init(

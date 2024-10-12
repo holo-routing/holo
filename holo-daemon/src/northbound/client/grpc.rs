@@ -425,15 +425,13 @@ fn data_tree_init(
         DataFormat::JSON | DataFormat::XML => {
             let string = dtree
                 .print_string(data_format, printer_flags)
-                .map_err(|error| Status::internal(error.to_string()))?
-                .unwrap_or_default();
+                .map_err(|error| Status::internal(error.to_string()))?;
             proto::data_tree::Data::DataString(string)
         }
         DataFormat::LYB => {
             let bytes = dtree
                 .print_bytes(data_format, printer_flags)
-                .map_err(|error| Status::internal(error.to_string()))?
-                .unwrap_or_default();
+                .map_err(|error| Status::internal(error.to_string()))?;
             proto::data_tree::Data::DataBytes(bytes)
         }
     };

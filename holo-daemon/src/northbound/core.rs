@@ -368,7 +368,6 @@ impl Northbound {
                 DataPrinterFlags::WITH_SIBLINGS
             )
             .unwrap()
-            .unwrap_or_default()
         );
 
         // Phase 1: validate configuration and attempt to prepare resources for

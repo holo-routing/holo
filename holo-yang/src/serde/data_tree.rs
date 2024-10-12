@@ -26,8 +26,7 @@ where
                 | DataPrinterFlags::SHRINK
                 | DataPrinterFlags::WD_TRIM,
         )
-        .map_err(serde::ser::Error::custom)?
-        .unwrap_or_default();
+        .map_err(serde::ser::Error::custom)?;
     s.serialize_str(&data)
 }
 

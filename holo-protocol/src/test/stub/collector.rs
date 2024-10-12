@@ -99,8 +99,7 @@ impl MessageCollector {
                                     | DataPrinterFlags::SHRINK
                                     | DataPrinterFlags::WD_TRIM,
                             )
-                            .unwrap()
-                            .unwrap_or_default();
+                            .unwrap();
                         nb_notifications.lock().unwrap().push(data);
                     }
                     Ok(msg) = ibus_output_rx.recv() => {

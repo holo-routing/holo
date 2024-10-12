@@ -199,7 +199,6 @@ impl NorthboundStub {
                             | DataPrinterFlags::WD_TRIM,
                     )
                     .unwrap()
-                    .unwrap()
             );
         }
 
@@ -263,5 +262,4 @@ fn dtree_print(dtree: &DataTree<'static>) -> String {
             DataPrinterFlags::WITH_SIBLINGS | DataPrinterFlags::WD_TRIM,
         )
         .unwrap()
-        .unwrap_or_default()
 }

@@ -322,8 +322,7 @@ impl GNmiService {
                         DataFormat::JSON,
                         DataPrinterFlags::WITH_SIBLINGS,
                     )
-                    .unwrap()
-                    .unwrap_or_default();
+                    .unwrap();
                 let val = proto::TypedValue {
                     value: Some(proto::typed_value::Value::JsonIetfVal(
                         val.into_bytes(),

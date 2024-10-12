@@ -360,7 +360,7 @@ impl From<northbound::Error> for Status {
                 Status::resource_exhausted(error.to_string())
             }
             northbound::Error::TransactionIdNotFound(..) => {
-                Status::invalid_argument(error.to_string())
+                Status::not_found(error.to_string())
             }
             northbound::Error::Get(..) => {
                 Status::invalid_argument(error.to_string())

@@ -29,93 +29,34 @@ pub type IbusSender = Sender<IbusMsg>;
 // Ibus message for communication among the different Holo components.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum IbusMsg {
-    // BFD peer registration.
-    BfdSessionReg {
-        sess_key: bfd::SessionKey,
-        client_id: bfd::ClientId,
-        client_config: Option<bfd::ClientCfg>,
-    },
-    // BFD peer unregistration.
-    BfdSessionUnreg {
-        sess_key: bfd::SessionKey,
-        client_id: bfd::ClientId,
-    },
-    // BFD peer state update.
-    BfdStateUpd {
-        sess_key: bfd::SessionKey,
-        state: bfd::State,
-    },
-    // Query the current hostname.
-    HostnameQuery,
-    // Hostname update notification.
-    HostnameUpdate(Option<String>),
-    // Request to dump information about all interfaces.
-    InterfaceDump,
-    // Query information about a specific interface.
-    InterfaceQuery {
-        ifname: String,
-        af: Option<AddressFamily>,
-    },
-    // Interface update notification.
-    InterfaceUpd(InterfaceUpdateMsg),
-    // Interface delete notification.
-    InterfaceDel(String),
-    // Interface address addition notification.
-    InterfaceAddressAdd(AddressMsg),
-    // Interface address delete notification.
-    InterfaceAddressDel(AddressMsg),
-    // Keychain update notification.
-    KeychainUpd(Arc<Keychain>),
-    // Keychain delete notification.
-    KeychainDel(String),
-    // Nexthop tracking registration.
-    NexthopTrack(IpAddr),
-    // Nexthop tracking unregistration.
-    NexthopUntrack(IpAddr),
-    // Nexthop tracking update.
-    NexthopUpd {
-        addr: IpAddr,
-        metric: Option<u32>,
-    },
-    // Policy match sets update notification.
-    PolicyMatchSetsUpd(Arc<MatchSets>),
-    // Policy definition update notification.
-    PolicyUpd(Arc<Policy>),
-    // Policy definition delete notification.
-    PolicyDel(String),
-    // Query the current Router ID.
-    RouterIdQuery,
-    // Router ID update notification.
-    RouterIdUpdate(Option<Ipv4Addr>),
-    // Request to install IP route in the RIB.
-    RouteIpAdd(RouteMsg),
-    // Request to uninstall IP route from the RIB.
-    RouteIpDel(RouteKeyMsg),
-    // Request to install MPLS route in the LIB.
-    RouteMplsAdd(LabelInstallMsg),
-    // Request to uninstall MPLS route from the LIB.
-    RouteMplsDel(LabelUninstallMsg),
-    // Request to redistribute routes.
-    RouteRedistributeDump {
-        protocol: Protocol,
-        af: Option<AddressFamily>,
-    },
-    // Route redistribute update notification.
-    RouteRedistributeAdd(RouteMsg),
-    // Route redistribute delete notification.
-    RouteRedistributeDel(RouteKeyMsg),
-    // Segment Routing configuration update.
-    SrCfgUpd(Arc<SrCfg>),
-    // Segment Routing configuration event.
-    SrCfgEvent(SrCfgEvent),
-    // BIER configuration update.
-    BierCfgUpd(Arc<BierCfg>),
-    // BIER configuration event.
-    BierCfgEvent(BierCfgEvent),
-    // Request to install an entry in the BIRT.
-    RouteBierAdd(BierNbrInstallMsg),
-    // Request to uninstall an entry in the BIRT.
-    RouteBierDel(BierNbrUninstallMsg),
+    // BFD session
+    BfdSession(BfdSessionMsg),
+    // Hostname
+    Hostname(HostnameMsg),
+    // Interface
+    Interface(InterfaceMsg),
+    // Interface Address
+    InterfaceAddress(InterfaceAddressMsg),
+    // Keychain
+    Keychain(KeychainMsg),
+    // Nexthop
+    Nexthop(NexthopMsg),
+    // policy
+    Policy(PolicyMsg),
+    // Router ID
+    RouterId(RouterIdMsg),
+    // Route Ip
+    RouteIp(RouteIpMsg),
+    // Route Mpls
+    RouteMpls(RouteMplsMsg),
+    // Route redistribute
+    RouteRedistribute(RouteRedistributeMsg),
+    // SrCfg
+    SrCfg(SrCfgMsg),
+    // BIER
+    BierCfg(BierCfgMsg),
+    // ROUTE BIER
+    RouteBier(RouteBierMsg),
     // Purge the BIRT.
     /* TODO: Add Protocol argument to BierPurge to specify which BIRT has to be purged.
      *  E.g., One could ask to purge the BIRT populated by a specific instance
@@ -123,6 +64,151 @@ pub enum IbusMsg {
      *  See https://github.com/holo-routing/holo/pull/16#discussion_r1729456621.
      */
     BierPurge,
+}
+
+// Bfd session ibus messages
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum BfdSessionMsg {
+    // BFD peer registration.
+    Registration {
+        sess_key: bfd::SessionKey,
+        client_id: bfd::ClientId,
+        client_config: Option<bfd::ClientCfg>,
+    },
+
+    // BFD peer unregistration.
+    Unregistration {
+        sess_key: bfd::SessionKey,
+        client_id: bfd::ClientId,
+    },
+
+    // BFD peer state update.
+    Update {
+        sess_key: bfd::SessionKey,
+        state: bfd::State,
+    },
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum HostnameMsg {
+    // Query the current hostname.
+    Query,
+    // Hostname update notification.
+    Update(Option<String>),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum InterfaceMsg {
+    // Request to dump information about all interfaces.
+    Dump,
+    // Query information about a specific interface.
+    Query {
+        ifname: String,
+        af: Option<AddressFamily>,
+    },
+    // Interface update notification.
+    Update(InterfaceUpdateMsg),
+    // Interface delete notification.
+    Delete(String),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum InterfaceAddressMsg {
+    // Interface address addition notification.
+    Add(AddressMsg),
+
+    // Interface address delete notification.
+    Delete(AddressMsg),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum KeychainMsg {
+    // Keychain update notification.
+    Update(Arc<Keychain>),
+
+    // Keychain delete notification.
+    Delete(String),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum NexthopMsg {
+    // Nexthop tracking registration
+    Track(IpAddr),
+
+    // Nexthop tracking unregistration
+    Untrack(IpAddr),
+
+    // Nexthop tracking update
+    Update { addr: IpAddr, metric: Option<u32> },
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum PolicyMsg {
+    // Policy match sets update notification.
+    MatchSetsUpdate(Arc<MatchSets>),
+    // Policy definition update notification.
+    Update(Arc<Policy>),
+    // Policy definition delete notification.
+    Delete(String),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum RouterIdMsg {
+    // Query the current Router ID.
+    Query,
+    // Router ID update notification.
+    Update(Option<Ipv4Addr>),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum RouteIpMsg {
+    Add(RouteMsg),
+    Delete(RouteKeyMsg),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum RouteMplsMsg {
+    // Request to install MPLS route in the LIB.
+    Add(LabelInstallMsg),
+    // Request to uninstall MPLS route from the LIB.
+    Delete(LabelUninstallMsg),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum RouteRedistributeMsg {
+    // Request to redistribute routes.
+    Dump {
+        protocol: Protocol,
+        af: Option<AddressFamily>,
+    },
+    // Route redistribute update notification.
+    Add(RouteMsg),
+    // Route redistribute delete notification.
+    Delete(RouteKeyMsg),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum SrCfgMsg {
+    // Segment Routing configuration update.
+    Update(Arc<SrCfg>),
+    // Segment Routing configuration event.
+    Event(SrCfgEvent),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum BierCfgMsg {
+    // BIER configuration update.
+    Update(Arc<BierCfg>),
+    // BIER configuration event.
+    Event(BierCfgEvent),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum RouteBierMsg {
+    // Request to install an entry in the BIRT.
+    Add(BierNbrInstallMsg),
+    // Request to uninstall an entry in the BIRT.
+    Delete(BierNbrUninstallMsg),
 }
 
 // Type of Segment Routing configuration change.

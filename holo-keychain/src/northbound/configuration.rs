@@ -15,7 +15,7 @@ use holo_northbound::configuration::{
 };
 use holo_northbound::yang::key_chains;
 use holo_utils::crypto::CryptoAlgo;
-use holo_utils::ibus::IbusMsg;
+use holo_utils::ibus::{IbusMsg, KeychainMsg};
 use holo_utils::keychain::{Key, Keychain, KeychainKey};
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
@@ -443,12 +443,12 @@ impl Provider for Master {
                 let keychain = Arc::new(keychain.clone());
 
                 // Notify protocols that the keychain has been updated.
-                let msg = IbusMsg::KeychainUpd(keychain);
+                let msg = IbusMsg::Keychain(KeychainMsg::Update(keychain));
                 let _ = self.ibus_tx.send(msg);
             }
             Event::KeychainDelete(name) => {
                 // Notify protocols that the keychain has been deleted.
-                let msg = IbusMsg::KeychainDel(name);
+                let msg = IbusMsg::Keychain(KeychainMsg::Delete(name));
                 let _ = self.ibus_tx.send(msg);
             }
         }

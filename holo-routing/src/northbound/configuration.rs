@@ -22,7 +22,9 @@ use holo_utils::bier::{
     BierEncapsulation, BierEncapsulationType, BierInBiftId, BierSubDomainCfg,
     Bsl, SubDomainId, UnderlayProtocolType,
 };
-use holo_utils::ibus::{BierCfgEvent, IbusMsg, SrCfgEvent};
+use holo_utils::ibus::{
+    BierCfgEvent, BierCfgMsg, IbusMsg, RouteIpMsg, SrCfgEvent, SrCfgMsg,
+};
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::mpls::LabelRange;
 use holo_utils::protocol::Protocol;
@@ -1031,7 +1033,7 @@ impl Provider for Master {
                 };
 
                 // Send message.
-                let msg = IbusMsg::RouteIpAdd(msg);
+                let msg = IbusMsg::RouteIp(RouteIpMsg::Add(msg));
                 let _ = self.ibus_tx.send(msg);
             }
             Event::StaticRouteUninstall(prefix) => {
@@ -1042,7 +1044,7 @@ impl Provider for Master {
                 };
 
                 // Send message.
-                let msg = IbusMsg::RouteIpDel(msg);
+                let msg = IbusMsg::RouteIp(RouteIpMsg::Delete(msg));
                 let _ = self.ibus_tx.send(msg);
             }
             Event::SrCfgUpdate => {
@@ -1050,40 +1052,40 @@ impl Provider for Master {
                 self.shared.sr_config = Arc::new(self.sr_config.clone());
 
                 // Notify protocol instances about the updated SR configuration.
-                let _ = self
-                    .ibus_tx
-                    .send(IbusMsg::SrCfgUpd(self.shared.sr_config.clone()));
+                let _ = self.ibus_tx.send(IbusMsg::SrCfg(SrCfgMsg::Update(
+                    self.shared.sr_config.clone(),
+                )));
             }
             Event::SrCfgLabelRangeUpdate => {
                 // Notify protocol instances about the updated SRGB/SRLB configuration.
-                let _ = self
-                    .ibus_tx
-                    .send(IbusMsg::SrCfgEvent(SrCfgEvent::LabelRangeUpdate));
+                let _ = self.ibus_tx.send(IbusMsg::SrCfg(SrCfgMsg::Event(
+                    SrCfgEvent::LabelRangeUpdate,
+                )));
             }
             Event::SrCfgPrefixSidUpdate(af) => {
                 // Notify protocol instances about the updated Prefix-SID configuration.
-                let _ = self
-                    .ibus_tx
-                    .send(IbusMsg::SrCfgEvent(SrCfgEvent::PrefixSidUpdate(af)));
+                let _ = self.ibus_tx.send(IbusMsg::SrCfg(SrCfgMsg::Event(
+                    SrCfgEvent::PrefixSidUpdate(af),
+                )));
             }
             Event::BierCfgUpdate => {
                 // Update the shared BIER configuration by creating a new reference-counted copy.
                 self.shared.bier_config = Arc::new(self.bier_config.clone());
 
                 // Notify protocol instances about the updated BIER configuration.
-                let _ = self
-                    .ibus_tx
-                    .send(IbusMsg::BierCfgUpd(self.shared.bier_config.clone()));
+                let _ = self.ibus_tx.send(IbusMsg::BierCfg(
+                    BierCfgMsg::Update(self.shared.bier_config.clone()),
+                ));
             }
             Event::BierCfgEncapUpdate(_sd_id, af, _bsl, _encap_type) => {
-                let _ = self
-                    .ibus_tx
-                    .send(IbusMsg::BierCfgEvent(BierCfgEvent::EncapUpdate(af)));
+                let _ = self.ibus_tx.send(IbusMsg::BierCfg(BierCfgMsg::Event(
+                    BierCfgEvent::EncapUpdate(af),
+                )));
             }
             Event::BierCfgSubDomainUpdate(af) => {
-                let _ = self.ibus_tx.send(IbusMsg::BierCfgEvent(
+                let _ = self.ibus_tx.send(IbusMsg::BierCfg(BierCfgMsg::Event(
                     BierCfgEvent::SubDomainUpdate(af),
-                ));
+                )));
             }
         }
     }

@@ -553,11 +553,13 @@ where
     ) {
         Debug::<V>::NeighborBfdReg(self.router_id).log();
 
-        let msg = IbusMsg::BfdSessionReg {
-            sess_key: self.bfd_session_key(iface),
-            client_id: self.bfd_client_id(instance),
-            client_config: Some(iface.config.bfd_params),
-        };
+        let msg = IbusMsg::BfdSession(
+            holo_utils::ibus::BfdSessionMsg::Registration {
+                sess_key: self.bfd_session_key(iface),
+                client_id: self.bfd_client_id(instance),
+                client_config: Some(iface.config.bfd_params),
+            },
+        );
         let _ = instance.tx.ibus.send(msg);
     }
 
@@ -568,10 +570,12 @@ where
     ) {
         Debug::<V>::NeighborBfdUnreg(self.router_id).log();
 
-        let msg = IbusMsg::BfdSessionUnreg {
-            sess_key: self.bfd_session_key(iface),
-            client_id: self.bfd_client_id(instance),
-        };
+        let msg = IbusMsg::BfdSession(
+            holo_utils::ibus::BfdSessionMsg::Unregistration {
+                sess_key: self.bfd_session_key(iface),
+                client_id: self.bfd_client_id(instance),
+            },
+        );
         let _ = instance.tx.ibus.send(msg);
     }
 

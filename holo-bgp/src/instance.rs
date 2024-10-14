@@ -12,7 +12,9 @@ use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
 };
 use holo_utils::bgp::AfiSafi;
-use holo_utils::ibus::IbusMsg;
+use holo_utils::ibus::{
+    IbusMsg, NexthopMsg, PolicyMsg, RouteRedistributeMsg, RouterIdMsg,
+};
 use holo_utils::ip::AddressFamily;
 use holo_utils::policy::PolicyType;
 use holo_utils::protocol::Protocol;
@@ -447,36 +449,50 @@ async fn process_ibus_msg(
     msg: IbusMsg,
 ) -> Result<(), Error> {
     match msg {
-        IbusMsg::NexthopUpd { addr, metric } => {
+        // Nexthop
+        IbusMsg::Nexthop(NexthopMsg::Update { addr, metric }) => {
             // Nexthop tracking update notification.
             southbound::rx::process_nht_update(instance, addr, metric);
         }
-        IbusMsg::RouterIdUpdate(router_id) => {
+
+        // Router ID
+        IbusMsg::RouterId(RouterIdMsg::Update(router_id)) => {
             // Router ID update notification.
             southbound::rx::process_router_id_update(instance, router_id).await;
         }
-        IbusMsg::PolicyMatchSetsUpd(match_sets) => {
-            // Update the local copy of the policy match sets.
-            instance.shared.policy_match_sets = match_sets;
-        }
-        IbusMsg::PolicyUpd(policy) => {
-            // Update the local copy of the policy definition.
-            instance
-                .shared
-                .policies
-                .insert(policy.name.clone(), policy.clone());
-        }
-        IbusMsg::PolicyDel(policy_name) => {
-            // Remove the local copy of the policy definition.
-            instance.shared.policies.remove(&policy_name);
-        }
-        IbusMsg::RouteRedistributeAdd(msg) => {
-            // Route redistribute update notification.
-            southbound::rx::process_route_add(instance, msg);
-        }
-        IbusMsg::RouteRedistributeDel(msg) => {
-            // Route redistribute delete notification.
-            southbound::rx::process_route_del(instance, msg);
+
+        // policy
+        IbusMsg::Policy(policy_msg) => match policy_msg {
+            PolicyMsg::MatchSetsUpdate(match_sets) => {
+                // Update the local copy of the policy match sets.
+                instance.shared.policy_match_sets = match_sets;
+            }
+            PolicyMsg::Update(policy) => {
+                // Update the local copy of the policy definition.
+                instance
+                    .shared
+                    .policies
+                    .insert(policy.name.clone(), policy.clone());
+            }
+            PolicyMsg::Delete(policy_name) => {
+                // Remove the local copy of the policy definition.
+                instance.shared.policies.remove(&policy_name);
+            }
+        },
+
+        // route redistribute
+        IbusMsg::RouteRedistribute(route_redistribute_msg) => {
+            match route_redistribute_msg {
+                RouteRedistributeMsg::Add(msg) => {
+                    // Route redistribute update notification.
+                    southbound::rx::process_route_add(instance, msg);
+                }
+                RouteRedistributeMsg::Delete(msg) => {
+                    // Route redistribute delete notification.
+                    southbound::rx::process_route_del(instance, msg);
+                }
+                _ => {}
+            }
         }
         // Ignore other events.
         _ => {}

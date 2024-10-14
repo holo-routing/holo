@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use holo_utils::ibus::{IbusMsg, IbusSender};
+use holo_utils::ibus::{IbusMsg, IbusSender, RouteIpMsg};
 use holo_utils::southbound::{
     Nexthop, RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
 };
@@ -43,7 +43,7 @@ pub(crate) fn route_install<V>(
     };
 
     // Send message.
-    let msg = IbusMsg::RouteIpAdd(msg);
+    let msg = IbusMsg::RouteIp(RouteIpMsg::Add(msg));
     let _ = ibus_tx.send(msg);
 }
 
@@ -63,6 +63,6 @@ where
     };
 
     // Send message.
-    let msg = IbusMsg::RouteIpDel(msg);
+    let msg = IbusMsg::RouteIp(RouteIpMsg::Delete(msg));
     let _ = ibus_tx.send(msg);
 }

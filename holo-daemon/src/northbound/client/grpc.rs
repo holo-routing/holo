@@ -9,7 +9,7 @@ use std::time::SystemTime;
 
 use futures::Stream;
 use holo_utils::Sender;
-use holo_yang::YANG_CTX;
+use holo_yang::{YANG_CTX, YANG_FEATURES};
 use tokio::sync::oneshot;
 use tonic::transport::{Server, ServerTlsConfig};
 use tonic::{Request, Response, Status};
@@ -63,6 +63,15 @@ impl proto::Northbound for NorthboundService {
                     .unwrap_or_default()
                     .to_owned(),
                 revision: module.revision().unwrap_or_default().to_owned(),
+                supported_features: YANG_FEATURES
+                    .get(&module.name())
+                    .map(|features| {
+                        features
+                            .iter()
+                            .map(|feature| (*feature).to_owned())
+                            .collect()
+                    })
+                    .unwrap_or_default(),
             })
             .collect();
 

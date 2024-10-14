@@ -231,6 +231,9 @@ message ModuleData {
 
   // Latest revision of the module;
   string revision = 3;
+
+  // Supported features.
+  repeated string supported_features = 4;
 }
 
 // Supported encodings for YANG instance data.

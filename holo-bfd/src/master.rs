@@ -12,7 +12,7 @@ use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
 };
 use holo_utils::bfd::{PathType, State};
-use holo_utils::ibus::IbusMsg;
+use holo_utils::ibus::{BfdSessionMsg, IbusMsg, InterfaceMsg};
 use holo_utils::ip::AddressFamily;
 use holo_utils::protocol::Protocol;
 use holo_utils::task::Task;
@@ -144,7 +144,7 @@ impl ProtocolInstance for Master {
 
     async fn init(&mut self) {
         // Request information about all interfaces.
-        let _ = self.tx.ibus.send(IbusMsg::InterfaceDump);
+        let _ = self.tx.ibus.send(IbusMsg::Interface(InterfaceMsg::Dump));
     }
 
     async fn process_ibus_msg(&mut self, msg: IbusMsg) {
@@ -229,27 +229,32 @@ async fn process_ibus_msg(
     msg: IbusMsg,
 ) -> Result<(), Error> {
     match msg {
-        // BFD peer registration.
-        IbusMsg::BfdSessionReg {
-            client_id,
-            sess_key,
-            client_config,
-        } => events::process_client_peer_reg(
-            master,
-            sess_key,
-            client_id,
-            client_config,
-        )?,
-        // BFD peer unregistration.
-        IbusMsg::BfdSessionUnreg {
-            sess_key,
-            client_id,
-        } => events::process_client_peer_unreg(master, sess_key, client_id)?,
-        // Interface update notification.
-        IbusMsg::InterfaceUpd(msg) => {
-            southbound::process_iface_update(master, msg);
+        // BFD Session
+        IbusMsg::BfdSession(bfd_msg) => match bfd_msg {
+            BfdSessionMsg::Registration {
+                sess_key,
+                client_id,
+                client_config,
+            } => events::process_client_peer_reg(
+                master,
+                sess_key,
+                client_id,
+                client_config,
+            )?,
+            BfdSessionMsg::Unregistration {
+                sess_key,
+                client_id,
+            } => {
+                events::process_client_peer_unreg(master, sess_key, client_id)?
+            }
+            _ => {}
+        },
+
+        // Interface
+        IbusMsg::Interface(InterfaceMsg::Update(msg)) => {
+            southbound::process_iface_update(master, msg)
         }
-        // Ignore other events.
+
         _ => {}
     }
 

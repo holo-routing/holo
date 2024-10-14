@@ -7,10 +7,10 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use holo_utils::ibus::{IbusMsg, IbusSender};
+use holo_utils::ibus::{IbusMsg, IbusSender, RouterIdMsg};
 
 // ===== global functions =====
 
 pub(crate) fn router_id_query(ibus_tx: &IbusSender) {
-    let _ = ibus_tx.send(IbusMsg::RouterIdQuery);
+    let _ = ibus_tx.send(IbusMsg::RouterId(RouterIdMsg::Query));
 }

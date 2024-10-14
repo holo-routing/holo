@@ -15,7 +15,10 @@ use chrono::{DateTime, Utc};
 use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
 };
-use holo_utils::ibus::IbusMsg;
+use holo_utils::ibus::{
+    BfdSessionMsg, BierCfgMsg, IbusMsg, InterfaceAddressMsg, InterfaceMsg,
+    KeychainMsg, RouterIdMsg, SrCfgMsg,
+};
 use holo_utils::ip::AddressFamily;
 use holo_utils::protocol::Protocol;
 use holo_utils::task::TimeoutTask;
@@ -737,60 +740,87 @@ where
     V: Version,
 {
     match msg {
-        // BFD peer state update event.
-        IbusMsg::BfdStateUpd { sess_key, state } => {
+        // BFD session Message
+        IbusMsg::BfdSession(BfdSessionMsg::Update { sess_key, state }) => {
             events::process_bfd_state_update(instance, sess_key, state)?
         }
-        // Interface update notification.
-        IbusMsg::InterfaceUpd(msg) => {
+
+        // Interface
+        IbusMsg::Interface(InterfaceMsg::Update(msg)) => {
+            // Interface update notification.
             southbound::rx::process_iface_update(instance, msg);
         }
-        // Interface address addition notification.
-        IbusMsg::InterfaceAddressAdd(msg) => {
-            southbound::rx::process_addr_add(instance, msg);
-        }
-        // Interface address delete notification.
-        IbusMsg::InterfaceAddressDel(msg) => {
-            southbound::rx::process_addr_del(instance, msg);
-        }
-        // Keychain update event.
-        IbusMsg::KeychainUpd(keychain) => {
-            // Update the local copy of the keychain.
-            instance
-                .shared
-                .keychains
-                .insert(keychain.name.clone(), keychain.clone());
 
-            // Update all interfaces using this keychain.
-            events::process_keychain_update(instance, &keychain.name)?
-        }
-        // Keychain delete event.
-        IbusMsg::KeychainDel(keychain_name) => {
-            // Remove the local copy of the keychain.
-            instance.shared.keychains.remove(&keychain_name);
+        // Interface Address
+        IbusMsg::InterfaceAddress(iface_addr_msg) => match iface_addr_msg {
+            // Interface address addition notification.
+            InterfaceAddressMsg::Add(msg) => {
+                southbound::rx::process_addr_add(instance, msg);
+            }
+            // Interface address delete notification.
+            InterfaceAddressMsg::Delete(msg) => {
+                southbound::rx::process_addr_del(instance, msg);
+            }
+        },
 
-            // Update all interfaces using this keychain.
-            events::process_keychain_update(instance, &keychain_name)?
-        }
-        // Router ID update notification.
-        IbusMsg::RouterIdUpdate(router_id) => {
+        // Keychain
+        IbusMsg::Keychain(keychain_msg) => match keychain_msg {
+            // Keychain update event.
+            KeychainMsg::Update(keychain) => {
+                // Update the local copy of the keychain.
+                instance
+                    .shared
+                    .keychains
+                    .insert(keychain.name.clone(), keychain.clone());
+
+                // Update all interfaces using this keychain.
+                events::process_keychain_update(instance, &keychain.name)?
+            }
+
+            // Keychain delete event.
+            KeychainMsg::Delete(keychain_name) => {
+                // Remove the local copy of the keychain.
+                instance.shared.keychains.remove(&keychain_name);
+
+                // Update all interfaces using this keychain.
+                events::process_keychain_update(instance, &keychain_name)?
+            }
+        },
+
+        // Router ID
+        IbusMsg::RouterId(RouterIdMsg::Update(router_id)) => {
+            // Router ID update notification.
             southbound::rx::process_router_id_update(instance, router_id);
         }
-        // SR configuration update.
-        IbusMsg::SrCfgUpd(sr_config) => {
-            instance.shared.sr_config = sr_config;
+
+        // SrCfg
+        IbusMsg::SrCfg(sr_cfg_msg) => {
+            match sr_cfg_msg {
+                SrCfgMsg::Update(sr_config) => {
+                    // BIER configuration update.
+                    instance.shared.sr_config = sr_config;
+                }
+
+                // SR configuration event.
+                SrCfgMsg::Event(event) => {
+                    events::process_sr_cfg_change(instance, event)?
+                }
+            }
         }
-        // BIER configuration update.
-        IbusMsg::BierCfgUpd(bier_config) => {
-            instance.shared.bier_config = bier_config.clone();
+
+        // BierCfg
+        IbusMsg::BierCfg(bier_cfg_msg) => {
+            match bier_cfg_msg {
+                // BIER configuration update.
+                BierCfgMsg::Update(bier_config) => {
+                    instance.shared.bier_config = bier_config.clone();
+                }
+                BierCfgMsg::Event(event) => {
+                    events::process_bier_cfg_change(instance, event)?
+                }
+            }
         }
-        // SR configuration event.
-        IbusMsg::SrCfgEvent(event) => {
-            events::process_sr_cfg_change(instance, event)?
-        }
-        IbusMsg::BierCfgEvent(event) => {
-            events::process_bier_cfg_change(instance, event)?
-        }
+
         // Ignore other events.
         _ => {}
     }

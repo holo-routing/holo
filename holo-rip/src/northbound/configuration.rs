@@ -16,7 +16,7 @@ use holo_northbound::configuration::{
 };
 use holo_northbound::yang::control_plane_protocol::rip;
 use holo_utils::crypto::CryptoAlgo;
-use holo_utils::ibus::IbusMsg;
+use holo_utils::ibus::{IbusMsg, InterfaceMsg};
 use holo_utils::ip::IpAddrKind;
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::{ToYang, TryFromYang};
@@ -456,10 +456,12 @@ where
             }
             Event::InterfaceQuerySouthbound(ifname) => {
                 if let Instance::Up(instance) = self {
-                    let _ = instance.tx.ibus.send(IbusMsg::InterfaceQuery {
-                        ifname,
-                        af: Some(V::ADDRESS_FAMILY),
-                    });
+                    let _ = instance.tx.ibus.send(IbusMsg::Interface(
+                        InterfaceMsg::Query {
+                            ifname,
+                            af: Some(V::ADDRESS_FAMILY),
+                        },
+                    ));
                 }
             }
             Event::JoinMulticast(iface_idx) => {

@@ -16,7 +16,9 @@ use chrono::{DateTime, Utc};
 use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
 };
-use holo_utils::ibus::IbusMsg;
+use holo_utils::ibus::{
+    IbusMsg, InterfaceAddressMsg, InterfaceMsg, RouterIdMsg,
+};
 use holo_utils::protocol::Protocol;
 use holo_utils::task::TimeoutTask;
 use holo_utils::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
@@ -486,22 +488,29 @@ async fn process_ibus_msg(
     msg: IbusMsg,
 ) -> Result<(), Error> {
     match msg {
-        // Router ID update notification.
-        IbusMsg::RouterIdUpdate(router_id) => {
+        // ==== ROUTER ID ====
+        IbusMsg::RouterId(RouterIdMsg::Update(router_id)) => {
             southbound::rx::process_router_id_update(instance, router_id).await;
         }
-        // Interface update notification.
-        IbusMsg::InterfaceUpd(msg) => {
-            southbound::rx::process_iface_update(instance, msg)?;
+
+        // ==== INTERFACE ====
+        IbusMsg::Interface(InterfaceMsg::Update(msg)) => {
+            // Interface update notification.
+            let _ = southbound::rx::process_iface_update(instance, msg);
         }
-        // Interface address addition notification.
-        IbusMsg::InterfaceAddressAdd(msg) => {
-            southbound::rx::process_addr_add(instance, msg);
-        }
-        // Interface address deletion notification.
-        IbusMsg::InterfaceAddressDel(msg) => {
-            southbound::rx::process_addr_del(instance, msg);
-        }
+
+        // ==== INTERFACE ADDRESS ====
+        IbusMsg::InterfaceAddress(iface_addr_msg) => match iface_addr_msg {
+            // Interface address addition notification.
+            InterfaceAddressMsg::Add(msg) => {
+                southbound::rx::process_addr_add(instance, msg);
+            }
+
+            // Interface address deletion notification.
+            InterfaceAddressMsg::Delete(msg) => {
+                southbound::rx::process_addr_del(instance, msg);
+            }
+        },
         // Ignore other events.
         _ => {}
     }

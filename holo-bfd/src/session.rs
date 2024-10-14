@@ -15,7 +15,7 @@ use generational_arena::{Arena, Index};
 use holo_northbound::yang::control_plane_protocol::bfd;
 use holo_protocol::InstanceChannelsTx;
 use holo_utils::bfd::{ClientCfg, ClientId, SessionKey, State};
-use holo_utils::ibus::IbusMsg;
+use holo_utils::ibus::{BfdSessionMsg, IbusMsg};
 use holo_utils::ip::{IpAddrExt, IpAddrKind};
 use holo_utils::socket::{UdpSocket, TTL_MAX};
 use holo_utils::task::{IntervalTask, TimeoutTask};
@@ -141,10 +141,10 @@ impl Session {
 
         // Notify protocol clients about the state transition if necessary.
         if self.should_notify_clients(old_state) && !self.clients.is_empty() {
-            let msg = IbusMsg::BfdStateUpd {
+            let msg = IbusMsg::BfdSession(BfdSessionMsg::Update {
                 sess_key: self.key.clone(),
                 state,
-            };
+            });
             let _ = tx.ibus.send(msg);
         }
 

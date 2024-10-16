@@ -67,17 +67,10 @@ pub struct InterfaceCfg {
 fn load_callbacks() -> Callbacks<Master> {
     CallbacksBuilder::<Master>::default()
         .path(interfaces::interface::PATH)
-        .create_apply(|master, args| {
-            let ifname = args.dnode.get_string_relative("./name").unwrap();
-
-            master.interfaces.add(ifname.clone());
-
-            let event_queue = args.event_queue;
-            event_queue.insert(Event::VrrpStart(ifname));
-        })
         .create_prepare(|master, args| {
             let ifname = args.dnode.get_string_relative("./name").unwrap();
             master.interfaces.add(ifname.clone());
+
             let event_queue = args.event_queue;
             event_queue.insert(Event::VrrpStart(ifname));
 

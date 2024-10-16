@@ -20,6 +20,7 @@ use holo_northbound::yang::interfaces;
 use holo_utils::yang::DataNodeRefExt;
 use ipnetwork::Ipv4Network;
 
+use crate::instance::Instance;
 use crate::interface::Interface;
 
 #[derive(Debug, Default, EnumAsInner)]
@@ -36,7 +37,7 @@ pub enum Resource {}
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Event {
     // instance events
-    InstanceCreate { vrid: u8 },
+    InstanceStart { vrid: u8 },
     InstanceDelete { vrid: u8 },
 
     // virtual address events
@@ -67,10 +68,13 @@ pub struct InstanceCfg {
 fn load_callbacks() -> Callbacks<Interface> {
     CallbacksBuilder::<Interface>::default()
         .path(interfaces::interface::ipv4::vrrp::vrrp_instance::PATH)
-        .create_apply(|_interface, args| {
+        .create_apply(|interface, args| {
             let vrid = args.dnode.get_u8_relative("./vrid").unwrap();
+            let instance = Instance::new(vrid);
+            interface.instances.insert(vrid, instance);
+
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InstanceCreate { vrid });
+            event_queue.insert(Event::InstanceStart { vrid });
         })
         .delete_apply(|_interface, args| {
             let vrid = args.list_entry.into_vrid().unwrap();
@@ -175,8 +179,8 @@ impl Provider for Interface {
     async fn process_event(&mut self, event: Event) {
         match event {
             // instance events
-            Event::InstanceCreate { vrid } => {
-                self.create_instance(vrid);
+            Event::InstanceStart { vrid } => {
+                self.start_instance(vrid);
 
                 // reminder to remove the following line.
                 // currently up due to state not being properly maintained on startup.

@@ -117,10 +117,7 @@ pub struct ProtocolInputChannelsRx {
 // ===== impl Interface =====
 
 impl Interface {
-    pub(crate) fn create_instance(&mut self, vrid: u8) {
-        let instance = Instance::new(vrid);
-        self.instances.insert(vrid, instance);
-
+    pub(crate) fn start_instance(&mut self, vrid: u8) {
         //  `mvlan-vrrp{primary-interface-ifindex}{vrid}`
         let name = format!("mvlan-vrrp-{}", vrid);
         let mac_address: [u8; 6] = [0x00, 0x00, 0x5e, 0x00, 0x01, vrid];

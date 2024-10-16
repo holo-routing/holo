@@ -1,7 +1,7 @@
 # Build image
 # ==============================================================================
 
-FROM ghcr.io/rust-lang/rust:nightly-bookworm as build
+FROM ghcr.io/rust-lang/rust:nightly-bookworm AS build
 
 RUN apt-get update && \
     apt-get install -y build-essential \
@@ -39,6 +39,9 @@ RUN groupadd -r holo
 RUN useradd --system --shell /sbin/nologin --home-dir /var/run/holo/ -g holo holo
 RUN mkdir -p /var/run/holo
 RUN chown holo:holo /var/run/holo
+
+# /usr/local/share/holo-cli/modules is where holo-cli will store its modules
+RUN mkdir -p /usr/local/share/holo-cli/modules
 
 RUN echo "alias holo-cli-show='holo-cli -c \"show state xpath /ietf-routing:routing format json\"'" >> /root/.bashrc
 RUN echo "alias ipr='ip -4 ro ; ip -6 ro ; ip -M ro'" >> /root/.bashrc

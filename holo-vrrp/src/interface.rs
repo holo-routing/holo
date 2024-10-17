@@ -24,7 +24,7 @@ use holo_utils::task::Task;
 use holo_utils::{Receiver, Sender, UnboundedSender};
 use ipnetwork::{IpNetwork, Ipv4Network};
 use tokio::sync::mpsc;
-use tracing::{debug, debug_span, error_span};
+use tracing::{debug, debug_span, error, error_span};
 
 use crate::error::{Error, IoError};
 use crate::instance::{Instance, State};
@@ -117,6 +117,18 @@ pub struct ProtocolInputChannelsRx {
 // ===== impl Interface =====
 
 impl Interface {
+    // lets us know if the interface is ready to create a new VRRP
+    // instance's network elements.
+    pub(crate) fn is_ready(&self) -> bool {
+        if !self.system.ifindex.is_some() {
+            return false;
+        }
+        if self.system.addresses.is_empty() {
+            return false;
+        }
+        true
+    }
+
     pub(crate) fn start_instance(&mut self, vrid: u8) {
         //  `mvlan-vrrp{primary-interface-ifindex}{vrid}`
         let name = format!("mvlan-vrrp-{}", vrid);
@@ -195,17 +207,6 @@ impl Interface {
         }
     }
 
-    // in order to update the details being sent in subsequent
-    // requests, we will update the timer to have the updated timers with the relevant
-    // information.
-    pub(crate) fn reset_timer(&mut self, vrid: u8) {
-        tasks::set_timer(
-            self,
-            vrid,
-            self.tx.protocol_input.master_down_timer_tx.clone(),
-        );
-    }
-
     pub(crate) fn delete_instance_virtual_address(
         &mut self,
         vrid: u8,
@@ -229,6 +230,13 @@ impl Interface {
     }
 
     pub(crate) fn send_vrrp_advert(&self, vrid: u8) {
+        if !self.is_ready() {
+            error_span!("send-vrrp").in_scope(|| {
+                error!(%vrid, "unable to send vrrp advert. Parent interface has no IP address");
+            });
+            return;
+        }
+
         // check for the exists instance...
         if let Some(instance) = self.instances.get(&vrid)
 
@@ -249,21 +257,77 @@ impl Interface {
             if let Some(net) = &instance.mac_vlan.net {
                 let _ = net.net_tx_packetp.send(msg);
             }
-        } else {
-            error_span!("send-vrrp").in_scope(|| {
-                tracing::error!(%vrid, "unable to send vrrp advertisement");
-            });
+        }
+    }
+
+    // in order to update the details being sent in subsequent
+    // requests, we will update the timer to have the updated timers with the relevant
+    // information.
+    pub(crate) fn reset_timer(&mut self, vrid: u8) {
+        // we need to make sure the parent interface
+        // (self) has a valid IP address before setting any timers
+        // that require us to be part of a multicast
+        if self.is_ready() {
+            tasks::set_timer(
+                self,
+                vrid,
+                self.tx.protocol_input.master_down_timer_tx.clone(),
+            );
         }
     }
 
     // creates the MvlanInterfaceNet for the instance of said
     // vrid. Must be done here to get some interface specifics.
-    pub(crate) fn macvlan_create(&mut self, vrid: u8) {
+    // should always be called after vrification of self.is_ready()
+    pub(crate) fn net_create(&mut self, vrid: u8) {
         let net = MvlanInterfaceNet::new(self, vrid)
             .expect("Failed to intialize VRRP tasks");
 
         if let Some(instance) = self.instances.get_mut(&vrid) {
             instance.mac_vlan.net = Some(net);
+        }
+    }
+
+    // removes the Macvlan interface's network from the instance
+    // where vrid==vrid
+    pub(crate) fn net_remove(&mut self, vrid: u8) {
+        if let Some(instance) = self.instances.get_mut(&vrid) {
+            instance.mac_vlan.net = None;
+        }
+    }
+
+    // reloads the networks that are in the instance(s) of this Interface
+    // 'reloads' means we reset the network to their correct state depending on what
+    // we get from self.is_ready(). This should be called when we have an IP address
+    // modification (addition / deletion) on either an instance's MacVlan or the
+    // parent interface.
+    //
+    // if `vrid` is None, we will reload all the instances and not a specific vrid.
+    pub(crate) fn net_reload(&mut self, vrid: Option<u8>) {
+        let mut vrids: Vec<u8> = vec![];
+
+        // collects the vrids. if vrid is None, we collect all the
+        // vrids
+        if let Some(vrid) = vrid {
+            vrids.push(vrid)
+        } else {
+            for (vrid, _instance) in &self.instances {
+                vrids.push(*vrid);
+            }
+        }
+
+        if self.is_ready() {
+            // (re-)create all the relevant networks.
+            for vrid in vrids {
+                self.net_create(vrid);
+                self.reset_timer(vrid);
+            }
+        } else {
+            // remove the networks. Will automatically remove the
+            // timers as they are part of the MacVlanInterface's net
+            for vrid in vrids {
+                self.net_remove(vrid);
+            }
         }
     }
 }

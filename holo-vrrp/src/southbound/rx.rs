@@ -50,21 +50,22 @@ pub(crate) fn process_iface_update(
     }
 
     if let Some(vrid) = target_vrid {
-        iface.macvlan_create(vrid);
+        iface.net_reload(Some(vrid));
     }
 }
 
 pub(crate) fn process_addr_del(iface: &mut Interface, msg: AddressMsg) {
-    if msg.ifname != iface.name {
-        return;
+    if msg.ifname == iface.name {
+        // remove the address from the addresses of parent interfaces
+        if let IpNetwork::V4(addr) = msg.addr {
+            iface.system.addresses.remove(&addr);
+            iface.net_reload(None);
+        }
     }
 
-    // remove the address from the addresses of parent interfaces
-    if let IpNetwork::V4(addr) = msg.addr {
-        iface.system.addresses.remove(&addr);
-    }
+    let mut target_vrid: Option<u8> = None;
 
-    for (vrid, instance) in iface.instances.iter_mut() {
+    'outer: for (vrid, instance) in iface.instances.iter_mut() {
         let name = format!("mvlan-vrrp-{}", vrid);
         let mvlan_iface = &mut instance.mac_vlan;
 
@@ -73,8 +74,14 @@ pub(crate) fn process_addr_del(iface: &mut Interface, msg: AddressMsg) {
         if mvlan_iface.name == name {
             if let IpNetwork::V4(addr) = msg.addr {
                 mvlan_iface.system.addresses.remove(&addr);
+                target_vrid = Some(*vrid);
+                break 'outer;
             }
         }
+    }
+
+    if let Some(vrid) = target_vrid {
+        iface.net_reload(Some(vrid));
     }
 }
 
@@ -82,6 +89,7 @@ pub(crate) fn process_addr_add(iface: &mut Interface, msg: AddressMsg) {
     if msg.ifname == iface.name {
         if let IpNetwork::V4(addr) = msg.addr {
             iface.system.addresses.insert(addr);
+            iface.net_reload(None);
         }
     }
 
@@ -90,21 +98,21 @@ pub(crate) fn process_addr_add(iface: &mut Interface, msg: AddressMsg) {
     let mut target_vrid: Option<u8> = None;
 
     // if the interface being updated is one of the macvlans
-    for (vrid, instance) in iface.instances.iter_mut() {
+    'outer: for (vrid, instance) in iface.instances.iter_mut() {
         let name = format!("mvlan-vrrp-{}", vrid);
         let mvlan_iface = &mut instance.mac_vlan;
-        if mvlan_iface.system.addresses.is_empty() {
-            target_vrid = Some(*vrid);
-        }
         if mvlan_iface.name == name {
             if let IpNetwork::V4(addr) = msg.addr {
                 mvlan_iface.system.addresses.insert(addr);
+                target_vrid = Some(*vrid);
+                break 'outer;
             }
         }
     }
 
+    // if the address added was for an instance's macvlan interface
+    // we reload that sole instance's network configs.
     if let Some(vrid) = target_vrid {
-        iface.macvlan_create(vrid);
-        iface.reset_timer(vrid);
+        iface.net_reload(Some(vrid));
     }
 }

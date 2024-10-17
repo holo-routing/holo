@@ -120,7 +120,7 @@ impl Interface {
     // lets us know if the interface is ready to create a new VRRP
     // instance's network elements.
     pub(crate) fn is_ready(&self) -> bool {
-        if !self.system.ifindex.is_some() {
+        if self.system.ifindex.is_none() {
             return false;
         }
         if self.system.addresses.is_empty() {
@@ -311,7 +311,7 @@ impl Interface {
         if let Some(vrid) = vrid {
             vrids.push(vrid)
         } else {
-            for (vrid, _instance) in &self.instances {
+            for vrid in self.instances.keys() {
                 vrids.push(*vrid);
             }
         }

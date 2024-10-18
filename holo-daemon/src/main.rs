@@ -201,6 +201,7 @@ fn main() {
     // Set panic handler to abort the process if any child task panics.
     let default_panic = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
+        error!("process panicked, aborting");
         default_panic(info);
         std::process::exit(1);
     }));

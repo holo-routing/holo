@@ -471,7 +471,7 @@ pub(crate) fn process_pdu_lsp(
 
         // Update event counter.
         instance.state.counters.get_mut(level).own_lsp_purge += 1;
-        iface.state.discontinuity_time = Utc::now();
+        instance.state.discontinuity_time = Utc::now();
     }
 
     // Validate LSP checksum.
@@ -607,7 +607,7 @@ pub(crate) fn process_pdu_lsp(
 
                     // Update event counter.
                     instance.state.counters.get_mut(level).seqno_skipped += 1;
-                    iface.state.discontinuity_time = Utc::now();
+                    instance.state.discontinuity_time = Utc::now();
                 }
                 return Ok(());
             }
@@ -734,7 +734,7 @@ pub(crate) fn process_pdu_snp(
                         // Update event counter.
                         instance.state.counters.get_mut(level).seqno_skipped +=
                             1;
-                        iface.state.discontinuity_time = Utc::now();
+                        instance.state.discontinuity_time = Utc::now();
                     }
                 }
                 Ordering::Equal => {

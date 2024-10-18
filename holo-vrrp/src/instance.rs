@@ -8,6 +8,8 @@
 //
 
 use std::net::Ipv4Addr;
+use std::sync::atomic::AtomicU64;
+use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
@@ -52,6 +54,7 @@ pub struct InstanceState {
     pub new_master_reason: MasterReason,
     pub skew_time: f32,
     pub master_down_interval: u32,
+    pub is_owner: bool,
 
     // TODO: interval/timer tasks
     pub statistics: Statistics,
@@ -95,7 +98,7 @@ pub struct Statistics {
     pub discontinuity_time: DateTime<Utc>,
     pub master_transitions: u32,
     pub adv_rcvd: u64,
-    pub adv_sent: u64,
+    pub adv_sent: Arc<AtomicU64>,
     pub interval_errors: u64,
     pub priority_zero_pkts_rcvd: u64,
     pub priority_zero_pkts_sent: u64,
@@ -250,6 +253,7 @@ impl InstanceState {
             statistics: Default::default(),
             skew_time: 0.0,
             master_down_interval: 0,
+            is_owner: false,
         }
     }
 }
@@ -262,7 +266,7 @@ impl Default for Statistics {
             discontinuity_time: Utc::now(),
             master_transitions: 0,
             adv_rcvd: 0,
-            adv_sent: 0,
+            adv_sent: Arc::new(AtomicU64::new(0)),
             interval_errors: 0,
             priority_zero_pkts_rcvd: 0,
             priority_zero_pkts_sent: 0,

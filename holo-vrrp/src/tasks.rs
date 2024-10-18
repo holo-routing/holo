@@ -7,6 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -200,7 +201,6 @@ pub(crate) fn set_timer(
             // in case we are Master, we will be sending VRRP advertisements
             // every ADVERT_INTERVAL seconds until otherwise.
             crate::instance::State::Master => {
-                // -----------------
                 let src_ip = interface.system.addresses.first().unwrap().ip();
 
                 let ip_hdr = instance.adver_ipv4_pkt(src_ip);
@@ -211,6 +211,7 @@ pub(crate) fn set_timer(
                     vrrp: vrrp_hdr,
                 };
                 let ifname = instance.mac_vlan.name.clone();
+                let adv_sent = instance.state.statistics.adv_sent.clone();
                 // -----------------
                 if let Some(net) = &instance.mac_vlan.net {
                     let net_tx = net.net_tx_packetp.clone();
@@ -220,10 +221,12 @@ pub(crate) fn set_timer(
                         ),
                         true,
                         move || {
+                            let adv_sent = adv_sent.clone();
                             let ifname = ifname.clone();
                             let net_tx = net_tx.clone();
                             let pkt = pkt.clone();
                             async move {
+                                adv_sent.fetch_add(1, Ordering::Relaxed);
                                 let msg = NetTxPacketMsg::Vrrp { ifname, pkt };
                                 let _ = net_tx.send(msg);
                             }

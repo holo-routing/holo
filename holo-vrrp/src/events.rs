@@ -13,7 +13,7 @@ use std::time::Duration;
 use tracing::{debug, debug_span};
 
 use crate::error::{Error, IoError};
-use crate::instance::State;
+use crate::instance::{Event, MasterReason, State};
 use crate::interface::Interface;
 use crate::packet::{DecodeResult, VrrpHdr};
 use crate::tasks;
@@ -130,14 +130,22 @@ fn handle_vrrp_actions(interface: &mut Interface, action: VrrpAction) {
 
             if vrid == 255 {
                 interface.send_vrrp_advert(vrid);
-                interface.change_state(vrid, State::Master);
+                interface.change_state(
+                    vrid,
+                    State::Master,
+                    MasterReason::Priority,
+                );
                 if let Some(instance) =
                     interface.instances.get_mut(&vrid).take()
                 {
                     instance.send_gratuitous_arp();
                 }
             } else {
-                interface.change_state(vrid, State::Backup);
+                interface.change_state(
+                    vrid,
+                    State::Backup,
+                    MasterReason::NotMaster,
+                );
             }
         }
         VrrpAction::Backup(_src, pkt) => {
@@ -194,7 +202,11 @@ fn handle_vrrp_actions(interface: &mut Interface, action: VrrpAction) {
                                 .unwrap()
                                 .network())
                 {
-                    interface.change_state(vrid, State::Backup);
+                    interface.change_state(
+                        vrid,
+                        State::Backup,
+                        MasterReason::NotMaster,
+                    );
                 }
             }
 
@@ -214,10 +226,11 @@ pub(crate) fn handle_master_down_timer(
 ) -> Result<(), Error> {
     interface.send_vrrp_advert(vrid);
     if let Some(instance) = interface.instances.get_mut(&vrid) {
+        instance.state.last_event = Event::MasterTimeout;
         instance.send_gratuitous_arp();
     }
 
-    interface.change_state(vrid, State::Master);
+    interface.change_state(vrid, State::Master, MasterReason::NoResponse);
 
     Ok(())
 }

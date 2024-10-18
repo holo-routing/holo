@@ -27,7 +27,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, debug_span, error, error_span};
 
 use crate::error::{Error, IoError};
-use crate::instance::{Instance, State};
+use crate::instance::{Instance, MasterReason, State};
 use crate::packet::{DecodeError, VrrpPacket};
 use crate::tasks::messages::input::{MasterDownTimerMsg, VrrpNetRxPacketMsg};
 use crate::tasks::messages::output::NetTxPacketMsg;
@@ -155,7 +155,12 @@ impl Interface {
         }
     }
 
-    pub(crate) fn change_state(&mut self, vrid: u8, state: State) {
+    pub(crate) fn change_state(
+        &mut self,
+        vrid: u8,
+        state: State,
+        new_master_reason: MasterReason,
+    ) {
         if let Some(instance) = self.instances.get_mut(&vrid) {
             debug_span!("change-state").in_scope(|| {
                 if state == State::Backup {
@@ -169,6 +174,7 @@ impl Interface {
                             );
                         }
                     }
+                    instance.state.new_master_reason = new_master_reason;
                 } else if state == State::Master {
                     debug!(%vrid, "state to MASTER.");
                     if let Some(ifindex) = instance.mac_vlan.system.ifindex {
@@ -180,6 +186,7 @@ impl Interface {
                             );
                         }
                     }
+                    instance.state.new_master_reason = new_master_reason;
                 }
             });
 
@@ -239,7 +246,6 @@ impl Interface {
 
         // check for the exists instance...
         if let Some(instance) = self.instances.get_mut(&vrid)
-
             // ...and confirm if the instance's parent Interface has an IP address
             && let Some(addr) = self.system.addresses.first()
         {

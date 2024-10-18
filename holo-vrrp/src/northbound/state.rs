@@ -8,6 +8,7 @@
 //
 
 use std::borrow::Cow;
+use std::sync::atomic::Ordering;
 use std::sync::LazyLock as Lazy;
 
 use enum_as_inner::EnumAsInner;
@@ -66,7 +67,7 @@ fn load_callbacks() -> Callbacks<Interface> {
                 discontinuity_datetime: Some(Cow::Borrowed(&statistics.discontinuity_time)).ignore_in_testing(),
                 master_transitions: Some(statistics.master_transitions).ignore_in_testing(),
                 advertisement_rcvd: Some(statistics.adv_rcvd).ignore_in_testing(),
-                advertisement_sent: Some(statistics.adv_sent).ignore_in_testing(),
+                advertisement_sent: Some(statistics.adv_sent.load(Ordering::Relaxed)).ignore_in_testing(),
                 interval_errors: Some(statistics.interval_errors).ignore_in_testing(),
                 priority_zero_pkts_rcvd: Some(statistics.priority_zero_pkts_rcvd).ignore_in_testing(),
                 priority_zero_pkts_sent: Some(statistics.priority_zero_pkts_sent).ignore_in_testing(),

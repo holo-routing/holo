@@ -20,6 +20,7 @@ use holo_northbound::yang::interfaces;
 use holo_utils::yang::DataNodeRefExt;
 use ipnetwork::Ipv4Network;
 
+use crate::instance::Event as LastEvent;
 use crate::instance::Instance;
 use crate::interface::Interface;
 
@@ -70,7 +71,8 @@ fn load_callbacks() -> Callbacks<Interface> {
         .path(interfaces::interface::ipv4::vrrp::vrrp_instance::PATH)
         .create_apply(|interface, args| {
             let vrid = args.dnode.get_u8_relative("./vrid").unwrap();
-            let instance = Instance::new(vrid);
+            let mut instance = Instance::new(vrid);
+            instance.state.last_event = LastEvent::Startup; 
             interface.instances.insert(vrid, instance);
 
             let event_queue = args.event_queue;
@@ -184,7 +186,11 @@ impl Provider for Interface {
 
                 // reminder to remove the following line.
                 // currently up due to state not being properly maintained on startup.
-                self.change_state(vrid, crate::instance::State::Backup);
+                self.change_state(
+                    vrid,
+                    crate::instance::State::Backup,
+                    crate::instance::MasterReason::NotMaster,
+                );
             }
             Event::InstanceDelete { vrid } => {
                 self.delete_instance(vrid);

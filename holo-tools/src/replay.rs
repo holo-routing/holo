@@ -33,7 +33,6 @@ async fn replay<P: ProtocolInstance>(filename: &str) {
 }
 
 #[tokio::main]
-#[allow(clippy::needless_return)]
 async fn main() {
     // Parse command-line parameters.
     let matches = App::new("Replay events")

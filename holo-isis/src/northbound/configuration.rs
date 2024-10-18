@@ -28,6 +28,7 @@ use crate::debug::InterfaceInactiveReason;
 use crate::instance::Instance;
 use crate::interface::InterfaceType;
 use crate::packet::{AreaAddr, LevelNumber, LevelType, SystemId};
+use crate::spf;
 use crate::tasks::messages::input::DisElectionMsg;
 
 #[derive(Debug, Default)]
@@ -1069,7 +1070,16 @@ impl Provider for Instance {
                     }
                 }
             }
-            Event::RerunSpf => {}
+            Event::RerunSpf => {
+                if let Some((instance, _)) = self.as_up() {
+                    for level in instance.config.levels() {
+                        instance.tx.protocol_input.spf_delay_event(
+                            level,
+                            spf::fsm::Event::ConfigChange,
+                        );
+                    }
+                }
+            }
         }
     }
 }
@@ -1084,6 +1094,14 @@ impl InstanceCfg {
         }
 
         true
+    }
+
+    // Returns the levels supported by the instance.
+    pub(crate) fn levels(&self) -> SmallVec<[LevelNumber; 2]> {
+        [LevelNumber::L1, LevelNumber::L2]
+            .into_iter()
+            .filter(|level| self.level_type.intersects(level))
+            .collect()
     }
 }
 

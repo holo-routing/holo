@@ -28,8 +28,8 @@ use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::pdu::{Hello, HelloVariant, Lsp, Pdu, Snp, SnpTlvs};
 use crate::packet::tlv::LspEntry;
 use crate::packet::{LanId, LevelNumber, LevelType, LspId};
-use crate::tasks;
 use crate::tasks::messages::input::DisElectionMsg;
+use crate::{spf, tasks};
 
 // ===== Network PDU receipt =====
 
@@ -1167,4 +1167,16 @@ pub(crate) fn process_lsp_refresh(
     lsdb::lsp_originate(instance, arenas, level, lsp);
 
     Ok(())
+}
+
+// ===== SPF Delay FSM event =====
+
+pub(crate) fn process_spf_delay_event(
+    instance: &mut InstanceUpView<'_>,
+    arenas: &mut InstanceArenas,
+    level: LevelNumber,
+    event: spf::fsm::Event,
+) -> Result<(), Error> {
+    // Trigger SPF Delay FSM event.
+    spf::fsm(level, event, instance, arenas)
 }

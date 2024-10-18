@@ -32,12 +32,14 @@ use crate::interface::CircuitIdAllocator;
 use crate::lsdb::{LspEntry, LspLogEntry};
 use crate::northbound::configuration::InstanceCfg;
 use crate::packet::{LevelNumber, LevelType, Levels};
+use crate::spf::SpfScheduler;
 use crate::tasks::messages::input::{
     AdjHoldTimerMsg, DisElectionMsg, LspDeleteMsg, LspOriginateMsg,
     LspPurgeMsg, LspRefreshMsg, NetRxPduMsg, SendCsnpMsg, SendPsnpMsg,
+    SpfDelayEventMsg,
 };
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
-use crate::{events, lsdb, southbound, tasks};
+use crate::{events, lsdb, southbound, spf, tasks};
 
 #[derive(Debug)]
 pub struct Instance {
@@ -73,6 +75,8 @@ pub struct InstanceState {
     pub lsp_orig_last: Option<Instant>,
     pub lsp_orig_backoff: Option<TimeoutTask>,
     pub lsp_orig_pending: Option<LevelType>,
+    // SPF scheduler state.
+    pub spf_sched: Levels<SpfScheduler>,
     // Event counters.
     pub counters: Levels<InstanceCounters>,
     pub discontinuity_time: DateTime<Utc>,
@@ -124,6 +128,8 @@ pub struct ProtocolInputChannelsTx {
     pub lsp_delete: UnboundedSender<LspDeleteMsg>,
     // LSP refresh event.
     pub lsp_refresh: UnboundedSender<LspRefreshMsg>,
+    // SPF Delay FSM event.
+    pub spf_delay_event: UnboundedSender<SpfDelayEventMsg>,
 }
 
 #[derive(Debug)]
@@ -146,6 +152,8 @@ pub struct ProtocolInputChannelsRx {
     pub lsp_delete: UnboundedReceiver<LspDeleteMsg>,
     // LSP refresh event.
     pub lsp_refresh: UnboundedReceiver<LspRefreshMsg>,
+    // SPF Delay FSM event.
+    pub spf_delay_event: UnboundedReceiver<SpfDelayEventMsg>,
 }
 
 pub struct InstanceUpView<'a> {
@@ -319,6 +327,7 @@ impl ProtocolInstance for Instance {
         let (lsp_purgep, lsp_purgec) = mpsc::unbounded_channel();
         let (lsp_deletep, lsp_deletec) = mpsc::unbounded_channel();
         let (lsp_refreshp, lsp_refreshc) = mpsc::unbounded_channel();
+        let (spf_delay_eventp, spf_delay_eventc) = mpsc::unbounded_channel();
 
         let tx = ProtocolInputChannelsTx {
             net_pdu_rx: net_pdu_rxp,
@@ -330,6 +339,7 @@ impl ProtocolInstance for Instance {
             lsp_purge: lsp_purgep,
             lsp_delete: lsp_deletep,
             lsp_refresh: lsp_refreshp,
+            spf_delay_event: spf_delay_eventp,
         };
         let rx = ProtocolInputChannelsRx {
             net_pdu_rx: net_pdu_rxc,
@@ -341,6 +351,7 @@ impl ProtocolInstance for Instance {
             lsp_purge: lsp_purgec,
             lsp_delete: lsp_deletec,
             lsp_refresh: lsp_refreshc,
+            spf_delay_event: spf_delay_eventc,
         };
 
         (tx, rx)
@@ -362,6 +373,7 @@ impl InstanceState {
             lsp_orig_last: None,
             lsp_orig_backoff: None,
             lsp_orig_pending: None,
+            spf_sched: Default::default(),
             counters: Default::default(),
             discontinuity_time: Utc::now(),
             lsp_log: Default::default(),
@@ -393,6 +405,14 @@ impl ProtocolInputChannelsTx {
             lse_key: lse_id.into(),
         };
         let _ = self.lsp_refresh.send(msg);
+    }
+
+    pub(crate) fn spf_delay_event(
+        &self,
+        level: LevelNumber,
+        event: spf::fsm::Event,
+    ) {
+        let _ = self.spf_delay_event.send(SpfDelayEventMsg { level, event });
     }
 }
 
@@ -429,6 +449,9 @@ impl MessageReceiver<ProtocolInputMsg> for ProtocolInputChannelsRx {
             }
             msg = self.lsp_refresh.recv() => {
                 msg.map(ProtocolInputMsg::LspRefresh)
+            }
+            msg = self.spf_delay_event.recv() => {
+                msg.map(ProtocolInputMsg::SpfDelayEvent)
             }
         }
     }
@@ -601,6 +624,12 @@ fn process_protocol_msg(
                 msg.level,
                 msg.lse_key,
             )?;
+        }
+        // SPF Delay FSM event.
+        ProtocolInputMsg::SpfDelayEvent(msg) => {
+            events::process_spf_delay_event(
+                instance, arenas, msg.level, msg.event,
+            )?
         }
     }
 

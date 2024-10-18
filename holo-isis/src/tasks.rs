@@ -23,7 +23,7 @@ use crate::interface::{Interface, InterfaceType};
 use crate::network::MulticastAddr;
 use crate::packet::pdu::{Lsp, Pdu};
 use crate::packet::{LevelNumber, LevelType, Levels};
-use crate::{lsdb, network};
+use crate::{lsdb, network, spf};
 
 //
 // IS-IS tasks diagram:
@@ -44,6 +44,7 @@ use crate::{lsdb, network};
 //            lsp_expiry_timer (Nx) -> |              |
 //            lsp_delete_timer (Nx) -> |              |
 //           lsp_refresh_timer (Nx) -> |              |
+//             spf_delay_timer (Nx) -> |              |
 //                                     |              |
 //                                     +--------------+
 //                              ibus_tx (1x) | ^ (1x) ibus_rx
@@ -65,6 +66,7 @@ pub mod messages {
     use crate::packet::error::DecodeError;
     use crate::packet::pdu::Pdu;
     use crate::packet::LevelNumber;
+    use crate::spf;
 
     // Type aliases.
     pub type ProtocolInputMsg = input::ProtocolMsg;
@@ -86,6 +88,7 @@ pub mod messages {
             LspPurge(LspPurgeMsg),
             LspDelete(LspDeleteMsg),
             LspRefresh(LspRefreshMsg),
+            SpfDelayEvent(SpfDelayEventMsg),
         }
 
         #[derive(Debug)]
@@ -155,6 +158,12 @@ pub mod messages {
         pub struct LspRefreshMsg {
             pub level: LevelNumber,
             pub lse_key: LspEntryKey,
+        }
+        #[derive(Debug)]
+        #[derive(Deserialize, Serialize)]
+        pub struct SpfDelayEventMsg {
+            pub level: LevelNumber,
+            pub event: spf::fsm::Event,
         }
     }
 
@@ -557,6 +566,29 @@ pub(crate) fn lsp_refresh_timer(
                 lse_key: lse_id.into(),
             };
             let _ = lsp_refreshp.send(msg);
+        })
+    }
+    #[cfg(feature = "testing")]
+    {
+        TimeoutTask {}
+    }
+}
+
+// SPF delay timer task.
+pub(crate) fn spf_delay_timer(
+    level: LevelNumber,
+    event: spf::fsm::Event,
+    timeout: u32,
+    spf_delay_eventp: &UnboundedSender<messages::input::SpfDelayEventMsg>,
+) -> TimeoutTask {
+    #[cfg(not(feature = "testing"))]
+    {
+        let timeout = Duration::from_millis(timeout.into());
+        let spf_delay_eventp = spf_delay_eventp.clone();
+
+        TimeoutTask::new(timeout, move || async move {
+            let msg = messages::input::SpfDelayEventMsg { level, event };
+            let _ = spf_delay_eventp.send(msg);
         })
     }
     #[cfg(feature = "testing")]

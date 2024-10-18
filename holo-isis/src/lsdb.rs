@@ -27,8 +27,8 @@ use crate::packet::consts::LspFlags;
 use crate::packet::pdu::{Lsp, LspTlvs};
 use crate::packet::tlv::{ExtIpv4Reach, ExtIsReach, Ipv4Reach, IsReach, Nlpid};
 use crate::packet::{LanId, LevelNumber, LspId};
-use crate::tasks;
 use crate::tasks::messages::input::LspPurgeMsg;
+use crate::{spf, tasks};
 
 // LSP ZeroAge lifetime.
 pub const LSP_ZERO_AGE_LIFETIME: u64 = 60;
@@ -436,6 +436,14 @@ pub(crate) fn install<'a>(
         LspLogReason::Refresh
     };
     log_lsp(instance, level, lsp_log_id.clone(), None, reason);
+
+    // Schedule SPF run if necessary.
+    if content_change {
+        instance
+            .tx
+            .protocol_input
+            .spf_delay_event(level, spf::fsm::Event::Igp);
+    }
 
     lse
 }

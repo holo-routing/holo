@@ -15,6 +15,8 @@ use crate::collections::{
 use crate::instance::InstanceArenas;
 use crate::network::MulticastAddr;
 use crate::packet::error::DecodeError;
+use crate::packet::LevelNumber;
+use crate::spf;
 
 // IS-IS errors.
 #[derive(Debug)]
@@ -30,6 +32,7 @@ pub enum Error {
     AdjacencyReject(InterfaceIndex, [u8; 6], AdjacencyRejectError),
     // Other
     CircuitIdAllocationFailed,
+    SpfDelayUnexpectedEvent(LevelNumber, spf::fsm::State, spf::fsm::Event),
     InterfaceStartError(String, Box<Error>),
     InstanceStartError(Box<Error>),
 }
@@ -91,6 +94,9 @@ impl Error {
             Error::CircuitIdAllocationFailed => {
                 warn!("{}", self);
             }
+            Error::SpfDelayUnexpectedEvent(level, state, event) => {
+                warn!(?level, ?state, ?event, "{}", self);
+            }
             Error::InterfaceStartError(name, error) => {
                 error!(%name, error = %with_source(error), "{}", self);
             }
@@ -120,6 +126,9 @@ impl std::fmt::Display for Error {
             Error::AdjacencyReject(_, _, error) => error.fmt(f),
             Error::CircuitIdAllocationFailed => {
                 write!(f, "failed to allocate Circuit ID")
+            }
+            Error::SpfDelayUnexpectedEvent(..) => {
+                write!(f, "unexpected SPF Delay FSM event")
             }
             Error::InterfaceStartError(..) => {
                 write!(f, "failed to start interface")

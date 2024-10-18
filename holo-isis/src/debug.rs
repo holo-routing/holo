@@ -16,6 +16,7 @@ use crate::interface::{DisCandidate, Interface};
 use crate::network::MulticastAddr;
 use crate::packet::pdu::{Lsp, Pdu};
 use crate::packet::LevelNumber;
+use crate::spf;
 
 // IS-IS debug messages.
 #[derive(Debug)]
@@ -46,6 +47,9 @@ pub enum Debug<'a> {
     LspPurge(LevelNumber, &'a Lsp, LspPurgeReason),
     LspDelete(LevelNumber, &'a Lsp),
     LspRefresh(LevelNumber, &'a Lsp),
+    // SPF
+    SpfDelayFsmEvent(LevelNumber, spf::fsm::State, spf::fsm::Event),
+    SpfDelayFsmTransition(LevelNumber, spf::fsm::State, spf::fsm::State),
 }
 
 // Reason why an IS-IS instance is inactive.
@@ -159,6 +163,14 @@ impl Debug<'_> {
                 // Parent span(s): isis-instance
                 debug!(?level, lsp_id = %lsp.lsp_id.to_yang(), seqno = %lsp.seqno, len = %lsp.raw.len(), ?reason, "{}", self);
             }
+            Debug::SpfDelayFsmEvent(level, state, event) => {
+                // Parent span(s): isis-instance
+                debug!(?level, ?state, ?event, "{}", self);
+            }
+            Debug::SpfDelayFsmTransition(level, old_state, new_state) => {
+                // Parent span(s): isis-instance
+                debug!(?level, ?old_state, ?new_state, "{}", self);
+            }
         }
     }
 }
@@ -222,6 +234,12 @@ impl std::fmt::Display for Debug<'_> {
             }
             Debug::LspRefresh(..) => {
                 write!(f, "refreshing LSP")
+            }
+            Debug::SpfDelayFsmEvent(..) => {
+                write!(f, "SPF Delay FSM event")
+            }
+            Debug::SpfDelayFsmTransition(..) => {
+                write!(f, "SPF Delay FSM state transition")
             }
         }
     }

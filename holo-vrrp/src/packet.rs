@@ -168,22 +168,22 @@ pub struct VrrpPacket {
 #[derive(Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub enum DecodeError {
-    ChecksumError,
-    PacketLengthError,
-    IpTtlError,
+    ChecksumError(u8),     // u8 is the vrid
+    PacketLengthError(u8), // u8 is the vrid
+    IpTtlError(u8),        // u8 is the vrid
     VersionError,
 }
 
 impl DecodeError {
     pub fn err(&self) -> error::Error {
         match self {
-            DecodeError::ChecksumError => {
+            DecodeError::ChecksumError(_) => {
                 Error::GlobalError(GlobalError::ChecksumError)
             }
-            DecodeError::PacketLengthError => {
+            DecodeError::PacketLengthError(_) => {
                 Error::VirtualRouterError(VirtualRouterError::PacketLengthError)
             }
-            DecodeError::IpTtlError => {
+            DecodeError::IpTtlError(_) => {
                 Error::GlobalError(GlobalError::IpTtlError)
             }
             DecodeError::VersionError => {
@@ -239,7 +239,7 @@ impl VrrpHdr {
             || count_ip as usize > Self::MAX_IP_COUNT
             || (count_ip * 4) + 16 != pkt_size as u8
         {
-            return Err(DecodeError::PacketLengthError);
+            return Err(DecodeError::PacketLengthError(vrid));
         }
 
         let checksum = buf.get_u16();
@@ -247,7 +247,7 @@ impl VrrpHdr {
         // confirm checksum. checksum position is the third item in 16 bit words
         let calculated_checksum = checksum::calculate(data, 3);
         if calculated_checksum != checksum {
-            return Err(DecodeError::ChecksumError);
+            return Err(DecodeError::ChecksumError(vrid));
         }
 
         let mut ip_addresses: Vec<Ipv4Addr> = vec![];
@@ -280,7 +280,7 @@ impl VrrpHdr {
 
 impl Ipv4Hdr {
     const MIN_HDR_LENGTH: usize = 20;
-    const MAX_HDR_LENGTH: usize = 24;
+    const _MAX_HDR_LENGTH: usize = 24;
 
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::new();
@@ -317,23 +317,6 @@ impl Ipv4Hdr {
         let version = ver_ihl >> 4;
         let ihl = ver_ihl & 0x0F;
 
-        // verify if header length matches packet information
-        // A Malory may have declared a wrong number of ips
-        // in count_ip than they actually have in the body. This may
-        // lead to trying to read data that is either out of bounds or
-        // fully not reading data sent.
-        if ihl as usize != data.len() / 4 {
-            return Err(DecodeError::PacketLengthError);
-        }
-
-        if ihl < (Self::MIN_HDR_LENGTH as u8 / 4) {
-            return Err(DecodeError::PacketLengthError);
-        }
-
-        if ihl > (Self::MAX_HDR_LENGTH as u8 / 4) {
-            return Err(DecodeError::PacketLengthError);
-        }
-
         let tos = buf.get_u8();
         let total_length = buf.get_u16();
         let identification = buf.get_u16();
@@ -347,10 +330,7 @@ impl Ipv4Hdr {
         let protocol = buf.get_u8();
         let checksum = buf.get_u16();
         // confirm checksum. checksum position is the 5th 16 bit word
-        let calculated_checksum = checksum::calculate(data, 5);
-        if calculated_checksum != checksum {
-            return Err(DecodeError::ChecksumError);
-        }
+        let _calculated_checksum = checksum::calculate(data, 5);
 
         let src_address = buf.get_ipv4();
         let dst_address = buf.get_ipv4();
@@ -448,9 +428,6 @@ impl ArpPacket {
     }
 
     pub fn decode(data: &[u8]) -> DecodeResult<Self> {
-        if data.len() != 28 {
-            return Err(DecodeError::PacketLengthError);
-        }
         let mut buf = Bytes::copy_from_slice(data);
 
         let hw_type = buf.get_u16();

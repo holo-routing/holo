@@ -19,8 +19,8 @@ impl ToYang for State {
     fn to_yang(&self) -> Cow<'static, str> {
         match self {
             State::Initialize => "ietf-vrrp:initialize".into(),
-            State::Backup => "ietf-vrrp::backup".into(),
-            State::Master => "ietf-vrrp::master".into(),
+            State::Backup => "ietf-vrrp:backup".into(),
+            State::Master => "ietf-vrrp:master".into(),
         }
     }
 }

@@ -10,11 +10,15 @@
 use std::net::Ipv4Addr;
 use std::time::Duration;
 
+use tracing::{debug, debug_span};
+
 use crate::error::{Error, IoError};
 use crate::instance::State;
 use crate::interface::Interface;
 use crate::packet::{DecodeResult, VrrpHdr};
 use crate::tasks;
+
+const VALID_VRRP_VERSIONS: [u8; 1] = [2];
 
 // To collect actions to be executed later
 enum VrrpAction {
@@ -32,15 +36,53 @@ pub(crate) fn process_vrrp_packet(
     // Handle packet decoding errors
     let pkt = match packet {
         Ok(pkt) => pkt,
-        Err(_e) => {
+        Err(err) => {
+            interface.add_error_stats(err);
             return Err(Error::IoError(IoError::RecvError(
                 std::io::Error::new(
                     std::io::ErrorKind::Other,
-                    "problem receiving VRRP packet",
+                    "decoding error VRRP packet",
                 ),
-            )))
+            )));
         }
     };
+
+    if let Some(instance) = interface.instances.get_mut(&pkt.vrid) {
+        // handling interval errors
+        if pkt.adver_int != instance.config.advertise_interval {
+            instance.state.statistics.interval_errors += 1;
+            let err = format!(
+                "advertisement interval received not matching local config: {}",
+                pkt.adver_int
+            );
+            debug_span!("recv-error").in_scope(|| {
+                debug_span!("interval").in_scope(|| {
+                    debug!("{}", err.as_str());
+                });
+            });
+            return Err(Error::IoError(IoError::RecvError(
+                std::io::Error::new(std::io::ErrorKind::Other, err.as_str()),
+            )));
+        }
+
+        // handle version errors
+        if !VALID_VRRP_VERSIONS.contains(&pkt.version) {
+            instance.state.statistics.version_errors += 1;
+            let err = format!("invalid version received: {}", pkt.version);
+            debug_span!("recv-error").in_scope(|| {
+                debug_span!("version").in_scope(|| {
+                    debug!("{}", err.as_str());
+                });
+            });
+            return Err(Error::IoError(IoError::RecvError(
+                std::io::Error::new(std::io::ErrorKind::Other, err.as_str()),
+            )));
+        }
+
+        if pkt.priority == 0 {
+            instance.state.statistics.priority_zero_pkts_rcvd += 1;
+        }
+    }
 
     // collect the actions that are required
     let action = match get_vrrp_action(interface, src_ip, pkt) {

@@ -28,7 +28,7 @@ use tracing::{debug, debug_span, error, error_span};
 
 use crate::error::{Error, IoError};
 use crate::instance::{Instance, State};
-use crate::packet::VrrpPacket;
+use crate::packet::{DecodeError, VrrpPacket};
 use crate::tasks::messages::input::{MasterDownTimerMsg, VrrpNetRxPacketMsg};
 use crate::tasks::messages::output::NetTxPacketMsg;
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
@@ -229,7 +229,7 @@ impl Interface {
         }
     }
 
-    pub(crate) fn send_vrrp_advert(&self, vrid: u8) {
+    pub(crate) fn send_vrrp_advert(&mut self, vrid: u8) {
         if !self.is_ready() {
             error_span!("send-vrrp").in_scope(|| {
                 error!(%vrid, "unable to send vrrp advert. Parent interface has no IP address");
@@ -238,7 +238,7 @@ impl Interface {
         }
 
         // check for the exists instance...
-        if let Some(instance) = self.instances.get(&vrid)
+        if let Some(instance) = self.instances.get_mut(&vrid)
 
             // ...and confirm if the instance's parent Interface has an IP address
             && let Some(addr) = self.system.addresses.first()
@@ -255,6 +255,7 @@ impl Interface {
                 pkt,
             };
             if let Some(net) = &instance.mac_vlan.net {
+                instance.state.statistics.master_transitions += 1;
                 let _ = net.net_tx_packetp.send(msg);
             }
         }
@@ -328,6 +329,22 @@ impl Interface {
             for vrid in vrids {
                 self.net_remove(vrid);
             }
+        }
+    }
+
+    pub(crate) fn add_error_stats(&mut self, error: DecodeError) {
+        match error {
+            DecodeError::ChecksumError(vrid) => {
+                if let Some(instance) = self.instances.get_mut(&vrid) {
+                    instance.state.statistics.checksum_errors += 1;
+                }
+            }
+            DecodeError::PacketLengthError(vrid) => {
+                if let Some(instance) = self.instances.get_mut(&vrid) {
+                    instance.state.statistics.pkt_length_errors += 1;
+                }
+            }
+            _ => {}
         }
     }
 }

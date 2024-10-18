@@ -60,7 +60,7 @@ num-derive = "0.4"
 num-traits = "0.2"
 pickledb = "0.5"
 prefix-trie = { version = "0.4.1", default-features = false, features = ["ipnetwork"]  }
-prost = "0.12"
+prost = "0.13"
 rand = "0.8.5"
 regex = "1.10"
 rtnetlink = "0.14.1"
@@ -73,8 +73,8 @@ similar = "2.0"
 smallvec = { version = "1.11", features = ["serde"] }
 socket2 = { version = "0.4", features = ["all"] }
 tokio = { version = "1.0", features = ["full"] }
-tonic = { version = "0.11", features = ["tls"] }
-tonic-build = "0.11"
+tonic = { version = "0.12", features = ["tls"] }
+tonic-build = "0.12"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 twox-hash = "1.6"

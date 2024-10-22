@@ -7,7 +7,9 @@
 use std::collections::BTreeSet;
 use std::net::IpAddr;
 
-use holo_utils::ibus::{IbusMsg, IbusSender};
+use holo_utils::ibus::{
+    IbusMsg, IbusSender, NexthopMsg, RouteIpMsg, RouterIdMsg,
+};
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{
     Nexthop, RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
@@ -19,7 +21,7 @@ use crate::rib::LocalRoute;
 // ===== global functions =====
 
 pub(crate) fn router_id_query(ibus_tx: &IbusSender) {
-    let _ = ibus_tx.send(IbusMsg::RouterIdQuery);
+    let _ = ibus_tx.send(IbusMsg::RouterId(RouterIdMsg::Query));
 }
 
 pub(crate) fn route_install(
@@ -50,7 +52,7 @@ pub(crate) fn route_install(
         opaque_attrs: RouteOpaqueAttrs::None,
         nexthops: nexthops.clone(),
     };
-    let msg = IbusMsg::RouteIpAdd(msg);
+    let msg = IbusMsg::RouteIp(RouteIpMsg::Add(msg));
     let _ = ibus_tx.send(msg);
 }
 
@@ -63,16 +65,16 @@ pub(crate) fn route_uninstall(
         protocol: Protocol::BGP,
         prefix: prefix.into(),
     };
-    let msg = IbusMsg::RouteIpDel(msg);
+    let msg = IbusMsg::RouteIp(RouteIpMsg::Delete(msg));
     let _ = ibus_tx.send(msg);
 }
 
 pub(crate) fn nexthop_track(ibus_tx: &IbusSender, addr: IpAddr) {
-    let msg = IbusMsg::NexthopTrack(addr);
+    let msg = IbusMsg::Nexthop(NexthopMsg::Track(addr));
     let _ = ibus_tx.send(msg);
 }
 
 pub(crate) fn nexthop_untrack(ibus_tx: &IbusSender, addr: IpAddr) {
-    let msg = IbusMsg::NexthopUntrack(addr);
+    let msg = IbusMsg::Nexthop(NexthopMsg::Untrack(addr));
     let _ = ibus_tx.send(msg);
 }

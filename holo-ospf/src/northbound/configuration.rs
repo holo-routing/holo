@@ -17,7 +17,7 @@ use holo_northbound::configuration::{
 use holo_northbound::yang::control_plane_protocol::ospf;
 use holo_utils::bfd;
 use holo_utils::crypto::CryptoAlgo;
-use holo_utils::ibus::IbusMsg;
+use holo_utils::ibus::{IbusMsg, InterfaceMsg};
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::{ToYang, TryFromYang};
@@ -1448,10 +1448,12 @@ where
             }
             Event::InterfaceQuerySouthbound(ifname, af) => {
                 if self.is_active() {
-                    let _ = self.tx.ibus.send(IbusMsg::InterfaceQuery {
-                        ifname,
-                        af: Some(af),
-                    });
+                    let _ = self.tx.ibus.send(IbusMsg::Interface(
+                        InterfaceMsg::Query {
+                            ifname,
+                            af: Some(af),
+                        },
+                    ));
                 }
             }
             Event::StubRouterChange => {

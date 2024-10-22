@@ -15,7 +15,7 @@ use holo_northbound::configuration::{
     ValidationCallbacksBuilder,
 };
 use holo_northbound::yang::control_plane_protocol::mpls_ldp;
-use holo_utils::ibus::IbusMsg;
+use holo_utils::ibus::{IbusMsg, InterfaceMsg};
 use holo_utils::ip::AddressFamily;
 use holo_utils::yang::DataNodeRefExt;
 
@@ -471,10 +471,12 @@ impl Provider for Instance {
             }
             Event::InterfaceQuerySouthbound(ifname) => {
                 if let Some((instance, _, _)) = self.as_up() {
-                    let _ = instance.tx.ibus.send(IbusMsg::InterfaceQuery {
-                        ifname,
-                        af: Some(AddressFamily::Ipv4),
-                    });
+                    let _ = instance.tx.ibus.send(IbusMsg::Interface(
+                        InterfaceMsg::Query {
+                            ifname,
+                            af: Some(AddressFamily::Ipv4),
+                        },
+                    ));
                 }
             }
             Event::TargetedNbrUpdate(tnbr_idx) => {

@@ -186,53 +186,58 @@ pub(crate) fn set_timer(
     vrid: u8,
     master_down_tx: Sender<MasterDownTimerMsg>,
 ) {
-    if let Some(instance) = interface.instances.get_mut(&vrid) {
-        match instance.state.state {
-            crate::instance::State::Initialize => {
-                instance.timer = VrrpTimer::Null;
-            }
-            crate::instance::State::Backup => {
-                let duration = Duration::from_secs(
-                    instance.state.master_down_interval as u64,
-                );
-                set_master_down_timer(instance, duration, master_down_tx);
-            }
-
-            // in case we are Master, we will be sending VRRP advertisements
-            // every ADVERT_INTERVAL seconds until otherwise.
-            crate::instance::State::Master => {
-                let src_ip = interface.system.addresses.first().unwrap().ip();
-
-                let ip_hdr = instance.adver_ipv4_pkt(src_ip);
-                let vrrp_hdr = instance.adver_vrrp_pkt();
-
-                let pkt = VrrpPacket {
-                    ip: ip_hdr,
-                    vrrp: vrrp_hdr,
-                };
-                let ifname = instance.mac_vlan.name.clone();
-                let adv_sent = instance.state.statistics.adv_sent.clone();
-                // -----------------
-                if let Some(net) = &instance.mac_vlan.net {
-                    let net_tx = net.net_tx_packetp.clone();
-                    let timer = IntervalTask::new(
-                        Duration::from_secs(
-                            instance.config.advertise_interval as u64,
-                        ),
-                        true,
-                        move || {
-                            let adv_sent = adv_sent.clone();
-                            let ifname = ifname.clone();
-                            let net_tx = net_tx.clone();
-                            let pkt = pkt.clone();
-                            async move {
-                                adv_sent.fetch_add(1, Ordering::Relaxed);
-                                let msg = NetTxPacketMsg::Vrrp { ifname, pkt };
-                                let _ = net_tx.send(msg);
-                            }
-                        },
+    #[cfg(not(feature = "testing"))]
+    {
+        if let Some(instance) = interface.instances.get_mut(&vrid) {
+            match instance.state.state {
+                crate::instance::State::Initialize => {
+                    instance.timer = VrrpTimer::Null;
+                }
+                crate::instance::State::Backup => {
+                    let duration = Duration::from_secs(
+                        instance.state.master_down_interval as u64,
                     );
-                    instance.timer = VrrpTimer::AdverTimer(timer);
+                    set_master_down_timer(instance, duration, master_down_tx);
+                }
+
+                // in case we are Master, we will be sending VRRP advertisements
+                // every ADVERT_INTERVAL seconds until otherwise.
+                crate::instance::State::Master => {
+                    let src_ip =
+                        interface.system.addresses.first().unwrap().ip();
+
+                    let ip_hdr = instance.adver_ipv4_pkt(src_ip);
+                    let vrrp_hdr = instance.adver_vrrp_pkt();
+
+                    let pkt = VrrpPacket {
+                        ip: ip_hdr,
+                        vrrp: vrrp_hdr,
+                    };
+                    let ifname = instance.mac_vlan.name.clone();
+                    let adv_sent = instance.state.statistics.adv_sent.clone();
+                    // -----------------
+                    if let Some(net) = &instance.mac_vlan.net {
+                        let net_tx = net.net_tx_packetp.clone();
+                        let timer = IntervalTask::new(
+                            Duration::from_secs(
+                                instance.config.advertise_interval as u64,
+                            ),
+                            true,
+                            move || {
+                                let adv_sent = adv_sent.clone();
+                                let ifname = ifname.clone();
+                                let net_tx = net_tx.clone();
+                                let pkt = pkt.clone();
+                                async move {
+                                    adv_sent.fetch_add(1, Ordering::Relaxed);
+                                    let msg =
+                                        NetTxPacketMsg::Vrrp { ifname, pkt };
+                                    let _ = net_tx.send(msg);
+                                }
+                            },
+                        );
+                        instance.timer = VrrpTimer::AdverTimer(timer);
+                    }
                 }
             }
         }
@@ -244,9 +249,12 @@ pub(crate) fn set_master_down_timer(
     duration: Duration,
     tx: Sender<MasterDownTimerMsg>,
 ) {
-    let vrid = instance.vrid;
-    let timer = TimeoutTask::new(duration, move || async move {
-        let _ = tx.send(messages::input::MasterDownTimerMsg { vrid }).await;
-    });
-    instance.timer = VrrpTimer::MasterDownTimer(timer);
+    #[cfg(not(feature = "testing"))]
+    {
+        let vrid = instance.vrid;
+        let timer = TimeoutTask::new(duration, move || async move {
+            let _ = tx.send(messages::input::MasterDownTimerMsg { vrid }).await;
+        });
+        instance.timer = VrrpTimer::MasterDownTimer(timer);
+    }
 }

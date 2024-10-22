@@ -445,6 +445,7 @@ impl Interface {
         // Set IP information.
         let mut protocols_supported = vec![];
         let mut ipv4_addrs = vec![];
+        let mut ipv6_addrs = vec![];
         if self
             .config
             .is_af_enabled(AddressFamily::Ipv4, instance.config)
@@ -452,6 +453,15 @@ impl Interface {
             protocols_supported.push(Nlpid::Ipv4 as u8);
             ipv4_addrs.extend(
                 self.system.ipv4_addr_list.iter().map(|addr| addr.ip()),
+            );
+        }
+        if self
+            .config
+            .is_af_enabled(AddressFamily::Ipv6, instance.config)
+        {
+            protocols_supported.push(Nlpid::Ipv6 as u8);
+            ipv6_addrs.extend(
+                self.system.ipv6_addr_list.iter().map(|addr| addr.ip()),
             );
         }
 
@@ -466,7 +476,7 @@ impl Interface {
                 area_addrs,
                 neighbors,
                 ipv4_addrs,
-                [],
+                ipv6_addrs,
             ),
         ))
     }

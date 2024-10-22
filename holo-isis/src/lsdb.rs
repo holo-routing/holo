@@ -13,7 +13,7 @@ use std::time::Instant;
 
 use bitflags::bitflags;
 use derive_new::new;
-use holo_utils::ip::{AddressFamily, Ipv4NetworkExt};
+use holo_utils::ip::{AddressFamily, Ipv4NetworkExt, Ipv6NetworkExt};
 use holo_utils::task::TimeoutTask;
 use holo_utils::UnboundedSender;
 
@@ -25,7 +25,9 @@ use crate::interface::{Interface, InterfaceType};
 use crate::northbound::notification;
 use crate::packet::consts::LspFlags;
 use crate::packet::pdu::{Lsp, LspTlvs};
-use crate::packet::tlv::{ExtIpv4Reach, ExtIsReach, Ipv4Reach, IsReach, Nlpid};
+use crate::packet::tlv::{
+    ExtIpv4Reach, ExtIsReach, Ipv4Reach, Ipv6Reach, IsReach, Nlpid,
+};
 use crate::packet::{LanId, LevelNumber, LspId};
 use crate::tasks::messages::input::LspPurgeMsg;
 use crate::{spf, tasks};
@@ -171,10 +173,15 @@ fn lsp_build_tlvs(
     let mut ipv4_addrs = vec![];
     let mut ipv4_internal_reach = vec![];
     let mut ext_ipv4_reach = vec![];
+    let mut ipv6_addrs = vec![];
+    let mut ipv6_reach = vec![];
 
     // Add supported protocols.
     if instance.config.is_af_enabled(AddressFamily::Ipv4) {
         protocols_supported.push(Nlpid::Ipv4 as u8);
+    }
+    if instance.config.is_af_enabled(AddressFamily::Ipv6) {
+        protocols_supported.push(Nlpid::Ipv6 as u8);
     }
 
     // Iterate over all active interfaces.
@@ -247,6 +254,25 @@ fn lsp_build_tlvs(
                 }
             }
         }
+
+        // Add IPv6 information.
+        if instance.config.is_af_enabled(AddressFamily::Ipv6) {
+            for addr in iface
+                .system
+                .ipv6_addr_list
+                .iter()
+                .filter(|addr| !addr.ip().is_unicast_link_local())
+            {
+                ipv6_addrs.push(addr.ip());
+                ipv6_reach.push(Ipv6Reach {
+                    metric,
+                    up_down: false,
+                    external: false,
+                    prefix: addr.apply_mask(),
+                    sub_tlvs: Default::default(),
+                });
+            }
+        }
     }
     LspTlvs::new(
         protocols_supported,
@@ -257,8 +283,8 @@ fn lsp_build_tlvs(
         ipv4_internal_reach,
         [],
         ext_ipv4_reach,
-        [],
-        [],
+        ipv6_addrs,
+        ipv6_reach,
     )
 }
 

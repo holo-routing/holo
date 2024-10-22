@@ -20,8 +20,7 @@ use holo_northbound::yang::interfaces;
 use holo_utils::yang::DataNodeRefExt;
 use ipnetwork::Ipv4Network;
 
-use crate::instance::Event as LastEvent;
-use crate::instance::Instance;
+use crate::instance::{Event as LastEvent, Instance};
 use crate::interface::Interface;
 
 #[derive(Debug, Default, EnumAsInner)]
@@ -72,7 +71,7 @@ fn load_callbacks() -> Callbacks<Interface> {
         .create_apply(|interface, args| {
             let vrid = args.dnode.get_u8_relative("./vrid").unwrap();
             let mut instance = Instance::new(vrid);
-            instance.state.last_event = LastEvent::Startup; 
+            instance.state.last_event = LastEvent::Startup;
             interface.instances.insert(vrid, instance);
 
             let event_queue = args.event_queue;

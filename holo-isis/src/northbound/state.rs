@@ -27,7 +27,7 @@ use crate::instance::Instance;
 use crate::interface::Interface;
 use crate::lsdb::{LspEntry, LspLogEntry};
 use crate::packet::tlv::{
-    ExtIpv4Reach, ExtIsReach, Ipv4Reach, IsReach, UnknownTlv,
+    ExtIpv4Reach, ExtIsReach, Ipv4Reach, Ipv6Reach, IsReach, UnknownTlv,
 };
 use crate::packet::{LanId, LevelNumber};
 
@@ -46,6 +46,7 @@ pub enum ListEntry<'a> {
     ExtIsReach(u32, &'a ExtIsReach),
     Ipv4Reach(&'a Ipv4Reach),
     ExtIpv4Reach(&'a ExtIpv4Reach),
+    Ipv6Reach(&'a Ipv6Reach),
     UnknownTlv(&'a UnknownTlv),
     SystemCounters(LevelNumber),
     Interface(&'a Interface),
@@ -165,6 +166,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             let lse = args.list_entry.as_lsp_entry().unwrap();
             let lsp = &lse.data;
             let ipv4_addresses = lsp.tlvs.ipv4_addrs().map(Cow::Borrowed);
+            let ipv6_addresses = lsp.tlvs.ipv6_addrs().map(Cow::Borrowed);
             let protocol_supported = lsp.tlvs.protocols_supported();
             Box::new(Lsp {
                 lsp_id: lsp.lsp_id.to_yang(),
@@ -174,7 +176,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                 remaining_lifetime: Some(lsp.rem_lifetime()).ignore_in_testing(),
                 sequence: Some(lsp.seqno),
                 ipv4_addresses: Some(Box::new(ipv4_addresses)),
-                ipv6_addresses: None,
+                ipv6_addresses: Some(Box::new(ipv6_addresses)),
                 ipv4_te_routerid: None,
                 ipv6_te_routerid: None,
                 protocol_supported: Some(Box::new(protocol_supported)),
@@ -487,30 +489,35 @@ fn load_callbacks() -> Callbacks<Instance> {
             })
         })
         .path(isis::database::levels::lsp::ipv6_reachability::prefixes::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let lse = args.parent_list_entry.as_lsp_entry().unwrap();
+            let lsp = &lse.data;
+            let iter = lsp.tlvs.ipv6_reach().map(ListEntry::Ipv6Reach);
+            Some(Box::new(iter))
         })
-        .get_object(|_instance, _args| {
+        .get_object(|_instance, args| {
             use isis::database::levels::lsp::ipv6_reachability::prefixes::Prefixes;
+            let reach = args.list_entry.as_ipv6_reach().unwrap();
             Box::new(Prefixes {
-                up_down: None,
-                ip_prefix: None,
-                prefix_len: None,
-                metric: None,
+                up_down: Some(reach.up_down),
+                ip_prefix: Some(Cow::Owned(reach.prefix.ip())),
+                prefix_len: Some(reach.prefix.prefix()),
+                metric: Some(reach.metric),
             })
         })
         .path(isis::database::levels::lsp::ipv6_reachability::prefixes::unknown_tlvs::unknown_tlv::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let reach = args.parent_list_entry.as_ipv6_reach().unwrap();
+            let iter = reach.sub_tlvs.unknown.iter().map(ListEntry::UnknownTlv);
+            Some(Box::new(iter))
         })
-        .get_object(|_instance, _args| {
+        .get_object(|_instance, args| {
             use isis::database::levels::lsp::ipv6_reachability::prefixes::unknown_tlvs::unknown_tlv::UnknownTlv;
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
             Box::new(UnknownTlv {
-                r#type: None,
-                length: None,
-                value: None,
+                r#type: Some(tlv.tlv_type as u16),
+                length: Some(tlv.length as u16),
+                value: Some(tlv.value.as_ref()),
             })
         })
         .path(isis::local_rib::route::PATH)

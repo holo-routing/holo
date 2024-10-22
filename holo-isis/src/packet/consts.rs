@@ -54,6 +54,8 @@ pub enum TlvType {
     Ipv4ExternalReach = 130,
     Ipv4Addresses = 132,
     ExtIpv4Reach = 135,
+    Ipv6Addresses = 232,
+    Ipv6Reach = 236,
 }
 
 // IS-IS Sub-TLVs for TLVs Advertising Neighbor Information.

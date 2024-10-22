@@ -9,13 +9,13 @@
 
 #![allow(clippy::match_single_binding)]
 
-use std::net::Ipv4Addr;
+use std::net::{Ipv4Addr, Ipv6Addr};
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use derive_new::new;
 use holo_utils::bytes::{BytesExt, BytesMutExt};
-use holo_utils::ip::Ipv4AddrExt;
-use ipnetwork::Ipv4Network;
+use holo_utils::ip::{Ipv4AddrExt, Ipv6AddrExt};
+use ipnetwork::{Ipv4Network, Ipv6Network};
 use num_traits::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
 
@@ -31,6 +31,7 @@ pub const TLV_MAX_LEN: usize = 255;
 // Network Layer Protocol IDs.
 pub enum Nlpid {
     Ipv4 = 0xCC,
+    Ipv6 = 0x8E,
 }
 
 // Trait for all TLVs.
@@ -86,6 +87,12 @@ pub struct ProtocolsSupportedTlv {
 #[derive(Deserialize, Serialize)]
 pub struct Ipv4AddressesTlv {
     pub list: Vec<Ipv4Addr>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct Ipv6AddressesTlv {
+    pub list: Vec<Ipv6Addr>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -174,6 +181,28 @@ pub struct ExtIpv4Reach {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct ExtIpv4ReachSubTlvs {
+    pub unknown: Vec<UnknownTlv>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct Ipv6ReachTlv {
+    pub list: Vec<Ipv6Reach>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct Ipv6Reach {
+    pub metric: u32,
+    pub up_down: bool,
+    pub external: bool,
+    pub prefix: Ipv6Network,
+    pub sub_tlvs: Ipv6ReachSubTlvs,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct Ipv6ReachSubTlvs {
     pub unknown: Vec<UnknownTlv>,
 }
 
@@ -404,6 +433,58 @@ where
 {
     fn from(iter: I) -> Ipv4AddressesTlv {
         Ipv4AddressesTlv {
+            list: iter.into_iter().collect(),
+        }
+    }
+}
+
+// ===== impl Ipv6AddressesTlv =====
+
+impl Ipv6AddressesTlv {
+    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+        let mut list = vec![];
+
+        // Validate the TLV length.
+        if tlv_len as usize % Ipv6Addr::LENGTH != 0 {
+            return Err(DecodeError::InvalidTlvLength(tlv_len));
+        }
+
+        while buf.remaining() >= Ipv6Addr::LENGTH {
+            // Parse IPv6 address.
+            let addr = buf.get_ipv6();
+            list.push(addr);
+        }
+
+        Ok(Ipv6AddressesTlv { list })
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, TlvType::Ipv6Addresses);
+        for entry in &self.list {
+            buf.put_ipv6(entry);
+        }
+        tlv_encode_end(buf, start_pos);
+    }
+}
+
+impl MultiTlv for Ipv6AddressesTlv {
+    type Entry = Ipv6Addr;
+
+    fn entries(&self) -> impl Iterator<Item = &Ipv6Addr> {
+        self.list.iter()
+    }
+
+    fn entry_len(_entry: &Ipv6Addr) -> usize {
+        Ipv6Addr::LENGTH
+    }
+}
+
+impl<I> From<I> for Ipv6AddressesTlv
+where
+    I: IntoIterator<Item = Ipv6Addr>,
+{
+    fn from(iter: I) -> Ipv6AddressesTlv {
+        Ipv6AddressesTlv {
             list: iter.into_iter().collect(),
         }
     }
@@ -859,6 +940,140 @@ where
 {
     fn from(iter: I) -> ExtIpv4ReachTlv {
         ExtIpv4ReachTlv {
+            list: iter.into_iter().collect(),
+        }
+    }
+}
+
+// ===== impl Ipv6ReachTlv =====
+
+impl Ipv6ReachTlv {
+    const ENTRY_MIN_SIZE: usize = 6;
+    const FLAG_UPDOWN: u8 = 0x80;
+    const FLAG_EXTERNAL: u8 = 0x40;
+    const FLAG_SUBTLVS: u8 = 0x20;
+
+    pub(crate) fn decode(_tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+        let mut list = vec![];
+
+        while buf.remaining() >= Self::ENTRY_MIN_SIZE {
+            // Parse metric.
+            let metric = buf.get_u32();
+
+            // Parse flags field.
+            let flags = buf.get_u8();
+            let up_down = (flags & Self::FLAG_UPDOWN) != 0;
+            let external = (flags & Self::FLAG_EXTERNAL) != 0;
+            let subtlvs = (flags & Self::FLAG_SUBTLVS) != 0;
+
+            // Parse prefix length.
+            let plen = buf.get_u8();
+
+            // Parse prefix (variable length).
+            let mut prefix_bytes = [0; Ipv6Addr::LENGTH];
+            let plen_wire = prefix_wire_len(plen);
+            buf.copy_to_slice(&mut prefix_bytes[..plen_wire]);
+            let prefix = Ipv6Addr::from(prefix_bytes);
+
+            // Parse Sub-TLVs.
+            let mut sub_tlvs = Ipv6ReachSubTlvs::default();
+            if subtlvs {
+                let mut sub_tlvs_len = buf.get_u8();
+                while sub_tlvs_len >= TLV_HDR_SIZE as u8 {
+                    // Parse TLV type.
+                    let stlv_type = buf.get_u8();
+                    sub_tlvs_len -= 1;
+                    let stlv_etype = PrefixSubTlvType::from_u8(stlv_type);
+
+                    // Parse and validate TLV length.
+                    let stlv_len = buf.get_u8();
+                    sub_tlvs_len -= 1;
+                    if stlv_len as usize > buf.remaining() {
+                        return Err(DecodeError::InvalidTlvLength(stlv_len));
+                    }
+
+                    // Parse TLV value.
+                    let mut buf_tlv = buf.copy_to_bytes(stlv_len as usize);
+                    sub_tlvs_len -= stlv_len;
+                    match stlv_etype {
+                        _ => {
+                            // Save unknown top-level TLV.
+                            let value =
+                                buf_tlv.copy_to_bytes(stlv_len as usize);
+                            sub_tlvs.unknown.push(UnknownTlv::new(
+                                stlv_type, stlv_len, value,
+                            ));
+                        }
+                    }
+                }
+            }
+
+            // Ignore malformed prefixes.
+            let Ok(prefix) = Ipv6Network::new(prefix, plen) else {
+                continue;
+            };
+
+            list.push(Ipv6Reach {
+                metric,
+                up_down,
+                external,
+                prefix,
+                sub_tlvs,
+            });
+        }
+
+        Ok(Ipv6ReachTlv { list })
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, TlvType::Ipv6Reach);
+        for entry in &self.list {
+            // Encode metric.
+            buf.put_u32(entry.metric);
+
+            // Encode flags field.
+            let mut flags = 0;
+            if entry.up_down {
+                flags |= Self::FLAG_UPDOWN;
+            }
+            if entry.external {
+                flags |= Self::FLAG_EXTERNAL;
+            }
+            buf.put_u8(flags);
+
+            // Encode prefix length.
+            let plen = entry.prefix.prefix();
+            buf.put_u8(plen);
+
+            // Encode prefix (variable length).
+            let plen_wire = prefix_wire_len(plen);
+            buf.put(&entry.prefix.ip().octets()[0..plen_wire]);
+
+            // Encode Sub-TLVs.
+        }
+        tlv_encode_end(buf, start_pos);
+    }
+}
+
+impl MultiTlv for Ipv6ReachTlv {
+    type Entry = Ipv6Reach;
+
+    fn entries(&self) -> impl Iterator<Item = &Ipv6Reach> {
+        self.list.iter()
+    }
+
+    fn entry_len(entry: &Ipv6Reach) -> usize {
+        let plen = entry.prefix.prefix();
+        Self::ENTRY_MIN_SIZE + prefix_wire_len(plen)
+    }
+}
+
+impl<I> From<I> for Ipv6ReachTlv
+where
+    I: IntoIterator<Item = Ipv6Reach>,
+{
+    fn from(iter: I) -> Ipv6ReachTlv {
+        Ipv6ReachTlv {
             list: iter.into_iter().collect(),
         }
     }

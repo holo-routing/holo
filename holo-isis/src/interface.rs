@@ -466,6 +466,7 @@ impl Interface {
                 area_addrs,
                 neighbors,
                 ipv4_addrs,
+                [],
             ),
         ))
     }

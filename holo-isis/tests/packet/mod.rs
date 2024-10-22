@@ -7,7 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use std::net::Ipv4Addr;
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
@@ -18,13 +18,14 @@ use holo_isis::packet::pdu::{
 };
 use holo_isis::packet::tlv::{
     AreaAddressesTlv, ExtIpv4Reach, ExtIpv4ReachTlv, ExtIsReach, ExtIsReachTlv,
-    Ipv4AddressesTlv, Ipv4Reach, Ipv4ReachTlv, IsReach, IsReachTlv,
-    LspEntriesTlv, LspEntry, NeighborsTlv, PaddingTlv, ProtocolsSupportedTlv,
+    Ipv4AddressesTlv, Ipv4Reach, Ipv4ReachTlv, Ipv6AddressesTlv, Ipv6Reach,
+    Ipv6ReachTlv, IsReach, IsReachTlv, LspEntriesTlv, LspEntry, NeighborsTlv,
+    PaddingTlv, ProtocolsSupportedTlv,
 };
 use holo_isis::packet::{
     AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId,
 };
-use ipnetwork::Ipv4Network;
+use ipnetwork::{Ipv4Network, Ipv6Network};
 
 //
 // Helper functions.
@@ -216,6 +217,7 @@ static LAN_HELLO1: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
                 ipv4_addrs: vec![Ipv4AddressesTlv {
                     list: vec![Ipv4Addr::from_str("10.0.1.1").unwrap()],
                 }],
+                ipv6_addrs: vec![],
                 padding: vec![
                     PaddingTlv { length: 255 },
                     PaddingTlv { length: 255 },
@@ -390,6 +392,7 @@ static P2P_HELLO1: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
                 ipv4_addrs: vec![Ipv4AddressesTlv {
                     list: vec![Ipv4Addr::from_str("10.0.7.6").unwrap()],
                 }],
+                ipv6_addrs: vec![],
                 padding: vec![
                     PaddingTlv { length: 255 },
                     PaddingTlv { length: 255 },
@@ -520,13 +523,18 @@ static PSNP1: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
 static LSP1: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
     (
         vec![
-            0x83, 0x1b, 0x01, 0x00, 0x12, 0x01, 0x00, 0x00, 0x00, 0x4a, 0x04,
+            0x83, 0x1b, 0x01, 0x00, 0x12, 0x01, 0x00, 0x00, 0x00, 0x82, 0x04,
             0x92, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x04, 0xd7, 0xd0, 0x01, 0x81, 0x01, 0xcc, 0x01, 0x04, 0x03,
+            0x00, 0x04, 0xd0, 0x32, 0x01, 0x81, 0x01, 0xcc, 0x01, 0x04, 0x03,
             0x49, 0x00, 0x00, 0x16, 0x0b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02,
             0x03, 0x00, 0x00, 0x0a, 0x00, 0x84, 0x04, 0x01, 0x01, 0x01, 0x01,
             0x87, 0x11, 0x00, 0x00, 0x00, 0x0a, 0x18, 0x0a, 0x00, 0x01, 0x00,
-            0x00, 0x00, 0x0a, 0x20, 0x01, 0x01, 0x01, 0x01,
+            0x00, 0x00, 0x0a, 0x20, 0x01, 0x01, 0x01, 0x01, 0xe8, 0x10, 0x20,
+            0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x01, 0xec, 0x24, 0x00, 0x00, 0x00, 0x0a, 0x00,
+            0x80, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x0a, 0x00,
+            0x40, 0x20, 0x01, 0x0d, 0xb8, 0x10, 0x00, 0x00, 0x00,
         ],
         Pdu::Lsp(Lsp::new(
             LevelNumber::L1,
@@ -570,6 +578,31 @@ static LSP1: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
                             up_down: false,
                             prefix: Ipv4Network::from_str("1.1.1.1/32")
                                 .unwrap(),
+                            sub_tlvs: Default::default(),
+                        },
+                    ],
+                }],
+                ipv6_addrs: vec![Ipv6AddressesTlv {
+                    list: vec![Ipv6Addr::from_str("2001:db8::1").unwrap()],
+                }],
+                ipv6_reach: vec![Ipv6ReachTlv {
+                    list: vec![
+                        Ipv6Reach {
+                            metric: 10,
+                            up_down: false,
+                            external: false,
+                            prefix: Ipv6Network::from_str("2001:db8::1/128")
+                                .unwrap(),
+                            sub_tlvs: Default::default(),
+                        },
+                        Ipv6Reach {
+                            metric: 10,
+                            up_down: false,
+                            external: false,
+                            prefix: Ipv6Network::from_str(
+                                "2001:db8:1000::0/64",
+                            )
+                            .unwrap(),
                             sub_tlvs: Default::default(),
                         },
                     ],
@@ -666,6 +699,8 @@ static LSP2: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
                 }],
                 ipv4_external_reach: vec![],
                 ext_ipv4_reach: vec![],
+                ipv6_addrs: vec![],
+                ipv6_reach: vec![],
                 unknown: vec![],
             },
         )),

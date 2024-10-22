@@ -257,6 +257,8 @@ fn lsp_build_tlvs(
         ipv4_internal_reach,
         [],
         ext_ipv4_reach,
+        [],
+        [],
     )
 }
 
@@ -301,7 +303,7 @@ fn lsp_build_tlvs_pseudo(
         }
     }
 
-    LspTlvs::new([], [], is_reach, ext_is_reach, [], [], [], [])
+    LspTlvs::new([], [], is_reach, ext_is_reach, [], [], [], [], [], [])
 }
 
 fn lsp_build_fragments(

@@ -8,7 +8,7 @@
 //
 
 use std::cell::{RefCell, RefMut};
-use std::net::Ipv4Addr;
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::time::Instant;
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
@@ -24,8 +24,9 @@ use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::tlv::{
     tlv_entries_split, tlv_take_max, AreaAddressesTlv, ExtIpv4Reach,
     ExtIpv4ReachTlv, ExtIsReach, ExtIsReachTlv, Ipv4AddressesTlv, Ipv4Reach,
-    Ipv4ReachTlv, IsReach, IsReachTlv, LspEntriesTlv, LspEntry, NeighborsTlv,
-    PaddingTlv, ProtocolsSupportedTlv, Tlv, UnknownTlv, TLV_HDR_SIZE,
+    Ipv4ReachTlv, Ipv6AddressesTlv, Ipv6Reach, Ipv6ReachTlv, IsReach,
+    IsReachTlv, LspEntriesTlv, LspEntry, NeighborsTlv, PaddingTlv,
+    ProtocolsSupportedTlv, Tlv, UnknownTlv, TLV_HDR_SIZE,
 };
 use crate::packet::{AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId};
 
@@ -72,6 +73,7 @@ pub struct HelloTlvs {
     pub area_addrs: Vec<AreaAddressesTlv>,
     pub neighbors: Vec<NeighborsTlv>,
     pub ipv4_addrs: Vec<Ipv4AddressesTlv>,
+    pub ipv6_addrs: Vec<Ipv6AddressesTlv>,
     pub padding: Vec<PaddingTlv>,
     pub unknown: Vec<UnknownTlv>,
 }
@@ -106,6 +108,8 @@ pub struct LspTlvs {
     pub ipv4_internal_reach: Vec<Ipv4ReachTlv>,
     pub ipv4_external_reach: Vec<Ipv4ReachTlv>,
     pub ext_ipv4_reach: Vec<ExtIpv4ReachTlv>,
+    pub ipv6_addrs: Vec<Ipv6AddressesTlv>,
+    pub ipv6_reach: Vec<Ipv6ReachTlv>,
     pub unknown: Vec<UnknownTlv>,
 }
 
@@ -400,6 +404,10 @@ impl Hello {
                     let tlv = Ipv4AddressesTlv::decode(tlv_len, &mut buf_tlv)?;
                     tlvs.ipv4_addrs.push(tlv);
                 }
+                Some(TlvType::Ipv6Addresses) => {
+                    let tlv = Ipv6AddressesTlv::decode(tlv_len, &mut buf_tlv)?;
+                    tlvs.ipv6_addrs.push(tlv);
+                }
                 _ => {
                     // Save unknown top-level TLV.
                     let value = buf_tlv.copy_to_bytes(tlv_len as usize);
@@ -459,6 +467,9 @@ impl Hello {
             for tlv in &self.tlvs.ipv4_addrs {
                 tlv.encode(&mut buf);
             }
+            for tlv in &self.tlvs.ipv6_addrs {
+                tlv.encode(&mut buf);
+            }
             for tlv in &self.tlvs.padding {
                 tlv.encode(&mut buf);
             }
@@ -474,6 +485,7 @@ impl HelloTlvs {
         area_addrs: impl IntoIterator<Item = AreaAddr>,
         neighbors: impl IntoIterator<Item = [u8; 6]>,
         ipv4_addrs: impl IntoIterator<Item = Ipv4Addr>,
+        ipv6_addrs: impl IntoIterator<Item = Ipv6Addr>,
     ) -> Self {
         HelloTlvs {
             protocols_supported: Some(ProtocolsSupportedTlv::from(
@@ -482,6 +494,7 @@ impl HelloTlvs {
             area_addrs: tlv_entries_split(area_addrs),
             neighbors: tlv_entries_split(neighbors),
             ipv4_addrs: tlv_entries_split(ipv4_addrs),
+            ipv6_addrs: tlv_entries_split(ipv6_addrs),
             padding: Default::default(),
             unknown: Default::default(),
         }
@@ -609,6 +622,14 @@ impl Lsp {
                     let tlv = ExtIpv4ReachTlv::decode(tlv_len, &mut buf_tlv)?;
                     tlvs.ext_ipv4_reach.push(tlv);
                 }
+                Some(TlvType::Ipv6Addresses) => {
+                    let tlv = Ipv6AddressesTlv::decode(tlv_len, &mut buf_tlv)?;
+                    tlvs.ipv6_addrs.push(tlv);
+                }
+                Some(TlvType::Ipv6Reach) => {
+                    let tlv = Ipv6ReachTlv::decode(tlv_len, &mut buf_tlv)?;
+                    tlvs.ipv6_reach.push(tlv);
+                }
                 _ => {
                     // Save unknown top-level TLV.
                     let value = buf_tlv.copy_to_bytes(tlv_len as usize);
@@ -668,6 +689,12 @@ impl Lsp {
                 tlv.encode(TlvType::Ipv4ExternalReach, &mut buf);
             }
             for tlv in &self.tlvs.ext_ipv4_reach {
+                tlv.encode(&mut buf);
+            }
+            for tlv in &self.tlvs.ipv6_addrs {
+                tlv.encode(&mut buf);
+            }
+            for tlv in &self.tlvs.ipv6_reach {
                 tlv.encode(&mut buf);
             }
 
@@ -776,6 +803,8 @@ impl LspTlvs {
         ipv4_internal_reach: impl IntoIterator<Item = Ipv4Reach>,
         ipv4_external_reach: impl IntoIterator<Item = Ipv4Reach>,
         ext_ipv4_reach: impl IntoIterator<Item = ExtIpv4Reach>,
+        ipv6_addrs: impl IntoIterator<Item = Ipv6Addr>,
+        ipv6_reach: impl IntoIterator<Item = Ipv6Reach>,
     ) -> Self {
         LspTlvs {
             protocols_supported: Some(ProtocolsSupportedTlv::from(
@@ -788,6 +817,8 @@ impl LspTlvs {
             ipv4_internal_reach: tlv_entries_split(ipv4_internal_reach),
             ipv4_external_reach: tlv_entries_split(ipv4_external_reach),
             ext_ipv4_reach: tlv_entries_split(ext_ipv4_reach),
+            ipv6_addrs: tlv_entries_split(ipv6_addrs),
+            ipv6_reach: tlv_entries_split(ipv6_reach),
             unknown: Default::default(),
         }
     }
@@ -808,6 +839,8 @@ impl LspTlvs {
             tlv_take_max(&mut self.ipv4_external_reach, &mut rem_len);
         let ext_ipv4_reach =
             tlv_take_max(&mut self.ext_ipv4_reach, &mut rem_len);
+        let ipv6_addrs = tlv_take_max(&mut self.ipv6_addrs, &mut rem_len);
+        let ipv6_reach = tlv_take_max(&mut self.ipv6_reach, &mut rem_len);
         if rem_len == max_len {
             return None;
         }
@@ -821,6 +854,8 @@ impl LspTlvs {
             ipv4_internal_reach,
             ipv4_external_reach,
             ext_ipv4_reach,
+            ipv6_addrs,
+            ipv6_reach,
             unknown: Default::default(),
         })
     }
@@ -878,6 +913,17 @@ impl LspTlvs {
     // type 135.
     pub(crate) fn ext_ipv4_reach(&self) -> impl Iterator<Item = &ExtIpv4Reach> {
         self.ext_ipv4_reach.iter().flat_map(|tlv| tlv.list.iter())
+    }
+
+    // Returns an iterator over all IPv6 addresses from TLVs of type 232.
+    pub(crate) fn ipv6_addrs(&self) -> impl Iterator<Item = &Ipv6Addr> {
+        self.ipv6_addrs.iter().flat_map(|tlv| tlv.list.iter())
+    }
+
+    // Returns an iterator over all IPv6 reachability entries from TLVs of
+    // type 236.
+    pub(crate) fn ipv6_reach(&self) -> impl Iterator<Item = &Ipv6Reach> {
+        self.ipv6_reach.iter().flat_map(|tlv| tlv.list.iter())
     }
 }
 

@@ -26,7 +26,6 @@ use crate::northbound::notification;
 use crate::packet::consts::PduType;
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::pdu::{Hello, HelloVariant, Lsp, Pdu, Snp, SnpTlvs};
-use crate::packet::tlv::LspEntry;
 use crate::packet::{LanId, LevelNumber, LevelType, LspId};
 use crate::tasks::messages::input::DisElectionMsg;
 use crate::{spf, tasks};
@@ -513,12 +512,7 @@ pub(crate) fn process_pdu_lsp(
                 level,
                 LanId::from((system_id, iface.state.circuit_id)),
                 None,
-                SnpTlvs::new([LspEntry {
-                    rem_lifetime: lsp.rem_lifetime,
-                    lsp_id: lsp.lsp_id,
-                    cksum: lsp.cksum,
-                    seqno: lsp.seqno,
-                }]),
+                SnpTlvs::new([lsp.as_snp_entry()]),
             ));
             iface.enqueue_pdu(pdu, level);
         }

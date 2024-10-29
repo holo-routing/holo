@@ -20,11 +20,13 @@ use crate::ip::AddressFamily;
 pub type SubDomainId = u8;
 pub type BfrId = u16;
 pub type SetIdentifier = u8;
-pub type Bift =
-    HashMap<(SubDomainId, IpAddr, SetIdentifier), (Bitstring, Vec<BfrId>)>;
+pub type Bift = HashMap<
+    (SubDomainId, IpAddr, SetIdentifier),
+    (Bitstring, Vec<(BfrId, IpAddr)>, u32, String),
+>;
 
 pub async fn bift_sync(bift: &Bift) {
-    for ((_sd_id, nbr, _si), (bs, ids)) in bift.iter() {
+    for ((_sd_id, nbr, _si), (bs, ids, idx, name)) in bift.iter() {
         /* List the position of bits that are enabled in the bitstring, this is required by the
            Bitvectors of Fastclick but this not ideal.
            FIXME: Find a better way to share a bitstring with Fastclick
@@ -48,13 +50,16 @@ pub async fn bift_sync(bift: &Bift) {
             .join(",");
 
         // TODO: Batch route addition when multiple BfrIds have the same F-BM
-        for id in ids {
-            let body = format!("{:#?} {} {:#?}", id, bs, nbr);
+        for (id, prefix) in ids {
+            let body = format!(
+                "{:#?} {:#?} {} {:#?} {} {}",
+                id, prefix, bs, nbr, idx, name
+            );
             // TODO: Use gRPC rather than plain HTTP
             let client = reqwest::Client::new();
             let _res = client
                 // TODO: Make Fastclick BIFT URI configurable through YANG model
-                .post("http://127.0.0.1/bift/add")
+                .post("http://127.0.0.1/bift0/add")
                 .body(body.clone())
                 .send()
                 .await;
@@ -106,6 +111,7 @@ pub struct BierInfo {
 pub struct BirtEntry {
     pub bfr_prefix: IpAddr,
     pub bfr_nbr: IpAddr,
+    pub ifindex: u32,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]

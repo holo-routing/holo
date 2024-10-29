@@ -91,7 +91,7 @@ impl Birt {
         let bfr_id = msg.bier_info.bfr_id;
         msg.bier_info.bfr_bss.iter().for_each(|bsl| {
             if let Some(nexthop) = msg.nexthops.first()
-                && let Nexthop::Address { addr, .. } = nexthop
+                && let Nexthop::Address { addr, ifindex, .. } = nexthop
             {
                 // Insert or update the entry in the BIRT
                 self.entries
@@ -100,6 +100,7 @@ impl Birt {
                     .or_insert(BirtEntry {
                         bfr_prefix: msg.prefix.ip(),
                         bfr_nbr: (*addr),
+                        ifindex: *ifindex,
                     });
 
                 // Add BIER route to the update queue
@@ -112,26 +113,47 @@ impl Birt {
         let _ = self.entries.remove(&(msg.sd_id, msg.bfr_id, msg.bsl));
     }
 
-    pub(crate) async fn process_birt_update_queue(&mut self) {
+    pub(crate) async fn process_birt_update_queue(
+        &mut self,
+        ifaces: &BTreeMap<String, Interface>,
+    ) {
         let mut bift = Bift::new();
 
         // Compute Forwarding BitMasks (F-BMs)
         for ((sd_id, bfr_id, bsl), nbr) in &self.entries {
             match Bitstring::from(*bfr_id, *bsl) {
                 Ok(bfr_bs) => {
+                    let ifname = ifaces
+                        .iter()
+                        .filter_map(|(_, iface)| {
+                            if iface.ifindex == nbr.ifindex {
+                                Some(iface.ifname.clone())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<String>>();
                     // Pattern matching is mandatory as Bitstring does not implement Copy, hence cannot use Entry interface
                     let key = (*sd_id, nbr.bfr_nbr, bfr_bs.si);
                     match bift.get_mut(&key) {
-                        Some((e, v)) => match e.mut_or(bfr_bs) {
+                        Some((e, v, _, _)) => match e.mut_or(bfr_bs) {
                             Ok(()) => {
-                                v.push(*bfr_id);
+                                v.push((*bfr_id, nbr.bfr_prefix));
                             }
                             Err(e) => {
                                 e.log();
                             }
                         },
                         None => {
-                            let _ = bift.insert(key, (bfr_bs, vec![*bfr_id]));
+                            let _ = bift.insert(
+                                key,
+                                (
+                                    bfr_bs,
+                                    vec![(*bfr_id, nbr.bfr_prefix)],
+                                    nbr.ifindex,
+                                    ifname.first().unwrap().to_owned(),
+                                ),
+                            );
                         }
                     }
                 }

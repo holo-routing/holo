@@ -25,7 +25,8 @@ pub type Bift = HashMap<
     (Bitstring, Vec<(BfrId, IpAddr)>, u32, String),
 >;
 
-pub async fn bift_sync(bift: &Bift) {
+#[cfg(feature = "fastclick")]
+pub async fn bift_sync_fastclick(bift: &Bift) {
     for ((_sd_id, nbr, _si), (bs, ids, idx, name)) in bift.iter() {
         /* List the position of bits that are enabled in the bitstring, this is required by the
            Bitvectors of Fastclick but this not ideal.
@@ -65,6 +66,11 @@ pub async fn bift_sync(bift: &Bift) {
                 .await;
         }
     }
+}
+
+pub async fn bift_sync(_bift: &Bift) {
+    #[cfg(feature = "fastclick")]
+    bift_sync_fastclick(_bift).await;
 }
 
 #[derive(Debug)]

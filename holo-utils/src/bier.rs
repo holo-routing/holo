@@ -50,21 +50,22 @@ pub async fn bift_sync_fastclick(bift: &Bift) {
             .collect::<Vec<String>>()
             .join(",");
 
-        // TODO: Batch route addition when multiple BfrIds have the same F-BM
-        for (id, prefix) in ids {
-            let body = format!(
-                "{:#?} {:#?} {} {:#?} {} {}",
-                id, prefix, bs, nbr, idx, name
-            );
-            // TODO: Use gRPC rather than plain HTTP
-            let client = reqwest::Client::new();
-            let _res = client
-                // TODO: Make Fastclick BIFT URI configurable through YANG model
-                .post("http://127.0.0.1/bift0/add")
-                .body(body.clone())
-                .send()
-                .await;
-        }
+        // Batching BFRs having the same FBM
+        let bfrs = ids
+            .iter()
+            .map(|(id, prefix)| format!("{:#?}_{:#?}", id, prefix))
+            .collect::<Vec<String>>()
+            .join(",");
+        let body = format!("{} {:#?} {} {} {}", bs, nbr, idx, name, bfrs);
+
+        // TODO: Use gRPC rather than plain HTTP
+        let client = reqwest::Client::new();
+        let _res = client
+            // TODO: Make Fastclick BIFT URI configurable through YANG model
+            .post("http://127.0.0.1/bift0/add")
+            .body(body)
+            .send()
+            .await;
     }
 }
 

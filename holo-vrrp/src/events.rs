@@ -12,13 +12,12 @@ use std::time::Duration;
 
 use tracing::{debug, debug_span};
 
+use crate::consts::VALID_VRRP_VERSIONS;
 use crate::error::{Error, IoError};
 use crate::instance::{Event, MasterReason, State};
 use crate::interface::Interface;
 use crate::packet::{DecodeResult, VrrpHdr};
 use crate::tasks;
-
-const VALID_VRRP_VERSIONS: [u8; 1] = [2];
 
 // To collect actions to be executed later
 enum VrrpAction {

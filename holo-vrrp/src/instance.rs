@@ -15,9 +15,10 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use holo_utils::task::{IntervalTask, TimeoutTask};
 
-use crate::interface::{MacVlanInterface, VRRP_PROTO_NUMBER};
+use crate::consts::VRRP_PROTO_NUMBER;
+use crate::interface::MacVlanInterface;
 use crate::northbound::configuration::InstanceCfg;
-use crate::packet::{ArpPacket, EthernetHdr, Ipv4Hdr, VrrpHdr};
+use crate::packet::{ArpHdr, EthernetHdr, Ipv4Hdr, VrrpHdr};
 use crate::tasks::messages::output::NetTxPacketMsg;
 
 #[derive(Debug)]
@@ -205,7 +206,7 @@ impl Instance {
         // send a gratuitous for each of the
         // virutal IP addresses
         for addr in self.config.virtual_addresses.clone() {
-            let arp_packet = ArpPacket {
+            let arp_hdr = ArpHdr {
                 hw_type: 1,
                 // for Ipv4
                 proto_type: 0x0800,
@@ -228,9 +229,9 @@ impl Instance {
             };
 
             let msg = NetTxPacketMsg::Arp {
-                name: self.mac_vlan.name.clone(),
-                eth_frame: eth_hdr,
-                arp_packet,
+                ifindex: self.mac_vlan.system.ifindex.unwrap(),
+                eth_hdr,
+                arp_hdr,
             };
 
             if let Some(net) = &self.mac_vlan.net {

@@ -7,24 +7,23 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use std::ffi::CString;
 use std::os::fd::AsRawFd;
 use std::sync::Arc;
 
+use bytes::BufMut;
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::{capabilities, Sender, UnboundedReceiver};
-use libc::ETH_P_ARP;
-use nix::sys::socket;
+use libc::{AF_PACKET, ETH_P_ARP};
+use nix::sys::socket::{self, sendto, LinkAddr, MsgFlags, SockaddrLike};
 use socket2::{Domain, Protocol, Type};
 use tokio::sync::mpsc::error::SendError;
 
+use crate::consts::{VRRP_HDR_MAX, VRRP_MULTICAST_ADDRESS, VRRP_PROTO_NUMBER};
 use crate::error::IoError;
-use crate::interface::{Interface, VRRP_MULTICAST_ADDRESS, VRRP_PROTO_NUMBER};
-use crate::packet::{ArpPacket, EthernetHdr, Ipv4Hdr, VrrpHdr, VrrpPacket};
+use crate::interface::Interface;
+use crate::packet::{ArpHdr, EthernetHdr, Ipv4Hdr, VrrpHdr, VrrpPacket};
 use crate::tasks::messages::input::VrrpNetRxPacketMsg;
 use crate::tasks::messages::output::NetTxPacketMsg;
-
-pub const MAX_VRRP_HDR_LENGTH: usize = 96;
 
 pub fn socket_vrrp_tx(
     interface: &Interface,
@@ -109,12 +108,12 @@ pub fn socket_arp(ifname: &str) -> Result<Socket, std::io::Error> {
 #[cfg(not(feature = "testing"))]
 pub(crate) async fn send_packet_vrrp(
     sock: &AsyncFd<Socket>,
-    ifname: &str,
+    ifindex: u32,
     pkt: VrrpPacket,
 ) -> Result<usize, IoError> {
-    let c_ifname = CString::new(ifname).unwrap();
+    use crate::consts::IP_VRRP_HDR_MAX;
+
     unsafe {
-        let ifindex = libc::if_nametoindex(c_ifname.as_ptr());
         let mut sa = libc::sockaddr_ll {
             sll_family: libc::AF_INET as u16,
             sll_protocol: (VRRP_PROTO_NUMBER as u16).to_be(),
@@ -134,7 +133,7 @@ pub(crate) async fn send_packet_vrrp(
         match libc::sendto(
             sock.as_raw_fd(),
             buf.as_ptr().cast(),
-            std::cmp::min(buf.len(), 130),
+            std::cmp::min(buf.len(), IP_VRRP_HDR_MAX),
             0,
             ptr_sockaddr,
             std::mem::size_of_val(&sa) as u32,
@@ -148,53 +147,33 @@ pub(crate) async fn send_packet_vrrp(
 #[cfg(not(feature = "testing"))]
 pub async fn send_packet_arp(
     sock: &AsyncFd<Socket>,
-    ifname: &str,
-    eth_frame: EthernetHdr,
-    arp_packet: ArpPacket,
+    ifindex: u32,
+    eth_hdr: EthernetHdr,
+    arp_hdr: ArpHdr,
 ) -> Result<usize, IoError> {
-    use std::ffi::CString;
+    use crate::consts::ARP_PROTOCOL_NUMBER;
 
-    use libc::{c_void, sendto, sockaddr, sockaddr_ll, AF_INET};
+    let mut buf = eth_hdr.encode();
+    buf.put(arp_hdr.encode());
 
-    use crate::packet::ARPframe;
-    let mut arpframe = ARPframe::new(eth_frame, arp_packet);
-
-    let c_ifname = match CString::new(ifname) {
-        Ok(c_ifname) => c_ifname,
-        Err(err) => {
-            return Err(IoError::SocketError(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                err,
-            )))
-        }
-    };
-    let ifindex = unsafe { libc::if_nametoindex(c_ifname.as_ptr()) };
-
-    let mut sa = sockaddr_ll {
-        sll_family: AF_INET as u16,
-        sll_protocol: 0x806_u16.to_be(),
+    let mut sll = libc::sockaddr_ll {
+        sll_family: AF_PACKET as u16,
+        sll_protocol: ARP_PROTOCOL_NUMBER.to_be(),
         sll_ifindex: ifindex as i32,
         sll_hatype: 0,
         sll_pkttype: 0,
-        sll_halen: 0,
+        sll_halen: 6,
         sll_addr: [0; 8],
     };
-
-    unsafe {
-        let ptr_sockaddr =
-            std::mem::transmute::<*mut sockaddr_ll, *mut sockaddr>(&mut sa);
-
-        match sendto(
-            sock.as_raw_fd(),
-            &mut arpframe as *mut _ as *const c_void,
-            std::mem::size_of_val(&arpframe),
-            0,
-            ptr_sockaddr,
-            std::mem::size_of_val(&sa) as u32,
-        ) {
-            -1 => Err(IoError::SendError(std::io::Error::last_os_error())),
-            fd => Ok(fd as usize),
-        }
+    sll.sll_addr[..6].copy_from_slice(&eth_hdr.dst_mac);
+    let sll_len = size_of_val(&sll) as libc::socklen_t;
+    let saddr = unsafe {
+        LinkAddr::from_raw(&sll as *const _ as *const _, Some(sll_len))
+    }
+    .unwrap();
+    match sendto(sock.as_raw_fd(), &buf, &saddr, MsgFlags::empty()) {
+        Ok(res) => Ok(res),
+        Err(errno) => Err(IoError::SendError(errno.into())),
     }
 }
 
@@ -220,20 +199,20 @@ pub(crate) async fn write_loop(
 ) {
     while let Some(msg) = net_tx_packetc.recv().await {
         match msg {
-            NetTxPacketMsg::Vrrp { ifname, pkt } => {
+            NetTxPacketMsg::Vrrp { ifindex, pkt } => {
                 if let Err(error) =
-                    send_packet_vrrp(&socket_vrrp, &ifname, pkt).await
+                    send_packet_vrrp(&socket_vrrp, ifindex, pkt).await
                 {
                     error.log();
                 }
             }
             NetTxPacketMsg::Arp {
-                name,
-                eth_frame,
-                arp_packet,
+                ifindex,
+                eth_hdr,
+                arp_hdr,
             } => {
                 if let Err(error) =
-                    send_packet_arp(&socket_arp, &name, eth_frame, arp_packet)
+                    send_packet_arp(&socket_arp, ifindex, eth_hdr, arp_hdr)
                         .await
                 {
                     error.log();
@@ -248,7 +227,7 @@ pub(crate) async fn vrrp_read_loop(
     socket_vrrp: Arc<AsyncFd<Socket>>,
     vrrp_net_packet_rxp: Sender<VrrpNetRxPacketMsg>,
 ) -> Result<(), SendError<VrrpNetRxPacketMsg>> {
-    let mut buf = [0u8; MAX_VRRP_HDR_LENGTH];
+    let mut buf = [0u8; VRRP_HDR_MAX];
     loop {
         match socket_vrrp
             .async_io(tokio::io::Interest::READABLE, |sock| {

@@ -8,7 +8,6 @@
 //
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::Ipv4Addr;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -33,9 +32,6 @@ use crate::tasks::messages::input::{MasterDownTimerMsg, VrrpNetRxPacketMsg};
 use crate::tasks::messages::output::NetTxPacketMsg;
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
 use crate::{events, network, southbound, tasks};
-
-pub const VRRP_PROTO_NUMBER: i32 = 112;
-pub const VRRP_MULTICAST_ADDRESS: Ipv4Addr = Ipv4Addr::new(224, 0, 0, 18);
 
 #[derive(Debug)]
 pub struct Interface {
@@ -257,7 +253,7 @@ impl Interface {
             };
 
             let msg = NetTxPacketMsg::Vrrp {
-                ifname: instance.mac_vlan.name.clone(),
+                ifindex: instance.mac_vlan.system.ifindex.unwrap(),
                 pkt,
             };
             if let Some(net) = &instance.mac_vlan.net {

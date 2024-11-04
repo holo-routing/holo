@@ -58,7 +58,7 @@ pub mod messages {
         use std::net::Ipv4Addr;
 
         use super::*;
-        use crate::packet::ArpPacket;
+        use crate::packet::ArpHdr;
 
         #[derive(Debug, Deserialize, Serialize)]
         pub enum ProtocolMsg {
@@ -74,7 +74,7 @@ pub mod messages {
 
         #[derive(Debug, Deserialize, Serialize)]
         pub struct ArpNetRxPacketMsg {
-            pub packet: Result<ArpPacket, DecodeError>,
+            pub packet: Result<ArpHdr, DecodeError>,
         }
 
         #[derive(Debug, Deserialize, Serialize)]
@@ -86,7 +86,7 @@ pub mod messages {
     // Output messages (main task -> child task).
     pub mod output {
         use super::*;
-        use crate::packet::{ArpPacket, EthernetHdr, VrrpPacket};
+        use crate::packet::{ArpHdr, EthernetHdr, VrrpPacket};
 
         #[derive(Debug, Serialize)]
         pub enum ProtocolMsg {
@@ -96,13 +96,13 @@ pub mod messages {
         #[derive(Clone, Debug, Serialize)]
         pub enum NetTxPacketMsg {
             Vrrp {
-                ifname: String,
+                ifindex: u32,
                 pkt: VrrpPacket,
             },
             Arp {
-                name: String,
-                eth_frame: EthernetHdr,
-                arp_packet: ArpPacket,
+                ifindex: u32,
+                eth_hdr: EthernetHdr,
+                arp_hdr: ArpHdr,
             },
         }
     }
@@ -213,7 +213,7 @@ pub(crate) fn set_timer(
                         ip: ip_hdr,
                         vrrp: vrrp_hdr,
                     };
-                    let ifname = instance.mac_vlan.name.clone();
+                    let ifindex = instance.mac_vlan.system.ifindex.unwrap();
                     let adv_sent = instance.state.statistics.adv_sent.clone();
                     // -----------------
                     if let Some(net) = &instance.mac_vlan.net {
@@ -225,13 +225,12 @@ pub(crate) fn set_timer(
                             true,
                             move || {
                                 let adv_sent = adv_sent.clone();
-                                let ifname = ifname.clone();
                                 let net_tx = net_tx.clone();
                                 let pkt = pkt.clone();
                                 async move {
                                     adv_sent.fetch_add(1, Ordering::Relaxed);
                                     let msg =
-                                        NetTxPacketMsg::Vrrp { ifname, pkt };
+                                        NetTxPacketMsg::Vrrp { ifindex, pkt };
                                     let _ = net_tx.send(msg);
                                 }
                             },

@@ -13,6 +13,7 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use serde::{Deserialize, Serialize};
 
+use crate::consts::*;
 use crate::error::{self, Error, GlobalError, VirtualRouterError};
 
 // Type aliases.
@@ -96,46 +97,6 @@ pub struct Ipv4Hdr {
     pub padding: Option<u8>,
 }
 
-#[repr(C)]
-pub struct ARPframe {
-    // Ethernet Header
-    pub dst_mac: [u8; 6], // destination MAC address
-    pub src_mac: [u8; 6], // source MAC address
-    pub ethertype: u16,   // ether type
-
-    // ARP
-    pub hardware_type: u16, // network link type (0x1=ethernet)
-    pub protocol_type: u16, // upper-layer protocol for resolution
-    pub hw_addr_len: u8,    // length of hardware address (bytes)
-    pub proto_addr_len: u8, // upper-layer protocol address length
-    pub opcode: u16,        // operation (0x1=request, 0x2=reply)
-    pub sender_hw_addr: [u8; 6], // sender hardware address
-    pub sender_proto_addr: [u8; 4], // internetwork address of sender
-    pub target_hw_addr: [u8; 6], // hardware address of target
-    pub target_proto_addr: [u8; 4], // internetwork address of target
-}
-
-impl ARPframe {
-    pub fn new(eth_pkt: EthernetHdr, arp_pkt: ArpPacket) -> Self {
-        Self {
-            dst_mac: eth_pkt.dst_mac,
-            src_mac: eth_pkt.src_mac,
-            ethertype: eth_pkt.ethertype.to_be(),
-
-            hardware_type: arp_pkt.hw_type.to_be(),
-            protocol_type: arp_pkt.proto_type.to_be(),
-            hw_addr_len: arp_pkt.hw_length,
-            proto_addr_len: arp_pkt.proto_length,
-            opcode: arp_pkt.operation.to_be(),
-
-            sender_hw_addr: arp_pkt.sender_hw_address,
-            sender_proto_addr: arp_pkt.sender_proto_address,
-            target_hw_addr: arp_pkt.target_hw_address,
-            target_proto_addr: arp_pkt.target_proto_address,
-        }
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct EthernetHdr {
@@ -146,7 +107,7 @@ pub struct EthernetHdr {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
-pub struct ArpPacket {
+pub struct ArpHdr {
     pub hw_type: u16,
     pub proto_type: u16,
     pub hw_length: u8,
@@ -196,10 +157,6 @@ impl DecodeError {
 // ===== impl Packet =====
 
 impl VrrpHdr {
-    const MIN_PKT_LENGTH: usize = 16;
-    const MAX_PKT_LENGTH: usize = 80;
-    const MAX_IP_COUNT: usize = 16;
-
     // Encodes VRRP packet into a bytes buffer.
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::with_capacity(114);
@@ -235,8 +192,8 @@ impl VrrpHdr {
         let auth_type = buf.get_u8();
         let adver_int = buf.get_u8();
 
-        if !(Self::MIN_PKT_LENGTH..=Self::MAX_PKT_LENGTH).contains(&pkt_size)
-            || count_ip as usize > Self::MAX_IP_COUNT
+        if !(VRRP_HDR_MIN..=VRRP_HDR_MAX).contains(&pkt_size)
+            || count_ip as usize > VRRP_IP_COUNT_MAX
             || (count_ip * 4) + 16 != pkt_size as u8
         {
             return Err(DecodeError::PacketLengthError(vrid));
@@ -279,9 +236,6 @@ impl VrrpHdr {
 }
 
 impl Ipv4Hdr {
-    const MIN_HDR_LENGTH: usize = 20;
-    const _MAX_HDR_LENGTH: usize = 24;
-
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::new();
 
@@ -338,7 +292,7 @@ impl Ipv4Hdr {
         let mut options: Option<u32> = None;
         let mut padding: Option<u8> = None;
 
-        if ihl > Self::MIN_HDR_LENGTH as u8 {
+        if ihl > IP_HDR_MIN as u8 {
             let opt_pad = buf.get_u32();
             options = Some(opt_pad >> 8);
             padding = Some((opt_pad & 0xFF) as u8);
@@ -396,14 +350,14 @@ impl EthernetHdr {
 
 impl VrrpPacket {
     pub fn encode(&self) -> BytesMut {
-        let mut buf = BytesMut::with_capacity(130);
+        let mut buf = BytesMut::with_capacity(IP_VRRP_HDR_MAX);
         buf.put(self.ip.encode());
         buf.put(self.vrrp.encode());
         buf
     }
 }
 
-impl ArpPacket {
+impl ArpHdr {
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::with_capacity(28);
         buf.put_u16(self.hw_type);

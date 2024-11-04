@@ -10,7 +10,7 @@
 use std::net::Ipv4Addr;
 use std::sync::LazyLock;
 
-use holo_vrrp::interface::{VRRP_MULTICAST_ADDRESS, VRRP_PROTO_NUMBER};
+use holo_vrrp::consts::{VRRP_MULTICAST_ADDRESS, VRRP_PROTO_NUMBER};
 use holo_vrrp::packet::{EthernetHdr, Ipv4Hdr, VrrpHdr};
 
 static VRRPHDR: LazyLock<(Vec<u8>, VrrpHdr)> = LazyLock::new(|| {

@@ -287,7 +287,11 @@ impl Interface {
             .expect("Failed to intialize VRRP tasks");
 
         if let Some(instance) = self.instances.get_mut(&vrid) {
-            instance.mac_vlan.net = Some(net);
+            // check if the macvlan is ready for the
+            // network items to be created
+            if instance.mac_vlan.is_ready() {
+                instance.mac_vlan.net = Some(net);
+            }
         }
     }
 
@@ -429,6 +433,11 @@ impl ProtocolInstance for Interface {
 
 // ==== impl MacVlanInterface ====
 impl MacVlanInterface {
+    pub(crate) fn is_ready(&self) -> bool {
+        // return true if the ifindex exists
+        !self.system.ifindex.is_none()
+    }
+
     pub fn new(vrid: u8) -> Self {
         let name = format!("mvlan-vrrp-{}", vrid);
         Self {

@@ -164,7 +164,7 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
 
 // Requests information about all interfaces addresses.
 pub(crate) fn request_addresses(ibus_tx: &IbusSender) {
-    send(ibus_tx, IbusMsg::Interface(InterfaceMsg::Dump));
+    send(ibus_tx, InterfaceMsg::Dump.into());
 }
 
 // Sends route redistribute update notification.
@@ -173,7 +173,7 @@ pub(crate) fn notify_redistribute_add(
     prefix: IpNetwork,
     route: &Route,
 ) {
-    let msg = RouteMsg {
+    let msg = RouteRedistributeMsg::Add(RouteMsg {
         protocol: route.protocol,
         prefix,
         distance: route.distance,
@@ -181,9 +181,8 @@ pub(crate) fn notify_redistribute_add(
         tag: route.tag,
         opaque_attrs: route.opaque_attrs.clone(),
         nexthops: route.nexthops.clone(),
-    };
-    let msg = IbusMsg::RouteRedistribute(RouteRedistributeMsg::Add(msg));
-    send(ibus_tx, msg);
+    });
+    send(ibus_tx, msg.into());
 }
 
 // Sends route redistribute delete notification.
@@ -193,8 +192,8 @@ pub(crate) fn notify_redistribute_del(
     protocol: Protocol,
 ) {
     let msg = RouteKeyMsg { protocol, prefix };
-    let msg = IbusMsg::RouteRedistribute(RouteRedistributeMsg::Delete(msg));
-    send(ibus_tx, msg);
+    let msg = RouteRedistributeMsg::Delete(msg);
+    send(ibus_tx, msg.into());
 }
 
 // Sends route redistribute delete notification.
@@ -203,8 +202,8 @@ pub(crate) fn notify_nht_update(
     addr: IpAddr,
     metric: Option<u32>,
 ) {
-    let msg = IbusMsg::Nexthop(NexthopMsg::Update { addr, metric });
-    send(ibus_tx, msg);
+    let msg = NexthopMsg::Update { addr, metric };
+    send(ibus_tx, msg.into());
 }
 
 // ===== helper functions =====

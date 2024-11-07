@@ -74,8 +74,8 @@ pub(crate) fn notify_router_id_update(
     ibus_tx: &IbusSender,
     router_id: Option<Ipv4Addr>,
 ) {
-    let msg = IbusMsg::RouterId(RouterIdMsg::Update(router_id));
-    notify(ibus_tx, msg);
+    let msg = RouterIdMsg::Update(router_id);
+    notify(ibus_tx, msg.into());
 }
 
 pub(crate) fn notify_interface_update(ibus_tx: &IbusSender, iface: &Interface) {
@@ -86,14 +86,14 @@ pub(crate) fn notify_interface_update(ibus_tx: &IbusSender, iface: &Interface) {
         flags: iface.flags,
         mac_address: iface.mac_address,
     };
-    let msg = IbusMsg::Interface(InterfaceMsg::Update(update_msg));
+    let msg = InterfaceMsg::Update(update_msg);
 
-    notify(ibus_tx, msg);
+    notify(ibus_tx, msg.into());
 }
 
 pub(crate) fn notify_interface_del(ibus_tx: &IbusSender, ifname: String) {
-    let msg = IbusMsg::Interface(InterfaceMsg::Delete(ifname));
-    notify(ibus_tx, msg);
+    let msg = InterfaceMsg::Delete(ifname);
+    notify(ibus_tx, msg.into());
 }
 
 pub(crate) fn notify_addr_add(
@@ -107,8 +107,8 @@ pub(crate) fn notify_addr_add(
         addr,
         flags,
     };
-    let msg = IbusMsg::InterfaceAddress(InterfaceAddressMsg::Add(addr_msg));
-    notify(ibus_tx, msg);
+    let msg = InterfaceAddressMsg::Add(addr_msg);
+    notify(ibus_tx, msg.into());
 }
 
 pub(crate) fn notify_addr_del(
@@ -117,13 +117,12 @@ pub(crate) fn notify_addr_del(
     addr: IpNetwork,
     flags: AddressFlags,
 ) {
-    let msg =
-        IbusMsg::InterfaceAddress(InterfaceAddressMsg::Delete(AddressMsg {
-            ifname,
-            addr,
-            flags,
-        }));
-    notify(ibus_tx, msg);
+    let msg = InterfaceAddressMsg::Delete(AddressMsg {
+        ifname,
+        addr,
+        flags,
+    });
+    notify(ibus_tx, msg.into());
 }
 
 // ===== helper functions =====

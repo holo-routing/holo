@@ -18,7 +18,7 @@ use holo_northbound::configuration::{
 };
 use holo_northbound::yang::control_plane_protocol::bgp;
 use holo_utils::bgp::AfiSafi;
-use holo_utils::ibus::{IbusMsg, RouteRedistributeMsg};
+use holo_utils::ibus::RouteRedistributeMsg;
 use holo_utils::ip::{AddressFamily, IpAddrKind};
 use holo_utils::policy::{ApplyPolicyCfg, DefaultPolicyType};
 use holo_utils::protocol::Protocol;
@@ -1363,12 +1363,13 @@ impl Provider for Instance {
                 }
             }
             Event::RedistributeRequest(protocol, af) => {
-                let _ = self.tx.ibus.send(IbusMsg::RouteRedistribute(
+                let _ = self.tx.ibus.send(
                     RouteRedistributeMsg::Dump {
                         protocol,
                         af: Some(af),
-                    },
-                ));
+                    }
+                    .into(),
+                );
             }
             Event::RedistributeDelete(protocol, afi_safi) => {
                 let Some((mut instance, _)) = self.as_up() else {

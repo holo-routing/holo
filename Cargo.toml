@@ -40,6 +40,7 @@ chrono = { version = "0.4", features = ["serde"] }
 convert_case = "0.6"
 criterion = "0.4"
 crossbeam-channel = "0.5"
+derive_more = { version="1.0.0", features = ["from"] }
 derive-new = "0.5"
 enum-as-inner = "0.6"
 fletcher = "1.0"

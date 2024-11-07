@@ -7,9 +7,7 @@
 use std::collections::BTreeSet;
 use std::net::IpAddr;
 
-use holo_utils::ibus::{
-    IbusMsg, IbusSender, NexthopMsg, RouteIpMsg, RouterIdMsg,
-};
+use holo_utils::ibus::{IbusSender, NexthopMsg, RouteIpMsg, RouterIdMsg};
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{
     Nexthop, RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
@@ -21,7 +19,7 @@ use crate::rib::LocalRoute;
 // ===== global functions =====
 
 pub(crate) fn router_id_query(ibus_tx: &IbusSender) {
-    let _ = ibus_tx.send(IbusMsg::RouterId(RouterIdMsg::Query));
+    let _ = ibus_tx.send(RouterIdMsg::Query.into());
 }
 
 pub(crate) fn route_install(
@@ -43,7 +41,7 @@ pub(crate) fn route_install(
         .collect::<BTreeSet<_>>();
 
     // Install route.
-    let msg = RouteMsg {
+    let msg = RouteIpMsg::Add(RouteMsg {
         protocol: Protocol::BGP,
         prefix: prefix.into(),
         distance: distance.into(),
@@ -51,9 +49,8 @@ pub(crate) fn route_install(
         tag: None,
         opaque_attrs: RouteOpaqueAttrs::None,
         nexthops: nexthops.clone(),
-    };
-    let msg = IbusMsg::RouteIp(RouteIpMsg::Add(msg));
-    let _ = ibus_tx.send(msg);
+    });
+    let _ = ibus_tx.send(msg.into());
 }
 
 pub(crate) fn route_uninstall(
@@ -61,20 +58,19 @@ pub(crate) fn route_uninstall(
     prefix: impl Into<IpNetwork>,
 ) {
     // Uninstall route.
-    let msg = RouteKeyMsg {
+    let msg = RouteIpMsg::Delete(RouteKeyMsg {
         protocol: Protocol::BGP,
         prefix: prefix.into(),
-    };
-    let msg = IbusMsg::RouteIp(RouteIpMsg::Delete(msg));
-    let _ = ibus_tx.send(msg);
+    });
+    let _ = ibus_tx.send(msg.into());
 }
 
 pub(crate) fn nexthop_track(ibus_tx: &IbusSender, addr: IpAddr) {
-    let msg = IbusMsg::Nexthop(NexthopMsg::Track(addr));
-    let _ = ibus_tx.send(msg);
+    let msg = NexthopMsg::Track(addr);
+    let _ = ibus_tx.send(msg.into());
 }
 
 pub(crate) fn nexthop_untrack(ibus_tx: &IbusSender, addr: IpAddr) {
-    let msg = IbusMsg::Nexthop(NexthopMsg::Untrack(addr));
-    let _ = ibus_tx.send(msg);
+    let msg = NexthopMsg::Untrack(addr);
+    let _ = ibus_tx.send(msg.into());
 }

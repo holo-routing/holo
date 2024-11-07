@@ -20,8 +20,8 @@ pub(crate) fn notify_hostname_update(
     ibus_tx: &IbusSender,
     hostname: Option<String>,
 ) {
-    let msg = IbusMsg::Hostname(HostnameMsg::Update(hostname));
-    notify(ibus_tx, msg);
+    let msg = HostnameMsg::Update(hostname);
+    notify(ibus_tx, msg.into());
 }
 
 // ===== helper functions =====

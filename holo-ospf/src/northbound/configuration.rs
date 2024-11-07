@@ -1448,12 +1448,11 @@ where
             }
             Event::InterfaceQuerySouthbound(ifname, af) => {
                 if self.is_active() {
-                    let _ = self.tx.ibus.send(IbusMsg::Interface(
-                        InterfaceMsg::Query {
-                            ifname,
-                            af: Some(af),
-                        },
-                    ));
+                    let msg = InterfaceMsg::Query {
+                        ifname,
+                        af: Some(af),
+                    };
+                    let _ = self.tx.ibus.send(msg.into());
                 }
             }
             Event::StubRouterChange => {

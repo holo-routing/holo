@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use holo_protocol::InstanceChannelsTx;
-use holo_utils::ibus::{IbusMsg, IbusSender, InterfaceMsg};
+use holo_utils::ibus::{IbusSender, InterfaceMsg};
 use holo_utils::ip::AddressFamily;
 use holo_utils::socket::{AsyncFd, Socket, SocketExt};
 use holo_utils::southbound::InterfaceFlags;
@@ -643,10 +643,11 @@ impl Interface {
     // Sends a southbound request for interface system information, such as
     // operational status and IP addresses.
     pub(crate) fn query_southbound(&self, ibus_tx: &IbusSender) {
-        let _ = ibus_tx.send(IbusMsg::Interface(InterfaceMsg::Query {
+        let msg = InterfaceMsg::Query {
             ifname: self.name.clone(),
             af: None,
-        }));
+        };
+        let _ = ibus_tx.send(msg.into());
     }
 }
 

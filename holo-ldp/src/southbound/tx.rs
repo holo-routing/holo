@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use holo_utils::ibus::{IbusMsg, IbusSender, RouteMplsMsg, RouterIdMsg};
+use holo_utils::ibus::{IbusSender, RouteMplsMsg, RouterIdMsg};
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{self, LabelInstallMsg, LabelUninstallMsg};
 
@@ -13,7 +13,7 @@ use crate::fec::{FecInner, Nexthop};
 // ===== global functions =====
 
 pub(crate) fn router_id_query(ibus_tx: &IbusSender) {
-    let _ = ibus_tx.send(IbusMsg::RouterId(RouterIdMsg::Query));
+    let _ = ibus_tx.send(RouterIdMsg::Query.into());
 }
 
 pub(crate) fn label_install(
@@ -35,7 +35,7 @@ pub(crate) fn label_install(
     let protocol = fec.protocol.unwrap();
 
     // Fill-in message.
-    let msg = LabelInstallMsg {
+    let msg = RouteMplsMsg::Add(LabelInstallMsg {
         protocol: Protocol::LDP,
         label: local_label,
         nexthops: [southbound::Nexthop::Address {
@@ -46,11 +46,10 @@ pub(crate) fn label_install(
         .into(),
         route: Some((protocol, *fec.prefix)),
         replace: false,
-    };
+    });
 
     // Send message.
-    let msg = IbusMsg::RouteMpls(RouteMplsMsg::Add(msg));
-    let _ = ibus_tx.send(msg);
+    let _ = ibus_tx.send(msg.into());
 }
 
 pub(crate) fn label_uninstall(
@@ -72,7 +71,7 @@ pub(crate) fn label_uninstall(
     let protocol = fec.protocol.unwrap();
 
     // Fill-in message.
-    let msg = LabelUninstallMsg {
+    let msg = RouteMplsMsg::Delete(LabelUninstallMsg {
         protocol: Protocol::LDP,
         label: local_label,
         nexthops: [southbound::Nexthop::Address {
@@ -82,9 +81,8 @@ pub(crate) fn label_uninstall(
         }]
         .into(),
         route: Some((protocol, *fec.prefix)),
-    };
+    });
 
     // Send message.
-    let msg = IbusMsg::RouteMpls(RouteMplsMsg::Delete(msg));
-    let _ = ibus_tx.send(msg);
+    let _ = ibus_tx.send(msg.into());
 }

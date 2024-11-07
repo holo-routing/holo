@@ -13,7 +13,7 @@ use holo_northbound::configuration::{
     self, Callbacks, CallbacksBuilder, Provider,
 };
 use holo_northbound::yang::routing_policy;
-use holo_utils::ibus::{IbusMsg, PolicyMsg};
+use holo_utils::ibus::PolicyMsg;
 use holo_utils::ip::AddressFamily;
 use holo_utils::policy::{
     IpPrefixRange, MatchSetRestrictedType, MatchSetType, MetricType,
@@ -1109,9 +1109,8 @@ impl Provider for Master {
 
                 // Notify protocols that the policy match sets have been
                 // updated.
-                let msg =
-                    IbusMsg::Policy(PolicyMsg::MatchSetsUpdate(match_sets));
-                let _ = self.ibus_tx.send(msg);
+                let msg = PolicyMsg::MatchSetsUpdate(match_sets);
+                let _ = self.ibus_tx.send(msg.into());
             }
             Event::PolicyChange(name) => {
                 let policy = self.policies.get_mut(&name).unwrap();
@@ -1121,13 +1120,13 @@ impl Provider for Master {
                 let policy = Arc::new(policy.clone());
 
                 // Notify protocols that the policy has been updated.
-                let msg = IbusMsg::Policy(PolicyMsg::Update(policy));
-                let _ = self.ibus_tx.send(msg);
+                let msg = PolicyMsg::Update(policy);
+                let _ = self.ibus_tx.send(msg.into());
             }
             Event::PolicyDelete(name) => {
                 // Notify protocols that the policy definition has been deleted.
-                let msg = IbusMsg::Policy(PolicyMsg::Delete(name));
-                let _ = self.ibus_tx.send(msg);
+                let msg = PolicyMsg::Delete(name);
+                let _ = self.ibus_tx.send(msg.into());
             }
         }
     }

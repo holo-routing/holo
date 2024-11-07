@@ -3,10 +3,10 @@
 //
 // SPDX-License-Identifier: MIT
 //
-
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 
+use derive_more::From;
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast::{Receiver, Sender};
 
@@ -27,7 +27,7 @@ pub type IbusReceiver = Receiver<IbusMsg>;
 pub type IbusSender = Sender<IbusMsg>;
 
 // Ibus message for communication among the different Holo components.
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, From)]
 pub enum IbusMsg {
     // BFD session
     BfdSession(BfdSessionMsg),

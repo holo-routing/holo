@@ -144,7 +144,7 @@ impl ProtocolInstance for Master {
 
     async fn init(&mut self) {
         // Request information about all interfaces.
-        let _ = self.tx.ibus.send(IbusMsg::Interface(InterfaceMsg::Dump));
+        let _ = self.tx.ibus.send(InterfaceMsg::Dump.into());
     }
 
     async fn process_ibus_msg(&mut self, msg: IbusMsg) {

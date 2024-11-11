@@ -435,7 +435,7 @@ impl ProtocolInstance for Interface {
 impl MacVlanInterface {
     pub(crate) fn is_ready(&self) -> bool {
         // return true if the ifindex exists
-        !self.system.ifindex.is_none()
+        self.system.ifindex.is_some()
     }
 
     pub fn new(vrid: u8) -> Self {

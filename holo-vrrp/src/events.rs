@@ -126,8 +126,9 @@ fn handle_vrrp_actions(interface: &mut Interface, action: VrrpAction) {
     match action {
         VrrpAction::Initialize(_src, pkt) => {
             let vrid = pkt.vrid;
+            let priority = pkt.priority;
 
-            if vrid == 255 {
+            if priority == 255 {
                 interface.send_vrrp_advert(vrid);
                 interface.change_state(
                     vrid,

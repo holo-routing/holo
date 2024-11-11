@@ -35,7 +35,7 @@ pub(crate) fn process_iface_update(
 
     //check if it is one of the macvlans being updated.
     'outer: for (vrid, instance) in iface.instances.iter_mut() {
-        let name = format!("mvlan-vrrp-{}", vrid);
+        let name = msg.ifname.clone();
         let mvlan_iface = &mut instance.mac_vlan;
 
         if mvlan_iface.name == name {

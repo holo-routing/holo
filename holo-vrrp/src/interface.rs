@@ -126,7 +126,6 @@ impl Interface {
     }
 
     pub(crate) fn start_instance(&mut self, vrid: u8) {
-        //  `mvlan-vrrp{primary-interface-ifindex}{vrid}`
         let name = format!("mvlan-vrrp-{}", vrid);
         let mac_address: [u8; 6] = [0x00, 0x00, 0x5e, 0x00, 0x01, vrid];
         southbound::tx::create_macvlan_iface(
@@ -159,7 +158,10 @@ impl Interface {
     ) {
         if let Some(instance) = self.instances.get_mut(&vrid) {
             debug_span!("change-state").in_scope(|| {
-                if state == State::Backup {
+                if state == State::Initialize {
+                    debug!(%vrid, "state to INITIALIZE.");
+                    instance.state.new_master_reason = new_master_reason;
+                } else if state == State::Backup {
                     debug!(%vrid, "state to BACKUP.");
                     if let Some(ifindex) = instance.mac_vlan.system.ifindex {
                         for addr in instance.config.virtual_addresses.clone() {
@@ -245,6 +247,9 @@ impl Interface {
             // ...and confirm if the instance's parent Interface has an IP address
             && let Some(addr) = self.system.addresses.first()
         {
+            if !instance.mac_vlan.is_ready() {
+                return;
+            }
             let ip_hdr = instance.adver_ipv4_pkt(addr.ip());
             let vrrp_hdr = instance.adver_vrrp_pkt();
             let pkt = VrrpPacket {

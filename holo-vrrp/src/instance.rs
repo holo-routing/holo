@@ -206,6 +206,9 @@ impl Instance {
         // send a gratuitous for each of the
         // virutal IP addresses
         for addr in self.config.virtual_addresses.clone() {
+            if !self.mac_vlan.is_ready() {
+                return;
+            }
             let arp_hdr = ArpHdr {
                 hw_type: 1,
                 // for Ipv4

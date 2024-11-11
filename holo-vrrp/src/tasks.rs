@@ -203,6 +203,9 @@ pub(crate) fn set_timer(
                 // in case we are Master, we will be sending VRRP advertisements
                 // every ADVERT_INTERVAL seconds until otherwise.
                 crate::instance::State::Master => {
+                    if !instance.mac_vlan.is_ready() {
+                        return;
+                    }
                     let src_ip =
                         interface.system.addresses.first().unwrap().ip();
 

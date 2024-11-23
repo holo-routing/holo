@@ -516,10 +516,7 @@ where
         ifname: &str,
         ifindex: Option<u32>,
     ) -> Option<(InterfaceIndex, &mut Interface<V>)> {
-        let iface_idx = match self.name_tree.get(ifname).copied() {
-            Some(iface_idx) => iface_idx,
-            None => return None,
-        };
+        let iface_idx = self.name_tree.get(ifname).copied()?;
         let iface = &mut self.arena[iface_idx];
 
         // Update interface ifindex.

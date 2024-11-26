@@ -14,7 +14,10 @@ use derive_new::new;
 use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
 };
-use holo_utils::ibus::IbusMsg;
+use holo_utils::ibus::{
+    IbusMsg, InterfaceAddressMsg, InterfaceMsg, RouteRedistributeMsg,
+    RouterIdMsg,
+};
 use holo_utils::protocol::Protocol;
 use holo_utils::socket::{TcpListener, UdpSocket};
 use holo_utils::task::Task;
@@ -468,29 +471,45 @@ async fn process_ibus_msg(
     msg: IbusMsg,
 ) -> Result<(), Error> {
     match msg {
-        // Interface update notification.
-        IbusMsg::InterfaceUpd(msg) => {
+        // ==== INTERFACE ====
+        IbusMsg::Interface(InterfaceMsg::Update(msg)) => {
+            // Interface update notification.
             southbound::rx::process_iface_update(instance, msg);
         }
-        // Interface address addition notification.
-        IbusMsg::InterfaceAddressAdd(msg) => {
-            southbound::rx::process_addr_add(instance, msg);
-        }
-        // Interface address delete notification.
-        IbusMsg::InterfaceAddressDel(msg) => {
-            southbound::rx::process_addr_del(instance, msg);
-        }
-        // Router ID update notification.
-        IbusMsg::RouterIdUpdate(router_id) => {
+
+        // ==== INTERFACE ADDRESS ====
+        IbusMsg::InterfaceAddress(iface_addr_msg) => match iface_addr_msg {
+            // Interface address addition notification.
+            InterfaceAddressMsg::Add(msg) => {
+                southbound::rx::process_addr_add(instance, msg);
+            }
+
+            // Interface address delete notification.
+            InterfaceAddressMsg::Delete(msg) => {
+                southbound::rx::process_addr_del(instance, msg);
+            }
+        },
+
+        // ==== ROUTER ID ====
+        IbusMsg::RouterId(RouterIdMsg::Update(router_id)) => {
+            // Router ID update notification.
             southbound::rx::process_router_id_update(instance, router_id).await;
         }
-        // Route redistribute update notification.
-        IbusMsg::RouteRedistributeAdd(msg) => {
-            southbound::rx::process_route_add(instance, msg);
-        }
-        // Route redistribute delete notification.
-        IbusMsg::RouteRedistributeDel(msg) => {
-            southbound::rx::process_route_del(instance, msg);
+
+        // ==== ROUTE REDISTRIBUTE ====
+        IbusMsg::RouteRedistribute(route_redistribute_msg) => {
+            match route_redistribute_msg {
+                // Route redistribute update notification.
+                RouteRedistributeMsg::Add(msg) => {
+                    southbound::rx::process_route_add(instance, msg);
+                }
+
+                // Route redistribute delete notification.
+                RouteRedistributeMsg::Delete(msg) => {
+                    southbound::rx::process_route_del(instance, msg);
+                }
+                _ => {}
+            }
         }
         // Ignore other events.
         _ => {}

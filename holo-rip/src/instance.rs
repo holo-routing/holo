@@ -16,7 +16,7 @@ use enum_as_inner::EnumAsInner;
 use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
 };
-use holo_utils::ibus::IbusMsg;
+use holo_utils::ibus::{IbusMsg, InterfaceAddressMsg, InterfaceMsg};
 use holo_utils::protocol::Protocol;
 use holo_utils::task::{IntervalTask, TimeoutTask};
 use holo_utils::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
@@ -539,17 +539,22 @@ where
 {
     match msg {
         // Interface update notification.
-        IbusMsg::InterfaceUpd(msg) => {
+        IbusMsg::Interface(InterfaceMsg::Update(msg)) => {
             southbound::rx::process_iface_update(instance, msg);
         }
-        // Interface address addition notification.
-        IbusMsg::InterfaceAddressAdd(msg) => {
-            southbound::rx::process_addr_add(instance, msg);
-        }
-        // Interface address delete notification.
-        IbusMsg::InterfaceAddressDel(msg) => {
-            southbound::rx::process_addr_del(instance, msg);
-        }
+
+        // Interface address
+        IbusMsg::InterfaceAddress(iface_addr_msg) => match iface_addr_msg {
+            // Interface address addition notification.
+            InterfaceAddressMsg::Add(msg) => {
+                southbound::rx::process_addr_add(instance, msg);
+            }
+
+            // Interface address delete notification.
+            InterfaceAddressMsg::Delete(msg) => {
+                southbound::rx::process_addr_del(instance, msg);
+            }
+        },
         // Ignore other events.
         _ => {}
     }

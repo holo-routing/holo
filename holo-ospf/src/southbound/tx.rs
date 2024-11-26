@@ -7,7 +7,9 @@
 use std::collections::BTreeSet;
 use std::net::IpAddr;
 
-use holo_utils::ibus::{IbusMsg, IbusSender};
+use holo_utils::ibus::{
+    IbusSender, RouteBierMsg, RouteIpMsg, RouteMplsMsg, RouterIdMsg,
+};
 use holo_utils::mpls::Label;
 use holo_utils::southbound::{
     BierNbrInstallMsg, BierNbrUninstallMsg, LabelInstallMsg, LabelUninstallMsg,
@@ -22,7 +24,7 @@ use crate::version::Version;
 // ===== global functions =====
 
 pub(crate) fn router_id_query(ibus_tx: &IbusSender) {
-    let _ = ibus_tx.send(IbusMsg::RouterIdQuery);
+    let _ = ibus_tx.send(RouterIdMsg::Query.into());
 }
 
 pub(crate) fn route_install<V>(
@@ -61,7 +63,7 @@ pub(crate) fn route_install<V>(
         .collect::<BTreeSet<_>>();
 
     // Install route.
-    let msg = RouteMsg {
+    let msg = RouteIpMsg::Add(RouteMsg {
         protocol: V::PROTOCOL,
         prefix: (*destination).into(),
         distance: distance.into(),
@@ -71,46 +73,42 @@ pub(crate) fn route_install<V>(
             route_type: route.path_type,
         },
         nexthops: nexthops.clone(),
-    };
-    let msg = IbusMsg::RouteIpAdd(msg);
-    let _ = ibus_tx.send(msg);
+    });
+    let _ = ibus_tx.send(msg.into());
 
     // Unnstall previous SR Prefix-SID input label if it has changed.
     if old_sr_label != route.sr_label {
         if let Some(old_sr_label) = old_sr_label {
-            let msg = LabelUninstallMsg {
+            let msg = RouteMplsMsg::Delete(LabelUninstallMsg {
                 protocol: V::PROTOCOL,
                 label: old_sr_label,
                 nexthops: BTreeSet::new(),
                 route: None,
-            };
-            let msg = IbusMsg::RouteMplsDel(msg);
-            let _ = ibus_tx.send(msg);
+            });
+            let _ = ibus_tx.send(msg.into());
         }
     }
 
     // Install SR Prefix-SID input label.
     if let Some(sr_label) = &route.sr_label {
-        let msg = LabelInstallMsg {
+        let msg = RouteMplsMsg::Add(LabelInstallMsg {
             protocol: V::PROTOCOL,
             label: *sr_label,
             nexthops: nexthops.clone(),
             route: None,
             replace: true,
-        };
-        let msg = IbusMsg::RouteMplsAdd(msg);
-        let _ = ibus_tx.send(msg);
+        });
+        let _ = ibus_tx.send(msg.into());
     }
 
     // Install BIER neighbor entry
     if let Some(bier_info) = &route.bier_info {
-        let msg = BierNbrInstallMsg {
+        let msg = RouteBierMsg::Add(BierNbrInstallMsg {
             bier_info: bier_info.clone(),
             nexthops,
             prefix: (*destination).into(),
-        };
-        let msg = IbusMsg::RouteBierAdd(msg);
-        let _ = ibus_tx.send(msg);
+        });
+        let _ = ibus_tx.send(msg.into());
     }
 }
 
@@ -122,35 +120,32 @@ pub(crate) fn route_uninstall<V>(
     V: Version,
 {
     // Uninstall route.
-    let msg = RouteKeyMsg {
+    let msg = RouteIpMsg::Delete(RouteKeyMsg {
         protocol: V::PROTOCOL,
         prefix: (*destination).into(),
-    };
-    let msg = IbusMsg::RouteIpDel(msg);
-    let _ = ibus_tx.send(msg);
+    });
+    let _ = ibus_tx.send(msg.into());
 
     // Uninstall SR Prefix-SID input label.
     if let Some(sr_label) = &route.sr_label {
-        let msg = LabelUninstallMsg {
+        let msg = RouteMplsMsg::Delete(LabelUninstallMsg {
             protocol: V::PROTOCOL,
             label: *sr_label,
             nexthops: BTreeSet::new(),
             route: None,
-        };
-        let msg = IbusMsg::RouteMplsDel(msg);
-        let _ = ibus_tx.send(msg);
+        });
+        let _ = ibus_tx.send(msg.into());
     }
 
     // Uninstall BIER neighbor entry
     if let Some(bier_info) = &route.bier_info {
         for bsl in &bier_info.bfr_bss {
-            let msg = BierNbrUninstallMsg {
+            let msg = RouteBierMsg::Delete(BierNbrUninstallMsg {
                 sd_id: bier_info.sd_id,
                 bfr_id: bier_info.bfr_id,
                 bsl: *bsl,
-            };
-            let msg = IbusMsg::RouteBierDel(msg);
-            let _ = ibus_tx.send(msg);
+            });
+            let _ = ibus_tx.send(msg.into());
         }
     }
 }
@@ -163,7 +158,7 @@ pub(crate) fn adj_sid_install<V>(
 ) where
     V: Version,
 {
-    let msg = LabelInstallMsg {
+    let msg = RouteMplsMsg::Add(LabelInstallMsg {
         protocol: V::PROTOCOL,
         label,
         nexthops: [Nexthop::Address {
@@ -174,21 +169,19 @@ pub(crate) fn adj_sid_install<V>(
         .into(),
         route: None,
         replace: false,
-    };
-    let msg = IbusMsg::RouteMplsAdd(msg);
-    let _ = ibus_tx.send(msg);
+    });
+    let _ = ibus_tx.send(msg.into());
 }
 
 pub(crate) fn adj_sid_uninstall<V>(ibus_tx: &IbusSender, label: Label)
 where
     V: Version,
 {
-    let msg = LabelUninstallMsg {
+    let msg = RouteMplsMsg::Delete(LabelUninstallMsg {
         protocol: V::PROTOCOL,
         label,
         nexthops: BTreeSet::new(),
         route: None,
-    };
-    let msg = IbusMsg::RouteMplsDel(msg);
-    let _ = ibus_tx.send(msg);
+    });
+    let _ = ibus_tx.send(msg.into());
 }

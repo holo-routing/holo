@@ -1,0 +1,535 @@
+---
+Instance(
+    30,
+    Instance {
+        vrid: 30,
+        config: InstanceCfg {
+            log_state_change: false,
+            preempt: true,
+            priority: 100,
+            advertise_interval: 1,
+            virtual_addresses: {
+                Ipv4Network {
+                    addr: 10.0.30.1,
+                    prefix: 32,
+                },
+                Ipv4Network {
+                    addr: 10.0.30.2,
+                    prefix: 32,
+                },
+            },
+        },
+        state: InstanceState {
+            state: Master,
+            last_adv_src: None,
+            up_time: None,
+            last_event: MasterTimeout,
+            new_master_reason: NoResponse,
+            skew_time: 0.609375,
+            master_down_interval: 3,
+            is_owner: false,
+            statistics: Statistics {
+                discontinuity_time: 2024-11-13T10:17:40.074684601Z,
+                master_transitions: 1,
+                adv_rcvd: 0,
+                adv_sent: 5,
+                interval_errors: 0,
+                priority_zero_pkts_rcvd: 0,
+                priority_zero_pkts_sent: 0,
+                invalid_type_pkts_rcvd: 0,
+                pkt_length_errors: 0,
+                checksum_errors: 0,
+                version_errors: 0,
+                vrid_errors: 0,
+                ip_ttl_errors: 0,
+            },
+        },
+        timer: AdverTimer(
+            IntervalTask {
+                inner: IntervalTaskInner {
+                    _task: Task {
+                        join_handle: JoinHandle {
+                            id: Id(
+                                82,
+                            ),
+                        },
+                        detached: false,
+                    },
+                    control: UnboundedSender {
+                        chan: Tx {
+                            inner: Chan {
+                                tx: Tx {
+                                    block_tail: 0x000075518001f290,
+                                    tail_position: 0,
+                                },
+                                semaphore: Semaphore(
+                                    0,
+                                ),
+                                rx_waker: AtomicWaker,
+                                tx_count: 1,
+                                rx_fields: "...",
+                            },
+                        },
+                    },
+                    next: Mutex {
+                        data: Instant {
+                            tv_sec: 16100,
+                            tv_nsec: 134915211,
+                        },
+                        poisoned: false,
+                        ..
+                    },
+                },
+            },
+        ),
+        mac_vlan: MacVlanInterface {
+            name: "mvlan-vrrp-30",
+            system: InterfaceSys {
+                flags: InterfaceFlags(
+                    OPERATIVE | BROADCAST,
+                ),
+                ifindex: Some(
+                    8,
+                ),
+                addresses: {
+                    Ipv4Network {
+                        addr: 10.0.30.1,
+                        prefix: 32,
+                    },
+                    Ipv4Network {
+                        addr: 10.0.30.2,
+                        prefix: 32,
+                    },
+                    Ipv4Network {
+                        addr: 10.0.50.1,
+                        prefix: 32,
+                    },
+                    Ipv4Network {
+                        addr: 10.0.50.2,
+                        prefix: 32,
+                    },
+                    Ipv4Network {
+                        addr: 10.0.70.1,
+                        prefix: 32,
+                    },
+                    Ipv4Network {
+                        addr: 10.0.70.2,
+                        prefix: 32,
+                    },
+                },
+                mac_address: [
+                    0,
+                    0,
+                    94,
+                    0,
+                    1,
+                    30,
+                ],
+            },
+            net: Some(
+                MvlanInterfaceNet {
+                    socket_vrrp: AsyncFd {
+                        inner: Some(
+                            Socket {
+                                raw: 35,
+                                local_addr: Some(
+                                    SockAddr {
+                                        ss_family: 2,
+                                        len: 16,
+                                    },
+                                ),
+                                peer_addr: None,
+                            },
+                        ),
+                    },
+                    socket_arp: AsyncFd {
+                        inner: Some(
+                            Socket {
+                                raw: 28,
+                                local_addr: Some(
+                                    SockAddr {
+                                        ss_family: 17,
+                                        len: 12,
+                                    },
+                                ),
+                                peer_addr: None,
+                            },
+                        ),
+                    },
+                    _net_tx_task: Task {
+                        join_handle: JoinHandle {
+                            id: Id(
+                                80,
+                            ),
+                        },
+                        detached: false,
+                    },
+                    _vrrp_net_rx_task: Task {
+                        join_handle: JoinHandle {
+                            id: Id(
+                                81,
+                            ),
+                        },
+                        detached: false,
+                    },
+                    net_tx_packetp: UnboundedSender {
+                        chan: Tx {
+                            inner: Chan {
+                                tx: Tx {
+                                    block_tail: 0x0000755180025790,
+                                    tail_position: 3,
+                                },
+                                semaphore: Semaphore(
+                                    0,
+                                ),
+                                rx_waker: AtomicWaker,
+                                tx_count: 2,
+                                rx_fields: "...",
+                            },
+                        },
+                    },
+                },
+            ),
+        },
+    },
+)
+---
+Instance(
+    50,
+    Instance {
+        vrid: 50,
+        config: InstanceCfg {
+            log_state_change: false,
+            preempt: true,
+            priority: 100,
+            advertise_interval: 1,
+            virtual_addresses: {
+                Ipv4Network {
+                    addr: 10.0.50.1,
+                    prefix: 32,
+                },
+                Ipv4Network {
+                    addr: 10.0.50.2,
+                    prefix: 32,
+                },
+            },
+        },
+        state: InstanceState {
+            state: Master,
+            last_adv_src: None,
+            up_time: None,
+            last_event: MasterTimeout,
+            new_master_reason: NoResponse,
+            skew_time: 0.609375,
+            master_down_interval: 3,
+            is_owner: false,
+            statistics: Statistics {
+                discontinuity_time: 2024-11-13T10:17:40.074916866Z,
+                master_transitions: 1,
+                adv_rcvd: 0,
+                adv_sent: 3,
+                interval_errors: 0,
+                priority_zero_pkts_rcvd: 0,
+                priority_zero_pkts_sent: 0,
+                invalid_type_pkts_rcvd: 0,
+                pkt_length_errors: 0,
+                checksum_errors: 0,
+                version_errors: 0,
+                vrid_errors: 0,
+                ip_ttl_errors: 0,
+            },
+        },
+        timer: AdverTimer(
+            IntervalTask {
+                inner: IntervalTaskInner {
+                    _task: Task {
+                        join_handle: JoinHandle {
+                            id: Id(
+                                63,
+                            ),
+                        },
+                        detached: false,
+                    },
+                    control: UnboundedSender {
+                        chan: Tx {
+                            inner: Chan {
+                                tx: Tx {
+                                    block_tail: 0x000075518000ba10,
+                                    tail_position: 0,
+                                },
+                                semaphore: Semaphore(
+                                    0,
+                                ),
+                                rx_waker: AtomicWaker,
+                                tx_count: 1,
+                                rx_fields: "...",
+                            },
+                        },
+                    },
+                    next: Mutex {
+                        data: Instant {
+                            tv_sec: 16100,
+                            tv_nsec: 129673689,
+                        },
+                        poisoned: false,
+                        ..
+                    },
+                },
+            },
+        ),
+        mac_vlan: MacVlanInterface {
+            name: "mvlan-vrrp-50",
+            system: InterfaceSys {
+                flags: InterfaceFlags(
+                    OPERATIVE | BROADCAST,
+                ),
+                ifindex: Some(
+                    9,
+                ),
+                addresses: {},
+                mac_address: [
+                    0,
+                    0,
+                    94,
+                    0,
+                    1,
+                    50,
+                ],
+            },
+            net: Some(
+                MvlanInterfaceNet {
+                    socket_vrrp: AsyncFd {
+                        inner: Some(
+                            Socket {
+                                raw: 15,
+                                local_addr: Some(
+                                    SockAddr {
+                                        ss_family: 2,
+                                        len: 16,
+                                    },
+                                ),
+                                peer_addr: None,
+                            },
+                        ),
+                    },
+                    socket_arp: AsyncFd {
+                        inner: Some(
+                            Socket {
+                                raw: 21,
+                                local_addr: Some(
+                                    SockAddr {
+                                        ss_family: 17,
+                                        len: 12,
+                                    },
+                                ),
+                                peer_addr: None,
+                            },
+                        ),
+                    },
+                    _net_tx_task: Task {
+                        join_handle: JoinHandle {
+                            id: Id(
+                                53,
+                            ),
+                        },
+                        detached: false,
+                    },
+                    _vrrp_net_rx_task: Task {
+                        join_handle: JoinHandle {
+                            id: Id(
+                                54,
+                            ),
+                        },
+                        detached: false,
+                    },
+                    net_tx_packetp: UnboundedSender {
+                        chan: Tx {
+                            inner: Chan {
+                                tx: Tx {
+                                    block_tail: 0x0000755180008610,
+                                    tail_position: 6,
+                                },
+                                semaphore: Semaphore(
+                                    0,
+                                ),
+                                rx_waker: AtomicWaker,
+                                tx_count: 2,
+                                rx_fields: "...",
+                            },
+                        },
+                    },
+                },
+            ),
+        },
+    },
+)
+---
+Instance(
+    70,
+    Instance {
+        vrid: 70,
+        config: InstanceCfg {
+            log_state_change: false,
+            preempt: true,
+            priority: 100,
+            advertise_interval: 1,
+            virtual_addresses: {
+                Ipv4Network {
+                    addr: 10.0.70.1,
+                    prefix: 32,
+                },
+                Ipv4Network {
+                    addr: 10.0.70.2,
+                    prefix: 32,
+                },
+            },
+        },
+        state: InstanceState {
+            state: Master,
+            last_adv_src: None,
+            up_time: None,
+            last_event: MasterTimeout,
+            new_master_reason: NoResponse,
+            skew_time: 0.609375,
+            master_down_interval: 3,
+            is_owner: false,
+            statistics: Statistics {
+                discontinuity_time: 2024-11-13T10:17:40.075194026Z,
+                master_transitions: 1,
+                adv_rcvd: 0,
+                adv_sent: 3,
+                interval_errors: 0,
+                priority_zero_pkts_rcvd: 0,
+                priority_zero_pkts_sent: 0,
+                invalid_type_pkts_rcvd: 0,
+                pkt_length_errors: 0,
+                checksum_errors: 0,
+                version_errors: 0,
+                vrid_errors: 0,
+                ip_ttl_errors: 0,
+            },
+        },
+        timer: AdverTimer(
+            IntervalTask {
+                inner: IntervalTaskInner {
+                    _task: Task {
+                        join_handle: JoinHandle {
+                            id: Id(
+                                62,
+                            ),
+                        },
+                        detached: false,
+                    },
+                    control: UnboundedSender {
+                        chan: Tx {
+                            inner: Chan {
+                                tx: Tx {
+                                    block_tail: 0x0000755168027e10,
+                                    tail_position: 0,
+                                },
+                                semaphore: Semaphore(
+                                    0,
+                                ),
+                                rx_waker: AtomicWaker,
+                                tx_count: 1,
+                                rx_fields: "...",
+                            },
+                        },
+                    },
+                    next: Mutex {
+                        data: Instant {
+                            tv_sec: 16100,
+                            tv_nsec: 129578021,
+                        },
+                        poisoned: false,
+                        ..
+                    },
+                },
+            },
+        ),
+        mac_vlan: MacVlanInterface {
+            name: "mvlan-vrrp-70",
+            system: InterfaceSys {
+                flags: InterfaceFlags(
+                    OPERATIVE | BROADCAST,
+                ),
+                ifindex: Some(
+                    10,
+                ),
+                addresses: {},
+                mac_address: [
+                    0,
+                    0,
+                    94,
+                    0,
+                    1,
+                    70,
+                ],
+            },
+            net: Some(
+                MvlanInterfaceNet {
+                    socket_vrrp: AsyncFd {
+                        inner: Some(
+                            Socket {
+                                raw: 22,
+                                local_addr: Some(
+                                    SockAddr {
+                                        ss_family: 2,
+                                        len: 16,
+                                    },
+                                ),
+                                peer_addr: None,
+                            },
+                        ),
+                    },
+                    socket_arp: AsyncFd {
+                        inner: Some(
+                            Socket {
+                                raw: 24,
+                                local_addr: Some(
+                                    SockAddr {
+                                        ss_family: 17,
+                                        len: 12,
+                                    },
+                                ),
+                                peer_addr: None,
+                            },
+                        ),
+                    },
+                    _net_tx_task: Task {
+                        join_handle: JoinHandle {
+                            id: Id(
+                                56,
+                            ),
+                        },
+                        detached: false,
+                    },
+                    _vrrp_net_rx_task: Task {
+                        join_handle: JoinHandle {
+                            id: Id(
+                                57,
+                            ),
+                        },
+                        detached: false,
+                    },
+                    net_tx_packetp: UnboundedSender {
+                        chan: Tx {
+                            inner: Chan {
+                                tx: Tx {
+                                    block_tail: 0x000075518000a590,
+                                    tail_position: 6,
+                                },
+                                semaphore: Semaphore(
+                                    0,
+                                ),
+                                rx_waker: AtomicWaker,
+                                tx_count: 2,
+                                rx_fields: "...",
+                            },
+                        },
+                    },
+                },
+            ),
+        },
+    },
+)

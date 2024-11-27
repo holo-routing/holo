@@ -195,12 +195,7 @@ fn handle_vrrp_actions(interface: &mut Interface, action: VrrpAction) {
                 else if pkt.priority > instance.config.priority
                     || ((pkt.priority == instance.config.priority)
                         && src
-                            > interface
-                                .system
-                                .addresses
-                                .first()
-                                .unwrap()
-                                .network())
+                            > interface.system.addresses.first().unwrap().ip())
                 {
                     interface.change_state(
                         vrid,

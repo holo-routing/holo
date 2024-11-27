@@ -77,9 +77,8 @@ static ETHERNETHDR: LazyLock<(Vec<u8>, EthernetHdr)> = LazyLock::new(|| {
 #[test]
 fn test_encode_vrrphdr() {
     let (ref bytes, ref vrrphdr) = *VRRPHDR;
-    let hdr = vrrphdr.clone();
 
-    let generated_bytes = hdr.encode();
+    let generated_bytes = vrrphdr.encode();
     let generated_data = generated_bytes.as_ref();
     let expected_data: &[u8] = bytes.as_ref();
     assert_eq!(generated_data, expected_data);
@@ -100,9 +99,8 @@ fn test_decode_vrrphdr() {
 #[test]
 fn test_encode_ipv4hdr() {
     let (ref bytes, ref iphdr) = *IPV4HDR;
-    let hdr = iphdr.clone();
 
-    let generated_bytes = hdr.encode();
+    let generated_bytes = iphdr.encode();
     let generated_data = generated_bytes.as_ref();
     let expected_data: &[u8] = bytes.as_ref();
     assert_eq!(generated_data, expected_data);
@@ -122,9 +120,8 @@ fn test_decode_ipv4hdr() {
 #[test]
 fn test_encode_ethernethdr() {
     let (ref bytes, ref ethernethdr) = *ETHERNETHDR;
-    let hdr = ethernethdr.clone();
 
-    let generated_bytes = hdr.encode();
+    let generated_bytes = ethernethdr.encode();
     let generated_data = generated_bytes.as_ref();
     let expected_data: &[u8] = bytes.as_ref();
     assert_eq!(generated_data, expected_data);

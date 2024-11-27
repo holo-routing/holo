@@ -7,35 +7,42 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use std::net::IpAddr;
+use std::net::Ipv4Addr;
 
 use tracing::{debug, debug_span};
 
+use crate::instance::fsm;
 use crate::packet::VrrpHdr;
 
 // VRRP debug messages.
 #[derive(Debug)]
 pub enum Debug<'a> {
-    InstanceCreate,
-    InstanceDelete,
+    // Instances
+    InstanceCreate(u8),
+    InstanceDelete(u8),
+    InstanceStateChange(u8, fsm::State, fsm::State),
     // Network
-    PacketRx(&'a IpAddr, &'a VrrpHdr),
-    PacketTx(&'a IpAddr, &'a VrrpHdr),
+    PacketRx(&'a Ipv4Addr, &'a VrrpHdr),
+    PacketTx(&'a VrrpHdr),
+    ArpTx(&'a Ipv4Addr),
 }
 
 // ===== impl Debug =====
 
 impl Debug<'_> {
     // Log debug message using the tracing API.
-    #[expect(unused)]
     pub(crate) fn log(&self) {
         match self {
-            Debug::InstanceCreate | Debug::InstanceDelete => {
-                // Parent span(s): vrrp-instance
-                debug!("{}", self);
+            Debug::InstanceCreate(vrid) | Debug::InstanceDelete(vrid) => {
+                // Parent span(s): vrrp
+                debug!(%vrid, "{}", self);
+            }
+            Debug::InstanceStateChange(vrid, old_state, new_state) => {
+                // Parent span(s): vrrp
+                debug!(%vrid, ?old_state, ?new_state, "{}", self);
             }
             Debug::PacketRx(src, packet) => {
-                // Parent span(s): vrrp-instance
+                // Parent span(s): vrrp
                 debug_span!("network").in_scope(|| {
                     debug_span!("input").in_scope(|| {
                         let data = serde_json::to_string(&packet).unwrap();
@@ -43,10 +50,14 @@ impl Debug<'_> {
                     })
                 })
             }
-            Debug::PacketTx(addr, packet) => {
-                // Parent span(s): vrrp-instance:network:output
+            Debug::PacketTx(packet) => {
+                // Parent span(s): vrrp:network:output
                 let data = serde_json::to_string(&packet).unwrap();
-                debug!(%addr, %data, "{}", self);
+                debug!(%data, "{}", self);
+            }
+            Debug::ArpTx(addr) => {
+                // Parent span(s): vrrp:network:output
+                debug!(%addr, "{}", self);
             }
         }
     }
@@ -55,14 +66,20 @@ impl Debug<'_> {
 impl std::fmt::Display for Debug<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Debug::InstanceCreate => {
+            Debug::InstanceCreate(..) => {
                 write!(f, "instance created")
             }
-            Debug::InstanceDelete => {
+            Debug::InstanceDelete(..) => {
                 write!(f, "instance deleted")
+            }
+            Debug::InstanceStateChange(..) => {
+                write!(f, "instance state change")
             }
             Debug::PacketRx(..) | Debug::PacketTx(..) => {
                 write!(f, "packet")
+            }
+            Debug::ArpTx(..) => {
+                write!(f, "gratuitous ARP")
             }
         }
     }

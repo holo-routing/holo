@@ -57,7 +57,7 @@ pub(crate) async fn process_msg(master: &mut Master, msg: IbusMsg) {
                 master.interfaces.router_id(),
             );
         }
-        IbusMsg::CreateMacVlan(msg) => {
+        IbusMsg::MacvlanAdd(msg) => {
             master
                 .interfaces
                 .create_macvlan_interface(
@@ -68,30 +68,26 @@ pub(crate) async fn process_msg(master: &mut Master, msg: IbusMsg) {
                 )
                 .await;
         }
+        IbusMsg::MacvlanDel(ifname) => {
+            let _ = master
+                .interfaces
+                .delete_iface(&master.netlink_handle, ifname)
+                .await;
+        }
         IbusMsg::InterfaceIpAddRequest(msg) => {
             let _ = master
                 .interfaces
-                .add_iface_address(
-                    &master.netlink_handle,
-                    msg.ifindex,
-                    msg.addr,
-                )
+                .add_iface_address(&master.netlink_handle, msg.ifname, msg.addr)
                 .await;
         }
-        IbusMsg::InterfaceIpDeleteRequest(msg) => {
+        IbusMsg::InterfaceIpDelRequest(msg) => {
             let _ = master
                 .interfaces
                 .delete_iface_address(
                     &master.netlink_handle,
-                    msg.ifindex,
+                    msg.ifname,
                     msg.addr,
                 )
-                .await;
-        }
-        IbusMsg::InterfaceDeleteRequest(ifindex) => {
-            let _ = master
-                .interfaces
-                .delete_iface(&master.netlink_handle, ifindex)
                 .await;
         }
         // Ignore other events.

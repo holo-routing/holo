@@ -13,106 +13,81 @@ use ipnetwork::IpNetwork;
 use crate::interface::Interface;
 
 // ===== global functions =====
+
 pub(crate) fn process_iface_update(
-    iface: &mut Interface,
+    interface: &mut Interface,
     msg: InterfaceUpdateMsg,
 ) {
-    // when the iface being updated is the
-    // main interface for this `holo-vrrp`
-    if msg.ifname == iface.name {
-        iface.system.flags = msg.flags;
-        iface.system.ifindex = Some(msg.ifindex);
-        iface.system.mac_address = msg.mac_address;
+    let (interface, mut instances) = interface.iter_instances();
 
-        // update names for all macvlans
-        for (vrid, instance) in iface.instances.iter_mut() {
-            instance.mac_vlan.name = format!("mvlan-vrrp-{}", vrid);
+    // Handle updates for the primary VRRP interface.
+    if msg.ifname == interface.name {
+        interface.system.flags = msg.flags;
+        interface.system.ifindex = Some(msg.ifindex);
+        interface.system.mac_address = msg.mac_address;
+        for instance in instances {
+            instance.update(&interface);
         }
         return;
     }
 
-    let mut target_vrid: Option<u8> = None;
-
-    //check if it is one of the macvlans being updated.
-    'outer: for (vrid, instance) in iface.instances.iter_mut() {
-        let name = msg.ifname.clone();
-        let mvlan_iface = &mut instance.mac_vlan;
-
-        if mvlan_iface.name == name {
-            mvlan_iface.system.flags = msg.flags;
-            mvlan_iface.system.ifindex = Some(msg.ifindex);
-            mvlan_iface.system.mac_address = msg.mac_address;
-
-            target_vrid = Some(*vrid);
-
-            break 'outer;
-        }
-    }
-
-    if let Some(vrid) = target_vrid {
-        iface.net_reload(Some(vrid));
+    // Handle updates for VRRP macvlan interfaces.
+    if let Some(instance) =
+        instances.find(|instance| msg.ifname == instance.mvlan.name)
+    {
+        instance.mvlan.system.flags = msg.flags;
+        instance.mvlan.system.ifindex = Some(msg.ifindex);
+        instance.mvlan.system.mac_address = msg.mac_address;
+        instance.update(&interface);
     }
 }
 
-pub(crate) fn process_addr_del(iface: &mut Interface, msg: AddressMsg) {
-    if msg.ifname == iface.name {
-        // remove the address from the addresses of parent interfaces
+pub(crate) fn process_addr_add(interface: &mut Interface, msg: AddressMsg) {
+    let (interface, mut instances) = interface.iter_instances();
+
+    // Handle address updates for the primary VRRP interface.
+    if msg.ifname == interface.name {
         if let IpNetwork::V4(addr) = msg.addr {
-            iface.system.addresses.remove(&addr);
-            iface.net_reload(None);
-        }
-    }
-
-    let mut target_vrid: Option<u8> = None;
-
-    'outer: for (vrid, instance) in iface.instances.iter_mut() {
-        let name = format!("mvlan-vrrp-{}", vrid);
-        let mvlan_iface = &mut instance.mac_vlan;
-
-        // if it is one of the macvlans being edited, we
-        // remove the macvlan's
-        if mvlan_iface.name == name {
-            if let IpNetwork::V4(addr) = msg.addr {
-                mvlan_iface.system.addresses.remove(&addr);
-                target_vrid = Some(*vrid);
-                break 'outer;
+            interface.system.addresses.insert(addr);
+            for instance in instances {
+                instance.update(&interface);
             }
         }
+        return;
     }
 
-    if let Some(vrid) = target_vrid {
-        iface.net_reload(Some(vrid));
+    // Handle address updates for VRRP macvlan interfaces.
+    if let Some(instance) =
+        instances.find(|instance| msg.ifname == instance.mvlan.name)
+    {
+        if let IpNetwork::V4(addr) = msg.addr {
+            instance.mvlan.system.addresses.insert(addr);
+            instance.update(&interface);
+        }
     }
 }
 
-pub(crate) fn process_addr_add(iface: &mut Interface, msg: AddressMsg) {
-    if msg.ifname == iface.name {
+pub(crate) fn process_addr_del(interface: &mut Interface, msg: AddressMsg) {
+    let (interface, mut instances) = interface.iter_instances();
+
+    // Handle address updates for the primary VRRP interface.
+    if msg.ifname == interface.name {
         if let IpNetwork::V4(addr) = msg.addr {
-            iface.system.addresses.insert(addr);
-            iface.net_reload(None);
-        }
-    }
-
-    // when this is some, it means that we need to rebind our
-    // transmission socket multicast address to the newly added address
-    let mut target_vrid: Option<u8> = None;
-
-    // if the interface being updated is one of the macvlans
-    'outer: for (vrid, instance) in iface.instances.iter_mut() {
-        let name = format!("mvlan-vrrp-{}", vrid);
-        let mvlan_iface = &mut instance.mac_vlan;
-        if mvlan_iface.name == name {
-            if let IpNetwork::V4(addr) = msg.addr {
-                mvlan_iface.system.addresses.insert(addr);
-                target_vrid = Some(*vrid);
-                break 'outer;
+            interface.system.addresses.remove(&addr);
+            for instance in instances {
+                instance.update(&interface);
             }
         }
+        return;
     }
 
-    // if the address added was for an instance's macvlan interface
-    // we reload that sole instance's network configs.
-    if let Some(vrid) = target_vrid {
-        iface.net_reload(Some(vrid));
+    // Handle address updates for VRRP macvlan interfaces.
+    if let Some(instance) =
+        instances.find(|instance| msg.ifname == instance.mvlan.name)
+    {
+        if let IpNetwork::V4(addr) = msg.addr {
+            instance.mvlan.system.addresses.remove(&addr);
+            instance.update(&interface);
+        }
     }
 }

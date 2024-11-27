@@ -7,6 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
+use std::io::IoSlice;
 use std::os::fd::AsRawFd;
 use std::sync::Arc;
 
@@ -14,46 +15,48 @@ use bytes::BufMut;
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::{capabilities, Sender, UnboundedReceiver};
 use libc::{AF_PACKET, ETH_P_ARP};
-use nix::sys::socket::{self, sendto, LinkAddr, MsgFlags, SockaddrLike};
+use nix::sys::socket::{self, LinkAddr, SockaddrIn, SockaddrLike};
 use socket2::{Domain, Protocol, Type};
 use tokio::sync::mpsc::error::SendError;
 
-use crate::consts::{VRRP_HDR_MAX, VRRP_MULTICAST_ADDRESS, VRRP_PROTO_NUMBER};
+use crate::consts::{
+    ARP_PROTOCOL_NUMBER, VRRP_MULTICAST_ADDRESS, VRRP_PROTO_NUMBER,
+};
+use crate::debug::Debug;
 use crate::error::IoError;
-use crate::interface::Interface;
+use crate::interface::InterfaceView;
+use crate::macvlan::MacvlanInterface;
 use crate::packet::{ArpHdr, EthernetHdr, Ipv4Hdr, VrrpHdr, VrrpPacket};
 use crate::tasks::messages::input::VrrpNetRxPacketMsg;
 use crate::tasks::messages::output::NetTxPacketMsg;
 
-pub fn socket_vrrp_tx(
-    interface: &Interface,
-    vrid: u8,
+// ===== global functions =====
+
+pub(crate) fn socket_vrrp_tx(
+    mvlan: &MacvlanInterface,
 ) -> Result<Socket, std::io::Error> {
     #[cfg(not(feature = "testing"))]
     {
-        let instance = interface.instances.get(&vrid).unwrap();
-        let sock = capabilities::raise(|| {
+        let socket = capabilities::raise(|| {
             Socket::new(
                 Domain::IPV4,
                 Type::RAW,
                 Some(Protocol::from(VRRP_PROTO_NUMBER)),
             )
         })?;
-        sock.set_nonblocking(true)?;
-        if let Some(addr) = instance.mac_vlan.system.addresses.first() {
-            sock.set_multicast_if_v4(&addr.ip())?;
-        }
-
-        sock.set_header_included(true)?;
-
-        // Confirm if we should bind to the primary interface's address...
-        // bind it to the primary interface's name
+        socket.set_nonblocking(true)?;
+        socket.set_reuse_address(true)?;
+        socket.set_multicast_if_v4(
+            &mvlan.system.addresses.first().unwrap().ip(),
+        )?;
+        socket.set_header_included(true)?;
+        socket.set_multicast_ttl_v4(255)?;
+        socket.set_tos(libc::IPTOS_PREC_INTERNETCONTROL as u32)?;
         capabilities::raise(|| {
-            sock.bind_device(Some(instance.mac_vlan.name.as_bytes()))
+            socket.bind_device(Some(mvlan.name.as_bytes()))
         })?;
-        let _ = sock.set_reuse_address(true);
 
-        Ok(sock)
+        Ok(socket)
     }
     #[cfg(feature = "testing")]
     {
@@ -61,21 +64,28 @@ pub fn socket_vrrp_tx(
     }
 }
 
-pub fn socket_vrrp_rx(iface: &Interface) -> Result<Socket, std::io::Error> {
+pub(crate) fn socket_vrrp_rx(
+    interface: &InterfaceView,
+) -> Result<Socket, std::io::Error> {
     #[cfg(not(feature = "testing"))]
     {
-        let sock = capabilities::raise(|| {
+        let socket = capabilities::raise(|| {
             Socket::new(
                 Domain::IPV4,
                 Type::RAW,
                 Some(Protocol::from(VRRP_PROTO_NUMBER)),
             )
         })?;
-        capabilities::raise(|| sock.bind_device(Some(iface.name.as_bytes())))?;
-        sock.set_nonblocking(true)?;
-        join_multicast(&sock, iface)?;
+        capabilities::raise(|| {
+            socket.bind_device(Some(interface.name.as_bytes()))
+        })?;
+        socket.set_nonblocking(true)?;
+        socket.join_multicast_v4(
+            &VRRP_MULTICAST_ADDRESS,
+            &interface.system.addresses.first().unwrap().ip(),
+        )?;
 
-        Ok(sock)
+        Ok(socket)
     }
     #[cfg(feature = "testing")]
     {
@@ -83,21 +93,20 @@ pub fn socket_vrrp_rx(iface: &Interface) -> Result<Socket, std::io::Error> {
     }
 }
 
-pub fn socket_arp(ifname: &str) -> Result<Socket, std::io::Error> {
+pub(crate) fn socket_arp(ifname: &str) -> Result<Socket, std::io::Error> {
     #[cfg(not(feature = "testing"))]
     {
-        let sock = capabilities::raise(|| {
+        let socket = capabilities::raise(|| {
             Socket::new(
                 Domain::PACKET,
                 Type::RAW,
                 Some(Protocol::from(ETH_P_ARP)),
             )
         })?;
-        capabilities::raise(|| {
-            let _ = sock.bind_device(Some(ifname.as_bytes()));
-        });
-        let _ = sock.set_broadcast(true);
-        Ok(sock)
+        capabilities::raise(|| socket.bind_device(Some(ifname.as_bytes())))?;
+        socket.set_broadcast(true)?;
+
+        Ok(socket)
     }
     #[cfg(feature = "testing")]
     {
@@ -106,56 +115,49 @@ pub fn socket_arp(ifname: &str) -> Result<Socket, std::io::Error> {
 }
 
 #[cfg(not(feature = "testing"))]
-pub(crate) async fn send_packet_vrrp(
-    sock: &AsyncFd<Socket>,
-    ifindex: u32,
-    pkt: VrrpPacket,
+async fn send_packet_vrrp(
+    socket: &AsyncFd<Socket>,
+    packet: VrrpPacket,
 ) -> Result<usize, IoError> {
-    use crate::consts::IP_VRRP_HDR_MAX;
+    Debug::PacketTx(&packet.vrrp).log();
 
-    unsafe {
-        let mut sa = libc::sockaddr_ll {
-            sll_family: libc::AF_INET as u16,
-            sll_protocol: (VRRP_PROTO_NUMBER as u16).to_be(),
-            sll_ifindex: ifindex as i32,
-            sll_hatype: 0,
-            sll_pkttype: 0,
-            sll_halen: 0,
-            sll_addr: [0; 8],
-        };
+    // Encode packet.
+    let buf = packet.encode();
 
-        let ptr_sockaddr = std::mem::transmute::<
-            *mut libc::sockaddr_ll,
-            *mut libc::sockaddr,
-        >(&mut sa);
-        let buf: &[u8] = &pkt.encode();
-
-        match libc::sendto(
-            sock.as_raw_fd(),
-            buf.as_ptr().cast(),
-            std::cmp::min(buf.len(), IP_VRRP_HDR_MAX),
-            0,
-            ptr_sockaddr,
-            std::mem::size_of_val(&sa) as u32,
-        ) {
-            -1 => Err(IoError::SendError(std::io::Error::last_os_error())),
-            fd => Ok(fd as usize),
-        }
-    }
+    // Send packet.
+    let iov = [IoSlice::new(&buf)];
+    let sockaddr: SockaddrIn =
+        std::net::SocketAddrV4::new(VRRP_MULTICAST_ADDRESS, 0).into();
+    socket
+        .async_io(tokio::io::Interest::WRITABLE, |socket| {
+            socket::sendmsg(
+                socket.as_raw_fd(),
+                &iov,
+                &[],
+                socket::MsgFlags::empty(),
+                Some(&sockaddr),
+            )
+            .map_err(|errno| errno.into())
+        })
+        .await
+        .map_err(IoError::SendError)
 }
 
 #[cfg(not(feature = "testing"))]
-pub async fn send_packet_arp(
-    sock: &AsyncFd<Socket>,
+async fn send_packet_arp(
+    socket: &AsyncFd<Socket>,
     ifindex: u32,
     eth_hdr: EthernetHdr,
     arp_hdr: ArpHdr,
 ) -> Result<usize, IoError> {
-    use crate::consts::ARP_PROTOCOL_NUMBER;
+    Debug::ArpTx(&arp_hdr.sender_proto_address).log();
 
+    // Encode packet.
     let mut buf = eth_hdr.encode();
     buf.put(arp_hdr.encode());
 
+    // Send packet.
+    let iov = [IoSlice::new(&buf)];
     let mut sll = libc::sockaddr_ll {
         sll_family: AF_PACKET as u16,
         sll_protocol: ARP_PROTOCOL_NUMBER.to_be(),
@@ -167,28 +169,23 @@ pub async fn send_packet_arp(
     };
     sll.sll_addr[..6].copy_from_slice(&eth_hdr.dst_mac);
     let sll_len = size_of_val(&sll) as libc::socklen_t;
-    let saddr = unsafe {
+    let sockaddr = unsafe {
         LinkAddr::from_raw(&sll as *const _ as *const _, Some(sll_len))
     }
     .unwrap();
-    match sendto(sock.as_raw_fd(), &buf, &saddr, MsgFlags::empty()) {
-        Ok(res) => Ok(res),
-        Err(errno) => Err(IoError::SendError(errno.into())),
-    }
-}
-
-// for joining the VRRP multicast
-#[cfg(not(feature = "testing"))]
-pub fn join_multicast(
-    sock: &Socket,
-    iface: &Interface,
-) -> Result<(), std::io::Error> {
-    let sock = socket2::SockRef::from(sock);
-    if let Some(addr) = iface.system.addresses.first() {
-        let ip = addr.ip();
-        return sock.join_multicast_v4(&VRRP_MULTICAST_ADDRESS, &ip);
-    }
-    Err(std::io::Error::last_os_error())
+    socket
+        .async_io(tokio::io::Interest::WRITABLE, |socket| {
+            socket::sendmsg(
+                socket.as_raw_fd(),
+                &iov,
+                &[],
+                socket::MsgFlags::empty(),
+                Some(&sockaddr),
+            )
+            .map_err(|errno| errno.into())
+        })
+        .await
+        .map_err(IoError::SendError)
 }
 
 #[cfg(not(feature = "testing"))]
@@ -199,9 +196,8 @@ pub(crate) async fn write_loop(
 ) {
     while let Some(msg) = net_tx_packetc.recv().await {
         match msg {
-            NetTxPacketMsg::Vrrp { ifindex, pkt } => {
-                if let Err(error) =
-                    send_packet_vrrp(&socket_vrrp, ifindex, pkt).await
+            NetTxPacketMsg::Vrrp { packet } => {
+                if let Err(error) = send_packet_vrrp(&socket_vrrp, packet).await
                 {
                     error.log();
                 }
@@ -227,21 +223,21 @@ pub(crate) async fn vrrp_read_loop(
     socket_vrrp: Arc<AsyncFd<Socket>>,
     vrrp_net_packet_rxp: Sender<VrrpNetRxPacketMsg>,
 ) -> Result<(), SendError<VrrpNetRxPacketMsg>> {
-    let mut buf = [0u8; VRRP_HDR_MAX];
+    let mut buf = [0u8; 16384];
     loop {
         match socket_vrrp
-            .async_io(tokio::io::Interest::READABLE, |sock| {
+            .async_io(tokio::io::Interest::READABLE, |socket| {
                 match socket::recv(
-                    sock.as_raw_fd(),
+                    socket.as_raw_fd(),
                     &mut buf,
                     socket::MsgFlags::empty(),
                 ) {
                     Ok(msg) => {
                         let data = &buf[0..msg];
 
-                        // since ip header length is given in number of words
+                        // Since IP header length is given in number of words
                         // (4 bytes per word), we multiply by 4 to get the actual
-                        // number of bytes
+                        // number of bytes.
                         let ip_header_len = ((data[0] & 0x0f) * 4) as usize;
 
                         let ip_pkt =
@@ -262,7 +258,7 @@ pub(crate) async fn vrrp_read_loop(
                 vrrp_net_packet_rxp.send(msg).await.unwrap();
             }
             Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {
-                // retry if the syscall was interrupted
+                // Retry if the syscall was interrupted (EINTR).
                 continue;
             }
             Err(error) => {

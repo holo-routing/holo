@@ -8,30 +8,25 @@
 //
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::Arc;
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
 };
 use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
 use holo_utils::protocol::Protocol;
-use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::southbound::InterfaceFlags;
-use holo_utils::task::Task;
-use holo_utils::{Receiver, Sender, UnboundedSender};
-use ipnetwork::{IpNetwork, Ipv4Network};
+use holo_utils::{Receiver, Sender};
+use ipnetwork::Ipv4Network;
 use tokio::sync::mpsc;
-use tracing::{debug, debug_span, error, error_span};
 
-use crate::error::{Error, IoError};
-use crate::instance::{Instance, MasterReason, State};
-use crate::packet::{DecodeError, VrrpPacket};
+use crate::error::Error;
+use crate::instance::Instance;
 use crate::tasks::messages::input::{MasterDownTimerMsg, VrrpNetRxPacketMsg};
-use crate::tasks::messages::output::NetTxPacketMsg;
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
-use crate::{events, network, southbound, tasks};
+use crate::{events, southbound};
 
 #[derive(Debug)]
 pub struct Interface {
@@ -41,29 +36,12 @@ pub struct Interface {
     pub system: InterfaceSys,
     // Interface VRRP instances.
     pub instances: BTreeMap<u8, Instance>,
+    // Global statistics.
+    pub statistics: Statistics,
     // Tx channels.
     pub tx: InstanceChannelsTx<Interface>,
     // Shared data.
     pub shared: InstanceShared,
-}
-
-// as far as vrrp is concerned, this will have
-// nearly all the features of the normal interface
-// but will not hold any VRRP instances etc.
-// it is purely meant for being used together with
-// a VRRP instance as the MacVlan interface when
-// MacVlan is enabled on VRRP.
-#[derive(Debug)]
-pub struct MacVlanInterface {
-    // Interface name.
-    //
-    // Macvlan interface naming for VRRP will be in the format:
-    //   `mvlan-vrrp-{vrid}`
-    pub name: String,
-    // Interface system data.
-    pub system: InterfaceSys,
-    // Interface raw sockets and Tx/Rx tasks.
-    pub net: Option<MvlanInterfaceNet>,
 }
 
 #[derive(Debug, Default)]
@@ -74,289 +52,77 @@ pub struct InterfaceSys {
     pub ifindex: Option<u32>,
     // Interface IPv4 addresses.
     pub addresses: BTreeSet<Ipv4Network>,
-    // interface Mac Address
+    // interface MAC Address
     pub mac_address: [u8; 6],
 }
 
-#[derive(Debug)]
-pub struct MvlanInterfaceNet {
-    // Raw sockets.
-    pub socket_vrrp: Arc<AsyncFd<Socket>>,
-    pub socket_arp: Arc<AsyncFd<Socket>>,
-
-    // Network Tx/Rx tasks.
-    _net_tx_task: Task<()>,
-
-    // network Tx/Rx tasks. But specifically for VRRP packets.
-    _vrrp_net_rx_task: Task<()>,
-
-    // Network Tx output channel.
-    pub net_tx_packetp: UnboundedSender<NetTxPacketMsg>,
+#[derive(Debug, Default)]
+pub struct Statistics {
+    pub discontinuity_time: DateTime<Utc>,
+    pub checksum_errors: u64,
+    pub version_errors: u64,
+    pub vrid_errors: u64,
+    pub ip_ttl_errors: u64,
 }
 
 #[derive(Clone, Debug)]
 pub struct ProtocolInputChannelsTx {
-    // VRRP Packet Tx event.
+    // VRRP packet Rx event.
     pub vrrp_net_packet_tx: Sender<VrrpNetRxPacketMsg>,
-    // Master Down event
+    // Master down timer.
     pub master_down_timer_tx: Sender<MasterDownTimerMsg>,
 }
 
 #[derive(Debug)]
 pub struct ProtocolInputChannelsRx {
-    // VRRP Packet Rx event.
+    // VRRP packet Rx event.
     pub vrrp_net_packet_rx: Receiver<VrrpNetRxPacketMsg>,
-    // Master Down event
+    // Master down timer.
     pub master_down_timer_rx: Receiver<MasterDownTimerMsg>,
+}
+
+pub struct InterfaceView<'a> {
+    pub name: &'a str,
+    pub system: &'a mut InterfaceSys,
+    pub statistics: &'a mut Statistics,
+    pub tx: &'a InstanceChannelsTx<Interface>,
+    pub shared: &'a InstanceShared,
 }
 
 // ===== impl Interface =====
 
 impl Interface {
-    // lets us know if the interface is ready to create a new VRRP
-    // instance's network elements.
-    pub(crate) fn is_ready(&self) -> bool {
-        if self.system.ifindex.is_none() {
-            return false;
-        }
-        if self.system.addresses.is_empty() {
-            return false;
-        }
-        true
-    }
-
-    pub(crate) fn start_instance(&mut self, vrid: u8) {
-        let name = format!("mvlan-vrrp-{}", vrid);
-        let mac_address: [u8; 6] = [0x00, 0x00, 0x5e, 0x00, 0x01, vrid];
-        southbound::tx::create_macvlan_iface(
-            name.clone(),
-            self.name.clone(),
-            mac_address, // virtual mac address
-            &self.tx.ibus,
-        );
-    }
-
-    pub(crate) fn delete_instance(&mut self, vrid: u8) {
-        let mvlan_ifindex: Option<u32>;
-        if let Some(instance) = self.instances.get(&vrid) {
-            mvlan_ifindex = instance.mac_vlan.system.ifindex;
-        } else {
-            return;
-        }
-
-        self.instances.remove(&vrid);
-        if let Some(ifindex) = mvlan_ifindex {
-            southbound::tx::mvlan_delete(ifindex, &self.tx.ibus);
-        }
-    }
-
-    pub(crate) fn change_state(
+    pub(crate) fn get_instance(
         &mut self,
         vrid: u8,
-        state: State,
-        new_master_reason: MasterReason,
-    ) {
-        if let Some(instance) = self.instances.get_mut(&vrid) {
-            debug_span!("change-state").in_scope(|| {
-                if state == State::Initialize {
-                    debug!(%vrid, "state to INITIALIZE.");
-                    instance.state.new_master_reason = new_master_reason;
-                } else if state == State::Backup {
-                    debug!(%vrid, "state to BACKUP.");
-                    if let Some(ifindex) = instance.mac_vlan.system.ifindex {
-                        for addr in instance.config.virtual_addresses.clone() {
-                            southbound::tx::addr_del(
-                                ifindex,
-                                IpNetwork::V4(addr),
-                                &self.tx.ibus,
-                            );
-                        }
-                    }
-                    instance.state.new_master_reason = new_master_reason;
-                } else if state == State::Master {
-                    debug!(%vrid, "state to MASTER.");
-                    if let Some(ifindex) = instance.mac_vlan.system.ifindex {
-                        for addr in instance.config.virtual_addresses.clone() {
-                            southbound::tx::addr_add(
-                                ifindex,
-                                IpNetwork::V4(addr),
-                                &self.tx.ibus,
-                            );
-                        }
-                    }
-                    instance.state.new_master_reason = new_master_reason;
-                }
-            });
-
-            instance.state.state = state;
-            self.reset_timer(vrid);
-        }
+    ) -> Option<(InterfaceView<'_>, &mut Instance)> {
+        self.instances.get_mut(&vrid).map(|instance| {
+            (
+                InterfaceView {
+                    name: &self.name,
+                    system: &mut self.system,
+                    statistics: &mut self.statistics,
+                    tx: &self.tx,
+                    shared: &self.shared,
+                },
+                instance,
+            )
+        })
     }
 
-    pub(crate) fn add_instance_virtual_address(
+    pub(crate) fn iter_instances(
         &mut self,
-        vrid: u8,
-        addr: Ipv4Network,
-    ) {
-        if let Some(instance) = self.instances.get_mut(&vrid).take() {
-            instance.config.virtual_addresses.insert(addr);
-
-            if let Some(ifindex) = instance.mac_vlan.system.ifindex {
-                southbound::tx::addr_add(
-                    ifindex,
-                    IpNetwork::V4(addr),
-                    &self.tx.ibus,
-                );
-            }
-            self.reset_timer(vrid);
-        }
-    }
-
-    pub(crate) fn delete_instance_virtual_address(
-        &mut self,
-        vrid: u8,
-        addr: Ipv4Network,
-    ) {
-        if let Some(instance) = self.instances.get_mut(&vrid) {
-            if let Some(ifindex) = instance.mac_vlan.system.ifindex {
-                // remove address from the instance's configs
-                instance.config.virtual_addresses.remove(&addr);
-
-                // netlink system call will be initiated to remove the address.
-                // when response is received, this will also be modified in our
-                // system's MacVlan
-                southbound::tx::addr_del(
-                    ifindex,
-                    IpNetwork::V4(addr),
-                    &self.tx.ibus,
-                );
-            }
-        }
-    }
-
-    pub(crate) fn send_vrrp_advert(&mut self, vrid: u8) {
-        if !self.is_ready() {
-            error_span!("send-vrrp").in_scope(|| {
-                error!(%vrid, "unable to send vrrp advert. Parent interface has no IP address");
-            });
-            return;
-        }
-
-        // check for the exists instance...
-        if let Some(instance) = self.instances.get_mut(&vrid)
-            // ...and confirm if the instance's parent Interface has an IP address
-            && let Some(addr) = self.system.addresses.first()
-        {
-            if !instance.mac_vlan.is_ready() {
-                return;
-            }
-            let ip_hdr = instance.adver_ipv4_pkt(addr.ip());
-            let vrrp_hdr = instance.adver_vrrp_pkt();
-            let pkt = VrrpPacket {
-                ip: ip_hdr,
-                vrrp: vrrp_hdr,
-            };
-
-            let msg = NetTxPacketMsg::Vrrp {
-                ifindex: instance.mac_vlan.system.ifindex.unwrap(),
-                pkt,
-            };
-            if let Some(net) = &instance.mac_vlan.net {
-                instance.state.statistics.master_transitions += 1;
-                let _ = net.net_tx_packetp.send(msg);
-            }
-        }
-    }
-
-    // in order to update the details being sent in subsequent
-    // requests, we will update the timer to have the updated timers with the relevant
-    // information.
-    pub(crate) fn reset_timer(&mut self, vrid: u8) {
-        // we need to make sure the parent interface
-        // (self) has a valid IP address before setting any timers
-        // that require us to be part of a multicast
-        if self.is_ready() {
-            tasks::set_timer(
-                self,
-                vrid,
-                self.tx.protocol_input.master_down_timer_tx.clone(),
-            );
-        }
-    }
-
-    // creates the MvlanInterfaceNet for the instance of said
-    // vrid. Must be done here to get some interface specifics.
-    // should always be called after vrification of self.is_ready()
-    pub(crate) fn net_create(&mut self, vrid: u8) {
-        let net = MvlanInterfaceNet::new(self, vrid)
-            .expect("Failed to intialize VRRP tasks");
-
-        if let Some(instance) = self.instances.get_mut(&vrid) {
-            // check if the macvlan is ready for the
-            // network items to be created
-            if instance.mac_vlan.is_ready() {
-                instance.mac_vlan.net = Some(net);
-            }
-        }
-    }
-
-    // removes the Macvlan interface's network from the instance
-    // where vrid==vrid
-    pub(crate) fn net_remove(&mut self, vrid: u8) {
-        if let Some(instance) = self.instances.get_mut(&vrid) {
-            instance.mac_vlan.net = None;
-        }
-    }
-
-    // reloads the networks that are in the instance(s) of this Interface
-    // 'reloads' means we reset the network to their correct state depending on what
-    // we get from self.is_ready(). This should be called when we have an IP address
-    // modification (addition / deletion) on either an instance's MacVlan or the
-    // parent interface.
-    //
-    // if `vrid` is None, we will reload all the instances and not a specific vrid.
-    pub(crate) fn net_reload(&mut self, vrid: Option<u8>) {
-        let mut vrids: Vec<u8> = vec![];
-
-        // collects the vrids. if vrid is None, we collect all the
-        // vrids
-        if let Some(vrid) = vrid {
-            vrids.push(vrid)
-        } else {
-            for vrid in self.instances.keys() {
-                vrids.push(*vrid);
-            }
-        }
-
-        if self.is_ready() {
-            // (re-)create all the relevant networks.
-            for vrid in vrids {
-                self.net_create(vrid);
-                self.reset_timer(vrid);
-            }
-        } else {
-            // remove the networks. Will automatically remove the
-            // timers as they are part of the MacVlanInterface's net
-            for vrid in vrids {
-                self.net_remove(vrid);
-            }
-        }
-    }
-
-    pub(crate) fn add_error_stats(&mut self, error: DecodeError) {
-        match error {
-            DecodeError::ChecksumError(vrid) => {
-                if let Some(instance) = self.instances.get_mut(&vrid) {
-                    instance.state.statistics.checksum_errors += 1;
-                }
-            }
-            DecodeError::PacketLengthError(vrid) => {
-                if let Some(instance) = self.instances.get_mut(&vrid) {
-                    instance.state.statistics.pkt_length_errors += 1;
-                }
-            }
-            _ => {}
-        }
+    ) -> (InterfaceView<'_>, impl Iterator<Item = &mut Instance>) {
+        (
+            InterfaceView {
+                name: &self.name,
+                system: &mut self.system,
+                statistics: &mut self.statistics,
+                tx: &self.tx,
+                shared: &self.shared,
+            },
+            self.instances.values_mut(),
+        )
     }
 }
 
@@ -374,19 +140,18 @@ impl ProtocolInstance for Interface {
         shared: InstanceShared,
         tx: InstanceChannelsTx<Interface>,
     ) -> Interface {
-        // TODO: proper error handling
         Interface {
             name,
             system: Default::default(),
             instances: Default::default(),
+            statistics: Default::default(),
             tx,
             shared,
         }
     }
 
     async fn init(&mut self) {
-        // request for details of the master interface
-        // to be sent so we can update our details.
+        // Request system information about the interface.
         let _ = self.tx.ibus.send(IbusMsg::InterfaceQuery {
             ifname: self.name.clone(),
             af: Some(AddressFamily::Ipv4),
@@ -405,6 +170,7 @@ impl ProtocolInstance for Interface {
             ProtocolInputMsg::VrrpNetRxPacket(msg) => {
                 events::process_vrrp_packet(self, msg.src, msg.packet)
             }
+            // Master down timer.
             ProtocolInputMsg::MasterDownTimer(msg) => {
                 events::handle_master_down_timer(self, msg.vrid)
             }
@@ -436,71 +202,18 @@ impl ProtocolInstance for Interface {
     }
 }
 
-// ==== impl MacVlanInterface ====
-impl MacVlanInterface {
+// ===== impl InterfaceSys =====
+
+impl InterfaceSys {
     pub(crate) fn is_ready(&self) -> bool {
-        // return true if the ifindex exists
-        self.system.ifindex.is_some()
-    }
-
-    pub fn new(vrid: u8) -> Self {
-        let name = format!("mvlan-vrrp-{}", vrid);
-        Self {
-            name,
-            system: InterfaceSys::default(),
-            net: None,
+        if self.ifindex.is_none() {
+            return false;
         }
-    }
-}
+        if self.addresses.is_empty() {
+            return false;
+        }
 
-impl MvlanInterfaceNet {
-    fn new(parent_iface: &Interface, vrid: u8) -> Result<Self, IoError> {
-        let instance = parent_iface.instances.get(&vrid).unwrap();
-        let ifname = &instance.mac_vlan.name;
-        let instance_channels_tx = &parent_iface.tx;
-
-        let socket_vrrp_rx = network::socket_vrrp_rx(parent_iface)
-            .map_err(IoError::SocketError)
-            .and_then(|socket| {
-                AsyncFd::new(socket).map_err(IoError::SocketError)
-            })
-            .map(Arc::new)?;
-
-        let socket_vrrp_tx = network::socket_vrrp_tx(parent_iface, vrid)
-            .map_err(IoError::SocketError)
-            .and_then(|socket| {
-                AsyncFd::new(socket).map_err(IoError::SocketError)
-            })
-            .map(Arc::new)?;
-
-        let socket_arp = network::socket_arp(ifname)
-            .map_err(IoError::SocketError)
-            .and_then(|socket| {
-                AsyncFd::new(socket).map_err(IoError::SocketError)
-            })
-            .map(Arc::new)?;
-
-        // Start network Tx/Rx tasks.
-        let (net_tx_packetp, net_tx_packetc) = mpsc::unbounded_channel();
-        let net_tx_task = tasks::net_tx(
-            socket_vrrp_tx,
-            socket_arp.clone(),
-            net_tx_packetc,
-            #[cfg(feature = "testing")]
-            &instance_channels_tx.protocol_output,
-        );
-        let vrrp_net_rx_task = tasks::vrrp_net_rx(
-            socket_vrrp_rx.clone(),
-            &instance_channels_tx.protocol_input.vrrp_net_packet_tx,
-        );
-
-        Ok(Self {
-            socket_vrrp: socket_vrrp_rx,
-            socket_arp,
-            _net_tx_task: net_tx_task,
-            _vrrp_net_rx_task: vrrp_net_rx_task,
-            net_tx_packetp,
-        })
+        true
     }
 }
 

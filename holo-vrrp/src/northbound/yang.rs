@@ -11,55 +11,59 @@ use std::borrow::Cow;
 
 use holo_yang::ToYang;
 
-use crate::instance::{Event, MasterReason, State};
+use crate::instance::{fsm, MasterReason};
 
 // ===== ToYang implementations =====
 
-impl ToYang for State {
+impl ToYang for fsm::State {
     fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            State::Initialize => "ietf-vrrp:initialize".into(),
-            State::Backup => "ietf-vrrp:backup".into(),
-            State::Master => "ietf-vrrp:master".into(),
+            fsm::State::Initialize => "ietf-vrrp:initialize".into(),
+            fsm::State::Backup => "ietf-vrrp:backup".into(),
+            fsm::State::Master => "ietf-vrrp:master".into(),
         }
     }
 }
 
-impl ToYang for Event {
+impl ToYang for fsm::Event {
     fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            Event::None => "ietf-vrrp:vrrp-event-none".into(),
-            Event::Startup => "ietf-vrrp:vrrp-event-startup".into(),
-            Event::Shutdown => "ietf-vrrp:vrrp-event-shutdown".into(),
-            Event::HigherPriorityBackup => {
+            fsm::Event::None => "ietf-vrrp:vrrp-event-none".into(),
+            fsm::Event::Startup => "ietf-vrrp:vrrp-event-startup".into(),
+            fsm::Event::Shutdown => "ietf-vrrp:vrrp-event-shutdown".into(),
+            fsm::Event::HigherPriorityBackup => {
                 "ietf-vrrp:vrrp-event-higher-priority-backup".into()
             }
-            Event::MasterTimeout => {
+            fsm::Event::MasterTimeout => {
                 "ietf-vrrp:vrrp-event-master-timeout".into()
             }
-            Event::InterfaceUp => "ietf-vrrp:vrrp-event-interface-up".into(),
-            Event::InterfaceDown => {
+            fsm::Event::InterfaceUp => {
+                "ietf-vrrp:vrrp-event-interface-up".into()
+            }
+            fsm::Event::InterfaceDown => {
                 "ietf-vrrp:vrrp-event-interface-down".into()
             }
-            Event::NoPrimaryIpAddress => {
+            fsm::Event::NoPrimaryIpAddress => {
                 "ietf-vrrp:vrrp-event-no-primary-ip-address".into()
             }
-            Event::PrimaryIpAddress => {
+            fsm::Event::PrimaryIpAddress => {
                 "ietf-vrrp:vrrp-event-primary-ip-address".into()
             }
-            Event::NoVirtualIpAddresses => {
+            fsm::Event::NoVirtualIpAddresses => {
                 "ietf-vrrp:vrrp-event-no-virtual-ip-addresses".into()
             }
-            Event::VirtualIpAddresses => {
+            fsm::Event::VirtualIpAddresses => {
                 "ietf-vrrp:vrrp-event-virtual-ip-addresses".into()
             }
-            Event::PreemptHoldTimeout => {
+            fsm::Event::PreemptHoldTimeout => {
                 "ietf-vrrp:vrrp-event-preempt-hold-timeout".into()
             }
-            Event::LowerPriorityMaster => {
+            fsm::Event::LowerPriorityMaster => {
                 "ietf-vrrp:vrrp-event-lower-priority-master".into()
             }
-            Event::OwnerPreempt => "ietf-vrrp:vrrp-event-owner-preempt".into(),
+            fsm::Event::OwnerPreempt => {
+                "ietf-vrrp:vrrp-event-owner-preempt".into()
+            }
         }
     }
 }

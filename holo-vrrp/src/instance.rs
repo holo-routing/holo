@@ -13,85 +13,87 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
+use enum_as_inner::EnumAsInner;
 use holo_utils::task::{IntervalTask, TimeoutTask};
 
-use crate::consts::VRRP_PROTO_NUMBER;
-use crate::interface::MacVlanInterface;
+use crate::consts::{VRRP_MULTICAST_ADDRESS, VRRP_PROTO_NUMBER};
+use crate::debug::Debug;
+use crate::interface::InterfaceView;
+use crate::macvlan::{MacvlanInterface, MacvlanNet};
 use crate::northbound::configuration::InstanceCfg;
-use crate::packet::{ArpHdr, EthernetHdr, Ipv4Hdr, VrrpHdr};
+use crate::packet::{ArpHdr, EthernetHdr, Ipv4Hdr, VrrpHdr, VrrpPacket};
 use crate::tasks::messages::output::NetTxPacketMsg;
+use crate::{southbound, tasks};
 
 #[derive(Debug)]
 pub struct Instance {
-    // vrid
+    // Virtual Router ID.
     pub vrid: u8,
-
     // Instance configuration data.
     pub config: InstanceCfg,
-
     // Instance state data.
     pub state: InstanceState,
-
-    // timers
-    pub timer: VrrpTimer,
-
-    // mvlan
-    pub mac_vlan: MacVlanInterface,
+    // Macvlan interface.
+    pub mvlan: MacvlanInterface,
 }
 
-#[derive(Debug)]
-pub enum VrrpTimer {
-    Null,
-    AdverTimer(IntervalTask),
-    MasterDownTimer(TimeoutTask),
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct InstanceState {
-    pub state: State,
-    pub last_adv_src: Option<Ipv4Addr>,
-    pub up_time: Option<DateTime<Utc>>,
-    pub last_event: Event,
+    pub state: fsm::State,
+    pub last_event: fsm::Event,
     pub new_master_reason: MasterReason,
-    pub skew_time: f32,
-    pub master_down_interval: u32,
-    pub is_owner: bool,
-
-    // TODO: interval/timer tasks
+    pub up_time: Option<DateTime<Utc>>,
+    pub timer: VrrpTimer,
+    pub last_adv_src: Option<Ipv4Addr>,
     pub statistics: Statistics,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum State {
-    Initialize,
-    Backup,
-    Master,
+// Protocol state machine.
+pub mod fsm {
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+    pub enum State {
+        #[default]
+        Initialize,
+        Backup,
+        Master,
+    }
+
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+    pub enum Event {
+        #[default]
+        None,
+        Startup,
+        Shutdown,
+        HigherPriorityBackup,
+        MasterTimeout,
+        InterfaceUp,
+        InterfaceDown,
+        NoPrimaryIpAddress,
+        PrimaryIpAddress,
+        NoVirtualIpAddresses,
+        VirtualIpAddresses,
+        PreemptHoldTimeout,
+        LowerPriorityMaster,
+        OwnerPreempt,
+    }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Event {
-    None,
-    Startup,
-    Shutdown,
-    HigherPriorityBackup,
-    MasterTimeout,
-    InterfaceUp,
-    InterfaceDown,
-    NoPrimaryIpAddress,
-    PrimaryIpAddress,
-    NoVirtualIpAddresses,
-    VirtualIpAddresses,
-    PreemptHoldTimeout,
-    LowerPriorityMaster,
-    OwnerPreempt,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum MasterReason {
+    #[default]
     NotMaster,
     Priority,
     Preempted,
     NoResponse,
+}
+
+#[derive(Debug, Default)]
+#[derive(EnumAsInner)]
+pub enum VrrpTimer {
+    #[default]
+    Null,
+    AdvTimer(IntervalTask),
+    MasterDownTimer(TimeoutTask),
 }
 
 #[derive(Debug)]
@@ -105,55 +107,117 @@ pub struct Statistics {
     pub priority_zero_pkts_sent: u64,
     pub invalid_type_pkts_rcvd: u64,
     pub pkt_length_errors: u64,
-    pub checksum_errors: u64,
-    pub version_errors: u64,
-    pub vrid_errors: u64,
-    pub ip_ttl_errors: u64,
 }
 
 // ===== impl Instance =====
 
 impl Instance {
     pub(crate) fn new(vrid: u8) -> Self {
-        let mut inst = Instance {
+        Debug::InstanceCreate(vrid).log();
+
+        Instance {
             vrid,
             config: InstanceCfg::default(),
-            state: InstanceState::new(),
-            timer: VrrpTimer::Null,
-            mac_vlan: MacVlanInterface::new(vrid),
-        };
-        inst.set_advert_interval(inst.config.advertise_interval);
-        inst
+            state: InstanceState::default(),
+            mvlan: MacvlanInterface::new(vrid),
+        }
     }
 
-    pub(crate) fn reset_timer(&mut self) {
-        match self.timer {
-            VrrpTimer::AdverTimer(ref mut t) => {
+    pub(crate) fn update(&mut self, interface: &InterfaceView) {
+        if interface.system.is_ready() && self.mvlan.system.is_ready() {
+            if let Ok(net) = MacvlanNet::new(interface, &self.mvlan) {
+                self.mvlan.net = Some(net);
+                self.timer_set(interface);
+            }
+        } else {
+            self.mvlan.net = None;
+        }
+    }
+
+    pub(crate) fn change_state(
+        &mut self,
+        interface: &InterfaceView,
+        state: fsm::State,
+        new_master_reason: MasterReason,
+    ) {
+        if self.state.state == state {
+            return;
+        }
+
+        // Log the state transition.
+        Debug::InstanceStateChange(self.vrid, self.state.state, state).log();
+
+        if state == fsm::State::Backup {
+            for addr in &self.config.virtual_addresses {
+                southbound::tx::ip_addr_del(
+                    &interface.tx.ibus,
+                    &self.mvlan.name,
+                    *addr,
+                );
+            }
+        } else if state == fsm::State::Master {
+            for addr in &self.config.virtual_addresses {
+                southbound::tx::ip_addr_add(
+                    &interface.tx.ibus,
+                    &self.mvlan.name,
+                    *addr,
+                );
+            }
+        }
+
+        self.state.state = state;
+        self.state.new_master_reason = new_master_reason;
+        self.timer_set(interface);
+    }
+
+    pub(crate) fn timer_set(&mut self, interface: &InterfaceView) {
+        match self.state.state {
+            fsm::State::Initialize => {
+                self.state.timer = VrrpTimer::Null;
+            }
+            fsm::State::Backup => {
+                let duration = Duration::from_secs(
+                    self.config.master_down_interval() as u64,
+                );
+                let task = tasks::master_down_timer(
+                    self,
+                    duration,
+                    &interface.tx.protocol_input.master_down_timer_tx,
+                );
+                self.state.timer = VrrpTimer::MasterDownTimer(task);
+            }
+            fsm::State::Master => {
+                let Some(net) = &self.mvlan.net else {
+                    return;
+                };
+                let src_ip = interface.system.addresses.first().unwrap().ip();
+                let task = tasks::advertisement_interval(
+                    self,
+                    src_ip,
+                    &net.net_tx_packetp,
+                );
+                self.state.timer = VrrpTimer::AdvTimer(task);
+            }
+        }
+    }
+
+    pub(crate) fn timer_reset(&mut self) {
+        match &mut self.state.timer {
+            VrrpTimer::AdvTimer(t) => {
                 t.reset(Some(Duration::from_secs(
                     self.config.advertise_interval as u64,
                 )));
             }
-            VrrpTimer::MasterDownTimer(ref mut t) => {
+            VrrpTimer::MasterDownTimer(t) => {
                 t.reset(Some(Duration::from_secs(
-                    self.state.master_down_interval as u64,
+                    self.config.master_down_interval() as u64,
                 )));
             }
             _ => {}
         }
     }
 
-    // advert interval directly affects other state parameters
-    // thus separated in its own function during modification of it.
-    pub(crate) fn set_advert_interval(&mut self, advertisement_interval: u8) {
-        self.config.advertise_interval = advertisement_interval;
-        let skew_time: f32 = (256_f32 - self.config.priority as f32) / 256_f32;
-        let master_down: u32 =
-            (3_u32 * self.config.advertise_interval as u32) + skew_time as u32;
-        self.state.skew_time = skew_time;
-        self.state.master_down_interval = master_down;
-    }
-
-    pub(crate) fn adver_vrrp_pkt(&self) -> VrrpHdr {
+    pub(crate) fn generate_vrrp_packet(&self) -> VrrpHdr {
         let mut ip_addresses: Vec<Ipv4Addr> = vec![];
         for addr in self.config.virtual_addresses.clone() {
             ip_addresses.push(addr.ip());
@@ -176,7 +240,10 @@ impl Instance {
         packet
     }
 
-    pub(crate) fn adver_ipv4_pkt(&self, src_address: Ipv4Addr) -> Ipv4Hdr {
+    pub(crate) fn generate_ipv4_packet(
+        &self,
+        src_address: Ipv4Addr,
+    ) -> Ipv4Hdr {
         // 36 bytes (20 IP + 16 vrrp)
         // we add 36 to:
         // 4 * (no of virtual IPs) -> since the number of
@@ -196,69 +263,66 @@ impl Instance {
             protocol: VRRP_PROTO_NUMBER as u8,
             checksum: 0x00,
             src_address,
-            dst_address: Ipv4Addr::new(224, 0, 0, 18),
+            dst_address: VRRP_MULTICAST_ADDRESS,
             options: None,
             padding: None,
         }
     }
 
+    pub(crate) fn send_vrrp_advertisement(&mut self, src_ip: Ipv4Addr) {
+        let Some(net) = &self.mvlan.net else {
+            return;
+        };
+
+        let packet = VrrpPacket {
+            ip: self.generate_ipv4_packet(src_ip),
+            vrrp: self.generate_vrrp_packet(),
+        };
+        let msg = NetTxPacketMsg::Vrrp { packet };
+        let _ = net.net_tx_packetp.send(msg);
+    }
+
     pub(crate) fn send_gratuitous_arp(&self) {
-        // send a gratuitous for each of the
-        // virutal IP addresses
-        for addr in self.config.virtual_addresses.clone() {
-            if !self.mac_vlan.is_ready() {
-                return;
-            }
+        let Some(net) = &self.mvlan.net else {
+            return;
+        };
+
+        // Send a gratuitous for each of the virtual IP addresses.
+        let eth_hdr = EthernetHdr {
+            ethertype: 0x806,
+            dst_mac: [0xff; 6],
+            src_mac: self.mvlan.system.mac_address,
+        };
+        for addr in &self.config.virtual_addresses {
             let arp_hdr = ArpHdr {
                 hw_type: 1,
-                // for Ipv4
+                // IPv4
                 proto_type: 0x0800,
-                // mac address length
+                // MAC address length
                 hw_length: 6,
                 proto_length: 4,
                 operation: 1,
-                // sender hw address is virtual mac.
+                // Sender HW address is virtual mac.
                 // https://datatracker.ietf.org/doc/html/rfc3768#section-7.3
-                sender_hw_address: self.mac_vlan.system.mac_address,
-                sender_proto_address: addr.ip().octets(),
-                target_hw_address: [0xff, 0xff, 0xff, 0xff, 0xff, 0xff], // broadcast
-                target_proto_address: addr.ip().octets(),
-            };
-
-            let eth_hdr = EthernetHdr {
-                ethertype: 0x806,
-                dst_mac: [0xff; 6],
-                src_mac: self.mac_vlan.system.mac_address,
+                sender_hw_address: self.mvlan.system.mac_address,
+                sender_proto_address: addr.ip(),
+                target_hw_address: [0xff; 6],
+                target_proto_address: addr.ip(),
             };
 
             let msg = NetTxPacketMsg::Arp {
-                ifindex: self.mac_vlan.system.ifindex.unwrap(),
+                ifindex: self.mvlan.system.ifindex.unwrap(),
                 eth_hdr,
                 arp_hdr,
             };
-
-            if let Some(net) = &self.mac_vlan.net {
-                let _ = net.net_tx_packetp.send(msg);
-            }
+            let _ = net.net_tx_packetp.send(msg);
         }
     }
 }
 
-// ===== impl InstanceState =====
-
-impl InstanceState {
-    pub(crate) fn new() -> Self {
-        InstanceState {
-            state: State::Initialize,
-            last_adv_src: None,
-            up_time: None,
-            last_event: Event::None,
-            new_master_reason: MasterReason::NotMaster,
-            statistics: Default::default(),
-            skew_time: 0.0,
-            master_down_interval: 0,
-            is_owner: false,
-        }
+impl Drop for Instance {
+    fn drop(&mut self) {
+        Debug::InstanceDelete(self.vrid).log();
     }
 }
 
@@ -276,10 +340,6 @@ impl Default for Statistics {
             priority_zero_pkts_sent: 0,
             invalid_type_pkts_rcvd: 0,
             pkt_length_errors: 0,
-            checksum_errors: 0,
-            version_errors: 0,
-            vrid_errors: 0,
-            ip_ttl_errors: 0,
         }
     }
 }

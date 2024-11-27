@@ -20,8 +20,9 @@ use holo_northbound::yang::interfaces;
 use holo_utils::yang::DataNodeRefExt;
 use ipnetwork::Ipv4Network;
 
-use crate::instance::{Event as LastEvent, Instance};
+use crate::instance::{fsm, Instance, MasterReason};
 use crate::interface::Interface;
+use crate::southbound;
 
 #[derive(Debug, Default, EnumAsInner)]
 pub enum ListEntry {
@@ -36,16 +37,11 @@ pub enum Resource {}
 
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Event {
-    // instance events
     InstanceStart { vrid: u8 },
     InstanceDelete { vrid: u8 },
-
-    // virtual address events
     VirtualAddressCreate { vrid: u8, addr: Ipv4Network },
     VirtualAddressDelete { vrid: u8, addr: Ipv4Network },
-
-    // priority events
-    PriorityUpdate { vrid: u8, priority: u8 },
+    ResetTimer { vrid: u8 },
 }
 
 pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
@@ -71,7 +67,7 @@ fn load_callbacks() -> Callbacks<Interface> {
         .create_apply(|interface, args| {
             let vrid = args.dnode.get_u8_relative("./vrid").unwrap();
             let mut instance = Instance::new(vrid);
-            instance.state.last_event = LastEvent::Startup;
+            instance.state.last_event = fsm::Event::Startup;
             interface.instances.insert(vrid, instance);
 
             let event_queue = args.event_queue;
@@ -79,6 +75,7 @@ fn load_callbacks() -> Callbacks<Interface> {
         })
         .delete_apply(|_interface, args| {
             let vrid = args.list_entry.into_vrid().unwrap();
+
             let event_queue = args.event_queue;
             event_queue.insert(Event::InstanceDelete { vrid });
         })
@@ -107,12 +104,15 @@ fn load_callbacks() -> Callbacks<Interface> {
             instance.config.preempt = preempt;
         })
         .path(interfaces::interface::ipv4::vrrp::vrrp_instance::priority::PATH)
-        .modify_apply(|_interface, args| {
+        .modify_apply(|interface, args| {
             let vrid = args.list_entry.into_vrid().unwrap();
-            let event_queue = args.event_queue;
-            let priority = args.dnode.get_u8();
+            let instance = interface.instances.get_mut(&vrid).unwrap();
 
-            event_queue.insert(Event::PriorityUpdate { vrid, priority  });
+            let priority = args.dnode.get_u8();
+            instance.config.priority = priority;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ResetTimer { vrid });
         })
         .path(interfaces::interface::ipv4::vrrp::vrrp_instance::advertise_interval_sec::PATH)
         .modify_apply(|interface, args| {
@@ -126,16 +126,22 @@ fn load_callbacks() -> Callbacks<Interface> {
             // Nothing to do.
         })
         .path(interfaces::interface::ipv4::vrrp::vrrp_instance::virtual_ipv4_addresses::virtual_ipv4_address::PATH)
-        .create_apply(|_interface, args| {
+        .create_apply(|interface, args| {
             let vrid = args.list_entry.into_vrid().unwrap();
+            let instance = interface.instances.get_mut(&vrid).unwrap();
+
             let addr = args.dnode.get_prefix4_relative("ipv4-address").unwrap();
+            instance.config.virtual_addresses.insert(addr);
+
             let event_queue = args.event_queue;
-            event_queue.insert (
-                Event::VirtualAddressCreate { vrid, addr }
-            );
+            event_queue.insert(Event::VirtualAddressCreate { vrid, addr });
         })
-        .delete_apply(|_interface, args| {
+        .delete_apply(|interface, args| {
             let (vrid, addr) = args.list_entry.into_virtual_ipv4_addr().unwrap();
+            let instance = interface.instances.get_mut(&vrid).unwrap();
+
+            instance.config.virtual_addresses.remove(&addr);
+
             let event_queue = args.event_queue;
             event_queue.insert(Event::VirtualAddressDelete { vrid, addr });
         })
@@ -179,38 +185,70 @@ impl Provider for Interface {
 
     async fn process_event(&mut self, event: Event) {
         match event {
-            // instance events
             Event::InstanceStart { vrid } => {
-                self.start_instance(vrid);
+                let (interface, instance) = self.get_instance(vrid).unwrap();
+
+                // Create macvlan interface.
+                let virtual_mac_addr: [u8; 6] =
+                    [0x00, 0x00, 0x5e, 0x00, 0x01, vrid];
+                southbound::tx::mvlan_create(
+                    &interface.tx.ibus,
+                    interface.name.to_owned(),
+                    instance.mvlan.name.clone(),
+                    virtual_mac_addr,
+                );
 
                 // reminder to remove the following line.
                 // currently up due to state not being properly maintained on startup.
-                self.change_state(
-                    vrid,
-                    crate::instance::State::Backup,
-                    crate::instance::MasterReason::NotMaster,
+                instance.change_state(
+                    &interface,
+                    fsm::State::Backup,
+                    MasterReason::NotMaster,
                 );
             }
             Event::InstanceDelete { vrid } => {
-                self.delete_instance(vrid);
-            }
+                let instance = self.instances.remove(&vrid).unwrap();
 
-            // virtual address events
+                // Delete macvlan interface.
+                southbound::tx::mvlan_delete(
+                    &self.tx.ibus,
+                    &instance.mvlan.name,
+                );
+            }
             Event::VirtualAddressCreate { vrid, addr } => {
-                self.add_instance_virtual_address(vrid, addr);
+                let (interface, instance) = self.get_instance(vrid).unwrap();
+                southbound::tx::ip_addr_add(
+                    &interface.tx.ibus,
+                    &instance.mvlan.name,
+                    addr,
+                );
+                instance.timer_set(&interface);
             }
             Event::VirtualAddressDelete { vrid, addr } => {
-                self.delete_instance_virtual_address(vrid, addr);
+                let (interface, instance) = self.get_instance(vrid).unwrap();
+                southbound::tx::ip_addr_del(
+                    &interface.tx.ibus,
+                    &instance.mvlan.name,
+                    addr,
+                );
             }
-
-            // priority events
-            Event::PriorityUpdate { vrid, priority } => {
-                if let Some(instance) = self.instances.get_mut(&vrid) {
-                    instance.config.priority = priority;
-                    self.reset_timer(vrid);
-                }
+            Event::ResetTimer { vrid } => {
+                let (_, instance) = self.get_instance(vrid).unwrap();
+                instance.timer_reset();
             }
         }
+    }
+}
+
+// ===== configuration helpers =====
+
+impl InstanceCfg {
+    pub(crate) const fn master_down_interval(&self) -> u32 {
+        (3 * self.advertise_interval as u32) + self.skew_time() as u32
+    }
+
+    pub(crate) const fn skew_time(&self) -> f32 {
+        (256_f32 - self.priority as f32) / 256_f32
     }
 }
 

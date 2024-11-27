@@ -14,7 +14,6 @@ use holo_utils::bytes::{BytesExt, BytesMutExt};
 use serde::{Deserialize, Serialize};
 
 use crate::consts::*;
-use crate::error::{self, Error, GlobalError, VirtualRouterError};
 
 // Type aliases.
 pub type DecodeResult<T> = Result<T, DecodeError>;
@@ -54,12 +53,12 @@ pub struct VrrpHdr {
     pub adver_int: u8,
     pub checksum: u16,
     pub ip_addresses: Vec<Ipv4Addr>,
-
-    // the following two are only used for backward compatibility.
+    // The following two are only used for backward compatibility.
     pub auth_data: u32,
     pub auth_data2: u32,
 }
 
+//
 // IP packet header
 //
 //  0                   1                   2                   3
@@ -97,7 +96,7 @@ pub struct Ipv4Hdr {
     pub padding: Option<u8>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct EthernetHdr {
     pub dst_mac: [u8; 6],
@@ -113,10 +112,10 @@ pub struct ArpHdr {
     pub hw_length: u8,
     pub proto_length: u8,
     pub operation: u16,
-    pub sender_hw_address: [u8; 6],    // src mac
-    pub sender_proto_address: [u8; 4], // src ip
-    pub target_hw_address: [u8; 6],    // src mac
-    pub target_proto_address: [u8; 4], // src ip
+    pub sender_hw_address: [u8; 6],
+    pub sender_proto_address: Ipv4Addr,
+    pub target_hw_address: [u8; 6],
+    pub target_proto_address: Ipv4Addr,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -129,29 +128,8 @@ pub struct VrrpPacket {
 #[derive(Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub enum DecodeError {
-    ChecksumError(u8),     // u8 is the vrid
-    PacketLengthError(u8), // u8 is the vrid
-    IpTtlError(u8),        // u8 is the vrid
-    VersionError,
-}
-
-impl DecodeError {
-    pub fn err(&self) -> error::Error {
-        match self {
-            DecodeError::ChecksumError(_) => {
-                Error::GlobalError(GlobalError::ChecksumError)
-            }
-            DecodeError::PacketLengthError(_) => {
-                Error::VirtualRouterError(VirtualRouterError::PacketLengthError)
-            }
-            DecodeError::IpTtlError(_) => {
-                Error::GlobalError(GlobalError::IpTtlError)
-            }
-            DecodeError::VersionError => {
-                Error::GlobalError(GlobalError::VersionError)
-            }
-        }
-    }
+    ChecksumError,
+    PacketLengthError { vrid: u8 },
 }
 
 // ===== impl Packet =====
@@ -179,7 +157,6 @@ impl VrrpHdr {
 
     // Decodes VRRP packet from a bytes buffer.
     pub fn decode(data: &[u8]) -> DecodeResult<Self> {
-        // 1. pkt length verification
         let pkt_size = data.len();
 
         let mut buf: Bytes = Bytes::copy_from_slice(data);
@@ -196,7 +173,7 @@ impl VrrpHdr {
             || count_ip as usize > VRRP_IP_COUNT_MAX
             || (count_ip * 4) + 16 != pkt_size as u8
         {
-            return Err(DecodeError::PacketLengthError(vrid));
+            return Err(DecodeError::PacketLengthError { vrid });
         }
 
         let checksum = buf.get_u16();
@@ -204,7 +181,7 @@ impl VrrpHdr {
         // confirm checksum. checksum position is the third item in 16 bit words
         let calculated_checksum = checksum::calculate(data, 3);
         if calculated_checksum != checksum {
-            return Err(DecodeError::ChecksumError(vrid));
+            return Err(DecodeError::ChecksumError);
         }
 
         let mut ip_addresses: Vec<Ipv4Addr> = vec![];
@@ -365,50 +342,27 @@ impl ArpHdr {
         buf.put_u8(self.hw_length);
         buf.put_u8(self.proto_length);
         buf.put_u16(self.operation);
-
-        for x in self.sender_hw_address {
-            buf.put_u8(x);
-        }
-        for x in self.sender_proto_address {
-            buf.put_u8(x);
-        }
-        for x in self.target_hw_address {
-            buf.put_u8(x)
-        }
-        for x in self.target_proto_address {
-            buf.put_u8(x)
-        }
+        buf.put_slice(&self.sender_hw_address);
+        buf.put_ipv4(&self.sender_proto_address);
+        buf.put_slice(&self.target_hw_address);
+        buf.put_ipv4(&self.target_proto_address);
         buf
     }
 
     pub fn decode(data: &[u8]) -> DecodeResult<Self> {
         let mut buf = Bytes::copy_from_slice(data);
+        let mut sender_hw_address: [u8; 6] = [0; 6];
+        let mut target_hw_address: [u8; 6] = [0; 6];
 
         let hw_type = buf.get_u16();
         let proto_type = buf.get_u16();
         let hw_length = buf.get_u8();
         let proto_length = buf.get_u8();
         let operation = buf.get_u16();
-
-        let sender_hw_address: [u8; 6] = [0_u8; 6];
-        for mut _x in &sender_hw_address {
-            _x = &buf.get_u8();
-        }
-
-        let sender_proto_address: [u8; 4] = [0_u8; 4];
-        for mut _x in &sender_proto_address {
-            _x = &buf.get_u8();
-        }
-
-        let target_hw_address: [u8; 6] = [0_u8; 6];
-        for mut _x in &target_hw_address {
-            _x = &buf.get_u8();
-        }
-
-        let target_proto_address: [u8; 4] = [0_u8; 4];
-        for mut _x in &target_proto_address {
-            _x = &buf.get_u8();
-        }
+        buf.copy_to_slice(&mut sender_hw_address);
+        let sender_proto_address = buf.get_ipv4();
+        buf.copy_to_slice(&mut target_hw_address);
+        let target_proto_address = buf.get_ipv4();
 
         Ok(Self {
             hw_type,
@@ -457,13 +411,3 @@ pub mod checksum {
         result
     }
 }
-
-// ===== impl DecodeError =====
-
-impl std::fmt::Display for DecodeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.err().fmt(f)
-    }
-}
-
-impl std::error::Error for DecodeError {}

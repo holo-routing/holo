@@ -431,9 +431,11 @@ impl Interfaces {
     pub(crate) async fn delete_iface(
         &self,
         netlink_handle: &rtnetlink::Handle,
-        ifindex: u32,
+        ifname: String,
     ) {
-        if self.get_by_ifindex(ifindex).is_some() {
+        if let Some(iface) = self.get_by_name(&ifname)
+            && let Some(ifindex) = iface.ifindex
+        {
             let _ = netlink::iface_delete(netlink_handle, ifindex).await;
         }
     }
@@ -442,10 +444,12 @@ impl Interfaces {
     pub(crate) async fn add_iface_address(
         &self,
         netlink_handle: &rtnetlink::Handle,
-        ifindex: u32,
+        ifname: String,
         addr: IpNetwork,
     ) {
-        if self.get_by_ifindex(ifindex).is_some() {
+        if let Some(iface) = self.get_by_name(&ifname)
+            && let Some(ifindex) = iface.ifindex
+        {
             netlink::addr_install(netlink_handle, ifindex, &addr).await;
         }
     }
@@ -453,10 +457,12 @@ impl Interfaces {
     pub(crate) async fn delete_iface_address(
         &self,
         netlink_handle: &rtnetlink::Handle,
-        ifindex: u32,
+        ifname: String,
         addr: IpNetwork,
     ) {
-        if self.get_by_ifindex(ifindex).is_some() {
+        if let Some(iface) = self.get_by_name(&ifname)
+            && let Some(ifindex) = iface.ifindex
+        {
             netlink::addr_uninstall(netlink_handle, ifindex, &addr).await;
         }
     }

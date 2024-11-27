@@ -50,8 +50,7 @@ fn load_callbacks() -> Callbacks<Interface> {
                 is_owner: None,
                 last_adv_source: instance.state.last_adv_src.map(std::convert::Into::into).map(Cow::Owned).ignore_in_testing(),
                 up_datetime: instance.state.up_time.as_ref().map(Cow::Borrowed).ignore_in_testing(),
-                // TODO
-                master_down_interval: None,
+                master_down_interval: instance.state.timer.as_master_down_timer().map(|task| task.remaining().as_millis() as u32 / 10).ignore_in_testing(),
                 // TODO
                 skew_time: None,
                 last_event: Some(instance.state.last_event.to_yang()).ignore_in_testing(),

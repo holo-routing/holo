@@ -8,35 +8,20 @@
 //
 
 use std::fmt::Debug;
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr};
 
-use tracing::{warn, warn_span};
+use tracing::warn;
+
+use crate::packet::DecodeError;
 
 // VRRP errors.
 #[derive(Debug)]
 pub enum Error {
     // I/O errors
     IoError(IoError),
-    InterfaceError(String),
-
-    // vrrp-ietf-yang-2018-03-13 specific errors
-    GlobalError(GlobalError),
-    VirtualRouterError(VirtualRouterError),
-}
-
-#[derive(Debug)]
-pub enum GlobalError {
-    ChecksumError,
-    IpTtlError,
-    VersionError,
-    VridError,
-}
-
-#[derive(Debug)]
-pub enum VirtualRouterError {
-    AddressListError,
-    IntervalError,
-    PacketLengthError,
+    // Packet input
+    GlobalError(Ipv4Addr, GlobalError),
+    VirtualRouterError(Ipv4Addr, VirtualRouterError),
 }
 
 // VRRP I/O errors.
@@ -50,6 +35,23 @@ pub enum IoError {
     SendError(std::io::Error),
 }
 
+// VRRP error that occurred for a packet before it reaches a VRRP router.
+#[derive(Debug)]
+pub enum GlobalError {
+    ChecksumError,
+    IpTtlError,
+    VersionError,
+    VridError,
+}
+
+// VRRP error that occurred after a packet reaches a VRRP router.
+#[derive(Debug)]
+pub enum VirtualRouterError {
+    AddressListError,
+    IntervalError,
+    PacketLengthError,
+}
+
 // ===== impl Error =====
 
 impl Error {
@@ -58,38 +60,12 @@ impl Error {
             Error::IoError(error) => {
                 error.log();
             }
-            Error::InterfaceError(error) => {
-                warn_span!("vrrp_interface_error").in_scope(|| warn!(error));
+            Error::GlobalError(source, error) => {
+                warn!(?source, %error, "{}", self);
             }
-            Error::GlobalError(error) => {
-                match error {
-                    GlobalError::ChecksumError => {
-                        warn_span!("global_error").in_scope(|| { warn!("invalid checksum received") })
-                    },
-                    GlobalError::IpTtlError => {
-                        warn_span!("global_error").in_scope(|| { warn!("TTL for IP packet is not 255.") })
-                    },
-                    GlobalError::VersionError => {
-                        warn_span!("global_error").in_scope(|| { warn!("invalid version received. only version 2 accepted.") })
-                    },
-                    GlobalError::VridError => {
-                        warn_span!("global_error").in_scope(|| { warn!("vrid is not locally configured. ") })
-                    },
-                }
-            },
-            Error::VirtualRouterError(error) => {
-                match error {
-                    VirtualRouterError::AddressListError => {
-                        warn_span!("vr_error").in_scope(|| { warn!("addresses received not locally configured") })
-                    },
-                    VirtualRouterError::IntervalError => {
-                        warn_span!("vr_error").in_scope(|| { warn!("interval does not match locally configured interval") })
-                    },
-                    VirtualRouterError::PacketLengthError => {
-                        warn_span!("vr_error").in_scope(|| { warn!("packet length error") });
-                    },
-                }
-            },
+            Error::VirtualRouterError(source, error) => {
+                warn!(?source, %error, "{}", self);
+            }
         }
     }
 }
@@ -98,48 +74,9 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::IoError(error) => std::fmt::Display::fmt(error, f),
-            Error::InterfaceError(error) => write!(f, "{}", error),
-            Error::GlobalError(error) => std::fmt::Display::fmt(error, f),
-            Error::VirtualRouterError(error) => {
+            Error::GlobalError(_, error) => std::fmt::Display::fmt(error, f),
+            Error::VirtualRouterError(_, error) => {
                 std::fmt::Display::fmt(error, f)
-            }
-        }
-    }
-}
-
-impl std::fmt::Display for GlobalError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            GlobalError::ChecksumError => {
-                write!(f, "incorrect checksum received")
-            }
-            GlobalError::IpTtlError => {
-                write!(f, "invalid ttl received. IP ttl for vrrp should always be 255")
-            }
-            GlobalError::VersionError => {
-                write!(
-                    f,
-                    "invalid VRRP version received. only version 2 accepted"
-                )
-            }
-            GlobalError::VridError => {
-                write!(f, "vrid received is not in the configured VRIDs")
-            }
-        }
-    }
-}
-
-impl std::fmt::Display for VirtualRouterError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            VirtualRouterError::AddressListError => {
-                write!(f, "VRRP address received not in configured addresses")
-            }
-            VirtualRouterError::IntervalError => {
-                write!(f, "VRRP interval received not match locally configured interval")
-            }
-            VirtualRouterError::PacketLengthError => {
-                write!(f, "the VRRP packet should be between 16 bytes and 80 bytes. received packet not in range.")
             }
         }
     }
@@ -149,7 +86,8 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Error::IoError(error) => Some(error),
-            _ => None,
+            Error::GlobalError(_, error) => Some(error),
+            Error::VirtualRouterError(_, error) => Some(error),
         }
     }
 }
@@ -157,6 +95,20 @@ impl std::error::Error for Error {
 impl From<IoError> for Error {
     fn from(error: IoError) -> Error {
         Error::IoError(error)
+    }
+}
+
+impl From<(Ipv4Addr, DecodeError)> for Error {
+    fn from((src, error): (Ipv4Addr, DecodeError)) -> Error {
+        match error {
+            DecodeError::ChecksumError => {
+                Error::GlobalError(src, GlobalError::ChecksumError)
+            }
+            DecodeError::PacketLengthError { .. } => Error::VirtualRouterError(
+                src,
+                VirtualRouterError::PacketLengthError,
+            ),
+        }
     }
 }
 
@@ -222,6 +174,49 @@ impl std::error::Error for IoError {
         }
     }
 }
+
+// ===== impl GlobalError =====
+
+impl std::fmt::Display for GlobalError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GlobalError::ChecksumError => {
+                write!(f, "incorrect checksum received")
+            }
+            GlobalError::IpTtlError => {
+                write!(f, "invalid IP TTL received")
+            }
+            GlobalError::VersionError => {
+                write!(f, "unsupported VRRP version received")
+            }
+            GlobalError::VridError => {
+                write!(f, "invalid VRID received")
+            }
+        }
+    }
+}
+
+impl std::error::Error for GlobalError {}
+
+// ===== impl VirtualRouterError =====
+
+impl std::fmt::Display for VirtualRouterError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            VirtualRouterError::AddressListError => {
+                write!(f, "address list mismatch")
+            }
+            VirtualRouterError::IntervalError => {
+                write!(f, "advertisement interval mismatch")
+            }
+            VirtualRouterError::PacketLengthError => {
+                write!(f, "invalid packet length")
+            }
+        }
+    }
+}
+
+impl std::error::Error for VirtualRouterError {}
 
 // ===== global functions =====
 

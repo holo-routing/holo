@@ -1,7 +1,7 @@
 # Build image
 # ==============================================================================
 
-FROM ghcr.io/rust-lang/rust:nightly-bookworm as build
+FROM ghcr.io/rust-lang/rust:nightly-bookworm AS build
 
 RUN apt-get update && \
     apt-get install -y build-essential \

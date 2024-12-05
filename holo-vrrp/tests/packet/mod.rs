@@ -69,7 +69,7 @@ static ETHERNETHDR: LazyLock<(Vec<u8>, EthernetHdr)> = LazyLock::new(|| {
         EthernetHdr {
             dst_mac: [0x01, 0x00, 0x5e, 0x00, 0x00, 0x12],
             src_mac: [0x00, 0x00, 0x5e, 0x00, 0x01, 0x33],
-            ethertype: 0x0800,
+            ethertype: libc::ETH_P_IP as _,
         },
     )
 });

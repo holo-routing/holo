@@ -27,10 +27,6 @@ pub const VRRP_MULTICAST_ADDRESS: Ipv4Addr = Ipv4Addr::new(224, 0, 0, 18);
 // number of virtual IP addresses that can be on a VRRP header.
 pub const VRRP_IP_COUNT_MAX: usize = 20;
 
-// ==== ARP ====
-
-pub const ARP_PROTOCOL_NUMBER: u16 = 0x0806;
-
 // ==== IP ====
 
 pub const IP_HDR_MIN: usize = 20;

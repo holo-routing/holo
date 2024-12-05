@@ -312,16 +312,8 @@ impl EthernetHdr {
         Ok(Self {
             dst_mac,
             src_mac,
-            ethertype: 0x0800,
+            ethertype: libc::ETH_P_IP as _,
         })
-    }
-
-    pub fn vrrp(vrid: u8) -> Self {
-        Self {
-            dst_mac: [0x01, 0x00, 0x5e, 0x00, 0x00, 0x12],
-            src_mac: [0x00, 0x00, 0x5e, 0x00, 0x01, vrid],
-            ethertype: 0x0800, // IP ethertype
-        }
     }
 }
 

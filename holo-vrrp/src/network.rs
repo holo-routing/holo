@@ -12,20 +12,18 @@ use std::os::fd::AsRawFd;
 use std::sync::Arc;
 
 use bytes::BufMut;
-use holo_utils::socket::{AsyncFd, Socket};
+use holo_utils::socket::{AsyncFd, Socket, SocketExt};
 use holo_utils::{capabilities, Sender, UnboundedReceiver};
 use libc::{AF_PACKET, ETH_P_ARP};
 use nix::sys::socket::{self, LinkAddr, SockaddrIn, SockaddrLike};
 use socket2::{Domain, Protocol, Type};
 use tokio::sync::mpsc::error::SendError;
 
-use crate::consts::{
-    ARP_PROTOCOL_NUMBER, VRRP_MULTICAST_ADDRESS, VRRP_PROTO_NUMBER,
-};
+use crate::consts::{VRRP_MULTICAST_ADDRESS, VRRP_PROTO_NUMBER};
 use crate::debug::Debug;
 use crate::error::IoError;
+use crate::instance::InstanceMacvlan;
 use crate::interface::InterfaceView;
-use crate::macvlan::MacvlanInterface;
 use crate::packet::{ArpHdr, EthernetHdr, Ipv4Hdr, VrrpHdr, VrrpPacket};
 use crate::tasks::messages::input::VrrpNetRxPacketMsg;
 use crate::tasks::messages::output::NetTxPacketMsg;
@@ -33,7 +31,7 @@ use crate::tasks::messages::output::NetTxPacketMsg;
 // ===== global functions =====
 
 pub(crate) fn socket_vrrp_tx(
-    mvlan: &MacvlanInterface,
+    mvlan: &InstanceMacvlan,
 ) -> Result<Socket, std::io::Error> {
     #[cfg(not(feature = "testing"))]
     {
@@ -46,9 +44,7 @@ pub(crate) fn socket_vrrp_tx(
         })?;
         socket.set_nonblocking(true)?;
         socket.set_reuse_address(true)?;
-        socket.set_multicast_if_v4(
-            &mvlan.system.addresses.first().unwrap().ip(),
-        )?;
+        socket.set_multicast_ifindex_v4(mvlan.system.ifindex.unwrap())?;
         socket.set_header_included(true)?;
         socket.set_multicast_ttl_v4(255)?;
         socket.set_tos(libc::IPTOS_PREC_INTERNETCONTROL as u32)?;
@@ -160,7 +156,7 @@ async fn send_packet_arp(
     let iov = [IoSlice::new(&buf)];
     let mut sll = libc::sockaddr_ll {
         sll_family: AF_PACKET as u16,
-        sll_protocol: ARP_PROTOCOL_NUMBER.to_be(),
+        sll_protocol: (libc::ETH_P_ARP as u16).to_be(),
         sll_ifindex: ifindex as i32,
         sll_hatype: 0,
         sll_pkttype: 0,

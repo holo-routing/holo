@@ -20,7 +20,7 @@ use holo_northbound::yang::interfaces;
 use holo_utils::yang::DataNodeRefExt;
 use ipnetwork::Ipv4Network;
 
-use crate::instance::{fsm, Instance, MasterReason};
+use crate::instance::{fsm, Instance};
 use crate::interface::Interface;
 use crate::southbound;
 
@@ -197,40 +197,43 @@ impl Provider for Interface {
                     instance.mvlan.name.clone(),
                     virtual_mac_addr,
                 );
-
-                // reminder to remove the following line.
-                // currently up due to state not being properly maintained on startup.
-                instance.change_state(
-                    &interface,
-                    fsm::State::Backup,
-                    MasterReason::NotMaster,
-                );
             }
             Event::InstanceDelete { vrid } => {
-                let instance = self.instances.remove(&vrid).unwrap();
+                let mut instance = self.instances.remove(&vrid).unwrap();
+                let interface = self.as_view();
+
+                // Shut down the instance.
+                instance.shutdown(&interface);
 
                 // Delete macvlan interface.
                 southbound::tx::mvlan_delete(
-                    &self.tx.ibus,
+                    &interface.tx.ibus,
                     &instance.mvlan.name,
                 );
             }
             Event::VirtualAddressCreate { vrid, addr } => {
                 let (interface, instance) = self.get_instance(vrid).unwrap();
-                southbound::tx::ip_addr_add(
-                    &interface.tx.ibus,
-                    &instance.mvlan.name,
-                    addr,
-                );
-                instance.timer_set(&interface);
+
+                if instance.state.state == fsm::State::Master {
+                    southbound::tx::ip_addr_add(
+                        &interface.tx.ibus,
+                        &instance.mvlan.name,
+                        addr,
+                    );
+                    instance.timer_set(&interface);
+                }
             }
             Event::VirtualAddressDelete { vrid, addr } => {
                 let (interface, instance) = self.get_instance(vrid).unwrap();
-                southbound::tx::ip_addr_del(
-                    &interface.tx.ibus,
-                    &instance.mvlan.name,
-                    addr,
-                );
+
+                if instance.state.state == fsm::State::Master {
+                    southbound::tx::ip_addr_del(
+                        &interface.tx.ibus,
+                        &instance.mvlan.name,
+                        addr,
+                    );
+                    instance.timer_set(&interface);
+                }
             }
             Event::ResetTimer { vrid } => {
                 let (_, instance) = self.get_instance(vrid).unwrap();

@@ -19,7 +19,6 @@ pub mod error;
 pub mod events;
 pub mod instance;
 pub mod interface;
-pub mod macvlan;
 pub mod network;
 pub mod northbound;
 pub mod packet;

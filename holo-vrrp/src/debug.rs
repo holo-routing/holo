@@ -20,7 +20,7 @@ pub enum Debug<'a> {
     // Instances
     InstanceCreate(u8),
     InstanceDelete(u8),
-    InstanceStateChange(u8, fsm::State, fsm::State),
+    InstanceStateChange(u8, fsm::Event, fsm::State, fsm::State),
     // Network
     PacketRx(&'a Ipv4Addr, &'a VrrpHdr),
     PacketTx(&'a VrrpHdr),
@@ -37,9 +37,9 @@ impl Debug<'_> {
                 // Parent span(s): vrrp
                 debug!(%vrid, "{}", self);
             }
-            Debug::InstanceStateChange(vrid, old_state, new_state) => {
+            Debug::InstanceStateChange(vrid, event, old_state, new_state) => {
                 // Parent span(s): vrrp
-                debug!(%vrid, ?old_state, ?new_state, "{}", self);
+                debug!(%vrid, ?event, ?old_state, ?new_state, "{}", self);
             }
             Debug::PacketRx(src, packet) => {
                 // Parent span(s): vrrp

@@ -81,7 +81,7 @@ impl NetworkVersion for Ripv2 {
     ) -> std::io::Result<()> {
         #[cfg(not(feature = "testing"))]
         {
-            socket.set_multicast_if_v4(ifindex)
+            socket.set_multicast_ifindex_v4(ifindex)
         }
         #[cfg(feature = "testing")]
         {

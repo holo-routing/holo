@@ -10,16 +10,14 @@
 use std::fmt::Debug;
 use std::net::{IpAddr, Ipv4Addr};
 
-use tracing::warn;
+use tracing::{error, warn};
 
 use crate::packet::DecodeError;
 
 // VRRP errors.
 #[derive(Debug)]
 pub enum Error {
-    // I/O errors
-    IoError(IoError),
-    // Packet input
+    InstanceStartError(u8, IoError),
     GlobalError(Ipv4Addr, GlobalError),
     VirtualRouterError(Ipv4Addr, VirtualRouterError),
 }
@@ -57,8 +55,8 @@ pub enum VirtualRouterError {
 impl Error {
     pub(crate) fn log(&self) {
         match self {
-            Error::IoError(error) => {
-                error.log();
+            Error::InstanceStartError(vrid, error) => {
+                error!(%vrid, error = %with_source(error), "{}", self);
             }
             Error::GlobalError(source, error) => {
                 warn!(?source, %error, "{}", self);
@@ -73,7 +71,9 @@ impl Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::IoError(error) => std::fmt::Display::fmt(error, f),
+            Error::InstanceStartError(..) => {
+                write!(f, "failed to start VRRP instance")
+            }
             Error::GlobalError(_, error) => std::fmt::Display::fmt(error, f),
             Error::VirtualRouterError(_, error) => {
                 std::fmt::Display::fmt(error, f)
@@ -85,16 +85,10 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Error::IoError(error) => Some(error),
+            Error::InstanceStartError(_, error) => Some(error),
             Error::GlobalError(_, error) => Some(error),
             Error::VirtualRouterError(_, error) => Some(error),
         }
-    }
-}
-
-impl From<IoError> for Error {
-    fn from(error: IoError) -> Error {
-        Error::IoError(error)
     }
 }
 

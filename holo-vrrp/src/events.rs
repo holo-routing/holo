@@ -116,6 +116,7 @@ pub(crate) fn process_vrrp_packet(
                 instance.change_state(
                     &interface,
                     fsm::State::Backup,
+                    fsm::Event::HigherPriorityBackup,
                     MasterReason::NotMaster,
                 );
             }
@@ -141,12 +142,12 @@ pub(crate) fn handle_master_down_timer(
     };
 
     // RFC 3768: Section 6.4.2 ("If the Master_Down_timer fires")
-    instance.state.last_event = fsm::Event::MasterTimeout;
     instance.send_vrrp_advertisement(src_ip);
     instance.send_gratuitous_arp();
     instance.change_state(
         &interface,
         fsm::State::Master,
+        fsm::Event::MasterTimeout,
         MasterReason::NoResponse,
     );
 

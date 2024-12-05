@@ -43,7 +43,7 @@ pub(crate) fn process_iface_update(
 }
 
 pub(crate) fn process_addr_add(interface: &mut Interface, msg: AddressMsg) {
-    let (interface, mut instances) = interface.iter_instances();
+    let (interface, instances) = interface.iter_instances();
 
     // Handle address updates for the primary VRRP interface.
     if msg.ifname == interface.name {
@@ -53,22 +53,11 @@ pub(crate) fn process_addr_add(interface: &mut Interface, msg: AddressMsg) {
                 instance.update(&interface);
             }
         }
-        return;
-    }
-
-    // Handle address updates for VRRP macvlan interfaces.
-    if let Some(instance) =
-        instances.find(|instance| msg.ifname == instance.mvlan.name)
-    {
-        if let IpNetwork::V4(addr) = msg.addr {
-            instance.mvlan.system.addresses.insert(addr);
-            instance.update(&interface);
-        }
     }
 }
 
 pub(crate) fn process_addr_del(interface: &mut Interface, msg: AddressMsg) {
-    let (interface, mut instances) = interface.iter_instances();
+    let (interface, instances) = interface.iter_instances();
 
     // Handle address updates for the primary VRRP interface.
     if msg.ifname == interface.name {
@@ -77,17 +66,6 @@ pub(crate) fn process_addr_del(interface: &mut Interface, msg: AddressMsg) {
             for instance in instances {
                 instance.update(&interface);
             }
-        }
-        return;
-    }
-
-    // Handle address updates for VRRP macvlan interfaces.
-    if let Some(instance) =
-        instances.find(|instance| msg.ifname == instance.mvlan.name)
-    {
-        if let IpNetwork::V4(addr) = msg.addr {
-            instance.mvlan.system.addresses.remove(&addr);
-            instance.update(&interface);
         }
     }
 }

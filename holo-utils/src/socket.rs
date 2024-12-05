@@ -98,6 +98,23 @@ pub trait SocketExt: Sized + AsRawFd {
         )
     }
 
+    // Sets the value of the IP_MULTICAST_IF option for this socket.
+    fn set_multicast_ifindex_v4(&self, ifindex: u32) -> Result<()> {
+        let optval = ip_mreqn {
+            imr_multiaddr: libc::in_addr { s_addr: 0 },
+            imr_address: libc::in_addr { s_addr: 0 },
+            imr_ifindex: ifindex as i32,
+        };
+
+        setsockopt(
+            self,
+            libc::IPPROTO_IP,
+            libc::IP_MULTICAST_IF,
+            &optval as *const _ as *const c_void,
+            std::mem::size_of::<ip_mreqn>() as libc::socklen_t,
+        )
+    }
+
     // Sets the value of the IPV6_TCLASS option for this socket.
     fn set_ipv6_tclass(&self, dscp: u8) -> Result<()> {
         let optval = dscp as c_int;
@@ -133,6 +150,19 @@ pub trait SocketExt: Sized + AsRawFd {
             libc::IPPROTO_IPV6,
             libc::IPV6_UNICAST_HOPS,
             &optval as *const _ as *const libc::c_void,
+            std::mem::size_of::<i32>() as libc::socklen_t,
+        )
+    }
+
+    // Sets the value of the IPV6_MULTICAST_IF option for this socket.
+    fn set_multicast_ifindex_v6(&self, ifindex: u32) -> Result<()> {
+        let optval = ifindex as i32;
+
+        setsockopt(
+            self,
+            libc::IPPROTO_IPV6,
+            libc::IPV6_MULTICAST_IF,
+            &optval as *const _ as *const c_void,
             std::mem::size_of::<i32>() as libc::socklen_t,
         )
     }
@@ -239,36 +269,6 @@ pub trait UdpSocketExt: SocketExt {
             libc::IP_DROP_MEMBERSHIP,
             &optval as *const _ as *const c_void,
             std::mem::size_of::<ip_mreqn>() as libc::socklen_t,
-        )
-    }
-
-    // Sets the value of the IP_MULTICAST_IF option for this socket.
-    fn set_multicast_if_v4(&self, ifindex: u32) -> Result<()> {
-        let optval = ip_mreqn {
-            imr_multiaddr: libc::in_addr { s_addr: 0 },
-            imr_address: libc::in_addr { s_addr: 0 },
-            imr_ifindex: ifindex as i32,
-        };
-
-        setsockopt(
-            self,
-            libc::IPPROTO_IP,
-            libc::IP_MULTICAST_IF,
-            &optval as *const _ as *const c_void,
-            std::mem::size_of::<ip_mreqn>() as libc::socklen_t,
-        )
-    }
-
-    // Sets the value of the IPV6_MULTICAST_IF option for this socket.
-    fn set_multicast_if_v6(&self, ifindex: u32) -> Result<()> {
-        let optval = ifindex as i32;
-
-        setsockopt(
-            self,
-            libc::IPPROTO_IPV6,
-            libc::IPV6_MULTICAST_IF,
-            &optval as *const _ as *const c_void,
-            std::mem::size_of::<i32>() as libc::socklen_t,
         )
     }
 

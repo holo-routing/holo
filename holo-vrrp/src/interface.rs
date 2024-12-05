@@ -124,6 +124,16 @@ impl Interface {
             self.instances.values_mut(),
         )
     }
+
+    pub(crate) fn as_view(&mut self) -> InterfaceView<'_> {
+        InterfaceView {
+            name: &self.name,
+            system: &mut self.system,
+            statistics: &mut self.statistics,
+            tx: &self.tx,
+            shared: &self.shared,
+        }
+    }
 }
 
 #[async_trait]
@@ -199,21 +209,6 @@ impl ProtocolInstance for Interface {
     #[cfg(feature = "testing")]
     fn test_dir() -> String {
         format!("{}/tests/conformance", env!("CARGO_MANIFEST_DIR"),)
-    }
-}
-
-// ===== impl InterfaceSys =====
-
-impl InterfaceSys {
-    pub(crate) fn is_ready(&self) -> bool {
-        if self.ifindex.is_none() {
-            return false;
-        }
-        if self.addresses.is_empty() {
-            return false;
-        }
-
-        true
     }
 }
 

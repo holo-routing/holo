@@ -14,16 +14,19 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use enum_as_inner::EnumAsInner;
-use holo_utils::task::{IntervalTask, TimeoutTask};
+use holo_utils::socket::{AsyncFd, Socket};
+use holo_utils::task::{IntervalTask, Task, TimeoutTask};
+use holo_utils::UnboundedSender;
+use tokio::sync::mpsc;
 
 use crate::consts::{VRRP_MULTICAST_ADDRESS, VRRP_PROTO_NUMBER};
 use crate::debug::Debug;
-use crate::interface::InterfaceView;
-use crate::macvlan::{MacvlanInterface, MacvlanNet};
+use crate::error::{Error, IoError};
+use crate::interface::{InterfaceSys, InterfaceView};
 use crate::northbound::configuration::InstanceCfg;
 use crate::packet::{ArpHdr, EthernetHdr, Ipv4Hdr, VrrpHdr, VrrpPacket};
 use crate::tasks::messages::output::NetTxPacketMsg;
-use crate::{southbound, tasks};
+use crate::{network, southbound, tasks};
 
 #[derive(Debug)]
 pub struct Instance {
@@ -34,7 +37,9 @@ pub struct Instance {
     // Instance state data.
     pub state: InstanceState,
     // Macvlan interface.
-    pub mvlan: MacvlanInterface,
+    pub mvlan: InstanceMacvlan,
+    // Interface raw sockets and Tx/Rx tasks.
+    pub net: Option<InstanceNet>,
 }
 
 #[derive(Debug, Default)]
@@ -46,6 +51,27 @@ pub struct InstanceState {
     pub timer: VrrpTimer,
     pub last_adv_src: Option<Ipv4Addr>,
     pub statistics: Statistics,
+}
+
+#[derive(Debug)]
+pub struct InstanceMacvlan {
+    // Interface name.
+    pub name: String,
+    // Interface system data.
+    pub system: InterfaceSys,
+}
+
+#[derive(Debug)]
+pub struct InstanceNet {
+    // Raw sockets.
+    pub socket_vrrp_tx: Arc<AsyncFd<Socket>>,
+    pub socket_vrrp_rx: Arc<AsyncFd<Socket>>,
+    pub socket_arp: Arc<AsyncFd<Socket>>,
+    // Network Tx/Rx tasks.
+    _net_tx_task: Task<()>,
+    _vrrp_net_rx_task: Task<()>,
+    // Network Tx output channel.
+    pub net_tx_packetp: UnboundedSender<NetTxPacketMsg>,
 }
 
 // Protocol state machine.
@@ -119,25 +145,75 @@ impl Instance {
             vrid,
             config: InstanceCfg::default(),
             state: InstanceState::default(),
-            mvlan: MacvlanInterface::new(vrid),
+            mvlan: InstanceMacvlan::new(vrid),
+            net: None,
         }
     }
 
     pub(crate) fn update(&mut self, interface: &InterfaceView) {
-        if interface.system.is_ready() && self.mvlan.system.is_ready() {
-            if let Ok(net) = MacvlanNet::new(interface, &self.mvlan) {
-                self.mvlan.net = Some(net);
-                self.timer_set(interface);
-            }
-        } else {
-            self.mvlan.net = None;
+        let is_ready = interface.system.ifindex.is_some()
+            && !interface.system.addresses.is_empty()
+            && self.mvlan.system.ifindex.is_some();
+        if is_ready && self.state.state == fsm::State::Initialize {
+            self.startup(interface);
+        } else if !is_ready && self.state.state != fsm::State::Initialize {
+            self.shutdown(interface);
         }
+    }
+
+    fn startup(&mut self, interface: &InterfaceView) {
+        match InstanceNet::new(interface, &self.mvlan) {
+            Ok(net) => {
+                if self.config.priority == 255 {
+                    let src_ip =
+                        interface.system.addresses.first().unwrap().ip();
+                    self.send_vrrp_advertisement(src_ip);
+                    self.send_gratuitous_arp();
+                    self.change_state(
+                        interface,
+                        fsm::State::Master,
+                        fsm::Event::Startup,
+                        MasterReason::Priority,
+                    );
+                } else {
+                    self.change_state(
+                        interface,
+                        fsm::State::Backup,
+                        fsm::Event::Startup,
+                        MasterReason::NotMaster,
+                    );
+                }
+                self.net = Some(net);
+            }
+            Err(error) => {
+                Error::InstanceStartError(self.vrid, error).log();
+            }
+        }
+    }
+
+    pub(crate) fn shutdown(&mut self, interface: &InterfaceView) {
+        if self.state.state == fsm::State::Master {
+            // Send an advertisement with Priority = 0.
+            // TODO
+        }
+
+        // Transition to the Initialize state.
+        self.change_state(
+            interface,
+            fsm::State::Initialize,
+            fsm::Event::Shutdown,
+            MasterReason::NotMaster,
+        );
+
+        // Close network sockets and tasks.
+        self.net = None;
     }
 
     pub(crate) fn change_state(
         &mut self,
         interface: &InterfaceView,
         state: fsm::State,
+        event: fsm::Event,
         new_master_reason: MasterReason,
     ) {
         if self.state.state == state {
@@ -145,27 +221,44 @@ impl Instance {
         }
 
         // Log the state transition.
-        Debug::InstanceStateChange(self.vrid, self.state.state, state).log();
+        Debug::InstanceStateChange(self.vrid, event, self.state.state, state)
+            .log();
 
-        if state == fsm::State::Backup {
-            for addr in &self.config.virtual_addresses {
-                southbound::tx::ip_addr_del(
-                    &interface.tx.ibus,
-                    &self.mvlan.name,
-                    *addr,
-                );
+        match (self.state.state, state) {
+            (fsm::State::Initialize, _) => {
+                // Set the up-time to the current time.
+                self.state.up_time = Some(Utc::now());
             }
-        } else if state == fsm::State::Master {
-            for addr in &self.config.virtual_addresses {
-                southbound::tx::ip_addr_add(
-                    &interface.tx.ibus,
-                    &self.mvlan.name,
-                    *addr,
-                );
+            (_, fsm::State::Initialize) => {
+                // Reset state attributes.
+                self.state.up_time = None;
+                self.state.last_adv_src = None;
+            }
+            (_, fsm::State::Backup) => {
+                // Remove virtual IPs from the macvlan interface.
+                for addr in &self.config.virtual_addresses {
+                    southbound::tx::ip_addr_del(
+                        &interface.tx.ibus,
+                        &self.mvlan.name,
+                        *addr,
+                    );
+                }
+            }
+            (_, fsm::State::Master) => {
+                // Add virtual IPs to the macvlan interface.
+                for addr in &self.config.virtual_addresses {
+                    southbound::tx::ip_addr_add(
+                        &interface.tx.ibus,
+                        &self.mvlan.name,
+                        *addr,
+                    );
+                }
             }
         }
 
+        // Update state and initialize the corresponding timer.
         self.state.state = state;
+        self.state.last_event = event;
         self.state.new_master_reason = new_master_reason;
         self.timer_set(interface);
     }
@@ -187,7 +280,7 @@ impl Instance {
                 self.state.timer = VrrpTimer::MasterDownTimer(task);
             }
             fsm::State::Master => {
-                let Some(net) = &self.mvlan.net else {
+                let Some(net) = &self.net else {
                     return;
                 };
                 let src_ip = interface.system.addresses.first().unwrap().ip();
@@ -219,7 +312,7 @@ impl Instance {
 
     pub(crate) fn generate_vrrp_packet(&self) -> VrrpHdr {
         let mut ip_addresses: Vec<Ipv4Addr> = vec![];
-        for addr in self.config.virtual_addresses.clone() {
+        for addr in &self.config.virtual_addresses {
             ip_addresses.push(addr.ip());
         }
 
@@ -270,7 +363,7 @@ impl Instance {
     }
 
     pub(crate) fn send_vrrp_advertisement(&mut self, src_ip: Ipv4Addr) {
-        let Some(net) = &self.mvlan.net else {
+        let Some(net) = &self.net else {
             return;
         };
 
@@ -283,7 +376,7 @@ impl Instance {
     }
 
     pub(crate) fn send_gratuitous_arp(&self) {
-        let Some(net) = &self.mvlan.net else {
+        let Some(net) = &self.net else {
             return;
         };
 
@@ -296,13 +389,12 @@ impl Instance {
         for addr in &self.config.virtual_addresses {
             let arp_hdr = ArpHdr {
                 hw_type: 1,
-                // IPv4
-                proto_type: 0x0800,
+                proto_type: libc::ETH_P_IP as _,
                 // MAC address length
                 hw_length: 6,
                 proto_length: 4,
                 operation: 1,
-                // Sender HW address is virtual mac.
+                // Sender HW address is virtual MAC
                 // https://datatracker.ietf.org/doc/html/rfc3768#section-7.3
                 sender_hw_address: self.mvlan.system.mac_address,
                 sender_proto_address: addr.ip(),
@@ -323,6 +415,72 @@ impl Instance {
 impl Drop for Instance {
     fn drop(&mut self) {
         Debug::InstanceDelete(self.vrid).log();
+    }
+}
+
+// ==== impl InstanceMacvlan ====
+
+impl InstanceMacvlan {
+    pub(crate) fn new(vrid: u8) -> Self {
+        let name = format!("mvlan-vrrp-{}", vrid);
+        Self {
+            name,
+            system: InterfaceSys::default(),
+        }
+    }
+}
+
+// ==== impl InstanceNet ====
+
+impl InstanceNet {
+    pub(crate) fn new(
+        parent_iface: &InterfaceView,
+        mvlan: &InstanceMacvlan,
+    ) -> Result<Self, IoError> {
+        let instance_channels_tx = &parent_iface.tx;
+
+        // Create raw sockets.
+        let socket_vrrp_rx = network::socket_vrrp_rx(parent_iface)
+            .map_err(IoError::SocketError)
+            .and_then(|socket| {
+                AsyncFd::new(socket).map_err(IoError::SocketError)
+            })
+            .map(Arc::new)?;
+        let socket_vrrp_tx = network::socket_vrrp_tx(mvlan)
+            .map_err(IoError::SocketError)
+            .and_then(|socket| {
+                AsyncFd::new(socket).map_err(IoError::SocketError)
+            })
+            .map(Arc::new)?;
+        let socket_arp = network::socket_arp(&mvlan.name)
+            .map_err(IoError::SocketError)
+            .and_then(|socket| {
+                AsyncFd::new(socket).map_err(IoError::SocketError)
+            })
+            .map(Arc::new)?;
+
+        // Start network Tx/Rx tasks.
+        let (net_tx_packetp, net_tx_packetc) = mpsc::unbounded_channel();
+        let net_tx_task = tasks::net_tx(
+            socket_vrrp_tx.clone(),
+            socket_arp.clone(),
+            net_tx_packetc,
+            #[cfg(feature = "testing")]
+            &instance_channels_tx.protocol_output,
+        );
+        let vrrp_net_rx_task = tasks::vrrp_net_rx(
+            socket_vrrp_rx.clone(),
+            &instance_channels_tx.protocol_input.vrrp_net_packet_tx,
+        );
+
+        Ok(Self {
+            socket_vrrp_tx,
+            socket_vrrp_rx,
+            socket_arp,
+            _net_tx_task: net_tx_task,
+            _vrrp_net_rx_task: vrrp_net_rx_task,
+            net_tx_packetp,
+        })
     }
 }
 

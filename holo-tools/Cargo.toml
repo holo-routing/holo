@@ -24,6 +24,7 @@ holo-northbound = { path = "../holo-northbound" }
 holo-ospf = { path = "../holo-ospf", features = ["testing"] }
 holo-protocol = { path = "../holo-protocol", features = ["testing"] }
 holo-utils = { path = "../holo-utils", features = ["testing"] }
+holo-vrrp = { path = "../holo-vrrp", features = ["testing"] }
 holo-yang = { path = "../holo-yang" }
 
 [lints]

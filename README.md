@@ -211,6 +211,10 @@ Holo supports the following Internet Standards:
 * RFC 2453 - RIP Version 2
 * RFC 4822 - RIPv2 Cryptographic Authentication
 
+##### VRRP
+
+* RFC 3768 - Virtual Router Redundancy Protocol (VRRP)
+
 ##### IETF YANG implementation coverage
 
 | Module | Configuration | State | RPCs | Notifications | Total |
@@ -240,6 +244,7 @@ Holo supports the following Internet Standards:
 | ietf-segment-routing-mpls@2021-05-26 | 62.50% | 0.00% | - | 23.53% | [32.76%](http://westphal.com.br/holo/ietf-segment-routing-mpls.html) |
 | ietf-segment-routing@2021-05-26 | 100.00% | - | - | - | [100.00%](http://westphal.com.br/holo/ietf-segment-routing.html) |
 | ietf-system@2014-08-06 | 26.67% | 60.00% | 0.00% | - | [38.24%](http://westphal.com.br/holo/ietf-system@2014-08-06.coverage.md) |
+| ietf-vrrp@2018-03-13 | 25.53% | 40.00% | - | 25.00% | [31.73%](http://westphal.com.br/holo/ietf-vrrp@2018-03-13.coverage.md) |
 
 ## Funding
 

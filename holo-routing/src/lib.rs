@@ -18,13 +18,12 @@ use holo_northbound::{
     process_northbound_msg, NbDaemonReceiver, NbDaemonSender, NbProviderSender,
     ProviderBase,
 };
-use holo_protocol::{event_recorder, InstanceShared};
+use holo_protocol::InstanceShared;
 use holo_utils::bier::BierCfg;
 use holo_utils::ibus::{IbusReceiver, IbusSender};
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::sr::SrCfg;
-use holo_utils::Database;
 use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 use tracing::Instrument;
@@ -114,17 +113,11 @@ pub fn start(
     nb_tx: NbProviderSender,
     ibus_tx: IbusSender,
     ibus_rx: IbusReceiver,
-    db: Database,
-    event_recorder_config: event_recorder::Config,
+    shared: InstanceShared,
 ) -> NbDaemonSender {
     let (nb_daemon_tx, nb_daemon_rx) = mpsc::channel(4);
 
     tokio::spawn(async move {
-        let shared = InstanceShared {
-            db: Some(db),
-            event_recorder_config: Some(event_recorder_config),
-            ..Default::default()
-        };
         let mut master = Master {
             nb_tx,
             ibus_tx,

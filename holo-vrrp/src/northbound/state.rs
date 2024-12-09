@@ -40,19 +40,17 @@ fn load_callbacks() -> Callbacks<Interface> {
             let iter = interface.instances.iter().map(|(vrid, instance)| ListEntry::Instance(*vrid, instance));
             Some(Box::new(iter))
         })
-        .get_object(|_interface, args| {
+        .get_object(|interface, args| {
             use interfaces::interface::ipv4::vrrp::vrrp_instance::VrrpInstance;
             let (vrid, instance) = args.list_entry.as_instance().unwrap();
             Box::new(VrrpInstance {
                 vrid: *vrid,
                 state: Some(instance.state.state.to_yang()),
-                // TODO
-                is_owner: None,
+                is_owner: Some(instance.is_owner(&interface.system)),
                 last_adv_source: instance.state.last_adv_src.map(std::convert::Into::into).map(Cow::Owned).ignore_in_testing(),
                 up_datetime: instance.state.up_time.as_ref().map(Cow::Borrowed).ignore_in_testing(),
                 master_down_interval: instance.state.timer.as_master_down_timer().map(|task| task.remaining().as_millis() as u32 / 10).ignore_in_testing(),
-                // TODO
-                skew_time: None,
+                skew_time: Some(instance.config.skew_time() as u32),
                 last_event: Some(instance.state.last_event.to_yang()).ignore_in_testing(),
                 new_master_reason: Some(instance.state.new_master_reason.to_yang()),
             })
@@ -81,7 +79,8 @@ fn load_callbacks() -> Callbacks<Interface> {
 
 impl Provider for Interface {
     // TODO
-    const STATE_PATH: &'static str = "";
+    const STATE_PATH: &'static str =
+        "/ietf-interfaces:interfaces/interface[type=holo-vrrp:vrrp][name='main']/ietf-vrrp:vrrp";
 
     type ListEntry<'a> = ListEntry<'a>;
 

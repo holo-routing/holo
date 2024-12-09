@@ -192,9 +192,22 @@ impl Instance {
     }
 
     pub(crate) fn shutdown(&mut self, interface: &InterfaceView) {
-        if self.state.state == fsm::State::Master {
+        if self.state.state == fsm::State::Master
+            && let Some(src_ip) = interface.system.addresses.first()
+            && let Some(net) = &self.net
+        {
             // Send an advertisement with Priority = 0.
-            // TODO
+            let mut pkt = self.generate_vrrp_packet();
+            pkt.priority = 0;
+            pkt.generate_checksum();
+
+            let packet = VrrpPacket {
+                ip: self.generate_ipv4_packet(src_ip.ip()),
+                vrrp: pkt,
+            };
+
+            let msg = NetTxPacketMsg::Vrrp { packet };
+            let _ = net.net_tx_packetp.send(msg);
         }
 
         // Transition to the Initialize state.
@@ -409,6 +422,16 @@ impl Instance {
             };
             let _ = net.net_tx_packetp.send(msg);
         }
+    }
+
+    pub(crate) fn is_owner(&self, interface_sys: &InterfaceSys) -> bool {
+        let iter = self.config.virtual_addresses.iter();
+        for addr in iter {
+            if interface_sys.addresses.contains(addr) {
+                return true;
+            }
+        }
+        false
     }
 }
 

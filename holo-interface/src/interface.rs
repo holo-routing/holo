@@ -9,6 +9,7 @@ use std::net::{IpAddr, Ipv4Addr};
 
 use bitflags::bitflags;
 use generational_arena::{Arena, Index};
+use holo_northbound::NbDaemonSender;
 use holo_utils::ibus::IbusSender;
 use holo_utils::ip::Ipv4NetworkExt;
 use holo_utils::southbound::{AddressFlags, InterfaceFlags};
@@ -39,6 +40,7 @@ pub struct Interface {
     pub addresses: BTreeMap<IpNetwork, InterfaceAddress>,
     pub mac_address: [u8; 6],
     pub owner: Owner,
+    pub vrrp: Option<NbDaemonSender>,
 }
 
 #[derive(Debug)]
@@ -123,8 +125,9 @@ impl Interfaces {
             mtu: None,
             flags: InterfaceFlags::default(),
             addresses: Default::default(),
-            owner: Owner::CONFIG,
             mac_address: Default::default(),
+            owner: Owner::CONFIG,
+            vrrp: None,
         };
 
         let iface_idx = self.arena.insert(iface);
@@ -218,8 +221,9 @@ impl Interfaces {
                     mtu: Some(mtu),
                     flags,
                     addresses: Default::default(),
-                    owner: Owner::SYSTEM,
                     mac_address,
+                    owner: Owner::SYSTEM,
+                    vrrp: None,
                 };
 
                 // Notify protocol instances about the interface update.

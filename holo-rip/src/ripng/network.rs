@@ -89,7 +89,7 @@ impl NetworkVersion for Ripng {
     ) -> std::io::Result<()> {
         #[cfg(not(feature = "testing"))]
         {
-            socket.set_multicast_if_v6(ifindex)
+            socket.set_multicast_ifindex_v6(ifindex)
         }
         #[cfg(feature = "testing")]
         {

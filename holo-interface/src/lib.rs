@@ -16,6 +16,7 @@ use holo_northbound::{
     process_northbound_msg, NbDaemonReceiver, NbDaemonSender, NbProviderSender,
     ProviderBase,
 };
+use holo_protocol::InstanceShared;
 use holo_utils::ibus::{IbusReceiver, IbusSender};
 use tokio::sync::mpsc;
 use tracing::Instrument;
@@ -29,6 +30,8 @@ pub struct Master {
     pub nb_tx: NbProviderSender,
     // Internal bus Tx channel.
     pub ibus_tx: IbusSender,
+    // Shared data among all protocol instances.
+    pub shared: InstanceShared,
     // Netlink socket.
     pub netlink_handle: rtnetlink::Handle,
     // List of interfaces.
@@ -57,7 +60,7 @@ impl Master {
                     .await;
                 }
                 Ok(msg) = ibus_rx.recv() => {
-                    ibus::process_msg(self, msg);
+                    ibus::process_msg(self, msg).await;
                 }
                 Some((msg, _)) = netlink_rx.next() => {
                     netlink::process_msg(self, msg).await;
@@ -73,6 +76,7 @@ pub fn start(
     nb_tx: NbProviderSender,
     ibus_tx: IbusSender,
     ibus_rx: IbusReceiver,
+    shared: InstanceShared,
 ) -> NbDaemonSender {
     let (nb_daemon_tx, nb_daemon_rx) = mpsc::channel(4);
 
@@ -83,6 +87,7 @@ pub fn start(
         let mut master = Master {
             nb_tx,
             ibus_tx,
+            shared,
             netlink_handle,
             interfaces: Default::default(),
         };

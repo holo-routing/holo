@@ -17,8 +17,9 @@ use crate::keychain::Keychain;
 use crate::policy::{MatchSets, Policy};
 use crate::protocol::Protocol;
 use crate::southbound::{
-    AddressMsg, BierNbrInstallMsg, BierNbrUninstallMsg, InterfaceUpdateMsg,
-    LabelInstallMsg, LabelUninstallMsg, RouteKeyMsg, RouteMsg,
+    AddressMsg, BierNbrInstallMsg, BierNbrUninstallMsg,
+    InterfaceIpAddRequestMsg, InterfaceIpDelRequestMsg, InterfaceUpdateMsg,
+    LabelInstallMsg, LabelUninstallMsg, MacvlanAddMsg, RouteKeyMsg, RouteMsg,
 };
 use crate::sr::SrCfg;
 
@@ -64,10 +65,18 @@ pub enum IbusMsg {
     InterfaceAddressAdd(AddressMsg),
     // Interface address delete notification.
     InterfaceAddressDel(AddressMsg),
+    // Request to add an address to an interface.
+    InterfaceIpAddRequest(InterfaceIpAddRequestMsg),
+    // Request to delete an address to an interface.
+    InterfaceIpDelRequest(InterfaceIpDelRequestMsg),
     // Keychain update notification.
     KeychainUpd(Arc<Keychain>),
     // Keychain delete notification.
     KeychainDel(String),
+    // Create a macvlan interface.
+    MacvlanAdd(MacvlanAddMsg),
+    // Delete a macvlan interface.
+    MacvlanDel(String),
     // Nexthop tracking registration.
     NexthopTrack(IpAddr),
     // Nexthop tracking unregistration.

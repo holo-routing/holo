@@ -125,6 +125,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-tcp@2022-09-11.yang"),
         EmbeddedModuleKey::new("ietf-tcp-common", Some("2023-04-17"), None, None) =>
             include_str!("../modules/ietf/ietf-tcp-common@2023-04-17.yang"),
+        EmbeddedModuleKey::new("ietf-vrrp", Some("2018-03-13"), None, None) =>
+            include_str!("../modules/ietf/ietf-vrrp@2018-03-13.yang"),
         // IETF Holo augmentations
         EmbeddedModuleKey::new("holo-bgp", None, None, None) =>
             include_str!("../modules/augmentations/holo-bgp.yang"),
@@ -136,6 +138,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/augmentations/holo-ospf-dev.yang"),
         EmbeddedModuleKey::new("holo-routing", None, None, None) =>
             include_str!("../modules/augmentations/holo-routing.yang"),
+        EmbeddedModuleKey::new("holo-vrrp", None, None, None) =>
+            include_str!("../modules/augmentations/holo-vrrp.yang"),
         // IETF Holo deviations
         EmbeddedModuleKey::new("holo-ietf-bgp-deviations", None, None, None) =>
             include_str!("../modules/deviations/holo-ietf-bgp-deviations.yang"),
@@ -175,6 +179,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/deviations/holo-ietf-routing-policy-deviations.yang"),
         EmbeddedModuleKey::new("holo-ietf-segment-routing-mpls-deviations", None, None, None) =>
             include_str!("../modules/deviations/holo-ietf-segment-routing-mpls-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-vrrp-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-vrrp-deviations.yang"),
     }
 });
 
@@ -221,12 +227,14 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
             "ietf-rip",
             "ietf-system",
             "ietf-tcp",
+            "ietf-vrrp",
             // IETF Holo augmentations
             "holo-bgp",
             "holo-isis",
             "holo-ospf",
             "holo-ospf-dev",
             "holo-routing",
+            "holo-vrrp",
         ]
     });
 
@@ -276,6 +284,9 @@ pub static YANG_FEATURES: Lazy<HashMap<&'static str, Vec<&'static str>>> =
             ],
             "ietf-segment-routing-common" => vec![
                 "sid-last-hop-behavior",
+            ],
+            "ietf-vrrp" => vec![
+                "validate-interval-errors",
             ],
         }
     });

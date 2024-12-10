@@ -12,11 +12,11 @@ use holo_utils::southbound::{AddressFlags, AddressMsg, InterfaceUpdateMsg};
 use ipnetwork::IpNetwork;
 
 use crate::interface::Interface;
-use crate::Master;
+use crate::{netlink, Master};
 
 // ===== global functions =====
 
-pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
+pub(crate) async fn process_msg(master: &mut Master, msg: IbusMsg) {
     match msg {
         IbusMsg::InterfaceDump => {
             for iface in master.interfaces.iter() {
@@ -56,6 +56,50 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
                 &master.ibus_tx,
                 master.interfaces.router_id(),
             );
+        }
+        IbusMsg::MacvlanAdd(msg) => {
+            if let Some(iface) = master.interfaces.get_by_name(&msg.parent_name)
+                && let Some(ifindex) = iface.ifindex
+            {
+                netlink::macvlan_create(
+                    &master.netlink_handle,
+                    msg.name,
+                    msg.mac_address,
+                    ifindex,
+                )
+                .await;
+            }
+        }
+        IbusMsg::MacvlanDel(ifname) => {
+            if let Some(iface) = master.interfaces.get_by_name(&ifname)
+                && let Some(ifindex) = iface.ifindex
+            {
+                netlink::iface_delete(&master.netlink_handle, ifindex).await;
+            }
+        }
+        IbusMsg::InterfaceIpAddRequest(msg) => {
+            if let Some(iface) = master.interfaces.get_by_name(&msg.ifname)
+                && let Some(ifindex) = iface.ifindex
+            {
+                netlink::addr_install(
+                    &master.netlink_handle,
+                    ifindex,
+                    &msg.addr,
+                )
+                .await;
+            }
+        }
+        IbusMsg::InterfaceIpDelRequest(msg) => {
+            if let Some(iface) = master.interfaces.get_by_name(&msg.ifname)
+                && let Some(ifindex) = iface.ifindex
+            {
+                netlink::addr_uninstall(
+                    &master.netlink_handle,
+                    ifindex,
+                    &msg.addr,
+                )
+                .await;
+            }
         }
         // Ignore other events.
         _ => {}

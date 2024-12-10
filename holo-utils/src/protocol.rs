@@ -26,6 +26,7 @@ pub enum Protocol {
     RIPV2,
     RIPNG,
     STATIC,
+    VRRP,
 }
 
 // ===== impl Protocol =====
@@ -43,6 +44,7 @@ impl std::fmt::Display for Protocol {
             Protocol::RIPV2 => write!(f, "ripv2"),
             Protocol::RIPNG => write!(f, "ripng"),
             Protocol::STATIC => write!(f, "static"),
+            Protocol::VRRP => write!(f, "vrrp"),
         }
     }
 }
@@ -62,6 +64,7 @@ impl FromStr for Protocol {
             "ripv2" => Ok(Protocol::RIPV2),
             "ripng" => Ok(Protocol::RIPNG),
             "static" => Ok(Protocol::STATIC),
+            "vrrp" => Ok(Protocol::VRRP),
             _ => Err(()),
         }
     }
@@ -80,6 +83,7 @@ impl ToYang for Protocol {
             Protocol::RIPV2 => "ietf-rip:ripv2".into(),
             Protocol::RIPNG => "ietf-rip:ripng".into(),
             Protocol::STATIC => "ietf-routing:static".into(),
+            Protocol::VRRP => "holo-vrrp:vrrp".into(),
         }
     }
 }
@@ -97,6 +101,7 @@ impl TryFromYang for Protocol {
             "ietf-rip:ripv2" => Some(Protocol::RIPV2),
             "ietf-rip:ripng" => Some(Protocol::RIPNG),
             "ietf-routing:static" => Some(Protocol::STATIC),
+            "holo-vrrp:vrrp" => Some(Protocol::VRRP),
             _ => None,
         }
     }

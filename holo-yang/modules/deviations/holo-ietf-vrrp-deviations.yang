@@ -1,0 +1,611 @@
+module holo-ietf-vrrp-deviations {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/holo-ietf-vrrp-deviations";
+  prefix holo-ietf-vrrp-deviations;
+
+  import ietf-interfaces {
+    prefix if;
+  }
+
+  import ietf-ip {
+    prefix ip;
+  }
+
+  import ietf-vrrp {
+    prefix vrrp;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines deviation statements for the ietf-vrrp
+     module.";
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:vrid" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:version" {
+    deviate replace {
+      mandatory false;
+    }
+    deviate add {
+      default "vrrp:vrrp-v2";
+    }
+  }
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:version" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:log-state-change" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:preempt" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:preempt/vrrp:enabled" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:preempt/vrrp:hold-time" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:priority" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:accept-mode" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:advertise-interval-choice" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:advertise-interval-choice/vrrp:v2" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:advertise-interval-choice/vrrp:v2/vrrp:advertise-interval-sec" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:advertise-interval-choice/vrrp:v3" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:advertise-interval-choice/vrrp:v3/vrrp:advertise-interval-centi-sec" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:interfaces" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:interfaces/vrrp:interface" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:interfaces/vrrp:interface/vrrp:interface" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:interfaces/vrrp:interface/vrrp:priority-decrement" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:networks" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:networks/vrrp:network" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:networks/vrrp:network/vrrp:prefix" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:networks/vrrp:network/vrrp:priority-decrement" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:virtual-ipv4-addresses" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:virtual-ipv4-addresses/vrrp:virtual-ipv4-address" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:virtual-ipv4-addresses/vrrp:virtual-ipv4-address/vrrp:ipv4-address" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:state" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:is-owner" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:last-adv-source" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:up-datetime" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:master-down-interval" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:skew-time" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:last-event" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:new-master-reason" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:statistics" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:statistics/vrrp:discontinuity-datetime" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:statistics/vrrp:master-transitions" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:statistics/vrrp:advertisement-rcvd" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:statistics/vrrp:advertisement-sent" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:statistics/vrrp:priority-zero-pkts-rcvd" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:statistics/vrrp:priority-zero-pkts-sent" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:statistics/vrrp:invalid-type-pkts-rcvd" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:statistics/vrrp:packet-length-errors" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:vrid" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:version" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:log-state-change" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:preempt" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:preempt/vrrp:enabled" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:preempt/vrrp:hold-time" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:priority" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:accept-mode" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:advertise-interval-centi-sec" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:interfaces" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:interfaces/vrrp:interface" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:interfaces/vrrp:interface/vrrp:interface" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:interfaces/vrrp:interface/vrrp:priority-decrement" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:networks" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:networks/vrrp:network" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:networks/vrrp:network/vrrp:prefix" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:networks/vrrp:network/vrrp:priority-decrement" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:virtual-ipv6-addresses" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:virtual-ipv6-addresses/vrrp:virtual-ipv6-address" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:virtual-ipv6-addresses/vrrp:virtual-ipv6-address/vrrp:ipv6-address" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:state" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:is-owner" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:last-adv-source" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:up-datetime" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:master-down-interval" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:skew-time" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:last-event" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:new-master-reason" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:statistics" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:statistics/vrrp:discontinuity-datetime" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:statistics/vrrp:master-transitions" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:statistics/vrrp:advertisement-rcvd" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:statistics/vrrp:advertisement-sent" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:statistics/vrrp:priority-zero-pkts-rcvd" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:statistics/vrrp:priority-zero-pkts-sent" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:statistics/vrrp:invalid-type-pkts-rcvd" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:statistics/vrrp:packet-length-errors" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/vrrp:vrrp" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/vrrp:vrrp/vrrp:virtual-routers" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/vrrp:vrrp/vrrp:interfaces" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/vrrp:vrrp/vrrp:statistics" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/vrrp:vrrp/vrrp:statistics/vrrp:discontinuity-datetime" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/vrrp:vrrp/vrrp:statistics/vrrp:checksum-errors" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/vrrp:vrrp/vrrp:statistics/vrrp:version-errors" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/vrrp:vrrp/vrrp:statistics/vrrp:vrid-errors" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/vrrp:vrrp/vrrp:statistics/vrrp:ip-ttl-errors" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/vrrp:vrrp-new-master-event" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/vrrp:vrrp-new-master-event/vrrp:master-ip-address" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/vrrp:vrrp-new-master-event/vrrp:new-master-reason" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/vrrp:vrrp-protocol-error-event" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/vrrp:vrrp-protocol-error-event/vrrp:protocol-error-reason" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/vrrp:vrrp-virtual-router-error-event" {
+    deviate not-supported;
+  }
+}

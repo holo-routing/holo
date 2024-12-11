@@ -194,7 +194,20 @@ impl Instance {
     pub(crate) fn shutdown(&mut self, interface: &InterfaceView) {
         if self.state.state == fsm::State::Master {
             // Send an advertisement with Priority = 0.
-            // TODO
+            let src_ip = interface.system.addresses.first().unwrap();
+            let net = self.net.as_ref().unwrap();
+
+            let mut pkt = self.generate_vrrp_packet();
+            pkt.priority = 0;
+            pkt.generate_checksum();
+
+            let packet = VrrpPacket {
+                ip: self.generate_ipv4_packet(src_ip.ip()),
+                vrrp: pkt,
+            };
+
+            let msg = NetTxPacketMsg::Vrrp { packet };
+            let _ = net.net_tx_packetp.send(msg);
         }
 
         // Transition to the Initialize state.

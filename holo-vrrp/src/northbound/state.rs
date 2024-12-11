@@ -46,7 +46,6 @@ fn load_callbacks() -> Callbacks<Interface> {
             Box::new(VrrpInstance {
                 vrid: *vrid,
                 state: Some(instance.state.state.to_yang()),
-                // TODO
                 is_owner: Some(instance.state.is_owner),
                 last_adv_source: instance.state.last_adv_src.map(std::convert::Into::into).map(Cow::Owned).ignore_in_testing(),
                 up_datetime: instance.state.up_time.as_ref().map(Cow::Borrowed).ignore_in_testing(),

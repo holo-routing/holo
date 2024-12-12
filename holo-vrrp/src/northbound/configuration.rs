@@ -222,10 +222,6 @@ impl Provider for Interface {
                     );
                     instance.timer_set(&interface);
                 }
-
-                // owner status may change when virtual address is added
-                instance.state.is_owner =
-                    instance.check_is_owner(interface.system);
             }
             Event::VirtualAddressDelete { vrid, addr } => {
                 let (interface, instance) = self.get_instance(vrid).unwrap();
@@ -238,9 +234,6 @@ impl Provider for Interface {
                     );
                     instance.timer_set(&interface);
                 }
-                // owner status may change when virtual address is added
-                instance.state.is_owner =
-                    instance.check_is_owner(interface.system);
             }
             Event::ResetTimer { vrid } => {
                 let (_, instance) = self.get_instance(vrid).unwrap();

@@ -51,7 +51,6 @@ pub struct InstanceState {
     pub timer: VrrpTimer,
     pub last_adv_src: Option<Ipv4Addr>,
     pub statistics: Statistics,
-    pub is_owner: bool,
 }
 
 #[derive(Debug)]
@@ -166,11 +165,13 @@ impl Instance {
         match InstanceNet::new(interface, &self.mvlan) {
             Ok(net) => {
                 self.net = Some(net);
-                self.state.is_owner = self.check_is_owner(interface.system);
-                if self.config.priority == 255 || self.state.is_owner {
+                let iface_system = &interface.system;
+                if self.config.priority == 255
+                    || self.check_is_owner(iface_system)
+                {
                     let src_ip =
                         interface.system.addresses.first().unwrap().ip();
-                    self.send_vrrp_advertisement(src_ip);
+                    self.send_vrrp_advertisement(src_ip, iface_system);
                     self.send_gratuitous_arp();
                     self.change_state(
                         interface,
@@ -287,6 +288,7 @@ impl Instance {
                 let task = tasks::advertisement_interval(
                     self,
                     src_ip,
+                    interface.system,
                     &net.net_tx_packetp,
                 );
                 self.state.timer = VrrpTimer::AdvTimer(task);
@@ -310,14 +312,17 @@ impl Instance {
         }
     }
 
-    pub(crate) fn generate_vrrp_packet(&self) -> VrrpHdr {
+    pub(crate) fn generate_vrrp_packet(
+        &self,
+        iface_system: &InterfaceSys,
+    ) -> VrrpHdr {
         let mut ip_addresses: Vec<Ipv4Addr> = vec![];
         for addr in &self.config.virtual_addresses {
             ip_addresses.push(addr.ip());
         }
 
         // RFC 3768 -> 5.3.4.  Priority
-        let priority = if self.state.is_owner {
+        let priority = if self.check_is_owner(iface_system) {
             255
         } else {
             self.config.priority
@@ -369,10 +374,14 @@ impl Instance {
         }
     }
 
-    pub(crate) fn send_vrrp_advertisement(&mut self, src_ip: Ipv4Addr) {
+    pub(crate) fn send_vrrp_advertisement(
+        &mut self,
+        src_ip: Ipv4Addr,
+        iface_system: &InterfaceSys,
+    ) {
         let packet = VrrpPacket {
             ip: self.generate_ipv4_packet(src_ip),
-            vrrp: self.generate_vrrp_packet(),
+            vrrp: self.generate_vrrp_packet(iface_system),
         };
         let msg = NetTxPacketMsg::Vrrp { packet };
         let net = self.net.as_ref().unwrap();
@@ -413,14 +422,13 @@ impl Instance {
         }
     }
 
-    /// an instance is an owner if the ip address of the parent interface is
-    /// part of the virutal addresses held by the instance.
+    /// An instance is an owner if all its virtual addresses are
+    /// also addresses part of the parent interface's IP addresses
     pub(crate) fn check_is_owner(&self, interface_sys: &InterfaceSys) -> bool {
         self.config
             .virtual_addresses
             .iter()
-            .any(|addr| interface_sys.addresses.contains(addr));
-        false
+            .all(|addr| interface_sys.addresses.contains(addr))
     }
 }
 

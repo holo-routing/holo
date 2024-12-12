@@ -20,6 +20,7 @@ use messages::output::NetTxPacketMsg;
 use tracing::{debug_span, Instrument};
 
 use crate::instance::Instance;
+use crate::interface::InterfaceSys;
 use crate::network;
 use crate::packet::VrrpPacket;
 
@@ -203,13 +204,14 @@ pub(crate) fn master_down_timer(
 pub(crate) fn advertisement_interval(
     instance: &Instance,
     src_ip: Ipv4Addr,
+    iface_system: &InterfaceSys,
     net_tx_packetp: &UnboundedSender<NetTxPacketMsg>,
 ) -> IntervalTask {
     #[cfg(not(feature = "testing"))]
     {
         let packet = VrrpPacket {
             ip: instance.generate_ipv4_packet(src_ip),
-            vrrp: instance.generate_vrrp_packet(),
+            vrrp: instance.generate_vrrp_packet(iface_system),
         };
         let adv_sent = instance.state.statistics.adv_sent.clone();
         let net_tx_packetp = net_tx_packetp.clone();

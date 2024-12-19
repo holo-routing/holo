@@ -13,11 +13,98 @@ use derive_new::new;
 use holo_yang::{ToYang, TryFromYang};
 use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 
 use crate::ip::AddressFamily;
 
 pub type SubDomainId = u8;
 pub type BfrId = u16;
+pub type SetIdentifier = u8;
+pub type Bift = HashMap<
+    (SubDomainId, IpAddr, SetIdentifier),
+    (Bitstring, Vec<(BfrId, IpAddr)>, u32, String),
+>;
+
+#[cfg(feature = "fastclick")]
+pub async fn bift_sync_fastclick(bift: &Bift) {
+    for ((_sd_id, nbr, _si), (bs, ids, idx, name)) in bift.iter() {
+        /* List the position of bits that are enabled in the bitstring, this is required by the
+           Bitvectors of Fastclick but this not ideal.
+           FIXME: Find a better way to share a bitstring with Fastclick
+        */
+        let bs = bs
+            .bs
+            .iter()
+            .enumerate()
+            .flat_map(|(idx, b)| {
+                (0..8)
+                    .filter_map(|i| {
+                        if b & (1 << i) != 0 {
+                            Some(format!("{}", idx * 8 + i))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<String>>()
+            })
+            .collect::<Vec<String>>()
+            .join(",");
+
+        // Batching BFRs having the same FBM
+        let bfrs = ids
+            .iter()
+            .map(|(id, prefix)| format!("{:#?}_{:#?}", id, prefix))
+            .collect::<Vec<String>>()
+            .join(",");
+        let body = format!("{} {:#?} {} {} {}", bs, nbr, idx, name, bfrs);
+
+        // TODO: Use gRPC rather than plain HTTP
+        let client = reqwest::Client::new();
+        let _res = client
+            // TODO: Make Fastclick BIFT URI configurable through YANG model
+            .post("http://127.0.0.1/bift0/add")
+            .body(body)
+            .send()
+            .await;
+    }
+}
+
+pub async fn bift_sync(_bift: &Bift) {
+    #[cfg(feature = "fastclick")]
+    bift_sync_fastclick(_bift).await;
+}
+
+#[derive(Debug)]
+pub enum Error {
+    InvalidBfrId,
+    InvalidBitstring,
+}
+
+impl Error {
+    pub fn log(&self) {
+        match self {
+            Error::InvalidBfrId => {
+                warn!("{}", self);
+            }
+            Error::InvalidBitstring => {
+                warn!("{}", self);
+            }
+        }
+    }
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::InvalidBfrId => {
+                write!(f, "invalid BfrId")
+            }
+            Error::InvalidBitstring => {
+                write!(f, "invalid Bitstring")
+            }
+        }
+    }
+}
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
@@ -31,6 +118,7 @@ pub struct BierInfo {
 pub struct BirtEntry {
     pub bfr_prefix: IpAddr,
     pub bfr_nbr: IpAddr,
+    pub ifindex: u32,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -178,25 +266,53 @@ impl TryFrom<u8> for Bsl {
 #[derive(Serialize, Deserialize)]
 pub struct Bitstring {
     bsl: Bsl,
-    bs: BytesMut,
+    pub bs: BytesMut,
+    pub si: SetIdentifier,
 }
 
 impl Bitstring {
     pub fn new(bsl: Bsl) -> Self {
+        let len: usize = bsl.into();
         Self {
             bsl,
-            bs: BytesMut::zeroed(bsl.into()),
+            bs: BytesMut::zeroed(len / 8),
+            si: 0,
         }
     }
 
-    pub fn from(id: BfrId, bsl: Bsl) -> Self {
-        // pub fn from(bfr: BfrId) -> Self {
-        // TODO: Ensure value fit in bitstring and use SI if required.
-        let byte = id / 8;
-        let idx = (id % 8) + 1;
+    pub fn or(&self, rhs: Self) -> Result<Self, Error> {
+        if self.si != rhs.si || self.bsl != rhs.bsl {
+            return Err(Error::InvalidBitstring);
+        }
+        let mut ret = Self::new(self.bsl);
+        ret.si = self.si;
+        for i in 0..self.bs.len() {
+            ret.bs[i] = self.bs[i] | rhs.bs[i];
+        }
+        Ok(ret)
+    }
+
+    pub fn mut_or(&mut self, rhs: Self) -> Result<(), Error> {
+        let bs = self.or(rhs)?;
+        self.bs = bs.bs;
+        Ok(())
+    }
+
+    pub fn from(id: BfrId, bsl: Bsl) -> Result<Self, Error> {
+        if id == 0 {
+            return Err(Error::InvalidBfrId);
+        }
         let mut bs = Self::new(bsl);
+        let bsl = usize::from(bsl);
+        bs.si = ((id - 1) as usize / bsl) as u8;
+
+        let id = (id - bs.si as u16 * bsl as u16) - 1;
+
+        let byte = id / 8;
+        let idx = id % 8;
         bs.bs[byte as usize] |= 1 << idx;
-        bs
+
+        Ok(bs)
     }
 
     pub fn bsl(&self) -> Bsl {
@@ -270,5 +386,74 @@ impl ToYang for BierEncapsulationType {
             Self::Ipv6 => "ietf-bier:bier-encapsulation-ipv6".into(),
             Self::Ethernet => "ietf-bier:bier-encapsulation-ethernet".into(),
         }
+    }
+}
+
+#[cfg(test)]
+mod test_bitstring {
+    use super::*;
+
+    fn get_64bits_bs(id: BfrId) -> Bitstring {
+        let bsl = Bsl::try_from(1).unwrap(); // 64-bit
+        Bitstring::from(id, bsl).unwrap()
+    }
+
+    #[test]
+    fn test_bfr_id_0() {
+        let bsl = Bsl::try_from(1).unwrap();
+        match Bitstring::from(0, bsl) {
+            Ok(_) => {
+                assert!(false);
+            }
+            Err(_) => {}
+        }
+    }
+
+    #[test]
+    fn test_bsl_64bits_id_1() {
+        let bs = get_64bits_bs(1);
+        assert!(bs.si == 0);
+        assert!(bs.bsl == Bsl::_64);
+        println!("{:#x?}", bs.bs);
+        assert!(bs.bs[0] == 0b1);
+        assert!(bs.bs[1] == 0);
+        assert!(bs.bs[2] == 0);
+        assert!(bs.bs[3] == 0);
+        assert!(bs.bs[4] == 0);
+        assert!(bs.bs[5] == 0);
+        assert!(bs.bs[6] == 0);
+        assert!(bs.bs[7] == 0);
+    }
+
+    #[test]
+    fn test_bsl_64bits_si0() {
+        let bs = get_64bits_bs(64);
+        assert!(bs.si == 0);
+        assert!(bs.bsl == Bsl::_64);
+        println!("{:#x?}", bs.bs);
+        assert!(bs.bs[0] == 0);
+        assert!(bs.bs[1] == 0);
+        assert!(bs.bs[2] == 0);
+        assert!(bs.bs[3] == 0);
+        assert!(bs.bs[4] == 0);
+        assert!(bs.bs[5] == 0);
+        assert!(bs.bs[6] == 0);
+        assert!(bs.bs[7] == 0b1000_0000);
+    }
+
+    #[test]
+    fn test_bsl_64bits_si1() {
+        let bs = get_64bits_bs(65);
+        assert!(bs.si == 1);
+        assert!(bs.bsl == Bsl::_64);
+        println!("{:#x?}", bs.bs);
+        assert!(bs.bs[0] == 1);
+        assert!(bs.bs[1] == 0);
+        assert!(bs.bs[2] == 0);
+        assert!(bs.bs[3] == 0);
+        assert!(bs.bs[4] == 0);
+        assert!(bs.bs[5] == 0);
+        assert!(bs.bs[6] == 0);
+        assert!(bs.bs[7] == 0);
     }
 }

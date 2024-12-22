@@ -616,7 +616,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(isis::interfaces::interface::adjacencies::adjacency::PATH)
         .get_iterate(|instance, args| {
             let iface = args.parent_list_entry.as_interface().unwrap();
-            let iter = iface.state.lan_adjacencies.l1.iter(&instance.arenas.adjacencies).chain(iface.state.lan_adjacencies.l2.iter(&instance.arenas.adjacencies)).chain(iface.state.p2p_adjacency.as_ref()).map(ListEntry::Adjacency);
+            let iter = iface.adjacencies(&instance.arenas.adjacencies).map(ListEntry::Adjacency);
             Some(Box::new(iter))
         })
         .get_object(|_instance, args| {

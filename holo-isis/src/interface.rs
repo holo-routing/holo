@@ -346,6 +346,16 @@ impl Interface {
         Ok(())
     }
 
+    pub(crate) fn adjacencies<'a>(
+        &'a self,
+        adjacencies: &'a Arena<Adjacency>,
+    ) -> impl Iterator<Item = &'a Adjacency> {
+        let lan_l1 = self.state.lan_adjacencies.l1.iter(adjacencies);
+        let lan_l2 = self.state.lan_adjacencies.l2.iter(adjacencies);
+        let p2p = self.state.p2p_adjacency.as_ref();
+        lan_l1.chain(lan_l2).chain(p2p)
+    }
+
     pub(crate) fn iso_mtu(&self) -> u32 {
         let l2_mtu = self.system.mtu.unwrap();
         match self.config.interface_type {

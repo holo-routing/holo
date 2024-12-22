@@ -19,7 +19,7 @@ use holo_northbound::state::{
 };
 use holo_northbound::yang::control_plane_protocol::isis;
 use holo_utils::option::OptionExt;
-use holo_yang::ToYang;
+use holo_yang::{ToYang, ToYangBits};
 
 use crate::adjacency::Adjacency;
 use crate::collections::Lsdb;
@@ -184,10 +184,13 @@ fn load_callbacks() -> Callbacks<Instance> {
             })
         })
         .path(isis::database::levels::lsp::attributes::PATH)
-        .get_object(|_instance, _args| {
+        .get_object(|_instance, args| {
             use isis::database::levels::lsp::attributes::Attributes;
+            let lse = args.list_entry.as_lsp_entry().unwrap();
+            let lsp = &lse.data;
+            let iter = lsp.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
             Box::new(Attributes {
-                lsp_flags: None,
+                lsp_flags: Some(Box::new(iter) as _),
             })
         })
         .path(isis::database::levels::lsp::authentication::PATH)

@@ -85,7 +85,7 @@ bitflags! {
         const P = 0x80;
         const ATT = 0x40;
         const OL = 0x04;
-        const IS_TYPE2 = 0x2;
-        const IS_TYPE1 = 0x1;
+        const IS_TYPE2 = 0x02;
+        const IS_TYPE1 = 0x01;
     }
 }

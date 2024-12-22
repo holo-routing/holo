@@ -9,7 +9,7 @@
 
 use std::borrow::Cow;
 
-use holo_yang::{ToYang, TryFromYang};
+use holo_yang::{ToYang, ToYangBits, TryFromYang};
 use regex::Regex;
 
 use crate::adjacency::{AdjacencyEvent, AdjacencyState};
@@ -17,6 +17,7 @@ use crate::error::AdjacencyRejectError;
 use crate::interface::InterfaceType;
 use crate::lsdb::LspLogReason;
 use crate::northbound::configuration::MetricType;
+use crate::packet::consts::LspFlags;
 use crate::packet::{AreaAddr, LanId, LevelType, LspId, SystemId};
 
 // ===== ToYang implementations =====
@@ -59,6 +60,30 @@ impl ToYang for LspId {
             self.pseudonode,
             self.fragment,
         ))
+    }
+}
+
+impl ToYangBits for LspFlags {
+    fn to_yang_bits(&self) -> Vec<&'static str> {
+        let mut flags = vec![];
+
+        if self.contains(LspFlags::P) {
+            flags.push("ietf-isis:lsp-partitioned-flag");
+        }
+        if self.contains(LspFlags::ATT) {
+            flags.push("ietf-isis:lsp-attached-default-metric-flag");
+        }
+        if self.contains(LspFlags::OL) {
+            flags.push("ietf-isis:lsp-overload-flag");
+        }
+        if self.contains(LspFlags::IS_TYPE2) {
+            flags.push("ietf-isis:lsp-l2-system-flag");
+        }
+        if self.contains(LspFlags::IS_TYPE1) {
+            flags.push("ietf-isis:lsp-l1-system-flag");
+        }
+
+        flags
     }
 }
 

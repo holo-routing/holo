@@ -33,8 +33,6 @@ use ipnetwork::{Ipv4Network, Ipv6Network};
 
 fn test_encode_pdu(bytes_expected: &[u8], pdu: &Pdu) {
     let bytes_actual = pdu.clone().encode();
-    let data = format!("{:#04x?}", bytes_actual.as_ref());
-    let _ = std::fs::write("/tmp/test-data", data);
     assert_eq!(bytes_expected, bytes_actual.as_ref());
 }
 

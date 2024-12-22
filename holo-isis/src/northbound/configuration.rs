@@ -468,11 +468,11 @@ fn load_callbacks() -> Callbacks<Instance> {
         .create_apply(|instance, args| {
             let ifname = args.dnode.get_string_relative("name").unwrap();
 
-            let (iface_idx, _) = instance.arenas.interfaces.insert(&ifname);
+            let iface = instance.arenas.interfaces.insert(&ifname);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceUpdate(iface_idx));
-            event_queue.insert(Event::InterfaceQuerySouthbound(iface_idx));
+            event_queue.insert(Event::InterfaceUpdate(iface.index));
+            event_queue.insert(Event::InterfaceQuerySouthbound(iface.index));
         })
         .delete_apply(|_instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -482,7 +482,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .lookup(|instance, _list_entry, dnode| {
             let ifname = dnode.get_string_relative("./name").unwrap();
-            instance.arenas.interfaces.get_by_name(&ifname).map(|(iface_idx, _)| ListEntry::Interface(iface_idx)).expect("could not find IS-IS interface")
+            instance.arenas.interfaces.get_by_name(&ifname).map(|iface| ListEntry::Interface(iface.index)).expect("could not find IS-IS interface")
         })
         .path(isis::interfaces::interface::enabled::PATH)
         .modify_apply(|instance, args| {

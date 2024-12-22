@@ -23,7 +23,7 @@ use ipnetwork::{Ipv4Network, Ipv6Network};
 use tokio::sync::mpsc;
 
 use crate::adjacency::{Adjacency, AdjacencyEvent, AdjacencyState};
-use crate::collections::{Adjacencies, Arena, InterfaceId};
+use crate::collections::{Adjacencies, Arena, InterfaceId, InterfaceIndex};
 use crate::debug::{Debug, InterfaceInactiveReason};
 use crate::error::{Error, IoError};
 use crate::instance::{Instance, InstanceUpView};
@@ -39,6 +39,7 @@ use crate::{network, tasks};
 
 #[derive(Debug)]
 pub struct Interface {
+    pub index: InterfaceIndex,
     pub id: InterfaceId,
     pub name: String,
     pub system: InterfaceSys,
@@ -141,10 +142,15 @@ pub struct CircuitIdAllocator {
 // ===== impl Interface =====
 
 impl Interface {
-    pub(crate) fn new(id: InterfaceId, name: String) -> Interface {
+    pub(crate) fn new(
+        index: InterfaceIndex,
+        id: InterfaceId,
+        name: String,
+    ) -> Interface {
         Debug::InterfaceCreate(&name).log();
 
         Interface {
+            index,
             id,
             name,
             system: InterfaceSys::default(),

@@ -100,14 +100,12 @@ impl<T> std::ops::IndexMut<Index> for Arena<T> {
 // ===== impl Interfaces =====
 
 impl Interfaces {
-    pub(crate) fn insert(
-        &mut self,
-        ifname: &str,
-    ) -> (InterfaceIndex, &mut Interface) {
+    pub(crate) fn insert(&mut self, ifname: &str) -> &mut Interface {
         // Create and insert interface into the arena.
         self.next_id += 1;
-        let iface = Interface::new(self.next_id, ifname.to_owned());
-        let iface_idx = self.arena.0.insert(iface);
+        let iface_idx = self.arena.0.insert_with(|index| {
+            Interface::new(index, self.next_id, ifname.to_owned())
+        });
 
         // Link interface to different collections.
         let iface = &mut self.arena[iface_idx];
@@ -120,7 +118,7 @@ impl Interfaces {
             panic!("interface name={} already exists", iface.name);
         }
 
-        (iface_idx, iface)
+        iface
     }
 
     pub(crate) fn delete(&mut self, iface_idx: InterfaceIndex) {
@@ -157,12 +155,12 @@ impl Interfaces {
     pub(crate) fn get_by_id(
         &self,
         id: InterfaceId,
-    ) -> Result<(InterfaceIndex, &Interface), Error> {
+    ) -> Result<&Interface, Error> {
         self.id_tree
             .get(&id)
             .copied()
-            .map(|iface_idx| (iface_idx, &self.arena[iface_idx]))
-            .filter(|(_, iface)| iface.id == id)
+            .map(|iface_idx| &self.arena[iface_idx])
+            .filter(|iface| iface.id == id)
             .ok_or(Error::InterfaceIdNotFound(id))
     }
 
@@ -171,24 +169,21 @@ impl Interfaces {
     pub(crate) fn get_mut_by_id(
         &mut self,
         id: InterfaceId,
-    ) -> Result<(InterfaceIndex, &mut Interface), Error> {
+    ) -> Result<&mut Interface, Error> {
         self.id_tree
             .get(&id)
             .copied()
-            .map(move |iface_idx| (iface_idx, &mut self.arena[iface_idx]))
-            .filter(|(_, iface)| iface.id == id)
+            .map(move |iface_idx| &mut self.arena[iface_idx])
+            .filter(|iface| iface.id == id)
             .ok_or(Error::InterfaceIdNotFound(id))
     }
 
     // Returns a reference to the interface corresponding to the given name.
-    pub(crate) fn get_by_name(
-        &self,
-        ifname: &str,
-    ) -> Option<(InterfaceIndex, &Interface)> {
+    pub(crate) fn get_by_name(&self, ifname: &str) -> Option<&Interface> {
         self.name_tree
             .get(ifname)
             .copied()
-            .map(|iface_idx| (iface_idx, &self.arena[iface_idx]))
+            .map(|iface_idx| &self.arena[iface_idx])
     }
 
     // Returns a mutable reference to the interface corresponding to the given
@@ -196,23 +191,20 @@ impl Interfaces {
     pub(crate) fn get_mut_by_name(
         &mut self,
         ifname: &str,
-    ) -> Option<(InterfaceIndex, &mut Interface)> {
+    ) -> Option<&mut Interface> {
         self.name_tree
             .get(ifname)
             .copied()
-            .map(move |iface_idx| (iface_idx, &mut self.arena[iface_idx]))
+            .map(move |iface_idx| &mut self.arena[iface_idx])
     }
 
     // Returns a reference to the interface corresponding to the given ifindex.
     #[expect(unused)]
-    pub(crate) fn get_by_ifindex(
-        &self,
-        ifindex: u32,
-    ) -> Option<(InterfaceIndex, &Interface)> {
+    pub(crate) fn get_by_ifindex(&self, ifindex: u32) -> Option<&Interface> {
         self.ifindex_tree
             .get(&ifindex)
             .copied()
-            .map(|iface_idx| (iface_idx, &self.arena[iface_idx]))
+            .map(|iface_idx| &self.arena[iface_idx])
     }
 
     // Returns a mutable reference to the interface corresponding to the given
@@ -221,11 +213,11 @@ impl Interfaces {
     pub(crate) fn get_mut_by_ifindex(
         &mut self,
         ifindex: u32,
-    ) -> Option<(InterfaceIndex, &mut Interface)> {
+    ) -> Option<&mut Interface> {
         self.ifindex_tree
             .get(&ifindex)
             .copied()
-            .map(move |iface_idx| (iface_idx, &mut self.arena[iface_idx]))
+            .map(move |iface_idx| &mut self.arena[iface_idx])
     }
 
     // Returns a reference to the interface corresponding to the given object
@@ -234,7 +226,7 @@ impl Interfaces {
     pub(crate) fn get_by_key(
         &self,
         key: &InterfaceKey,
-    ) -> Result<(InterfaceIndex, &Interface), Error> {
+    ) -> Result<&Interface, Error> {
         match key {
             InterfaceKey::Id(id) => self.get_by_id(*id),
             InterfaceKey::Value(ifname) => {
@@ -248,7 +240,7 @@ impl Interfaces {
     pub(crate) fn get_mut_by_key(
         &mut self,
         key: &InterfaceKey,
-    ) -> Result<(InterfaceIndex, &mut Interface), Error> {
+    ) -> Result<&mut Interface, Error> {
         match key {
             InterfaceKey::Id(id) => self.get_mut_by_id(*id),
             InterfaceKey::Value(ifname) => {

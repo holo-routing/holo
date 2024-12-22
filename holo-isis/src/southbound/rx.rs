@@ -34,11 +34,10 @@ pub(crate) fn process_iface_update(
     };
 
     // Lookup interface.
-    let Some((iface_idx, iface)) =
-        arenas.interfaces.get_mut_by_name(&msg.ifname)
-    else {
+    let Some(iface) = arenas.interfaces.get_mut_by_name(&msg.ifname) else {
         return Ok(());
     };
+    let iface_idx = iface.index;
 
     // Update interface data.
     iface.system.flags = msg.flags;
@@ -63,9 +62,7 @@ pub(crate) fn process_addr_add(instance: &mut Instance, msg: AddressMsg) {
     };
 
     // Lookup interface.
-    let Some((_iface_idx, iface)) =
-        arenas.interfaces.get_mut_by_name(&msg.ifname)
-    else {
+    let Some(iface) = arenas.interfaces.get_mut_by_name(&msg.ifname) else {
         return;
     };
 
@@ -96,9 +93,7 @@ pub(crate) fn process_addr_del(instance: &mut Instance, msg: AddressMsg) {
     };
 
     // Lookup interface.
-    let Some((_iface_idx, iface)) =
-        arenas.interfaces.get_mut_by_name(&msg.ifname)
-    else {
+    let Some(iface) = arenas.interfaces.get_mut_by_name(&msg.ifname) else {
         return;
     };
 

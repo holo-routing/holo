@@ -41,7 +41,8 @@ pub(crate) fn process_pdu(
     pdu: DecodeResult<Pdu>,
 ) -> Result<(), Error> {
     // Lookup interface.
-    let (iface_idx, iface) = arenas.interfaces.get_mut_by_key(&iface_key)?;
+    let iface = arenas.interfaces.get_mut_by_key(&iface_key)?;
+    let iface_idx = iface.index;
 
     // Ignore PDUs received on inactive or passive interfaces.
     if !iface.state.active || iface.is_passive() {
@@ -812,7 +813,7 @@ pub(crate) fn process_lan_adj_holdtimer_expiry(
     level: LevelNumber,
 ) -> Result<(), Error> {
     // Lookup interface.
-    let (_iface_idx, iface) = arenas.interfaces.get_mut_by_key(&iface_key)?;
+    let iface = arenas.interfaces.get_mut_by_key(&iface_key)?;
 
     // Lookup adjacency.
     let (adj_idx, adj) = iface
@@ -846,7 +847,7 @@ pub(crate) fn process_p2p_adj_holdtimer_expiry(
     iface_key: InterfaceKey,
 ) -> Result<(), Error> {
     // Lookup interface.
-    let (_iface_idx, iface) = arenas.interfaces.get_mut_by_key(&iface_key)?;
+    let iface = arenas.interfaces.get_mut_by_key(&iface_key)?;
 
     // Delete adjacency.
     if let Some(mut adj) = iface.state.p2p_adjacency.take() {
@@ -870,7 +871,7 @@ pub(crate) fn process_dis_election(
     level: LevelNumber,
 ) -> Result<(), Error> {
     // Lookup interface.
-    let (_iface_idx, iface) = arenas.interfaces.get_mut_by_key(&iface_key)?;
+    let iface = arenas.interfaces.get_mut_by_key(&iface_key)?;
 
     // Run DIS election.
     let dis = iface.dis_election(instance, &arenas.adjacencies, level);
@@ -923,7 +924,7 @@ pub(crate) fn process_send_psnp(
     level: LevelNumber,
 ) -> Result<(), Error> {
     // Lookup interface.
-    let (_iface_idx, iface) = arenas.interfaces.get_mut_by_key(&iface_key)?;
+    let iface = arenas.interfaces.get_mut_by_key(&iface_key)?;
 
     // Do not send PSNP if we're the DIS.
     if iface.config.interface_type == InterfaceType::Broadcast
@@ -976,7 +977,7 @@ pub(crate) fn process_send_csnp(
     level: LevelNumber,
 ) -> Result<(), Error> {
     // Lookup interface.
-    let (_iface_idx, iface) = arenas.interfaces.get_mut_by_key(&iface_key)?;
+    let iface = arenas.interfaces.get_mut_by_key(&iface_key)?;
 
     // Do not send CSNP if we aren't the DIS.
     if iface.config.interface_type == InterfaceType::Broadcast

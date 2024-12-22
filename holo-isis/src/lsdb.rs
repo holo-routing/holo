@@ -440,11 +440,11 @@ pub(crate) fn install<'a>(
     }
 
     // Check if the LSP content has changed.
-    let mut content_change = false;
+    let mut content_change = true;
     if let Some(old_lsp) = old_lsp
-        && (old_lsp.flags != lsp.flags || old_lsp.tlvs != lsp.tlvs)
+        && (old_lsp.flags == lsp.flags && old_lsp.tlvs == lsp.tlvs)
     {
-        content_change = true;
+        content_change = false;
     }
 
     // Add LSP entry to LSDB.

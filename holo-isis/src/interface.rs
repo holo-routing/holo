@@ -33,7 +33,7 @@ use crate::northbound::notification;
 use crate::packet::consts::PduType;
 use crate::packet::pdu::{Hello, HelloTlvs, HelloVariant, Lsp, Pdu};
 use crate::packet::tlv::{LspEntry, Nlpid};
-use crate::packet::{LanId, LevelNumber, LevelType, Levels, LspId};
+use crate::packet::{LanId, LevelNumber, LevelType, Levels, LspId, SystemId};
 use crate::tasks::messages::output::NetTxPduMsg;
 use crate::{network, tasks};
 
@@ -127,6 +127,7 @@ pub enum InterfaceType {
 pub struct DisCandidate {
     pub priority: u8,
     pub snpa: [u8; 6],
+    pub system_id: SystemId,
     pub lan_id: LanId,
     pub myself: bool,
 }
@@ -380,6 +381,7 @@ impl Interface {
             .map(|adj| DisCandidate {
                 priority: adj.priority.unwrap(),
                 snpa: adj.snpa,
+                system_id: adj.system_id,
                 lan_id: adj.lan_id.unwrap(),
                 myself: false,
             })
@@ -393,6 +395,7 @@ impl Interface {
         let myself = DisCandidate {
             priority: self.config.priority.get(level),
             snpa: self.system.mac_addr.unwrap(),
+            system_id,
             lan_id: LanId::from((system_id, self.state.circuit_id)),
             myself: true,
         };

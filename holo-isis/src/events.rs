@@ -265,6 +265,20 @@ pub(crate) fn process_pdu_hello_lan(
     adj.area_addrs = hello.tlvs.area_addrs().cloned().collect();
     adj.neighbors = hello.tlvs.neighbors().cloned().collect();
 
+    // Check if the locally elected DIS has changed its perceived DIS.
+    if let Some(dis) = iface.state.dis.get_mut(level)
+        && adj.system_id == dis.system_id
+        && adj.lan_id.unwrap() != dis.lan_id
+    {
+        dis.lan_id = adj.lan_id.unwrap();
+
+        // Restart Hello Tx task.
+        iface.hello_interval_start(instance, level);
+
+        // Schedule LSP reorigination.
+        instance.schedule_lsp_origination(level);
+    }
+
     // Restart hold timer.
     adj.holdtimer_reset(iface, instance, hello.holdtime);
 
@@ -862,7 +876,9 @@ pub(crate) fn process_dis_election(
     let dis = iface.dis_election(instance, &arenas.adjacencies, level);
 
     // Return if no DIS change.
-    if *iface.state.dis.get(level) == dis {
+    if iface.state.dis.get(level).map(|dis| dis.system_id)
+        == dis.map(|dis| dis.system_id)
+    {
         return Ok(());
     }
 

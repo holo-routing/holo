@@ -115,9 +115,9 @@ impl Debug<'_> {
                 // Parent span(s): isis-instance
                 debug_span!("interface", %name).in_scope(|| {
                     if let Some(dis) = dis {
-                        debug!(?level, lan_id = ?dis.lan_id, "{}", self);
+                        debug!(?level, system_id = ?dis.system_id, "{}", self);
                     } else {
-                        debug!(?level, lan_id = "none", "{}", self);
+                        debug!(?level, system_id = "none", "{}", self);
                     }
                 })
             }

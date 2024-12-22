@@ -189,44 +189,53 @@ fn lsp_build_tlvs(
         let metric = iface.config.metric.get(level);
 
         // Add IS reachability information.
-        for adj in iface
-            .state
-            .lan_adjacencies
-            .get(level)
-            .iter(&arenas.adjacencies)
-            .chain(
-                iface
+        match iface.config.interface_type {
+            InterfaceType::Broadcast => {
+                if let Some(dis) = iface.state.dis.get(level) {
+                    if metric_type.is_standard_enabled() {
+                        is_reach.push(IsReach {
+                            metric: metric as u8,
+                            metric_delay: None,
+                            metric_expense: None,
+                            metric_error: None,
+                            neighbor: dis.lan_id,
+                        });
+                    }
+                    if metric_type.is_wide_enabled() {
+                        ext_is_reach.push(ExtIsReach {
+                            neighbor: dis.lan_id,
+                            metric,
+                            sub_tlvs: Default::default(),
+                        });
+                    }
+                }
+            }
+            InterfaceType::PointToPoint => {
+                if let Some(adj) = iface
                     .state
                     .p2p_adjacency
                     .as_ref()
-                    .filter(|adj| adj.level_usage.intersects(level)),
-            )
-            .filter(|adj| adj.state == AdjacencyState::Up)
-        {
-            let neighbor = match iface.config.interface_type {
-                InterfaceType::Broadcast => {
-                    let Some(dis) = iface.state.dis.get(level) else {
-                        continue;
-                    };
-                    dis.lan_id
+                    .filter(|adj| adj.level_usage.intersects(level))
+                    .filter(|adj| adj.state == AdjacencyState::Up)
+                {
+                    let neighbor = LanId::from((adj.system_id, 0));
+                    if metric_type.is_standard_enabled() {
+                        is_reach.push(IsReach {
+                            metric: metric as u8,
+                            metric_delay: None,
+                            metric_expense: None,
+                            metric_error: None,
+                            neighbor,
+                        });
+                    }
+                    if metric_type.is_wide_enabled() {
+                        ext_is_reach.push(ExtIsReach {
+                            neighbor,
+                            metric,
+                            sub_tlvs: Default::default(),
+                        });
+                    }
                 }
-                InterfaceType::PointToPoint => LanId::from((adj.system_id, 0)),
-            };
-            if metric_type.is_standard_enabled() {
-                is_reach.push(IsReach {
-                    metric: metric as u8,
-                    metric_delay: None,
-                    metric_expense: None,
-                    metric_error: None,
-                    neighbor,
-                });
-            }
-            if metric_type.is_wide_enabled() {
-                ext_is_reach.push(ExtIsReach {
-                    neighbor,
-                    metric,
-                    sub_tlvs: Default::default(),
-                });
             }
         }
 

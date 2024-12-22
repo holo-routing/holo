@@ -718,7 +718,7 @@ where
         let mut nbr_reach = reach.clone();
         nbr_unreach.extend(
             nbr_reach
-                .extract_if(|(_, route)| !nbr.distribute_filter(route))
+                .extract_if(.., |(_, route)| !nbr.distribute_filter(route))
                 .map(|(prefix, _)| prefix),
         );
 

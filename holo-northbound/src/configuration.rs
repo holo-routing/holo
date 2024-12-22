@@ -681,7 +681,7 @@ where
     // Move to a separate vector the changes that need to be relayed.
     let callbacks = P::callbacks().unwrap();
     let relayed_changes = changes
-        .extract_if(|(cb_key, _)| !callbacks.0.contains_key(cb_key))
+        .extract_if(.., |(cb_key, _)| !callbacks.0.contains_key(cb_key))
         .collect();
 
     // Process local changes.

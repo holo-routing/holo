@@ -463,6 +463,10 @@ fn load_callbacks() -> Callbacks<Instance> {
         .modify_apply(|instance, args| {
             let overload_status = args.dnode.get_bool();
             instance.config.overload_status = overload_status;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
         .path(isis::interfaces::interface::PATH)
         .create_apply(|instance, args| {

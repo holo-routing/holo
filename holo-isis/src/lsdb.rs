@@ -122,13 +122,9 @@ fn lsp_build(
 ) -> Vec<Lsp> {
     let mut lsps = vec![];
 
-    // LSP flags shared by all fragments.
-    let lsp_flags = lsp_build_flags(instance);
-
     // Build main LSP.
     let tlvs = lsp_build_tlvs(instance, arenas, level);
-    let fragments =
-        lsp_build_fragments(instance, arenas, level, lsp_flags, 0, tlvs);
+    let fragments = lsp_build_fragments(instance, arenas, level, 0, tlvs);
     lsps.extend(fragments);
 
     // Build pseudonode LSPs.
@@ -141,22 +137,30 @@ fn lsp_build(
     {
         let circuit_id = iface.state.circuit_id;
         let tlvs = lsp_build_tlvs_pseudo(instance, arenas, level, iface);
-        let fragments = lsp_build_fragments(
-            instance, arenas, level, lsp_flags, circuit_id, tlvs,
-        );
+        let fragments =
+            lsp_build_fragments(instance, arenas, level, circuit_id, tlvs);
         lsps.extend(fragments);
     }
 
     lsps
 }
 
-fn lsp_build_flags(instance: &mut InstanceUpView<'_>) -> LspFlags {
+fn lsp_build_flags(
+    instance: &mut InstanceUpView<'_>,
+    lsp_id: LspId,
+) -> LspFlags {
     let mut lsp_flags = LspFlags::default();
     if instance.config.level_type.intersects(LevelNumber::L1) {
         lsp_flags.insert(LspFlags::IS_TYPE1);
     }
     if instance.config.level_type.intersects(LevelNumber::L2) {
         lsp_flags.insert(LspFlags::IS_TYPE2);
+    }
+    if instance.config.overload_status
+        && lsp_id.pseudonode == 0
+        && lsp_id.fragment == 0
+    {
+        lsp_flags.insert(LspFlags::OL);
     }
     lsp_flags
 }
@@ -345,7 +349,6 @@ fn lsp_build_fragments(
     instance: &mut InstanceUpView<'_>,
     arenas: &InstanceArenas,
     level: LevelNumber,
-    lsp_flags: LspFlags,
     pseudonode_id: u8,
     mut tlvs: LspTlvs,
 ) -> Vec<Lsp> {
@@ -366,6 +369,7 @@ fn lsp_build_fragments(
             .get_by_lspid(&arenas.lsp_entries, &lsp_id)
             .map(|(_, lse)| lse.data.seqno + 1)
             .unwrap_or(LSP_INIT_SEQNO);
+        let lsp_flags = lsp_build_flags(instance, lsp_id);
         let fragment = Lsp::new(
             level,
             instance.config.lsp_lifetime,

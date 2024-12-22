@@ -227,6 +227,10 @@ impl LanId {
         self.system_id.encode(buf);
         buf.put_u8(self.pseudonode);
     }
+
+    pub(crate) const fn is_pseudonode(&self) -> bool {
+        self.pseudonode != 0
+    }
 }
 
 impl From<[u8; 7]> for LanId {
@@ -263,6 +267,10 @@ impl LspId {
         buf.put_u8(self.pseudonode);
         buf.put_u8(self.fragment);
     }
+
+    pub(crate) const fn is_pseudonode(&self) -> bool {
+        self.pseudonode != 0
+    }
 }
 
 impl From<[u8; 8]> for LspId {
@@ -283,6 +291,16 @@ impl From<(SystemId, u8, u8)> for LspId {
             system_id: components.0,
             pseudonode: components.1,
             fragment: components.2,
+        }
+    }
+}
+
+impl From<(LanId, u8)> for LspId {
+    fn from(components: (LanId, u8)) -> LspId {
+        LspId {
+            system_id: components.0.system_id,
+            pseudonode: components.0.pseudonode,
+            fragment: components.1,
         }
     }
 }

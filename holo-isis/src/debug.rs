@@ -7,6 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
+use holo_utils::ip::AddressFamily;
 use holo_yang::ToYang;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, debug_span};
@@ -17,6 +18,7 @@ use crate::network::MulticastAddr;
 use crate::packet::pdu::{Lsp, Pdu};
 use crate::packet::LevelNumber;
 use crate::spf;
+use crate::spf::{Vertex, VertexEdge};
 
 // IS-IS debug messages.
 #[derive(Debug)]
@@ -48,8 +50,11 @@ pub enum Debug<'a> {
     LspDelete(LevelNumber, &'a Lsp),
     LspRefresh(LevelNumber, &'a Lsp),
     // SPF
-    SpfDelayFsmEvent(LevelNumber, spf::fsm::State, spf::fsm::Event),
-    SpfDelayFsmTransition(LevelNumber, spf::fsm::State, spf::fsm::State),
+    SpfDelayFsmEvent(spf::fsm::State, spf::fsm::Event),
+    SpfDelayFsmTransition(spf::fsm::State, spf::fsm::State),
+    SpfMaxPathMetric(&'a Vertex, &'a VertexEdge, u32),
+    SpfMissingProtocolsTlv(&'a Vertex),
+    SpfUnsupportedProtocol(&'a Vertex, AddressFamily),
 }
 
 // Reason why an IS-IS instance is inactive.
@@ -163,13 +168,25 @@ impl Debug<'_> {
                 // Parent span(s): isis-instance
                 debug!(?level, lsp_id = %lsp.lsp_id.to_yang(), seqno = %lsp.seqno, len = %lsp.raw.len(), ?reason, "{}", self);
             }
-            Debug::SpfDelayFsmEvent(level, state, event) => {
-                // Parent span(s): isis-instance
-                debug!(?level, ?state, ?event, "{}", self);
+            Debug::SpfDelayFsmEvent(state, event) => {
+                // Parent span(s): isis-instance:spf
+                debug!(?state, ?event, "{}", self);
             }
-            Debug::SpfDelayFsmTransition(level, old_state, new_state) => {
-                // Parent span(s): isis-instance
-                debug!(?level, ?old_state, ?new_state, "{}", self);
+            Debug::SpfDelayFsmTransition(old_state, new_state) => {
+                // Parent span(s): isis-instance:spf
+                debug!(?old_state, ?new_state, "{}", self);
+            }
+            Debug::SpfMaxPathMetric(vertex, link, distance) => {
+                // Parent span(s): isis-instance:spf
+                debug!(vertex = %vertex.id.lan_id.to_yang(), link = %link.id.lan_id.to_yang(), %distance, "{}", self);
+            }
+            Debug::SpfMissingProtocolsTlv(vertex) => {
+                // Parent span(s): isis-instance:spf
+                debug!(vertex = %vertex.id.lan_id.to_yang(), "{}", self);
+            }
+            Debug::SpfUnsupportedProtocol(vertex, protocol) => {
+                // Parent span(s): isis-instance:spf
+                debug!(vertex = %vertex.id.lan_id.to_yang(), %protocol, "{}", self);
             }
         }
     }
@@ -236,10 +253,19 @@ impl std::fmt::Display for Debug<'_> {
                 write!(f, "refreshing LSP")
             }
             Debug::SpfDelayFsmEvent(..) => {
-                write!(f, "SPF Delay FSM event")
+                write!(f, "delay FSM event")
             }
             Debug::SpfDelayFsmTransition(..) => {
-                write!(f, "SPF Delay FSM state transition")
+                write!(f, "delay FSM state transition")
+            }
+            Debug::SpfMaxPathMetric(..) => {
+                write!(f, "maximum path metric exceeded")
+            }
+            Debug::SpfMissingProtocolsTlv(..) => {
+                write!(f, "missing protocols TLV")
+            }
+            Debug::SpfUnsupportedProtocol(..) => {
+                write!(f, "unsupported protocol")
             }
         }
     }

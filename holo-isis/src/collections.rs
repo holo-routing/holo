@@ -18,7 +18,7 @@ use crate::error::Error;
 use crate::interface::Interface;
 use crate::lsdb::LspEntry;
 use crate::packet::pdu::Lsp;
-use crate::packet::{LevelNumber, LevelType, LspId, SystemId};
+use crate::packet::{LanId, LevelNumber, LevelType, LspId, SystemId};
 use crate::tasks::messages::input::LspPurgeMsg;
 
 pub type ObjectId = u32;
@@ -635,6 +635,19 @@ impl Lsdb {
     ) -> impl Iterator<Item = &'a LspEntry> + 'a {
         let start = LspId::from((system_id, 0, 0));
         let end = LspId::from((system_id, 255, 255));
+        self.range(arena, start..=end)
+    }
+
+    // Returns an iterator visiting all LSP entries for the specified LAN ID.
+    //
+    // LSP are ordered by their LSP IDs.
+    pub(crate) fn iter_for_lan_id<'a>(
+        &'a self,
+        arena: &'a Arena<LspEntry>,
+        lan_id: LanId,
+    ) -> impl Iterator<Item = &'a LspEntry> + 'a {
+        let start = LspId::from((lan_id, 0));
+        let end = LspId::from((lan_id, 255));
         self.range(arena, start..=end)
     }
 

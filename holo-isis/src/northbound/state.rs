@@ -20,6 +20,7 @@ use holo_northbound::state::{
 use holo_northbound::yang::control_plane_protocol::isis;
 use holo_utils::option::OptionExt;
 use holo_yang::{ToYang, ToYangBits};
+use ipnetwork::IpNetwork;
 
 use crate::adjacency::Adjacency;
 use crate::collections::Lsdb;
@@ -29,7 +30,8 @@ use crate::lsdb::{LspEntry, LspLogEntry, LspLogId};
 use crate::packet::tlv::{
     ExtIpv4Reach, ExtIsReach, Ipv4Reach, Ipv6Reach, IsReach, UnknownTlv,
 };
-use crate::packet::{LanId, LevelNumber};
+use crate::packet::{LanId, LevelNumber, LevelType};
+use crate::route::{Nexthop, Route};
 use crate::spf::SpfLogEntry;
 
 pub static CALLBACKS: Lazy<Callbacks<Instance>> = Lazy::new(load_callbacks);
@@ -51,6 +53,8 @@ pub enum ListEntry<'a> {
     ExtIpv4Reach(&'a ExtIpv4Reach),
     Ipv6Reach(&'a Ipv6Reach),
     UnknownTlv(&'a UnknownTlv),
+    Route(&'a IpNetwork, &'a Route),
+    Nexthop(&'a Nexthop),
     SystemCounters(LevelNumber),
     Interface(&'a Interface),
     InterfacePacketCounters(&'a Interface, LevelNumber),
@@ -531,29 +535,44 @@ fn load_callbacks() -> Callbacks<Instance> {
             })
         })
         .path(isis::local_rib::route::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|instance, _args| {
+            let Some(instance_state) = &instance.state else { return None };
+            match instance.config.level_type {
+                LevelType::L1 | LevelType::L2 => {
+                    let iter = instance_state.rib_single.get(instance.config.level_type).iter();
+                    let iter = iter.map(|(destination, route)| ListEntry::Route(destination, route));
+                    Some(Box::new(iter))
+                }
+                LevelType::All => {
+                    let iter = instance_state.rib_multi.iter();
+                    let iter = iter.map(|(destination, route)| ListEntry::Route(destination, route));
+                    Some(Box::new(iter))
+                }
+            }
         })
-        .get_object(|_instance, _args| {
+        .get_object(|_instance, args| {
             use isis::local_rib::route::Route;
+            let (prefix, route) = args.list_entry.as_route().unwrap();
             Box::new(Route {
-                prefix: todo!(),
-                metric: None,
-                level: None,
-                route_tag: None,
+                prefix: Cow::Borrowed(prefix),
+                metric: Some(route.metric),
+                level: Some(route.level as u8),
+                route_tag: route.tag,
             })
         })
         .path(isis::local_rib::route::next_hops::next_hop::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let (_, route) = args.parent_list_entry.as_route().unwrap();
+            let iter = route.nexthops.values().map(ListEntry::Nexthop);
+            Some(Box::new(iter))
         })
-        .get_object(|_instance, _args| {
+        .get_object(|instance, args| {
             use isis::local_rib::route::next_hops::next_hop::NextHop;
+            let nexthop = args.list_entry.as_nexthop().unwrap();
+            let iface = &instance.arenas.interfaces[nexthop.iface_idx];
             Box::new(NextHop {
-                next_hop: todo!(),
-                outgoing_interface: None,
+                next_hop: Cow::Borrowed(&nexthop.addr),
+                outgoing_interface: Some(Cow::Borrowed(iface.name.as_str())),
             })
         })
         .path(isis::system_counters::level::PATH)

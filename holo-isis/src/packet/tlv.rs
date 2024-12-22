@@ -14,7 +14,7 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use derive_new::new;
 use holo_utils::bytes::{BytesExt, BytesMutExt};
-use holo_utils::ip::{Ipv4AddrExt, Ipv6AddrExt};
+use holo_utils::ip::{AddressFamily, Ipv4AddrExt, Ipv6AddrExt};
 use ipnetwork::{Ipv4Network, Ipv6Network};
 use num_traits::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
@@ -215,6 +215,17 @@ pub struct UnknownTlv {
     pub value: Bytes,
 }
 
+// ===== impl Nlpid =====
+
+impl From<AddressFamily> for Nlpid {
+    fn from(af: AddressFamily) -> Nlpid {
+        match af {
+            AddressFamily::Ipv4 => Nlpid::Ipv4,
+            AddressFamily::Ipv6 => Nlpid::Ipv6,
+        }
+    }
+}
+
 // ===== impl AreaAddressesTlv =====
 
 impl AreaAddressesTlv {
@@ -366,6 +377,10 @@ impl ProtocolsSupportedTlv {
             buf.put_u8(*entry);
         }
         tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn contains(&self, protocol: Nlpid) -> bool {
+        self.list.contains(&(protocol as u8))
     }
 }
 
@@ -817,6 +832,26 @@ where
         Ipv4ReachTlv {
             list: iter.into_iter().collect(),
         }
+    }
+}
+
+// ===== impl Ipv4Reach =====
+
+impl Ipv4Reach {
+    // Returns the metric associated with the IP prefix.
+    pub(crate) fn metric(&self) -> u32 {
+        let mut metric = self.metric;
+
+        // RFC 3787 - Section 5:
+        // "We interpret the default metric as an 7 bit quantity. Metrics
+        // with the external bit set are interpreted as metrics in the range
+        // [64..127]. Metrics with the external bit clear are interpreted as
+        // metrics in the range [0..63]".
+        if self.ie_bit {
+            metric += 64;
+        }
+
+        metric.into()
     }
 }
 

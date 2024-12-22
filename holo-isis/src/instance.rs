@@ -7,7 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
 use std::net::Ipv4Addr;
 use std::time::Instant;
 
@@ -20,6 +20,7 @@ use holo_utils::ibus::IbusMsg;
 use holo_utils::protocol::Protocol;
 use holo_utils::task::TimeoutTask;
 use holo_utils::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
+use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 
 use crate::adjacency::Adjacency;
@@ -32,7 +33,8 @@ use crate::interface::CircuitIdAllocator;
 use crate::lsdb::{LspEntry, LspLogEntry};
 use crate::northbound::configuration::InstanceCfg;
 use crate::packet::{LevelNumber, LevelType, Levels};
-use crate::spf::{SpfLogEntry, SpfScheduler};
+use crate::route::Route;
+use crate::spf::{SpfLogEntry, SpfScheduler, Vertex, VertexId};
 use crate::tasks::messages::input::{
     AdjHoldTimerMsg, DisElectionMsg, LspDeleteMsg, LspOriginateMsg,
     LspPurgeMsg, LspRefreshMsg, NetRxPduMsg, SendCsnpMsg, SendPsnpMsg,
@@ -77,6 +79,11 @@ pub struct InstanceState {
     pub lsp_orig_pending: Option<LevelType>,
     // SPF scheduler state.
     pub spf_sched: Levels<SpfScheduler>,
+    // Shortest-path tree.
+    pub spt: Levels<BTreeMap<VertexId, Vertex>>,
+    // Routing table (per-level and L1/L2).
+    pub rib_single: Levels<BTreeMap<IpNetwork, Route>>,
+    pub rib_multi: BTreeMap<IpNetwork, Route>,
     // Event counters.
     pub counters: Levels<InstanceCounters>,
     pub discontinuity_time: DateTime<Utc>,
@@ -377,6 +384,9 @@ impl InstanceState {
             lsp_orig_backoff: None,
             lsp_orig_pending: None,
             spf_sched: Default::default(),
+            spt: Default::default(),
+            rib_single: Default::default(),
+            rib_multi: Default::default(),
             counters: Default::default(),
             discontinuity_time: Utc::now(),
             lsp_log: Default::default(),

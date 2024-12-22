@@ -24,6 +24,7 @@ pub mod lsdb;
 pub mod network;
 pub mod northbound;
 pub mod packet;
+pub mod route;
 pub mod southbound;
 pub mod spf;
 pub mod tasks;

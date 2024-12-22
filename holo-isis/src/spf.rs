@@ -7,30 +7,104 @@
 // See: https://nlnet.nl/NGI0
 //
 
+use std::cmp::Ordering;
+use std::collections::{btree_map, BTreeMap, BTreeSet};
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::time::{Duration, Instant};
 
 use chrono::Utc;
 use derive_new::new;
+use holo_utils::ip::AddressFamily;
 use holo_utils::task::TimeoutTask;
+use ipnetwork::IpNetwork;
+use tracing::debug_span;
 
-use crate::adjacency::Adjacency;
-use crate::collections::{Arena, Interfaces};
+use crate::adjacency::{Adjacency, AdjacencyState};
+use crate::collections::{Arena, InterfaceIndex, Interfaces, Lsdb};
 use crate::debug::Debug;
 use crate::error::Error;
 use crate::instance::{InstanceArenas, InstanceUpView};
+use crate::interface::InterfaceType;
 use crate::lsdb::{LspEntry, LspLogId};
-use crate::packet::LevelNumber;
-use crate::tasks;
+use crate::northbound::configuration::MetricType;
+use crate::packet::consts::LspFlags;
+use crate::packet::pdu::Lsp;
+use crate::packet::tlv::Nlpid;
+use crate::packet::{LanId, LevelNumber, LevelType, LspId, SystemId};
+use crate::route::Route;
+use crate::{route, tasks};
 
 // Maximum size of the SPF log record.
 const SPF_LOG_MAX_SIZE: usize = 32;
 // Maximum number of trigger LSPs per entry in the SPF log record.
 const SPF_LOG_TRIGGER_LSPS_MAX_SIZE: usize = 8;
+// Maximum total metric value for a complete path (standard metrics).
+const MAX_PATH_METRIC_STANDARD: u32 = 1023;
+// Maximum total metric value for a complete path (wide metrics).
+const MAX_PATH_METRIC_WIDE: u32 = 0xFE000000;
 
+// Represents a vertex in the IS-IS topology graph.
+//
+// A `Vertex` corresponds to a router or pseudonode.
+#[derive(Debug)]
+#[derive(new)]
+pub struct Vertex {
+    pub id: VertexId,
+    pub distance: u32,
+    pub hops: u16,
+    #[new(default)]
+    pub nexthops: Vec<VertexNexthop>,
+}
+
+// Represents a unique identifier for a vertex in the IS-IS topology graph.
+//
+// `VertexId` is designed to serve as a key in collections, such as `BTreeMap`,
+// that store vertices for the SPT and the tentative list. The `non_pseudonode`
+// flag ensures that non-pseudonode vertices are given priority and processed
+// first during the SPF algorithm.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct VertexId {
+    pub non_pseudonode: bool,
+    pub lan_id: LanId,
+}
+
+// Represents a next-hop used to reach a vertex in the IS-IS topology graph.
+//
+// During the SPF computation, protocol-specific addresses (IPv4 and/or IPv6)
+// are resolved and stored in this structure. This information is later used
+// during route computation.
+#[derive(Clone, Debug)]
+#[derive(new)]
+pub struct VertexNexthop {
+    pub system_id: SystemId,
+    pub iface_idx: InterfaceIndex,
+    pub ipv4: Option<Ipv4Addr>,
+    pub ipv6: Option<Ipv6Addr>,
+}
+
+// Represents an IS reachability entry attached to a vertex.
+#[derive(Debug, Eq, PartialEq)]
+#[derive(new)]
+pub struct VertexEdge {
+    pub id: VertexId,
+    pub cost: u32,
+}
+
+// Represents an IP reachability entry attached to a vertex.
+#[derive(Clone, Debug)]
+#[derive(new)]
+pub struct VertexNetwork {
+    pub prefix: IpNetwork,
+    pub metric: u32,
+    pub external: bool,
+}
+
+// Container containing scheduling and timing information of SPF computations.
 #[derive(Debug, Default)]
 pub struct SpfScheduler {
     pub last_event_rcvd: Option<Instant>,
     pub last_time: Option<Instant>,
+    pub spf_type: SpfType,
     pub delay_state: fsm::State,
     pub delay_timer: Option<TimeoutTask>,
     pub hold_down_timer: Option<TimeoutTask>,
@@ -39,12 +113,17 @@ pub struct SpfScheduler {
     pub schedule_time: Option<Instant>,
 }
 
-#[derive(Clone, Copy, Debug)]
+// Type of SPF computation.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum SpfType {
+    // Full SPF computation.
     Full,
+    // "SPF computation of route reachability only.
+    #[default]
     RouteOnly,
 }
 
+// SPF log entry.
 #[derive(Debug, new)]
 pub struct SpfLogEntry {
     pub id: u32,
@@ -80,17 +159,35 @@ pub mod fsm {
     }
 }
 
+// ===== impl VertexId =====
+
+impl VertexId {
+    fn new(lan_id: LanId) -> VertexId {
+        VertexId {
+            non_pseudonode: !lan_id.is_pseudonode(),
+            lan_id,
+        }
+    }
+}
+
 // ===== global functions =====
 
+// Invokes an event in the SPF delay state machine.
 pub(crate) fn fsm(
     level: LevelNumber,
     event: fsm::Event,
     instance: &mut InstanceUpView<'_>,
     arenas: &mut InstanceArenas,
 ) -> Result<(), Error> {
+    // Begin a debug span for logging within the SPF context.
+    let span = debug_span!("spf", ?level);
+    let _span_guard = span.enter();
+
+    // Retrieve the SPF scheduling container for the current level.
     let spf_sched = instance.state.spf_sched.get_mut(level);
 
-    Debug::SpfDelayFsmEvent(level, spf_sched.delay_state, event).log();
+    // Log the received event.
+    Debug::SpfDelayFsmEvent(spf_sched.delay_state, event).log();
 
     // Update time of last SPF triggering event.
     spf_sched.last_event_rcvd = Some(Instant::now());
@@ -257,12 +354,8 @@ pub(crate) fn fsm(
         let spf_sched = instance.state.spf_sched.get_mut(level);
         if new_fsm_state != spf_sched.delay_state {
             // Effectively transition to the new FSM state.
-            Debug::SpfDelayFsmTransition(
-                level,
-                spf_sched.delay_state,
-                new_fsm_state,
-            )
-            .log();
+            Debug::SpfDelayFsmTransition(spf_sched.delay_state, new_fsm_state)
+                .log();
             spf_sched.delay_state = new_fsm_state;
         }
     }
@@ -276,9 +369,9 @@ pub(crate) fn fsm(
 fn compute_spf(
     level: LevelNumber,
     instance: &mut InstanceUpView<'_>,
-    _interfaces: &Interfaces,
-    _adjacencies: &Arena<Adjacency>,
-    _lsp_entries: &Arena<LspEntry>,
+    interfaces: &Interfaces,
+    adjacencies: &Arena<Adjacency>,
+    lsp_entries: &Arena<LspEntry>,
 ) {
     let spf_sched = instance.state.spf_sched.get_mut(level);
 
@@ -292,7 +385,51 @@ fn compute_spf(
     // Get list of new or updated LSPs that triggered the SPF computation.
     let trigger_lsps = std::mem::take(&mut spf_sched.trigger_lsps);
 
-    // TODO: Run SPF.
+    // Compute shorted-path tree if necessary.
+    let spf_type = std::mem::take(&mut spf_sched.spf_type);
+    if spf_type == SpfType::Full {
+        let spt =
+            compute_spt(level, instance, interfaces, adjacencies, lsp_entries);
+        *instance.state.spt.get_mut(level) = spt;
+    }
+
+    // Compute routing table.
+    let mut rib = compute_routes(level, instance, lsp_entries);
+
+    // Update local routing table
+    match instance.config.level_type {
+        LevelType::L1 | LevelType::L2 => {
+            let old_rib =
+                std::mem::take(instance.state.rib_single.get_mut(level));
+
+            // Update the global RIB.
+            route::update_global_rib(&mut rib, old_rib, instance, interfaces);
+
+            // Store the RIB specific to the current level.
+            *instance.state.rib_single.get_mut(level) = rib;
+        }
+        LevelType::All => {
+            let old_rib = std::mem::take(&mut instance.state.rib_multi);
+
+            // Store the RIB specific to the current level.
+            *instance.state.rib_single.get_mut(level) = rib;
+
+            // Build a merged RIB where L1 routes are preferred over L2 routes.
+            let rib_l1 = instance.state.rib_single.get(LevelNumber::L1);
+            let rib_l2 = instance.state.rib_single.get(LevelNumber::L2);
+            let mut rib = rib_l2
+                .iter()
+                .chain(rib_l1.iter())
+                .map(|(prefix, route)| (*prefix, route.clone()))
+                .collect();
+
+            // Update the global RIB.
+            route::update_global_rib(&mut rib, old_rib, instance, interfaces);
+
+            // Store the merged RIB.
+            instance.state.rib_multi = rib;
+        }
+    }
 
     // Update statistics.
     instance.state.counters.get_mut(level).spf_runs += 1;
@@ -300,18 +437,418 @@ fn compute_spf(
 
     // Update time of last SPF computation.
     let end_time = Instant::now();
+    let spf_sched = instance.state.spf_sched.get_mut(level);
     spf_sched.last_time = Some(end_time);
 
     // Add entry to SPF log.
     log_spf_run(
         level,
         instance,
-        SpfType::Full,
+        spf_type,
         schedule_time,
         start_time,
         end_time,
         trigger_lsps,
     );
+}
+
+// Computes the shortest-path tree.
+fn compute_spt(
+    level: LevelNumber,
+    instance: &InstanceUpView<'_>,
+    interfaces: &Interfaces,
+    adjacencies: &Arena<Adjacency>,
+    lsp_entries: &Arena<LspEntry>,
+) -> BTreeMap<VertexId, Vertex> {
+    let lsdb = instance.state.lsdb.get(level);
+    let metric_type = instance.config.metric_type.get(level);
+    let mut used_adjs = BTreeSet::new();
+
+    // Get root vertex.
+    let root_lan_id = LanId::from((instance.config.system_id.unwrap(), 0));
+    let root_vid = VertexId::new(root_lan_id);
+    let root_v = Vertex::new(root_vid, 0, 0);
+
+    // Initialize SPT and candidate list.
+    let mut spt = BTreeMap::new();
+    let mut cand_list = BTreeMap::new();
+    cand_list.insert((root_v.distance, root_v.id), root_v);
+
+    // Main SPF loop.
+    'spf_loop: while let Some(((_, vertex_id), vertex)) = cand_list.pop_first()
+    {
+        // Add vertex to SPT.
+        spt.insert(vertex.id, vertex);
+        let vertex = spt.get(&vertex_id).unwrap();
+
+        // Skip bad LSPs.
+        let Some(zeroth_lsp) = zeroth_lsp(vertex.id.lan_id, lsdb, lsp_entries)
+        else {
+            continue;
+        };
+
+        // If the overload bit is set, we skip the links from it.
+        if !zeroth_lsp.lsp_id.is_pseudonode()
+            && zeroth_lsp.flags.contains(LspFlags::OL)
+        {
+            continue;
+        }
+
+        // In dual-stack single-topology networks, traffic blackholing can occur
+        // if any IS or link has IPv4 enabled but not IPv6, or vice versa.
+        // To minimize the likelihood of such issues, this check ensures that
+        // the IS supports all configured protocols. We can't check address
+        // family information from the links since that information isn't
+        // available in the LSPDB.
+        //
+        // NOTE: This check should be revisited and adapted once multi-topology
+        // support is implemented.
+        if !zeroth_lsp.lsp_id.is_pseudonode() {
+            let Some(protocols_supported) =
+                &zeroth_lsp.tlvs.protocols_supported
+            else {
+                Debug::SpfMissingProtocolsTlv(vertex).log();
+                continue;
+            };
+            for af in [AddressFamily::Ipv4, AddressFamily::Ipv6] {
+                if instance.config.is_af_enabled(af)
+                    && !protocols_supported.contains(Nlpid::from(af))
+                {
+                    Debug::SpfUnsupportedProtocol(vertex, af).log();
+                    continue 'spf_loop;
+                }
+            }
+        }
+
+        // Iterate over all links described by the vertex's LSPs.
+        for link in vertex_edges(&vertex.id, metric_type, lsdb, lsp_entries) {
+            // Check if the LSPs are mutually linked.
+            if !vertex_edges(&link.id, metric_type, lsdb, lsp_entries)
+                .any(|link| link.id == vertex.id)
+            {
+                continue;
+            }
+
+            // Check if the link's vertex is already on the shortest-path tree.
+            if spt.contains_key(&link.id) {
+                continue;
+            }
+
+            // Calculate distance to the link's vertex.
+            let distance = vertex.distance.saturating_add(link.cost);
+
+            // Check maximum total metric value.
+            let max_path_metric = match metric_type {
+                MetricType::Wide | MetricType::Both => MAX_PATH_METRIC_WIDE,
+                MetricType::Standard => MAX_PATH_METRIC_STANDARD,
+            };
+            if distance > max_path_metric {
+                Debug::SpfMaxPathMetric(vertex, &link, distance).log();
+                continue;
+            }
+
+            // Increment number of hops to the root.
+            let mut hops = vertex.hops;
+            if !link.id.lan_id.is_pseudonode() {
+                hops = hops.saturating_add(1);
+            }
+
+            // Check if this vertex is already present on the candidate list.
+            if let Some((cand_key, cand_v)) = cand_list
+                .iter_mut()
+                .find(|(_, cand_v)| cand_v.id == link.id)
+            {
+                match distance.cmp(&cand_v.distance) {
+                    Ordering::Less => {
+                        // Remove vertex since its key has changed. It will be
+                        // re-added with the correct key below.
+                        let cand_key = *cand_key;
+                        cand_list.remove(&cand_key);
+                    }
+                    Ordering::Equal => {}
+                    Ordering::Greater => {
+                        // Ignore higher cost path.
+                        continue;
+                    }
+                }
+            }
+            let cand_v = cand_list
+                .entry((distance, link.id))
+                .or_insert_with(|| Vertex::new(link.id, distance, hops));
+
+            // Update vertex's nexthops.
+            if vertex.hops == 0 {
+                if !link.id.lan_id.is_pseudonode()
+                    && let Some(nexthop) = compute_nexthop(
+                        level,
+                        vertex,
+                        &link,
+                        &mut used_adjs,
+                        interfaces,
+                        adjacencies,
+                    )
+                {
+                    cand_v.nexthops.push(nexthop);
+                }
+            } else {
+                cand_v.nexthops.extend(vertex.nexthops.clone());
+            };
+        }
+    }
+
+    spt
+}
+
+// Computes routing table based on the SPT and IP prefix information extracted
+// from the vertices.
+fn compute_routes(
+    level: LevelNumber,
+    instance: &InstanceUpView<'_>,
+    lsp_entries: &Arena<LspEntry>,
+) -> BTreeMap<IpNetwork, Route> {
+    let lsdb = instance.state.lsdb.get(level);
+    let metric_type = instance.config.metric_type.get(level);
+
+    // Initialize routing table.
+    let mut rib = BTreeMap::new();
+
+    // Populate RIB.
+    let ipv4_enabled = instance.config.is_af_enabled(AddressFamily::Ipv4);
+    let ipv6_enabled = instance.config.is_af_enabled(AddressFamily::Ipv6);
+    for vertex in instance.state.spt.get(level).values() {
+        for network in vertex_networks(
+            &vertex.id,
+            metric_type,
+            ipv4_enabled,
+            ipv6_enabled,
+            lsdb,
+            lsp_entries,
+        ) {
+            let route = match rib.entry(network.prefix) {
+                btree_map::Entry::Vacant(v) => {
+                    // If the route does not exist, create a new entry.
+                    let route = Route::new(vertex, &network, level);
+                    v.insert(route)
+                }
+                btree_map::Entry::Occupied(o) => {
+                    let curr_route = o.into_mut();
+
+                    let route_metric = vertex.distance + network.metric;
+                    match route_metric.cmp(&curr_route.metric) {
+                        Ordering::Less => {
+                            // Replace route with a better one.
+                            *curr_route = Route::new(vertex, &network, level);
+                        }
+                        Ordering::Equal => {
+                            // Merge nexthops (anycast route).
+                            curr_route.merge_nexthops(vertex, &network);
+                        }
+                        Ordering::Greater => {
+                            // Ignore less preferred route.
+                            continue;
+                        }
+                    }
+
+                    curr_route
+                }
+            };
+
+            // Honor configured maximum number of ECMP paths.
+            let max_paths = instance.config.max_paths;
+            if route.nexthops.len() > max_paths as usize {
+                route.nexthops = route
+                    .nexthops
+                    .iter()
+                    .map(|(k, v)| (*k, *v))
+                    .take(max_paths as usize)
+                    .collect();
+            }
+        }
+    }
+
+    rib
+}
+
+// Computes the next-hop for reaching a vertex via the specified edge.
+fn compute_nexthop(
+    level: LevelNumber,
+    vertex: &Vertex,
+    link: &VertexEdge,
+    used_adjs: &mut BTreeSet<[u8; 6]>,
+    interfaces: &Interfaces,
+    adjacencies: &Arena<Adjacency>,
+) -> Option<VertexNexthop> {
+    // Check expected interface type.
+    let interface_type = if vertex.id.lan_id.is_pseudonode() {
+        InterfaceType::Broadcast
+    } else {
+        InterfaceType::PointToPoint
+    };
+
+    let (iface, adj) = interfaces
+        .iter()
+        .filter(|iface| iface.config.interface_type == interface_type)
+        .filter_map(|iface| {
+            let adj = match iface.config.interface_type {
+                InterfaceType::Broadcast => iface
+                    .state
+                    .lan_adjacencies
+                    .get(level)
+                    .get_by_system_id(adjacencies, &link.id.lan_id.system_id)
+                    .map(|(_, adj)| adj)
+                    .filter(|adj| adj.state == AdjacencyState::Up),
+                InterfaceType::PointToPoint => {
+                    if iface.config.metric.get(level) != link.cost {
+                        return None;
+                    }
+                    iface
+                        .state
+                        .p2p_adjacency
+                        .as_ref()
+                        .filter(|adj| adj.level_usage.intersects(level))
+                        .filter(|adj| adj.system_id == link.id.lan_id.system_id)
+                        .filter(|adj| adj.state == AdjacencyState::Up)
+                }
+            }?;
+            Some((iface, adj))
+        })
+        // The same adjacency shouldn't be used more than once.
+        .find(|(_, adj)| used_adjs.insert(adj.snpa))?;
+
+    Some(VertexNexthop {
+        system_id: adj.system_id,
+        iface_idx: iface.index,
+        ipv4: adj.ipv4_addrs.first().copied(),
+        ipv6: adj.ipv6_addrs.first().copied(),
+    })
+}
+
+// Iterate over all IS reachability entries attached to a vertex.
+fn vertex_edges<'a>(
+    vertex_id: &VertexId,
+    metric_type: MetricType,
+    lsdb: &'a Lsdb,
+    lsp_entries: &'a Arena<LspEntry>,
+) -> impl Iterator<Item = VertexEdge> + 'a {
+    // Iterate over all LSP fragments.
+    lsdb.iter_for_lan_id(lsp_entries, vertex_id.lan_id)
+        .map(|lse| &lse.data)
+        .filter(|lsp| lsp.seqno != 0)
+        .filter(|lsp| lsp.rem_lifetime != 0)
+        .flat_map(move |lsp| {
+            let mut iter: Box<dyn Iterator<Item = VertexEdge>> =
+                Box::new(std::iter::empty());
+
+            if metric_type.is_standard_enabled() {
+                iter = Box::new(iter.chain(lsp.tlvs.is_reach().map(|reach| {
+                    VertexEdge {
+                        id: VertexId::new(reach.neighbor),
+                        cost: reach.metric.into(),
+                    }
+                })));
+            }
+            if metric_type.is_wide_enabled() {
+                iter = Box::new(iter.chain(lsp.tlvs.ext_is_reach().map(
+                    |reach| VertexEdge {
+                        id: VertexId::new(reach.neighbor),
+                        cost: reach.metric,
+                    },
+                )));
+            }
+
+            iter
+        })
+}
+
+// Iterate over all IP reachability entries attached to a vertex.
+fn vertex_networks<'a>(
+    vertex_id: &VertexId,
+    metric_type: MetricType,
+    ipv4_enabled: bool,
+    ipv6_enabled: bool,
+    lsdb: &'a Lsdb,
+    lsp_entries: &'a Arena<LspEntry>,
+) -> impl Iterator<Item = VertexNetwork> + 'a {
+    // Iterate over all LSP fragments.
+    lsdb.iter_for_lan_id(lsp_entries, vertex_id.lan_id)
+        .map(|lse| &lse.data)
+        .filter(|lsp| lsp.seqno != 0)
+        .filter(|lsp| lsp.rem_lifetime != 0)
+        .flat_map(move |lsp| {
+            let mut iter: Box<dyn Iterator<Item = VertexNetwork>> =
+                Box::new(std::iter::empty());
+
+            // Iterate over IPv4 reachability entries.
+            if ipv4_enabled {
+                if metric_type.is_standard_enabled() {
+                    let internal =
+                        lsp.tlvs.ipv4_internal_reach().map(|reach| {
+                            VertexNetwork {
+                                prefix: reach.prefix.into(),
+                                metric: reach.metric(),
+                                external: false,
+                            }
+                        });
+                    // NOTE: RFC 1195 initially restricted the IP External
+                    // Reachability Information TLV to L2 LSPs, but RFC 5302
+                    // later lifted this restriction.
+                    let external =
+                        lsp.tlvs.ipv4_external_reach().map(|reach| {
+                            VertexNetwork {
+                                prefix: reach.prefix.into(),
+                                metric: reach.metric(),
+                                external: true,
+                            }
+                        });
+
+                    iter = Box::new(iter.chain(internal).chain(external));
+                }
+                if metric_type.is_wide_enabled() {
+                    iter = Box::new(iter.chain(lsp.tlvs.ext_ipv4_reach().map(
+                        |reach| VertexNetwork {
+                            prefix: reach.prefix.into(),
+                            metric: reach.metric,
+                            // For some reason, TLV 135 doesn't have a flag
+                            // specifying whether the prefix has an external
+                            // origin, unlike TLV 235 (the IPv6 equivalent).
+                            // RFC 7794 specifies the Prefix Attributes
+                            // Sub-TLV which contains the External Prefix
+                            // Flag (X-flag). For now, let's just assume
+                            // all prefixes announced using this TLV are
+                            // internal.
+                            external: false,
+                        },
+                    )));
+                }
+            }
+
+            // Iterate over IPv6 reachability entries.
+            if ipv6_enabled {
+                iter =
+                    Box::new(iter.chain(lsp.tlvs.ipv6_reach().map(|reach| {
+                        VertexNetwork {
+                            prefix: reach.prefix.into(),
+                            metric: reach.metric,
+                            external: reach.external,
+                        }
+                    })));
+            }
+
+            iter
+        })
+}
+
+// Retrieves the zeroth LSP for a given LAN ID.
+fn zeroth_lsp<'a>(
+    lan_id: LanId,
+    lsdb: &'a Lsdb,
+    lsp_entries: &'a Arena<LspEntry>,
+) -> Option<&'a Lsp> {
+    let lspid = LspId::from((lan_id, 0));
+    lsdb.get_by_lspid(lsp_entries, &lspid)
+        .map(|(_, lse)| &lse.data)
+        .filter(|lsp| lsp.seqno != 0)
+        .filter(|lsp| lsp.rem_lifetime != 0)
 }
 
 // Adds log entry for the SPF run.

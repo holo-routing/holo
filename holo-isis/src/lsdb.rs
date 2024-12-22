@@ -29,6 +29,7 @@ use crate::packet::tlv::{
     ExtIpv4Reach, ExtIsReach, Ipv4Reach, Ipv6Reach, IsReach, Nlpid,
 };
 use crate::packet::{LanId, LevelNumber, LspId};
+use crate::spf::SpfType;
 use crate::tasks::messages::input::LspPurgeMsg;
 use crate::{spf, tasks};
 
@@ -454,10 +455,18 @@ pub(crate) fn install<'a>(
 
     // Check if the LSP content has changed.
     let mut content_change = true;
+    let mut topology_change = true;
     if let Some(old_lsp) = old_lsp
-        && (old_lsp.flags == lsp.flags && old_lsp.tlvs == lsp.tlvs)
+        && lsp.flags == old_lsp.flags
     {
-        content_change = false;
+        if old_lsp.tlvs == lsp.tlvs {
+            content_change = false;
+            topology_change = false;
+        } else if old_lsp.tlvs.is_reach().eq(lsp.tlvs.is_reach())
+            && old_lsp.tlvs.ext_is_reach().eq(lsp.tlvs.ext_is_reach())
+        {
+            topology_change = false;
+        }
     }
 
     // Add LSP entry to LSDB.
@@ -483,6 +492,10 @@ pub(crate) fn install<'a>(
         let spf_sched = instance.state.spf_sched.get_mut(level);
         spf_sched.trigger_lsps.push(lsp_log_id);
         spf_sched.schedule_time.get_or_insert_with(Instant::now);
+        if topology_change {
+            spf_sched.spf_type = SpfType::Full;
+        }
+
         instance
             .tx
             .protocol_input

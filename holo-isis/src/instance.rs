@@ -32,7 +32,7 @@ use crate::interface::CircuitIdAllocator;
 use crate::lsdb::{LspEntry, LspLogEntry};
 use crate::northbound::configuration::InstanceCfg;
 use crate::packet::{LevelNumber, LevelType, Levels};
-use crate::spf::SpfScheduler;
+use crate::spf::{SpfLogEntry, SpfScheduler};
 use crate::tasks::messages::input::{
     AdjHoldTimerMsg, DisElectionMsg, LspDeleteMsg, LspOriginateMsg,
     LspPurgeMsg, LspRefreshMsg, NetRxPduMsg, SendCsnpMsg, SendPsnpMsg,
@@ -83,6 +83,9 @@ pub struct InstanceState {
     // Log of LSP updates.
     pub lsp_log: VecDeque<LspLogEntry>,
     pub lsp_log_next_id: u32,
+    // Log of SPF runs.
+    pub spf_log: VecDeque<SpfLogEntry>,
+    pub spf_log_next_id: u32,
 }
 
 #[derive(Debug, Default)]
@@ -378,6 +381,8 @@ impl InstanceState {
             discontinuity_time: Utc::now(),
             lsp_log: Default::default(),
             lsp_log_next_id: 0,
+            spf_log: Default::default(),
+            spf_log_next_id: 0,
         }
     }
 }

@@ -10,6 +10,7 @@
 use std::time::{Duration, Instant};
 
 use chrono::Utc;
+use derive_new::new;
 use holo_utils::task::TimeoutTask;
 
 use crate::adjacency::Adjacency;
@@ -17,9 +18,14 @@ use crate::collections::{Arena, Interfaces};
 use crate::debug::Debug;
 use crate::error::Error;
 use crate::instance::{InstanceArenas, InstanceUpView};
-use crate::lsdb::LspEntry;
+use crate::lsdb::{LspEntry, LspLogId};
 use crate::packet::LevelNumber;
 use crate::tasks;
+
+// Maximum size of the SPF log record.
+const SPF_LOG_MAX_SIZE: usize = 32;
+// Maximum number of trigger LSPs per entry in the SPF log record.
+const SPF_LOG_TRIGGER_LSPS_MAX_SIZE: usize = 8;
 
 #[derive(Debug, Default)]
 pub struct SpfScheduler {
@@ -29,6 +35,25 @@ pub struct SpfScheduler {
     pub delay_timer: Option<TimeoutTask>,
     pub hold_down_timer: Option<TimeoutTask>,
     pub learn_timer: Option<TimeoutTask>,
+    pub trigger_lsps: Vec<LspLogId>,
+    pub schedule_time: Option<Instant>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum SpfType {
+    Full,
+    RouteOnly,
+}
+
+#[derive(Debug, new)]
+pub struct SpfLogEntry {
+    pub id: u32,
+    pub spf_type: SpfType,
+    pub level: LevelNumber,
+    pub schedule_time: Instant,
+    pub start_time: Instant,
+    pub end_time: Instant,
+    pub trigger_lsps: Vec<LspLogId>,
 }
 
 // SPF Delay State Machine.
@@ -257,6 +282,16 @@ fn compute_spf(
 ) {
     let spf_sched = instance.state.spf_sched.get_mut(level);
 
+    // Get time the SPF was scheduled.
+    let schedule_time =
+        spf_sched.schedule_time.take().unwrap_or_else(Instant::now);
+
+    // Record time the SPF computation was started.
+    let start_time = Instant::now();
+
+    // Get list of new or updated LSPs that triggered the SPF computation.
+    let trigger_lsps = std::mem::take(&mut spf_sched.trigger_lsps);
+
     // TODO: Run SPF.
 
     // Update statistics.
@@ -266,4 +301,48 @@ fn compute_spf(
     // Update time of last SPF computation.
     let end_time = Instant::now();
     spf_sched.last_time = Some(end_time);
+
+    // Add entry to SPF log.
+    log_spf_run(
+        level,
+        instance,
+        SpfType::Full,
+        schedule_time,
+        start_time,
+        end_time,
+        trigger_lsps,
+    );
+}
+
+// Adds log entry for the SPF run.
+fn log_spf_run(
+    level: LevelNumber,
+    instance: &mut InstanceUpView<'_>,
+    spf_type: SpfType,
+    schedule_time: Instant,
+    start_time: Instant,
+    end_time: Instant,
+    mut trigger_lsps: Vec<LspLogId>,
+) {
+    // Get next log ID.
+    let log_id = &mut instance.state.spf_log_next_id;
+    *log_id += 1;
+
+    // Get trigger LSPs in log format.
+    trigger_lsps.truncate(SPF_LOG_TRIGGER_LSPS_MAX_SIZE);
+
+    // Add new log entry.
+    let log_entry = SpfLogEntry::new(
+        *log_id,
+        spf_type,
+        level,
+        schedule_time,
+        start_time,
+        end_time,
+        trigger_lsps,
+    );
+    instance.state.spf_log.push_front(log_entry);
+
+    // Remove old entries if necessary.
+    instance.state.spf_log.truncate(SPF_LOG_MAX_SIZE);
 }

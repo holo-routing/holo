@@ -480,6 +480,9 @@ pub(crate) fn install<'a>(
 
     // Schedule SPF run if necessary.
     if content_change {
+        let spf_sched = instance.state.spf_sched.get_mut(level);
+        spf_sched.trigger_lsps.push(lsp_log_id);
+        spf_sched.schedule_time.get_or_insert_with(Instant::now);
         instance
             .tx
             .protocol_input

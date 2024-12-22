@@ -25,11 +25,12 @@ use crate::adjacency::Adjacency;
 use crate::collections::Lsdb;
 use crate::instance::Instance;
 use crate::interface::Interface;
-use crate::lsdb::{LspEntry, LspLogEntry};
+use crate::lsdb::{LspEntry, LspLogEntry, LspLogId};
 use crate::packet::tlv::{
     ExtIpv4Reach, ExtIsReach, Ipv4Reach, Ipv6Reach, IsReach, UnknownTlv,
 };
 use crate::packet::{LanId, LevelNumber};
+use crate::spf::SpfLogEntry;
 
 pub static CALLBACKS: Lazy<Callbacks<Instance>> = Lazy::new(load_callbacks);
 
@@ -38,6 +39,8 @@ pub static CALLBACKS: Lazy<Callbacks<Instance>> = Lazy::new(load_callbacks);
 pub enum ListEntry<'a> {
     #[default]
     None,
+    SpfLog(&'a SpfLogEntry),
+    SpfTriggerLsp(&'a LspLogId),
     LspLog(&'a LspLogEntry),
     Lsdb(LevelNumber, &'a Lsdb),
     LspEntry(&'a LspEntry),
@@ -78,31 +81,35 @@ fn load_callbacks() -> Callbacks<Instance> {
             })
         })
         .path(isis::spf_log::event::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|instance, _args| {
+            let Some(instance_state) = &instance.state else { return None };
+            let iter = instance_state.spf_log.iter().map(ListEntry::SpfLog);
+            Some(Box::new(iter) as _).ignore_in_testing()
         })
-        .get_object(|_instance, _args| {
+        .get_object(|_instance, args| {
             use isis::spf_log::event::Event;
+            let log = args.list_entry.as_spf_log().unwrap();
             Box::new(Event {
-                id: todo!(),
-                spf_type: None,
-                level: None,
-                schedule_timestamp: None,
-                start_timestamp: None,
-                end_timestamp: None,
+                id: log.id,
+                spf_type: Some(log.spf_type.to_yang()),
+                level: Some(log.level as u8),
+                schedule_timestamp: Some(Cow::Borrowed(&log.schedule_time)),
+                start_timestamp: Some(Cow::Borrowed(&log.start_time)),
+                end_timestamp: Some(Cow::Borrowed(&log.end_time)),
             })
         })
         .path(isis::spf_log::event::trigger_lsp::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let log = args.parent_list_entry.as_spf_log().unwrap();
+            let iter = log.trigger_lsps.iter().map(ListEntry::SpfTriggerLsp);
+            Some(Box::new(iter))
         })
-        .get_object(|_instance, _args| {
+        .get_object(|_instance, args| {
             use isis::spf_log::event::trigger_lsp::TriggerLsp;
+            let lsp = args.list_entry.as_spf_trigger_lsp().unwrap();
             Box::new(TriggerLsp {
-                lsp: todo!(),
-                sequence: None,
+                lsp: lsp.lsp_id.to_yang(),
+                sequence: Some(lsp.seqno),
             })
         })
         .path(isis::lsp_log::event::PATH)

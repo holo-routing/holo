@@ -19,6 +19,7 @@ use crate::lsdb::LspLogReason;
 use crate::northbound::configuration::MetricType;
 use crate::packet::consts::LspFlags;
 use crate::packet::{AreaAddr, LanId, LevelType, LspId, SystemId};
+use crate::spf::SpfType;
 
 // ===== ToYang implementations =====
 
@@ -139,6 +140,15 @@ impl ToYang for LspLogReason {
         match self {
             LspLogReason::Refresh => "refresh".into(),
             LspLogReason::ContentChange => "content-change".into(),
+        }
+    }
+}
+
+impl ToYang for SpfType {
+    fn to_yang(&self) -> Cow<'static, str> {
+        match self {
+            SpfType::Full => "full".into(),
+            SpfType::RouteOnly => "route-only".into(),
         }
     }
 }

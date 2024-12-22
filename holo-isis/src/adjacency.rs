@@ -8,6 +8,7 @@
 //
 
 use std::collections::BTreeSet;
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::time::Instant;
 
 use chrono::Utc;
@@ -33,6 +34,8 @@ pub struct Adjacency {
     pub lan_id: Option<LanId>,
     pub area_addrs: BTreeSet<AreaAddr>,
     pub neighbors: BTreeSet<[u8; 6]>,
+    pub ipv4_addrs: BTreeSet<Ipv4Addr>,
+    pub ipv6_addrs: BTreeSet<Ipv6Addr>,
     pub last_uptime: Option<Instant>,
     pub holdtimer: Option<TimeoutTask>,
 }
@@ -75,6 +78,8 @@ impl Adjacency {
             lan_id: None,
             area_addrs: Default::default(),
             neighbors: Default::default(),
+            ipv4_addrs: Default::default(),
+            ipv6_addrs: Default::default(),
             last_uptime: None,
             holdtimer: None,
         };

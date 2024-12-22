@@ -509,6 +509,16 @@ impl HelloTlvs {
     pub(crate) fn neighbors(&self) -> impl Iterator<Item = &[u8; 6]> {
         self.neighbors.iter().flat_map(|tlv| tlv.list.iter())
     }
+
+    // Returns an iterator over all IPv4 addresses from TLVs of type 132.
+    pub(crate) fn ipv4_addrs(&self) -> impl Iterator<Item = &Ipv4Addr> {
+        self.ipv4_addrs.iter().flat_map(|tlv| tlv.list.iter())
+    }
+
+    // Returns an iterator over all IPv6 addresses from TLVs of type 232.
+    pub(crate) fn ipv6_addrs(&self) -> impl Iterator<Item = &Ipv6Addr> {
+        self.ipv6_addrs.iter().flat_map(|tlv| tlv.list.iter())
+    }
 }
 
 // ===== impl Lsp =====

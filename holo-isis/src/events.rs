@@ -265,6 +265,8 @@ pub(crate) fn process_pdu_hello_lan(
     adj.lan_id = Some(lan_id);
     adj.area_addrs = hello.tlvs.area_addrs().cloned().collect();
     adj.neighbors = hello.tlvs.neighbors().cloned().collect();
+    adj.ipv4_addrs = hello.tlvs.ipv4_addrs().cloned().collect();
+    adj.ipv6_addrs = hello.tlvs.ipv6_addrs().cloned().collect();
 
     // Check if the locally elected DIS has changed its perceived DIS.
     if let Some(dis) = iface.state.dis.get_mut(level)
@@ -401,8 +403,10 @@ pub(crate) fn process_pdu_hello_p2p(
         }
     };
 
-    // Update adjacency.
+    // Update adjacency with received PDU values.
     adj.area_addrs = hello.tlvs.area_addrs().cloned().collect();
+    adj.ipv4_addrs = hello.tlvs.ipv4_addrs().cloned().collect();
+    adj.ipv6_addrs = hello.tlvs.ipv6_addrs().cloned().collect();
 
     // Restart hold timer.
     adj.holdtimer_reset(iface, instance, hello.holdtime);

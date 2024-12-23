@@ -107,7 +107,8 @@ pub(crate) fn process_vrrp_packet(
         fsm::State::Master => {
             let primary_addr = interface.system.addresses.first().unwrap().ip();
             if packet.priority == 0 {
-                instance.send_vrrp_advertisement(primary_addr);
+                instance
+                    .send_vrrp_advertisement(primary_addr, interface.system);
                 instance.timer_reset();
             } else if packet.priority > instance.config.priority
                 || (packet.priority == instance.config.priority
@@ -142,7 +143,7 @@ pub(crate) fn handle_master_down_timer(
     };
 
     // RFC 3768: Section 6.4.2 ("If the Master_Down_timer fires")
-    instance.send_vrrp_advertisement(src_ip);
+    instance.send_vrrp_advertisement(src_ip, interface.system);
     instance.send_gratuitous_arp();
     instance.change_state(
         &interface,

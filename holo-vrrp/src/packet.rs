@@ -217,7 +217,7 @@ impl Ipv4Hdr {
         let mut buf = BytesMut::new();
 
         // ver_ihl -> version[4 bits] + ihl[4 bits]
-        buf.put_u8(self.version << 4 | self.ihl);
+        buf.put_u8((self.version << 4) | self.ihl);
         buf.put_u8(self.tos);
         buf.put_u16(self.total_length);
         buf.put_u16(self.identification);

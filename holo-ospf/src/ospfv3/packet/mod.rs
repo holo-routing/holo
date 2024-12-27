@@ -915,12 +915,12 @@ fn packet_options(data: &[u8]) -> Option<Options> {
     match pkt_type {
         PacketType::Hello => {
             let options = &data[PacketHdr::LENGTH as usize + 6..];
-            let options = (options[0] as u16) << 8 | options[1] as u16;
+            let options = ((options[0] as u16) << 8) | options[1] as u16;
             Some(Options::from_bits_truncate(options))
         }
         PacketType::DbDesc => {
             let options = &data[PacketHdr::LENGTH as usize + 2..];
-            let options = (options[0] as u16) << 8 | options[1] as u16;
+            let options = ((options[0] as u16) << 8) | options[1] as u16;
             Some(Options::from_bits_truncate(options))
         }
         PacketType::LsRequest | PacketType::LsUpdate | PacketType::LsAck => {

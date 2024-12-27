@@ -103,8 +103,8 @@ impl Packet {
             let mut buf = buf.borrow_mut();
             buf.clear();
 
-            buf.put_u8(self.version << 5 | self.diag);
-            buf.put_u8((self.state as u8) << 6 | self.flags.bits());
+            buf.put_u8((self.version << 5) | self.diag);
+            buf.put_u8(((self.state as u8) << 6) | self.flags.bits());
             buf.put_u8(self.detect_mult);
             // The length will be initialized later.
             buf.put_u8(0);

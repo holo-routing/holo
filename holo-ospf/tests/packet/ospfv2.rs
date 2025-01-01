@@ -597,6 +597,9 @@ static LSA2: Lazy<(Vec<u8>, Lsa<Ospfv2>)> = Lazy::new(|| {
                 )],
                 msds: None,
                 srms_pref: None,
+                info_hostname: Some(RouterInfoDynamicHostnameTlv::new(
+                    "holo".to_string(),
+                )),
                 unknown_tlvs: vec![],
             })),
         ),

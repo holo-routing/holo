@@ -112,6 +112,25 @@ bitflags! {
 pub struct RouterFuncCapsTlv(RouterFuncCaps);
 
 //
+// Dynamic Hostname TLV.
+//
+// Encoding format:
+//
+//  0                   1                   2                   3
+//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |              Type             |             Length            |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |                          Hostname ...                         |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+#[derive(Clone, Debug, Default, Eq, new, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct RouterInfoDynamicHostnameTlv {
+    pub hostname: String,
+}
+
+//
 // SR-Algorithm TLV.
 //
 // Encoding format:
@@ -126,15 +145,6 @@ pub struct RouterFuncCapsTlv(RouterFuncCaps);
 // |                                                               |
 // +                                                               +
 //
-
-// RFC 5642
-
-#[derive(Clone, Debug, Default, Eq, new, PartialEq)]
-#[derive(Deserialize, Serialize)]
-pub struct RouterInfoDynamicHostnameTlv {
-    pub hostname: String,
-}
-
 #[derive(Clone, Debug, Default, Eq, new, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct SrAlgoTlv(BTreeSet<IgpAlgoType>);
@@ -574,7 +584,7 @@ impl RouterInfoDynamicHostnameTlv {
         tlv_encode_end(buf, start_pos);
     }
 
-    pub(crate) fn get(&self) -> &String {
+    pub(crate) fn get(&self) -> &str {
         &self.hostname
     }
 }

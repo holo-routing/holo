@@ -954,6 +954,7 @@ pub struct LsaRouterInfo {
     #[new(default)]
     pub srms_pref: Option<SrmsPrefTlv>,
     #[new(default)]
+    #[serde(skip)]
     pub info_hostname: Option<RouterInfoDynamicHostnameTlv>,
     #[new(default)]
     pub unknown_tlvs: Vec<UnknownTlv>,
@@ -2605,6 +2606,9 @@ impl LsaRouterInfo {
         }
         if let Some(func_caps) = &self.func_caps {
             func_caps.encode(buf);
+        }
+        if let Some(info_hostname) = &self.info_hostname {
+            info_hostname.encode(buf);
         }
         if let Some(sr_algo) = &self.sr_algo {
             sr_algo.encode(buf);

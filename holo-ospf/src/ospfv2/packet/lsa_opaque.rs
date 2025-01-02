@@ -123,6 +123,7 @@ pub struct LsaRouterInfo {
     pub srlb: Vec<SrLocalBlockTlv>,
     pub msds: Option<MsdTlv>,
     pub srms_pref: Option<SrmsPrefTlv>,
+    #[serde(skip)]
     pub info_hostname: Option<RouterInfoDynamicHostnameTlv>,
     pub unknown_tlvs: Vec<UnknownTlv>,
 }

@@ -25,8 +25,9 @@ use crate::packet::lsa::{AdjSidVersion, PrefixSidVersion};
 use crate::packet::tlv::{
     tlv_encode_end, tlv_encode_start, tlv_wire_len, AdjSidFlags, GrReasonTlv,
     GracePeriodTlv, MsdTlv, PrefixSidFlags, RouterFuncCapsTlv,
-    RouterInfoCapsTlv, RouterInfoDynamicHostnameTlv, RouterInfoTlvType, SidLabelRangeTlv, SrAlgoTlv,
-    SrLocalBlockTlv, SrmsPrefTlv, UnknownTlv, TLV_HDR_SIZE,
+    RouterInfoCapsTlv, RouterInfoDynamicHostnameTlv, RouterInfoTlvType,
+    SidLabelRangeTlv, SrAlgoTlv, SrLocalBlockTlv, SrmsPrefTlv, UnknownTlv,
+    TLV_HDR_SIZE,
 };
 
 // OSPFv2 opaque LSA types.
@@ -546,8 +547,10 @@ impl LsaRouterInfo {
                     router_info.func_caps.get_or_insert(caps);
                 }
                 Some(RouterInfoTlvType::DynamicHostname) => {
-                    let hostname =
-                        RouterInfoDynamicHostnameTlv::decode(tlv_len, &mut buf_tlv)?;
+                    let hostname = RouterInfoDynamicHostnameTlv::decode(
+                        tlv_len,
+                        &mut buf_tlv,
+                    )?;
                     router_info.info_hostname.get_or_insert(hostname);
                 }
                 Some(RouterInfoTlvType::SrAlgo) => {

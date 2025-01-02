@@ -127,7 +127,6 @@ pub struct RouterFuncCapsTlv(RouterFuncCaps);
 // +                                                               +
 //
 
-
 // RFC 5642
 
 #[derive(Clone, Debug, Default, Eq, new, PartialEq)]
@@ -548,8 +547,7 @@ impl From<RouterFuncCaps> for RouterFuncCapsTlv {
 // ===== impl DynamicHostnameTlv ====
 
 impl RouterInfoDynamicHostnameTlv {
-
-    pub (crate) fn decode(tlv_len: u16, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(tlv_len: u16, buf: &mut Bytes) -> DecodeResult<Self> {
         let mut hostname = String::new();
         for _ in 0..tlv_len {
             let c = buf.get_u8();
@@ -562,10 +560,9 @@ impl RouterInfoDynamicHostnameTlv {
         Ok(RouterInfoDynamicHostnameTlv { hostname })
     }
 
-
-    pub(crate) fn encode(&self, buf: &mut BytesMut) 
-    {
-        let start_pos = tlv_encode_start(buf, RouterInfoTlvType::DynamicHostname);
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos =
+            tlv_encode_start(buf, RouterInfoTlvType::DynamicHostname);
         for c in self.hostname.chars() {
             buf.put_u8(c as u8);
         }
@@ -580,9 +577,7 @@ impl RouterInfoDynamicHostnameTlv {
     pub(crate) fn get(&self) -> &String {
         &self.hostname
     }
-
 }
-
 
 // ===== impl SrAlgoTlv =====
 

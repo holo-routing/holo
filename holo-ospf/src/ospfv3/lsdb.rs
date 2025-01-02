@@ -37,8 +37,8 @@ use crate::packet::lsa::{
 };
 use crate::packet::tlv::{
     BierEncapId, BierEncapSubSubTlv, BierSubSubTlv, BierSubTlv, PrefixSidFlags,
-    RouterInfoCaps, RouterInfoCapsTlv, SidLabelRangeTlv, SrAlgoTlv,
-    SrLocalBlockTlv, RouterInfoDynamicHostnameTlv
+    RouterInfoCaps, RouterInfoCapsTlv, RouterInfoDynamicHostnameTlv,
+    SidLabelRangeTlv, SrAlgoTlv, SrLocalBlockTlv,
 };
 use crate::route::{SummaryNet, SummaryNetFlags, SummaryRtr};
 use crate::version::Ospfv3;
@@ -1074,7 +1074,9 @@ fn lsa_orig_router_info(
         srlb,
         msds: None,
         srms_pref: None,
-        info_hostname: Some(RouterInfoDynamicHostnameTlv::new("HelloWorld".to_string())),
+        info_hostname: Some(RouterInfoDynamicHostnameTlv::new(
+            "HelloWorld".to_string(),
+        )),
         unknown_tlvs: vec![],
     });
     instance

@@ -38,7 +38,8 @@ use crate::packet::lsa::{
     Lsa, LsaHdrVersion, LsaKey, LsaScope, LsaTypeVersion,
 };
 use crate::packet::tlv::{
-    PrefixSidFlags, RouterInfoCaps, RouterInfoCapsTlv, RouterInfoDynamicHostnameTlv, SidLabelRangeTlv, SrAlgoTlv, SrLocalBlockTlv
+    PrefixSidFlags, RouterInfoCaps, RouterInfoCapsTlv,
+    RouterInfoDynamicHostnameTlv, SidLabelRangeTlv, SrAlgoTlv, SrLocalBlockTlv,
 };
 use crate::route::{SummaryNet, SummaryRtr};
 use crate::version::Ospfv2;
@@ -595,7 +596,7 @@ fn lsa_orig_router_info(
         msds: None,
         srms_pref: None,
         info_hostname: Some(RouterInfoDynamicHostnameTlv::new(
-            "helloworld".to_string()
+            "helloworld".to_string(),
         )),
         unknown_tlvs: vec![],
     }));

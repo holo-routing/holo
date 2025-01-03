@@ -493,14 +493,12 @@ pub(crate) fn process_pdu_lsp(
     }
 
     // Validate LSP checksum.
+    //
+    // RFC 3719 - Section 7:
+    // "An implementation SHOULD treat all LSPs with a zero checksum and a
+    // non-zero remaining lifetime as if they had as checksum error".
     lsp.raw = bytes;
-    if lsp.cksum == 0 {
-        // ISO 10589 - Section 7.3.14.2:
-        // "A Link State PDU received with a zero checksum shall be treated as
-        // if the Remaining Lifetime were zero. The age, if not zero, shall be
-        // overwritten with zero".
-        lsp.rem_lifetime = 0;
-    } else if !lsp.is_checksum_valid() {
+    if (lsp.cksum == 0 && lsp.rem_lifetime != 0) || !lsp.is_checksum_valid() {
         // Send error notification.
         notification::lsp_error_detected(instance, iface, &lsp);
 

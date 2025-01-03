@@ -501,7 +501,7 @@ pub(crate) fn install<'a>(
     log_lsp(instance, level, lsp_log_id.clone(), None, reason);
 
     // Schedule SPF run if necessary.
-    if content_change {
+    if content_change && lsp.seqno != 0 {
         let spf_sched = instance.state.spf_sched.get_mut(level);
         spf_sched.trigger_lsps.push(lsp_log_id);
         spf_sched.schedule_time.get_or_insert_with(Instant::now);

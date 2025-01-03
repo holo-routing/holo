@@ -49,4 +49,17 @@ module holo-isis {
         "Interface circuit ID.";
     }
   }
+
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis/isis:database/"
+        + "isis:levels/isis:lsp" {
+    leaf lsp-buffer-size {
+      type uint16;
+      units "bytes";
+      description
+        "The maximum sized LSP which may be generated.
+         The IS-IS reference is TLV 14.";
+    }
+  }
 }

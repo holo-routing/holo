@@ -25,8 +25,8 @@ use crate::packet::tlv::{
     tlv_entries_split, tlv_take_max, AreaAddressesTlv, ExtIpv4Reach,
     ExtIpv4ReachTlv, ExtIsReach, ExtIsReachTlv, Ipv4AddressesTlv, Ipv4Reach,
     Ipv4ReachTlv, Ipv6AddressesTlv, Ipv6Reach, Ipv6ReachTlv, IsReach,
-    IsReachTlv, LspEntriesTlv, LspEntry, NeighborsTlv, PaddingTlv,
-    ProtocolsSupportedTlv, Tlv, UnknownTlv, TLV_HDR_SIZE,
+    IsReachTlv, LspBufferSizeTlv, LspEntriesTlv, LspEntry, NeighborsTlv,
+    PaddingTlv, ProtocolsSupportedTlv, Tlv, UnknownTlv, TLV_HDR_SIZE,
 };
 use crate::packet::{AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId};
 
@@ -102,6 +102,7 @@ pub struct Lsp {
 pub struct LspTlvs {
     pub protocols_supported: Option<ProtocolsSupportedTlv>,
     pub area_addrs: Vec<AreaAddressesTlv>,
+    pub lsp_buf_size: Option<LspBufferSizeTlv>,
     pub is_reach: Vec<IsReachTlv>,
     pub ext_is_reach: Vec<ExtIsReachTlv>,
     pub ipv4_addrs: Vec<Ipv4AddressesTlv>,
@@ -600,6 +601,10 @@ impl Lsp {
                     let tlv = AreaAddressesTlv::decode(tlv_len, &mut buf_tlv)?;
                     tlvs.area_addrs.push(tlv);
                 }
+                Some(TlvType::LspBufferSize) => {
+                    let tlv = LspBufferSizeTlv::decode(tlv_len, &mut buf_tlv)?;
+                    tlvs.lsp_buf_size = Some(tlv);
+                }
                 Some(TlvType::IsReach) => {
                     let tlv = IsReachTlv::decode(tlv_len, &mut buf_tlv)?;
                     tlvs.is_reach.push(tlv);
@@ -681,6 +686,9 @@ impl Lsp {
                 tlv.encode(&mut buf);
             }
             for tlv in &self.tlvs.area_addrs {
+                tlv.encode(&mut buf);
+            }
+            if let Some(tlv) = &self.tlvs.lsp_buf_size {
                 tlv.encode(&mut buf);
             }
             for tlv in &self.tlvs.is_reach {
@@ -807,6 +815,7 @@ impl LspTlvs {
     pub(crate) fn new(
         protocols_supported: impl IntoIterator<Item = u8>,
         area_addrs: impl IntoIterator<Item = AreaAddr>,
+        lsp_buf_size: Option<u16>,
         is_reach: impl IntoIterator<Item = IsReach>,
         ext_is_reach: impl IntoIterator<Item = ExtIsReach>,
         ipv4_addrs: impl IntoIterator<Item = Ipv4Addr>,
@@ -821,6 +830,7 @@ impl LspTlvs {
                 protocols_supported,
             )),
             area_addrs: tlv_entries_split(area_addrs),
+            lsp_buf_size: lsp_buf_size.map(|size| LspBufferSizeTlv { size }),
             is_reach: tlv_entries_split(is_reach),
             ext_is_reach: tlv_entries_split(ext_is_reach),
             ipv4_addrs: tlv_entries_split(ipv4_addrs),
@@ -840,6 +850,10 @@ impl LspTlvs {
             rem_len -= protocols_supported.len();
         }
         let area_addrs = tlv_take_max(&mut self.area_addrs, &mut rem_len);
+        let lsp_buf_size = self.lsp_buf_size.take();
+        if let Some(lsp_buf_size) = &lsp_buf_size {
+            rem_len -= lsp_buf_size.len();
+        }
         let is_reach = tlv_take_max(&mut self.is_reach, &mut rem_len);
         let ext_is_reach = tlv_take_max(&mut self.ext_is_reach, &mut rem_len);
         let ipv4_addrs = tlv_take_max(&mut self.ipv4_addrs, &mut rem_len);
@@ -858,6 +872,7 @@ impl LspTlvs {
         Some(LspTlvs {
             protocols_supported,
             area_addrs,
+            lsp_buf_size,
             is_reach,
             ext_is_reach,
             ipv4_addrs,
@@ -882,6 +897,11 @@ impl LspTlvs {
     #[expect(unused)]
     pub(crate) fn area_addrs(&self) -> impl Iterator<Item = &AreaAddr> {
         self.area_addrs.iter().flat_map(|tlv| tlv.list.iter())
+    }
+
+    // Returns the maximum sized LSP which may be generated (TLV type 14).
+    pub(crate) fn lsp_buf_size(&self) -> Option<u16> {
+        self.lsp_buf_size.as_ref().map(|tlv| tlv.size)
     }
 
     // Returns an iterator over all IS neighbors from TLVs of type 2.

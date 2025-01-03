@@ -48,6 +48,7 @@ pub enum TlvType {
     Neighbors = 6,
     Padding = 8,
     LspEntries = 9,
+    LspBufferSize = 14,
     ExtIsReach = 22,
     Ipv4InternalReach = 128,
     ProtocolsSupported = 129,

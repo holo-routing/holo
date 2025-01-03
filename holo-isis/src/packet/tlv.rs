@@ -81,6 +81,12 @@ pub struct PaddingTlv {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
+pub struct LspBufferSizeTlv {
+    pub size: u16,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
 pub struct ProtocolsSupportedTlv {
     pub list: Vec<u8>,
 }
@@ -356,6 +362,35 @@ impl PaddingTlv {
         let start_pos = tlv_encode_start(buf, TlvType::Padding);
         buf.put_slice(&Self::PADDING[0..self.length as usize]);
         tlv_encode_end(buf, start_pos);
+    }
+}
+
+// ===== impl LspBufferSizeTlv =====
+
+impl LspBufferSizeTlv {
+    const SIZE: usize = 2;
+
+    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+        // Validate the TLV length.
+        if tlv_len as usize != Self::SIZE {
+            return Err(DecodeError::InvalidTlvLength(tlv_len));
+        }
+
+        let size = buf.get_u16();
+
+        Ok(LspBufferSizeTlv { size })
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, TlvType::LspBufferSize);
+        buf.put_u16(self.size);
+        tlv_encode_end(buf, start_pos);
+    }
+}
+
+impl Tlv for LspBufferSizeTlv {
+    fn len(&self) -> usize {
+        TLV_HDR_SIZE + Self::SIZE
     }
 }
 

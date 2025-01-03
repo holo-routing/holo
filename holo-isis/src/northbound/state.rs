@@ -192,6 +192,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                 ipv6_te_routerid: None,
                 protocol_supported: Some(Box::new(protocol_supported)),
                 dynamic_hostname: None,
+                lsp_buffer_size: lsp.tlvs.lsp_buf_size(),
             })
         })
         .path(isis::database::levels::lsp::attributes::PATH)

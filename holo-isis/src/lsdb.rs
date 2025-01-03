@@ -308,6 +308,7 @@ fn lsp_build_tlvs(
     LspTlvs::new(
         protocols_supported,
         instance.config.area_addrs.clone(),
+        Some(instance.config.lsp_mtu),
         is_reach,
         ext_is_reach,
         ipv4_addrs,
@@ -360,7 +361,7 @@ fn lsp_build_tlvs_pseudo(
         }
     }
 
-    LspTlvs::new([], [], is_reach, ext_is_reach, [], [], [], [], [], [])
+    LspTlvs::new([], [], None, is_reach, ext_is_reach, [], [], [], [], [], [])
 }
 
 fn lsp_build_fragments(

@@ -8,7 +8,7 @@
 //
 
 use std::cmp::Ordering;
-use std::collections::HashSet;
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::time::Instant;
 
 use bitflags::bitflags;
@@ -175,11 +175,11 @@ fn lsp_build_tlvs(
     let mut protocols_supported = vec![];
     let mut is_reach = vec![];
     let mut ext_is_reach = vec![];
-    let mut ipv4_addrs = vec![];
-    let mut ipv4_internal_reach = vec![];
-    let mut ext_ipv4_reach = vec![];
-    let mut ipv6_addrs = vec![];
-    let mut ipv6_reach = vec![];
+    let mut ipv4_addrs = BTreeSet::new();
+    let mut ipv4_internal_reach = BTreeMap::new();
+    let mut ext_ipv4_reach = BTreeMap::new();
+    let mut ipv6_addrs = BTreeSet::new();
+    let mut ipv6_reach = BTreeMap::new();
 
     // Add supported protocols.
     if instance.config.is_af_enabled(AddressFamily::Ipv4) {
@@ -247,24 +247,32 @@ fn lsp_build_tlvs(
         // Add IPv4 information.
         if instance.config.is_af_enabled(AddressFamily::Ipv4) {
             for addr in iface.system.ipv4_addr_list.iter() {
-                ipv4_addrs.push(addr.ip());
+                ipv4_addrs.insert(addr.ip());
+
+                let prefix = addr.apply_mask();
                 if metric_type.is_standard_enabled() {
-                    ipv4_internal_reach.push(Ipv4Reach {
-                        ie_bit: false,
-                        metric: metric as u8,
-                        metric_delay: None,
-                        metric_expense: None,
-                        metric_error: None,
-                        prefix: addr.apply_mask(),
-                    });
+                    ipv4_internal_reach.insert(
+                        prefix,
+                        Ipv4Reach {
+                            ie_bit: false,
+                            metric: metric as u8,
+                            metric_delay: None,
+                            metric_expense: None,
+                            metric_error: None,
+                            prefix,
+                        },
+                    );
                 }
                 if metric_type.is_wide_enabled() {
-                    ext_ipv4_reach.push(ExtIpv4Reach {
-                        metric,
-                        up_down: false,
-                        prefix: addr.apply_mask(),
-                        sub_tlvs: Default::default(),
-                    });
+                    ext_ipv4_reach.insert(
+                        prefix,
+                        ExtIpv4Reach {
+                            metric,
+                            up_down: false,
+                            prefix,
+                            sub_tlvs: Default::default(),
+                        },
+                    );
                 }
             }
         }
@@ -277,14 +285,19 @@ fn lsp_build_tlvs(
                 .iter()
                 .filter(|addr| !addr.ip().is_unicast_link_local())
             {
-                ipv6_addrs.push(addr.ip());
-                ipv6_reach.push(Ipv6Reach {
-                    metric,
-                    up_down: false,
-                    external: false,
-                    prefix: addr.apply_mask(),
-                    sub_tlvs: Default::default(),
-                });
+                ipv6_addrs.insert(addr.ip());
+
+                let prefix = addr.apply_mask();
+                ipv6_reach.insert(
+                    prefix,
+                    Ipv6Reach {
+                        metric,
+                        up_down: false,
+                        external: false,
+                        prefix,
+                        sub_tlvs: Default::default(),
+                    },
+                );
             }
         }
     }
@@ -294,11 +307,11 @@ fn lsp_build_tlvs(
         is_reach,
         ext_is_reach,
         ipv4_addrs,
-        ipv4_internal_reach,
+        ipv4_internal_reach.into_values(),
         [],
-        ext_ipv4_reach,
+        ext_ipv4_reach.into_values(),
         ipv6_addrs,
-        ipv6_reach,
+        ipv6_reach.into_values(),
     )
 }
 

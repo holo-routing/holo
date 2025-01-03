@@ -587,7 +587,12 @@ impl Interface {
         self.state.tasks.csnp_interval = Default::default();
     }
 
-    pub(crate) fn srm_list_add(&mut self, level: LevelNumber, mut lsp: Lsp) {
+    pub(crate) fn srm_list_add(
+        &mut self,
+        instance: &InstanceUpView<'_>,
+        level: LevelNumber,
+        mut lsp: Lsp,
+    ) {
         if !self.state.active {
             return;
         }
@@ -595,6 +600,13 @@ impl Interface {
         // Skip adding the LSP if there are no active adjacencies or the LSP's
         // sequence number is zero.
         if self.state.event_counters.adjacency_number == 0 || lsp.seqno == 0 {
+            return;
+        }
+
+        // Check if the LSP is too large to be sent on this interface.
+        if lsp.raw.len() as u32 > self.system.mtu.unwrap() {
+            Debug::LspTooLarge(self, level, &lsp).log();
+            notification::lsp_too_large(instance, self, &lsp);
             return;
         }
 

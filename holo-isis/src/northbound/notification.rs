@@ -36,8 +36,11 @@ pub(crate) fn database_overload(instance: &InstanceUpView<'_>, overload: bool) {
     notification::send(&instance.tx.nb, path, data);
 }
 
-#[expect(unused)]
-pub(crate) fn lsp_too_large(instance: &InstanceUpView<'_>, iface: &Interface) {
+pub(crate) fn lsp_too_large(
+    instance: &InstanceUpView<'_>,
+    iface: &Interface,
+    lsp: &Lsp,
+) {
     use yang::lsp_too_large::{self, LspTooLarge};
 
     let path = lsp_too_large::PATH;
@@ -47,8 +50,8 @@ pub(crate) fn lsp_too_large(instance: &InstanceUpView<'_>, iface: &Interface) {
         interface_name: Some(Cow::Borrowed(&iface.name)),
         interface_level: Some(iface.config.level_type.resolved.to_yang()),
         extended_circuit_id: None,
-        pdu_size: None,
-        lsp_id: None,
+        pdu_size: Some(lsp.raw.len() as u32),
+        lsp_id: Some(lsp.lsp_id.to_yang()),
     };
     notification::send(&instance.tx.nb, path, data);
 }

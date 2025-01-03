@@ -543,7 +543,7 @@ pub(crate) fn process_pdu_lsp(
             // from the network.
             lsp.set_rem_lifetime(0);
             for iface in arenas.interfaces.iter_mut() {
-                iface.srm_list_add(level, lsp.clone());
+                iface.srm_list_add(instance, level, lsp.clone());
             }
             return Ok(());
         }
@@ -591,7 +591,7 @@ pub(crate) fn process_pdu_lsp(
                 .iter_mut()
                 .filter(|other_iface| other_iface.id != iface_id)
             {
-                other_iface.srm_list_add(level, lsp.clone());
+                other_iface.srm_list_add(instance, level, lsp.clone());
                 other_iface.ssn_list_del(level, &lsp.lsp_id);
             }
         }
@@ -632,7 +632,7 @@ pub(crate) fn process_pdu_lsp(
         Some(Ordering::Greater) => {
             // Update LSP flooding flags for the incoming interface.
             let lsp_id = lsp.lsp_id;
-            iface.srm_list_add(level, lsp);
+            iface.srm_list_add(instance, level, lsp);
             iface.ssn_list_del(level, &lsp_id);
         }
     }
@@ -753,7 +753,7 @@ pub(crate) fn process_pdu_snp(
                 }
                 Ordering::Greater => {
                     iface.ssn_list_del(level, &entry.lsp_id);
-                    iface.srm_list_add(level, lse.data.clone());
+                    iface.srm_list_add(instance, level, lse.data.clone());
                 }
                 Ordering::Less => {
                     iface.ssn_list_add(level, *entry);
@@ -789,7 +789,7 @@ pub(crate) fn process_pdu_snp(
         for lsp in instance
             .state
             .lsdb
-            .get_mut(level)
+            .get(level)
             .range(&arenas.lsp_entries, start..=end)
             .map(|lse| &lse.data)
             .filter(|lsp| !lsp_entries.contains_key(&lsp.lsp_id))
@@ -798,7 +798,7 @@ pub(crate) fn process_pdu_snp(
             // Exclude LSPs with zero sequence number.
             .filter(|lsp| lsp.seqno != 0)
         {
-            iface.srm_list_add(level, lsp.clone());
+            iface.srm_list_add(instance, level, lsp.clone());
         }
     }
 
@@ -1106,7 +1106,7 @@ pub(crate) fn process_lsp_purge(
 
     // Send purged LSP to all interfaces.
     for iface in arenas.interfaces.iter_mut() {
-        iface.srm_list_add(level, lsp.clone());
+        iface.srm_list_add(instance, level, lsp.clone());
     }
 
     // Mark the LSP as purged and start the delete timer.

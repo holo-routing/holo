@@ -43,6 +43,7 @@ pub enum Debug<'a> {
     PduTx(u32, MulticastAddr, &'a Pdu),
     // Flooding
     LspDiscard(LevelNumber, &'a Lsp),
+    LspTooLarge(&'a Interface, LevelNumber, &'a Lsp),
     // LSDB maintenance
     LspInstall(LevelNumber, &'a Lsp),
     LspOriginate(LevelNumber, &'a Lsp),
@@ -164,6 +165,10 @@ impl Debug<'_> {
                 // Parent span(s): isis-instance
                 debug!(?level, lsp_id = %lsp.lsp_id.to_yang(), seqno = %lsp.seqno, len = %lsp.raw.len(), "{}", self);
             }
+            Debug::LspTooLarge(iface, level, lsp) => {
+                // Parent span(s): isis-instance
+                debug!(interface = %iface.name, ?level, lsp_id = %lsp.lsp_id.to_yang(), len = %lsp.raw.len(), "{}", self);
+            }
             Debug::LspPurge(level, lsp, reason) => {
                 // Parent span(s): isis-instance
                 debug!(?level, lsp_id = %lsp.lsp_id.to_yang(), seqno = %lsp.seqno, len = %lsp.raw.len(), ?reason, "{}", self);
@@ -236,6 +241,9 @@ impl std::fmt::Display for Debug<'_> {
             }
             Debug::LspDiscard(..) => {
                 write!(f, "discarding LSP")
+            }
+            Debug::LspTooLarge(..) => {
+                write!(f, "LSP larger than interface MTU")
             }
             Debug::LspInstall(..) => {
                 write!(f, "installing LSP")

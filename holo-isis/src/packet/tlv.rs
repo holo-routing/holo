@@ -27,6 +27,8 @@ use crate::packet::{AreaAddr, LanId, LspId};
 pub const TLV_HDR_SIZE: usize = 2;
 // TLV maximum length.
 pub const TLV_MAX_LEN: usize = 255;
+// Maximum narrow metric.
+pub const MAX_NARROW_METRIC: u32 = 63;
 
 // Network Layer Protocol IDs.
 pub enum Nlpid {

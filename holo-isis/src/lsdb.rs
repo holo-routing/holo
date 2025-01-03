@@ -27,6 +27,7 @@ use crate::packet::consts::LspFlags;
 use crate::packet::pdu::{Lsp, LspTlvs};
 use crate::packet::tlv::{
     ExtIpv4Reach, ExtIsReach, Ipv4Reach, Ipv6Reach, IsReach, Nlpid,
+    MAX_NARROW_METRIC,
 };
 use crate::packet::{LanId, LevelNumber, LspId};
 use crate::spf::SpfType;
@@ -199,7 +200,8 @@ fn lsp_build_tlvs(
                 if let Some(dis) = iface.state.dis.get(level) {
                     if metric_type.is_standard_enabled() {
                         is_reach.push(IsReach {
-                            metric: metric as u8,
+                            metric: std::cmp::min(metric, MAX_NARROW_METRIC)
+                                as u8,
                             metric_delay: None,
                             metric_expense: None,
                             metric_error: None,
@@ -226,7 +228,8 @@ fn lsp_build_tlvs(
                     let neighbor = LanId::from((adj.system_id, 0));
                     if metric_type.is_standard_enabled() {
                         is_reach.push(IsReach {
-                            metric: metric as u8,
+                            metric: std::cmp::min(metric, MAX_NARROW_METRIC)
+                                as u8,
                             metric_delay: None,
                             metric_expense: None,
                             metric_error: None,
@@ -255,7 +258,8 @@ fn lsp_build_tlvs(
                         prefix,
                         Ipv4Reach {
                             ie_bit: false,
-                            metric: metric as u8,
+                            metric: std::cmp::min(metric, MAX_NARROW_METRIC)
+                                as u8,
                             metric_delay: None,
                             metric_expense: None,
                             metric_error: None,

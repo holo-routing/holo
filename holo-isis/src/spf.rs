@@ -129,7 +129,7 @@ pub struct SpfLogEntry {
     pub id: u32,
     pub spf_type: SpfType,
     pub level: LevelNumber,
-    pub schedule_time: Instant,
+    pub schedule_time: Option<Instant>,
     pub start_time: Instant,
     pub end_time: Instant,
     pub trigger_lsps: Vec<LspLogId>,
@@ -376,8 +376,7 @@ fn compute_spf(
     let spf_sched = instance.state.spf_sched.get_mut(level);
 
     // Get time the SPF was scheduled.
-    let schedule_time =
-        spf_sched.schedule_time.take().unwrap_or_else(Instant::now);
+    let schedule_time = spf_sched.schedule_time.take();
 
     // Record time the SPF computation was started.
     let start_time = Instant::now();
@@ -856,7 +855,7 @@ fn log_spf_run(
     level: LevelNumber,
     instance: &mut InstanceUpView<'_>,
     spf_type: SpfType,
-    schedule_time: Instant,
+    schedule_time: Option<Instant>,
     start_time: Instant,
     end_time: Instant,
     mut trigger_lsps: Vec<LspLogId>,

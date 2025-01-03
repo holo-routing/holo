@@ -97,7 +97,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                 id: log.id,
                 spf_type: Some(log.spf_type.to_yang()),
                 level: Some(log.level as u8),
-                schedule_timestamp: Some(Cow::Borrowed(&log.schedule_time)),
+                schedule_timestamp: log.schedule_time.as_ref().map(Cow::Borrowed),
                 start_timestamp: Some(Cow::Borrowed(&log.start_time)),
                 end_timestamp: Some(Cow::Borrowed(&log.end_time)),
             })

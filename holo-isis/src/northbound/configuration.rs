@@ -27,6 +27,7 @@ use crate::collections::InterfaceIndex;
 use crate::debug::InterfaceInactiveReason;
 use crate::instance::Instance;
 use crate::interface::InterfaceType;
+use crate::northbound::notification;
 use crate::packet::{AreaAddr, LevelNumber, LevelType, SystemId};
 use crate::spf;
 use crate::tasks::messages::input::DisElectionMsg;
@@ -59,6 +60,7 @@ pub enum Event {
     ReoriginateLsps(LevelNumber),
     RefreshLsps,
     RerunSpf,
+    OverloadChange(bool),
 }
 
 pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
@@ -465,6 +467,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             instance.config.overload_status = overload_status;
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::OverloadChange(overload_status));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
@@ -1082,6 +1085,18 @@ impl Provider for Instance {
                             spf::fsm::Event::ConfigChange,
                         );
                     }
+                }
+            }
+            Event::OverloadChange(overload_status) => {
+                if let Some((instance, _)) = self.as_up() {
+                    // Update system counters.
+                    if overload_status {
+                        instance.state.counters.l1.database_overload += 1;
+                        instance.state.counters.l2.database_overload += 1;
+                    }
+
+                    // Send YANG notification.
+                    notification::database_overload(&instance, overload_status);
                 }
             }
         }

@@ -23,18 +23,15 @@ use crate::packet::SystemId;
 
 // ===== global functions =====
 
-#[expect(unused)]
-pub(crate) fn database_overload(
-    instance: &InstanceUpView<'_>,
-    _overload: bool,
-) {
+pub(crate) fn database_overload(instance: &InstanceUpView<'_>, overload: bool) {
     use yang::database_overload::{self, DatabaseOverload};
 
     let path = database_overload::PATH;
+    let overload = if overload { "on" } else { "off" };
     let data = DatabaseOverload {
         routing_protocol_name: Some(Cow::Borrowed(instance.name)),
         isis_level: Some(instance.config.level_type.to_yang()),
-        overload: None,
+        overload: Some(Cow::Borrowed(overload)),
     };
     notification::send(&instance.tx.nb, path, data);
 }

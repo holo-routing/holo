@@ -32,7 +32,7 @@ use crate::error::Error;
 use crate::interface::CircuitIdAllocator;
 use crate::lsdb::{LspEntry, LspLogEntry};
 use crate::northbound::configuration::InstanceCfg;
-use crate::packet::{LevelNumber, LevelType, Levels};
+use crate::packet::{LevelNumber, LevelType, Levels, SystemId};
 use crate::route::Route;
 use crate::spf::{SpfLogEntry, SpfScheduler, Vertex, VertexId};
 use crate::tasks::messages::input::{
@@ -71,6 +71,8 @@ pub struct InstanceSys {
 pub struct InstanceState {
     // Circuit ID allocator.
     pub circuit_id_allocator: CircuitIdAllocator,
+    // Hostname database.
+    pub hostnames: BTreeMap<SystemId, String>,
     // Link State Database.
     pub lsdb: Levels<Lsdb>,
     // LSP origination data.
@@ -379,6 +381,7 @@ impl InstanceState {
     fn new(_instance_tx: &InstanceChannelsTx<Instance>) -> InstanceState {
         InstanceState {
             circuit_id_allocator: Default::default(),
+            hostnames: Default::default(),
             lsdb: Default::default(),
             lsp_orig_last: None,
             lsp_orig_backoff: None,

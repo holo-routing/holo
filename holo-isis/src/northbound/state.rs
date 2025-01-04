@@ -30,7 +30,7 @@ use crate::lsdb::{LspEntry, LspLogEntry, LspLogId};
 use crate::packet::tlv::{
     ExtIpv4Reach, ExtIsReach, Ipv4Reach, Ipv6Reach, IsReach, UnknownTlv,
 };
-use crate::packet::{LanId, LevelNumber, LevelType};
+use crate::packet::{LanId, LevelNumber, LevelType, SystemId};
 use crate::route::{Nexthop, Route};
 use crate::spf::SpfLogEntry;
 
@@ -44,6 +44,7 @@ pub enum ListEntry<'a> {
     SpfLog(&'a SpfLogEntry),
     SpfTriggerLsp(&'a LspLogId),
     LspLog(&'a LspLogEntry),
+    Hostname(&'a SystemId, &'a String),
     Lsdb(LevelNumber, &'a Lsdb),
     LspEntry(&'a LspEntry),
     IsReach(&'a LspEntry, LanId),
@@ -142,15 +143,17 @@ fn load_callbacks() -> Callbacks<Instance> {
             })
         })
         .path(isis::hostnames::hostname::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|instance, _args| {
+            let Some(instance_state) = &instance.state else { return None };
+            let iter = instance_state.hostnames.iter().map(|(system_id, hostname)| ListEntry::Hostname(system_id, hostname));
+            Some(Box::new(iter) as _)
         })
-        .get_object(|_instance, _args| {
+        .get_object(|_instance, args| {
             use isis::hostnames::hostname::Hostname;
+            let (system_id, hostname) = args.list_entry.as_hostname().unwrap();
             Box::new(Hostname {
-                system_id: todo!(),
-                hostname: None,
+                system_id: system_id.to_yang(),
+                hostname: Some(Cow::Borrowed(hostname)),
             })
         })
         .path(isis::database::levels::PATH)

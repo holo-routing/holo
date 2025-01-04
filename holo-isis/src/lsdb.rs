@@ -508,9 +508,24 @@ pub(crate) fn install<'a>(
         lsp,
         &instance.tx.protocol_input.lsp_purge,
     );
+    let lsp = &lse.data;
+
+    // Update hostname database.
+    if lsp.lsp_id.pseudonode == 0 && lsp.lsp_id.fragment == 0 {
+        let system_id = lsp.lsp_id.system_id;
+        if let Some(hostname) = lsp.tlvs.hostname()
+            && lsp.rem_lifetime != 0
+        {
+            instance
+                .state
+                .hostnames
+                .insert(system_id, hostname.to_owned());
+        } else {
+            instance.state.hostnames.remove(&system_id);
+        }
+    }
 
     // Add entry to LSP log.
-    let lsp = &lse.data;
     let lsp_log_id = LspLogId::new(lsp.lsp_id, lsp.seqno);
     let reason = if content_change {
         LspLogReason::ContentChange

@@ -87,6 +87,12 @@ pub struct LspBufferSizeTlv {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
+pub struct DynamicHostnameTlv {
+    pub hostname: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
 pub struct ProtocolsSupportedTlv {
     pub list: Vec<u8>,
 }
@@ -391,6 +397,37 @@ impl LspBufferSizeTlv {
 impl Tlv for LspBufferSizeTlv {
     fn len(&self) -> usize {
         TLV_HDR_SIZE + Self::SIZE
+    }
+}
+
+// ===== impl DynamicHostnameTlv =====
+
+impl DynamicHostnameTlv {
+    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+        // Validate the TLV length.
+        if tlv_len == 0 {
+            return Err(DecodeError::InvalidTlvLength(tlv_len));
+        }
+
+        let mut hostname_bytes = [0; 255];
+        buf.copy_to_slice(&mut hostname_bytes[..tlv_len as usize]);
+        let hostname =
+            String::from_utf8_lossy(&hostname_bytes[..tlv_len as usize])
+                .to_string();
+
+        Ok(DynamicHostnameTlv { hostname })
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, TlvType::DynamicHostname);
+        buf.put_slice(self.hostname.as_bytes());
+        tlv_encode_end(buf, start_pos);
+    }
+}
+
+impl Tlv for DynamicHostnameTlv {
+    fn len(&self) -> usize {
+        TLV_HDR_SIZE + self.hostname.len()
     }
 }
 

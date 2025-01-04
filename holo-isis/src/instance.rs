@@ -540,6 +540,10 @@ async fn process_ibus_msg(
         IbusMsg::InterfaceAddressDel(msg) => {
             southbound::rx::process_addr_del(instance, msg);
         }
+        // Hostname update notification.
+        IbusMsg::HostnameUpdate(hostname) => {
+            events::process_hostname_update(instance, hostname);
+        }
         // Ignore other events.
         _ => {}
     }

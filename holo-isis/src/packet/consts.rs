@@ -55,6 +55,7 @@ pub enum TlvType {
     Ipv4ExternalReach = 130,
     Ipv4Addresses = 132,
     ExtIpv4Reach = 135,
+    DynamicHostname = 137,
     Ipv6Addresses = 232,
     Ipv6Reach = 236,
 }

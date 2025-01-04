@@ -191,7 +191,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                 ipv4_te_routerid: None,
                 ipv6_te_routerid: None,
                 protocol_supported: Some(Box::new(protocol_supported)),
-                dynamic_hostname: None,
+                dynamic_hostname: lsp.tlvs.hostname().map(Cow::Borrowed),
                 lsp_buffer_size: lsp.tlvs.lsp_buf_size(),
             })
         })

@@ -19,7 +19,7 @@ use crate::collections::{
 };
 use crate::debug::{Debug, LspPurgeReason};
 use crate::error::{AdjacencyRejectError, Error};
-use crate::instance::{InstanceArenas, InstanceUpView};
+use crate::instance::{Instance, InstanceArenas, InstanceUpView};
 use crate::interface::InterfaceType;
 use crate::lsdb::{self, lsp_compare, LspEntryFlags};
 use crate::northbound::notification;
@@ -1192,4 +1192,19 @@ pub(crate) fn process_spf_delay_event(
 ) -> Result<(), Error> {
     // Trigger SPF Delay FSM event.
     spf::fsm(level, event, instance, arenas)
+}
+
+// ===== Hostname update event =====
+
+pub(crate) fn process_hostname_update(
+    instance: &mut Instance,
+    hostname: Option<String>,
+) {
+    // Update hostname.
+    instance.shared.hostname = hostname;
+
+    // Schedule LSP reorigination.
+    if let Some((mut instance, _)) = instance.as_up() {
+        instance.schedule_lsp_origination(instance.config.level_type);
+    }
 }

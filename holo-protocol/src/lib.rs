@@ -87,6 +87,8 @@ where
 pub struct InstanceShared {
     // Non-volatile storage.
     pub db: Option<Database>,
+    // Hostname.
+    pub hostname: Option<String>,
     // MPLS Label Manager.
     pub label_manager: Arc<Mutex<LabelManager>>,
     // List of key-chains.

@@ -755,10 +755,18 @@ fn vertex_edges<'a>(
             }
 
             if metric_type.is_wide_enabled() {
-                let iter = lsp.tlvs.ext_is_reach().map(|reach| VertexEdge {
-                    id: VertexId::new(reach.neighbor),
-                    cost: reach.metric,
-                });
+                let iter = lsp
+                    .tlvs
+                    .ext_is_reach()
+                    // RFC 5305 - Section 3:
+                    // "If a link is advertised with the maximum link metric,
+                    // this link MUST NOT be considered during the normal SPF
+                    // computation".
+                    .filter(|reach| reach.metric < MAX_PATH_METRIC_WIDE)
+                    .map(|reach| VertexEdge {
+                        id: VertexId::new(reach.neighbor),
+                        cost: reach.metric,
+                    });
                 wide_iter = Some(iter);
             }
 
@@ -810,21 +818,29 @@ fn vertex_networks<'a>(
                     ipv4_standard_iter = Some(internal.chain(external));
                 }
                 if metric_type.is_wide_enabled() {
-                    let iter = lsp.tlvs.ext_ipv4_reach().map(|reach| {
-                        VertexNetwork {
-                            prefix: reach.prefix.into(),
-                            metric: reach.metric,
-                            // For some reason, TLV 135 doesn't have a flag
-                            // specifying whether the prefix has an external
-                            // origin, unlike TLV 235 (the IPv6 equivalent).
-                            // RFC 7794 specifies the Prefix Attributes
-                            // Sub-TLV which contains the External Prefix
-                            // Flag (X-flag). For now, let's just assume
-                            // all prefixes announced using this TLV are
-                            // internal.
-                            external: false,
-                        }
-                    });
+                    let iter = lsp
+                        .tlvs
+                        .ext_ipv4_reach()
+                        // RFC 5305 - Section 4:
+                        // "If a prefix is advertised with a metric larger then
+                        // MAX_PATH_METRIC this prefix MUST NOT be considered
+                        // during the normal SPF computation".
+                        .filter(|reach| reach.metric <= MAX_PATH_METRIC_WIDE)
+                        .map(|reach| {
+                            VertexNetwork {
+                                prefix: reach.prefix.into(),
+                                metric: reach.metric,
+                                // For some reason, TLV 135 doesn't have a flag
+                                // specifying whether the prefix has an external
+                                // origin, unlike TLV 235 (the IPv6 equivalent).
+                                // RFC 7794 specifies the Prefix Attributes
+                                // Sub-TLV which contains the External Prefix
+                                // Flag (X-flag). For now, let's just assume
+                                // all prefixes announced using this TLV are
+                                // internal.
+                                external: false,
+                            }
+                        });
                     ipv4_wide_iter = Some(iter);
                 }
             }

@@ -43,6 +43,14 @@ const MAX_PATH_METRIC_STANDARD: u32 = 1023;
 // Maximum total metric value for a complete path (wide metrics).
 const MAX_PATH_METRIC_WIDE: u32 = 0xFE000000;
 
+// A macro to chain multiple `Option<Iterator<Item = T>>` into a single
+// iterator.
+macro_rules! chain_option_iterators {
+    ($($opt:expr),* $(,)?) => {{
+        itertools::chain!($($opt.into_iter().flatten(),)*)
+    }};
+}
+
 // Represents a vertex in the IS-IS topology graph.
 //
 // A `Vertex` corresponds to a router or pseudonode.
@@ -735,27 +743,26 @@ fn vertex_edges<'a>(
         .filter(|lsp| lsp.seqno != 0)
         .filter(|lsp| lsp.rem_lifetime != 0)
         .flat_map(move |lsp| {
-            let mut iter: Box<dyn Iterator<Item = VertexEdge>> =
-                Box::new(std::iter::empty());
+            let mut standard_iter = None;
+            let mut wide_iter = None;
 
             if metric_type.is_standard_enabled() {
-                iter = Box::new(iter.chain(lsp.tlvs.is_reach().map(|reach| {
-                    VertexEdge {
-                        id: VertexId::new(reach.neighbor),
-                        cost: reach.metric.into(),
-                    }
-                })));
-            }
-            if metric_type.is_wide_enabled() {
-                iter = Box::new(iter.chain(lsp.tlvs.ext_is_reach().map(
-                    |reach| VertexEdge {
-                        id: VertexId::new(reach.neighbor),
-                        cost: reach.metric,
-                    },
-                )));
+                let iter = lsp.tlvs.is_reach().map(|reach| VertexEdge {
+                    id: VertexId::new(reach.neighbor),
+                    cost: reach.metric.into(),
+                });
+                standard_iter = Some(iter);
             }
 
-            iter
+            if metric_type.is_wide_enabled() {
+                let iter = lsp.tlvs.ext_is_reach().map(|reach| VertexEdge {
+                    id: VertexId::new(reach.neighbor),
+                    cost: reach.metric,
+                });
+                wide_iter = Some(iter);
+            }
+
+            chain_option_iterators!(standard_iter, wide_iter)
         })
 }
 
@@ -774,8 +781,9 @@ fn vertex_networks<'a>(
         .filter(|lsp| lsp.seqno != 0)
         .filter(|lsp| lsp.rem_lifetime != 0)
         .flat_map(move |lsp| {
-            let mut iter: Box<dyn Iterator<Item = VertexNetwork>> =
-                Box::new(std::iter::empty());
+            let mut ipv4_standard_iter = None;
+            let mut ipv4_wide_iter = None;
+            let mut ipv6_iter = None;
 
             // Iterate over IPv4 reachability entries.
             if ipv4_enabled {
@@ -799,12 +807,11 @@ fn vertex_networks<'a>(
                                 external: true,
                             }
                         });
-
-                    iter = Box::new(iter.chain(internal).chain(external));
+                    ipv4_standard_iter = Some(internal.chain(external));
                 }
                 if metric_type.is_wide_enabled() {
-                    iter = Box::new(iter.chain(lsp.tlvs.ext_ipv4_reach().map(
-                        |reach| VertexNetwork {
+                    let iter = lsp.tlvs.ext_ipv4_reach().map(|reach| {
+                        VertexNetwork {
                             prefix: reach.prefix.into(),
                             metric: reach.metric,
                             // For some reason, TLV 135 doesn't have a flag
@@ -816,24 +823,27 @@ fn vertex_networks<'a>(
                             // all prefixes announced using this TLV are
                             // internal.
                             external: false,
-                        },
-                    )));
+                        }
+                    });
+                    ipv4_wide_iter = Some(iter);
                 }
             }
 
             // Iterate over IPv6 reachability entries.
             if ipv6_enabled {
-                iter =
-                    Box::new(iter.chain(lsp.tlvs.ipv6_reach().map(|reach| {
-                        VertexNetwork {
-                            prefix: reach.prefix.into(),
-                            metric: reach.metric,
-                            external: reach.external,
-                        }
-                    })));
+                let iter = lsp.tlvs.ipv6_reach().map(|reach| VertexNetwork {
+                    prefix: reach.prefix.into(),
+                    metric: reach.metric,
+                    external: reach.external,
+                });
+                ipv6_iter = Some(iter);
             }
 
-            iter
+            chain_option_iterators!(
+                ipv4_standard_iter,
+                ipv4_wide_iter,
+                ipv6_iter,
+            )
         })
 }
 

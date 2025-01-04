@@ -791,6 +791,9 @@ where
         IbusMsg::BierCfgEvent(event) => {
             events::process_bier_cfg_change(instance, event)?
         }
+        IbusMsg::HostnameUpdate(hostname) => {
+            events::process_hostname_update(instance, hostname)?;
+        }
         // Ignore other events.
         _ => {}
     }

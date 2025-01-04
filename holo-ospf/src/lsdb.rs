@@ -128,6 +128,7 @@ pub enum LsaOriginateEvent {
     BierCfgChange {
         change: BierCfgEvent,
     },
+    HostnameChange,
 }
 
 #[derive(Debug)]

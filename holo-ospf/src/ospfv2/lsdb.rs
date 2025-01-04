@@ -38,8 +38,8 @@ use crate::packet::lsa::{
     Lsa, LsaHdrVersion, LsaKey, LsaScope, LsaTypeVersion,
 };
 use crate::packet::tlv::{
-    PrefixSidFlags, RouterInfoCaps, RouterInfoCapsTlv, SidLabelRangeTlv,
-    SrAlgoTlv, SrLocalBlockTlv,
+    DynamicHostnameTlv, PrefixSidFlags, RouterInfoCaps, RouterInfoCapsTlv,
+    SidLabelRangeTlv, SrAlgoTlv, SrLocalBlockTlv,
 };
 use crate::route::{SummaryNet, SummaryRtr};
 use crate::version::Ospfv2;
@@ -238,6 +238,12 @@ impl LsdbVersion<Self> for Ospfv2 {
                             }
                         }
                     }
+                }
+            }
+            LsaOriginateEvent::HostnameChange => {
+                // (Re)originate Router Information LSA(s) in all areas.
+                for area in arenas.areas.iter() {
+                    lsa_orig_router_info(area, instance);
                 }
             }
             _ => (),
@@ -595,6 +601,11 @@ fn lsa_orig_router_info(
         srlb,
         msds: None,
         srms_pref: None,
+        info_hostname: instance
+            .shared
+            .hostname
+            .as_ref()
+            .map(|hostname| DynamicHostnameTlv::new(hostname.to_string())),
         unknown_tlvs: vec![],
     }));
     instance.tx.protocol_input.lsa_orig_check(

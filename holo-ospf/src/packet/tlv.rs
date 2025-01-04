@@ -32,6 +32,7 @@ pub const TLV_HDR_SIZE: u16 = 4;
 pub enum RouterInfoTlvType {
     InformationalCaps = 1,
     FunctionalCaps = 2,
+    DynamicHostname = 7,
     SrAlgo = 8,
     SidLabelRange = 9,
     NodeMsd = 12,
@@ -109,6 +110,25 @@ bitflags! {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct RouterFuncCapsTlv(RouterFuncCaps);
+
+//
+// Dynamic Hostname TLV.
+//
+// Encoding format:
+//
+//  0                   1                   2                   3
+//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |              Type             |             Length            |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |                          Hostname ...                         |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+#[derive(Clone, Debug, Default, Eq, new, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct DynamicHostnameTlv {
+    pub hostname: String,
+}
 
 //
 // SR-Algorithm TLV.
@@ -531,6 +551,41 @@ impl RouterFuncCapsTlv {
 impl From<RouterFuncCaps> for RouterFuncCapsTlv {
     fn from(caps: RouterFuncCaps) -> RouterFuncCapsTlv {
         RouterFuncCapsTlv(caps)
+    }
+}
+
+// ===== impl DynamicHostnameTlv ====
+
+impl DynamicHostnameTlv {
+    pub(crate) fn decode(tlv_len: u16, buf: &mut Bytes) -> DecodeResult<Self> {
+        let mut hostname = String::new();
+        for _ in 0..tlv_len {
+            let c = buf.get_u8();
+            if c == 0 {
+                break;
+            }
+            hostname.push(c as char);
+        }
+
+        Ok(DynamicHostnameTlv { hostname })
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos =
+            tlv_encode_start(buf, RouterInfoTlvType::DynamicHostname);
+        for c in self.hostname.chars() {
+            buf.put_u8(c as u8);
+        }
+        //padding with 4 octet allignment
+        let padding = 4 - (self.hostname.len() % 4);
+        for _ in 0..padding {
+            buf.put_u8(0);
+        }
+        tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn get(&self) -> &str {
+        &self.hostname
     }
 }
 

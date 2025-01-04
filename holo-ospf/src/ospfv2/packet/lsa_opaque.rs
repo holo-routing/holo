@@ -23,10 +23,10 @@ use crate::ospfv2::packet::lsa::{LsaRouterLinkType, LsaUnknown};
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::lsa::{AdjSidVersion, PrefixSidVersion};
 use crate::packet::tlv::{
-    tlv_encode_end, tlv_encode_start, tlv_wire_len, AdjSidFlags, GrReasonTlv,
-    GracePeriodTlv, MsdTlv, PrefixSidFlags, RouterFuncCapsTlv,
-    RouterInfoCapsTlv, RouterInfoTlvType, SidLabelRangeTlv, SrAlgoTlv,
-    SrLocalBlockTlv, SrmsPrefTlv, UnknownTlv, TLV_HDR_SIZE,
+    tlv_encode_end, tlv_encode_start, tlv_wire_len, AdjSidFlags,
+    DynamicHostnameTlv, GrReasonTlv, GracePeriodTlv, MsdTlv, PrefixSidFlags,
+    RouterFuncCapsTlv, RouterInfoCapsTlv, RouterInfoTlvType, SidLabelRangeTlv,
+    SrAlgoTlv, SrLocalBlockTlv, SrmsPrefTlv, UnknownTlv, TLV_HDR_SIZE,
 };
 
 // OSPFv2 opaque LSA types.
@@ -122,6 +122,8 @@ pub struct LsaRouterInfo {
     pub srlb: Vec<SrLocalBlockTlv>,
     pub msds: Option<MsdTlv>,
     pub srms_pref: Option<SrmsPrefTlv>,
+    // #[serde(skip)]
+    pub info_hostname: Option<DynamicHostnameTlv>,
     pub unknown_tlvs: Vec<UnknownTlv>,
 }
 
@@ -544,6 +546,11 @@ impl LsaRouterInfo {
                         RouterFuncCapsTlv::decode(tlv_len, &mut buf_tlv)?;
                     router_info.func_caps.get_or_insert(caps);
                 }
+                Some(RouterInfoTlvType::DynamicHostname) => {
+                    let hostname =
+                        DynamicHostnameTlv::decode(tlv_len, &mut buf_tlv)?;
+                    router_info.info_hostname.get_or_insert(hostname);
+                }
                 Some(RouterInfoTlvType::SrAlgo) => {
                     let sr_algo = SrAlgoTlv::decode(tlv_len, &mut buf_tlv)?;
                     router_info.sr_algo.get_or_insert(sr_algo);
@@ -583,6 +590,9 @@ impl LsaRouterInfo {
         }
         if let Some(func_caps) = &self.func_caps {
             func_caps.encode(buf);
+        }
+        if let Some(info_hostname) = &self.info_hostname {
+            info_hostname.encode(buf);
         }
         if let Some(sr_algo) = &self.sr_algo {
             sr_algo.encode(buf);

@@ -657,6 +657,7 @@ static LSA3: Lazy<(Vec<u8>, Lsa<Ospfv3>)> = Lazy::new(|| {
                 )],
                 msds: Default::default(),
                 srms_pref: None,
+                info_hostname: Some(DynamicHostnameTlv::new("holo".to_owned())),
                 unknown_tlvs: vec![],
             }),
         ),

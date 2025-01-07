@@ -27,7 +27,7 @@ use crate::packet::tlv::{
     Ipv4Reach, Ipv4ReachTlv, Ipv6AddressesTlv, Ipv6Reach, Ipv6ReachTlv,
     IsReach, IsReachTlv, LspBufferSizeTlv, LspEntriesTlv, LspEntry,
     NeighborsTlv, PaddingTlv, ProtocolsSupportedTlv, Tlv, UnknownTlv,
-    TLV_HDR_SIZE,
+    TLV_HDR_SIZE, TLV_MAX_LEN,
 };
 use crate::packet::{AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId};
 
@@ -479,6 +479,41 @@ impl Hello {
 
             pdu_encode_end(buf, len_pos)
         })
+    }
+
+    pub(crate) fn add_padding(&mut self, max_size: u16) {
+        // Compute the total length of existing TLVs.
+        let mut total_tlv_len = 0;
+        if let Some(tlv) = &self.tlvs.protocols_supported {
+            total_tlv_len += tlv.len();
+        }
+        for tlv in &self.tlvs.area_addrs {
+            total_tlv_len += tlv.len();
+        }
+        for tlv in &self.tlvs.neighbors {
+            total_tlv_len += tlv.len();
+        }
+        for tlv in &self.tlvs.ipv4_addrs {
+            total_tlv_len += tlv.len();
+        }
+        for tlv in &self.tlvs.ipv6_addrs {
+            total_tlv_len += tlv.len();
+        }
+
+        // Calculate the total padding required.
+        let mut rem_padding = max_size as usize
+            - Header::fixed_header_length(self.hdr.pdu_type) as usize
+            - total_tlv_len;
+
+        // Add as many Padding TLVs as necessary.
+        while rem_padding >= 2 {
+            let padding_len =
+                std::cmp::min(rem_padding - TLV_HDR_SIZE, TLV_MAX_LEN);
+            self.tlvs.padding.push(PaddingTlv {
+                length: padding_len as u8,
+            });
+            rem_padding -= TLV_HDR_SIZE + padding_len;
+        }
     }
 }
 

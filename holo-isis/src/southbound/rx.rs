@@ -40,6 +40,7 @@ pub(crate) fn process_iface_update(
     let iface_idx = iface.index;
 
     // Update interface data.
+    let old_mtu = iface.system.mtu;
     iface.system.flags = msg.flags;
     iface.system.mtu = Some(msg.mtu);
     iface.system.mac_addr = Some(msg.mac_address);
@@ -48,9 +49,18 @@ pub(crate) fn process_iface_update(
             .interfaces
             .update_ifindex(iface_idx, Some(msg.ifindex));
     }
+    let iface = &mut arenas.interfaces[iface_idx];
+
+    // Update the padding used in Hello PDUs if the MTU has changed.
+    if iface.config.hello_padding
+        && iface.system.mtu != old_mtu
+        && iface.state.active
+        && !iface.is_passive()
+    {
+        iface.hello_interval_start(&instance, LevelType::All);
+    }
 
     // Check if IS-IS needs to be activated or deactivated on this interface.
-    let iface = &mut arenas.interfaces[iface_idx];
     iface.update(&mut instance, &mut arenas.adjacencies)?;
 
     Ok(())

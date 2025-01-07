@@ -493,7 +493,8 @@ impl Interface {
             );
         }
 
-        Pdu::Hello(Hello::new(
+        // Generate Hello PDU.
+        let mut hello = Hello::new(
             level,
             circuit_type,
             source,
@@ -506,7 +507,13 @@ impl Interface {
                 ipv4_addrs,
                 ipv6_addrs,
             ),
-        ))
+        );
+        if self.config.hello_padding {
+            let max_size =
+                std::cmp::max(self.iso_mtu() as u16, instance.config.lsp_mtu);
+            hello.add_padding(max_size);
+        }
+        Pdu::Hello(hello)
     }
 
     pub(crate) fn hello_interval_start(

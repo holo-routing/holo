@@ -562,6 +562,10 @@ fn load_callbacks() -> Callbacks<Instance> {
 
             let hello_padding = args.dnode.get_bool();
             iface.config.hello_padding = hello_padding;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateHelloInterval(iface_idx, LevelNumber::L1));
+            event_queue.insert(Event::InterfaceUpdateHelloInterval(iface_idx, LevelNumber::L2));
         })
         .path(isis::interfaces::interface::interface_type::PATH)
         .modify_apply(|instance, args| {

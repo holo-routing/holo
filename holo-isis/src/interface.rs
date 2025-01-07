@@ -363,12 +363,21 @@ impl Interface {
         lan_l1.chain(lan_l2).chain(p2p)
     }
 
+    // Returns the MTU size available for sending IS-IS PDUs.
     pub(crate) fn iso_mtu(&self) -> u32 {
-        let l2_mtu = self.system.mtu.unwrap();
-        match self.config.interface_type {
-            InterfaceType::Broadcast => l2_mtu - LLC_HDR.len() as u32,
-            InterfaceType::PointToPoint => l2_mtu,
+        let mut l2_mtu = self.system.mtu.unwrap();
+
+        // On broadcast networks, we need to account for the 3-byte LLC header.
+        //
+        // For historical reasons, many vendors adopt a maximum PDU length of
+        // 1492, which also accounts for the 5-byte SNAP header. However, since
+        // IS-IS over SNAP is not implemented in practice, the effective maximum
+        // MTU can be considered 1497 bytes, accounting only for the LLC header.
+        if self.system.flags.contains(InterfaceFlags::BROADCAST) {
+            l2_mtu -= LLC_HDR.len() as u32;
         }
+
+        l2_mtu
     }
 
     pub(crate) fn dis_election(

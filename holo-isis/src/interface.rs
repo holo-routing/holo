@@ -489,7 +489,11 @@ impl Interface {
         {
             protocols_supported.push(Nlpid::Ipv6 as u8);
             ipv6_addrs.extend(
-                self.system.ipv6_addr_list.iter().map(|addr| addr.ip()),
+                self.system
+                    .ipv6_addr_list
+                    .iter()
+                    .filter(|addr| addr.ip().is_unicast_link_local())
+                    .map(|addr| addr.ip()),
             );
         }
 

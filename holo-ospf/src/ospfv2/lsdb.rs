@@ -13,6 +13,7 @@ use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid, SidLastHopBehavior};
 use ipnetwork::{IpNetwork, Ipv4Network};
 use itertools::Itertools;
+use tracing::debug;
 
 use crate::area::{Area, AreaType, AreaVersion, OptionsLocation};
 use crate::collections::{
@@ -327,7 +328,7 @@ impl LsdbVersion<Self> for Ospfv2 {
     }
 
     fn lsdb_install(
-        instance: &InstanceUpView<'_, Self>,
+        instance: &mut InstanceUpView<'_, Self>,
         arenas: &mut InstanceArenas<Self>,
         lsdb_idx: LsdbIndex,
         _lsdb_id: LsdbId,
@@ -349,6 +350,44 @@ impl LsdbVersion<Self> for Ospfv2 {
                     iface.state.network_lsa_self = None;
                 } else {
                     iface.state.network_lsa_self = Some(lsa.hdr.key());
+                }
+            }
+        }
+
+        // examine for DynamicHostnameTlv
+        if lsa.hdr.lsa_type.type_code() == Some(LsaTypeCode::OpaqueArea) {
+            if let LsaBody::OpaqueArea(LsaOpaque::RouterInfo(router_info)) =
+                &lsa.body
+            {
+                if let Some(hostname_tlv) = router_info.info_hostname.as_ref() {
+                    // install or update hostname
+                    instance
+                        .state
+                        .hostnames
+                        .insert(lsa.hdr.adv_rtr, hostname_tlv.hostname.clone());
+                } else {
+                    // remove hostname if it exists
+                    instance.state.hostnames.remove(&lsa.hdr.adv_rtr);
+                }
+            }
+        }
+        if lsa.hdr.lsa_type.type_code() == Some(LsaTypeCode::OpaqueAs) {
+            if let LsaBody::OpaqueAs(LsaOpaque::RouterInfo(router_info)) =
+                &lsa.body
+            {
+                if let Some(hostname_tlv) = router_info.info_hostname.as_ref() {
+                    debug!(
+                        "Router {} has hostname {}",
+                        lsa.hdr.adv_rtr, hostname_tlv.hostname
+                    );
+                    // install or update hostname
+                    instance
+                        .state
+                        .hostnames
+                        .insert(lsa.hdr.adv_rtr, hostname_tlv.hostname.clone());
+                } else {
+                    // remove hostname if it exists
+                    instance.state.hostnames.remove(&lsa.hdr.adv_rtr);
                 }
             }
         }

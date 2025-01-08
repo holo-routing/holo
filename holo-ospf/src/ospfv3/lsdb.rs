@@ -14,6 +14,7 @@ use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid, SidLastHopBehavior};
 use ipnetwork::IpNetwork;
 use itertools::Itertools;
+use tracing::debug;
 
 use crate::area::{Area, AreaType, AreaVersion, OptionsLocation};
 use crate::collections::{
@@ -424,7 +425,7 @@ impl LsdbVersion<Self> for Ospfv3 {
     }
 
     fn lsdb_install(
-        instance: &InstanceUpView<'_, Self>,
+        instance: &mut InstanceUpView<'_, Self>,
         _arenas: &mut InstanceArenas<Self>,
         _lsdb_idx: LsdbIndex,
         lsdb_id: LsdbId,
@@ -438,6 +439,26 @@ impl LsdbVersion<Self> for Ospfv3 {
                 instance.tx.protocol_input.lsa_orig_event(
                     LsaOriginateEvent::LinkLsaRcvd { area_id, iface_id },
                 );
+            }
+        }
+
+        // Check for DynamicHostnameTlv
+        if lsa.hdr.lsa_type.function_code_normalized()
+            == Some(LsaFunctionCode::RouterInfo)
+        {
+            if let LsaBody::RouterInfo(router_info) = &lsa.body {
+                if let Some(hostname_tlv) = router_info.info_hostname.as_ref() {
+                    debug!(
+                        "Router {} has hostname {}",
+                        lsa.hdr.adv_rtr, hostname_tlv.hostname
+                    );
+                    instance
+                        .state
+                        .hostnames
+                        .insert(lsa.hdr.adv_rtr, hostname_tlv.hostname.clone());
+                } else {
+                    instance.state.hostnames.remove(&lsa.hdr.adv_rtr);
+                }
             }
         }
     }

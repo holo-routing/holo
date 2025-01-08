@@ -51,6 +51,7 @@ pub enum ListEntry<'a, V: Version> {
     LsaLog(&'a LsaLogEntry<V>),
     Route(&'a V::IpNetwork, &'a RouteNet<V>),
     Nexthop(&'a Nexthop<V::IpAddr>),
+    Hostname(&'a Ipv4Addr, &'a String),
     AsStatsLsaType(&'a LsdbSingleType<V>),
     AsLsaType(&'a LsdbSingleType<V>),
     AsLsa(&'a LsaEntry<V>),
@@ -534,6 +535,20 @@ where
                 adv_router: Cow::Owned(lsa.hdr.adv_rtr()),
                 decode_completed: Some(!lsa.body.is_unknown()),
                 raw_data: Some(lsa.raw.as_ref()).ignore_in_testing(),
+            })
+        })
+        .path(ospf::hostnames::hostname::PATH)
+        .get_iterate(|instance, _args| {
+            let Some(instance_state) = &instance.state else { return None };
+            let iter = instance_state.hostnames.iter().map(|(router_id, hostname)| ListEntry::Hostname(router_id, hostname));
+            Some(Box::new(iter) as _)
+        })
+        .get_object(|_instance, args| {
+            use ospf::hostnames::hostname::Hostname;
+            let (router_id, hostname) = args.list_entry.as_hostname().unwrap();
+            Box::new(Hostname {
+                router_id: Cow::Borrowed(router_id),
+                hostname: Some(Cow::Borrowed(hostname)),
             })
         })
         .build()

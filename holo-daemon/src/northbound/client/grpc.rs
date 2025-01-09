@@ -77,8 +77,11 @@ impl proto::Northbound for NorthboundService {
             .collect();
 
         // Fill-in supported data encodings.
-        let supported_encodings =
-            vec![proto::Encoding::Json as i32, proto::Encoding::Xml as i32];
+        let supported_encodings = vec![
+            proto::Encoding::Json as i32,
+            proto::Encoding::Xml as i32,
+            proto::Encoding::Lyb as i32,
+        ];
 
         let reply = proto::CapabilitiesResponse {
             version,

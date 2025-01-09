@@ -1,0 +1,17 @@
+{"Ibus":{"InterfaceQuery":{"ifname":"eth-sw1","af":"Ipv4"}}}
+{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}}
+{"Ibus":{"InterfaceUpd":{"ifname":"eth-sw1","ifindex":2,"mtu":1500,"flags":"OPERATIVE | BROADCAST"}}}
+{"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}
+{"Ibus":{"MacvlanAdd":{"parent_name":"eth-sw1","name":"mvlan-vrrp-1","mac_address":[0,0,94,0,1,1]}}}
+{"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-sw1","addr":"10.0.1.3/24","flags":""}}}
+{"Ibus":{"RouterIdUpdate":"10.0.1.3"}}
+{"Ibus":{"InterfaceAddressAdd":{"ifname":"lo","addr":"3.3.3.3/32","flags":""}}}
+{"Ibus":{"RouterIdUpdate":"3.3.3.3"}}
+{"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"10.0.1.0/24","distance":0,"metric":0,"tag":null,"nexthops":[{"Interface":{"ifindex":2}}]}}}
+{"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"3.3.3.3/32","distance":0,"metric":0,"tag":null,"nexthops":[{"Interface":{"ifindex":1}}]}}}
+{"Ibus":{"InterfaceUpd":{"ifname":"mvlan-vrrp-1","ifindex":3,"mtu":1500,"flags":"OPERATIVE | BROADCAST"}}}
+{"Ibus":{"InterfaceAddressAdd":{"ifname":"mvlan-vrrp-1","addr":"fe80::200:5eff:fe00:101/64","flags":""}}}
+{"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"fe80::/64","distance":0,"metric":0,"tag":null,"nexthops":[{"Interface":{"ifindex":2}}]}}}
+{"Protocol":{"MasterDownTimer":{"vrid":1}}}
+{"Ibus":{"InterfaceIpAddRequest":{"ifname":"mvlan-vrrp-1","addr":"10.0.1.5/32"}}}
+{"Ibus":{"InterfaceAddressAdd":{"ifname":"mvlan-vrrp-1","addr":"10.0.1.5/32","flags":"UNNUMBERED"}}}

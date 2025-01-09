@@ -1,0 +1,3 @@
+{"InterfaceQuery":{"ifname":"eth-sw1","af":"Ipv4"}}
+{"MacvlanAdd":{"parent_name":"eth-sw1","name":"mvlan-vrrp-1","mac_address":[0,0,94,0,1,1]}}
+{"InterfaceIpAddRequest":{"ifname":"mvlan-vrrp-1","addr":"10.0.1.5/32"}}

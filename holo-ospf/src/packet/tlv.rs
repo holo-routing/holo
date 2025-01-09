@@ -82,6 +82,8 @@ bitflags! {
 #[derive(Deserialize, Serialize)]
 pub struct RouterInfoCapsTlv(RouterInfoCaps);
 
+const MAX_HOSTNAME_LEN: usize = 255;
+
 // OSPF Router Functional Capability Bits.
 //
 // IANA registry:
@@ -573,13 +575,14 @@ impl DynamicHostnameTlv {
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
         let start_pos =
             tlv_encode_start(buf, RouterInfoTlvType::DynamicHostname);
-        for c in self.hostname.chars() {
-            buf.put_u8(c as u8);
+        let mut hostname = self.hostname.clone();
+
+        if hostname.len() > MAX_HOSTNAME_LEN {
+            hostname.truncate(MAX_HOSTNAME_LEN);
         }
-        //padding with 4 octet allignment
-        let padding = 4 - (self.hostname.len() % 4);
-        for _ in 0..padding {
-            buf.put_u8(0);
+
+        for c in hostname.chars() {
+            buf.put_u8(c as u8);
         }
         tlv_encode_end(buf, start_pos);
     }

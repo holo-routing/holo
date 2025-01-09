@@ -37,7 +37,7 @@ impl Provider for Master {
 
     fn relay_rpc(
         &self,
-        rpc: DataNodeRef<'_, '_>,
+        rpc: DataNodeRef<'_>,
     ) -> Result<Option<Vec<NbDaemonSender>>, String> {
         let (protocol, name) = find_instance(rpc)?;
 
@@ -68,7 +68,7 @@ impl Provider for Master {
 // easy way to identify the protocol type and name. YANG actions would greatly
 // simplify this.
 fn find_instance(
-    rpc: DataNodeRef<'_, '_>,
+    rpc: DataNodeRef<'_>,
 ) -> Result<(Protocol, Option<String>), String> {
     let (protocol, name) = match rpc.schema().module().name() {
         "ietf-bgp" => {

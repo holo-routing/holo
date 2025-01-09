@@ -106,7 +106,7 @@ impl SchemaNodeExt for SchemaNode<'_> {
 
 // ===== impl DataNodeRef =====
 
-impl DataNodeRefExt for DataNodeRef<'_, '_> {
+impl DataNodeRefExt for DataNodeRef<'_> {
     fn exists(&self, path: &str) -> bool {
         self.find_xpath(path).unwrap().next().is_some()
     }
@@ -356,7 +356,7 @@ impl DataNodeRefExt for DataNodeRef<'_, '_> {
 
 // ===== helper functions =====
 
-fn panic_wrong_dnode_type(dnode: &DataNodeRef<'_, '_>, expected: &str) -> ! {
+fn panic_wrong_dnode_type(dnode: &DataNodeRef<'_>, expected: &str) -> ! {
     panic!(
         "wrong data node type (was expecting {}): {}",
         expected,

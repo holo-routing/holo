@@ -58,7 +58,7 @@ pub trait Provider: ProviderBase {
 
     fn relay_rpc(
         &self,
-        _rpc: DataNodeRef<'_, '_>,
+        _rpc: DataNodeRef<'_>,
     ) -> Result<Option<Vec<NbDaemonSender>>, String> {
         Ok(None)
     }
@@ -194,9 +194,7 @@ async fn process_rpc_relayed(
     Ok(response)
 }
 
-fn find_rpc<'a>(
-    data: &'a DataTree<'static>,
-) -> Result<DataNodeRef<'a, 'static>, Error> {
+fn find_rpc<'a>(data: &'a DataTree<'static>) -> Result<DataNodeRef<'a>, Error> {
     data.traverse()
         .find(|dnode| {
             matches!(

@@ -62,7 +62,7 @@ pub struct CallbackArgs<'a, P: Provider> {
     pub resource: &'a mut Option<P::Resource>,
     pub old_config: &'a Arc<DataTree<'static>>,
     pub new_config: &'a Arc<DataTree<'static>>,
-    pub dnode: DataNodeRef<'a, 'static>,
+    pub dnode: DataNodeRef<'a>,
 }
 
 //
@@ -80,7 +80,7 @@ pub struct ValidationCallbacksBuilder {
 
 #[derive(Debug)]
 pub struct ValidationCallbackArgs<'a> {
-    pub dnode: DataNodeRef<'a, 'static>,
+    pub dnode: DataNodeRef<'a>,
 }
 
 //
@@ -93,7 +93,7 @@ pub type ConfigChanges = Vec<ConfigChange>;
 pub type CallbackLookup<P: Provider> = for<'a> fn(
     &'a mut P,
     list_entry: P::ListEntry,
-    dnode: DataNodeRef<'a, 'static>,
+    dnode: DataNodeRef<'a>,
 ) -> P::ListEntry;
 
 pub type CallbackPhaseOne<P> =
@@ -512,7 +512,7 @@ fn lookup_list_entry<P>(
     phase: CommitPhase,
     operation: CallbackOp,
     callbacks: &Callbacks<P>,
-    dnode: &DataNodeRef<'_, 'static>,
+    dnode: &DataNodeRef<'_>,
 ) -> P::ListEntry
 where
     P: Provider,

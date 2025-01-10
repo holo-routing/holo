@@ -26,7 +26,7 @@ impl ProviderBase for Interface {
 
     fn top_level_node(&self) -> String {
         format!(
-            "/ietf-interfaces:interfaces/intername[name='{}']",
+            "/ietf-interfaces:interfaces/interface[name='{}']",
             self.name
         )
     }

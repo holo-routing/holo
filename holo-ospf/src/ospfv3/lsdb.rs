@@ -14,7 +14,6 @@ use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid, SidLastHopBehavior};
 use ipnetwork::IpNetwork;
 use itertools::Itertools;
-use tracing::debug;
 
 use crate::area::{Area, AreaType, AreaVersion, OptionsLocation};
 use crate::collections::{
@@ -283,9 +282,9 @@ impl LsdbVersion<Self> for Ospfv3 {
                 }
             }
             LsaOriginateEvent::HostnameChange => {
-                // (Re)originate Router-LSA(s) in all areas.
+                // (Re)originate Router-Info-LSA(s) in all areas.
                 for area in arenas.areas.iter() {
-                    lsa_orig_router(area, instance, arenas);
+                    lsa_orig_router_info(area, instance);
                 }
             }
             LsaOriginateEvent::BierEnableChange => {
@@ -448,10 +447,6 @@ impl LsdbVersion<Self> for Ospfv3 {
         {
             if let LsaBody::RouterInfo(router_info) = &lsa.body {
                 if let Some(hostname_tlv) = router_info.info_hostname.as_ref() {
-                    debug!(
-                        "Router {} has hostname {}",
-                        lsa.hdr.adv_rtr, hostname_tlv.hostname
-                    );
                     instance
                         .state
                         .hostnames

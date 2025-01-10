@@ -103,7 +103,7 @@ pub struct InstanceState<V: Version> {
     pub gr_helper_count: usize,
     // Authentication non-decreasing sequence number.
     pub auth_seqno: Arc<AtomicU64>,
-    // Hostname cache
+    // Hostname cache.
     pub hostnames: BTreeMap<Ipv4Addr, String>,
 }
 

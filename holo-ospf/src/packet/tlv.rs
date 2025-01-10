@@ -82,8 +82,6 @@ bitflags! {
 #[derive(Deserialize, Serialize)]
 pub struct RouterInfoCapsTlv(RouterInfoCaps);
 
-const MAX_HOSTNAME_LEN: usize = 255;
-
 // OSPF Router Functional Capability Bits.
 //
 // IANA registry:
@@ -131,6 +129,8 @@ pub struct RouterFuncCapsTlv(RouterFuncCaps);
 pub struct DynamicHostnameTlv {
     pub hostname: String,
 }
+
+const MAX_HOSTNAME_LEN: usize = 255;
 
 //
 // SR-Algorithm TLV.
@@ -560,14 +560,19 @@ impl From<RouterFuncCaps> for RouterFuncCapsTlv {
 
 impl DynamicHostnameTlv {
     pub(crate) fn decode(tlv_len: u16, buf: &mut Bytes) -> DecodeResult<Self> {
-        let mut hostname = String::new();
-        for _ in 0..tlv_len {
-            let c = buf.get_u8();
-            if c == 0 {
-                break;
-            }
-            hostname.push(c as char);
+        if tlv_len == 0 {
+            return Err(DecodeError::InvalidTlvLength(tlv_len));
         }
+
+        let mut hostname_bytes = [0; 255];
+        buf.copy_to_slice(
+            &mut hostname_bytes
+                [..usize::min(tlv_len as usize, MAX_HOSTNAME_LEN)],
+        );
+
+        let hostname =
+            String::from_utf8_lossy(&hostname_bytes[..tlv_len as usize])
+                .to_string();
 
         Ok(DynamicHostnameTlv { hostname })
     }
@@ -575,15 +580,9 @@ impl DynamicHostnameTlv {
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
         let start_pos =
             tlv_encode_start(buf, RouterInfoTlvType::DynamicHostname);
-        let mut hostname = self.hostname.clone();
-
-        if hostname.len() > MAX_HOSTNAME_LEN {
-            hostname.truncate(MAX_HOSTNAME_LEN);
-        }
-
-        for c in hostname.chars() {
-            buf.put_u8(c as u8);
-        }
+        let hostname = self.hostname.as_bytes();
+        let hostname_len = usize::min(hostname.len(), MAX_HOSTNAME_LEN);
+        buf.put_slice(&hostname[..hostname_len]);
         tlv_encode_end(buf, start_pos);
     }
 

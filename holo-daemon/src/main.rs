@@ -30,7 +30,7 @@ fn init_tracing(config: &config::Logging) {
     });
 
     // Enable logging to a file.
-    let file = config.file.inner.enabled.then(|| {
+    let file = config.file.enabled.then(|| {
         let file_appender = match config.file.rotation {
             LoggingFileRotation::Never => {
                 rolling::never(&config.file.dir, &config.file.name)
@@ -47,11 +47,11 @@ fn init_tracing(config: &config::Logging) {
         let layer = tracing_subscriber::fmt::layer()
             .with_writer(file_appender)
             .with_target(false)
-            .with_thread_ids(config.file.inner.show_thread_id)
-            .with_file(config.file.inner.show_source)
-            .with_line_number(config.file.inner.show_source)
-            .with_ansi(config.file.inner.colors);
-        let layer = match config.file.inner.style {
+            .with_thread_ids(config.file.fmt.show_thread_id)
+            .with_file(config.file.fmt.show_source)
+            .with_line_number(config.file.fmt.show_source)
+            .with_ansi(config.file.fmt.colors);
+        let layer = match config.file.fmt.style {
             LoggingFmtStyle::Compact => layer.compact().boxed(),
             LoggingFmtStyle::Full => layer.boxed(),
             LoggingFmtStyle::Json => layer.json().boxed(),
@@ -65,11 +65,11 @@ fn init_tracing(config: &config::Logging) {
         let log_level_filter = LevelFilter::from_level(tracing::Level::TRACE);
         let layer = tracing_subscriber::fmt::layer()
             .with_target(false)
-            .with_thread_ids(config.stdout.show_thread_id)
-            .with_file(config.stdout.show_source)
-            .with_line_number(config.stdout.show_source)
-            .with_ansi(config.stdout.colors);
-        let layer = match config.stdout.style {
+            .with_thread_ids(config.stdout.fmt.show_thread_id)
+            .with_file(config.stdout.fmt.show_source)
+            .with_line_number(config.stdout.fmt.show_source)
+            .with_ansi(config.stdout.fmt.colors);
+        let layer = match config.stdout.fmt.style {
             LoggingFmtStyle::Compact => layer.compact().boxed(),
             LoggingFmtStyle::Full => layer.boxed(),
             LoggingFmtStyle::Json => layer.json().boxed(),

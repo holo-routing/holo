@@ -25,7 +25,7 @@ pub struct Config {
 pub struct Logging {
     pub journald: LoggingJournald,
     pub file: LoggingFile,
-    pub stdout: LoggingFmt,
+    pub stdout: LoggingStdout,
 }
 
 #[derive(Debug, Deserialize)]
@@ -37,17 +37,25 @@ pub struct LoggingJournald {
 #[derive(Debug, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct LoggingFile {
+    pub enabled: bool,
     pub dir: String,
     pub name: String,
     pub rotation: LoggingFileRotation,
     #[serde(flatten)]
-    pub inner: LoggingFmt,
+    pub fmt: LoggingFmt,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct LoggingStdout {
+    pub enabled: bool,
+    #[serde(flatten)]
+    pub fmt: LoggingFmt,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct LoggingFmt {
-    pub enabled: bool,
     pub style: LoggingFmtStyle,
     pub colors: bool,
     pub show_thread_id: bool,
@@ -151,10 +159,22 @@ impl Default for LoggingJournald {
 impl Default for LoggingFile {
     fn default() -> LoggingFile {
         LoggingFile {
+            enabled: true,
             dir: "/var/log".to_owned(),
             name: "holod.log".to_owned(),
             rotation: Default::default(),
-            inner: Default::default(),
+            fmt: Default::default(),
+        }
+    }
+}
+
+// ===== impl LoggingStdout =====
+
+impl Default for LoggingStdout {
+    fn default() -> LoggingStdout {
+        LoggingStdout {
+            enabled: false,
+            fmt: Default::default(),
         }
     }
 }
@@ -164,7 +184,6 @@ impl Default for LoggingFile {
 impl Default for LoggingFmt {
     fn default() -> LoggingFmt {
         LoggingFmt {
-            enabled: true,
             style: LoggingFmtStyle::Full,
             colors: false,
             show_thread_id: false,

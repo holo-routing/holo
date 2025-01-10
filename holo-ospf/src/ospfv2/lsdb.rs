@@ -38,8 +38,8 @@ use crate::packet::lsa::{
     Lsa, LsaHdrVersion, LsaKey, LsaScope, LsaTypeVersion,
 };
 use crate::packet::tlv::{
-    PrefixSidFlags, RouterInfoCaps, RouterInfoCapsTlv, SidLabelRangeTlv,
-    SrAlgoTlv, SrLocalBlockTlv,
+    DynamicHostnameTlv, PrefixSidFlags, RouterInfoCaps, RouterInfoCapsTlv,
+    SidLabelRangeTlv, SrAlgoTlv, SrLocalBlockTlv,
 };
 use crate::route::{SummaryNet, SummaryRtr};
 use crate::version::Ospfv2;
@@ -240,6 +240,12 @@ impl LsdbVersion<Self> for Ospfv2 {
                     }
                 }
             }
+            LsaOriginateEvent::HostnameChange => {
+                // (Re)originate Router Information LSA(s) in all areas.
+                for area in arenas.areas.iter() {
+                    lsa_orig_router_info(area, instance);
+                }
+            }
             _ => (),
         };
 
@@ -321,7 +327,7 @@ impl LsdbVersion<Self> for Ospfv2 {
     }
 
     fn lsdb_install(
-        instance: &InstanceUpView<'_, Self>,
+        instance: &mut InstanceUpView<'_, Self>,
         arenas: &mut InstanceArenas<Self>,
         lsdb_idx: LsdbIndex,
         _lsdb_id: LsdbId,
@@ -344,6 +350,22 @@ impl LsdbVersion<Self> for Ospfv2 {
                 } else {
                     iface.state.network_lsa_self = Some(lsa.hdr.key());
                 }
+            }
+        }
+
+        // Update hostname database.
+        if let LsaBody::OpaqueArea(LsaOpaque::RouterInfo(router_info))
+        | LsaBody::OpaqueAs(LsaOpaque::RouterInfo(router_info)) = &lsa.body
+        {
+            if let Some(hostname_tlv) = router_info.info_hostname.as_ref() {
+                // Install or update hostname.
+                instance
+                    .state
+                    .hostnames
+                    .insert(lsa.hdr.adv_rtr, hostname_tlv.hostname.clone());
+            } else {
+                // Remove hostname if it exists.
+                instance.state.hostnames.remove(&lsa.hdr.adv_rtr);
             }
         }
     }
@@ -595,6 +617,11 @@ fn lsa_orig_router_info(
         srlb,
         msds: None,
         srms_pref: None,
+        info_hostname: instance
+            .shared
+            .hostname
+            .as_ref()
+            .map(|hostname| DynamicHostnameTlv::new(hostname.to_string())),
         unknown_tlvs: vec![],
     }));
     instance.tx.protocol_input.lsa_orig_check(

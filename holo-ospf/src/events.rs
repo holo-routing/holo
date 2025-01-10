@@ -1526,3 +1526,25 @@ where
 
     Ok(())
 }
+
+// ===== Hostname update event =====
+
+pub(crate) fn process_hostname_update<V>(
+    instance: &mut Instance<V>,
+    hostname: Option<String>,
+) -> Result<(), Error<V>>
+where
+    V: Version,
+{
+    instance.shared.hostname = hostname;
+
+    if let Some((instance, arenas)) = instance.as_up() {
+        V::lsa_orig_event(
+            &instance,
+            arenas,
+            LsaOriginateEvent::HostnameChange,
+        )?;
+    }
+
+    Ok(())
+}

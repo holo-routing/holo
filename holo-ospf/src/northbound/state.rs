@@ -51,6 +51,7 @@ pub enum ListEntry<'a, V: Version> {
     LsaLog(&'a LsaLogEntry<V>),
     Route(&'a V::IpNetwork, &'a RouteNet<V>),
     Nexthop(&'a Nexthop<V::IpAddr>),
+    Hostname(&'a Ipv4Addr, &'a String),
     AsStatsLsaType(&'a LsdbSingleType<V>),
     AsLsaType(&'a LsdbSingleType<V>),
     AsLsa(&'a LsaEntry<V>),
@@ -536,6 +537,20 @@ where
                 raw_data: Some(lsa.raw.as_ref()).ignore_in_testing(),
             })
         })
+        .path(ospf::hostnames::hostname::PATH)
+        .get_iterate(|instance, _args| {
+            let Some(instance_state) = &instance.state else { return None };
+            let iter = instance_state.hostnames.iter().map(|(router_id, hostname)| ListEntry::Hostname(router_id, hostname));
+            Some(Box::new(iter) as _)
+        })
+        .get_object(|_instance, args| {
+            use ospf::hostnames::hostname::Hostname;
+            let (router_id, hostname) = args.list_entry.as_hostname().unwrap();
+            Box::new(Hostname {
+                router_id: Cow::Borrowed(router_id),
+                hostname: Some(Cow::Borrowed(hostname)),
+            })
+        })
         .build()
 }
 
@@ -660,6 +675,21 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             let flag = args.list_entry.as_flag_u32().unwrap();
             Box::new(FunctionalCapabilities {
                 functional_flag: Some(*flag),
+            })
+        })
+        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::opaque::ri_opaque::dynamic_hostname_tlv::PATH)
+        .get_object(|_instance, args| {
+            use ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::opaque::ri_opaque::dynamic_hostname_tlv::DynamicHostnameTlv;
+            let lse: &LsaEntry<Ospfv2> = args.list_entry.as_as_lsa().unwrap();
+            let lsa = &lse.data;
+            let mut hostname = None;
+            if let Some(lsa_body) = lsa.body.as_opaque_as()
+                && let Some(lsa_body) = lsa_body.as_router_info()
+                && let Some(info_hostname) = &lsa_body.info_hostname {
+                    hostname = Some(Cow::Borrowed(info_hostname.get()));
+            }
+            Box::new(DynamicHostnameTlv {
+                hostname,
             })
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::opaque::ri_opaque::maximum_sid_depth_tlv::msd_type::PATH)
@@ -1064,6 +1094,21 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             let flag = args.list_entry.as_flag_u32().unwrap();
             Box::new(FunctionalCapabilities {
                 functional_flag: Some(*flag),
+            })
+        })
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::dynamic_hostname_tlv::PATH)
+        .get_object(|_instance, args| {
+            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::dynamic_hostname_tlv::DynamicHostnameTlv;
+            let lse: &LsaEntry<Ospfv2> = args.list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            let mut hostname = None;
+            if let Some(lsa_body) = lsa.body.as_opaque_area()
+                && let Some(lsa_body) = lsa_body.as_router_info()
+                && let Some(info_hostname) = &lsa_body.info_hostname {
+                    hostname = Some(Cow::Borrowed(info_hostname.get()));
+            }
+            Box::new(DynamicHostnameTlv {
+                hostname,
             })
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::maximum_sid_depth_tlv::msd_type::PATH)
@@ -1783,6 +1828,20 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
                 functional_flag: Some(*flag),
             })
         })
+        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::router_information::dynamic_hostname_tlv::PATH)
+        .get_object(|_instance, args| {
+            use ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::router_information::dynamic_hostname_tlv::DynamicHostnameTlv;
+            let lse: &LsaEntry<Ospfv3> = args.list_entry.as_as_lsa().unwrap();
+            let lsa = &lse.data;
+            let mut hostname = None;
+            if let Some(lsa_body) = lsa.body.as_router_info()
+                && let Some(info_hostname) = &lsa_body.info_hostname {
+                    hostname = Some(Cow::Borrowed(info_hostname.get()));
+            }
+            Box::new(DynamicHostnameTlv {
+                hostname,
+            })
+        })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::router_information::sr_algorithm_tlv::PATH)
         .get_object(|_instance, args| {
             use ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::router_information::sr_algorithm_tlv::SrAlgorithmTlv;
@@ -2248,6 +2307,20 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let flag = args.list_entry.as_flag_u32().unwrap();
             Box::new(FunctionalCapabilities {
                 functional_flag: Some(*flag),
+            })
+        })
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::dynamic_hostname_tlv::PATH)
+        .get_object(|_instance, args| {
+            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::dynamic_hostname_tlv::DynamicHostnameTlv;
+            let lse: &LsaEntry<Ospfv3> = args.list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            let mut hostname = None;
+            if let Some(lsa_body) = lsa.body.as_router_info()
+                && let Some(info_hostname) = &lsa_body.info_hostname {
+                    hostname = Some(Cow::Borrowed(info_hostname.get()));
+            }
+            Box::new(DynamicHostnameTlv {
+                hostname,
             })
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::sr_algorithm_tlv::PATH)

@@ -36,9 +36,9 @@ use crate::packet::lsa::{
     Lsa, LsaHdrVersion, LsaKey, LsaScope, LsaTypeVersion, PrefixSidVersion,
 };
 use crate::packet::tlv::{
-    BierEncapId, BierEncapSubSubTlv, BierSubSubTlv, BierSubTlv, PrefixSidFlags,
-    RouterInfoCaps, RouterInfoCapsTlv, SidLabelRangeTlv, SrAlgoTlv,
-    SrLocalBlockTlv,
+    BierEncapId, BierEncapSubSubTlv, BierSubSubTlv, BierSubTlv,
+    DynamicHostnameTlv, PrefixSidFlags, RouterInfoCaps, RouterInfoCapsTlv,
+    SidLabelRangeTlv, SrAlgoTlv, SrLocalBlockTlv,
 };
 use crate::route::{SummaryNet, SummaryNetFlags, SummaryRtr};
 use crate::version::Ospfv3;
@@ -281,6 +281,12 @@ impl LsdbVersion<Self> for Ospfv3 {
                     }
                 }
             }
+            LsaOriginateEvent::HostnameChange => {
+                // (Re)originate Router-Info-LSA(s) in all areas.
+                for area in arenas.areas.iter() {
+                    lsa_orig_router_info(area, instance);
+                }
+            }
             LsaOriginateEvent::BierEnableChange => {
                 // Reoriginate Intra-area-prefix-LSA(s) in all areas.
                 for area in arenas.areas.iter() {
@@ -418,7 +424,7 @@ impl LsdbVersion<Self> for Ospfv3 {
     }
 
     fn lsdb_install(
-        instance: &InstanceUpView<'_, Self>,
+        instance: &mut InstanceUpView<'_, Self>,
         _arenas: &mut InstanceArenas<Self>,
         _lsdb_idx: LsdbIndex,
         lsdb_id: LsdbId,
@@ -432,6 +438,22 @@ impl LsdbVersion<Self> for Ospfv3 {
                 instance.tx.protocol_input.lsa_orig_event(
                     LsaOriginateEvent::LinkLsaRcvd { area_id, iface_id },
                 );
+            }
+        }
+
+        // Check for DynamicHostnameTlv
+        if lsa.hdr.lsa_type.function_code_normalized()
+            == Some(LsaFunctionCode::RouterInfo)
+        {
+            if let LsaBody::RouterInfo(router_info) = &lsa.body {
+                if let Some(hostname_tlv) = router_info.info_hostname.as_ref() {
+                    instance
+                        .state
+                        .hostnames
+                        .insert(lsa.hdr.adv_rtr, hostname_tlv.hostname.clone());
+                } else {
+                    instance.state.hostnames.remove(&lsa.hdr.adv_rtr);
+                }
             }
         }
     }
@@ -1074,6 +1096,11 @@ fn lsa_orig_router_info(
         srlb,
         msds: None,
         srms_pref: None,
+        info_hostname: instance
+            .shared
+            .hostname
+            .as_ref()
+            .map(|hostname| DynamicHostnameTlv::new(hostname.to_string())),
         unknown_tlvs: vec![],
     });
     instance

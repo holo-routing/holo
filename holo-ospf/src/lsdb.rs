@@ -128,6 +128,7 @@ pub enum LsaOriginateEvent {
     BierCfgChange {
         change: BierCfgEvent,
     },
+    HostnameChange,
 }
 
 #[derive(Debug)]
@@ -211,7 +212,7 @@ pub trait LsdbVersion<V: Version> {
 
     // Custom LSA installation handling.
     fn lsdb_install(
-        instance: &InstanceUpView<'_, V>,
+        instance: &mut InstanceUpView<'_, V>,
         arenas: &mut InstanceArenas<V>,
         lsdb_idx: LsdbIndex,
         lsdb_id: LsdbId,

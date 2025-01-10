@@ -103,6 +103,8 @@ pub struct InstanceState<V: Version> {
     pub gr_helper_count: usize,
     // Authentication non-decreasing sequence number.
     pub auth_seqno: Arc<AtomicU64>,
+    // Hostname cache.
+    pub hostnames: BTreeMap<Ipv4Addr, String>,
 }
 
 #[derive(Debug, Default)]
@@ -580,6 +582,7 @@ where
             spf_log_next_id: 0,
             gr_helper_count: 0,
             auth_seqno: Arc::new(V::initial_auth_seqno(boot_count).into()),
+            hostnames: Default::default(),
         }
     }
 }
@@ -790,6 +793,9 @@ where
         }
         IbusMsg::BierCfgEvent(event) => {
             events::process_bier_cfg_change(instance, event)?
+        }
+        IbusMsg::HostnameUpdate(hostname) => {
+            events::process_hostname_update(instance, hostname)?;
         }
         // Ignore other events.
         _ => {}

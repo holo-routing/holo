@@ -32,6 +32,7 @@ pub const TLV_HDR_SIZE: u16 = 4;
 pub enum RouterInfoTlvType {
     InformationalCaps = 1,
     FunctionalCaps = 2,
+    DynamicHostname = 7,
     SrAlgo = 8,
     SidLabelRange = 9,
     NodeMsd = 12,
@@ -109,6 +110,27 @@ bitflags! {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct RouterFuncCapsTlv(RouterFuncCaps);
+
+//
+// Dynamic Hostname TLV.
+//
+// Encoding format:
+//
+//  0                   1                   2                   3
+//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |              Type             |             Length            |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |                          Hostname ...                         |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+#[derive(Clone, Debug, Default, Eq, new, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct DynamicHostnameTlv {
+    pub hostname: String,
+}
+
+const MAX_HOSTNAME_LEN: usize = 255;
 
 //
 // SR-Algorithm TLV.
@@ -531,6 +553,41 @@ impl RouterFuncCapsTlv {
 impl From<RouterFuncCaps> for RouterFuncCapsTlv {
     fn from(caps: RouterFuncCaps) -> RouterFuncCapsTlv {
         RouterFuncCapsTlv(caps)
+    }
+}
+
+// ===== impl DynamicHostnameTlv ====
+
+impl DynamicHostnameTlv {
+    pub(crate) fn decode(tlv_len: u16, buf: &mut Bytes) -> DecodeResult<Self> {
+        if tlv_len == 0 {
+            return Err(DecodeError::InvalidTlvLength(tlv_len));
+        }
+
+        let mut hostname_bytes = [0; 255];
+        buf.copy_to_slice(
+            &mut hostname_bytes
+                [..usize::min(tlv_len as usize, MAX_HOSTNAME_LEN)],
+        );
+
+        let hostname =
+            String::from_utf8_lossy(&hostname_bytes[..tlv_len as usize])
+                .to_string();
+
+        Ok(DynamicHostnameTlv { hostname })
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos =
+            tlv_encode_start(buf, RouterInfoTlvType::DynamicHostname);
+        let hostname = self.hostname.as_bytes();
+        let hostname_len = usize::min(hostname.len(), MAX_HOSTNAME_LEN);
+        buf.put_slice(&hostname[..hostname_len]);
+        tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn get(&self) -> &str {
+        &self.hostname
     }
 }
 

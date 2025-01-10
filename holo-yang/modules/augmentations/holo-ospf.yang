@@ -104,6 +104,36 @@ module holo-ospf {
   /*
    * Augmentations.
    */
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/ospf:ospf" {
+    container hostnames {
+      config false;
+      list hostname {
+        key "router-id";
+        leaf router-id {
+          type rt-types:router-id;
+          description
+            "Router ID associated with the hostname.";
+        }
+        leaf hostname {
+          type string {
+            length "1..255";
+          }
+          description
+            "Hostname associated with the router ID
+             as defined in RFC 5642.";
+          reference
+            "RFC 5642: Dynamic Hostname Exchange Mechanism for OSPF";
+        }
+        description
+          "List of router ID / hostname associations.";
+      }
+      description
+        "Hostname-to-router-ID mapping database.";
+    }
+  }
+
   augment "/rt:routing/rt:control-plane-protocols/"
         + "rt:control-plane-protocol/ospf:ospf" {
     when "derived-from-or-self(../rt:type, "

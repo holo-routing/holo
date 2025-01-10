@@ -736,16 +736,6 @@ module holo-ietf-ospf-deviations {
   }
   */
 
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf:dynamic-hostname-tlv" {
-    deviate not-supported;
-  }
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf:dynamic-hostname-tlv/ospf:hostname" {
-    deviate not-supported;
-  }
-  */
-
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf:sbfd-discriminator-tlv" {
     deviate not-supported;
   }
@@ -950,16 +940,6 @@ module holo-ietf-ospf-deviations {
   }
   */
 
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv3/ospf:ospfv3/ospf:body/ospf:router-information/ospf:dynamic-hostname-tlv" {
-    deviate not-supported;
-  }
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv3/ospf:ospfv3/ospf:body/ospf:router-information/ospf:dynamic-hostname-tlv/ospf:hostname" {
-    deviate not-supported;
-  }
-  */
-
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv3/ospf:ospfv3/ospf:body/ospf:router-information/ospf:sbfd-discriminator-tlv" {
     deviate not-supported;
   }
@@ -998,16 +978,6 @@ module holo-ietf-ospf-deviations {
 
   /*
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf:node-tag-tlvs/ospf:node-tag-tlv/ospf:node-tag/ospf:tag" {
-    deviate not-supported;
-  }
-  */
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf:dynamic-hostname-tlv" {
-    deviate not-supported;
-  }
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf:dynamic-hostname-tlv/ospf:hostname" {
     deviate not-supported;
   }
   */
@@ -1212,16 +1182,6 @@ module holo-ietf-ospf-deviations {
 
   /*
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv3/ospf:ospfv3/ospf:body/ospf:router-information/ospf:node-tag-tlvs/ospf:node-tag-tlv/ospf:node-tag/ospf:tag" {
-    deviate not-supported;
-  }
-  */
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv3/ospf:ospfv3/ospf:body/ospf:router-information/ospf:dynamic-hostname-tlv" {
-    deviate not-supported;
-  }
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:database/ospf:area-scope-lsa-type/ospf:area-scope-lsas/ospf:area-scope-lsa/ospf:version/ospf:ospfv3/ospf:ospfv3/ospf:body/ospf:router-information/ospf:dynamic-hostname-tlv/ospf:hostname" {
     deviate not-supported;
   }
   */

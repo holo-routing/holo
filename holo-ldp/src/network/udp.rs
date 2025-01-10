@@ -10,7 +10,7 @@ use std::sync::{Arc, LazyLock as Lazy};
 
 use holo_utils::ip::{AddressFamily, IpAddrExt};
 use holo_utils::socket::{SocketExt, UdpSocket, UdpSocketExt};
-use holo_utils::{capabilities, Sender};
+use holo_utils::{Sender, capabilities};
 use tokio::sync::mpsc::error::SendError;
 
 use crate::error::{Error, IoError};

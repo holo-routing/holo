@@ -189,8 +189,8 @@ impl ProtocolInstance for Interface {
         }
     }
 
-    fn protocol_input_channels(
-    ) -> (ProtocolInputChannelsTx, ProtocolInputChannelsRx) {
+    fn protocol_input_channels()
+    -> (ProtocolInputChannelsTx, ProtocolInputChannelsRx) {
         let (vrrp_net_packet_rxp, vrrp_net_packet_rxc) = mpsc::channel(4);
         let (master_down_timerp, master_down_timerc) = mpsc::channel(4);
 

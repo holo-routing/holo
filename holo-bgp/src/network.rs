@@ -10,10 +10,10 @@ use std::sync::Arc;
 
 use holo_utils::ip::{AddressFamily, IpAddrExt, IpAddrKind};
 use holo_utils::socket::{
-    OwnedReadHalf, OwnedWriteHalf, SocketExt, TcpConnInfo, TcpListener,
-    TcpSocket, TcpSocketExt, TcpStream, TcpStreamExt, TTL_MAX,
+    OwnedReadHalf, OwnedWriteHalf, SocketExt, TTL_MAX, TcpConnInfo,
+    TcpListener, TcpSocket, TcpSocketExt, TcpStream, TcpStreamExt,
 };
-use holo_utils::{capabilities, Sender, UnboundedReceiver};
+use holo_utils::{Sender, UnboundedReceiver, capabilities};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::mpsc::error::SendError;
 

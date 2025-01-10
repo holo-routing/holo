@@ -17,10 +17,10 @@ use crate::collections::{
 use crate::debug::LsaFlushReason;
 use crate::instance::InstanceUpView;
 use crate::interface::Interface;
-use crate::lsdb::{LsaEntry, LsaEntryFlags, LSA_INFINITY};
+use crate::lsdb::{LSA_INFINITY, LsaEntry, LsaEntryFlags};
 use crate::northbound::configuration::{AreaCfg, RangeCfg};
-use crate::packet::lsa::{LsaKey, LsaRouterFlagsVersion};
 use crate::packet::PacketType;
+use crate::packet::lsa::{LsaKey, LsaRouterFlagsVersion};
 use crate::route::{
     Nexthops, PathType, RouteNetFlags, RouteRtr, SummaryNet, SummaryNetFlags,
     SummaryRtr,

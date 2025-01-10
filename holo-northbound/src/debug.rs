@@ -7,7 +7,7 @@
 use tracing::{debug, debug_span, trace};
 
 use crate::configuration::CommitPhase;
-use crate::{api, CallbackOp};
+use crate::{CallbackOp, api};
 
 #[derive(Debug)]
 pub enum Debug<'a> {

@@ -10,7 +10,7 @@
 use std::borrow::Cow;
 use std::net::Ipv4Addr;
 
-use holo_northbound::{notification, yang, NbProviderSender};
+use holo_northbound::{NbProviderSender, notification, yang};
 use holo_yang::ToYang;
 
 use crate::instance::MasterReason;

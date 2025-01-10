@@ -25,10 +25,9 @@ use crate::packet::auth::{AuthDecodeCtx, AuthEncodeCtx, AuthMethod};
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::packet::{
-    auth, packet_encode_end, packet_encode_start, DbDescFlags, DbDescVersion,
-    HelloVersion, LsAckVersion, LsRequestVersion, LsUpdateVersion,
-    OptionsVersion, Packet, PacketBase, PacketHdrVersion, PacketType,
-    PacketVersion,
+    DbDescFlags, DbDescVersion, HelloVersion, LsAckVersion, LsRequestVersion,
+    LsUpdateVersion, OptionsVersion, Packet, PacketBase, PacketHdrVersion,
+    PacketType, PacketVersion, auth, packet_encode_end, packet_encode_start,
 };
 use crate::version::Ospfv3;
 

@@ -15,8 +15,8 @@ use tracing::{debug, debug_span};
 use crate::adjacency::{Adjacency, AdjacencyEvent, AdjacencyState};
 use crate::interface::{DisCandidate, Interface};
 use crate::network::MulticastAddr;
-use crate::packet::pdu::{Lsp, Pdu};
 use crate::packet::LevelNumber;
+use crate::packet::pdu::{Lsp, Pdu};
 use crate::spf;
 use crate::spf::{Vertex, VertexEdge};
 

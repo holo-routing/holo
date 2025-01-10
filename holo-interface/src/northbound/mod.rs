@@ -9,11 +9,11 @@ pub mod state;
 
 use std::sync::LazyLock as Lazy;
 
+use holo_northbound::ProviderBase;
 use holo_northbound::rpc::Provider;
 use holo_northbound::yang::interfaces;
-use holo_northbound::ProviderBase;
 use regex::Regex;
-use tracing::{debug_span, Span};
+use tracing::{Span, debug_span};
 
 use crate::Master;
 

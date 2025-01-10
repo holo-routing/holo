@@ -5,7 +5,7 @@
 //
 
 use std::borrow::Cow;
-use std::sync::{atomic, Arc, LazyLock as Lazy};
+use std::sync::{Arc, LazyLock as Lazy, atomic};
 
 use enum_as_inner::EnumAsInner;
 use holo_northbound::state::{
@@ -18,7 +18,7 @@ use holo_yang::ToYang;
 use ipnetwork::{Ipv4Network, Ipv6Network};
 
 use crate::instance::Instance;
-use crate::neighbor::{fsm, Neighbor};
+use crate::neighbor::{Neighbor, fsm};
 use crate::packet::attribute::{
     AsPathSegment, BaseAttrs, Comms, ExtComms, Extv6Comms, LargeComms,
     UnknownAttr,

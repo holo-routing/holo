@@ -12,7 +12,7 @@ pub mod yang;
 use holo_northbound::ProviderBase;
 use holo_utils::protocol::Protocol;
 use holo_yang::ToYang;
-use tracing::{debug_span, Span};
+use tracing::{Span, debug_span};
 
 use crate::master::Master;
 

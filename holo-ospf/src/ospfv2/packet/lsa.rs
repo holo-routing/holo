@@ -17,8 +17,8 @@ use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
-use crate::ospfv2::packet::lsa_opaque::{AdjSid, LsaOpaque, PrefixSid};
 use crate::ospfv2::packet::Options;
+use crate::ospfv2::packet::lsa_opaque::{AdjSid, LsaOpaque, PrefixSid};
 use crate::packet::error::{DecodeError, DecodeResult, LsaValidationError};
 #[cfg(feature = "testing")]
 use crate::packet::lsa::serde_lsa_age_filter;

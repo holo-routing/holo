@@ -17,12 +17,12 @@ use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
+use crate::packet::DecodeCxt;
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::message::{
     LabelMessageType, Message, MessageDecodeInfo, MessageKind, MessageType,
 };
 use crate::packet::tlv::{self, TlvDecodeInfo, TlvKind, TlvType};
-use crate::packet::DecodeCxt;
 
 //
 // Label messages.
@@ -286,7 +286,7 @@ impl MessageKind for LabelMsg {
             | MessageType::LabelAbortReq
                 if fec_type == TLV_FEC_ELEMENT_WILDCARD =>
             {
-                return Err(DecodeError::UnknownFec(tlvi, fec_type))
+                return Err(DecodeError::UnknownFec(tlvi, fec_type));
             }
             // RFC 5918 - Section 4:
             // "An LDP implementation that supports the Typed Wildcard FEC
@@ -295,7 +295,7 @@ impl MessageKind for LabelMsg {
             MessageType::LabelMapping | MessageType::LabelAbortReq
                 if fec_type == TLV_FEC_ELEMENT_TYPED_WILDCARD =>
             {
-                return Err(DecodeError::UnknownFec(tlvi, fec_type))
+                return Err(DecodeError::UnknownFec(tlvi, fec_type));
             }
             _ => (),
         }
@@ -462,7 +462,7 @@ impl FecElem {
                         return Err(DecodeError::UnsupportedAf(
                             tlvi.clone(),
                             af,
-                        ))
+                        ));
                     }
                 };
 

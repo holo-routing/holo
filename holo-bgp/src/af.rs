@@ -14,7 +14,7 @@ use itertools::Itertools;
 use crate::neighbor::{
     Neighbor, NeighborUpdateQueue, NeighborUpdateQueues, PeerType,
 };
-use crate::packet::attribute::{self, BaseAttrs, ATTR_MIN_LEN_EXT};
+use crate::packet::attribute::{self, ATTR_MIN_LEN_EXT, BaseAttrs};
 use crate::packet::consts::{Afi, Safi};
 use crate::packet::message::{
     Message, MpReachNlri, MpUnreachNlri, ReachNlri, UnreachNlri, UpdateMsg,

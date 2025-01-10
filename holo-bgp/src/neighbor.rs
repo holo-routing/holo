@@ -6,15 +6,15 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, Ipv4Addr};
-use std::sync::atomic::{self, AtomicU32};
 use std::sync::Arc;
+use std::sync::atomic::{self, AtomicU32};
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use holo_protocol::InstanceChannelsTx;
 use holo_utils::bgp::{AfiSafi, RouteType, WellKnownCommunities};
 use holo_utils::ibus::IbusSender;
-use holo_utils::socket::{TcpConnInfo, TcpStream, TTL_MAX};
+use holo_utils::socket::{TTL_MAX, TcpConnInfo, TcpStream};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{Sender, UnboundedSender};
 use num_traits::{FromPrimitive, ToPrimitive};
@@ -29,17 +29,17 @@ use crate::northbound::notification;
 use crate::northbound::rpc::ClearType;
 use crate::packet::attribute::Attrs;
 use crate::packet::consts::{
-    Afi, CeaseSubcode, ErrorCode, FsmErrorSubcode, Safi, AS_TRANS, BGP_VERSION,
+    AS_TRANS, Afi, BGP_VERSION, CeaseSubcode, ErrorCode, FsmErrorSubcode, Safi,
 };
 use crate::packet::message::{
     Capability, DecodeCxt, EncodeCxt, KeepaliveMsg, Message,
     NegotiatedCapability, NotificationMsg, OpenMsg, RouteRefreshMsg,
 };
 use crate::rib::{Rib, Route, RouteOrigin};
-use crate::tasks::messages::input::{NbrRxMsg, NbrTimerMsg, TcpConnectMsg};
-use crate::tasks::messages::output::NbrTxMsg;
 #[cfg(feature = "testing")]
 use crate::tasks::messages::ProtocolOutputMsg;
+use crate::tasks::messages::input::{NbrRxMsg, NbrTimerMsg, TcpConnectMsg};
+use crate::tasks::messages::output::NbrTxMsg;
 use crate::{events, rib, tasks};
 
 // Large hold-time used during session initialization.
@@ -661,13 +661,11 @@ impl Neighbor {
     // Sends a BGP OPEN message based on the local configuration.
     fn open_send(&mut self, instance_cfg: &InstanceCfg, identifier: Ipv4Addr) {
         // Base capabilities.
-        let mut capabilities: BTreeSet<_> = [
-            Capability::RouteRefresh,
-            Capability::FourOctetAsNumber {
+        let mut capabilities: BTreeSet<_> =
+            [Capability::RouteRefresh, Capability::FourOctetAsNumber {
                 asn: instance_cfg.asn,
-            },
-        ]
-        .into();
+            }]
+            .into();
 
         // Multiprotocol capabilities.
         if let Some(afi_safi) = self.config.afi_safi.get(&AfiSafi::Ipv4Unicast)

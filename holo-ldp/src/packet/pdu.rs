@@ -11,9 +11,9 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::{BytesExt, BytesMutExt, TLS_BUF};
 use serde::{Deserialize, Serialize};
 
+use crate::packet::DecodeCxt;
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::message::Message;
-use crate::packet::DecodeCxt;
 
 //
 // LDP PDU.

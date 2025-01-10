@@ -8,15 +8,15 @@
 //
 
 use std::net::Ipv4Addr;
-use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
+use std::sync::atomic::AtomicU64;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use enum_as_inner::EnumAsInner;
+use holo_utils::UnboundedSender;
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
-use holo_utils::UnboundedSender;
 use tokio::sync::mpsc;
 
 use crate::consts::{VRRP_MULTICAST_ADDRESS, VRRP_PROTO_NUMBER};

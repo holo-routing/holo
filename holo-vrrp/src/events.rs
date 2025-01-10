@@ -15,7 +15,7 @@ use chrono::Utc;
 use crate::consts::VALID_VRRP_VERSIONS;
 use crate::debug::Debug;
 use crate::error::{Error, GlobalError, VirtualRouterError};
-use crate::instance::{fsm, MasterReason, VrrpTimer};
+use crate::instance::{MasterReason, VrrpTimer, fsm};
 use crate::interface::Interface;
 use crate::packet::{DecodeError, DecodeResult, VrrpHdr};
 use crate::tasks;

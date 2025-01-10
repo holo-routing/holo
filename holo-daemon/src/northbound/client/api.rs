@@ -7,8 +7,8 @@
 use holo_utils::Responder;
 use yang3::data::{DataDiff, DataTree};
 
-use crate::northbound::core::Transaction;
 use crate::northbound::Result;
+use crate::northbound::core::Transaction;
 
 // Daemon -> External client requests.
 pub mod daemon {}

@@ -6,8 +6,8 @@
 
 use std::collections::BTreeMap;
 use std::net::Ipv4Addr;
-use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
+use std::sync::atomic::AtomicU32;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use async_trait::async_trait;
@@ -274,8 +274,8 @@ where
         }
     }
 
-    fn protocol_input_channels(
-    ) -> (ProtocolInputChannelsTx<V>, ProtocolInputChannelsRx<V>) {
+    fn protocol_input_channels()
+    -> (ProtocolInputChannelsTx<V>, ProtocolInputChannelsRx<V>) {
         let (udp_pdu_rxp, udp_pdu_rxc) = mpsc::channel(4);
         let (initial_updatep, initial_updatec) = mpsc::channel(4);
         let (update_intervalp, update_intervalc) = mpsc::channel(4);

@@ -16,8 +16,8 @@ use crate::gr::GrExitReason;
 use crate::instance::InstanceUpView;
 use crate::interface::Interface;
 use crate::neighbor::Neighbor;
-use crate::packet::error::LsaValidationError;
 use crate::packet::PacketType;
+use crate::packet::error::LsaValidationError;
 use crate::version::Version;
 
 // ===== global functions =====

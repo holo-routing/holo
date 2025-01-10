@@ -13,7 +13,7 @@ pub mod state;
 pub mod yang;
 
 use holo_northbound::ProviderBase;
-use tracing::{debug_span, Span};
+use tracing::{Span, debug_span};
 
 use crate::interface::Interface;
 

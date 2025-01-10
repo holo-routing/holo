@@ -328,8 +328,8 @@ impl ProtocolInstance for Instance {
         }
     }
 
-    fn protocol_input_channels(
-    ) -> (ProtocolInputChannelsTx, ProtocolInputChannelsRx) {
+    fn protocol_input_channels()
+    -> (ProtocolInputChannelsTx, ProtocolInputChannelsRx) {
         let (net_pdu_rxp, net_pdu_rxc) = mpsc::channel(4);
         let (adj_holdtimerp, adj_holdtimerc) = mpsc::channel(4);
         let (dis_electionp, dis_electionc) = mpsc::unbounded_channel();

@@ -14,8 +14,8 @@ use crate::collections::{
 };
 use crate::instance::InstanceArenas;
 use crate::network::MulticastAddr;
-use crate::packet::error::DecodeError;
 use crate::packet::LevelNumber;
+use crate::packet::error::DecodeError;
 use crate::spf;
 
 // IS-IS errors.

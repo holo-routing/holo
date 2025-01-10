@@ -10,8 +10,8 @@ use std::collections::BTreeMap;
 
 use derive_new::new;
 use holo_northbound::{
-    process_northbound_msg, NbDaemonReceiver, NbDaemonSender, NbProviderSender,
-    ProviderBase,
+    NbDaemonReceiver, NbDaemonSender, NbProviderSender, ProviderBase,
+    process_northbound_msg,
 };
 use holo_utils::ibus::{IbusReceiver, IbusSender};
 use holo_utils::policy::{MatchSets, Policy};

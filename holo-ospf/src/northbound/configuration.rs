@@ -27,7 +27,7 @@ use crate::area::{self, AreaType};
 use crate::collections::{AreaIndex, InterfaceIndex};
 use crate::debug::InterfaceInactiveReason;
 use crate::instance::Instance;
-use crate::interface::{ism, InterfaceType};
+use crate::interface::{InterfaceType, ism};
 use crate::lsdb::LsaOriginateEvent;
 use crate::neighbor::nsm;
 use crate::route::RouteNetFlags;

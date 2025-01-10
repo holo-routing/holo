@@ -10,7 +10,7 @@ use std::time::Duration;
 use holo_utils::socket::UdpSocket;
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{Sender, UnboundedReceiver};
-use tracing::{debug_span, Instrument};
+use tracing::{Instrument, debug_span};
 
 use crate::network;
 use crate::packet::AuthCtx;

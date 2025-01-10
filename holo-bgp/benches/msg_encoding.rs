@@ -3,8 +3,8 @@ use std::net::Ipv4Addr;
 use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
-use criterion::{criterion_group, criterion_main, Criterion};
-use holo_bgp::packet::consts::{Afi, Safi, BGP_VERSION};
+use criterion::{Criterion, criterion_group, criterion_main};
+use holo_bgp::packet::consts::{Afi, BGP_VERSION, Safi};
 use holo_bgp::packet::message::{
     Capability, EncodeCxt, Message, NegotiatedCapability, OpenMsg,
 };

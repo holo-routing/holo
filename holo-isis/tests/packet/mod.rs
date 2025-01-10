@@ -208,10 +208,9 @@ static LAN_HELLO1: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
                     list: vec![AreaAddr::from([0x49, 0x00, 0x00].as_slice())],
                 }],
                 neighbors: vec![NeighborsTlv {
-                    list: vec![
-                        [0x3e, 0x25, 0x6d, 0x6d, 0x1b, 0x25],
-                        [0x3e, 0xe8, 0x34, 0x2b, 0x1f, 0x96],
-                    ],
+                    list: vec![[0x3e, 0x25, 0x6d, 0x6d, 0x1b, 0x25], [
+                        0x3e, 0xe8, 0x34, 0x2b, 0x1f, 0x96,
+                    ]],
                 }],
                 ipv4_addrs: vec![Ipv4AddressesTlv {
                     list: vec![Ipv4Addr::from_str("10.0.1.1").unwrap()],

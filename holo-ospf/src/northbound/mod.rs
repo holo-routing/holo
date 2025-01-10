@@ -13,7 +13,7 @@ pub mod yang;
 use holo_northbound as northbound;
 use holo_northbound::ProviderBase;
 use holo_yang::ToYang;
-use tracing::{debug_span, Span};
+use tracing::{Span, debug_span};
 
 use crate::instance::Instance;
 use crate::version::{Ospfv2, Ospfv3, Version};
@@ -22,14 +22,14 @@ pub trait NorthboundVersion<V: Version> {
     const STATE_PATH: &'static str;
 
     fn debug_span(name: &str) -> Span;
-    fn validation_callbacks(
-    ) -> Option<&'static northbound::configuration::ValidationCallbacks>;
-    fn configuration_callbacks(
-    ) -> Option<&'static northbound::configuration::Callbacks<Instance<V>>>;
-    fn rpc_callbacks(
-    ) -> Option<&'static northbound::rpc::Callbacks<Instance<V>>>;
-    fn state_callbacks(
-    ) -> Option<&'static northbound::state::Callbacks<Instance<V>>>;
+    fn validation_callbacks()
+    -> Option<&'static northbound::configuration::ValidationCallbacks>;
+    fn configuration_callbacks()
+    -> Option<&'static northbound::configuration::Callbacks<Instance<V>>>;
+    fn rpc_callbacks()
+    -> Option<&'static northbound::rpc::Callbacks<Instance<V>>>;
+    fn state_callbacks()
+    -> Option<&'static northbound::state::Callbacks<Instance<V>>>;
 }
 
 // ===== impl Instance =====
@@ -70,24 +70,24 @@ impl NorthboundVersion<Self> for Ospfv2 {
         debug_span!("ospfv2-instance", %name)
     }
 
-    fn validation_callbacks(
-    ) -> Option<&'static northbound::configuration::ValidationCallbacks> {
+    fn validation_callbacks()
+    -> Option<&'static northbound::configuration::ValidationCallbacks> {
         Some(&configuration::VALIDATION_CALLBACKS_OSPFV2)
     }
 
-    fn configuration_callbacks(
-    ) -> Option<&'static northbound::configuration::Callbacks<Instance<Self>>>
+    fn configuration_callbacks()
+    -> Option<&'static northbound::configuration::Callbacks<Instance<Self>>>
     {
         Some(&configuration::CALLBACKS_OSPFV2)
     }
 
-    fn rpc_callbacks(
-    ) -> Option<&'static northbound::rpc::Callbacks<Instance<Self>>> {
+    fn rpc_callbacks()
+    -> Option<&'static northbound::rpc::Callbacks<Instance<Self>>> {
         Some(&rpc::CALLBACKS_OSPFV2)
     }
 
-    fn state_callbacks(
-    ) -> Option<&'static northbound::state::Callbacks<Instance<Self>>> {
+    fn state_callbacks()
+    -> Option<&'static northbound::state::Callbacks<Instance<Self>>> {
         Some(&state::CALLBACKS_OSPFV2)
     }
 }
@@ -101,24 +101,24 @@ impl NorthboundVersion<Self> for Ospfv3 {
         debug_span!("ospfv3-instance", %name)
     }
 
-    fn validation_callbacks(
-    ) -> Option<&'static northbound::configuration::ValidationCallbacks> {
+    fn validation_callbacks()
+    -> Option<&'static northbound::configuration::ValidationCallbacks> {
         Some(&configuration::VALIDATION_CALLBACKS_OSPFV3)
     }
 
-    fn configuration_callbacks(
-    ) -> Option<&'static northbound::configuration::Callbacks<Instance<Self>>>
+    fn configuration_callbacks()
+    -> Option<&'static northbound::configuration::Callbacks<Instance<Self>>>
     {
         Some(&configuration::CALLBACKS_OSPFV3)
     }
 
-    fn rpc_callbacks(
-    ) -> Option<&'static northbound::rpc::Callbacks<Instance<Self>>> {
+    fn rpc_callbacks()
+    -> Option<&'static northbound::rpc::Callbacks<Instance<Self>>> {
         Some(&rpc::CALLBACKS_OSPFV3)
     }
 
-    fn state_callbacks(
-    ) -> Option<&'static northbound::state::Callbacks<Instance<Self>>> {
+    fn state_callbacks()
+    -> Option<&'static northbound::state::Callbacks<Instance<Self>>> {
         Some(&state::CALLBACKS_OSPFV3)
     }
 }

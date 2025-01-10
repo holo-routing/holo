@@ -20,8 +20,8 @@ use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};
 use tracing::level_filters::LevelFilter;
 use tracing::{error, info};
 use tracing_appender::rolling;
-use tracing_subscriber::prelude::*;
 use tracing_subscriber::Layer;
+use tracing_subscriber::prelude::*;
 
 fn init_tracing(config: &config::Logging) {
     // Enable logging to journald.

@@ -14,8 +14,8 @@ use holo_northbound::state::{
 use holo_northbound::yang::interfaces;
 use holo_northbound::{CallbackKey, NbDaemonSender};
 
-use crate::interface::Interface;
 use crate::Master;
+use crate::interface::Interface;
 
 pub static CALLBACKS: Lazy<Callbacks<Master>> = Lazy::new(load_callbacks);
 

@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
+use std::sync::atomic::AtomicU32;
 
 use bytes::BytesMut;
 use derive_new::new;
@@ -52,7 +52,7 @@ pub trait PduVersion<
 
     // Decode PDU from a bytes buffer.
     fn decode(data: &[u8], auth: Option<&AuthCtx>)
-        -> Result<Self, DecodeError>;
+    -> Result<Self, DecodeError>;
 
     // Return the PDU command.
     fn command(&self) -> Command;

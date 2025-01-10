@@ -4,12 +4,12 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::{btree_map, BTreeMap};
+use std::collections::{BTreeMap, btree_map};
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use holo_utils::task::TimeoutTask;
 use holo_utils::Sender;
+use holo_utils::task::TimeoutTask;
 
 use crate::debug::Debug;
 use crate::tasks;

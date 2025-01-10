@@ -6,8 +6,8 @@
 
 use std::collections::{BTreeMap, VecDeque};
 use std::net::Ipv4Addr;
-use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
+use std::sync::atomic::AtomicU64;
 use std::time::Instant;
 
 use async_trait::async_trait;
@@ -29,9 +29,9 @@ use crate::debug::{
     Debug, InstanceInactiveReason, InterfaceInactiveReason, LsaFlushReason,
 };
 use crate::error::Error;
-use crate::interface::{ism, Interface};
+use crate::interface::{Interface, ism};
 use crate::lsdb::{LsaEntry, LsaLogEntry, LsaOriginateEvent};
-use crate::neighbor::{nsm, Neighbor};
+use crate::neighbor::{Neighbor, nsm};
 use crate::northbound::configuration::InstanceCfg;
 use crate::northbound::notification;
 use crate::route::{RouteNet, RouteNetFlags};
@@ -462,8 +462,8 @@ where
         }
     }
 
-    fn protocol_input_channels(
-    ) -> (ProtocolInputChannelsTx<V>, ProtocolInputChannelsRx<V>) {
+    fn protocol_input_channels()
+    -> (ProtocolInputChannelsTx<V>, ProtocolInputChannelsRx<V>) {
         let (ism_eventp, ism_eventc) = mpsc::unbounded_channel();
         let (nsm_eventp, nsm_eventc) = mpsc::unbounded_channel();
         let (net_packet_rxp, net_packet_rxc) = mpsc::channel(4);

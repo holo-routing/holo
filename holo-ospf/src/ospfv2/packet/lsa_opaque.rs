@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::{btree_map, BTreeMap};
+use std::collections::{BTreeMap, btree_map};
 use std::net::Ipv4Addr;
 
 use bitflags::bitflags;
@@ -23,10 +23,10 @@ use crate::ospfv2::packet::lsa::{LsaRouterLinkType, LsaUnknown};
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::lsa::{AdjSidVersion, PrefixSidVersion};
 use crate::packet::tlv::{
-    tlv_encode_end, tlv_encode_start, tlv_wire_len, AdjSidFlags,
-    DynamicHostnameTlv, GrReasonTlv, GracePeriodTlv, MsdTlv, PrefixSidFlags,
-    RouterFuncCapsTlv, RouterInfoCapsTlv, RouterInfoTlvType, SidLabelRangeTlv,
-    SrAlgoTlv, SrLocalBlockTlv, SrmsPrefTlv, UnknownTlv, TLV_HDR_SIZE,
+    AdjSidFlags, DynamicHostnameTlv, GrReasonTlv, GracePeriodTlv, MsdTlv,
+    PrefixSidFlags, RouterFuncCapsTlv, RouterInfoCapsTlv, RouterInfoTlvType,
+    SidLabelRangeTlv, SrAlgoTlv, SrLocalBlockTlv, SrmsPrefTlv, TLV_HDR_SIZE,
+    UnknownTlv, tlv_encode_end, tlv_encode_start, tlv_wire_len,
 };
 
 // OSPFv2 opaque LSA types.

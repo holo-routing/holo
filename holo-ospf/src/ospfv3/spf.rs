@@ -17,13 +17,13 @@ use crate::error::Error;
 use crate::interface::Interface;
 use crate::lsdb::LsaEntry;
 use crate::neighbor::Neighbor;
+use crate::ospfv3::packet::Options;
 use crate::ospfv3::packet::lsa::{
     LsaAsExternal, LsaAsExternalFlags, LsaFunctionCode, LsaInterAreaPrefix,
     LsaInterAreaRouter, LsaIntraAreaPrefix, LsaLink, LsaNetwork, LsaRouter,
     LsaRouterFlags, LsaRouterInfo, LsaRouterLink, LsaRouterLinkType,
     LsaScopeCode, LsaType, PrefixOptions,
 };
-use crate::ospfv3::packet::Options;
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::route::{Nexthop, NexthopKey, Nexthops};
 use crate::spf::{

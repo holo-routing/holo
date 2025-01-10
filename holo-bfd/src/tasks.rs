@@ -5,13 +5,13 @@
 //
 
 use std::net::SocketAddr;
-use std::sync::{atomic, Arc};
+use std::sync::{Arc, atomic};
 use std::time::Duration;
 
+use holo_utils::Sender;
 use holo_utils::bfd::PathType;
 use holo_utils::socket::UdpSocket;
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
-use holo_utils::Sender;
 use tracing::Instrument;
 
 use crate::network;

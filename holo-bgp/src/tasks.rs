@@ -4,17 +4,17 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::sync::{atomic, Arc};
+use std::sync::{Arc, atomic};
 use std::time::Duration;
 
 use holo_utils::socket::{OwnedReadHalf, OwnedWriteHalf, TcpListener};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{Sender, UnboundedReceiver, UnboundedSender};
 use tokio::time::sleep;
-use tracing::{debug_span, Instrument};
+use tracing::{Instrument, debug_span};
 
 use crate::debug::Debug;
-use crate::neighbor::{fsm, Neighbor};
+use crate::neighbor::{Neighbor, fsm};
 use crate::packet::message::{DecodeCxt, EncodeCxt, KeepaliveMsg, Message};
 use crate::{network, policy};
 

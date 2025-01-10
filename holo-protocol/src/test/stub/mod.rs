@@ -17,10 +17,10 @@ use tracing::{debug_span, info};
 
 use crate::test::stub::collector::MessageCollector;
 use crate::test::stub::northbound::NorthboundStub;
-use crate::test::{setup, OutputChannelsRx};
+use crate::test::{OutputChannelsRx, setup};
 use crate::{
-    spawn_protocol_task, InstanceAggChannels, InstanceMsg, InstanceShared,
-    ProtocolInstance,
+    InstanceAggChannels, InstanceMsg, InstanceShared, ProtocolInstance,
+    spawn_protocol_task,
 };
 
 // Environment variable that controls if the test data needs to be updated or

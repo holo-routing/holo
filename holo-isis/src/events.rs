@@ -21,7 +21,7 @@ use crate::debug::{Debug, LspPurgeReason};
 use crate::error::{AdjacencyRejectError, Error};
 use crate::instance::{Instance, InstanceArenas, InstanceUpView};
 use crate::interface::InterfaceType;
-use crate::lsdb::{self, lsp_compare, LspEntryFlags};
+use crate::lsdb::{self, LspEntryFlags, lsp_compare};
 use crate::northbound::notification;
 use crate::packet::consts::PduType;
 use crate::packet::error::{DecodeError, DecodeResult};

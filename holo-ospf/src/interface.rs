@@ -6,17 +6,17 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::net::Ipv4Addr;
-use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
+use std::sync::atomic::AtomicU64;
 
 use chrono::{DateTime, Utc};
 use holo_protocol::InstanceChannelsTx;
+use holo_utils::UnboundedSender;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
 use holo_utils::keychain::{Key, Keychains};
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
-use holo_utils::UnboundedSender;
 use ipnetwork::{Ipv4Network, Ipv6Network};
 use ism::{Event, State};
 use smallvec::smallvec;
@@ -28,13 +28,13 @@ use crate::debug::{Debug, InterfaceInactiveReason};
 use crate::error::{Error, InterfaceCfgError, IoError};
 use crate::instance::{Instance, InstanceUpView};
 use crate::lsdb::{LsaEntry, LsaOriginateEvent};
-use crate::neighbor::{nsm, Neighbor, NeighborNetId};
+use crate::neighbor::{Neighbor, NeighborNetId, nsm};
 use crate::network::{MulticastAddr, SendDestination};
 use crate::northbound::configuration::InterfaceCfg;
 use crate::northbound::notification;
+use crate::packet::Packet;
 use crate::packet::auth::AuthMethod;
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
-use crate::packet::Packet;
 use crate::tasks;
 use crate::tasks::messages::output::NetTxPacketMsg;
 use crate::version::Version;

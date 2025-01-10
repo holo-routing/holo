@@ -8,8 +8,8 @@
 //
 
 use std::net::Ipv4Addr;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use holo_utils::socket::{AsyncFd, Socket};
@@ -17,7 +17,7 @@ use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{Sender, UnboundedReceiver, UnboundedSender};
 use messages::input::MasterDownTimerMsg;
 use messages::output::NetTxPacketMsg;
-use tracing::{debug_span, Instrument};
+use tracing::{Instrument, debug_span};
 
 use crate::instance::Instance;
 use crate::network;

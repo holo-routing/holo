@@ -6,8 +6,8 @@
 
 use std::collections::BTreeSet;
 use std::net::{IpAddr, Ipv4Addr};
-use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
+use std::sync::atomic::AtomicU32;
 use std::time::Duration;
 
 use holo_utils::socket::{UdpSocket, UdpSocketExt};
@@ -20,12 +20,12 @@ use crate::debug::{Debug, InterfaceInactiveReason};
 use crate::error::{Error, IoError};
 use crate::instance::{InstanceState, InstanceUpView};
 use crate::northbound::configuration::InterfaceCfg;
+use crate::packet::Pdu;
 use crate::packet::messages::hello::{
     HelloFlags, HelloMsg, TlvCommonHelloParams, TlvConfigSeqNo,
     TlvIpv4TransAddr,
 };
 use crate::packet::messages::notification::StatusCode;
-use crate::packet::Pdu;
 use crate::{discovery, network, tasks};
 
 #[derive(Debug)]

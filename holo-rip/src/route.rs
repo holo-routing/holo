@@ -8,8 +8,8 @@ use std::time::Duration;
 
 use bitflags::bitflags;
 use holo_protocol::InstanceChannelsTx;
-use holo_utils::task::TimeoutTask;
 use holo_utils::Sender;
+use holo_utils::task::TimeoutTask;
 use serde::{Deserialize, Serialize};
 
 use crate::debug::Debug;

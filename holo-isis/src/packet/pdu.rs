@@ -17,17 +17,17 @@ use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
 use crate::packet::consts::{
-    LspFlags, PduType, TlvType, IDRP_DISCRIMINATOR, SYSTEM_ID_LEN, VERSION,
+    IDRP_DISCRIMINATOR, LspFlags, PduType, SYSTEM_ID_LEN, TlvType, VERSION,
     VERSION_PROTO_EXT,
 };
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::tlv::{
-    tlv_entries_split, tlv_take_max, AreaAddressesTlv, DynamicHostnameTlv,
-    ExtIpv4Reach, ExtIpv4ReachTlv, ExtIsReach, ExtIsReachTlv, Ipv4AddressesTlv,
-    Ipv4Reach, Ipv4ReachTlv, Ipv6AddressesTlv, Ipv6Reach, Ipv6ReachTlv,
-    IsReach, IsReachTlv, LspBufferSizeTlv, LspEntriesTlv, LspEntry,
-    NeighborsTlv, PaddingTlv, ProtocolsSupportedTlv, Tlv, UnknownTlv,
-    TLV_HDR_SIZE, TLV_MAX_LEN,
+    AreaAddressesTlv, DynamicHostnameTlv, ExtIpv4Reach, ExtIpv4ReachTlv,
+    ExtIsReach, ExtIsReachTlv, Ipv4AddressesTlv, Ipv4Reach, Ipv4ReachTlv,
+    Ipv6AddressesTlv, Ipv6Reach, Ipv6ReachTlv, IsReach, IsReachTlv,
+    LspBufferSizeTlv, LspEntriesTlv, LspEntry, NeighborsTlv, PaddingTlv,
+    ProtocolsSupportedTlv, TLV_HDR_SIZE, TLV_MAX_LEN, Tlv, UnknownTlv,
+    tlv_entries_split, tlv_take_max,
 };
 use crate::packet::{AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId};
 

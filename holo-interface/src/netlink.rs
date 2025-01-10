@@ -7,24 +7,24 @@
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use capctl::caps::CapState;
-use futures::channel::mpsc::UnboundedReceiver;
 use futures::TryStreamExt;
+use futures::channel::mpsc::UnboundedReceiver;
 use holo_utils::ip::IpAddrExt;
 use holo_utils::southbound::InterfaceFlags;
 use ipnetwork::IpNetwork;
 use libc::{RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, RTNLGRP_LINK};
 use netlink_packet_core::{NetlinkMessage, NetlinkPayload};
+use netlink_packet_route::RouteNetlinkMessage;
 use netlink_packet_route::address::{AddressAttribute, AddressMessage};
 use netlink_packet_route::link::{
     LinkAttribute, LinkFlag, LinkLayerType, LinkMessage,
 };
-use netlink_packet_route::RouteNetlinkMessage;
 use netlink_sys::{AsyncSocket, SocketAddr};
-use rtnetlink::{new_connection, Handle};
+use rtnetlink::{Handle, new_connection};
 use tracing::{error, trace};
 
-use crate::interface::Owner;
 use crate::Master;
+use crate::interface::Owner;
 
 pub const MACVLAN_MODE_BRIDGE: u32 = 4;
 

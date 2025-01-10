@@ -10,13 +10,13 @@ use std::net::{
 };
 use std::ops::Deref;
 use std::os::fd::AsRawFd;
-use std::sync::atomic::{self, AtomicU64};
 use std::sync::Arc;
+use std::sync::atomic::{self, AtomicU64};
 
 use holo_utils::bfd::PathType;
 use holo_utils::ip::{AddressFamily, IpAddrExt};
-use holo_utils::socket::{SocketExt, UdpSocket, UdpSocketExt, TTL_MAX};
-use holo_utils::{capabilities, Sender};
+use holo_utils::socket::{SocketExt, TTL_MAX, UdpSocket, UdpSocketExt};
+use holo_utils::{Sender, capabilities};
 use nix::sys::socket::{self, ControlMessageOwned};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::error::SendError;

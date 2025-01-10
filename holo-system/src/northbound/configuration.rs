@@ -13,7 +13,7 @@ use holo_northbound::configuration::{
 use holo_northbound::yang::system;
 use holo_utils::yang::DataNodeRefExt;
 
-use crate::{ibus, Master};
+use crate::{Master, ibus};
 
 static CALLBACKS: Lazy<configuration::Callbacks<Master>> =
     Lazy::new(load_callbacks);

@@ -13,7 +13,7 @@ use derive_new::new;
 use holo_northbound as northbound;
 use holo_northbound::configuration::{CommitPhase, ConfigChange};
 use holo_northbound::{
-    api as papi, CallbackKey, CallbackOp, NbDaemonSender, NbProviderReceiver,
+    CallbackKey, CallbackOp, NbDaemonSender, NbProviderReceiver, api as papi,
 };
 use holo_protocol::InstanceShared;
 use holo_utils::ibus::{IbusReceiver, IbusSender};
@@ -32,7 +32,7 @@ use yang3::data::{
 
 use crate::config::Config;
 use crate::northbound::client::{api as capi, gnmi, grpc};
-use crate::northbound::{db, yang, Error, Result};
+use crate::northbound::{Error, Result, db, yang};
 
 pub struct Northbound {
     // YANG-modeled running configuration.
@@ -312,7 +312,9 @@ impl Northbound {
 
     // Processes a confirmed commit timeout.
     async fn process_confirmed_commit_timeout(&mut self) {
-        info!("confirmed commit has timed out, rolling back to previous configuration");
+        info!(
+            "confirmed commit has timed out, rolling back to previous configuration"
+        );
 
         let comment = "Confirmed commit rollback".to_owned();
         let rollback = self.confirmed_commit.rollback.take().unwrap();

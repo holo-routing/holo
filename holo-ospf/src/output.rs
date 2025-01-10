@@ -9,9 +9,9 @@ use smallvec::smallvec;
 use crate::area::{Area, OptionsLocation};
 use crate::collections::{Arena, NeighborIndex};
 use crate::instance::InstanceUpView;
-use crate::interface::{ism, Interface, InterfaceType};
+use crate::interface::{Interface, InterfaceType, ism};
 use crate::lsdb;
-use crate::neighbor::{nsm, Neighbor};
+use crate::neighbor::{Neighbor, nsm};
 use crate::network::{MulticastAddr, SendDestination};
 use crate::packet::lsa::LsaHdrVersion;
 use crate::packet::{

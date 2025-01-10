@@ -1,6 +1,6 @@
 use std::hint::black_box;
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use holo_bgp::neighbor::PeerType;
 use holo_bgp::packet::message::{DecodeCxt, Message, NegotiatedCapability};
 

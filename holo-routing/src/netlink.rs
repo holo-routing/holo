@@ -12,7 +12,7 @@ use holo_utils::protocol::Protocol;
 use holo_utils::southbound::Nexthop;
 use ipnetwork::IpNetwork;
 use netlink_packet_route::route::RouteProtocol;
-use rtnetlink::{new_connection, Handle, RouteAddRequest};
+use rtnetlink::{Handle, RouteAddRequest, new_connection};
 use tracing::error;
 
 use crate::rib::Route;

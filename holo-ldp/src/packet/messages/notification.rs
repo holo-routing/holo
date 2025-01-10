@@ -10,6 +10,7 @@ use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
+use crate::packet::DecodeCxt;
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::message::{
     Message, MessageDecodeInfo, MessageKind, MessageType,
@@ -17,7 +18,6 @@ use crate::packet::message::{
 use crate::packet::messages::label::TlvFec;
 use crate::packet::pdu::Pdu;
 use crate::packet::tlv::{self, TlvDecodeInfo, TlvKind, TlvType};
-use crate::packet::DecodeCxt;
 
 //
 // Notification Message.

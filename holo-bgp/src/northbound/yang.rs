@@ -9,7 +9,7 @@ use std::borrow::Cow;
 use holo_yang::{ToYang, TryFromYang};
 use num_traits::FromPrimitive;
 
-use crate::neighbor::{fsm, PeerType};
+use crate::neighbor::{PeerType, fsm};
 use crate::northbound::configuration::PrivateAsRemove;
 use crate::packet::consts::{
     AddPathMode, AsPathSegmentType, CapabilityCode, CeaseSubcode, ErrorCode,

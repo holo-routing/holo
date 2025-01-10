@@ -18,8 +18,8 @@ use crate::adjacency::{Adjacency, AdjacencyEvent, AdjacencyState};
 use crate::error::AdjacencyRejectError;
 use crate::instance::InstanceUpView;
 use crate::interface::Interface;
-use crate::packet::pdu::Lsp;
 use crate::packet::SystemId;
+use crate::packet::pdu::Lsp;
 
 // ===== global functions =====
 

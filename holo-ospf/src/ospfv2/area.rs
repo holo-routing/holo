@@ -10,8 +10,8 @@ use std::net::Ipv4Addr;
 use ipnetwork::Ipv4Network;
 
 use crate::area::{Area, AreaType, AreaVersion, OptionsLocation};
-use crate::ospfv2::packet::lsa_opaque::ExtPrefixTlv;
 use crate::ospfv2::packet::Options;
+use crate::ospfv2::packet::lsa_opaque::ExtPrefixTlv;
 use crate::packet::PacketType;
 use crate::version::Ospfv2;
 

@@ -24,7 +24,7 @@ use tokio::sync::mpsc;
 use crate::af::{Ipv4Unicast, Ipv6Unicast};
 use crate::debug::{Debug, InstanceInactiveReason};
 use crate::error::{Error, IoError};
-use crate::neighbor::{fsm, Neighbors};
+use crate::neighbor::{Neighbors, fsm};
 use crate::northbound::configuration::InstanceCfg;
 use crate::packet::consts::{CeaseSubcode, ErrorCode};
 use crate::packet::message::NotificationMsg;
@@ -283,8 +283,8 @@ impl ProtocolInstance for Instance {
         }
     }
 
-    fn protocol_input_channels(
-    ) -> (ProtocolInputChannelsTx, ProtocolInputChannelsRx) {
+    fn protocol_input_channels()
+    -> (ProtocolInputChannelsTx, ProtocolInputChannelsRx) {
         let (tcp_acceptp, tcp_acceptc) = mpsc::channel(4);
         let (tcp_connectp, tcp_connectc) = mpsc::channel(4);
         let (nbr_msg_rxp, nbr_msg_rxc) = mpsc::channel(4);

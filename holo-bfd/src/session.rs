@@ -4,22 +4,22 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::{hash_map, BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet, hash_map};
 use std::net::{IpAddr, SocketAddr};
 use std::sync::atomic::{AtomicBool, AtomicU64};
-use std::sync::{atomic, Arc};
+use std::sync::{Arc, atomic};
 
 use chrono::{DateTime, Utc};
 use derive_new::new;
 use generational_arena::{Arena, Index};
 use holo_northbound::yang::control_plane_protocol::bfd;
 use holo_protocol::InstanceChannelsTx;
+use holo_utils::Sender;
 use holo_utils::bfd::{ClientCfg, ClientId, SessionKey, State};
 use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::{IpAddrExt, IpAddrKind};
-use holo_utils::socket::{UdpSocket, TTL_MAX};
+use holo_utils::socket::{TTL_MAX, UdpSocket};
 use holo_utils::task::{IntervalTask, TimeoutTask};
-use holo_utils::Sender;
 use rand::RngCore;
 
 use crate::debug::Debug;

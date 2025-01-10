@@ -8,12 +8,12 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
+use crate::packet::DecodeCxt;
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::message::{
     Message, MessageDecodeInfo, MessageKind, MessageType,
 };
 use crate::packet::tlv::{TlvDecodeInfo, TlvKind, TlvType};
-use crate::packet::DecodeCxt;
 
 //
 // Capability Message.

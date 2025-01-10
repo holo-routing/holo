@@ -8,7 +8,7 @@ use std::net::Ipv4Addr;
 use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
-use holo_bgp::packet::consts::{Afi, Safi, BGP_VERSION};
+use holo_bgp::packet::consts::{Afi, BGP_VERSION, Safi};
 use holo_bgp::packet::message::{Capability, Message, OpenMsg};
 
 use super::{test_decode_msg, test_encode_msg};

@@ -21,7 +21,7 @@ use crate::collections::{Arena, NeighborId};
 use crate::debug::Debug;
 use crate::error::Error;
 use crate::instance::InstanceUpView;
-use crate::interface::{ism, Interface, InterfaceType};
+use crate::interface::{Interface, InterfaceType, ism};
 use crate::lsdb::{LsaEntry, LsaOriginateEvent};
 use crate::northbound::notification;
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};

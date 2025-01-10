@@ -7,8 +7,8 @@
 pub mod configuration;
 pub mod state;
 
-use holo_northbound::{rpc, ProviderBase};
-use tracing::{debug_span, Span};
+use holo_northbound::{ProviderBase, rpc};
+use tracing::{Span, debug_span};
 
 use crate::Master;
 

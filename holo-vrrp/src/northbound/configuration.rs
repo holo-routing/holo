@@ -20,7 +20,7 @@ use holo_northbound::yang::interfaces;
 use holo_utils::yang::DataNodeRefExt;
 use ipnetwork::Ipv4Network;
 
-use crate::instance::{fsm, Instance};
+use crate::instance::{Instance, fsm};
 use crate::interface::Interface;
 use crate::southbound;
 

@@ -22,9 +22,9 @@ use crate::packet::consts::{
 };
 use crate::packet::error::{AttrError, UpdateMessageError};
 use crate::packet::message::{
-    decode_ipv4_prefix, decode_ipv6_prefix, encode_ipv4_prefix,
-    encode_ipv6_prefix, DecodeCxt, EncodeCxt, MpReachNlri, MpUnreachNlri,
-    NegotiatedCapability, ReachNlri,
+    DecodeCxt, EncodeCxt, MpReachNlri, MpUnreachNlri, NegotiatedCapability,
+    ReachNlri, decode_ipv4_prefix, decode_ipv6_prefix, encode_ipv4_prefix,
+    encode_ipv6_prefix,
 };
 
 pub const ATTR_MIN_LEN: u16 = 3;
@@ -439,7 +439,7 @@ impl Attrs {
                             AttrError::Reset => {
                                 return Err(
                                     UpdateMessageError::OptionalAttributeError,
-                                )
+                                );
                             }
                         }
                     }

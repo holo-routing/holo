@@ -5,7 +5,7 @@
 //
 
 use std::cmp::Ordering;
-use std::collections::{btree_map, BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, btree_map};
 use std::net::Ipv4Addr;
 
 use bitflags::bitflags;
@@ -21,7 +21,7 @@ use crate::collections::{Areas, Arena, InterfaceIndex};
 use crate::debug::Debug;
 use crate::instance::InstanceUpView;
 use crate::interface::Interface;
-use crate::lsdb::{LsaEntry, LSA_INFINITY};
+use crate::lsdb::{LSA_INFINITY, LsaEntry};
 use crate::northbound::configuration::InstanceCfg;
 use crate::packet::lsa::{LsaKey, LsaRouterFlagsVersion};
 use crate::spf::{SpfPartialComputation, VertexLsaVersion};

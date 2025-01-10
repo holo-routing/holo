@@ -2,7 +2,7 @@ use std::hint::black_box;
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::LazyLock as Lazy;
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use holo_ldp::packet::*;
 
 static DECODE_CTX: Lazy<DecodeCxt> = Lazy::new(|| DecodeCxt {

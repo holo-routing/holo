@@ -27,7 +27,7 @@ use holo_yang::TryFromYang;
 
 use crate::af::{Ipv4Unicast, Ipv6Unicast};
 use crate::instance::{Instance, InstanceUpView};
-use crate::neighbor::{fsm, Neighbor, PeerType};
+use crate::neighbor::{Neighbor, PeerType, fsm};
 use crate::network;
 use crate::packet::consts::{CeaseSubcode, ErrorCode};
 use crate::packet::message::NotificationMsg;

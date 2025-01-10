@@ -16,8 +16,8 @@ pub use {
     socket2::Socket,
     tokio::io::unix::AsyncFd,
     tokio::net::{
-        tcp::OwnedReadHalf, tcp::OwnedWriteHalf, TcpListener, TcpSocket,
-        TcpStream, UdpSocket,
+        TcpListener, TcpSocket, TcpStream, UdpSocket, tcp::OwnedReadHalf,
+        tcp::OwnedWriteHalf,
     },
 };
 

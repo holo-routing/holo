@@ -11,7 +11,7 @@ use std::borrow::Cow;
 
 use holo_yang::ToYang;
 
-use crate::instance::{fsm, MasterReason};
+use crate::instance::{MasterReason, fsm};
 
 // ===== ToYang implementations =====
 

@@ -7,13 +7,13 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use std::sync::{atomic, Arc};
+use std::sync::{Arc, atomic};
 use std::time::Duration;
 
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{Sender, UnboundedReceiver, UnboundedSender};
-use tracing::{debug_span, Instrument};
+use tracing::{Instrument, debug_span};
 
 use crate::adjacency::Adjacency;
 use crate::collections::LspEntryId;
@@ -63,9 +63,9 @@ pub mod messages {
     use crate::collections::{AdjacencyKey, InterfaceKey, LspEntryKey};
     use crate::debug::LspPurgeReason;
     use crate::network::MulticastAddr;
+    use crate::packet::LevelNumber;
     use crate::packet::error::DecodeError;
     use crate::packet::pdu::Pdu;
-    use crate::packet::LevelNumber;
     use crate::spf;
 
     // Type aliases.

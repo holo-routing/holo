@@ -20,7 +20,7 @@ use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
 use crate::debug::Debug;
 use crate::error::{Error, IoError, NbrRxError};
 use crate::instance::{InstanceUpView, PolicyApplyTasks};
-use crate::neighbor::{fsm, Neighbor, Neighbors, PeerType};
+use crate::neighbor::{Neighbor, Neighbors, PeerType, fsm};
 use crate::packet::attribute::Attrs;
 use crate::packet::consts::{Afi, Safi};
 use crate::packet::message::{

@@ -13,15 +13,15 @@ use std::time::Instant;
 use bitflags::bitflags;
 use chrono::Utc;
 use derive_new::new;
+use holo_utils::UnboundedSender;
 use holo_utils::ibus::{BierCfgEvent, SrCfgEvent};
 use holo_utils::task::TimeoutTask;
-use holo_utils::UnboundedSender;
 use serde::{Deserialize, Serialize};
 
 use crate::area::{Area, AreaType};
 use crate::collections::{
-    lsdb_index_mut, AreaId, AreaIndex, Areas, Arena, InterfaceId,
-    InterfaceIndex, LsaEntryId, LsaEntryIndex, LsdbId, LsdbIndex,
+    AreaId, AreaIndex, Areas, Arena, InterfaceId, InterfaceIndex, LsaEntryId,
+    LsaEntryIndex, LsdbId, LsdbIndex, lsdb_index_mut,
 };
 use crate::debug::{Debug, LsaFlushReason};
 use crate::error::Error;

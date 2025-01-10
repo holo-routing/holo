@@ -7,7 +7,7 @@
 use std::borrow::Cow;
 use std::net::IpAddr;
 
-use holo_northbound::{notification, yang, NbProviderSender};
+use holo_northbound::{NbProviderSender, notification, yang};
 use holo_utils::bfd::SessionKey;
 use holo_yang::ToYang;
 

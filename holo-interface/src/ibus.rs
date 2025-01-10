@@ -12,7 +12,7 @@ use holo_utils::southbound::{AddressFlags, AddressMsg, InterfaceUpdateMsg};
 use ipnetwork::IpNetwork;
 
 use crate::interface::Interface;
-use crate::{netlink, Master};
+use crate::{Master, netlink};
 
 // ===== global functions =====
 

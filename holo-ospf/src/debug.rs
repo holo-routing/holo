@@ -11,11 +11,11 @@ use serde::{Deserialize, Serialize};
 use tracing::{debug, debug_span};
 
 use crate::gr::GrExitReason;
-use crate::interface::{ism, Interface};
-use crate::neighbor::{nsm, NeighborNetId};
+use crate::interface::{Interface, ism};
+use crate::neighbor::{NeighborNetId, nsm};
+use crate::packet::Packet;
 use crate::packet::error::LsaValidationError;
 use crate::packet::tlv::GrReason;
-use crate::packet::Packet;
 use crate::spf;
 use crate::version::Version;
 

@@ -8,8 +8,8 @@
 //
 
 use std::borrow::Cow;
-use std::sync::atomic::Ordering;
 use std::sync::LazyLock as Lazy;
+use std::sync::atomic::Ordering;
 
 use enum_as_inner::EnumAsInner;
 use holo_northbound::state::{

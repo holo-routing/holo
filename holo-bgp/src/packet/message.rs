@@ -21,9 +21,9 @@ use serde_with::skip_serializing_none;
 use crate::neighbor::PeerType;
 use crate::packet::attribute::Attrs;
 use crate::packet::consts::{
-    AddPathMode, Afi, CapabilityCode, ErrorCode, MessageHeaderErrorSubcode,
-    MessageType, OpenMessageErrorSubcode, OpenParamType, Safi,
-    UpdateMessageErrorSubcode, BGP_VERSION,
+    AddPathMode, Afi, BGP_VERSION, CapabilityCode, ErrorCode,
+    MessageHeaderErrorSubcode, MessageType, OpenMessageErrorSubcode,
+    OpenParamType, Safi, UpdateMessageErrorSubcode,
 };
 use crate::packet::error::{
     DecodeError, DecodeResult, MessageHeaderError, OpenMessageError,

@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::{hash_map, BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, hash_map};
 use std::net::{IpAddr, Ipv4Addr};
 
 use holo_utils::bier::{BierEncapsulationType, BierInBiftId, BiftId};
@@ -17,21 +17,21 @@ use itertools::Itertools;
 
 use crate::area::{Area, AreaType, AreaVersion, OptionsLocation};
 use crate::collections::{
-    lsdb_get, AreaIndex, Arena, InterfaceIndex, LsaEntryId, LsdbId, LsdbIndex,
+    AreaIndex, Arena, InterfaceIndex, LsaEntryId, LsdbId, LsdbIndex, lsdb_get,
 };
 use crate::debug::LsaFlushReason;
 use crate::error::Error;
 use crate::instance::{InstanceArenas, InstanceUpView};
-use crate::interface::{ism, Interface, InterfaceType};
+use crate::interface::{Interface, InterfaceType, ism};
 use crate::lsdb::{LsaOriginateEvent, LsdbVersion, MAX_LINK_METRIC};
 use crate::neighbor::nsm;
+use crate::ospfv3::packet::Options;
 use crate::ospfv3::packet::lsa::{
     LsaBody, LsaFunctionCode, LsaHdr, LsaInterAreaPrefix, LsaInterAreaRouter,
     LsaIntraAreaPrefix, LsaIntraAreaPrefixEntry, LsaLink, LsaLinkPrefix,
     LsaNetwork, LsaRouter, LsaRouterFlags, LsaRouterInfo, LsaRouterLink,
     LsaRouterLinkType, LsaScopeCode, LsaType, PrefixOptions, PrefixSid,
 };
-use crate::ospfv3::packet::Options;
 use crate::packet::lsa::{
     Lsa, LsaHdrVersion, LsaKey, LsaScope, LsaTypeVersion, PrefixSidVersion,
 };

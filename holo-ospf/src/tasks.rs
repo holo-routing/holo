@@ -4,22 +4,22 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
+use std::sync::atomic::AtomicU64;
 use std::time::{Duration, Instant};
 
 use holo_utils::ip::AddressFamily;
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{Sender, UnboundedReceiver, UnboundedSender};
-use tracing::{debug_span, Instrument};
+use tracing::{Instrument, debug_span};
 
 use crate::area::Area;
 use crate::collections::{LsaEntryId, LsdbId};
 use crate::debug::LsaFlushReason;
 use crate::instance::InstanceUpView;
-use crate::interface::{ism, Interface};
-use crate::neighbor::{nsm, Neighbor};
+use crate::interface::{Interface, ism};
+use crate::neighbor::{Neighbor, nsm};
 use crate::network::{self, SendDestination};
 use crate::packet::auth::AuthMethod;
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
@@ -72,11 +72,11 @@ pub mod messages {
     use crate::debug::LsaFlushReason;
     use crate::interface::ism;
     use crate::lsdb::LsaOriginateEvent;
-    use crate::neighbor::{nsm, RxmtPacketType};
+    use crate::neighbor::{RxmtPacketType, nsm};
     use crate::network::SendDestination;
+    use crate::packet::Packet;
     use crate::packet::error::DecodeError;
     use crate::packet::lsa::LsaKey;
-    use crate::packet::Packet;
     use crate::spf;
     use crate::version::Version;
 

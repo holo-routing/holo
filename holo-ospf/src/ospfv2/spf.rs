@@ -19,6 +19,7 @@ use crate::error::Error;
 use crate::interface::{Interface, InterfaceType};
 use crate::lsdb::LsaEntry;
 use crate::neighbor::Neighbor;
+use crate::ospfv2::packet::Options;
 use crate::ospfv2::packet::lsa::{
     LsaAsExternalFlags, LsaBody, LsaRouterFlags, LsaRouterLink,
     LsaRouterLinkType, LsaType, LsaTypeCode,
@@ -26,7 +27,6 @@ use crate::ospfv2::packet::lsa::{
 use crate::ospfv2::packet::lsa_opaque::{
     ExtPrefixRouteType, LsaOpaque, PrefixSid,
 };
-use crate::ospfv2::packet::Options;
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::route::{Nexthop, NexthopKey, Nexthops};
 use crate::spf::{

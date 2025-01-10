@@ -5,7 +5,7 @@
 //
 
 use std::cmp::Ordering;
-use std::collections::{btree_map, hash_map, BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, btree_map, hash_map};
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 use std::time::Instant;

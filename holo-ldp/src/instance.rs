@@ -6,8 +6,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, Ipv4Addr};
-use std::sync::atomic::{self, AtomicU32};
 use std::sync::Arc;
+use std::sync::atomic::{self, AtomicU32};
 
 use async_trait::async_trait;
 use derive_new::new;
@@ -319,8 +319,8 @@ impl ProtocolInstance for Instance {
         }
     }
 
-    fn protocol_input_channels(
-    ) -> (ProtocolInputChannelsTx, ProtocolInputChannelsRx) {
+    fn protocol_input_channels()
+    -> (ProtocolInputChannelsTx, ProtocolInputChannelsRx) {
         let (udp_pdu_rxp, udp_pdu_rxc) = mpsc::channel(4);
         let (adj_timeoutp, adj_timeoutc) = mpsc::channel(4);
         let (tcp_acceptp, tcp_acceptc) = mpsc::channel(4);

@@ -9,9 +9,9 @@ use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
+use crate::packet::DecodeCxt;
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::message::{MessageDecodeInfo, MessageType};
-use crate::packet::DecodeCxt;
 
 //
 // LDP Type-Length-Value.

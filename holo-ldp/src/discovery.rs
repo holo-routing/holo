@@ -5,14 +5,14 @@
 //
 
 use std::net::{IpAddr, Ipv4Addr};
-use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
+use std::sync::atomic::AtomicU32;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
+use holo_utils::Sender;
 use holo_utils::socket::UdpSocket;
 use holo_utils::task::{IntervalTask, TimeoutTask};
-use holo_utils::Sender;
 
 use crate::collections::{
     AdjacencyId, AdjacencyIndex, Interfaces, Neighbors, TargetedNbrIndex,
@@ -23,12 +23,12 @@ use crate::error::IoError;
 use crate::instance::{InstanceState, InstanceUpView};
 use crate::northbound::configuration::TargetedNbrCfg;
 use crate::northbound::notification;
+use crate::packet::Pdu;
 use crate::packet::messages::hello::{
     HelloFlags, HelloMsg, TlvCommonHelloParams, TlvConfigSeqNo,
     TlvIpv4TransAddr,
 };
 use crate::packet::messages::notification::StatusCode;
-use crate::packet::Pdu;
 use crate::tasks::messages::input::AdjTimeoutMsg;
 use crate::{network, tasks};
 

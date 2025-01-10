@@ -22,7 +22,7 @@ use ipnetwork::IpNetwork;
 
 use crate::interface::Owner;
 use crate::northbound::REGEX_VRRP;
-use crate::{netlink, Master};
+use crate::{Master, netlink};
 
 static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
     Lazy::new(load_validation_callbacks);

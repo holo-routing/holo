@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use holo_utils::socket::{AsyncFd, Socket};
-use holo_utils::{capabilities, Sender, UnboundedReceiver};
+use holo_utils::{Sender, UnboundedReceiver, capabilities};
 use nix::sys::socket;
 use nix::sys::socket::{LinkAddr, SockaddrLike};
 use serde::Serialize;

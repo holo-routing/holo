@@ -5,7 +5,7 @@
 //
 
 use std::borrow::Cow;
-use std::sync::{atomic, LazyLock as Lazy};
+use std::sync::{LazyLock as Lazy, atomic};
 
 use enum_as_inner::EnumAsInner;
 use holo_northbound::state::{

@@ -7,11 +7,11 @@
 use bytes::{Bytes, BytesMut};
 use serde::{Deserialize, Serialize};
 
+use crate::packet::DecodeCxt;
 use crate::packet::error::DecodeResult;
 use crate::packet::message::{
     Message, MessageDecodeInfo, MessageKind, MessageType,
 };
-use crate::packet::DecodeCxt;
 
 //
 // KeepAlive Message.

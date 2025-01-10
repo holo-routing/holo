@@ -159,8 +159,8 @@ impl ProtocolInstance for Master {
         }
     }
 
-    fn protocol_input_channels(
-    ) -> (ProtocolInputChannelsTx, ProtocolInputChannelsRx) {
+    fn protocol_input_channels()
+    -> (ProtocolInputChannelsTx, ProtocolInputChannelsRx) {
         let (udp_packet_rxp, udp_packet_rxc) = mpsc::channel(4);
         let (detect_timerp, detect_timerc) = mpsc::channel(4);
 

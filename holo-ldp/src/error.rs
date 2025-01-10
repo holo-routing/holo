@@ -236,7 +236,10 @@ impl std::fmt::Display for IoError {
                 write!(f, "failed to set TCP authentication option")
             }
             IoError::TcpInfoError(..) => {
-                write!(f, "failed to fetch address and port information from the socket")
+                write!(
+                    f,
+                    "failed to fetch address and port information from the socket"
+                )
             }
             IoError::TcpRecvError(..) => {
                 write!(f, "failed to read TCP data")

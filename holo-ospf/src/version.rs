@@ -17,8 +17,8 @@ use crate::lsdb::LsdbVersion;
 use crate::neighbor::NeighborVersion;
 use crate::network::NetworkVersion;
 use crate::northbound::NorthboundVersion;
-use crate::packet::lsa::LsaVersion;
 use crate::packet::PacketVersion;
+use crate::packet::lsa::LsaVersion;
 use crate::southbound::rx::SouthboundRxVersion;
 use crate::spf::SpfVersion;
 

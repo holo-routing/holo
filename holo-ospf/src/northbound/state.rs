@@ -26,7 +26,7 @@ use num_traits::FromPrimitive;
 use crate::area::Area;
 use crate::collections::LsdbSingleType;
 use crate::instance::Instance;
-use crate::interface::{ism, Interface};
+use crate::interface::{Interface, ism};
 use crate::lsdb::{LsaEntry, LsaLogEntry, LsaLogId};
 use crate::neighbor::Neighbor;
 use crate::packet::lsa::{LsaBodyVersion, LsaHdrVersion};

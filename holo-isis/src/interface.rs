@@ -8,17 +8,17 @@
 //
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
+use std::sync::atomic::AtomicU32;
 
 use chrono::{DateTime, Utc};
 use holo_protocol::InstanceChannelsTx;
+use holo_utils::UnboundedSender;
 use holo_utils::ibus::{IbusMsg, IbusSender};
 use holo_utils::ip::AddressFamily;
 use holo_utils::socket::{AsyncFd, Socket, SocketExt};
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
-use holo_utils::UnboundedSender;
 use ipnetwork::{Ipv4Network, Ipv6Network};
 use tokio::sync::mpsc;
 
@@ -27,7 +27,7 @@ use crate::collections::{Adjacencies, Arena, InterfaceId, InterfaceIndex};
 use crate::debug::{Debug, InterfaceInactiveReason};
 use crate::error::{Error, IoError};
 use crate::instance::{Instance, InstanceUpView};
-use crate::network::{MulticastAddr, LLC_HDR};
+use crate::network::{LLC_HDR, MulticastAddr};
 use crate::northbound::configuration::InterfaceCfg;
 use crate::northbound::notification;
 use crate::packet::consts::PduType;

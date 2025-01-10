@@ -4,11 +4,11 @@
 // SPDX-License-Identifier: MIT
 //
 
-use holo_yang::{YangObject, YANG_CTX};
+use holo_yang::{YANG_CTX, YangObject};
 use yang3::data::DataTree;
 
-use crate::api::provider::Notification;
 use crate::NbProviderSender;
+use crate::api::provider::Notification;
 
 pub fn send(
     nb_tx: &NbProviderSender,

@@ -5,8 +5,8 @@
 //
 
 use std::net::{IpAddr, Ipv4Addr};
-use std::sync::atomic::{self, AtomicU32, AtomicU64};
 use std::sync::Arc;
+use std::sync::atomic::{self, AtomicU32, AtomicU64};
 use std::time::Duration;
 
 use holo_utils::socket::{
@@ -15,7 +15,7 @@ use holo_utils::socket::{
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{Sender, UnboundedReceiver};
 use tokio::time::sleep;
-use tracing::{debug_span, Instrument};
+use tracing::{Instrument, debug_span};
 
 use crate::collections::AdjacencyId;
 use crate::debug::Debug;

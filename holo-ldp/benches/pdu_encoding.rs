@@ -4,7 +4,7 @@ use std::net::Ipv4Addr;
 use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use holo_ldp::packet::*;
 
 static PDU: Lazy<Pdu> = Lazy::new(|| Pdu {

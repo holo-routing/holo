@@ -8,9 +8,9 @@ use std::str::FromStr;
 
 use clap::{App, Arg};
 use holo_ospf::version::{Ospfv2, Ospfv3};
+use holo_protocol::ProtocolInstance;
 use holo_protocol::test::setup;
 use holo_protocol::test::stub::start_test_instance;
-use holo_protocol::ProtocolInstance;
 use holo_rip::version::{Ripng, Ripv2};
 use holo_utils::protocol::Protocol;
 

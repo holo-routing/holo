@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::{btree_map, BTreeSet};
+use std::collections::{BTreeSet, btree_map};
 use std::sync::{Arc, LazyLock as Lazy};
 
 use async_trait::async_trait;

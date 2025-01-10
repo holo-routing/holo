@@ -111,7 +111,7 @@ impl proto::GNmi for GNmiService {
                     | proto::get_request::DataType::Operational,
                 ) => api::DataType::State,
                 Err(_) => {
-                    return Err(Status::invalid_argument("Invalid data type"))
+                    return Err(Status::invalid_argument("Invalid data type"));
                 }
             };
 

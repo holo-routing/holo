@@ -7,13 +7,13 @@
 use std::net::{IpAddr, Ipv4Addr};
 
 use holo_utils::mpls::Label;
-use tracing::{debug, debug_span, Span};
+use tracing::{Span, debug, debug_span};
 
 use crate::discovery::AdjacencySource;
 use crate::fec::{Fec, Nexthop};
 use crate::neighbor;
-use crate::packet::messages::hello::HelloMsg;
 use crate::packet::Message;
+use crate::packet::messages::hello::HelloMsg;
 
 // LDP debug messages.
 #[derive(Debug)]

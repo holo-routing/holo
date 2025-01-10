@@ -7,7 +7,7 @@
 use std::borrow::Cow;
 use std::net::IpAddr;
 
-use holo_northbound::{notification, yang, NbProviderSender};
+use holo_northbound::{NbProviderSender, notification, yang};
 
 use crate::fec::Fec;
 use crate::neighbor::Neighbor;
@@ -83,9 +83,5 @@ pub(crate) fn mpls_ldp_fec_event(
 // ===== helper functions =====
 
 fn event_type(up: bool) -> &'static str {
-    if up {
-        "up"
-    } else {
-        "down"
-    }
+    if up { "up" } else { "down" }
 }

@@ -13,8 +13,8 @@ pub mod northbound;
 
 use futures::stream::StreamExt;
 use holo_northbound::{
-    process_northbound_msg, NbDaemonReceiver, NbDaemonSender, NbProviderSender,
-    ProviderBase,
+    NbDaemonReceiver, NbDaemonSender, NbProviderSender, ProviderBase,
+    process_northbound_msg,
 };
 use holo_protocol::InstanceShared;
 use holo_utils::ibus::{IbusReceiver, IbusSender};

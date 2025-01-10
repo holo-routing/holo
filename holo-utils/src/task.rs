@@ -12,7 +12,7 @@ use derive_new::new;
 use tokio::sync::mpsc;
 use tokio::time::Instant;
 use tokio::{task, time};
-use tracing::{error, Instrument};
+use tracing::{Instrument, error};
 
 use crate::UnboundedSender;
 

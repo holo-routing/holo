@@ -13,9 +13,9 @@ use crate::collections::{
     Areas, Arena, InterfaceIndex, LsdbIndex, NeighborIndex,
 };
 use crate::instance::InstanceUpView;
-use crate::interface::{ism, Interface};
+use crate::interface::{Interface, ism};
 use crate::lsdb;
-use crate::neighbor::{nsm, Neighbor};
+use crate::neighbor::{Neighbor, nsm};
 use crate::packet::lsa::{Lsa, LsaHdrVersion};
 use crate::version::Version;
 

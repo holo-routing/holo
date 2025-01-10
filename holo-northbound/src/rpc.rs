@@ -16,7 +16,7 @@ use yang3::schema::SchemaNodeKind;
 
 use crate::debug::Debug;
 use crate::error::Error;
-use crate::{api, CallbackKey, CallbackOp, NbDaemonSender, ProviderBase};
+use crate::{CallbackKey, CallbackOp, NbDaemonSender, ProviderBase, api};
 
 //
 // RPC callbacks.

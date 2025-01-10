@@ -6,7 +6,7 @@
 
 use std::borrow::Cow;
 use std::net::Ipv4Addr;
-use std::sync::{atomic, LazyLock as Lazy};
+use std::sync::{LazyLock as Lazy, atomic};
 
 use derive_new::new;
 use enum_as_inner::EnumAsInner;

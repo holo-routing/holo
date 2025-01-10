@@ -3,7 +3,7 @@ use std::net::Ipv4Addr;
 use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use holo_ospf::ospfv2::packet::lsa::*;
 use holo_ospf::ospfv2::packet::*;
 use holo_ospf::packet::lsa::*;

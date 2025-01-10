@@ -9,13 +9,13 @@ use std::fmt::Write;
 
 use derive_new::new;
 use holo_utils::yang::SchemaNodeExt;
-use holo_yang::{YangObject, YangPath, YANG_CTX};
+use holo_yang::{YANG_CTX, YangObject, YangPath};
 use tokio::sync::oneshot;
 use yang3::data::{DataNodeRef, DataTree};
 use yang3::schema::{SchemaModule, SchemaNode, SchemaNodeKind};
 
 use crate::error::Error;
-use crate::{api, CallbackKey, CallbackOp, NbDaemonSender, ProviderBase};
+use crate::{CallbackKey, CallbackOp, NbDaemonSender, ProviderBase, api};
 
 //
 // State callbacks.
@@ -293,12 +293,9 @@ where
         // Keyed list.
         Some(cb) => {
             // Get YANG object from callback.
-            let obj = (*cb)(
-                provider,
-                GetObjectArgs {
-                    list_entry: &list_entry,
-                },
-            );
+            let obj = (*cb)(provider, GetObjectArgs {
+                list_entry: &list_entry,
+            });
 
             // Get list keys.
             let keys = obj.list_keys();
@@ -465,12 +462,9 @@ where
             });
 
         // Find the list entry associated to the provided path.
-        if let Some(mut list_iter) = (*cb_iterate)(
-            provider,
-            GetIterateArgs {
-                parent_list_entry: &list_entry,
-            },
-        ) {
+        if let Some(mut list_iter) = (*cb_iterate)(provider, GetIterateArgs {
+            parent_list_entry: &list_entry,
+        }) {
             if let Some(entry) = list_iter.find(|entry| {
                 let obj =
                     (*cb_get)(provider, GetObjectArgs { list_entry: entry });

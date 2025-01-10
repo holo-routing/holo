@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use bytes::BufMut;
 use holo_utils::socket::{AsyncFd, Socket, SocketExt};
-use holo_utils::{capabilities, Sender, UnboundedReceiver};
+use holo_utils::{Sender, UnboundedReceiver, capabilities};
 use libc::{AF_PACKET, ETH_P_ARP};
 use nix::sys::socket::{self, LinkAddr, SockaddrIn, SockaddrLike};
 use socket2::{Domain, Protocol, Type};

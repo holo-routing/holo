@@ -4,14 +4,14 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::{btree_map, VecDeque};
+use std::collections::{VecDeque, btree_map};
 use std::net::{IpAddr, Ipv4Addr};
 
 use chrono::Utc;
 use holo_utils::ip::IpNetworkKind;
 use holo_utils::mpls::Label;
-use holo_utils::socket::{SocketExt, TcpConnInfo, TcpStream, TTL_MAX};
-use tracing::{debug_span, Span};
+use holo_utils::socket::{SocketExt, TTL_MAX, TcpConnInfo, TcpStream};
+use tracing::{Span, debug_span};
 
 use crate::collections::{
     AdjacencyId, Interfaces, NeighborId, NeighborIndex, TargetedNbrs,
@@ -21,7 +21,7 @@ use crate::discovery::{self, Adjacency, AdjacencySource, TargetedNbr};
 use crate::error::{Error, IoError};
 use crate::fec::{Fec, LabelMapping, LabelRequest};
 use crate::instance::InstanceUpView;
-use crate::neighbor::{fsm, LabelAdvMode, Neighbor, NeighborFlags};
+use crate::neighbor::{LabelAdvMode, Neighbor, NeighborFlags, fsm};
 use crate::northbound::notification;
 use crate::packet::error::DecodeError;
 use crate::packet::messages::address::TlvAddressList;

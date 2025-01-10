@@ -7,7 +7,7 @@
 use std::sync::Arc;
 
 use holo_northbound::configuration::{self, CommitPhase, ConfigChanges};
-use holo_northbound::{api, NbDaemonSender};
+use holo_northbound::{NbDaemonSender, api};
 use holo_yang::YANG_CTX;
 use tokio::sync::oneshot;
 use yang3::data::{

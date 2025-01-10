@@ -4,10 +4,10 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::{btree_map, BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, btree_map};
 use std::net::{IpAddr, Ipv4Addr};
-use std::sync::atomic::{self, AtomicU32, AtomicU64};
 use std::sync::Arc;
+use std::sync::atomic::{self, AtomicU32, AtomicU64};
 use std::time::{Duration, Instant};
 
 use bitflags::bitflags;
@@ -43,12 +43,12 @@ use crate::packet::messages::{
 };
 use crate::packet::pdu::Pdu;
 use crate::packet::{AddressMessageType, LabelMessageType, Message};
+#[cfg(feature = "testing")]
+use crate::tasks::messages::ProtocolOutputMsg;
 use crate::tasks::messages::input::{
     NbrBackoffTimeoutMsg, NbrKaTimeoutMsg, NbrRxPduMsg, TcpConnectMsg,
 };
 use crate::tasks::messages::output::NbrTxPduMsg;
-#[cfg(feature = "testing")]
-use crate::tasks::messages::ProtocolOutputMsg;
 use crate::{southbound, tasks};
 
 #[derive(Debug)]

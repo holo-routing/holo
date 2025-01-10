@@ -11,9 +11,9 @@ use holo_utils::Responder;
 use serde::{Deserialize, Serialize};
 use yang3::data::DataTree;
 
+use crate::CallbackKey;
 use crate::configuration::{CommitPhase, ConfigChanges};
 use crate::error::Error;
-use crate::CallbackKey;
 
 // Daemon -> Provider requests.
 pub mod daemon {

@@ -12,14 +12,14 @@ use holo_yang::{ToYang, ToYangBits, TryFromYang};
 use crate::area::AreaType;
 use crate::error::InterfaceCfgError;
 use crate::gr::GrExitReason;
-use crate::interface::{ism, InterfaceType};
+use crate::interface::{InterfaceType, ism};
 use crate::lsdb::LsaLogReason;
 use crate::neighbor::nsm;
+use crate::packet::PacketType;
 use crate::packet::error::LsaValidationError;
 use crate::packet::tlv::{
     AdjSidFlags, GrReason, PrefixSidFlags, RouterInfoCaps,
 };
-use crate::packet::PacketType;
 use crate::spf::SpfLogType;
 use crate::{ospfv2, ospfv3, spf};
 

@@ -497,11 +497,7 @@ fn get_timestamp() -> i64 {
 }
 
 fn get_optional_string(data: String) -> Option<String> {
-    if data.is_empty() {
-        None
-    } else {
-        Some(data)
-    }
+    if data.is_empty() { None } else { Some(data) }
 }
 
 fn data_tree_init(

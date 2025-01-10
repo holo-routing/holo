@@ -15,20 +15,20 @@ use holo_utils::ibus::{BierCfgEvent, SrCfgEvent};
 
 use crate::area::{Area, AreaType};
 use crate::collections::{
-    lsdb_get, lsdb_get_mut, lsdb_index, lsdb_index_mut, AreaIndex, AreaKey,
-    Arena, InterfaceIndex, InterfaceKey, LsaEntryKey, LsdbIndex, LsdbKey,
-    NeighborIndex, NeighborKey,
+    AreaIndex, AreaKey, Arena, InterfaceIndex, InterfaceKey, LsaEntryKey,
+    LsdbIndex, LsdbKey, NeighborIndex, NeighborKey, lsdb_get, lsdb_get_mut,
+    lsdb_index, lsdb_index_mut,
 };
 use crate::debug::{Debug, LsaFlushReason, SeqNoMismatchReason};
 use crate::error::{Error, InterfaceCfgError};
 use crate::flood::flood;
 use crate::gr::GrExitReason;
 use crate::instance::{Instance, InstanceArenas, InstanceUpView};
-use crate::interface::{ism, Interface};
+use crate::interface::{Interface, ism};
 use crate::lsdb::{
-    self, lsa_compare, LsaEntry, LsaEntryFlags, LsaOriginateEvent,
+    self, LsaEntry, LsaEntryFlags, LsaOriginateEvent, lsa_compare,
 };
-use crate::neighbor::{nsm, LastDbDesc, Neighbor, RxmtPacketType};
+use crate::neighbor::{LastDbDesc, Neighbor, RxmtPacketType, nsm};
 use crate::northbound::notification;
 use crate::packet::error::DecodeResult;
 use crate::packet::lsa::{

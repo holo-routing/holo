@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::{btree_map, BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, btree_map};
 use std::net::IpAddr;
 
 use bitflags::bitflags;
@@ -26,7 +26,7 @@ use prefix_trie::map::PrefixMap;
 use tokio::sync::mpsc;
 use tracing::{debug, warn};
 
-use crate::{ibus, netlink, Interface};
+use crate::{Interface, ibus, netlink};
 
 #[derive(Debug)]
 pub struct Rib {

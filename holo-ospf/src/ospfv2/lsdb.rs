@@ -16,14 +16,15 @@ use itertools::Itertools;
 
 use crate::area::{Area, AreaType, AreaVersion, OptionsLocation};
 use crate::collections::{
-    lsdb_get, AreaIndex, Arena, InterfaceIndex, LsaEntryId, LsdbId, LsdbIndex,
+    AreaIndex, Arena, InterfaceIndex, LsaEntryId, LsdbId, LsdbIndex, lsdb_get,
 };
 use crate::debug::LsaFlushReason;
 use crate::error::Error;
 use crate::instance::{InstanceArenas, InstanceUpView};
-use crate::interface::{ism, Interface, InterfaceType};
+use crate::interface::{Interface, InterfaceType, ism};
 use crate::lsdb::{LsaEntry, LsaOriginateEvent, LsdbVersion, MAX_LINK_METRIC};
 use crate::neighbor::nsm;
+use crate::ospfv2::packet::Options;
 use crate::ospfv2::packet::lsa::{
     LsaBody, LsaHdr, LsaNetwork, LsaRouter, LsaRouterFlags, LsaRouterLink,
     LsaRouterLinkType, LsaSummary, LsaType, LsaTypeCode,
@@ -33,7 +34,6 @@ use crate::ospfv2::packet::lsa_opaque::{
     LsaExtPrefixFlags, LsaOpaque, LsaOpaqueType, LsaRouterInfo, OpaqueLsaId,
     PrefixSid,
 };
-use crate::ospfv2::packet::Options;
 use crate::packet::lsa::{
     Lsa, LsaHdrVersion, LsaKey, LsaScope, LsaTypeVersion,
 };
@@ -670,17 +670,14 @@ fn lsa_orig_ext_prefix(
                 prefix_sids
                     .insert(*algo, PrefixSid::new(psid_flags, *algo, sid));
 
-                prefixes.insert(
-                    *prefix,
-                    ExtPrefixTlv {
-                        route_type: ExtPrefixRouteType::IntraArea,
-                        af: 0,
-                        flags,
-                        prefix: *prefix,
-                        prefix_sids,
-                        unknown_tlvs: vec![],
-                    },
-                );
+                prefixes.insert(*prefix, ExtPrefixTlv {
+                    route_type: ExtPrefixRouteType::IntraArea,
+                    af: 0,
+                    flags,
+                    prefix: *prefix,
+                    prefix_sids,
+                    unknown_tlvs: vec![],
+                });
             }
         }
     }

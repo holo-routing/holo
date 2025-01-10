@@ -14,7 +14,7 @@ use async_trait::async_trait;
 use derive_new::new;
 use holo_northbound as northbound;
 use holo_northbound::{
-    process_northbound_msg, NbDaemonReceiver, NbDaemonSender, NbProviderSender,
+    NbDaemonReceiver, NbDaemonSender, NbProviderSender, process_northbound_msg,
 };
 use holo_utils::bier::BierCfg;
 use holo_utils::ibus::{IbusMsg, IbusReceiver, IbusSender};
@@ -32,7 +32,7 @@ use tracing::Instrument;
 
 use crate::event_recorder::EventRecorder;
 #[cfg(feature = "testing")]
-use crate::test::{process_test_msg, stub::TestMsg, OutputChannelsRx};
+use crate::test::{OutputChannelsRx, process_test_msg, stub::TestMsg};
 
 /// A trait for protocol instances.
 #[async_trait]
@@ -74,8 +74,8 @@ where
     fn process_protocol_msg(&mut self, msg: Self::ProtocolInputMsg);
 
     /// Create channels for all protocol input events.
-    fn protocol_input_channels(
-    ) -> (Self::ProtocolInputChannelsTx, Self::ProtocolInputChannelsRx);
+    fn protocol_input_channels()
+    -> (Self::ProtocolInputChannelsTx, Self::ProtocolInputChannelsRx);
 
     /// Return test directory used for unit testing.
     #[cfg(feature = "testing")]

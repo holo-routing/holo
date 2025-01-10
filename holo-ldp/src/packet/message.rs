@@ -9,6 +9,7 @@ use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
+use crate::packet::DecodeCxt;
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::messages::{
     AddressMsg, CapabilityMsg, HelloMsg, InitMsg, KeepaliveMsg, LabelMsg,
@@ -16,7 +17,6 @@ use crate::packet::messages::{
 };
 use crate::packet::pdu::PduDecodeInfo;
 use crate::packet::tlv::{self, TlvDecodeInfo};
-use crate::packet::DecodeCxt;
 
 //
 // LDP message.

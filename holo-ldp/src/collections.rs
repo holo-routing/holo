@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::{btree_map, hash_map, BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, btree_map, hash_map};
 use std::net::{IpAddr, Ipv4Addr};
 
 use generational_arena::{Arena, Index};

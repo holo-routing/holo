@@ -7,8 +7,8 @@
 use std::io::{IoSlice, IoSliceMut};
 use std::ops::Deref;
 use std::os::fd::AsRawFd;
-use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
+use std::sync::atomic::AtomicU64;
 
 use bytes::Bytes;
 use derive_new::new;
@@ -23,9 +23,9 @@ use tokio::sync::mpsc::error::SendError;
 use crate::collections::{AreaId, InterfaceId};
 use crate::debug::Debug;
 use crate::error::{Error, IoError};
+use crate::packet::Packet;
 use crate::packet::auth::{AuthDecodeCtx, AuthEncodeCtx, AuthMethod};
 use crate::packet::error::DecodeResult;
-use crate::packet::Packet;
 use crate::tasks::messages::input::NetRxPacketMsg;
 use crate::tasks::messages::output::NetTxPacketMsg;
 use crate::version::Version;

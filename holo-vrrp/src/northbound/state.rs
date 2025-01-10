@@ -80,8 +80,8 @@ fn load_callbacks() -> Callbacks<Interface> {
 // ===== impl Interface =====
 
 impl Provider for Interface {
-    // TODO
-    const STATE_PATH: &'static str = "";
+    const STATE_PATH: &'static str =
+        "/ietf-interfaces:interfaces/interface[name='eth-sw1']/ietf-ip:ipv4/ietf-vrrp:vrrp";
 
     type ListEntry<'a> = ListEntry<'a>;
 

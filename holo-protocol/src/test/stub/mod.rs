@@ -229,7 +229,7 @@ where
     let topo_dir = topology_dir::<P>(topology, router);
 
     // Spawn protocol instance.
-    let mut stub = start_test_instance::<P>("test").await;
+    let mut stub = start_test_instance::<P>("eth-sw1").await;
 
     // Push configuration through stub northbound.
     let path = format!("{}/{}", topo_dir, "config.json");

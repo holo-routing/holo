@@ -11,7 +11,7 @@
     feature = "testing",
     allow(dead_code, unused_variables, unused_imports)
 )]
-#![feature(ip, let_chains)]
+#![feature(let_chains)]
 
 pub mod adjacency;
 pub mod collections;

@@ -13,8 +13,6 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use serde::{Deserialize, Serialize};
 
-use crate::consts::*;
-
 // Type aliases.
 pub type DecodeResult<T> = Result<T, DecodeError>;
 
@@ -135,6 +133,10 @@ pub enum DecodeError {
 // ===== impl Packet =====
 
 impl VrrpHdr {
+    const MAX_LEN: usize = 96;
+    const MIN_LEN: usize = 16;
+    const MAX_IP_COUNT: usize = 20;
+
     // Encodes VRRP packet into a bytes buffer.
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::with_capacity(114);
@@ -169,8 +171,8 @@ impl VrrpHdr {
         let auth_type = buf.get_u8();
         let adver_int = buf.get_u8();
 
-        if !(VRRP_HDR_MIN..=VRRP_HDR_MAX).contains(&pkt_size)
-            || count_ip as usize > VRRP_IP_COUNT_MAX
+        if !(Self::MIN_LEN..=Self::MAX_LEN).contains(&pkt_size)
+            || count_ip as usize > Self::MAX_IP_COUNT
             || (count_ip * 4) + 16 != pkt_size as u8
         {
             return Err(DecodeError::PacketLengthError { vrid });
@@ -213,6 +215,8 @@ impl VrrpHdr {
 }
 
 impl Ipv4Hdr {
+    const MIN_LEN: usize = 20;
+
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::new();
 
@@ -269,7 +273,7 @@ impl Ipv4Hdr {
         let mut options: Option<u32> = None;
         let mut padding: Option<u8> = None;
 
-        if ihl > IP_HDR_MIN as u8 {
+        if ihl > Self::MIN_LEN as u8 {
             let opt_pad = buf.get_u32();
             options = Some(opt_pad >> 8);
             padding = Some((opt_pad & 0xFF) as u8);
@@ -318,8 +322,11 @@ impl EthernetHdr {
 }
 
 impl VrrpPacket {
+    // maximum size of IP + vrrp header.
+    const MAX_LEN: usize = 130;
+
     pub fn encode(&self) -> BytesMut {
-        let mut buf = BytesMut::with_capacity(IP_VRRP_HDR_MAX);
+        let mut buf = BytesMut::with_capacity(Self::MAX_LEN);
         buf.put(self.ip.encode());
         buf.put(self.vrrp.encode());
         buf

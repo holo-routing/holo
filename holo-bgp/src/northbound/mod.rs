@@ -32,8 +32,9 @@ impl ProviderBase for Instance {
 
     fn top_level_node(&self) -> String {
         format!(
-            "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='main']/ietf-bgp:bgp",
+            "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='{}']/ietf-bgp:bgp",
             Protocol::BGP.to_yang(),
+            self.name
         )
     }
 

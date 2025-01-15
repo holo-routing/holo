@@ -1021,8 +1021,6 @@ fn load_callbacks() -> Callbacks<Instance> {
 // ===== impl Instance =====
 
 impl Provider for Instance {
-    const STATE_PATH: &'static str = "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='ietf-bgp:bgp'][name='test']/ietf-bgp:bgp";
-
     type ListEntry<'a> = ListEntry<'a>;
 
     fn callbacks() -> Option<&'static Callbacks<Instance>> {

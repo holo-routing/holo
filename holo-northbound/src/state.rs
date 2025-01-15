@@ -84,8 +84,6 @@ pub trait ListEntryKind: std::fmt::Debug + Default {
 //
 
 pub trait Provider: ProviderBase {
-    const STATE_PATH: &'static str;
-
     type ListEntry<'a>: ListEntryKind + Send;
 
     fn callbacks() -> Option<&'static Callbacks<Self>> {
@@ -505,7 +503,7 @@ where
     if let Some(cbs) = P::callbacks() {
         let mut relay_list = vec![];
 
-        let path = path.unwrap_or_default();
+        let path = path.unwrap_or(provider.top_level_node());
         let mut dnode = dtree
             .new_path(&path, None, false)
             .map_err(Error::YangInvalidPath)?

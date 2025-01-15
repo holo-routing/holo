@@ -24,8 +24,9 @@ impl ProviderBase for Instance {
 
     fn top_level_node(&self) -> String {
         format!(
-            "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='main']/ietf-mpls-ldp:mpls-ldp",
+            "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='{}']/ietf-mpls-ldp:mpls-ldp",
             Protocol::LDP.to_yang(),
+            self.name
         )
     }
 

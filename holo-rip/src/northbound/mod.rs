@@ -19,8 +19,6 @@ use crate::version::{Ripng, Ripv2, Version};
 
 // RIP version-specific code.
 pub trait NorthboundVersion<V: Version> {
-    const STATE_PATH: &'static str;
-
     fn debug_span(name: &str) -> Span;
     fn validation_callbacks()
     -> Option<&'static northbound::configuration::ValidationCallbacks>;
@@ -58,8 +56,6 @@ where
 // ===== impl Ripv2 =====
 
 impl NorthboundVersion<Self> for Ripv2 {
-    const STATE_PATH: &'static str = "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='ietf-rip:ripv2'][name='test']/ietf-rip:rip";
-
     fn debug_span(name: &str) -> Span {
         debug_span!("ripv2-instance", %name)
     }
@@ -89,8 +85,6 @@ impl NorthboundVersion<Self> for Ripv2 {
 // ===== impl Ripng =====
 
 impl NorthboundVersion<Self> for Ripng {
-    const STATE_PATH: &'static str = "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='ietf-rip:ripng'][name='test']/ietf-rip:rip";
-
     fn debug_span(name: &str) -> Span {
         debug_span!("ripng-instance", %name)
     }

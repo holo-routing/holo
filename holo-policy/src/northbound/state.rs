@@ -30,8 +30,6 @@ fn load_callbacks() -> Callbacks<Master> {
 // ===== impl Master =====
 
 impl Provider for Master {
-    const STATE_PATH: &'static str = "/ietf-routing-policy:routing-policy";
-
     type ListEntry<'a> = ListEntry;
 
     fn callbacks() -> Option<&'static Callbacks<Master>> {

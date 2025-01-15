@@ -80,9 +80,6 @@ fn load_callbacks() -> Callbacks<Interface> {
 // ===== impl Interface =====
 
 impl Provider for Interface {
-    // TODO
-    const STATE_PATH: &'static str = "";
-
     type ListEntry<'a> = ListEntry<'a>;
 
     fn callbacks() -> Option<&'static Callbacks<Interface>> {

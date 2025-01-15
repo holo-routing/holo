@@ -283,8 +283,6 @@ impl<V> Provider for Instance<V>
 where
     V: Version,
 {
-    const STATE_PATH: &'static str = V::STATE_PATH;
-
     type ListEntry<'a> = ListEntry<'a, V>;
 
     fn callbacks() -> Option<&'static Callbacks<Instance<V>>> {

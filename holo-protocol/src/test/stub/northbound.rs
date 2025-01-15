@@ -116,16 +116,16 @@ impl NorthboundStub {
         let _ = responder_rx.await.expect("Failed to receive RPC response");
     }
 
-    pub(crate) async fn init_state_cache(&mut self, state_path: &str) {
-        let state = self.get_state(state_path).await;
+    pub(crate) async fn init_state_cache(&mut self) {
+        let state = self.get_state().await;
         self.state_cache = Some(state);
     }
 
-    async fn get_state(&self, path: &str) -> DataTree<'static> {
+    async fn get_state(&self) -> DataTree<'static> {
         // Prepare request.
         let (responder_tx, responder_rx) = oneshot::channel();
         let request = api::daemon::Request::Get(api::daemon::GetRequest {
-            path: Some(path.to_owned()),
+            path: None,
             responder: Some(responder_tx),
         });
 
@@ -145,12 +145,11 @@ impl NorthboundStub {
         &mut self,
         expected: Option<&str>,
         path: &impl AsRef<std::path::Path>,
-        state_path: &str,
     ) {
         let yang_ctx = YANG_CTX.get().unwrap();
 
         // Get actual output.
-        let actual = self.get_state(state_path).await;
+        let actual = self.get_state().await;
 
         // Update or verify output.
         if *UPDATE_OUTPUTS {

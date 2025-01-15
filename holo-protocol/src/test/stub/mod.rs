@@ -314,7 +314,7 @@ where
     let _span_guard = span.enter();
     info!("loading instance snapshot...");
     let mut stub: Stub<P> = load_snapshot(topology, router).await;
-    stub.nb.init_state_cache(P::STATE_PATH).await;
+    stub.nb.init_state_cache().await;
 
     // Read files from the test directory.
     info!("reading test files...");
@@ -397,7 +397,7 @@ where
         let path =
             output_path(&test_dir, step_num, TestOpOutput::NorthboundState);
         stub.nb
-            .assert_state(step.output_nb_state.as_deref(), &path, P::STATE_PATH)
+            .assert_state(step.output_nb_state.as_deref(), &path)
             .await;
 
         // Check output: ibus messages.
@@ -434,9 +434,7 @@ where
     // Check initial convergence: northbound state.
     let path = format!("{}/{}", topo_dir, "output/northbound-state.json");
     let expected = std::fs::read_to_string(&path).unwrap_or_default();
-    stub.nb
-        .assert_state(Some(&expected), &path, P::STATE_PATH)
-        .await;
+    stub.nb.assert_state(Some(&expected), &path).await;
 
     // Check initial convergence: northbound notifications.
     let path = format!("{}/{}", topo_dir, "output/northbound-notif.jsonl");

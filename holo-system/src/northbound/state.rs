@@ -55,8 +55,6 @@ fn load_callbacks() -> Callbacks<Master> {
 // ===== impl Master =====
 
 impl Provider for Master {
-    const STATE_PATH: &'static str = "/ietf-system:system-state";
-
     type ListEntry<'a> = ListEntry;
 
     fn callbacks() -> Option<&'static Callbacks<Master>> {

@@ -527,7 +527,7 @@ pub(crate) fn install<'a>(
     // Schedule SPF run if necessary.
     if content_change && lsp.seqno != 0 {
         let spf_sched = instance.state.spf_sched.get_mut(level);
-        spf_sched.trigger_lsps.push(lsp_log_id);
+        spf_sched.trigger_lsps.insert(lsp_log_id.lsp_id, lsp_log_id);
         spf_sched.schedule_time.get_or_insert_with(Instant::now);
         if topology_change {
             spf_sched.spf_type = SpfType::Full;

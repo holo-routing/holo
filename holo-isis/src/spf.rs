@@ -117,7 +117,7 @@ pub struct SpfScheduler {
     pub delay_timer: Option<TimeoutTask>,
     pub hold_down_timer: Option<TimeoutTask>,
     pub learn_timer: Option<TimeoutTask>,
-    pub trigger_lsps: Vec<LspLogId>,
+    pub trigger_lsps: BTreeMap<LspId, LspLogId>,
     pub schedule_time: Option<Instant>,
 }
 
@@ -455,7 +455,7 @@ fn compute_spf(
         schedule_time,
         start_time,
         end_time,
-        trigger_lsps,
+        trigger_lsps.into_values().collect(),
     );
 }
 

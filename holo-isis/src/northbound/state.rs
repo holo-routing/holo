@@ -10,7 +10,7 @@
 #![allow(unreachable_code)]
 
 use std::borrow::Cow;
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::sync::{LazyLock as Lazy, atomic};
 
 use enum_as_inner::EnumAsInner;
@@ -236,7 +236,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .get_iterate(|_instance, args| {
             let lse = args.parent_list_entry.as_lsp_entry().unwrap();
             let lsp = &lse.data;
-            let iter = lsp.tlvs.is_reach().map(|reach| reach.neighbor).collect::<HashSet<_>>().into_iter().map(|neighbor| ListEntry::IsReach(lse, neighbor));
+            let iter = lsp.tlvs.is_reach().map(|reach| reach.neighbor).collect::<BTreeSet<_>>().into_iter().map(|neighbor| ListEntry::IsReach(lse, neighbor));
             Some(Box::new(iter))
         })
         .get_object(|_instance, args| {

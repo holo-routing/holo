@@ -8,6 +8,7 @@
 //
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::sync::LazyLock as Lazy;
 
 use async_trait::async_trait;
@@ -81,6 +82,8 @@ pub struct InstanceCfg {
     pub metric_type: LevelsCfg<MetricType>,
     pub default_metric: LevelsCfg<u32>,
     pub auth: LevelsOptCfg<AuthCfg>,
+    pub ipv4_router_id: Option<Ipv4Addr>,
+    pub ipv6_router_id: Option<Ipv6Addr>,
     pub max_paths: u16,
     pub afs: BTreeMap<AddressFamily, AddressFamilyCfg>,
     pub spf_initial_delay: u32,
@@ -398,6 +401,38 @@ fn load_callbacks() -> Callbacks<Instance> {
 
             let enabled = args.dnode.get_bool();
             af_cfg.enabled = enabled;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .path(isis::mpls::te_rid::ipv4_router_id::PATH)
+        .modify_apply(|instance, args| {
+            let addr = args.dnode.get_ipv4();
+            instance.config.ipv4_router_id = Some(addr);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .delete_apply(|instance, args| {
+            instance.config.ipv4_router_id = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .path(isis::mpls::te_rid::ipv6_router_id::PATH)
+        .modify_apply(|instance, args| {
+            let addr = args.dnode.get_ipv6();
+            instance.config.ipv6_router_id = Some(addr);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .delete_apply(|instance, args| {
+            instance.config.ipv6_router_id = None;
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
@@ -1242,6 +1277,8 @@ impl Default for InstanceCfg {
             default_metric,
             auth: Default::default(),
             max_paths,
+            ipv4_router_id: None,
+            ipv6_router_id: None,
             afs: Default::default(),
             spf_initial_delay,
             spf_short_delay,

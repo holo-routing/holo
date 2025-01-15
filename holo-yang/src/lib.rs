@@ -265,6 +265,7 @@ pub static YANG_FEATURES: Lazy<HashMap<&'static str, Vec<&'static str>>> =
                 "lsp-refresh",
                 "max-ecmp",
                 "nlpid-control",
+                "te-rid",
             ],
             "ietf-ospf" => vec![
                 "bfd",

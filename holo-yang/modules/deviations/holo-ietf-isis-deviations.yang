@@ -402,10 +402,6 @@ module holo-ietf-isis-deviations {
   }
   */
 
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:mpls" {
-    deviate not-supported;
-  }
-
   /*
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:mpls/isis:ldp" {
     deviate not-supported;

@@ -223,6 +223,16 @@ pub struct Ipv6ReachSubTlvs {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
+pub struct Ipv4RouterIdTlv(Ipv4Addr);
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(new)]
+#[derive(Deserialize, Serialize)]
+pub struct Ipv6RouterIdTlv(Ipv6Addr);
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(new)]
+#[derive(Deserialize, Serialize)]
 pub struct UnknownTlv {
     pub tlv_type: u8,
     pub length: u8,
@@ -1185,6 +1195,72 @@ where
         Ipv6ReachTlv {
             list: iter.into_iter().collect(),
         }
+    }
+}
+
+// ===== impl Ipv4RouterIdTlv =====
+
+impl Ipv4RouterIdTlv {
+    const SIZE: usize = 4;
+
+    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+        // Validate the TLV length.
+        if tlv_len as usize != Self::SIZE {
+            return Err(DecodeError::InvalidTlvLength(tlv_len));
+        }
+
+        let addr = buf.get_ipv4();
+
+        Ok(Ipv4RouterIdTlv(addr))
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, TlvType::Ipv4RouterId);
+        buf.put_ipv4(&self.0);
+        tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn get(&self) -> &Ipv4Addr {
+        &self.0
+    }
+}
+
+impl Tlv for Ipv4RouterIdTlv {
+    fn len(&self) -> usize {
+        TLV_HDR_SIZE + Self::SIZE
+    }
+}
+
+// ===== impl Ipv6RouterIdTlv =====
+
+impl Ipv6RouterIdTlv {
+    const SIZE: usize = 16;
+
+    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+        // Validate the TLV length.
+        if tlv_len as usize != Self::SIZE {
+            return Err(DecodeError::InvalidTlvLength(tlv_len));
+        }
+
+        let addr = buf.get_ipv6();
+
+        Ok(Ipv6RouterIdTlv(addr))
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, TlvType::Ipv6RouterId);
+        buf.put_ipv6(&self.0);
+        tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn get(&self) -> &Ipv6Addr {
+        &self.0
+    }
+}
+
+impl Tlv for Ipv6RouterIdTlv {
+    fn len(&self) -> usize {
+        TLV_HDR_SIZE + Self::SIZE
     }
 }
 

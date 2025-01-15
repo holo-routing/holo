@@ -306,8 +306,10 @@ fn lsp_build_tlvs(
         ipv4_internal_reach.into_values(),
         [],
         ext_ipv4_reach.into_values(),
+        instance.config.ipv4_router_id,
         ipv6_addrs,
         ipv6_reach.into_values(),
+        instance.config.ipv6_router_id,
     )
 }
 
@@ -363,8 +365,10 @@ fn lsp_build_tlvs_pseudo(
         [],
         [],
         [],
+        None,
         [],
         [],
+        None,
     )
 }
 

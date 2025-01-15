@@ -24,10 +24,10 @@ use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::tlv::{
     AreaAddressesTlv, DynamicHostnameTlv, ExtIpv4Reach, ExtIpv4ReachTlv,
     ExtIsReach, ExtIsReachTlv, Ipv4AddressesTlv, Ipv4Reach, Ipv4ReachTlv,
-    Ipv6AddressesTlv, Ipv6Reach, Ipv6ReachTlv, IsReach, IsReachTlv,
-    LspBufferSizeTlv, LspEntriesTlv, LspEntry, NeighborsTlv, PaddingTlv,
-    ProtocolsSupportedTlv, TLV_HDR_SIZE, TLV_MAX_LEN, Tlv, UnknownTlv,
-    tlv_entries_split, tlv_take_max,
+    Ipv4RouterIdTlv, Ipv6AddressesTlv, Ipv6Reach, Ipv6ReachTlv,
+    Ipv6RouterIdTlv, IsReach, IsReachTlv, LspBufferSizeTlv, LspEntriesTlv,
+    LspEntry, NeighborsTlv, PaddingTlv, ProtocolsSupportedTlv, TLV_HDR_SIZE,
+    TLV_MAX_LEN, Tlv, UnknownTlv, tlv_entries_split, tlv_take_max,
 };
 use crate::packet::{AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId};
 
@@ -111,8 +111,10 @@ pub struct LspTlvs {
     pub ipv4_internal_reach: Vec<Ipv4ReachTlv>,
     pub ipv4_external_reach: Vec<Ipv4ReachTlv>,
     pub ext_ipv4_reach: Vec<ExtIpv4ReachTlv>,
+    pub ipv4_router_id: Option<Ipv4RouterIdTlv>,
     pub ipv6_addrs: Vec<Ipv6AddressesTlv>,
     pub ipv6_reach: Vec<Ipv6ReachTlv>,
+    pub ipv6_router_id: Option<Ipv6RouterIdTlv>,
     pub unknown: Vec<UnknownTlv>,
 }
 
@@ -679,6 +681,13 @@ impl Lsp {
                     let tlv = ExtIpv4ReachTlv::decode(tlv_len, &mut buf_tlv)?;
                     tlvs.ext_ipv4_reach.push(tlv);
                 }
+                Some(TlvType::Ipv4RouterId) => {
+                    if tlvs.ipv4_router_id.is_some() {
+                        continue;
+                    }
+                    let tlv = Ipv4RouterIdTlv::decode(tlv_len, &mut buf_tlv)?;
+                    tlvs.ipv4_router_id = Some(tlv);
+                }
                 Some(TlvType::Ipv6Addresses) => {
                     let tlv = Ipv6AddressesTlv::decode(tlv_len, &mut buf_tlv)?;
                     tlvs.ipv6_addrs.push(tlv);
@@ -686,6 +695,13 @@ impl Lsp {
                 Some(TlvType::Ipv6Reach) => {
                     let tlv = Ipv6ReachTlv::decode(tlv_len, &mut buf_tlv)?;
                     tlvs.ipv6_reach.push(tlv);
+                }
+                Some(TlvType::Ipv6RouterId) => {
+                    if tlvs.ipv6_router_id.is_some() {
+                        continue;
+                    }
+                    let tlv = Ipv6RouterIdTlv::decode(tlv_len, &mut buf_tlv)?;
+                    tlvs.ipv6_router_id = Some(tlv);
                 }
                 _ => {
                     // Save unknown top-level TLV.
@@ -754,10 +770,16 @@ impl Lsp {
             for tlv in &self.tlvs.ext_ipv4_reach {
                 tlv.encode(&mut buf);
             }
+            if let Some(tlv) = &self.tlvs.ipv4_router_id {
+                tlv.encode(&mut buf);
+            }
             for tlv in &self.tlvs.ipv6_addrs {
                 tlv.encode(&mut buf);
             }
             for tlv in &self.tlvs.ipv6_reach {
+                tlv.encode(&mut buf);
+            }
+            if let Some(tlv) = &self.tlvs.ipv6_router_id {
                 tlv.encode(&mut buf);
             }
 
@@ -868,8 +890,10 @@ impl LspTlvs {
         ipv4_internal_reach: impl IntoIterator<Item = Ipv4Reach>,
         ipv4_external_reach: impl IntoIterator<Item = Ipv4Reach>,
         ext_ipv4_reach: impl IntoIterator<Item = ExtIpv4Reach>,
+        ipv4_router_id: Option<Ipv4Addr>,
         ipv6_addrs: impl IntoIterator<Item = Ipv6Addr>,
         ipv6_reach: impl IntoIterator<Item = Ipv6Reach>,
+        ipv6_router_id: Option<Ipv6Addr>,
     ) -> Self {
         LspTlvs {
             protocols_supported: Some(ProtocolsSupportedTlv::from(
@@ -884,8 +908,10 @@ impl LspTlvs {
             ipv4_internal_reach: tlv_entries_split(ipv4_internal_reach),
             ipv4_external_reach: tlv_entries_split(ipv4_external_reach),
             ext_ipv4_reach: tlv_entries_split(ext_ipv4_reach),
+            ipv4_router_id: ipv4_router_id.map(Ipv4RouterIdTlv::new),
             ipv6_addrs: tlv_entries_split(ipv6_addrs),
             ipv6_reach: tlv_entries_split(ipv6_reach),
+            ipv6_router_id: ipv6_router_id.map(Ipv6RouterIdTlv::new),
             unknown: Default::default(),
         }
     }
@@ -904,6 +930,14 @@ impl LspTlvs {
         let lsp_buf_size = self.lsp_buf_size.take();
         if let Some(lsp_buf_size) = &lsp_buf_size {
             rem_len -= lsp_buf_size.len();
+        }
+        let ipv4_router_id = self.ipv4_router_id.take();
+        if let Some(ipv4_router_id) = &ipv4_router_id {
+            rem_len -= ipv4_router_id.len();
+        }
+        let ipv6_router_id = self.ipv6_router_id.take();
+        if let Some(ipv6_router_id) = &ipv6_router_id {
+            rem_len -= ipv6_router_id.len();
         }
         let is_reach = tlv_take_max(&mut self.is_reach, &mut rem_len);
         let ext_is_reach = tlv_take_max(&mut self.ext_is_reach, &mut rem_len);
@@ -931,8 +965,10 @@ impl LspTlvs {
             ipv4_internal_reach,
             ipv4_external_reach,
             ext_ipv4_reach,
+            ipv4_router_id,
             ipv6_addrs,
             ipv6_reach,
+            ipv6_router_id,
             unknown: Default::default(),
         })
     }

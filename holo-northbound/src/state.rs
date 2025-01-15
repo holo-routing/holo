@@ -364,8 +364,8 @@ where
 
     iterate_children(provider, cbs, dnode, snode, list_entry, relay_list)?;
 
-    // Delete container if it's empty.
-    if dnode.children().next().is_none() {
+    // Remove the container node if it was added and remains empty.
+    if !first && dnode.children().next().is_none() {
         dnode.remove();
     }
 

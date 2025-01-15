@@ -766,6 +766,7 @@ fn validate_callbacks(callbacks: &BTreeMap<CallbackKey, NbDaemonSender>) {
 
     for snode in yang_ctx
         .traverse()
+        .filter(|snode| snode.module().is_implemented())
         .filter(|snode| snode.module().name() != "ietf-yang-schema-mount")
         .filter(|snode| snode.is_status_current())
     {

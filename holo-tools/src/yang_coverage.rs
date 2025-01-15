@@ -133,8 +133,10 @@ fn calculate_coverage(mut yang_ctx: Context, matches: &clap::ArgMatches<'_>) {
             notifs: Coverage::new(post_dev.notifs, pre_dev.notifs),
             total: Coverage::new(post_dev.total, pre_dev.total),
         };
-        let coverage_link =
-            format!("holo-yang/modules/coverage/{}.coverage.md", module_name);
+        let coverage_link = format!(
+            "https://holo-routing.github.io/ietf-yang-coverage/{}.html",
+            module_name
+        );
         println!(
             "| {} | {} | {} | {} | {} | [{}]({}) |",
             module_name,

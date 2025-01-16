@@ -781,8 +781,7 @@ impl UpdateMsg {
         // Path Attributes.
         if attr_len != 0 {
             let mut buf_attr = buf.copy_to_bytes(attr_len as usize);
-            let nlri_present =
-                (msg_len - Self::MIN_LEN - wdraw_len - attr_len) > 0;
+            let nlri_present = buf.remaining() > 0;
             attrs = Attrs::decode(
                 &mut buf_attr,
                 cxt,

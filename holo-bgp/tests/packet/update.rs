@@ -8,12 +8,14 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
+use holo_bgp::neighbor::PeerType;
 use holo_bgp::packet::attribute::{
     Aggregator, AsPath, AsPathSegment, Attrs, BaseAttrs, ClusterList, CommList,
 };
 use holo_bgp::packet::consts::{AsPathSegmentType, Origin};
 use holo_bgp::packet::message::{
-    Message, MpReachNlri, MpUnreachNlri, ReachNlri, UnreachNlri, UpdateMsg,
+    DecodeCxt, Message, MpReachNlri, MpUnreachNlri, NegotiatedCapability,
+    ReachNlri, UnreachNlri, UpdateMsg,
 };
 use holo_utils::bgp::{Comm, ExtComm, Extv6Comm, LargeComm};
 use ipnetwork::{Ipv4Network, Ipv6Network};
@@ -163,4 +165,27 @@ fn test_encode_update2() {
 fn test_decode_update2() {
     let (ref bytes, ref msg) = *UPDATE2;
     test_decode_msg(bytes, msg);
+}
+
+#[test]
+fn test_decode_malformed_updates() {
+    let cxt: DecodeCxt = DecodeCxt {
+        peer_type: PeerType::Internal,
+        peer_as: 65550,
+        capabilities: [NegotiatedCapability::FourOctetAsNumber].into(),
+    };
+    for bytes in &[
+        // Missing NEXT_HOP attribute.
+        vec![
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x1c, 0x02, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00,
+        ],
+    ] {
+        let _ = Message::decode(bytes, &cxt);
+    }
 }

@@ -794,17 +794,18 @@ impl UpdateMsg {
         }
 
         // Network Layer Reachability Information.
+        //
+        // All prefixes are ignored if the NEXT_HOP attribute is missing.
         let mut prefixes = Vec::new();
         while buf.remaining() > 0 {
             if let Some(prefix) = decode_ipv4_prefix(buf)? {
                 prefixes.push(prefix);
             }
         }
-        if !prefixes.is_empty() {
-            reach = Some(ReachNlri {
-                prefixes,
-                nexthop: nexthop.unwrap(),
-            });
+        if !prefixes.is_empty()
+            && let Some(nexthop) = nexthop
+        {
+            reach = Some(ReachNlri { prefixes, nexthop });
         }
 
         Ok(UpdateMsg {

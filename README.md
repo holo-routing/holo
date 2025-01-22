@@ -199,6 +199,7 @@ Holo supports the following Internet Standards:
 * RFC 7684 - OSPFv2 Prefix/Link Attribute Advertisement
 * RFC 7166 - Supporting Authentication Trailer for OSPFv3
 * RFC 7770 - Extensions to OSPF for Advertising Optional Router Capabilities
+* RFC 7777 - Advertising Node Administrative Tags in OSPF
 * RFC 8362 - OSPFv3 Link State Advertisement (LSA) Extensibility
 * RFC 8405 - Shortest Path First (SPF) Back-Off Delay Algorithm for Link-State IGPs
 * RFC 8476 - Signaling Maximum SID Depth (MSD) Using OSPF
@@ -236,7 +237,7 @@ Holo supports the following Internet Standards:
 | ietf-mpls-ldp@2022-03-14 | 86.96% | 92.31% | 100.00% | 100.00% | [92.38%](https://holo-routing.github.io/ietf-yang-coverage/ietf-mpls-ldp@2022-03-14.html) |
 | ietf-mpls@2020-12-18 | 0.00% | 57.14% | - | - | [35.29%](https://holo-routing.github.io/ietf-yang-coverage/ietf-mpls@2020-12-18.html) |
 | ietf-ospf-sr-mpls@2024-06-19 | 23.08% | 51.82% | - | - | [50.63%](https://holo-routing.github.io/ietf-yang-coverage/ietf-ospf-sr-mpls@2024-06-19.html) |
-| ietf-ospf@2022-10-19 | 75.00% | 63.50% | 100.00% | 41.94% | [62.85%](https://holo-routing.github.io/ietf-yang-coverage/ietf-ospf@2022-10-19.html) |
+| ietf-ospf@2022-10-19 | 75.82% | 64.25% | 100.00% | 41.94% | [63.58%](https://holo-routing.github.io/ietf-yang-coverage/ietf-ospf@2022-10-19.html) |
 | ietf-ospfv3-extended-lsa@2024-06-07 | 50.00% | 85.28% | - | - | [84.85%](https://holo-routing.github.io/ietf-yang-coverage/ietf-ospfv3-extended-lsa@2024-06-07.html) |
 | ietf-rip@2020-02-20 | 27.91% | 93.33% | 100.00% | - | [55.41%](https://holo-routing.github.io/ietf-yang-coverage/ietf-rip@2020-02-20.html) |
 | ietf-routing-policy@2021-10-11 | 100.00% | 0.00% | - | - | [98.11%](https://holo-routing.github.io/ietf-yang-coverage/ietf-routing-policy@2021-10-11.html) |

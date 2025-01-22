@@ -31,7 +31,7 @@ use crate::packet::lsa::{
 };
 use crate::packet::tlv::{
     AdjSidFlags, BierSubTlv, DynamicHostnameTlv, GrReason, GrReasonTlv,
-    GracePeriodTlv, MsdTlv, PrefixSidFlags, RouterFuncCapsTlv,
+    GracePeriodTlv, MsdTlv, NodeAdminTagTlv, PrefixSidFlags, RouterFuncCapsTlv,
     RouterInfoCapsTlv, RouterInfoTlvType, SidLabelRangeTlv, SrAlgoTlv,
     SrLocalBlockTlv, SrmsPrefTlv, TLV_HDR_SIZE, UnknownTlv, tlv_encode_end,
     tlv_encode_start, tlv_wire_len,
@@ -956,6 +956,9 @@ pub struct LsaRouterInfo {
     #[new(default)]
     #[serde(skip)]
     pub info_hostname: Option<DynamicHostnameTlv>,
+    #[new(default)]
+    #[serde(skip)]
+    pub node_tags: Vec<NodeAdminTagTlv>,
     #[new(default)]
     pub unknown_tlvs: Vec<UnknownTlv>,
 }
@@ -2565,6 +2568,11 @@ impl LsaRouterInfo {
                         DynamicHostnameTlv::decode(tlv_len, &mut buf_tlv)?;
                     router_info.info_hostname.get_or_insert(hostname);
                 }
+                Some(RouterInfoTlvType::NodeAdminTag) => {
+                    let node_tag =
+                        NodeAdminTagTlv::decode(tlv_len, &mut buf_tlv)?;
+                    router_info.node_tags.push(node_tag);
+                }
                 Some(RouterInfoTlvType::SrAlgo) => {
                     let sr_algo = SrAlgoTlv::decode(tlv_len, &mut buf_tlv)?;
                     router_info.sr_algo.get_or_insert(sr_algo);
@@ -2607,6 +2615,9 @@ impl LsaRouterInfo {
         }
         if let Some(info_hostname) = &self.info_hostname {
             info_hostname.encode(buf);
+        }
+        for node_tag in &self.node_tags {
+            node_tag.encode(buf);
         }
         if let Some(sr_algo) = &self.sr_algo {
             sr_algo.encode(buf);

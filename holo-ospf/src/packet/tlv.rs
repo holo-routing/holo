@@ -35,6 +35,7 @@ pub enum RouterInfoTlvType {
     DynamicHostname = 7,
     SrAlgo = 8,
     SidLabelRange = 9,
+    NodeAdminTag = 10,
     NodeMsd = 12,
     SrLocalBlock = 14,
     SrmsPref = 15,
@@ -131,6 +132,31 @@ pub struct DynamicHostnameTlv {
 }
 
 const MAX_HOSTNAME_LEN: usize = 255;
+
+//
+// Node Admin Tag TLV.
+//
+// Encoding format:
+//
+//  0                   1                   2                   3
+//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |              Type             |             Length            |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |                   Administrative Tag #1                       |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |                   Administrative Tag #2                       |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                                                             //
+//
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |                  Administrative Tag #N                        |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+#[derive(Clone, Debug, Default, Eq, new, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct NodeAdminTagTlv {
+    pub tags: BTreeSet<u32>,
+}
 
 //
 // SR-Algorithm TLV.
@@ -553,6 +579,35 @@ impl RouterFuncCapsTlv {
 impl From<RouterFuncCaps> for RouterFuncCapsTlv {
     fn from(caps: RouterFuncCaps) -> RouterFuncCapsTlv {
         RouterFuncCapsTlv(caps)
+    }
+}
+
+// ===== impl NodeAdminTagTlv ====
+
+impl NodeAdminTagTlv {
+    pub(crate) fn decode(tlv_len: u16, buf: &mut Bytes) -> DecodeResult<Self> {
+        // Validate the TLV length.
+        if tlv_len % 4 != 0 {
+            return Err(DecodeError::InvalidTlvLength(tlv_len));
+        }
+
+        let mut tags = BTreeSet::new();
+        let mut tlv_rlen = tlv_len;
+        while tlv_rlen >= 4 {
+            let tag = buf.get_u32();
+            tags.insert(tag);
+            tlv_rlen -= 4;
+        }
+
+        Ok(NodeAdminTagTlv { tags })
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, RouterInfoTlvType::NodeAdminTag);
+        for tag in &self.tags {
+            buf.put_u32(*tag);
+        }
+        tlv_encode_end(buf, start_pos);
     }
 }
 

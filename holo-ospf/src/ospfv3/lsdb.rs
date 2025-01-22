@@ -38,8 +38,8 @@ use crate::packet::lsa::{
 };
 use crate::packet::tlv::{
     BierEncapId, BierEncapSubSubTlv, BierSubSubTlv, BierSubTlv,
-    DynamicHostnameTlv, PrefixSidFlags, RouterInfoCaps, RouterInfoCapsTlv,
-    SidLabelRangeTlv, SrAlgoTlv, SrLocalBlockTlv,
+    DynamicHostnameTlv, NodeAdminTagTlv, PrefixSidFlags, RouterInfoCaps,
+    RouterInfoCapsTlv, SidLabelRangeTlv, SrAlgoTlv, SrLocalBlockTlv,
 };
 use crate::route::{SummaryNet, SummaryNetFlags, SummaryRtr};
 use crate::version::Ospfv3;
@@ -282,7 +282,8 @@ impl LsdbVersion<Self> for Ospfv3 {
                     }
                 }
             }
-            LsaOriginateEvent::HostnameChange => {
+            LsaOriginateEvent::HostnameChange
+            | LsaOriginateEvent::NodeTagsChange => {
                 // (Re)originate Router-Info-LSA(s) in all areas.
                 for area in arenas.areas.iter() {
                     lsa_orig_router_info(area, instance);
@@ -1063,6 +1064,7 @@ fn lsa_orig_router_info(
     let mut sr_algo = None;
     let mut srgb = vec![];
     let mut srlb = vec![];
+    let mut node_tags = vec![];
     if instance.config.sr_enabled {
         // Fill in supported SR algorithms.
         sr_algo = Some(SrAlgoTlv::new([IgpAlgoType::Spf].into()));
@@ -1080,6 +1082,11 @@ fn lsa_orig_router_info(
             let range = range.upper_bound - range.lower_bound + 1;
             srlb.push(SrLocalBlockTlv::new(first, range));
         }
+    }
+
+    // Fill in node tags.
+    if !instance.config.node_tags.is_empty() {
+        node_tags.push(NodeAdminTagTlv::new(instance.config.node_tags.clone()));
     }
 
     // (Re)originate Router Information LSA.
@@ -1102,6 +1109,7 @@ fn lsa_orig_router_info(
             .hostname
             .as_ref()
             .map(|hostname| DynamicHostnameTlv::new(hostname.to_string())),
+        node_tags,
         unknown_tlvs: vec![],
     });
     instance

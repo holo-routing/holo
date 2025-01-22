@@ -31,7 +31,7 @@ use crate::lsdb::{LsaEntry, LsaLogEntry, LsaLogId};
 use crate::neighbor::Neighbor;
 use crate::packet::lsa::{LsaBodyVersion, LsaHdrVersion};
 use crate::packet::tlv::{
-    GrReason, SidLabelRangeTlv, SrLocalBlockTlv, UnknownTlv,
+    GrReason, NodeAdminTagTlv, SidLabelRangeTlv, SrLocalBlockTlv, UnknownTlv,
 };
 use crate::route::{Nexthop, RouteNet};
 use crate::spf::SpfLogEntry;
@@ -67,6 +67,8 @@ pub enum ListEntry<'a, V: Version> {
     Msd(u8, u8),
     Srgb(&'a SidLabelRangeTlv),
     Srlb(&'a SrLocalBlockTlv),
+    NodeAdminTagTlv(&'a NodeAdminTagTlv),
+    NodeAdminTag(&'a u32),
     UnknownTlv(&'a UnknownTlv),
     Flag(&'static str),
     FlagU32(u32),
@@ -1094,6 +1096,32 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             let flag = args.list_entry.as_flag_u32().unwrap();
             Box::new(FunctionalCapabilities {
                 functional_flag: Some(*flag),
+            })
+        })
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::node_tag_tlvs::node_tag_tlv::PATH)
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv2> = args.parent_list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_opaque_area()
+                && let Some(lsa_body) = lsa_body.as_router_info()
+            {
+                let iter = lsa_body.node_tags.iter().map(ListEntry::NodeAdminTagTlv);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
+        })
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::node_tag_tlvs::node_tag_tlv::node_tag::PATH)
+        .get_iterate(|_instance, args| {
+            let tlv = args.parent_list_entry.as_node_admin_tag_tlv().unwrap();
+            let iter = tlv.tags.iter().map(ListEntry::NodeAdminTag);
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::node_tag_tlvs::node_tag_tlv::node_tag::NodeTag;
+            let tag = args.list_entry.as_node_admin_tag().unwrap();
+            Box::new(NodeTag {
+                tag: Some(**tag),
             })
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::dynamic_hostname_tlv::PATH)
@@ -2307,6 +2335,30 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let flag = args.list_entry.as_flag_u32().unwrap();
             Box::new(FunctionalCapabilities {
                 functional_flag: Some(*flag),
+            })
+        })
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::node_tag_tlvs::node_tag_tlv::PATH)
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> = args.parent_list_entry.as_area_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_router_info() {
+                let iter = lsa_body.node_tags.iter().map(ListEntry::NodeAdminTagTlv);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
+        })
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::node_tag_tlvs::node_tag_tlv::node_tag::PATH)
+        .get_iterate(|_instance, args| {
+            let tlv = args.parent_list_entry.as_node_admin_tag_tlv().unwrap();
+            let iter = tlv.tags.iter().map(ListEntry::NodeAdminTag);
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::node_tag_tlvs::node_tag_tlv::node_tag::NodeTag;
+            let tag = args.list_entry.as_node_admin_tag().unwrap();
+            Box::new(NodeTag {
+                tag: Some(**tag),
             })
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::dynamic_hostname_tlv::PATH)

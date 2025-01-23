@@ -361,6 +361,17 @@ where
             let event_queue = args.event_queue;
             event_queue.insert(Event::StubRouterChange);
         })
+        .path(ospf::node_tags::node_tag::PATH)
+        .create_apply(|_instance, _args| {
+            // TODO: implement me!
+        })
+        .delete_apply(|_instance, _args| {
+            // TODO: implement me!
+        })
+        .lookup(|_instance, _list_entry, _dnode| {
+            // TODO: implement me!
+            todo!();
+        })
         .path(ospf::extended_lsa_support::PATH)
         .modify_apply(|instance, args| {
             let extended_lsa = args.dnode.get_bool();

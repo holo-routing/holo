@@ -1096,6 +1096,22 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
                 functional_flag: Some(*flag),
             })
         })
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::node_tag_tlvs::node_tag_tlv::PATH)
+        .get_iterate(|_instance, _args| {
+            // TODO: implement me!
+            None
+        })
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::node_tag_tlvs::node_tag_tlv::node_tag::PATH)
+        .get_iterate(|_instance, _args| {
+            // TODO: implement me!
+            None
+        })
+        .get_object(|_instance, _args| {
+            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::node_tag_tlvs::node_tag_tlv::node_tag::NodeTag;
+            Box::new(NodeTag {
+                tag: todo!(),
+            })
+        })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::dynamic_hostname_tlv::PATH)
         .get_object(|_instance, args| {
             use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::dynamic_hostname_tlv::DynamicHostnameTlv;
@@ -2307,6 +2323,22 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let flag = args.list_entry.as_flag_u32().unwrap();
             Box::new(FunctionalCapabilities {
                 functional_flag: Some(*flag),
+            })
+        })
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::node_tag_tlvs::node_tag_tlv::PATH)
+        .get_iterate(|_instance, _args| {
+            // TODO: implement me!
+            None
+        })
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::node_tag_tlvs::node_tag_tlv::node_tag::PATH)
+        .get_iterate(|_instance, _args| {
+            // TODO: implement me!
+            None
+        })
+        .get_object(|_instance, _args| {
+            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::node_tag_tlvs::node_tag_tlv::node_tag::NodeTag;
+            Box::new(NodeTag {
+                tag: todo!(),
             })
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::dynamic_hostname_tlv::PATH)

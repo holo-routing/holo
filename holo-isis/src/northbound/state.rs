@@ -11,6 +11,7 @@
 
 use std::borrow::Cow;
 use std::collections::BTreeSet;
+use std::fmt::Write;
 use std::sync::{LazyLock as Lazy, atomic};
 
 use enum_as_inner::EnumAsInner;
@@ -224,9 +225,22 @@ fn load_callbacks() -> Callbacks<Instance> {
                         CryptoAlgo::HmacMd5.to_yang()
                     }
                 });
+            let authentication_key =
+                lsp.tlvs.auth.as_ref().and_then(|auth| match auth {
+                    AuthenticationTlv::ClearText(..) => None,
+                    AuthenticationTlv::HmacMd5(digest) => {
+                        Some(Cow::Owned(digest.iter().fold(
+                            String::with_capacity(digest.len() * 2),
+                            |mut output, &byte| {
+                                write!(&mut output, "{:02x}", byte).unwrap();
+                                output
+                            },
+                        )))
+                    }
+                });
             Box::new(Authentication {
                 authentication_type,
-                authentication_key: None,
+                authentication_key,
             })
         })
         .path(isis::database::levels::lsp::unknown_tlvs::unknown_tlv::PATH)

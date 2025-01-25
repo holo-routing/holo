@@ -13,6 +13,7 @@ use std::os::fd::AsRawFd;
 use std::sync::Arc;
 
 use bytes::Bytes;
+use holo_utils::keychain::Key;
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::{Sender, UnboundedReceiver, capabilities};
 use nix::sys::socket;
@@ -23,6 +24,7 @@ use tokio::sync::mpsc::error::SendError;
 use crate::collections::InterfaceId;
 use crate::debug::Debug;
 use crate::error::IoError;
+use crate::packet::auth::AuthMethod;
 use crate::packet::pdu::Pdu;
 use crate::tasks::messages::input::NetRxPduMsg;
 use crate::tasks::messages::output::NetTxPduMsg;
@@ -118,11 +120,12 @@ pub(crate) async fn send_pdu(
     ifindex: u32,
     dst: MulticastAddr,
     pdu: &Pdu,
+    auth: Option<&Key>,
 ) -> Result<usize, IoError> {
     Debug::PduTx(ifindex, dst, pdu).log();
 
     // Encode PDU.
-    let buf = pdu.encode();
+    let buf = pdu.encode(auth);
 
     // Send PDU.
     socket
@@ -163,13 +166,42 @@ pub(crate) async fn send_pdu(
 pub(crate) async fn write_loop(
     socket: Arc<AsyncFd<Socket>>,
     broadcast: bool,
+    hello_padding: Option<u16>,
+    hello_auth: Option<AuthMethod>,
+    global_auth: Option<AuthMethod>,
     mut net_tx_packetc: UnboundedReceiver<NetTxPduMsg>,
 ) {
-    while let Some(NetTxPduMsg { pdu, ifindex, dst }) =
-        net_tx_packetc.recv().await
+    while let Some(NetTxPduMsg {
+        mut pdu,
+        ifindex,
+        dst,
+    }) = net_tx_packetc.recv().await
     {
+        // Get authentication key.
+        let auth = match &pdu {
+            Pdu::Hello(..) => hello_auth.as_ref(),
+            Pdu::Lsp(..) | Pdu::Snp(..) => global_auth.as_ref(),
+        };
+        let auth = auth.and_then(|auth| auth.get_key_send());
+
+        // Add Hello padding.
+        //
+        // Padding cannot be pre-computed and needs to be added on a per-packet
+        // basis, because the size of the authentication digest or password may
+        // change over time when a key-chain is used.
+        if let Pdu::Hello(hello) = &mut pdu
+            && let Some(mut max_size) = hello_padding
+        {
+            // Take into account the authentication TLV.
+            if let Some(auth) = auth {
+                max_size -= Pdu::auth_tlv_len(auth) as u16;
+            }
+            hello.add_padding(max_size);
+        }
+
+        // Send PDU out the interface.
         if let Err(error) =
-            send_pdu(&socket, broadcast, ifindex, dst, &pdu).await
+            send_pdu(&socket, broadcast, ifindex, dst, &pdu, auth).await
         {
             error.log();
         }
@@ -181,6 +213,8 @@ pub(crate) async fn read_loop(
     socket: Arc<AsyncFd<Socket>>,
     broadcast: bool,
     iface_id: InterfaceId,
+    hello_auth: Option<AuthMethod>,
+    global_auth: Option<AuthMethod>,
     net_packet_rxp: Sender<NetRxPduMsg>,
 ) -> Result<(), SendError<NetRxPduMsg>> {
     let mut buf = [0; 16384];
@@ -223,7 +257,11 @@ pub(crate) async fn read_loop(
                 let offset = if broadcast { LLC_HDR.len() } else { 0 };
                 let bytes =
                     Bytes::copy_from_slice(&iov[0].deref()[offset..bytes]);
-                let pdu = Pdu::decode(bytes.clone());
+                let pdu = Pdu::decode(
+                    bytes.clone(),
+                    hello_auth.as_ref(),
+                    global_auth.as_ref(),
+                );
                 let msg = NetRxPduMsg {
                     iface_key: iface_id.into(),
                     src,

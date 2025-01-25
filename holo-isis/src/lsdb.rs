@@ -24,7 +24,7 @@ use crate::instance::{InstanceArenas, InstanceUpView};
 use crate::interface::{Interface, InterfaceType};
 use crate::northbound::notification;
 use crate::packet::consts::LspFlags;
-use crate::packet::pdu::{Lsp, LspTlvs};
+use crate::packet::pdu::{Lsp, LspTlvs, Pdu};
 use crate::packet::tlv::{
     ExtIpv4Reach, ExtIsReach, Ipv4Reach, Ipv6Reach, IsReach, MAX_NARROW_METRIC,
     Nlpid,
@@ -380,11 +380,15 @@ fn lsp_build_fragments(
     mut tlvs: LspTlvs,
 ) -> Vec<Lsp> {
     let system_id = instance.config.system_id.unwrap();
+    let auth = instance.config.auth.all.method(&instance.shared.keychains);
+    let auth = auth.as_ref().and_then(|auth| auth.get_key_send());
+    let max_len = instance.config.lsp_mtu as usize
+        - Lsp::HEADER_LEN as usize
+        - auth.map_or(0, Pdu::auth_tlv_len);
+
     let mut fragments = vec![];
     for frag_id in 0..=255 {
-        let Some(tlvs) = tlvs.next_chunk(
-            instance.config.lsp_mtu as usize - Lsp::HEADER_LEN as usize,
-        ) else {
+        let Some(tlvs) = tlvs.next_chunk(max_len) else {
             break;
         };
 
@@ -404,6 +408,7 @@ fn lsp_build_fragments(
             seqno,
             lsp_flags,
             tlvs,
+            auth,
         );
         fragments.push(fragment);
     }

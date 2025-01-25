@@ -18,6 +18,7 @@ use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, Provider,
 };
 use holo_northbound::yang::control_plane_protocol::isis;
+use holo_utils::crypto::CryptoAlgo;
 use holo_utils::option::OptionExt;
 use holo_yang::{ToYang, ToYangBits};
 use ipnetwork::IpNetwork;
@@ -28,7 +29,8 @@ use crate::instance::Instance;
 use crate::interface::Interface;
 use crate::lsdb::{LspEntry, LspLogEntry, LspLogId};
 use crate::packet::tlv::{
-    ExtIpv4Reach, ExtIsReach, Ipv4Reach, Ipv6Reach, IsReach, UnknownTlv,
+    AuthenticationTlv, ExtIpv4Reach, ExtIsReach, Ipv4Reach, Ipv6Reach, IsReach,
+    UnknownTlv,
 };
 use crate::packet::{LanId, LevelNumber, LevelType, SystemId};
 use crate::route::{Nexthop, Route};
@@ -209,10 +211,21 @@ fn load_callbacks() -> Callbacks<Instance> {
             })
         })
         .path(isis::database::levels::lsp::authentication::PATH)
-        .get_object(|_instance, _args| {
+        .get_object(|_instance, args| {
             use isis::database::levels::lsp::authentication::Authentication;
+            let lse = args.list_entry.as_lsp_entry().unwrap();
+            let lsp = &lse.data;
+            let authentication_type =
+                lsp.tlvs.auth.as_ref().map(|auth| match auth {
+                    AuthenticationTlv::ClearText(..) => {
+                        CryptoAlgo::ClearText.to_yang()
+                    }
+                    AuthenticationTlv::HmacMd5(..) => {
+                        CryptoAlgo::HmacMd5.to_yang()
+                    }
+                });
             Box::new(Authentication {
-                authentication_type: None,
+                authentication_type,
                 authentication_key: None,
             })
         })

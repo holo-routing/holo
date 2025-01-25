@@ -187,7 +187,6 @@ pub(crate) fn sequence_number_skipped(
     notification::send(&instance.tx.nb, path, data);
 }
 
-#[expect(unused)]
 pub(crate) fn authentication_type_failure(
     instance: &InstanceUpView<'_>,
     iface: &Interface,
@@ -207,7 +206,6 @@ pub(crate) fn authentication_type_failure(
     notification::send(&instance.tx.nb, path, data);
 }
 
-#[expect(unused)]
 pub(crate) fn authentication_failure(
     instance: &InstanceUpView<'_>,
     iface: &Interface,

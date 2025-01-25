@@ -14,12 +14,15 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use derive_new::new;
 use holo_utils::bytes::{BytesExt, BytesMutExt};
+use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::{AddressFamily, Ipv4AddrExt, Ipv6AddrExt};
 use ipnetwork::{Ipv4Network, Ipv6Network};
 use num_traits::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
 
-use crate::packet::consts::{NeighborSubTlvType, PrefixSubTlvType, TlvType};
+use crate::packet::consts::{
+    AuthenticationType, NeighborSubTlvType, PrefixSubTlvType, TlvType,
+};
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::{AreaAddr, LanId, LspId};
 
@@ -77,6 +80,13 @@ pub struct NeighborsTlv {
 #[derive(Deserialize, Serialize)]
 pub struct PaddingTlv {
     pub length: u8,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub enum AuthenticationTlv {
+    ClearText(Vec<u8>),
+    HmacMd5([u8; 16]),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -377,6 +387,66 @@ impl PaddingTlv {
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
         let start_pos = tlv_encode_start(buf, TlvType::Padding);
         buf.put_slice(&Self::PADDING[0..self.length as usize]);
+        tlv_encode_end(buf, start_pos);
+    }
+}
+
+// ===== impl AuthenticationTlv =====
+
+impl AuthenticationTlv {
+    pub const MIN_LEN: usize = 1;
+
+    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+        // Validate the TLV length.
+        if (tlv_len as usize) < Self::MIN_LEN {
+            return Err(DecodeError::InvalidTlvLength(tlv_len));
+        }
+
+        // Parse authentication type.
+        let auth_type = buf.get_u8();
+        let Some(auth_type) = AuthenticationType::from_u8(auth_type) else {
+            return Err(DecodeError::AuthUnsupportedType(auth_type));
+        };
+
+        match auth_type {
+            AuthenticationType::ClearText => {
+                if buf.remaining() == 0 {
+                    return Err(DecodeError::InvalidTlvLength(tlv_len));
+                }
+
+                // Parse password.
+                let mut passwd_bytes = [0; 255];
+                let passwd_len = tlv_len as usize - 1;
+                buf.copy_to_slice(&mut passwd_bytes[..passwd_len]);
+                let passwd = Vec::from(&passwd_bytes[..passwd_len]);
+                Ok(AuthenticationTlv::ClearText(passwd))
+            }
+            AuthenticationType::HmacMd5 => {
+                if buf.remaining() != CryptoAlgo::HmacMd5.digest_size() as usize
+                {
+                    return Err(DecodeError::InvalidTlvLength(tlv_len));
+                }
+
+                // Parse HMAC digest.
+                let mut digest = [0; 16];
+                buf.copy_to_slice(&mut digest);
+                Ok(AuthenticationTlv::HmacMd5(digest))
+            }
+        }
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, TlvType::Authentication);
+        match self {
+            AuthenticationTlv::ClearText(passwd) => {
+                buf.put_u8(AuthenticationType::ClearText as u8);
+                buf.put_slice(passwd);
+            }
+            AuthenticationTlv::HmacMd5(digest) => {
+                buf.put_u8(AuthenticationType::HmacMd5 as u8);
+                buf.put_slice(digest);
+            }
+        }
         tlv_encode_end(buf, start_pos);
     }
 }

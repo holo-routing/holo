@@ -48,6 +48,7 @@ pub enum TlvType {
     Neighbors = 6,
     Padding = 8,
     LspEntries = 9,
+    Authentication = 10,
     LspBufferSize = 14,
     ExtIsReach = 22,
     Ipv4InternalReach = 128,
@@ -60,6 +61,18 @@ pub enum TlvType {
     Ipv6RouterId = 140,
     Ipv6Addresses = 232,
     Ipv6Reach = 236,
+}
+
+// IS-IS Authentication Type Codes.
+//
+// IANA registry:
+// https://www.iana.org/assignments/isis-tlv-codepoints/isis-tlv-codepoints.xhtml#isis-tlv-codepoints-10
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(FromPrimitive, ToPrimitive)]
+#[derive(Deserialize, Serialize)]
+pub enum AuthenticationType {
+    ClearText = 1,
+    HmacMd5 = 54,
 }
 
 // IS-IS Sub-TLVs for TLVs Advertising Neighbor Information.

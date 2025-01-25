@@ -21,6 +21,7 @@ use crate::debug::LspPurgeReason;
 use crate::instance::InstanceUpView;
 use crate::interface::{Interface, InterfaceType};
 use crate::network::MulticastAddr;
+use crate::packet::auth::AuthMethod;
 use crate::packet::pdu::{Lsp, Pdu};
 use crate::packet::{LevelNumber, LevelType, Levels};
 use crate::{lsdb, network, spf};
@@ -193,6 +194,8 @@ pub mod messages {
 pub(crate) fn net_rx(
     socket: Arc<AsyncFd<Socket>>,
     broadcast: bool,
+    hello_auth: Option<AuthMethod>,
+    global_auth: Option<AuthMethod>,
     iface: &Interface,
     net_pdu_rxp: &Sender<messages::input::NetRxPduMsg>,
 ) -> Task<()> {
@@ -214,6 +217,8 @@ pub(crate) fn net_rx(
                     socket,
                     broadcast,
                     iface_id,
+                    hello_auth,
+                    global_auth,
                     net_pdu_rxp,
                 )
                 .await;
@@ -232,6 +237,9 @@ pub(crate) fn net_rx(
 pub(crate) fn net_tx(
     socket: Arc<AsyncFd<Socket>>,
     broadcast: bool,
+    hello_padding: Option<u16>,
+    hello_auth: Option<AuthMethod>,
+    global_auth: Option<AuthMethod>,
     mut net_pdu_txc: UnboundedReceiver<messages::output::NetTxPduMsg>,
     #[cfg(feature = "testing")] proto_output_tx: &Sender<
         messages::ProtocolOutputMsg,
@@ -248,7 +256,15 @@ pub(crate) fn net_tx(
         Task::spawn(
             async move {
                 let _span_enter = span.enter();
-                network::write_loop(socket, broadcast, net_pdu_txc).await;
+                network::write_loop(
+                    socket,
+                    broadcast,
+                    hello_padding,
+                    hello_auth,
+                    global_auth,
+                    net_pdu_txc,
+                )
+                .await;
             }
             .in_current_span(),
         )

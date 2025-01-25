@@ -10,9 +10,10 @@ use holo_yang::{ToYang, TryFromYang};
 use num_derive::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub enum CryptoAlgo {
+    ClearText,
     Md5,
     Sha1,
     HmacMd5,
@@ -42,6 +43,7 @@ pub enum CryptoProtocolId {
 impl CryptoAlgo {
     pub fn digest_size(&self) -> u8 {
         match self {
+            CryptoAlgo::ClearText => unreachable!(),
             CryptoAlgo::Md5 => 16,
             CryptoAlgo::Sha1 => 20,
             CryptoAlgo::HmacMd5 => 16,
@@ -56,6 +58,7 @@ impl CryptoAlgo {
 impl ToYang for CryptoAlgo {
     fn to_yang(&self) -> Cow<'static, str> {
         match self {
+            CryptoAlgo::ClearText => "ietf-key-chain:cleartext".into(),
             CryptoAlgo::Md5 => "ietf-key-chain:md5".into(),
             CryptoAlgo::Sha1 => "ietf-key-chain:sha-1".into(),
             CryptoAlgo::HmacMd5 => "holo-key-chain:hmac-md5".into(),
@@ -70,6 +73,7 @@ impl ToYang for CryptoAlgo {
 impl TryFromYang for CryptoAlgo {
     fn try_from_yang(identity: &str) -> Option<CryptoAlgo> {
         match identity {
+            "ietf-key-chain:cleartext" => Some(CryptoAlgo::ClearText),
             "ietf-key-chain:md5" => Some(CryptoAlgo::Md5),
             "ietf-key-chain:sha-1" => Some(CryptoAlgo::Sha1),
             "holo-key-chain:hmac-md5" => Some(CryptoAlgo::HmacMd5),

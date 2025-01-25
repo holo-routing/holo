@@ -12,7 +12,6 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU32;
 
 use chrono::{DateTime, Utc};
-use holo_protocol::InstanceChannelsTx;
 use holo_utils::UnboundedSender;
 use holo_utils::ibus::{IbusMsg, IbusSender};
 use holo_utils::ip::AddressFamily;
@@ -26,7 +25,7 @@ use crate::adjacency::{Adjacency, AdjacencyEvent, AdjacencyState};
 use crate::collections::{Adjacencies, Arena, InterfaceId, InterfaceIndex};
 use crate::debug::{Debug, InterfaceInactiveReason};
 use crate::error::{Error, IoError};
-use crate::instance::{Instance, InstanceUpView};
+use crate::instance::InstanceUpView;
 use crate::network::{LLC_HDR, MulticastAddr};
 use crate::northbound::configuration::InterfaceCfg;
 use crate::northbound::notification;
@@ -205,10 +204,19 @@ impl Interface {
                 self.dis_initial_election_start(instance);
             }
 
+            // Create raw socket.
+            let socket = network::socket(self.system.ifindex.unwrap())
+                .map_err(IoError::SocketError)?;
+            if self.system.flags.contains(InterfaceFlags::BROADCAST) {
+                self.system.join_multicast(&socket, MulticastAddr::AllIss);
+                self.system.join_multicast(&socket, MulticastAddr::AllL1Iss);
+                self.system.join_multicast(&socket, MulticastAddr::AllL2Iss);
+            }
+            let socket = AsyncFd::new(socket).map_err(IoError::SocketError)?;
+            let socket = Arc::new(socket);
+
             // Start network Tx/Rx tasks.
-            let net =
-                InterfaceNet::new(self, instance.tx).map_err(Error::IoError)?;
-            self.state.net = Some(net);
+            self.state.net = Some(InterfaceNet::new(socket, self, instance));
 
             // Start Hello Tx task(s).
             self.hello_interval_start(instance, LevelType::All);
@@ -317,6 +325,17 @@ impl Interface {
         }
 
         Ok(())
+    }
+
+    pub(crate) fn restart_network_tasks(
+        &mut self,
+        instance: &mut InstanceUpView<'_>,
+    ) {
+        if let Some(net) = self.state.net.take() {
+            self.state.net =
+                Some(InterfaceNet::new(net.socket, self, instance));
+            self.hello_interval_start(instance, LevelType::All);
+        }
     }
 
     pub(crate) const fn is_passive(&self) -> bool {
@@ -498,7 +517,7 @@ impl Interface {
         }
 
         // Generate Hello PDU.
-        let mut hello = Hello::new(
+        Pdu::Hello(Hello::new(
             level,
             circuit_type,
             source,
@@ -511,13 +530,7 @@ impl Interface {
                 ipv4_addrs,
                 ipv6_addrs,
             ),
-        );
-        if self.config.hello_padding {
-            let max_size =
-                std::cmp::max(self.iso_mtu() as u16, instance.config.lsp_mtu);
-            hello.add_padding(max_size);
-        }
-        Pdu::Hello(hello)
+        ))
     }
 
     pub(crate) fn hello_interval_start(
@@ -750,52 +763,45 @@ impl InterfaceSys {
 // ===== impl InterfaceNet =====
 
 impl InterfaceNet {
-    fn new(
+    pub(crate) fn new(
+        socket: Arc<AsyncFd<Socket>>,
         iface: &Interface,
-        instance_channels_tx: &InstanceChannelsTx<Instance>,
-    ) -> Result<Self, IoError> {
+        instance: &mut InstanceUpView<'_>,
+    ) -> Self {
         let broadcast = iface.system.flags.contains(InterfaceFlags::BROADCAST);
-
-        // Create raw socket.
-        let socket = network::socket(iface.system.ifindex.unwrap())
-            .map_err(IoError::SocketError)?;
-
-        // Join IS-IS multicast groups.
-        if broadcast {
-            iface.system.join_multicast(&socket, MulticastAddr::AllIss);
-            iface
-                .system
-                .join_multicast(&socket, MulticastAddr::AllL1Iss);
-            iface
-                .system
-                .join_multicast(&socket, MulticastAddr::AllL2Iss);
-        }
-
-        // Start network Tx/Rx tasks.
-        let socket = AsyncFd::new(socket).map_err(IoError::SocketError)?;
-        let socket = Arc::new(socket);
+        let hello_padding = iface.config.hello_padding.then_some(
+            std::cmp::max(iface.iso_mtu() as u16, instance.config.lsp_mtu),
+        );
+        let keychains = &instance.shared.keychains;
+        let hello_auth = iface.config.hello_auth.all.method(keychains);
+        let global_auth = instance.config.auth.all.method(keychains);
         let (net_tx_pdup, net_tx_pduc) = mpsc::unbounded_channel();
         let mut net_tx_task = tasks::net_tx(
             socket.clone(),
             broadcast,
+            hello_padding,
+            hello_auth.clone(),
+            global_auth.clone(),
             net_tx_pduc,
             #[cfg(feature = "testing")]
-            &instance_channels_tx.protocol_output,
+            &instance.tx.protocol_output,
         );
         let net_rx_task = tasks::net_rx(
             socket.clone(),
             broadcast,
+            hello_auth,
+            global_auth,
             iface,
-            &instance_channels_tx.protocol_input.net_pdu_rx,
+            &instance.tx.protocol_input.net_pdu_rx,
         );
         net_tx_task.detach();
 
-        Ok(InterfaceNet {
+        InterfaceNet {
             socket,
             _net_tx_task: net_tx_task,
             _net_rx_task: net_rx_task,
             net_tx_pdup,
-        })
+        }
     }
 }
 

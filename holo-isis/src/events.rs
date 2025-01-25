@@ -73,6 +73,20 @@ pub(crate) fn process_pdu(
                     iface.state.packet_counters.l2.unknown_in += 1;
                     iface.state.discontinuity_time = Utc::now();
                 }
+                DecodeError::AuthTypeMismatch => {
+                    iface.state.event_counters.auth_type_fails += 1;
+                    iface.state.discontinuity_time = Utc::now();
+                    notification::authentication_type_failure(
+                        instance, iface, &bytes,
+                    );
+                }
+                DecodeError::AuthError => {
+                    iface.state.event_counters.auth_fails += 1;
+                    iface.state.discontinuity_time = Utc::now();
+                    notification::authentication_failure(
+                        instance, iface, &bytes,
+                    );
+                }
                 _ => (),
             }
             return Err(Error::PduDecodeError(iface_idx, src, error));
@@ -555,6 +569,8 @@ pub(crate) fn process_pdu_lsp(
                 == Ordering::Less
         {
             // Increase LSP sequence number and regenerate.
+            let auth =
+                instance.config.auth.all.method(&instance.shared.keychains);
             let lsp = Lsp::new(
                 level,
                 instance.config.lsp_lifetime,
@@ -562,6 +578,7 @@ pub(crate) fn process_pdu_lsp(
                 lsp.seqno + 1,
                 lse.data.flags,
                 lse.data.tlvs.clone(),
+                auth.as_ref().and_then(|auth| auth.get_key_send()),
             );
             lsdb::lsp_originate(instance, arenas, level, lsp);
         }
@@ -768,6 +785,8 @@ pub(crate) fn process_pdu_snp(
         // Lifetime, Checksum and Sequence Number fields of the LSP are all
         // non-zero, create an entry with sequence number 0".
         if entry.rem_lifetime != 0 && entry.cksum != 0 && entry.seqno != 0 {
+            let auth =
+                instance.config.auth.all.method(&instance.shared.keychains);
             let lsp = Lsp::new(
                 level,
                 entry.rem_lifetime,
@@ -775,6 +794,7 @@ pub(crate) fn process_pdu_snp(
                 0,
                 Default::default(),
                 Default::default(),
+                auth.as_ref().and_then(|auth| auth.get_key_send()),
             );
             let lse =
                 lsdb::install(instance, &mut arenas.lsp_entries, level, lsp);
@@ -1169,6 +1189,7 @@ pub(crate) fn process_lsp_refresh(
     Debug::LspRefresh(level, lsp).log();
 
     // Originate new instance of the LSP.
+    let auth = instance.config.auth.all.method(&instance.shared.keychains);
     let lsp = Lsp::new(
         level,
         instance.config.lsp_lifetime,
@@ -1176,6 +1197,7 @@ pub(crate) fn process_lsp_refresh(
         lsp.seqno + 1,
         lsp.flags,
         lsp.tlvs.clone(),
+        auth.as_ref().and_then(|auth| auth.get_key_send()),
     );
     lsdb::lsp_originate(instance, arenas, level, lsp);
 
@@ -1192,6 +1214,30 @@ pub(crate) fn process_spf_delay_event(
 ) -> Result<(), Error> {
     // Trigger SPF Delay FSM event.
     spf::fsm(level, event, instance, arenas)
+}
+
+// ===== Keychain update event =====
+
+pub(crate) fn process_keychain_update(
+    instance: &mut Instance,
+    keychain_name: &str,
+) -> Result<(), Error> {
+    let Some((mut instance, arenas)) = instance.as_up() else {
+        return Ok(());
+    };
+
+    for iface in arenas.interfaces.iter_mut() {
+        if iface.config.hello_auth.all.keychain.as_deref()
+            != Some(keychain_name)
+        {
+            continue;
+        }
+
+        // Restart network Tx/Rx tasks.
+        iface.restart_network_tasks(&mut instance);
+    }
+
+    Ok(())
 }
 
 // ===== Hostname update event =====

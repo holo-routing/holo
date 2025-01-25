@@ -13,23 +13,28 @@ use std::time::Instant;
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::TLS_BUF;
+use holo_utils::crypto::CryptoAlgo;
+use holo_utils::keychain::Key;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
+use crate::packet::auth::AuthMethod;
 use crate::packet::consts::{
     IDRP_DISCRIMINATOR, LspFlags, PduType, SYSTEM_ID_LEN, TlvType, VERSION,
     VERSION_PROTO_EXT,
 };
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::tlv::{
-    AreaAddressesTlv, DynamicHostnameTlv, ExtIpv4Reach, ExtIpv4ReachTlv,
-    ExtIsReach, ExtIsReachTlv, Ipv4AddressesTlv, Ipv4Reach, Ipv4ReachTlv,
-    Ipv4RouterIdTlv, Ipv6AddressesTlv, Ipv6Reach, Ipv6ReachTlv,
+    AreaAddressesTlv, AuthenticationTlv, DynamicHostnameTlv, ExtIpv4Reach,
+    ExtIpv4ReachTlv, ExtIsReach, ExtIsReachTlv, Ipv4AddressesTlv, Ipv4Reach,
+    Ipv4ReachTlv, Ipv4RouterIdTlv, Ipv6AddressesTlv, Ipv6Reach, Ipv6ReachTlv,
     Ipv6RouterIdTlv, IsReach, IsReachTlv, LspBufferSizeTlv, LspEntriesTlv,
     LspEntry, NeighborsTlv, PaddingTlv, ProtocolsSupportedTlv, TLV_HDR_SIZE,
     TLV_MAX_LEN, Tlv, UnknownTlv, tlv_entries_split, tlv_take_max,
 };
-use crate::packet::{AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId};
+use crate::packet::{
+    AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId, auth,
+};
 
 // IS-IS PDU.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -101,6 +106,7 @@ pub struct Lsp {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct LspTlvs {
+    pub auth: Option<AuthenticationTlv>,
     pub protocols_supported: Option<ProtocolsSupportedTlv>,
     pub area_addrs: Vec<AreaAddressesTlv>,
     pub hostname: Option<DynamicHostnameTlv>,
@@ -139,7 +145,12 @@ pub struct SnpTlvs {
 
 impl Pdu {
     // Decodes IS-IS PDU from a bytes buffer.
-    pub fn decode(mut buf: Bytes) -> DecodeResult<Self> {
+    pub fn decode(
+        mut buf: Bytes,
+        hello_auth: Option<&AuthMethod>,
+        global_auth: Option<&AuthMethod>,
+    ) -> DecodeResult<Self> {
+        let buf_orig = BytesMut::from(buf.clone());
         let packet_len = buf.len();
 
         // Decode PDU common header.
@@ -148,28 +159,38 @@ impl Pdu {
         // Decode PDU-specific fields.
         let pdu = match hdr.pdu_type {
             PduType::HelloLanL1 | PduType::HelloLanL2 | PduType::HelloP2P => {
-                Pdu::Hello(Hello::decode(hdr, packet_len, &mut buf)?)
+                Pdu::Hello(Hello::decode(
+                    hdr, packet_len, &mut buf, buf_orig, hello_auth,
+                )?)
             }
-            PduType::LspL1 | PduType::LspL2 => {
-                Pdu::Lsp(Lsp::decode(hdr, packet_len, &mut buf)?)
-            }
+            PduType::LspL1 | PduType::LspL2 => Pdu::Lsp(Lsp::decode(
+                hdr,
+                packet_len,
+                &mut buf,
+                buf_orig,
+                global_auth,
+            )?),
             PduType::CsnpL1
             | PduType::CsnpL2
             | PduType::PsnpL1
-            | PduType::PsnpL2 => {
-                Pdu::Snp(Snp::decode(hdr, packet_len, &mut buf)?)
-            }
+            | PduType::PsnpL2 => Pdu::Snp(Snp::decode(
+                hdr,
+                packet_len,
+                &mut buf,
+                buf_orig,
+                global_auth,
+            )?),
         };
 
         Ok(pdu)
     }
 
     // Encodes IS-IS PDU into a bytes buffer.
-    pub fn encode(&self) -> Bytes {
+    pub fn encode(&self, auth: Option<&Key>) -> Bytes {
         match self {
-            Pdu::Hello(pdu) => pdu.encode(),
+            Pdu::Hello(pdu) => pdu.encode(auth),
             Pdu::Lsp(pdu) => pdu.raw.clone(),
-            Pdu::Snp(pdu) => pdu.encode(),
+            Pdu::Snp(pdu) => pdu.encode(auth),
         }
     }
 
@@ -180,6 +201,101 @@ impl Pdu {
             Pdu::Lsp(pdu) => pdu.hdr.pdu_type,
             Pdu::Snp(pdu) => pdu.hdr.pdu_type,
         }
+    }
+
+    // Validates the PDU authentication.
+    fn decode_auth_validate(
+        mut buf_orig: BytesMut,
+        is_lsp: bool,
+        auth: &AuthMethod,
+        tlv_auth: Option<(AuthenticationTlv, usize)>,
+    ) -> DecodeResult<AuthenticationTlv> {
+        // Get authentication TLV.
+        let Some(tlv_auth) = tlv_auth else {
+            return Err(DecodeError::AuthTypeMismatch);
+        };
+
+        // Get authentication key.
+        let auth_key =
+            auth.get_key_accept().ok_or(DecodeError::AuthKeyNotFound)?;
+
+        match (&tlv_auth, auth_key.algo) {
+            // Clear-text authentication.
+            (
+                (AuthenticationTlv::ClearText(passwd), _),
+                CryptoAlgo::ClearText,
+            ) => {
+                // Validate the received password.
+                if *passwd != auth_key.string {
+                    return Err(DecodeError::AuthError);
+                }
+            }
+            // HMAC-MD5 authentication.
+            (
+                (AuthenticationTlv::HmacMd5(tlv_digest), tlv_offset),
+                CryptoAlgo::HmacMd5,
+            ) => {
+                // If processing an LSP, zero out the Checksum and Remaining
+                // Lifetime fields.
+                if is_lsp {
+                    buf_orig[Lsp::REM_LIFETIME_RANGE].fill(0);
+                    buf_orig[Lsp::CKSUM_RANGE].fill(0);
+                }
+
+                // Zero out the digest field before computing the new digest.
+                let digest_offset = tlv_offset + 1;
+                buf_orig[digest_offset..digest_offset + 16].fill(0);
+
+                // Compute the expected message digest.
+                let digest = auth::message_digest(
+                    &buf_orig,
+                    auth_key.algo,
+                    &auth_key.string,
+                );
+
+                // Validate the received digest.
+                if *tlv_digest != *digest {
+                    return Err(DecodeError::AuthError);
+                }
+            }
+            // Authentication type mismatch.
+            _ => {
+                return Err(DecodeError::AuthTypeMismatch);
+            }
+        }
+
+        Ok(tlv_auth.0)
+    }
+
+    // Returns an Authentication TLV for encoding a PDU with the given key.
+    // For HMAC-MD5, the digest is initialized to zero and will be computed
+    // later.
+    fn encode_auth_tlv(auth: &Key) -> Option<AuthenticationTlv> {
+        match auth.algo {
+            CryptoAlgo::ClearText => {
+                let tlv = AuthenticationTlv::ClearText(auth.string.clone());
+                Some(tlv)
+            }
+            CryptoAlgo::HmacMd5 => {
+                let tlv = AuthenticationTlv::HmacMd5([0; 16]);
+                Some(tlv)
+            }
+            _ => None,
+        }
+    }
+
+    // Calculates the length of the Authentication TLV for a given key.
+    pub(crate) fn auth_tlv_len(auth: &Key) -> usize {
+        let mut len = TLV_HDR_SIZE + AuthenticationTlv::MIN_LEN;
+        match auth.algo {
+            CryptoAlgo::ClearText => {
+                len += std::cmp::min(auth.string.len(), TLV_MAX_LEN);
+            }
+            _ => {
+                len += auth.algo.digest_size() as usize;
+            }
+        }
+        len
     }
 }
 
@@ -325,6 +441,8 @@ impl Hello {
         hdr: Header,
         packet_len: usize,
         buf: &mut Bytes,
+        buf_orig: BytesMut,
+        auth: Option<&AuthMethod>,
     ) -> DecodeResult<Self> {
         // Parse circuit type.
         let circuit_type = buf.get_u8() & Self::CIRCUIT_TYPE_MASK;
@@ -369,6 +487,7 @@ impl Hello {
 
         // Parse top-level TLVs.
         let mut tlvs = HelloTlvs::default();
+        let mut tlv_auth = None;
         while buf.remaining() >= TLV_HDR_SIZE {
             // Parse TLV type.
             let tlv_type = buf.get_u8();
@@ -381,6 +500,7 @@ impl Hello {
             }
 
             // Parse TLV value.
+            let tlv_offset = buf_orig.len() - buf.remaining();
             let mut buf_tlv = buf.copy_to_bytes(tlv_len as usize);
             match tlv_etype {
                 Some(TlvType::AreaAddresses) => {
@@ -396,6 +516,13 @@ impl Hello {
                 Some(TlvType::Padding) => {
                     let tlv = PaddingTlv::decode(tlv_len, &mut buf_tlv)?;
                     tlvs.padding.push(tlv);
+                }
+                Some(TlvType::Authentication) => {
+                    if tlv_auth.is_some() {
+                        continue;
+                    }
+                    let tlv = AuthenticationTlv::decode(tlv_len, &mut buf_tlv)?;
+                    tlv_auth = Some((tlv, tlv_offset));
                 }
                 Some(TlvType::ProtocolsSupported) => {
                     if tlvs.protocols_supported.is_some() {
@@ -422,6 +549,11 @@ impl Hello {
             }
         }
 
+        // Validate the PDU authentication.
+        if let Some(auth) = auth {
+            Pdu::decode_auth_validate(buf_orig, false, auth, tlv_auth)?;
+        }
+
         Ok(Hello {
             hdr,
             circuit_type,
@@ -432,7 +564,7 @@ impl Hello {
         })
     }
 
-    fn encode(&self) -> Bytes {
+    fn encode(&self, auth: Option<&Key>) -> Bytes {
         TLS_BUF.with(|buf| {
             let mut buf = pdu_encode_start(buf, &self.hdr);
 
@@ -460,6 +592,13 @@ impl Hello {
             }
 
             // Encode TLVs.
+            let mut auth_tlv_pos = None;
+            if let Some(auth) = auth
+                && let Some(tlv) = Pdu::encode_auth_tlv(auth)
+            {
+                auth_tlv_pos = Some(buf.len());
+                tlv.encode(&mut buf);
+            }
             if let Some(tlv) = &self.tlvs.protocols_supported {
                 tlv.encode(&mut buf);
             }
@@ -479,7 +618,7 @@ impl Hello {
                 tlv.encode(&mut buf);
             }
 
-            pdu_encode_end(buf, len_pos)
+            pdu_encode_end(buf, len_pos, auth, auth_tlv_pos, None)
         })
     }
 
@@ -565,6 +704,8 @@ impl HelloTlvs {
 
 impl Lsp {
     pub const HEADER_LEN: u8 = 27;
+    const REM_LIFETIME_RANGE: std::ops::Range<usize> = 10..12;
+    const CKSUM_RANGE: std::ops::Range<usize> = 24..26;
 
     pub fn new(
         level: LevelNumber,
@@ -573,6 +714,7 @@ impl Lsp {
         seqno: u32,
         flags: LspFlags,
         tlvs: LspTlvs,
+        auth: Option<&Key>,
     ) -> Self {
         let pdu_type = match level {
             LevelNumber::L1 => PduType::LspL1,
@@ -589,7 +731,7 @@ impl Lsp {
             raw: Default::default(),
             base_time: lsp_base_time(),
         };
-        lsp.encode();
+        lsp.encode(auth);
         lsp
     }
 
@@ -597,6 +739,8 @@ impl Lsp {
         hdr: Header,
         packet_len: usize,
         buf: &mut Bytes,
+        buf_orig: BytesMut,
+        auth: Option<&AuthMethod>,
     ) -> DecodeResult<Self> {
         // Parse PDU length.
         let pdu_len = buf.get_u16();
@@ -622,6 +766,7 @@ impl Lsp {
 
         // Parse top-level TLVs.
         let mut tlvs = LspTlvs::default();
+        let mut tlv_auth = None;
         while buf.remaining() >= TLV_HDR_SIZE {
             // Parse TLV type.
             let tlv_type = buf.get_u8();
@@ -634,11 +779,19 @@ impl Lsp {
             }
 
             // Parse TLV value.
+            let tlv_offset = buf_orig.len() - buf.remaining();
             let mut buf_tlv = buf.copy_to_bytes(tlv_len as usize);
             match tlv_etype {
                 Some(TlvType::AreaAddresses) => {
                     let tlv = AreaAddressesTlv::decode(tlv_len, &mut buf_tlv)?;
                     tlvs.area_addrs.push(tlv);
+                }
+                Some(TlvType::Authentication) => {
+                    if tlv_auth.is_some() {
+                        continue;
+                    }
+                    let tlv = AuthenticationTlv::decode(tlv_len, &mut buf_tlv)?;
+                    tlv_auth = Some((tlv, tlv_offset));
                 }
                 Some(TlvType::DynamicHostname) => {
                     let tlv =
@@ -712,6 +865,13 @@ impl Lsp {
             }
         }
 
+        // Validate the PDU authentication.
+        if let Some(auth) = auth {
+            let tlv_auth =
+                Pdu::decode_auth_validate(buf_orig, true, auth, tlv_auth)?;
+            tlvs.auth = Some(tlv_auth);
+        }
+
         Ok(Lsp {
             hdr,
             rem_lifetime,
@@ -725,14 +885,15 @@ impl Lsp {
         })
     }
 
-    fn encode(&mut self) -> Bytes {
+    fn encode(&mut self, auth: Option<&Key>) -> Bytes {
         TLS_BUF.with(|buf| {
             let mut buf = pdu_encode_start(buf, &self.hdr);
 
             // The PDU length will be initialized later.
             let len_pos = buf.len();
             buf.put_u16(0);
-            buf.put_u16(self.rem_lifetime);
+            // The remaining lifetime will be initialized later.
+            buf.put_u16(0);
             self.lsp_id.encode(&mut buf);
             buf.put_u32(self.seqno);
             // The checksum will be initialized later.
@@ -740,6 +901,14 @@ impl Lsp {
             buf.put_u8(self.flags.bits());
 
             // Encode TLVs.
+            let mut auth_tlv_pos = None;
+            if let Some(auth) = auth
+                && let Some(tlv) = Pdu::encode_auth_tlv(auth)
+            {
+                auth_tlv_pos = Some(buf.len());
+                tlv.encode(&mut buf);
+                self.tlvs.auth = Some(tlv);
+            }
             if let Some(tlv) = &self.tlvs.protocols_supported {
                 tlv.encode(&mut buf);
             }
@@ -783,13 +952,9 @@ impl Lsp {
                 tlv.encode(&mut buf);
             }
 
-            // Compute LSP checksum.
-            let cksum = Self::checksum(&buf[12..]);
-            buf[24..26].copy_from_slice(&cksum);
-            self.cksum = u16::from_be_bytes(cksum);
-
             // Store LSP raw data.
-            let bytes = pdu_encode_end(buf, len_pos);
+            let bytes =
+                pdu_encode_end(buf, len_pos, auth, auth_tlv_pos, Some(self));
             self.raw = bytes.clone();
             bytes
         })
@@ -896,6 +1061,7 @@ impl LspTlvs {
         ipv6_router_id: Option<Ipv6Addr>,
     ) -> Self {
         LspTlvs {
+            auth: None,
             protocols_supported: Some(ProtocolsSupportedTlv::from(
                 protocols_supported,
             )),
@@ -955,6 +1121,7 @@ impl LspTlvs {
         }
 
         Some(LspTlvs {
+            auth: None,
             protocols_supported,
             area_addrs,
             hostname,
@@ -1080,6 +1247,8 @@ impl Snp {
         hdr: Header,
         packet_len: usize,
         buf: &mut Bytes,
+        buf_orig: BytesMut,
+        auth: Option<&AuthMethod>,
     ) -> DecodeResult<Self> {
         // Parse PDU length.
         let pdu_len = buf.get_u16();
@@ -1100,6 +1269,7 @@ impl Snp {
 
         // Parse top-level TLVs.
         let mut tlvs = SnpTlvs::default();
+        let mut tlv_auth = None;
         while buf.remaining() >= TLV_HDR_SIZE {
             // Parse TLV type.
             let tlv_type = buf.get_u8();
@@ -1112,8 +1282,16 @@ impl Snp {
             }
 
             // Parse TLV value.
+            let tlv_offset = buf_orig.len() - buf.remaining();
             let mut buf_tlv = buf.copy_to_bytes(tlv_len as usize);
             match tlv_etype {
+                Some(TlvType::Authentication) => {
+                    if tlv_auth.is_some() {
+                        continue;
+                    }
+                    let tlv = AuthenticationTlv::decode(tlv_len, &mut buf_tlv)?;
+                    tlv_auth = Some((tlv, tlv_offset));
+                }
                 Some(TlvType::LspEntries) => {
                     let tlv = LspEntriesTlv::decode(tlv_len, &mut buf_tlv)?;
                     tlvs.lsp_entries.push(tlv);
@@ -1127,6 +1305,11 @@ impl Snp {
             }
         }
 
+        // Validate the PDU authentication.
+        if let Some(auth) = auth {
+            Pdu::decode_auth_validate(buf_orig, false, auth, tlv_auth)?;
+        }
+
         Ok(Snp {
             hdr,
             source,
@@ -1135,7 +1318,7 @@ impl Snp {
         })
     }
 
-    fn encode(&self) -> Bytes {
+    fn encode(&self, auth: Option<&Key>) -> Bytes {
         TLS_BUF.with(|buf| {
             let mut buf = pdu_encode_start(buf, &self.hdr);
 
@@ -1150,11 +1333,18 @@ impl Snp {
             }
 
             // Encode TLVs.
+            let mut auth_tlv_pos = None;
+            if let Some(auth) = auth
+                && let Some(tlv) = Pdu::encode_auth_tlv(auth)
+            {
+                auth_tlv_pos = Some(buf.len());
+                tlv.encode(&mut buf);
+            }
             for tlv in &self.tlvs.lsp_entries {
                 tlv.encode(&mut buf);
             }
 
-            pdu_encode_end(buf, len_pos)
+            pdu_encode_end(buf, len_pos, auth, auth_tlv_pos, None)
         })
     }
 }
@@ -1230,10 +1420,42 @@ fn pdu_encode_start<'a>(
     buf
 }
 
-fn pdu_encode_end(mut buf: RefMut<'_, BytesMut>, len_pos: usize) -> Bytes {
+fn pdu_encode_end(
+    mut buf: RefMut<'_, BytesMut>,
+    len_pos: usize,
+    auth: Option<&Key>,
+    auth_tlv_pos: Option<usize>,
+    mut lsp: Option<&mut Lsp>,
+) -> Bytes {
     // Initialize PDU length.
     let pkt_len = buf.len() as u16;
     buf[len_pos..len_pos + 2].copy_from_slice(&pkt_len.to_be_bytes());
+
+    // Compute and update the authentication digest if needed.
+    if let Some(auth) = auth
+        && let Some(auth_tlv_pos) = auth_tlv_pos
+        && auth.algo != CryptoAlgo::ClearText
+    {
+        let digest = auth::message_digest(&buf, auth.algo, &auth.string);
+        let offset = auth_tlv_pos + 3;
+        buf[offset..offset + auth.algo.digest_size() as usize]
+            .copy_from_slice(&digest);
+        if let Some(lsp) = lsp.as_mut() {
+            lsp.tlvs.auth =
+                Some(AuthenticationTlv::HmacMd5(digest.try_into().unwrap()));
+        }
+    }
+
+    if let Some(lsp) = lsp {
+        // Initialize LSP remaining lifetime.
+        buf[Lsp::REM_LIFETIME_RANGE]
+            .copy_from_slice(&lsp.rem_lifetime.to_be_bytes());
+
+        // Compute and initialize LSP checksum.
+        let cksum = Lsp::checksum(&buf[12..]);
+        buf[Lsp::CKSUM_RANGE].copy_from_slice(&cksum);
+        lsp.cksum = u16::from_be_bytes(cksum);
+    }
 
     buf.clone().freeze()
 }

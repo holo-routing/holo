@@ -90,6 +90,15 @@ impl Keychain {
             .filter(|key| key.accept_lifetime.is_active())
             .map(|key| &key.data)
     }
+
+    // Looks up the first key with a valid accept lifetime, regardless of key ID.
+    pub fn key_lookup_accept_any(&self) -> Option<&Key> {
+        self.keys
+            .values()
+            .filter(|key| key.accept_lifetime.is_active())
+            .map(|key| &key.data)
+            .next()
+    }
 }
 
 // ===== impl KeyLifetime =====

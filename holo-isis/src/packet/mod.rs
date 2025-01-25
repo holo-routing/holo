@@ -7,6 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
+pub mod auth;
 pub mod consts;
 pub mod error;
 pub mod pdu;

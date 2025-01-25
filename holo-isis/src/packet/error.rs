@@ -24,6 +24,10 @@ pub enum DecodeError {
     UnknownPduType(u8),
     InvalidPduLength(u16),
     InvalidTlvLength(u8),
+    AuthUnsupportedType(u8),
+    AuthTypeMismatch,
+    AuthKeyNotFound,
+    AuthError,
     // Hello
     InvalidHelloCircuitType(u8),
     InvalidHelloHoldtime(u16),
@@ -59,6 +63,18 @@ impl std::fmt::Display for DecodeError {
             }
             DecodeError::InvalidTlvLength(tlv_len) => {
                 write!(f, "invalid TLV length: {}", tlv_len)
+            }
+            DecodeError::AuthUnsupportedType(auth_type) => {
+                write!(f, "unsupported authentication type: {}", auth_type)
+            }
+            DecodeError::AuthTypeMismatch => {
+                write!(f, "authentication type mismatch")
+            }
+            DecodeError::AuthKeyNotFound => {
+                write!(f, "authentication key not found")
+            }
+            DecodeError::AuthError => {
+                write!(f, "authentication failed")
             }
             DecodeError::InvalidHelloCircuitType(circuit_type) => {
                 write!(f, "invalid hello circuit type: {}", circuit_type)

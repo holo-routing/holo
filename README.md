@@ -174,7 +174,6 @@ Holo supports the following Internet Standards:
 * RFC 5304 - IS-IS Cryptographic Authentication
 * RFC 5305 - IS-IS Extensions for Traffic Engineering
 * RFC 5308 - Routing IPv6 with IS-IS
-* RFC 5310 - IS-IS Generic Cryptographic Authentication
 * RFC 8405 - Shortest Path First (SPF) Back-Off Delay Algorithm for Link-State IGPs
 
 ##### MPLS LDP

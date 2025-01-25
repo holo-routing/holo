@@ -12,6 +12,7 @@ use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
 use bytes::Bytes;
+use holo_isis::packet::auth::AuthMethod;
 use holo_isis::packet::consts::LspFlags;
 use holo_isis::packet::pdu::{
     Hello, HelloTlvs, HelloVariant, Lsp, LspTlvs, Pdu, Snp, SnpTlvs,
@@ -26,20 +27,24 @@ use holo_isis::packet::tlv::{
 use holo_isis::packet::{
     AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId,
 };
+use holo_utils::crypto::CryptoAlgo;
+use holo_utils::keychain::Key;
 use ipnetwork::{Ipv4Network, Ipv6Network};
 
 //
 // Helper functions.
 //
 
-fn test_encode_pdu(bytes_expected: &[u8], pdu: &Pdu) {
-    let bytes_actual = pdu.clone().encode();
+fn test_encode_pdu(bytes_expected: &[u8], pdu: &Pdu, auth: &Option<&Key>) {
+    let bytes_actual = pdu.clone().encode(*auth);
     assert_eq!(bytes_expected, bytes_actual.as_ref());
 }
 
-fn test_decode_pdu(bytes: &[u8], pdu_expected: &Pdu) {
+fn test_decode_pdu(bytes: &[u8], pdu_expected: &Pdu, auth: &Option<&Key>) {
     let bytes = Bytes::copy_from_slice(bytes);
-    let mut pdu_actual = Pdu::decode(bytes.clone()).unwrap();
+    let auth = auth.cloned().map(AuthMethod::ManualKey);
+    let mut pdu_actual =
+        Pdu::decode(bytes.clone(), auth.as_ref(), auth.as_ref()).unwrap();
     if let Pdu::Lsp(pdu) = &mut pdu_actual {
         pdu.raw = bytes;
     }
@@ -47,10 +52,20 @@ fn test_decode_pdu(bytes: &[u8], pdu_expected: &Pdu) {
 }
 
 //
+// Authentication keys.
+//
+
+static KEY_CLEAR_TEXT: Lazy<Key> = Lazy::new(|| {
+    Key::new(1, CryptoAlgo::ClearText, "HOLO".as_bytes().to_vec())
+});
+static KEY_HMAC_MD5: Lazy<Key> =
+    Lazy::new(|| Key::new(1, CryptoAlgo::HmacMd5, "HOLO".as_bytes().to_vec()));
+
+//
 // Test packets.
 //
 
-static LAN_HELLO1: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
+static LAN_HELLO1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
     (
         vec![
             0x83, 0x1b, 0x01, 0x00, 0x0f, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00,
@@ -191,6 +206,7 @@ static LAN_HELLO1: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00,
         ],
+        None,
         Pdu::Hello(Hello::new(
             LevelType::L1,
             LevelType::L1,
@@ -230,7 +246,7 @@ static LAN_HELLO1: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
     )
 });
 
-static P2P_HELLO1: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
+static P2P_HELLO1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
     (
         vec![
             0x83, 0x14, 0x01, 0x00, 0x11, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00,
@@ -371,6 +387,7 @@ static P2P_HELLO1: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00,
         ],
+        None,
         Pdu::Hello(Hello::new(
             LevelType::All,
             LevelType::L1,
@@ -405,7 +422,88 @@ static P2P_HELLO1: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
     )
 });
 
-static CSNP1: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
+static P2P_HELLO2_CLEAR_TEXT: Lazy<(Vec<u8>, Option<&Key>, Pdu)> =
+    Lazy::new(|| {
+        (
+            vec![
+                0x83, 0x14, 0x01, 0x00, 0x11, 0x01, 0x00, 0x00, 0x01, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x09, 0x00, 0x2b, 0x00,
+                0x0a, 0x05, 0x01, 0x48, 0x4f, 0x4c, 0x4f, 0x81, 0x02, 0xcc,
+                0x8e, 0x01, 0x04, 0x03, 0x49, 0x00, 0x00, 0x84, 0x04, 0x0a,
+                0x00, 0x07, 0x06,
+            ],
+            Some(&KEY_CLEAR_TEXT),
+            Pdu::Hello(Hello::new(
+                LevelType::All,
+                LevelType::L1,
+                SystemId::from([0x00, 0x00, 0x00, 0x00, 0x00, 0x06]),
+                9,
+                HelloVariant::P2P {
+                    local_circuit_id: 0,
+                },
+                HelloTlvs {
+                    protocols_supported: Some(ProtocolsSupportedTlv {
+                        list: vec![0xcc, 0x8e],
+                    }),
+                    area_addrs: vec![AreaAddressesTlv {
+                        list: vec![AreaAddr::from(
+                            [0x49, 0x00, 0x00].as_slice(),
+                        )],
+                    }],
+                    neighbors: vec![],
+                    ipv4_addrs: vec![Ipv4AddressesTlv {
+                        list: vec![Ipv4Addr::from_str("10.0.7.6").unwrap()],
+                    }],
+                    ipv6_addrs: vec![],
+                    padding: vec![],
+                    unknown: vec![],
+                },
+            )),
+        )
+    });
+
+static P2P_HELLO2_HMAC_MD5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> =
+    Lazy::new(|| {
+        (
+            vec![
+                0x83, 0x14, 0x01, 0x00, 0x11, 0x01, 0x00, 0x00, 0x01, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x09, 0x00, 0x37, 0x00,
+                0x0a, 0x11, 0x36, 0x87, 0x8a, 0x0d, 0x2c, 0x3f, 0xd5, 0x3f,
+                0x4d, 0xa2, 0x1e, 0xfc, 0x8a, 0xb3, 0xe2, 0x53, 0x08, 0x81,
+                0x02, 0xcc, 0x8e, 0x01, 0x04, 0x03, 0x49, 0x00, 0x00, 0x84,
+                0x04, 0x0a, 0x00, 0x07, 0x06,
+            ],
+            Some(&KEY_HMAC_MD5),
+            Pdu::Hello(Hello::new(
+                LevelType::All,
+                LevelType::L1,
+                SystemId::from([0x00, 0x00, 0x00, 0x00, 0x00, 0x06]),
+                9,
+                HelloVariant::P2P {
+                    local_circuit_id: 0,
+                },
+                HelloTlvs {
+                    protocols_supported: Some(ProtocolsSupportedTlv {
+                        list: vec![0xcc, 0x8e],
+                    }),
+                    area_addrs: vec![AreaAddressesTlv {
+                        list: vec![AreaAddr::from(
+                            [0x49, 0x00, 0x00].as_slice(),
+                        )],
+                    }],
+                    neighbors: vec![],
+                    ipv4_addrs: vec![Ipv4AddressesTlv {
+                        list: vec![Ipv4Addr::from_str("10.0.7.6").unwrap()],
+                    }],
+                    ipv6_addrs: vec![],
+                    padding: vec![],
+                    unknown: vec![],
+                },
+            )),
+        )
+    });
+
+static CSNP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
     (
         vec![
             0x83, 0x21, 0x01, 0x00, 0x18, 0x01, 0x00, 0x00, 0x00, 0x53, 0x00,
@@ -417,6 +515,7 @@ static CSNP1: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
             0x41, 0x04, 0x8a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x02, 0xc0, 0x3b,
         ],
+        None,
         Pdu::Snp(Snp::new(
             LevelNumber::L1,
             LanId::from([0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00]),
@@ -459,7 +558,7 @@ static CSNP1: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
     )
 });
 
-static PSNP1: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
+static PSNP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
     (
         vec![
             0x83, 0x11, 0x01, 0x00, 0x1a, 0x01, 0x00, 0x00, 0x00, 0x53, 0x00,
@@ -471,6 +570,7 @@ static PSNP1: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
             0x47, 0x04, 0x78, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x02, 0xbc, 0x41,
         ],
+        None,
         Pdu::Snp(Snp::new(
             LevelNumber::L1,
             LanId::from([0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00]),
@@ -518,7 +618,7 @@ static PSNP1: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
     )
 });
 
-static LSP1: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
+static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
     (
         vec![
             0x83, 0x1b, 0x01, 0x00, 0x12, 0x01, 0x00, 0x00, 0x00, 0x9a, 0x04,
@@ -536,6 +636,7 @@ static LSP1: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
             0x10, 0x00, 0x00, 0x00, 0x8c, 0x10, 0x20, 0x01, 0x0d, 0xb8, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
         ],
+        None,
         Pdu::Lsp(Lsp::new(
             LevelNumber::L1,
             1170,
@@ -543,6 +644,7 @@ static LSP1: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
             0x00000004,
             LspFlags::IS_TYPE1,
             LspTlvs {
+                auth: None,
                 protocols_supported: Some(ProtocolsSupportedTlv {
                     list: vec![0xcc],
                 }),
@@ -617,11 +719,12 @@ static LSP1: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
                 )),
                 unknown: vec![],
             },
+            None,
         )),
     )
 });
 
-static LSP2: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
+static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
     (
         vec![
             0x83, 0x1b, 0x01, 0x00, 0x12, 0x01, 0x00, 0x00, 0x00, 0x73, 0x04,
@@ -636,6 +739,7 @@ static LSP2: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
             0xff, 0xff, 0xff, 0x00, 0x0a, 0x80, 0x80, 0x80, 0x06, 0x06, 0x06,
             0x06, 0xff, 0xff, 0xff, 0xff,
         ],
+        None,
         Pdu::Lsp(Lsp::new(
             LevelNumber::L1,
             1187,
@@ -643,6 +747,7 @@ static LSP2: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
             0x00000013,
             LspFlags::IS_TYPE1,
             LspTlvs {
+                auth: None,
                 protocols_supported: Some(ProtocolsSupportedTlv {
                     list: vec![0xcc],
                 }),
@@ -718,6 +823,81 @@ static LSP2: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
                 ipv6_router_id: None,
                 unknown: vec![],
             },
+            None,
+        )),
+    )
+});
+
+static LSP3_HMAC_MD5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
+    (
+        vec![
+            0x83, 0x1b, 0x01, 0x00, 0x12, 0x01, 0x00, 0x00, 0x00, 0x5d, 0x04,
+            0x92, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x04, 0xd5, 0x41, 0x01, 0x0a, 0x11, 0x36, 0xcf, 0xab, 0x8f,
+            0xed, 0xdf, 0xeb, 0xb5, 0x7e, 0xf0, 0xf7, 0x84, 0x23, 0x6f, 0xf8,
+            0x37, 0x17, 0x81, 0x01, 0xcc, 0x01, 0x04, 0x03, 0x49, 0x00, 0x00,
+            0x16, 0x0b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03, 0x00, 0x00,
+            0x0a, 0x00, 0x84, 0x04, 0x01, 0x01, 0x01, 0x01, 0x87, 0x11, 0x00,
+            0x00, 0x00, 0x0a, 0x18, 0x0a, 0x00, 0x01, 0x00, 0x00, 0x00, 0x0a,
+            0x20, 0x01, 0x01, 0x01, 0x01,
+        ],
+        Some(&KEY_HMAC_MD5),
+        Pdu::Lsp(Lsp::new(
+            LevelNumber::L1,
+            1170,
+            LspId::from([0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00]),
+            0x00000004,
+            LspFlags::IS_TYPE1,
+            LspTlvs {
+                auth: None,
+                protocols_supported: Some(ProtocolsSupportedTlv {
+                    list: vec![0xcc],
+                }),
+                area_addrs: vec![AreaAddressesTlv {
+                    list: vec![AreaAddr::from([0x49, 0, 0].as_slice())],
+                }],
+                hostname: None,
+                lsp_buf_size: None,
+                is_reach: vec![],
+                ext_is_reach: vec![ExtIsReachTlv {
+                    list: vec![ExtIsReach {
+                        neighbor: LanId::from([
+                            0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03,
+                        ]),
+                        metric: 10,
+                        sub_tlvs: Default::default(),
+                    }],
+                }],
+                ipv4_addrs: vec![Ipv4AddressesTlv {
+                    list: vec![Ipv4Addr::from_str("1.1.1.1").unwrap()],
+                }],
+                ipv4_internal_reach: vec![],
+                ipv4_external_reach: vec![],
+                ext_ipv4_reach: vec![ExtIpv4ReachTlv {
+                    list: vec![
+                        ExtIpv4Reach {
+                            metric: 10,
+                            up_down: false,
+                            prefix: Ipv4Network::from_str("10.0.1.0/24")
+                                .unwrap(),
+                            sub_tlvs: Default::default(),
+                        },
+                        ExtIpv4Reach {
+                            metric: 10,
+                            up_down: false,
+                            prefix: Ipv4Network::from_str("1.1.1.1/32")
+                                .unwrap(),
+                            sub_tlvs: Default::default(),
+                        },
+                    ],
+                }],
+                ipv4_router_id: None,
+                ipv6_addrs: vec![],
+                ipv6_reach: vec![],
+                ipv6_router_id: None,
+                unknown: vec![],
+            },
+            Some(&KEY_HMAC_MD5),
         )),
     )
 });
@@ -728,72 +908,107 @@ static LSP2: Lazy<(Vec<u8>, Pdu)> = Lazy::new(|| {
 
 #[test]
 fn test_encode_lan_hello1() {
-    let (ref bytes, ref hello) = *LAN_HELLO1;
-    test_encode_pdu(bytes, hello);
+    let (ref bytes, ref auth, ref hello) = *LAN_HELLO1;
+    test_encode_pdu(bytes, hello, auth);
 }
 
 #[test]
 fn test_decode_lan_hello1() {
-    let (ref bytes, ref hello) = *LAN_HELLO1;
-    test_decode_pdu(bytes, hello);
+    let (ref bytes, ref auth, ref hello) = *LAN_HELLO1;
+    test_decode_pdu(bytes, hello, auth);
 }
 
 #[test]
 fn test_encode_p2p_hello1() {
-    let (ref bytes, ref hello) = *P2P_HELLO1;
-    test_encode_pdu(bytes, hello);
+    let (ref bytes, ref auth, ref hello) = *P2P_HELLO1;
+    test_encode_pdu(bytes, hello, auth);
 }
 
 #[test]
 fn test_decode_p2p_hello1() {
-    let (ref bytes, ref hello) = *P2P_HELLO1;
-    test_decode_pdu(bytes, hello);
+    let (ref bytes, ref auth, ref hello) = *P2P_HELLO1;
+    test_decode_pdu(bytes, hello, auth);
+}
+#[test]
+fn test_encode_p2p_hello2_clear_text() {
+    let (ref bytes, ref auth, ref hello) = *P2P_HELLO2_CLEAR_TEXT;
+    test_encode_pdu(bytes, hello, auth);
+}
+
+#[test]
+fn test_decode_p2p_hello2_clear_text() {
+    let (ref bytes, ref auth, ref hello) = *P2P_HELLO2_CLEAR_TEXT;
+    test_decode_pdu(bytes, hello, auth);
+}
+
+#[test]
+fn test_encode_p2p_hello2_hmac_md5() {
+    let (ref bytes, ref auth, ref hello) = *P2P_HELLO2_HMAC_MD5;
+    test_encode_pdu(bytes, hello, auth);
+}
+
+#[test]
+fn test_decode_p2p_hello2_hmac_md5() {
+    let (ref bytes, ref auth, ref hello) = *P2P_HELLO2_HMAC_MD5;
+    test_decode_pdu(bytes, hello, auth);
 }
 
 #[test]
 fn test_encode_csnp1() {
-    let (ref bytes, ref csnp) = *CSNP1;
-    test_encode_pdu(bytes, csnp);
+    let (ref bytes, ref auth, ref csnp) = *CSNP1;
+    test_encode_pdu(bytes, csnp, auth);
 }
 
 #[test]
 fn test_decode_csnp1() {
-    let (ref bytes, ref csnp) = *CSNP1;
-    test_decode_pdu(bytes, csnp);
+    let (ref bytes, ref auth, ref csnp) = *CSNP1;
+    test_decode_pdu(bytes, csnp, auth);
 }
 
 #[test]
 fn test_encode_psnp1() {
-    let (ref bytes, ref psnp) = *PSNP1;
-    test_encode_pdu(bytes, psnp);
+    let (ref bytes, ref auth, ref psnp) = *PSNP1;
+    test_encode_pdu(bytes, psnp, auth);
 }
 
 #[test]
 fn test_decode_psnp1() {
-    let (ref bytes, ref psnp) = *PSNP1;
-    test_decode_pdu(bytes, psnp);
+    let (ref bytes, ref auth, ref psnp) = *PSNP1;
+    test_decode_pdu(bytes, psnp, auth);
 }
 
 #[test]
 fn test_encode_lsp1() {
-    let (ref bytes, ref lsp) = *LSP1;
-    test_encode_pdu(bytes, lsp);
+    let (ref bytes, ref auth, ref lsp) = *LSP1;
+    test_encode_pdu(bytes, lsp, auth);
 }
 
 #[test]
 fn test_decode_lsp1() {
-    let (ref bytes, ref lsp) = *LSP1;
-    test_decode_pdu(bytes, lsp);
+    let (ref bytes, ref auth, ref lsp) = *LSP1;
+    test_decode_pdu(bytes, lsp, auth);
 }
 
 #[test]
 fn test_encode_lsp2() {
-    let (ref bytes, ref lsp) = *LSP2;
-    test_encode_pdu(bytes, lsp);
+    let (ref bytes, ref auth, ref lsp) = *LSP2;
+    test_encode_pdu(bytes, lsp, auth);
 }
 
 #[test]
 fn test_decode_lsp2() {
-    let (ref bytes, ref lsp) = *LSP2;
-    test_decode_pdu(bytes, lsp);
+    let (ref bytes, ref auth, ref lsp) = *LSP2;
+    test_decode_pdu(bytes, lsp, auth);
+}
+
+#[test]
+fn test_encode_lsp3_hmac_md5() {
+    let (ref bytes, ref auth, ref lsp) = *LSP3_HMAC_MD5;
+    test_encode_pdu(bytes, lsp, auth);
+}
+
+#[test]
+fn test_decode_lsp3_hmac_md5() {
+    let (ref bytes, ref auth, ref lsp) = *LSP3_HMAC_MD5;
+    test_decode_pdu(bytes, lsp, auth);
 }

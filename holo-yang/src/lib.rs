@@ -255,6 +255,7 @@ pub static YANG_FEATURES: Lazy<HashMap<&'static str, Vec<&'static str>>> =
                 "single-minimum-interval",
             ],
             "ietf-key-chain" => vec![
+                "cleartext",
                 "hex-key-string",
                 "independent-send-accept-lifetime",
             ],

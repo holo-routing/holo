@@ -543,6 +543,25 @@ async fn process_ibus_msg(
         IbusMsg::InterfaceAddressDel(msg) => {
             southbound::rx::process_addr_del(instance, msg);
         }
+        // Keychain update event.
+        IbusMsg::KeychainUpd(keychain) => {
+            // Update the local copy of the keychain.
+            instance
+                .shared
+                .keychains
+                .insert(keychain.name.clone(), keychain.clone());
+
+            // Update all interfaces using this keychain.
+            events::process_keychain_update(instance, &keychain.name)?
+        }
+        // Keychain delete event.
+        IbusMsg::KeychainDel(keychain_name) => {
+            // Remove the local copy of the keychain.
+            instance.shared.keychains.remove(&keychain_name);
+
+            // Update all interfaces using this keychain.
+            events::process_keychain_update(instance, &keychain_name)?
+        }
         // Hostname update notification.
         IbusMsg::HostnameUpdate(hostname) => {
             events::process_hostname_update(instance, hostname);

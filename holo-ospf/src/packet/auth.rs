@@ -19,6 +19,7 @@ use hmac::digest::{HashMarker, Mac, OutputSizeUser};
 use holo_utils::crypto::{CryptoAlgo, CryptoProtocolId};
 use holo_utils::ip::{Ipv4AddrExt, Ipv6AddrExt};
 use holo_utils::keychain::{Key, Keychain};
+use md5::{Digest, Md5};
 use sha1::Sha1;
 use sha2::{Sha256, Sha384, Sha512};
 
@@ -66,10 +67,10 @@ fn keyed_md5_digest(data: &[u8], key: &[u8]) -> [u8; 16] {
     let mut key = key.to_vec();
     key.resize(16, 0);
 
-    let mut ctx = md5::Context::new();
-    ctx.consume(data);
-    ctx.consume(&key);
-    *ctx.compute()
+    let mut ctx = Md5::new();
+    ctx.update(data);
+    ctx.update(&key);
+    ctx.finalize().into()
 }
 
 fn hmac_sha_digest<H>(

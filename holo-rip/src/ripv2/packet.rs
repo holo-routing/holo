@@ -13,6 +13,7 @@ use enum_as_inner::EnumAsInner;
 use holo_utils::bytes::{BytesExt, BytesMutExt, TLS_BUF};
 use holo_utils::crypto::CryptoAlgo;
 use ipnetwork::Ipv4Network;
+use md5::{Digest, Md5};
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
@@ -694,8 +695,8 @@ fn md5_digest(data: &[u8], auth_key: &str) -> [u8; 16] {
     let mut auth_key = auth_key.as_bytes().to_vec();
     auth_key.resize(16, 0);
 
-    let mut ctx = md5::Context::new();
-    ctx.consume(data);
-    ctx.consume(&auth_key);
-    *ctx.compute()
+    let mut ctx = Md5::new();
+    ctx.update(data);
+    ctx.update(&auth_key);
+    ctx.finalize().into()
 }

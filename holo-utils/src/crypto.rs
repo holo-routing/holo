@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 pub enum CryptoAlgo {
     Md5,
     Sha1,
+    HmacMd5,
     HmacSha1,
     HmacSha256,
     HmacSha384,
@@ -43,6 +44,7 @@ impl CryptoAlgo {
         match self {
             CryptoAlgo::Md5 => 16,
             CryptoAlgo::Sha1 => 20,
+            CryptoAlgo::HmacMd5 => 16,
             CryptoAlgo::HmacSha1 => 20,
             CryptoAlgo::HmacSha256 => 32,
             CryptoAlgo::HmacSha384 => 48,
@@ -56,6 +58,7 @@ impl ToYang for CryptoAlgo {
         match self {
             CryptoAlgo::Md5 => "ietf-key-chain:md5".into(),
             CryptoAlgo::Sha1 => "ietf-key-chain:sha-1".into(),
+            CryptoAlgo::HmacMd5 => "holo-key-chain:hmac-md5".into(),
             CryptoAlgo::HmacSha1 => "ietf-key-chain:hmac-sha-1".into(),
             CryptoAlgo::HmacSha256 => "ietf-key-chain:hmac-sha-256".into(),
             CryptoAlgo::HmacSha384 => "ietf-key-chain:hmac-sha-384".into(),
@@ -69,6 +72,7 @@ impl TryFromYang for CryptoAlgo {
         match identity {
             "ietf-key-chain:md5" => Some(CryptoAlgo::Md5),
             "ietf-key-chain:sha-1" => Some(CryptoAlgo::Sha1),
+            "holo-key-chain:hmac-md5" => Some(CryptoAlgo::HmacMd5),
             "ietf-key-chain:hmac-sha-1" => Some(CryptoAlgo::HmacSha1),
             "ietf-key-chain:hmac-sha-256" => Some(CryptoAlgo::HmacSha256),
             "ietf-key-chain:hmac-sha-384" => Some(CryptoAlgo::HmacSha384),

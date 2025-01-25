@@ -17,7 +17,7 @@ use crate::Master;
 
 impl ProviderBase for Master {
     fn yang_modules() -> &'static [&'static str] {
-        &["ietf-key-chain"]
+        &["ietf-key-chain", "holo-key-chain"]
     }
 
     fn top_level_node(&self) -> String {

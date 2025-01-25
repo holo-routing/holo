@@ -1,0 +1,26 @@
+module holo-key-chain {
+  yang-version 1.1;
+  namespace "http://holo-key-chain.org/yang/holo-key-chain";
+  prefix holo-key-chain;
+
+  import ietf-key-chain {
+    prefix key-chain;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines augment statements for the ietf-key-chain
+    module.";
+
+  /*
+   * Identities.
+   */
+
+  identity hmac-md5 {
+    base key-chain:crypto-algorithm;
+    description
+      "HMAC-MD5 authentication algorithm.";
+  }
+}

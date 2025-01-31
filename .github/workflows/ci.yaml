@@ -41,7 +41,7 @@ jobs:
       - name: Run Clippy
         run: cargo clippy --package holo-tools
 
-  test:
+  tests_and_coverage_report:
     name: Tests and Coverage Report
     runs-on: ubuntu-latest
     steps:
@@ -59,6 +59,15 @@ jobs:
           files: ./lcov.info
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  tests_arm:
+    name: Tests (Arm64)
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: Run tests
+        run: cargo test --all-features -p holo-bfd -p holo-bgp -p holo-isis -p holo-ldp -p holo-ospf -p holo-rip
 
   push-image:
     name: Docker Image Build

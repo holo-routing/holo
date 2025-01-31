@@ -9,16 +9,12 @@ RUN apt-get update && \
     libpcre2-dev \
     protobuf-compiler
 
-# holo
-# ==============================================================================
-
+# holod
 WORKDIR /usr/src/holo
 COPY . .
 RUN cargo build --release
 
 # holo-cli
-# ==============================================================================
-
 RUN git clone https://github.com/holo-routing/holo-cli.git /usr/src/holo-cli
 WORKDIR /usr/src/holo-cli
 RUN cargo build --release
@@ -40,7 +36,7 @@ RUN useradd --system --shell /sbin/nologin --home-dir /var/run/holo/ -g holo hol
 RUN mkdir -p /var/run/holo
 RUN chown holo:holo /var/run/holo
 
-RUN echo "alias holo-cli-show='holo-cli -c \"show state xpath /ietf-routing:routing format json\"'" >> /root/.bashrc
+RUN echo "alias holo-cli-show='holo-cli -c \"show state\"'" >> /root/.bashrc
 RUN echo "alias ipr='ip -4 ro ; ip -6 ro ; ip -M ro'" >> /root/.bashrc
 
 COPY --from=build /usr/src/holo/holo-daemon/holod.toml /etc/holod.toml

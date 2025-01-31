@@ -644,5 +644,5 @@ impl TlvKind for TlvLabelRequestId {
 
 // Calculate the number of bytes required to encode a prefix.
 fn prefix_wire_len(len: u8) -> usize {
-    (len as usize + 7) / 8
+    (len as usize).div_ceil(8)
 }

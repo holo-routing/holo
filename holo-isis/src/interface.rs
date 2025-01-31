@@ -441,7 +441,7 @@ impl Interface {
     }
 
     pub(crate) fn is_dis(&self, level: LevelNumber) -> bool {
-        self.state.dis.get(level).map_or(false, |dis| dis.myself)
+        self.state.dis.get(level).is_some_and(|dis| dis.myself)
     }
 
     pub(crate) fn dis_start(&mut self, instance: &mut InstanceUpView<'_>) {

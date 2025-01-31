@@ -2880,7 +2880,7 @@ impl LsaVersion<Self> for Ospfv3 {
 
 // Calculate the number of bytes required to encode a prefix.
 fn prefix_wire_len(len: u8) -> usize {
-    ((len as usize + 31) / 32) * 4
+    (len as usize).div_ceil(32) * 4
 }
 
 fn decode_16bit_addr(af: AddressFamily, buf: &mut Bytes) -> IpAddr {

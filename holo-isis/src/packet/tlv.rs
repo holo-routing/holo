@@ -1346,7 +1346,7 @@ impl<T: MultiTlv> Tlv for T {
 
 // Calculates the number of bytes required to encode a prefix.
 const fn prefix_wire_len(len: u8) -> usize {
-    (len as usize + 7) / 8
+    (len as usize).div_ceil(8)
 }
 
 fn tlv_encode_start(buf: &mut BytesMut, tlv_type: impl ToPrimitive) -> usize {

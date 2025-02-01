@@ -29,8 +29,9 @@ impl ProviderBase for Instance {
 
     fn top_level_node(&self) -> String {
         format!(
-            "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='main']/ietf-isis:isis",
+            "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='{}']/ietf-isis:isis",
             Protocol::ISIS.to_yang(),
+            self.name
         )
     }
 

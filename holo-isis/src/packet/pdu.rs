@@ -151,7 +151,6 @@ impl Pdu {
         global_auth: Option<&AuthMethod>,
     ) -> DecodeResult<Self> {
         let buf_orig = BytesMut::from(buf.clone());
-        let packet_len = buf.len();
 
         // Decode PDU common header.
         let hdr = Header::decode(&mut buf)?;
@@ -159,27 +158,17 @@ impl Pdu {
         // Decode PDU-specific fields.
         let pdu = match hdr.pdu_type {
             PduType::HelloLanL1 | PduType::HelloLanL2 | PduType::HelloP2P => {
-                Pdu::Hello(Hello::decode(
-                    hdr, packet_len, &mut buf, buf_orig, hello_auth,
-                )?)
+                Pdu::Hello(Hello::decode(hdr, &mut buf, buf_orig, hello_auth)?)
             }
-            PduType::LspL1 | PduType::LspL2 => Pdu::Lsp(Lsp::decode(
-                hdr,
-                packet_len,
-                &mut buf,
-                buf_orig,
-                global_auth,
-            )?),
+            PduType::LspL1 | PduType::LspL2 => {
+                Pdu::Lsp(Lsp::decode(hdr, &mut buf, buf_orig, global_auth)?)
+            }
             PduType::CsnpL1
             | PduType::CsnpL2
             | PduType::PsnpL1
-            | PduType::PsnpL2 => Pdu::Snp(Snp::decode(
-                hdr,
-                packet_len,
-                &mut buf,
-                buf_orig,
-                global_auth,
-            )?),
+            | PduType::PsnpL2 => {
+                Pdu::Snp(Snp::decode(hdr, &mut buf, buf_orig, global_auth)?)
+            }
         };
 
         Ok(pdu)
@@ -439,7 +428,6 @@ impl Hello {
 
     fn decode(
         hdr: Header,
-        packet_len: usize,
         buf: &mut Bytes,
         buf_orig: BytesMut,
         auth: Option<&AuthMethod>,
@@ -466,7 +454,7 @@ impl Hello {
 
         // Parse PDU length.
         let pdu_len = buf.get_u16();
-        if pdu_len != packet_len as u16 {
+        if pdu_len != buf_orig.len() as u16 {
             return Err(DecodeError::InvalidPduLength(pdu_len));
         }
 
@@ -737,14 +725,13 @@ impl Lsp {
 
     fn decode(
         hdr: Header,
-        packet_len: usize,
         buf: &mut Bytes,
         buf_orig: BytesMut,
         auth: Option<&AuthMethod>,
     ) -> DecodeResult<Self> {
         // Parse PDU length.
         let pdu_len = buf.get_u16();
-        if pdu_len != packet_len as u16 {
+        if pdu_len != buf_orig.len() as u16 {
             return Err(DecodeError::InvalidPduLength(pdu_len));
         }
 
@@ -1245,14 +1232,13 @@ impl Snp {
 
     fn decode(
         hdr: Header,
-        packet_len: usize,
         buf: &mut Bytes,
         buf_orig: BytesMut,
         auth: Option<&AuthMethod>,
     ) -> DecodeResult<Self> {
         // Parse PDU length.
         let pdu_len = buf.get_u16();
-        if pdu_len != packet_len as u16 {
+        if pdu_len != buf_orig.len() as u16 {
             return Err(DecodeError::InvalidPduLength(pdu_len));
         }
 

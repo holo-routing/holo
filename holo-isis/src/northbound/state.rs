@@ -229,13 +229,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                 lsp.tlvs.auth.as_ref().and_then(|auth| match auth {
                     AuthenticationTlv::ClearText(..) => None,
                     AuthenticationTlv::HmacMd5(digest) => {
-                        Some(Cow::Owned(digest.iter().fold(
-                            String::with_capacity(digest.len() * 2),
-                            |mut output, &byte| {
-                                write!(&mut output, "{:02x}", byte).unwrap();
-                                output
-                            },
-                        )))
+                        Some(Cow::Owned(format_hmac_digest(digest)))
                     }
                 });
             Box::new(Authentication {
@@ -795,5 +789,15 @@ fn format_mac(mac: &[u8; 6]) -> String {
     format!(
         "{:02x}{:02x}.{:02x}{:02x}.{:02x}{:02x}",
         mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]
+    )
+}
+
+fn format_hmac_digest(digest: &[u8]) -> String {
+    digest.iter().fold(
+        String::with_capacity(digest.len() * 2),
+        |mut output, &byte| {
+            write!(&mut output, "{:02x}", byte).unwrap();
+            output
+        },
     )
 }

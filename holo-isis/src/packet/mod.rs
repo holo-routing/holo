@@ -11,6 +11,7 @@ pub mod auth;
 pub mod consts;
 pub mod error;
 pub mod pdu;
+pub mod subtlvs;
 pub mod tlv;
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};

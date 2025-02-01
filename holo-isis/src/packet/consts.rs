@@ -82,7 +82,15 @@ pub enum AuthenticationType {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
-pub enum NeighborSubTlvType {}
+pub enum NeighborSubTlvType {
+    AdminGroup = 3,
+    Ipv4InterfaceAddress = 6,
+    Ipv4NeighborAddress = 8,
+    MaxLinkBandwidth = 9,
+    MaxResvLinkBandwidth = 10,
+    UnreservedBandwidth = 11,
+    TeDefaultMetric = 18,
+}
 
 // IS-IS Sub-TLVs for TLVs Advertising Prefix Reachability.
 //

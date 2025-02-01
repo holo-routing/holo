@@ -24,7 +24,7 @@ use crate::packet::consts::{
     AuthenticationType, NeighborSubTlvType, PrefixSubTlvType, TlvType,
 };
 use crate::packet::error::{DecodeError, DecodeResult};
-use crate::packet::{AreaAddr, LanId, LspId};
+use crate::packet::{AreaAddr, LanId, LspId, subtlvs};
 
 // TLV header size.
 pub const TLV_HDR_SIZE: usize = 2;
@@ -167,6 +167,13 @@ pub struct ExtIsReach {
 #[derive(Clone, Debug, Default, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct ExtIsReachSubTlvs {
+    pub admin_group: Option<subtlvs::neighbor::AdminGroupSubTlv>,
+    pub ipv4_interface_addr: Vec<subtlvs::neighbor::Ipv4InterfaceAddrSubTlv>,
+    pub ipv4_neighbor_addr: Vec<subtlvs::neighbor::Ipv4NeighborAddrSubTlv>,
+    pub max_link_bw: Option<subtlvs::neighbor::MaxLinkBwSubTlv>,
+    pub max_resv_link_bw: Option<subtlvs::neighbor::MaxResvLinkBwSubTlv>,
+    pub unreserved_bw: Option<subtlvs::neighbor::UnreservedBwSubTlv>,
+    pub te_default_metric: Option<subtlvs::neighbor::TeDefaultMetricSubTlv>,
     pub unknown: Vec<UnknownTlv>,
 }
 
@@ -815,6 +822,12 @@ impl ExtIsReachTlv {
     const ENTRY_MIN_SIZE: usize = 11;
 
     pub(crate) fn decode(_tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+        use subtlvs::neighbor::{
+            AdminGroupSubTlv, Ipv4InterfaceAddrSubTlv, Ipv4NeighborAddrSubTlv,
+            MaxLinkBwSubTlv, MaxResvLinkBwSubTlv, TeDefaultMetricSubTlv,
+            UnreservedBwSubTlv,
+        };
+
         let mut list = vec![];
 
         while buf.remaining() >= Self::ENTRY_MIN_SIZE {
@@ -837,13 +850,58 @@ impl ExtIsReachTlv {
                     return Err(DecodeError::InvalidTlvLength(stlv_len));
                 }
 
-                // Parse TLV value.
-                let mut buf_tlv = buf.copy_to_bytes(stlv_len as usize);
+                // Parse Sub-TLV value.
+                let mut buf_stlv = buf.copy_to_bytes(stlv_len as usize);
                 sub_tlvs_len -= stlv_len;
                 match stlv_etype {
+                    Some(NeighborSubTlvType::AdminGroup) => {
+                        let stlv =
+                            AdminGroupSubTlv::decode(stlv_len, &mut buf_stlv)?;
+                        sub_tlvs.admin_group = Some(stlv);
+                    }
+                    Some(NeighborSubTlvType::Ipv4InterfaceAddress) => {
+                        let stlv = Ipv4InterfaceAddrSubTlv::decode(
+                            stlv_len,
+                            &mut buf_stlv,
+                        )?;
+                        sub_tlvs.ipv4_interface_addr.push(stlv);
+                    }
+                    Some(NeighborSubTlvType::Ipv4NeighborAddress) => {
+                        let stlv = Ipv4NeighborAddrSubTlv::decode(
+                            stlv_len,
+                            &mut buf_stlv,
+                        )?;
+                        sub_tlvs.ipv4_neighbor_addr.push(stlv);
+                    }
+                    Some(NeighborSubTlvType::MaxLinkBandwidth) => {
+                        let stlv =
+                            MaxLinkBwSubTlv::decode(stlv_len, &mut buf_stlv)?;
+                        sub_tlvs.max_link_bw = Some(stlv);
+                    }
+                    Some(NeighborSubTlvType::MaxResvLinkBandwidth) => {
+                        let stlv = MaxResvLinkBwSubTlv::decode(
+                            stlv_len,
+                            &mut buf_stlv,
+                        )?;
+                        sub_tlvs.max_resv_link_bw = Some(stlv);
+                    }
+                    Some(NeighborSubTlvType::UnreservedBandwidth) => {
+                        let stlv = UnreservedBwSubTlv::decode(
+                            stlv_len,
+                            &mut buf_stlv,
+                        )?;
+                        sub_tlvs.unreserved_bw = Some(stlv);
+                    }
+                    Some(NeighborSubTlvType::TeDefaultMetric) => {
+                        let stlv = TeDefaultMetricSubTlv::decode(
+                            stlv_len,
+                            &mut buf_stlv,
+                        )?;
+                        sub_tlvs.te_default_metric = Some(stlv);
+                    }
                     _ => {
-                        // Save unknown top-level TLV.
-                        let value = buf_tlv.copy_to_bytes(stlv_len as usize);
+                        // Save unknown Sub-TLV.
+                        let value = buf_stlv.copy_to_bytes(stlv_len as usize);
                         sub_tlvs
                             .unknown
                             .push(UnknownTlv::new(stlv_type, stlv_len, value));
@@ -869,7 +927,31 @@ impl ExtIsReachTlv {
             // Encode metric.
             buf.put_u24(entry.metric);
             // Encode Sub-TLVs.
+            let subtlvs_len_pos = buf.len();
             buf.put_u8(0);
+            if let Some(tlv) = &entry.sub_tlvs.admin_group {
+                tlv.encode(buf);
+            }
+            for tlv in &entry.sub_tlvs.ipv4_interface_addr {
+                tlv.encode(buf);
+            }
+            for tlv in &entry.sub_tlvs.ipv4_neighbor_addr {
+                tlv.encode(buf);
+            }
+            if let Some(tlv) = &entry.sub_tlvs.max_link_bw {
+                tlv.encode(buf);
+            }
+            if let Some(tlv) = &entry.sub_tlvs.max_resv_link_bw {
+                tlv.encode(buf);
+            }
+            if let Some(tlv) = &entry.sub_tlvs.unreserved_bw {
+                tlv.encode(buf);
+            }
+            if let Some(tlv) = &entry.sub_tlvs.te_default_metric {
+                tlv.encode(buf);
+            }
+            // Rewrite Sub-TLVs length field.
+            buf[subtlvs_len_pos] = (buf.len() - 1 - subtlvs_len_pos) as u8;
         }
         tlv_encode_end(buf, start_pos);
     }
@@ -1053,14 +1135,14 @@ impl ExtIpv4ReachTlv {
                         return Err(DecodeError::InvalidTlvLength(stlv_len));
                     }
 
-                    // Parse TLV value.
-                    let mut buf_tlv = buf.copy_to_bytes(stlv_len as usize);
+                    // Parse Sub-TLV value.
+                    let mut buf_stlv = buf.copy_to_bytes(stlv_len as usize);
                     sub_tlvs_len -= stlv_len;
                     match stlv_etype {
                         _ => {
-                            // Save unknown top-level TLV.
+                            // Save unknown Sub-TLV.
                             let value =
-                                buf_tlv.copy_to_bytes(stlv_len as usize);
+                                buf_stlv.copy_to_bytes(stlv_len as usize);
                             sub_tlvs.unknown.push(UnknownTlv::new(
                                 stlv_type, stlv_len, value,
                             ));
@@ -1181,14 +1263,14 @@ impl Ipv6ReachTlv {
                         return Err(DecodeError::InvalidTlvLength(stlv_len));
                     }
 
-                    // Parse TLV value.
-                    let mut buf_tlv = buf.copy_to_bytes(stlv_len as usize);
+                    // Parse Sub-TLV value.
+                    let mut buf_stlv = buf.copy_to_bytes(stlv_len as usize);
                     sub_tlvs_len -= stlv_len;
                     match stlv_etype {
                         _ => {
-                            // Save unknown top-level TLV.
+                            // Save unknown Sub-TLV.
                             let value =
-                                buf_tlv.copy_to_bytes(stlv_len as usize);
+                                buf_stlv.copy_to_bytes(stlv_len as usize);
                             sub_tlvs.unknown.push(UnknownTlv::new(
                                 stlv_type, stlv_len, value,
                             ));
@@ -1349,7 +1431,12 @@ const fn prefix_wire_len(len: u8) -> usize {
     (len as usize).div_ceil(8)
 }
 
-fn tlv_encode_start(buf: &mut BytesMut, tlv_type: impl ToPrimitive) -> usize {
+// ===== global functions =====
+
+pub(crate) fn tlv_encode_start(
+    buf: &mut BytesMut,
+    tlv_type: impl ToPrimitive,
+) -> usize {
     let start_pos = buf.len();
     buf.put_u8(tlv_type.to_u8().unwrap());
     // The TLV length will be rewritten later.
@@ -1357,12 +1444,10 @@ fn tlv_encode_start(buf: &mut BytesMut, tlv_type: impl ToPrimitive) -> usize {
     start_pos
 }
 
-fn tlv_encode_end(buf: &mut BytesMut, start_pos: usize) {
+pub(crate) fn tlv_encode_end(buf: &mut BytesMut, start_pos: usize) {
     // Rewrite TLV length.
     buf[start_pos + 1] = (buf.len() - start_pos - TLV_HDR_SIZE) as u8;
 }
-
-// ===== global functions =====
 
 // Takes as many TLVs as will fit into the provided PDU remaining length.
 pub(crate) fn tlv_take_max<T>(

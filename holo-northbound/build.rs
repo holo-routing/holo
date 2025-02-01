@@ -77,6 +77,34 @@ fn timeticks64_to_yang(timeticks: Cow<'_, Instant>) -> String {
     uptime.to_string()
 }
 
+fn bandwidth_ieee_float32_to_yang(value: &f32) -> String {
+    // Get the binary representation of the float value.
+    let bits = value.to_bits();
+
+    // Extract the sign bit, exponent, and fraction.
+    let sign = (bits >> 31) & 0x1;
+    let exponent = ((bits >> 23) & 0xFF) as i32 - 127;
+    let fraction = bits & 0x7FFFFF;
+
+    // Normalize the fraction by adding the leading 1.
+    let mut fraction_hex = format!("{:x}", fraction);
+
+    // Ensure 6 digits in hexadecimal.
+    while fraction_hex.len() < 6 {
+        fraction_hex = format!("0{}", fraction_hex);
+    }
+
+    // Format the exponent as a signed decimal.
+    let exponent_str = if exponent >= 0 {
+        format!("p+{}", exponent)
+    } else {
+        format!("p{}", exponent)
+    };
+
+    // Build the final string.
+    format!("0x1.{}{}", fraction_hex, exponent_str)
+}
+
 fn fletcher_checksum16_to_yang(cksum: u16) -> String {
     format!("{:#06x}", cksum)
 }
@@ -426,6 +454,7 @@ fn leaf_typedef_map(leaf_type: &SchemaLeafType<'_>) -> Option<&'static str> {
         Some("timeticks") => Some("Cow<'a, Instant>"),
         Some("timeticks64") => Some("Cow<'a, Instant>"),
         Some("hex-string") => Some("&'a [u8]"),
+        Some("bandwidth-ieee-float32") => Some("&'a f32"),
         // ietf-ospf
         Some("fletcher-checksum16-type") => Some("u16"),
         _ => None,
@@ -462,6 +491,10 @@ fn leaf_typedef_value(
         Some("hex-string") => {
             Some(format!("Some(&hex_string_to_yang({}))", field_name))
         }
+        Some("bandwidth-ieee-float32") => Some(format!(
+            "Some(&bandwidth_ieee_float32_to_yang({}))",
+            field_name
+        )),
         // ietf-ospf
         Some("fletcher-checksum16-type") => Some(format!(
             "Some(&fletcher_checksum16_to_yang({}))",

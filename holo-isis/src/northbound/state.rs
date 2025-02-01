@@ -53,6 +53,7 @@ pub enum ListEntry<'a> {
     IsReach(&'a LspEntry, LanId),
     IsReachInstance(u32, &'a IsReach),
     ExtIsReach(u32, &'a ExtIsReach),
+    ExtIsReachUnreservedBw(usize, &'a f32),
     Ipv4Reach(&'a Ipv4Reach),
     ExtIpv4Reach(&'a ExtIpv4Reach),
     Ipv6Reach(&'a Ipv6Reach),
@@ -346,36 +347,46 @@ fn load_callbacks() -> Callbacks<Instance> {
             Box::new(Instance {
                 id: *id,
                 metric: Some(reach.metric),
-                admin_group: None,
-                te_metric: None,
-                max_bandwidth: None,
-                max_reservable_bandwidth: None,
+                admin_group: reach.sub_tlvs.admin_group.as_ref().map(|tlv| tlv.get()),
+                te_metric: reach.sub_tlvs.te_default_metric.as_ref().map(|tlv| tlv.get()),
+                max_bandwidth: reach.sub_tlvs.max_link_bw.as_ref().map(|tlv| tlv.get()),
+                max_reservable_bandwidth: reach.sub_tlvs.max_resv_link_bw.as_ref().map(|tlv| tlv.get()),
             })
         })
         .path(isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::local_if_ipv4_addrs::PATH)
-        .get_object(|_instance, _args| {
+        .get_object(|_instance, args| {
             use isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::local_if_ipv4_addrs::LocalIfIpv4Addrs;
+            let (_, reach) = args.list_entry.as_ext_is_reach().unwrap();
+            let iter = reach.sub_tlvs.ipv4_interface_addr.iter().map(|tlv| tlv.get()).map(Cow::Borrowed);
             Box::new(LocalIfIpv4Addrs {
-                local_if_ipv4_addr: None,
+                local_if_ipv4_addr: Some(Box::new(iter)),
             })
         })
         .path(isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::remote_if_ipv4_addrs::PATH)
-        .get_object(|_instance, _args| {
+        .get_object(|_instance, args| {
             use isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::remote_if_ipv4_addrs::RemoteIfIpv4Addrs;
+            let (_, reach) = args.list_entry.as_ext_is_reach().unwrap();
+            let iter = reach.sub_tlvs.ipv4_neighbor_addr.iter().map(|tlv| tlv.get()).map(Cow::Borrowed);
             Box::new(RemoteIfIpv4Addrs {
-                remote_if_ipv4_addr: None,
+                remote_if_ipv4_addr: Some(Box::new(iter)),
             })
         })
         .path(isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unreserved_bandwidths::unreserved_bandwidth::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
+        .get_iterate(|_instance, args| {
+            let (_, reach) = args.parent_list_entry.as_ext_is_reach().unwrap();
+            if let Some(unreserved_bw) = &reach.sub_tlvs.unreserved_bw {
+                let iter = unreserved_bw.iter().map(|(prio, bw)| ListEntry::ExtIsReachUnreservedBw(prio, bw));
+                Some(Box::new(iter))
+            } else {
+                None
+            }
         })
-        .get_object(|_instance, _args| {
+        .get_object(|_instance, args| {
             use isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unreserved_bandwidths::unreserved_bandwidth::UnreservedBandwidth;
+            let (priority, unreserved_bandwidth) = args.list_entry.as_ext_is_reach_unreserved_bw().unwrap();
             Box::new(UnreservedBandwidth {
-                priority: None,
-                unreserved_bandwidth: None,
+                priority: Some(*priority as u8),
+                unreserved_bandwidth: Some(unreserved_bandwidth),
             })
         })
         .path(isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unknown_tlvs::unknown_tlv::PATH)

@@ -37,7 +37,7 @@ use crate::packet::{
 };
 
 // IS-IS PDU.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub enum Pdu {
     Hello(Hello),
@@ -46,7 +46,7 @@ pub enum Pdu {
 }
 
 // IS-IS PDU common header.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct Header {
     pub pdu_type: PduType,
@@ -54,7 +54,7 @@ pub struct Header {
 }
 
 // IS-IS Hello PDU.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct Hello {
     pub hdr: Header,
@@ -65,14 +65,14 @@ pub struct Hello {
     pub tlvs: HelloTlvs,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub enum HelloVariant {
     Lan { priority: u8, lan_id: LanId },
     P2P { local_circuit_id: u8 },
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct HelloTlvs {
     pub protocols_supported: Option<ProtocolsSupportedTlv>,
@@ -85,7 +85,7 @@ pub struct HelloTlvs {
 }
 
 // IS-IS Link State PDU.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct Lsp {
     pub hdr: Header,
@@ -103,7 +103,7 @@ pub struct Lsp {
     pub base_time: Option<Instant>,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct LspTlvs {
     pub auth: Option<AuthenticationTlv>,
@@ -125,7 +125,7 @@ pub struct LspTlvs {
 }
 
 // IS-IS Sequence Numbers PDU.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct Snp {
     pub hdr: Header,
@@ -134,7 +134,7 @@ pub struct Snp {
     pub tlvs: SnpTlvs,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct SnpTlvs {
     pub lsp_entries: Vec<LspEntriesTlv>,

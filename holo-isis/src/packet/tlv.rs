@@ -64,68 +64,68 @@ pub trait MultiTlv: From<Vec<Self::Entry>> {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct AreaAddressesTlv {
     pub list: Vec<AreaAddr>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct NeighborsTlv {
     pub list: Vec<[u8; 6]>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct PaddingTlv {
     pub length: u8,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub enum AuthenticationTlv {
     ClearText(Vec<u8>),
     HmacMd5([u8; 16]),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct LspBufferSizeTlv {
     pub size: u16,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct DynamicHostnameTlv {
     pub hostname: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct ProtocolsSupportedTlv {
     pub list: Vec<u8>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct Ipv4AddressesTlv {
     pub list: Vec<Ipv4Addr>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct Ipv6AddressesTlv {
     pub list: Vec<Ipv6Addr>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct LspEntriesTlv {
     pub list: Vec<LspEntry>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct LspEntry {
     pub rem_lifetime: u16,
@@ -134,13 +134,13 @@ pub struct LspEntry {
     pub cksum: u16,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct IsReachTlv {
     pub list: Vec<IsReach>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct IsReach {
     pub metric: u8,
@@ -150,13 +150,13 @@ pub struct IsReach {
     pub neighbor: LanId,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct ExtIsReachTlv {
     pub list: Vec<ExtIsReach>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct ExtIsReach {
     pub neighbor: LanId,
@@ -164,19 +164,19 @@ pub struct ExtIsReach {
     pub sub_tlvs: ExtIsReachSubTlvs,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct ExtIsReachSubTlvs {
     pub unknown: Vec<UnknownTlv>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct Ipv4ReachTlv {
     pub list: Vec<Ipv4Reach>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct Ipv4Reach {
     pub ie_bit: bool,
@@ -187,13 +187,13 @@ pub struct Ipv4Reach {
     pub prefix: Ipv4Network,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct ExtIpv4ReachTlv {
     pub list: Vec<ExtIpv4Reach>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct ExtIpv4Reach {
     pub metric: u32,
@@ -202,19 +202,19 @@ pub struct ExtIpv4Reach {
     pub sub_tlvs: ExtIpv4ReachSubTlvs,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct ExtIpv4ReachSubTlvs {
     pub unknown: Vec<UnknownTlv>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct Ipv6ReachTlv {
     pub list: Vec<Ipv6Reach>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct Ipv6Reach {
     pub metric: u32,
@@ -224,23 +224,23 @@ pub struct Ipv6Reach {
     pub sub_tlvs: Ipv6ReachSubTlvs,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct Ipv6ReachSubTlvs {
     pub unknown: Vec<UnknownTlv>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
 pub struct Ipv4RouterIdTlv(Ipv4Addr);
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
 pub struct Ipv6RouterIdTlv(Ipv6Addr);
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
 pub struct UnknownTlv {

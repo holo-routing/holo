@@ -661,11 +661,13 @@ impl Neighbor {
     // Sends a BGP OPEN message based on the local configuration.
     fn open_send(&mut self, instance_cfg: &InstanceCfg, identifier: Ipv4Addr) {
         // Base capabilities.
-        let mut capabilities: BTreeSet<_> =
-            [Capability::RouteRefresh, Capability::FourOctetAsNumber {
+        let mut capabilities: BTreeSet<_> = [
+            Capability::RouteRefresh,
+            Capability::FourOctetAsNumber {
                 asn: instance_cfg.asn,
-            }]
-            .into();
+            },
+        ]
+        .into();
 
         // Multiprotocol capabilities.
         if let Some(afi_safi) = self.config.afi_safi.get(&AfiSafi::Ipv4Unicast)

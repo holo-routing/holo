@@ -670,14 +670,17 @@ fn lsa_orig_ext_prefix(
                 prefix_sids
                     .insert(*algo, PrefixSid::new(psid_flags, *algo, sid));
 
-                prefixes.insert(*prefix, ExtPrefixTlv {
-                    route_type: ExtPrefixRouteType::IntraArea,
-                    af: 0,
-                    flags,
-                    prefix: *prefix,
-                    prefix_sids,
-                    unknown_tlvs: vec![],
-                });
+                prefixes.insert(
+                    *prefix,
+                    ExtPrefixTlv {
+                        route_type: ExtPrefixRouteType::IntraArea,
+                        af: 0,
+                        flags,
+                        prefix: *prefix,
+                        prefix_sids,
+                        unknown_tlvs: vec![],
+                    },
+                );
             }
         }
     }

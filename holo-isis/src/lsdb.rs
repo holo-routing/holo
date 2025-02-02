@@ -254,22 +254,29 @@ fn lsp_build_tlvs(
 
                 let prefix = addr.apply_mask();
                 if metric_type.is_standard_enabled() {
-                    ipv4_internal_reach.insert(prefix, Ipv4Reach {
-                        ie_bit: false,
-                        metric: std::cmp::min(metric, MAX_NARROW_METRIC) as u8,
-                        metric_delay: None,
-                        metric_expense: None,
-                        metric_error: None,
+                    ipv4_internal_reach.insert(
                         prefix,
-                    });
+                        Ipv4Reach {
+                            ie_bit: false,
+                            metric: std::cmp::min(metric, MAX_NARROW_METRIC)
+                                as u8,
+                            metric_delay: None,
+                            metric_expense: None,
+                            metric_error: None,
+                            prefix,
+                        },
+                    );
                 }
                 if metric_type.is_wide_enabled() {
-                    ext_ipv4_reach.insert(prefix, ExtIpv4Reach {
-                        metric,
-                        up_down: false,
+                    ext_ipv4_reach.insert(
                         prefix,
-                        sub_tlvs: Default::default(),
-                    });
+                        ExtIpv4Reach {
+                            metric,
+                            up_down: false,
+                            prefix,
+                            sub_tlvs: Default::default(),
+                        },
+                    );
                 }
             }
         }
@@ -285,13 +292,16 @@ fn lsp_build_tlvs(
                 ipv6_addrs.insert(addr.ip());
 
                 let prefix = addr.apply_mask();
-                ipv6_reach.insert(prefix, Ipv6Reach {
-                    metric,
-                    up_down: false,
-                    external: false,
+                ipv6_reach.insert(
                     prefix,
-                    sub_tlvs: Default::default(),
-                });
+                    Ipv6Reach {
+                        metric,
+                        up_down: false,
+                        external: false,
+                        prefix,
+                        sub_tlvs: Default::default(),
+                    },
+                );
             }
         }
     }

@@ -291,9 +291,12 @@ where
         // Keyed list.
         Some(cb) => {
             // Get YANG object from callback.
-            let obj = (*cb)(provider, GetObjectArgs {
-                list_entry: &list_entry,
-            });
+            let obj = (*cb)(
+                provider,
+                GetObjectArgs {
+                    list_entry: &list_entry,
+                },
+            );
 
             // Get list keys.
             let keys = obj.list_keys();
@@ -460,9 +463,12 @@ where
             });
 
         // Find the list entry associated to the provided path.
-        if let Some(mut list_iter) = (*cb_iterate)(provider, GetIterateArgs {
-            parent_list_entry: &list_entry,
-        }) {
+        if let Some(mut list_iter) = (*cb_iterate)(
+            provider,
+            GetIterateArgs {
+                parent_list_entry: &list_entry,
+            },
+        ) {
             if let Some(entry) = list_iter.find(|entry| {
                 let obj =
                     (*cb_get)(provider, GetObjectArgs { list_entry: entry });

@@ -383,7 +383,7 @@ impl Interface {
     }
 
     // Returns the MTU size available for sending IS-IS PDUs.
-    pub(crate) fn iso_mtu(&self) -> u32 {
+    fn iso_mtu(&self) -> u32 {
         let mut l2_mtu = self.system.mtu.unwrap();
 
         // On broadcast networks, we need to account for the 3-byte LLC header.

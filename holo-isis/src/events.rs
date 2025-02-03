@@ -962,8 +962,9 @@ pub(crate) fn process_send_psnp(
 
     // Add as many LSP entries that will fit in a single PDU.
     let mut lsp_entries = vec![];
-    let mtu = iface.iso_mtu() as usize;
-    for _ in 0..SnpTlvs::max_lsp_entries(mtu - Snp::PSNP_HEADER_LEN as usize) {
+    for _ in 0..SnpTlvs::max_lsp_entries(
+        instance.config.lsp_mtu as usize - Snp::PSNP_HEADER_LEN as usize,
+    ) {
         if let Some((_, lsp_entry)) =
             iface.state.ssn_list.get_mut(level).pop_first()
         {
@@ -1015,9 +1016,9 @@ pub(crate) fn process_send_csnp(
     ));
 
     // Calculate maximum of LSP entries per PDU.
-    let mtu = iface.iso_mtu() as usize;
-    let max_lsp_entries =
-        SnpTlvs::max_lsp_entries(mtu - Snp::CSNP_HEADER_LEN as usize);
+    let max_lsp_entries = SnpTlvs::max_lsp_entries(
+        instance.config.lsp_mtu as usize - Snp::CSNP_HEADER_LEN as usize,
+    );
 
     // Closure to generate and send CSNP;
     let mut send_csnp = |level, source, start, end, lsp_entries: Vec<_>| {

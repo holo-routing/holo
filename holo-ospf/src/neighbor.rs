@@ -170,7 +170,7 @@ where
             #[cfg(not(feature = "deterministic"))]
             {
                 // Random value.
-                rand::thread_rng().next_u32()
+                rand::rng().next_u32()
             }
             #[cfg(feature = "deterministic")]
             {

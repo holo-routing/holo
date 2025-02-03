@@ -422,7 +422,7 @@ impl Default for SessionState {
             curr_min_rx:
                 bfd::ip_sh::sessions::session::required_min_rx_interval::DFLT,
             local_state: State::Down,
-            local_discr: rand::thread_rng().next_u32(),
+            local_discr: rand::rng().next_u32(),
             local_diag: DiagnosticCode::Nothing,
             demand_mode: false,
             remote: None,

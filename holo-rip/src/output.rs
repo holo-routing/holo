@@ -178,8 +178,8 @@ where
     send_response_all(instance, ResponseType::Triggered);
 
     // Start triggered update timeout.
-    let timeout = rand::thread_rng()
-        .gen_range(1..instance.core.config.triggered_update_threshold);
+    let timeout = rand::rng()
+        .random_range(1..instance.core.config.triggered_update_threshold);
     let triggered_upd_timeout_task = tasks::triggered_upd_timeout(
         Duration::from_secs(timeout.into()),
         &instance.tx.protocol_input.triggered_upd_timeout,

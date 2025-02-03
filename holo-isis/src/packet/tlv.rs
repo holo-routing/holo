@@ -141,6 +141,9 @@ pub struct IsReachTlv {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct IsReach {
     pub metric: u8,
@@ -165,6 +168,10 @@ pub struct ExtIsReach {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct ExtIsReachSubTlvs {
     pub admin_group: Option<subtlvs::neighbor::AdminGroupSubTlv>,
@@ -184,6 +191,9 @@ pub struct Ipv4ReachTlv {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct Ipv4Reach {
     pub ie_bit: bool,
@@ -210,6 +220,9 @@ pub struct ExtIpv4Reach {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
+#[serde_with::apply(
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct ExtIpv4ReachSubTlvs {
     pub unknown: Vec<UnknownTlv>,
@@ -232,6 +245,9 @@ pub struct Ipv6Reach {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
+#[serde_with::apply(
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct Ipv6ReachSubTlvs {
     pub unknown: Vec<UnknownTlv>,

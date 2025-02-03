@@ -73,6 +73,10 @@ pub enum HelloVariant {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct HelloTlvs {
     pub protocols_supported: Option<ProtocolsSupportedTlv>,
@@ -104,6 +108,10 @@ pub struct Lsp {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct LspTlvs {
     pub auth: Option<AuthenticationTlv>,
@@ -135,6 +143,9 @@ pub struct Snp {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
+#[serde_with::apply(
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct SnpTlvs {
     pub lsp_entries: Vec<LspEntriesTlv>,

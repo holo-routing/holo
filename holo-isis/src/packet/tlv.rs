@@ -687,7 +687,8 @@ where
 impl LspEntriesTlv {
     pub const ENTRY_SIZE: usize = 16;
     pub const MAX_ENTRIES: usize = TLV_MAX_LEN / Self::ENTRY_SIZE;
-    pub const MAX_SIZE: usize = TLV_MAX_LEN - Self::MAX_ENTRIES;
+    pub const MAX_SIZE: usize =
+        TLV_HDR_SIZE + Self::MAX_ENTRIES * Self::ENTRY_SIZE;
 
     pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
         let mut list = vec![];

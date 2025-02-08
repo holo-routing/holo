@@ -14,6 +14,7 @@ use ipnetwork::IpNetwork;
 use num_derive::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
 
+use crate::ip::AddressFamily;
 use crate::mpls::{Label, LabelRange};
 
 // IGP Algorithm Types.
@@ -71,6 +72,13 @@ pub struct SrCfg {
 pub struct SrCfgPrefixSid {
     pub index: u32,
     pub last_hop: SidLastHopBehavior,
+}
+
+// Type of Segment Routing configuration change.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum SrCfgEvent {
+    LabelRangeUpdate,
+    PrefixSidUpdate(AddressFamily),
 }
 
 // ===== impl IgpAlgoType =====

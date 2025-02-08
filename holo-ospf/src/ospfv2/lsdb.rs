@@ -7,10 +7,9 @@
 use std::collections::BTreeMap;
 use std::net::Ipv4Addr;
 
-use holo_utils::ibus::SrCfgEvent;
 use holo_utils::ip::{AddressFamily, Ipv4NetworkExt};
 use holo_utils::mpls::Label;
-use holo_utils::sr::{IgpAlgoType, Sid, SidLastHopBehavior};
+use holo_utils::sr::{IgpAlgoType, Sid, SidLastHopBehavior, SrCfgEvent};
 use ipnetwork::{IpNetwork, Ipv4Network};
 use itertools::Itertools;
 

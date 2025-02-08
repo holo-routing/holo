@@ -14,7 +14,8 @@ use bitflags::bitflags;
 use chrono::Utc;
 use derive_new::new;
 use holo_utils::UnboundedSender;
-use holo_utils::ibus::{BierCfgEvent, SrCfgEvent};
+use holo_utils::bier::BierCfgEvent;
+use holo_utils::sr::SrCfgEvent;
 use holo_utils::task::TimeoutTask;
 use serde::{Deserialize, Serialize};
 

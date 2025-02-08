@@ -7,11 +7,12 @@
 use std::collections::{BTreeMap, HashMap, hash_map};
 use std::net::{IpAddr, Ipv4Addr};
 
-use holo_utils::bier::{BierEncapsulationType, BierInBiftId, BiftId};
-use holo_utils::ibus::{BierCfgEvent, SrCfgEvent};
+use holo_utils::bier::{
+    BierCfgEvent, BierEncapsulationType, BierInBiftId, BiftId,
+};
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::mpls::Label;
-use holo_utils::sr::{IgpAlgoType, Sid, SidLastHopBehavior};
+use holo_utils::sr::{IgpAlgoType, Sid, SidLastHopBehavior, SrCfgEvent};
 use ipnetwork::IpNetwork;
 use itertools::Itertools;
 

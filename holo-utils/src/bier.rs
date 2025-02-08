@@ -58,6 +58,13 @@ pub struct BierCfg {
     pub bift_cfg: HashMap<BfrId, BierBiftCfg>,
 }
 
+// Type of BIER configuration events.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum BierCfgEvent {
+    SubDomainUpdate(AddressFamily),
+    EncapUpdate(AddressFamily),
+}
+
 #[derive(Clone, Debug)]
 #[derive(Deserialize, Serialize)]
 pub struct BierSubDomainCfg {

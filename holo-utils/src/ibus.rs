@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast::{Receiver, Sender};
 
 use crate::bfd;
-use crate::bier::BierCfg;
+use crate::bier::{BierCfg, BierCfgEvent};
 use crate::ip::AddressFamily;
 use crate::keychain::Keychain;
 use crate::policy::{MatchSets, Policy};
@@ -21,7 +21,7 @@ use crate::southbound::{
     InterfaceIpAddRequestMsg, InterfaceIpDelRequestMsg, InterfaceUpdateMsg,
     LabelInstallMsg, LabelUninstallMsg, MacvlanAddMsg, RouteKeyMsg, RouteMsg,
 };
-use crate::sr::SrCfg;
+use crate::sr::{SrCfg, SrCfgEvent};
 
 // Useful type definition(s).
 pub type IbusReceiver = Receiver<IbusMsg>;
@@ -130,18 +130,4 @@ pub enum IbusMsg {
     // purged. E.g., One could ask to purge the BIRT populated by a specific
     // instance of OSPFv3 but not those populated by IS-IS.
     BierPurge,
-}
-
-// Type of Segment Routing configuration change.
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub enum SrCfgEvent {
-    LabelRangeUpdate,
-    PrefixSidUpdate(AddressFamily),
-}
-
-// Type of BIER configuration events.
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub enum BierCfgEvent {
-    SubDomainUpdate(AddressFamily),
-    EncapUpdate(AddressFamily),
 }

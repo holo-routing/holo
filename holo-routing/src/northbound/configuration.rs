@@ -19,17 +19,19 @@ use holo_northbound::yang::routing::segment_routing::sr_mpls;
 use holo_northbound::yang::routing::{bier, ribs};
 use holo_northbound::{CallbackKey, NbDaemonSender};
 use holo_utils::bier::{
-    BierEncapsulation, BierEncapsulationType, BierInBiftId, BierSubDomainCfg,
-    Bsl, SubDomainId, UnderlayProtocolType,
+    BierCfgEvent, BierEncapsulation, BierEncapsulationType, BierInBiftId,
+    BierSubDomainCfg, Bsl, SubDomainId, UnderlayProtocolType,
 };
-use holo_utils::ibus::{BierCfgEvent, IbusMsg, SrCfgEvent};
+use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::mpls::LabelRange;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{
     Nexthop, NexthopSpecial, RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
 };
-use holo_utils::sr::{IgpAlgoType, SidLastHopBehavior, SrCfgPrefixSid};
+use holo_utils::sr::{
+    IgpAlgoType, SidLastHopBehavior, SrCfgEvent, SrCfgPrefixSid,
+};
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
 use ipnetwork::IpNetwork;

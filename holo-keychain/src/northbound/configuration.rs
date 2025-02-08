@@ -444,12 +444,12 @@ impl Provider for Master {
 
                 // Notify protocols that the keychain has been updated.
                 let msg = IbusMsg::KeychainUpd(keychain);
-                let _ = self.ibus_tx.send(msg);
+                let _ = self.ibus_tx.routing.send(msg);
             }
             Event::KeychainDelete(name) => {
                 // Notify protocols that the keychain has been deleted.
                 let msg = IbusMsg::KeychainDel(name);
-                let _ = self.ibus_tx.send(msg);
+                let _ = self.ibus_tx.routing.send(msg);
             }
         }
     }

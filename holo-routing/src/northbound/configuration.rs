@@ -35,9 +35,10 @@ use holo_utils::sr::{
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
 use ipnetwork::IpNetwork;
+use tokio::sync::mpsc;
 
 use crate::northbound::REGEX_PROTOCOLS;
-use crate::{InstanceId, Interface, Master};
+use crate::{InstanceHandle, InstanceId, Interface, Master};
 
 static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
     Lazy::new(load_validation_callbacks);
@@ -985,14 +986,16 @@ impl Provider for Master {
             .filter_map(|(instance_id, changes)| {
                 self.instances
                     .get(&instance_id)
-                    .cloned()
-                    .map(|nb_tx| (changes, nb_tx))
+                    .map(|instance| (changes, instance.nb_tx.clone()))
             })
             .collect::<Vec<_>>()
     }
 
     fn relay_validation(&self) -> Vec<NbDaemonSender> {
-        self.instances.values().cloned().collect()
+        self.instances
+            .values()
+            .map(|instance| instance.nb_tx.clone())
+            .collect()
     }
 
     async fn process_event(&mut self, event: Event) {
@@ -1034,7 +1037,7 @@ impl Provider for Master {
 
                 // Send message.
                 let msg = IbusMsg::RouteIpAdd(msg);
-                let _ = self.ibus_tx.send(msg);
+                let _ = self.ibus_tx.routing.send(msg);
             }
             Event::StaticRouteUninstall(prefix) => {
                 // Prepare message.
@@ -1045,47 +1048,59 @@ impl Provider for Master {
 
                 // Send message.
                 let msg = IbusMsg::RouteIpDel(msg);
-                let _ = self.ibus_tx.send(msg);
+                let _ = self.ibus_tx.routing.send(msg);
             }
             Event::SrCfgUpdate => {
                 // Update the shared SR configuration by creating a new reference-counted copy.
                 self.shared.sr_config = Arc::new(self.sr_config.clone());
 
                 // Notify protocol instances about the updated SR configuration.
-                let _ = self
-                    .ibus_tx
-                    .send(IbusMsg::SrCfgUpd(self.shared.sr_config.clone()));
+                for instance in self.instances.values() {
+                    let _ = instance
+                        .ibus_tx
+                        .send(IbusMsg::SrCfgUpd(self.shared.sr_config.clone()));
+                }
             }
             Event::SrCfgLabelRangeUpdate => {
                 // Notify protocol instances about the updated SRGB/SRLB configuration.
-                let _ = self
-                    .ibus_tx
-                    .send(IbusMsg::SrCfgEvent(SrCfgEvent::LabelRangeUpdate));
+                for instance in self.instances.values() {
+                    let _ = instance.ibus_tx.send(IbusMsg::SrCfgEvent(
+                        SrCfgEvent::LabelRangeUpdate,
+                    ));
+                }
             }
             Event::SrCfgPrefixSidUpdate(af) => {
                 // Notify protocol instances about the updated Prefix-SID configuration.
-                let _ = self
-                    .ibus_tx
-                    .send(IbusMsg::SrCfgEvent(SrCfgEvent::PrefixSidUpdate(af)));
+                for instance in self.instances.values() {
+                    let _ = instance.ibus_tx.send(IbusMsg::SrCfgEvent(
+                        SrCfgEvent::PrefixSidUpdate(af),
+                    ));
+                }
             }
             Event::BierCfgUpdate => {
                 // Update the shared BIER configuration by creating a new reference-counted copy.
                 self.shared.bier_config = Arc::new(self.bier_config.clone());
 
                 // Notify protocol instances about the updated BIER configuration.
-                let _ = self
-                    .ibus_tx
-                    .send(IbusMsg::BierCfgUpd(self.shared.bier_config.clone()));
+                for instance in self.instances.values() {
+                    let _ = instance.ibus_tx.send(IbusMsg::BierCfgUpd(
+                        self.shared.bier_config.clone(),
+                    ));
+                }
             }
             Event::BierCfgEncapUpdate(_sd_id, af, _bsl, _encap_type) => {
-                let _ = self
-                    .ibus_tx
-                    .send(IbusMsg::BierCfgEvent(BierCfgEvent::EncapUpdate(af)));
+                for instance in self.instances.values() {
+                    let _ = instance.ibus_tx.send(IbusMsg::BierCfgEvent(
+                        BierCfgEvent::EncapUpdate(af),
+                    ));
+                }
             }
             Event::BierCfgSubDomainUpdate(af) => {
-                let _ = self.ibus_tx.send(IbusMsg::BierCfgEvent(
-                    BierCfgEvent::SubDomainUpdate(af),
-                ));
+                for instance in self.instances.values() {
+                    let _ = instance.ibus_tx.send(IbusMsg::BierCfgEvent(
+                        BierCfgEvent::SubDomainUpdate(af),
+                    ));
+                }
             }
         }
     }
@@ -1098,6 +1113,7 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
     use holo_protocol::spawn_protocol_task;
 
     let instance_id = InstanceId::new(protocol, name.clone());
+    let (ibus_instance_tx, ibus_instance_rx) = mpsc::unbounded_channel();
 
     // Start protocol instance.
     let nb_daemon_tx = match protocol {
@@ -1113,6 +1129,7 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
                 name,
                 &master.nb_tx,
                 &master.ibus_tx,
+                ibus_instance_rx,
                 Default::default(),
                 master.shared.clone(),
             )
@@ -1129,6 +1146,7 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
                 name,
                 &master.nb_tx,
                 &master.ibus_tx,
+                ibus_instance_rx,
                 Default::default(),
                 master.shared.clone(),
             )
@@ -1141,6 +1159,7 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
                 name,
                 &master.nb_tx,
                 &master.ibus_tx,
+                ibus_instance_rx,
                 Default::default(),
                 master.shared.clone(),
             )
@@ -1154,6 +1173,7 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
                 name,
                 &master.nb_tx,
                 &master.ibus_tx,
+                ibus_instance_rx,
                 Default::default(),
                 master.shared.clone(),
             )
@@ -1167,6 +1187,7 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
                 name,
                 &master.nb_tx,
                 &master.ibus_tx,
+                ibus_instance_rx,
                 Default::default(),
                 master.shared.clone(),
             )
@@ -1180,6 +1201,7 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
                 name,
                 &master.nb_tx,
                 &master.ibus_tx,
+                ibus_instance_rx,
                 Default::default(),
                 master.shared.clone(),
             )
@@ -1193,6 +1215,7 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
                 name,
                 &master.nb_tx,
                 &master.ibus_tx,
+                ibus_instance_rx,
                 Default::default(),
                 master.shared.clone(),
             )
@@ -1203,9 +1226,10 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
         }
     };
 
-    // Keep track of northbound channel associated to the protocol
+    // Keep track of northbound and ibus channels associated to the protocol
     // type and name.
-    master.instances.insert(instance_id, nb_daemon_tx);
+    let instance = InstanceHandle::new(nb_daemon_tx, ibus_instance_tx);
+    master.instances.insert(instance_id, instance);
 }
 
 fn static_nexthop_get(

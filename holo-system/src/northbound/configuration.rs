@@ -94,7 +94,7 @@ impl Provider for Master {
         match event {
             Event::HostnameChange => {
                 ibus::notify_hostname_update(
-                    &self.ibus_tx,
+                    &self.ibus_tx.routing,
                     self.config.hostname.clone(),
                 );
             }

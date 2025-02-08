@@ -1448,10 +1448,11 @@ where
             }
             Event::InterfaceQuerySouthbound(ifname, af) => {
                 if self.is_active() {
-                    let _ = self.tx.ibus.send(IbusMsg::InterfaceQuery {
-                        ifname,
-                        af: Some(af),
-                    });
+                    let _ =
+                        self.tx.ibus.interface.send(IbusMsg::InterfaceQuery {
+                            ifname,
+                            af: Some(af),
+                        });
                 }
             }
             Event::StubRouterChange => {
@@ -1522,7 +1523,8 @@ where
                     if bier_enabled {
                         self.process_event(Event::ReinstallRoutes).await;
                     } else {
-                        let _ = instance.tx.ibus.send(IbusMsg::BierPurge);
+                        let _ =
+                            instance.tx.ibus.routing.send(IbusMsg::BierPurge);
                     }
                 }
             }

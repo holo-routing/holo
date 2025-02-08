@@ -4,19 +4,51 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::collections::BTreeMap;
 use std::net::IpAddr;
 
-use holo_utils::ibus::{IbusMsg, IbusSender};
+use holo_utils::ibus::{IbusChannelsTx, IbusMsg, IbusSender};
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{RouteKeyMsg, RouteMsg};
 use ipnetwork::IpNetwork;
 
 use crate::rib::Route;
-use crate::{Interface, Master};
+use crate::{InstanceHandle, InstanceId, Interface, Master};
 
 // ===== global functions =====
 
 pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
+    // Relay message to protocol instances.
+    match &msg {
+        IbusMsg::BfdSessionReg { .. } | IbusMsg::BfdSessionUnreg { .. } => {
+            // Relay to the BFD instance.
+            if let Some(instance) = master
+                .instances
+                .get(&InstanceId::new(Protocol::BFD, "main".to_owned()))
+            {
+                send(&instance.ibus_tx, msg.clone());
+            }
+        }
+        IbusMsg::BfdStateUpd { .. }
+        | IbusMsg::HostnameUpdate(..)
+        | IbusMsg::InterfaceUpd(..)
+        | IbusMsg::InterfaceDel(..)
+        | IbusMsg::InterfaceAddressAdd(..)
+        | IbusMsg::InterfaceAddressDel(..)
+        | IbusMsg::KeychainUpd(..)
+        | IbusMsg::KeychainDel(..)
+        | IbusMsg::PolicyMatchSetsUpd(..)
+        | IbusMsg::PolicyUpd(..)
+        | IbusMsg::PolicyDel(..)
+        | IbusMsg::RouterIdUpdate(..) => {
+            // Relay to all instances.
+            for instance in master.instances.values() {
+                send(&instance.ibus_tx, msg.clone());
+            }
+        }
+        _ => {}
+    }
+
     match msg {
         // Interface update notification.
         IbusMsg::InterfaceUpd(msg) => {
@@ -52,7 +84,7 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
         }
         IbusMsg::NexthopTrack(addr) => {
             // Nexthop tracking registration.
-            master.rib.nht_add(addr, &master.ibus_tx);
+            master.rib.nht_add(addr, &master.instances);
         }
         IbusMsg::NexthopUntrack(addr) => {
             // Nexthop tracking unregistration.
@@ -93,7 +125,7 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
             // Redistribute all requested routes.
             master
                 .rib
-                .redistribute_request(protocol, af, &master.ibus_tx);
+                .redistribute_request(protocol, af, &master.instances);
         }
         IbusMsg::RouteBierAdd(msg) => {
             master.birt.bier_nbr_add(msg);
@@ -110,13 +142,13 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
 }
 
 // Requests information about all interfaces addresses.
-pub(crate) fn request_addresses(ibus_tx: &IbusSender) {
-    send(ibus_tx, IbusMsg::InterfaceDump);
+pub(crate) fn request_addresses(ibus_tx: &IbusChannelsTx) {
+    send(&ibus_tx.interface, IbusMsg::InterfaceDump);
 }
 
 // Sends route redistribute update notification.
 pub(crate) fn notify_redistribute_add(
-    ibus_tx: &IbusSender,
+    instances: &BTreeMap<InstanceId, InstanceHandle>,
     prefix: IpNetwork,
     route: &Route,
 ) {
@@ -130,28 +162,34 @@ pub(crate) fn notify_redistribute_add(
         nexthops: route.nexthops.clone(),
     };
     let msg = IbusMsg::RouteRedistributeAdd(msg);
-    send(ibus_tx, msg);
+    for instance in instances.values() {
+        send(&instance.ibus_tx, msg.clone());
+    }
 }
 
 // Sends route redistribute delete notification.
 pub(crate) fn notify_redistribute_del(
-    ibus_tx: &IbusSender,
+    instances: &BTreeMap<InstanceId, InstanceHandle>,
     prefix: IpNetwork,
     protocol: Protocol,
 ) {
     let msg = RouteKeyMsg { protocol, prefix };
     let msg = IbusMsg::RouteRedistributeDel(msg);
-    send(ibus_tx, msg);
+    for instance in instances.values() {
+        send(&instance.ibus_tx, msg.clone());
+    }
 }
 
 // Sends route redistribute delete notification.
 pub(crate) fn notify_nht_update(
-    ibus_tx: &IbusSender,
+    instances: &BTreeMap<InstanceId, InstanceHandle>,
     addr: IpAddr,
     metric: Option<u32>,
 ) {
     let msg = IbusMsg::NexthopUpd { addr, metric };
-    send(ibus_tx, msg);
+    for instance in instances.values() {
+        send(&instance.ibus_tx, msg.clone());
+    }
 }
 
 // ===== helper functions =====

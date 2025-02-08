@@ -20,11 +20,11 @@ pub(crate) async fn process_msg(master: &mut Master, msg: IbusMsg) {
     match msg {
         IbusMsg::InterfaceDump => {
             for iface in master.interfaces.iter() {
-                notify_interface_update(&master.ibus_tx, iface);
+                notify_interface_update(&master.ibus_tx.routing, iface);
 
                 for iface_addr in iface.addresses.values() {
                     notify_addr_add(
-                        &master.ibus_tx,
+                        &master.ibus_tx.routing,
                         iface.name.clone(),
                         iface_addr.addr,
                         iface_addr.flags,
@@ -34,7 +34,7 @@ pub(crate) async fn process_msg(master: &mut Master, msg: IbusMsg) {
         }
         IbusMsg::InterfaceQuery { ifname, af } => {
             if let Some(iface) = master.interfaces.get_by_name(&ifname) {
-                notify_interface_update(&master.ibus_tx, iface);
+                notify_interface_update(&master.ibus_tx.routing, iface);
 
                 for iface_addr in
                     iface.addresses.values().filter(|iface_addr| match af {
@@ -43,7 +43,7 @@ pub(crate) async fn process_msg(master: &mut Master, msg: IbusMsg) {
                     })
                 {
                     notify_addr_add(
-                        &master.ibus_tx,
+                        &master.ibus_tx.routing,
                         iface.name.clone(),
                         iface_addr.addr,
                         iface_addr.flags,
@@ -53,7 +53,7 @@ pub(crate) async fn process_msg(master: &mut Master, msg: IbusMsg) {
         }
         IbusMsg::RouterIdQuery => {
             notify_router_id_update(
-                &master.ibus_tx,
+                &master.ibus_tx.routing,
                 master.interfaces.router_id(),
             );
         }

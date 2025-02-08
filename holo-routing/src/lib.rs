@@ -20,7 +20,7 @@ use holo_northbound::{
 };
 use holo_protocol::InstanceShared;
 use holo_utils::bier::BierCfg;
-use holo_utils::ibus::{IbusReceiver, IbusSender};
+use holo_utils::ibus::{IbusChannelsTx, IbusReceiver, IbusSender};
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::sr::SrCfg;
@@ -34,8 +34,8 @@ use crate::rib::{Birt, Rib};
 pub struct Master {
     // Northbound Tx channel.
     pub nb_tx: NbProviderSender,
-    // Internal bus Tx channel.
-    pub ibus_tx: IbusSender,
+    // Internal bus Tx channels.
+    pub ibus_tx: IbusChannelsTx,
     // Shared data among all protocol instances.
     pub shared: InstanceShared,
     // Netlink socket.
@@ -51,7 +51,7 @@ pub struct Master {
     // BIER configuration data.
     pub bier_config: BierCfg,
     // Protocol instances.
-    pub instances: BTreeMap<InstanceId, NbDaemonSender>,
+    pub instances: BTreeMap<InstanceId, InstanceHandle>,
     // BIER Routing Table (BIRT)
     pub birt: Birt,
 }
@@ -62,6 +62,12 @@ pub struct InstanceId {
     pub protocol: Protocol,
     // Instance name.
     pub name: String,
+}
+
+#[derive(Debug, new)]
+pub struct InstanceHandle {
+    pub nb_tx: NbDaemonSender,
+    pub ibus_tx: IbusSender,
 }
 
 #[derive(Debug, new)]
@@ -91,14 +97,14 @@ impl Master {
                     )
                     .await;
                 }
-                Ok(msg) = ibus_rx.recv() => {
+                Some(msg) = ibus_rx.recv() => {
                     ibus::process_msg(self, msg);
                 }
                 Some(_) = self.rib.update_queue_rx.recv() => {
                     self.rib
                         .process_rib_update_queue(
                             &self.netlink_handle,
-                            &self.ibus_tx,
+                            &self.instances,
                         )
                         .await;
                 }
@@ -111,7 +117,7 @@ impl Master {
 
 pub fn start(
     nb_tx: NbProviderSender,
-    ibus_tx: IbusSender,
+    ibus_tx: IbusChannelsTx,
     ibus_rx: IbusReceiver,
     shared: InstanceShared,
 ) -> NbDaemonSender {
@@ -142,14 +148,18 @@ pub fn start(
 
             let name = "main".to_owned();
             let instance_id = InstanceId::new(Protocol::BFD, name.clone());
+            let (ibus_instance_tx, ibus_instance_rx) =
+                mpsc::unbounded_channel();
             let nb_daemon_tx = spawn_protocol_task::<holo_bfd::master::Master>(
                 name,
                 &master.nb_tx,
                 &master.ibus_tx,
+                ibus_instance_rx,
                 Default::default(),
                 shared,
             );
-            master.instances.insert(instance_id, nb_daemon_tx);
+            let instance = InstanceHandle::new(nb_daemon_tx, ibus_instance_tx);
+            master.instances.insert(instance_id, instance);
         }
 
         // Run task main loop.

@@ -74,7 +74,7 @@ fn load_callbacks() -> Callbacks<Master> {
     CallbacksBuilder::<Master>::default()
         .path(control_plane_protocol::PATH)
         .get_iterate(|master, _args| {
-            let iter = master.instances.iter().map(|(instance_id, nb_tx)| ProtocolInstance::new(instance_id, nb_tx)).map(ListEntry::ProtocolInstance);
+            let iter = master.instances.iter().map(|(instance_id, instance)| ProtocolInstance::new(instance_id, &instance.nb_tx)).map(ListEntry::ProtocolInstance);
             Some(Box::new(iter))
         })
         .get_object(|_master, args| {

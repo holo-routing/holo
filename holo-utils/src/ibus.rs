@@ -8,9 +8,8 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use tokio::sync::broadcast::{Receiver, Sender};
+use tokio::sync::mpsc;
 
-use crate::bfd;
 use crate::bier::{BierCfg, BierCfgEvent};
 use crate::ip::AddressFamily;
 use crate::keychain::Keychain;
@@ -22,10 +21,31 @@ use crate::southbound::{
     LabelInstallMsg, LabelUninstallMsg, MacvlanAddMsg, RouteKeyMsg, RouteMsg,
 };
 use crate::sr::{SrCfg, SrCfgEvent};
+use crate::{UnboundedReceiver, UnboundedSender, bfd};
 
 // Useful type definition(s).
-pub type IbusReceiver = Receiver<IbusMsg>;
-pub type IbusSender = Sender<IbusMsg>;
+pub type IbusReceiver = UnboundedReceiver<IbusMsg>;
+pub type IbusSender = UnboundedSender<IbusMsg>;
+
+// Ibus output channels.
+#[derive(Clone, Debug)]
+pub struct IbusChannelsTx {
+    pub routing: UnboundedSender<IbusMsg>,
+    pub interface: UnboundedSender<IbusMsg>,
+    pub system: UnboundedSender<IbusMsg>,
+    pub keychain: UnboundedSender<IbusMsg>,
+    pub policy: UnboundedSender<IbusMsg>,
+}
+
+// Ibus input channels.
+#[derive(Debug)]
+pub struct IbusChannelsRx {
+    pub routing: UnboundedReceiver<IbusMsg>,
+    pub interface: UnboundedReceiver<IbusMsg>,
+    pub system: UnboundedReceiver<IbusMsg>,
+    pub keychain: UnboundedReceiver<IbusMsg>,
+    pub policy: UnboundedReceiver<IbusMsg>,
+}
 
 // Ibus message for communication among the different Holo components.
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -130,4 +150,31 @@ pub enum IbusMsg {
     // purged. E.g., One could ask to purge the BIRT populated by a specific
     // instance of OSPFv3 but not those populated by IS-IS.
     BierPurge,
+}
+
+// ===== global functions =====
+
+pub fn ibus_channels() -> (IbusChannelsTx, IbusChannelsRx) {
+    let (routing_tx, routing_rx) = mpsc::unbounded_channel();
+    let (interface_tx, interface_rx) = mpsc::unbounded_channel();
+    let (system_tx, system_rx) = mpsc::unbounded_channel();
+    let (keychain_tx, keychain_rx) = mpsc::unbounded_channel();
+    let (policy_tx, policy_rx) = mpsc::unbounded_channel();
+
+    let tx = IbusChannelsTx {
+        routing: routing_tx,
+        interface: interface_tx,
+        system: system_tx,
+        keychain: keychain_tx,
+        policy: policy_tx,
+    };
+    let rx = IbusChannelsRx {
+        routing: routing_rx,
+        interface: interface_rx,
+        system: system_rx,
+        keychain: keychain_rx,
+        policy: policy_rx,
+    };
+
+    (tx, rx)
 }

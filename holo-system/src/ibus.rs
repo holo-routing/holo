@@ -14,7 +14,7 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
     match msg {
         IbusMsg::HostnameQuery => {
             notify_hostname_update(
-                &master.ibus_tx,
+                &master.ibus_tx.routing,
                 master.config.hostname.clone(),
             );
         }

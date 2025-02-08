@@ -9,7 +9,7 @@
 
 use std::collections::BTreeSet;
 
-use holo_utils::ibus::{IbusMsg, IbusSender};
+use holo_utils::ibus::{IbusChannelsTx, IbusMsg};
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{
     Nexthop, RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
@@ -21,12 +21,12 @@ use crate::route::Route;
 
 // ===== global functions =====
 
-pub(crate) fn router_id_query(ibus_tx: &IbusSender) {
-    let _ = ibus_tx.send(IbusMsg::RouterIdQuery);
+pub(crate) fn router_id_query(ibus_tx: &IbusChannelsTx) {
+    let _ = ibus_tx.interface.send(IbusMsg::RouterIdQuery);
 }
 
 pub(crate) fn route_install(
-    ibus_tx: &IbusSender,
+    ibus_tx: &IbusChannelsTx,
     destination: &IpNetwork,
     route: &Route,
     distance: u8,
@@ -59,11 +59,11 @@ pub(crate) fn route_install(
         nexthops: nexthops.clone(),
     };
     let msg = IbusMsg::RouteIpAdd(msg);
-    let _ = ibus_tx.send(msg);
+    let _ = ibus_tx.routing.send(msg);
 }
 
 pub(crate) fn route_uninstall(
-    ibus_tx: &IbusSender,
+    ibus_tx: &IbusChannelsTx,
     destination: &IpNetwork,
     _route: &Route,
 ) {
@@ -73,5 +73,5 @@ pub(crate) fn route_uninstall(
         prefix: *destination,
     };
     let msg = IbusMsg::RouteIpDel(msg);
-    let _ = ibus_tx.send(msg);
+    let _ = ibus_tx.interface.send(msg);
 }

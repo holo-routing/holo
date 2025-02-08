@@ -558,7 +558,7 @@ where
             client_id: self.bfd_client_id(instance),
             client_config: Some(iface.config.bfd_params),
         };
-        let _ = instance.tx.ibus.send(msg);
+        let _ = instance.tx.ibus.routing.send(msg);
     }
 
     pub(crate) fn bfd_unregister(
@@ -572,7 +572,7 @@ where
             sess_key: self.bfd_session_key(iface),
             client_id: self.bfd_client_id(instance),
         };
-        let _ = instance.tx.ibus.send(msg);
+        let _ = instance.tx.ibus.routing.send(msg);
     }
 
     fn bfd_session_key(&self, iface: &Interface<V>) -> bfd::SessionKey {

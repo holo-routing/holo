@@ -7,14 +7,14 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use holo_utils::ibus::{IbusMsg, IbusSender};
+use holo_utils::ibus::{IbusChannelsTx, IbusMsg};
 use holo_utils::southbound::{
     InterfaceIpAddRequestMsg, InterfaceIpDelRequestMsg, MacvlanAddMsg,
 };
 use ipnetwork::IpNetwork;
 
 pub(crate) fn mvlan_create(
-    ibus_tx: &IbusSender,
+    ibus_tx: &IbusChannelsTx,
     parent_name: String,
     name: String,
     mac_address: [u8; 6],
@@ -24,15 +24,15 @@ pub(crate) fn mvlan_create(
         name,
         mac_address: Some(mac_address),
     };
-    let _ = ibus_tx.send(IbusMsg::MacvlanAdd(msg));
+    let _ = ibus_tx.interface.send(IbusMsg::MacvlanAdd(msg));
 }
 
-pub(crate) fn mvlan_delete(ibus_tx: &IbusSender, name: impl Into<String>) {
-    let _ = ibus_tx.send(IbusMsg::MacvlanDel(name.into()));
+pub(crate) fn mvlan_delete(ibus_tx: &IbusChannelsTx, name: impl Into<String>) {
+    let _ = ibus_tx.interface.send(IbusMsg::MacvlanDel(name.into()));
 }
 
 pub(crate) fn ip_addr_add(
-    ibus_tx: &IbusSender,
+    ibus_tx: &IbusChannelsTx,
     ifname: impl Into<String>,
     addr: impl Into<IpNetwork>,
 ) {
@@ -40,11 +40,11 @@ pub(crate) fn ip_addr_add(
         ifname: ifname.into(),
         addr: addr.into(),
     };
-    let _ = ibus_tx.send(IbusMsg::InterfaceIpAddRequest(msg));
+    let _ = ibus_tx.interface.send(IbusMsg::InterfaceIpAddRequest(msg));
 }
 
 pub(crate) fn ip_addr_del(
-    ibus_tx: &IbusSender,
+    ibus_tx: &IbusChannelsTx,
     ifname: impl Into<String>,
     addr: impl Into<IpNetwork>,
 ) {
@@ -52,5 +52,5 @@ pub(crate) fn ip_addr_del(
         ifname: ifname.into(),
         addr: addr.into(),
     };
-    let _ = ibus_tx.send(IbusMsg::InterfaceIpDelRequest(msg));
+    let _ = ibus_tx.interface.send(IbusMsg::InterfaceIpDelRequest(msg));
 }

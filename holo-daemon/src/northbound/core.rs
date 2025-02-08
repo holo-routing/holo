@@ -16,14 +16,13 @@ use holo_northbound::{
     CallbackKey, CallbackOp, NbDaemonSender, NbProviderReceiver, api as papi,
 };
 use holo_protocol::InstanceShared;
-use holo_utils::ibus::{IbusReceiver, IbusSender};
 use holo_utils::task::TimeoutTask;
 use holo_utils::yang::SchemaNodeExt;
-use holo_utils::{Database, Receiver, Sender, UnboundedReceiver};
+use holo_utils::{Database, Receiver, Sender, UnboundedReceiver, ibus};
 use holo_yang::YANG_CTX;
 use pickledb::PickleDb;
 use serde::{Deserialize, Serialize};
-use tokio::sync::{broadcast, mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, info, instrument, trace, warn};
 use yang3::data::{
     Data, DataDiffFlags, DataFormat, DataPrinterFlags, DataTree,
@@ -641,14 +640,7 @@ fn start_providers(
 ) -> (NbProviderReceiver, Vec<NbDaemonSender>) {
     let mut providers = Vec::new();
     let (provider_tx, provider_rx) = mpsc::unbounded_channel();
-    let (ibus_tx, ibus_rx): (IbusSender, IbusReceiver) =
-        broadcast::channel(1024);
-    let ibus_rx_routing = ibus_tx.subscribe();
-    let ibus_rx_interface = ibus_tx.subscribe();
-    let ibus_rx_keychain = ibus_tx.subscribe();
-    let ibus_rx_policy = ibus_tx.subscribe();
-    let ibus_rx_system = ibus_rx;
-
+    let (ibus_tx, ibus_rx) = ibus::ibus_channels();
     let shared = InstanceShared {
         db: Some(db),
         event_recorder_config: Some(config.event_recorder.clone()),
@@ -661,7 +653,7 @@ fn start_providers(
         let daemon_tx = holo_interface::start(
             provider_tx.clone(),
             ibus_tx.clone(),
-            ibus_rx_interface,
+            ibus_rx.interface,
             shared.clone(),
         );
         providers.push(daemon_tx);
@@ -673,7 +665,7 @@ fn start_providers(
         let daemon_tx = holo_keychain::start(
             provider_tx.clone(),
             ibus_tx.clone(),
-            ibus_rx_keychain,
+            ibus_rx.keychain,
         );
         providers.push(daemon_tx);
     }
@@ -684,7 +676,7 @@ fn start_providers(
         let daemon_tx = holo_policy::start(
             provider_tx.clone(),
             ibus_tx.clone(),
-            ibus_rx_policy,
+            ibus_rx.policy,
         );
         providers.push(daemon_tx);
     }
@@ -695,7 +687,7 @@ fn start_providers(
         let daemon_tx = holo_system::start(
             provider_tx.clone(),
             ibus_tx.clone(),
-            ibus_rx_system,
+            ibus_rx.system,
         );
         providers.push(daemon_tx);
     }
@@ -704,7 +696,7 @@ fn start_providers(
     #[cfg(feature = "routing")]
     {
         let daemon_tx =
-            holo_routing::start(provider_tx, ibus_tx, ibus_rx_routing, shared);
+            holo_routing::start(provider_tx, ibus_tx, ibus_rx.routing, shared);
         providers.push(daemon_tx);
     }
 

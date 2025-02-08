@@ -456,10 +456,12 @@ where
             }
             Event::InterfaceQuerySouthbound(ifname) => {
                 if let Instance::Up(instance) = self {
-                    let _ = instance.tx.ibus.send(IbusMsg::InterfaceQuery {
-                        ifname,
-                        af: Some(V::ADDRESS_FAMILY),
-                    });
+                    let _ = instance.tx.ibus.interface.send(
+                        IbusMsg::InterfaceQuery {
+                            ifname,
+                            af: Some(V::ADDRESS_FAMILY),
+                        },
+                    );
                 }
             }
             Event::JoinMulticast(iface_idx) => {

@@ -69,7 +69,9 @@ impl Provider for Master {
 impl ListEntryKind for ListEntry<'_> {
     fn child_task(&self) -> Option<NbDaemonSender> {
         match self {
-            ListEntry::Interface(iface) => iface.vrrp.clone(),
+            ListEntry::Interface(iface) => {
+                iface.vrrp.as_ref().map(|vrrp| vrrp.nb_tx.clone())
+            }
             _ => None,
         }
     }

@@ -73,7 +73,7 @@ async fn process_newlink_msg(
     };
 
     // Add or update interface.
-    let ibus_tx = notify.then_some(&master.ibus_tx);
+    let ibus_tx = notify.then_some(&master.ibus_tx.routing);
     master
         .interfaces
         .update(
@@ -100,7 +100,7 @@ async fn process_dellink_msg(
 
     // Remove interface.
     if let Some(iface) = master.interfaces.get_by_ifindex(ifindex) {
-        let ibus_tx = notify.then_some(&master.ibus_tx);
+        let ibus_tx = notify.then_some(&master.ibus_tx.routing);
         let ifname = iface.name.clone();
         master
             .interfaces
@@ -135,7 +135,7 @@ fn process_newaddr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
     };
 
     // Add address to the interface.
-    let ibus_tx = notify.then_some(&master.ibus_tx);
+    let ibus_tx = notify.then_some(&master.ibus_tx.routing);
     master.interfaces.addr_add(ifindex, addr, ibus_tx);
 }
 
@@ -165,7 +165,7 @@ fn process_deladdr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
     };
 
     // Remove address from the interface.
-    let ibus_tx = notify.then_some(&master.ibus_tx);
+    let ibus_tx = notify.then_some(&master.ibus_tx.routing);
     master.interfaces.addr_del(ifindex, addr, ibus_tx);
 }
 

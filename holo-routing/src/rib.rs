@@ -11,7 +11,6 @@ use bitflags::bitflags;
 use chrono::{DateTime, Utc};
 use derive_new::new;
 use holo_utils::bier::{BfrId, BirtEntry, Bsl, SubDomainId};
-use holo_utils::ibus::IbusSender;
 use holo_utils::ip::{AddressFamily, IpNetworkExt, Ipv4AddrExt, Ipv6AddrExt};
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
@@ -26,7 +25,7 @@ use prefix_trie::map::PrefixMap;
 use tokio::sync::mpsc;
 use tracing::{debug, warn};
 
-use crate::{Interface, ibus, netlink};
+use crate::{InstanceHandle, InstanceId, Interface, ibus, netlink};
 
 #[derive(Debug)]
 pub struct Rib {
@@ -348,10 +347,14 @@ impl Rib {
     }
 
     // Nexthop tracking registration.
-    pub(crate) fn nht_add(&mut self, addr: IpAddr, ibus_tx: &IbusSender) {
+    pub(crate) fn nht_add(
+        &mut self,
+        addr: IpAddr,
+        instances: &BTreeMap<InstanceId, InstanceHandle>,
+    ) {
         debug!(%addr, "nexthop tracking add");
         let metric = self.nht_evaluate(&addr);
-        ibus::notify_nht_update(ibus_tx, addr, metric);
+        ibus::notify_nht_update(instances, addr, metric);
         self.nht.entry(addr).or_insert(metric);
     }
 
@@ -371,7 +374,7 @@ impl Rib {
     pub(crate) async fn process_rib_update_queue(
         &mut self,
         netlink_handle: &rtnetlink::Handle,
-        ibus_tx: &IbusSender,
+        instances: &BTreeMap<InstanceId, InstanceHandle>,
     ) {
         // Process IP update queue.
         while let Some(prefix) = self.ip_update_queue.pop_first() {
@@ -404,7 +407,7 @@ impl Rib {
                     }
 
                     // Notify protocol instances about the updated route.
-                    ibus::notify_redistribute_add(ibus_tx, prefix, route);
+                    ibus::notify_redistribute_add(instances, prefix, route);
                 } else {
                     // Remove the preferred flag for other routes.
                     route.flags.remove(RouteFlags::ACTIVE);
@@ -425,7 +428,7 @@ impl Rib {
                     }
 
                     // Notify protocol instances about the deleted route.
-                    ibus::notify_redistribute_del(ibus_tx, prefix, protocol);
+                    ibus::notify_redistribute_del(instances, prefix, protocol);
                 }
 
                 // Remove prefix entry from the RIB.
@@ -475,7 +478,7 @@ impl Rib {
                     "nexthop tracking update"
                 );
                 *metric = new_metric;
-                ibus::notify_nht_update(ibus_tx, *addr, *metric);
+                ibus::notify_nht_update(instances, *addr, *metric);
             }
         }
         self.nht = nht;
@@ -486,7 +489,7 @@ impl Rib {
         &mut self,
         protocol: Protocol,
         af: Option<AddressFamily>,
-        ibus_tx: &IbusSender,
+        instances: &BTreeMap<InstanceId, InstanceHandle>,
     ) {
         debug!(%protocol, "route redistribution request");
 
@@ -499,7 +502,7 @@ impl Rib {
                         && !route.flags.contains(RouteFlags::REMOVED)
                 })
             {
-                ibus::notify_redistribute_add(ibus_tx, prefix, best_route);
+                ibus::notify_redistribute_add(instances, prefix, best_route);
             }
         };
 

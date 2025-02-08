@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use holo_utils::bgp::RouteType;
-use holo_utils::ibus::IbusSender;
+use holo_utils::ibus::IbusChannelsTx;
 use holo_utils::protocol::Protocol;
 use prefix_trie::map::PrefixMap;
 use serde::{Deserialize, Serialize};
@@ -761,7 +761,7 @@ pub(crate) fn loc_rib_update<A>(
     selection_cfg: &RouteSelectionCfg,
     mpath_cfg: &MultipathCfg,
     distance_cfg: &DistanceCfg,
-    ibus_tx: &IbusSender,
+    ibus_tx: &IbusChannelsTx,
 ) where
     A: AddressFamily,
 {
@@ -857,7 +857,7 @@ pub(crate) fn nexthop_track<A>(
     nht: &mut HashMap<IpAddr, NhtEntry<A>>,
     prefix: A::IpNetwork,
     route: &Route,
-    ibus_tx: &IbusSender,
+    ibus_tx: &IbusChannelsTx,
 ) where
     A: AddressFamily,
 {
@@ -873,7 +873,7 @@ pub(crate) fn nexthop_untrack<A>(
     nht: &mut HashMap<IpAddr, NhtEntry<A>>,
     prefix: &A::IpNetwork,
     route: &Route,
-    ibus_tx: &IbusSender,
+    ibus_tx: &IbusChannelsTx,
 ) where
     A: AddressFamily,
 {

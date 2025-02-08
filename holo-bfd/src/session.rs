@@ -145,7 +145,7 @@ impl Session {
                 sess_key: self.key.clone(),
                 state,
             };
-            let _ = tx.ibus.send(msg);
+            let _ = tx.ibus.routing.send(msg);
         }
 
         // Send YANG notification.

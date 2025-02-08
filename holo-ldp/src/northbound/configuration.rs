@@ -471,10 +471,12 @@ impl Provider for Instance {
             }
             Event::InterfaceQuerySouthbound(ifname) => {
                 if let Some((instance, _, _)) = self.as_up() {
-                    let _ = instance.tx.ibus.send(IbusMsg::InterfaceQuery {
-                        ifname,
-                        af: Some(AddressFamily::Ipv4),
-                    });
+                    let _ = instance.tx.ibus.interface.send(
+                        IbusMsg::InterfaceQuery {
+                            ifname,
+                            af: Some(AddressFamily::Ipv4),
+                        },
+                    );
                 }
             }
             Event::TargetedNbrUpdate(tnbr_idx) => {

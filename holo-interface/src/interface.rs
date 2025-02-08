@@ -8,6 +8,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::net::{IpAddr, Ipv4Addr};
 
 use bitflags::bitflags;
+use derive_new::new;
 use generational_arena::{Arena, Index};
 use holo_northbound::NbDaemonSender;
 use holo_utils::ibus::IbusSender;
@@ -40,7 +41,7 @@ pub struct Interface {
     pub addresses: BTreeMap<IpNetwork, InterfaceAddress>,
     pub mac_address: [u8; 6],
     pub owner: Owner,
-    pub vrrp: Option<NbDaemonSender>,
+    pub vrrp: Option<VrrpHandle>,
 }
 
 #[derive(Debug)]
@@ -55,6 +56,12 @@ bitflags! {
         const CONFIG = 0x01;
         const SYSTEM = 0x02;
     }
+}
+
+#[derive(Debug, new)]
+pub struct VrrpHandle {
+    pub nb_tx: NbDaemonSender,
+    pub ibus_tx: IbusSender,
 }
 
 // ===== impl Interface =====

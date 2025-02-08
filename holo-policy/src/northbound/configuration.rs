@@ -1110,7 +1110,7 @@ impl Provider for Master {
                 // Notify protocols that the policy match sets have been
                 // updated.
                 let msg = IbusMsg::PolicyMatchSetsUpd(match_sets);
-                let _ = self.ibus_tx.send(msg);
+                let _ = self.ibus_tx.routing.send(msg);
             }
             Event::PolicyChange(name) => {
                 let policy = self.policies.get_mut(&name).unwrap();
@@ -1121,12 +1121,12 @@ impl Provider for Master {
 
                 // Notify protocols that the policy has been updated.
                 let msg = IbusMsg::PolicyUpd(policy);
-                let _ = self.ibus_tx.send(msg);
+                let _ = self.ibus_tx.routing.send(msg);
             }
             Event::PolicyDelete(name) => {
                 // Notify protocols that the policy definition has been deleted.
                 let msg = IbusMsg::PolicyDel(name);
-                let _ = self.ibus_tx.send(msg);
+                let _ = self.ibus_tx.routing.send(msg);
             }
         }
     }

@@ -19,6 +19,7 @@ use holo_utils::bfd;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
+use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::{ToYang, TryFromYang};
 use yang3::data::Data;
@@ -65,7 +66,7 @@ pub enum Event {
     InterfaceSyncHelloTx(AreaIndex, InterfaceIndex),
     InterfaceUpdateAuth(AreaIndex, InterfaceIndex),
     InterfaceBfdChange(InterfaceIndex),
-    InterfaceQuerySouthbound(String, AddressFamily),
+    InterfaceQuerySouthbound(String),
     StubRouterChange,
     GrHelperChange,
     SrEnableChange(bool),
@@ -519,11 +520,10 @@ where
                 .interfaces
                 .insert(&mut instance.arenas.interfaces, &ifname);
 
-            let af = V::address_family(instance);
             let event_queue = args.event_queue;
             event_queue.insert(Event::InstanceUpdate);
             event_queue.insert(Event::InterfaceUpdate(area_idx, iface_idx));
-            event_queue.insert(Event::InterfaceQuerySouthbound(ifname, af));
+            event_queue.insert(Event::InterfaceQuerySouthbound(ifname));
         })
         .delete_apply(|_instance, args| {
             let (area_idx, iface_idx) =
@@ -1446,13 +1446,22 @@ where
                     }
                 }
             }
-            Event::InterfaceQuerySouthbound(ifname, af) => {
+            Event::InterfaceQuerySouthbound(ifname) => {
                 if self.is_active() {
-                    let _ =
-                        self.tx.ibus.interface.send(IbusMsg::InterfaceQuery {
-                            ifname,
-                            af: Some(af),
-                        });
+                    let af = match (V::PROTOCOL, V::address_family(self)) {
+                        (Protocol::OSPFV3, AddressFamily::Ipv4) => {
+                            // OSPFv3 supports both IPv4 and IPv6 but runs over
+                            // IPv6 transport. When routing IPv4, both IPv4 and
+                            // IPv6 interface addresses are required.
+                            None
+                        }
+                        (_, af) => Some(af),
+                    };
+                    let _ = self
+                        .tx
+                        .ibus
+                        .interface
+                        .send(IbusMsg::InterfaceQuery { ifname, af });
                 }
             }
             Event::StubRouterChange => {

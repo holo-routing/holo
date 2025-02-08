@@ -1,11 +1,5 @@
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"2.2.2.2"}}
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"2.2.2.2"}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt4-1","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt4-2","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-sw1","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv6"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt4-1","ifindex":5,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
@@ -45,13 +39,9 @@
 {"Protocol":{"NetRxPacket":{"area_key":{"Id":1},"iface_key":{"Id":3},"src":"fe80::38dd:5dff:fe08:46d1","dst":"ff02::5","packet":{"Ok":{"Hello":{"hdr":{"pkt_type":"Hello","router_id":"1.1.1.1","area_id":"0.0.0.0","instance_id":0},"iface_id":3,"priority":1,"options":"V6 | E | R | AF","hello_interval":3,"dead_interval":12,"dr":null,"bdr":null,"neighbors":["2.2.2.2","3.3.3.3"]}}}}}}
 {"Protocol":{"SpfDelayEvent":{"event":"Igp"}}}
 {"Protocol":{"SpfDelayEvent":{"event":"Igp"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt4-1","af":"Ipv4"}}}
 {"Protocol":{"SpfDelayEvent":{"event":"Igp"}}}
 {"Protocol":{"SpfDelayEvent":{"event":"Igp"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt4-2","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-sw1","af":"Ipv4"}}}
 {"Protocol":{"IsmEvent":{"area_key":{"Id":1},"iface_key":{"Id":3},"event":"NbrChange"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"fe80::/64","distance":0,"metric":0,"tag":null,"nexthops":[{"Interface":{"ifindex":5}}]}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"2001:db8:1000::2/128","distance":0,"metric":0,"tag":null,"nexthops":[{"Interface":{"ifindex":1}}]}}}
 {"Protocol":{"SpfDelayEvent":{"event":"Igp"}}}

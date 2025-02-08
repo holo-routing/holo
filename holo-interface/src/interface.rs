@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::net::{IpAddr, Ipv4Addr};
 
 use bitflags::bitflags;
@@ -12,7 +12,7 @@ use derive_new::new;
 use generational_arena::{Arena, Index};
 use holo_northbound::NbDaemonSender;
 use holo_utils::ibus::IbusSender;
-use holo_utils::ip::Ipv4NetworkExt;
+use holo_utils::ip::{AddressFamily, IpAddrKind, Ipv4NetworkExt};
 use holo_utils::southbound::{AddressFlags, InterfaceFlags};
 use ipnetwork::{IpNetwork, Ipv4Network};
 
@@ -29,6 +29,10 @@ pub struct Interfaces {
     ifindex_tree: HashMap<u32, Index>,
     // Auto-generated Router ID.
     router_id: Option<Ipv4Addr>,
+    // Interface subscriptions.
+    pub subscriptions: HashMap<usize, InterfaceSub>,
+    // Router ID subscriptions.
+    pub router_id_subscriptions: HashMap<usize, IbusSender>,
 }
 
 #[derive(Debug)]
@@ -42,6 +46,7 @@ pub struct Interface {
     pub mac_address: [u8; 6],
     pub owner: Owner,
     pub vrrp: Option<VrrpHandle>,
+    pub subscriptions: HashMap<usize, InterfaceSub>,
 }
 
 #[derive(Debug)]
@@ -62,6 +67,13 @@ bitflags! {
 pub struct VrrpHandle {
     pub nb_tx: NbDaemonSender,
     pub ibus_tx: IbusSender,
+}
+
+#[derive(Debug)]
+#[derive(new)]
+pub struct InterfaceSub {
+    afs: BTreeSet<AddressFamily>,
+    tx: IbusSender,
 }
 
 // ===== impl Interface =====
@@ -135,6 +147,7 @@ impl Interfaces {
             mac_address: Default::default(),
             owner: Owner::CONFIG,
             vrrp: None,
+            subscriptions: Default::default(),
         };
 
         let iface_idx = self.arena.insert(iface);
@@ -150,7 +163,6 @@ impl Interfaces {
         flags: InterfaceFlags,
         mac_address: [u8; 6],
         netlink_handle: &rtnetlink::Handle,
-        ibus_tx: Option<&IbusSender>,
     ) {
         match self
             .ifindex_tree
@@ -186,23 +198,29 @@ impl Interfaces {
                 iface.flags = flags;
                 iface.mac_address = mac_address;
 
-                // Notify protocol instances about the interface update.
+                // Notify subscribers about the interface update.
                 //
                 // Additionally, if the operational status of the interface has
                 // changed, either readvertise or withdraw its addresses.
-                if let Some(ibus_tx) = ibus_tx {
-                    ibus::notify_interface_update(ibus_tx, iface);
+                for sub in self
+                    .subscriptions
+                    .values()
+                    .chain(iface.subscriptions.values())
+                {
+                    ibus::notify_interface_update(&sub.tx, iface);
 
                     if status_change {
-                        for addr in iface.addresses.values() {
+                        for addr in iface.addresses.values().filter(|addr| {
+                            sub.afs.contains(&addr.addr.ip().address_family())
+                        }) {
                             let ifname = iface.name.clone();
                             if iface.flags.contains(InterfaceFlags::OPERATIVE) {
                                 ibus::notify_addr_add(
-                                    ibus_tx, ifname, addr.addr, addr.flags,
+                                    &sub.tx, ifname, addr.addr, addr.flags,
                                 );
                             } else {
                                 ibus::notify_addr_del(
-                                    ibus_tx, ifname, addr.addr, addr.flags,
+                                    &sub.tx, ifname, addr.addr, addr.flags,
                                 );
                             }
                         }
@@ -231,11 +249,16 @@ impl Interfaces {
                     mac_address,
                     owner: Owner::SYSTEM,
                     vrrp: None,
+                    subscriptions: Default::default(),
                 };
 
-                // Notify protocol instances about the interface update.
-                if let Some(ibus_tx) = ibus_tx {
-                    ibus::notify_interface_update(ibus_tx, &iface);
+                // Notify subscribers about the interface update.
+                for sub in self
+                    .subscriptions
+                    .values()
+                    .chain(iface.subscriptions.values())
+                {
+                    ibus::notify_interface_update(&sub.tx, &iface);
                 }
 
                 let iface_idx = self.arena.insert(iface);
@@ -251,7 +274,6 @@ impl Interfaces {
         ifname: &str,
         owner: Owner,
         netlink_handle: &rtnetlink::Handle,
-        ibus_tx: Option<&IbusSender>,
     ) {
         let Some(iface_idx) = self.name_tree.get(ifname).copied() else {
             return;
@@ -276,9 +298,13 @@ impl Interfaces {
             return;
         }
 
-        // Notify protocol instances.
-        if let Some(ibus_tx) = ibus_tx {
-            ibus::notify_interface_del(ibus_tx, iface.name.clone());
+        // Notify subscribers about the interface update.
+        for sub in self
+            .subscriptions
+            .values()
+            .chain(iface.subscriptions.values())
+        {
+            ibus::notify_interface_del(&sub.tx, iface.name.clone());
         }
 
         // Remove interface.
@@ -289,16 +315,11 @@ impl Interfaces {
         self.arena.remove(iface_idx);
 
         // Check if the Router ID needs to be updated.
-        self.update_router_id(ibus_tx);
+        self.update_router_id();
     }
 
     // Adds the specified address to the interface identified by its ifindex.
-    pub(crate) fn addr_add(
-        &mut self,
-        ifindex: u32,
-        addr: IpNetwork,
-        ibus_tx: Option<&IbusSender>,
-    ) {
+    pub(crate) fn addr_add(&mut self, ifindex: u32, addr: IpNetwork) {
         // Ignore loopback addresses.
         if addr.ip().is_loopback() {
             return;
@@ -320,23 +341,24 @@ impl Interfaces {
         let iface_addr = InterfaceAddress { addr, flags };
         iface.addresses.insert(addr, iface_addr);
 
-        // Notify protocol instances.
-        if let Some(ibus_tx) = ibus_tx {
+        // Notify subscribers about the address addition.
+        let iface = self.get_by_ifindex(ifindex).unwrap();
+        for sub in self
+            .subscriptions
+            .values()
+            .chain(iface.subscriptions.values())
+            .filter(|sub| sub.afs.contains(&addr.ip().address_family()))
+        {
             let ifname = iface.name.clone();
-            ibus::notify_addr_add(ibus_tx, ifname, addr, flags);
+            ibus::notify_addr_add(&sub.tx, ifname, addr, flags);
         }
 
         // Check if the Router ID needs to be updated.
-        self.update_router_id(ibus_tx);
+        self.update_router_id();
     }
 
     // Removes the specified address from the interface identified by its ifindex.
-    pub(crate) fn addr_del(
-        &mut self,
-        ifindex: u32,
-        addr: IpNetwork,
-        ibus_tx: Option<&IbusSender>,
-    ) {
+    pub(crate) fn addr_del(&mut self, ifindex: u32, addr: IpNetwork) {
         // Lookup interface.
         let Some(iface) = self.get_mut_by_ifindex(ifindex) else {
             return;
@@ -344,11 +366,17 @@ impl Interfaces {
 
         // Remove address from the interface.
         if let Some(iface_addr) = iface.addresses.remove(&addr) {
-            // Notify protocol instances.
-            if let Some(ibus_tx) = ibus_tx {
+            // Notify subscribers about the address removal.
+            let iface = self.get_by_ifindex(ifindex).unwrap();
+            for sub in self
+                .subscriptions
+                .values()
+                .chain(iface.subscriptions.values())
+                .filter(|sub| sub.afs.contains(&addr.ip().address_family()))
+            {
                 let ifname = iface.name.clone();
                 ibus::notify_addr_del(
-                    ibus_tx,
+                    &sub.tx,
                     ifname,
                     iface_addr.addr,
                     iface_addr.flags,
@@ -356,7 +384,7 @@ impl Interfaces {
             }
 
             // Check if the Router ID needs to be updated.
-            self.update_router_id(ibus_tx);
+            self.update_router_id();
         }
     }
 
@@ -366,7 +394,7 @@ impl Interfaces {
     }
 
     // Updates the auto-generated Router ID.
-    fn update_router_id(&mut self, ibus_tx: Option<&IbusSender>) {
+    fn update_router_id(&mut self) {
         let loopback_interfaces = self
             .iter()
             .filter(|iface| iface.flags.contains(InterfaceFlags::LOOPBACK));
@@ -404,8 +432,8 @@ impl Interfaces {
             // Update the Router ID with the new value.
             self.router_id = router_id;
 
-            // Notify the protocol instances about the Router ID update.
-            if let Some(ibus_tx) = ibus_tx {
+            // Notify subscribers about the Router ID update.
+            for ibus_tx in self.router_id_subscriptions.values() {
                 ibus::notify_router_id_update(ibus_tx, self.router_id);
             }
         }
@@ -458,5 +486,14 @@ impl Interfaces {
         self.name_tree
             .values()
             .map(|iface_idx| &self.arena[*iface_idx])
+    }
+
+    // Returns an iterator visiting all interfaces with mutable references.
+    //
+    // Order of iteration is not defined.
+    pub(crate) fn iter_mut(
+        &mut self,
+    ) -> impl Iterator<Item = &'_ mut Interface> + '_ {
+        self.arena.iter_mut().map(|(_, iface)| iface)
     }
 }

@@ -31,16 +31,11 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
         }
         IbusMsg::BfdStateUpd { .. }
         | IbusMsg::HostnameUpdate(..)
-        | IbusMsg::InterfaceUpd(..)
-        | IbusMsg::InterfaceDel(..)
-        | IbusMsg::InterfaceAddressAdd(..)
-        | IbusMsg::InterfaceAddressDel(..)
         | IbusMsg::KeychainUpd(..)
         | IbusMsg::KeychainDel(..)
         | IbusMsg::PolicyMatchSetsUpd(..)
         | IbusMsg::PolicyUpd(..)
-        | IbusMsg::PolicyDel(..)
-        | IbusMsg::RouterIdUpdate(..) => {
+        | IbusMsg::PolicyDel(..) => {
             // Relay to all instances.
             for instance in master.instances.values() {
                 send(&instance.ibus_tx, msg.clone());
@@ -143,7 +138,14 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
 
 // Requests information about all interfaces addresses.
 pub(crate) fn request_addresses(ibus_tx: &IbusChannelsTx) {
-    send(&ibus_tx.interface, IbusMsg::InterfaceDump);
+    send(
+        &ibus_tx.interface,
+        IbusMsg::InterfaceSub {
+            subscriber: ibus_tx.subscriber.clone(),
+            ifname: None,
+            af: None,
+        },
+    );
 }
 
 // Sends route redistribute update notification.

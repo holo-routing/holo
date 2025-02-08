@@ -1,4 +1,3 @@
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"1.1.1.1"}}
 {"Ibus":{"PolicyMatchSetsUpd":{"prefixes":[[["LOOPBACK","Ipv4"],{"name":"LOOPBACK","mode":"Ipv4","prefixes":[{"prefix":"1.1.1.1/32","masklen_lower":32,"masklen_upper":32}]}]],"neighbors":{},"tags":{},"bgp":{"as_paths":{},"comms":{},"ext_comms":{},"extv6_comms":{},"large_comms":{},"nexthops":{}}}}}
 {"Ibus":{"PolicyUpd":{"name":"REDIST","stmts":{"1":{"name":"1","prefix_set_match_type":"Any","tag_set_match_type":"Any","conditions":[["MatchPrefixSet",{"MatchPrefixSet":"LOOPBACK"}]],"actions":[["Accept",{"Accept":true}]]}}}}}

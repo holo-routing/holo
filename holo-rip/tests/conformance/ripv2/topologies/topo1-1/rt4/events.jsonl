@@ -1,6 +1,3 @@
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt3","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt2","ifindex":3,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt2","addr":"10.0.3.4/24","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt3","ifindex":2,"mtu":1500,"flags":"OPERATIVE"}}}
@@ -9,9 +6,6 @@
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"lo","addr":"4.4.4.4/32","flags":""}}}
 {"Protocol":{"TriggeredUpd":{}}}
 {"Protocol":{"TriggeredUpd":{}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt3","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv6"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt2","ifindex":3,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt2","addr":"fe80::ac92:8ff:fe7d:7d02/64","flags":""}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"10.0.3.0/24","distance":0,"metric":0,"tag":null,"nexthops":[]}}}

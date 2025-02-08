@@ -1,14 +1,7 @@
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"5.5.5.5"}}
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"5.5.5.5"}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt3-1","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt3-2","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt4","af":"Ipv4"}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt6","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt3-1","ifindex":4,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt3-1","addr":"10.0.4.5/24","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt3-2","ifindex":6,"mtu":1500,"flags":"OPERATIVE"}}}
@@ -40,11 +33,6 @@
 {"Protocol":{"NetRxPacket":{"area_key":{"Id":1},"iface_key":{"Id":4},"src":"10.0.8.6","dst":"224.0.0.5","packet":{"Ok":{"Hello":{"hdr":{"pkt_type":"Hello","router_id":"6.6.6.6","area_id":"0.0.0.0"},"network_mask":"255.255.255.0","hello_interval":3,"options":"E","priority":1,"dead_interval":12,"dr":null,"bdr":null,"neighbors":["5.5.5.5"]}}}}}}
 {"Protocol":{"NetRxPacket":{"area_key":{"Id":1},"iface_key":{"Id":1},"src":"10.0.4.3","dst":"224.0.0.5","packet":{"Ok":{"DbDesc":{"hdr":{"pkt_type":"DbDesc","router_id":"3.3.3.3","area_id":"0.0.0.0"},"mtu":1500,"options":"E | O","dd_flags":"MS | M | I","dd_seq_no":84215046,"lsa_hdrs":[]}}}}}}
 {"Protocol":{"NetRxPacket":{"area_key":{"Id":1},"iface_key":{"Id":1},"src":"10.0.4.3","dst":"224.0.0.5","packet":{"Ok":{"DbDesc":{"hdr":{"pkt_type":"DbDesc","router_id":"3.3.3.3","area_id":"0.0.0.0"},"mtu":1500,"options":"E | O","dd_flags":"","dd_seq_no":50529028,"lsa_hdrs":[{"age":0,"options":"E","lsa_type":1,"lsa_id":"3.3.3.3","adv_rtr":"3.3.3.3","seq_no":2147483651,"cksum":10127,"length":72},{"age":0,"options":"E","lsa_type":10,"lsa_id":"4.0.0.0","adv_rtr":"3.3.3.3","seq_no":2147483649,"cksum":14759,"length":28}]}}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt3-1","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt3-2","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt4","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt6","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv6"}}}
 {"Protocol":{"NetRxPacket":{"area_key":{"Id":1},"iface_key":{"Id":2},"src":"10.0.5.3","dst":"224.0.0.5","packet":{"Ok":{"DbDesc":{"hdr":{"pkt_type":"DbDesc","router_id":"3.3.3.3","area_id":"0.0.0.0"},"mtu":1500,"options":"E | O","dd_flags":"MS | M | I","dd_seq_no":84215046,"lsa_hdrs":[]}}}}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt3-1","ifindex":4,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt3-1","addr":"fe80::e49b:daff:fe12:d5b9/64","flags":""}}}

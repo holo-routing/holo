@@ -66,7 +66,7 @@ pub enum Event {
     InterfaceSyncHelloTx(AreaIndex, InterfaceIndex),
     InterfaceUpdateAuth(AreaIndex, InterfaceIndex),
     InterfaceBfdChange(InterfaceIndex),
-    InterfaceQuerySouthbound(String),
+    InterfaceIbusSub(String),
     StubRouterChange,
     GrHelperChange,
     SrEnableChange(bool),
@@ -523,7 +523,7 @@ where
             let event_queue = args.event_queue;
             event_queue.insert(Event::InstanceUpdate);
             event_queue.insert(Event::InterfaceUpdate(area_idx, iface_idx));
-            event_queue.insert(Event::InterfaceQuerySouthbound(ifname));
+            event_queue.insert(Event::InterfaceIbusSub(ifname));
         })
         .delete_apply(|_instance, args| {
             let (area_idx, iface_idx) =
@@ -1323,6 +1323,14 @@ where
                     let area = &arenas.areas[area_idx];
                     let iface = &mut arenas.interfaces[iface_idx];
 
+                    // Cancel ibus subscription.
+                    let _ = instance.tx.ibus.interface.send(
+                        IbusMsg::InterfaceUnsub {
+                            subscriber: instance.tx.ibus.subscriber.clone(),
+                            ifname: Some(iface.name.clone()),
+                        },
+                    );
+
                     // Stop interface if it's active.
                     let reason = InterfaceInactiveReason::AdminDown;
                     iface.fsm(
@@ -1446,7 +1454,7 @@ where
                     }
                 }
             }
-            Event::InterfaceQuerySouthbound(ifname) => {
+            Event::InterfaceIbusSub(ifname) => {
                 if self.is_active() {
                     let af = match (V::PROTOCOL, V::address_family(self)) {
                         (Protocol::OSPFV3, AddressFamily::Ipv4) => {
@@ -1457,11 +1465,12 @@ where
                         }
                         (_, af) => Some(af),
                     };
-                    let _ = self
-                        .tx
-                        .ibus
-                        .interface
-                        .send(IbusMsg::InterfaceQuery { ifname, af });
+                    let _ =
+                        self.tx.ibus.interface.send(IbusMsg::InterfaceSub {
+                            subscriber: self.tx.ibus.subscriber.clone(),
+                            ifname: Some(ifname),
+                            af,
+                        });
                 }
             }
             Event::StubRouterChange => {

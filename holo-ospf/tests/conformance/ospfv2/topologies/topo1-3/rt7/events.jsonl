@@ -1,15 +1,11 @@
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"7.7.7.7"}}
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"7.7.7.7"}}
 {"Ibus":{"SrCfgUpd":{"prefix_sids":[[["2001:db8:1000::7/128","Spf"],{"index":71,"last_hop":"NoPhp"}],[["7.7.7.7/32","Spf"],{"index":70,"last_hop":"NoPhp"}]],"srgb":[{"lower_bound":16000,"upper_bound":23999}],"srlb":[]}}}
 {"Ibus":{"SrCfgEvent":"LabelRangeUpdate"}}
 {"Ibus":{"SrCfgEvent":{"PrefixSidUpdate":"Ipv4"}}}
 {"Ibus":{"SrCfgEvent":{"PrefixSidUpdate":"Ipv6"}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt6","af":"Ipv4"}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt6","ifindex":2,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt6","addr":"10.0.6.7/24","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}
@@ -31,8 +27,6 @@
 {"Protocol":{"SpfDelayEvent":{"event":"Igp"}}}
 {"Protocol":{"SpfDelayEvent":{"event":"Igp"}}}
 {"Protocol":{"NetRxPacket":{"area_key":{"Id":1},"iface_key":{"Id":1},"src":"10.0.6.6","dst":"224.0.0.5","packet":{"Ok":{"Hello":{"hdr":{"pkt_type":"Hello","router_id":"6.6.6.6","area_id":"0.0.0.3"},"network_mask":"255.255.255.0","hello_interval":3,"options":"","priority":1,"dead_interval":12,"dr":null,"bdr":null,"neighbors":["7.7.7.7"]}}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt6","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv6"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt6","ifindex":2,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt6","addr":"fe80::f06e:8fff:fe1f:2ca5/64","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}

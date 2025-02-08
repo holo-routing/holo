@@ -1,6 +1,4 @@
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"4.4.4.4"}}
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"4.4.4.4"}}
 {"Ibus":{"PolicyMatchSetsUpd":{"prefixes":[[["LOOPBACK","Ipv4"],{"name":"LOOPBACK","mode":"Ipv4","prefixes":[{"prefix":"4.4.4.4/32","masklen_lower":32,"masklen_upper":32}]}]],"neighbors":{},"tags":{},"bgp":{"as_paths":{},"comms":{},"ext_comms":{},"extv6_comms":{},"large_comms":{},"nexthops":{}}}}}
 {"Ibus":{"PolicyUpd":{"name":"REDIST","stmts":{"1":{"name":"1","prefix_set_match_type":"Any","tag_set_match_type":"Any","conditions":[["MatchPrefixSet",{"MatchPrefixSet":"LOOPBACK"}]],"actions":[["Accept",{"Accept":true}]]}}}}}
@@ -8,8 +6,6 @@
 {"Protocol":{"TriggerDecisionProcess":null}}
 {"Protocol":{"TriggerDecisionProcess":null}}
 {"Ibus":{"RouteRedistributeDump":{"protocol":"direct","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt3","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"4.4.4.4/32","distance":0,"metric":0,"tag":null,"nexthops":[{"Interface":{"ifindex":1}}]}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"10.0.3.0/24","distance":0,"metric":0,"tag":null,"nexthops":[{"Interface":{"ifindex":3}}]}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"172.16.1.0/24","distance":0,"metric":0,"tag":null,"nexthops":[{"Interface":{"ifindex":2}}]}}}

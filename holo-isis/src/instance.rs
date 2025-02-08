@@ -302,7 +302,7 @@ impl ProtocolInstance for Instance {
 
     async fn init(&mut self) {
         // Request information about the system Router ID.
-        southbound::tx::router_id_query(&self.tx.ibus);
+        southbound::tx::router_id_sub(&self.tx.ibus);
     }
 
     async fn shutdown(mut self) {

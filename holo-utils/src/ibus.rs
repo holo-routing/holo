@@ -59,7 +59,8 @@ pub struct IbusSubscriber {
 }
 
 // Ibus message for communication among the different Holo components.
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug)]
+#[derive(Deserialize, Serialize)]
 pub enum IbusMsg {
     // BFD peer registration.
     BfdSessionReg {
@@ -81,12 +82,21 @@ pub enum IbusMsg {
     HostnameQuery,
     // Hostname update notification.
     HostnameUpdate(Option<String>),
-    // Request to dump information about all interfaces.
-    InterfaceDump,
-    // Query information about a specific interface.
-    InterfaceQuery {
-        ifname: String,
+    // Request a subscription to interface update notifications.
+    //
+    // The subscriber may filter updates by a specific interface or address
+    // family.
+    InterfaceSub {
+        #[serde(skip)]
+        subscriber: Option<IbusSubscriber>,
+        ifname: Option<String>,
         af: Option<AddressFamily>,
+    },
+    // Cancel a previously requested subscription to interface updates.
+    InterfaceUnsub {
+        #[serde(skip)]
+        subscriber: Option<IbusSubscriber>,
+        ifname: Option<String>,
     },
     // Interface update notification.
     InterfaceUpd(InterfaceUpdateMsg),
@@ -123,8 +133,11 @@ pub enum IbusMsg {
     PolicyUpd(Arc<Policy>),
     // Policy definition delete notification.
     PolicyDel(String),
-    // Query the current Router ID.
-    RouterIdQuery,
+    // Request a subscription to Router ID update notifications.
+    RouterIdSub {
+        #[serde(skip)]
+        subscriber: Option<IbusSubscriber>,
+    },
     // Router ID update notification.
     RouterIdUpdate(Option<Ipv4Addr>),
     // Request to install IP route in the RIB.

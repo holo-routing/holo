@@ -19,6 +19,7 @@ use holo_northbound::configuration::{
 };
 use holo_northbound::yang::control_plane_protocol::isis;
 use holo_utils::crypto::CryptoAlgo;
+use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
 use holo_utils::keychain::{Key, Keychains};
 use holo_utils::yang::DataNodeRefExt;
@@ -60,7 +61,7 @@ pub enum Event {
     InterfacePriorityChange(InterfaceIndex, LevelNumber),
     InterfaceUpdateHelloInterval(InterfaceIndex, LevelNumber),
     InterfaceUpdateCsnpInterval(InterfaceIndex),
-    InterfaceQuerySouthbound(InterfaceIndex),
+    InterfaceIbusSub(InterfaceIndex),
     ReoriginateLsps(LevelNumber),
     RefreshLsps,
     RerunSpf,
@@ -577,7 +578,7 @@ fn load_callbacks() -> Callbacks<Instance> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InterfaceUpdate(iface.index));
-            event_queue.insert(Event::InterfaceQuerySouthbound(iface.index));
+            event_queue.insert(Event::InterfaceIbusSub(iface.index));
         })
         .delete_apply(|_instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -1151,6 +1152,14 @@ impl Provider for Instance {
                 if let Some((mut instance, arenas)) = self.as_up() {
                     let iface = &mut arenas.interfaces[iface_idx];
 
+                    // Cancel ibus subscription.
+                    let _ = instance.tx.ibus.interface.send(
+                        IbusMsg::InterfaceUnsub {
+                            subscriber: instance.tx.ibus.subscriber.clone(),
+                            ifname: Some(iface.name.clone()),
+                        },
+                    );
+
                     // Stop interface if it's active.
                     let reason = InterfaceInactiveReason::AdminDown;
                     iface.stop(&mut instance, &mut arenas.adjacencies, reason);
@@ -1208,7 +1217,7 @@ impl Provider for Instance {
                 let iface = &mut arenas.interfaces[iface_idx];
                 iface.csnp_interval_reset(&instance);
             }
-            Event::InterfaceQuerySouthbound(iface_idx) => {
+            Event::InterfaceIbusSub(iface_idx) => {
                 if self.is_active() {
                     let iface = &self.arenas.interfaces[iface_idx];
                     iface.query_southbound(&self.tx.ibus);

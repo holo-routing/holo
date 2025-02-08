@@ -361,7 +361,7 @@ impl Provider for Master {
         match event {
             Event::InterfaceDelete(ifname) => {
                 self.interfaces
-                    .remove(&ifname, Owner::CONFIG, &self.netlink_handle, None)
+                    .remove(&ifname, Owner::CONFIG, &self.netlink_handle)
                     .await;
             }
             Event::AdminStatusChange(ifname, enabled) => {

@@ -12,8 +12,10 @@ use crate::fec::{FecInner, Nexthop};
 
 // ===== global functions =====
 
-pub(crate) fn router_id_query(ibus_tx: &IbusChannelsTx) {
-    let _ = ibus_tx.interface.send(IbusMsg::RouterIdQuery);
+pub(crate) fn router_id_sub(ibus_tx: &IbusChannelsTx) {
+    let _ = ibus_tx.interface.send(IbusMsg::RouterIdSub {
+        subscriber: ibus_tx.subscriber.clone(),
+    });
 }
 
 pub(crate) fn label_install(

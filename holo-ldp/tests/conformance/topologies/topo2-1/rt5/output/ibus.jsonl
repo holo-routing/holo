@@ -1,8 +1,8 @@
-"RouterIdQuery"
-{"InterfaceQuery":{"ifname":"eth-rt3-1","af":"Ipv4"}}
-{"InterfaceQuery":{"ifname":"eth-rt3-2","af":"Ipv4"}}
-{"InterfaceQuery":{"ifname":"eth-rt4","af":"Ipv4"}}
-{"InterfaceQuery":{"ifname":"eth-rt6","af":"Ipv4"}}
+{"RouterIdSub":{}}
+{"InterfaceSub":{"ifname":"eth-rt3-1","af":"Ipv4"}}
+{"InterfaceSub":{"ifname":"eth-rt3-2","af":"Ipv4"}}
+{"InterfaceSub":{"ifname":"eth-rt4","af":"Ipv4"}}
+{"InterfaceSub":{"ifname":"eth-rt6","af":"Ipv4"}}
 {"RouteMplsAdd":{"protocol":"ldp","label":16,"nexthops":[{"Address":{"ifindex":2,"addr":"10.0.6.4","labels":[16]}}],"route":["ospfv2","2.2.2.2/32"],"replace":false}}
 {"RouteMplsAdd":{"protocol":"ldp","label":18,"nexthops":[{"Address":{"ifindex":2,"addr":"10.0.6.4","labels":[3]}}],"route":["ospfv2","4.4.4.4/32"],"replace":false}}
 {"RouteMplsAdd":{"protocol":"ldp","label":21,"nexthops":[{"Address":{"ifindex":2,"addr":"10.0.6.4","labels":[3]}}],"route":["ospfv2","10.0.2.0/24"],"replace":false}}

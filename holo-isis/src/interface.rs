@@ -718,8 +718,9 @@ impl Interface {
     // Sends a southbound request for interface system information, such as
     // operational status and IP addresses.
     pub(crate) fn query_southbound(&self, ibus_tx: &IbusChannelsTx) {
-        let _ = ibus_tx.interface.send(IbusMsg::InterfaceQuery {
-            ifname: self.name.clone(),
+        let _ = ibus_tx.interface.send(IbusMsg::InterfaceSub {
+            subscriber: ibus_tx.subscriber.clone(),
+            ifname: Some(self.name.clone()),
             af: None,
         });
     }

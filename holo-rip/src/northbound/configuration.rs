@@ -44,7 +44,7 @@ pub enum Event {
     InterfaceDelete(InterfaceIndex),
     InterfaceCostUpdate(InterfaceIndex),
     InterfaceRestartNetTasks(InterfaceIndex),
-    InterfaceQuerySouthbound(String),
+    InterfaceIbusSub(String),
     JoinMulticast(InterfaceIndex),
     LeaveMulticast(InterfaceIndex),
     ReinstallRoutes,
@@ -136,7 +136,7 @@ where
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InterfaceUpdate(iface_idx));
-            event_queue.insert(Event::InterfaceQuerySouthbound(ifname));
+            event_queue.insert(Event::InterfaceIbusSub(ifname));
         })
         .delete_apply(|_instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -367,9 +367,18 @@ where
                 }
             }
             Event::InterfaceDelete(iface_idx) => {
-                // Stop interface if it's active.
                 if let Instance::Up(instance) = self {
                     let iface = &mut instance.core.interfaces[iface_idx];
+
+                    // Cancel ibus subscription.
+                    let _ = instance.tx.ibus.interface.send(
+                        IbusMsg::InterfaceUnsub {
+                            subscriber: instance.tx.ibus.subscriber.clone(),
+                            ifname: Some(iface.core().name.clone()),
+                        },
+                    );
+
+                    // Stop interface if it's active.
                     iface.stop(
                         &mut instance.state,
                         &instance.tx,
@@ -454,11 +463,12 @@ where
                     net.restart_tasks(auth, &instance.tx);
                 }
             }
-            Event::InterfaceQuerySouthbound(ifname) => {
+            Event::InterfaceIbusSub(ifname) => {
                 if let Instance::Up(instance) = self {
                     let _ = instance.tx.ibus.interface.send(
-                        IbusMsg::InterfaceQuery {
-                            ifname,
+                        IbusMsg::InterfaceSub {
+                            subscriber: instance.tx.ibus.subscriber.clone(),
+                            ifname: Some(ifname),
                             af: Some(V::ADDRESS_FAMILY),
                         },
                     );

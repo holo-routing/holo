@@ -17,7 +17,7 @@ use holo_northbound::{
     process_northbound_msg,
 };
 use holo_protocol::InstanceShared;
-use holo_utils::ibus::{IbusChannelsTx, IbusReceiver};
+use holo_utils::ibus::{IbusChannelsTx, IbusReceiver, IbusSubscriber};
 use tokio::sync::mpsc;
 use tracing::Instrument;
 
@@ -74,11 +74,12 @@ impl Master {
 
 pub fn start(
     nb_tx: NbProviderSender,
-    ibus_tx: IbusChannelsTx,
+    mut ibus_tx: IbusChannelsTx,
     ibus_rx: IbusReceiver,
     shared: InstanceShared,
 ) -> NbDaemonSender {
     let (nb_daemon_tx, nb_daemon_rx) = mpsc::channel(4);
+    ibus_tx.subscriber = Some(IbusSubscriber::new(ibus_tx.interface.clone()));
 
     tokio::spawn(async move {
         // Initialize netlink socket.

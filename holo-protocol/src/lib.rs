@@ -17,7 +17,9 @@ use holo_northbound::{
     NbDaemonReceiver, NbDaemonSender, NbProviderSender, process_northbound_msg,
 };
 use holo_utils::bier::BierCfg;
-use holo_utils::ibus::{IbusChannelsTx, IbusMsg, IbusReceiver};
+use holo_utils::ibus::{
+    IbusChannelsTx, IbusMsg, IbusReceiver, IbusSender, IbusSubscriber,
+};
 use holo_utils::keychain::Keychains;
 use holo_utils::mpls::LabelManager;
 use holo_utils::policy::{MatchSets, Policies};
@@ -318,7 +320,7 @@ async fn run<P>(
     // Create instance Tx/Rx channels.
     let instance_channels_tx = InstanceChannelsTx::new(
         nb_tx,
-        ibus_tx,
+        ibus_tx.clone(),
         proto_input_tx,
         #[cfg(feature = "testing")]
         proto_output_tx,
@@ -353,6 +355,19 @@ async fn run<P>(
     )
     .await;
 
+    // Cancel ibus subscriptions.
+    for tx in &[
+        &ibus_tx.routing,
+        &ibus_tx.interface,
+        &ibus_tx.system,
+        &ibus_tx.keychain,
+        &ibus_tx.policy,
+    ] {
+        let _ = tx.send(IbusMsg::Disconnect {
+            subscriber: ibus_tx.subscriber.clone(),
+        });
+    }
+
     // Ensure instance is shut down before exiting.
     instance.shutdown().await;
 }
@@ -363,6 +378,7 @@ pub fn spawn_protocol_task<P>(
     name: String,
     nb_provider_tx: &NbProviderSender,
     ibus_tx: &IbusChannelsTx,
+    ibus_instance_tx: IbusSender,
     ibus_instance_rx: IbusReceiver,
     agg_channels: InstanceAggChannels<P>,
     #[cfg(feature = "testing")] test_rx: Receiver<
@@ -375,7 +391,8 @@ where
 {
     let (nb_daemon_tx, nb_daemon_rx) = mpsc::channel(4);
     let nb_provider_tx = nb_provider_tx.clone();
-    let ibus_tx = ibus_tx.clone();
+    let mut ibus_tx = ibus_tx.clone();
+    ibus_tx.subscriber = Some(IbusSubscriber::new(ibus_instance_tx));
 
     tokio::spawn(async move {
         let span = P::debug_span(&name);

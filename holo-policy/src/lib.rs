@@ -13,7 +13,7 @@ use holo_northbound::{
     NbDaemonReceiver, NbDaemonSender, NbProviderSender, ProviderBase,
     process_northbound_msg,
 };
-use holo_utils::ibus::{IbusChannelsTx, IbusReceiver};
+use holo_utils::ibus::{IbusChannelsTx, IbusReceiver, IbusSubscriber};
 use holo_utils::policy::{MatchSets, Policy};
 use tokio::sync::mpsc;
 use tracing::Instrument;
@@ -64,10 +64,11 @@ impl Master {
 
 pub fn start(
     nb_provider_tx: NbProviderSender,
-    ibus_tx: IbusChannelsTx,
+    mut ibus_tx: IbusChannelsTx,
     ibus_rx: IbusReceiver,
 ) -> NbDaemonSender {
     let (nb_daemon_tx, nb_daemon_rx) = mpsc::channel(4);
+    ibus_tx.subscriber = Some(IbusSubscriber::new(ibus_tx.policy.clone()));
 
     tokio::spawn(async move {
         let span = Master::debug_span("");

@@ -446,6 +446,7 @@ impl Provider for Master {
                             ifname,
                             &self.nb_tx,
                             &self.ibus_tx,
+                            ibus_instance_tx.clone(),
                             ibus_instance_rx,
                             Default::default(),
                             self.shared.clone(),

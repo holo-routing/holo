@@ -6,6 +6,7 @@
 
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
@@ -30,6 +31,7 @@ pub type IbusSender = UnboundedSender<IbusMsg>;
 // Ibus output channels.
 #[derive(Clone, Debug)]
 pub struct IbusChannelsTx {
+    pub subscriber: Option<IbusSubscriber>,
     pub routing: UnboundedSender<IbusMsg>,
     pub interface: UnboundedSender<IbusMsg>,
     pub system: UnboundedSender<IbusMsg>,
@@ -45,6 +47,15 @@ pub struct IbusChannelsRx {
     pub system: UnboundedReceiver<IbusMsg>,
     pub keychain: UnboundedReceiver<IbusMsg>,
     pub policy: UnboundedReceiver<IbusMsg>,
+}
+
+// Subscriber to Ibus messages.
+#[derive(Clone, Debug)]
+pub struct IbusSubscriber {
+    // Unique identifier for the subscriber.
+    pub id: usize,
+    // Channel for sending messages to the subscriber.
+    pub tx: IbusSender,
 }
 
 // Ibus message for communication among the different Holo components.
@@ -150,6 +161,23 @@ pub enum IbusMsg {
     // purged. E.g., One could ask to purge the BIRT populated by a specific
     // instance of OSPFv3 but not those populated by IS-IS.
     BierPurge,
+    // Cancel all previously requested subscriptions.
+    Disconnect {
+        #[serde(skip)]
+        subscriber: Option<IbusSubscriber>,
+    },
+}
+
+// ===== impl IbusSubscriber =====
+
+impl IbusSubscriber {
+    pub fn new(tx: IbusSender) -> Self {
+        static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
+        IbusSubscriber {
+            id: NEXT_ID.fetch_add(1, Ordering::Relaxed),
+            tx,
+        }
+    }
 }
 
 // ===== global functions =====
@@ -162,6 +190,7 @@ pub fn ibus_channels() -> (IbusChannelsTx, IbusChannelsRx) {
     let (policy_tx, policy_rx) = mpsc::unbounded_channel();
 
     let tx = IbusChannelsTx {
+        subscriber: None,
         routing: routing_tx,
         interface: interface_tx,
         system: system_tx,

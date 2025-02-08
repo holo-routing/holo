@@ -20,7 +20,9 @@ use holo_northbound::{
 };
 use holo_protocol::InstanceShared;
 use holo_utils::bier::BierCfg;
-use holo_utils::ibus::{IbusChannelsTx, IbusReceiver, IbusSender};
+use holo_utils::ibus::{
+    IbusChannelsTx, IbusReceiver, IbusSender, IbusSubscriber,
+};
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::sr::SrCfg;
@@ -117,11 +119,12 @@ impl Master {
 
 pub fn start(
     nb_tx: NbProviderSender,
-    ibus_tx: IbusChannelsTx,
+    mut ibus_tx: IbusChannelsTx,
     ibus_rx: IbusReceiver,
     shared: InstanceShared,
 ) -> NbDaemonSender {
     let (nb_daemon_tx, nb_daemon_rx) = mpsc::channel(4);
+    ibus_tx.subscriber = Some(IbusSubscriber::new(ibus_tx.routing.clone()));
 
     tokio::spawn(async move {
         let mut master = Master {
@@ -154,6 +157,7 @@ pub fn start(
                 name,
                 &master.nb_tx,
                 &master.ibus_tx,
+                ibus_instance_tx.clone(),
                 ibus_instance_rx,
                 Default::default(),
                 shared,

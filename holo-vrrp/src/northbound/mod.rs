@@ -25,7 +25,10 @@ impl ProviderBase for Interface {
     }
 
     fn top_level_node(&self) -> String {
-        "/ietf-interfaces:interfaces".to_owned()
+        format!(
+            "/ietf-interfaces:interfaces/intername[name='{}']",
+            self.name
+        )
     }
 
     fn debug_span(interface: &str) -> Span {

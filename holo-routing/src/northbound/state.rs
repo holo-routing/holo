@@ -356,10 +356,20 @@ impl Provider for Master {
 // ===== impl ListEntry =====
 
 impl ListEntryKind for ListEntry<'_> {
-    fn child_task(&self) -> Option<NbDaemonSender> {
+    fn child_task(&self, module_name: &str) -> Option<NbDaemonSender> {
         match self {
             ListEntry::ProtocolInstance(instance) => {
-                Some(instance.nb_tx.clone())
+                match (module_name, instance.id.protocol) {
+                    ("ietf-bfd", Protocol::BFD)
+                    | ("ietf-bgp", Protocol::BGP)
+                    | ("ietf-isis", Protocol::ISIS)
+                    | ("ietf-mpls-ldp", Protocol::LDP)
+                    | ("ietf-ospf", Protocol::OSPFV2 | Protocol::OSPFV3)
+                    | ("ietf-rip", Protocol::RIPV2 | Protocol::RIPNG) => {
+                        Some(instance.nb_tx.clone())
+                    }
+                    _ => None,
+                }
             }
             _ => None,
         }

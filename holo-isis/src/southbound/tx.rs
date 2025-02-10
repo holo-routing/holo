@@ -75,5 +75,5 @@ pub(crate) fn route_uninstall(
         prefix: *destination,
     };
     let msg = IbusMsg::RouteIpDel(msg);
-    let _ = ibus_tx.interface.send(msg);
+    let _ = ibus_tx.routing.send(msg);
 }

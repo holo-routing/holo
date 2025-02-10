@@ -1,4 +1,5 @@
 {"RouterIdSub":{}}
+{"HostnameSub":{}}
 {"InterfaceSub":{"ifname":"eth-rt2","af":"Ipv4"}}
 {"InterfaceSub":{"ifname":"eth-rt4","af":"Ipv4"}}
 {"InterfaceSub":{"ifname":"eth-rt6","af":"Ipv4"}}

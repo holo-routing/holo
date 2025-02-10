@@ -303,6 +303,9 @@ impl ProtocolInstance for Instance {
     async fn init(&mut self) {
         // Request information about the system Router ID.
         southbound::tx::router_id_sub(&self.tx.ibus);
+
+        // Request information about the system hostname.
+        southbound::tx::hostname_sub(&self.tx.ibus);
     }
 
     async fn shutdown(mut self) {

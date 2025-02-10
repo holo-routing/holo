@@ -9,11 +9,15 @@
 mod ibus;
 pub mod northbound;
 
+use std::collections::HashMap;
+
 use holo_northbound::{
     NbDaemonReceiver, NbDaemonSender, NbProviderSender, ProviderBase,
     process_northbound_msg,
 };
-use holo_utils::ibus::{IbusChannelsTx, IbusReceiver, IbusSubscriber};
+use holo_utils::ibus::{
+    IbusChannelsTx, IbusReceiver, IbusSender, IbusSubscriber,
+};
 use northbound::configuration::SystemCfg;
 use tokio::sync::mpsc;
 use tracing::Instrument;
@@ -26,6 +30,8 @@ pub struct Master {
     pub ibus_tx: IbusChannelsTx,
     // System configuration.
     pub config: SystemCfg,
+    // Hostname subscriptions.
+    pub hostname_subscriptions: HashMap<usize, IbusSender>,
 }
 
 // ===== impl Master =====
@@ -71,6 +77,7 @@ pub fn start(
             nb_tx,
             ibus_tx,
             config: Default::default(),
+            hostname_subscriptions: Default::default(),
         };
 
         // Run task main loop.

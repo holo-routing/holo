@@ -30,7 +30,6 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
             }
         }
         IbusMsg::BfdStateUpd { .. }
-        | IbusMsg::HostnameUpdate(..)
         | IbusMsg::KeychainUpd(..)
         | IbusMsg::KeychainDel(..)
         | IbusMsg::PolicyMatchSetsUpd(..)

@@ -1,4 +1,5 @@
 {"RouterIdSub":{}}
+{"HostnameSub":{}}
 {"InterfaceSub":{"ifname":"eth-rt4","af":"Ipv6"}}
 {"InterfaceSub":{"ifname":"lo","af":"Ipv6"}}
 {"RouteIpAdd":{"protocol":"ospfv3","prefix":"::/0","distance":110,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::70fe:cbff:fe51:393f","labels":[]}}]}}

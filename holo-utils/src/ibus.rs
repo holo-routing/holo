@@ -78,8 +78,11 @@ pub enum IbusMsg {
         sess_key: bfd::SessionKey,
         state: bfd::State,
     },
-    // Query the current hostname.
-    HostnameQuery,
+    // Request a subscription to hostname update notifications.
+    HostnameSub {
+        #[serde(skip)]
+        subscriber: Option<IbusSubscriber>,
+    },
     // Hostname update notification.
     HostnameUpdate(Option<String>),
     // Request a subscription to interface update notifications.

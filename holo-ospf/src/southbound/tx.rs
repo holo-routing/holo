@@ -27,6 +27,12 @@ pub(crate) fn router_id_sub(ibus_tx: &IbusChannelsTx) {
     });
 }
 
+pub(crate) fn hostname_sub(ibus_tx: &IbusChannelsTx) {
+    let _ = ibus_tx.system.send(IbusMsg::HostnameSub {
+        subscriber: ibus_tx.subscriber.clone(),
+    });
+}
+
 pub(crate) fn route_install<V>(
     ibus_tx: &IbusChannelsTx,
     destination: &V::IpNetwork,

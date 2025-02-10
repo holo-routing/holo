@@ -12,11 +12,15 @@ use crate::Master;
 
 pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
     match msg {
-        IbusMsg::HostnameQuery => {
+        IbusMsg::HostnameSub { subscriber } => {
+            let subscriber = subscriber.unwrap();
             notify_hostname_update(
-                &master.ibus_tx.routing,
+                &subscriber.tx,
                 master.config.hostname.clone(),
             );
+            master
+                .hostname_subscriptions
+                .insert(subscriber.id, subscriber.tx);
         }
         // Ignore other events.
         _ => {}

@@ -4,7 +4,7 @@
 {"Protocol":{"TriggerDecisionProcess":null}}
 {"Protocol":{"TriggerDecisionProcess":null}}
 {"Protocol":{"TriggerDecisionProcess":null}}
-{"Ibus":{"RouteRedistributeDump":{"protocol":"direct","af":"Ipv4"}}}
+{"Ibus":{"RouteRedistributeSub":{"protocol":"direct","af":"Ipv4"}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"1.1.1.1/32","distance":0,"metric":0,"tag":null,"nexthops":[{"Interface":{"ifindex":1}}]}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"10.0.1.0/24","distance":0,"metric":0,"tag":null,"nexthops":[{"Interface":{"ifindex":3}}]}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"10.0.2.0/24","distance":0,"metric":0,"tag":null,"nexthops":[{"Interface":{"ifindex":5}}]}}}

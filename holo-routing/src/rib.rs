@@ -11,6 +11,7 @@ use bitflags::bitflags;
 use chrono::{DateTime, Utc};
 use derive_new::new;
 use holo_utils::bier::{BfrId, BirtEntry, Bsl, SubDomainId};
+use holo_utils::ibus::IbusSender;
 use holo_utils::ip::{AddressFamily, IpNetworkExt, Ipv4AddrExt, Ipv6AddrExt};
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
@@ -37,6 +38,7 @@ pub struct Rib {
     pub mpls_update_queue: BTreeSet<Label>,
     pub update_queue_tx: UnboundedSender<()>,
     pub update_queue_rx: UnboundedReceiver<()>,
+    pub subscriptions: HashMap<usize, RedistributeSub>,
 }
 
 #[derive(Debug, Default)]
@@ -62,6 +64,13 @@ bitflags! {
         const ACTIVE = 0x01;
         const REMOVED = 0x02;
     }
+}
+
+#[derive(Debug)]
+#[derive(new)]
+pub struct RedistributeSub {
+    pub protocols: BTreeSet<(AddressFamily, Protocol)>,
+    pub tx: IbusSender,
 }
 
 // ===== impl Birt =====
@@ -378,7 +387,10 @@ impl Rib {
     ) {
         // Process IP update queue.
         while let Some(prefix) = self.ip_update_queue.pop_first() {
-            let rib_prefix = self.prefix_entry(prefix);
+            let rib_prefix = match prefix {
+                IpNetwork::V4(prefix) => self.ipv4.entry(prefix).or_default(),
+                IpNetwork::V6(prefix) => self.ipv6.entry(prefix).or_default(),
+            };
 
             // Find the protocol of the old best route, if one exists.
             let old_best_protocol = rib_prefix
@@ -407,7 +419,9 @@ impl Rib {
                     }
 
                     // Notify protocol instances about the updated route.
-                    ibus::notify_redistribute_add(instances, prefix, route);
+                    for sub in self.subscriptions.values() {
+                        ibus::notify_redistribute_add(sub, prefix, route);
+                    }
                 } else {
                     // Remove the preferred flag for other routes.
                     route.flags.remove(RouteFlags::ACTIVE);
@@ -428,7 +442,9 @@ impl Rib {
                     }
 
                     // Notify protocol instances about the deleted route.
-                    ibus::notify_redistribute_del(instances, prefix, protocol);
+                    for sub in self.subscriptions.values() {
+                        ibus::notify_redistribute_del(sub, prefix, protocol);
+                    }
                 }
 
                 // Remove prefix entry from the RIB.
@@ -482,40 +498,6 @@ impl Rib {
             }
         }
         self.nht = nht;
-    }
-
-    // Processes route redistribution request.
-    pub(crate) fn redistribute_request(
-        &mut self,
-        protocol: Protocol,
-        af: Option<AddressFamily>,
-        instances: &BTreeMap<InstanceId, InstanceHandle>,
-    ) {
-        debug!(%protocol, "route redistribution request");
-
-        let redistribute_prefix = |prefix, routes: &BTreeMap<u32, Route>| {
-            if let Some(best_route) = routes
-                .values()
-                .find(|route| route.protocol == protocol)
-                .filter(|route| {
-                    route.flags.contains(RouteFlags::ACTIVE)
-                        && !route.flags.contains(RouteFlags::REMOVED)
-                })
-            {
-                ibus::notify_redistribute_add(instances, prefix, best_route);
-            }
-        };
-
-        if af.is_none() || af == Some(AddressFamily::Ipv4) {
-            for (prefix, routes) in &self.ipv4 {
-                redistribute_prefix((*prefix).into(), routes);
-            }
-        }
-        if af.is_none() || af == Some(AddressFamily::Ipv6) {
-            for (prefix, routes) in &self.ipv6 {
-                redistribute_prefix((*prefix).into(), routes);
-            }
-        }
     }
 
     // Returns RIB entry associated to the given IP prefix.
@@ -615,6 +597,7 @@ impl Default for Rib {
             mpls_update_queue: Default::default(),
             update_queue_tx,
             update_queue_rx,
+            subscriptions: Default::default(),
         }
     }
 }

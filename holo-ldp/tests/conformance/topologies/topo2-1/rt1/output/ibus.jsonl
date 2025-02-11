@@ -1,3 +1,11 @@
+{"RouteRedistributeSub":{"protocol":"direct","af":"Ipv4"}}
+{"RouteRedistributeSub":{"protocol":"isis","af":"Ipv4"}}
+{"RouteRedistributeSub":{"protocol":"ldp","af":"Ipv4"}}
+{"RouteRedistributeSub":{"protocol":"ospfv2","af":"Ipv4"}}
+{"RouteRedistributeSub":{"protocol":"ospfv3","af":"Ipv4"}}
+{"RouteRedistributeSub":{"protocol":"ripv2","af":"Ipv4"}}
+{"RouteRedistributeSub":{"protocol":"ripng","af":"Ipv4"}}
+{"RouteRedistributeSub":{"protocol":"static","af":"Ipv4"}}
 {"RouterIdSub":{}}
 {"InterfaceSub":{"ifname":"eth-sw1","af":"Ipv4"}}
 {"RouteMplsAdd":{"protocol":"ldp","label":16,"nexthops":[{"Address":{"ifindex":3,"addr":"10.0.1.2","labels":[3]}}],"route":["ospfv2","2.2.2.2/32"],"replace":false}}

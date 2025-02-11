@@ -1,7 +1,7 @@
 {"Ibus":{"RouterIdUpdate":"5.5.5.5"}}
 {"Ibus":{"PolicyMatchSetsUpd":{"prefixes":[[["LOOPBACK","Ipv4"],{"name":"LOOPBACK","mode":"Ipv4","prefixes":[{"prefix":"5.5.5.5/32","masklen_lower":32,"masklen_upper":32}]}]],"neighbors":{},"tags":{},"bgp":{"as_paths":{},"comms":{},"ext_comms":{},"extv6_comms":{},"large_comms":{},"nexthops":{}}}}}
 {"Ibus":{"PolicyUpd":{"name":"REDIST","stmts":{"1":{"name":"1","prefix_set_match_type":"Any","tag_set_match_type":"Any","conditions":[["MatchPrefixSet",{"MatchPrefixSet":"LOOPBACK"}]],"actions":[["Accept",{"Accept":true}]]}}}}}
-{"Ibus":{"RouteRedistributeDump":{"protocol":"direct","af":"Ipv4"}}}
+{"Ibus":{"RouteRedistributeSub":{"protocol":"direct","af":"Ipv4"}}}
 {"Protocol":{"TriggerDecisionProcess":null}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"5.5.5.5/32","distance":0,"metric":0,"tag":null,"nexthops":[{"Interface":{"ifindex":1}}]}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"10.0.3.0/24","distance":0,"metric":0,"tag":null,"nexthops":[{"Interface":{"ifindex":6}}]}}}

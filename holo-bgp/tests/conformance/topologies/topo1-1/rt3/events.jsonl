@@ -5,7 +5,7 @@
 {"Protocol":{"TcpConnect":{"conn_info":{"local_addr":"10.0.2.3","local_port":43240,"remote_addr":"10.0.2.1","remote_port":179}}}}
 {"Protocol":{"TriggerDecisionProcess":null}}
 {"Protocol":{"TriggerDecisionProcess":null}}
-{"Ibus":{"RouteRedistributeDump":{"protocol":"direct","af":"Ipv4"}}}
+{"Ibus":{"RouteRedistributeSub":{"protocol":"direct","af":"Ipv4"}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"3.3.3.3/32","distance":0,"metric":0,"tag":null,"nexthops":[{"Interface":{"ifindex":1}}]}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"10.0.2.0/24","distance":0,"metric":0,"tag":null,"nexthops":[{"Interface":{"ifindex":4}}]}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"172.16.1.0/24","distance":0,"metric":0,"tag":null,"nexthops":[{"Interface":{"ifindex":3}}]}}}

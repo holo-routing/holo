@@ -5,6 +5,7 @@
 //
 
 use holo_utils::ibus::{IbusChannelsTx, IbusMsg};
+use holo_utils::ip::AddressFamily;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{self, LabelInstallMsg, LabelUninstallMsg};
 
@@ -16,6 +17,18 @@ pub(crate) fn router_id_sub(ibus_tx: &IbusChannelsTx) {
     let _ = ibus_tx.interface.send(IbusMsg::RouterIdSub {
         subscriber: ibus_tx.subscriber.clone(),
     });
+}
+
+pub(crate) fn route_redistribute_sub(ibus_tx: &IbusChannelsTx) {
+    for protocol in
+        Protocol::route_types().filter(|protocol| *protocol != Protocol::BGP)
+    {
+        let _ = ibus_tx.routing.send(IbusMsg::RouteRedistributeSub {
+            subscriber: ibus_tx.subscriber.clone(),
+            protocol,
+            af: Some(AddressFamily::Ipv4),
+        });
+    }
 }
 
 pub(crate) fn label_install(

@@ -151,8 +151,18 @@ pub enum IbusMsg {
     RouteMplsAdd(LabelInstallMsg),
     // Request to uninstall MPLS route from the LIB.
     RouteMplsDel(LabelUninstallMsg),
-    // Request to redistribute routes.
-    RouteRedistributeDump {
+    // Requests a subscription to route update notifications for a specific
+    // protocol, with optional filtering by address family.
+    RouteRedistributeSub {
+        #[serde(skip)]
+        subscriber: Option<IbusSubscriber>,
+        protocol: Protocol,
+        af: Option<AddressFamily>,
+    },
+    // Cancel a previously requested subscription to route updates.
+    RouteRedistributeUnsub {
+        #[serde(skip)]
+        subscriber: Option<IbusSubscriber>,
         protocol: Protocol,
         af: Option<AddressFamily>,
     },

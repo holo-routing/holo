@@ -4,15 +4,16 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, hash_map};
 use std::net::IpAddr;
 
 use holo_utils::ibus::{IbusChannelsTx, IbusMsg, IbusSender};
+use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{RouteKeyMsg, RouteMsg};
 use ipnetwork::IpNetwork;
 
-use crate::rib::Route;
+use crate::rib::{RedistributeSub, Route, RouteFlags};
 use crate::{InstanceHandle, InstanceId, Interface, Master};
 
 // ===== global functions =====
@@ -115,11 +116,70 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
             // Remove MPLS route from the LIB.
             master.rib.mpls_route_del(msg);
         }
-        IbusMsg::RouteRedistributeDump { protocol, af } => {
-            // Redistribute all requested routes.
-            master
-                .rib
-                .redistribute_request(protocol, af, &master.instances);
+        IbusMsg::RouteRedistributeSub {
+            subscriber,
+            protocol,
+            af,
+        } => {
+            let subscriber = subscriber.unwrap();
+            let sub = master.rib.subscriptions.entry(subscriber.id).or_insert(
+                RedistributeSub {
+                    protocols: Default::default(),
+                    tx: subscriber.tx,
+                },
+            );
+            if matches!(af, None | Some(AddressFamily::Ipv4)) {
+                sub.protocols.insert((AddressFamily::Ipv4, protocol));
+            }
+            if matches!(af, None | Some(AddressFamily::Ipv6)) {
+                sub.protocols.insert((AddressFamily::Ipv6, protocol));
+            }
+
+            // Redistribute active routes of the requested protocol type.
+            let redistribute_prefix =
+                |prefix, routes: &BTreeMap<u32, Route>| {
+                    if let Some(best_route) = routes
+                        .values()
+                        .find(|route| route.protocol == protocol)
+                        .filter(|route| {
+                            route.flags.contains(RouteFlags::ACTIVE)
+                                && !route.flags.contains(RouteFlags::REMOVED)
+                        })
+                    {
+                        notify_redistribute_add(sub, prefix, best_route);
+                    }
+                };
+            if af.is_none() || af == Some(AddressFamily::Ipv4) {
+                for (prefix, routes) in &master.rib.ipv4 {
+                    redistribute_prefix((*prefix).into(), routes);
+                }
+            }
+            if af.is_none() || af == Some(AddressFamily::Ipv6) {
+                for (prefix, routes) in &master.rib.ipv6 {
+                    redistribute_prefix((*prefix).into(), routes);
+                }
+            }
+        }
+        IbusMsg::RouteRedistributeUnsub {
+            subscriber,
+            protocol,
+            af,
+        } => {
+            let subscriber = subscriber.unwrap();
+            if let hash_map::Entry::Occupied(mut o) =
+                master.rib.subscriptions.entry(subscriber.id)
+            {
+                let sub = o.get_mut();
+                if matches!(af, None | Some(AddressFamily::Ipv4)) {
+                    sub.protocols.remove(&(AddressFamily::Ipv4, protocol));
+                }
+                if matches!(af, None | Some(AddressFamily::Ipv6)) {
+                    sub.protocols.remove(&(AddressFamily::Ipv6, protocol));
+                }
+                if sub.protocols.is_empty() {
+                    o.remove();
+                }
+            }
         }
         IbusMsg::RouteBierAdd(msg) => {
             master.birt.bier_nbr_add(msg);
@@ -149,10 +209,17 @@ pub(crate) fn request_addresses(ibus_tx: &IbusChannelsTx) {
 
 // Sends route redistribute update notification.
 pub(crate) fn notify_redistribute_add(
-    instances: &BTreeMap<InstanceId, InstanceHandle>,
+    sub: &RedistributeSub,
     prefix: IpNetwork,
     route: &Route,
 ) {
+    if !sub
+        .protocols
+        .contains(&(prefix.address_family(), route.protocol))
+    {
+        return;
+    }
+
     let msg = RouteMsg {
         protocol: route.protocol,
         prefix,
@@ -163,22 +230,22 @@ pub(crate) fn notify_redistribute_add(
         nexthops: route.nexthops.clone(),
     };
     let msg = IbusMsg::RouteRedistributeAdd(msg);
-    for instance in instances.values() {
-        send(&instance.ibus_tx, msg.clone());
-    }
+    send(&sub.tx, msg.clone());
 }
 
 // Sends route redistribute delete notification.
 pub(crate) fn notify_redistribute_del(
-    instances: &BTreeMap<InstanceId, InstanceHandle>,
+    sub: &RedistributeSub,
     prefix: IpNetwork,
     protocol: Protocol,
 ) {
+    if !sub.protocols.contains(&(prefix.address_family(), protocol)) {
+        return;
+    }
+
     let msg = RouteKeyMsg { protocol, prefix };
     let msg = IbusMsg::RouteRedistributeDel(msg);
-    for instance in instances.values() {
-        send(&instance.ibus_tx, msg.clone());
-    }
+    send(&sub.tx, msg.clone());
 }
 
 // Sends route redistribute delete notification.

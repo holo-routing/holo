@@ -1,8 +1,8 @@
 {"RouterIdSub":{}}
 {"RouteRedistributeSub":{"protocol":"direct","af":"Ipv4"}}
-{"NexthopTrack":"10.0.7.5"}
-{"NexthopTrack":"10.0.5.3"}
-{"NexthopTrack":"10.0.6.4"}
+{"NexthopTrack":{"addr":"10.0.7.5"}}
+{"NexthopTrack":{"addr":"10.0.5.3"}}
+{"NexthopTrack":{"addr":"10.0.6.4"}}
 {"RouteIpAdd":{"protocol":"bgp","prefix":"1.1.1.1/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"10.0.6.4","labels":[],"resolved":[]}},{"Recursive":{"addr":"10.0.7.5","labels":[],"resolved":[]}}]}}
 {"RouteIpAdd":{"protocol":"bgp","prefix":"2.2.2.2/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"10.0.5.3","labels":[],"resolved":[]}}]}}
 {"RouteIpAdd":{"protocol":"bgp","prefix":"3.3.3.3/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"10.0.5.3","labels":[],"resolved":[]}}]}}

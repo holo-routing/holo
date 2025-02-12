@@ -70,11 +70,17 @@ pub(crate) fn route_uninstall(
 }
 
 pub(crate) fn nexthop_track(ibus_tx: &IbusChannelsTx, addr: IpAddr) {
-    let msg = IbusMsg::NexthopTrack(addr);
+    let msg = IbusMsg::NexthopTrack {
+        subscriber: ibus_tx.subscriber.clone(),
+        addr,
+    };
     let _ = ibus_tx.routing.send(msg);
 }
 
 pub(crate) fn nexthop_untrack(ibus_tx: &IbusChannelsTx, addr: IpAddr) {
-    let msg = IbusMsg::NexthopUntrack(addr);
+    let msg = IbusMsg::NexthopUntrack {
+        subscriber: ibus_tx.subscriber.clone(),
+        addr,
+    };
     let _ = ibus_tx.routing.send(msg);
 }

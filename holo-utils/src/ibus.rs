@@ -122,9 +122,17 @@ pub enum IbusMsg {
     // Delete a macvlan interface.
     MacvlanDel(String),
     // Nexthop tracking registration.
-    NexthopTrack(IpAddr),
+    NexthopTrack {
+        #[serde(skip)]
+        subscriber: Option<IbusSubscriber>,
+        addr: IpAddr,
+    },
     // Nexthop tracking unregistration.
-    NexthopUntrack(IpAddr),
+    NexthopUntrack {
+        #[serde(skip)]
+        subscriber: Option<IbusSubscriber>,
+        addr: IpAddr,
+    },
     // Nexthop tracking update.
     NexthopUpd {
         addr: IpAddr,

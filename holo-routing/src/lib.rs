@@ -106,7 +106,6 @@ impl Master {
                     self.rib
                         .process_rib_update_queue(
                             &self.netlink_handle,
-                            &self.instances,
                         )
                         .await;
                 }

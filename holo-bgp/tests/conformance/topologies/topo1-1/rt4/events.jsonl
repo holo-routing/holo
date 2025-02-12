@@ -29,7 +29,6 @@
 {"Protocol":{"PolicyResult":{"Neighbor":{"policy_type":"Export","nbr_addr":"10.0.3.2","afi_safi":"Ipv4Unicast","routes":[["4.4.4.4/32",{"Accept":{"origin":{"Protocol":"direct"},"route_type":"Internal","attrs":{"base":{"origin":"Incomplete","as_path":{"segments":[]}}}}}]]}}}}
 {"Protocol":{"NbrRx":{"nbr_addr":"10.0.3.2","msg":{"Ok":{"Update":{"reach":{"prefixes":["2.2.2.2/32"],"nexthop":"10.0.3.2"},"attrs":{"base":{"origin":"Incomplete","as_path":{"segments":[{"seg_type":"Sequence","members":[65101]}]}}}}}}}}}
 {"Protocol":{"PolicyResult":{"Neighbor":{"policy_type":"Import","nbr_addr":"10.0.3.2","afi_safi":"Ipv4Unicast","routes":[["2.2.2.2/32",{"Accept":{"origin":{"Neighbor":{"identifier":"2.2.2.2","remote_addr":"10.0.3.2"}},"route_type":"External","attrs":{"base":{"origin":"Incomplete","as_path":{"segments":[{"seg_type":"Sequence","members":[65101]}]},"nexthop":"10.0.3.2"}}}}]]}}}}
-{"Ibus":{"NexthopTrack":"10.0.3.2"}}
 {"Ibus":{"NexthopUpd":{"addr":"10.0.3.2","metric":0}}}
 {"Protocol":{"NbrRx":{"nbr_addr":"10.0.3.2","msg":{"Ok":{"Update":{"reach":{"prefixes":["1.1.1.1/32"],"nexthop":"10.0.3.2"},"attrs":{"base":{"origin":"Incomplete","as_path":{"segments":[{"seg_type":"Sequence","members":[65101,65100]}]}}}}}}}}}
 {"Protocol":{"PolicyResult":{"Neighbor":{"policy_type":"Import","nbr_addr":"10.0.3.2","afi_safi":"Ipv4Unicast","routes":[["1.1.1.1/32",{"Accept":{"origin":{"Neighbor":{"identifier":"2.2.2.2","remote_addr":"10.0.3.2"}},"route_type":"External","attrs":{"base":{"origin":"Incomplete","as_path":{"segments":[{"seg_type":"Sequence","members":[65101,65100]}]},"nexthop":"10.0.3.2"}}}}]]}}}}
@@ -51,8 +50,6 @@
 {"Protocol":{"PolicyResult":{"Neighbor":{"policy_type":"Import","nbr_addr":"3.3.3.3","afi_safi":"Ipv4Unicast","routes":[["3.3.3.3/32",{"Accept":{"origin":{"Neighbor":{"identifier":"3.3.3.3","remote_addr":"3.3.3.3"}},"route_type":"Internal","attrs":{"base":{"origin":"Incomplete","as_path":{"segments":[]},"nexthop":"3.3.3.3","local_pref":100}}}}]]}}}}
 {"Protocol":{"PolicyResult":{"Neighbor":{"policy_type":"Import","nbr_addr":"3.3.3.3","afi_safi":"Ipv4Unicast","routes":[["1.1.1.1/32",{"Accept":{"origin":{"Neighbor":{"identifier":"3.3.3.3","remote_addr":"3.3.3.3"}},"route_type":"Internal","attrs":{"base":{"origin":"Incomplete","as_path":{"segments":[{"seg_type":"Sequence","members":[65100]}]},"nexthop":"10.0.2.1","local_pref":100}}}}]]}}}}
 {"Protocol":{"PolicyResult":{"Neighbor":{"policy_type":"Import","nbr_addr":"3.3.3.3","afi_safi":"Ipv4Unicast","routes":[["2.2.2.2/32",{"Accept":{"origin":{"Neighbor":{"identifier":"3.3.3.3","remote_addr":"3.3.3.3"}},"route_type":"Internal","attrs":{"base":{"origin":"Incomplete","as_path":{"segments":[{"seg_type":"Sequence","members":[65100,65101]}]},"nexthop":"10.0.2.1","local_pref":100}}}}]]}}}}
-{"Ibus":{"NexthopTrack":"3.3.3.3"}}
-{"Ibus":{"NexthopTrack":"10.0.2.1"}}
 {"Ibus":{"NexthopUpd":{"addr":"3.3.3.3","metric":10}}}
 {"Ibus":{"NexthopUpd":{"addr":"10.0.2.1","metric":null}}}
 {"Protocol":{"TriggerDecisionProcess":null}}

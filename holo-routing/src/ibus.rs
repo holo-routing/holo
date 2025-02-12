@@ -13,8 +13,8 @@ use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{RouteKeyMsg, RouteMsg};
 use ipnetwork::IpNetwork;
 
-use crate::rib::{RedistributeSub, Route, RouteFlags};
-use crate::{InstanceHandle, InstanceId, Interface, Master};
+use crate::rib::{NhtEntry, RedistributeSub, Route, RouteFlags};
+use crate::{InstanceId, Interface, Master};
 
 // ===== global functions =====
 
@@ -77,13 +77,15 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
             // Remove the local copy of the keychain.
             master.shared.keychains.remove(&keychain_name);
         }
-        IbusMsg::NexthopTrack(addr) => {
-            // Nexthop tracking registration.
-            master.rib.nht_add(addr, &master.instances);
+        // Nexthop tracking registration.
+        IbusMsg::NexthopTrack { subscriber, addr } => {
+            let subscriber = subscriber.unwrap();
+            master.rib.nht_add(subscriber, addr);
         }
-        IbusMsg::NexthopUntrack(addr) => {
-            // Nexthop tracking unregistration.
-            master.rib.nht_del(addr);
+        // Nexthop tracking unregistration.
+        IbusMsg::NexthopUntrack { subscriber, addr } => {
+            let subscriber = subscriber.unwrap();
+            master.rib.nht_del(subscriber, addr);
         }
         IbusMsg::PolicyMatchSetsUpd(match_sets) => {
             // Update the local copy of the policy match sets.
@@ -249,14 +251,13 @@ pub(crate) fn notify_redistribute_del(
 }
 
 // Sends route redistribute delete notification.
-pub(crate) fn notify_nht_update(
-    instances: &BTreeMap<InstanceId, InstanceHandle>,
-    addr: IpAddr,
-    metric: Option<u32>,
-) {
-    let msg = IbusMsg::NexthopUpd { addr, metric };
-    for instance in instances.values() {
-        send(&instance.ibus_tx, msg.clone());
+pub(crate) fn notify_nht_update(addr: IpAddr, nhte: &NhtEntry) {
+    let msg = IbusMsg::NexthopUpd {
+        addr,
+        metric: nhte.metric,
+    };
+    for ibus_tx in nhte.subscriptions.values() {
+        send(ibus_tx, msg.clone());
     }
 }
 

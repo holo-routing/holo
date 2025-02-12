@@ -1,11 +1,11 @@
 {"RouterIdSub":{}}
 {"RouteRedistributeSub":{"protocol":"direct","af":"Ipv4"}}
-{"NexthopTrack":"10.0.4.2"}
+{"NexthopTrack":{"addr":"10.0.4.2"}}
 {"RouteIpAdd":{"protocol":"bgp","prefix":"1.1.1.1/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"10.0.4.2","labels":[],"resolved":[]}}]}}
 {"RouteIpAdd":{"protocol":"bgp","prefix":"2.2.2.2/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"10.0.4.2","labels":[],"resolved":[]}}]}}
 {"RouteIpAdd":{"protocol":"bgp","prefix":"4.4.4.4/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"10.0.4.2","labels":[],"resolved":[]}}]}}
 {"RouteIpAdd":{"protocol":"bgp","prefix":"5.5.5.5/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"10.0.4.2","labels":[],"resolved":[]}}]}}
-{"NexthopTrack":"10.0.5.6"}
+{"NexthopTrack":{"addr":"10.0.5.6"}}
 {"RouteIpAdd":{"protocol":"bgp","prefix":"6.6.6.6/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"10.0.5.6","labels":[],"resolved":[]}}]}}
 {"RouteIpAdd":{"protocol":"bgp","prefix":"4.4.4.4/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"10.0.5.6","labels":[],"resolved":[]}}]}}
 {"RouteIpAdd":{"protocol":"bgp","prefix":"5.5.5.5/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"10.0.5.6","labels":[],"resolved":[]}}]}}

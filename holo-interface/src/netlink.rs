@@ -15,7 +15,9 @@ use ipnetwork::IpNetwork;
 use libc::{RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, RTNLGRP_LINK};
 use netlink_packet_core::{NetlinkMessage, NetlinkPayload};
 use netlink_packet_route::RouteNetlinkMessage;
-use netlink_packet_route::address::{AddressAttribute, AddressMessage};
+use netlink_packet_route::address::{
+    AddressAttribute, AddressFlag, AddressMessage,
+};
 use netlink_packet_route::link::{
     LinkAttribute, LinkFlag, LinkLayerType, LinkMessage,
 };
@@ -107,6 +109,15 @@ fn process_newaddr_msg(master: &mut Master, msg: AddressMessage) {
     for nla in msg.attributes.into_iter() {
         match nla {
             AddressAttribute::Address(nla_addr) => addr = Some(nla_addr),
+            AddressAttribute::Flags(nla_flags) => {
+                // Ignore the address if it is still undergoing Duplicate
+                // Address Detection (DAD) or has failed DAD.
+                if nla_flags.contains(&AddressFlag::Tentative)
+                    || nla_flags.contains(&AddressFlag::Dadfailed)
+                {
+                    return;
+                }
+            }
             _ => (),
         }
     }

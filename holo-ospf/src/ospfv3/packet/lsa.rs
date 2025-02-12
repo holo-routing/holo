@@ -954,10 +954,12 @@ pub struct LsaRouterInfo {
     #[new(default)]
     pub srms_pref: Option<SrmsPrefTlv>,
     #[new(default)]
-    #[serde(skip)]
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub info_hostname: Option<DynamicHostnameTlv>,
     #[new(default)]
-    #[serde(skip)]
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub node_tags: Vec<NodeAdminTagTlv>,
     #[new(default)]
     pub unknown_tlvs: Vec<UnknownTlv>,

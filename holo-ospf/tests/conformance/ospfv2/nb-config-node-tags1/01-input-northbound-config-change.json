@@ -1,0 +1,33 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-ospf:ospfv2",
+          "name": "test",
+          "ietf-ospf:ospf": {
+            "node-tags": {
+              "node-tag": [
+                {
+                  "@": {
+                    "yang:operation": "create"
+                  },
+                  "tag": 10
+                },
+                {
+                  "@": {
+                    "yang:operation": "create"
+                  },
+                  "tag": 20
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

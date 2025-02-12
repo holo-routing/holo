@@ -33,7 +33,7 @@ use crate::interface::CircuitIdAllocator;
 use crate::lsdb::{LspEntry, LspLogEntry};
 use crate::northbound::configuration::InstanceCfg;
 use crate::packet::{LevelNumber, LevelType, Levels, SystemId};
-use crate::route::Route;
+use crate::route::{Route, RouteFlags};
 use crate::spf::{SpfLogEntry, SpfScheduler, Vertex, VertexId};
 use crate::tasks::messages::input::{
     AdjHoldTimerMsg, DisElectionMsg, LspDeleteMsg, LspOriginateMsg,
@@ -214,10 +214,25 @@ impl Instance {
 
     // Stops the IS-IS instance.
     fn stop(&mut self, reason: InstanceInactiveReason) {
+        let (mut instance, arenas) = self.as_up().unwrap();
+
         Debug::InstanceStop(reason).log();
 
+        // Uninstall all routes.
+        let rib = match instance.config.level_type {
+            LevelType::L1 | LevelType::L2 => {
+                instance.state.rib_single.get(instance.config.level_type)
+            }
+            LevelType::All => &instance.state.rib_multi,
+        };
+        for (prefix, route) in rib
+            .iter()
+            .filter(|(_, route)| route.flags.contains(RouteFlags::INSTALLED))
+        {
+            southbound::tx::route_uninstall(&instance.tx.ibus, prefix, route);
+        }
+
         // Stop interfaces.
-        let (mut instance, arenas) = self.as_up().unwrap();
         let reason = InterfaceInactiveReason::InstanceDown;
         for iface in arenas
             .interfaces

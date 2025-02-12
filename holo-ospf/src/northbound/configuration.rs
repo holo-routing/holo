@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::net::Ipv4Addr;
 use std::sync::LazyLock as Lazy;
 
@@ -38,6 +38,7 @@ use crate::{gr, southbound, spf, sr};
 #[derive(Debug, EnumAsInner)]
 pub enum ListEntry<V: Version> {
     None,
+    NodeTag(u32),
     Area(AreaIndex),
     AreaRange(AreaIndex, V::IpNetwork),
     Interface(AreaIndex, InterfaceIndex),
@@ -74,6 +75,7 @@ pub enum Event {
     UpdateSummaries,
     ReinstallRoutes,
     BierEnableChange(bool),
+    NodeTagsChange,
 }
 
 pub static VALIDATION_CALLBACKS_OSPFV2: Lazy<ValidationCallbacks> =
@@ -101,6 +103,7 @@ pub struct InstanceCfg {
     pub spf_hold_down: u32,
     pub spf_time_to_learn: u32,
     pub stub_router: bool,
+    pub node_tags: BTreeSet<u32>,
     pub extended_lsa: bool,
     pub sr_enabled: bool,
     pub instance_id: u8,
@@ -361,6 +364,27 @@ where
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::StubRouterChange);
+        })
+        .path(ospf::node_tags::node_tag::PATH)
+        .create_apply(|instance, args| {
+            let node_tag = args.dnode.get_u32_relative("tag").unwrap();
+            instance.config.node_tags.insert(node_tag);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::NodeTagsChange);
+
+        })
+        .delete_apply(|instance, args| {
+            let node_tag = args.list_entry.into_node_tag().unwrap();
+            instance.config.node_tags.remove(&node_tag);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::NodeTagsChange);
+
+        })
+        .lookup(|_instance, _list_entry, dnode| {
+            let node_tag = dnode.get_u32_relative("tag").unwrap();
+            ListEntry::NodeTag(node_tag)
         })
         .path(ospf::extended_lsa_support::PATH)
         .modify_apply(|instance, args| {
@@ -1583,6 +1607,15 @@ where
                     }
                 }
             }
+            Event::NodeTagsChange => {
+                if let Some((instance, arenas)) = self.as_up() {
+                    let _ = V::lsa_orig_event(
+                        &instance,
+                        arenas,
+                        LsaOriginateEvent::NodeTagsChange,
+                    );
+                }
+            }
         }
     }
 }
@@ -1631,6 +1664,7 @@ impl Default for InstanceCfg {
             spf_hold_down,
             spf_time_to_learn,
             stub_router: false,
+            node_tags: Default::default(),
             extended_lsa,
             sr_enabled,
             instance_id,

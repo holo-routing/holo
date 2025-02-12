@@ -37,8 +37,8 @@ use crate::packet::lsa::{
     Lsa, LsaHdrVersion, LsaKey, LsaScope, LsaTypeVersion,
 };
 use crate::packet::tlv::{
-    DynamicHostnameTlv, PrefixSidFlags, RouterInfoCaps, RouterInfoCapsTlv,
-    SidLabelRangeTlv, SrAlgoTlv, SrLocalBlockTlv,
+    DynamicHostnameTlv, NodeAdminTagTlv, PrefixSidFlags, RouterInfoCaps,
+    RouterInfoCapsTlv, SidLabelRangeTlv, SrAlgoTlv, SrLocalBlockTlv,
 };
 use crate::route::{SummaryNet, SummaryRtr};
 use crate::version::Ospfv2;
@@ -239,7 +239,8 @@ impl LsdbVersion<Self> for Ospfv2 {
                     }
                 }
             }
-            LsaOriginateEvent::HostnameChange => {
+            LsaOriginateEvent::HostnameChange
+            | LsaOriginateEvent::NodeTagsChange => {
                 // (Re)originate Router Information LSA(s) in all areas.
                 for area in arenas.areas.iter() {
                     lsa_orig_router_info(area, instance);
@@ -603,6 +604,12 @@ fn lsa_orig_router_info(
         }
     }
 
+    // Fill in node tags.
+    let mut node_tags = vec![];
+    if !instance.config.node_tags.is_empty() {
+        node_tags.push(NodeAdminTagTlv::new(instance.config.node_tags.clone()));
+    }
+
     // (Re)originate Router Information LSA.
     let mut info_caps = RouterInfoCaps::STUB_ROUTER;
     if instance.config.gr.helper_enabled {
@@ -621,6 +628,7 @@ fn lsa_orig_router_info(
             .hostname
             .as_ref()
             .map(|hostname| DynamicHostnameTlv::new(hostname.to_string())),
+        node_tags,
         unknown_tlvs: vec![],
     }));
     instance.tx.protocol_input.lsa_orig_check(

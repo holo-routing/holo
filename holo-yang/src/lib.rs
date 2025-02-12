@@ -279,6 +279,7 @@ pub static YANG_FEATURES: Lazy<HashMap<&'static str, Vec<&'static str>>> =
                 "key-chain",
                 "max-ecmp",
                 "mtu-ignore",
+                "node-tag",
                 "ospfv3-authentication-trailer",
                 "stub-router",
             ],

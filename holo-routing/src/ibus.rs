@@ -191,6 +191,13 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
         IbusMsg::BierPurge => {
             master.birt.entries.clear();
         }
+        IbusMsg::Disconnect { subscriber } => {
+            let subscriber = subscriber.unwrap();
+            master.rib.subscriptions.remove(&subscriber.id);
+            for nhte in master.rib.nht.values_mut() {
+                nhte.subscriptions.remove(&subscriber.id);
+            }
+        }
         // Ignore other events.
         _ => {}
     }

@@ -7,7 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use std::net::Ipv4Addr;
+use std::net::IpAddr;
 use std::time::Duration;
 
 use chrono::Utc;
@@ -24,7 +24,7 @@ use crate::tasks;
 
 pub(crate) fn process_vrrp_packet(
     interface: &mut Interface,
-    src: Ipv4Addr,
+    src: IpAddr,
     packet: DecodeResult<VrrpHdr>,
 ) -> Result<(), Error> {
     // Check if the packet was decoded successfully.
@@ -43,6 +43,7 @@ pub(crate) fn process_vrrp_packet(
                             Utc::now();
                     }
                 }
+                DecodeError::IpTtlError { .. } => {}
             }
             return Err(Error::from((src, error)));
         }
@@ -69,6 +70,7 @@ pub(crate) fn process_vrrp_packet(
         let error = GlobalError::VersionError;
         return Err(Error::GlobalError(src, error));
     }
+
     if packet.adver_int != instance.config.advertise_interval {
         instance.state.statistics.interval_errors += 1;
         instance.state.statistics.discontinuity_time = Utc::now();
@@ -106,19 +108,26 @@ pub(crate) fn process_vrrp_packet(
         }
         fsm::State::Master => {
             let primary_addr = interface.system.addresses.first().unwrap().ip();
-            if packet.priority == 0 {
-                instance.send_vrrp_advertisement(primary_addr);
-                instance.timer_reset();
-            } else if packet.priority > instance.config.priority
-                || (packet.priority == instance.config.priority
-                    && src > primary_addr)
-            {
-                instance.change_state(
-                    &interface,
-                    fsm::State::Backup,
-                    fsm::Event::HigherPriorityBackup,
-                    MasterReason::NotMaster,
-                );
+            match src {
+                IpAddr::V4(src) => {
+                    if packet.priority == 0 {
+                        instance.send_vrrp_advertisement(primary_addr);
+                        instance.timer_reset();
+                    } else if packet.priority > instance.config.priority
+                        || (packet.priority == instance.config.priority
+                            && src > primary_addr)
+                    {
+                        instance.change_state(
+                            &interface,
+                            fsm::State::Backup,
+                            fsm::Event::HigherPriorityBackup,
+                            MasterReason::NotMaster,
+                        );
+                    }
+                }
+                IpAddr::V6(_src) => {
+                    todo!("handle for V6")
+                }
             }
         }
     }

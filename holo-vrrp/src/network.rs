@@ -7,30 +7,33 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use std::io::IoSlice;
+use std::io::{IoSlice, IoSliceMut};
+use std::ops::Deref;
 use std::os::fd::AsRawFd;
 use std::sync::Arc;
 
-use bytes::BufMut;
+use bytes::{BufMut, Bytes};
 use holo_utils::socket::{AsyncFd, Socket, SocketExt};
 use holo_utils::{Sender, UnboundedReceiver, capabilities};
 use libc::{AF_PACKET, ETH_P_ARP};
-use nix::sys::socket::{self, LinkAddr, SockaddrIn, SockaddrLike};
+use nix::sys::socket::{self, LinkAddr, SockaddrIn, SockaddrIn6, SockaddrLike};
 use socket2::{Domain, Protocol, Type};
 use tokio::sync::mpsc::error::SendError;
 
-use crate::consts::{VRRP_MULTICAST_ADDRESS, VRRP_PROTO_NUMBER};
+use crate::consts::{
+    VRRP_PROTO_NUMBER, VRRP_V2_MULTICAST_ADDRESS, VRRP_V3_MULTICAST_ADDRESS,
+};
 use crate::debug::Debug;
 use crate::error::IoError;
 use crate::instance::InstanceMacvlan;
 use crate::interface::InterfaceView;
-use crate::packet::{ArpHdr, EthernetHdr, Ipv4Hdr, VrrpHdr, VrrpPacket};
+use crate::packet::{ArpHdr, EthernetHdr, VrrpHdr, VrrpPacket, VrrpV3Packet};
 use crate::tasks::messages::input::VrrpNetRxPacketMsg;
 use crate::tasks::messages::output::NetTxPacketMsg;
 
 // ===== global functions =====
 
-pub(crate) fn socket_vrrp_tx(
+pub(crate) fn socket_vrrp_v2_tx(
     mvlan: &InstanceMacvlan,
 ) -> Result<Socket, std::io::Error> {
     #[cfg(not(feature = "testing"))]
@@ -60,7 +63,35 @@ pub(crate) fn socket_vrrp_tx(
     }
 }
 
-pub(crate) fn socket_vrrp_rx(
+pub(crate) fn socket_vrrp_v3_tx(
+    mvlan: &InstanceMacvlan,
+) -> Result<Socket, std::io::Error> {
+    #[cfg(not(feature = "testing"))]
+    {
+        let socket = capabilities::raise(|| {
+            Socket::new(
+                Domain::IPV6,
+                Type::RAW,
+                Some(Protocol::from(VRRP_PROTO_NUMBER)),
+            )
+        })?;
+        socket.set_nonblocking(true)?;
+        socket.set_reuse_address(true)?;
+        socket.set_multicast_ifindex_v6(mvlan.system.ifindex.unwrap())?;
+        socket.set_header_included_v6(true)?;
+        capabilities::raise(|| {
+            socket.bind_device(Some(mvlan.name.as_bytes()))
+        })?;
+
+        Ok(socket)
+    }
+    #[cfg(feature = "testing")]
+    {
+        Ok(Socket {})
+    }
+}
+
+pub(crate) fn socket_vrrp_v2_rx(
     interface: &InterfaceView,
 ) -> Result<Socket, std::io::Error> {
     #[cfg(not(feature = "testing"))]
@@ -72,13 +103,43 @@ pub(crate) fn socket_vrrp_rx(
                 Some(Protocol::from(VRRP_PROTO_NUMBER)),
             )
         })?;
+        socket.set_header_included(false)?;
         capabilities::raise(|| {
             socket.bind_device(Some(interface.name.as_bytes()))
         })?;
         socket.set_nonblocking(true)?;
         socket.join_multicast_v4(
-            &VRRP_MULTICAST_ADDRESS,
+            &VRRP_V2_MULTICAST_ADDRESS,
             &interface.system.addresses.first().unwrap().ip(),
+        )?;
+
+        Ok(socket)
+    }
+    #[cfg(feature = "testing")]
+    {
+        Ok(Socket {})
+    }
+}
+
+pub(crate) fn socket_vrrp_v3_rx(
+    interface: &InterfaceView,
+) -> Result<Socket, std::io::Error> {
+    #[cfg(not(feature = "testing"))]
+    {
+        let socket = capabilities::raise(|| {
+            Socket::new(
+                Domain::IPV6,
+                Type::RAW,
+                Some(Protocol::from(VRRP_PROTO_NUMBER)),
+            )
+        })?;
+        capabilities::raise(|| {
+            socket.bind_device(Some(interface.name.as_bytes()))
+        })?;
+        socket.set_nonblocking(true)?;
+        socket.join_multicast_v6(
+            &VRRP_V3_MULTICAST_ADDRESS,
+            interface.system.ifindex.unwrap(),
         )?;
 
         Ok(socket)
@@ -123,7 +184,37 @@ async fn send_packet_vrrp(
     // Send packet.
     let iov = [IoSlice::new(&buf)];
     let sockaddr: SockaddrIn =
-        std::net::SocketAddrV4::new(VRRP_MULTICAST_ADDRESS, 0).into();
+        std::net::SocketAddrV4::new(VRRP_V2_MULTICAST_ADDRESS, 0).into();
+    socket
+        .async_io(tokio::io::Interest::WRITABLE, |socket| {
+            socket::sendmsg(
+                socket.as_raw_fd(),
+                &iov,
+                &[],
+                socket::MsgFlags::empty(),
+                Some(&sockaddr),
+            )
+            .map_err(|errno| errno.into())
+        })
+        .await
+        .map_err(IoError::SendError)
+}
+
+#[cfg(not(feature = "testing"))]
+async fn send_packet_vrrp_v3(
+    socket: &AsyncFd<Socket>,
+    packet: VrrpV3Packet,
+) -> Result<usize, IoError> {
+    // TODO: handle debugging
+
+    // Encode packet.
+    let buf = packet.encode();
+
+    // Send packet.
+    let iov = [IoSlice::new(&buf)];
+    let sockaddr: SockaddrIn6 =
+        std::net::SocketAddrV6::new(VRRP_V3_MULTICAST_ADDRESS, 0, 0, 0).into();
+
     socket
         .async_io(tokio::io::Interest::WRITABLE, |socket| {
             socket::sendmsg(
@@ -188,6 +279,7 @@ async fn send_packet_arp(
 #[cfg(not(feature = "testing"))]
 pub(crate) async fn write_loop(
     socket_vrrp: Arc<AsyncFd<Socket>>,
+    socket_vrrp_v3: Arc<AsyncFd<Socket>>,
     socket_arp: Arc<AsyncFd<Socket>>,
     mut net_tx_packetc: UnboundedReceiver<NetTxPacketMsg>,
 ) {
@@ -195,6 +287,13 @@ pub(crate) async fn write_loop(
         match msg {
             NetTxPacketMsg::Vrrp { packet } => {
                 if let Err(error) = send_packet_vrrp(&socket_vrrp, packet).await
+                {
+                    error.log();
+                }
+            }
+            NetTxPacketMsg::VrrpV3 { packet } => {
+                if let Err(error) =
+                    send_packet_vrrp_v3(&socket_vrrp_v3, packet).await
                 {
                     error.log();
                 }
@@ -227,39 +326,107 @@ pub(crate) async fn vrrp_read_loop(
     vrrp_net_packet_rxp: Sender<VrrpNetRxPacketMsg>,
 ) -> Result<(), SendError<VrrpNetRxPacketMsg>> {
     let mut buf = [0u8; 16384];
+    let mut iov = [IoSliceMut::new(&mut buf)];
+    let mut cmsgspace = nix::cmsg_space!(libc::in_pktinfo);
+
     loop {
         match socket_vrrp
             .async_io(tokio::io::Interest::READABLE, |socket| {
-                match socket::recv(
+                match socket::recvmsg(
                     socket.as_raw_fd(),
-                    &mut buf,
+                    &mut iov,
+                    Some(&mut cmsgspace),
                     socket::MsgFlags::empty(),
                 ) {
                     Ok(msg) => {
-                        let data = &buf[0..msg];
+                        let src = msg
+                            .address
+                            .as_ref()
+                            .map(|addr: &SockaddrIn| addr.ip());
 
-                        // Since IP header length is given in number of words
-                        // (4 bytes per word), we multiply by 4 to get the actual
-                        // number of bytes.
-                        let ip_header_len = ((data[0] & 0x0f) * 4) as usize;
-
-                        let ip_pkt =
-                            Ipv4Hdr::decode(&data[0..ip_header_len]).unwrap();
-                        let vrrp_pkt = VrrpHdr::decode(&data[ip_header_len..]);
-                        Ok((ip_pkt.src_address, vrrp_pkt))
+                        Ok((src, msg.bytes))
                     }
                     Err(errno) => Err(errno.into()),
                 }
             })
             .await
         {
-            Ok((src, vrrp_pkt)) => {
-                let msg = VrrpNetRxPacketMsg {
-                    src,
-                    packet: vrrp_pkt,
-                };
-                vrrp_net_packet_rxp.send(msg).await.unwrap();
+            Ok((src, bytes)) => match src {
+                Some(addr) => {
+                    let buf =
+                        &Bytes::copy_from_slice(iov[0].deref())[20..bytes];
+                    let vrrp_pkt = VrrpHdr::decode(buf, 4);
+
+                    let msg = VrrpNetRxPacketMsg {
+                        src: std::net::IpAddr::V4(addr),
+                        packet: vrrp_pkt,
+                    };
+                    vrrp_net_packet_rxp.send(msg).await.unwrap();
+                }
+                None => {
+                    // TODO: add an unavailable address error
+                    continue;
+                }
+            },
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {
+                // Retry if the syscall was interrupted (EINTR).
+                continue;
             }
+            Err(error) => {
+                IoError::RecvError(error).log();
+            }
+        }
+    }
+}
+
+#[cfg(not(feature = "testing"))]
+pub(crate) async fn _vrrp_v3_read_loop(
+    socket_vrrp: Arc<AsyncFd<Socket>>,
+    vrrp_net_packet_rxp: Sender<VrrpNetRxPacketMsg>,
+) -> Result<(), SendError<VrrpNetRxPacketMsg>> {
+    let mut buf = [0u8; 16384];
+    let mut iov = [IoSliceMut::new(&mut buf)];
+    let mut cmsgspace = nix::cmsg_space!(libc::in6_pktinfo);
+
+    loop {
+        match socket_vrrp
+            .async_io(tokio::io::Interest::READABLE, |socket| {
+                match socket::recvmsg(
+                    socket.as_raw_fd(),
+                    &mut iov,
+                    Some(&mut cmsgspace),
+                    socket::MsgFlags::empty(),
+                ) {
+                    Ok(msg) => {
+                        let src = msg
+                            .address
+                            .as_ref()
+                            .map(|addr: &SockaddrIn6| addr.ip());
+
+                        Ok((src, msg.bytes))
+                    }
+                    Err(errno) => Err(errno.into()),
+                }
+            })
+            .await
+        {
+            Ok((src, bytes)) => match src {
+                Some(addr) => {
+                    let buf =
+                        &Bytes::copy_from_slice(iov[0].deref())[320..bytes];
+                    let vrrp_pkt = VrrpHdr::decode(buf, 6);
+
+                    let msg = VrrpNetRxPacketMsg {
+                        src: std::net::IpAddr::V6(addr),
+                        packet: vrrp_pkt,
+                    };
+                    vrrp_net_packet_rxp.send(msg).await.unwrap();
+                }
+                None => {
+                    // TODO: add an unavailable address error
+                    continue;
+                }
+            },
             Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {
                 // Retry if the syscall was interrupted (EINTR).
                 continue;

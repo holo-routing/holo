@@ -21,6 +21,7 @@ use tracing::{Instrument, debug_span};
 
 use crate::instance::Instance;
 use crate::network;
+use crate::northbound::configuration::IpVersion;
 use crate::packet::VrrpPacket;
 
 //
@@ -57,7 +58,7 @@ pub mod messages {
 
     // Input messages (child task -> main task).
     pub mod input {
-        use std::net::Ipv4Addr;
+        use std::net::IpAddr;
 
         use super::*;
 
@@ -69,7 +70,7 @@ pub mod messages {
 
         #[derive(Debug, Deserialize, Serialize)]
         pub struct VrrpNetRxPacketMsg {
-            pub src: Ipv4Addr,
+            pub src: IpAddr,
             pub packet: Result<VrrpHdr, DecodeError>,
         }
 
@@ -82,7 +83,7 @@ pub mod messages {
     // Output messages (main task -> child task).
     pub mod output {
         use super::*;
-        use crate::packet::{ArpHdr, EthernetHdr, VrrpPacket};
+        use crate::packet::{ArpHdr, EthernetHdr, VrrpPacket, VrrpV3Packet};
 
         #[derive(Debug, Serialize)]
         pub enum ProtocolMsg {
@@ -93,6 +94,9 @@ pub mod messages {
         pub enum NetTxPacketMsg {
             Vrrp {
                 packet: VrrpPacket,
+            },
+            VrrpV3 {
+                packet: VrrpV3Packet,
             },
             Arp {
                 vrid: u8,
@@ -136,10 +140,41 @@ pub(crate) fn vrrp_net_rx(
     }
 }
 
+// Network Rx task.
+pub(crate) fn vrrp_v3_net_rx(
+    socket_vrrp: Arc<AsyncFd<Socket>>,
+    net_packet_rxp: &Sender<messages::input::VrrpNetRxPacketMsg>,
+) -> Task<()> {
+    #[cfg(not(feature = "testing"))]
+    {
+        let span1 = debug_span!("network");
+        let _span1_guard = span1.enter();
+        let span2 = debug_span!("input");
+        let _span2_guard = span2.enter();
+
+        let net_packet_rxp = net_packet_rxp.clone();
+
+        let span = tracing::span::Span::current();
+        Task::spawn(
+            async move {
+                let _span_enter = span.enter();
+                let _ =
+                    network::vrrp_read_loop(socket_vrrp, net_packet_rxp).await;
+            }
+            .in_current_span(),
+        )
+    }
+    #[cfg(feature = "testing")]
+    {
+        Task::spawn(async move { std::future::pending().await })
+    }
+}
+
 // Network Tx task.
 #[allow(unused_mut)]
 pub(crate) fn net_tx(
     socket_vrrp: Arc<AsyncFd<Socket>>,
+    socket_vrrp_v3: Arc<AsyncFd<Socket>>,
     socket_arp: Arc<AsyncFd<Socket>>,
     mut net_packet_txc: UnboundedReceiver<messages::output::NetTxPacketMsg>,
     #[cfg(feature = "testing")] proto_output_tx: &Sender<
@@ -157,8 +192,13 @@ pub(crate) fn net_tx(
         Task::spawn(
             async move {
                 let _span_enter = span.enter();
-                network::write_loop(socket_vrrp, socket_arp, net_packet_txc)
-                    .await;
+                network::write_loop(
+                    socket_vrrp,
+                    socket_vrrp_v3,
+                    socket_arp,
+                    net_packet_txc,
+                )
+                .await;
             }
             .in_current_span(),
         )
@@ -209,7 +249,7 @@ pub(crate) fn advertisement_interval(
     {
         let packet = VrrpPacket {
             ip: instance.generate_ipv4_packet(src_ip),
-            vrrp: instance.generate_vrrp_packet(),
+            vrrp: instance.generate_vrrp_packet(IpVersion::V4),
         };
         let adv_sent = instance.state.statistics.adv_sent.clone();
         let net_tx_packetp = net_tx_packetp.clone();

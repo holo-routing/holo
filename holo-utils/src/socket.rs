@@ -208,6 +208,18 @@ pub trait SocketExt: Sized + AsRawFd {
             std::mem::size_of::<packet_mreq>() as libc::socklen_t,
         )
     }
+
+    // sets the IP_HDRINCL option for ipv6 packet
+    fn set_header_included_v6(&self, included: bool) -> Result<()> {
+        let optval = included as c_int;
+        setsockopt(
+            self,
+            libc::IPPROTO_IPV6,
+            libc::IP_HDRINCL,
+            &optval as *const _ as *const libc::c_void,
+            std::mem::size_of::<i32>() as libc::socklen_t,
+        )
+    }
 }
 
 // Extension methods for UdpSocket.

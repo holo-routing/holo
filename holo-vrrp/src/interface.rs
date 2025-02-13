@@ -176,7 +176,7 @@ impl ProtocolInstance for Interface {
 
     fn process_protocol_msg(&mut self, msg: ProtocolInputMsg) {
         if let Err(error) = match msg {
-            // Received network packet.
+            // Received VRRP v2 network packet.
             ProtocolInputMsg::VrrpNetRxPacket(msg) => {
                 events::process_vrrp_packet(self, msg.src, msg.packet)
             }

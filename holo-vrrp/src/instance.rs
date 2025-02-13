@@ -7,7 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use std::net::Ipv4Addr;
+use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use std::time::Duration;
@@ -17,13 +17,14 @@ use enum_as_inner::EnumAsInner;
 use holo_utils::UnboundedSender;
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
+use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 
-use crate::consts::{VRRP_MULTICAST_ADDRESS, VRRP_PROTO_NUMBER};
+use crate::consts::{VRRP_PROTO_NUMBER, VRRP_V2_MULTICAST_ADDRESS};
 use crate::debug::Debug;
 use crate::error::{Error, IoError};
 use crate::interface::{InterfaceSys, InterfaceView};
-use crate::northbound::configuration::InstanceCfg;
+use crate::northbound::configuration::{InstanceCfg, IpVersion, VrrpVersion};
 use crate::packet::{ArpHdr, EthernetHdr, Ipv4Hdr, VrrpHdr, VrrpPacket};
 use crate::tasks::messages::output::NetTxPacketMsg;
 use crate::{network, southbound, tasks};
@@ -49,7 +50,7 @@ pub struct InstanceState {
     pub new_master_reason: MasterReason,
     pub up_time: Option<DateTime<Utc>>,
     pub timer: VrrpTimer,
-    pub last_adv_src: Option<Ipv4Addr>,
+    pub last_adv_src: Option<IpAddr>,
     pub statistics: Statistics,
 }
 
@@ -64,12 +65,15 @@ pub struct InstanceMacvlan {
 #[derive(Debug)]
 pub struct InstanceNet {
     // Raw sockets.
-    pub socket_vrrp_tx: Arc<AsyncFd<Socket>>,
-    pub socket_vrrp_rx: Arc<AsyncFd<Socket>>,
+    pub socket_vrrp_v2_tx: Arc<AsyncFd<Socket>>,
+    pub socket_vrrp_v2_rx: Arc<AsyncFd<Socket>>,
+    pub socket_vrrp_v3_tx: Arc<AsyncFd<Socket>>,
+    pub socket_vrrp_v3_rx: Arc<AsyncFd<Socket>>,
     pub socket_arp: Arc<AsyncFd<Socket>>,
     // Network Tx/Rx tasks.
     _net_tx_task: Task<()>,
     _vrrp_net_rx_task: Task<()>,
+    _vrrp_v3_net_rx_tasks: Task<()>,
     // Network Tx output channel.
     pub net_tx_packetp: UnboundedSender<NetTxPacketMsg>,
 }
@@ -197,7 +201,7 @@ impl Instance {
             let src_ip = interface.system.addresses.first().unwrap();
             let net = self.net.as_ref().unwrap();
 
-            let mut pkt = self.generate_vrrp_packet();
+            let mut pkt = self.generate_vrrp_packet(IpVersion::V4);
             pkt.priority = 0;
             pkt.generate_checksum();
 
@@ -321,27 +325,90 @@ impl Instance {
         }
     }
 
-    pub(crate) fn generate_vrrp_packet(&self) -> VrrpHdr {
-        let mut ip_addresses: Vec<Ipv4Addr> = vec![];
+    /// Generates VRRP packet
+    /// TODO: change return type to Result<VrrpHdr>
+    pub(crate) fn generate_vrrp_packet(
+        &self,
+        ip_version: IpVersion,
+    ) -> VrrpHdr {
+        match ip_version {
+            IpVersion::V4 => self.vrrp_ipv4_packet(),
+            IpVersion::V6 => self.vrrp_ipv6_packet(),
+        }
+    }
+
+    /// A VRRP packet holding IPV4 virtual addresses
+    /// and coming from an IPV4 address (can either be vrrp v2 or v3)
+    fn vrrp_ipv4_packet(&self) -> VrrpHdr {
+        let mut ip_addresses: Vec<IpAddr> = vec![];
+        let mut version: u8 = 2;
+        let mut auth_data: Option<u32> = None;
+        let mut auth_data2: Option<u32> = None;
+
         for addr in &self.config.virtual_addresses {
-            ip_addresses.push(addr.ip());
+            if let IpNetwork::V4(ipv4_addr) = addr {
+                ip_addresses.push(IpAddr::V4(ipv4_addr.ip()));
+            }
+        }
+        match self.config.version {
+            VrrpVersion::V2 => {
+                auth_data = Some(0);
+                auth_data2 = Some(0);
+            }
+            VrrpVersion::V3 => {
+                version = 3;
+            }
         }
 
-        let mut packet = VrrpHdr {
-            version: 2,
+        let mut pkt = VrrpHdr {
+            ip_version: 4,
+            version,
             hdr_type: 1,
             vrid: self.vrid,
             priority: self.config.priority,
-            count_ip: self.config.virtual_addresses.len() as u8,
+            count_ip: ip_addresses.len() as u8,
             auth_type: 0,
             adver_int: self.config.advertise_interval,
             checksum: 0,
             ip_addresses,
-            auth_data: 0,
-            auth_data2: 0,
+            auth_data,
+            auth_data2,
         };
-        packet.generate_checksum();
-        packet
+        if self.config.version == VrrpVersion::V2 {
+            pkt.generate_checksum();
+        }
+        pkt
+    }
+
+    /// A VRRP packet holding IPV6 virtual addresses
+    /// and will be sent from an IPV6 address
+    fn vrrp_ipv6_packet(&self) -> VrrpHdr {
+        let mut ip_addresses: Vec<IpAddr> = vec![];
+
+        for addr in &self.config.virtual_addresses {
+            if let IpNetwork::V6(ipv6_addr) = addr {
+                ip_addresses.push(IpAddr::V6(ipv6_addr.ip()));
+            }
+        }
+
+        let mut pkt = VrrpHdr {
+            ip_version: 4,
+            version: 3,
+            hdr_type: 1,
+            vrid: self.vrid,
+            priority: self.config.priority,
+            count_ip: ip_addresses.len() as u8,
+            auth_type: 0,
+            adver_int: self.config.advertise_interval,
+            checksum: 0,
+            ip_addresses,
+            auth_data: None,
+            auth_data2: None,
+        };
+        if self.config.version == VrrpVersion::V2 {
+            pkt.generate_checksum();
+        }
+        pkt
     }
 
     pub(crate) fn generate_ipv4_packet(
@@ -367,7 +434,7 @@ impl Instance {
             protocol: VRRP_PROTO_NUMBER as u8,
             checksum: 0x00,
             src_address,
-            dst_address: VRRP_MULTICAST_ADDRESS,
+            dst_address: VRRP_V2_MULTICAST_ADDRESS,
             options: None,
             padding: None,
         }
@@ -376,7 +443,7 @@ impl Instance {
     pub(crate) fn send_vrrp_advertisement(&mut self, src_ip: Ipv4Addr) {
         let packet = VrrpPacket {
             ip: self.generate_ipv4_packet(src_ip),
-            vrrp: self.generate_vrrp_packet(),
+            vrrp: self.generate_vrrp_packet(IpVersion::V4),
         };
         let msg = NetTxPacketMsg::Vrrp { packet };
         let net = self.net.as_ref().unwrap();
@@ -391,29 +458,36 @@ impl Instance {
             src_mac: self.mvlan.system.mac_address,
         };
         for addr in &self.config.virtual_addresses {
-            let arp_hdr = ArpHdr {
-                hw_type: 1,
-                proto_type: libc::ETH_P_IP as _,
-                // MAC address length
-                hw_length: 6,
-                proto_length: 4,
-                operation: 1,
-                // Sender HW address is virtual MAC
-                // https://datatracker.ietf.org/doc/html/rfc3768#section-7.3
-                sender_hw_address: self.mvlan.system.mac_address,
-                sender_proto_address: addr.ip(),
-                target_hw_address: [0xff; 6],
-                target_proto_address: addr.ip(),
-            };
+            match addr {
+                IpNetwork::V4(addr) => {
+                    let arp_hdr = ArpHdr {
+                        hw_type: 1,
+                        proto_type: libc::ETH_P_IP as _,
+                        // MAC address length
+                        hw_length: 6,
+                        proto_length: 4,
+                        operation: 1,
+                        // Sender HW address is virtual MAC
+                        // https://datatracker.ietf.org/doc/html/rfc3768#section-7.3
+                        sender_hw_address: self.mvlan.system.mac_address,
+                        sender_proto_address: addr.ip(),
+                        target_hw_address: [0xff; 6],
+                        target_proto_address: addr.ip(),
+                    };
 
-            let msg = NetTxPacketMsg::Arp {
-                vrid: self.vrid,
-                ifindex: self.mvlan.system.ifindex.unwrap(),
-                eth_hdr,
-                arp_hdr,
-            };
-            let net = self.net.as_ref().unwrap();
-            let _ = net.net_tx_packetp.send(msg);
+                    let msg = NetTxPacketMsg::Arp {
+                        vrid: self.vrid,
+                        ifindex: self.mvlan.system.ifindex.unwrap(),
+                        eth_hdr,
+                        arp_hdr,
+                    };
+                    let net = self.net.as_ref().unwrap();
+                    let _ = net.net_tx_packetp.send(msg);
+                }
+                IpNetwork::V6(_addr) => {
+                    todo!("add creation of Network Solicitation")
+                }
+            }
         }
     }
 }
@@ -446,18 +520,32 @@ impl InstanceNet {
         let instance_channels_tx = &parent_iface.tx;
 
         // Create raw sockets.
-        let socket_vrrp_rx = network::socket_vrrp_rx(parent_iface)
+        let socket_vrrp_v2_rx = network::socket_vrrp_v2_rx(parent_iface)
             .map_err(IoError::SocketError)
             .and_then(|socket| {
                 AsyncFd::new(socket).map_err(IoError::SocketError)
             })
             .map(Arc::new)?;
-        let socket_vrrp_tx = network::socket_vrrp_tx(mvlan)
+        let socket_vrrp_v3_rx = network::socket_vrrp_v3_rx(parent_iface)
             .map_err(IoError::SocketError)
             .and_then(|socket| {
                 AsyncFd::new(socket).map_err(IoError::SocketError)
             })
             .map(Arc::new)?;
+
+        let socket_vrrp_v2_tx = network::socket_vrrp_v2_tx(mvlan)
+            .map_err(IoError::SocketError)
+            .and_then(|socket| {
+                AsyncFd::new(socket).map_err(IoError::SocketError)
+            })
+            .map(Arc::new)?;
+        let socket_vrrp_v3_tx = network::socket_vrrp_v3_tx(mvlan)
+            .map_err(IoError::SocketError)
+            .and_then(|socket| {
+                AsyncFd::new(socket).map_err(IoError::SocketError)
+            })
+            .map(Arc::new)?;
+
         let socket_arp = network::socket_arp(&mvlan.name)
             .map_err(IoError::SocketError)
             .and_then(|socket| {
@@ -468,23 +556,31 @@ impl InstanceNet {
         // Start network Tx/Rx tasks.
         let (net_tx_packetp, net_tx_packetc) = mpsc::unbounded_channel();
         let net_tx_task = tasks::net_tx(
-            socket_vrrp_tx.clone(),
+            socket_vrrp_v2_tx.clone(),
+            socket_vrrp_v3_tx.clone(),
             socket_arp.clone(),
             net_tx_packetc,
             #[cfg(feature = "testing")]
             &instance_channels_tx.protocol_output,
         );
         let vrrp_net_rx_task = tasks::vrrp_net_rx(
-            socket_vrrp_rx.clone(),
+            socket_vrrp_v2_rx.clone(),
+            &instance_channels_tx.protocol_input.vrrp_net_packet_tx,
+        );
+        let vrrp_v3_net_rx_task = tasks::vrrp_v3_net_rx(
+            socket_vrrp_v3_rx.clone(),
             &instance_channels_tx.protocol_input.vrrp_net_packet_tx,
         );
 
         Ok(Self {
-            socket_vrrp_tx,
-            socket_vrrp_rx,
+            socket_vrrp_v2_tx,
+            socket_vrrp_v2_rx,
+            socket_vrrp_v3_tx,
+            socket_vrrp_v3_rx,
             socket_arp,
             _net_tx_task: net_tx_task,
             _vrrp_net_rx_task: vrrp_net_rx_task,
+            _vrrp_v3_net_rx_tasks: vrrp_v3_net_rx_task,
             net_tx_packetp,
         })
     }

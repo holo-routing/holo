@@ -18,7 +18,7 @@ use holo_northbound::configuration::{
 };
 use holo_northbound::yang::interfaces;
 use holo_utils::yang::DataNodeRefExt;
-use ipnetwork::Ipv4Network;
+use ipnetwork::{IpNetwork, Ipv4Network};
 
 use crate::instance::{Instance, fsm};
 use crate::interface::Interface;
@@ -44,6 +44,18 @@ pub enum Event {
     ResetTimer { vrid: u8 },
 }
 
+#[derive(Debug, PartialEq)]
+pub enum VrrpVersion {
+    V2,
+    V3,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum IpVersion {
+    V4,
+    V6,
+}
+
 pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
     Lazy::new(load_validation_callbacks);
 pub static CALLBACKS: Lazy<Callbacks<Interface>> = Lazy::new(load_callbacks);
@@ -55,8 +67,9 @@ pub struct InstanceCfg {
     pub log_state_change: bool,
     pub preempt: bool,
     pub priority: u8,
-    pub advertise_interval: u8,
-    pub virtual_addresses: BTreeSet<Ipv4Network>,
+    pub advertise_interval: u16,
+    pub version: VrrpVersion,
+    pub virtual_addresses: BTreeSet<IpNetwork>,
 }
 
 // ===== callbacks =====
@@ -120,7 +133,7 @@ fn load_callbacks() -> Callbacks<Interface> {
             let instance = interface.instances.get_mut(&vrid).unwrap();
 
             let advertise_interval = args.dnode.get_u8();
-            instance.config.advertise_interval = advertise_interval;
+            instance.config.advertise_interval = advertise_interval as u16;
         })
         .delete_apply(|_interface, _args| {
             // Nothing to do.
@@ -131,7 +144,7 @@ fn load_callbacks() -> Callbacks<Interface> {
             let instance = interface.instances.get_mut(&vrid).unwrap();
 
             let addr = args.dnode.get_prefix4_relative("ipv4-address").unwrap();
-            instance.config.virtual_addresses.insert(addr);
+            instance.config.virtual_addresses.insert(IpNetwork::V4(addr));
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::VirtualAddressCreate { vrid, addr });
@@ -140,7 +153,7 @@ fn load_callbacks() -> Callbacks<Interface> {
             let (vrid, addr) = args.list_entry.into_virtual_ipv4_addr().unwrap();
             let instance = interface.instances.get_mut(&vrid).unwrap();
 
-            instance.config.virtual_addresses.remove(&addr);
+            instance.config.virtual_addresses.remove(&IpNetwork::V4(addr));
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::VirtualAddressDelete { vrid, addr });
@@ -266,12 +279,14 @@ impl Default for InstanceCfg {
         let priority = vrrp::vrrp_instance::priority::DFLT;
         let advertise_interval =
             vrrp::vrrp_instance::advertise_interval_sec::DFLT;
+
         InstanceCfg {
             log_state_change,
             preempt,
             priority,
-            advertise_interval,
+            advertise_interval: advertise_interval.into(),
             virtual_addresses: Default::default(),
+            version: VrrpVersion::V2,
         }
     }
 }

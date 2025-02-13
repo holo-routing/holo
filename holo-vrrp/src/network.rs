@@ -30,6 +30,7 @@ use crate::interface::InterfaceView;
 use crate::packet::{ArpHdr, EthernetHdr, VrrpHdr, VrrpPacket, VrrpV3Packet};
 use crate::tasks::messages::input::VrrpNetRxPacketMsg;
 use crate::tasks::messages::output::NetTxPacketMsg;
+use crate::version::IpVersion;
 
 // ===== global functions =====
 
@@ -355,7 +356,7 @@ pub(crate) async fn vrrp_read_loop(
                 Some(addr) => {
                     let buf =
                         &Bytes::copy_from_slice(iov[0].deref())[20..bytes];
-                    let vrrp_pkt = VrrpHdr::decode(buf, 4);
+                    let vrrp_pkt = VrrpHdr::decode(buf, IpVersion::V4);
 
                     let msg = VrrpNetRxPacketMsg {
                         src: std::net::IpAddr::V4(addr),
@@ -414,7 +415,7 @@ pub(crate) async fn _vrrp_v3_read_loop(
                 Some(addr) => {
                     let buf =
                         &Bytes::copy_from_slice(iov[0].deref())[320..bytes];
-                    let vrrp_pkt = VrrpHdr::decode(buf, 6);
+                    let vrrp_pkt = VrrpHdr::decode(buf, IpVersion::V6);
 
                     let msg = VrrpNetRxPacketMsg {
                         src: std::net::IpAddr::V6(addr),

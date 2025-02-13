@@ -21,8 +21,8 @@ use tracing::{Instrument, debug_span};
 
 use crate::instance::Instance;
 use crate::network;
-use crate::northbound::configuration::IpVersion;
 use crate::packet::VrrpPacket;
+use crate::version::IpVersion;
 
 //
 // VRRP tasks diagram:

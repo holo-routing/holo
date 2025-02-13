@@ -23,6 +23,7 @@ use ipnetwork::{IpNetwork, Ipv4Network};
 use crate::instance::{Instance, fsm};
 use crate::interface::Interface;
 use crate::southbound;
+use crate::version::VrrpVersion;
 
 #[derive(Debug, Default, EnumAsInner)]
 pub enum ListEntry {
@@ -42,18 +43,6 @@ pub enum Event {
     VirtualAddressCreate { vrid: u8, addr: Ipv4Network },
     VirtualAddressDelete { vrid: u8, addr: Ipv4Network },
     ResetTimer { vrid: u8 },
-}
-
-#[derive(Debug, PartialEq)]
-pub enum VrrpVersion {
-    V2,
-    V3,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum IpVersion {
-    V4,
-    V6,
 }
 
 pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =

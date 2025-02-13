@@ -24,9 +24,10 @@ use crate::consts::{VRRP_PROTO_NUMBER, VRRP_V2_MULTICAST_ADDRESS};
 use crate::debug::Debug;
 use crate::error::{Error, IoError};
 use crate::interface::{InterfaceSys, InterfaceView};
-use crate::northbound::configuration::{InstanceCfg, IpVersion, VrrpVersion};
+use crate::northbound::configuration::InstanceCfg;
 use crate::packet::{ArpHdr, EthernetHdr, Ipv4Hdr, VrrpHdr, VrrpPacket};
 use crate::tasks::messages::output::NetTxPacketMsg;
+use crate::version::{IpVersion, VrrpVersion};
 use crate::{network, southbound, tasks};
 
 #[derive(Debug)]
@@ -361,7 +362,7 @@ impl Instance {
         }
 
         let mut pkt = VrrpHdr {
-            ip_version: 4,
+            ip_version: IpVersion::V4,
             version,
             hdr_type: 1,
             vrid: self.vrid,
@@ -392,7 +393,7 @@ impl Instance {
         }
 
         let mut pkt = VrrpHdr {
-            ip_version: 4,
+            ip_version: IpVersion::V6,
             version: 3,
             hdr_type: 1,
             vrid: self.vrid,

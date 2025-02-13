@@ -13,6 +13,8 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use serde::{Deserialize, Serialize};
 
+use crate::version::IpVersion;
+
 // Type aliases.
 pub type DecodeResult<T> = Result<T, DecodeError>;
 
@@ -66,7 +68,7 @@ pub type DecodeResult<T> = Result<T, DecodeError>;
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct VrrpHdr {
-    pub ip_version: u8, // either 4 or 6
+    pub ip_version: IpVersion,
     pub version: u8,
     pub hdr_type: u8,
     pub vrid: u8,
@@ -242,24 +244,27 @@ impl VrrpHdr {
             buf.put_u16(res_adv_int);
 
             buf.put_u16(self.checksum);
-            if self.ip_version == 4 {
-                for addr in &self.ip_addresses {
-                    if let IpAddr::V4(ipv4_addr) = addr {
-                        buf.put_ipv4(ipv4_addr);
+            match self.ip_version {
+                IpVersion::V4 => {
+                    for addr in &self.ip_addresses {
+                        if let IpAddr::V4(ipv4_addr) = addr {
+                            buf.put_ipv4(ipv4_addr);
+                        }
                     }
                 }
-            } else if self.ip_version == 6 {
-                // TODO: handle ipv6
-                //for addr in &self.ip_addresses {
-                //    buf.put_ipv6(addr);
-                //}
+                IpVersion::V6 => {
+                    // TODO: handle ipv6
+                    //for addr in &self.ip_addresses {
+                    //    buf.put_ipv6(addr);
+                    //}
+                }
             }
         }
         buf
     }
 
     // Decodes VRRP packet from a bytes buffer.
-    pub fn decode(data: &[u8], ip_version: u8) -> DecodeResult<Self> {
+    pub fn decode(data: &[u8], ip_version: IpVersion) -> DecodeResult<Self> {
         let pkt_size = data.len();
         let mut buf: Bytes = Bytes::copy_from_slice(data);
         let ver_type = buf.get_u8();
@@ -309,16 +314,18 @@ impl VrrpHdr {
 
             // TODO: add checksum confirmation when receiving the packet
             checksum = buf.get_u16();
-
-            if ip_version == 4 {
-                for _ in 0..count_ip {
-                    ip_addresses.push(IpAddr::V4(buf.get_ipv4()));
+            match ip_version {
+                IpVersion::V4 => {
+                    for _ in 0..count_ip {
+                        ip_addresses.push(IpAddr::V4(buf.get_ipv4()));
+                    }
                 }
-            } else if ip_version == 6 {
-                // TODO: ad ip version handling
-                //for _ in 0..count_ip {
-                //    ip_addresses.push(buf.get_ipv6());
-                //}
+                IpVersion::V6 => {
+                    // TODO: ad ip version handling
+                    //for _ in 0..count_ip {
+                    //    ip_addresses.push(buf.get_ipv6());
+                    //}
+                }
             }
         }
 

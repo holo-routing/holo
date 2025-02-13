@@ -554,6 +554,7 @@ where
         Debug::<V>::NeighborBfdReg(self.router_id).log();
 
         let msg = IbusMsg::BfdSessionReg {
+            subscriber: instance.tx.ibus.subscriber.clone(),
             sess_key: self.bfd_session_key(iface),
             client_id: self.bfd_client_id(instance),
             client_config: Some(iface.config.bfd_params),
@@ -569,8 +570,8 @@ where
         Debug::<V>::NeighborBfdUnreg(self.router_id).log();
 
         let msg = IbusMsg::BfdSessionUnreg {
+            subscriber: instance.tx.ibus.subscriber.clone(),
             sess_key: self.bfd_session_key(iface),
-            client_id: self.bfd_client_id(instance),
         };
         let _ = instance.tx.ibus.routing.send(msg);
     }

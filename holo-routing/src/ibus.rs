@@ -30,8 +30,7 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
                 send(&instance.ibus_tx, msg.clone());
             }
         }
-        IbusMsg::BfdStateUpd { .. }
-        | IbusMsg::KeychainUpd(..)
+        IbusMsg::KeychainUpd(..)
         | IbusMsg::KeychainDel(..)
         | IbusMsg::PolicyMatchSetsUpd(..)
         | IbusMsg::PolicyUpd(..)

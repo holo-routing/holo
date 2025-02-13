@@ -7,6 +7,7 @@
 use std::net::SocketAddr;
 
 use holo_utils::bfd::{ClientCfg, ClientId, SessionKey, State};
+use holo_utils::ibus::IbusSubscriber;
 use tracing::trace;
 
 use crate::debug::Debug;
@@ -14,7 +15,7 @@ use crate::error::Error;
 use crate::master::Master;
 use crate::network::{self, PacketInfo};
 use crate::packet::{DiagnosticCode, Packet, PacketFlags};
-use crate::session::{SessionId, SessionRemoteInfo};
+use crate::session::{SessionClient, SessionId, SessionRemoteInfo};
 
 pub(crate) fn process_udp_packet(
     master: &mut Master,
@@ -177,6 +178,7 @@ pub(crate) fn process_detection_timer_expiry(
 
 pub(crate) fn process_client_peer_reg(
     master: &mut Master,
+    subscriber: IbusSubscriber,
     sess_key: SessionKey,
     client_id: ClientId,
     client_config: Option<ClientCfg>,
@@ -184,7 +186,8 @@ pub(crate) fn process_client_peer_reg(
     Debug::SessionClientReg(&sess_key, &client_id).log();
 
     let (sess_idx, sess) = master.sessions.insert(sess_key);
-    sess.clients.insert(client_id, client_config);
+    let client = SessionClient::new(client_id, client_config, subscriber.tx);
+    sess.clients.insert(subscriber.id, client);
 
     // Start Poll Sequence as the configuration parameters might have changed.
     sess.poll_sequence_start();
@@ -212,14 +215,16 @@ pub(crate) fn process_client_peer_reg(
 
 pub(crate) fn process_client_peer_unreg(
     master: &mut Master,
+    subscriber: IbusSubscriber,
     sess_key: SessionKey,
-    client_id: ClientId,
 ) -> Result<(), Error> {
     if let Some((sess_idx, sess)) = master.sessions.get_mut_by_key(&sess_key) {
-        Debug::SessionClientUnreg(&sess_key, &client_id).log();
-
         // Remove BFD client.
-        sess.clients.remove(&client_id);
+        let Some(client) = sess.clients.remove(&subscriber.id) else {
+            return Ok(());
+        };
+
+        Debug::SessionClientUnreg(&sess_key, &client.id).log();
 
         // Check if the BFD session can be deleted.
         master.sessions.delete_check(sess_idx);

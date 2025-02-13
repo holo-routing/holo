@@ -64,14 +64,17 @@ pub struct IbusSubscriber {
 pub enum IbusMsg {
     // BFD peer registration.
     BfdSessionReg {
+        #[serde(skip)]
+        subscriber: Option<IbusSubscriber>,
         sess_key: bfd::SessionKey,
         client_id: bfd::ClientId,
         client_config: Option<bfd::ClientCfg>,
     },
     // BFD peer unregistration.
     BfdSessionUnreg {
+        #[serde(skip)]
+        subscriber: Option<IbusSubscriber>,
         sess_key: bfd::SessionKey,
-        client_id: bfd::ClientId,
     },
     // BFD peer state update.
     BfdStateUpd {

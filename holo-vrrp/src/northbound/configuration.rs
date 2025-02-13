@@ -70,7 +70,7 @@ fn load_callbacks() -> Callbacks<Interface> {
             let vrid = args.dnode.get_u8_relative("./vrid").unwrap();
             let mut instance = Instance::new(vrid);
             instance.state.last_event = fsm::Event::Startup;
-            interface.instances.insert(vrid, instance);
+            interface.vrrp_v2_instances.insert(vrid, instance);
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InstanceStart { vrid });
@@ -92,7 +92,7 @@ fn load_callbacks() -> Callbacks<Interface> {
         .path(interfaces::interface::ipv4::vrrp::vrrp_instance::log_state_change::PATH)
         .modify_apply(|interface, args| {
             let vrid = args.list_entry.into_vrid().unwrap();
-            let instance = interface.instances.get_mut(&vrid).unwrap();
+            let instance = interface.vrrp_v2_instances.get_mut(&vrid).unwrap();
 
             let log_state_change = args.dnode.get_bool();
             instance.config.log_state_change = log_state_change;
@@ -100,7 +100,7 @@ fn load_callbacks() -> Callbacks<Interface> {
         .path(interfaces::interface::ipv4::vrrp::vrrp_instance::preempt::enabled::PATH)
         .modify_apply(|interface, args| {
             let vrid = args.list_entry.into_vrid().unwrap();
-            let instance = interface.instances.get_mut(&vrid).unwrap();
+            let instance = interface.vrrp_v2_instances.get_mut(&vrid).unwrap();
 
             let preempt = args.dnode.get_bool();
             instance.config.preempt = preempt;
@@ -108,7 +108,7 @@ fn load_callbacks() -> Callbacks<Interface> {
         .path(interfaces::interface::ipv4::vrrp::vrrp_instance::priority::PATH)
         .modify_apply(|interface, args| {
             let vrid = args.list_entry.into_vrid().unwrap();
-            let instance = interface.instances.get_mut(&vrid).unwrap();
+            let instance = interface.vrrp_v2_instances.get_mut(&vrid).unwrap();
 
             let priority = args.dnode.get_u8();
             instance.config.priority = priority;
@@ -119,7 +119,7 @@ fn load_callbacks() -> Callbacks<Interface> {
         .path(interfaces::interface::ipv4::vrrp::vrrp_instance::advertise_interval_sec::PATH)
         .modify_apply(|interface, args| {
             let vrid = args.list_entry.into_vrid().unwrap();
-            let instance = interface.instances.get_mut(&vrid).unwrap();
+            let instance = interface.vrrp_v2_instances.get_mut(&vrid).unwrap();
 
             let advertise_interval = args.dnode.get_u8();
             instance.config.advertise_interval = advertise_interval as u16;
@@ -130,7 +130,7 @@ fn load_callbacks() -> Callbacks<Interface> {
         .path(interfaces::interface::ipv4::vrrp::vrrp_instance::virtual_ipv4_addresses::virtual_ipv4_address::PATH)
         .create_apply(|interface, args| {
             let vrid = args.list_entry.into_vrid().unwrap();
-            let instance = interface.instances.get_mut(&vrid).unwrap();
+            let instance = interface.vrrp_v2_instances.get_mut(&vrid).unwrap();
 
             let addr = args.dnode.get_prefix4_relative("ipv4-address").unwrap();
             instance.config.virtual_addresses.insert(IpNetwork::V4(addr));
@@ -140,7 +140,7 @@ fn load_callbacks() -> Callbacks<Interface> {
         })
         .delete_apply(|interface, args| {
             let (vrid, addr) = args.list_entry.into_virtual_ipv4_addr().unwrap();
-            let instance = interface.instances.get_mut(&vrid).unwrap();
+            let instance = interface.vrrp_v2_instances.get_mut(&vrid).unwrap();
 
             instance.config.virtual_addresses.remove(&IpNetwork::V4(addr));
 
@@ -201,7 +201,8 @@ impl Provider for Interface {
                 );
             }
             Event::InstanceDelete { vrid } => {
-                let mut instance = self.instances.remove(&vrid).unwrap();
+                let mut instance =
+                    self.vrrp_v2_instances.remove(&vrid).unwrap();
                 let interface = self.as_view();
 
                 // Shut down the instance.

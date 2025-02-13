@@ -254,9 +254,11 @@ impl VrrpHdr {
                 }
                 IpVersion::V6 => {
                     // TODO: handle ipv6
-                    //for addr in &self.ip_addresses {
-                    //    buf.put_ipv6(addr);
-                    //}
+                    for addr in &self.ip_addresses {
+                        if let IpAddr::V6(ipv6_addr) = addr {
+                            buf.put_ipv6(ipv6_addr);
+                        }
+                    }
                 }
             }
         }

@@ -37,7 +37,9 @@ pub(crate) fn process_vrrp_packet(
                     interface.statistics.discontinuity_time = Utc::now();
                 }
                 DecodeError::PacketLengthError { vrid } => {
-                    if let Some(instance) = interface.instances.get_mut(&vrid) {
+                    if let Some(instance) =
+                        interface.vrrp_v2_instances.get_mut(&vrid)
+                    {
                         instance.state.statistics.pkt_length_errors += 1;
                         instance.state.statistics.discontinuity_time =
                             Utc::now();

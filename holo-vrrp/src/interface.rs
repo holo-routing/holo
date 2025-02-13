@@ -34,8 +34,8 @@ pub struct Interface {
     pub name: String,
     // Interface system data.
     pub system: InterfaceSys,
-    // Interface VRRP instances.
-    pub instances: BTreeMap<u8, Instance>,
+    // Interface VRRP V2 instances.
+    pub vrrp_v2_instances: BTreeMap<u8, Instance>,
     // Global statistics.
     pub statistics: Statistics,
     // Tx channels.
@@ -96,7 +96,7 @@ impl Interface {
         &mut self,
         vrid: u8,
     ) -> Option<(InterfaceView<'_>, &mut Instance)> {
-        self.instances.get_mut(&vrid).map(|instance| {
+        self.vrrp_v2_instances.get_mut(&vrid).map(|instance| {
             (
                 InterfaceView {
                     name: &self.name,
@@ -121,7 +121,7 @@ impl Interface {
                 tx: &self.tx,
                 shared: &self.shared,
             },
-            self.instances.values_mut(),
+            self.vrrp_v2_instances.values_mut(),
         )
     }
 
@@ -153,7 +153,7 @@ impl ProtocolInstance for Interface {
         Interface {
             name,
             system: Default::default(),
-            instances: Default::default(),
+            vrrp_v2_instances: Default::default(),
             statistics: Default::default(),
             tx,
             shared,

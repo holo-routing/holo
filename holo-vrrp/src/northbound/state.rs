@@ -37,7 +37,7 @@ fn load_callbacks() -> Callbacks<Interface> {
     CallbacksBuilder::<Interface>::default()
         .path(interfaces::interface::ipv4::vrrp::vrrp_instance::PATH)
         .get_iterate(|interface, _args| {
-            let iter = interface.instances.iter().map(|(vrid, instance)| ListEntry::Instance(*vrid, instance));
+            let iter = interface.vrrp_v2_instances.iter().map(|(vrid, instance)| ListEntry::Instance(*vrid, instance));
             Some(Box::new(iter))
         })
         .get_object(|_interface, args| {

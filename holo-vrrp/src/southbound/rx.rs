@@ -33,11 +33,11 @@ pub(crate) fn process_iface_update(
 
     // Handle updates for VRRP macvlan interfaces.
     if let Some(instance) =
-        instances.find(|instance| msg.ifname == instance.mvlan.name)
+        instances.find(|instance| msg.ifname == instance.mvlan4.name)
     {
-        instance.mvlan.system.flags = msg.flags;
-        instance.mvlan.system.ifindex = Some(msg.ifindex);
-        instance.mvlan.system.mac_address = msg.mac_address;
+        instance.mvlan4.system.flags = msg.flags;
+        instance.mvlan4.system.ifindex = Some(msg.ifindex);
+        instance.mvlan4.system.mac_address = msg.mac_address;
         instance.update(&interface);
     }
 }

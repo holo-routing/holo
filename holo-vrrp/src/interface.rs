@@ -26,6 +26,7 @@ use crate::error::Error;
 use crate::instance::Instance;
 use crate::tasks::messages::input::{MasterDownTimerMsg, VrrpNetRxPacketMsg};
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
+use crate::version::VrrpVersion;
 use crate::{events, southbound};
 
 #[derive(Debug)]
@@ -36,6 +37,8 @@ pub struct Interface {
     pub system: InterfaceSys,
     // Interface VRRP V2 instances.
     pub vrrp_v2_instances: BTreeMap<u8, Instance>,
+    // Interface VRRP V3 instances
+    pub vrrp_v3_instances: BTreeMap<u8, Instance>,
     // Global statistics.
     pub statistics: Statistics,
     // Tx channels.
@@ -95,19 +98,38 @@ impl Interface {
     pub(crate) fn get_instance(
         &mut self,
         vrid: u8,
+        version: VrrpVersion,
     ) -> Option<(InterfaceView<'_>, &mut Instance)> {
-        self.vrrp_v2_instances.get_mut(&vrid).map(|instance| {
-            (
-                InterfaceView {
-                    name: &self.name,
-                    system: &mut self.system,
-                    statistics: &mut self.statistics,
-                    tx: &self.tx,
-                    shared: &self.shared,
-                },
-                instance,
-            )
-        })
+        match version {
+            VrrpVersion::V2 => {
+                self.vrrp_v2_instances.get_mut(&vrid).map(|instance| {
+                    (
+                        InterfaceView {
+                            name: &self.name,
+                            system: &mut self.system,
+                            statistics: &mut self.statistics,
+                            tx: &self.tx,
+                            shared: &self.shared,
+                        },
+                        instance,
+                    )
+                })
+            }
+            VrrpVersion::V3 => {
+                self.vrrp_v3_instances.get_mut(&vrid).map(|instance| {
+                    (
+                        InterfaceView {
+                            name: &self.name,
+                            system: &mut self.system,
+                            statistics: &mut self.statistics,
+                            tx: &self.tx,
+                            shared: &self.shared,
+                        },
+                        instance,
+                    )
+                })
+            }
+        }
     }
 
     pub(crate) fn iter_instances(
@@ -154,6 +176,7 @@ impl ProtocolInstance for Interface {
             name,
             system: Default::default(),
             vrrp_v2_instances: Default::default(),
+            vrrp_v3_instances: Default::default(),
             statistics: Default::default(),
             tx,
             shared,

@@ -19,6 +19,7 @@ use crate::instance::{MasterReason, VrrpTimer, fsm};
 use crate::interface::Interface;
 use crate::packet::{DecodeError, DecodeResult, VrrpHdr};
 use crate::tasks;
+use crate::version::VrrpVersion;
 
 // ===== VRRP network packet receipt =====
 
@@ -55,7 +56,8 @@ pub(crate) fn process_vrrp_packet(
     Debug::PacketRx(&src, &packet).log();
 
     // Lookup instance.
-    let Some((interface, instance)) = interface.get_instance(packet.vrid)
+    let Some((interface, instance)) =
+        interface.get_instance(packet.vrid, VrrpVersion::V2)
     else {
         interface.statistics.vrid_errors += 1;
         interface.statistics.discontinuity_time = Utc::now();
@@ -144,7 +146,9 @@ pub(crate) fn handle_master_down_timer(
     vrid: u8,
 ) -> Result<(), Error> {
     // Lookup instance.
-    let Some((interface, instance)) = interface.get_instance(vrid) else {
+    let Some((interface, instance)) =
+        interface.get_instance(vrid, VrrpVersion::V2)
+    else {
         return Ok(());
     };
     let Some(src_ip) = interface.system.addresses.first().map(|addr| addr.ip())

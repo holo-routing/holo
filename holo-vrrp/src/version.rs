@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
+#[derive(PartialOrd, Ord)]
 pub enum VrrpVersion {
     V2,
     V3,

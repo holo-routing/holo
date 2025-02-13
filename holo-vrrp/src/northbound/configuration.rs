@@ -38,8 +38,8 @@ pub enum Resource {}
 
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Event {
-    InstanceStart { vrid: u8 },
-    InstanceDelete { vrid: u8 },
+    InstanceStart { vrid: u8, version: VrrpVersion },
+    InstanceDelete { vrid: u8, version: VrrpVersion },
     VirtualAddressCreate { vrid: u8, addr: Ipv4Network },
     VirtualAddressDelete { vrid: u8, addr: Ipv4Network },
     ResetTimer { vrid: u8 },
@@ -68,18 +68,18 @@ fn load_callbacks() -> Callbacks<Interface> {
         .path(interfaces::interface::ipv4::vrrp::vrrp_instance::PATH)
         .create_apply(|interface, args| {
             let vrid = args.dnode.get_u8_relative("./vrid").unwrap();
-            let mut instance = Instance::new(vrid);
+            let mut instance = Instance::new(vrid, VrrpVersion::V2);
             instance.state.last_event = fsm::Event::Startup;
             interface.vrrp_v2_instances.insert(vrid, instance);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InstanceStart { vrid });
+            event_queue.insert(Event::InstanceStart { vrid, version: VrrpVersion::V2 });
         })
         .delete_apply(|_interface, args| {
             let vrid = args.list_entry.into_vrid().unwrap();
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InstanceDelete { vrid });
+            event_queue.insert(Event::InstanceDelete { vrid, version: VrrpVersion::V2 });
         })
         .lookup(|_instance, _list_entry, dnode| {
             let vrid = dnode.get_u8_relative("./vrid").unwrap();
@@ -152,6 +152,34 @@ fn load_callbacks() -> Callbacks<Interface> {
             let addr = dnode.get_prefix4_relative("ipv4-address").unwrap();
             ListEntry::VirtualIpv4Addr(vrid, addr)
         })
+
+
+
+        // VRRP V3 callbacks
+        .path(interfaces::interface::ipv6::vrrp::vrrp_instance::PATH)
+        .create_apply(|interface, args| {
+            let vrid = args.dnode.get_u8_relative("./vrid").unwrap();
+            let mut instance = Instance::new(vrid, VrrpVersion::V3);
+            instance.state.last_event = fsm::Event::Startup;
+            interface.vrrp_v3_instances.insert(vrid, instance);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceStart { vrid, version: VrrpVersion::V3 });
+        })
+        .delete_apply(|_interface, args| {
+            let vrid = args.list_entry.into_vrid().unwrap();
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceDelete { vrid, version: VrrpVersion::V3 });
+        })
+        .lookup(|_instance, _list_entry, dnode| {
+            let vrid = dnode.get_u8_relative("./vrid").unwrap();
+            ListEntry::Vrid(vrid)
+        })
+        .path(interfaces::interface::ipv6::vrrp::vrrp_instance::version::PATH)
+        .modify_apply(|_interface, _args| {
+            // Nothing to do.
+        })
         .build()
 }
 
@@ -187,22 +215,44 @@ impl Provider for Interface {
 
     async fn process_event(&mut self, event: Event) {
         match event {
-            Event::InstanceStart { vrid } => {
-                let (interface, instance) = self.get_instance(vrid).unwrap();
+            Event::InstanceStart { vrid, version } => {
+                let (interface, instance) =
+                    self.get_instance(vrid, version.clone()).unwrap();
 
-                // Create macvlan interface.
+                // Create Ipv4 macvlan interface.
                 let virtual_mac_addr: [u8; 6] =
                     [0x00, 0x00, 0x5e, 0x00, 0x01, vrid];
                 southbound::tx::mvlan_create(
                     &interface.tx.ibus,
                     interface.name.to_owned(),
-                    instance.mvlan.name.clone(),
+                    instance.mvlan4.name.clone(),
                     virtual_mac_addr,
                 );
+
+                // for VRRP Version 3, the v6 virtual mvlan interface
+                // will also be created
+                if let VrrpVersion::V3 = version
+                    && let Some(mvlan) = &instance.mvlan6
+                {
+                    let virtual_mac_addr: [u8; 6] =
+                        [0x00, 0x00, 0x5e, 0x00, 0x02, vrid];
+                    southbound::tx::mvlan_create(
+                        &interface.tx.ibus,
+                        interface.name.to_owned(),
+                        mvlan.name.clone(),
+                        virtual_mac_addr,
+                    );
+                }
             }
-            Event::InstanceDelete { vrid } => {
-                let mut instance =
-                    self.vrrp_v2_instances.remove(&vrid).unwrap();
+            Event::InstanceDelete { vrid, version } => {
+                let mut instance = match version {
+                    VrrpVersion::V2 => {
+                        self.vrrp_v2_instances.remove(&vrid).unwrap()
+                    }
+                    VrrpVersion::V3 => {
+                        self.vrrp_v3_instances.remove(&vrid).unwrap()
+                    }
+                };
                 let interface = self.as_view();
 
                 // Shut down the instance.
@@ -211,35 +261,49 @@ impl Provider for Interface {
                 // Delete macvlan interface.
                 southbound::tx::mvlan_delete(
                     &interface.tx.ibus,
-                    &instance.mvlan.name,
+                    &instance.mvlan4.name,
                 );
+
+                // Delete the ipv6 macvlan interface
+                // if VRRP v3
+                if let VrrpVersion::V3 = version
+                    && let Some(mvlan) = &instance.mvlan6
+                {
+                    southbound::tx::mvlan_delete(
+                        &interface.tx.ibus,
+                        &mvlan.name,
+                    );
+                }
             }
             Event::VirtualAddressCreate { vrid, addr } => {
-                let (interface, instance) = self.get_instance(vrid).unwrap();
+                let (interface, instance) =
+                    self.get_instance(vrid, VrrpVersion::V2).unwrap();
 
                 if instance.state.state == fsm::State::Master {
                     southbound::tx::ip_addr_add(
                         &interface.tx.ibus,
-                        &instance.mvlan.name,
+                        &instance.mvlan4.name,
                         addr,
                     );
                     instance.timer_set(&interface);
                 }
             }
             Event::VirtualAddressDelete { vrid, addr } => {
-                let (interface, instance) = self.get_instance(vrid).unwrap();
+                let (interface, instance) =
+                    self.get_instance(vrid, VrrpVersion::V2).unwrap();
 
                 if instance.state.state == fsm::State::Master {
                     southbound::tx::ip_addr_del(
                         &interface.tx.ibus,
-                        &instance.mvlan.name,
+                        &instance.mvlan4.name,
                         addr,
                     );
                     instance.timer_set(&interface);
                 }
             }
             Event::ResetTimer { vrid } => {
-                let (_, instance) = self.get_instance(vrid).unwrap();
+                let (_, instance) =
+                    self.get_instance(vrid, VrrpVersion::V2).unwrap();
                 instance.timer_reset();
             }
         }

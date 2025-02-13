@@ -38,8 +38,10 @@ pub struct Instance {
     pub config: InstanceCfg,
     // Instance state data.
     pub state: InstanceState,
-    // Macvlan interface.
-    pub mvlan: InstanceMacvlan,
+    // ipv4 Macvlan interface.
+    pub mvlan4: InstanceMacvlan,
+    // ipv6 Macvlan interface
+    pub mvlan6: Option<InstanceMacvlan>,
     // Interface raw sockets and Tx/Rx tasks.
     pub net: Option<InstanceNet>,
 }
@@ -143,14 +145,19 @@ pub struct Statistics {
 // ===== impl Instance =====
 
 impl Instance {
-    pub(crate) fn new(vrid: u8) -> Self {
+    pub(crate) fn new(vrid: u8, version: VrrpVersion) -> Self {
         Debug::InstanceCreate(vrid).log();
+        let mut mvlan6: Option<InstanceMacvlan> = None;
+        if let VrrpVersion::V3 = version {
+            mvlan6 = Some(InstanceMacvlan::new(vrid, 6, &version));
+        }
 
         Instance {
             vrid,
             config: InstanceCfg::default(),
             state: InstanceState::default(),
-            mvlan: InstanceMacvlan::new(vrid),
+            mvlan4: InstanceMacvlan::new(vrid, 4, &version),
+            mvlan6,
             net: None,
         }
     }
@@ -158,7 +165,7 @@ impl Instance {
     pub(crate) fn update(&mut self, interface: &InterfaceView) {
         let is_ready = interface.system.ifindex.is_some()
             && !interface.system.addresses.is_empty()
-            && self.mvlan.system.ifindex.is_some();
+            && self.mvlan4.system.ifindex.is_some();
         if is_ready && self.state.state == fsm::State::Initialize {
             self.startup(interface);
         } else if !is_ready && self.state.state != fsm::State::Initialize {
@@ -167,7 +174,7 @@ impl Instance {
     }
 
     fn startup(&mut self, interface: &InterfaceView) {
-        match InstanceNet::new(interface, &self.mvlan) {
+        match InstanceNet::new(interface, &self.mvlan4) {
             Ok(net) => {
                 self.net = Some(net);
                 if self.config.priority == 255 {
@@ -257,7 +264,7 @@ impl Instance {
                 for addr in &self.config.virtual_addresses {
                     southbound::tx::ip_addr_del(
                         &interface.tx.ibus,
-                        &self.mvlan.name,
+                        &self.mvlan4.name,
                         *addr,
                     );
                 }
@@ -267,7 +274,7 @@ impl Instance {
                 for addr in &self.config.virtual_addresses {
                     southbound::tx::ip_addr_add(
                         &interface.tx.ibus,
-                        &self.mvlan.name,
+                        &self.mvlan4.name,
                         *addr,
                     );
                 }
@@ -456,7 +463,7 @@ impl Instance {
         let eth_hdr = EthernetHdr {
             ethertype: libc::ETH_P_ARP as _,
             dst_mac: [0xff; 6],
-            src_mac: self.mvlan.system.mac_address,
+            src_mac: self.mvlan4.system.mac_address,
         };
         for addr in &self.config.virtual_addresses {
             match addr {
@@ -470,7 +477,7 @@ impl Instance {
                         operation: 1,
                         // Sender HW address is virtual MAC
                         // https://datatracker.ietf.org/doc/html/rfc3768#section-7.3
-                        sender_hw_address: self.mvlan.system.mac_address,
+                        sender_hw_address: self.mvlan4.system.mac_address,
                         sender_proto_address: addr.ip(),
                         target_hw_address: [0xff; 6],
                         target_proto_address: addr.ip(),
@@ -478,7 +485,7 @@ impl Instance {
 
                     let msg = NetTxPacketMsg::Arp {
                         vrid: self.vrid,
-                        ifindex: self.mvlan.system.ifindex.unwrap(),
+                        ifindex: self.mvlan4.system.ifindex.unwrap(),
                         eth_hdr,
                         arp_hdr,
                     };
@@ -502,8 +509,8 @@ impl Drop for Instance {
 // ==== impl InstanceMacvlan ====
 
 impl InstanceMacvlan {
-    pub(crate) fn new(vrid: u8) -> Self {
-        let name = format!("mvlan-vrrp-{}", vrid);
+    pub(crate) fn new(vrid: u8, ip_version: u8) -> Self {
+        let name = format!("mvlan{}-vrrp-{}", ip_version, vrid);
         Self {
             name,
             system: InterfaceSys::default(),

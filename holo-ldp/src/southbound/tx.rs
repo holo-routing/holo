@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use holo_utils::ibus::{IbusChannelsTx, IbusMsg};
+use holo_utils::ibus::IbusChannelsTx;
 use holo_utils::ip::AddressFamily;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{self, LabelInstallMsg, LabelUninstallMsg};
@@ -14,20 +14,14 @@ use crate::fec::{FecInner, Nexthop};
 // ===== global functions =====
 
 pub(crate) fn router_id_sub(ibus_tx: &IbusChannelsTx) {
-    let _ = ibus_tx.interface.send(IbusMsg::RouterIdSub {
-        subscriber: ibus_tx.subscriber.clone(),
-    });
+    ibus_tx.router_id_sub();
 }
 
 pub(crate) fn route_redistribute_sub(ibus_tx: &IbusChannelsTx) {
     for protocol in
         Protocol::route_types().filter(|protocol| *protocol != Protocol::BGP)
     {
-        let _ = ibus_tx.routing.send(IbusMsg::RouteRedistributeSub {
-            subscriber: ibus_tx.subscriber.clone(),
-            protocol,
-            af: Some(AddressFamily::Ipv4),
-        });
+        ibus_tx.route_redistribute_sub(protocol, Some(AddressFamily::Ipv4));
     }
 }
 
@@ -64,8 +58,7 @@ pub(crate) fn label_install(
     };
 
     // Send message.
-    let msg = IbusMsg::RouteMplsAdd(msg);
-    let _ = ibus_tx.routing.send(msg);
+    ibus_tx.route_mpls_add(msg);
 }
 
 pub(crate) fn label_uninstall(
@@ -100,6 +93,5 @@ pub(crate) fn label_uninstall(
     };
 
     // Send message.
-    let msg = IbusMsg::RouteMplsDel(msg);
-    let _ = ibus_tx.routing.send(msg);
+    ibus_tx.route_mpls_del(msg);
 }

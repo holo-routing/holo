@@ -117,6 +117,15 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
             // Remove MPLS route from the LIB.
             master.rib.mpls_route_del(msg);
         }
+        IbusMsg::RouteBierAdd(msg) => {
+            master.birt.bier_nbr_add(msg);
+        }
+        IbusMsg::RouteBierDel(msg) => {
+            master.birt.bier_nbr_del(msg);
+        }
+        IbusMsg::BierPurge => {
+            master.birt.entries.clear();
+        }
         IbusMsg::RouteRedistributeSub {
             subscriber,
             protocol,
@@ -182,15 +191,6 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
                 }
             }
         }
-        IbusMsg::RouteBierAdd(msg) => {
-            master.birt.bier_nbr_add(msg);
-        }
-        IbusMsg::RouteBierDel(msg) => {
-            master.birt.bier_nbr_del(msg);
-        }
-        IbusMsg::BierPurge => {
-            master.birt.entries.clear();
-        }
         IbusMsg::Disconnect { subscriber } => {
             let subscriber = subscriber.unwrap();
             master.rib.subscriptions.remove(&subscriber.id);
@@ -205,14 +205,7 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
 
 // Requests information about all interfaces addresses.
 pub(crate) fn request_addresses(ibus_tx: &IbusChannelsTx) {
-    send(
-        &ibus_tx.interface,
-        IbusMsg::InterfaceSub {
-            subscriber: ibus_tx.subscriber.clone(),
-            ifname: None,
-            af: None,
-        },
-    );
+    ibus_tx.interface_sub(None, None);
 }
 
 // Sends route redistribute update notification.

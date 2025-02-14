@@ -16,7 +16,6 @@ use holo_northbound::configuration::{
 };
 use holo_northbound::yang::control_plane_protocol::rip;
 use holo_utils::crypto::CryptoAlgo;
-use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::IpAddrKind;
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::{ToYang, TryFromYang};
@@ -371,12 +370,10 @@ where
                     let iface = &mut instance.core.interfaces[iface_idx];
 
                     // Cancel ibus subscription.
-                    let _ = instance.tx.ibus.interface.send(
-                        IbusMsg::InterfaceUnsub {
-                            subscriber: instance.tx.ibus.subscriber.clone(),
-                            ifname: Some(iface.core().name.clone()),
-                        },
-                    );
+                    instance
+                        .tx
+                        .ibus
+                        .interface_unsub(Some(iface.core().name.clone()));
 
                     // Stop interface if it's active.
                     iface.stop(
@@ -465,13 +462,10 @@ where
             }
             Event::InterfaceIbusSub(ifname) => {
                 if let Instance::Up(instance) = self {
-                    let _ = instance.tx.ibus.interface.send(
-                        IbusMsg::InterfaceSub {
-                            subscriber: instance.tx.ibus.subscriber.clone(),
-                            ifname: Some(ifname),
-                            af: Some(V::ADDRESS_FAMILY),
-                        },
-                    );
+                    instance
+                        .tx
+                        .ibus
+                        .interface_sub(Some(ifname), Some(V::ADDRESS_FAMILY));
                 }
             }
             Event::JoinMulticast(iface_idx) => {

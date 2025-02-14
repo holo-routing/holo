@@ -94,48 +94,44 @@ pub(crate) async fn process_msg(master: &mut Master, msg: IbusMsg) {
                 .router_id_subscriptions
                 .insert(subscriber.id, subscriber.tx);
         }
-        IbusMsg::MacvlanAdd(msg) => {
-            if let Some(iface) = master.interfaces.get_by_name(&msg.parent_name)
+        IbusMsg::MacvlanAdd {
+            parent_ifname,
+            ifname,
+            mac_addr,
+        } => {
+            if let Some(iface) = master.interfaces.get_by_name(&parent_ifname)
                 && let Some(ifindex) = iface.ifindex
             {
                 netlink::macvlan_create(
                     &master.netlink_handle,
-                    msg.name,
-                    msg.mac_address,
+                    ifname,
+                    mac_addr,
                     ifindex,
                 )
                 .await;
             }
         }
-        IbusMsg::MacvlanDel(ifname) => {
+        IbusMsg::MacvlanDel { ifname } => {
             if let Some(iface) = master.interfaces.get_by_name(&ifname)
                 && let Some(ifindex) = iface.ifindex
             {
                 netlink::iface_delete(&master.netlink_handle, ifindex).await;
             }
         }
-        IbusMsg::InterfaceIpAddRequest(msg) => {
-            if let Some(iface) = master.interfaces.get_by_name(&msg.ifname)
+        IbusMsg::InterfaceIpAddRequest { ifname, addr } => {
+            if let Some(iface) = master.interfaces.get_by_name(&ifname)
                 && let Some(ifindex) = iface.ifindex
             {
-                netlink::addr_install(
-                    &master.netlink_handle,
-                    ifindex,
-                    &msg.addr,
-                )
-                .await;
+                netlink::addr_install(&master.netlink_handle, ifindex, &addr)
+                    .await;
             }
         }
-        IbusMsg::InterfaceIpDelRequest(msg) => {
-            if let Some(iface) = master.interfaces.get_by_name(&msg.ifname)
+        IbusMsg::InterfaceIpDelRequest { ifname, addr } => {
+            if let Some(iface) = master.interfaces.get_by_name(&ifname)
                 && let Some(ifindex) = iface.ifindex
             {
-                netlink::addr_uninstall(
-                    &master.netlink_handle,
-                    ifindex,
-                    &msg.addr,
-                )
-                .await;
+                netlink::addr_uninstall(&master.netlink_handle, ifindex, &addr)
+                    .await;
             }
         }
         IbusMsg::Disconnect { subscriber } => {

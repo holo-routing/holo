@@ -640,7 +640,16 @@ fn start_providers(
 ) -> (NbProviderReceiver, Vec<NbDaemonSender>) {
     let mut providers = Vec::new();
     let (provider_tx, provider_rx) = mpsc::unbounded_channel();
-    let (ibus_tx, ibus_rx) = ibus::ibus_channels();
+    let (
+        (
+            ibus_tx_routing,
+            ibus_tx_interface,
+            ibus_tx_system,
+            ibus_tx_keychain,
+            ibus_tx_policy,
+        ),
+        ibus_rx,
+    ) = ibus::ibus_channels();
     let shared = InstanceShared {
         db: Some(db),
         event_recorder_config: Some(config.event_recorder.clone()),
@@ -652,7 +661,7 @@ fn start_providers(
     {
         let daemon_tx = holo_interface::start(
             provider_tx.clone(),
-            ibus_tx.clone(),
+            ibus_tx_interface,
             ibus_rx.interface,
             shared.clone(),
         );
@@ -664,7 +673,7 @@ fn start_providers(
     {
         let daemon_tx = holo_keychain::start(
             provider_tx.clone(),
-            ibus_tx.clone(),
+            ibus_tx_keychain,
             ibus_rx.keychain,
         );
         providers.push(daemon_tx);
@@ -675,7 +684,7 @@ fn start_providers(
     {
         let daemon_tx = holo_policy::start(
             provider_tx.clone(),
-            ibus_tx.clone(),
+            ibus_tx_policy,
             ibus_rx.policy,
         );
         providers.push(daemon_tx);
@@ -686,7 +695,7 @@ fn start_providers(
     {
         let daemon_tx = holo_system::start(
             provider_tx.clone(),
-            ibus_tx.clone(),
+            ibus_tx_system,
             ibus_rx.system,
         );
         providers.push(daemon_tx);
@@ -695,8 +704,12 @@ fn start_providers(
     // Start holo-routing.
     #[cfg(feature = "routing")]
     {
-        let daemon_tx =
-            holo_routing::start(provider_tx, ibus_tx, ibus_rx.routing, shared);
+        let daemon_tx = holo_routing::start(
+            provider_tx,
+            ibus_tx_routing,
+            ibus_rx.routing,
+            shared,
+        );
         providers.push(daemon_tx);
     }
 

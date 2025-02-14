@@ -17,7 +17,6 @@ use holo_northbound::configuration::{
 use holo_northbound::yang::control_plane_protocol::ospf;
 use holo_utils::bfd;
 use holo_utils::crypto::CryptoAlgo;
-use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
 use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
@@ -1348,12 +1347,7 @@ where
                     let iface = &mut arenas.interfaces[iface_idx];
 
                     // Cancel ibus subscription.
-                    let _ = instance.tx.ibus.interface.send(
-                        IbusMsg::InterfaceUnsub {
-                            subscriber: instance.tx.ibus.subscriber.clone(),
-                            ifname: Some(iface.name.clone()),
-                        },
-                    );
+                    instance.tx.ibus.interface_unsub(Some(iface.name.clone()));
 
                     // Stop interface if it's active.
                     let reason = InterfaceInactiveReason::AdminDown;
@@ -1489,12 +1483,7 @@ where
                         }
                         (_, af) => Some(af),
                     };
-                    let _ =
-                        self.tx.ibus.interface.send(IbusMsg::InterfaceSub {
-                            subscriber: self.tx.ibus.subscriber.clone(),
-                            ifname: Some(ifname),
-                            af,
-                        });
+                    self.tx.ibus.interface_sub(Some(ifname), af);
                 }
             }
             Event::StubRouterChange => {
@@ -1565,8 +1554,7 @@ where
                     if bier_enabled {
                         self.process_event(Event::ReinstallRoutes).await;
                     } else {
-                        let _ =
-                            instance.tx.ibus.routing.send(IbusMsg::BierPurge);
+                        instance.tx.ibus.bier_purge();
                     }
                 }
             }

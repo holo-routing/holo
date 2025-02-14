@@ -7,7 +7,7 @@
 use std::collections::BTreeSet;
 use std::net::IpAddr;
 
-use holo_utils::ibus::{IbusChannelsTx, IbusMsg};
+use holo_utils::ibus::IbusChannelsTx;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{
     Nexthop, RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
@@ -19,9 +19,7 @@ use crate::rib::LocalRoute;
 // ===== global functions =====
 
 pub(crate) fn router_id_sub(ibus_tx: &IbusChannelsTx) {
-    let _ = ibus_tx.interface.send(IbusMsg::RouterIdSub {
-        subscriber: ibus_tx.subscriber.clone(),
-    });
+    ibus_tx.router_id_sub();
 }
 
 pub(crate) fn route_install(
@@ -52,8 +50,7 @@ pub(crate) fn route_install(
         opaque_attrs: RouteOpaqueAttrs::None,
         nexthops: nexthops.clone(),
     };
-    let msg = IbusMsg::RouteIpAdd(msg);
-    let _ = ibus_tx.routing.send(msg);
+    ibus_tx.route_ip_add(msg);
 }
 
 pub(crate) fn route_uninstall(
@@ -65,22 +62,13 @@ pub(crate) fn route_uninstall(
         protocol: Protocol::BGP,
         prefix: prefix.into(),
     };
-    let msg = IbusMsg::RouteIpDel(msg);
-    let _ = ibus_tx.routing.send(msg);
+    ibus_tx.route_ip_del(msg);
 }
 
 pub(crate) fn nexthop_track(ibus_tx: &IbusChannelsTx, addr: IpAddr) {
-    let msg = IbusMsg::NexthopTrack {
-        subscriber: ibus_tx.subscriber.clone(),
-        addr,
-    };
-    let _ = ibus_tx.routing.send(msg);
+    ibus_tx.nexthop_track(addr);
 }
 
 pub(crate) fn nexthop_untrack(ibus_tx: &IbusChannelsTx, addr: IpAddr) {
-    let msg = IbusMsg::NexthopUntrack {
-        subscriber: ibus_tx.subscriber.clone(),
-        addr,
-    };
-    let _ = ibus_tx.routing.send(msg);
+    ibus_tx.nexthop_untrack(addr);
 }

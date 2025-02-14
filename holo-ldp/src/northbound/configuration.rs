@@ -15,7 +15,6 @@ use holo_northbound::configuration::{
     ValidationCallbacksBuilder,
 };
 use holo_northbound::yang::control_plane_protocol::mpls_ldp;
-use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
 use holo_utils::yang::DataNodeRefExt;
 
@@ -462,12 +461,7 @@ impl Provider for Instance {
                     let iface = &mut interfaces[iface_idx];
 
                     // Cancel ibus subscription.
-                    let _ = instance.tx.ibus.interface.send(
-                        IbusMsg::InterfaceUnsub {
-                            subscriber: instance.tx.ibus.subscriber.clone(),
-                            ifname: Some(iface.name.clone()),
-                        },
-                    );
+                    instance.tx.ibus.interface_unsub(Some(iface.name.clone()));
 
                     // Stop interface if it's active.
                     if iface.is_active() {
@@ -480,13 +474,10 @@ impl Provider for Instance {
             }
             Event::InterfaceIbusSub(ifname) => {
                 if let Some((instance, _, _)) = self.as_up() {
-                    let _ = instance.tx.ibus.interface.send(
-                        IbusMsg::InterfaceSub {
-                            subscriber: instance.tx.ibus.subscriber.clone(),
-                            ifname: Some(ifname),
-                            af: Some(AddressFamily::Ipv4),
-                        },
-                    );
+                    instance
+                        .tx
+                        .ibus
+                        .interface_sub(Some(ifname), Some(AddressFamily::Ipv4));
                 }
             }
             Event::TargetedNbrUpdate(tnbr_idx) => {

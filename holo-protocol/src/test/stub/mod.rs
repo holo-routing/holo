@@ -261,7 +261,8 @@ where
 {
     // Spawn protocol task.
     let (nb_provider_tx, nb_provider_rx) = mpsc::unbounded_channel();
-    let (ibus_ctx, ibus_crx) = ibus::ibus_channels();
+
+    let ((ibus_tx, _, _, _, _), ibus_rx) = ibus::ibus_channels();
     let (ibus_instance_tx, ibus_instance_rx) = mpsc::unbounded_channel();
     let channels = InstanceAggChannels::default();
     let instance_tx = channels.tx.clone();
@@ -269,7 +270,7 @@ where
     let nb_daemon_tx = spawn_protocol_task::<P>(
         name.to_owned(),
         &nb_provider_tx,
-        &ibus_ctx,
+        &ibus_tx,
         ibus_instance_tx,
         ibus_instance_rx,
         channels,
@@ -297,7 +298,7 @@ where
     // Create message collector.
     let messages = MessageCollector::new::<P>(
         nb_provider_rx,
-        ibus_crx,
+        ibus_rx,
         output_channels_rx.protocol_txc,
     );
 

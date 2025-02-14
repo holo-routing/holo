@@ -19,7 +19,6 @@ use holo_northbound::configuration::{
 };
 use holo_northbound::yang::control_plane_protocol::isis;
 use holo_utils::crypto::CryptoAlgo;
-use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
 use holo_utils::keychain::{Key, Keychains};
 use holo_utils::yang::DataNodeRefExt;
@@ -1153,12 +1152,7 @@ impl Provider for Instance {
                     let iface = &mut arenas.interfaces[iface_idx];
 
                     // Cancel ibus subscription.
-                    let _ = instance.tx.ibus.interface.send(
-                        IbusMsg::InterfaceUnsub {
-                            subscriber: instance.tx.ibus.subscriber.clone(),
-                            ifname: Some(iface.name.clone()),
-                        },
-                    );
+                    instance.tx.ibus.interface_unsub(Some(iface.name.clone()));
 
                     // Stop interface if it's active.
                     let reason = InterfaceInactiveReason::AdminDown;

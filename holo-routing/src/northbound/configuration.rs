@@ -1036,8 +1036,7 @@ impl Provider for Master {
                 };
 
                 // Send message.
-                let msg = IbusMsg::RouteIpAdd(msg);
-                let _ = self.ibus_tx.routing.send(msg);
+                self.ibus_tx.route_ip_add(msg);
             }
             Event::StaticRouteUninstall(prefix) => {
                 // Prepare message.
@@ -1047,8 +1046,7 @@ impl Provider for Master {
                 };
 
                 // Send message.
-                let msg = IbusMsg::RouteIpDel(msg);
-                let _ = self.ibus_tx.routing.send(msg);
+                self.ibus_tx.route_ip_del(msg);
             }
             Event::SrCfgUpdate => {
                 // Update the shared SR configuration by creating a new reference-counted copy.

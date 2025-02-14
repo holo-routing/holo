@@ -13,7 +13,6 @@ use holo_northbound::configuration::{
     self, Callbacks, CallbacksBuilder, Provider,
 };
 use holo_northbound::yang::routing_policy;
-use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
 use holo_utils::policy::{
     IpPrefixRange, MatchSetRestrictedType, MatchSetType, MetricType,
@@ -1109,8 +1108,7 @@ impl Provider for Master {
 
                 // Notify protocols that the policy match sets have been
                 // updated.
-                let msg = IbusMsg::PolicyMatchSetsUpd(match_sets);
-                let _ = self.ibus_tx.routing.send(msg);
+                self.ibus_tx.policy_match_sets_upd(match_sets);
             }
             Event::PolicyChange(name) => {
                 let policy = self.policies.get_mut(&name).unwrap();
@@ -1120,13 +1118,11 @@ impl Provider for Master {
                 let policy = Arc::new(policy.clone());
 
                 // Notify protocols that the policy has been updated.
-                let msg = IbusMsg::PolicyUpd(policy);
-                let _ = self.ibus_tx.routing.send(msg);
+                self.ibus_tx.policy_upd(policy);
             }
             Event::PolicyDelete(name) => {
                 // Notify protocols that the policy definition has been deleted.
-                let msg = IbusMsg::PolicyDel(name);
-                let _ = self.ibus_tx.routing.send(msg);
+                self.ibus_tx.policy_del(name);
             }
         }
     }

@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use holo_utils::ibus::{IbusChannelsTx, IbusMsg};
+use holo_utils::ibus::IbusChannelsTx;
 use holo_utils::southbound::{
     Nexthop, RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
 };
@@ -43,8 +43,7 @@ pub(crate) fn route_install<V>(
     };
 
     // Send message.
-    let msg = IbusMsg::RouteIpAdd(msg);
-    let _ = ibus_tx.routing.send(msg);
+    ibus_tx.route_ip_add(msg);
 }
 
 // Uninstall RIP route from the RIB.
@@ -63,6 +62,5 @@ where
     };
 
     // Send message.
-    let msg = IbusMsg::RouteIpDel(msg);
-    let _ = ibus_tx.routing.send(msg);
+    ibus_tx.route_ip_del(msg);
 }

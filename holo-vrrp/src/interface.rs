@@ -26,7 +26,7 @@ use crate::error::Error;
 use crate::instance::Instance;
 use crate::tasks::messages::input::{MasterDownTimerMsg, VrrpNetRxPacketMsg};
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
-use crate::version::VrrpVersion;
+use crate::version::{IpVersion, VrrpVersion};
 use crate::{events, southbound};
 
 #[derive(Debug)]
@@ -37,8 +37,10 @@ pub struct Interface {
     pub system: InterfaceSys,
     // Interface VRRP V2 instances.
     pub vrrp_v2_instances: BTreeMap<u8, Instance>,
-    // Interface VRRP V3 instances
-    pub vrrp_v3_instances: BTreeMap<u8, Instance>,
+    // Interface IPV4 VRRP V3 instances
+    pub vrrp_v3_instances_ipv4: BTreeMap<u8, Instance>,
+    // Interface IPV6 VRRP V3 instances
+    pub vrrp_v3_instances_ipv6: BTreeMap<u8, Instance>,
     // Global statistics.
     pub statistics: Statistics,
     // Tx channels.
@@ -98,9 +100,10 @@ impl Interface {
     pub(crate) fn get_instance(
         &mut self,
         vrid: u8,
-        version: VrrpVersion,
+        vrrp_version: &VrrpVersion,
+        ip_version: &IpVersion,
     ) -> Option<(InterfaceView<'_>, &mut Instance)> {
-        match version {
+        match vrrp_version {
             VrrpVersion::V2 => {
                 self.vrrp_v2_instances.get_mut(&vrid).map(|instance| {
                     (
@@ -116,7 +119,11 @@ impl Interface {
                 })
             }
             VrrpVersion::V3 => {
-                self.vrrp_v3_instances.get_mut(&vrid).map(|instance| {
+                let instances = match ip_version {
+                    IpVersion::V4 => &mut self.vrrp_v3_instances_ipv4,
+                    IpVersion::V6 => &mut self.vrrp_v3_instances_ipv6,
+                };
+                instances.get_mut(&vrid).map(|instance| {
                     (
                         InterfaceView {
                             name: &self.name,
@@ -128,6 +135,7 @@ impl Interface {
                         instance,
                     )
                 })
+                // TODO: add a check for looking for an ipv4 vrrpv3 too
             }
         }
     }
@@ -145,7 +153,8 @@ impl Interface {
             },
             self.vrrp_v2_instances
                 .values_mut()
-                .chain(self.vrrp_v3_instances.values_mut()),
+                .chain(self.vrrp_v3_instances_ipv4.values_mut())
+                .chain(self.vrrp_v3_instances_ipv6.values_mut()),
         )
     }
 
@@ -178,7 +187,8 @@ impl ProtocolInstance for Interface {
             name,
             system: Default::default(),
             vrrp_v2_instances: Default::default(),
-            vrrp_v3_instances: Default::default(),
+            vrrp_v3_instances_ipv4: Default::default(),
+            vrrp_v3_instances_ipv6: Default::default(),
             statistics: Default::default(),
             tx,
             shared,
@@ -207,7 +217,12 @@ impl ProtocolInstance for Interface {
             }
             // Master down timer.
             ProtocolInputMsg::MasterDownTimer(msg) => {
-                events::handle_master_down_timer(self, msg.vrid)
+                events::handle_master_down_timer(
+                    self,
+                    msg.vrid,
+                    &msg.vrrp_version,
+                    &msg.ip_version,
+                )
             }
         } {
             error.log();

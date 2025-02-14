@@ -61,6 +61,7 @@ pub mod messages {
         use std::net::IpAddr;
 
         use super::*;
+        use crate::version::{IpVersion, VrrpVersion};
 
         #[derive(Debug, Deserialize, Serialize)]
         pub enum ProtocolMsg {
@@ -77,6 +78,8 @@ pub mod messages {
         #[derive(Debug, Deserialize, Serialize)]
         pub struct MasterDownTimerMsg {
             pub vrid: u8,
+            pub vrrp_version: VrrpVersion,
+            pub ip_version: IpVersion,
         }
     }
 
@@ -114,6 +117,7 @@ pub mod messages {
 pub(crate) fn vrrp_net_rx(
     socket_vrrp: Arc<AsyncFd<Socket>>,
     net_packet_rxp: &Sender<messages::input::VrrpNetRxPacketMsg>,
+    vrrp_version: &VrrpVersion,
 ) -> Task<()> {
     #[cfg(not(feature = "testing"))]
     {
@@ -123,13 +127,28 @@ pub(crate) fn vrrp_net_rx(
         let _span2_guard = span2.enter();
 
         let net_packet_rxp = net_packet_rxp.clone();
+        let vrrp_version = vrrp_version.clone();
 
         let span = tracing::span::Span::current();
         Task::spawn(
             async move {
                 let _span_enter = span.enter();
-                let _ =
-                    network::vrrp_read_loop(socket_vrrp, net_packet_rxp).await;
+                match vrrp_version {
+                    VrrpVersion::V2 => {
+                        let _ = network::vrrp_read_loop(
+                            socket_vrrp,
+                            net_packet_rxp,
+                        )
+                        .await;
+                    }
+                    VrrpVersion::V3 => {
+                        let _ = network::vrrp_v3_read_loop(
+                            socket_vrrp,
+                            net_packet_rxp,
+                        )
+                        .await;
+                    }
+                }
             }
             .in_current_span(),
         )
@@ -141,40 +160,11 @@ pub(crate) fn vrrp_net_rx(
 }
 
 // Network Rx task.
-pub(crate) fn vrrp_v3_net_rx(
-    socket_vrrp: Arc<AsyncFd<Socket>>,
-    net_packet_rxp: &Sender<messages::input::VrrpNetRxPacketMsg>,
-) -> Task<()> {
-    #[cfg(not(feature = "testing"))]
-    {
-        let span1 = debug_span!("network");
-        let _span1_guard = span1.enter();
-        let span2 = debug_span!("input");
-        let _span2_guard = span2.enter();
-
-        let net_packet_rxp = net_packet_rxp.clone();
-
-        let span = tracing::span::Span::current();
-        Task::spawn(
-            async move {
-                let _span_enter = span.enter();
-                let _ =
-                    network::vrrp_read_loop(socket_vrrp, net_packet_rxp).await;
-            }
-            .in_current_span(),
-        )
-    }
-    #[cfg(feature = "testing")]
-    {
-        Task::spawn(async move { std::future::pending().await })
-    }
-}
 
 // Network Tx task.
 #[allow(unused_mut)]
 pub(crate) fn net_tx(
-    socket_vrrp4: Arc<AsyncFd<Socket>>,
-    socket_vrrp6: Arc<AsyncFd<Socket>>,
+    socket_vrrp: Arc<AsyncFd<Socket>>,
     socket_arp: Arc<AsyncFd<Socket>>,
     mut net_packet_txc: UnboundedReceiver<messages::output::NetTxPacketMsg>,
     #[cfg(feature = "testing")] proto_output_tx: &Sender<
@@ -192,13 +182,8 @@ pub(crate) fn net_tx(
         Task::spawn(
             async move {
                 let _span_enter = span.enter();
-                network::write_loop(
-                    socket_vrrp4,
-                    socket_vrrp6,
-                    socket_arp,
-                    net_packet_txc,
-                )
-                .await;
+                network::write_loop(socket_vrrp, socket_arp, net_packet_txc)
+                    .await;
             }
             .in_current_span(),
         )
@@ -225,11 +210,17 @@ pub(crate) fn master_down_timer(
     #[cfg(not(feature = "testing"))]
     {
         let vrid = instance.vrid;
+        let ip_version = instance.ip_version.clone();
+        let vrrp_version = instance.vrrp_version.clone();
         let master_down_timer_rx = master_down_timer_rx.clone();
 
         TimeoutTask::new(duration, move || async move {
             let _ = master_down_timer_rx
-                .send(messages::input::MasterDownTimerMsg { vrid })
+                .send(messages::input::MasterDownTimerMsg {
+                    vrid,
+                    vrrp_version,
+                    ip_version,
+                })
                 .await;
         })
     }
@@ -247,11 +238,11 @@ pub(crate) fn advertisement_interval4(
 ) -> IntervalTask {
     #[cfg(not(feature = "testing"))]
     {
-        match instance.version {
+        match instance.vrrp_version {
             VrrpVersion::V2 => {
                 let packet = Vrrp4Packet {
                     ip: instance.generate_ipv4_packet(src_ip),
-                    vrrp: instance.generate_vrrp_packet(IpVersion::V4),
+                    vrrp: instance.generate_vrrp_packet(&IpVersion::V4),
                 };
                 let adv_sent = instance.state.statistics.adv_sent.clone();
                 let net_tx_packetp = net_tx_packetp.clone();
@@ -275,7 +266,7 @@ pub(crate) fn advertisement_interval4(
             VrrpVersion::V3 => {
                 let packet = Vrrp4Packet {
                     ip: instance.generate_ipv4_packet(src_ip),
-                    vrrp: instance.generate_vrrp_packet(IpVersion::V4),
+                    vrrp: instance.generate_vrrp_packet(&IpVersion::V4),
                 };
                 let adv_sent = instance.state.statistics.adv_sent.clone();
                 let net_tx_packetp = net_tx_packetp.clone();
@@ -305,7 +296,7 @@ pub(crate) fn advertisement_interval4(
 }
 
 // Advertisement interval for IPV6 packets
-pub(crate) fn _advertisement_interval6(
+pub(crate) fn advertisement_interval6(
     instance: &Instance,
     src_ip: Ipv6Addr,
     net_tx_packetp: &UnboundedSender<NetTxPacketMsg>,
@@ -314,7 +305,7 @@ pub(crate) fn _advertisement_interval6(
     {
         let packet = Vrrp6Packet {
             ip: instance.generate_ipv6_packet(src_ip),
-            vrrp: instance.generate_vrrp_packet(IpVersion::V6),
+            vrrp: instance.generate_vrrp_packet(&IpVersion::V6),
         };
         let adv_sent = instance.state.statistics.adv_sent.clone();
         let net_tx_packetp = net_tx_packetp.clone();

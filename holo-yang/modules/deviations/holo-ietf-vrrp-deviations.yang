@@ -320,33 +320,43 @@ module holo-ietf-vrrp-deviations {
   }
   */
 
+  /*
   deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:log-state-change" {
     deviate not-supported;
   }
+  */
 
+  /*
   deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:preempt" {
     deviate not-supported;
   }
+  */
 
+  /*
   deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:preempt/vrrp:enabled" {
     deviate not-supported;
   }
+  */
 
   deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:preempt/vrrp:hold-time" {
     deviate not-supported;
   }
 
+  /*
   deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:priority" {
     deviate not-supported;
   }
+  */
 
   deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:accept-mode" {
     deviate not-supported;
   }
 
+  /*
   deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:advertise-interval-centi-sec" {
     deviate not-supported;
   }
+  */
 
   deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track" {
     deviate not-supported;
@@ -384,17 +394,23 @@ module holo-ietf-vrrp-deviations {
     deviate not-supported;
   }
 
+  /*
   deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:virtual-ipv6-addresses" {
     deviate not-supported;
   }
-
+  */
+  
+  /*
   deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:virtual-ipv6-addresses/vrrp:virtual-ipv6-address" {
     deviate not-supported;
   }
+  */
 
+  /*
   deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:virtual-ipv6-addresses/vrrp:virtual-ipv6-address/vrrp:ipv6-address" {
     deviate not-supported;
   }
+  */
 
   deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:state" {
     deviate not-supported;

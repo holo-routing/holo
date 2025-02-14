@@ -19,6 +19,7 @@ pub enum VrrpVersion {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
+#[derive(PartialOrd, Ord)]
 pub enum IpVersion {
     V4,
     V6,

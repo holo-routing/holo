@@ -284,8 +284,7 @@ async fn send_packet_arp(
 
 #[cfg(not(feature = "testing"))]
 pub(crate) async fn write_loop(
-    socket_vrrp4: Arc<AsyncFd<Socket>>,
-    socket_vrrp6: Arc<AsyncFd<Socket>>,
+    socket_vrrp: Arc<AsyncFd<Socket>>,
     socket_arp: Arc<AsyncFd<Socket>>,
     mut net_tx_packetc: UnboundedReceiver<NetTxPacketMsg>,
 ) {
@@ -293,14 +292,14 @@ pub(crate) async fn write_loop(
         match msg {
             NetTxPacketMsg::Vrrp { packet } => {
                 if let Err(error) =
-                    send_packet_vrrp4(&socket_vrrp4, packet).await
+                    send_packet_vrrp4(&socket_vrrp, packet).await
                 {
                     error.log();
                 }
             }
             NetTxPacketMsg::Vrrp6 { packet } => {
                 if let Err(error) =
-                    send_packet_vrrp6(&socket_vrrp6, packet).await
+                    send_packet_vrrp6(&socket_vrrp, packet).await
                 {
                     error.log();
                 }
@@ -387,7 +386,7 @@ pub(crate) async fn vrrp_read_loop(
 }
 
 #[cfg(not(feature = "testing"))]
-pub(crate) async fn _vrrp_v3_read_loop(
+pub(crate) async fn vrrp_v3_read_loop(
     socket_vrrp: Arc<AsyncFd<Socket>>,
     vrrp_net_packet_rxp: Sender<VrrpNetRxPacketMsg>,
 ) -> Result<(), SendError<VrrpNetRxPacketMsg>> {

@@ -8,7 +8,6 @@
 //
 
 use holo_utils::southbound::{AddressMsg, InterfaceUpdateMsg};
-use ipnetwork::IpNetwork;
 
 use crate::interface::Interface;
 
@@ -31,7 +30,7 @@ pub(crate) fn process_iface_update(
         return;
     }
 
-    // Handle updates for VRRP macvlan interfaces.
+    // Handle updates for ipv4 macvlan interfaces.
     if let Some(instance) =
         instances.find(|instance| msg.ifname == instance.mvlan4.name)
     {
@@ -40,6 +39,16 @@ pub(crate) fn process_iface_update(
         instance.mvlan4.system.mac_address = msg.mac_address;
         instance.update(&interface);
     }
+
+    // for the ipv6 macvlans
+    for instance in instances {
+        if let Some(mvlan) = &mut instance.mvlan6 {
+            mvlan.system.flags = msg.flags;
+            mvlan.system.ifindex = Some(msg.ifindex);
+            mvlan.system.mac_address = msg.mac_address;
+            instance.update(&interface);
+        }
+    }
 }
 
 pub(crate) fn process_addr_add(interface: &mut Interface, msg: AddressMsg) {
@@ -47,11 +56,9 @@ pub(crate) fn process_addr_add(interface: &mut Interface, msg: AddressMsg) {
 
     // Handle address updates for the primary VRRP interface.
     if msg.ifname == interface.name {
-        if let IpNetwork::V4(addr) = msg.addr {
-            interface.system.addresses.insert(addr);
-            for instance in instances {
-                instance.update(&interface);
-            }
+        interface.system.addresses.insert(msg.addr);
+        for instance in instances {
+            instance.update(&interface);
         }
     }
 }
@@ -61,11 +68,9 @@ pub(crate) fn process_addr_del(interface: &mut Interface, msg: AddressMsg) {
 
     // Handle address updates for the primary VRRP interface.
     if msg.ifname == interface.name {
-        if let IpNetwork::V4(addr) = msg.addr {
-            interface.system.addresses.remove(&addr);
-            for instance in instances {
-                instance.update(&interface);
-            }
+        interface.system.addresses.remove(&msg.addr);
+        for instance in instances {
+            instance.update(&interface);
         }
     }
 }

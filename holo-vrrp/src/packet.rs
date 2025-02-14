@@ -180,16 +180,18 @@ pub struct ArpHdr {
     pub target_proto_address: Ipv4Addr,
 }
 
+/// Headers for VRRP packets with ipv6 headers.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
-pub struct VrrpPacket {
+pub struct Vrrp4Packet {
     pub ip: Ipv4Hdr,
     pub vrrp: VrrpHdr,
 }
 
+/// Headers for VRRP packets with ipv6 headers.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
-pub struct VrrpV3Packet {
+pub struct Vrrp6Packet {
     pub ip: Ipv6Hdr,
     pub vrrp: VrrpHdr,
 }
@@ -512,7 +514,7 @@ impl EthernetHdr {
     }
 }
 
-impl VrrpPacket {
+impl Vrrp4Packet {
     // maximum size of IP + vrrp header.
     const MAX_LEN: usize = 130;
 
@@ -524,7 +526,7 @@ impl VrrpPacket {
     }
 }
 
-impl VrrpV3Packet {
+impl Vrrp6Packet {
     const MAX_LEN: usize = 2944;
 
     pub fn encode(&self) -> BytesMut {

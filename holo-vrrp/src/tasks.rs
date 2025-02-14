@@ -7,7 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use std::net::Ipv4Addr;
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
@@ -21,8 +21,8 @@ use tracing::{Instrument, debug_span};
 
 use crate::instance::Instance;
 use crate::network;
-use crate::packet::VrrpPacket;
-use crate::version::IpVersion;
+use crate::packet::{Vrrp4Packet, Vrrp6Packet};
+use crate::version::{IpVersion, VrrpVersion};
 
 //
 // VRRP tasks diagram:
@@ -83,7 +83,7 @@ pub mod messages {
     // Output messages (main task -> child task).
     pub mod output {
         use super::*;
-        use crate::packet::{ArpHdr, EthernetHdr, VrrpPacket, VrrpV3Packet};
+        use crate::packet::{ArpHdr, EthernetHdr, Vrrp4Packet, Vrrp6Packet};
 
         #[derive(Debug, Serialize)]
         pub enum ProtocolMsg {
@@ -93,10 +93,10 @@ pub mod messages {
         #[derive(Clone, Debug, Serialize)]
         pub enum NetTxPacketMsg {
             Vrrp {
-                packet: VrrpPacket,
+                packet: Vrrp4Packet,
             },
-            VrrpV3 {
-                packet: VrrpV3Packet,
+            Vrrp6 {
+                packet: Vrrp6Packet,
             },
             Arp {
                 vrid: u8,
@@ -173,8 +173,8 @@ pub(crate) fn vrrp_v3_net_rx(
 // Network Tx task.
 #[allow(unused_mut)]
 pub(crate) fn net_tx(
-    socket_vrrp: Arc<AsyncFd<Socket>>,
-    socket_vrrp_v3: Arc<AsyncFd<Socket>>,
+    socket_vrrp4: Arc<AsyncFd<Socket>>,
+    socket_vrrp6: Arc<AsyncFd<Socket>>,
     socket_arp: Arc<AsyncFd<Socket>>,
     mut net_packet_txc: UnboundedReceiver<messages::output::NetTxPacketMsg>,
     #[cfg(feature = "testing")] proto_output_tx: &Sender<
@@ -193,8 +193,8 @@ pub(crate) fn net_tx(
             async move {
                 let _span_enter = span.enter();
                 network::write_loop(
-                    socket_vrrp,
-                    socket_vrrp_v3,
+                    socket_vrrp4,
+                    socket_vrrp6,
                     socket_arp,
                     net_packet_txc,
                 )
@@ -239,17 +239,82 @@ pub(crate) fn master_down_timer(
     }
 }
 
-// Advertisement interval.
-pub(crate) fn advertisement_interval(
+// Advertisement interval for IPV4 packets
+pub(crate) fn advertisement_interval4(
     instance: &Instance,
     src_ip: Ipv4Addr,
     net_tx_packetp: &UnboundedSender<NetTxPacketMsg>,
 ) -> IntervalTask {
     #[cfg(not(feature = "testing"))]
     {
-        let packet = VrrpPacket {
-            ip: instance.generate_ipv4_packet(src_ip),
-            vrrp: instance.generate_vrrp_packet(IpVersion::V4),
+        match instance.version {
+            VrrpVersion::V2 => {
+                let packet = Vrrp4Packet {
+                    ip: instance.generate_ipv4_packet(src_ip),
+                    vrrp: instance.generate_vrrp_packet(IpVersion::V4),
+                };
+                let adv_sent = instance.state.statistics.adv_sent.clone();
+                let net_tx_packetp = net_tx_packetp.clone();
+                IntervalTask::new(
+                    Duration::from_secs(
+                        instance.config.advertise_interval as u64,
+                    ),
+                    true,
+                    move || {
+                        let adv_sent = adv_sent.clone();
+                        let packet = packet.clone();
+                        let net_tx_packetp = net_tx_packetp.clone();
+                        async move {
+                            adv_sent.fetch_add(1, Ordering::Relaxed);
+                            let msg = NetTxPacketMsg::Vrrp { packet };
+                            let _ = net_tx_packetp.send(msg);
+                        }
+                    },
+                )
+            }
+            VrrpVersion::V3 => {
+                let packet = Vrrp4Packet {
+                    ip: instance.generate_ipv4_packet(src_ip),
+                    vrrp: instance.generate_vrrp_packet(IpVersion::V4),
+                };
+                let adv_sent = instance.state.statistics.adv_sent.clone();
+                let net_tx_packetp = net_tx_packetp.clone();
+                IntervalTask::new(
+                    Duration::from_secs(
+                        instance.config.advertise_interval as u64,
+                    ),
+                    true,
+                    move || {
+                        let adv_sent = adv_sent.clone();
+                        let packet = packet.clone();
+                        let net_tx_packetp = net_tx_packetp.clone();
+                        async move {
+                            adv_sent.fetch_add(1, Ordering::Relaxed);
+                            let msg = NetTxPacketMsg::Vrrp { packet };
+                            let _ = net_tx_packetp.send(msg);
+                        }
+                    },
+                )
+            }
+        }
+    }
+    #[cfg(feature = "testing")]
+    {
+        IntervalTask {}
+    }
+}
+
+// Advertisement interval for IPV6 packets
+pub(crate) fn _advertisement_interval6(
+    instance: &Instance,
+    src_ip: Ipv6Addr,
+    net_tx_packetp: &UnboundedSender<NetTxPacketMsg>,
+) -> IntervalTask {
+    #[cfg(not(feature = "testing"))]
+    {
+        let packet = Vrrp6Packet {
+            ip: instance.generate_ipv6_packet(src_ip),
+            vrrp: instance.generate_vrrp_packet(IpVersion::V6),
         };
         let adv_sent = instance.state.statistics.adv_sent.clone();
         let net_tx_packetp = net_tx_packetp.clone();
@@ -262,7 +327,7 @@ pub(crate) fn advertisement_interval(
                 let net_tx_packetp = net_tx_packetp.clone();
                 async move {
                     adv_sent.fetch_add(1, Ordering::Relaxed);
-                    let msg = NetTxPacketMsg::Vrrp { packet };
+                    let msg = NetTxPacketMsg::Vrrp6 { packet };
                     let _ = net_tx_packetp.send(msg);
                 }
             },

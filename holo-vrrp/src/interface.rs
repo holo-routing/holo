@@ -19,7 +19,7 @@ use holo_utils::ip::AddressFamily;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::{Receiver, Sender};
-use ipnetwork::Ipv4Network;
+use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 
 use crate::error::Error;
@@ -53,8 +53,8 @@ pub struct InterfaceSys {
     pub flags: InterfaceFlags,
     // Interface index.
     pub ifindex: Option<u32>,
-    // Interface IPv4 addresses.
-    pub addresses: BTreeSet<Ipv4Network>,
+    // Interface IP addresses.
+    pub addresses: BTreeSet<IpNetwork>,
     // interface MAC Address
     pub mac_address: [u8; 6],
 }
@@ -143,7 +143,9 @@ impl Interface {
                 tx: &self.tx,
                 shared: &self.shared,
             },
-            self.vrrp_v2_instances.values_mut(),
+            self.vrrp_v2_instances
+                .values_mut()
+                .chain(self.vrrp_v3_instances.values_mut()),
         )
     }
 

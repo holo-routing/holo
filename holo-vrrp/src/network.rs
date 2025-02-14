@@ -15,6 +15,7 @@ use std::sync::Arc;
 use bytes::{BufMut, Bytes};
 use holo_utils::socket::{AsyncFd, Socket, SocketExt};
 use holo_utils::{Sender, UnboundedReceiver, capabilities};
+use ipnetwork::IpNetwork;
 use libc::{AF_PACKET, ETH_P_ARP};
 use nix::sys::socket::{self, LinkAddr, SockaddrIn, SockaddrIn6, SockaddrLike};
 use socket2::{Domain, Protocol, Type};
@@ -27,14 +28,14 @@ use crate::debug::Debug;
 use crate::error::IoError;
 use crate::instance::InstanceMacvlan;
 use crate::interface::InterfaceView;
-use crate::packet::{ArpHdr, EthernetHdr, VrrpHdr, VrrpPacket, VrrpV3Packet};
+use crate::packet::{ArpHdr, EthernetHdr, Vrrp4Packet, Vrrp6Packet, VrrpHdr};
 use crate::tasks::messages::input::VrrpNetRxPacketMsg;
 use crate::tasks::messages::output::NetTxPacketMsg;
 use crate::version::IpVersion;
 
 // ===== global functions =====
 
-pub(crate) fn socket_vrrp_v2_tx(
+pub(crate) fn socket_vrrp_tx4(
     mvlan: &InstanceMacvlan,
 ) -> Result<Socket, std::io::Error> {
     #[cfg(not(feature = "testing"))]
@@ -64,7 +65,7 @@ pub(crate) fn socket_vrrp_v2_tx(
     }
 }
 
-pub(crate) fn socket_vrrp_v3_tx(
+pub(crate) fn socket_vrrp_tx6(
     mvlan: &InstanceMacvlan,
 ) -> Result<Socket, std::io::Error> {
     #[cfg(not(feature = "testing"))]
@@ -92,7 +93,7 @@ pub(crate) fn socket_vrrp_v3_tx(
     }
 }
 
-pub(crate) fn socket_vrrp_v2_rx(
+pub(crate) fn socket_vrrp_rx4(
     interface: &InterfaceView,
 ) -> Result<Socket, std::io::Error> {
     #[cfg(not(feature = "testing"))]
@@ -109,10 +110,12 @@ pub(crate) fn socket_vrrp_v2_rx(
             socket.bind_device(Some(interface.name.as_bytes()))
         })?;
         socket.set_nonblocking(true)?;
-        socket.join_multicast_v4(
-            &VRRP_V2_MULTICAST_ADDRESS,
-            &interface.system.addresses.first().unwrap().ip(),
-        )?;
+        if let Some(addr) = &interface.system.addresses.first()
+            && let IpNetwork::V4(v4_net) = addr
+        {
+            socket
+                .join_multicast_v4(&VRRP_V2_MULTICAST_ADDRESS, &v4_net.ip())?;
+        }
 
         Ok(socket)
     }
@@ -122,7 +125,7 @@ pub(crate) fn socket_vrrp_v2_rx(
     }
 }
 
-pub(crate) fn socket_vrrp_v3_rx(
+pub(crate) fn socket_vrrp_rx6(
     interface: &InterfaceView,
 ) -> Result<Socket, std::io::Error> {
     #[cfg(not(feature = "testing"))]
@@ -172,10 +175,11 @@ pub(crate) fn socket_arp(ifname: &str) -> Result<Socket, std::io::Error> {
     }
 }
 
+/// Sends VRRP packets for IPV4 virtual addresses.
 #[cfg(not(feature = "testing"))]
-async fn send_packet_vrrp(
+async fn send_packet_vrrp4(
     socket: &AsyncFd<Socket>,
-    packet: VrrpPacket,
+    packet: Vrrp4Packet,
 ) -> Result<usize, IoError> {
     Debug::PacketTx(&packet.vrrp).log();
 
@@ -201,10 +205,11 @@ async fn send_packet_vrrp(
         .map_err(IoError::SendError)
 }
 
+/// Sends VRRP packets for IPV6 virtual addresses.
 #[cfg(not(feature = "testing"))]
-async fn send_packet_vrrp_v3(
+async fn send_packet_vrrp6(
     socket: &AsyncFd<Socket>,
-    packet: VrrpV3Packet,
+    packet: Vrrp6Packet,
 ) -> Result<usize, IoError> {
     // TODO: handle debugging
 
@@ -279,22 +284,23 @@ async fn send_packet_arp(
 
 #[cfg(not(feature = "testing"))]
 pub(crate) async fn write_loop(
-    socket_vrrp: Arc<AsyncFd<Socket>>,
-    socket_vrrp_v3: Arc<AsyncFd<Socket>>,
+    socket_vrrp4: Arc<AsyncFd<Socket>>,
+    socket_vrrp6: Arc<AsyncFd<Socket>>,
     socket_arp: Arc<AsyncFd<Socket>>,
     mut net_tx_packetc: UnboundedReceiver<NetTxPacketMsg>,
 ) {
     while let Some(msg) = net_tx_packetc.recv().await {
         match msg {
             NetTxPacketMsg::Vrrp { packet } => {
-                if let Err(error) = send_packet_vrrp(&socket_vrrp, packet).await
+                if let Err(error) =
+                    send_packet_vrrp4(&socket_vrrp4, packet).await
                 {
                     error.log();
                 }
             }
-            NetTxPacketMsg::VrrpV3 { packet } => {
+            NetTxPacketMsg::Vrrp6 { packet } => {
                 if let Err(error) =
-                    send_packet_vrrp_v3(&socket_vrrp_v3, packet).await
+                    send_packet_vrrp6(&socket_vrrp6, packet).await
                 {
                     error.log();
                 }

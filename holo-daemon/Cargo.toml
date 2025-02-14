@@ -94,3 +94,5 @@ vrrp = ["dep:holo-vrrp", "holo-interface/vrrp"]
 # Other features
 tokio_console = ["dep:console-subscriber"]
 io_uring = ["dep:tokio-uring"]
+
+fastclick = ["holo-utils/fastclick"]

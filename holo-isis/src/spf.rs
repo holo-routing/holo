@@ -489,7 +489,7 @@ fn compute_spt(
         spt.insert(vertex.id, vertex);
         let vertex = spt.get(&vertex_id).unwrap();
 
-        // Skip bad LSPs.
+        // Skip if the zeroth LSP is missing.
         let Some(zeroth_lsp) = zeroth_lsp(vertex.id.lan_id, lsdb, lsp_entries)
         else {
             continue;
@@ -630,6 +630,12 @@ fn compute_routes(
         .values()
         .filter(|vertex| vertex.hops > 0)
     {
+        // Skip if the zeroth LSP is missing.
+        let Some(_zeroth_lsp) = zeroth_lsp(vertex.id.lan_id, lsdb, lsp_entries)
+        else {
+            continue;
+        };
+
         for network in vertex_networks(
             &vertex.id,
             metric_type,

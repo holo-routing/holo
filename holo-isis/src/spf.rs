@@ -163,6 +163,7 @@ pub mod fsm {
         DelayTimer,
         HoldDownTimer,
         LearnTimer,
+        AdjacencyChange,
         ConfigChange,
     }
 }
@@ -332,7 +333,7 @@ pub(crate) fn fsm(
         // Custom FSM transition.
         (
             fsm::State::Quiet | fsm::State::ShortWait | fsm::State::LongWait,
-            fsm::Event::ConfigChange,
+            fsm::Event::AdjacencyChange | fsm::Event::ConfigChange,
         ) => {
             // Cancel the next scheduled SPF run, but preserve the other timers.
             spf_sched.delay_timer = None;

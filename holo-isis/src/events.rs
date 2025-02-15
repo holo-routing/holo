@@ -27,6 +27,7 @@ use crate::packet::consts::PduType;
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::pdu::{Hello, HelloVariant, Lsp, Pdu, Snp, SnpTlvs};
 use crate::packet::{LanId, LevelNumber, LevelType, LspId};
+use crate::spf::SpfType;
 use crate::tasks::messages::input::DisElectionMsg;
 use crate::{spf, tasks};
 
@@ -272,6 +273,19 @@ pub(crate) fn process_pdu_hello_lan(
             }
         };
 
+    // Trigger an SPF run if the adjacency addresses have changed. These
+    // addresses are used for determining route next-hops.
+    if adj.state == AdjacencyState::Up
+        && (!adj.ipv4_addrs.iter().eq(hello.tlvs.ipv4_addrs())
+            || !adj.ipv6_addrs.iter().eq(hello.tlvs.ipv6_addrs()))
+    {
+        instance.state.spf_sched.get_mut(level).spf_type = SpfType::Full;
+        instance
+            .tx
+            .protocol_input
+            .spf_delay_event(level, spf::fsm::Event::AdjacencyChange);
+    }
+
     // Update adjacency with received PDU values.
     let old_priority = adj.priority;
     let old_state = adj.state;
@@ -416,6 +430,21 @@ pub(crate) fn process_pdu_hello_p2p(
             )
         }
     };
+
+    // Trigger an SPF run if the adjacency addresses have changed. These
+    // addresses are used for determining route next-hops.
+    if adj.state == AdjacencyState::Up
+        && (!adj.ipv4_addrs.iter().eq(hello.tlvs.ipv4_addrs())
+            || !adj.ipv6_addrs.iter().eq(hello.tlvs.ipv6_addrs()))
+    {
+        for level in adj.level_usage {
+            instance.state.spf_sched.get_mut(level).spf_type = SpfType::Full;
+            instance
+                .tx
+                .protocol_input
+                .spf_delay_event(level, spf::fsm::Event::AdjacencyChange);
+        }
+    }
 
     // Update adjacency with received PDU values.
     adj.area_addrs = hello.tlvs.area_addrs().cloned().collect();

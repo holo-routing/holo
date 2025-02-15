@@ -623,7 +623,13 @@ fn compute_routes(
     // Populate RIB.
     let ipv4_enabled = instance.config.is_af_enabled(AddressFamily::Ipv4);
     let ipv6_enabled = instance.config.is_af_enabled(AddressFamily::Ipv6);
-    for vertex in instance.state.spt.get(level).values() {
+    for vertex in instance
+        .state
+        .spt
+        .get(level)
+        .values()
+        .filter(|vertex| vertex.hops > 0)
+    {
         for network in vertex_networks(
             &vertex.id,
             metric_type,

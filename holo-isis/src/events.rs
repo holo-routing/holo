@@ -1084,9 +1084,9 @@ pub(crate) fn process_lsp_originate(
     };
 
     // Originate LSPs for levels with pending requests.
-    for level in [LevelNumber::L1, LevelNumber::L2]
-        .into_iter()
-        .filter(|level| instance.config.level_type.intersects(level))
+    for level in instance
+        .config
+        .levels()
         .filter(|level| level_type.intersects(level))
     {
         lsdb::lsp_originate_all(instance, arenas, level);

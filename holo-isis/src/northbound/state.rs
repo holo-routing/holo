@@ -163,7 +163,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(isis::database::levels::PATH)
         .get_iterate(|instance, _args| {
             let Some(instance_state) = &instance.state else { return None };
-            let iter = [LevelNumber::L1, LevelNumber::L2].into_iter().map(|level| ListEntry::Lsdb(level, instance_state.lsdb.get(level)));
+            let iter = LevelType::All.into_iter().map(|level| ListEntry::Lsdb(level, instance_state.lsdb.get(level)));
             Some(Box::new(iter))
         })
         .get_object(|_instance, args| {
@@ -615,7 +615,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .path(isis::system_counters::level::PATH)
         .get_iterate(|_instance, _args| {
-            let iter = [LevelNumber::L1, LevelNumber::L2].into_iter().map(ListEntry::SystemCounters);
+            let iter = LevelType::All.into_iter().map(ListEntry::SystemCounters);
             Some(Box::new(iter) as _).ignore_in_testing()
         })
         .get_object(|instance, args| {
@@ -720,7 +720,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(isis::interfaces::interface::packet_counters::level::PATH)
         .get_iterate(|_instance, args| {
             let iface = args.parent_list_entry.as_interface().unwrap();
-            let iter = [LevelNumber::L1, LevelNumber::L2].into_iter().map(|level| ListEntry::InterfacePacketCounters(iface, level));
+            let iter = LevelType::All.into_iter().map(|level| ListEntry::InterfacePacketCounters(iface, level));
             Some(Box::new(iter) as _).ignore_in_testing()
         })
         .get_object(|_instance, args| {

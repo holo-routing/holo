@@ -23,7 +23,6 @@ use holo_utils::ip::AddressFamily;
 use holo_utils::keychain::{Key, Keychains};
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
-use smallvec::SmallVec;
 
 use crate::collections::InterfaceIndex;
 use crate::debug::InterfaceInactiveReason;
@@ -31,7 +30,9 @@ use crate::instance::Instance;
 use crate::interface::InterfaceType;
 use crate::northbound::notification;
 use crate::packet::auth::AuthMethod;
-use crate::packet::{AreaAddr, LevelNumber, LevelType, SystemId};
+use crate::packet::{
+    AreaAddr, LevelNumber, LevelType, LevelTypeIterator, SystemId,
+};
 use crate::spf;
 use crate::tasks::messages::input::DisElectionMsg;
 
@@ -1280,11 +1281,8 @@ impl InstanceCfg {
     }
 
     // Returns the levels supported by the instance.
-    pub(crate) fn levels(&self) -> SmallVec<[LevelNumber; 2]> {
-        [LevelNumber::L1, LevelNumber::L2]
-            .into_iter()
-            .filter(|level| self.level_type.intersects(level))
-            .collect()
+    pub(crate) fn levels(&self) -> LevelTypeIterator {
+        self.level_type.into_iter()
     }
 }
 
@@ -1307,11 +1305,8 @@ impl InterfaceCfg {
     }
 
     // Returns the levels supported by the interface.
-    pub(crate) fn levels(&self) -> SmallVec<[LevelNumber; 2]> {
-        [LevelNumber::L1, LevelNumber::L2]
-            .into_iter()
-            .filter(|level| self.level_type.resolved.intersects(level))
-            .collect()
+    pub(crate) fn levels(&self) -> LevelTypeIterator {
+        self.level_type.resolved.into_iter()
     }
 
     // Calculates the hello hold time for a given level by multiplying the

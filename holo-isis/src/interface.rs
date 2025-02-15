@@ -546,7 +546,6 @@ impl Interface {
                 for level in self
                     .config
                     .levels()
-                    .into_iter()
                     .filter(|level| level_filter.intersects(level))
                 {
                     let pdu = self.generate_hello(level, instance);
@@ -607,7 +606,7 @@ impl Interface {
         &mut self,
         instance: &InstanceUpView<'_>,
     ) {
-        for level in self.config.levels().into_iter() {
+        for level in self.config.levels() {
             if self.state.tasks.csnp_interval.get(level).is_none() {
                 continue;
             }

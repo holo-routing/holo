@@ -64,6 +64,31 @@ impl ToYang for LspId {
     }
 }
 
+impl ToYang for AreaAddr {
+    fn to_yang(&self) -> Cow<'static, str> {
+        // Convert the bytes to a hex string.
+        let hex_string: String = self
+            .as_ref()
+            .iter()
+            .map(|byte| format!("{:02X}", byte))
+            .collect();
+
+        // Split the hex string into groups of 4, starting with the first two
+        // characters.
+        let mut groups = vec![hex_string[0..2].to_string()];
+        groups.extend(
+            hex_string[2..]
+                .chars()
+                .collect::<Vec<char>>()
+                .chunks(4)
+                .map(|chunk| chunk.iter().collect::<String>()),
+        );
+
+        // Join the groups with periods.
+        groups.join(".").into()
+    }
+}
+
 impl ToYangBits for LspFlags {
     fn to_yang_bits(&self) -> Vec<&'static str> {
         let mut flags = vec![];

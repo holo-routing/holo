@@ -186,6 +186,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             let ipv4_addresses = lsp.tlvs.ipv4_addrs().map(Cow::Borrowed);
             let ipv6_addresses = lsp.tlvs.ipv6_addrs().map(Cow::Borrowed);
             let protocol_supported = lsp.tlvs.protocols_supported();
+            let area_addresses = lsp.tlvs.area_addrs().map(|area| area.to_yang());
             Box::new(Lsp {
                 lsp_id: lsp.lsp_id.to_yang(),
                 decoded_completed: None,
@@ -199,6 +200,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                 ipv6_te_routerid: lsp.tlvs.ipv6_router_id.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
                 protocol_supported: Some(Box::new(protocol_supported)),
                 dynamic_hostname: lsp.tlvs.hostname().map(Cow::Borrowed),
+                area_addresses: Some(Box::new(area_addresses)),
                 lsp_buffer_size: lsp.tlvs.lsp_buf_size(),
             })
         })

@@ -1147,7 +1147,6 @@ impl LspTlvs {
     }
 
     // Returns an iterator over all area addresses from TLVs of type 1.
-    #[expect(unused)]
     pub(crate) fn area_addrs(&self) -> impl Iterator<Item = &AreaAddr> {
         self.area_addrs.iter().flat_map(|tlv| tlv.list.iter())
     }

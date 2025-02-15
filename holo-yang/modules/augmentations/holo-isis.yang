@@ -54,6 +54,12 @@ module holo-isis {
   augment "/rt:routing/rt:control-plane-protocols/"
         + "rt:control-plane-protocol/isis:isis/isis:database/"
         + "isis:levels/isis:lsp" {
+    leaf-list area-addresses {
+      type isis:area-address;
+      description
+        "List of area addresses of the IS-IS node.  The IS-IS
+         reference is TLV 1.";
+    }
     leaf lsp-buffer-size {
       type uint16;
       units "bytes";

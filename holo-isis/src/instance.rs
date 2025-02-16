@@ -23,7 +23,7 @@ use holo_utils::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 
-use crate::adjacency::Adjacency;
+use crate::adjacency::{Adjacency, AdjacencyState};
 use crate::collections::{Arena, Interfaces, Lsdb, LspEntryId};
 use crate::debug::{
     Debug, InstanceInactiveReason, InterfaceInactiveReason, LspPurgeReason,
@@ -496,6 +496,19 @@ impl MessageReceiver<ProtocolInputMsg> for ProtocolInputChannelsRx {
 // ===== impl InstanceUpView =====
 
 impl InstanceUpView<'_> {
+    // Checks if the instance is attached to the Level 2 backbone.
+    pub(crate) fn is_l2_attached_to_backbone(
+        &self,
+        interfaces: &Interfaces,
+        adjacencies: &Arena<Adjacency>,
+    ) -> bool {
+        interfaces
+            .iter()
+            .flat_map(|iface| iface.adjacencies(adjacencies))
+            .filter(|adj| adj.state == AdjacencyState::Up)
+            .any(|adj| adj.level_usage.intersects(LevelNumber::L2))
+    }
+
     pub(crate) fn schedule_lsp_origination(
         &mut self,
         level_type: impl Into<LevelType>,

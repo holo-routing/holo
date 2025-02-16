@@ -29,7 +29,7 @@ use crate::packet::tlv::{
     ExtIpv4Reach, ExtIsReach, Ipv4Reach, Ipv6Reach, IsReach, MAX_NARROW_METRIC,
     Nlpid,
 };
-use crate::packet::{LanId, LevelNumber, LspId};
+use crate::packet::{LanId, LevelNumber, LevelType, LspId};
 use crate::spf::SpfType;
 use crate::tasks::messages::input::LspPurgeMsg;
 use crate::{spf, tasks};
@@ -149,6 +149,8 @@ fn lsp_build(
 
 fn lsp_build_flags(
     instance: &mut InstanceUpView<'_>,
+    arenas: &InstanceArenas,
+    level: LevelNumber,
     lsp_id: LspId,
 ) -> LspFlags {
     let mut lsp_flags = LspFlags::default();
@@ -157,6 +159,15 @@ fn lsp_build_flags(
     }
     if instance.config.level_type.intersects(LevelNumber::L2) {
         lsp_flags.insert(LspFlags::IS_TYPE2);
+    }
+    if instance.config.level_type == LevelType::All
+        && level == LevelNumber::L1
+        && lsp_id.pseudonode == 0
+        && lsp_id.fragment == 0
+        && instance
+            .is_l2_attached_to_backbone(&arenas.interfaces, &arenas.adjacencies)
+    {
+        lsp_flags.insert(LspFlags::ATT);
     }
     if instance.config.overload_status
         && lsp_id.pseudonode == 0
@@ -410,7 +421,7 @@ fn lsp_build_fragments(
             .get_by_lspid(&arenas.lsp_entries, &lsp_id)
             .map(|(_, lse)| lse.data.seqno + 1)
             .unwrap_or(LSP_INIT_SEQNO);
-        let lsp_flags = lsp_build_flags(instance, lsp_id);
+        let lsp_flags = lsp_build_flags(instance, arenas, level, lsp_id);
         let fragment = Lsp::new(
             level,
             instance.config.lsp_lifetime,

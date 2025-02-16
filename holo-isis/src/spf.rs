@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 
 use chrono::Utc;
 use derive_new::new;
-use holo_utils::ip::AddressFamily;
+use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::task::TimeoutTask;
 use ipnetwork::IpNetwork;
 use tracing::debug_span;
@@ -402,7 +402,8 @@ fn compute_spf(
     }
 
     // Compute routing table.
-    let mut rib = compute_routes(level, instance, lsp_entries);
+    let mut rib =
+        compute_routes(level, instance, interfaces, adjacencies, lsp_entries);
 
     // Update local routing table
     match instance.config.level_type {
@@ -612,6 +613,8 @@ fn compute_spt(
 fn compute_routes(
     level: LevelNumber,
     instance: &InstanceUpView<'_>,
+    interfaces: &Interfaces,
+    adjacencies: &Arena<Adjacency>,
     lsp_entries: &Arena<LspEntry>,
 ) -> BTreeMap<IpNetwork, Route> {
     let lsdb = instance.state.lsdb.get(level);
@@ -621,6 +624,8 @@ fn compute_routes(
     let mut rib = BTreeMap::new();
 
     // Populate RIB.
+    let is_l2_attached_to_backbone =
+        instance.is_l2_attached_to_backbone(interfaces, adjacencies);
     let ipv4_enabled = instance.config.is_af_enabled(AddressFamily::Ipv4);
     let ipv6_enabled = instance.config.is_af_enabled(AddressFamily::Ipv6);
     for vertex in instance
@@ -631,13 +636,17 @@ fn compute_routes(
         .filter(|vertex| vertex.hops > 0)
     {
         // Skip if the zeroth LSP is missing.
-        let Some(_zeroth_lsp) = zeroth_lsp(vertex.id.lan_id, lsdb, lsp_entries)
+        let Some(zeroth_lsp) = zeroth_lsp(vertex.id.lan_id, lsdb, lsp_entries)
         else {
             continue;
         };
 
         for network in vertex_networks(
-            &vertex.id,
+            instance.config.level_type,
+            level,
+            vertex,
+            zeroth_lsp.flags.contains(LspFlags::ATT),
+            is_l2_attached_to_backbone,
             metric_type,
             ipv4_enabled,
             ipv6_enabled,
@@ -789,7 +798,11 @@ fn vertex_edges<'a>(
 
 // Iterate over all IP reachability entries attached to a vertex.
 fn vertex_networks<'a>(
-    vertex_id: &VertexId,
+    level_type: LevelType,
+    level: LevelNumber,
+    vertex: &Vertex,
+    att_bit: bool,
+    is_l2_attached_to_backbone: bool,
     metric_type: MetricType,
     ipv4_enabled: bool,
     ipv6_enabled: bool,
@@ -797,14 +810,41 @@ fn vertex_networks<'a>(
     lsp_entries: &'a Arena<LspEntry>,
 ) -> impl Iterator<Item = VertexNetwork> + 'a {
     // Iterate over all LSP fragments.
-    lsdb.iter_for_lan_id(lsp_entries, vertex_id.lan_id)
+    lsdb.iter_for_lan_id(lsp_entries, vertex.id.lan_id)
         .map(|lse| &lse.data)
         .filter(|lsp| lsp.seqno != 0)
         .filter(|lsp| lsp.rem_lifetime != 0)
         .flat_map(move |lsp| {
+            let mut inter_area_defaults_iter = None;
             let mut ipv4_standard_iter = None;
             let mut ipv4_wide_iter = None;
             let mut ipv6_iter = None;
+
+            // If the L1 LSP has the ATT bit set, add a default route if the
+            // router is L1, or if the router is L1/L2 but not attached to the
+            // L2 backbone.
+            if att_bit
+                && level == LevelNumber::L1
+                && (level_type == LevelType::L1 || !is_l2_attached_to_backbone)
+            {
+                let mut inter_area_defaults = vec![];
+                if ipv4_enabled {
+                    inter_area_defaults.push(VertexNetwork {
+                        prefix: IpNetwork::default(AddressFamily::Ipv4),
+                        metric: 0,
+                        external: false,
+                    });
+                }
+                if ipv6_enabled {
+                    inter_area_defaults.push(VertexNetwork {
+                        prefix: IpNetwork::default(AddressFamily::Ipv6),
+                        metric: 0,
+                        external: false,
+                    });
+                }
+                inter_area_defaults_iter =
+                    Some(inter_area_defaults.into_iter());
+            }
 
             // Iterate over IPv4 reachability entries.
             if ipv4_enabled {
@@ -869,6 +909,7 @@ fn vertex_networks<'a>(
             }
 
             chain_option_iterators!(
+                inter_area_defaults_iter,
                 ipv4_standard_iter,
                 ipv4_wide_iter,
                 ipv6_iter,

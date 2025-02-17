@@ -30,27 +30,16 @@ pub(crate) fn process_iface_update(
         return;
     }
 
-    // Handle updates for ipv4 macvlan interfaces.
-    if let Some(instance) = instances.find(|instance| {
-        msg.ifname == instance.mvlan4.name
-            || (instance.mvlan6.is_some()
-                && msg.ifname == instance.mvlan6.as_ref().unwrap().name)
-    }) {
-        // mvlan 4 updates
-        if msg.ifname == instance.mvlan4.name {
-            instance.mvlan4.system.flags = msg.flags;
-            instance.mvlan4.system.ifindex = Some(msg.ifindex);
-            instance.mvlan4.system.mac_address = msg.mac_address;
-            instance.update(&iface);
-        }
-
-        // mvlan 6 updates
-        if let Some(mvlan) = &mut instance.mvlan6 {
-            mvlan.system.flags = msg.flags;
-            mvlan.system.ifindex = Some(msg.ifindex);
-            mvlan.system.mac_address = msg.mac_address;
-            instance.update(&iface);
-        }
+    // Handle updates for macvlan interfaces.
+    if let Some(instance) =
+        instances.find(|instance| msg.ifname == instance.mvlan.name)
+    {
+        // mvlan  updates
+        let mvlan = &mut instance.mvlan;
+        mvlan.system.flags = msg.flags;
+        mvlan.system.ifindex = Some(msg.ifindex);
+        mvlan.system.mac_address = msg.mac_address;
+        instance.update(&iface);
     }
 }
 

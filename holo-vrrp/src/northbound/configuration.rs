@@ -339,22 +339,20 @@ impl Provider for Interface {
                         southbound::tx::mvlan_create(
                             &interface.tx.ibus,
                             interface.name.to_owned(),
-                            instance.mvlan4.name.clone(),
+                            instance.mvlan.name.clone(),
                             virtual_mac_addr,
                         );
                     }
                     IpVersion::V6 => {
-                        if let Some(mvlan) = &instance.mvlan6 {
-                            // vmac for ipv6 interface
-                            let virtual_mac_addr: [u8; 6] =
-                                [0x00, 0x00, 0x5e, 0x00, 0x02, vrid];
-                            southbound::tx::mvlan_create(
-                                &interface.tx.ibus,
-                                interface.name.to_owned(),
-                                mvlan.name.clone(),
-                                virtual_mac_addr,
-                            );
-                        }
+                        // vmac for ipv6 interface
+                        let virtual_mac_addr: [u8; 6] =
+                            [0x00, 0x00, 0x5e, 0x00, 0x02, vrid];
+                        southbound::tx::mvlan_create(
+                            &interface.tx.ibus,
+                            interface.name.to_owned(),
+                            instance.mvlan.name.clone(),
+                            virtual_mac_addr,
+                        );
                     }
                 }
             }
@@ -376,17 +374,15 @@ impl Provider for Interface {
                 // Delete macvlan interface.
                 southbound::tx::mvlan_delete(
                     &interface.tx.ibus,
-                    &instance.mvlan4.name,
+                    &instance.mvlan.name,
                 );
 
                 // Delete the ipv6 macvlan interface
                 // if VRRP v3
-                if let VrrpVersion::V3 = version
-                    && let Some(mvlan) = &instance.mvlan6
-                {
+                if let VrrpVersion::V3 = version {
                     southbound::tx::mvlan_delete(
                         &interface.tx.ibus,
-                        &mvlan.name,
+                        &instance.mvlan.name,
                     );
                 }
             }
@@ -400,15 +396,10 @@ impl Provider for Interface {
                     .get_instance(vrid, &vrrp_version, &ip_version)
                     .unwrap();
 
-                let iface_name = match vrrp_version {
-                    VrrpVersion::V2 => &instance.mvlan4.name,
-                    VrrpVersion::V3 => &instance.mvlan6.as_ref().unwrap().name,
-                };
-
                 if instance.state.state == fsm::State::Master {
                     southbound::tx::ip_addr_add(
                         &interface.tx.ibus,
-                        iface_name,
+                        &instance.mvlan.name,
                         addr,
                     );
                     instance.timer_set(&interface);
@@ -424,15 +415,10 @@ impl Provider for Interface {
                     .get_instance(vrid, &vrrp_version, &ip_version)
                     .unwrap();
 
-                let iface_name = match ip_version {
-                    IpVersion::V4 => &instance.mvlan4.name,
-                    IpVersion::V6 => &instance.mvlan6.as_ref().unwrap().name,
-                };
-
                 if instance.state.state == fsm::State::Master {
                     southbound::tx::ip_addr_del(
                         &interface.tx.ibus,
-                        iface_name,
+                        &instance.mvlan.name,
                         addr,
                     );
                     instance.timer_set(&interface);

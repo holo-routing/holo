@@ -42,10 +42,8 @@ pub struct Instance {
     pub config: InstanceCfg,
     // Instance state data.
     pub state: InstanceState,
-    // IpV4 Macvlan interface.
-    pub mvlan4: InstanceMacvlan,
-    // IpV6 Macvlan interface
-    pub mvlan6: Option<InstanceMacvlan>,
+    // Macvlan interface
+    pub mvlan: InstanceMacvlan,
     // Interface raw sockets and Tx/Rx tasks.
     pub net: Option<InstanceNet>,
     // Vrrp version
@@ -157,17 +155,16 @@ impl Instance {
         ip_version: IpVersion,
     ) -> Self {
         Debug::InstanceCreate(vrid).log();
-        let mut mvlan6: Option<InstanceMacvlan> = None;
-        if let VrrpVersion::V3 = vrrp_version {
-            mvlan6 = Some(InstanceMacvlan::new(vrid, 6));
-        }
+        let mvlan = match ip_version {
+            IpVersion::V4 => InstanceMacvlan::new(vrid, 4),
+            IpVersion::V6 => InstanceMacvlan::new(vrid, 6),
+        };
 
         Instance {
             vrid,
             config: InstanceCfg::default(),
             state: InstanceState::default(),
-            mvlan4: InstanceMacvlan::new(vrid, 4),
-            mvlan6,
+            mvlan,
             net: None,
             vrrp_version,
             ip_version,
@@ -175,17 +172,9 @@ impl Instance {
     }
 
     pub(crate) fn update(&mut self, interface: &InterfaceView) {
-        // check for if the required mvlan4 or mvlan6 is ready
-        let mvlan_ready = match self.ip_version {
-            IpVersion::V4 => self.mvlan4.system.ifindex.is_some(),
-            IpVersion::V6 => {
-                self.mvlan6.as_ref().unwrap().system.ifindex.is_some()
-            }
-        };
-
         let is_ready = interface.system.ifindex.is_some()
             && !interface.system.addresses.is_empty()
-            && mvlan_ready;
+            && self.mvlan.system.ifindex.is_some();
 
         if is_ready && self.state.state == fsm::State::Initialize {
             self.startup(interface);
@@ -195,13 +184,9 @@ impl Instance {
     }
 
     fn startup(&mut self, interface: &InterfaceView) {
-        let mvlan = match self.ip_version {
-            IpVersion::V4 => &self.mvlan4,
-            IpVersion::V6 => self.mvlan6.as_ref().unwrap(),
-        };
         match InstanceNet::new(
             interface,
-            mvlan,
+            &self.mvlan,
             &self.ip_version,
             &self.vrrp_version,
         ) {
@@ -316,7 +301,7 @@ impl Instance {
                 for addr in &self.config.virtual_addresses {
                     southbound::tx::ip_addr_del(
                         &interface.tx.ibus,
-                        &self.mvlan4.name,
+                        &self.mvlan.name,
                         *addr,
                     );
                 }
@@ -326,7 +311,7 @@ impl Instance {
                 for addr in &self.config.virtual_addresses {
                     southbound::tx::ip_addr_add(
                         &interface.tx.ibus,
-                        &self.mvlan4.name,
+                        &self.mvlan.name,
                         *addr,
                     );
                 }
@@ -629,7 +614,7 @@ impl Instance {
         let eth_hdr = EthernetHdr {
             ethertype: libc::ETH_P_ARP as _,
             dst_mac: [0xff; 6],
-            src_mac: self.mvlan4.system.mac_address,
+            src_mac: self.mvlan.system.mac_address,
         };
         for addr in &self.config.virtual_addresses {
             match addr {
@@ -643,7 +628,7 @@ impl Instance {
                         operation: 1,
                         // Sender HW address is virtual MAC
                         // https://datatracker.ietf.org/doc/html/rfc3768#section-7.3
-                        sender_hw_address: self.mvlan4.system.mac_address,
+                        sender_hw_address: self.mvlan.system.mac_address,
                         sender_proto_address: addr.ip(),
                         target_hw_address: [0xff; 6],
                         target_proto_address: addr.ip(),
@@ -651,7 +636,7 @@ impl Instance {
 
                     let msg = NetTxPacketMsg::Arp {
                         vrid: self.vrid,
-                        ifindex: self.mvlan4.system.ifindex.unwrap(),
+                        ifindex: self.mvlan.system.ifindex.unwrap(),
                         eth_hdr,
                         arp_hdr,
                     };

@@ -171,7 +171,7 @@ pub mod fsm {
 // ===== impl VertexId =====
 
 impl VertexId {
-    fn new(lan_id: LanId) -> VertexId {
+    pub(crate) fn new(lan_id: LanId) -> VertexId {
         VertexId {
             non_pseudonode: !lan_id.is_pseudonode(),
             lan_id,
@@ -428,6 +428,14 @@ fn compute_spf(
 
     // Store the updated RIB.
     *instance.state.rib_mut(instance.config.level_type) = rib;
+
+    // If this is an L1 LSP in an L1/L2 router, schedule LSP reorigination at L2
+    // to propagate updates. This happens only after SPF, as the SPT tree is
+    // needed to compute distances to L1 routers.
+    if level == LevelNumber::L1 && instance.config.level_type == LevelType::All
+    {
+        instance.schedule_lsp_origination(LevelType::L2);
+    }
 
     // Update statistics.
     instance.state.counters.get_mut(level).spf_runs += 1;

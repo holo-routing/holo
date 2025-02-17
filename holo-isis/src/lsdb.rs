@@ -8,7 +8,7 @@
 //
 
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet, btree_map};
 use std::time::Instant;
 
 use bitflags::bitflags;
@@ -16,6 +16,7 @@ use derive_new::new;
 use holo_utils::UnboundedSender;
 use holo_utils::ip::{AddressFamily, Ipv4NetworkExt, Ipv6NetworkExt};
 use holo_utils::task::TimeoutTask;
+use ipnetwork::{Ipv4Network, Ipv6Network};
 
 use crate::adjacency::AdjacencyState;
 use crate::collections::{Arena, LspEntryId};
@@ -30,7 +31,7 @@ use crate::packet::tlv::{
     Nlpid,
 };
 use crate::packet::{LanId, LevelNumber, LevelType, LspId};
-use crate::spf::SpfType;
+use crate::spf::{SpfType, VertexId};
 use crate::tasks::messages::input::LspPurgeMsg;
 use crate::{spf, tasks};
 
@@ -190,6 +191,7 @@ fn lsp_build_tlvs(
     let mut ext_is_reach = vec![];
     let mut ipv4_addrs = BTreeSet::new();
     let mut ipv4_internal_reach = BTreeMap::new();
+    let mut ipv4_external_reach = BTreeMap::new();
     let mut ext_ipv4_reach = BTreeMap::new();
     let mut ipv6_addrs = BTreeSet::new();
     let mut ipv6_reach = BTreeMap::new();
@@ -317,6 +319,21 @@ fn lsp_build_tlvs(
             }
         }
     }
+
+    // In an L1/L2 router, propagate L1 IP reachability to L2 for inter-area
+    // routing.
+    if level == LevelNumber::L2 && instance.config.level_type == LevelType::All
+    {
+        lsp_propagate_l1_to_l2(
+            instance,
+            arenas,
+            &mut ipv4_internal_reach,
+            &mut ipv4_external_reach,
+            &mut ext_ipv4_reach,
+            &mut ipv6_reach,
+        );
+    }
+
     LspTlvs::new(
         protocols_supported,
         instance.config.area_addrs.clone(),
@@ -326,7 +343,7 @@ fn lsp_build_tlvs(
         ext_is_reach,
         ipv4_addrs,
         ipv4_internal_reach.into_values(),
-        [],
+        ipv4_external_reach.into_values(),
         ext_ipv4_reach.into_values(),
         instance.config.ipv4_router_id,
         ipv6_addrs,
@@ -435,6 +452,105 @@ fn lsp_build_fragments(
         fragments.push(fragment);
     }
     fragments
+}
+
+fn lsp_propagate_l1_to_l2(
+    instance: &mut InstanceUpView<'_>,
+    arenas: &InstanceArenas,
+    ipv4_internal_reach: &mut BTreeMap<Ipv4Network, Ipv4Reach>,
+    ipv4_external_reach: &mut BTreeMap<Ipv4Network, Ipv4Reach>,
+    ext_ipv4_reach: &mut BTreeMap<Ipv4Network, ExtIpv4Reach>,
+    ipv6_reach: &mut BTreeMap<Ipv6Network, Ipv6Reach>,
+) {
+    let system_id = instance.config.system_id.unwrap();
+    let lsdb = instance.state.lsdb.get(LevelNumber::L1);
+
+    // Iterate over all valid non-pseudonode L1 LSPs.
+    for l1_lsp in lsdb
+        .iter(&arenas.lsp_entries)
+        .map(|lse| &lse.data)
+        .filter(|lsp| lsp.seqno != 0)
+        .filter(|lsp| lsp.rem_lifetime != 0)
+        .filter(|lsp| !lsp.lsp_id.is_pseudonode())
+        .filter(|lsp| lsp.lsp_id.system_id != system_id)
+    {
+        // Get the distance to the corresponding L1 router from the SPT.
+        let Some(l1_lsp_dist) = instance
+            .state
+            .spt
+            .get(LevelNumber::L1)
+            .get(&VertexId::new(LanId::from((l1_lsp.lsp_id.system_id, 0))))
+            .map(|vertex| vertex.distance)
+        else {
+            continue;
+        };
+
+        // Propagate IPv4 reachability information.
+        if instance.config.is_af_enabled(AddressFamily::Ipv4) {
+            for mut reach in l1_lsp.tlvs.ipv4_internal_reach().cloned() {
+                reach.metric = std::cmp::min(
+                    l1_lsp_dist + reach.metric as u32,
+                    MAX_NARROW_METRIC,
+                ) as u8;
+                match ipv4_internal_reach.entry(reach.prefix) {
+                    btree_map::Entry::Occupied(mut e) => {
+                        if reach.metric < e.get().metric {
+                            e.insert(reach);
+                        }
+                    }
+                    btree_map::Entry::Vacant(e) => {
+                        e.insert(reach);
+                    }
+                }
+            }
+            for mut reach in l1_lsp.tlvs.ipv4_external_reach().cloned() {
+                reach.metric = std::cmp::min(
+                    l1_lsp_dist + reach.metric as u32,
+                    MAX_NARROW_METRIC,
+                ) as u8;
+                match ipv4_external_reach.entry(reach.prefix) {
+                    btree_map::Entry::Occupied(mut e) => {
+                        if reach.metric < e.get().metric {
+                            e.insert(reach);
+                        }
+                    }
+                    btree_map::Entry::Vacant(e) => {
+                        e.insert(reach);
+                    }
+                }
+            }
+            for mut reach in l1_lsp.tlvs.ext_ipv4_reach().cloned() {
+                reach.metric = l1_lsp_dist.saturating_add(reach.metric);
+                match ext_ipv4_reach.entry(reach.prefix) {
+                    btree_map::Entry::Occupied(mut e) => {
+                        if reach.metric < e.get().metric {
+                            e.insert(reach);
+                        }
+                    }
+                    btree_map::Entry::Vacant(e) => {
+                        e.insert(reach);
+                    }
+                }
+            }
+        }
+
+        // Propagate IPv6 reachability information.
+        if instance.config.is_af_enabled(AddressFamily::Ipv6) {
+            for mut reach in l1_lsp.tlvs.ipv6_reach().cloned() {
+                reach.metric = l1_lsp_dist.saturating_add(reach.metric);
+                match ipv6_reach.entry(reach.prefix) {
+                    btree_map::Entry::Occupied(mut e) => {
+                        if reach.metric < e.get().metric {
+                            e.insert(reach);
+                        }
+                    }
+                    btree_map::Entry::Vacant(e) => {
+                        e.insert(reach);
+                    }
+                }
+            }
+        }
+    }
 }
 
 // Adds log entry for the newly installed LSP.

@@ -97,6 +97,8 @@ pub struct InstanceCfg {
     pub spf_time_to_learn: u32,
     pub preference: Preference,
     pub overload_status: bool,
+    pub att_suppress: bool,
+    pub att_ignore: bool,
 }
 
 #[derive(Debug)]
@@ -569,6 +571,23 @@ fn load_callbacks() -> Callbacks<Instance> {
             event_queue.insert(Event::OverloadChange(overload_status));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .path(isis::attached_bit::suppress_advertisement::PATH)
+        .modify_apply(|instance, args| {
+            let enabled = args.dnode.get_bool();
+            instance.config.att_suppress = enabled;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .path(isis::attached_bit::ignore_reception::PATH)
+        .modify_apply(|instance, args| {
+            let enabled = args.dnode.get_bool();
+            instance.config.att_ignore = enabled;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::RerunSpf);
         })
         .path(isis::interfaces::interface::PATH)
         .create_apply(|instance, args| {
@@ -1401,6 +1420,8 @@ impl Default for InstanceCfg {
         let spf_time_to_learn =
             isis::spf_control::ietf_spf_delay::time_to_learn::DFLT;
         let overload_status = isis::overload::status::DFLT;
+        let att_suppress = isis::attached_bit::suppress_advertisement::DFLT;
+        let att_ignore = isis::attached_bit::ignore_reception::DFLT;
 
         InstanceCfg {
             enabled,
@@ -1424,6 +1445,8 @@ impl Default for InstanceCfg {
             spf_time_to_learn,
             preference: Default::default(),
             overload_status,
+            att_suppress,
+            att_ignore,
         }
     }
 }

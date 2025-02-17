@@ -629,12 +629,14 @@ fn compute_routes(
         else {
             continue;
         };
+        let att_bit = !instance.config.att_ignore
+            && zeroth_lsp.flags.contains(LspFlags::ATT);
 
         for network in vertex_networks(
             instance.config.level_type,
             level,
             vertex,
-            zeroth_lsp.flags.contains(LspFlags::ATT),
+            att_bit,
             is_l2_attached_to_backbone,
             metric_type,
             ipv4_enabled,

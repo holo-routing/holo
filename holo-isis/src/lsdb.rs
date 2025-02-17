@@ -160,7 +160,8 @@ fn lsp_build_flags(
     if instance.config.level_type.intersects(LevelNumber::L2) {
         lsp_flags.insert(LspFlags::IS_TYPE2);
     }
-    if instance.config.level_type == LevelType::All
+    if !instance.config.att_suppress
+        && instance.config.level_type == LevelType::All
         && level == LevelNumber::L1
         && lsp_id.pseudonode == 0
         && lsp_id.fragment == 0

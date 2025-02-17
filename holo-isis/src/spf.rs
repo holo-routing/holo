@@ -393,7 +393,7 @@ fn compute_spf(
     // Get list of new or updated LSPs that triggered the SPF computation.
     let trigger_lsps = std::mem::take(&mut spf_sched.trigger_lsps);
 
-    // Compute shorted-path tree if necessary.
+    // Compute shortest-path tree if necessary.
     let spf_type = std::mem::take(&mut spf_sched.spf_type);
     if spf_type == SpfType::Full {
         let spt =
@@ -401,44 +401,33 @@ fn compute_spf(
         *instance.state.spt.get_mut(level) = spt;
     }
 
-    // Compute routing table.
+    // Save the old RIB.
+    let old_rib =
+        std::mem::take(instance.state.rib_mut(instance.config.level_type));
+
+    // Compute the new RIB for the current level.
     let mut rib =
         compute_routes(level, instance, interfaces, adjacencies, lsp_entries);
 
-    // Update local routing table
-    match instance.config.level_type {
-        LevelType::L1 | LevelType::L2 => {
-            let old_rib =
-                std::mem::take(instance.state.rib_single.get_mut(level));
+    if instance.config.level_type == LevelType::All {
+        // Store the new RIB for the current level.
+        *instance.state.rib_single.get_mut(level) = rib;
 
-            // Update the global RIB.
-            route::update_global_rib(&mut rib, old_rib, instance, interfaces);
-
-            // Store the RIB specific to the current level.
-            *instance.state.rib_single.get_mut(level) = rib;
-        }
-        LevelType::All => {
-            let old_rib = std::mem::take(&mut instance.state.rib_multi);
-
-            // Store the RIB specific to the current level.
-            *instance.state.rib_single.get_mut(level) = rib;
-
-            // Build a merged RIB where L1 routes are preferred over L2 routes.
-            let rib_l1 = instance.state.rib_single.get(LevelNumber::L1);
-            let rib_l2 = instance.state.rib_single.get(LevelNumber::L2);
-            let mut rib = rib_l2
-                .iter()
-                .chain(rib_l1.iter())
-                .map(|(prefix, route)| (*prefix, route.clone()))
-                .collect();
-
-            // Update the global RIB.
-            route::update_global_rib(&mut rib, old_rib, instance, interfaces);
-
-            // Store the merged RIB.
-            instance.state.rib_multi = rib;
-        }
+        // Merge L1 and L2 RIBs, preferring L1 routes.
+        let rib_l1 = instance.state.rib_single.get(LevelNumber::L1);
+        let rib_l2 = instance.state.rib_single.get(LevelNumber::L2);
+        rib = rib_l2
+            .iter()
+            .chain(rib_l1.iter())
+            .map(|(prefix, route)| (*prefix, route.clone()))
+            .collect();
     }
+
+    // Update the global RIB.
+    route::update_global_rib(&mut rib, old_rib, instance, interfaces);
+
+    // Store the updated RIB.
+    *instance.state.rib_mut(instance.config.level_type) = rib;
 
     // Update statistics.
     instance.state.counters.get_mut(level).spf_runs += 1;

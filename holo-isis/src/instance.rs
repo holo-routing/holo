@@ -219,13 +219,9 @@ impl Instance {
         Debug::InstanceStop(reason).log();
 
         // Uninstall all routes.
-        let rib = match instance.config.level_type {
-            LevelType::L1 | LevelType::L2 => {
-                instance.state.rib_single.get(instance.config.level_type)
-            }
-            LevelType::All => &instance.state.rib_multi,
-        };
-        for (prefix, route) in rib
+        for (prefix, route) in instance
+            .state
+            .rib(instance.config.level_type)
             .iter()
             .filter(|(_, route)| route.flags.contains(RouteFlags::INSTALLED))
         {
@@ -414,6 +410,30 @@ impl InstanceState {
             lsp_log_next_id: 0,
             spf_log: Default::default(),
             spf_log_next_id: 0,
+        }
+    }
+
+    // Returns a reference to the RIB for the specified level type.
+    pub(crate) fn rib(
+        &self,
+        level_type: LevelType,
+    ) -> &BTreeMap<IpNetwork, Route> {
+        match level_type {
+            LevelType::L1 | LevelType::L2 => self.rib_single.get(level_type),
+            LevelType::All => &self.rib_multi,
+        }
+    }
+
+    // Returns a mutable reference to the RIB for the specified level type.
+    pub(crate) fn rib_mut(
+        &mut self,
+        level_type: LevelType,
+    ) -> &mut BTreeMap<IpNetwork, Route> {
+        match level_type {
+            LevelType::L1 | LevelType::L2 => {
+                self.rib_single.get_mut(level_type)
+            }
+            LevelType::All => &mut self.rib_multi,
         }
     }
 }

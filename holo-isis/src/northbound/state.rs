@@ -575,18 +575,9 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(isis::local_rib::route::PATH)
         .get_iterate(|instance, _args| {
             let Some(instance_state) = &instance.state else { return None };
-            match instance.config.level_type {
-                LevelType::L1 | LevelType::L2 => {
-                    let iter = instance_state.rib_single.get(instance.config.level_type).iter();
-                    let iter = iter.map(|(destination, route)| ListEntry::Route(destination, route));
-                    Some(Box::new(iter))
-                }
-                LevelType::All => {
-                    let iter = instance_state.rib_multi.iter();
-                    let iter = iter.map(|(destination, route)| ListEntry::Route(destination, route));
-                    Some(Box::new(iter))
-                }
-            }
+            let rib = instance_state.rib(instance.config.level_type);
+            let iter = rib.iter().map(|(destination, route)| ListEntry::Route(destination, route));
+            Some(Box::new(iter))
         })
         .get_object(|_instance, args| {
             use isis::local_rib::route::Route;

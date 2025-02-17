@@ -69,37 +69,37 @@ module holo-ospf {
   /*
    * Groupings.
    */
-  grouping bier-protocol-extensions{
-     description
-           "Defines protocol extensions.";
-        leaf mt-id{
-          type uint8 ;
-          description
-                "Multi-topology associated with bier sub-domain.";
-         }
+  grouping bier-protocol-extensions {
+    description
+      "Defines protocol extensions.";
+    leaf mt-id {
+      type uint8;
+      description
+        "Multi-topology associated with bier sub-domain.";
+    }
     container bier {
-          leaf enable {
-            type boolean;
-                default false;
-                description
-                  "Enables bier protocol extensions.";
-          }
-          leaf advertise {
-                type boolean;
-                default true;
-                description
-                  "Enable to advertise the parameters associated with bier.";
-                }
-          leaf receive {
-                type boolean;
-                default true;
-                description
-                  "Enable to receive the parameters associated with bier.";
-                }
-          description
-                "BIER global config.";
-        }
-   }
+      leaf enable {
+        type boolean;
+        default false;
+        description
+          "Enables bier protocol extensions.";
+      }
+      leaf advertise {
+        type boolean;
+        default true;
+        description
+          "Enable to advertise the parameters associated with bier.";
+      }
+      leaf receive {
+        type boolean;
+        default true;
+        description
+          "Enable to receive the parameters associated with bier.";
+      }
+      description
+        "BIER global config.";
+    }
+  }
 
   /*
    * Augmentations.

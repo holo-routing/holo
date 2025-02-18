@@ -1005,7 +1005,11 @@ impl Ipv4ReachTlv {
     const METRIC_IE_BIT: u8 = 0x40;
     const METRIC_MASK: u8 = 0x3F;
 
-    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        tlv_len: u8,
+        buf: &mut Bytes,
+        external: bool,
+    ) -> DecodeResult<Self> {
         let mut list = vec![];
 
         // Validate the TLV length.
@@ -1028,6 +1032,12 @@ impl Ipv4ReachTlv {
                 .then_some(metric_error & Self::METRIC_MASK);
             let addr = buf.get_ipv4();
             let mask = buf.get_ipv4();
+
+            // Per RFC 5302 Section 3.3, ignore internal reachability
+            // information with external metric type.
+            if ie_bit && !external {
+                continue;
+            }
             // Ignore prefixes with non-contiguous subnet masks.
             let Ok(prefix) = Ipv4Network::with_netmask(addr, mask) else {
                 continue;

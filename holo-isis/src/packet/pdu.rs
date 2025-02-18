@@ -809,7 +809,8 @@ impl Lsp {
                     tlvs.ext_is_reach.push(tlv);
                 }
                 Some(TlvType::Ipv4InternalReach) => {
-                    let tlv = Ipv4ReachTlv::decode(tlv_len, &mut buf_tlv)?;
+                    let tlv =
+                        Ipv4ReachTlv::decode(tlv_len, &mut buf_tlv, false)?;
                     tlvs.ipv4_internal_reach.push(tlv);
                 }
                 Some(TlvType::ProtocolsSupported) => {
@@ -821,7 +822,8 @@ impl Lsp {
                     tlvs.protocols_supported = Some(tlv);
                 }
                 Some(TlvType::Ipv4ExternalReach) => {
-                    let tlv = Ipv4ReachTlv::decode(tlv_len, &mut buf_tlv)?;
+                    let tlv =
+                        Ipv4ReachTlv::decode(tlv_len, &mut buf_tlv, true)?;
                     tlvs.ipv4_external_reach.push(tlv);
                 }
                 Some(TlvType::Ipv4Addresses) => {

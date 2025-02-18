@@ -27,8 +27,8 @@ use crate::northbound::notification;
 use crate::packet::consts::LspFlags;
 use crate::packet::pdu::{Lsp, LspTlvs, Pdu};
 use crate::packet::tlv::{
-    ExtIpv4Reach, ExtIsReach, Ipv4Reach, Ipv6Reach, IsReach, MAX_NARROW_METRIC,
-    Nlpid,
+    ExtIpv4Reach, ExtIsReach, IpReachTlvEntry, Ipv4Reach, Ipv6Reach, IsReach,
+    MAX_NARROW_METRIC, Nlpid,
 };
 use crate::packet::{LanId, LevelNumber, LevelType, LspId};
 use crate::spf::{SpfType, VertexId};
@@ -488,87 +488,63 @@ fn lsp_propagate_l1_to_l2(
 
         // Propagate IPv4 reachability information.
         if instance.config.is_af_enabled(AddressFamily::Ipv4) {
-            for mut reach in l1_lsp
-                .tlvs
-                .ipv4_internal_reach()
-                .filter(|reach| !reach.up_down)
-                .cloned()
-            {
-                reach.metric = std::cmp::min(
-                    l1_lsp_dist + reach.metric as u32,
-                    MAX_NARROW_METRIC,
-                ) as u8;
-                match ipv4_internal_reach.entry(reach.prefix) {
-                    btree_map::Entry::Occupied(mut e) => {
-                        if reach.metric < e.get().metric {
-                            e.insert(reach);
-                        }
-                    }
-                    btree_map::Entry::Vacant(e) => {
-                        e.insert(reach);
-                    }
-                }
-            }
-            for mut reach in l1_lsp
-                .tlvs
-                .ipv4_external_reach()
-                .filter(|reach| !reach.up_down)
-                .cloned()
-            {
-                reach.metric = std::cmp::min(
-                    l1_lsp_dist + reach.metric as u32,
-                    MAX_NARROW_METRIC,
-                ) as u8;
-                match ipv4_external_reach.entry(reach.prefix) {
-                    btree_map::Entry::Occupied(mut e) => {
-                        if reach.metric < e.get().metric {
-                            e.insert(reach);
-                        }
-                    }
-                    btree_map::Entry::Vacant(e) => {
-                        e.insert(reach);
-                    }
-                }
-            }
-            for mut reach in l1_lsp
-                .tlvs
-                .ext_ipv4_reach()
-                .filter(|reach| !reach.up_down)
-                .cloned()
-            {
-                reach.metric = l1_lsp_dist.saturating_add(reach.metric);
-                match ext_ipv4_reach.entry(reach.prefix) {
-                    btree_map::Entry::Occupied(mut e) => {
-                        if reach.metric < e.get().metric {
-                            e.insert(reach);
-                        }
-                    }
-                    btree_map::Entry::Vacant(e) => {
-                        e.insert(reach);
-                    }
-                }
-            }
+            propagate_ip_reach(
+                l1_lsp_dist,
+                l1_lsp.tlvs.ipv4_internal_reach(),
+                ipv4_internal_reach,
+            );
+            propagate_ip_reach(
+                l1_lsp_dist,
+                l1_lsp.tlvs.ipv4_external_reach(),
+                ipv4_external_reach,
+            );
+            propagate_ip_reach(
+                l1_lsp_dist,
+                l1_lsp.tlvs.ext_ipv4_reach(),
+                ext_ipv4_reach,
+            );
         }
 
         // Propagate IPv6 reachability information.
         if instance.config.is_af_enabled(AddressFamily::Ipv6) {
-            for mut reach in l1_lsp
-                .tlvs
-                .ipv6_reach()
-                .filter(|reach| !reach.up_down)
-                .cloned()
-            {
-                reach.metric = l1_lsp_dist.saturating_add(reach.metric);
-                match ipv6_reach.entry(reach.prefix) {
-                    btree_map::Entry::Occupied(mut e) => {
-                        if reach.metric < e.get().metric {
-                            e.insert(reach);
-                        }
-                    }
-                    btree_map::Entry::Vacant(e) => {
-                        e.insert(reach);
-                    }
+            propagate_ip_reach(
+                l1_lsp_dist,
+                l1_lsp.tlvs.ipv6_reach(),
+                ipv6_reach,
+            );
+        }
+    }
+}
+
+// Propagates IP reachability entries from an L1 LSP to an L2 LSP.
+fn propagate_ip_reach<'a, T: IpReachTlvEntry + 'a>(
+    l1_lsp_dist: u32,
+    l1_reach: impl Iterator<Item = &'a T>,
+    l2_reach: &mut BTreeMap<T::IpNetwork, T>,
+) {
+    for mut reach in l1_reach
+        // RFC 5302 - Section 2:
+        // "Prefixes with the up/down bit set that are learned via L1 routing
+        // MUST NOT be advertised by L1L2 routers back into L2".
+        .filter(|reach| !reach.up_down())
+        .cloned()
+    {
+        // RFC 1195 - Section 3.2:
+        // "The metric value announced in the level 2 LSPs is calculated from
+        // the sum of the metric value announced in the corresponding level 1
+        // LSP, plus the distance from the level 2 router to the appropriate
+        // level 1 router".
+        reach.metric_add(l1_lsp_dist);
+
+        // Keep only the entry with the lowest total metric for each prefix.
+        match l2_reach.entry(reach.prefix()) {
+            btree_map::Entry::Occupied(mut e) => {
+                if reach.metric() < e.get().metric() {
+                    e.insert(reach);
                 }
+            }
+            btree_map::Entry::Vacant(e) => {
+                e.insert(reach);
             }
         }
     }

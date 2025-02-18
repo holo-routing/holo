@@ -29,7 +29,7 @@ use crate::lsdb::{LspEntry, LspLogId};
 use crate::northbound::configuration::MetricType;
 use crate::packet::consts::LspFlags;
 use crate::packet::pdu::Lsp;
-use crate::packet::tlv::Nlpid;
+use crate::packet::tlv::{IpReachTlvEntry, Nlpid};
 use crate::packet::{LanId, LevelNumber, LevelType, LspId, SystemId};
 use crate::route::Route;
 use crate::{route, tasks};

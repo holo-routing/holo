@@ -64,6 +64,23 @@ pub trait MultiTlv: From<Vec<Self::Entry>> {
     }
 }
 
+// Trait for entries of IP reachability TLVs.
+pub trait IpReachTlvEntry: Clone {
+    type IpNetwork: Ord;
+
+    // Return the network prefix.
+    fn prefix(&self) -> Self::IpNetwork;
+
+    // Return the reachability metric.
+    fn metric(&self) -> u32;
+
+    // Add a value to the metric, ensuring it stays within valid bounds.
+    fn metric_add(&mut self, value: u32);
+
+    // Return whether the up/down bit is set.
+    fn up_down(&self) -> bool;
+}
+
 #[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct AreaAddressesTlv {
@@ -1107,9 +1124,14 @@ where
 
 // ===== impl Ipv4Reach =====
 
-impl Ipv4Reach {
-    // Returns the metric associated with the IP prefix.
-    pub(crate) fn metric(&self) -> u32 {
+impl IpReachTlvEntry for Ipv4Reach {
+    type IpNetwork = Ipv4Network;
+
+    fn prefix(&self) -> Ipv4Network {
+        self.prefix
+    }
+
+    fn metric(&self) -> u32 {
         let mut metric = self.metric;
 
         // RFC 3787 - Section 5:
@@ -1122,6 +1144,15 @@ impl Ipv4Reach {
         }
 
         metric.into()
+    }
+
+    fn metric_add(&mut self, value: u32) {
+        self.metric =
+            std::cmp::min(self.metric as u32 + value, MAX_NARROW_METRIC) as u8;
+    }
+
+    fn up_down(&self) -> bool {
+        self.up_down
     }
 }
 
@@ -1247,6 +1278,28 @@ where
         ExtIpv4ReachTlv {
             list: iter.into_iter().collect(),
         }
+    }
+}
+
+// ===== impl ExtIpv4Reach =====
+
+impl IpReachTlvEntry for ExtIpv4Reach {
+    type IpNetwork = Ipv4Network;
+
+    fn prefix(&self) -> Ipv4Network {
+        self.prefix
+    }
+
+    fn metric(&self) -> u32 {
+        self.metric
+    }
+
+    fn metric_add(&mut self, value: u32) {
+        self.metric = self.metric.saturating_add(value);
+    }
+
+    fn up_down(&self) -> bool {
+        self.up_down
     }
 }
 
@@ -1381,6 +1434,28 @@ where
         Ipv6ReachTlv {
             list: iter.into_iter().collect(),
         }
+    }
+}
+
+// ===== impl Ipv6Reach =====
+
+impl IpReachTlvEntry for Ipv6Reach {
+    type IpNetwork = Ipv6Network;
+
+    fn prefix(&self) -> Ipv6Network {
+        self.prefix
+    }
+
+    fn metric(&self) -> u32 {
+        self.metric
+    }
+
+    fn metric_add(&mut self, value: u32) {
+        self.metric = self.metric.saturating_add(value);
+    }
+
+    fn up_down(&self) -> bool {
+        self.up_down
     }
 }
 

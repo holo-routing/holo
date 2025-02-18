@@ -1002,7 +1002,7 @@ where
 impl Ipv4ReachTlv {
     const ENTRY_SIZE: usize = 12;
     const METRIC_S_BIT: u8 = 0x80;
-    const METRIC_IE_BIT: u8 = 0x80;
+    const METRIC_IE_BIT: u8 = 0x40;
     const METRIC_MASK: u8 = 0x3F;
 
     pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {

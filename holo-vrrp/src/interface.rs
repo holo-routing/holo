@@ -197,9 +197,17 @@ impl ProtocolInstance for Interface {
 
     async fn init(&mut self) {
         // Request system information about the interface.
+
+        // get ipv4 interfaces
         let _ = self.tx.ibus.send(IbusMsg::InterfaceQuery {
             ifname: self.name.clone(),
             af: Some(AddressFamily::Ipv4),
+        });
+
+        // getipv6 interfaces
+        let _ = self.tx.ibus.send(IbusMsg::InterfaceQuery {
+            ifname: self.name.clone(),
+            af: Some(AddressFamily::Ipv6),
         });
     }
 

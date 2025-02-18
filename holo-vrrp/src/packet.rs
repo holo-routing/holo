@@ -196,6 +196,36 @@ pub struct Vrrp6Packet {
     pub vrrp: VrrpHdr,
 }
 
+//   0                   1                   2                   3
+//   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |     Type      |     Code      |          Checksum             |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |R|S|O|                     Reserved                            |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |                                                               |
+//  +                                                               +
+//  |                                                               |
+//  +                       Target Address                          +
+//  |                                                               |
+//  +                                                               +
+//  |                                                               |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |   Options ...
+//  +-+-+-+-+-+-+-+-+-+-+-+-
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct NeighborAdvertisement {
+    pub ad_type: u8,
+    pub code: u8,
+    pub checksum: u16,
+    pub r: u8,
+    pub s: u8,
+    pub o: u8,
+    pub reserved: u32,
+    pub target_address: Ipv6Addr,
+}
+
 #[derive(Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub enum DecodeError {
@@ -213,6 +243,7 @@ impl VrrpHdr {
 
     // Encodes VRRP packet into a bytes buffer.
     pub fn encode(&self) -> BytesMut {
+        //println!("{:#?}", self);
         let mut buf = BytesMut::with_capacity(114);
         let ver_type = (self.version << 4) | self.hdr_type;
         buf.put_u8(ver_type);
@@ -255,7 +286,6 @@ impl VrrpHdr {
                     }
                 }
                 IpVersion::V6 => {
-                    // TODO: handle ipv6
                     for addr in &self.ip_addresses {
                         if let IpAddr::V6(ipv6_addr) = addr {
                             buf.put_ipv6(ipv6_addr);
@@ -533,6 +563,26 @@ impl Vrrp6Packet {
         let mut buf = BytesMut::with_capacity(Self::MAX_LEN);
         buf.put(self.ip.encode());
         buf.put(self.vrrp.encode());
+        buf
+    }
+}
+
+impl NeighborAdvertisement {
+    const PKT_LEN: usize = 192;
+
+    pub fn encode(&self) -> BytesMut {
+        let mut buf = BytesMut::with_capacity(Self::PKT_LEN);
+        buf.put_u8(self.ad_type);
+        buf.put_u8(self.code);
+        buf.put_u16(self.checksum);
+
+        let rso_reserved = ((self.r as u32) << 31)
+            | ((self.s as u32) << 30)
+            | ((self.o as u32) << 29)
+            | ((self.reserved as u32) >> 3);
+
+        buf.put_u32(rso_reserved);
+        buf.put_ipv6(&self.target_address);
         buf
     }
 }

@@ -21,7 +21,8 @@ use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 
 use crate::consts::{
-    VRRP_PROTO_NUMBER, VRRP_V2_MULTICAST_ADDRESS, VRRP_V3_MULTICAST_ADDRESS,
+    SOLICITATION_BASE_ADDRESS, VRRP_PROTO_NUMBER, VRRP_V2_MULTICAST_ADDRESS,
+    VRRP_V3_MULTICAST_ADDRESS,
 };
 use crate::debug::Debug;
 use crate::error::{Error, IoError};
@@ -470,8 +471,8 @@ impl Instance {
             .clone()
             .iter()
             .filter_map(|addr| {
-                if let IpNetwork::V4(v4_net) = addr {
-                    return Some(IpAddr::V4(v4_net.ip()));
+                if let IpNetwork::V6(v6_net) = addr {
+                    return Some(IpAddr::V6(v6_net.ip()));
                 }
                 None
             })
@@ -648,6 +649,27 @@ impl Instance {
                 }
             }
         }
+    }
+
+    /// gives us the Solicitated-Node multicast addresses that will be used for
+    /// Neighbor Discovery
+    ///
+    /// RFC 8568 - 6.4.2
+    /// If the Active_Down_Timer fires, then:
+    /// ...
+    /// else // IPv6
+    /// Compute and join the Solicited-Node multicast address [RFC4291] for the IPv6 address(es) associated with the Virtual Router.
+    pub(crate) fn _solicitated_node_addresses(&self) -> Vec<Ipv6Addr> {
+        let mut addresses: Vec<Ipv6Addr> = vec![];
+        for address in self.config.virtual_addresses.clone() {
+            let solic_base = SOLICITATION_BASE_ADDRESS;
+            if let IpNetwork::V6(addr) = address {
+                let addr_bits = ((addr.ip().to_bits() << 104) >> 104) as u128;
+                let solic_addr = solic_base.to_bits() | addr_bits;
+                addresses.push(Ipv6Addr::from(solic_addr));
+            }
+        }
+        addresses
     }
 }
 

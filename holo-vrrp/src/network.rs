@@ -8,12 +8,13 @@
 //
 
 use std::io::{IoSlice, IoSliceMut};
+use std::net::Ipv6Addr;
 use std::ops::Deref;
 use std::os::fd::AsRawFd;
 use std::sync::Arc;
 
 use bytes::{BufMut, Bytes};
-use holo_utils::socket::{AsyncFd, Socket, SocketExt};
+use holo_utils::socket::{AsyncFd, RawSocketExt, Socket, SocketExt};
 use holo_utils::{Sender, UnboundedReceiver, capabilities};
 use ipnetwork::IpNetwork;
 use libc::{AF_PACKET, ETH_P_ARP};
@@ -80,7 +81,7 @@ pub(crate) fn socket_vrrp_tx6(
         socket.set_nonblocking(true)?;
         socket.set_reuse_address(true)?;
         socket.set_multicast_ifindex_v6(mvlan.system.ifindex.unwrap())?;
-        socket.set_header_included_v6(true)?;
+        socket.set_header_included_v6(false)?;
         capabilities::raise(|| {
             socket.bind_device(Some(mvlan.name.as_bytes()))
         })?;
@@ -105,7 +106,6 @@ pub(crate) fn socket_vrrp_rx4(
                 Some(Protocol::from(VRRP_PROTO_NUMBER)),
             )
         })?;
-        socket.set_header_included(false)?;
         capabilities::raise(|| {
             socket.bind_device(Some(interface.name.as_bytes()))
         })?;
@@ -214,7 +214,7 @@ async fn send_packet_vrrp6(
     // TODO: handle debugging
 
     // Encode packet.
-    let buf = packet.encode();
+    let buf = packet.vrrp.encode();
 
     // Send packet.
     let iov = [IoSlice::new(&buf)];
@@ -223,6 +223,7 @@ async fn send_packet_vrrp6(
 
     socket
         .async_io(tokio::io::Interest::WRITABLE, |socket| {
+            socket.set_ipv6_checksum(6)?;
             socket::sendmsg(
                 socket.as_raw_fd(),
                 &iov,
@@ -324,6 +325,19 @@ pub(crate) async fn write_loop(
             }
         }
     }
+}
+
+pub(crate) async fn _join_solicitated_node_multi_address(
+    socket: Arc<AsyncFd<Socket>>,
+    address: Ipv6Addr,
+    ifindex: u32,
+) -> Result<(), IoError> {
+    socket
+        .async_io(tokio::io::Interest::WRITABLE, |socket| {
+            socket.join_multicast_v6(&address, ifindex)
+        })
+        .await
+        .map_err(IoError::SendError)
 }
 
 #[cfg(not(feature = "testing"))]

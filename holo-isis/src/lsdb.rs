@@ -271,6 +271,7 @@ fn lsp_build_tlvs(
                     ipv4_internal_reach.insert(
                         prefix,
                         Ipv4Reach {
+                            up_down: false,
                             ie_bit: false,
                             metric: std::cmp::min(metric, MAX_NARROW_METRIC)
                                 as u8,
@@ -487,7 +488,12 @@ fn lsp_propagate_l1_to_l2(
 
         // Propagate IPv4 reachability information.
         if instance.config.is_af_enabled(AddressFamily::Ipv4) {
-            for mut reach in l1_lsp.tlvs.ipv4_internal_reach().cloned() {
+            for mut reach in l1_lsp
+                .tlvs
+                .ipv4_internal_reach()
+                .filter(|reach| !reach.up_down)
+                .cloned()
+            {
                 reach.metric = std::cmp::min(
                     l1_lsp_dist + reach.metric as u32,
                     MAX_NARROW_METRIC,
@@ -503,7 +509,12 @@ fn lsp_propagate_l1_to_l2(
                     }
                 }
             }
-            for mut reach in l1_lsp.tlvs.ipv4_external_reach().cloned() {
+            for mut reach in l1_lsp
+                .tlvs
+                .ipv4_external_reach()
+                .filter(|reach| !reach.up_down)
+                .cloned()
+            {
                 reach.metric = std::cmp::min(
                     l1_lsp_dist + reach.metric as u32,
                     MAX_NARROW_METRIC,
@@ -519,7 +530,12 @@ fn lsp_propagate_l1_to_l2(
                     }
                 }
             }
-            for mut reach in l1_lsp.tlvs.ext_ipv4_reach().cloned() {
+            for mut reach in l1_lsp
+                .tlvs
+                .ext_ipv4_reach()
+                .filter(|reach| !reach.up_down)
+                .cloned()
+            {
                 reach.metric = l1_lsp_dist.saturating_add(reach.metric);
                 match ext_ipv4_reach.entry(reach.prefix) {
                     btree_map::Entry::Occupied(mut e) => {
@@ -536,7 +552,12 @@ fn lsp_propagate_l1_to_l2(
 
         // Propagate IPv6 reachability information.
         if instance.config.is_af_enabled(AddressFamily::Ipv6) {
-            for mut reach in l1_lsp.tlvs.ipv6_reach().cloned() {
+            for mut reach in l1_lsp
+                .tlvs
+                .ipv6_reach()
+                .filter(|reach| !reach.up_down)
+                .cloned()
+            {
                 reach.metric = l1_lsp_dist.saturating_add(reach.metric);
                 match ipv6_reach.entry(reach.prefix) {
                     btree_map::Entry::Occupied(mut e) => {

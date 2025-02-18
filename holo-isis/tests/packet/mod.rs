@@ -828,6 +828,7 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 ipv4_internal_reach: vec![Ipv4ReachTlv {
                     list: vec![
                         Ipv4Reach {
+                            up_down: false,
                             ie_bit: false,
                             metric: 10,
                             metric_delay: None,
@@ -837,6 +838,7 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                                 .unwrap(),
                         },
                         Ipv4Reach {
+                            up_down: false,
                             ie_bit: false,
                             metric: 10,
                             metric_delay: None,
@@ -846,6 +848,7 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                                 .unwrap(),
                         },
                         Ipv4Reach {
+                            up_down: false,
                             ie_bit: false,
                             metric: 10,
                             metric_delay: None,

@@ -196,6 +196,7 @@ pub struct Ipv4ReachTlv {
 )]
 #[derive(Deserialize, Serialize)]
 pub struct Ipv4Reach {
+    pub up_down: bool,
     pub ie_bit: bool,
     pub metric: u8,
     pub metric_delay: Option<u8>,
@@ -1002,6 +1003,7 @@ where
 impl Ipv4ReachTlv {
     const ENTRY_SIZE: usize = 12;
     const METRIC_S_BIT: u8 = 0x80;
+    const METRIC_UP_DOWN_BIT: u8 = 0x80;
     const METRIC_IE_BIT: u8 = 0x40;
     const METRIC_MASK: u8 = 0x3F;
 
@@ -1019,6 +1021,7 @@ impl Ipv4ReachTlv {
 
         while buf.remaining() >= Self::ENTRY_SIZE {
             let metric = buf.get_u8();
+            let up_down = metric & Self::METRIC_UP_DOWN_BIT != 0;
             let ie_bit = metric & Self::METRIC_IE_BIT != 0;
             let metric = metric & Self::METRIC_MASK;
             let metric_delay = buf.get_u8();
@@ -1044,6 +1047,7 @@ impl Ipv4ReachTlv {
             };
 
             let entry = Ipv4Reach {
+                up_down,
                 ie_bit,
                 metric,
                 metric_delay,
@@ -1061,6 +1065,9 @@ impl Ipv4ReachTlv {
         let start_pos = tlv_encode_start(buf, tlv_type);
         for entry in &self.list {
             let mut metric = entry.metric;
+            if entry.up_down {
+                metric |= Self::METRIC_UP_DOWN_BIT;
+            }
             if entry.ie_bit {
                 metric |= Self::METRIC_IE_BIT;
             }

@@ -16,7 +16,7 @@ use ipnetwork::IpNetwork;
 use crate::collections::{InterfaceIndex, Interfaces};
 use crate::instance::InstanceUpView;
 use crate::northbound::configuration::InstanceCfg;
-use crate::packet::LevelNumber;
+use crate::packet::{LevelNumber, LevelType};
 use crate::southbound;
 use crate::spf::{Vertex, VertexNetwork};
 
@@ -112,8 +112,43 @@ impl Route {
 
 // ===== global functions =====
 
+// Updates the local RIB for the specified level and the combined L1/L2 RIB for
+// L1/L2 routers.
+pub(crate) fn update_rib(
+    level: LevelNumber,
+    mut new_rib: BTreeMap<IpNetwork, Route>,
+    instance: &mut InstanceUpView<'_>,
+    interfaces: &Interfaces,
+) {
+    // Save the old local RIB.
+    let old_rib =
+        std::mem::take(instance.state.rib_mut(instance.config.level_type));
+
+    if instance.config.level_type == LevelType::All {
+        // Store the new local RIB for the current level.
+        *instance.state.rib_single.get_mut(level) = new_rib;
+
+        // Merge L1 and L2 local RIBs, preferring L1 routes.
+        let rib_l1 = instance.state.rib_single.get(LevelNumber::L1);
+        let rib_l2 = instance.state.rib_single.get(LevelNumber::L2);
+        new_rib = rib_l2
+            .iter()
+            .chain(rib_l1.iter())
+            .map(|(prefix, route)| (*prefix, route.clone()))
+            .collect();
+    }
+
+    // Update the global RIB.
+    update_global_rib(&mut new_rib, old_rib, instance, interfaces);
+
+    // Store the new local RIB.
+    *instance.state.rib_mut(instance.config.level_type) = new_rib;
+}
+
+// ===== helper functions =====
+
 // Updates IS-IS routes in the global RIB.
-pub(crate) fn update_global_rib(
+fn update_global_rib(
     rib: &mut BTreeMap<IpNetwork, Route>,
     mut old_rib: BTreeMap<IpNetwork, Route>,
     instance: &mut InstanceUpView<'_>,

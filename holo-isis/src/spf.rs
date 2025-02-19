@@ -401,33 +401,12 @@ fn compute_spf(
         *instance.state.spt.get_mut(level) = spt;
     }
 
-    // Save the old RIB.
-    let old_rib =
-        std::mem::take(instance.state.rib_mut(instance.config.level_type));
-
     // Compute the new RIB for the current level.
-    let mut rib =
+    let new_rib =
         compute_routes(level, instance, interfaces, adjacencies, lsp_entries);
 
-    if instance.config.level_type == LevelType::All {
-        // Store the new RIB for the current level.
-        *instance.state.rib_single.get_mut(level) = rib;
-
-        // Merge L1 and L2 RIBs, preferring L1 routes.
-        let rib_l1 = instance.state.rib_single.get(LevelNumber::L1);
-        let rib_l2 = instance.state.rib_single.get(LevelNumber::L2);
-        rib = rib_l2
-            .iter()
-            .chain(rib_l1.iter())
-            .map(|(prefix, route)| (*prefix, route.clone()))
-            .collect();
-    }
-
-    // Update the global RIB.
-    route::update_global_rib(&mut rib, old_rib, instance, interfaces);
-
-    // Store the updated RIB.
-    *instance.state.rib_mut(instance.config.level_type) = rib;
+    // Update the local RIB and global RIB.
+    route::update_rib(level, new_rib, instance, interfaces);
 
     // If this is an L1 LSP in an L1/L2 router, schedule LSP reorigination at L2
     // to propagate updates. This happens only after SPF, as the SPT tree is

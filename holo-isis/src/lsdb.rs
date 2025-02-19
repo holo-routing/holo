@@ -464,6 +464,7 @@ fn lsp_propagate_l1_to_l2(
     ipv6_reach: &mut BTreeMap<Ipv6Network, Ipv6Reach>,
 ) {
     let system_id = instance.config.system_id.unwrap();
+    let metric_type = &instance.config.metric_type;
     let lsdb = instance.state.lsdb.get(LevelNumber::L1);
 
     // Iterate over all valid non-pseudonode L1 LSPs.
@@ -487,22 +488,35 @@ fn lsp_propagate_l1_to_l2(
         };
 
         // Propagate IPv4 reachability information.
+        //
+        // Propagation for both old and new metric types occurs only if the
+        // corresponding metric type is enabled on both levels.
         if instance.config.is_af_enabled(AddressFamily::Ipv4) {
-            propagate_ip_reach(
-                l1_lsp_dist,
-                l1_lsp.tlvs.ipv4_internal_reach(),
-                ipv4_internal_reach,
-            );
-            propagate_ip_reach(
-                l1_lsp_dist,
-                l1_lsp.tlvs.ipv4_external_reach(),
-                ipv4_external_reach,
-            );
-            propagate_ip_reach(
-                l1_lsp_dist,
-                l1_lsp.tlvs.ext_ipv4_reach(),
-                ext_ipv4_reach,
-            );
+            if LevelType::All
+                .into_iter()
+                .all(|level| metric_type.get(level).is_standard_enabled())
+            {
+                propagate_ip_reach(
+                    l1_lsp_dist,
+                    l1_lsp.tlvs.ipv4_internal_reach(),
+                    ipv4_internal_reach,
+                );
+                propagate_ip_reach(
+                    l1_lsp_dist,
+                    l1_lsp.tlvs.ipv4_external_reach(),
+                    ipv4_external_reach,
+                );
+            }
+            if LevelType::All
+                .into_iter()
+                .all(|level| metric_type.get(level).is_wide_enabled())
+            {
+                propagate_ip_reach(
+                    l1_lsp_dist,
+                    l1_lsp.tlvs.ext_ipv4_reach(),
+                    ext_ipv4_reach,
+                );
+            }
         }
 
         // Propagate IPv6 reachability information.

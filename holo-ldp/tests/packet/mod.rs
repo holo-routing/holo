@@ -12,18 +12,17 @@ mod label;
 mod notification;
 mod pdu;
 
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-use std::str::FromStr;
+use std::net::Ipv4Addr;
 use std::sync::LazyLock as Lazy;
 
 use bytes::{Bytes, BytesMut};
+use const_addrs::{ip, ip4, ip6, net};
 use holo_ldp::packet::*;
-use ipnetwork::IpNetwork;
 
 thread_local! {
     static IPV4_CXT: DecodeCxt = DecodeCxt {
         pkt_info: PacketInfo {
-            src_addr: IpAddr::from_str("1.1.1.1").unwrap(),
+            src_addr: ip!("1.1.1.1"),
             multicast: None,
         },
         pdu_max_len: Pdu::DFLT_MAX_LEN,
@@ -32,7 +31,7 @@ thread_local! {
     };
     static IPV6_CXT: DecodeCxt = DecodeCxt {
         pkt_info: PacketInfo {
-            src_addr: IpAddr::from_str("2001:db8:1000::1").unwrap(),
+            src_addr: ip!("2001:db8:1000::1"),
             multicast: None,
         },
         pdu_max_len: Pdu::DFLT_MAX_LEN,

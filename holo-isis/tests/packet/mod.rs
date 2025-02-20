@@ -7,11 +7,10 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use std::net::{Ipv4Addr, Ipv6Addr};
-use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
 use bytes::Bytes;
+use const_addrs::{ip4, ip6, net4, net6};
 use holo_isis::packet::auth::AuthMethod;
 use holo_isis::packet::consts::LspFlags;
 use holo_isis::packet::pdu::{
@@ -34,7 +33,6 @@ use holo_isis::packet::{
 };
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::keychain::Key;
-use ipnetwork::{Ipv4Network, Ipv6Network};
 
 //
 // Helper functions.
@@ -235,7 +233,7 @@ static LAN_HELLO1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                     ],
                 }],
                 ipv4_addrs: vec![Ipv4AddressesTlv {
-                    list: vec![Ipv4Addr::from_str("10.0.1.1").unwrap()],
+                    list: vec![ip4!("10.0.1.1")],
                 }],
                 ipv6_addrs: vec![],
                 padding: vec![
@@ -411,7 +409,7 @@ static P2P_HELLO1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 }],
                 neighbors: vec![],
                 ipv4_addrs: vec![Ipv4AddressesTlv {
-                    list: vec![Ipv4Addr::from_str("10.0.7.6").unwrap()],
+                    list: vec![ip4!("10.0.7.6")],
                 }],
                 ipv6_addrs: vec![],
                 padding: vec![
@@ -458,7 +456,7 @@ static P2P_HELLO2_CLEAR_TEXT: Lazy<(Vec<u8>, Option<&Key>, Pdu)> =
                     }],
                     neighbors: vec![],
                     ipv4_addrs: vec![Ipv4AddressesTlv {
-                        list: vec![Ipv4Addr::from_str("10.0.7.6").unwrap()],
+                        list: vec![ip4!("10.0.7.6")],
                     }],
                     ipv6_addrs: vec![],
                     padding: vec![],
@@ -499,7 +497,7 @@ static P2P_HELLO2_HMAC_MD5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> =
                     }],
                     neighbors: vec![],
                     ipv4_addrs: vec![Ipv4AddressesTlv {
-                        list: vec![Ipv4Addr::from_str("10.0.7.6").unwrap()],
+                        list: vec![ip4!("10.0.7.6")],
                     }],
                     ipv6_addrs: vec![],
                     padding: vec![],
@@ -676,14 +674,10 @@ static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                         sub_tlvs: ExtIsReachSubTlvs {
                             admin_group: Some(AdminGroupSubTlv::new(0x0f)),
                             ipv4_interface_addr: vec![
-                                Ipv4InterfaceAddrSubTlv::new(
-                                    Ipv4Addr::from_str("10.0.1.1").unwrap(),
-                                ),
+                                Ipv4InterfaceAddrSubTlv::new(ip4!("10.0.1.1")),
                             ],
                             ipv4_neighbor_addr: vec![
-                                Ipv4NeighborAddrSubTlv::new(
-                                    Ipv4Addr::from_str("10.0.1.2").unwrap(),
-                                ),
+                                Ipv4NeighborAddrSubTlv::new(ip4!("10.0.1.2")),
                             ],
                             max_link_bw: Some(MaxLinkBwSubTlv::new(
                                 125000000.0,
@@ -703,7 +697,7 @@ static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                     }],
                 }],
                 ipv4_addrs: vec![Ipv4AddressesTlv {
-                    list: vec![Ipv4Addr::from_str("1.1.1.1").unwrap()],
+                    list: vec![ip4!("1.1.1.1")],
                 }],
                 ipv4_internal_reach: vec![],
                 ipv4_external_reach: vec![],
@@ -712,24 +706,20 @@ static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                         ExtIpv4Reach {
                             metric: 10,
                             up_down: false,
-                            prefix: Ipv4Network::from_str("10.0.1.0/24")
-                                .unwrap(),
+                            prefix: net4!("10.0.1.0/24"),
                             sub_tlvs: Default::default(),
                         },
                         ExtIpv4Reach {
                             metric: 10,
                             up_down: false,
-                            prefix: Ipv4Network::from_str("1.1.1.1/32")
-                                .unwrap(),
+                            prefix: net4!("1.1.1.1/32"),
                             sub_tlvs: Default::default(),
                         },
                     ],
                 }],
-                ipv4_router_id: Some(Ipv4RouterIdTlv::new(
-                    Ipv4Addr::from_str("1.1.1.1").unwrap(),
-                )),
+                ipv4_router_id: Some(Ipv4RouterIdTlv::new(ip4!("1.1.1.1"))),
                 ipv6_addrs: vec![Ipv6AddressesTlv {
-                    list: vec![Ipv6Addr::from_str("2001:db8::1").unwrap()],
+                    list: vec![ip6!("2001:db8::1")],
                 }],
                 ipv6_reach: vec![Ipv6ReachTlv {
                     list: vec![
@@ -737,25 +727,19 @@ static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                             metric: 10,
                             up_down: false,
                             external: false,
-                            prefix: Ipv6Network::from_str("2001:db8::1/128")
-                                .unwrap(),
+                            prefix: net6!("2001:db8::1/128"),
                             sub_tlvs: Default::default(),
                         },
                         Ipv6Reach {
                             metric: 10,
                             up_down: false,
                             external: false,
-                            prefix: Ipv6Network::from_str(
-                                "2001:db8:1000::0/64",
-                            )
-                            .unwrap(),
+                            prefix: net6!("2001:db8:1000::0/64"),
                             sub_tlvs: Default::default(),
                         },
                     ],
                 }],
-                ipv6_router_id: Some(Ipv6RouterIdTlv::new(
-                    Ipv6Addr::from_str("2001:db8::1").unwrap(),
-                )),
+                ipv6_router_id: Some(Ipv6RouterIdTlv::new(ip6!("2001:db8::1"))),
                 unknown: vec![],
             },
             None,
@@ -823,7 +807,7 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 }],
                 ext_is_reach: vec![],
                 ipv4_addrs: vec![Ipv4AddressesTlv {
-                    list: vec![Ipv4Addr::from_str("6.6.6.6").unwrap()],
+                    list: vec![ip4!("6.6.6.6")],
                 }],
                 ipv4_internal_reach: vec![Ipv4ReachTlv {
                     list: vec![
@@ -834,8 +818,7 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                             metric_delay: None,
                             metric_expense: None,
                             metric_error: None,
-                            prefix: Ipv4Network::from_str("10.0.7.0/24")
-                                .unwrap(),
+                            prefix: net4!("10.0.7.0/24"),
                         },
                         Ipv4Reach {
                             up_down: false,
@@ -844,8 +827,7 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                             metric_delay: None,
                             metric_expense: None,
                             metric_error: None,
-                            prefix: Ipv4Network::from_str("10.0.8.0/24")
-                                .unwrap(),
+                            prefix: net4!("10.0.8.0/24"),
                         },
                         Ipv4Reach {
                             up_down: false,
@@ -854,8 +836,7 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                             metric_delay: None,
                             metric_expense: None,
                             metric_error: None,
-                            prefix: Ipv4Network::from_str("6.6.6.6/32")
-                                .unwrap(),
+                            prefix: net4!("6.6.6.6/32"),
                         },
                     ],
                 }],
@@ -868,8 +849,7 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                             metric_delay: None,
                             metric_expense: None,
                             metric_error: None,
-                            prefix: Ipv4Network::from_str("172.16.1.0/24")
-                                .unwrap(),
+                            prefix: net4!("172.16.1.0/24"),
                         },
                         Ipv4Reach {
                             up_down: false,
@@ -878,8 +858,7 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                             metric_delay: None,
                             metric_expense: None,
                             metric_error: None,
-                            prefix: Ipv4Network::from_str("172.16.2.0/24")
-                                .unwrap(),
+                            prefix: net4!("172.16.2.0/24"),
                         },
                     ],
                 }],
@@ -936,7 +915,7 @@ static LSP3_HMAC_MD5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                     }],
                 }],
                 ipv4_addrs: vec![Ipv4AddressesTlv {
-                    list: vec![Ipv4Addr::from_str("1.1.1.1").unwrap()],
+                    list: vec![ip4!("1.1.1.1")],
                 }],
                 ipv4_internal_reach: vec![],
                 ipv4_external_reach: vec![],
@@ -945,15 +924,13 @@ static LSP3_HMAC_MD5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                         ExtIpv4Reach {
                             metric: 10,
                             up_down: false,
-                            prefix: Ipv4Network::from_str("10.0.1.0/24")
-                                .unwrap(),
+                            prefix: net4!("10.0.1.0/24"),
                             sub_tlvs: Default::default(),
                         },
                         ExtIpv4Reach {
                             metric: 10,
                             up_down: false,
-                            prefix: Ipv4Network::from_str("1.1.1.1/32")
-                                .unwrap(),
+                            prefix: net4!("1.1.1.1/32"),
                             sub_tlvs: Default::default(),
                         },
                     ],

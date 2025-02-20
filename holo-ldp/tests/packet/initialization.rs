@@ -16,7 +16,7 @@ static INIT_MSG1: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
                 flags: InitFlags::empty(),
                 pvlim: 0,
                 max_pdu_len: 0,
-                lsr_id: Ipv4Addr::from_str("1.1.1.1").unwrap(),
+                lsr_id: ip4!("1.1.1.1"),
                 lspace_id: 0,
             },
             cap_dynamic: Some(TlvCapDynamic()),

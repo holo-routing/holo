@@ -13,9 +13,7 @@ static LABEL_MAPPING_MSG1: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
         LabelMsg {
             msg_id: 57,
             msg_type: LabelMessageType::LabelMapping,
-            fec: TlvFec(vec![FecElem::Prefix(
-                IpNetwork::from_str("1.1.1.1/32").unwrap(),
-            )]),
+            fec: TlvFec(vec![FecElem::Prefix(net!("1.1.1.1/32"))]),
             label: Some(TlvLabel(Label::new(16))),
             request_id: None,
         }
@@ -33,9 +31,7 @@ static LABEL_MAPPING_MSG2: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
         LabelMsg {
             msg_id: 65,
             msg_type: LabelMessageType::LabelMapping,
-            fec: TlvFec(vec![FecElem::Prefix(
-                IpNetwork::from_str("2001:db8:1000::1/128").unwrap(),
-            )]),
+            fec: TlvFec(vec![FecElem::Prefix(net!("2001:db8:1000::1/128"))]),
             label: Some(TlvLabel(Label::new(18))),
             request_id: None,
         }

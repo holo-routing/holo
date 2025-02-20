@@ -5,11 +5,11 @@
 //
 
 use std::net::Ipv4Addr;
-use std::str::FromStr;
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, LazyLock as Lazy};
 
 use bytes::Bytes;
+use const_addrs::{ip4, net4};
 use holo_ospf::ospfv2::packet::lsa::*;
 use holo_ospf::ospfv2::packet::lsa_opaque::*;
 use holo_ospf::ospfv2::packet::*;
@@ -23,7 +23,6 @@ use holo_utils::ip::AddressFamily;
 use holo_utils::keychain::Key;
 use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid};
-use ipnetwork::Ipv4Network;
 use maplit::{btreemap, btreeset};
 
 const SRC_ADDR: Ipv4Addr = Ipv4Addr::UNSPECIFIED;
@@ -98,18 +97,18 @@ static HELLO1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
             Packet::Hello(Hello {
                 hdr: PacketHdr {
                     pkt_type: PacketType::Hello,
-                    router_id: Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                    area_id: Ipv4Addr::from_str("0.0.0.1").unwrap(),
+                    router_id: ip4!("2.2.2.2"),
+                    area_id: ip4!("0.0.0.1"),
                     auth_seqno: None,
                 },
-                network_mask: Ipv4Addr::from_str("255.255.255.0").unwrap(),
+                network_mask: ip4!("255.255.255.0"),
                 hello_interval: 3,
                 options: Options::E,
                 priority: 1,
                 dead_interval: 36,
                 dr: None,
                 bdr: None,
-                neighbors: [Ipv4Addr::from_str("1.1.1.1").unwrap()].into(),
+                neighbors: [ip4!("1.1.1.1")].into(),
             }),
         )
     });
@@ -133,22 +132,18 @@ static HELLO1_MD5: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
             Packet::Hello(Hello {
                 hdr: PacketHdr {
                     pkt_type: PacketType::Hello,
-                    router_id: Ipv4Addr::from_str("1.1.1.1").unwrap(),
-                    area_id: Ipv4Addr::from_str("0.0.0.0").unwrap(),
+                    router_id: ip4!("1.1.1.1"),
+                    area_id: ip4!("0.0.0.0"),
                     auth_seqno: Some(843436052),
                 },
-                network_mask: Ipv4Addr::from_str("255.255.255.0").unwrap(),
+                network_mask: ip4!("255.255.255.0"),
                 hello_interval: 3,
                 options: Options::E,
                 priority: 1,
                 dead_interval: 12,
-                dr: Some(Ipv4Addr::from_str("10.0.1.3").unwrap().into()),
-                bdr: Some(Ipv4Addr::from_str("10.0.1.2").unwrap().into()),
-                neighbors: [
-                    Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                    Ipv4Addr::from_str("3.3.3.3").unwrap(),
-                ]
-                .into(),
+                dr: Some(ip4!("10.0.1.3").into()),
+                bdr: Some(ip4!("10.0.1.2").into()),
+                neighbors: [ip4!("2.2.2.2"), ip4!("3.3.3.3")].into(),
             }),
         )
     });
@@ -173,22 +168,18 @@ static HELLO1_HMAC_SHA1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
             Packet::Hello(Hello {
                 hdr: PacketHdr {
                     pkt_type: PacketType::Hello,
-                    router_id: Ipv4Addr::from_str("1.1.1.1").unwrap(),
-                    area_id: Ipv4Addr::from_str("0.0.0.0").unwrap(),
+                    router_id: ip4!("1.1.1.1"),
+                    area_id: ip4!("0.0.0.0"),
                     auth_seqno: Some(843436052),
                 },
-                network_mask: Ipv4Addr::from_str("255.255.255.0").unwrap(),
+                network_mask: ip4!("255.255.255.0"),
                 hello_interval: 3,
                 options: Options::E,
                 priority: 1,
                 dead_interval: 12,
-                dr: Some(Ipv4Addr::from_str("10.0.1.3").unwrap().into()),
-                bdr: Some(Ipv4Addr::from_str("10.0.1.2").unwrap().into()),
-                neighbors: [
-                    Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                    Ipv4Addr::from_str("3.3.3.3").unwrap(),
-                ]
-                .into(),
+                dr: Some(ip4!("10.0.1.3").into()),
+                bdr: Some(ip4!("10.0.1.2").into()),
+                neighbors: [ip4!("2.2.2.2"), ip4!("3.3.3.3")].into(),
             }),
         )
     });
@@ -214,22 +205,18 @@ static HELLO1_HMAC_SHA256: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
             Packet::Hello(Hello {
                 hdr: PacketHdr {
                     pkt_type: PacketType::Hello,
-                    router_id: Ipv4Addr::from_str("1.1.1.1").unwrap(),
-                    area_id: Ipv4Addr::from_str("0.0.0.0").unwrap(),
+                    router_id: ip4!("1.1.1.1"),
+                    area_id: ip4!("0.0.0.0"),
                     auth_seqno: Some(843436052),
                 },
-                network_mask: Ipv4Addr::from_str("255.255.255.0").unwrap(),
+                network_mask: ip4!("255.255.255.0"),
                 hello_interval: 3,
                 options: Options::E,
                 priority: 1,
                 dead_interval: 12,
-                dr: Some(Ipv4Addr::from_str("10.0.1.3").unwrap().into()),
-                bdr: Some(Ipv4Addr::from_str("10.0.1.2").unwrap().into()),
-                neighbors: [
-                    Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                    Ipv4Addr::from_str("3.3.3.3").unwrap(),
-                ]
-                .into(),
+                dr: Some(ip4!("10.0.1.3").into()),
+                bdr: Some(ip4!("10.0.1.2").into()),
+                neighbors: [ip4!("2.2.2.2"), ip4!("3.3.3.3")].into(),
             }),
         )
     });
@@ -256,22 +243,18 @@ static HELLO1_HMAC_SHA384: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
             Packet::Hello(Hello {
                 hdr: PacketHdr {
                     pkt_type: PacketType::Hello,
-                    router_id: Ipv4Addr::from_str("1.1.1.1").unwrap(),
-                    area_id: Ipv4Addr::from_str("0.0.0.0").unwrap(),
+                    router_id: ip4!("1.1.1.1"),
+                    area_id: ip4!("0.0.0.0"),
                     auth_seqno: Some(843436052),
                 },
-                network_mask: Ipv4Addr::from_str("255.255.255.0").unwrap(),
+                network_mask: ip4!("255.255.255.0"),
                 hello_interval: 3,
                 options: Options::E,
                 priority: 1,
                 dead_interval: 12,
-                dr: Some(Ipv4Addr::from_str("10.0.1.3").unwrap().into()),
-                bdr: Some(Ipv4Addr::from_str("10.0.1.2").unwrap().into()),
-                neighbors: [
-                    Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                    Ipv4Addr::from_str("3.3.3.3").unwrap(),
-                ]
-                .into(),
+                dr: Some(ip4!("10.0.1.3").into()),
+                bdr: Some(ip4!("10.0.1.2").into()),
+                neighbors: [ip4!("2.2.2.2"), ip4!("3.3.3.3")].into(),
             }),
         )
     });
@@ -300,22 +283,18 @@ static HELLO1_HMAC_SHA512: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
             Packet::Hello(Hello {
                 hdr: PacketHdr {
                     pkt_type: PacketType::Hello,
-                    router_id: Ipv4Addr::from_str("1.1.1.1").unwrap(),
-                    area_id: Ipv4Addr::from_str("0.0.0.0").unwrap(),
+                    router_id: ip4!("1.1.1.1"),
+                    area_id: ip4!("0.0.0.0"),
                     auth_seqno: Some(843436052),
                 },
-                network_mask: Ipv4Addr::from_str("255.255.255.0").unwrap(),
+                network_mask: ip4!("255.255.255.0"),
                 hello_interval: 3,
                 options: Options::E,
                 priority: 1,
                 dead_interval: 12,
-                dr: Some(Ipv4Addr::from_str("10.0.1.3").unwrap().into()),
-                bdr: Some(Ipv4Addr::from_str("10.0.1.2").unwrap().into()),
-                neighbors: [
-                    Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                    Ipv4Addr::from_str("3.3.3.3").unwrap(),
-                ]
-                .into(),
+                dr: Some(ip4!("10.0.1.3").into()),
+                bdr: Some(ip4!("10.0.1.2").into()),
+                neighbors: [ip4!("2.2.2.2"), ip4!("3.3.3.3")].into(),
             }),
         )
     });
@@ -337,8 +316,8 @@ static DBDESC1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
             Packet::DbDesc(DbDesc {
                 hdr: PacketHdr {
                     pkt_type: PacketType::DbDesc,
-                    router_id: Ipv4Addr::from_str("1.1.1.1").unwrap(),
-                    area_id: Ipv4Addr::from_str("0.0.0.1").unwrap(),
+                    router_id: ip4!("1.1.1.1"),
+                    area_id: ip4!("0.0.0.1"),
                     auth_seqno: None,
                 },
                 mtu: 1500,
@@ -350,8 +329,8 @@ static DBDESC1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
                         age: 3,
                         options: Options::E,
                         lsa_type: LsaTypeCode::Router.into(),
-                        lsa_id: Ipv4Addr::from_str("1.1.1.1").unwrap(),
-                        adv_rtr: Ipv4Addr::from_str("1.1.1.1").unwrap(),
+                        lsa_id: ip4!("1.1.1.1"),
+                        adv_rtr: ip4!("1.1.1.1"),
                         seq_no: 0x80000002,
                         cksum: 0x48d6,
                         length: 48,
@@ -360,8 +339,8 @@ static DBDESC1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
                         age: 3,
                         options: Options::E,
                         lsa_type: LsaTypeCode::AsExternal.into(),
-                        lsa_id: Ipv4Addr::from_str("172.16.1.0").unwrap(),
-                        adv_rtr: Ipv4Addr::from_str("1.1.1.1").unwrap(),
+                        lsa_id: ip4!("172.16.1.0"),
+                        adv_rtr: ip4!("1.1.1.1"),
                         seq_no: 0x80000001,
                         cksum: 0xfcff,
                         length: 36,
@@ -385,20 +364,20 @@ static LSREQUEST1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
             Packet::LsRequest(LsRequest {
                 hdr: PacketHdr {
                     pkt_type: PacketType::LsRequest,
-                    router_id: Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                    area_id: Ipv4Addr::from_str("0.0.0.1").unwrap(),
+                    router_id: ip4!("2.2.2.2"),
+                    area_id: ip4!("0.0.0.1"),
                     auth_seqno: None,
                 },
                 entries: vec![
                     LsaKey {
                         lsa_type: LsaTypeCode::Router.into(),
-                        adv_rtr: Ipv4Addr::from_str("1.1.1.1").unwrap(),
-                        lsa_id: Ipv4Addr::from_str("1.1.1.1").unwrap(),
+                        adv_rtr: ip4!("1.1.1.1"),
+                        lsa_id: ip4!("1.1.1.1"),
                     },
                     LsaKey {
                         lsa_type: LsaTypeCode::AsExternal.into(),
-                        adv_rtr: Ipv4Addr::from_str("1.1.1.1").unwrap(),
-                        lsa_id: Ipv4Addr::from_str("172.16.1.0").unwrap(),
+                        adv_rtr: ip4!("1.1.1.1"),
+                        lsa_id: ip4!("172.16.1.0"),
                     },
                 ],
             }),
@@ -426,25 +405,23 @@ static LSUPDATE1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
             Packet::LsUpdate(LsUpdate {
                 hdr: PacketHdr {
                     pkt_type: PacketType::LsUpdate,
-                    router_id: Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                    area_id: Ipv4Addr::from_str("0.0.0.1").unwrap(),
+                    router_id: ip4!("2.2.2.2"),
+                    area_id: ip4!("0.0.0.1"),
                     auth_seqno: None,
                 },
                 lsas: vec![
                     Lsa::new(
                         49,
                         Some(Options::E),
-                        Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                        Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                        ip4!("2.2.2.2"),
+                        ip4!("2.2.2.2"),
                         0x80000002,
                         LsaBody::Router(LsaRouter {
                             flags: LsaRouterFlags::B,
                             links: vec![LsaRouterLink {
                                 link_type: LsaRouterLinkType::StubNetwork,
-                                link_id: Ipv4Addr::from_str("10.0.1.0")
-                                    .unwrap(),
-                                link_data: Ipv4Addr::from_str("255.255.255.0")
-                                    .unwrap(),
+                                link_id: ip4!("10.0.1.0"),
+                                link_data: ip4!("255.255.255.0"),
                                 metric: 10,
                             }],
                         }),
@@ -452,23 +429,22 @@ static LSUPDATE1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
                     Lsa::new(
                         49,
                         Some(Options::E),
-                        Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                        Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                        ip4!("2.2.2.2"),
+                        ip4!("2.2.2.2"),
                         0x80000001,
                         LsaBody::SummaryNetwork(LsaSummary {
-                            mask: Ipv4Addr::from_str("255.255.255.255")
-                                .unwrap(),
+                            mask: ip4!("255.255.255.255"),
                             metric: 0,
                         }),
                     ),
                     Lsa::new(
                         49,
                         Some(Options::E),
-                        Ipv4Addr::from_str("10.0.2.0").unwrap(),
-                        Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                        ip4!("10.0.2.0"),
+                        ip4!("2.2.2.2"),
                         0x80000001,
                         LsaBody::SummaryNetwork(LsaSummary {
-                            mask: Ipv4Addr::from_str("255.255.255.0").unwrap(),
+                            mask: ip4!("255.255.255.0"),
                             metric: 10,
                         }),
                     ),
@@ -495,8 +471,8 @@ static LSACK1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
             Packet::LsAck(LsAck {
                 hdr: PacketHdr {
                     pkt_type: PacketType::LsAck,
-                    router_id: Ipv4Addr::from_str("1.1.1.1").unwrap(),
-                    area_id: Ipv4Addr::from_str("0.0.0.1").unwrap(),
+                    router_id: ip4!("1.1.1.1"),
+                    area_id: ip4!("0.0.0.1"),
                     auth_seqno: None,
                 },
                 lsa_hdrs: vec![
@@ -504,8 +480,8 @@ static LSACK1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
                         age: 1,
                         options: Options::E,
                         lsa_type: LsaTypeCode::SummaryNetwork.into(),
-                        lsa_id: Ipv4Addr::from_str("3.3.3.3").unwrap(),
-                        adv_rtr: Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                        lsa_id: ip4!("3.3.3.3"),
+                        adv_rtr: ip4!("2.2.2.2"),
                         seq_no: 0x80000001,
                         cksum: 0x0936,
                         length: 28,
@@ -514,8 +490,8 @@ static LSACK1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
                         age: 1,
                         options: Options::E,
                         lsa_type: LsaTypeCode::SummaryNetwork.into(),
-                        lsa_id: Ipv4Addr::from_str("10.0.3.0").unwrap(),
-                        adv_rtr: Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                        lsa_id: ip4!("10.0.3.0"),
+                        adv_rtr: ip4!("2.2.2.2"),
                         seq_no: 0x80000001,
                         cksum: 0x54df,
                         length: 28,
@@ -524,8 +500,8 @@ static LSACK1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
                         age: 1,
                         options: Options::E,
                         lsa_type: LsaTypeCode::SummaryNetwork.into(),
-                        lsa_id: Ipv4Addr::from_str("10.0.4.0").unwrap(),
-                        adv_rtr: Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                        lsa_id: ip4!("10.0.4.0"),
+                        adv_rtr: ip4!("2.2.2.2"),
                         seq_no: 0x80000001,
                         cksum: 0x49e9,
                         length: 28,
@@ -550,15 +526,15 @@ static LSA1: Lazy<(Vec<u8>, Lsa<Ospfv2>)> = Lazy::new(|| {
         Lsa::new(
             49,
             Some(Options::E),
-            Ipv4Addr::from_str("2.2.2.2").unwrap(),
-            Ipv4Addr::from_str("2.2.2.2").unwrap(),
+            ip4!("2.2.2.2"),
+            ip4!("2.2.2.2"),
             0x80000002,
             LsaBody::Router(LsaRouter {
                 flags: LsaRouterFlags::B,
                 links: vec![LsaRouterLink {
                     link_type: LsaRouterLinkType::StubNetwork,
-                    link_id: Ipv4Addr::from_str("10.0.1.0").unwrap(),
-                    link_data: Ipv4Addr::from_str("255.255.255.0").unwrap(),
+                    link_id: ip4!("10.0.1.0"),
+                    link_data: ip4!("255.255.255.0"),
                     metric: 10,
                 }],
             }),
@@ -584,7 +560,7 @@ static LSA2: Lazy<(Vec<u8>, Lsa<Ospfv2>)> = Lazy::new(|| {
             1,
             Some(Options::O | Options::E),
             OpaqueLsaId::new(LsaOpaqueType::RouterInfo as u8, 0).into(),
-            Ipv4Addr::from_str("1.1.1.1").unwrap(),
+            ip4!("1.1.1.1"),
             0x80000001,
             LsaBody::OpaqueArea(LsaOpaque::RouterInfo(LsaRouterInfo {
                 info_caps: Some(RouterInfoCaps::TE.into()),
@@ -622,17 +598,17 @@ static LSA3: Lazy<(Vec<u8>, Lsa<Ospfv2>)> = Lazy::new(|| {
         Lsa::new(
             1,
             Some(Options::O | Options::E),
-            Ipv4Addr::from_str("7.0.0.0").unwrap(),
-            Ipv4Addr::from_str("1.1.1.1").unwrap(),
+            ip4!("7.0.0.0"),
+            ip4!("1.1.1.1"),
             0x80000001,
             LsaBody::OpaqueArea(LsaOpaque::ExtPrefix(LsaExtPrefix {
                 prefixes: btreemap! {
-                    Ipv4Network::from_str("1.1.1.1/32").unwrap() => {
+                    net4!("1.1.1.1/32") => {
                         ExtPrefixTlv {
                             route_type: ExtPrefixRouteType::IntraArea,
                             af: 0,
                             flags: LsaExtPrefixFlags::N,
-                            prefix: Ipv4Network::from_str("1.1.1.1/32").unwrap(),
+                            prefix: net4!("1.1.1.1/32"),
                             prefix_sids: btreemap! {
                                 IgpAlgoType::Spf => {
                                     PrefixSid {
@@ -663,14 +639,14 @@ static LSA4: Lazy<(Vec<u8>, Lsa<Ospfv2>)> = Lazy::new(|| {
         Lsa::new(
             1,
             Some(Options::O | Options::E),
-            Ipv4Addr::from_str("8.0.0.0").unwrap(),
-            Ipv4Addr::from_str("1.1.1.1").unwrap(),
+            ip4!("8.0.0.0"),
+            ip4!("1.1.1.1"),
             0x80000001,
             LsaBody::OpaqueArea(LsaOpaque::ExtLink(LsaExtLink {
                 link: Some(ExtLinkTlv {
                     link_type: LsaRouterLinkType::PointToPoint,
-                    link_id: Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                    link_data: Ipv4Addr::from_str("10.0.1.1").unwrap(),
+                    link_id: ip4!("2.2.2.2"),
+                    link_data: ip4!("10.0.1.1"),
                     adj_sids: vec![AdjSid {
                         flags: AdjSidFlags::V | AdjSidFlags::L,
                         weight: 0,
@@ -696,8 +672,8 @@ static GRACE_LSA1: Lazy<(Vec<u8>, Lsa<Ospfv2>)> = Lazy::new(|| {
         Lsa::new(
             1,
             Some(Options::O | Options::E),
-            Ipv4Addr::from_str("3.0.0.0").unwrap(),
-            Ipv4Addr::from_str("6.6.6.6").unwrap(),
+            ip4!("3.0.0.0"),
+            ip4!("6.6.6.6"),
             0x80000001,
             LsaBody::OpaqueLink(LsaOpaque::Grace(LsaGrace {
                 grace_period: Some(GracePeriodTlv::new(120)),

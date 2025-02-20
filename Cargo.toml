@@ -38,6 +38,7 @@ capctl = "0.2"
 check_keyword = "0.2"
 clap = "2.33"
 chrono = { version = "0.4", features = ["serde"] }
+const-addrs = { version = "0.1", features = ["ipnet"] }
 convert_case = "0.6"
 criterion = "0.4"
 crossbeam-channel = "0.5"

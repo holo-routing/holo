@@ -13,9 +13,7 @@ static HELLO_MSG1: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
                 holdtime: 15,
                 flags: HelloFlags::GTSM,
             },
-            ipv4_addr: Some(TlvIpv4TransAddr(
-                Ipv4Addr::from_str("1.1.1.1").unwrap(),
-            )),
+            ipv4_addr: Some(TlvIpv4TransAddr(ip4!("1.1.1.1"))),
             ipv6_addr: None,
             cfg_seqno: Some(TlvConfigSeqNo(2)),
             dual_stack: None,
@@ -39,9 +37,7 @@ static HELLO_MSG2: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
                 flags: HelloFlags::empty(),
             },
             ipv4_addr: None,
-            ipv6_addr: Some(TlvIpv6TransAddr(
-                Ipv6Addr::from_str("2001:db8:1000::1").unwrap(),
-            )),
+            ipv6_addr: Some(TlvIpv6TransAddr(ip6!("2001:db8:1000::1"))),
             cfg_seqno: Some(TlvConfigSeqNo(2)),
             dual_stack: Some(TlvDualStack(TransportPref::LDPOIPV6)),
         }

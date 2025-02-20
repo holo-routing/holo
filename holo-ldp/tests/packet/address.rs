@@ -12,8 +12,8 @@ static ADDRESS_MSG1: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
             msg_id: 10,
             msg_type: AddressMessageType::Address,
             addr_list: TlvAddressList::Ipv4(btreeset![
-                Ipv4Addr::from_str("10.0.1.1").unwrap(),
-                Ipv4Addr::from_str("1.1.1.1").unwrap(),
+                ip4!("10.0.1.1"),
+                ip4!("1.1.1.1"),
             ]),
         }
         .into(),
@@ -36,10 +36,10 @@ static ADDRESS_MSG2: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
             msg_id: 11,
             msg_type: AddressMessageType::Address,
             addr_list: TlvAddressList::Ipv6(btreeset![
-                Ipv6Addr::from_str("2001:db8:1000::1").unwrap(),
-                Ipv6Addr::from_str("fe80::3804:cfff:fe6f:ce5c").unwrap(),
-                Ipv6Addr::from_str("2001:db8:1::1").unwrap(),
-                Ipv6Addr::from_str("fe80::2cb5:dbff:fed0:3e5e").unwrap(),
+                ip6!("2001:db8:1000::1"),
+                ip6!("fe80::3804:cfff:fe6f:ce5c"),
+                ip6!("2001:db8:1::1"),
+                ip6!("fe80::2cb5:dbff:fed0:3e5e"),
             ]),
         }
         .into(),

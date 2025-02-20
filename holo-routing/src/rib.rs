@@ -90,13 +90,16 @@ impl Birt {
     pub(crate) fn bier_nbr_add(&mut self, msg: BierNbrInstallMsg) {
         let bfr_id = msg.bier_info.bfr_id;
         msg.bier_info.bfr_bss.iter().for_each(|bsl| {
-            if let Some(nexthop) = msg.nexthops.first()
+            if let Some(nexthop) = msg.nexthops.last()
                 && let Nexthop::Address { addr, ifindex, .. } = nexthop
             {
                 // Insert or update the entry in the BIRT
                 self.entries
                     .entry((msg.bier_info.sd_id, bfr_id, *bsl))
-                    .and_modify(|be| be.bfr_nbr = *addr)
+                    .and_modify(|be| {
+                        be.bfr_nbr = *addr;
+                        be.ifindex = *ifindex;
+                    })
                     .or_insert(BirtEntry {
                         bfr_prefix: msg.prefix.ip(),
                         bfr_nbr: (*addr),
@@ -136,14 +139,16 @@ impl Birt {
                     // Pattern matching is mandatory as Bitstring does not implement Copy, hence cannot use Entry interface
                     let key = (*sd_id, nbr.bfr_nbr, bfr_bs.si);
                     match bift.get_mut(&key) {
-                        Some((e, v, _, _)) => match e.mut_or(bfr_bs) {
-                            Ok(()) => {
-                                v.push((*bfr_id, nbr.bfr_prefix));
+                        Some((bitstring, bfrs, _ifindex, _ifname)) => {
+                            match bitstring.mut_or(bfr_bs) {
+                                Ok(()) => {
+                                    bfrs.push((*bfr_id, nbr.bfr_prefix));
+                                }
+                                Err(e) => {
+                                    e.log();
+                                }
                             }
-                            Err(e) => {
-                                e.log();
-                            }
-                        },
+                        }
                         None => {
                             let _ = bift.insert(
                                 key,

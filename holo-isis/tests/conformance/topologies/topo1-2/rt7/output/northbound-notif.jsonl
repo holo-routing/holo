@@ -1,0 +1,7 @@
+{"ietf-isis:lsp-generation":{"routing-protocol-name":"test","isis-level":"level-1","lsp-id":"0000.0000.0007.00-00","sequence":1}}
+{"ietf-isis:if-state-change":{"routing-protocol-name":"test","isis-level":"level-1","interface-name":"eth-rt6","interface-level":"level-1","state":"up"}}
+{"ietf-isis:if-state-change":{"routing-protocol-name":"test","isis-level":"level-1","interface-name":"lo","interface-level":"level-1","state":"up"}}
+{"ietf-isis:lsp-generation":{"routing-protocol-name":"test","isis-level":"level-1","lsp-id":"0000.0000.0007.00-00","sequence":2}}
+{"ietf-isis:adjacency-state-change":{"routing-protocol-name":"test","isis-level":"level-1","interface-name":"eth-rt6","interface-level":"level-1","neighbor-system-id":"0000.0000.0006","state":"up","reason":"hello-one-way"}}
+{"ietf-isis:lsp-generation":{"routing-protocol-name":"test","isis-level":"level-1","lsp-id":"0000.0000.0007.00-00","sequence":3}}
+{"ietf-isis:lsp-received":{"routing-protocol-name":"test","isis-level":"level-1","interface-name":"eth-rt6","interface-level":"level-1","lsp-id":"0000.0000.0006.00-00","sequence":5,"neighbor-system-id":"0000.0000.0006"}}

@@ -13,7 +13,6 @@ use std::sync::atomic::AtomicU32;
 
 use chrono::{DateTime, Utc};
 use holo_utils::UnboundedSender;
-use holo_utils::ibus::IbusChannelsTx;
 use holo_utils::ip::AddressFamily;
 use holo_utils::socket::{AsyncFd, Socket, SocketExt};
 use holo_utils::southbound::InterfaceFlags;
@@ -712,12 +711,6 @@ impl Interface {
         let dst = self.config.interface_type.multicast_addr(level);
         let msg = NetTxPduMsg { pdu, ifindex, dst };
         let _ = self.state.net.as_ref().unwrap().net_tx_pdup.send(msg);
-    }
-
-    // Sends a southbound request for interface system information, such as
-    // operational status and IP addresses.
-    pub(crate) fn query_southbound(&self, ibus_tx: &IbusChannelsTx) {
-        ibus_tx.interface_sub(Some(self.name.clone()), None);
     }
 }
 

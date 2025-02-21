@@ -1232,10 +1232,8 @@ impl Provider for Instance {
                 iface.csnp_interval_reset(&instance);
             }
             Event::InterfaceIbusSub(iface_idx) => {
-                if self.is_active() {
-                    let iface = &self.arenas.interfaces[iface_idx];
-                    iface.query_southbound(&self.tx.ibus);
-                }
+                let iface = &self.arenas.interfaces[iface_idx];
+                self.tx.ibus.interface_sub(Some(iface.name.clone()), None);
             }
             Event::ReoriginateLsps(level) => {
                 if let Some((mut instance, _)) = self.as_up() {

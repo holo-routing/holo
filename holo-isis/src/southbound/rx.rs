@@ -29,12 +29,9 @@ pub(crate) fn process_iface_update(
     instance: &mut Instance,
     msg: InterfaceUpdateMsg,
 ) -> Result<(), Error> {
-    let Some((mut instance, arenas)) = instance.as_up() else {
-        return Ok(());
-    };
-
     // Lookup interface.
-    let Some(iface) = arenas.interfaces.get_mut_by_name(&msg.ifname) else {
+    let Some(iface) = instance.arenas.interfaces.get_mut_by_name(&msg.ifname)
+    else {
         return Ok(());
     };
     let iface_idx = iface.index;
@@ -45,36 +42,38 @@ pub(crate) fn process_iface_update(
     iface.system.mtu = Some(msg.mtu);
     iface.system.mac_addr = Some(msg.mac_address);
     if iface.system.ifindex != Some(msg.ifindex) {
-        arenas
+        instance
+            .arenas
             .interfaces
             .update_ifindex(iface_idx, Some(msg.ifindex));
     }
-    let iface = &mut arenas.interfaces[iface_idx];
 
-    // Update the padding used in Hello PDUs if the MTU has changed.
-    if iface.config.hello_padding
-        && iface.system.mtu != old_mtu
-        && iface.state.active
-        && !iface.is_passive()
-    {
-        iface.hello_interval_start(&instance, LevelType::All);
+    if let Some((mut instance, arenas)) = instance.as_up() {
+        let iface = &mut arenas.interfaces[iface_idx];
+
+        // Update the padding used in Hello PDUs if the MTU has changed.
+        if iface.config.hello_padding
+            && iface.system.mtu != old_mtu
+            && iface.state.active
+            && !iface.is_passive()
+        {
+            iface.hello_interval_start(&instance, LevelType::All);
+        }
+
+        // Check if IS-IS needs to be activated or deactivated on this interface.
+        iface.update(&mut instance, &mut arenas.adjacencies)?;
     }
-
-    // Check if IS-IS needs to be activated or deactivated on this interface.
-    iface.update(&mut instance, &mut arenas.adjacencies)?;
 
     Ok(())
 }
 
 pub(crate) fn process_addr_add(instance: &mut Instance, msg: AddressMsg) {
-    let Some((mut instance, arenas)) = instance.as_up() else {
-        return;
-    };
-
     // Lookup interface.
-    let Some(iface) = arenas.interfaces.get_mut_by_name(&msg.ifname) else {
+    let Some(iface) = instance.arenas.interfaces.get_mut_by_name(&msg.ifname)
+    else {
         return;
     };
+    let iface_idx = iface.index;
 
     // Add address to interface.
     match msg.addr {
@@ -86,26 +85,28 @@ pub(crate) fn process_addr_add(instance: &mut Instance, msg: AddressMsg) {
         }
     }
 
-    if iface.state.active {
-        // Update Hello Tx task(s).
-        if !iface.is_passive() {
-            iface.hello_interval_start(&instance, LevelType::All);
-        }
+    if let Some((mut instance, arenas)) = instance.as_up() {
+        let iface = &mut arenas.interfaces[iface_idx];
 
-        // Schedule LSP reorigination.
-        instance.schedule_lsp_origination(LevelType::All);
+        if iface.state.active {
+            // Update Hello Tx task(s).
+            if !iface.is_passive() {
+                iface.hello_interval_start(&instance, LevelType::All);
+            }
+
+            // Schedule LSP reorigination.
+            instance.schedule_lsp_origination(LevelType::All);
+        }
     }
 }
 
 pub(crate) fn process_addr_del(instance: &mut Instance, msg: AddressMsg) {
-    let Some((mut instance, arenas)) = instance.as_up() else {
-        return;
-    };
-
     // Lookup interface.
-    let Some(iface) = arenas.interfaces.get_mut_by_name(&msg.ifname) else {
+    let Some(iface) = instance.arenas.interfaces.get_mut_by_name(&msg.ifname)
+    else {
         return;
     };
+    let iface_idx = iface.index;
 
     // Remove address from interface.
     match msg.addr {
@@ -117,13 +118,17 @@ pub(crate) fn process_addr_del(instance: &mut Instance, msg: AddressMsg) {
         }
     }
 
-    if iface.state.active {
-        // Update Hello Tx task(s).
-        if !iface.is_passive() {
-            iface.hello_interval_start(&instance, LevelType::All);
-        }
+    if let Some((mut instance, arenas)) = instance.as_up() {
+        let iface = &mut arenas.interfaces[iface_idx];
 
-        // Schedule LSP reorigination.
-        instance.schedule_lsp_origination(LevelType::All);
+        if iface.state.active {
+            // Update Hello Tx task(s).
+            if !iface.is_passive() {
+                iface.hello_interval_start(&instance, LevelType::All);
+            }
+
+            // Schedule LSP reorigination.
+            instance.schedule_lsp_origination(LevelType::All);
+        }
     }
 }

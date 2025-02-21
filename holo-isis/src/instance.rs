@@ -201,14 +201,16 @@ impl Instance {
         // Create instance initial state.
         let state = InstanceState::new(&self.tx);
         self.state = Some(state);
+        let (mut instance, arenas) = self.as_up().unwrap();
 
         // Start interfaces.
-        for iface in self.arenas.interfaces.iter() {
-            iface.query_southbound(&self.tx.ibus);
+        for iface in arenas.interfaces.iter_mut() {
+            iface
+                .update(&mut instance, &mut arenas.adjacencies)
+                .unwrap();
         }
 
         // Schedule initial LSP origination.
-        let (mut instance, _) = self.as_up().unwrap();
         instance.schedule_lsp_origination(LevelType::All);
     }
 

@@ -528,7 +528,8 @@ impl InstanceUpView<'_> {
             .iter()
             .flat_map(|iface| iface.adjacencies(adjacencies))
             .filter(|adj| adj.state == AdjacencyState::Up)
-            .any(|adj| adj.level_usage.intersects(LevelNumber::L2))
+            .filter(|adj| adj.level_usage.intersects(LevelNumber::L2))
+            .any(|adj| adj.area_addrs.is_disjoint(&self.config.area_addrs))
     }
 
     pub(crate) fn schedule_lsp_origination(

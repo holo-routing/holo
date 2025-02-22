@@ -8,7 +8,7 @@
 //
 
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use bytes::Bytes;
 use chrono::Utc;
@@ -755,7 +755,7 @@ pub(crate) fn process_pdu_snp(
         .tlvs
         .lsp_entries()
         .map(|entry| (entry.lsp_id, *entry))
-        .collect::<HashMap<_, _>>();
+        .collect::<BTreeMap<_, _>>();
     for entry in lsp_entries.values() {
         // Lookup LSP in the database.
         let lse = instance

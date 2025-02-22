@@ -256,9 +256,6 @@ impl NorthboundStub {
 
 fn dtree_print(dtree: &DataTree<'static>) -> String {
     dtree
-        .print_string(
-            DataFormat::JSON,
-            DataPrinterFlags::WITH_SIBLINGS | DataPrinterFlags::WD_TRIM,
-        )
+        .print_string(DataFormat::JSON, DataPrinterFlags::WITH_SIBLINGS)
         .unwrap()
 }

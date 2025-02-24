@@ -7,6 +7,7 @@
 use std::sync::LazyLock as Lazy;
 
 use const_addrs::{ip6, net6};
+use holo_protocol::assert_eq_hex;
 use holo_rip::packet::{Command, PduVersion};
 use holo_rip::ripng::packet::{
     DecodeError, DecodeResult, Pdu, Rte, RteIpv6, RteNexthop,
@@ -19,7 +20,7 @@ use holo_rip::route::Metric;
 
 fn test_encode_pdu(bytes_expected: &[u8], pdu: &DecodeResult<Pdu>) {
     let bytes_actual = pdu.as_ref().unwrap().encode(None);
-    assert_eq!(bytes_expected, bytes_actual);
+    assert_eq_hex!(bytes_expected, bytes_actual);
 }
 
 fn test_decode_pdu(bytes: &[u8], pdu_expected: &DecodeResult<Pdu>) {

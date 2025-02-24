@@ -18,6 +18,7 @@ use holo_ospf::packet::lsa::{Lsa, LsaKey};
 use holo_ospf::packet::tlv::*;
 use holo_ospf::packet::{DbDescFlags, Packet, PacketType};
 use holo_ospf::version::Ospfv2;
+use holo_protocol::assert_eq_hex;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::AddressFamily;
 use holo_utils::keychain::Key;
@@ -46,7 +47,7 @@ fn test_encode_packet(
 
     // Encode the packet.
     let bytes_actual = packet.encode(auth);
-    assert_eq!(bytes_expected, bytes_actual.as_ref());
+    assert_eq_hex!(bytes_expected, bytes_actual);
 }
 
 fn test_decode_packet(
@@ -70,7 +71,7 @@ fn test_decode_packet(
 }
 
 fn test_encode_lsa(bytes_expected: &[u8], lsa: &Lsa<Ospfv2>) {
-    assert_eq!(bytes_expected, lsa.raw.as_ref());
+    assert_eq_hex!(bytes_expected, lsa.raw);
 }
 
 fn test_decode_lsa(bytes: &[u8], lsa_expected: &Lsa<Ospfv2>) {

@@ -7,6 +7,7 @@
 use std::sync::LazyLock as Lazy;
 
 use holo_bfd::packet::{DecodeError, Packet, PacketFlags};
+use holo_protocol::assert_eq_hex;
 use holo_utils::bfd::State;
 
 //
@@ -18,7 +19,7 @@ fn test_encode_packet(
     packet: &Result<Packet, DecodeError>,
 ) {
     let bytes_actual = packet.as_ref().unwrap().encode();
-    assert_eq!(bytes_expected, bytes_actual.as_ref());
+    assert_eq_hex!(bytes_expected, bytes_actual.as_ref());
 }
 
 fn test_decode_packet(

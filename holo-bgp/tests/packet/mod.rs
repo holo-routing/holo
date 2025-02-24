@@ -14,6 +14,7 @@ use holo_bgp::neighbor::PeerType;
 use holo_bgp::packet::message::{
     DecodeCxt, EncodeCxt, Message, NegotiatedCapability,
 };
+use holo_protocol::assert_eq_hex;
 
 //
 // Helper functions.
@@ -25,7 +26,7 @@ fn test_encode_msg(bytes_expected: &[u8], msg: &Message) {
     };
 
     let bytes_actual = msg.encode(&cxt);
-    assert_eq!(bytes_expected, bytes_actual.as_ref());
+    assert_eq_hex!(bytes_expected, bytes_actual);
 }
 
 fn test_decode_msg(bytes: &[u8], msg_expected: &Message) {

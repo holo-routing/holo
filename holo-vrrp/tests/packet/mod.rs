@@ -10,6 +10,7 @@
 use std::net::Ipv4Addr;
 use std::sync::LazyLock;
 
+use holo_protocol::assert_eq_hex;
 use holo_vrrp::consts::{VRRP_MULTICAST_ADDRESS, VRRP_PROTO_NUMBER};
 use holo_vrrp::packet::{EthernetHdr, Ipv4Hdr, VrrpHdr};
 
@@ -81,7 +82,7 @@ fn test_encode_vrrphdr() {
     let generated_bytes = vrrphdr.encode();
     let generated_data = generated_bytes.as_ref();
     let expected_data: &[u8] = bytes.as_ref();
-    assert_eq!(generated_data, expected_data);
+    assert_eq_hex!(generated_data, expected_data);
 }
 
 #[test]
@@ -103,7 +104,7 @@ fn test_encode_ipv4hdr() {
     let generated_bytes = iphdr.encode();
     let generated_data = generated_bytes.as_ref();
     let expected_data: &[u8] = bytes.as_ref();
-    assert_eq!(generated_data, expected_data);
+    assert_eq_hex!(generated_data, expected_data);
 }
 
 #[test]
@@ -124,7 +125,7 @@ fn test_encode_ethernethdr() {
     let generated_bytes = ethernethdr.encode();
     let generated_data = generated_bytes.as_ref();
     let expected_data: &[u8] = bytes.as_ref();
-    assert_eq!(generated_data, expected_data);
+    assert_eq_hex!(generated_data, expected_data);
 }
 
 #[test]

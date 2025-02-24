@@ -31,6 +31,7 @@ use holo_isis::packet::tlv::{
 use holo_isis::packet::{
     AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId,
 };
+use holo_protocol::assert_eq_hex;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::keychain::Key;
 
@@ -40,7 +41,7 @@ use holo_utils::keychain::Key;
 
 fn test_encode_pdu(bytes_expected: &[u8], pdu: &Pdu, auth: &Option<&Key>) {
     let bytes_actual = pdu.clone().encode(*auth);
-    assert_eq!(bytes_expected, bytes_actual.as_ref());
+    assert_eq_hex!(bytes_expected, bytes_actual);
 }
 
 fn test_decode_pdu(bytes: &[u8], pdu_expected: &Pdu, auth: &Option<&Key>) {

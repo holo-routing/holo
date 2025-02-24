@@ -8,6 +8,7 @@ use std::sync::atomic::AtomicU32;
 use std::sync::{Arc, LazyLock as Lazy};
 
 use const_addrs::{ip4, net4};
+use holo_protocol::assert_eq_hex;
 use holo_rip::packet::{AuthCtx, Command, PduVersion};
 use holo_rip::ripv2::packet::{
     DecodeError, DecodeResult, Pdu, Rte, RteIpv4, RteZero,
@@ -25,7 +26,7 @@ fn test_encode_pdu(
     auth: &Option<AuthCtx>,
 ) {
     let bytes_actual = pdu.as_ref().unwrap().encode(auth.as_ref());
-    assert_eq!(bytes_expected, bytes_actual);
+    assert_eq_hex!(bytes_expected, bytes_actual);
 }
 
 fn test_decode_pdu(

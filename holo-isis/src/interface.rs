@@ -635,7 +635,7 @@ impl Interface {
         }
 
         // Check if the LSP is too large to be sent on this interface.
-        if lsp.raw.len() as u32 > self.system.mtu.unwrap() {
+        if lsp.raw.len() as u32 > self.iso_mtu() {
             Debug::LspTooLarge(self, level, &lsp).log();
             notification::lsp_too_large(instance, self, &lsp);
             return;

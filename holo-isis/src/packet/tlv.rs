@@ -276,7 +276,19 @@ pub struct Ipv6Reach {
 )]
 #[derive(Deserialize, Serialize)]
 pub struct Ipv6ReachSubTlvs {
+    pub bier: Vec<BierInfoTlv>,
     pub unknown: Vec<UnknownTlv>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[derive(new)]
+#[derive(Deserialize, Serialize)]
+pub struct BierInfoTlv {
+    pub bar: u8,
+    pub ipa: u8,
+    pub sub_domain_id: u8,
+    pub bfr_id: u16,
+    // pub subtlvs: Vec<BierSubSubTlv>
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1311,6 +1323,37 @@ impl IpReachTlvEntry for ExtIpv4Reach {
     }
 }
 
+// ===== impl BierInfoTlv =====
+
+impl BierInfoTlv {
+    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+        if tlv_len < 5 {
+            return Err(DecodeError::InvalidTlvLength(tlv_len));
+        }
+        let bar = buf.get_u8();
+        let ipa = buf.get_u8();
+        let sub_domain_id = buf.get_u8();
+        let bfr_id = buf.get_u16();
+        // TODO: decode sub-sub-tlvs
+        Ok(BierInfoTlv {
+            bar,
+            ipa,
+            sub_domain_id,
+            bfr_id,
+        })
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, PrefixSubTlvType::BierInfo);
+        buf.put_u8(self.bar);
+        buf.put_u8(self.ipa);
+        buf.put_u8(self.sub_domain_id);
+        buf.put_u16(self.bfr_id);
+        // TODO: encode sub-sub-tlvs
+        tlv_encode_end(buf, start_pos);
+    }
+}
+
 // ===== impl Ipv6ReachTlv =====
 
 impl Ipv6ReachTlv {
@@ -1362,6 +1405,11 @@ impl Ipv6ReachTlv {
                     let mut buf_stlv = buf.copy_to_bytes(stlv_len as usize);
                     sub_tlvs_len -= stlv_len;
                     match stlv_etype {
+                        Some(PrefixSubTlvType::BierInfo) => {
+                            let bier =
+                                BierInfoTlv::decode(stlv_len, &mut buf_stlv)?;
+                            sub_tlvs.bier.push(bier);
+                        }
                         _ => {
                             // Save unknown Sub-TLV.
                             let value =
@@ -1416,6 +1464,11 @@ impl Ipv6ReachTlv {
             buf.put(&entry.prefix.ip().octets()[0..plen_wire]);
 
             // Encode Sub-TLVs.
+
+            // Encode BIER Sub-TLVs.
+            entry.sub_tlvs.bier.iter().for_each(|entry| {
+                BierInfoTlv::encode(entry, buf);
+            })
         }
         tlv_encode_end(buf, start_pos);
     }

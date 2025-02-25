@@ -16,7 +16,7 @@ use derive_new::new;
 use holo_utils::UnboundedSender;
 use holo_utils::ip::{AddressFamily, Ipv4NetworkExt, Ipv6NetworkExt};
 use holo_utils::task::TimeoutTask;
-use ipnetwork::{Ipv4Network, Ipv6Network};
+use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 
 use crate::adjacency::AdjacencyState;
 use crate::collections::{Arena, LspEntryId};
@@ -27,8 +27,8 @@ use crate::northbound::notification;
 use crate::packet::consts::LspFlags;
 use crate::packet::pdu::{Lsp, LspTlvs, Pdu};
 use crate::packet::tlv::{
-    ExtIpv4Reach, ExtIsReach, IpReachTlvEntry, Ipv4Reach, Ipv6Reach, IsReach,
-    MAX_NARROW_METRIC, Nlpid,
+    BierInfoTlv, ExtIpv4Reach, ExtIsReach, IpReachTlvEntry, Ipv4Reach,
+    Ipv6Reach, Ipv6ReachSubTlvs, IsReach, MAX_NARROW_METRIC, Nlpid,
 };
 use crate::packet::{LanId, LevelNumber, LevelType, LspId};
 use crate::spf::{SpfType, VertexId};
@@ -211,6 +211,7 @@ fn lsp_build_tlvs(
     let mut ext_ipv4_reach = BTreeMap::new();
     let mut ipv6_addrs = BTreeSet::new();
     let mut ipv6_reach = BTreeMap::new();
+    let bier_config = &instance.shared.bier_config;
 
     // Add supported protocols.
     if instance.config.is_af_enabled(AddressFamily::Ipv4) {
@@ -287,30 +288,23 @@ fn lsp_build_tlvs(
 
                 let prefix = addr.apply_mask();
                 if metric_type.is_standard_enabled() {
-                    ipv4_internal_reach.insert(
+                    ipv4_internal_reach.insert(prefix, Ipv4Reach {
+                        up_down: false,
+                        ie_bit: false,
+                        metric: std::cmp::min(metric, MAX_NARROW_METRIC) as u8,
+                        metric_delay: None,
+                        metric_expense: None,
+                        metric_error: None,
                         prefix,
-                        Ipv4Reach {
-                            up_down: false,
-                            ie_bit: false,
-                            metric: std::cmp::min(metric, MAX_NARROW_METRIC)
-                                as u8,
-                            metric_delay: None,
-                            metric_expense: None,
-                            metric_error: None,
-                            prefix,
-                        },
-                    );
+                    });
                 }
                 if metric_type.is_wide_enabled() {
-                    ext_ipv4_reach.insert(
+                    ext_ipv4_reach.insert(prefix, ExtIpv4Reach {
+                        metric,
+                        up_down: false,
                         prefix,
-                        ExtIpv4Reach {
-                            metric,
-                            up_down: false,
-                            prefix,
-                            sub_tlvs: Default::default(),
-                        },
-                    );
+                        sub_tlvs: Default::default(),
+                    });
                 }
             }
         }
@@ -329,16 +323,36 @@ fn lsp_build_tlvs(
                 ipv6_addrs.insert(addr.ip());
 
                 let prefix = addr.apply_mask();
-                ipv6_reach.insert(
+
+                let mut sub_tlvs: Ipv6ReachSubTlvs = Default::default();
+
+                if instance.config.enabled && instance.config.bier.advertise {
+                    bier_config
+                        .sd_cfg
+                        .iter()
+                        .filter(|((_, af), sd_cfg)| {
+                            af == &AddressFamily::Ipv6
+                                && sd_cfg.bfr_prefix == IpNetwork::V6(prefix)
+                        })
+                        .for_each(|((sd_id, _), sd_cfg)| {
+                            let bier = BierInfoTlv::new(
+                                sd_cfg.bar,
+                                sd_cfg.ipa,
+                                *sd_id,
+                                sd_cfg.bfr_id,
+                                // bier_encaps,
+                            );
+                            sub_tlvs.bier.push(bier);
+                        })
+                }
+
+                ipv6_reach.insert(prefix, Ipv6Reach {
+                    metric,
+                    up_down: false,
+                    external: false,
                     prefix,
-                    Ipv6Reach {
-                        metric,
-                        up_down: false,
-                        external: false,
-                        prefix,
-                        sub_tlvs: Default::default(),
-                    },
-                );
+                    sub_tlvs,
+                });
             }
         }
     }

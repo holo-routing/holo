@@ -196,6 +196,8 @@ pub struct Vrrp6Packet {
     pub vrrp: VrrpHdr,
 }
 
+// Neighbor Advertisement Packet (basically ICMPV6 + NA fields)
+//
 //   0                   1                   2                   3
 //   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -216,7 +218,7 @@ pub struct Vrrp6Packet {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct NeighborAdvertisement {
-    pub ad_type: u8,
+    pub icmp_type: u8,
     pub code: u8,
     pub checksum: u16,
     pub r: u8,
@@ -356,9 +358,9 @@ impl VrrpHdr {
                 }
                 IpVersion::V6 => {
                     // TODO: ad ip version handling
-                    //for _ in 0..count_ip {
-                    //    ip_addresses.push(buf.get_ipv6());
-                    //}
+                    for _ in 0..count_ip {
+                        ip_addresses.push(IpAddr::V6(buf.get_ipv6()));
+                    }
                 }
             }
         }
@@ -489,6 +491,15 @@ impl Ipv6Hdr {
         buf
     }
 
+    pub fn pseudo_header(&self) -> BytesMut {
+        let mut buf = BytesMut::new();
+        buf.put_ipv6(&self.source_address);
+        buf.put_ipv6(&self.destination_address);
+        buf.put_u32(self.payload_length as u32);
+        buf.put_u32(self.next_header as u32);
+        buf
+    }
+
     pub fn decode(data: &[u8]) -> DecodeResult<Self> {
         let mut buf = Bytes::copy_from_slice(data);
         // version, traffic, flow_label -> version[4b], traffic[8b], flow_label[20b]
@@ -572,7 +583,7 @@ impl NeighborAdvertisement {
 
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::with_capacity(Self::PKT_LEN);
-        buf.put_u8(self.ad_type);
+        buf.put_u8(self.icmp_type);
         buf.put_u8(self.code);
         buf.put_u16(self.checksum);
 

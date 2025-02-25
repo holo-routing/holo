@@ -7,7 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use tracing::{debug, debug_span};
 
@@ -25,6 +25,7 @@ pub enum Debug<'a> {
     PacketRx(&'a IpAddr, &'a VrrpHdr),
     PacketTx(&'a VrrpHdr),
     ArpTx(u8, &'a Ipv4Addr),
+    NeighborAdvertisementTx(u8, &'a Ipv6Addr),
 }
 
 // ===== impl Debug =====
@@ -59,6 +60,10 @@ impl Debug<'_> {
                 // Parent span(s): vrrp:network:output
                 debug!(%vrid, %addr, "{}", self);
             }
+            Debug::NeighborAdvertisementTx(vrid, addr) => {
+                // Parent span(s): vrrp:network:output
+                debug!(%vrid, %addr, "{}", self);
+            }
         }
     }
 }
@@ -80,6 +85,9 @@ impl std::fmt::Display for Debug<'_> {
             }
             Debug::ArpTx(..) => {
                 write!(f, "gratuitous ARP")
+            }
+            Debug::NeighborAdvertisementTx(..) => {
+                write!(f, "Neighbor Advertisement")
             }
         }
     }

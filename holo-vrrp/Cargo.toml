@@ -10,6 +10,7 @@ async-trait.workspace = true
 bytes.workspace = true
 chrono.workspace = true
 enum-as-inner.workspace = true
+internet-checksum.workspace = true
 ipnetwork.workspace = true
 libc.workspace = true
 nix.workspace = true

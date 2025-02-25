@@ -29,7 +29,8 @@ use crate::error::{Error, IoError};
 use crate::interface::{InterfaceSys, InterfaceView};
 use crate::northbound::configuration::InstanceCfg;
 use crate::packet::{
-    ArpHdr, EthernetHdr, Ipv4Hdr, Ipv6Hdr, Vrrp4Packet, Vrrp6Packet, VrrpHdr,
+    ArpHdr, EthernetHdr, Ipv4Hdr, Ipv6Hdr, NeighborAdvertisement, Vrrp4Packet,
+    Vrrp6Packet, VrrpHdr,
 };
 use crate::tasks::messages::output::NetTxPacketMsg;
 use crate::version::{IpVersion, VrrpVersion};
@@ -462,6 +463,23 @@ impl Instance {
         pkt
     }
 
+    /// A Neighbor Advertisement packet, usually unsolicitated in VRRP
+    fn neighbor_solicitation_packet(
+        &self,
+        addr: Ipv6Addr,
+    ) -> NeighborAdvertisement {
+        NeighborAdvertisement {
+            icmp_type: 136,
+            code: 0,
+            checksum: 0,
+            r: 1,
+            s: 0,
+            o: 1,
+            reserved: 0,
+            target_address: addr,
+        }
+    }
+
     /// A VRRP packet holding IPV6 virtual addresses
     /// and will be sent from an IPV6 address
     fn vrrp_ipv6_packet(&self) -> VrrpHdr {
@@ -644,32 +662,38 @@ impl Instance {
                     let net = self.net.as_ref().unwrap();
                     let _ = net.net_tx_packetp.send(msg);
                 }
-                IpNetwork::V6(_addr) => {
-                    todo!("add creation of Network Solicitation")
+                IpNetwork::V6(addr) => {
+                    let eth_hdr = EthernetHdr {
+                        dst_mac: self.mvlan.system.mac_address,
+                        src_mac: self.mvlan.system.mac_address,
+                        ethertype: 0x86DD,
+                    };
+                    let ip_hdr = Ipv6Hdr {
+                        version: 6,
+                        traffic_class: 0,
+                        flow_label: 0,
+                        payload_length: 24,
+                        next_header: 58,
+                        hop_limit: 255,
+                        source_address: addr.ip(),
+                        destination_address: generate_solicitated_addr(
+                            addr.ip(),
+                        ),
+                    };
+                    let nadv_hdr = self.neighbor_solicitation_packet(addr.ip());
+
+                    let msg = NetTxPacketMsg::NAdv {
+                        vrid: self.vrid,
+                        ifindex: self.mvlan.system.ifindex.unwrap(),
+                        eth_hdr,
+                        ip_hdr,
+                        nadv_hdr,
+                    };
+                    let net = self.net.as_ref().unwrap();
+                    let _ = net.net_tx_packetp.send(msg);
                 }
             }
         }
-    }
-
-    /// gives us the Solicitated-Node multicast addresses that will be used for
-    /// Neighbor Discovery
-    ///
-    /// RFC 8568 - 6.4.2
-    /// If the Active_Down_Timer fires, then:
-    /// ...
-    /// else // IPv6
-    /// Compute and join the Solicited-Node multicast address [RFC4291] for the IPv6 address(es) associated with the Virtual Router.
-    pub(crate) fn _solicitated_node_addresses(&self) -> Vec<Ipv6Addr> {
-        let mut addresses: Vec<Ipv6Addr> = vec![];
-        for address in self.config.virtual_addresses.clone() {
-            let solic_base = SOLICITATION_BASE_ADDRESS;
-            if let IpNetwork::V6(addr) = address {
-                let addr_bits = ((addr.ip().to_bits() << 104) >> 104) as u128;
-                let solic_addr = solic_base.to_bits() | addr_bits;
-                addresses.push(Ipv6Addr::from(solic_addr));
-            }
-        }
-        addresses
     }
 }
 
@@ -732,13 +756,21 @@ impl InstanceNet {
                 .map(Arc::new)?,
         };
 
-        // - Arp -
-        let socket_arp = network::socket_arp(&mvlan.name)
-            .map_err(IoError::SocketError)
-            .and_then(|socket| {
-                AsyncFd::new(socket).map_err(IoError::SocketError)
-            })
-            .map(Arc::new)?;
+        // - Arp when ipv4 Net Advert when IPV6 -
+        let socket_arp = match ip_version {
+            IpVersion::V4 => network::socket_arp(&mvlan.name)
+                .map_err(IoError::SocketError)
+                .and_then(|socket| {
+                    AsyncFd::new(socket).map_err(IoError::SocketError)
+                })
+                .map(Arc::new)?,
+            IpVersion::V6 => network::socket_nadv(mvlan)
+                .map_err(IoError::SocketError)
+                .and_then(|socket| {
+                    AsyncFd::new(socket).map_err(IoError::SocketError)
+                })
+                .map(Arc::new)?,
+        };
 
         // Start network Tx/Rx tasks.
         let (net_tx_packetp, net_tx_packetc) = mpsc::unbounded_channel();
@@ -782,4 +814,19 @@ impl Default for Statistics {
             pkt_length_errors: 0,
         }
     }
+}
+
+/// gives us the Solicitated-Node multicast addresses that will be used for
+/// Neighbor Discovery
+///
+/// RFC 8568 - 6.4.2
+/// If the Active_Down_Timer fires, then:
+/// ...
+/// else // IPv6
+/// Compute and join the Solicited-Node multicast address [RFC4291] for the IPv6 address(es) associated with the Virtual Router.
+pub(crate) fn generate_solicitated_addr(addr: Ipv6Addr) -> Ipv6Addr {
+    let solic_base = SOLICITATION_BASE_ADDRESS;
+    let addr_bits = ((addr.to_bits() << 104) >> 104) as u128;
+    let solic_addr = solic_base.to_bits() | addr_bits;
+    Ipv6Addr::from(solic_addr)
 }

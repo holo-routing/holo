@@ -86,7 +86,10 @@ pub mod messages {
     // Output messages (main task -> child task).
     pub mod output {
         use super::*;
-        use crate::packet::{ArpHdr, EthernetHdr, Vrrp4Packet, Vrrp6Packet};
+        use crate::packet::{
+            ArpHdr, EthernetHdr, Ipv6Hdr, NeighborAdvertisement, Vrrp4Packet,
+            Vrrp6Packet,
+        };
 
         #[derive(Debug, Serialize)]
         pub enum ProtocolMsg {
@@ -106,6 +109,14 @@ pub mod messages {
                 ifindex: u32,
                 eth_hdr: EthernetHdr,
                 arp_hdr: ArpHdr,
+            },
+            // Neighbor Advertisement
+            NAdv {
+                vrid: u8,
+                ifindex: u32,
+                eth_hdr: EthernetHdr,
+                ip_hdr: Ipv6Hdr,
+                nadv_hdr: NeighborAdvertisement,
             },
         }
     }

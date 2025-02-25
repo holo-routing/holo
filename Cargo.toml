@@ -30,7 +30,6 @@ edition = "2024"
 repository = "https://github.com/holo-routing/holo"
 
 [workspace.dependencies]
-internet-checksum = "0.2"
 async-trait = "0.1"
 base64 = "0.21"
 bitflags = { version = "2.4", features = ["serde"] }
@@ -48,8 +47,9 @@ enum-as-inner = "0.6"
 fletcher = "1.0"
 futures = "0.3"
 generational-arena = "0.2"
-ipnetwork = "0.20"
 hmac = "0.12"
+internet-checksum = "0.2"
+ipnetwork = "0.20"
 itertools = "0.13"
 libc = "0.2"
 maplit = "1.0"

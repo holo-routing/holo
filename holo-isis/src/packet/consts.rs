@@ -99,7 +99,9 @@ pub enum NeighborSubTlvType {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
-pub enum PrefixSubTlvType {}
+pub enum PrefixSubTlvType {
+    BierInfo = 32,
+}
 
 // IS-IS LSP flags field.
 bitflags! {

@@ -11,6 +11,7 @@ use std::net::Ipv4Addr;
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::{BytesExt, BytesMutExt};
+use internet_checksum::Checksum;
 use serde::{Deserialize, Serialize};
 
 // Type aliases.
@@ -154,6 +155,11 @@ impl VrrpHdr {
 
         buf.put_u32(self.auth_data);
         buf.put_u32(self.auth_data2);
+
+        // generate_checksum
+        let mut check = Checksum::new();
+        check.add_bytes(&buf);
+        buf[6..8].copy_from_slice(&check.checksum());
         buf
     }
 
@@ -180,12 +186,6 @@ impl VrrpHdr {
 
         let checksum = buf.get_u16();
 
-        // confirm checksum. checksum position is the third item in 16 bit words
-        let calculated_checksum = checksum::calculate(data, 3);
-        if calculated_checksum != checksum {
-            return Err(DecodeError::ChecksumError);
-        }
-
         let mut ip_addresses: Vec<Ipv4Addr> = vec![];
         for _ in 0..count_ip {
             ip_addresses.push(buf.get_ipv4());
@@ -193,6 +193,13 @@ impl VrrpHdr {
 
         let auth_data = buf.get_u32();
         let auth_data2 = buf.get_u32();
+
+        // Checksum Calculation
+        let mut check = Checksum::new();
+        check.add_bytes(data);
+        if check.checksum() != [0, 0] {
+            return Err(DecodeError::ChecksumError);
+        }
 
         Ok(Self {
             version,
@@ -207,10 +214,6 @@ impl VrrpHdr {
             auth_data,
             auth_data2,
         })
-    }
-
-    pub fn generate_checksum(&mut self) {
-        self.checksum = checksum::calculate(self.encode().chunk(), 3);
     }
 }
 
@@ -241,6 +244,10 @@ impl Ipv4Hdr {
             let opt_pad: u32 = (options << 8) | (padding as u32);
             buf.put_u32(opt_pad);
         }
+
+        let mut check = Checksum::new();
+        check.add_bytes(&buf);
+        buf[10..12].copy_from_slice(&check.checksum());
         buf
     }
 
@@ -264,8 +271,6 @@ impl Ipv4Hdr {
         let ttl = buf.get_u8();
         let protocol = buf.get_u8();
         let checksum = buf.get_u16();
-        // confirm checksum. checksum position is the 5th 16 bit word
-        let _calculated_checksum = checksum::calculate(data, 5);
 
         let src_address = buf.get_ipv4();
         let dst_address = buf.get_ipv4();
@@ -278,6 +283,13 @@ impl Ipv4Hdr {
             options = Some(opt_pad >> 8);
             padding = Some((opt_pad & 0xFF) as u8);
         }
+
+        let mut check = Checksum::new();
+        check.add_bytes(data);
+        if check.checksum() != [0, 0] {
+            return Err(DecodeError::ChecksumError);
+        }
+
         Ok(Self {
             version,
             ihl,
@@ -374,39 +386,5 @@ impl ArpHdr {
             target_hw_address,
             target_proto_address,
         })
-    }
-}
-
-pub mod checksum {
-    pub fn calculate(data: &[u8], checksum_position: usize) -> u16 {
-        let mut result: u16 = 0;
-
-        // since data is in u8's, we need pairs of the data to get u16
-        for (i, pair) in data.chunks(2).enumerate() {
-            // the fifth pair is the checksum field, which is ignored
-            if i == checksum_position {
-                continue;
-            }
-
-            result =
-                add_values(result, ((pair[0] as u16) << 8) | pair[1] as u16);
-        }
-
-        // do a one's complement to get the sum
-        !result
-    }
-
-    fn add_values(mut first: u16, mut second: u16) -> u16 {
-        let mut carry: u32 = 10;
-        let mut result: u16 = 0;
-
-        while carry != 0 {
-            let tmp_res = first as u32 + second as u32;
-            result = (tmp_res & 0xFFFF) as u16;
-            carry = tmp_res >> 16;
-            first = result;
-            second = carry as u16;
-        }
-        result
     }
 }

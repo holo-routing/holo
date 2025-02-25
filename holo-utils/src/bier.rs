@@ -190,10 +190,36 @@ pub struct BierEncapsulation {
     pub in_bift_id: BierInBiftId,
 }
 
+pub type BierOutBiftDefined = u32;
+pub type BierOutBiftEncoding = bool;
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Deserialize, Serialize)]
+pub enum BierOutBiftId {
+    Defined(BierOutBiftDefined),
+    Encoding(BierOutBiftEncoding),
+}
+
+#[derive(Clone, Debug)]
+#[derive(Deserialize, Serialize)]
+pub struct BiftNbr {
+    pub bfr_nbr: IpAddr,
+    pub encap_type: BierEncapsulationType,
+    pub out_bift_id: BierOutBiftId,
+}
+
+#[derive(Clone, Debug)]
+#[derive(Deserialize, Serialize)]
+pub struct BierBift {
+    pub bsl: Bsl,
+    pub nbr: BTreeMap<IpAddr, BiftNbr>,
+}
+
 #[derive(Clone, Debug)]
 #[derive(Deserialize, Serialize)]
 pub struct BierBiftCfg {
-    // TODO
+    pub bfr_id: BfrId,
+    pub birt: BTreeMap<Bsl, BierBift>,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]

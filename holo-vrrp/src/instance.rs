@@ -199,7 +199,6 @@ impl Instance {
 
             let mut pkt = self.generate_vrrp_packet();
             pkt.priority = 0;
-            pkt.generate_checksum();
 
             let packet = VrrpPacket {
                 ip: self.generate_ipv4_packet(src_ip.ip()),
@@ -327,7 +326,7 @@ impl Instance {
             ip_addresses.push(addr.ip());
         }
 
-        let mut packet = VrrpHdr {
+        VrrpHdr {
             version: 2,
             hdr_type: 1,
             vrid: self.vrid,
@@ -339,9 +338,7 @@ impl Instance {
             ip_addresses,
             auth_data: 0,
             auth_data2: 0,
-        };
-        packet.generate_checksum();
-        packet
+        }
     }
 
     pub(crate) fn generate_ipv4_packet(

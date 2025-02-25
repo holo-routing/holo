@@ -12,7 +12,7 @@ use std::sync::LazyLock;
 
 use holo_protocol::assert_eq_hex;
 use holo_vrrp::consts::{VRRP_MULTICAST_ADDRESS, VRRP_PROTO_NUMBER};
-use holo_vrrp::packet::{EthernetHdr, Ipv4Hdr, VrrpHdr};
+use holo_vrrp::packet::{DecodeError, EthernetHdr, Ipv4Hdr, VrrpHdr};
 
 static VRRPHDR: LazyLock<(Vec<u8>, VrrpHdr)> = LazyLock::new(|| {
     (
@@ -78,6 +78,8 @@ static ETHERNETHDR: LazyLock<(Vec<u8>, EthernetHdr)> = LazyLock::new(|| {
 #[test]
 fn test_encode_vrrphdr() {
     let (ref bytes, ref vrrphdr) = *VRRPHDR;
+    let mut vrrphdr = vrrphdr.clone();
+    vrrphdr.checksum = 0;
 
     let generated_bytes = vrrphdr.encode();
     let generated_data = generated_bytes.as_ref();
@@ -92,14 +94,26 @@ fn test_decode_vrrphdr() {
     let generated_hdr = VrrpHdr::decode(data);
     assert!(generated_hdr.is_ok());
 
-    let mut generated_hdr = generated_hdr.unwrap();
-    generated_hdr.generate_checksum();
+    let generated_hdr = generated_hdr.unwrap();
     assert_eq!(vrrphdr, &generated_hdr);
+}
+
+#[test]
+fn test_decode_vrrp_wrong_checksum() {
+    let (ref bytes, ref _vrrphdr) = *VRRPHDR;
+    let mut data = bytes.clone();
+    // 6th and 7th fields are the checksum fields
+    data[6] = 0;
+    data[7] = 0;
+    let generated_hdr = Ipv4Hdr::decode(&data);
+    assert_eq!(generated_hdr, Err(DecodeError::ChecksumError));
 }
 
 #[test]
 fn test_encode_ipv4hdr() {
     let (ref bytes, ref iphdr) = *IPV4HDR;
+    let mut iphdr = iphdr.clone();
+    iphdr.checksum = 0;
 
     let generated_bytes = iphdr.encode();
     let generated_data = generated_bytes.as_ref();
@@ -116,6 +130,17 @@ fn test_decode_ipv4hdr() {
 
     let generated_hdr = generated_hdr.unwrap();
     assert_eq!(ipv4hdr, &generated_hdr);
+}
+
+#[test]
+fn test_decode_ipv4_wrong_checksum() {
+    let (ref bytes, ref _ipv4hdr) = *IPV4HDR;
+    let mut data = bytes.clone();
+    // 10th and 11th bytes are the checksum fields
+    data[10] = 0;
+    data[11] = 0;
+    let generated_hdr = Ipv4Hdr::decode(&data);
+    assert_eq!(generated_hdr, Err(DecodeError::ChecksumError));
 }
 
 #[test]

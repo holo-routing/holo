@@ -676,9 +676,11 @@ pub(crate) fn process_pdu_lsp(
             }
         }
         Some(Ordering::Greater) => {
+            let lse = lse.unwrap();
+
             // Update LSP flooding flags for the incoming interface.
             let lsp_id = lsp.lsp_id;
-            iface.srm_list_add(instance, level, lsp);
+            iface.srm_list_add(instance, level, lse.data.clone());
             iface.ssn_list_del(level, &lsp_id);
         }
     }

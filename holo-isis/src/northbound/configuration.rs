@@ -100,6 +100,15 @@ pub struct InstanceCfg {
     pub overload_status: bool,
     pub att_suppress: bool,
     pub att_ignore: bool,
+    pub bier: BierIsisCfg,
+}
+
+#[derive(Debug)]
+pub struct BierIsisCfg {
+    pub mt_id: u8,
+    pub enabled: bool,
+    pub advertise: bool,
+    pub receive: bool,
 }
 
 #[derive(Debug)]
@@ -1132,6 +1141,35 @@ fn load_callbacks() -> Callbacks<Instance> {
             let af = AddressFamily::try_from_yang(&af).unwrap();
             ListEntry::InterfaceAddressFamily(iface_idx, af)
         })
+        .path(isis::bier::mt_id::PATH)
+        .modify_apply(|instance, args| {
+            let mt_id = args.dnode.get_u8();
+            instance.config.bier.mt_id = mt_id;
+
+            // TODO: should reoriginate LSP
+        })
+        .delete_apply(|instance, _args| {
+            let mt_id = 0;
+            instance.config.bier.mt_id = mt_id;
+        })
+        .path(isis::bier::bier::enable::PATH)
+        .modify_apply(|instance, args| {
+            let enable = args.dnode.get_bool();
+            instance.config.bier.enabled = enable;
+
+            //let event_queue = args.event_queue;
+            // event_queue.insert(Event::BierEnableChange(enable));
+        })
+        .path(isis::bier::bier::advertise::PATH)
+        .modify_apply(|instance, args| {
+            let advertise = args.dnode.get_bool();
+            instance.config.bier.advertise = advertise;
+        })
+        .path(isis::bier::bier::receive::PATH)
+        .modify_apply(|instance, args| {
+            let receive = args.dnode.get_bool();
+            instance.config.bier.receive = receive;
+       })
         .build()
 }
 
@@ -1484,6 +1522,21 @@ impl Default for InstanceCfg {
             overload_status,
             att_suppress,
             att_ignore,
+            bier: Default::default(),
+        }
+    }
+}
+
+impl Default for BierIsisCfg {
+    fn default() -> Self {
+        let enabled = isis::bier::bier::enable::DFLT;
+        let advertise = isis::bier::bier::advertise::DFLT;
+        let receive = isis::bier::bier::receive::DFLT;
+        Self {
+            mt_id: 0,
+            enabled,
+            advertise,
+            receive,
         }
     }
 }

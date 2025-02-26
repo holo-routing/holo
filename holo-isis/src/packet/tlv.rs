@@ -24,6 +24,7 @@ use crate::packet::consts::{
     AuthenticationType, NeighborSubTlvType, PrefixSubTlvType, TlvType,
 };
 use crate::packet::error::{DecodeError, DecodeResult};
+use crate::packet::subtlvs::prefix::BierInfoSubTlv;
 use crate::packet::{AreaAddr, LanId, LspId, subtlvs};
 
 // TLV header size.
@@ -268,6 +269,7 @@ pub struct Ipv6Reach {
 )]
 #[derive(Deserialize, Serialize)]
 pub struct Ipv6ReachSubTlvs {
+    pub bier: Vec<BierInfoSubTlv>,
     pub unknown: Vec<UnknownTlv>,
 }
 
@@ -1354,6 +1356,13 @@ impl Ipv6ReachTlv {
                     let mut buf_stlv = buf.copy_to_bytes(stlv_len as usize);
                     sub_tlvs_len -= stlv_len;
                     match stlv_etype {
+                        Some(PrefixSubTlvType::BierInfo) => {
+                            let bier = BierInfoSubTlv::decode(
+                                stlv_len,
+                                &mut buf_stlv,
+                            )?;
+                            sub_tlvs.bier.push(bier);
+                        }
                         _ => {
                             // Save unknown Sub-TLV.
                             let value =
@@ -1408,6 +1417,9 @@ impl Ipv6ReachTlv {
             buf.put(&entry.prefix.ip().octets()[0..plen_wire]);
 
             // Encode Sub-TLVs.
+            for bier_entry in &entry.sub_tlvs.bier {
+                BierInfoSubTlv::encode(bier_entry, buf);
+            }
         }
         tlv_encode_end(buf, start_pos);
     }

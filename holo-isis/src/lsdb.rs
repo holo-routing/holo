@@ -14,7 +14,11 @@ use std::time::Instant;
 use bitflags::bitflags;
 use derive_new::new;
 use holo_utils::UnboundedSender;
+use holo_utils::bier::{
+    BierEncapId, BierEncapsulationType, BierInBiftId, BiftId,
+};
 use holo_utils::ip::{AddressFamily, Ipv4NetworkExt, Ipv6NetworkExt};
+use holo_utils::mpls::Label;
 use holo_utils::task::TimeoutTask;
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 
@@ -26,7 +30,9 @@ use crate::interface::{Interface, InterfaceType};
 use crate::northbound::notification;
 use crate::packet::consts::LspFlags;
 use crate::packet::pdu::{Lsp, LspTlvs, Pdu};
-use crate::packet::subtlvs::prefix::BierInfoSubTlv;
+use crate::packet::subtlvs::prefix::{
+    BierEncapSubSubTlv, BierInfoSubTlv, BierSubSubTlv,
+};
 use crate::packet::tlv::{
     ExtIpv4Reach, ExtIsReach, IpReachTlvEntry, Ipv4Reach, Ipv6Reach,
     Ipv6ReachSubTlvs, IsReach, MAX_NARROW_METRIC, Nlpid,
@@ -343,12 +349,50 @@ fn lsp_build_tlvs(
                                 && sd_cfg.bfr_prefix == IpNetwork::V6(prefix)
                         })
                         .for_each(|((sd_id, _), sd_cfg)| {
+                            let bier_encaps = sd_cfg
+                                .encap
+                                .iter()
+                                .filter_map(|((bsl, encap_type), encap)| {
+                                    match encap_type {
+                                        BierEncapsulationType::Mpls => {
+                                            // TODO: where is the label defined?
+                                            Some(BierEncapId::Mpls(Label::new(
+                                                0,
+                                            )))
+                                        }
+                                        _ => match encap.in_bift_id {
+                                            BierInBiftId::Base(id) => Some(id),
+                                            BierInBiftId::Encoding(true) => {
+                                                Some(0)
+                                            }
+                                            _ => None,
+                                        }
+                                        .map(|id| {
+                                            BierEncapId::NonMpls(BiftId::new(
+                                                id,
+                                            ))
+                                        }),
+                                    }
+                                    .map(
+                                        |id| {
+                                            BierSubSubTlv::BierEncapSubSubTlv(
+                                                BierEncapSubSubTlv::new(
+                                                    encap.max_si,
+                                                    (*bsl).into(),
+                                                    id,
+                                                ),
+                                            )
+                                        },
+                                    )
+                                })
+                                .collect::<Vec<BierSubSubTlv>>();
+
                             let bier = BierInfoSubTlv::new(
                                 sd_cfg.bar,
                                 sd_cfg.ipa,
                                 *sd_id,
                                 sd_cfg.bfr_id,
-                                // bier_encaps,
+                                bier_encaps,
                             );
                             sub_tlvs.bier.push(bier);
                         })

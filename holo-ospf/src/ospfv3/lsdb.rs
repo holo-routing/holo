@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, HashMap, hash_map};
 use std::net::{IpAddr, Ipv4Addr};
 
 use holo_utils::bier::{
-    BierCfgEvent, BierEncapsulationType, BierInBiftId, BiftId,
+    BierCfgEvent, BierEncapId, BierEncapsulationType, BierInBiftId, BiftId,
 };
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::mpls::Label;
@@ -37,9 +37,9 @@ use crate::packet::lsa::{
     Lsa, LsaHdrVersion, LsaKey, LsaScope, LsaTypeVersion, PrefixSidVersion,
 };
 use crate::packet::tlv::{
-    BierEncapId, BierEncapSubSubTlv, BierSubTlv, DynamicHostnameTlv,
-    NodeAdminTagTlv, PrefixSidFlags, RouterInfoCaps, RouterInfoCapsTlv,
-    SidLabelRangeTlv, SrAlgoTlv, SrLocalBlockTlv,
+    BierEncapSubSubTlv, BierSubTlv, DynamicHostnameTlv, NodeAdminTagTlv,
+    PrefixSidFlags, RouterInfoCaps, RouterInfoCapsTlv, SidLabelRangeTlv,
+    SrAlgoTlv, SrLocalBlockTlv,
 };
 use crate::route::{SummaryNet, SummaryNetFlags, SummaryRtr};
 use crate::version::Ospfv3;

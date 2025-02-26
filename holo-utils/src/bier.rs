@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 use crate::ip::AddressFamily;
+use crate::mpls::Label;
 
 pub type SubDomainId = u8;
 pub type BfrId = u16;
@@ -101,6 +102,22 @@ impl std::fmt::Display for Error {
             Error::InvalidBitstring => {
                 write!(f, "invalid Bitstring")
             }
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, new, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub enum BierEncapId {
+    Mpls(Label),
+    NonMpls(BiftId),
+}
+
+impl BierEncapId {
+    pub fn get(self) -> u32 {
+        match self {
+            Self::Mpls(label) => label.get(),
+            Self::NonMpls(bift_id) => bift_id.get(),
         }
     }
 }

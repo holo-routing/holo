@@ -26,9 +26,10 @@ use crate::interface::{Interface, InterfaceType};
 use crate::northbound::notification;
 use crate::packet::consts::LspFlags;
 use crate::packet::pdu::{Lsp, LspTlvs, Pdu};
+use crate::packet::subtlvs::prefix::BierInfoSubTlv;
 use crate::packet::tlv::{
-    BierInfoTlv, ExtIpv4Reach, ExtIsReach, IpReachTlvEntry, Ipv4Reach,
-    Ipv6Reach, Ipv6ReachSubTlvs, IsReach, MAX_NARROW_METRIC, Nlpid,
+    ExtIpv4Reach, ExtIsReach, IpReachTlvEntry, Ipv4Reach, Ipv6Reach,
+    Ipv6ReachSubTlvs, IsReach, MAX_NARROW_METRIC, Nlpid,
 };
 use crate::packet::{LanId, LevelNumber, LevelType, LspId};
 use crate::spf::{SpfType, VertexId};
@@ -288,23 +289,30 @@ fn lsp_build_tlvs(
 
                 let prefix = addr.apply_mask();
                 if metric_type.is_standard_enabled() {
-                    ipv4_internal_reach.insert(prefix, Ipv4Reach {
-                        up_down: false,
-                        ie_bit: false,
-                        metric: std::cmp::min(metric, MAX_NARROW_METRIC) as u8,
-                        metric_delay: None,
-                        metric_expense: None,
-                        metric_error: None,
+                    ipv4_internal_reach.insert(
                         prefix,
-                    });
+                        Ipv4Reach {
+                            up_down: false,
+                            ie_bit: false,
+                            metric: std::cmp::min(metric, MAX_NARROW_METRIC)
+                                as u8,
+                            metric_delay: None,
+                            metric_expense: None,
+                            metric_error: None,
+                            prefix,
+                        },
+                    );
                 }
                 if metric_type.is_wide_enabled() {
-                    ext_ipv4_reach.insert(prefix, ExtIpv4Reach {
-                        metric,
-                        up_down: false,
+                    ext_ipv4_reach.insert(
                         prefix,
-                        sub_tlvs: Default::default(),
-                    });
+                        ExtIpv4Reach {
+                            metric,
+                            up_down: false,
+                            prefix,
+                            sub_tlvs: Default::default(),
+                        },
+                    );
                 }
             }
         }
@@ -335,7 +343,7 @@ fn lsp_build_tlvs(
                                 && sd_cfg.bfr_prefix == IpNetwork::V6(prefix)
                         })
                         .for_each(|((sd_id, _), sd_cfg)| {
-                            let bier = BierInfoTlv::new(
+                            let bier = BierInfoSubTlv::new(
                                 sd_cfg.bar,
                                 sd_cfg.ipa,
                                 *sd_id,
@@ -346,13 +354,16 @@ fn lsp_build_tlvs(
                         })
                 }
 
-                ipv6_reach.insert(prefix, Ipv6Reach {
-                    metric,
-                    up_down: false,
-                    external: false,
+                ipv6_reach.insert(
                     prefix,
-                    sub_tlvs,
-                });
+                    Ipv6Reach {
+                        metric,
+                        up_down: false,
+                        external: false,
+                        prefix,
+                        sub_tlvs,
+                    },
+                );
             }
         }
     }

@@ -103,6 +103,19 @@ pub enum PrefixSubTlvType {
     BierInfo = 32,
 }
 
+// IS-IS Sub-Sub-TLVs for BIER Info Sub-TLV.
+//
+// IANA Registry:
+// https://www.iana.org/assignments/isis-tlv-codepoints/isis-tlv-codepoints.xhtml#bier-info-sub-tlv
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(FromPrimitive, ToPrimitive)]
+#[derive(Deserialize, Serialize)]
+pub enum BierSubSubTlvType {
+    MplsEncap = 1,
+    // FIXME: TBD1 in https://datatracker.ietf.org/doc/html/draft-ietf-bier-lsr-non-mpls-extensions-03#name-is-is-bier-non-mpls-encapsu
+    NonMplsEncap = 42,
+}
+
 // IS-IS LSP flags field.
 bitflags! {
     #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]

@@ -19,8 +19,9 @@ use holo_northbound::yang::routing::segment_routing::sr_mpls;
 use holo_northbound::yang::routing::{bier, ribs};
 use holo_northbound::{CallbackKey, NbDaemonSender};
 use holo_utils::bier::{
-    BierCfgEvent, BierEncapsulation, BierEncapsulationType, BierInBiftId,
-    BierSubDomainCfg, Bsl, SubDomainId, UnderlayProtocolType,
+    BfrId, BierBift, BierBiftCfg, BierCfgEvent, BierEncapsulation,
+    BierEncapsulationType, BierInBiftId, BierOutBiftId, BierSubDomainCfg,
+    BiftNbr, Bsl, SubDomainId, UnderlayProtocolType,
 };
 use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
@@ -60,6 +61,9 @@ pub enum ListEntry {
         Bsl,
         BierEncapsulationType,
     ),
+    BierCfgBift(BfrId),
+    BierCfgBiftBsl(BfrId, Bsl),
+    BierCfgBiftNbr(BfrId, Bsl, IpAddr),
 }
 
 #[derive(Debug, EnumAsInner)]
@@ -78,6 +82,7 @@ pub enum Event {
     BierCfgUpdate,
     BierCfgEncapUpdate(SubDomainId, AddressFamily, Bsl, BierEncapsulationType),
     BierCfgSubDomainUpdate(AddressFamily),
+    BierCfgBiftUpdate(BfrId),
 }
 
 // ===== configuration structs =====
@@ -873,6 +878,169 @@ fn load_callbacks() -> Callbacks<Master> {
         .delete_apply(|_context, _args| {
             // Nothing to do.
         })
+        .path(bier::bift::PATH)
+        .create_apply(|master, args| {
+            let bfr_id = args.dnode.get_u16_relative("./bfr-id").unwrap();
+
+            let bift_cfg = BierBiftCfg {
+                bfr_id,
+                birt: Default::default()
+            };
+
+            master.bier_config.bift_cfg.insert(bfr_id, bift_cfg);
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+            event_queue.insert(Event::BierCfgBiftUpdate(bfr_id));
+        })
+        .delete_apply(|master, args| {
+            let bfr_id = args.dnode.get_u16_relative("./bfr-id").unwrap();
+            master.bier_config.bift_cfg.remove(&bfr_id);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+            event_queue.insert(Event::BierCfgBiftUpdate(bfr_id));
+        })
+        .lookup(|_master, _list_entry, dnode| {
+            let bfr_id = dnode.get_u16_relative("./bfr-id").unwrap();
+            ListEntry::BierCfgBift(bfr_id)
+        })
+        .path(bier::bift::birt_bitstringlength::PATH)
+        .create_apply(|context, args| {
+            let bfr_id = args.list_entry.into_bier_cfg_bift().unwrap();
+            let bift_cfg = context.bier_config.bift_cfg.get_mut(&bfr_id).unwrap();
+
+            let bsl = args.dnode.get_string_relative("./bsl").unwrap();
+            let bsl = Bsl::try_from_yang(&bsl).unwrap();
+
+            let bift = BierBift {
+                bsl,
+                nbr: Default::default()
+            };
+
+            bift_cfg.birt.insert(bsl, bift);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+            // FIXME: Create custom event?
+        })
+        .delete_apply(|context, args| {
+            let bfr_id = args.list_entry.into_bier_cfg_bift().unwrap();
+            let bift_cfg = context.bier_config.bift_cfg.get_mut(&bfr_id).unwrap();
+
+            let bsl = args.dnode.get_string_relative("./bsl").unwrap();
+            let bsl = Bsl::try_from_yang(&bsl).unwrap();
+
+            bift_cfg.birt.remove(&bsl);
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+            // FIXME: Create custom event?
+        })
+        .lookup(|_master, list_entry, dnode| {
+            let bfr_id = list_entry.into_bier_cfg_bift().unwrap();
+
+            let bsl = dnode.get_string_relative("./bsl").unwrap();
+            let bsl = Bsl::try_from_yang(&bsl).unwrap();
+
+            ListEntry::BierCfgBiftBsl(bfr_id, bsl)
+        })
+        .path(bier::bift::birt_bitstringlength::bfr_nbr::PATH)
+        .create_apply(|context, args| {
+            let (bfr_id, bsl) = args.list_entry.into_bier_cfg_bift_bsl().unwrap();
+            let bift_config = context.bier_config.bift_cfg.get_mut(&bfr_id).unwrap();
+            let birt = bift_config.birt.get_mut(&bsl).unwrap();
+
+            let bfr_nbr = args.dnode.get_ip_relative("./bfr-nbr").unwrap();
+            let encap_type = args.dnode.get_string_relative("./encapsulation-type").unwrap();
+            let encap_type = BierEncapsulationType::try_from_yang(&encap_type).unwrap();
+            let out_bift_id = args.dnode.get_u32_relative("./out-bift-id/out-bift-id");
+            let out_bift_encoding = args.dnode.get_bool_relative("./out-bift-id/out-bift-id-encoding");
+            let out_bift_id = out_bift_id.map_or(out_bift_encoding.map(BierOutBiftId::Encoding), |v| Some(BierOutBiftId::Defined(v))).unwrap();
+
+            let nbr = BiftNbr {
+                bfr_nbr,
+                encap_type,
+                out_bift_id
+            };
+
+            birt.nbr.insert(bfr_nbr, nbr);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+            // FIXME: Custom event?
+        })
+        .delete_apply(|context, args| {
+            let (bfr_id, bsl) = args.list_entry.into_bier_cfg_bift_bsl().unwrap();
+            let bift_config = context.bier_config.bift_cfg.get_mut(&bfr_id).unwrap();
+            let birt = bift_config.birt.get_mut(&bsl).unwrap();
+
+            let bfr_nbr = args.dnode.get_ip_relative("./bfr-nbr").unwrap();
+
+            birt.nbr.remove(&bfr_nbr);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+            // FIXME: Custom event?
+        })
+        .lookup(|_context, list_entry, dnode| {
+            let (bfr_id, bsl) = list_entry.into_bier_cfg_bift_bsl().unwrap();
+            let nbr = dnode.get_ip_relative("./bfr-nbr").unwrap();
+
+            ListEntry::BierCfgBiftNbr(bfr_id, bsl, nbr)
+        })
+        .path(bier::bift::birt_bitstringlength::bfr_nbr::encapsulation_type::PATH)
+        .modify_apply(|context, args| {
+            let (bfr_id, bsl, nbr) = args.list_entry.into_bier_cfg_bift_nbr().unwrap();
+
+            let bift_config = context.bier_config.bift_cfg.get_mut(&bfr_id).unwrap();
+            let birt = bift_config.birt.get_mut(&bsl).unwrap();
+            let nbr = birt.nbr.get_mut(&nbr).unwrap();
+
+            let encap_type = args.dnode.get_string_relative("./encapsulation-type").unwrap();
+            nbr.encap_type = BierEncapsulationType::try_from_yang(&encap_type).unwrap();
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+            // FIXME: Custom event?
+        })
+        .delete_apply(|_context, _args| {
+            // Nothing to do.
+        })
+        .path(bier::bift::birt_bitstringlength::bfr_nbr::out_bift_id::out_bift_id::PATH)
+        .modify_apply(|context, args| {
+            let (bfr_id, bsl, nbr) = args.list_entry.into_bier_cfg_bift_nbr().unwrap();
+
+            let bift_config = context.bier_config.bift_cfg.get_mut(&bfr_id).unwrap();
+            let birt = bift_config.birt.get_mut(&bsl).unwrap();
+            let nbr = birt.nbr.get_mut(&nbr).unwrap();
+
+            let out_bift_id = args.dnode.get_u32_relative("./out-bift-id/out-bift-id").unwrap();
+            nbr.out_bift_id = BierOutBiftId::Defined(out_bift_id);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+            // FIXME: Custom event?
+        })
+        .delete_apply(|_context, _args| {
+            // Nothing to do.
+        })
+        .path(bier::bift::birt_bitstringlength::bfr_nbr::out_bift_id::out_bift_id_encoding::PATH)
+        .modify_apply(|context, args| {
+            let (bfr_id, bsl, nbr) = args.list_entry.into_bier_cfg_bift_nbr().unwrap();
+
+            let bift_config = context.bier_config.bift_cfg.get_mut(&bfr_id).unwrap();
+            let birt = bift_config.birt.get_mut(&bsl).unwrap();
+            let nbr = birt.nbr.get_mut(&nbr).unwrap();
+
+            let out_bift_id_encoding = args.dnode.get_bool_relative("./out-bift-id/out-bift-id-encoding").unwrap();
+            nbr.out_bift_id = BierOutBiftId::Encoding(out_bift_id_encoding);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::BierCfgUpdate);
+            // FIXME: Custom event?
+        })
+        .delete_apply(|_context, _args| {
+            // Nothing to do.
+        })
         .build()
 }
 
@@ -1099,6 +1267,9 @@ impl Provider for Master {
                         BierCfgEvent::SubDomainUpdate(af),
                     ));
                 }
+            }
+            Event::BierCfgBiftUpdate(_bfr_id) => {
+                // TODO
             }
         }
     }

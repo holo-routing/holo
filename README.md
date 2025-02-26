@@ -225,7 +225,7 @@ Holo supports the following Internet Standards:
 | ietf-bfd@2022-09-22 | 100.00% | 100.00% | - | - | [100.00%](https://holo-routing.github.io/ietf-yang-coverage/ietf-bfd@2022-09-22.html) |
 | ietf-bgp-policy@2023-07-05 | 100.00% | - | - | - | [100.00%](https://holo-routing.github.io/ietf-yang-coverage/ietf-bgp-policy@2023-07-05.html) |
 | ietf-bgp@2023-07-05 | 32.38% | 85.95% | - | - | [60.40%](https://holo-routing.github.io/ietf-yang-coverage/ietf-bgp@2023-07-05.html) |
-| ietf-bier@2023-09-12 | 65.52% | - | - | 0.00% | [47.50%](https://holo-routing.github.io/ietf-yang-coverage/ietf-bier@2023-09-12.html) |
+| ietf-bier@2023-09-12 | 100.00% | - | - | 0.00% | [72.50%](https://holo-routing.github.io/ietf-yang-coverage/ietf-bier@2023-09-12.html) |
 | ietf-if-extensions@2023-01-26 | 100.00% | 0.00% | - | - | [50.00%](https://holo-routing.github.io/ietf-yang-coverage/ietf-if-extensions@2023-01-26.html) |
 | ietf-if-vlan-encapsulation@2023-01-26 | 42.86% | - | - | - | [42.86%](https://holo-routing.github.io/ietf-yang-coverage/ietf-if-vlan-encapsulation@2023-01-26.html) |
 | ietf-interfaces@2018-02-20 | 100.00% | 0.00% | - | - | [22.22%](https://holo-routing.github.io/ietf-yang-coverage/ietf-interfaces@2018-02-20.html) |

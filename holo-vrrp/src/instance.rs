@@ -150,7 +150,7 @@ impl Instance {
         }
     }
 
-    pub(crate) fn update(&mut self, interface: &InterfaceView) {
+    pub(crate) fn update(&mut self, interface: &InterfaceView<'_>) {
         let is_ready = interface.system.ifindex.is_some()
             && !interface.system.addresses.is_empty()
             && self.mvlan.system.ifindex.is_some();
@@ -161,7 +161,7 @@ impl Instance {
         }
     }
 
-    fn startup(&mut self, interface: &InterfaceView) {
+    fn startup(&mut self, interface: &InterfaceView<'_>) {
         match InstanceNet::new(interface, &self.mvlan) {
             Ok(net) => {
                 self.net = Some(net);
@@ -191,7 +191,7 @@ impl Instance {
         }
     }
 
-    pub(crate) fn shutdown(&mut self, interface: &InterfaceView) {
+    pub(crate) fn shutdown(&mut self, interface: &InterfaceView<'_>) {
         if self.state.state == fsm::State::Master {
             // Send an advertisement with Priority = 0.
             let src_ip = interface.system.addresses.first().unwrap();
@@ -223,7 +223,7 @@ impl Instance {
 
     pub(crate) fn change_state(
         &mut self,
-        interface: &InterfaceView,
+        interface: &InterfaceView<'_>,
         state: fsm::State,
         event: fsm::Event,
         new_master_reason: MasterReason,
@@ -275,7 +275,7 @@ impl Instance {
         self.timer_set(interface);
     }
 
-    pub(crate) fn timer_set(&mut self, interface: &InterfaceView) {
+    pub(crate) fn timer_set(&mut self, interface: &InterfaceView<'_>) {
         match self.state.state {
             fsm::State::Initialize => {
                 self.state.timer = VrrpTimer::Null;
@@ -437,7 +437,7 @@ impl InstanceMacvlan {
 
 impl InstanceNet {
     pub(crate) fn new(
-        parent_iface: &InterfaceView,
+        parent_iface: &InterfaceView<'_>,
         mvlan: &InstanceMacvlan,
     ) -> Result<Self, IoError> {
         let instance_channels_tx = &parent_iface.tx;

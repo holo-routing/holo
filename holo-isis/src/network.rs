@@ -14,10 +14,10 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use holo_utils::keychain::Key;
-use holo_utils::socket::{AsyncFd, Socket};
+use holo_utils::socket::{AsyncFd, LinkAddrExt, Socket};
 use holo_utils::{Sender, UnboundedReceiver, capabilities};
 use nix::sys::socket;
-use nix::sys::socket::{LinkAddr, SockaddrLike};
+use nix::sys::socket::LinkAddr;
 use serde::Serialize;
 use tokio::sync::mpsc::error::SendError;
 
@@ -99,7 +99,7 @@ pub(crate) fn socket(ifindex: u32) -> Result<Socket, std::io::Error> {
         socket.set_nonblocking(true)?;
 
         // Bind to local interface.
-        let sockaddr = link_addr(libc::ETH_P_ALL as u16, ifindex, None);
+        let sockaddr = LinkAddr::new(libc::ETH_P_ALL as u16, ifindex, None);
         socket::bind(socket.as_raw_fd(), &sockaddr)?;
 
         // Attach BPF filter.
@@ -133,10 +133,10 @@ pub(crate) async fn send_pdu(
             if broadcast {
                 // Prepend LLC header before IS-IS PDU.
                 let iov = [IoSlice::new(&LLC_HDR), IoSlice::new(&buf)];
-                let sockaddr = link_addr(
+                let sockaddr = LinkAddr::new(
                     (LLC_HDR.len() + buf.len()) as u16,
                     ifindex,
-                    Some(dst),
+                    Some(dst.as_bytes()),
                 );
                 socket::sendmsg(
                     socket.as_raw_fd(),
@@ -147,8 +147,11 @@ pub(crate) async fn send_pdu(
                 )
             } else {
                 // For non-broadcast media types, only GRE is supported.
-                let sockaddr =
-                    link_addr(GRE_PROTO_TYPE_ISO, ifindex, Some(dst));
+                let sockaddr = LinkAddr::new(
+                    GRE_PROTO_TYPE_ISO,
+                    ifindex,
+                    Some(dst.as_bytes()),
+                );
                 socket::sendto(
                     socket.as_raw_fd(),
                     &buf,
@@ -290,27 +293,4 @@ const fn bpf_filter_block(
     k: u32,
 ) -> libc::sock_filter {
     libc::sock_filter { code, jt, jf, k }
-}
-
-fn link_addr(
-    protocol: u16,
-    ifindex: u32,
-    addr: Option<MulticastAddr>,
-) -> LinkAddr {
-    let mut sll = libc::sockaddr_ll {
-        sll_family: libc::AF_PACKET as u16,
-        sll_protocol: protocol.to_be(),
-        sll_ifindex: ifindex as _,
-        sll_halen: 0,
-        sll_hatype: 0,
-        sll_pkttype: 0,
-        sll_addr: [0; 8],
-    };
-    if let Some(addr) = addr {
-        sll.sll_halen = 6;
-        sll.sll_addr[..6].copy_from_slice(&addr.as_bytes());
-    }
-    let ssl_len = std::mem::size_of_val(&sll) as libc::socklen_t;
-    unsafe { LinkAddr::from_raw(&sll as *const _ as *const _, Some(ssl_len)) }
-        .unwrap()
 }

@@ -12,10 +12,10 @@ use std::os::fd::AsRawFd;
 use std::sync::Arc;
 
 use bytes::BufMut;
-use holo_utils::socket::{AsyncFd, Socket, SocketExt};
+use holo_utils::socket::{AsyncFd, LinkAddrExt, Socket, SocketExt};
 use holo_utils::{Sender, UnboundedReceiver, capabilities};
-use libc::{AF_PACKET, ETH_P_ARP};
-use nix::sys::socket::{self, LinkAddr, SockaddrIn, SockaddrLike};
+use libc::ETH_P_ARP;
+use nix::sys::socket::{self, LinkAddr, SockaddrIn};
 use socket2::{Domain, Protocol, Type};
 use tokio::sync::mpsc::error::SendError;
 
@@ -61,7 +61,7 @@ pub(crate) fn socket_vrrp_tx(
 }
 
 pub(crate) fn socket_vrrp_rx(
-    interface: &InterfaceView,
+    interface: &InterfaceView<'_>,
 ) -> Result<Socket, std::io::Error> {
     #[cfg(not(feature = "testing"))]
     {
@@ -155,21 +155,8 @@ async fn send_packet_arp(
 
     // Send packet.
     let iov = [IoSlice::new(&buf)];
-    let mut sll = libc::sockaddr_ll {
-        sll_family: AF_PACKET as u16,
-        sll_protocol: (libc::ETH_P_ARP as u16).to_be(),
-        sll_ifindex: ifindex as i32,
-        sll_hatype: 0,
-        sll_pkttype: 0,
-        sll_halen: 6,
-        sll_addr: [0; 8],
-    };
-    sll.sll_addr[..6].copy_from_slice(&eth_hdr.dst_mac);
-    let sll_len = size_of_val(&sll) as libc::socklen_t;
-    let sockaddr = unsafe {
-        LinkAddr::from_raw(&sll as *const _ as *const _, Some(sll_len))
-    }
-    .unwrap();
+    let sockaddr =
+        LinkAddr::new(libc::ETH_P_ARP as u16, ifindex, Some(eth_hdr.dst_mac));
     socket
         .async_io(tokio::io::Interest::WRITABLE, |socket| {
             socket::sendmsg(

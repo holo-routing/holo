@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+#![feature(extract_if)]
 #![allow(type_alias_bounds)]
 
 mod debug;

@@ -12,6 +12,7 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use holo_utils::ip::AddressFamily;
+use internet_checksum::Checksum;
 use serde::{Deserialize, Serialize};
 
 use crate::version::VrrpVersion;
@@ -271,6 +272,11 @@ impl VrrpHdr {
                 if let Some(auth_data2) = self.auth_data2 {
                     buf.put_u32(auth_data2);
                 }
+
+                // generate checksum
+                let mut check = Checksum::new();
+                check.add_bytes(&buf);
+                buf[6..8].copy_from_slice(&check.checksum());
             }
             VrrpVersion::V3(address_family) => {
                 let res_adv_int =
@@ -334,12 +340,6 @@ impl VrrpHdr {
             }
             checksum = buf.get_u16();
 
-            // confirm checksum. checksum position is the third item in 16 bit words
-            let calculated_checksum = checksum::calculate(data, 3);
-            if calculated_checksum != checksum {
-                return Err(DecodeError::ChecksumError);
-            }
-
             for _ in 0..count_ip {
                 ip_addresses.push(IpAddr::V4(buf.get_ipv4()));
             }
@@ -390,11 +390,6 @@ impl VrrpHdr {
             auth_data,
             auth_data2,
         })
-    }
-
-    /// only used when ip_version is 4.
-    pub fn generate_checksum(&mut self) {
-        self.checksum = checksum::calculate(self.encode().chunk(), 3);
     }
 }
 
@@ -451,7 +446,6 @@ impl Ipv4Hdr {
 
         let ttl = buf.get_u8();
 
-        //
         if ttl != 255 {
             return Err(DecodeError::IpTtlError { ttl });
         }

@@ -226,7 +226,6 @@ impl Instance {
 
                         let mut pkt = self.generate_vrrp_packet();
                         pkt.priority = 0;
-                        pkt.generate_checksum();
 
                         let packet = Vrrp4Packet {
                             ip: self.generate_ipv4_packet(v4_net.ip()),
@@ -241,7 +240,6 @@ impl Instance {
 
                         let mut pkt = self.generate_vrrp_packet();
                         pkt.priority = 0;
-                        pkt.generate_checksum();
 
                         let packet = Vrrp6Packet {
                             ip: self.generate_ipv6_packet(v6_net.ip()),
@@ -428,7 +426,7 @@ impl Instance {
             auth_data2 = Some(0);
         };
 
-        let mut pkt = VrrpHdr {
+        VrrpHdr {
             version,
             hdr_type: 1,
             vrid: self.vrid,
@@ -440,11 +438,7 @@ impl Instance {
             ip_addresses,
             auth_data,
             auth_data2,
-        };
-        if self.config.version == VrrpVersion::V2 {
-            pkt.generate_checksum();
         }
-        pkt
     }
 
     /// A Neighbor Advertisement packet, usually unsolicitated in VRRP
@@ -480,7 +474,7 @@ impl Instance {
             })
             .collect();
 
-        let mut pkt = VrrpHdr {
+        VrrpHdr {
             version: VrrpVersion::V3(AddressFamily::Ipv6),
             hdr_type: 1,
             vrid: self.vrid,
@@ -492,11 +486,7 @@ impl Instance {
             ip_addresses,
             auth_data: None,
             auth_data2: None,
-        };
-        if self.config.version == VrrpVersion::V2 {
-            pkt.generate_checksum();
         }
-        pkt
     }
 
     pub(crate) fn generate_ipv4_packet(

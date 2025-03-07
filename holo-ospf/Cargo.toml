@@ -17,7 +17,6 @@ generational-arena.workspace = true
 hmac.workspace = true
 internet-checksum.workspace = true
 ipnetwork.workspace = true
-internet-checksum.workspace = true
 itertools.workspace = true
 libc.workspace = true
 md-5.workspace = true

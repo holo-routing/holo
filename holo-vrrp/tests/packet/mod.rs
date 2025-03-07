@@ -10,9 +10,10 @@
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::sync::LazyLock;
 
+use holo_protocol::assert_eq_hex;
 use holo_utils::ip::AddressFamily;
 use holo_vrrp::consts::{VRRP_PROTO_NUMBER, VRRP_V2_MULTICAST_ADDRESS};
-use holo_vrrp::packet::{EthernetHdr, Ipv4Hdr, Ipv6Hdr, VrrpHdr};
+use holo_vrrp::packet::{DecodeError, EthernetHdr, Ipv4Hdr, Ipv6Hdr, VrrpHdr};
 use holo_vrrp::version::VrrpVersion;
 
 static VRRPHDR: LazyLock<(Vec<u8>, VrrpHdr)> = LazyLock::new(|| {
@@ -131,7 +132,7 @@ fn test_decode_vrrp_wrong_checksum() {
     // 6th and 7th fields are the checksum fields
     data[6] = 0;
     data[7] = 0;
-    let generated_hdr = Ipv4Hdr::decode(&data);
+    let generated_hdr = VrrpHdr::decode(&data, AddressFamily::Ipv4);
     assert_eq!(generated_hdr, Err(DecodeError::ChecksumError));
 }
 
@@ -177,7 +178,6 @@ fn test_decode_ipv6hdr() {
 
     let generated_hdr = generated_hdr.unwrap();
     assert_eq!(ipv6hdr, &generated_hdr);
-
 }
 
 #[test]

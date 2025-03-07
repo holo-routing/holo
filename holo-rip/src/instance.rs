@@ -37,7 +37,6 @@ use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
 use crate::version::Version;
 use crate::{events, southbound, tasks};
 
-#[allow(clippy::large_enum_variant)]
 #[derive(Debug, EnumAsInner)]
 pub enum Instance<V: Version> {
     Up(InstanceUp<V>),

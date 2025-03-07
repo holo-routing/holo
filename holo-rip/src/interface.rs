@@ -34,7 +34,6 @@ pub type InterfaceIndex = Index;
 pub type InterfaceUp<V> = InterfaceCommon<V, InterfaceState<V>>;
 pub type InterfaceDown<V> = InterfaceCommon<V, InterfaceStateDown>;
 
-#[allow(clippy::large_enum_variant)]
 #[derive(Debug, EnumAsInner)]
 pub enum Interface<V: Version> {
     Up(InterfaceUp<V>),

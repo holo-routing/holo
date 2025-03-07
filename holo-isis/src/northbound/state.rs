@@ -163,7 +163,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(isis::database::levels::PATH)
         .get_iterate(|instance, _args| {
             let Some(instance_state) = &instance.state else { return None };
-            let iter = [LevelNumber::L1, LevelNumber::L2].into_iter().map(|level| ListEntry::Lsdb(level, instance_state.lsdb.get(level)));
+            let iter = LevelType::All.into_iter().map(|level| ListEntry::Lsdb(level, instance_state.lsdb.get(level)));
             Some(Box::new(iter))
         })
         .get_object(|_instance, args| {
@@ -186,19 +186,21 @@ fn load_callbacks() -> Callbacks<Instance> {
             let ipv4_addresses = lsp.tlvs.ipv4_addrs().map(Cow::Borrowed);
             let ipv6_addresses = lsp.tlvs.ipv6_addrs().map(Cow::Borrowed);
             let protocol_supported = lsp.tlvs.protocols_supported();
+            let area_addresses = lsp.tlvs.area_addrs().map(|area| area.to_yang());
             Box::new(Lsp {
                 lsp_id: lsp.lsp_id.to_yang(),
                 decoded_completed: None,
                 raw_data: Some(lsp.raw.as_ref()).ignore_in_testing(),
                 checksum: Some(lsp.cksum).ignore_in_testing(),
                 remaining_lifetime: Some(lsp.rem_lifetime()).ignore_in_testing(),
-                sequence: Some(lsp.seqno),
+                sequence: Some(lsp.seqno).ignore_in_testing(),
                 ipv4_addresses: Some(Box::new(ipv4_addresses)),
                 ipv6_addresses: Some(Box::new(ipv6_addresses)),
                 ipv4_te_routerid: lsp.tlvs.ipv4_router_id.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
                 ipv6_te_routerid: lsp.tlvs.ipv6_router_id.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
                 protocol_supported: Some(Box::new(protocol_supported)),
                 dynamic_hostname: lsp.tlvs.hostname().map(Cow::Borrowed),
+                area_addresses: Some(Box::new(area_addresses)),
                 lsp_buffer_size: lsp.tlvs.lsp_buf_size(),
             })
         })
@@ -573,18 +575,9 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(isis::local_rib::route::PATH)
         .get_iterate(|instance, _args| {
             let Some(instance_state) = &instance.state else { return None };
-            match instance.config.level_type {
-                LevelType::L1 | LevelType::L2 => {
-                    let iter = instance_state.rib_single.get(instance.config.level_type).iter();
-                    let iter = iter.map(|(destination, route)| ListEntry::Route(destination, route));
-                    Some(Box::new(iter))
-                }
-                LevelType::All => {
-                    let iter = instance_state.rib_multi.iter();
-                    let iter = iter.map(|(destination, route)| ListEntry::Route(destination, route));
-                    Some(Box::new(iter))
-                }
-            }
+            let rib = instance_state.rib(instance.config.level_type);
+            let iter = rib.iter().map(|(destination, route)| ListEntry::Route(destination, route));
+            Some(Box::new(iter))
         })
         .get_object(|_instance, args| {
             use isis::local_rib::route::Route;
@@ -613,7 +606,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .path(isis::system_counters::level::PATH)
         .get_iterate(|_instance, _args| {
-            let iter = [LevelNumber::L1, LevelNumber::L2].into_iter().map(ListEntry::SystemCounters);
+            let iter = LevelType::All.into_iter().map(ListEntry::SystemCounters);
             Some(Box::new(iter) as _).ignore_in_testing()
         })
         .get_object(|instance, args| {
@@ -691,7 +684,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                 neighbor_sys_type: Some(adj.level_capability.to_yang()),
                 neighbor_sysid: Some(adj.system_id.to_yang()),
                 neighbor_extended_circuit_id: None,
-                neighbor_snpa: Some(Cow::Owned(format_mac(&adj.snpa))),
+                neighbor_snpa: Some(Cow::Owned(format_mac(&adj.snpa))).ignore_in_testing(),
                 usage: Some(adj.level_usage.to_yang()),
                 hold_timer: adj.holdtimer.as_ref().map(|task| task.remaining()).map(Cow::Owned).ignore_in_testing(),
                 neighbor_priority: adj.priority,
@@ -718,7 +711,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(isis::interfaces::interface::packet_counters::level::PATH)
         .get_iterate(|_instance, args| {
             let iface = args.parent_list_entry.as_interface().unwrap();
-            let iter = [LevelNumber::L1, LevelNumber::L2].into_iter().map(|level| ListEntry::InterfacePacketCounters(iface, level));
+            let iter = LevelType::All.into_iter().map(|level| ListEntry::InterfacePacketCounters(iface, level));
             Some(Box::new(iter) as _).ignore_in_testing()
         })
         .get_object(|_instance, args| {

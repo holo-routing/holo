@@ -16,7 +16,7 @@ use holo_northbound::yang::control_plane_protocol::bfd;
 use holo_protocol::InstanceChannelsTx;
 use holo_utils::Sender;
 use holo_utils::bfd::{ClientCfg, ClientId, SessionKey, State};
-use holo_utils::ibus::IbusMsg;
+use holo_utils::ibus::{IbusMsg, IbusSender};
 use holo_utils::ip::{IpAddrExt, IpAddrKind};
 use holo_utils::socket::{TTL_MAX, UdpSocket};
 use holo_utils::task::{IntervalTask, TimeoutTask};
@@ -46,7 +46,7 @@ pub struct Session {
     pub config_enabled: bool,
     pub state: SessionState,
     pub statistics: SessionStatistics,
-    pub clients: HashMap<ClientId, Option<ClientCfg>>,
+    pub clients: HashMap<usize, SessionClient>,
 }
 
 #[derive(Debug)]
@@ -88,6 +88,14 @@ pub struct SessionStatistics {
     pub tx_packet_count: Arc<AtomicU64>,
     pub rx_error_count: u64,
     pub tx_error_count: Arc<AtomicU64>,
+}
+
+#[derive(Debug)]
+#[derive(new)]
+pub struct SessionClient {
+    pub id: ClientId,
+    pub config: Option<ClientCfg>,
+    pub tx: IbusSender,
 }
 
 #[derive(Debug, Default)]
@@ -140,12 +148,14 @@ impl Session {
         Debug::FsmTransition(&self.key, old_state, state).log();
 
         // Notify protocol clients about the state transition if necessary.
-        if self.should_notify_clients(old_state) && !self.clients.is_empty() {
-            let msg = IbusMsg::BfdStateUpd {
-                sess_key: self.key.clone(),
-                state,
-            };
-            let _ = tx.ibus.send(msg);
+        if self.should_notify_clients(old_state) {
+            for client in self.clients.values() {
+                let msg = IbusMsg::BfdStateUpd {
+                    sess_key: self.key.clone(),
+                    state,
+                };
+                let _ = client.tx.send(msg);
+            }
         }
 
         // Send YANG notification.
@@ -216,7 +226,7 @@ impl Session {
     fn local_multiplier(&self) -> u8 {
         self.clients
             .values()
-            .flatten()
+            .filter_map(|client| client.config.as_ref())
             .min_by_key(|config| config.local_multiplier)
             .map(|config| {
                 std::cmp::min(
@@ -243,7 +253,7 @@ impl Session {
 
         self.clients
             .values()
-            .flatten()
+            .filter_map(|client| client.config.as_ref())
             .min_by_key(|config| config.min_tx)
             .map(|config| std::cmp::min(config.min_tx, self.config.min_tx))
             .unwrap_or(self.config.min_tx)
@@ -256,7 +266,7 @@ impl Session {
     pub(crate) fn required_min_rx(&self) -> u32 {
         self.clients
             .values()
-            .flatten()
+            .filter_map(|client| client.config.as_ref())
             .min_by_key(|config| config.min_rx)
             .map(|config| std::cmp::min(config.min_rx, self.config.min_rx))
             .unwrap_or(self.config.min_rx)

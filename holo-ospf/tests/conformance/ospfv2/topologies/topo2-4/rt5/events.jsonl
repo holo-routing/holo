@@ -1,6 +1,4 @@
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"5.5.5.5"}}
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"5.5.5.5"}}
 {"Ibus":{"SrCfgUpd":{"prefix_sids":[[["5.5.5.5/32","Spf"],{"index":50,"last_hop":"NoPhp"}],[["2001:db8:1000::5/128","Spf"],{"index":51,"last_hop":"NoPhp"}]],"srgb":[{"lower_bound":16000,"upper_bound":23999}],"srlb":[]}}}
 {"Ibus":{"SrCfgEvent":"LabelRangeUpdate"}}
@@ -8,15 +6,10 @@
 {"Ibus":{"SrCfgEvent":{"PrefixSidUpdate":"Ipv6"}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt3-1","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt3-2","af":"Ipv4"}}}
 {"Protocol":{"LsaOrigEvent":{"event":"SrEnableChange"}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"E","lsa_id":"4.0.0.0","lsa_body":{"OpaqueArea":{"RouterInfo":{"info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":["Spf"],"srgb":[{"first":{"Label":16000},"range":8000}],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"E","lsa_id":"4.0.0.0","lsa_body":{"OpaqueArea":{"RouterInfo":{"info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":["Spf"],"srgb":[{"first":{"Label":16000},"range":8000}],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt4","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt6","af":"Ipv4"}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"E","lsa_id":"4.0.0.0","lsa_body":{"OpaqueArea":{"RouterInfo":{"info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":["Spf"],"srgb":[{"first":{"Label":16000},"range":8000}],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt3-1","ifindex":4,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt3-1","addr":"10.0.4.5/24","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt3-2","ifindex":6,"mtu":1500,"flags":"OPERATIVE"}}}
@@ -46,13 +39,8 @@
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"E","lsa_id":"5.5.5.5","lsa_body":{"Router":{"flags":"","links":[{"link_type":"StubNetwork","link_id":"10.0.4.0","link_data":"255.255.255.0","metric":10},{"link_type":"StubNetwork","link_id":"10.0.5.0","link_data":"255.255.255.0","metric":10},{"link_type":"StubNetwork","link_id":"10.0.6.0","link_data":"255.255.255.0","metric":10}]}}}}}
 {"Ibus":{"RouteMplsAdd":{"protocol":"ospfv2","label":17,"nexthops":[{"Address":{"ifindex":2,"addr":"10.0.6.4","labels":[3]}}],"route":null,"replace":false}}}
 {"Protocol":{"NetRxPacket":{"area_key":{"Id":1},"iface_key":{"Id":4},"src":"10.0.8.6","dst":"224.0.0.5","packet":{"Ok":{"Hello":{"hdr":{"pkt_type":"Hello","router_id":"6.6.6.6","area_id":"0.0.0.0"},"network_mask":"255.255.255.0","hello_interval":3,"options":"E","priority":1,"dead_interval":12,"dr":null,"bdr":null,"neighbors":["5.5.5.5"]}}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt3-1","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt3-2","af":"Ipv6"}}}
 {"Protocol":{"NetRxPacket":{"area_key":{"Id":1},"iface_key":{"Id":1},"src":"10.0.4.3","dst":"224.0.0.5","packet":{"Ok":{"DbDesc":{"hdr":{"pkt_type":"DbDesc","router_id":"3.3.3.3","area_id":"0.0.0.0"},"mtu":1500,"options":"E | O","dd_flags":"MS | M | I","dd_seq_no":84215046,"lsa_hdrs":[]}}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt4","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt6","af":"Ipv6"}}}
 {"Protocol":{"NetRxPacket":{"area_key":{"Id":1},"iface_key":{"Id":1},"src":"10.0.4.3","dst":"224.0.0.5","packet":{"Ok":{"DbDesc":{"hdr":{"pkt_type":"DbDesc","router_id":"3.3.3.3","area_id":"0.0.0.0"},"mtu":1500,"options":"E | O","dd_flags":"","dd_seq_no":50529028,"lsa_hdrs":[{"age":0,"options":"E","lsa_type":1,"lsa_id":"3.3.3.3","adv_rtr":"3.3.3.3","seq_no":2147483649,"cksum":11149,"length":72},{"age":0,"options":"E","lsa_type":10,"lsa_id":"4.0.0.0","adv_rtr":"3.3.3.3","seq_no":2147483649,"cksum":32522,"length":52},{"age":0,"options":"E","lsa_type":10,"lsa_id":"7.0.0.0","adv_rtr":"3.3.3.3","seq_no":2147483649,"cksum":38322,"length":44}]}}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv6"}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"10.0.4.0/24","distance":0,"metric":0,"tag":null,"nexthops":[{"Interface":{"ifindex":4}}]}}}
 {"Protocol":{"NetRxPacket":{"area_key":{"Id":1},"iface_key":{"Id":3},"src":"10.0.6.4","dst":"224.0.0.5","packet":{"Ok":{"DbDesc":{"hdr":{"pkt_type":"DbDesc","router_id":"4.4.4.4","area_id":"0.0.0.0"},"mtu":1500,"options":"E | O","dd_flags":"MS | M | I","dd_seq_no":84215046,"lsa_hdrs":[]}}}}}}
 {"Protocol":{"NetRxPacket":{"area_key":{"Id":1},"iface_key":{"Id":3},"src":"10.0.6.4","dst":"224.0.0.5","packet":{"Ok":{"DbDesc":{"hdr":{"pkt_type":"DbDesc","router_id":"4.4.4.4","area_id":"0.0.0.0"},"mtu":1500,"options":"E | O","dd_flags":"","dd_seq_no":67372037,"lsa_hdrs":[{"age":1,"options":"E","lsa_type":1,"lsa_id":"2.2.2.2","adv_rtr":"2.2.2.2","seq_no":2147483650,"cksum":37065,"length":96},{"age":0,"options":"E","lsa_type":1,"lsa_id":"4.4.4.4","adv_rtr":"4.4.4.4","seq_no":2147483651,"cksum":65240,"length":120},{"age":1,"options":"E","lsa_type":1,"lsa_id":"6.6.6.6","adv_rtr":"6.6.6.6","seq_no":2147483650,"cksum":57298,"length":60},{"age":1,"options":"E","lsa_type":10,"lsa_id":"4.0.0.0","adv_rtr":"2.2.2.2","seq_no":2147483649,"cksum":40431,"length":52},{"age":1,"options":"E","lsa_type":10,"lsa_id":"7.0.0.0","adv_rtr":"2.2.2.2","seq_no":2147483649,"cksum":31965,"length":44},{"age":1,"options":"E","lsa_type":10,"lsa_id":"8.0.0.0","adv_rtr":"2.2.2.2","seq_no":2147483649,"cksum":25115,"length":48},{"age":1,"options":"E","lsa_type":10,"lsa_id":"8.0.0.1","adv_rtr":"2.2.2.2","seq_no":2147483649,"cksum":19504,"length":48},{"age":0,"options":"E","lsa_type":10,"lsa_id":"4.0.0.0","adv_rtr":"4.4.4.4","seq_no":2147483649,"cksum":24868,"length":52},{"age":0,"options":"E","lsa_type":10,"lsa_id":"7.0.0.0","adv_rtr":"4.4.4.4","seq_no":2147483649,"cksum":44679,"length":44},{"age":0,"options":"E","lsa_type":10,"lsa_id":"8.0.0.0","adv_rtr":"4.4.4.4","seq_no":2147483649,"cksum":43985,"length":48},{"age":0,"options":"E","lsa_type":10,"lsa_id":"8.0.0.1","adv_rtr":"4.4.4.4","seq_no":2147483649,"cksum":38374,"length":48},{"age":0,"options":"E","lsa_type":10,"lsa_id":"8.0.0.2","adv_rtr":"4.4.4.4","seq_no":2147483649,"cksum":10808,"length":48},{"age":1,"options":"E","lsa_type":10,"lsa_id":"4.0.0.0","adv_rtr":"6.6.6.6","seq_no":2147483649,"cksum":9560,"length":52},{"age":1,"options":"E","lsa_type":10,"lsa_id":"7.0.0.0","adv_rtr":"6.6.6.6","seq_no":2147483649,"cksum":57393,"length":44}]}}}}}}

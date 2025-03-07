@@ -1,13 +1,7 @@
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"3.3.3.3"}}
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"3.3.3.3"}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt5-1","af":"Ipv6"}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt5-2","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-sw1","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv6"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt5-1","ifindex":5,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt5-1","addr":"fe80::b046:3fff:fe8a:45e5/64","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt5-2","ifindex":7,"mtu":1500,"flags":"OPERATIVE"}}}
@@ -29,14 +23,10 @@
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":1,"iface_id":4}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":1,"iface_id":4}}}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":null,"lsa_id":"0.0.0.0","lsa_body":{"Router":{"extended":false,"flags":"","options":"V6 | E | R | AF","links":[],"unknown_tlvs":[]}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt5-1","af":"Ipv4"}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Link":[{"Id":1},{"Id":1}]},"options":null,"lsa_id":"0.0.0.5","lsa_body":{"Link":{"extended":false,"priority":1,"options":"V6 | E | R | AF","linklocal":"fe80::b046:3fff:fe8a:45e5","prefixes":[],"unknown_tlvs":[]}}}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Link":[{"Id":1},{"Id":2}]},"options":null,"lsa_id":"0.0.0.7","lsa_body":{"Link":{"extended":false,"priority":1,"options":"V6 | E | R | AF","linklocal":"fe80::644e:57ff:fec8:7a43","prefixes":[],"unknown_tlvs":[]}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt5-2","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-sw1","af":"Ipv4"}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"LinkLsaRcvd":{"area_id":1,"iface_id":2}}}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":null,"lsa_id":"0.0.0.0","lsa_body":{"Router":{"extended":false,"flags":"","options":"V6 | E | R | AF","links":[],"unknown_tlvs":[]}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Link":[{"Id":1},{"Id":2}]},"options":null,"lsa_id":"0.0.0.7","lsa_body":{"Link":{"extended":false,"priority":1,"options":"V6 | E | R | AF","linklocal":"fe80::644e:57ff:fec8:7a43","prefixes":[],"unknown_tlvs":[]}}}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Link":[{"Id":1},{"Id":3}]},"options":null,"lsa_id":"0.0.0.3","lsa_body":{"Link":{"extended":false,"priority":3,"options":"V6 | E | R | AF","linklocal":"fe80::389b:f7ff:fe41:8438","prefixes":[],"unknown_tlvs":[]}}}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"fe80::/64","distance":0,"metric":0,"tag":null,"nexthops":[{"Interface":{"ifindex":5}}]}}}

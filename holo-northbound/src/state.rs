@@ -12,7 +12,7 @@ use holo_utils::yang::SchemaNodeExt;
 use holo_yang::{YANG_CTX, YangObject, YangPath};
 use tokio::sync::oneshot;
 use yang3::data::{DataNodeRef, DataTree};
-use yang3::schema::{SchemaModule, SchemaNode, SchemaNodeKind};
+use yang3::schema::{SchemaNode, SchemaNodeKind};
 
 use crate::error::Error;
 use crate::{CallbackKey, CallbackOp, NbDaemonSender, ProviderBase, api};
@@ -74,7 +74,9 @@ struct RelayedRequest {
 //
 
 pub trait ListEntryKind: std::fmt::Debug + Default {
-    fn child_task(&self) -> Option<NbDaemonSender> {
+    // Return the task associated with the child node of this list entry,
+    // identified by its corresponding module name.
+    fn child_task(&self, _module_name: &str) -> Option<NbDaemonSender> {
         None
     }
 }
@@ -386,29 +388,31 @@ fn iterate_children<'a, P>(
 where
     P: Provider,
 {
-    for snode in snode.children() {
+    for snode in snode.children().filter(|snode| {
+        matches!(
+            snode.kind(),
+            SchemaNodeKind::List
+                | SchemaNodeKind::Container
+                | SchemaNodeKind::Choice
+                | SchemaNodeKind::Case
+        )
+    }) {
         // Check if the provider implements the child node.
         let module = snode.module();
-        if !is_module_implemented::<P>(&module) {
-            if let Some(child_nb_tx) = list_entry.child_task() {
-                // Prepare request to child task.
-                let (responder_tx, responder_rx) = oneshot::channel();
-                let path = format!(
-                    "{}/{}:{}",
-                    dnode.path(),
-                    module.name(),
-                    snode.name()
-                );
-                let request = api::daemon::GetRequest {
-                    path: Some(path),
-                    responder: Some(responder_tx),
-                };
-                relay_list.push(RelayedRequest::new(
-                    request,
-                    child_nb_tx,
-                    responder_rx,
-                ));
-            }
+        if let Some(child_nb_tx) = list_entry.child_task(module.name()) {
+            // Prepare request to child task.
+            let (responder_tx, responder_rx) = oneshot::channel();
+            let path =
+                format!("{}/{}:{}", dnode.path(), module.name(), snode.name());
+            let request = api::daemon::GetRequest {
+                path: Some(path),
+                responder: Some(responder_tx),
+            };
+            relay_list.push(RelayedRequest::new(
+                request,
+                child_nb_tx,
+                responder_rx,
+            ));
             continue;
         }
 
@@ -482,16 +486,6 @@ where
     list_entry
 }
 
-fn is_module_implemented<P>(module: &SchemaModule<'_>) -> bool
-where
-    P: Provider,
-{
-    let module_name = module.name();
-    P::yang_modules()
-        .iter()
-        .any(|module| *module == module_name)
-}
-
 // ===== global functions =====
 
 pub(crate) async fn process_get<P>(
@@ -518,20 +512,19 @@ where
         let snode = yang_ctx.find_path(&dnode.schema().data_path()).unwrap();
 
         // Check if the provider implements the child node.
-        if !is_module_implemented::<P>(&snode.module()) {
-            if let Some(child_nb_tx) = list_entry.child_task() {
-                // Prepare request to child task.
-                let (responder_tx, responder_rx) = oneshot::channel();
-                let request = api::daemon::GetRequest {
-                    path: Some(path),
-                    responder: Some(responder_tx),
-                };
-                relay_list.push(RelayedRequest::new(
-                    request,
-                    child_nb_tx,
-                    responder_rx,
-                ));
-            }
+        let module = snode.module();
+        if let Some(child_nb_tx) = list_entry.child_task(module.name()) {
+            // Prepare request to child task.
+            let (responder_tx, responder_rx) = oneshot::channel();
+            let request = api::daemon::GetRequest {
+                path: Some(path),
+                responder: Some(responder_tx),
+            };
+            relay_list.push(RelayedRequest::new(
+                request,
+                child_nb_tx,
+                responder_rx,
+            ));
         } else {
             // If a list entry was given, iterate over that list entry.
             if snode.kind() == SchemaNodeKind::List {

@@ -1,17 +1,11 @@
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"1.1.1.1"}}
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"1.1.1.1"}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2","af":"Ipv4"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt2","ifindex":3,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt2","addr":"10.0.1.1/24","flags":""}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"lo","addr":"1.1.1.1/32","flags":""}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2","af":"Ipv6"}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv6"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt2","ifindex":3,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt2","addr":"fe80::6042:64ff:fe06:de/64","flags":""}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":null,"lsa_id":"0.0.0.0","lsa_body":{"RouterInfo":{"scope":"Area","info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":null,"srgb":[],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}

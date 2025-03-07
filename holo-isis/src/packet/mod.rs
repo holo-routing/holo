@@ -27,6 +27,12 @@ pub enum LevelType {
     All,
 }
 
+// An iterator over the IS-IS levels defined by a `LevelType`.
+pub struct LevelTypeIterator {
+    level_type: LevelType,
+    idx: usize,
+}
+
 // Represents a single IS-IS level.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
@@ -123,6 +129,41 @@ impl From<&LevelNumber> for LevelType {
             LevelNumber::L1 => LevelType::L1,
             LevelNumber::L2 => LevelType::L2,
         }
+    }
+}
+
+impl IntoIterator for LevelType {
+    type Item = LevelNumber;
+    type IntoIter = LevelTypeIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        LevelTypeIterator::new(self)
+    }
+}
+
+// ===== impl LevelTypeIterator =====
+
+impl LevelTypeIterator {
+    const LEVELS: [LevelNumber; 2] = [LevelNumber::L1, LevelNumber::L2];
+
+    fn new(level_type: LevelType) -> Self {
+        Self { level_type, idx: 0 }
+    }
+}
+
+impl Iterator for LevelTypeIterator {
+    type Item = LevelNumber;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.idx < Self::LEVELS.len() {
+            let level = Self::LEVELS[self.idx];
+            self.idx += 1;
+
+            if self.level_type.intersects(level) {
+                return Some(level);
+            }
+        }
+        None
     }
 }
 

@@ -4,19 +4,45 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::collections::{BTreeMap, hash_map};
 use std::net::IpAddr;
 
-use holo_utils::ibus::{IbusMsg, IbusSender};
+use holo_utils::ibus::{IbusChannelsTx, IbusMsg, IbusSender};
+use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{RouteKeyMsg, RouteMsg};
 use ipnetwork::IpNetwork;
 
-use crate::rib::Route;
-use crate::{Interface, Master};
+use crate::rib::{NhtEntry, RedistributeSub, Route, RouteFlags};
+use crate::{InstanceId, Interface, Master};
 
 // ===== global functions =====
 
 pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
+    // Relay message to protocol instances.
+    match &msg {
+        IbusMsg::BfdSessionReg { .. } | IbusMsg::BfdSessionUnreg { .. } => {
+            // Relay to the BFD instance.
+            if let Some(instance) = master
+                .instances
+                .get(&InstanceId::new(Protocol::BFD, "main".to_owned()))
+            {
+                send(&instance.ibus_tx, msg.clone());
+            }
+        }
+        IbusMsg::KeychainUpd(..)
+        | IbusMsg::KeychainDel(..)
+        | IbusMsg::PolicyMatchSetsUpd(..)
+        | IbusMsg::PolicyUpd(..)
+        | IbusMsg::PolicyDel(..) => {
+            // Relay to all instances.
+            for instance in master.instances.values() {
+                send(&instance.ibus_tx, msg.clone());
+            }
+        }
+        _ => {}
+    }
+
     match msg {
         // Interface update notification.
         IbusMsg::InterfaceUpd(msg) => {
@@ -50,13 +76,15 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
             // Remove the local copy of the keychain.
             master.shared.keychains.remove(&keychain_name);
         }
-        IbusMsg::NexthopTrack(addr) => {
-            // Nexthop tracking registration.
-            master.rib.nht_add(addr, &master.ibus_tx);
+        // Nexthop tracking registration.
+        IbusMsg::NexthopTrack { subscriber, addr } => {
+            let subscriber = subscriber.unwrap();
+            master.rib.nht_add(subscriber, addr);
         }
-        IbusMsg::NexthopUntrack(addr) => {
-            // Nexthop tracking unregistration.
-            master.rib.nht_del(addr);
+        // Nexthop tracking unregistration.
+        IbusMsg::NexthopUntrack { subscriber, addr } => {
+            let subscriber = subscriber.unwrap();
+            master.rib.nht_del(subscriber, addr);
         }
         IbusMsg::PolicyMatchSetsUpd(match_sets) => {
             // Update the local copy of the policy match sets.
@@ -89,12 +117,6 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
             // Remove MPLS route from the LIB.
             master.rib.mpls_route_del(msg);
         }
-        IbusMsg::RouteRedistributeDump { protocol, af } => {
-            // Redistribute all requested routes.
-            master
-                .rib
-                .redistribute_request(protocol, af, &master.ibus_tx);
-        }
         IbusMsg::RouteBierAdd(msg) => {
             master.birt.bier_nbr_add(msg);
         }
@@ -104,22 +126,101 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
         IbusMsg::BierPurge => {
             master.birt.entries.clear();
         }
+        IbusMsg::RouteRedistributeSub {
+            subscriber,
+            protocol,
+            af,
+        } => {
+            let subscriber = subscriber.unwrap();
+            let sub = master.rib.subscriptions.entry(subscriber.id).or_insert(
+                RedistributeSub {
+                    protocols: Default::default(),
+                    tx: subscriber.tx,
+                },
+            );
+            if matches!(af, None | Some(AddressFamily::Ipv4)) {
+                sub.protocols.insert((AddressFamily::Ipv4, protocol));
+            }
+            if matches!(af, None | Some(AddressFamily::Ipv6)) {
+                sub.protocols.insert((AddressFamily::Ipv6, protocol));
+            }
+
+            // Redistribute active routes of the requested protocol type.
+            let redistribute_prefix =
+                |prefix, routes: &BTreeMap<u32, Route>| {
+                    if let Some(best_route) = routes
+                        .values()
+                        .find(|route| route.protocol == protocol)
+                        .filter(|route| {
+                            route.flags.contains(RouteFlags::ACTIVE)
+                                && !route.flags.contains(RouteFlags::REMOVED)
+                        })
+                    {
+                        notify_redistribute_add(sub, prefix, best_route);
+                    }
+                };
+            if af.is_none() || af == Some(AddressFamily::Ipv4) {
+                for (prefix, routes) in &master.rib.ipv4 {
+                    redistribute_prefix((*prefix).into(), routes);
+                }
+            }
+            if af.is_none() || af == Some(AddressFamily::Ipv6) {
+                for (prefix, routes) in &master.rib.ipv6 {
+                    redistribute_prefix((*prefix).into(), routes);
+                }
+            }
+        }
+        IbusMsg::RouteRedistributeUnsub {
+            subscriber,
+            protocol,
+            af,
+        } => {
+            let subscriber = subscriber.unwrap();
+            if let hash_map::Entry::Occupied(mut o) =
+                master.rib.subscriptions.entry(subscriber.id)
+            {
+                let sub = o.get_mut();
+                if matches!(af, None | Some(AddressFamily::Ipv4)) {
+                    sub.protocols.remove(&(AddressFamily::Ipv4, protocol));
+                }
+                if matches!(af, None | Some(AddressFamily::Ipv6)) {
+                    sub.protocols.remove(&(AddressFamily::Ipv6, protocol));
+                }
+                if sub.protocols.is_empty() {
+                    o.remove();
+                }
+            }
+        }
+        IbusMsg::Disconnect { subscriber } => {
+            let subscriber = subscriber.unwrap();
+            master.rib.subscriptions.remove(&subscriber.id);
+            for nhte in master.rib.nht.values_mut() {
+                nhte.subscriptions.remove(&subscriber.id);
+            }
+        }
         // Ignore other events.
         _ => {}
     }
 }
 
 // Requests information about all interfaces addresses.
-pub(crate) fn request_addresses(ibus_tx: &IbusSender) {
-    send(ibus_tx, IbusMsg::InterfaceDump);
+pub(crate) fn request_addresses(ibus_tx: &IbusChannelsTx) {
+    ibus_tx.interface_sub(None, None);
 }
 
 // Sends route redistribute update notification.
 pub(crate) fn notify_redistribute_add(
-    ibus_tx: &IbusSender,
+    sub: &RedistributeSub,
     prefix: IpNetwork,
     route: &Route,
 ) {
+    if !sub
+        .protocols
+        .contains(&(prefix.address_family(), route.protocol))
+    {
+        return;
+    }
+
     let msg = RouteMsg {
         protocol: route.protocol,
         prefix,
@@ -130,28 +231,33 @@ pub(crate) fn notify_redistribute_add(
         nexthops: route.nexthops.clone(),
     };
     let msg = IbusMsg::RouteRedistributeAdd(msg);
-    send(ibus_tx, msg);
+    send(&sub.tx, msg.clone());
 }
 
 // Sends route redistribute delete notification.
 pub(crate) fn notify_redistribute_del(
-    ibus_tx: &IbusSender,
+    sub: &RedistributeSub,
     prefix: IpNetwork,
     protocol: Protocol,
 ) {
+    if !sub.protocols.contains(&(prefix.address_family(), protocol)) {
+        return;
+    }
+
     let msg = RouteKeyMsg { protocol, prefix };
     let msg = IbusMsg::RouteRedistributeDel(msg);
-    send(ibus_tx, msg);
+    send(&sub.tx, msg.clone());
 }
 
 // Sends route redistribute delete notification.
-pub(crate) fn notify_nht_update(
-    ibus_tx: &IbusSender,
-    addr: IpAddr,
-    metric: Option<u32>,
-) {
-    let msg = IbusMsg::NexthopUpd { addr, metric };
-    send(ibus_tx, msg);
+pub(crate) fn notify_nht_update(addr: IpAddr, nhte: &NhtEntry) {
+    let msg = IbusMsg::NexthopUpd {
+        addr,
+        metric: nhte.metric,
+    };
+    for ibus_tx in nhte.subscriptions.values() {
+        send(ibus_tx, msg.clone());
+    }
 }
 
 // ===== helper functions =====

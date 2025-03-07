@@ -1,14 +1,9 @@
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"6.6.6.6"}}
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"6.6.6.6"}}
 {"Ibus":{"SrCfgUpd":{"prefix_sids":[[["6.6.6.6/32","Spf"],{"index":60,"last_hop":"NoPhp"}],[["2001:db8:1000::6/128","Spf"],{"index":61,"last_hop":"NoPhp"}]],"srgb":[{"lower_bound":16000,"upper_bound":23999}],"srlb":[]}}}
 {"Ibus":{"SrCfgEvent":"LabelRangeUpdate"}}
 {"Ibus":{"SrCfgEvent":{"PrefixSidUpdate":"Ipv4"}}}
 {"Ibus":{"SrCfgEvent":{"PrefixSidUpdate":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt4","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt5","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv6"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt4","ifindex":5,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt4","addr":"fe80::b480:3bff:fe24:8cf9/64","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt5","ifindex":3,"mtu":1500,"flags":"OPERATIVE"}}}
@@ -19,11 +14,8 @@
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"lo","addr":"2001:db8:1000::6/128","flags":""}}}
 {"Ibus":{"RouteMplsAdd":{"protocol":"ospfv3","label":16,"nexthops":[{"Address":{"ifindex":5,"addr":"fe80::448:31ff:fea0:32a4","labels":[3]}}],"route":null,"replace":false}}}
 {"Protocol":{"LsaOrigEvent":{"event":"SrEnableChange"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt4","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt5","af":"Ipv4"}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"E","lsa_id":"4.0.0.0","lsa_body":{"OpaqueArea":{"RouterInfo":{"info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":["Spf"],"srgb":[{"first":{"Label":16000},"range":8000}],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"E","lsa_id":"4.0.0.0","lsa_body":{"OpaqueArea":{"RouterInfo":{"info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":["Spf"],"srgb":[{"first":{"Label":16000},"range":8000}],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt4","ifindex":5,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt4","addr":"10.0.7.6/24","flags":""}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"E","lsa_id":"4.0.0.0","lsa_body":{"OpaqueArea":{"RouterInfo":{"info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":["Spf"],"srgb":[{"first":{"Label":16000},"range":8000}],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}}

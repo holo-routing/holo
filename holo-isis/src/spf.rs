@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 
 use chrono::Utc;
 use derive_new::new;
-use holo_utils::ip::AddressFamily;
+use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::task::TimeoutTask;
 use ipnetwork::IpNetwork;
 use tracing::debug_span;
@@ -29,7 +29,7 @@ use crate::lsdb::{LspEntry, LspLogId};
 use crate::northbound::configuration::MetricType;
 use crate::packet::consts::LspFlags;
 use crate::packet::pdu::Lsp;
-use crate::packet::tlv::Nlpid;
+use crate::packet::tlv::{IpReachTlvEntry, Nlpid};
 use crate::packet::{LanId, LevelNumber, LevelType, LspId, SystemId};
 use crate::route::Route;
 use crate::{route, tasks};
@@ -163,6 +163,7 @@ pub mod fsm {
         DelayTimer,
         HoldDownTimer,
         LearnTimer,
+        AdjacencyChange,
         ConfigChange,
     }
 }
@@ -170,7 +171,7 @@ pub mod fsm {
 // ===== impl VertexId =====
 
 impl VertexId {
-    fn new(lan_id: LanId) -> VertexId {
+    pub(crate) fn new(lan_id: LanId) -> VertexId {
         VertexId {
             non_pseudonode: !lan_id.is_pseudonode(),
             lan_id,
@@ -332,7 +333,7 @@ pub(crate) fn fsm(
         // Custom FSM transition.
         (
             fsm::State::Quiet | fsm::State::ShortWait | fsm::State::LongWait,
-            fsm::Event::ConfigChange,
+            fsm::Event::AdjacencyChange | fsm::Event::ConfigChange,
         ) => {
             // Cancel the next scheduled SPF run, but preserve the other timers.
             spf_sched.delay_timer = None;
@@ -392,7 +393,7 @@ fn compute_spf(
     // Get list of new or updated LSPs that triggered the SPF computation.
     let trigger_lsps = std::mem::take(&mut spf_sched.trigger_lsps);
 
-    // Compute shorted-path tree if necessary.
+    // Compute shortest-path tree if necessary.
     let spf_type = std::mem::take(&mut spf_sched.spf_type);
     if spf_type == SpfType::Full {
         let spt =
@@ -400,42 +401,19 @@ fn compute_spf(
         *instance.state.spt.get_mut(level) = spt;
     }
 
-    // Compute routing table.
-    let mut rib = compute_routes(level, instance, lsp_entries);
+    // Compute the new RIB for the current level.
+    let new_rib =
+        compute_routes(level, instance, interfaces, adjacencies, lsp_entries);
 
-    // Update local routing table
-    match instance.config.level_type {
-        LevelType::L1 | LevelType::L2 => {
-            let old_rib =
-                std::mem::take(instance.state.rib_single.get_mut(level));
+    // Update the local RIB and global RIB.
+    route::update_rib(level, new_rib, instance, interfaces);
 
-            // Update the global RIB.
-            route::update_global_rib(&mut rib, old_rib, instance, interfaces);
-
-            // Store the RIB specific to the current level.
-            *instance.state.rib_single.get_mut(level) = rib;
-        }
-        LevelType::All => {
-            let old_rib = std::mem::take(&mut instance.state.rib_multi);
-
-            // Store the RIB specific to the current level.
-            *instance.state.rib_single.get_mut(level) = rib;
-
-            // Build a merged RIB where L1 routes are preferred over L2 routes.
-            let rib_l1 = instance.state.rib_single.get(LevelNumber::L1);
-            let rib_l2 = instance.state.rib_single.get(LevelNumber::L2);
-            let mut rib = rib_l2
-                .iter()
-                .chain(rib_l1.iter())
-                .map(|(prefix, route)| (*prefix, route.clone()))
-                .collect();
-
-            // Update the global RIB.
-            route::update_global_rib(&mut rib, old_rib, instance, interfaces);
-
-            // Store the merged RIB.
-            instance.state.rib_multi = rib;
-        }
+    // If this is an L1 LSP in an L1/L2 router, schedule LSP reorigination at L2
+    // to propagate updates. This happens only after SPF, as the SPT tree is
+    // needed to compute distances to L1 routers.
+    if level == LevelNumber::L1 && instance.config.level_type == LevelType::All
+    {
+        instance.schedule_lsp_origination(LevelType::L2);
     }
 
     // Update statistics.
@@ -488,7 +466,7 @@ fn compute_spt(
         spt.insert(vertex.id, vertex);
         let vertex = spt.get(&vertex_id).unwrap();
 
-        // Skip bad LSPs.
+        // Skip if the zeroth LSP is missing.
         let Some(zeroth_lsp) = zeroth_lsp(vertex.id.lan_id, lsdb, lsp_entries)
         else {
             continue;
@@ -611,6 +589,8 @@ fn compute_spt(
 fn compute_routes(
     level: LevelNumber,
     instance: &InstanceUpView<'_>,
+    interfaces: &Interfaces,
+    adjacencies: &Arena<Adjacency>,
     lsp_entries: &Arena<LspEntry>,
 ) -> BTreeMap<IpNetwork, Route> {
     let lsdb = instance.state.lsdb.get(level);
@@ -620,11 +600,31 @@ fn compute_routes(
     let mut rib = BTreeMap::new();
 
     // Populate RIB.
+    let is_l2_attached_to_backbone =
+        instance.is_l2_attached_to_backbone(interfaces, adjacencies);
     let ipv4_enabled = instance.config.is_af_enabled(AddressFamily::Ipv4);
     let ipv6_enabled = instance.config.is_af_enabled(AddressFamily::Ipv6);
-    for vertex in instance.state.spt.get(level).values() {
+    for vertex in instance
+        .state
+        .spt
+        .get(level)
+        .values()
+        .filter(|vertex| vertex.hops > 0)
+    {
+        // Skip if the zeroth LSP is missing.
+        let Some(zeroth_lsp) = zeroth_lsp(vertex.id.lan_id, lsdb, lsp_entries)
+        else {
+            continue;
+        };
+        let att_bit = !instance.config.att_ignore
+            && zeroth_lsp.flags.contains(LspFlags::ATT);
+
         for network in vertex_networks(
-            &vertex.id,
+            instance.config.level_type,
+            level,
+            vertex,
+            att_bit,
+            is_l2_attached_to_backbone,
             metric_type,
             ipv4_enabled,
             ipv6_enabled,
@@ -776,7 +776,11 @@ fn vertex_edges<'a>(
 
 // Iterate over all IP reachability entries attached to a vertex.
 fn vertex_networks<'a>(
-    vertex_id: &VertexId,
+    level_type: LevelType,
+    level: LevelNumber,
+    vertex: &Vertex,
+    att_bit: bool,
+    is_l2_attached_to_backbone: bool,
     metric_type: MetricType,
     ipv4_enabled: bool,
     ipv6_enabled: bool,
@@ -784,14 +788,41 @@ fn vertex_networks<'a>(
     lsp_entries: &'a Arena<LspEntry>,
 ) -> impl Iterator<Item = VertexNetwork> + 'a {
     // Iterate over all LSP fragments.
-    lsdb.iter_for_lan_id(lsp_entries, vertex_id.lan_id)
+    lsdb.iter_for_lan_id(lsp_entries, vertex.id.lan_id)
         .map(|lse| &lse.data)
         .filter(|lsp| lsp.seqno != 0)
         .filter(|lsp| lsp.rem_lifetime != 0)
         .flat_map(move |lsp| {
+            let mut inter_area_defaults_iter = None;
             let mut ipv4_standard_iter = None;
             let mut ipv4_wide_iter = None;
             let mut ipv6_iter = None;
+
+            // If the L1 LSP has the ATT bit set, add a default route if the
+            // router is L1, or if the router is L1/L2 but not attached to the
+            // L2 backbone.
+            if att_bit
+                && level == LevelNumber::L1
+                && (level_type == LevelType::L1 || !is_l2_attached_to_backbone)
+            {
+                let mut inter_area_defaults = vec![];
+                if ipv4_enabled {
+                    inter_area_defaults.push(VertexNetwork {
+                        prefix: IpNetwork::default(AddressFamily::Ipv4),
+                        metric: 0,
+                        external: false,
+                    });
+                }
+                if ipv6_enabled {
+                    inter_area_defaults.push(VertexNetwork {
+                        prefix: IpNetwork::default(AddressFamily::Ipv6),
+                        metric: 0,
+                        external: false,
+                    });
+                }
+                inter_area_defaults_iter =
+                    Some(inter_area_defaults.into_iter());
+            }
 
             // Iterate over IPv4 reachability entries.
             if ipv4_enabled {
@@ -856,6 +887,7 @@ fn vertex_networks<'a>(
             }
 
             chain_option_iterators!(
+                inter_area_defaults_iter,
                 ipv4_standard_iter,
                 ipv4_wide_iter,
                 ipv6_iter,

@@ -1,6 +1,6 @@
-{"InterfaceQuery":{"ifname":"eth-rt4","af":"Ipv4"}}
-{"InterfaceQuery":{"ifname":"eth-rt5","af":"Ipv4"}}
-{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}
+{"InterfaceSub":{"ifname":"eth-rt4","af":"Ipv4"}}
+{"InterfaceSub":{"ifname":"eth-rt5","af":"Ipv4"}}
+{"InterfaceSub":{"ifname":"lo","af":"Ipv4"}}
 {"RouteIpAdd":{"protocol":"ripv2","prefix":"1.1.1.1/32","distance":120,"metric":4,"tag":0,"nexthops":[{"Address":{"ifindex":5,"addr":"10.0.7.4","labels":[]}}]}}
 {"RouteIpAdd":{"protocol":"ripv2","prefix":"2.2.2.2/32","distance":120,"metric":3,"tag":0,"nexthops":[{"Address":{"ifindex":5,"addr":"10.0.7.4","labels":[]}}]}}
 {"RouteIpAdd":{"protocol":"ripv2","prefix":"3.3.3.3/32","distance":120,"metric":4,"tag":0,"nexthops":[{"Address":{"ifindex":5,"addr":"10.0.7.4","labels":[]}}]}}

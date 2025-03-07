@@ -93,12 +93,10 @@ impl Fec {
     }
 
     pub(crate) fn is_operational(&self) -> bool {
-        /*
-         * RFC 9070 - Section 7:
-         * "It is to be noted that an LDP FEC is treated as operational (up)
-         * as long as it has at least 1 NHLFE (Next Hop Label Forwarding
-         * Entry) with outgoing label".
-         */
+        // RFC 9070 - Section 7:
+        // "It is to be noted that an LDP FEC is treated as operational (up)
+        // as long as it has at least 1 NHLFE (Next Hop Label Forwarding
+        // Entry) with outgoing label".
         self.nexthops
             .values()
             .any(|nexthop| nexthop.get_label().is_some())

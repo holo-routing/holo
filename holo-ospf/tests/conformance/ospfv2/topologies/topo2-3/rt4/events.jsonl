@@ -1,15 +1,8 @@
-{"Ibus":"RouterIdQuery"}
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"4.4.4.4"}}
 {"Ibus":{"RouterIdUpdate":"4.4.4.4"}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2-1","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2-2","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt5","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt6","af":"Ipv4"}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"E","lsa_id":"4.0.0.0","lsa_body":{"OpaqueArea":{"RouterInfo":{"info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":null,"srgb":[],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt2-1","ifindex":4,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"E","lsa_id":"4.0.0.0","lsa_body":{"OpaqueArea":{"RouterInfo":{"info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":null,"srgb":[],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}}
 {"Protocol":{"SpfDelayEvent":{"event":"Igp"}}}
@@ -43,14 +36,9 @@
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"E","lsa_id":"4.4.4.4","lsa_body":{"Router":{"flags":"","links":[{"link_type":"StubNetwork","link_id":"4.4.4.4","link_data":"255.255.255.255","metric":0}]}}}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"E","lsa_id":"4.4.4.4","lsa_body":{"Router":{"flags":"","links":[{"link_type":"StubNetwork","link_id":"4.4.4.4","link_data":"255.255.255.255","metric":0}]}}}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"E","lsa_id":"4.4.4.4","lsa_body":{"Router":{"flags":"","links":[{"link_type":"StubNetwork","link_id":"4.4.4.4","link_data":"255.255.255.255","metric":0}]}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2-1","af":"Ipv6"}}}
 {"Protocol":{"NetRxPacket":{"area_key":{"Id":1},"iface_key":{"Id":3},"src":"5.5.5.5","dst":"224.0.0.5","packet":{"Ok":{"DbDesc":{"hdr":{"pkt_type":"DbDesc","router_id":"5.5.5.5","area_id":"0.0.0.0"},"mtu":1500,"options":"E | O","dd_flags":"MS | M | I","dd_seq_no":67372037,"lsa_hdrs":[]}}}}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"E","lsa_id":"4.4.4.4","lsa_body":{"Router":{"flags":"","links":[{"link_type":"StubNetwork","link_id":"4.4.4.4","link_data":"255.255.255.255","metric":0}]}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2-2","af":"Ipv6"}}}
 {"Protocol":{"SpfDelayEvent":{"event":"Igp"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt5","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt6","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv6"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt2-1","ifindex":4,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt2-1","addr":"fe80::b0e9:44ff:fee6:dc20/64","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt2-2","ifindex":6,"mtu":1500,"flags":"OPERATIVE"}}}

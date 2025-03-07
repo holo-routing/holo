@@ -56,7 +56,7 @@ pub struct Interfaces {
 pub struct Adjacencies {
     id_tree: HashMap<AdjacencyId, AdjacencyIndex>,
     snpa_tree: BTreeMap<[u8; 6], AdjacencyIndex>,
-    system_id_tree: HashMap<SystemId, AdjacencyIndex>,
+    system_id_tree: BTreeMap<SystemId, AdjacencyIndex>,
     next_id: AdjacencyId,
 }
 

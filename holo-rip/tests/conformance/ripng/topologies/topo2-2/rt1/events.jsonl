@@ -1,12 +1,8 @@
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-sw1","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv6"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-sw1","ifindex":3,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-sw1","addr":"fe80::9472:5cff:fe85:dcfd/64","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"lo","addr":"2001:db8:1000::1/128","flags":""}}}
 {"Protocol":{"TriggeredUpd":{}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-sw1","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-sw1","ifindex":3,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-sw1","addr":"10.0.1.1/24","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}

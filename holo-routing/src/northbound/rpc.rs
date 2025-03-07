@@ -42,7 +42,7 @@ impl Provider for Master {
         let (protocol, name) = find_instance(rpc)?;
 
         let mut child_tasks = vec![];
-        for (instance_id, sender) in &self.instances {
+        for (instance_id, instance) in &self.instances {
             // Filter by protocol type.
             if instance_id.protocol != protocol {
                 continue;
@@ -55,7 +55,7 @@ impl Provider for Master {
                 }
             }
 
-            child_tasks.push(sender.clone());
+            child_tasks.push(instance.nb_tx.clone());
         }
 
         Ok(Some(child_tasks))

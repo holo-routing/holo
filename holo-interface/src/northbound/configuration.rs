@@ -19,8 +19,9 @@ use holo_northbound::{CallbackKey, NbDaemonSender};
 use holo_protocol::spawn_protocol_task;
 use holo_utils::yang::DataNodeRefExt;
 use ipnetwork::IpNetwork;
+use tokio::sync::mpsc;
 
-use crate::interface::Owner;
+use crate::interface::{Owner, VrrpHandle};
 use crate::northbound::REGEX_VRRP;
 use crate::{Master, netlink};
 
@@ -339,7 +340,9 @@ impl Provider for Master {
             .filter_map(|(ifname, changes)| {
                 self.interfaces
                     .get_by_name(&ifname)
-                    .and_then(|iface| iface.vrrp.clone())
+                    .and_then(|iface| {
+                        iface.vrrp.as_ref().map(|vrrp| vrrp.nb_tx.clone())
+                    })
                     .map(|nb_tx| (changes, nb_tx))
             })
             .collect::<Vec<_>>()
@@ -348,7 +351,9 @@ impl Provider for Master {
     fn relay_validation(&self) -> Vec<NbDaemonSender> {
         self.interfaces
             .iter()
-            .filter_map(|iface| iface.vrrp.clone())
+            .filter_map(|iface| {
+                iface.vrrp.as_ref().map(|vrrp| vrrp.nb_tx.clone())
+            })
             .collect()
     }
 
@@ -356,7 +361,7 @@ impl Provider for Master {
         match event {
             Event::InterfaceDelete(ifname) => {
                 self.interfaces
-                    .remove(&ifname, Owner::CONFIG, &self.netlink_handle, None)
+                    .remove(&ifname, Owner::CONFIG, &self.netlink_handle)
                     .await;
             }
             Event::AdminStatusChange(ifname, enabled) => {
@@ -433,15 +438,21 @@ impl Provider for Master {
                     if let Some(iface) =
                         self.interfaces.get_mut_by_name(&ifname)
                     {
-                        let vrrp = spawn_protocol_task::<
+                        let (ibus_instance_tx, ibus_instance_rx) =
+                            mpsc::unbounded_channel();
+                        let nb_daemon_tx = spawn_protocol_task::<
                             holo_vrrp::interface::Interface,
                         >(
                             ifname,
                             &self.nb_tx,
                             &self.ibus_tx,
+                            ibus_instance_tx.clone(),
+                            ibus_instance_rx,
                             Default::default(),
                             self.shared.clone(),
                         );
+                        let vrrp =
+                            VrrpHandle::new(nb_daemon_tx, ibus_instance_tx);
                         iface.vrrp = Some(vrrp);
                     }
                 }

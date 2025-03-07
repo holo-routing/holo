@@ -81,28 +81,6 @@ pub struct InterfaceUpdateMsg {
 
 #[derive(Clone, Debug)]
 #[derive(Deserialize, Serialize)]
-pub struct MacvlanAddMsg {
-    pub parent_name: String,
-    pub name: String,
-    pub mac_address: Option<[u8; 6]>,
-}
-
-#[derive(Clone, Debug)]
-#[derive(Deserialize, Serialize)]
-pub struct InterfaceIpAddRequestMsg {
-    pub ifname: String,
-    pub addr: IpNetwork,
-}
-
-#[derive(Clone, Debug)]
-#[derive(Deserialize, Serialize)]
-pub struct InterfaceIpDelRequestMsg {
-    pub ifname: String,
-    pub addr: IpNetwork,
-}
-
-#[derive(Clone, Debug)]
-#[derive(Deserialize, Serialize)]
 pub struct AddressMsg {
     pub ifname: String,
     pub addr: IpNetwork,

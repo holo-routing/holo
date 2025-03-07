@@ -13,7 +13,6 @@ use std::sync::atomic::AtomicU32;
 
 use chrono::{DateTime, Utc};
 use holo_utils::UnboundedSender;
-use holo_utils::ibus::{IbusMsg, IbusSender};
 use holo_utils::ip::AddressFamily;
 use holo_utils::socket::{AsyncFd, Socket, SocketExt};
 use holo_utils::southbound::InterfaceFlags;
@@ -546,7 +545,6 @@ impl Interface {
                 for level in self
                     .config
                     .levels()
-                    .into_iter()
                     .filter(|level| level_filter.intersects(level))
                 {
                     let pdu = self.generate_hello(level, instance);
@@ -607,7 +605,7 @@ impl Interface {
         &mut self,
         instance: &InstanceUpView<'_>,
     ) {
-        for level in self.config.levels().into_iter() {
+        for level in self.config.levels() {
             if self.state.tasks.csnp_interval.get(level).is_none() {
                 continue;
             }
@@ -637,7 +635,7 @@ impl Interface {
         }
 
         // Check if the LSP is too large to be sent on this interface.
-        if lsp.raw.len() as u32 > self.system.mtu.unwrap() {
+        if lsp.raw.len() as u32 > self.iso_mtu() {
             Debug::LspTooLarge(self, level, &lsp).log();
             notification::lsp_too_large(instance, self, &lsp);
             return;
@@ -713,15 +711,6 @@ impl Interface {
         let dst = self.config.interface_type.multicast_addr(level);
         let msg = NetTxPduMsg { pdu, ifindex, dst };
         let _ = self.state.net.as_ref().unwrap().net_tx_pdup.send(msg);
-    }
-
-    // Sends a southbound request for interface system information, such as
-    // operational status and IP addresses.
-    pub(crate) fn query_southbound(&self, ibus_tx: &IbusSender) {
-        let _ = ibus_tx.send(IbusMsg::InterfaceQuery {
-            ifname: self.name.clone(),
-            af: None,
-        });
     }
 }
 

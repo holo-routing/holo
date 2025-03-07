@@ -1,6 +1,6 @@
-{"InterfaceQuery":{"ifname":"eth-rt2","af":"Ipv6"}}
-{"InterfaceQuery":{"ifname":"eth-rt3","af":"Ipv6"}}
-{"InterfaceQuery":{"ifname":"lo","af":"Ipv6"}}
+{"InterfaceSub":{"ifname":"eth-rt2","af":"Ipv6"}}
+{"InterfaceSub":{"ifname":"eth-rt3","af":"Ipv6"}}
+{"InterfaceSub":{"ifname":"lo","af":"Ipv6"}}
 {"RouteIpAdd":{"protocol":"ripng","prefix":"2001:db8:1000::2/128","distance":120,"metric":2,"tag":0,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::6888:b5ff:fed3:ac14","labels":[]}}]}}
 {"RouteIpAdd":{"protocol":"ripng","prefix":"2001:db8:1000::3/128","distance":120,"metric":2,"tag":0,"nexthops":[{"Address":{"ifindex":5,"addr":"fe80::84d2:dbff:fe90:f4a0","labels":[]}}]}}
 {"RouteIpAdd":{"protocol":"ripng","prefix":"2001:db8:1000::4/128","distance":120,"metric":7,"tag":0,"nexthops":[{"Address":{"ifindex":5,"addr":"fe80::84d2:dbff:fe90:f4a0","labels":[]}}]}}

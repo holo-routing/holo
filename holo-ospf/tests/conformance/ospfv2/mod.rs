@@ -448,6 +448,31 @@ async fn nb_config_iface1() {
 // Test description:
 //
 // Input:
+//  * Northbound: configure two admin node tags (10 and 20)
+// Output:
+//  * Northbound:
+//    - the self-originated RI-LSA now contains two admin node tags
+//    - the retransmission queue length of all adjacencies increases to 1
+//    - the SPF Delay FSM state transitions from "quiet" to "short-wait"
+//  * Protocol: send an LS Update to all adjacencies containing the updated
+//    RI-LSA
+//
+// Input:
+//  * Northbound: remove the two previously configured admin node tags
+// Output:
+//  * Northbound:
+//    - the self-originated RI-LSA no longer contains admin node tags
+//  * Protocol: send an LS Update to all adjacencies containing the updated
+//    RI-LSA
+#[tokio::test]
+async fn nb_config_node_tags1() {
+    run_test::<Instance<Ospfv2>>("nb-config-node-tags1", "topo2-1", "rt6")
+        .await;
+}
+
+// Test description:
+//
+// Input:
 //  * Northbound: change the cost of the eth-rt1 interface to 50
 // Output:
 //  * Protocol: send an LS Update to rt3 containing the updated self-originated
@@ -1283,6 +1308,41 @@ async fn sb_addr_del2() {
 #[tokio::test]
 async fn sb_addr_del3() {
     run_test::<Instance<Ospfv2>>("sb-addr-del3", "topo2-1", "rt2").await;
+}
+
+// Test description:
+//
+// Input:
+//  * Southbound: hostname update ("earth")
+// Output:
+//  * Northbound:
+//    - the self-originated RI-LSA now contains the "earth" hostname
+//    - the "hostnames" list now maps Router ID 6.6.6.6 to the hostname "earth"
+//    - the retransmission queue length of all adjacencies increases to 1
+//    - the SPF Delay FSM state transitions from "quiet" to "short-wait"
+//  * Protocol: send an LS Update to all adjacencies containing the updated
+//    RI-LSA
+//
+// Input:
+//  * Southbound: hostname update ("mars")
+// Output:
+//  * Northbound:
+//    - the self-originated RI-LSA now contains the "mars" hostname
+//    - the "hostnames" list now maps Router ID 6.6.6.6 to the hostname "mars"
+//  * Protocol: send an LS Update to all adjacencies containing the updated
+//    RI-LSA
+//
+// Input:
+//  * Southbound: hostname update (none)
+// Output:
+//  * Northbound:
+//    - the self-originated RI-LSA now has no hostname
+//    - the "hostnames" list is removed
+//  * Protocol: send an LS Update to all adjacencies containing the updated
+//    RI-LSA
+#[tokio::test]
+async fn sb_hostname_update1() {
+    run_test::<Instance<Ospfv2>>("sb-hostname-update1", "topo2-1", "rt6").await;
 }
 
 // Test description:

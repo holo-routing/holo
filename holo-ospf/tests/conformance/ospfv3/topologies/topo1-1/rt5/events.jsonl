@@ -1,10 +1,6 @@
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"5.5.5.5"}}
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"5.5.5.5"}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt4","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv6"}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":null,"lsa_id":"0.0.0.0","lsa_body":{"RouterInfo":{"scope":"Area","info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":null,"srgb":[],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt4","ifindex":3,"mtu":1500,"flags":"OPERATIVE"}}}
@@ -26,8 +22,6 @@
 {"Protocol":{"SpfDelayEvent":{"event":"Igp"}}}
 {"Protocol":{"SpfDelayEvent":{"event":"Igp"}}}
 {"Protocol":{"SpfDelayEvent":{"event":"Igp"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt4","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt4","ifindex":3,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt4","addr":"10.0.5.5/24","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}

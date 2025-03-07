@@ -74,7 +74,7 @@ fn load_callbacks() -> Callbacks<Master> {
     CallbacksBuilder::<Master>::default()
         .path(control_plane_protocol::PATH)
         .get_iterate(|master, _args| {
-            let iter = master.instances.iter().map(|(instance_id, nb_tx)| ProtocolInstance::new(instance_id, nb_tx)).map(ListEntry::ProtocolInstance);
+            let iter = master.instances.iter().map(|(instance_id, instance)| ProtocolInstance::new(instance_id, &instance.nb_tx)).map(ListEntry::ProtocolInstance);
             Some(Box::new(iter))
         })
         .get_object(|_master, args| {
@@ -356,10 +356,20 @@ impl Provider for Master {
 // ===== impl ListEntry =====
 
 impl ListEntryKind for ListEntry<'_> {
-    fn child_task(&self) -> Option<NbDaemonSender> {
+    fn child_task(&self, module_name: &str) -> Option<NbDaemonSender> {
         match self {
             ListEntry::ProtocolInstance(instance) => {
-                Some(instance.nb_tx.clone())
+                match (module_name, instance.id.protocol) {
+                    ("ietf-bfd", Protocol::BFD)
+                    | ("ietf-bgp", Protocol::BGP)
+                    | ("ietf-isis", Protocol::ISIS)
+                    | ("ietf-mpls-ldp", Protocol::LDP)
+                    | ("ietf-ospf", Protocol::OSPFV2 | Protocol::OSPFV3)
+                    | ("ietf-rip", Protocol::RIPV2 | Protocol::RIPNG) => {
+                        Some(instance.nb_tx.clone())
+                    }
+                    _ => None,
+                }
             }
             _ => None,
         }

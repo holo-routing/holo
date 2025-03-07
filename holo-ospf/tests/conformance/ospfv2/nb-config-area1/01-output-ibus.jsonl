@@ -1,1 +1,3 @@
+{"InterfaceUnsub":{"ifname":"eth-rt1"}}
+{"InterfaceUnsub":{"ifname":"lo"}}
 {"RouteIpDel":{"protocol":"ospfv2","prefix":"1.1.1.1/32"}}

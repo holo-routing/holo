@@ -15,7 +15,9 @@ use ipnetwork::IpNetwork;
 use libc::{RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, RTNLGRP_LINK};
 use netlink_packet_core::{NetlinkMessage, NetlinkPayload};
 use netlink_packet_route::RouteNetlinkMessage;
-use netlink_packet_route::address::{AddressAttribute, AddressMessage};
+use netlink_packet_route::address::{
+    AddressAttribute, AddressFlag, AddressMessage,
+};
 use netlink_packet_route::link::{
     LinkAttribute, LinkFlag, LinkLayerType, LinkMessage,
 };
@@ -33,11 +35,7 @@ pub type NetlinkMonitor =
 
 // ===== helper functions =====
 
-async fn process_newlink_msg(
-    master: &mut Master,
-    msg: LinkMessage,
-    notify: bool,
-) {
+async fn process_newlink_msg(master: &mut Master, msg: LinkMessage) {
     trace!(?msg, "received RTM_NEWLINK message");
 
     // Fetch interface attributes.
@@ -73,7 +71,6 @@ async fn process_newlink_msg(
     };
 
     // Add or update interface.
-    let ibus_tx = notify.then_some(&master.ibus_tx);
     master
         .interfaces
         .update(
@@ -83,16 +80,11 @@ async fn process_newlink_msg(
             flags,
             mac_address,
             &master.netlink_handle,
-            ibus_tx,
         )
         .await;
 }
 
-async fn process_dellink_msg(
-    master: &mut Master,
-    msg: LinkMessage,
-    notify: bool,
-) {
+async fn process_dellink_msg(master: &mut Master, msg: LinkMessage) {
     trace!(?msg, "received RTM_DELLINK message");
 
     // Fetch interface ifindex.
@@ -100,16 +92,15 @@ async fn process_dellink_msg(
 
     // Remove interface.
     if let Some(iface) = master.interfaces.get_by_ifindex(ifindex) {
-        let ibus_tx = notify.then_some(&master.ibus_tx);
         let ifname = iface.name.clone();
         master
             .interfaces
-            .remove(&ifname, Owner::SYSTEM, &master.netlink_handle, ibus_tx)
+            .remove(&ifname, Owner::SYSTEM, &master.netlink_handle)
             .await;
     }
 }
 
-fn process_newaddr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
+fn process_newaddr_msg(master: &mut Master, msg: AddressMessage) {
     trace!(?msg, "received RTM_NEWADDR message");
 
     // Fetch address attributes.
@@ -118,6 +109,15 @@ fn process_newaddr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
     for nla in msg.attributes.into_iter() {
         match nla {
             AddressAttribute::Address(nla_addr) => addr = Some(nla_addr),
+            AddressAttribute::Flags(nla_flags) => {
+                // Ignore the address if it is still undergoing Duplicate
+                // Address Detection (DAD) or has failed DAD.
+                if nla_flags.contains(&AddressFlag::Tentative)
+                    || nla_flags.contains(&AddressFlag::Dadfailed)
+                {
+                    return;
+                }
+            }
             _ => (),
         }
     }
@@ -135,11 +135,10 @@ fn process_newaddr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
     };
 
     // Add address to the interface.
-    let ibus_tx = notify.then_some(&master.ibus_tx);
-    master.interfaces.addr_add(ifindex, addr, ibus_tx);
+    master.interfaces.addr_add(ifindex, addr);
 }
 
-fn process_deladdr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
+fn process_deladdr_msg(master: &mut Master, msg: AddressMessage) {
     trace!(?msg, "received RTM_DELADDR message");
 
     // Fetch address attributes.
@@ -165,8 +164,7 @@ fn process_deladdr_msg(master: &mut Master, msg: AddressMessage, notify: bool) {
     };
 
     // Remove address from the interface.
-    let ibus_tx = notify.then_some(&master.ibus_tx);
-    master.interfaces.addr_del(ifindex, addr, ibus_tx);
+    master.interfaces.addr_del(ifindex, addr);
 }
 
 fn parse_address(
@@ -302,16 +300,16 @@ pub(crate) async fn process_msg(
     if let NetlinkPayload::InnerMessage(msg) = msg.payload {
         match msg {
             RouteNetlinkMessage::NewLink(msg) => {
-                process_newlink_msg(master, msg, true).await
+                process_newlink_msg(master, msg).await
             }
             RouteNetlinkMessage::DelLink(msg) => {
-                process_dellink_msg(master, msg, true).await
+                process_dellink_msg(master, msg).await
             }
             RouteNetlinkMessage::NewAddress(msg) => {
-                process_newaddr_msg(master, msg, true)
+                process_newaddr_msg(master, msg)
             }
             RouteNetlinkMessage::DelAddress(msg) => {
-                process_deladdr_msg(master, msg, true)
+                process_deladdr_msg(master, msg)
             }
             _ => (),
         }
@@ -326,7 +324,7 @@ pub(crate) async fn start(master: &mut Master) {
         .await
         .expect("Failed to fetch interface information")
     {
-        process_newlink_msg(master, msg, false).await;
+        process_newlink_msg(master, msg).await;
     }
 
     // Fetch address information.
@@ -336,7 +334,7 @@ pub(crate) async fn start(master: &mut Master) {
         .await
         .expect("Failed to fetch interface address information")
     {
-        process_newaddr_msg(master, msg, false);
+        process_newaddr_msg(master, msg);
     }
 }
 

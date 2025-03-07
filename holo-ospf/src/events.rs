@@ -11,7 +11,8 @@ use std::sync::Arc;
 
 use chrono::Utc;
 use holo_utils::bfd;
-use holo_utils::ibus::{BierCfgEvent, SrCfgEvent};
+use holo_utils::bier::BierCfgEvent;
+use holo_utils::sr::SrCfgEvent;
 
 use crate::area::{Area, AreaType};
 use crate::collections::{

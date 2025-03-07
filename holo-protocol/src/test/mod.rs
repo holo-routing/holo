@@ -25,6 +25,31 @@ pub struct OutputChannelsRx<T> {
     protocol_txc: Receiver<T>,
 }
 
+// ===== macros =====
+
+/// Asserts that two byte slices are equal, printing differences in hex format
+/// if they are not.
+#[macro_export]
+macro_rules! assert_eq_hex {
+    ($left:expr, $right:expr) => {
+        if $left != $right {
+            panic!(
+                "assertion `left == right` failed\n  left: [{}]\n right: [{}]",
+                $left
+                    .iter()
+                    .map(|b| format!("0x{:02x}", b))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                $right
+                    .iter()
+                    .map(|b| format!("0x{:02x}", b))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+        }
+    };
+}
+
 // ===== helper functions =====
 
 // Initializes tracing subscriber.

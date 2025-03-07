@@ -9,7 +9,7 @@ use std::net::IpAddr;
 use chrono::Utc;
 use holo_protocol::InstanceShared;
 use holo_utils::bgp::RouteType;
-use holo_utils::ibus::IbusSender;
+use holo_utils::ibus::IbusChannelsTx;
 use holo_utils::ip::{IpAddrKind, IpNetworkKind};
 use holo_utils::policy::{PolicyResult, PolicyType};
 use holo_utils::socket::{TcpConnInfo, TcpStream};
@@ -342,7 +342,7 @@ fn process_nbr_unreach_prefixes<A>(
     nbr: &Neighbor,
     rib: &mut Rib,
     nlri_prefixes: Vec<A::IpNetwork>,
-    ibus_tx: &IbusSender,
+    ibus_tx: &IbusChannelsTx,
 ) where
     A: AddressFamily,
 {

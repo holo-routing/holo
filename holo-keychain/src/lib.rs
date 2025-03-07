@@ -13,7 +13,7 @@ use holo_northbound::{
     NbDaemonReceiver, NbDaemonSender, NbProviderSender, ProviderBase,
     process_northbound_msg,
 };
-use holo_utils::ibus::{IbusReceiver, IbusSender};
+use holo_utils::ibus::{IbusChannelsTx, IbusReceiver};
 use holo_utils::keychain::Keychain;
 use tokio::sync::mpsc;
 use tracing::Instrument;
@@ -22,8 +22,8 @@ use tracing::Instrument;
 pub struct Master {
     // Northbound Tx channel.
     pub nb_tx: NbProviderSender,
-    // Internal bus Tx channel.
-    pub ibus_tx: IbusSender,
+    // Internal bus Tx channels.
+    pub ibus_tx: IbusChannelsTx,
     // List of configured key-chains.
     #[new(default)]
     pub keychains: BTreeMap<String, Keychain>,
@@ -49,7 +49,7 @@ impl Master {
                     )
                     .await;
                 }
-                Ok(_) = ibus_rx.recv() => {
+                Some(_) = ibus_rx.recv() => {
                     // Ignore for now.
                 }
             }
@@ -61,7 +61,7 @@ impl Master {
 
 pub fn start(
     nb_provider_tx: NbProviderSender,
-    ibus_tx: IbusSender,
+    ibus_tx: IbusChannelsTx,
     ibus_rx: IbusReceiver,
 ) -> NbDaemonSender {
     let (nb_daemon_tx, nb_daemon_rx) = mpsc::channel(4);

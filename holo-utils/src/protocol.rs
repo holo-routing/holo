@@ -31,6 +31,24 @@ pub enum Protocol {
 
 // ===== impl Protocol =====
 
+impl Protocol {
+    // Returns an iterator over protocols that serve as route types.
+    pub fn route_types() -> impl Iterator<Item = Protocol> {
+        [
+            Protocol::BGP,
+            Protocol::DIRECT,
+            Protocol::ISIS,
+            Protocol::LDP,
+            Protocol::OSPFV2,
+            Protocol::OSPFV3,
+            Protocol::RIPV2,
+            Protocol::RIPNG,
+            Protocol::STATIC,
+        ]
+        .into_iter()
+    }
+}
+
 impl std::fmt::Display for Protocol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

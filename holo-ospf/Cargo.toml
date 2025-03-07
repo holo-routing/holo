@@ -17,6 +17,7 @@ generational-arena.workspace = true
 hmac.workspace = true
 internet-checksum.workspace = true
 ipnetwork.workspace = true
+internet-checksum.workspace = true
 itertools.workspace = true
 libc.workspace = true
 md-5.workspace = true
@@ -40,6 +41,7 @@ holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
 
 [dev-dependencies]
+const-addrs.workspace = true
 criterion.workspace = true
 maplit.workspace = true
 

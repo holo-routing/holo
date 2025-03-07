@@ -144,7 +144,7 @@ impl ProtocolInstance for Master {
 
     async fn init(&mut self) {
         // Request information about all interfaces.
-        let _ = self.tx.ibus.send(IbusMsg::InterfaceDump);
+        self.tx.ibus.interface_sub(None, None);
     }
 
     async fn process_ibus_msg(&mut self, msg: IbusMsg) {
@@ -231,20 +231,26 @@ async fn process_ibus_msg(
     match msg {
         // BFD peer registration.
         IbusMsg::BfdSessionReg {
+            subscriber,
             client_id,
             sess_key,
             client_config,
         } => events::process_client_peer_reg(
             master,
+            subscriber.unwrap(),
             sess_key,
             client_id,
             client_config,
         )?,
         // BFD peer unregistration.
         IbusMsg::BfdSessionUnreg {
+            subscriber,
             sess_key,
-            client_id,
-        } => events::process_client_peer_unreg(master, sess_key, client_id)?,
+        } => events::process_client_peer_unreg(
+            master,
+            subscriber.unwrap(),
+            sess_key,
+        )?,
         // Interface update notification.
         IbusMsg::InterfaceUpd(msg) => {
             southbound::process_iface_update(master, msg);

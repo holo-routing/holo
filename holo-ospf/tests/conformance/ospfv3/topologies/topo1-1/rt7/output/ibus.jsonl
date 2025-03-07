@@ -1,5 +1,6 @@
-"RouterIdQuery"
-{"InterfaceQuery":{"ifname":"eth-rt6","af":"Ipv6"}}
-{"InterfaceQuery":{"ifname":"lo","af":"Ipv6"}}
+{"RouterIdSub":{}}
+{"HostnameSub":{}}
+{"InterfaceSub":{"ifname":"eth-rt6","af":"Ipv6"}}
+{"InterfaceSub":{"ifname":"lo","af":"Ipv6"}}
 {"RouteIpAdd":{"protocol":"ospfv3","prefix":"::/0","distance":110,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":2,"addr":"fe80::605c:4aff:feb7:227d","labels":[]}}]}}
 {"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::6/128","distance":110,"metric":10,"tag":null,"nexthops":[{"Address":{"ifindex":2,"addr":"fe80::605c:4aff:feb7:227d","labels":[]}}]}}

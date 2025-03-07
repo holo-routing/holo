@@ -4,10 +4,9 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::net::Ipv4Addr;
-use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
+use const_addrs::ip4;
 use holo_bgp::packet::consts::{Afi, BGP_VERSION, Safi};
 use holo_bgp::packet::message::{Capability, Message, OpenMsg};
 
@@ -24,7 +23,7 @@ static OPEN1: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
             version: BGP_VERSION,
             my_as: 1,
             holdtime: 180,
-            identifier: Ipv4Addr::from_str("1.1.1.1").unwrap(),
+            identifier: ip4!("1.1.1.1"),
             capabilities: [].into(),
         }),
     )
@@ -42,7 +41,7 @@ static OPEN2: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
             version: BGP_VERSION,
             my_as: 1,
             holdtime: 180,
-            identifier: Ipv4Addr::from_str("1.1.1.1").unwrap(),
+            identifier: ip4!("1.1.1.1"),
             capabilities: [Capability::MultiProtocol {
                 afi: Afi::Ipv4,
                 safi: Safi::Unicast,
@@ -66,7 +65,7 @@ static OPEN3: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
             version: BGP_VERSION,
             my_as: 1,
             holdtime: 180,
-            identifier: Ipv4Addr::from_str("1.1.1.1").unwrap(),
+            identifier: ip4!("1.1.1.1"),
             capabilities: [
                 Capability::MultiProtocol {
                     afi: Afi::Ipv4,

@@ -23,7 +23,7 @@ use holo_utils::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 
-use crate::adjacency::Adjacency;
+use crate::adjacency::{Adjacency, AdjacencyState};
 use crate::collections::{Arena, Interfaces, Lsdb, LspEntryId};
 use crate::debug::{
     Debug, InstanceInactiveReason, InterfaceInactiveReason, LspPurgeReason,
@@ -33,7 +33,7 @@ use crate::interface::CircuitIdAllocator;
 use crate::lsdb::{LspEntry, LspLogEntry};
 use crate::northbound::configuration::InstanceCfg;
 use crate::packet::{LevelNumber, LevelType, Levels, SystemId};
-use crate::route::Route;
+use crate::route::{Route, RouteFlags};
 use crate::spf::{SpfLogEntry, SpfScheduler, Vertex, VertexId};
 use crate::tasks::messages::input::{
     AdjHoldTimerMsg, DisElectionMsg, LspDeleteMsg, LspOriginateMsg,
@@ -201,23 +201,36 @@ impl Instance {
         // Create instance initial state.
         let state = InstanceState::new(&self.tx);
         self.state = Some(state);
+        let (mut instance, arenas) = self.as_up().unwrap();
 
         // Start interfaces.
-        for iface in self.arenas.interfaces.iter() {
-            iface.query_southbound(&self.tx.ibus);
+        for iface in arenas.interfaces.iter_mut() {
+            iface
+                .update(&mut instance, &mut arenas.adjacencies)
+                .unwrap();
         }
 
         // Schedule initial LSP origination.
-        let (mut instance, _) = self.as_up().unwrap();
         instance.schedule_lsp_origination(LevelType::All);
     }
 
     // Stops the IS-IS instance.
     fn stop(&mut self, reason: InstanceInactiveReason) {
+        let (mut instance, arenas) = self.as_up().unwrap();
+
         Debug::InstanceStop(reason).log();
 
+        // Uninstall all routes.
+        for (prefix, route) in instance
+            .state
+            .rib(instance.config.level_type)
+            .iter()
+            .filter(|(_, route)| route.flags.contains(RouteFlags::INSTALLED))
+        {
+            southbound::tx::route_uninstall(&instance.tx.ibus, prefix, route);
+        }
+
         // Stop interfaces.
-        let (mut instance, arenas) = self.as_up().unwrap();
         let reason = InterfaceInactiveReason::InstanceDown;
         for iface in arenas
             .interfaces
@@ -302,7 +315,10 @@ impl ProtocolInstance for Instance {
 
     async fn init(&mut self) {
         // Request information about the system Router ID.
-        southbound::tx::router_id_query(&self.tx.ibus);
+        southbound::tx::router_id_sub(&self.tx.ibus);
+
+        // Request information about the system hostname.
+        southbound::tx::hostname_sub(&self.tx.ibus);
     }
 
     async fn shutdown(mut self) {
@@ -398,6 +414,30 @@ impl InstanceState {
             spf_log_next_id: 0,
         }
     }
+
+    // Returns a reference to the RIB for the specified level type.
+    pub(crate) fn rib(
+        &self,
+        level_type: LevelType,
+    ) -> &BTreeMap<IpNetwork, Route> {
+        match level_type {
+            LevelType::L1 | LevelType::L2 => self.rib_single.get(level_type),
+            LevelType::All => &self.rib_multi,
+        }
+    }
+
+    // Returns a mutable reference to the RIB for the specified level type.
+    pub(crate) fn rib_mut(
+        &mut self,
+        level_type: LevelType,
+    ) -> &mut BTreeMap<IpNetwork, Route> {
+        match level_type {
+            LevelType::L1 | LevelType::L2 => {
+                self.rib_single.get_mut(level_type)
+            }
+            LevelType::All => &mut self.rib_multi,
+        }
+    }
 }
 
 // ===== impl ProtocolInputChannelsTx =====
@@ -478,6 +518,20 @@ impl MessageReceiver<ProtocolInputMsg> for ProtocolInputChannelsRx {
 // ===== impl InstanceUpView =====
 
 impl InstanceUpView<'_> {
+    // Checks if the instance is attached to the Level 2 backbone.
+    pub(crate) fn is_l2_attached_to_backbone(
+        &self,
+        interfaces: &Interfaces,
+        adjacencies: &Arena<Adjacency>,
+    ) -> bool {
+        interfaces
+            .iter()
+            .flat_map(|iface| iface.adjacencies(adjacencies))
+            .filter(|adj| adj.state == AdjacencyState::Up)
+            .filter(|adj| adj.level_usage.intersects(LevelNumber::L2))
+            .any(|adj| adj.area_addrs.is_disjoint(&self.config.area_addrs))
+    }
+
     pub(crate) fn schedule_lsp_origination(
         &mut self,
         level_type: impl Into<LevelType>,

@@ -1,7 +1,8 @@
-"RouterIdQuery"
-{"InterfaceQuery":{"ifname":"eth-rt4","af":"Ipv4"}}
-{"InterfaceQuery":{"ifname":"eth-rt5","af":"Ipv4"}}
-{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}
+{"RouterIdSub":{}}
+{"HostnameSub":{}}
+{"InterfaceSub":{"ifname":"eth-rt4","af":"Ipv4"}}
+{"InterfaceSub":{"ifname":"eth-rt5","af":"Ipv4"}}
+{"InterfaceSub":{"ifname":"lo","af":"Ipv4"}}
 {"RouteIpAdd":{"protocol":"ospfv2","prefix":"4.4.4.4/32","distance":110,"metric":10,"tag":null,"nexthops":[{"Address":{"ifindex":5,"addr":"10.0.7.4","labels":[]}}]}}
 {"RouteIpAdd":{"protocol":"ospfv2","prefix":"5.5.5.5/32","distance":110,"metric":10,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"10.0.8.5","labels":[]}}]}}
 {"RouteIpAdd":{"protocol":"ospfv2","prefix":"10.0.2.0/24","distance":110,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":5,"addr":"10.0.7.4","labels":[]}}]}}

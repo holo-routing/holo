@@ -1,16 +1,9 @@
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"3.3.3.3"}}
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"3.3.3.3"}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt1","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt4","af":"Ipv4"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt1","ifindex":4,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt1","addr":"10.0.2.3/24","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt4","ifindex":3,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt4","addr":"10.0.4.3/24","flags":""}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt1","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt4","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt1","ifindex":4,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt1","addr":"10.0.2.3/24","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt4","ifindex":3,"mtu":1500,"flags":"OPERATIVE"}}}

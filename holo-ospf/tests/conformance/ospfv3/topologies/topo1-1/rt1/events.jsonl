@@ -1,10 +1,6 @@
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"1.1.1.1"}}
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"1.1.1.1"}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv6"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt2","ifindex":3,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt2","addr":"fe80::30af:77ff:fe0f:f73a/64","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}
@@ -26,8 +22,6 @@
 {"Protocol":{"SpfDelayEvent":{"event":"Igp"}}}
 {"Protocol":{"SpfDelayEvent":{"event":"Igp"}}}
 {"Protocol":{"SpfDelayEvent":{"event":"Igp"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt2","ifindex":3,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt2","addr":"10.0.1.1/24","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}

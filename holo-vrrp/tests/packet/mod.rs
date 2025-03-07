@@ -104,11 +104,13 @@ static ETHERNETHDR: LazyLock<(Vec<u8>, EthernetHdr)> = LazyLock::new(|| {
 #[test]
 fn test_encode_vrrphdr() {
     let (ref bytes, ref vrrphdr) = *VRRPHDR;
+    let mut vrrphdr = vrrphdr.clone();
+    vrrphdr.checksum = 0;
 
     let generated_bytes = vrrphdr.encode();
     let generated_data = generated_bytes.as_ref();
     let expected_data: &[u8] = bytes.as_ref();
-    assert_eq!(generated_data, expected_data);
+    assert_eq_hex!(generated_data, expected_data);
 }
 
 #[test]
@@ -118,19 +120,31 @@ fn test_decode_vrrphdr() {
     let generated_hdr = VrrpHdr::decode(data, AddressFamily::Ipv4);
     assert!(generated_hdr.is_ok());
 
-    let mut generated_hdr = generated_hdr.unwrap();
-    generated_hdr.generate_checksum();
+    let generated_hdr = generated_hdr.unwrap();
     assert_eq!(vrrphdr, &generated_hdr);
+}
+
+#[test]
+fn test_decode_vrrp_wrong_checksum() {
+    let (ref bytes, ref _vrrphdr) = *VRRPHDR;
+    let mut data = bytes.clone();
+    // 6th and 7th fields are the checksum fields
+    data[6] = 0;
+    data[7] = 0;
+    let generated_hdr = Ipv4Hdr::decode(&data);
+    assert_eq!(generated_hdr, Err(DecodeError::ChecksumError));
 }
 
 #[test]
 fn test_encode_ipv4hdr() {
     let (ref bytes, ref iphdr) = *IPV4HDR;
+    let mut iphdr = iphdr.clone();
+    iphdr.checksum = 0;
 
     let generated_bytes = iphdr.encode();
     let generated_data = generated_bytes.as_ref();
     let expected_data: &[u8] = bytes.as_ref();
-    assert_eq!(generated_data, expected_data);
+    assert_eq_hex!(generated_data, expected_data);
 }
 
 #[test]
@@ -163,6 +177,7 @@ fn test_decode_ipv6hdr() {
 
     let generated_hdr = generated_hdr.unwrap();
     assert_eq!(ipv6hdr, &generated_hdr);
+
 }
 
 #[test]
@@ -172,7 +187,7 @@ fn test_encode_ethernethdr() {
     let generated_bytes = ethernethdr.encode();
     let generated_data = generated_bytes.as_ref();
     let expected_data: &[u8] = bytes.as_ref();
-    assert_eq!(generated_data, expected_data);
+    assert_eq_hex!(generated_data, expected_data);
 }
 
 #[test]

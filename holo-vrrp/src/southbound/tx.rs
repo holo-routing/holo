@@ -7,50 +7,37 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use holo_utils::ibus::{IbusMsg, IbusSender};
-use holo_utils::southbound::{
-    InterfaceIpAddRequestMsg, InterfaceIpDelRequestMsg, MacvlanAddMsg,
-};
+use holo_utils::ibus::IbusChannelsTx;
 use ipnetwork::IpNetwork;
 
 pub(crate) fn mvlan_create(
-    ibus_tx: &IbusSender,
-    parent_name: String,
-    name: String,
-    mac_address: [u8; 6],
+    ibus_tx: &IbusChannelsTx,
+    parent_ifname: String,
+    ifname: String,
+    mac_addr: [u8; 6],
 ) {
-    let msg = MacvlanAddMsg {
-        parent_name,
-        name,
-        mac_address: Some(mac_address),
-    };
-    let _ = ibus_tx.send(IbusMsg::MacvlanAdd(msg));
+    ibus_tx.macvlan_add(parent_ifname, ifname, Some(mac_addr));
 }
 
-pub(crate) fn mvlan_delete(ibus_tx: &IbusSender, name: impl Into<String>) {
-    let _ = ibus_tx.send(IbusMsg::MacvlanDel(name.into()));
+pub(crate) fn mvlan_delete(
+    ibus_tx: &IbusChannelsTx,
+    ifname: impl Into<String>,
+) {
+    ibus_tx.macvlan_del(ifname.into());
 }
 
 pub(crate) fn ip_addr_add(
-    ibus_tx: &IbusSender,
+    ibus_tx: &IbusChannelsTx,
     ifname: impl Into<String>,
     addr: impl Into<IpNetwork>,
 ) {
-    let msg = InterfaceIpAddRequestMsg {
-        ifname: ifname.into(),
-        addr: addr.into(),
-    };
-    let _ = ibus_tx.send(IbusMsg::InterfaceIpAddRequest(msg));
+    ibus_tx.interface_ip_add(ifname.into(), addr.into());
 }
 
 pub(crate) fn ip_addr_del(
-    ibus_tx: &IbusSender,
+    ibus_tx: &IbusChannelsTx,
     ifname: impl Into<String>,
     addr: impl Into<IpNetwork>,
 ) {
-    let msg = InterfaceIpDelRequestMsg {
-        ifname: ifname.into(),
-        addr: addr.into(),
-    };
-    let _ = ibus_tx.send(IbusMsg::InterfaceIpDelRequest(msg));
+    ibus_tx.interface_ip_del(ifname.into(), addr.into());
 }

@@ -308,12 +308,10 @@ pub(crate) fn hello_interval(
                 let net_tx_pdup = net_tx_pdup.clone();
 
                 // Update packet counters.
-                for level in [LevelNumber::L1, LevelNumber::L2] {
-                    if level_type.intersects(level) {
-                        iih_out_counters
-                            .get(level)
-                            .fetch_add(1, atomic::Ordering::Relaxed);
-                    }
+                for level in level_type {
+                    iih_out_counters
+                        .get(level)
+                        .fetch_add(1, atomic::Ordering::Relaxed);
                 }
 
                 async move {

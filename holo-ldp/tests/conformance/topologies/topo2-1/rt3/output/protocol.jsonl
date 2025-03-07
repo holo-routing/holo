@@ -48,6 +48,7 @@
 {"NbrTxPdu":{"nbr_id":2,"msg":{"Label":{"msg_id":47,"msg_type":"LabelMapping","fec":[{"Prefix":"4.4.4.4/32"}],"label":17}},"flush":false}}
 {"NbrTxPdu":{"nbr_id":2,"msg":{"Label":{"msg_id":48,"msg_type":"LabelMapping","fec":[{"Prefix":"5.5.5.5/32"}],"label":18}},"flush":false}}
 {"NbrTxPdu":{"nbr_id":2,"msg":{"Label":{"msg_id":49,"msg_type":"LabelMapping","fec":[{"Prefix":"6.6.6.6/32"}],"label":19}},"flush":false}}
+{"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":59,"msg_type":"LabelMapping","fec":[{"Prefix":"1.1.1.1/32"}],"label":25}},"flush":false}}
 {"NbrTxPdu":{"nbr_id":2,"msg":{"Label":{"msg_id":50,"msg_type":"LabelMapping","fec":[{"Prefix":"10.0.1.0/24"}],"label":3}},"flush":false}}
 {"NbrTxPdu":{"nbr_id":2,"msg":{"Label":{"msg_id":51,"msg_type":"LabelMapping","fec":[{"Prefix":"10.0.2.0/24"}],"label":20}},"flush":false}}
 {"NbrTxPdu":{"nbr_id":2,"msg":{"Label":{"msg_id":52,"msg_type":"LabelMapping","fec":[{"Prefix":"10.0.3.0/24"}],"label":21}},"flush":false}}
@@ -57,7 +58,6 @@
 {"NbrTxPdu":{"nbr_id":2,"msg":{"Label":{"msg_id":56,"msg_type":"LabelMapping","fec":[{"Prefix":"10.0.7.0/24"}],"label":23}},"flush":false}}
 {"NbrTxPdu":{"nbr_id":2,"msg":{"Label":{"msg_id":57,"msg_type":"LabelMapping","fec":[{"Prefix":"10.0.8.0/24"}],"label":24}},"flush":false}}
 {"NbrTxPdu":{"nbr_id":2,"msg":{"Notification":{"msg_id":58,"status":{"status_code":47,"msg_id":0,"msg_type":0},"fec":[{"Wildcard":{"Typed":{"Prefix":"Ipv4"}}}]}},"flush":true}}
-{"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":59,"msg_type":"LabelMapping","fec":[{"Prefix":"1.1.1.1/32"}],"label":25}},"flush":false}}
 {"NbrTxPdu":{"nbr_id":2,"msg":{"Label":{"msg_id":60,"msg_type":"LabelMapping","fec":[{"Prefix":"1.1.1.1/32"}],"label":25}},"flush":false}}
 {"NbrTxPdu":{"nbr_id":3,"msg":{"Initialization":{"msg_id":61,"params":{"version":1,"keepalive_time":180,"flags":"","pvlim":0,"max_pdu_len":0,"lsr_id":"2.2.2.2","lspace_id":0},"cap_dynamic":[],"cap_twcard_fec":true,"cap_unrec_notif":true}},"flush":true}}
 {"NbrTxPdu":{"nbr_id":3,"msg":{"Keepalive":{"msg_id":62}},"flush":true}}
@@ -67,8 +67,6 @@
 {"NbrTxPdu":{"nbr_id":3,"msg":{"Label":{"msg_id":66,"msg_type":"LabelMapping","fec":[{"Prefix":"3.3.3.3/32"}],"label":3}},"flush":false}}
 {"NbrTxPdu":{"nbr_id":3,"msg":{"Label":{"msg_id":67,"msg_type":"LabelMapping","fec":[{"Prefix":"4.4.4.4/32"}],"label":17}},"flush":false}}
 {"NbrTxPdu":{"nbr_id":3,"msg":{"Label":{"msg_id":68,"msg_type":"LabelMapping","fec":[{"Prefix":"5.5.5.5/32"}],"label":18}},"flush":false}}
-{"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":79,"msg_type":"LabelMapping","fec":[{"Prefix":"2.2.2.2/32"}],"label":16}},"flush":false}}
-{"NbrTxPdu":{"nbr_id":2,"msg":{"Label":{"msg_id":80,"msg_type":"LabelMapping","fec":[{"Prefix":"2.2.2.2/32"}],"label":16}},"flush":false}}
 {"NbrTxPdu":{"nbr_id":3,"msg":{"Label":{"msg_id":69,"msg_type":"LabelMapping","fec":[{"Prefix":"6.6.6.6/32"}],"label":19}},"flush":false}}
 {"NbrTxPdu":{"nbr_id":3,"msg":{"Label":{"msg_id":70,"msg_type":"LabelMapping","fec":[{"Prefix":"10.0.1.0/24"}],"label":3}},"flush":false}}
 {"NbrTxPdu":{"nbr_id":3,"msg":{"Label":{"msg_id":71,"msg_type":"LabelMapping","fec":[{"Prefix":"10.0.2.0/24"}],"label":20}},"flush":false}}
@@ -79,6 +77,8 @@
 {"NbrTxPdu":{"nbr_id":3,"msg":{"Label":{"msg_id":76,"msg_type":"LabelMapping","fec":[{"Prefix":"10.0.7.0/24"}],"label":23}},"flush":false}}
 {"NbrTxPdu":{"nbr_id":3,"msg":{"Label":{"msg_id":77,"msg_type":"LabelMapping","fec":[{"Prefix":"10.0.8.0/24"}],"label":24}},"flush":false}}
 {"NbrTxPdu":{"nbr_id":3,"msg":{"Notification":{"msg_id":78,"status":{"status_code":47,"msg_id":0,"msg_type":0},"fec":[{"Wildcard":{"Typed":{"Prefix":"Ipv4"}}}]}},"flush":true}}
+{"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":79,"msg_type":"LabelMapping","fec":[{"Prefix":"2.2.2.2/32"}],"label":16}},"flush":false}}
+{"NbrTxPdu":{"nbr_id":2,"msg":{"Label":{"msg_id":80,"msg_type":"LabelMapping","fec":[{"Prefix":"2.2.2.2/32"}],"label":16}},"flush":false}}
 {"NbrTxPdu":{"nbr_id":3,"msg":{"Label":{"msg_id":81,"msg_type":"LabelMapping","fec":[{"Prefix":"2.2.2.2/32"}],"label":16}},"flush":false}}
 {"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":82,"msg_type":"LabelMapping","fec":[{"Prefix":"4.4.4.4/32"}],"label":17}},"flush":false}}
 {"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":85,"msg_type":"LabelMapping","fec":[{"Prefix":"10.0.2.0/24"}],"label":20}},"flush":false}}

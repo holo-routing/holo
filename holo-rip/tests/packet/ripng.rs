@@ -4,16 +4,15 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::net::Ipv6Addr;
-use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
+use const_addrs::{ip6, net6};
+use holo_protocol::assert_eq_hex;
 use holo_rip::packet::{Command, PduVersion};
 use holo_rip::ripng::packet::{
     DecodeError, DecodeResult, Pdu, Rte, RteIpv6, RteNexthop,
 };
 use holo_rip::route::Metric;
-use ipnetwork::Ipv6Network;
 
 //
 // Helper functions.
@@ -21,7 +20,7 @@ use ipnetwork::Ipv6Network;
 
 fn test_encode_pdu(bytes_expected: &[u8], pdu: &DecodeResult<Pdu>) {
     let bytes_actual = pdu.as_ref().unwrap().encode(None);
-    assert_eq!(bytes_expected, bytes_actual);
+    assert_eq_hex!(bytes_expected, bytes_actual);
 }
 
 fn test_decode_pdu(bytes: &[u8], pdu_expected: &DecodeResult<Pdu>) {
@@ -44,7 +43,7 @@ static REQUEST1: Lazy<(Vec<u8>, DecodeResult<Pdu>)> = Lazy::new(|| {
             command: Command::Request,
             version: 1,
             rtes: vec![Rte::Ipv6(RteIpv6 {
-                prefix: Ipv6Network::from_str("::/0").unwrap(),
+                prefix: net6!("::/0"),
                 tag: 0,
                 metric: Metric::from(Metric::INFINITE),
             })],
@@ -68,20 +67,17 @@ static RESPONSE1: Lazy<(Vec<u8>, DecodeResult<Pdu>)> = Lazy::new(|| {
             version: 1,
             rtes: vec![
                 Rte::Ipv6(RteIpv6 {
-                    prefix: Ipv6Network::from_str("2001:db8:1000::1/128")
-                        .unwrap(),
+                    prefix: net6!("2001:db8:1000::1/128"),
                     tag: 0,
                     metric: Metric::from(1),
                 }),
                 Rte::Ipv6(RteIpv6 {
-                    prefix: Ipv6Network::from_str("2001:db8:1000::3/128")
-                        .unwrap(),
+                    prefix: net6!("2001:db8:1000::3/128"),
                     tag: 0,
                     metric: Metric::from(2),
                 }),
                 Rte::Ipv6(RteIpv6 {
-                    prefix: Ipv6Network::from_str("2001:db8:1000::4/128")
-                        .unwrap(),
+                    prefix: net6!("2001:db8:1000::4/128"),
                     tag: 0,
                     metric: Metric::from(3),
                 }),
@@ -104,14 +100,10 @@ static RESPONSE2: Lazy<(Vec<u8>, DecodeResult<Pdu>)> = Lazy::new(|| {
             version: 1,
             rtes: vec![
                 Rte::Nexthop(RteNexthop {
-                    addr: Some(
-                        Ipv6Addr::from_str("fe80::50bf:cfff:febe:9999")
-                            .unwrap(),
-                    ),
+                    addr: Some(ip6!("fe80::50bf:cfff:febe:9999")),
                 }),
                 Rte::Ipv6(RteIpv6 {
-                    prefix: Ipv6Network::from_str("2001:db8:1000::/64")
-                        .unwrap(),
+                    prefix: net6!("2001:db8:1000::/64"),
                     tag: 0,
                     metric: Metric::from(1),
                 }),
@@ -158,9 +150,7 @@ static RESPONSE5: Lazy<(Vec<u8>, DecodeResult<Pdu>)> = Lazy::new(|| {
             version: 1,
             rtes: vec![],
             rte_errors: vec![
-                DecodeError::InvalidRtePrefix(
-                    Ipv6Addr::from_str("::1").unwrap(),
-                ),
+                DecodeError::InvalidRtePrefix(ip6!("::1")),
                 DecodeError::InvalidRtePrefixLength(129),
                 DecodeError::InvalidRteMetric(20),
             ],

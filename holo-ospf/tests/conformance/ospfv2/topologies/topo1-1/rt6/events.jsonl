@@ -1,10 +1,5 @@
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"6.6.6.6"}}
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"6.6.6.6"}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt3","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt7","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv6"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt3","ifindex":5,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt3","addr":"fe80::70d8:17ff:fe05:261/64","flags":""}}}
@@ -14,8 +9,6 @@
 {"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"lo","addr":"2001:db8:1000::6/128","flags":""}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt3","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt7","af":"Ipv4"}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":2}}}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt3","ifindex":5,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"E","lsa_id":"4.0.0.0","lsa_body":{"OpaqueArea":{"RouterInfo":{"info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":null,"srgb":[],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}}
@@ -23,7 +16,6 @@
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt7","ifindex":3,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":2}},"options":"","lsa_id":"4.0.0.0","lsa_body":{"OpaqueArea":{"RouterInfo":{"info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":null,"srgb":[],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt7","addr":"10.0.6.6/24","flags":""}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":1,"iface_id":1}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceStateChange":{"area_id":1,"iface_id":1}}}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}

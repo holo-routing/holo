@@ -1,6 +1,4 @@
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"4.4.4.4"}}
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"4.4.4.4"}}
 {"Ibus":{"SrCfgUpd":{"prefix_sids":[[["4.4.4.4/32","Spf"],{"index":40,"last_hop":"NoPhp"}],[["2001:db8:1000::4/128","Spf"],{"index":41,"last_hop":"NoPhp"}]],"srgb":[{"lower_bound":16000,"upper_bound":23999}],"srlb":[]}}}
 {"Ibus":{"SrCfgEvent":"LabelRangeUpdate"}}
@@ -8,11 +6,6 @@
 {"Ibus":{"SrCfgEvent":{"PrefixSidUpdate":"Ipv6"}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2-1","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2-2","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt5","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt6","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}}
 {"Protocol":{"LsaOrigEvent":{"event":"SrEnableChange"}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"E","lsa_id":"4.0.0.0","lsa_body":{"OpaqueArea":{"RouterInfo":{"info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":["Spf"],"srgb":[{"first":{"Label":16000},"range":8000}],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"E","lsa_id":"4.0.0.0","lsa_body":{"OpaqueArea":{"RouterInfo":{"info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":["Spf"],"srgb":[{"first":{"Label":16000},"range":8000}],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}}
@@ -47,13 +40,8 @@
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"E","lsa_id":"4.4.4.4","lsa_body":{"Router":{"flags":"","links":[{"link_type":"StubNetwork","link_id":"10.0.2.0","link_data":"255.255.255.0","metric":10},{"link_type":"StubNetwork","link_id":"10.0.3.0","link_data":"255.255.255.0","metric":10},{"link_type":"StubNetwork","link_id":"10.0.6.0","link_data":"255.255.255.0","metric":10},{"link_type":"StubNetwork","link_id":"10.0.7.0","link_data":"255.255.255.0","metric":10},{"link_type":"StubNetwork","link_id":"4.4.4.4","link_data":"255.255.255.255","metric":0}]}}}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"E","lsa_id":"4.4.4.4","lsa_body":{"Router":{"flags":"","links":[{"link_type":"StubNetwork","link_id":"10.0.2.0","link_data":"255.255.255.0","metric":10},{"link_type":"StubNetwork","link_id":"10.0.3.0","link_data":"255.255.255.0","metric":10},{"link_type":"StubNetwork","link_id":"10.0.6.0","link_data":"255.255.255.0","metric":10},{"link_type":"StubNetwork","link_id":"10.0.7.0","link_data":"255.255.255.0","metric":10},{"link_type":"StubNetwork","link_id":"4.4.4.4","link_data":"255.255.255.255","metric":0}]}}}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"E","lsa_id":"4.4.4.4","lsa_body":{"Router":{"flags":"","links":[{"link_type":"StubNetwork","link_id":"10.0.2.0","link_data":"255.255.255.0","metric":10},{"link_type":"StubNetwork","link_id":"10.0.3.0","link_data":"255.255.255.0","metric":10},{"link_type":"StubNetwork","link_id":"10.0.6.0","link_data":"255.255.255.0","metric":10},{"link_type":"StubNetwork","link_id":"10.0.7.0","link_data":"255.255.255.0","metric":10},{"link_type":"StubNetwork","link_id":"4.4.4.4","link_data":"255.255.255.255","metric":0}]}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2-1","af":"Ipv6"}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"NeighborTwoWayOrHigherChange":{"area_id":1,"iface_id":2}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2-2","af":"Ipv6"}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"E","lsa_id":"4.4.4.4","lsa_body":{"Router":{"flags":"","links":[{"link_type":"StubNetwork","link_id":"10.0.2.0","link_data":"255.255.255.0","metric":10},{"link_type":"StubNetwork","link_id":"10.0.3.0","link_data":"255.255.255.0","metric":10},{"link_type":"StubNetwork","link_id":"10.0.6.0","link_data":"255.255.255.0","metric":10},{"link_type":"StubNetwork","link_id":"10.0.7.0","link_data":"255.255.255.0","metric":10},{"link_type":"StubNetwork","link_id":"4.4.4.4","link_data":"255.255.255.255","metric":0}]}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt5","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt6","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv6"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt2-1","ifindex":4,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt2-1","addr":"fe80::5475:cbff:fe05:55e7/64","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt2-2","ifindex":6,"mtu":1500,"flags":"OPERATIVE"}}}

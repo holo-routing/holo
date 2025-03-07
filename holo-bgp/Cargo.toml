@@ -36,6 +36,7 @@ holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
 
 [dev-dependencies]
+const-addrs.workspace = true
 criterion.workspace = true
 
 holo-bgp = { path = ".", features = ["testing", "deterministic"] }

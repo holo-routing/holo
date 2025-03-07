@@ -141,8 +141,19 @@ impl Adjacency {
         // Effectively transition to the new state.
         self.state = new_state;
 
-        // Schedule LSP reorigination.
-        instance.schedule_lsp_origination(self.level_usage);
+        // Schedule LSP reorigination for all levels where the adjacency exists.
+        //
+        // If this is an L2 adjacency in an L1/L2 router, the L1 LSP must also
+        // be reoriginated. This is necessary because the connection to the
+        // backbone may have changed (e.g., broken or become available), which
+        // affects the setting of the ATT bit in L1 LSPs.
+        let mut level_type = self.level_usage;
+        if level_type == LevelType::L2
+            && instance.config.level_type == LevelType::All
+        {
+            level_type = level_type.union(LevelType::L1);
+        }
+        instance.schedule_lsp_origination(level_type);
     }
 
     // Starts or resets the holdtime timer.

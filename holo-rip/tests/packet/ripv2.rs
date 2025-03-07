@@ -4,18 +4,17 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::net::Ipv4Addr;
-use std::str::FromStr;
 use std::sync::atomic::AtomicU32;
 use std::sync::{Arc, LazyLock as Lazy};
 
+use const_addrs::{ip4, net4};
+use holo_protocol::assert_eq_hex;
 use holo_rip::packet::{AuthCtx, Command, PduVersion};
 use holo_rip::ripv2::packet::{
     DecodeError, DecodeResult, Pdu, Rte, RteIpv4, RteZero,
 };
 use holo_rip::route::Metric;
 use holo_utils::crypto::CryptoAlgo;
-use ipnetwork::Ipv4Network;
 
 //
 // Helper functions.
@@ -27,7 +26,7 @@ fn test_encode_pdu(
     auth: &Option<AuthCtx>,
 ) {
     let bytes_actual = pdu.as_ref().unwrap().encode(auth.as_ref());
-    assert_eq!(bytes_expected, bytes_actual);
+    assert_eq_hex!(bytes_expected, bytes_actual);
 }
 
 fn test_decode_pdu(
@@ -83,19 +82,19 @@ static RESPONSE1: Lazy<(Vec<u8>, Option<AuthCtx>, DecodeResult<Pdu>)> =
                 rtes: vec![
                     Rte::Ipv4(RteIpv4 {
                         tag: 0,
-                        prefix: Ipv4Network::from_str("10.0.2.0/24").unwrap(),
+                        prefix: net4!("10.0.2.0/24"),
                         nexthop: None,
                         metric: Metric::from(1),
                     }),
                     Rte::Ipv4(RteIpv4 {
                         tag: 0,
-                        prefix: Ipv4Network::from_str("10.0.3.0/24").unwrap(),
+                        prefix: net4!("10.0.3.0/24"),
                         nexthop: None,
                         metric: Metric::from(3),
                     }),
                     Rte::Ipv4(RteIpv4 {
                         tag: 0,
-                        prefix: Ipv4Network::from_str("10.0.4.0/24").unwrap(),
+                        prefix: net4!("10.0.4.0/24"),
                         nexthop: None,
                         metric: Metric::from(2),
                     }),
@@ -154,12 +153,10 @@ static RESPONSE4: Lazy<(Vec<u8>, Option<AuthCtx>, DecodeResult<Pdu>)> =
                 rte_errors: vec![
                     DecodeError::InvalidRteAddressFamily(1),
                     DecodeError::InvalidRtePrefix(
-                        Ipv4Addr::from_str("127.0.0.1").unwrap(),
-                        Ipv4Addr::from_str("255.255.255.255").unwrap(),
+                        ip4!("127.0.0.1"),
+                        ip4!("255.255.255.255"),
                     ),
-                    DecodeError::InvalidRteNexthop(
-                        Ipv4Addr::from_str("127.0.0.1").unwrap(),
-                    ),
+                    DecodeError::InvalidRteNexthop(ip4!("127.0.0.1")),
                     DecodeError::InvalidRteMetric(20),
                 ],
                 auth_seqno: None,
@@ -198,31 +195,31 @@ static RESPONSE5: Lazy<(Vec<u8>, Option<AuthCtx>, DecodeResult<Pdu>)> =
                 rtes: vec![
                     Rte::Ipv4(RteIpv4 {
                         tag: 0,
-                        prefix: Ipv4Network::from_str("1.1.1.1/32").unwrap(),
+                        prefix: net4!("1.1.1.1/32"),
                         nexthop: None,
                         metric: Metric::from(1),
                     }),
                     Rte::Ipv4(RteIpv4 {
                         tag: 0,
-                        prefix: Ipv4Network::from_str("3.3.3.3/32").unwrap(),
+                        prefix: net4!("3.3.3.3/32"),
                         nexthop: None,
                         metric: Metric::from(2),
                     }),
                     Rte::Ipv4(RteIpv4 {
                         tag: 0,
-                        prefix: Ipv4Network::from_str("10.0.1.0/24").unwrap(),
+                        prefix: net4!("10.0.1.0/24"),
                         nexthop: None,
                         metric: Metric::from(1),
                     }),
                     Rte::Ipv4(RteIpv4 {
                         tag: 0,
-                        prefix: Ipv4Network::from_str("10.0.2.0/24").unwrap(),
+                        prefix: net4!("10.0.2.0/24"),
                         nexthop: None,
                         metric: Metric::from(1),
                     }),
                     Rte::Ipv4(RteIpv4 {
                         tag: 0,
-                        prefix: Ipv4Network::from_str("10.0.4.0/24").unwrap(),
+                        prefix: net4!("10.0.4.0/24"),
                         nexthop: None,
                         metric: Metric::from(2),
                     }),

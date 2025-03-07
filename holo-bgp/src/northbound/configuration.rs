@@ -18,7 +18,6 @@ use holo_northbound::configuration::{
 };
 use holo_northbound::yang::control_plane_protocol::bgp;
 use holo_utils::bgp::AfiSafi;
-use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::{AddressFamily, IpAddrKind};
 use holo_utils::policy::{ApplyPolicyCfg, DefaultPolicyType};
 use holo_utils::protocol::Protocol;
@@ -53,8 +52,8 @@ pub enum Event {
     NeighborDelete(IpAddr),
     NeighborReset(IpAddr, NotificationMsg),
     NeighborUpdateAuth(IpAddr),
-    RedistributeRequest(Protocol, AddressFamily),
-    RedistributeDelete(Protocol, AfiSafi),
+    RedistributeIbusSub(Protocol, AddressFamily),
+    RedistributeDelete(Protocol, AddressFamily, AfiSafi),
 }
 
 pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
@@ -476,7 +475,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             afi_safi.redistribution.insert(protocol, Default::default());
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::RedistributeRequest(protocol, AddressFamily::Ipv4));
+            event_queue.insert(Event::RedistributeIbusSub(protocol, AddressFamily::Ipv4));
         })
         .delete_apply(|instance, args| {
             let (afi_safi, protocol) = args.list_entry.into_redistribution().unwrap();
@@ -485,7 +484,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             afi_safi.redistribution.remove(&protocol);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::RedistributeDelete(protocol, AfiSafi::Ipv4Unicast));
+            event_queue.insert(Event::RedistributeDelete(protocol, AddressFamily::Ipv4, AfiSafi::Ipv4Unicast));
         })
         .lookup(|_instance, list_entry, dnode| {
             let afi_safi = list_entry.into_afi_safi().unwrap();
@@ -562,7 +561,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             afi_safi.redistribution.insert(protocol, Default::default());
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::RedistributeRequest(protocol, AddressFamily::Ipv6));
+            event_queue.insert(Event::RedistributeIbusSub(protocol, AddressFamily::Ipv6));
         })
         .delete_apply(|instance, args| {
             let (afi_safi, protocol) = args.list_entry.into_redistribution().unwrap();
@@ -571,7 +570,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             afi_safi.redistribution.remove(&protocol);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::RedistributeDelete(protocol, AfiSafi::Ipv6Unicast));
+            event_queue.insert(Event::RedistributeDelete(protocol, AddressFamily::Ipv6, AfiSafi::Ipv6Unicast));
         })
         .lookup(|_instance, list_entry, dnode| {
             let afi_safi = list_entry.into_afi_safi().unwrap();
@@ -1362,29 +1361,26 @@ impl Provider for Instance {
                     );
                 }
             }
-            Event::RedistributeRequest(protocol, af) => {
-                let _ = self.tx.ibus.send(IbusMsg::RouteRedistributeDump {
-                    protocol,
-                    af: Some(af),
-                });
+            Event::RedistributeIbusSub(protocol, af) => {
+                self.tx.ibus.route_redistribute_sub(protocol, Some(af));
             }
-            Event::RedistributeDelete(protocol, afi_safi) => {
-                let Some((mut instance, _)) = self.as_up() else {
-                    return;
-                };
+            Event::RedistributeDelete(protocol, af, afi_safi) => {
+                self.tx.ibus.route_redistribute_unsub(protocol, Some(af));
 
-                match afi_safi {
-                    AfiSafi::Ipv4Unicast => {
-                        redistribute_delete::<Ipv4Unicast>(
-                            &mut instance,
-                            protocol,
-                        );
-                    }
-                    AfiSafi::Ipv6Unicast => {
-                        redistribute_delete::<Ipv6Unicast>(
-                            &mut instance,
-                            protocol,
-                        );
+                if let Some((mut instance, _)) = self.as_up() {
+                    match afi_safi {
+                        AfiSafi::Ipv4Unicast => {
+                            redistribute_delete::<Ipv4Unicast>(
+                                &mut instance,
+                                protocol,
+                            );
+                        }
+                        AfiSafi::Ipv6Unicast => {
+                            redistribute_delete::<Ipv6Unicast>(
+                                &mut instance,
+                                protocol,
+                            );
+                        }
                     }
                 }
             }

@@ -7,7 +7,7 @@
 use std::collections::BTreeSet;
 use std::net::IpAddr;
 
-use holo_utils::ibus::{IbusMsg, IbusSender};
+use holo_utils::ibus::IbusChannelsTx;
 use holo_utils::mpls::Label;
 use holo_utils::southbound::{
     BierNbrInstallMsg, BierNbrUninstallMsg, LabelInstallMsg, LabelUninstallMsg,
@@ -21,12 +21,16 @@ use crate::version::Version;
 
 // ===== global functions =====
 
-pub(crate) fn router_id_query(ibus_tx: &IbusSender) {
-    let _ = ibus_tx.send(IbusMsg::RouterIdQuery);
+pub(crate) fn router_id_sub(ibus_tx: &IbusChannelsTx) {
+    ibus_tx.router_id_sub();
+}
+
+pub(crate) fn hostname_sub(ibus_tx: &IbusChannelsTx) {
+    ibus_tx.hostname_sub();
 }
 
 pub(crate) fn route_install<V>(
-    ibus_tx: &IbusSender,
+    ibus_tx: &IbusChannelsTx,
     destination: &V::IpNetwork,
     route: &RouteNet<V>,
     old_sr_label: Option<Label>,
@@ -72,8 +76,7 @@ pub(crate) fn route_install<V>(
         },
         nexthops: nexthops.clone(),
     };
-    let msg = IbusMsg::RouteIpAdd(msg);
-    let _ = ibus_tx.send(msg);
+    ibus_tx.route_ip_add(msg);
 
     // Unnstall previous SR Prefix-SID input label if it has changed.
     if old_sr_label != route.sr_label {
@@ -84,8 +87,7 @@ pub(crate) fn route_install<V>(
                 nexthops: BTreeSet::new(),
                 route: None,
             };
-            let msg = IbusMsg::RouteMplsDel(msg);
-            let _ = ibus_tx.send(msg);
+            ibus_tx.route_mpls_del(msg);
         }
     }
 
@@ -98,24 +100,22 @@ pub(crate) fn route_install<V>(
             route: None,
             replace: true,
         };
-        let msg = IbusMsg::RouteMplsAdd(msg);
-        let _ = ibus_tx.send(msg);
+        ibus_tx.route_mpls_add(msg);
     }
 
-    // Install BIER neighbor entry
+    // Install BIER neighbor entry.
     if let Some(bier_info) = &route.bier_info {
         let msg = BierNbrInstallMsg {
             bier_info: bier_info.clone(),
             nexthops,
             prefix: (*destination).into(),
         };
-        let msg = IbusMsg::RouteBierAdd(msg);
-        let _ = ibus_tx.send(msg);
+        ibus_tx.route_bier_add(msg);
     }
 }
 
 pub(crate) fn route_uninstall<V>(
-    ibus_tx: &IbusSender,
+    ibus_tx: &IbusChannelsTx,
     destination: &V::IpNetwork,
     route: &RouteNet<V>,
 ) where
@@ -126,8 +126,7 @@ pub(crate) fn route_uninstall<V>(
         protocol: V::PROTOCOL,
         prefix: (*destination).into(),
     };
-    let msg = IbusMsg::RouteIpDel(msg);
-    let _ = ibus_tx.send(msg);
+    ibus_tx.route_ip_del(msg);
 
     // Uninstall SR Prefix-SID input label.
     if let Some(sr_label) = &route.sr_label {
@@ -137,11 +136,10 @@ pub(crate) fn route_uninstall<V>(
             nexthops: BTreeSet::new(),
             route: None,
         };
-        let msg = IbusMsg::RouteMplsDel(msg);
-        let _ = ibus_tx.send(msg);
+        ibus_tx.route_mpls_del(msg);
     }
 
-    // Uninstall BIER neighbor entry
+    // Uninstall BIER neighbor entry.
     if let Some(bier_info) = &route.bier_info {
         for bsl in &bier_info.bfr_bss {
             let msg = BierNbrUninstallMsg {
@@ -149,14 +147,13 @@ pub(crate) fn route_uninstall<V>(
                 bfr_id: bier_info.bfr_id,
                 bsl: *bsl,
             };
-            let msg = IbusMsg::RouteBierDel(msg);
-            let _ = ibus_tx.send(msg);
+            ibus_tx.route_bier_del(msg);
         }
     }
 }
 
 pub(crate) fn adj_sid_install<V>(
-    ibus_tx: &IbusSender,
+    ibus_tx: &IbusChannelsTx,
     iface: &Interface<V>,
     nbr_addr: V::NetIpAddr,
     label: Label,
@@ -175,11 +172,10 @@ pub(crate) fn adj_sid_install<V>(
         route: None,
         replace: false,
     };
-    let msg = IbusMsg::RouteMplsAdd(msg);
-    let _ = ibus_tx.send(msg);
+    ibus_tx.route_mpls_add(msg);
 }
 
-pub(crate) fn adj_sid_uninstall<V>(ibus_tx: &IbusSender, label: Label)
+pub(crate) fn adj_sid_uninstall<V>(ibus_tx: &IbusChannelsTx, label: Label)
 where
     V: Version,
 {
@@ -189,6 +185,5 @@ where
         nexthops: BTreeSet::new(),
         route: None,
     };
-    let msg = IbusMsg::RouteMplsDel(msg);
-    let _ = ibus_tx.send(msg);
+    ibus_tx.route_mpls_del(msg);
 }

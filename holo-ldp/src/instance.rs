@@ -293,7 +293,10 @@ impl ProtocolInstance for Instance {
 
     async fn init(&mut self) {
         // Request information about the system Router ID.
-        southbound::tx::router_id_query(&self.tx.ibus);
+        southbound::tx::router_id_sub(&self.tx.ibus);
+
+        // Subscribe for the redistribution of all non-BGP routes.
+        southbound::tx::route_redistribute_sub(&self.tx.ibus);
     }
 
     async fn shutdown(mut self) {

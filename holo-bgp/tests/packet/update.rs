@@ -4,10 +4,9 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::net::{Ipv4Addr, Ipv6Addr};
-use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
+use const_addrs::{ip4, ip6, net4, net6};
 use holo_bgp::neighbor::PeerType;
 use holo_bgp::packet::attribute::{
     Aggregator, AsPath, AsPathSegment, Attrs, BaseAttrs, ClusterList, CommList,
@@ -18,7 +17,6 @@ use holo_bgp::packet::message::{
     ReachNlri, UnreachNlri, UpdateMsg,
 };
 use holo_utils::bgp::{Comm, ExtComm, Extv6Comm, LargeComm};
-use ipnetwork::{Ipv4Network, Ipv6Network};
 
 use super::{test_decode_msg, test_encode_msg};
 
@@ -72,32 +70,24 @@ static UPDATE2: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
         ],
         Message::Update(UpdateMsg {
             reach: Some(ReachNlri {
-                prefixes: vec![
-                    Ipv4Network::from_str("10.0.255.1/32").unwrap(),
-                    Ipv4Network::from_str("10.0.255.2/32").unwrap(),
-                ],
-                nexthop: Ipv4Addr::from_str("1.1.1.1").unwrap(),
+                prefixes: vec![net4!("10.0.255.1/32"), net4!("10.0.255.2/32")],
+                nexthop: ip4!("1.1.1.1"),
             }),
             unreach: Some(UnreachNlri {
-                prefixes: vec![
-                    Ipv4Network::from_str("10.0.1.0/24").unwrap(),
-                    Ipv4Network::from_str("10.0.2.0/24").unwrap(),
-                ],
+                prefixes: vec![net4!("10.0.1.0/24"), net4!("10.0.2.0/24")],
             }),
             mp_reach: Some(MpReachNlri::Ipv6Unicast {
                 prefixes: vec![
-                    Ipv6Network::from_str("2001:db8:1::1/128").unwrap(),
-                    Ipv6Network::from_str("2001:db8:1::2/128").unwrap(),
+                    net6!("2001:db8:1::1/128"),
+                    net6!("2001:db8:1::2/128"),
                 ],
-                nexthop: Ipv6Addr::from_str("3000::1").unwrap(),
-                ll_nexthop: Some(
-                    Ipv6Addr::from_str("fe80::4207:bd19:111c:8411").unwrap(),
-                ),
+                nexthop: ip6!("3000::1"),
+                ll_nexthop: Some(ip6!("fe80::4207:bd19:111c:8411")),
             }),
             mp_unreach: Some(MpUnreachNlri::Ipv6Unicast {
                 prefixes: vec![
-                    Ipv6Network::from_str("2001:db8:2::1/128").unwrap(),
-                    Ipv6Network::from_str("2001:db8:2::2/128").unwrap(),
+                    net6!("2001:db8:2::1/128"),
+                    net6!("2001:db8:2::2/128"),
                 ],
             }),
             attrs: Some(Attrs {
@@ -117,22 +107,19 @@ static UPDATE2: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
                     local_pref: Some(500),
                     aggregator: Some(Aggregator {
                         asn: 1000,
-                        identifier: Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                        identifier: ip4!("2.2.2.2"),
                     }),
                     as4_aggregator: None,
                     atomic_aggregate: Some(()),
-                    originator_id: Some(Ipv4Addr::from_str("1.1.1.1").unwrap()),
-                    cluster_list: Some(ClusterList(
-                        [Ipv4Addr::from_str("3.3.3.3").unwrap()].into(),
-                    )),
+                    originator_id: Some(ip4!("1.1.1.1")),
+                    cluster_list: Some(ClusterList([ip4!("3.3.3.3")].into())),
                 },
                 comm: Some(CommList([Comm(1), Comm(2), Comm(3)].into())),
                 ext_comm: Some(CommList(
                     [ExtComm([0, 0, 0, 1, 0, 0, 0, 1])].into(),
                 )),
                 extv6_comm: Some(CommList(
-                    [Extv6Comm(Ipv6Addr::from_str("2001:db8::1").unwrap(), 1)]
-                        .into(),
+                    [Extv6Comm(ip6!("2001:db8::1"), 1)].into(),
                 )),
                 large_comm: Some(CommList(
                     [LargeComm([0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1])].into(),

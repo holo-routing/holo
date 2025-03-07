@@ -17,7 +17,7 @@ use holo_northbound::{
     process_northbound_msg,
 };
 use holo_protocol::InstanceShared;
-use holo_utils::ibus::{IbusReceiver, IbusSender};
+use holo_utils::ibus::{IbusChannelsTx, IbusReceiver};
 use tokio::sync::mpsc;
 use tracing::Instrument;
 
@@ -28,8 +28,8 @@ use crate::netlink::NetlinkMonitor;
 pub struct Master {
     // Northbound Tx channel.
     pub nb_tx: NbProviderSender,
-    // Internal bus Tx channel.
-    pub ibus_tx: IbusSender,
+    // Internal bus Tx channels.
+    pub ibus_tx: IbusChannelsTx,
     // Shared data among all protocol instances.
     pub shared: InstanceShared,
     // Netlink socket.
@@ -59,7 +59,7 @@ impl Master {
                     )
                     .await;
                 }
-                Ok(msg) = ibus_rx.recv() => {
+                Some(msg) = ibus_rx.recv() => {
                     ibus::process_msg(self, msg).await;
                 }
                 Some((msg, _)) = netlink_rx.next() => {
@@ -74,7 +74,7 @@ impl Master {
 
 pub fn start(
     nb_tx: NbProviderSender,
-    ibus_tx: IbusSender,
+    ibus_tx: IbusChannelsTx,
     ibus_rx: IbusReceiver,
     shared: InstanceShared,
 ) -> NbDaemonSender {

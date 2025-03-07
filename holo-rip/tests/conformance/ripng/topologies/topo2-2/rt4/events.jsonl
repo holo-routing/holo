@@ -1,8 +1,3 @@
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2-1","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2-2","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt5","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt6","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv6"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt2-1","ifindex":4,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt2-1","addr":"fe80::4eb:5aff:fe98:ae04/64","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt2-2","ifindex":6,"mtu":1500,"flags":"OPERATIVE"}}}
@@ -14,11 +9,6 @@
 {"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"lo","addr":"2001:db8:1000::4/128","flags":""}}}
 {"Protocol":{"UdpRxPdu":{"src":"[fe80::a8af:aeff:fe45:cadd%4]:521","pdu":{"Ok":{"command":"Response","version":1,"rtes":[{"Ipv6":{"prefix":"2001:db8:1000::1/128","tag":0,"metric":2}},{"Ipv6":{"prefix":"2001:db8:1000::2/128","tag":0,"metric":1}}]}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2-1","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2-2","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt5","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt6","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"fe80::/64","distance":0,"metric":0,"tag":null,"nexthops":[]}}}
 {"Protocol":{"UdpRxPdu":{"src":"[fe80::806e:15ff:fecb:bf84%6]:521","pdu":{"Ok":{"command":"Response","version":1,"rtes":[{"Ipv6":{"prefix":"2001:db8:1000::1/128","tag":0,"metric":2}},{"Ipv6":{"prefix":"2001:db8:1000::2/128","tag":0,"metric":1}}]}}}}}
 {"Protocol":{"TriggeredUpd":{}}}

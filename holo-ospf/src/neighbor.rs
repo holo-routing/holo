@@ -10,7 +10,6 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use holo_utils::bfd;
-use holo_utils::ibus::IbusMsg;
 use holo_utils::task::{IntervalTask, TimeoutTask};
 use nsm::{Event, State};
 use rand::RngCore;
@@ -553,12 +552,11 @@ where
     ) {
         Debug::<V>::NeighborBfdReg(self.router_id).log();
 
-        let msg = IbusMsg::BfdSessionReg {
-            sess_key: self.bfd_session_key(iface),
-            client_id: self.bfd_client_id(instance),
-            client_config: Some(iface.config.bfd_params),
-        };
-        let _ = instance.tx.ibus.send(msg);
+        instance.tx.ibus.bfd_session_reg(
+            self.bfd_session_key(iface),
+            self.bfd_client_id(instance),
+            Some(iface.config.bfd_params),
+        );
     }
 
     pub(crate) fn bfd_unregister(
@@ -568,11 +566,10 @@ where
     ) {
         Debug::<V>::NeighborBfdUnreg(self.router_id).log();
 
-        let msg = IbusMsg::BfdSessionUnreg {
-            sess_key: self.bfd_session_key(iface),
-            client_id: self.bfd_client_id(instance),
-        };
-        let _ = instance.tx.ibus.send(msg);
+        instance
+            .tx
+            .ibus
+            .bfd_session_unreg(self.bfd_session_key(iface));
     }
 
     fn bfd_session_key(&self, iface: &Interface<V>) -> bfd::SessionKey {

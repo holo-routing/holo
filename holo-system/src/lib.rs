@@ -9,11 +9,13 @@
 mod ibus;
 pub mod northbound;
 
+use std::collections::HashMap;
+
 use holo_northbound::{
     NbDaemonReceiver, NbDaemonSender, NbProviderSender, ProviderBase,
     process_northbound_msg,
 };
-use holo_utils::ibus::{IbusReceiver, IbusSender};
+use holo_utils::ibus::{IbusChannelsTx, IbusReceiver, IbusSender};
 use northbound::configuration::SystemCfg;
 use tokio::sync::mpsc;
 use tracing::Instrument;
@@ -22,10 +24,12 @@ use tracing::Instrument;
 pub struct Master {
     // Northbound Tx channel.
     pub nb_tx: NbProviderSender,
-    // Internal bus Tx channel.
-    pub ibus_tx: IbusSender,
+    // Internal bus Tx channels.
+    pub ibus_tx: IbusChannelsTx,
     // System configuration.
     pub config: SystemCfg,
+    // Hostname subscriptions.
+    pub hostname_subscriptions: HashMap<usize, IbusSender>,
 }
 
 // ===== impl Master =====
@@ -48,7 +52,7 @@ impl Master {
                     )
                     .await;
                 }
-                Ok(msg) = ibus_rx.recv() => {
+                Some(msg) = ibus_rx.recv() => {
                     ibus::process_msg(self, msg);
                 }
             }
@@ -60,7 +64,7 @@ impl Master {
 
 pub fn start(
     nb_tx: NbProviderSender,
-    ibus_tx: IbusSender,
+    ibus_tx: IbusChannelsTx,
     ibus_rx: IbusReceiver,
 ) -> NbDaemonSender {
     let (nb_daemon_tx, nb_daemon_rx) = mpsc::channel(4);
@@ -70,6 +74,7 @@ pub fn start(
             nb_tx,
             ibus_tx,
             config: Default::default(),
+            hostname_subscriptions: Default::default(),
         };
 
         // Run task main loop.

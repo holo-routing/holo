@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::net::Ipv4Addr;
 use std::sync::LazyLock as Lazy;
 
@@ -17,8 +17,8 @@ use holo_northbound::configuration::{
 use holo_northbound::yang::control_plane_protocol::ospf;
 use holo_utils::bfd;
 use holo_utils::crypto::CryptoAlgo;
-use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
+use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::{ToYang, TryFromYang};
 use yang3::data::Data;
@@ -37,6 +37,7 @@ use crate::{gr, southbound, spf, sr};
 #[derive(Debug, EnumAsInner)]
 pub enum ListEntry<V: Version> {
     None,
+    NodeTag(u32),
     Area(AreaIndex),
     AreaRange(AreaIndex, V::IpNetwork),
     Interface(AreaIndex, InterfaceIndex),
@@ -65,7 +66,7 @@ pub enum Event {
     InterfaceSyncHelloTx(AreaIndex, InterfaceIndex),
     InterfaceUpdateAuth(AreaIndex, InterfaceIndex),
     InterfaceBfdChange(InterfaceIndex),
-    InterfaceQuerySouthbound(String, AddressFamily),
+    InterfaceIbusSub(String),
     StubRouterChange,
     GrHelperChange,
     SrEnableChange(bool),
@@ -73,6 +74,7 @@ pub enum Event {
     UpdateSummaries,
     ReinstallRoutes,
     BierEnableChange(bool),
+    NodeTagsChange,
 }
 
 pub static VALIDATION_CALLBACKS_OSPFV2: Lazy<ValidationCallbacks> =
@@ -100,6 +102,7 @@ pub struct InstanceCfg {
     pub spf_hold_down: u32,
     pub spf_time_to_learn: u32,
     pub stub_router: bool,
+    pub node_tags: BTreeSet<u32>,
     pub extended_lsa: bool,
     pub sr_enabled: bool,
     pub instance_id: u8,
@@ -361,6 +364,27 @@ where
             let event_queue = args.event_queue;
             event_queue.insert(Event::StubRouterChange);
         })
+        .path(ospf::node_tags::node_tag::PATH)
+        .create_apply(|instance, args| {
+            let node_tag = args.dnode.get_u32_relative("tag").unwrap();
+            instance.config.node_tags.insert(node_tag);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::NodeTagsChange);
+
+        })
+        .delete_apply(|instance, args| {
+            let node_tag = args.list_entry.into_node_tag().unwrap();
+            instance.config.node_tags.remove(&node_tag);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::NodeTagsChange);
+
+        })
+        .lookup(|_instance, _list_entry, dnode| {
+            let node_tag = dnode.get_u32_relative("tag").unwrap();
+            ListEntry::NodeTag(node_tag)
+        })
         .path(ospf::extended_lsa_support::PATH)
         .modify_apply(|instance, args| {
             let extended_lsa = args.dnode.get_bool();
@@ -519,11 +543,10 @@ where
                 .interfaces
                 .insert(&mut instance.arenas.interfaces, &ifname);
 
-            let af = V::address_family(instance);
             let event_queue = args.event_queue;
             event_queue.insert(Event::InstanceUpdate);
             event_queue.insert(Event::InterfaceUpdate(area_idx, iface_idx));
-            event_queue.insert(Event::InterfaceQuerySouthbound(ifname, af));
+            event_queue.insert(Event::InterfaceIbusSub(ifname));
         })
         .delete_apply(|_instance, args| {
             let (area_idx, iface_idx) =
@@ -1323,6 +1346,9 @@ where
                     let area = &arenas.areas[area_idx];
                     let iface = &mut arenas.interfaces[iface_idx];
 
+                    // Cancel ibus subscription.
+                    instance.tx.ibus.interface_unsub(Some(iface.name.clone()));
+
                     // Stop interface if it's active.
                     let reason = InterfaceInactiveReason::AdminDown;
                     iface.fsm(
@@ -1446,12 +1472,18 @@ where
                     }
                 }
             }
-            Event::InterfaceQuerySouthbound(ifname, af) => {
+            Event::InterfaceIbusSub(ifname) => {
                 if self.is_active() {
-                    let _ = self.tx.ibus.send(IbusMsg::InterfaceQuery {
-                        ifname,
-                        af: Some(af),
-                    });
+                    let af = match (V::PROTOCOL, V::address_family(self)) {
+                        (Protocol::OSPFV3, AddressFamily::Ipv4) => {
+                            // OSPFv3 supports both IPv4 and IPv6 but runs over
+                            // IPv6 transport. When routing IPv4, both IPv4 and
+                            // IPv6 interface addresses are required.
+                            None
+                        }
+                        (_, af) => Some(af),
+                    };
+                    self.tx.ibus.interface_sub(Some(ifname), af);
                 }
             }
             Event::StubRouterChange => {
@@ -1522,7 +1554,7 @@ where
                     if bier_enabled {
                         self.process_event(Event::ReinstallRoutes).await;
                     } else {
-                        let _ = instance.tx.ibus.send(IbusMsg::BierPurge);
+                        instance.tx.ibus.bier_purge();
                     }
                 }
             }
@@ -1561,6 +1593,15 @@ where
                             &arenas.interfaces,
                         );
                     }
+                }
+            }
+            Event::NodeTagsChange => {
+                if let Some((instance, arenas)) = self.as_up() {
+                    let _ = V::lsa_orig_event(
+                        &instance,
+                        arenas,
+                        LsaOriginateEvent::NodeTagsChange,
+                    );
                 }
             }
         }
@@ -1611,6 +1652,7 @@ impl Default for InstanceCfg {
             spf_hold_down,
             spf_time_to_learn,
             stub_router: false,
+            node_tags: Default::default(),
             extended_lsa,
             sr_enabled,
             instance_id,

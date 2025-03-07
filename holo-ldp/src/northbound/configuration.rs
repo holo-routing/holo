@@ -15,7 +15,6 @@ use holo_northbound::configuration::{
     ValidationCallbacksBuilder,
 };
 use holo_northbound::yang::control_plane_protocol::mpls_ldp;
-use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
 use holo_utils::yang::DataNodeRefExt;
 
@@ -42,7 +41,7 @@ pub enum Event {
     InstanceUpdate,
     InterfaceUpdate(InterfaceIndex),
     InterfaceDelete(InterfaceIndex),
-    InterfaceQuerySouthbound(String),
+    InterfaceIbusSub(String),
     TargetedNbrUpdate(TargetedNbrIndex),
     TargetedNbrRemoveCheck(TargetedNbrIndex),
     TargetedNbrRemoveDynamic,
@@ -180,7 +179,7 @@ fn load_callbacks() -> Callbacks<Instance> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InterfaceUpdate(iface_idx));
-            event_queue.insert(Event::InterfaceQuerySouthbound(ifname));
+            event_queue.insert(Event::InterfaceIbusSub(ifname));
             event_queue.insert(Event::CfgSeqNumberUpdate);
         })
         .delete_apply(|_instance, args| {
@@ -458,9 +457,13 @@ impl Provider for Instance {
                 }
             }
             Event::InterfaceDelete(iface_idx) => {
-                // Stop interface if it's active.
                 if let Some((mut instance, interfaces, _)) = self.as_up() {
                     let iface = &mut interfaces[iface_idx];
+
+                    // Cancel ibus subscription.
+                    instance.tx.ibus.interface_unsub(Some(iface.name.clone()));
+
+                    // Stop interface if it's active.
                     if iface.is_active() {
                         let reason = InterfaceInactiveReason::AdminDown;
                         iface.stop(&mut instance, reason);
@@ -469,12 +472,12 @@ impl Provider for Instance {
 
                 self.interfaces.delete(iface_idx);
             }
-            Event::InterfaceQuerySouthbound(ifname) => {
+            Event::InterfaceIbusSub(ifname) => {
                 if let Some((instance, _, _)) = self.as_up() {
-                    let _ = instance.tx.ibus.send(IbusMsg::InterfaceQuery {
-                        ifname,
-                        af: Some(AddressFamily::Ipv4),
-                    });
+                    instance
+                        .tx
+                        .ibus
+                        .interface_sub(Some(ifname), Some(AddressFamily::Ipv4));
                 }
             }
             Event::TargetedNbrUpdate(tnbr_idx) => {

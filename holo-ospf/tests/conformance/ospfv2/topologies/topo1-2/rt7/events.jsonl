@@ -1,12 +1,8 @@
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"7.7.7.7"}}
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"7.7.7.7"}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt6","af":"Ipv4"}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"","lsa_id":"4.0.0.0","lsa_body":{"OpaqueArea":{"RouterInfo":{"info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":null,"srgb":[],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt6","ifindex":2,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt6","addr":"10.0.6.7/24","flags":""}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"","lsa_id":"4.0.0.0","lsa_body":{"OpaqueArea":{"RouterInfo":{"info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":null,"srgb":[],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}}
@@ -22,8 +18,6 @@
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"","lsa_id":"7.7.7.7","lsa_body":{"Router":{"flags":"","links":[{"link_type":"StubNetwork","link_id":"10.0.6.0","link_data":"255.255.255.0","metric":10},{"link_type":"StubNetwork","link_id":"7.7.7.7","link_data":"255.255.255.255","metric":0}]}}}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":"","lsa_id":"7.7.7.7","lsa_body":{"Router":{"flags":"","links":[{"link_type":"StubNetwork","link_id":"10.0.6.0","link_data":"255.255.255.0","metric":10},{"link_type":"StubNetwork","link_id":"7.7.7.7","link_data":"255.255.255.255","metric":0}]}}}}}
 {"Protocol":{"SpfDelayEvent":{"event":"Igp"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt6","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv6"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt6","ifindex":2,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt6","addr":"fe80::a442:d8ff:fe3f:8245/64","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}

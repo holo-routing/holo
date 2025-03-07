@@ -1,0 +1,159 @@
+{
+  "ietf-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "eth-rt3-1",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {},
+        "ietf-ip:ipv6": {}
+      },
+      {
+        "name": "eth-rt3-2",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {},
+        "ietf-ip:ipv6": {}
+      },
+      {
+        "name": "eth-rt4",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {},
+        "ietf-ip:ipv6": {}
+      },
+      {
+        "name": "eth-rt6",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {},
+        "ietf-ip:ipv6": {}
+      },
+      {
+        "name": "lo",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {
+          "address": [
+            {
+              "ip": "5.5.5.5",
+              "prefix-length": 32
+            }
+          ]
+        },
+        "ietf-ip:ipv6": {
+          "address": [
+            {
+              "ip": "2001:db8:1000::5",
+              "prefix-length": 128
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-isis:isis",
+          "name": "test",
+          "ietf-isis:isis": {
+            "level-type": "level-2",
+            "system-id": "0000.0000.0005",
+            "area-address": [
+              "49.0000"
+            ],
+            "metric-type": {
+              "value": "old-only"
+            },
+            "interfaces": {
+              "interface": [
+                {
+                  "name": "eth-rt3-1",
+                  "interface-type": "point-to-point",
+                  "hello-interval": {
+                    "value": 3
+                  },
+                  "address-families": {
+                    "address-family-list": [
+                      {
+                        "address-family": "ipv6"
+                      },
+                      {
+                        "address-family": "ipv4"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "eth-rt3-2",
+                  "interface-type": "point-to-point",
+                  "hello-interval": {
+                    "value": 3
+                  },
+                  "address-families": {
+                    "address-family-list": [
+                      {
+                        "address-family": "ipv6"
+                      },
+                      {
+                        "address-family": "ipv4"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "eth-rt4",
+                  "interface-type": "point-to-point",
+                  "hello-interval": {
+                    "value": 3
+                  },
+                  "address-families": {
+                    "address-family-list": [
+                      {
+                        "address-family": "ipv6"
+                      },
+                      {
+                        "address-family": "ipv4"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "eth-rt6",
+                  "interface-type": "point-to-point",
+                  "hello-interval": {
+                    "value": 3
+                  },
+                  "address-families": {
+                    "address-family-list": [
+                      {
+                        "address-family": "ipv6"
+                      },
+                      {
+                        "address-family": "ipv4"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "lo",
+                  "address-families": {
+                    "address-family-list": [
+                      {
+                        "address-family": "ipv6"
+                      },
+                      {
+                        "address-family": "ipv4"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "ietf-system:system": {
+    "hostname": "rt5"
+  }
+}
+

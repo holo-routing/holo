@@ -23,7 +23,6 @@ use holo_utils::ip::AddressFamily;
 use holo_utils::keychain::{Key, Keychains};
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
-use smallvec::SmallVec;
 
 use crate::collections::InterfaceIndex;
 use crate::debug::InterfaceInactiveReason;
@@ -31,7 +30,9 @@ use crate::instance::Instance;
 use crate::interface::InterfaceType;
 use crate::northbound::notification;
 use crate::packet::auth::AuthMethod;
-use crate::packet::{AreaAddr, LevelNumber, LevelType, SystemId};
+use crate::packet::{
+    AreaAddr, LevelNumber, LevelType, LevelTypeIterator, SystemId,
+};
 use crate::spf;
 use crate::tasks::messages::input::DisElectionMsg;
 
@@ -60,7 +61,7 @@ pub enum Event {
     InterfacePriorityChange(InterfaceIndex, LevelNumber),
     InterfaceUpdateHelloInterval(InterfaceIndex, LevelNumber),
     InterfaceUpdateCsnpInterval(InterfaceIndex),
-    InterfaceQuerySouthbound(InterfaceIndex),
+    InterfaceIbusSub(InterfaceIndex),
     ReoriginateLsps(LevelNumber),
     RefreshLsps,
     RerunSpf,
@@ -96,6 +97,8 @@ pub struct InstanceCfg {
     pub spf_time_to_learn: u32,
     pub preference: Preference,
     pub overload_status: bool,
+    pub att_suppress: bool,
+    pub att_ignore: bool,
 }
 
 #[derive(Debug)]
@@ -569,6 +572,23 @@ fn load_callbacks() -> Callbacks<Instance> {
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
+        .path(isis::attached_bit::suppress_advertisement::PATH)
+        .modify_apply(|instance, args| {
+            let enabled = args.dnode.get_bool();
+            instance.config.att_suppress = enabled;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .path(isis::attached_bit::ignore_reception::PATH)
+        .modify_apply(|instance, args| {
+            let enabled = args.dnode.get_bool();
+            instance.config.att_ignore = enabled;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::RerunSpf);
+        })
         .path(isis::interfaces::interface::PATH)
         .create_apply(|instance, args| {
             let ifname = args.dnode.get_string_relative("name").unwrap();
@@ -577,7 +597,7 @@ fn load_callbacks() -> Callbacks<Instance> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InterfaceUpdate(iface.index));
-            event_queue.insert(Event::InterfaceQuerySouthbound(iface.index));
+            event_queue.insert(Event::InterfaceIbusSub(iface.index));
         })
         .delete_apply(|_instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -1151,6 +1171,9 @@ impl Provider for Instance {
                 if let Some((mut instance, arenas)) = self.as_up() {
                     let iface = &mut arenas.interfaces[iface_idx];
 
+                    // Cancel ibus subscription.
+                    instance.tx.ibus.interface_unsub(Some(iface.name.clone()));
+
                     // Stop interface if it's active.
                     let reason = InterfaceInactiveReason::AdminDown;
                     iface.stop(&mut instance, &mut arenas.adjacencies, reason);
@@ -1208,11 +1231,9 @@ impl Provider for Instance {
                 let iface = &mut arenas.interfaces[iface_idx];
                 iface.csnp_interval_reset(&instance);
             }
-            Event::InterfaceQuerySouthbound(iface_idx) => {
-                if self.is_active() {
-                    let iface = &self.arenas.interfaces[iface_idx];
-                    iface.query_southbound(&self.tx.ibus);
-                }
+            Event::InterfaceIbusSub(iface_idx) => {
+                let iface = &self.arenas.interfaces[iface_idx];
+                self.tx.ibus.interface_sub(Some(iface.name.clone()), None);
             }
             Event::ReoriginateLsps(level) => {
                 if let Some((mut instance, _)) = self.as_up() {
@@ -1277,11 +1298,8 @@ impl InstanceCfg {
     }
 
     // Returns the levels supported by the instance.
-    pub(crate) fn levels(&self) -> SmallVec<[LevelNumber; 2]> {
-        [LevelNumber::L1, LevelNumber::L2]
-            .into_iter()
-            .filter(|level| self.level_type.intersects(level))
-            .collect()
+    pub(crate) fn levels(&self) -> LevelTypeIterator {
+        self.level_type.into_iter()
     }
 }
 
@@ -1304,11 +1322,8 @@ impl InterfaceCfg {
     }
 
     // Returns the levels supported by the interface.
-    pub(crate) fn levels(&self) -> SmallVec<[LevelNumber; 2]> {
-        [LevelNumber::L1, LevelNumber::L2]
-            .into_iter()
-            .filter(|level| self.level_type.resolved.intersects(level))
-            .collect()
+    pub(crate) fn levels(&self) -> LevelTypeIterator {
+        self.level_type.resolved.into_iter()
     }
 
     // Calculates the hello hold time for a given level by multiplying the
@@ -1403,6 +1418,8 @@ impl Default for InstanceCfg {
         let spf_time_to_learn =
             isis::spf_control::ietf_spf_delay::time_to_learn::DFLT;
         let overload_status = isis::overload::status::DFLT;
+        let att_suppress = isis::attached_bit::suppress_advertisement::DFLT;
+        let att_ignore = isis::attached_bit::ignore_reception::DFLT;
 
         InstanceCfg {
             enabled,
@@ -1426,6 +1443,8 @@ impl Default for InstanceCfg {
             spf_time_to_learn,
             preference: Default::default(),
             overload_status,
+            att_suppress,
+            att_ignore,
         }
     }
 }

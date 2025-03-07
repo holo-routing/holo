@@ -1,14 +1,7 @@
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"4.4.4.4"}}
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"4.4.4.4"}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2-1","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2-2","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt5","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt6","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv6"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt2-1","ifindex":4,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt2-1","addr":"fe80::1879:caff:fe99:e583/64","flags":""}}}
 {"Protocol":{"LsaOrigCheck":{"lsdb_key":{"Area":{"Id":1}},"options":null,"lsa_id":"0.0.0.0","lsa_body":{"RouterInfo":{"scope":"Area","info_caps":"GR_HELPER | STUB_ROUTER","func_caps":null,"sr_algo":null,"srgb":[],"srlb":[],"msds":null,"srms_pref":null,"unknown_tlvs":[]}}}}}
@@ -20,14 +13,9 @@
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt6","addr":"fe80::1428:b6ff:fe6a:2c05/64","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"lo","addr":"2001:db8:1000::4/128","flags":""}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2-1","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt2-2","af":"Ipv4"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt5","af":"Ipv4"}}}
 {"Protocol":{"NetRxPacket":{"area_key":{"Id":1},"iface_key":{"Id":1},"src":"fe80::88db:9bff:fef0:c5ac","dst":"ff02::5","packet":{"Ok":{"Hello":{"hdr":{"pkt_type":"Hello","router_id":"2.2.2.2","area_id":"0.0.0.0","instance_id":0},"iface_id":5,"priority":1,"options":"V6 | E | R | AF","hello_interval":3,"dead_interval":12,"dr":null,"bdr":null,"neighbors":["4.4.4.4"]}}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt6","af":"Ipv4"}}}
 {"Protocol":{"NetRxPacket":{"area_key":{"Id":1},"iface_key":{"Id":2},"src":"fe80::893:1aff:fe9b:ff3f","dst":"ff02::5","packet":{"Ok":{"Hello":{"hdr":{"pkt_type":"Hello","router_id":"2.2.2.2","area_id":"0.0.0.0","instance_id":0},"iface_id":7,"priority":1,"options":"V6 | E | R | AF","hello_interval":3,"dead_interval":12,"dr":null,"bdr":null,"neighbors":["4.4.4.4"]}}}}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"InterfaceAddrAddDel":{"area_id":1,"iface_id":1}}}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt2-1","ifindex":4,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt2-1","addr":"10.0.2.4/24","flags":""}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt2-2","ifindex":6,"mtu":1500,"flags":"OPERATIVE"}}}

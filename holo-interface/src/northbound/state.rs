@@ -67,9 +67,11 @@ impl Provider for Master {
 // ===== impl ListEntry =====
 
 impl ListEntryKind for ListEntry<'_> {
-    fn child_task(&self) -> Option<NbDaemonSender> {
+    fn child_task(&self, module_name: &str) -> Option<NbDaemonSender> {
         match self {
-            ListEntry::Interface(iface) => iface.vrrp.clone(),
+            ListEntry::Interface(iface) if module_name == "ietf-vrrp" => {
+                iface.vrrp.as_ref().map(|vrrp| vrrp.nb_tx.clone())
+            }
             _ => None,
         }
     }

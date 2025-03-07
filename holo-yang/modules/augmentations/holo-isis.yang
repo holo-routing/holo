@@ -23,6 +23,34 @@ module holo-isis {
    */
 
   augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis" {
+    description
+      "IS-IS instance augmentations";
+    container attached-bit {
+      description "Configuration related to the ATT bit.";
+
+      leaf suppress-advertisement {             
+        type boolean;
+        default false;
+        description
+          "When enabled, prevents the setting of the ATT bit in level 1
+           LSPs originated by this level 1/2 router. This ensures that
+           level 1 routers in the area do not install a default route
+           pointing to this router.";
+      }
+
+      leaf ignore-reception {
+        type boolean;           
+        default false;
+        description
+          "When enabled, this level 1 router ignores the ATT bit in level
+           1 LSPs it receives. As a result, it will not install a default
+           route for any level 1/2 router that sets the ATT bit.";
+      }
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
         + "rt:control-plane-protocol/isis:isis/"
         + "isis:interfaces/isis:interface" {
     description
@@ -54,6 +82,12 @@ module holo-isis {
   augment "/rt:routing/rt:control-plane-protocols/"
         + "rt:control-plane-protocol/isis:isis/isis:database/"
         + "isis:levels/isis:lsp" {
+    leaf-list area-addresses {
+      type isis:area-address;
+      description
+        "List of area addresses of the IS-IS node.  The IS-IS
+         reference is TLV 1.";
+    }
     leaf lsp-buffer-size {
       type uint16;
       units "bytes";

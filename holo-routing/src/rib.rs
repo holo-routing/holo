@@ -4,14 +4,14 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::{BTreeMap, BTreeSet, HashMap, btree_map};
+use std::collections::{BTreeMap, BTreeSet, HashMap, btree_map, hash_map};
 use std::net::IpAddr;
 
 use bitflags::bitflags;
 use chrono::{DateTime, Utc};
 use derive_new::new;
 use holo_utils::bier::{BfrId, BirtEntry, Bsl, SubDomainId};
-use holo_utils::ibus::IbusSender;
+use holo_utils::ibus::{IbusSender, IbusSubscriber};
 use holo_utils::ip::{AddressFamily, IpNetworkExt, Ipv4AddrExt, Ipv6AddrExt};
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
@@ -33,11 +33,12 @@ pub struct Rib {
     pub ipv4: PrefixMap<Ipv4Network, BTreeMap<u32, Route>>,
     pub ipv6: PrefixMap<Ipv6Network, BTreeMap<u32, Route>>,
     pub mpls: BTreeMap<Label, Route>,
-    pub nht: HashMap<IpAddr, Option<u32>>,
+    pub nht: HashMap<IpAddr, NhtEntry>,
     pub ip_update_queue: BTreeSet<IpNetwork>,
     pub mpls_update_queue: BTreeSet<Label>,
     pub update_queue_tx: UnboundedSender<()>,
     pub update_queue_rx: UnboundedReceiver<()>,
+    pub subscriptions: HashMap<usize, RedistributeSub>,
 }
 
 #[derive(Debug, Default)]
@@ -63,6 +64,19 @@ bitflags! {
         const ACTIVE = 0x01;
         const REMOVED = 0x02;
     }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct NhtEntry {
+    pub metric: Option<u32>,
+    pub subscriptions: HashMap<usize, IbusSender>,
+}
+
+#[derive(Debug)]
+#[derive(new)]
+pub struct RedistributeSub {
+    pub protocols: BTreeSet<(AddressFamily, Protocol)>,
+    pub tx: IbusSender,
 }
 
 // ===== impl Birt =====
@@ -348,17 +362,25 @@ impl Rib {
     }
 
     // Nexthop tracking registration.
-    pub(crate) fn nht_add(&mut self, addr: IpAddr, ibus_tx: &IbusSender) {
+    pub(crate) fn nht_add(&mut self, subscriber: IbusSubscriber, addr: IpAddr) {
         debug!(%addr, "nexthop tracking add");
         let metric = self.nht_evaluate(&addr);
-        ibus::notify_nht_update(ibus_tx, addr, metric);
-        self.nht.entry(addr).or_insert(metric);
+        let nhte = self.nht.entry(addr).or_default();
+        nhte.metric = metric;
+        nhte.subscriptions.insert(subscriber.id, subscriber.tx);
+        ibus::notify_nht_update(addr, nhte);
     }
 
     // Nexthop tracking unregistration.
-    pub(crate) fn nht_del(&mut self, addr: IpAddr) {
+    pub(crate) fn nht_del(&mut self, subscriber: IbusSubscriber, addr: IpAddr) {
         debug!(%addr, "nexthop tracking delete");
-        self.nht.remove(&addr);
+        if let hash_map::Entry::Occupied(mut o) = self.nht.entry(addr) {
+            let nhte = o.get_mut();
+            nhte.subscriptions.remove(&subscriber.id);
+            if nhte.subscriptions.is_empty() {
+                o.remove();
+            }
+        }
     }
 
     // Evaluates the reachability of the given nexthop address and returns
@@ -371,11 +393,13 @@ impl Rib {
     pub(crate) async fn process_rib_update_queue(
         &mut self,
         netlink_handle: &rtnetlink::Handle,
-        ibus_tx: &IbusSender,
     ) {
         // Process IP update queue.
         while let Some(prefix) = self.ip_update_queue.pop_first() {
-            let rib_prefix = self.prefix_entry(prefix);
+            let rib_prefix = match prefix {
+                IpNetwork::V4(prefix) => self.ipv4.entry(prefix).or_default(),
+                IpNetwork::V6(prefix) => self.ipv6.entry(prefix).or_default(),
+            };
 
             // Find the protocol of the old best route, if one exists.
             let old_best_protocol = rib_prefix
@@ -404,7 +428,9 @@ impl Rib {
                     }
 
                     // Notify protocol instances about the updated route.
-                    ibus::notify_redistribute_add(ibus_tx, prefix, route);
+                    for sub in self.subscriptions.values() {
+                        ibus::notify_redistribute_add(sub, prefix, route);
+                    }
                 } else {
                     // Remove the preferred flag for other routes.
                     route.flags.remove(RouteFlags::ACTIVE);
@@ -425,7 +451,9 @@ impl Rib {
                     }
 
                     // Notify protocol instances about the deleted route.
-                    ibus::notify_redistribute_del(ibus_tx, prefix, protocol);
+                    for sub in self.subscriptions.values() {
+                        ibus::notify_redistribute_del(sub, prefix, protocol);
+                    }
                 }
 
                 // Remove prefix entry from the RIB.
@@ -467,52 +495,18 @@ impl Rib {
 
         // Reevaluate all registered nexthops.
         let mut nht = std::mem::take(&mut self.nht);
-        for (addr, metric) in &mut nht {
+        for (addr, nhte) in &mut nht {
             let new_metric = self.nht_evaluate(addr);
-            if new_metric != *metric {
+            if new_metric != nhte.metric {
                 debug!(
-                    %addr, old_metric = ?metric, ?new_metric,
+                    %addr, old_metric = ?nhte.metric, ?new_metric,
                     "nexthop tracking update"
                 );
-                *metric = new_metric;
-                ibus::notify_nht_update(ibus_tx, *addr, *metric);
+                nhte.metric = new_metric;
+                ibus::notify_nht_update(*addr, nhte);
             }
         }
         self.nht = nht;
-    }
-
-    // Processes route redistribution request.
-    pub(crate) fn redistribute_request(
-        &mut self,
-        protocol: Protocol,
-        af: Option<AddressFamily>,
-        ibus_tx: &IbusSender,
-    ) {
-        debug!(%protocol, "route redistribution request");
-
-        let redistribute_prefix = |prefix, routes: &BTreeMap<u32, Route>| {
-            if let Some(best_route) = routes
-                .values()
-                .find(|route| route.protocol == protocol)
-                .filter(|route| {
-                    route.flags.contains(RouteFlags::ACTIVE)
-                        && !route.flags.contains(RouteFlags::REMOVED)
-                })
-            {
-                ibus::notify_redistribute_add(ibus_tx, prefix, best_route);
-            }
-        };
-
-        if af.is_none() || af == Some(AddressFamily::Ipv4) {
-            for (prefix, routes) in &self.ipv4 {
-                redistribute_prefix((*prefix).into(), routes);
-            }
-        }
-        if af.is_none() || af == Some(AddressFamily::Ipv6) {
-            for (prefix, routes) in &self.ipv6 {
-                redistribute_prefix((*prefix).into(), routes);
-            }
-        }
     }
 
     // Returns RIB entry associated to the given IP prefix.
@@ -612,6 +606,7 @@ impl Default for Rib {
             mpls_update_queue: Default::default(),
             update_queue_tx,
             update_queue_rx,
+            subscriptions: Default::default(),
         }
     }
 }

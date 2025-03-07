@@ -8,7 +8,7 @@
 //
 
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use bytes::Bytes;
 use chrono::Utc;
@@ -27,6 +27,7 @@ use crate::packet::consts::PduType;
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::pdu::{Hello, HelloVariant, Lsp, Pdu, Snp, SnpTlvs};
 use crate::packet::{LanId, LevelNumber, LevelType, LspId};
+use crate::spf::SpfType;
 use crate::tasks::messages::input::DisElectionMsg;
 use crate::{spf, tasks};
 
@@ -272,6 +273,19 @@ pub(crate) fn process_pdu_hello_lan(
             }
         };
 
+    // Trigger an SPF run if the adjacency addresses have changed. These
+    // addresses are used for determining route next-hops.
+    if adj.state == AdjacencyState::Up
+        && (!adj.ipv4_addrs.iter().eq(hello.tlvs.ipv4_addrs())
+            || !adj.ipv6_addrs.iter().eq(hello.tlvs.ipv6_addrs()))
+    {
+        instance.state.spf_sched.get_mut(level).spf_type = SpfType::Full;
+        instance
+            .tx
+            .protocol_input
+            .spf_delay_event(level, spf::fsm::Event::AdjacencyChange);
+    }
+
     // Update adjacency with received PDU values.
     let old_priority = adj.priority;
     let old_state = adj.state;
@@ -416,6 +430,21 @@ pub(crate) fn process_pdu_hello_p2p(
             )
         }
     };
+
+    // Trigger an SPF run if the adjacency addresses have changed. These
+    // addresses are used for determining route next-hops.
+    if adj.state == AdjacencyState::Up
+        && (!adj.ipv4_addrs.iter().eq(hello.tlvs.ipv4_addrs())
+            || !adj.ipv6_addrs.iter().eq(hello.tlvs.ipv6_addrs()))
+    {
+        for level in adj.level_usage {
+            instance.state.spf_sched.get_mut(level).spf_type = SpfType::Full;
+            instance
+                .tx
+                .protocol_input
+                .spf_delay_event(level, spf::fsm::Event::AdjacencyChange);
+        }
+    }
 
     // Update adjacency with received PDU values.
     adj.area_addrs = hello.tlvs.area_addrs().cloned().collect();
@@ -647,9 +676,11 @@ pub(crate) fn process_pdu_lsp(
             }
         }
         Some(Ordering::Greater) => {
+            let lse = lse.unwrap();
+
             // Update LSP flooding flags for the incoming interface.
             let lsp_id = lsp.lsp_id;
-            iface.srm_list_add(instance, level, lsp);
+            iface.srm_list_add(instance, level, lse.data.clone());
             iface.ssn_list_del(level, &lsp_id);
         }
     }
@@ -726,7 +757,7 @@ pub(crate) fn process_pdu_snp(
         .tlvs
         .lsp_entries()
         .map(|entry| (entry.lsp_id, *entry))
-        .collect::<HashMap<_, _>>();
+        .collect::<BTreeMap<_, _>>();
     for entry in lsp_entries.values() {
         // Lookup LSP in the database.
         let lse = instance
@@ -1084,9 +1115,9 @@ pub(crate) fn process_lsp_originate(
     };
 
     // Originate LSPs for levels with pending requests.
-    for level in [LevelNumber::L1, LevelNumber::L2]
-        .into_iter()
-        .filter(|level| instance.config.level_type.intersects(level))
+    for level in instance
+        .config
+        .levels()
         .filter(|level| level_type.intersects(level))
     {
         lsdb::lsp_originate_all(instance, arenas, level);

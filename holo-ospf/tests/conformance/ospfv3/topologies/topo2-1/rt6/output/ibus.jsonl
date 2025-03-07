@@ -1,7 +1,8 @@
-"RouterIdQuery"
-{"InterfaceQuery":{"ifname":"eth-rt4","af":"Ipv6"}}
-{"InterfaceQuery":{"ifname":"eth-rt5","af":"Ipv6"}}
-{"InterfaceQuery":{"ifname":"lo","af":"Ipv6"}}
+{"RouterIdSub":{}}
+{"HostnameSub":{}}
+{"InterfaceSub":{"ifname":"eth-rt4","af":"Ipv6"}}
+{"InterfaceSub":{"ifname":"eth-rt5","af":"Ipv6"}}
+{"InterfaceSub":{"ifname":"lo","af":"Ipv6"}}
 {"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::2/128","distance":110,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":5,"addr":"fe80::1428:b6ff:fe6a:2c05","labels":[]}}]}}
 {"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::4/128","distance":110,"metric":10,"tag":null,"nexthops":[{"Address":{"ifindex":5,"addr":"fe80::1428:b6ff:fe6a:2c05","labels":[]}}]}}
 {"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::3/128","distance":110,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::5c12:97ff:fe4d:b39d","labels":[]}}]}}

@@ -1,15 +1,9 @@
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"7.7.7.7"}}
-{"Ibus":"RouterIdQuery"}
 {"Ibus":{"RouterIdUpdate":"7.7.7.7"}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt6","af":"Ipv4"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"eth-rt6","ifindex":2,"mtu":1500,"flags":"OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-rt6","addr":"10.0.6.7/24","flags":""}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv4"}}}
 {"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE"}}}
 {"Ibus":{"InterfaceAddressAdd":{"ifname":"lo","addr":"7.7.7.7/32","flags":""}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"eth-rt6","af":"Ipv6"}}}
-{"Ibus":{"InterfaceQuery":{"ifname":"lo","af":"Ipv6"}}}
 {"Protocol":{"LsaOrigEvent":{"event":{"AreaStart":{"area_id":1}}}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"10.0.6.0/24","distance":0,"metric":0,"tag":null,"nexthops":[{"Interface":{"ifindex":2}}]}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"direct","prefix":"7.7.7.7/32","distance":0,"metric":0,"tag":null,"nexthops":[{"Interface":{"ifindex":1}}]}}}

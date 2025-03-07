@@ -93,10 +93,12 @@ impl Provider for Master {
     async fn process_event(&mut self, event: Event) {
         match event {
             Event::HostnameChange => {
-                ibus::notify_hostname_update(
-                    &self.ibus_tx,
-                    self.config.hostname.clone(),
-                );
+                for ibus_tx in self.hostname_subscriptions.values() {
+                    ibus::notify_hostname_update(
+                        ibus_tx,
+                        self.config.hostname.clone(),
+                    );
+                }
             }
         }
     }

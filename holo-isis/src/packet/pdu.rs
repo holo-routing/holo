@@ -93,13 +93,19 @@ pub struct HelloTlvs {
 #[derive(Deserialize, Serialize)]
 pub struct Lsp {
     pub hdr: Header,
+    #[cfg_attr(
+        feature = "testing",
+        serde(default, skip_serializing_if = "serde_lsp_rem_lifetime_filter")
+    )]
     pub rem_lifetime: u16,
     pub lsp_id: LspId,
+    #[cfg_attr(feature = "testing", serde(skip_serializing))]
     pub seqno: u32,
+    #[cfg_attr(feature = "testing", serde(skip_serializing))]
     pub cksum: u16,
     pub flags: LspFlags,
     pub tlvs: LspTlvs,
-    #[cfg_attr(feature = "testing", serde(default, skip_serializing))]
+    #[cfg_attr(feature = "testing", serde(skip_serializing))]
     pub raw: Bytes,
     // Time the LSP was created or received. When combined with the Remaining
     // Lifetime field, the actual LSP remaining lifetime can be determined.
@@ -809,7 +815,8 @@ impl Lsp {
                     tlvs.ext_is_reach.push(tlv);
                 }
                 Some(TlvType::Ipv4InternalReach) => {
-                    let tlv = Ipv4ReachTlv::decode(tlv_len, &mut buf_tlv)?;
+                    let tlv =
+                        Ipv4ReachTlv::decode(tlv_len, &mut buf_tlv, false)?;
                     tlvs.ipv4_internal_reach.push(tlv);
                 }
                 Some(TlvType::ProtocolsSupported) => {
@@ -821,7 +828,8 @@ impl Lsp {
                     tlvs.protocols_supported = Some(tlv);
                 }
                 Some(TlvType::Ipv4ExternalReach) => {
-                    let tlv = Ipv4ReachTlv::decode(tlv_len, &mut buf_tlv)?;
+                    let tlv =
+                        Ipv4ReachTlv::decode(tlv_len, &mut buf_tlv, true)?;
                     tlvs.ipv4_external_reach.push(tlv);
                 }
                 Some(TlvType::Ipv4Addresses) => {
@@ -1147,7 +1155,6 @@ impl LspTlvs {
     }
 
     // Returns an iterator over all area addresses from TLVs of type 1.
-    #[expect(unused)]
     pub(crate) fn area_addrs(&self) -> impl Iterator<Item = &AreaAddr> {
         self.area_addrs.iter().flat_map(|tlv| tlv.list.iter())
     }
@@ -1213,6 +1220,12 @@ impl LspTlvs {
     pub(crate) fn ipv6_reach(&self) -> impl Iterator<Item = &Ipv6Reach> {
         self.ipv6_reach.iter().flat_map(|tlv| tlv.list.iter())
     }
+}
+
+// In conformance tests, we only care whether the LSP Remaining Lifetime is
+// zero or non-zero. Non-zero values can be skipped during serialization.
+pub fn serde_lsp_rem_lifetime_filter(rem_lifetime: &u16) -> bool {
+    *rem_lifetime != 0
 }
 
 // ===== impl Snp =====

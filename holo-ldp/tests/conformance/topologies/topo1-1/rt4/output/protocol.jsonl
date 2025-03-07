@@ -33,8 +33,8 @@
 {"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":32,"msg_type":"LabelMapping","fec":[{"Prefix":"10.0.4.0/24"}],"label":3}},"flush":false}}
 {"NbrTxPdu":{"nbr_id":1,"msg":{"Notification":{"msg_id":33,"status":{"status_code":47,"msg_id":0,"msg_type":0},"fec":[{"Wildcard":{"Typed":{"Prefix":"Ipv4"}}}]}},"flush":true}}
 {"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":34,"msg_type":"LabelMapping","fec":[{"Prefix":"1.1.1.1/32"}],"label":16}},"flush":false}}
-{"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":36,"msg_type":"LabelMapping","fec":[{"Prefix":"3.3.3.3/32"}],"label":19}},"flush":false}}
 {"NbrTxPdu":{"nbr_id":2,"msg":{"Label":{"msg_id":35,"msg_type":"LabelMapping","fec":[{"Prefix":"1.1.1.1/32"}],"label":16}},"flush":false}}
-{"NbrTxPdu":{"nbr_id":2,"msg":{"Label":{"msg_id":37,"msg_type":"LabelMapping","fec":[{"Prefix":"3.3.3.3/32"}],"label":19}},"flush":false}}
+{"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":36,"msg_type":"LabelMapping","fec":[{"Prefix":"3.3.3.3/32"}],"label":19}},"flush":false}}
 {"NbrTxPdu":{"nbr_id":1,"msg":{"Label":{"msg_id":38,"msg_type":"LabelMapping","fec":[{"Prefix":"10.0.2.0/24"}],"label":20}},"flush":false}}
+{"NbrTxPdu":{"nbr_id":2,"msg":{"Label":{"msg_id":37,"msg_type":"LabelMapping","fec":[{"Prefix":"3.3.3.3/32"}],"label":19}},"flush":false}}
 {"NbrTxPdu":{"nbr_id":2,"msg":{"Label":{"msg_id":39,"msg_type":"LabelMapping","fec":[{"Prefix":"10.0.2.0/24"}],"label":20}},"flush":false}}

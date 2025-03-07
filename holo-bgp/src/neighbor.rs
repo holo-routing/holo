@@ -13,7 +13,7 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use holo_protocol::InstanceChannelsTx;
 use holo_utils::bgp::{AfiSafi, RouteType, WellKnownCommunities};
-use holo_utils::ibus::IbusSender;
+use holo_utils::ibus::IbusChannelsTx;
 use holo_utils::socket::{TTL_MAX, TcpConnInfo, TcpStream};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{Sender, UnboundedSender};
@@ -962,7 +962,7 @@ impl Neighbor {
     }
 
     // Clears the Adj-RIB-In and Adj-RIB-Out for the given address family.
-    fn clear_routes<A>(&mut self, rib: &mut Rib, ibus_tx: &IbusSender)
+    fn clear_routes<A>(&mut self, rib: &mut Rib, ibus_tx: &IbusChannelsTx)
     where
         A: AddressFamily,
     {

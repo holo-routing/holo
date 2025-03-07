@@ -7,7 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use std::net::Ipv4Addr;
+use std::net::IpAddr;
 use std::time::Duration;
 
 use chrono::Utc;
@@ -19,12 +19,13 @@ use crate::instance::{MasterReason, VrrpTimer, fsm};
 use crate::interface::Interface;
 use crate::packet::{DecodeError, DecodeResult, VrrpHdr};
 use crate::tasks;
+use crate::version::VrrpVersion;
 
 // ===== VRRP network packet receipt =====
 
 pub(crate) fn process_vrrp_packet(
     interface: &mut Interface,
-    src: Ipv4Addr,
+    src: IpAddr,
     packet: DecodeResult<VrrpHdr>,
 ) -> Result<(), Error> {
     // Check if the packet was decoded successfully.
@@ -37,12 +38,15 @@ pub(crate) fn process_vrrp_packet(
                     interface.statistics.discontinuity_time = Utc::now();
                 }
                 DecodeError::PacketLengthError { vrid } => {
-                    if let Some(instance) = interface.instances.get_mut(&vrid) {
+                    if let Some(instance) =
+                        interface.vrrp_v2_instances.get_mut(&vrid)
+                    {
                         instance.state.statistics.pkt_length_errors += 1;
                         instance.state.statistics.discontinuity_time =
                             Utc::now();
                     }
                 }
+                DecodeError::IpTtlError { .. } => {}
             }
             return Err(Error::from((src, error)));
         }
@@ -51,8 +55,8 @@ pub(crate) fn process_vrrp_packet(
     // Log received packet.
     Debug::PacketRx(&src, &packet).log();
 
-    // Lookup instance.
-    let Some((interface, instance)) = interface.get_instance(packet.vrid)
+    let Some((interface, instance)) =
+        interface.get_instance(packet.vrid, &packet.version)
     else {
         interface.statistics.vrid_errors += 1;
         interface.statistics.discontinuity_time = Utc::now();
@@ -63,12 +67,13 @@ pub(crate) fn process_vrrp_packet(
     instance.state.last_adv_src = Some(src);
 
     // Sanity checks.
-    if !VALID_VRRP_VERSIONS.contains(&packet.version) {
+    if !VALID_VRRP_VERSIONS.contains(&packet.version.version()) {
         interface.statistics.version_errors += 1;
         interface.statistics.discontinuity_time = Utc::now();
         let error = GlobalError::VersionError;
         return Err(Error::GlobalError(src, error));
     }
+
     if packet.adver_int != instance.config.advertise_interval {
         instance.state.statistics.interval_errors += 1;
         instance.state.statistics.discontinuity_time = Utc::now();
@@ -105,7 +110,31 @@ pub(crate) fn process_vrrp_packet(
             }
         }
         fsm::State::Master => {
-            let primary_addr = interface.system.addresses.first().unwrap().ip();
+            let primary_addr = interface
+                .system
+                .addresses
+                .clone()
+                .iter()
+                .find_map(|addr| {
+                    match src {
+                        // get first ipv4 address
+                        IpAddr::V4(_) => {
+                            if addr.is_ipv4() {
+                                return Some(addr.ip());
+                            }
+                        }
+
+                        // get first ipv6 address
+                        IpAddr::V6(_) => {
+                            if addr.is_ipv6() {
+                                return Some(addr.ip());
+                            }
+                        }
+                    }
+                    None
+                })
+                .unwrap();
+
             if packet.priority == 0 {
                 instance.send_vrrp_advertisement(primary_addr);
                 instance.timer_reset();
@@ -131,9 +160,12 @@ pub(crate) fn process_vrrp_packet(
 pub(crate) fn handle_master_down_timer(
     interface: &mut Interface,
     vrid: u8,
+    vrrp_version: &VrrpVersion,
 ) -> Result<(), Error> {
     // Lookup instance.
-    let Some((interface, instance)) = interface.get_instance(vrid) else {
+    let Some((interface, instance)) =
+        interface.get_instance(vrid, vrrp_version)
+    else {
         return Ok(());
     };
     let Some(src_ip) = interface.system.addresses.first().map(|addr| addr.ip())

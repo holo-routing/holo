@@ -8,7 +8,6 @@
 //
 
 use holo_utils::southbound::{AddressMsg, InterfaceUpdateMsg};
-use ipnetwork::IpNetwork;
 
 use crate::interface::Interface;
 
@@ -18,27 +17,29 @@ pub(crate) fn process_iface_update(
     interface: &mut Interface,
     msg: InterfaceUpdateMsg,
 ) {
-    let (interface, mut instances) = interface.iter_instances();
+    let (iface, mut instances) = interface.iter_instances();
 
     // Handle updates for the primary VRRP interface.
-    if msg.ifname == interface.name {
-        interface.system.flags = msg.flags;
-        interface.system.ifindex = Some(msg.ifindex);
-        interface.system.mac_address = msg.mac_address;
+    if msg.ifname == iface.name {
+        iface.system.flags = msg.flags;
+        iface.system.ifindex = Some(msg.ifindex);
+        iface.system.mac_address = msg.mac_address;
         for instance in instances {
-            instance.update(&interface);
+            instance.update(&iface);
         }
         return;
     }
 
-    // Handle updates for VRRP macvlan interfaces.
+    // Handle updates for macvlan interfaces.
     if let Some(instance) =
         instances.find(|instance| msg.ifname == instance.mvlan.name)
     {
-        instance.mvlan.system.flags = msg.flags;
-        instance.mvlan.system.ifindex = Some(msg.ifindex);
-        instance.mvlan.system.mac_address = msg.mac_address;
-        instance.update(&interface);
+        // mvlan  updates
+        let mvlan = &mut instance.mvlan;
+        mvlan.system.flags = msg.flags;
+        mvlan.system.ifindex = Some(msg.ifindex);
+        mvlan.system.mac_address = msg.mac_address;
+        instance.update(&iface);
     }
 }
 
@@ -47,11 +48,9 @@ pub(crate) fn process_addr_add(interface: &mut Interface, msg: AddressMsg) {
 
     // Handle address updates for the primary VRRP interface.
     if msg.ifname == interface.name {
-        if let IpNetwork::V4(addr) = msg.addr {
-            interface.system.addresses.insert(addr);
-            for instance in instances {
-                instance.update(&interface);
-            }
+        interface.system.addresses.insert(msg.addr);
+        for instance in instances {
+            instance.update(&interface);
         }
     }
 }
@@ -61,11 +60,9 @@ pub(crate) fn process_addr_del(interface: &mut Interface, msg: AddressMsg) {
 
     // Handle address updates for the primary VRRP interface.
     if msg.ifname == interface.name {
-        if let IpNetwork::V4(addr) = msg.addr {
-            interface.system.addresses.remove(&addr);
-            for instance in instances {
-                instance.update(&interface);
-            }
+        interface.system.addresses.remove(&msg.addr);
+        for instance in instances {
+            instance.update(&interface);
         }
     }
 }

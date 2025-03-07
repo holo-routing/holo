@@ -24,7 +24,7 @@ use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 
 use crate::adjacency::{Adjacency, AdjacencyState};
-use crate::collections::{Arena, Interfaces, Lsdb, LspEntryId};
+use crate::collections::{Arena, InterfaceId, Interfaces, Lsdb, LspEntryId};
 use crate::debug::{
     Debug, InstanceInactiveReason, InterfaceInactiveReason, LspPurgeReason,
 };
@@ -443,6 +443,18 @@ impl InstanceState {
 // ===== impl ProtocolInputChannelsTx =====
 
 impl ProtocolInputChannelsTx {
+    pub(crate) fn dis_election(
+        &self,
+        iface_id: InterfaceId,
+        level: LevelNumber,
+    ) {
+        let msg = DisElectionMsg {
+            iface_key: iface_id.into(),
+            level,
+        };
+        let _ = self.dis_election.send(msg);
+    }
+
     pub(crate) fn lsp_purge(
         &self,
         level: LevelNumber,

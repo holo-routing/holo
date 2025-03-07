@@ -42,7 +42,7 @@ const-addrs = { version = "0.1", features = ["ipnet"] }
 convert_case = "0.6"
 criterion = "0.4"
 crossbeam-channel = "0.5"
-derive-new = "0.5"
+derive-new = "0.7"
 enum-as-inner = "0.6"
 fletcher = "1.0"
 futures = "0.3"

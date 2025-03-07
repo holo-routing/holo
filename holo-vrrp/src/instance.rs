@@ -7,7 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use std::net::Ipv4Addr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use std::time::Duration;
@@ -15,17 +15,26 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use enum_as_inner::EnumAsInner;
 use holo_utils::UnboundedSender;
+use holo_utils::ip::AddressFamily;
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
+use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 
-use crate::consts::{VRRP_MULTICAST_ADDRESS, VRRP_PROTO_NUMBER};
+use crate::consts::{
+    SOLICITATION_BASE_ADDRESS, VRRP_PROTO_NUMBER, VRRP_V2_MULTICAST_ADDRESS,
+    VRRP_V3_MULTICAST_ADDRESS,
+};
 use crate::debug::Debug;
 use crate::error::{Error, IoError};
 use crate::interface::{InterfaceSys, InterfaceView};
 use crate::northbound::configuration::InstanceCfg;
-use crate::packet::{ArpHdr, EthernetHdr, Ipv4Hdr, VrrpHdr, VrrpPacket};
+use crate::packet::{
+    ArpHdr, EthernetHdr, Ipv4Hdr, Ipv6Hdr, NeighborAdvertisement, Vrrp4Packet,
+    Vrrp6Packet, VrrpHdr,
+};
 use crate::tasks::messages::output::NetTxPacketMsg;
+use crate::version::VrrpVersion;
 use crate::{network, southbound, tasks};
 
 #[derive(Debug)]
@@ -36,10 +45,12 @@ pub struct Instance {
     pub config: InstanceCfg,
     // Instance state data.
     pub state: InstanceState,
-    // Macvlan interface.
+    // Macvlan interface
     pub mvlan: InstanceMacvlan,
     // Interface raw sockets and Tx/Rx tasks.
     pub net: Option<InstanceNet>,
+    // Vrrp version
+    pub vrrp_version: VrrpVersion,
 }
 
 #[derive(Debug, Default)]
@@ -49,7 +60,7 @@ pub struct InstanceState {
     pub new_master_reason: MasterReason,
     pub up_time: Option<DateTime<Utc>>,
     pub timer: VrrpTimer,
-    pub last_adv_src: Option<Ipv4Addr>,
+    pub last_adv_src: Option<IpAddr>,
     pub statistics: Statistics,
 }
 
@@ -66,6 +77,7 @@ pub struct InstanceNet {
     // Raw sockets.
     pub socket_vrrp_tx: Arc<AsyncFd<Socket>>,
     pub socket_vrrp_rx: Arc<AsyncFd<Socket>>,
+
     pub socket_arp: Arc<AsyncFd<Socket>>,
     // Network Tx/Rx tasks.
     _net_tx_task: Task<()>,
@@ -138,15 +150,27 @@ pub struct Statistics {
 // ===== impl Instance =====
 
 impl Instance {
-    pub(crate) fn new(vrid: u8) -> Self {
+    pub(crate) fn new(vrid: u8, vrrp_version: VrrpVersion) -> Self {
         Debug::InstanceCreate(vrid).log();
+        let mvlan = match vrrp_version {
+            VrrpVersion::V2 => InstanceMacvlan::new(vrid, AddressFamily::Ipv4),
+            VrrpVersion::V3(addr_family) => match addr_family {
+                AddressFamily::Ipv4 => {
+                    InstanceMacvlan::new(vrid, AddressFamily::Ipv4)
+                }
+                AddressFamily::Ipv6 => {
+                    InstanceMacvlan::new(vrid, AddressFamily::Ipv6)
+                }
+            },
+        };
 
         Instance {
             vrid,
             config: InstanceCfg::default(),
             state: InstanceState::default(),
-            mvlan: InstanceMacvlan::new(vrid),
+            mvlan,
             net: None,
+            vrrp_version,
         }
     }
 
@@ -154,6 +178,7 @@ impl Instance {
         let is_ready = interface.system.ifindex.is_some()
             && !interface.system.addresses.is_empty()
             && self.mvlan.system.ifindex.is_some();
+
         if is_ready && self.state.state == fsm::State::Initialize {
             self.startup(interface);
         } else if !is_ready && self.state.state != fsm::State::Initialize {
@@ -162,7 +187,7 @@ impl Instance {
     }
 
     fn startup(&mut self, interface: &InterfaceView) {
-        match InstanceNet::new(interface, &self.mvlan) {
+        match InstanceNet::new(interface, &self.mvlan, &self.vrrp_version) {
             Ok(net) => {
                 self.net = Some(net);
                 if self.config.priority == 255 {
@@ -194,20 +219,40 @@ impl Instance {
     pub(crate) fn shutdown(&mut self, interface: &InterfaceView) {
         if self.state.state == fsm::State::Master {
             // Send an advertisement with Priority = 0.
-            let src_ip = interface.system.addresses.first().unwrap();
-            let net = self.net.as_ref().unwrap();
+            if let Some(src_ip) = interface.system.addresses.first() {
+                match src_ip {
+                    IpNetwork::V4(v4_net) => {
+                        let net = self.net.as_ref().unwrap();
 
-            let mut pkt = self.generate_vrrp_packet();
-            pkt.priority = 0;
-            pkt.generate_checksum();
+                        let mut pkt = self.generate_vrrp_packet();
+                        pkt.priority = 0;
+                        pkt.generate_checksum();
 
-            let packet = VrrpPacket {
-                ip: self.generate_ipv4_packet(src_ip.ip()),
-                vrrp: pkt,
+                        let packet = Vrrp4Packet {
+                            ip: self.generate_ipv4_packet(v4_net.ip()),
+                            vrrp: pkt,
+                        };
+
+                        let msg = NetTxPacketMsg::Vrrp { packet };
+                        let _ = net.net_tx_packetp.send(msg);
+                    }
+                    IpNetwork::V6(v6_net) => {
+                        let net = self.net.as_ref().unwrap();
+
+                        let mut pkt = self.generate_vrrp_packet();
+                        pkt.priority = 0;
+                        pkt.generate_checksum();
+
+                        let packet = Vrrp6Packet {
+                            ip: self.generate_ipv6_packet(v6_net.ip()),
+                            vrrp: pkt,
+                        };
+
+                        let msg = NetTxPacketMsg::Vrrp6 { packet };
+                        let _ = net.net_tx_packetp.send(msg);
+                    }
+                }
             };
-
-            let msg = NetTxPacketMsg::Vrrp { packet };
-            let _ = net.net_tx_packetp.send(msg);
         }
 
         // Transition to the Initialize state.
@@ -292,16 +337,46 @@ impl Instance {
                 );
                 self.state.timer = VrrpTimer::MasterDownTimer(task);
             }
-            fsm::State::Master => {
-                let src_ip = interface.system.addresses.first().unwrap().ip();
-                let net = self.net.as_ref().unwrap();
-                let task = tasks::advertisement_interval(
-                    self,
-                    src_ip,
-                    &net.net_tx_packetp,
-                );
-                self.state.timer = VrrpTimer::AdvTimer(task);
-            }
+            fsm::State::Master => match self.vrrp_version.address_family() {
+                AddressFamily::Ipv4 => {
+                    let src_ip = interface
+                        .system
+                        .addresses
+                        .iter()
+                        .find(|net| net.is_ipv4());
+
+                    if let Some(src_addr) = src_ip
+                        && let IpNetwork::V4(addr) = src_addr
+                    {
+                        let net = self.net.as_ref().unwrap();
+                        let task = tasks::advertisement_interval4(
+                            self,
+                            addr.ip(),
+                            &net.net_tx_packetp,
+                        );
+                        self.state.timer = VrrpTimer::AdvTimer(task);
+                    }
+                }
+                AddressFamily::Ipv6 => {
+                    let src_ip = interface
+                        .system
+                        .addresses
+                        .iter()
+                        .find(|net| net.is_ipv6());
+
+                    if let Some(src_addr) = src_ip
+                        && let IpNetwork::V6(addr) = src_addr
+                    {
+                        let net = self.net.as_ref().unwrap();
+                        let task = tasks::advertisement_interval6(
+                            self,
+                            addr.ip(),
+                            &net.net_tx_packetp,
+                        );
+                        self.state.timer = VrrpTimer::AdvTimer(task);
+                    }
+                }
+            },
         }
     }
 
@@ -321,39 +396,131 @@ impl Instance {
         }
     }
 
+    /// Generates VRRP packet
     pub(crate) fn generate_vrrp_packet(&self) -> VrrpHdr {
-        let mut ip_addresses: Vec<Ipv4Addr> = vec![];
-        for addr in &self.config.virtual_addresses {
-            ip_addresses.push(addr.ip());
+        match self.vrrp_version.address_family() {
+            AddressFamily::Ipv4 => self.vrrp_ipv4_packet(),
+            AddressFamily::Ipv6 => self.vrrp_ipv6_packet(),
         }
+    }
 
-        let mut packet = VrrpHdr {
-            version: 2,
+    /// A VRRP packet holding IPV4 virtual addresses
+    /// and coming from an IPV4 address (can either be vrrp v2 or v3)
+    fn vrrp_ipv4_packet(&self) -> VrrpHdr {
+        let ip_addresses: Vec<IpAddr> = self
+            .config
+            .virtual_addresses
+            .clone()
+            .iter()
+            .filter_map(|addr| {
+                if let IpNetwork::V4(v4_net) = addr {
+                    return Some(IpAddr::V4(v4_net.ip()));
+                }
+                None
+            })
+            .collect();
+        let version = self.config.version.clone();
+        let mut auth_data: Option<u32> = None;
+        let mut auth_data2: Option<u32> = None;
+
+        if let VrrpVersion::V2 = self.config.version {
+            auth_data = Some(0);
+            auth_data2 = Some(0);
+        };
+
+        let mut pkt = VrrpHdr {
+            version,
             hdr_type: 1,
             vrid: self.vrid,
             priority: self.config.priority,
-            count_ip: self.config.virtual_addresses.len() as u8,
+            count_ip: ip_addresses.len() as u8,
             auth_type: 0,
             adver_int: self.config.advertise_interval,
             checksum: 0,
             ip_addresses,
-            auth_data: 0,
-            auth_data2: 0,
+            auth_data,
+            auth_data2,
         };
-        packet.generate_checksum();
-        packet
+        if self.config.version == VrrpVersion::V2 {
+            pkt.generate_checksum();
+        }
+        pkt
+    }
+
+    /// A Neighbor Advertisement packet, usually unsolicitated in VRRP
+    fn neighbor_solicitation_packet(
+        &self,
+        addr: Ipv6Addr,
+    ) -> NeighborAdvertisement {
+        NeighborAdvertisement {
+            icmp_type: 136,
+            code: 0,
+            checksum: 0,
+            r: 1,
+            s: 0,
+            o: 1,
+            reserved: 0,
+            target_address: addr,
+        }
+    }
+
+    /// A VRRP packet holding IPV6 virtual addresses
+    /// and will be sent from an IPV6 address
+    fn vrrp_ipv6_packet(&self) -> VrrpHdr {
+        let ip_addresses: Vec<IpAddr> = self
+            .config
+            .virtual_addresses
+            .clone()
+            .iter()
+            .filter_map(|addr| {
+                if let IpNetwork::V6(v6_net) = addr {
+                    return Some(IpAddr::V6(v6_net.ip()));
+                }
+                None
+            })
+            .collect();
+
+        let mut pkt = VrrpHdr {
+            version: VrrpVersion::V3(AddressFamily::Ipv6),
+            hdr_type: 1,
+            vrid: self.vrid,
+            priority: self.config.priority,
+            count_ip: ip_addresses.len() as u8,
+            auth_type: 0,
+            adver_int: self.config.advertise_interval,
+            checksum: 0,
+            ip_addresses,
+            auth_data: None,
+            auth_data2: None,
+        };
+        if self.config.version == VrrpVersion::V2 {
+            pkt.generate_checksum();
+        }
+        pkt
     }
 
     pub(crate) fn generate_ipv4_packet(
         &self,
         src_address: Ipv4Addr,
     ) -> Ipv4Hdr {
+        let addr_count = self
+            .config
+            .virtual_addresses
+            .clone()
+            .iter()
+            .filter_map(|addr| {
+                if let IpNetwork::V4(v4_net) = addr {
+                    return Some(IpAddr::V4(v4_net.ip()));
+                }
+                None
+            })
+            .count();
+
         // 36 bytes (20 IP + 16 vrrp)
         // we add 36 to:
         // 4 * (no of virtual IPs) -> since the number of
         //      virtual IPs makes the length of the header variable
-        let total_length =
-            (36 + (4 * self.config.virtual_addresses.len())) as u16;
+        let total_length = (36 + (4 * addr_count)) as u16;
 
         Ipv4Hdr {
             version: 4,
@@ -367,20 +534,81 @@ impl Instance {
             protocol: VRRP_PROTO_NUMBER as u8,
             checksum: 0x00,
             src_address,
-            dst_address: VRRP_MULTICAST_ADDRESS,
+            dst_address: VRRP_V2_MULTICAST_ADDRESS,
             options: None,
             padding: None,
         }
     }
 
-    pub(crate) fn send_vrrp_advertisement(&mut self, src_ip: Ipv4Addr) {
-        let packet = VrrpPacket {
-            ip: self.generate_ipv4_packet(src_ip),
-            vrrp: self.generate_vrrp_packet(),
+    pub(crate) fn generate_ipv6_packet(
+        &self,
+        src_address: Ipv6Addr,
+    ) -> Ipv6Hdr {
+        // Number of Virtual Ipv6 addresses
+        let addr_count = self
+            .config
+            .virtual_addresses
+            .clone()
+            .iter()
+            .filter_map(|addr| {
+                if let IpNetwork::V6(v6_net) = addr {
+                    return Some(IpAddr::V6(v6_net.ip()));
+                }
+                None
+            })
+            .count();
+
+        // 384 bytes (40 IP + 8 VRRP ) + (16 * no of ipv6 addresses)
+        let total_length = (48 + (16 * addr_count)) as u16;
+
+        Ipv6Hdr {
+            version: 6,
+            traffic_class: 0x00,
+            flow_label: 0x00,
+            payload_length: total_length,
+            next_header: 112,
+            hop_limit: 255,
+            source_address: src_address,
+            destination_address: VRRP_V3_MULTICAST_ADDRESS,
+        }
+    }
+
+    pub(crate) fn send_vrrp_advertisement(&mut self, src_ip: IpAddr) {
+        match self.vrrp_version {
+            VrrpVersion::V2 => {
+                if let IpAddr::V4(addr) = src_ip {
+                    let packet = Vrrp4Packet {
+                        ip: self.generate_ipv4_packet(addr),
+                        vrrp: self.generate_vrrp_packet(),
+                    };
+                    let msg = NetTxPacketMsg::Vrrp { packet };
+                    let net = self.net.as_ref().unwrap();
+                    let _ = net.net_tx_packetp.send(msg);
+                }
+            }
+            VrrpVersion::V3(_addr_fam) => match src_ip {
+                IpAddr::V4(addr) => {
+                    let packet = Vrrp4Packet {
+                        ip: self.generate_ipv4_packet(addr),
+                        vrrp: self.generate_vrrp_packet(),
+                    };
+
+                    let msg = NetTxPacketMsg::Vrrp { packet };
+                    let net = self.net.as_ref().unwrap();
+                    let _ = net.net_tx_packetp.send(msg);
+                }
+                IpAddr::V6(addr) => {
+                    let packet = Vrrp6Packet {
+                        ip: self.generate_ipv6_packet(addr),
+                        vrrp: self.generate_vrrp_packet(),
+                    };
+
+                    let msg = NetTxPacketMsg::Vrrp6 { packet };
+                    let net = self.net.as_ref().unwrap();
+                    let _ = net.net_tx_packetp.send(msg);
+                }
+            },
         };
-        let msg = NetTxPacketMsg::Vrrp { packet };
-        let net = self.net.as_ref().unwrap();
-        let _ = net.net_tx_packetp.send(msg);
     }
 
     pub(crate) fn send_gratuitous_arp(&self) {
@@ -391,29 +619,63 @@ impl Instance {
             src_mac: self.mvlan.system.mac_address,
         };
         for addr in &self.config.virtual_addresses {
-            let arp_hdr = ArpHdr {
-                hw_type: 1,
-                proto_type: libc::ETH_P_IP as _,
-                // MAC address length
-                hw_length: 6,
-                proto_length: 4,
-                operation: 1,
-                // Sender HW address is virtual MAC
-                // https://datatracker.ietf.org/doc/html/rfc3768#section-7.3
-                sender_hw_address: self.mvlan.system.mac_address,
-                sender_proto_address: addr.ip(),
-                target_hw_address: [0xff; 6],
-                target_proto_address: addr.ip(),
-            };
+            match addr {
+                IpNetwork::V4(addr) => {
+                    let arp_hdr = ArpHdr {
+                        hw_type: 1,
+                        proto_type: libc::ETH_P_IP as _,
+                        // MAC address length
+                        hw_length: 6,
+                        proto_length: 4,
+                        operation: 1,
+                        // Sender HW address is virtual MAC
+                        // https://datatracker.ietf.org/doc/html/rfc3768#section-7.3
+                        sender_hw_address: self.mvlan.system.mac_address,
+                        sender_proto_address: addr.ip(),
+                        target_hw_address: [0xff; 6],
+                        target_proto_address: addr.ip(),
+                    };
 
-            let msg = NetTxPacketMsg::Arp {
-                vrid: self.vrid,
-                ifindex: self.mvlan.system.ifindex.unwrap(),
-                eth_hdr,
-                arp_hdr,
-            };
-            let net = self.net.as_ref().unwrap();
-            let _ = net.net_tx_packetp.send(msg);
+                    let msg = NetTxPacketMsg::Arp {
+                        vrid: self.vrid,
+                        ifindex: self.mvlan.system.ifindex.unwrap(),
+                        eth_hdr,
+                        arp_hdr,
+                    };
+                    let net = self.net.as_ref().unwrap();
+                    let _ = net.net_tx_packetp.send(msg);
+                }
+                IpNetwork::V6(addr) => {
+                    let eth_hdr = EthernetHdr {
+                        dst_mac: self.mvlan.system.mac_address,
+                        src_mac: self.mvlan.system.mac_address,
+                        ethertype: 0x86DD,
+                    };
+                    let ip_hdr = Ipv6Hdr {
+                        version: 6,
+                        traffic_class: 0,
+                        flow_label: 0,
+                        payload_length: 24,
+                        next_header: 58,
+                        hop_limit: 255,
+                        source_address: addr.ip(),
+                        destination_address: generate_solicitated_addr(
+                            addr.ip(),
+                        ),
+                    };
+                    let nadv_hdr = self.neighbor_solicitation_packet(addr.ip());
+
+                    let msg = NetTxPacketMsg::NAdv {
+                        vrid: self.vrid,
+                        ifindex: self.mvlan.system.ifindex.unwrap(),
+                        eth_hdr,
+                        ip_hdr,
+                        nadv_hdr,
+                    };
+                    let net = self.net.as_ref().unwrap();
+                    let _ = net.net_tx_packetp.send(msg);
+                }
+            }
         }
     }
 }
@@ -427,8 +689,12 @@ impl Drop for Instance {
 // ==== impl InstanceMacvlan ====
 
 impl InstanceMacvlan {
-    pub(crate) fn new(vrid: u8) -> Self {
-        let name = format!("mvlan-vrrp-{}", vrid);
+    pub(crate) fn new(vrid: u8, af: AddressFamily) -> Self {
+        let ver = match af {
+            AddressFamily::Ipv4 => 4,
+            AddressFamily::Ipv6 => 6,
+        };
+        let name = format!("mvlan{}-vrrp-{}", ver, vrid);
         Self {
             name,
             system: InterfaceSys::default(),
@@ -442,28 +708,55 @@ impl InstanceNet {
     pub(crate) fn new(
         parent_iface: &InterfaceView,
         mvlan: &InstanceMacvlan,
+        vrrp_version: &VrrpVersion,
     ) -> Result<Self, IoError> {
         let instance_channels_tx = &parent_iface.tx;
 
-        // Create raw sockets.
-        let socket_vrrp_rx = network::socket_vrrp_rx(parent_iface)
-            .map_err(IoError::SocketError)
-            .and_then(|socket| {
-                AsyncFd::new(socket).map_err(IoError::SocketError)
-            })
-            .map(Arc::new)?;
-        let socket_vrrp_tx = network::socket_vrrp_tx(mvlan)
-            .map_err(IoError::SocketError)
-            .and_then(|socket| {
-                AsyncFd::new(socket).map_err(IoError::SocketError)
-            })
-            .map(Arc::new)?;
-        let socket_arp = network::socket_arp(&mvlan.name)
-            .map_err(IoError::SocketError)
-            .and_then(|socket| {
-                AsyncFd::new(socket).map_err(IoError::SocketError)
-            })
-            .map(Arc::new)?;
+        let socket_vrrp_rx = match vrrp_version.address_family() {
+            AddressFamily::Ipv4 => network::socket_vrrp_rx4(parent_iface)
+                .map_err(IoError::SocketError)
+                .and_then(|socket| {
+                    AsyncFd::new(socket).map_err(IoError::SocketError)
+                })
+                .map(Arc::new)?,
+            AddressFamily::Ipv6 => network::socket_vrrp_rx6(parent_iface)
+                .map_err(IoError::SocketError)
+                .and_then(|socket| {
+                    AsyncFd::new(socket).map_err(IoError::SocketError)
+                })
+                .map(Arc::new)?,
+        };
+
+        let socket_vrrp_tx = match vrrp_version.address_family() {
+            AddressFamily::Ipv4 => network::socket_vrrp_tx4(mvlan)
+                .map_err(IoError::SocketError)
+                .and_then(|socket| {
+                    AsyncFd::new(socket).map_err(IoError::SocketError)
+                })
+                .map(Arc::new)?,
+            AddressFamily::Ipv6 => network::socket_vrrp_tx6(mvlan)
+                .map_err(IoError::SocketError)
+                .and_then(|socket| {
+                    AsyncFd::new(socket).map_err(IoError::SocketError)
+                })
+                .map(Arc::new)?,
+        };
+
+        // - Arp when ipv4 Net Advert when IPV6 -
+        let socket_arp = match vrrp_version.address_family() {
+            AddressFamily::Ipv4 => network::socket_arp(&mvlan.name)
+                .map_err(IoError::SocketError)
+                .and_then(|socket| {
+                    AsyncFd::new(socket).map_err(IoError::SocketError)
+                })
+                .map(Arc::new)?,
+            AddressFamily::Ipv6 => network::socket_nadv(mvlan)
+                .map_err(IoError::SocketError)
+                .and_then(|socket| {
+                    AsyncFd::new(socket).map_err(IoError::SocketError)
+                })
+                .map(Arc::new)?,
+        };
 
         // Start network Tx/Rx tasks.
         let (net_tx_packetp, net_tx_packetc) = mpsc::unbounded_channel();
@@ -477,11 +770,12 @@ impl InstanceNet {
         let vrrp_net_rx_task = tasks::vrrp_net_rx(
             socket_vrrp_rx.clone(),
             &instance_channels_tx.protocol_input.vrrp_net_packet_tx,
+            vrrp_version,
         );
 
         Ok(Self {
-            socket_vrrp_tx,
             socket_vrrp_rx,
+            socket_vrrp_tx,
             socket_arp,
             _net_tx_task: net_tx_task,
             _vrrp_net_rx_task: vrrp_net_rx_task,
@@ -506,4 +800,19 @@ impl Default for Statistics {
             pkt_length_errors: 0,
         }
     }
+}
+
+/// gives us the Solicitated-Node multicast addresses that will be used for
+/// Neighbor Discovery
+///
+/// RFC 8568 - 6.4.2
+/// If the Active_Down_Timer fires, then:
+/// ...
+/// else // IPv6
+/// Compute and join the Solicited-Node multicast address [RFC4291] for the IPv6 address(es) associated with the Virtual Router.
+pub(crate) fn generate_solicitated_addr(addr: Ipv6Addr) -> Ipv6Addr {
+    let solic_base = SOLICITATION_BASE_ADDRESS;
+    let addr_bits: u128 = (addr.to_bits() << 104) >> 104;
+    let solic_addr = solic_base.to_bits() | addr_bits;
+    Ipv6Addr::from(solic_addr)
 }

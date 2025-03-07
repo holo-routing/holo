@@ -8,7 +8,7 @@
 //
 
 use std::fmt::Debug;
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::IpAddr;
 
 use tracing::{error, warn};
 
@@ -18,8 +18,8 @@ use crate::packet::DecodeError;
 #[derive(Debug)]
 pub enum Error {
     InstanceStartError(u8, IoError),
-    GlobalError(Ipv4Addr, GlobalError),
-    VirtualRouterError(Ipv4Addr, VirtualRouterError),
+    GlobalError(IpAddr, GlobalError),
+    VirtualRouterError(IpAddr, VirtualRouterError),
 }
 
 // VRRP I/O errors.
@@ -48,6 +48,7 @@ pub enum VirtualRouterError {
     AddressListError,
     IntervalError,
     PacketLengthError,
+    IpTtlError,
 }
 
 // ===== impl Error =====
@@ -92,8 +93,8 @@ impl std::error::Error for Error {
     }
 }
 
-impl From<(Ipv4Addr, DecodeError)> for Error {
-    fn from((src, error): (Ipv4Addr, DecodeError)) -> Error {
+impl From<(IpAddr, DecodeError)> for Error {
+    fn from((src, error): (IpAddr, DecodeError)) -> Error {
         match error {
             DecodeError::ChecksumError => {
                 Error::GlobalError(src, GlobalError::ChecksumError)
@@ -102,6 +103,9 @@ impl From<(Ipv4Addr, DecodeError)> for Error {
                 src,
                 VirtualRouterError::PacketLengthError,
             ),
+            DecodeError::IpTtlError { .. } => {
+                Error::VirtualRouterError(src, VirtualRouterError::IpTtlError)
+            }
         }
     }
 }
@@ -205,6 +209,9 @@ impl std::fmt::Display for VirtualRouterError {
             }
             VirtualRouterError::PacketLengthError => {
                 write!(f, "invalid packet length")
+            }
+            VirtualRouterError::IpTtlError => {
+                write!(f, "ip pkt with ttl != 255")
             }
         }
     }

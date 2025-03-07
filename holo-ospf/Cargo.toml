@@ -6,8 +6,6 @@ license.workspace = true
 edition.workspace = true
 
 [dependencies]
-internet-checksum = "0.2"
-
 async-trait.workspace = true
 bitflags.workspace = true
 bytes.workspace = true
@@ -17,6 +15,7 @@ enum-as-inner.workspace = true
 fletcher.workspace = true
 generational-arena.workspace = true
 hmac.workspace = true
+internet-checksum.workspace = true
 ipnetwork.workspace = true
 itertools.workspace = true
 libc.workspace = true

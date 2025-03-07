@@ -8,7 +8,6 @@
 //
 
 use holo_utils::southbound::{AddressMsg, InterfaceUpdateMsg};
-use ipnetwork::IpNetwork;
 
 use crate::interface::Interface;
 
@@ -47,11 +46,9 @@ pub(crate) fn process_addr_add(interface: &mut Interface, msg: AddressMsg) {
 
     // Handle address updates for the primary VRRP interface.
     if msg.ifname == interface.name {
-        if let IpNetwork::V4(addr) = msg.addr {
-            interface.system.addresses.insert(addr);
-            for instance in instances {
-                instance.update(&interface);
-            }
+        interface.system.addresses.insert(msg.addr);
+        for instance in instances {
+            instance.update(&interface);
         }
     }
 }
@@ -61,11 +58,9 @@ pub(crate) fn process_addr_del(interface: &mut Interface, msg: AddressMsg) {
 
     // Handle address updates for the primary VRRP interface.
     if msg.ifname == interface.name {
-        if let IpNetwork::V4(addr) = msg.addr {
-            interface.system.addresses.remove(&addr);
-            for instance in instances {
-                instance.update(&interface);
-            }
+        interface.system.addresses.remove(&msg.addr);
+        for instance in instances {
+            instance.update(&interface);
         }
     }
 }

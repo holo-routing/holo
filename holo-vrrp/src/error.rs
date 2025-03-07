@@ -8,7 +8,7 @@
 //
 
 use std::fmt::Debug;
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::IpAddr;
 
 use tracing::{error, warn};
 
@@ -18,8 +18,8 @@ use crate::packet::DecodeError;
 #[derive(Debug)]
 pub enum Error {
     InstanceStartError(u8, IoError),
-    GlobalError(Ipv4Addr, GlobalError),
-    VirtualRouterError(Ipv4Addr, VirtualRouterError),
+    GlobalError(IpAddr, GlobalError),
+    VirtualRouterError(IpAddr, VirtualRouterError),
 }
 
 // VRRP I/O errors.
@@ -40,6 +40,7 @@ pub enum GlobalError {
     IpTtlError,
     VersionError,
     VridError,
+    IncompletePacket,
 }
 
 // VRRP error that occurred after a packet reaches a VRRP router.
@@ -92,8 +93,8 @@ impl std::error::Error for Error {
     }
 }
 
-impl From<(Ipv4Addr, DecodeError)> for Error {
-    fn from((src, error): (Ipv4Addr, DecodeError)) -> Error {
+impl From<(IpAddr, DecodeError)> for Error {
+    fn from((src, error): (IpAddr, DecodeError)) -> Error {
         match error {
             DecodeError::ChecksumError => {
                 Error::GlobalError(src, GlobalError::ChecksumError)
@@ -102,6 +103,15 @@ impl From<(Ipv4Addr, DecodeError)> for Error {
                 src,
                 VirtualRouterError::PacketLengthError,
             ),
+            DecodeError::IpTtlError { .. } => {
+                Error::GlobalError(src, GlobalError::IpTtlError)
+            }
+            DecodeError::VersionError { .. } => {
+                Error::GlobalError(src, GlobalError::VersionError)
+            }
+            DecodeError::IncompletePacket => {
+                Error::GlobalError(src, GlobalError::IncompletePacket)
+            }
         }
     }
 }
@@ -185,6 +195,9 @@ impl std::fmt::Display for GlobalError {
             }
             GlobalError::VridError => {
                 write!(f, "invalid VRID received")
+            }
+            GlobalError::IncompletePacket => {
+                write!(f, "incomplete packet")
             }
         }
     }

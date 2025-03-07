@@ -7,15 +7,15 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use std::net::Ipv4Addr;
+use std::net::IpAddr;
 use std::time::Duration;
 
 use chrono::Utc;
+use holo_utils::ip::{IpAddrKind, IpNetworkKind};
 
-use crate::consts::VALID_VRRP_VERSIONS;
 use crate::debug::Debug;
 use crate::error::{Error, GlobalError, VirtualRouterError};
-use crate::instance::{MasterReason, VrrpTimer, fsm};
+use crate::instance::{MasterReason, Version, VrrpTimer, fsm};
 use crate::interface::Interface;
 use crate::packet::{DecodeError, DecodeResult, VrrpHdr};
 use crate::tasks;
@@ -24,7 +24,7 @@ use crate::tasks;
 
 pub(crate) fn process_vrrp_packet(
     interface: &mut Interface,
-    src: Ipv4Addr,
+    src: IpAddr,
     packet: DecodeResult<VrrpHdr>,
 ) -> Result<(), Error> {
     // Check if the packet was decoded successfully.
@@ -36,13 +36,16 @@ pub(crate) fn process_vrrp_packet(
                     interface.statistics.checksum_errors += 1;
                     interface.statistics.discontinuity_time = Utc::now();
                 }
-                DecodeError::PacketLengthError { vrid } => {
-                    if let Some(instance) = interface.instances.get_mut(&vrid) {
+                DecodeError::PacketLengthError { vrid, version } => {
+                    if let Some((_, instance)) =
+                        interface.get_instance(vrid, version.address_family())
+                    {
                         instance.state.statistics.pkt_length_errors += 1;
                         instance.state.statistics.discontinuity_time =
                             Utc::now();
                     }
                 }
+                _ => (),
             }
             return Err(Error::from((src, error)));
         }
@@ -52,7 +55,8 @@ pub(crate) fn process_vrrp_packet(
     Debug::PacketRx(&src, &packet).log();
 
     // Lookup instance.
-    let Some((interface, instance)) = interface.get_instance(packet.vrid)
+    let Some((interface, instance)) =
+        interface.get_instance(packet.vrid, packet.version.address_family())
     else {
         interface.statistics.vrid_errors += 1;
         interface.statistics.discontinuity_time = Utc::now();
@@ -63,7 +67,7 @@ pub(crate) fn process_vrrp_packet(
     instance.state.last_adv_src = Some(src);
 
     // Sanity checks.
-    if !VALID_VRRP_VERSIONS.contains(&packet.version) {
+    if !VrrpHdr::VALID_VERSIONS.contains(&packet.version.version()) {
         interface.statistics.version_errors += 1;
         interface.statistics.discontinuity_time = Utc::now();
         let error = GlobalError::VersionError;
@@ -105,7 +109,13 @@ pub(crate) fn process_vrrp_packet(
             }
         }
         fsm::State::Master => {
-            let primary_addr = interface.system.addresses.first().unwrap().ip();
+            let primary_addr = interface
+                .system
+                .addresses
+                .iter()
+                .find(|addr| addr.address_family() == src.address_family())
+                .map(|addr| addr.ip())
+                .unwrap();
             if packet.priority == 0 {
                 instance.send_vrrp_advertisement(primary_addr);
                 instance.timer_reset();
@@ -131,9 +141,12 @@ pub(crate) fn process_vrrp_packet(
 pub(crate) fn handle_master_down_timer(
     interface: &mut Interface,
     vrid: u8,
+    version: Version,
 ) -> Result<(), Error> {
     // Lookup instance.
-    let Some((interface, instance)) = interface.get_instance(vrid) else {
+    let Some((interface, instance)) =
+        interface.get_instance(vrid, version.address_family())
+    else {
         return Ok(());
     };
     let Some(src_ip) = interface.system.addresses.first().map(|addr| addr.ip())

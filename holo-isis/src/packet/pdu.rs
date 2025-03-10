@@ -41,7 +41,7 @@ use crate::packet::{
 #[derive(Deserialize, Serialize)]
 pub enum Pdu {
     Hello(Hello),
-    Lsp(Lsp),
+    Lsp(Box<Lsp>),
     Snp(Snp),
 }
 
@@ -177,9 +177,12 @@ impl Pdu {
             PduType::HelloLanL1 | PduType::HelloLanL2 | PduType::HelloP2P => {
                 Pdu::Hello(Hello::decode(hdr, &mut buf, buf_orig, hello_auth)?)
             }
-            PduType::LspL1 | PduType::LspL2 => {
-                Pdu::Lsp(Lsp::decode(hdr, &mut buf, buf_orig, global_auth)?)
-            }
+            PduType::LspL1 | PduType::LspL2 => Pdu::Lsp(Box::new(Lsp::decode(
+                hdr,
+                &mut buf,
+                buf_orig,
+                global_auth,
+            )?)),
             PduType::CsnpL1
             | PduType::CsnpL2
             | PduType::PsnpL1

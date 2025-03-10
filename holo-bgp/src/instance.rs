@@ -423,7 +423,7 @@ impl MessageReceiver<ProtocolInputMsg> for ProtocolInputChannelsRx {
                 msg.map(ProtocolInputMsg::NbrTimer)
             }
             msg = self.policy_result.recv() => {
-                msg.map(ProtocolInputMsg::PolicyResult)
+                msg.map(|msg| ProtocolInputMsg::PolicyResult(Box::new(msg)))
             }
             msg = self.decision_process.recv() => {
                 msg.map(ProtocolInputMsg::TriggerDecisionProcess)
@@ -528,7 +528,7 @@ fn process_protocol_msg(
             )?;
         }
         // Policy result.
-        ProtocolInputMsg::PolicyResult(msg) => match msg {
+        ProtocolInputMsg::PolicyResult(msg) => match *msg {
             PolicyResultMsg::Neighbor {
                 policy_type,
                 afi_safi,
@@ -563,12 +563,12 @@ fn process_protocol_msg(
             } => match afi_safi {
                 AfiSafi::Ipv4Unicast => {
                     events::process_redistribute_policy_import::<Ipv4Unicast>(
-                        instance, prefix, result,
+                        instance, prefix, *result,
                     )?
                 }
                 AfiSafi::Ipv6Unicast => {
                     events::process_redistribute_policy_import::<Ipv6Unicast>(
-                        instance, prefix, result,
+                        instance, prefix, *result,
                     )?
                 }
             },

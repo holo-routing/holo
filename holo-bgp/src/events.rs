@@ -119,7 +119,7 @@ pub(crate) fn process_nbr_msg(
                 }
                 Message::Update(msg) => {
                     nbr.fsm_event(instance, fsm::Event::RcvdUpdate);
-                    process_nbr_update(instance, nbr, msg)?;
+                    process_nbr_update(instance, nbr, *msg)?;
                 }
                 Message::Notification(msg) => {
                     nbr.fsm_event(instance, fsm::Event::RcvdNotif(msg.clone()));

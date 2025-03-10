@@ -78,7 +78,7 @@ pub mod messages {
             TcpConnect(TcpConnectMsg),
             NbrRx(NbrRxMsg),
             NbrTimer(NbrTimerMsg),
-            PolicyResult(PolicyResultMsg),
+            PolicyResult(Box<PolicyResultMsg>),
             TriggerDecisionProcess(()),
         }
 
@@ -119,7 +119,7 @@ pub mod messages {
             Redistribute {
                 afi_safi: AfiSafi,
                 prefix: IpNetwork,
-                result: PolicyResult<RoutePolicyInfo>,
+                result: Box<PolicyResult<RoutePolicyInfo>>,
             },
         }
 
@@ -157,7 +157,7 @@ pub mod messages {
         #[derive(Debug, Serialize)]
         pub enum ProtocolMsg {
             NbrTx(NbrTxMsg),
-            PolicyApply(PolicyApplyMsg),
+            PolicyApply(Box<PolicyApplyMsg>),
         }
 
         #[derive(Debug, Serialize)]
@@ -190,7 +190,7 @@ pub mod messages {
             Redistribute {
                 afi_safi: AfiSafi,
                 prefix: IpNetwork,
-                route: RoutePolicyInfo,
+                route: Box<RoutePolicyInfo>,
                 #[serde(skip)]
                 policies: Vec<Arc<Policy>>,
                 #[serde(skip)]
@@ -473,7 +473,7 @@ pub(crate) fn policy_apply(
                         policy::redistribute_apply(
                             afi_safi,
                             prefix,
-                            route,
+                            *route,
                             &policies,
                             &match_sets,
                             default_policy,

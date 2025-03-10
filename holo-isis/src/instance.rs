@@ -482,7 +482,7 @@ impl MessageReceiver<ProtocolInputMsg> for ProtocolInputChannelsRx {
         tokio::select! {
             biased;
             msg = self.net_pdu_rx.recv() => {
-                msg.map(ProtocolInputMsg::NetRxPdu)
+                msg.map(|msg: NetRxPduMsg|ProtocolInputMsg::NetRxPdu(Box::new(msg)))
             }
             msg = self.adj_holdtimer.recv() => {
                 msg.map(ProtocolInputMsg::AdjHoldTimer)

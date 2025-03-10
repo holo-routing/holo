@@ -500,6 +500,9 @@ fn get_optional_string(data: String) -> Option<String> {
     if data.is_empty() { None } else { Some(data) }
 }
 
+// Clippy allowance bellow because the large err is `Status`
+// and it is not in the `holo` crate thus not within our control
+#[allow(clippy::result_large_err)]
 fn data_tree_init(
     dtree: &DataTree<'static>,
     encoding: proto::Encoding,
@@ -527,6 +530,9 @@ fn data_tree_init(
     })
 }
 
+// Clippy allowance bellow because the large err is `Status`
+// and it is not in the `holo` crate thus not within our control
+#[allow(clippy::result_large_err)]
 fn data_tree_get(
     data_tree: &proto::DataTree,
 ) -> Result<DataTree<'static>, Status> {
@@ -559,6 +565,9 @@ fn data_tree_get(
     .map_err(|error| Status::invalid_argument(error.to_string()))
 }
 
+// Clippy allowance bellow because the large err is `Status`
+// and it is not in the `holo` crate thus not within our control
+#[allow(clippy::result_large_err)]
 fn data_diff_get(
     data_tree: &proto::DataTree,
 ) -> Result<DataDiff<'static>, Status> {
@@ -592,6 +601,9 @@ fn data_diff_get(
     .map_err(|error| Status::invalid_argument(error.to_string()))
 }
 
+// Clippy allowance bellow because the large err is `Status`
+// and it is not in the `holo` crate thus not within our control
+#[allow(clippy::result_large_err)]
 fn rpc_get(data_tree: &proto::DataTree) -> Result<DataTree<'static>, Status> {
     let yang_ctx = YANG_CTX.get().unwrap();
     let encoding = proto::Encoding::try_from(data_tree.encoding)

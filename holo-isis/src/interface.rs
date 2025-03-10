@@ -659,7 +659,7 @@ impl Interface {
         // Enqueue LSP for transmission.
         //
         // TODO: Implement LSP pacing.
-        self.enqueue_pdu(Pdu::Lsp(lsp), level);
+        self.enqueue_pdu(Pdu::Lsp(Box::new(lsp)), level);
     }
 
     pub(crate) fn srm_list_del(&mut self, level: LevelNumber, lsp_id: &LspId) {

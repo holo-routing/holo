@@ -135,7 +135,7 @@ pub(crate) fn process_pdu(
             process_pdu_hello(instance, arenas, iface_idx, src, bytes, hello)
         }
         Pdu::Lsp(lsp) => {
-            process_pdu_lsp(instance, arenas, iface_idx, src, bytes, lsp)
+            process_pdu_lsp(instance, arenas, iface_idx, src, bytes, *lsp)
         }
         Pdu::Snp(snp) => {
             process_pdu_snp(instance, arenas, iface_idx, src, bytes, snp)

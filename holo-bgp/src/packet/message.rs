@@ -53,7 +53,7 @@ use crate::packet::error::{
 #[derive(Deserialize, Serialize)]
 pub enum Message {
     Open(OpenMsg),
-    Update(UpdateMsg),
+    Update(Box<UpdateMsg>),
     Notification(NotificationMsg),
     Keepalive(KeepaliveMsg),
     RouteRefresh(RouteRefreshMsg),
@@ -331,7 +331,7 @@ impl Message {
             }
             Some(MessageType::Update) => {
                 let msg = UpdateMsg::decode(&mut buf, msg_len, cxt)?;
-                Ok(Message::Update(msg))
+                Ok(Message::Update(Box::new(msg)))
             }
             Some(MessageType::Notification) => {
                 let msg = NotificationMsg::decode(&mut buf, msg_len)?;

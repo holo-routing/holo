@@ -30,8 +30,9 @@ holo-vrrp = { path = ".", features = ["testing"] }
 holo-protocol = { path = "../holo-protocol", features = ["testing"] }
 holo-utils = { path = "../holo-utils", features = ["testing"] }
 
-[lints]
-workspace = true
+[lints.rust]
+rust_2018_idioms = { level = "warn", priority = -1 }
+unsafe_code = "allow"
 
 [features]
 default = []

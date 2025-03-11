@@ -186,7 +186,7 @@ impl Instance {
         }
     }
 
-    fn startup(&mut self, interface: &InterfaceView) {
+    fn startup(&mut self, interface: &InterfaceView<'_>) {
         match InstanceNet::new(interface, &self.mvlan, &self.vrrp_version) {
             Ok(net) => {
                 self.net = Some(net);

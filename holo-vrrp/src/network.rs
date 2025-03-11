@@ -15,7 +15,9 @@ use std::sync::Arc;
 
 use bytes::{BufMut, Bytes, BytesMut};
 use holo_utils::ip::AddressFamily;
-use holo_utils::socket::{AsyncFd, RawSocketExt, Socket, SocketExt};
+use holo_utils::socket::{
+    AsyncFd, LinkAddrExt, RawSocketExt, Socket, SocketExt,
+};
 use holo_utils::{Sender, UnboundedReceiver, capabilities};
 use internet_checksum::Checksum;
 use ipnetwork::IpNetwork;
@@ -99,7 +101,7 @@ pub(crate) fn socket_vrrp_tx6(
 }
 
 pub(crate) fn socket_vrrp_rx4(
-    interface: &InterfaceView,
+    interface: &InterfaceView<'_>,
 ) -> Result<Socket, std::io::Error> {
     #[cfg(not(feature = "testing"))]
     {
@@ -130,7 +132,7 @@ pub(crate) fn socket_vrrp_rx4(
 }
 
 pub(crate) fn socket_vrrp_rx6(
-    interface: &InterfaceView,
+    interface: &InterfaceView<'_>,
 ) -> Result<Socket, std::io::Error> {
     #[cfg(not(feature = "testing"))]
     {
@@ -349,6 +351,7 @@ async fn send_packet_nadv(
     };
     sll.sll_addr[..6].copy_from_slice(&eth_hdr.dst_mac);
     let sll_len = size_of_val(&sll) as libc::socklen_t;
+
     let sockaddr = unsafe {
         LinkAddr::from_raw(&sll as *const _ as *const _, Some(sll_len))
     }

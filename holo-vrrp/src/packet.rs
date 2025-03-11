@@ -328,6 +328,7 @@ impl VrrpHdr {
         let mut checksum: u16 = 0;
         let mut ip_addresses: Vec<IpAddr> = vec![];
         let mut version = VrrpVersion::V2;
+        let mut check = Checksum::new();
 
         if ver == 2 {
             auth_type = buf.get_u8();
@@ -346,35 +347,38 @@ impl VrrpHdr {
 
             auth_data = Some(buf.get_u32());
             auth_data2 = Some(buf.get_u32());
+
+            // Checksum Calculation. For v3
+            check.add_bytes(data);
+            if check.checksum() != [0, 0] {
+                return Err(DecodeError::ChecksumError);
+            }
         } else if ver == 3 {
             let res_adv_int = buf.get_u16();
             auth_type = (res_adv_int >> 12) as u8;
             let advert: u16 = res_adv_int & 0x0FFF;
             adver_int = advert;
 
-            // TODO: add checksum confirmation when receiving the packet
-            checksum = buf.get_u16();
             match addr_family {
                 AddressFamily::Ipv4 => {
                     version = VrrpVersion::V3(AddressFamily::Ipv4);
                     for _ in 0..count_ip {
                         ip_addresses.push(IpAddr::V4(buf.get_ipv4()));
                     }
+                    // Checksum Calculation. For v3
+                    check.add_bytes(data);
+                    if check.checksum() != [0, 0] {
+                        return Err(DecodeError::ChecksumError);
+                    }
                 }
                 AddressFamily::Ipv6 => {
+                    // TODO: add checksum calculation for vrrp v3 ipv6
                     version = VrrpVersion::V3(AddressFamily::Ipv6);
                     for _ in 0..count_ip {
                         ip_addresses.push(IpAddr::V6(buf.get_ipv6()));
                     }
                 }
             }
-        }
-
-        // Checksum Calculation
-        let mut check = Checksum::new();
-        check.add_bytes(data);
-        if check.checksum() != [0, 0] {
-            return Err(DecodeError::ChecksumError);
         }
 
         Ok(Self {

@@ -28,7 +28,6 @@ use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::pdu::{Hello, HelloVariant, Lsp, Pdu, Snp, SnpTlvs};
 use crate::packet::{LanId, LevelNumber, LevelType, LspId};
 use crate::spf::SpfType;
-use crate::tasks::messages::input::DisElectionMsg;
 use crate::{spf, tasks};
 
 // ===== Network PDU receipt =====
@@ -339,11 +338,7 @@ pub(crate) fn process_pdu_hello_lan(
 
     // Trigger DIS election if priority or state changed.
     if adj.priority != old_priority || adj.state != old_state {
-        let msg = DisElectionMsg {
-            iface_key: iface.id.into(),
-            level,
-        };
-        let _ = instance.tx.protocol_input.dis_election.send(msg);
+        instance.tx.protocol_input.dis_election(iface.id, level);
     }
 
     Ok(())
@@ -874,6 +869,13 @@ pub(crate) fn process_lan_adj_holdtimer_expiry(
         .lan_adjacencies
         .get_mut(level)
         .get_mut_by_key(&mut arenas.adjacencies, &adj_key)?;
+
+    // Trigger DIS election if the timed-out adjacency was the DIS.
+    if let Some(dis) = iface.state.dis.get(level)
+        && dis.system_id == adj.system_id
+    {
+        instance.tx.protocol_input.dis_election(iface.id, level);
+    }
 
     // Delete adjacency.
     adj.state_change(

@@ -34,7 +34,6 @@ use crate::packet::{
     AreaAddr, LevelNumber, LevelType, LevelTypeIterator, SystemId,
 };
 use crate::spf;
-use crate::tasks::messages::input::DisElectionMsg;
 
 #[derive(Debug, Default)]
 #[derive(EnumAsInner)]
@@ -1203,16 +1202,12 @@ impl Provider for Instance {
                 };
                 let iface = &mut arenas.interfaces[iface_idx];
 
-                if iface.state.active && !iface.is_passive() {
-                    // Schedule new DIS election.
-                    if iface.config.interface_type == InterfaceType::Broadcast {
-                        let msg = DisElectionMsg {
-                            iface_key: iface.id.into(),
-                            level,
-                        };
-                        let _ =
-                            instance.tx.protocol_input.dis_election.send(msg);
-                    }
+                // Schedule new DIS election.
+                if iface.state.active
+                    && !iface.is_passive()
+                    && iface.config.interface_type == InterfaceType::Broadcast
+                {
+                    instance.tx.protocol_input.dis_election(iface.id, level);
                 }
             }
             Event::InterfaceUpdateHelloInterval(iface_idx, level) => {

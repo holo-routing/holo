@@ -46,9 +46,8 @@ holo-isis = { path = ".", features = ["testing", "deterministic"] }
 holo-protocol = { path = "../holo-protocol", features = ["testing"] }
 holo-utils = { path = "../holo-utils", features = ["testing"] }
 
-[lints.clippy]
-len_without_is_empty = "allow"
-too_many_arguments = "allow"
+[lints]
+workspace = true
 
 [features]
 default = []

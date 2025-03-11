@@ -9,6 +9,7 @@ use std::os::raw::{c_int, c_ushort, c_void};
 use std::os::unix::io::AsRawFd;
 
 use libc::{ip_mreqn, packet_mreq};
+use nix::sys::socket::{LinkAddr, SockaddrLike};
 use serde::{Deserialize, Serialize};
 // Normal build: re-export standard socket types.
 #[cfg(not(feature = "testing"))]
@@ -397,6 +398,13 @@ pub trait RawSocketExt: SocketExt {
     fn set_ipv6_pktinfo(&self, value: bool) -> Result<()>;
 }
 
+// Extension methods for LinkAddr.
+pub trait LinkAddrExt {
+    // Creates a new `LinkAddr` using the given protocol number, interface
+    // index, and an optional MAC address.
+    fn new(protocol: u16, ifindex: u32, addr: Option<[u8; 6]>) -> Self;
+}
+
 // ===== impl UdpSocket =====
 
 #[cfg(not(feature = "testing"))]
@@ -470,6 +478,31 @@ impl SocketExt for TcpListener {}
 
 #[cfg(not(feature = "testing"))]
 impl TcpSocketExt for TcpListener {}
+
+// ===== impl LinkAddr =====
+
+impl LinkAddrExt for LinkAddr {
+    fn new(protocol: u16, ifindex: u32, addr: Option<[u8; 6]>) -> Self {
+        let mut sll = libc::sockaddr_ll {
+            sll_family: libc::AF_PACKET as u16,
+            sll_protocol: protocol.to_be(),
+            sll_ifindex: ifindex as _,
+            sll_halen: 0,
+            sll_hatype: 0,
+            sll_pkttype: 0,
+            sll_addr: [0; 8],
+        };
+        if let Some(addr) = addr {
+            sll.sll_halen = 6;
+            sll.sll_addr[..6].copy_from_slice(&addr);
+        }
+        let sll_len = size_of_val(&sll) as libc::socklen_t;
+        unsafe {
+            LinkAddr::from_raw(&sll as *const _ as *const _, Some(sll_len))
+        }
+        .unwrap()
+    }
+}
 
 // ===== impl Socket =====
 

@@ -7,7 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
-#![allow(clippy::match_single_binding)]
+#![allow(clippy::len_without_is_empty, clippy::match_single_binding)]
 
 use std::net::{Ipv4Addr, Ipv6Addr};
 

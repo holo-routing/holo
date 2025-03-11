@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: MIT
 //
 
+#![allow(clippy::result_large_err)]
+
 use std::pin::Pin;
 use std::time::SystemTime;
 

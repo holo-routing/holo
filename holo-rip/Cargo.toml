@@ -33,6 +33,7 @@ holo-yang = { path = "../holo-yang" }
 
 [dev-dependencies]
 const-addrs.workspace = true
+yang3 = { workspace = true, features = ["bundled"] }
 
 holo-rip = { path = ".", features = ["testing"] }
 holo-protocol = { path = "../holo-protocol", features = ["testing"] }

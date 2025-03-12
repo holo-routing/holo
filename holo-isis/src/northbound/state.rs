@@ -183,6 +183,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             use isis::database::levels::lsp::Lsp;
             let lse = args.list_entry.as_lsp_entry().unwrap();
             let lsp = &lse.data;
+            let remaining_lifetime = lsp.rem_lifetime();
             let ipv4_addresses = lsp.tlvs.ipv4_addrs().map(Cow::Borrowed);
             let ipv6_addresses = lsp.tlvs.ipv6_addrs().map(Cow::Borrowed);
             let protocol_supported = lsp.tlvs.protocols_supported();
@@ -192,7 +193,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                 decoded_completed: None,
                 raw_data: Some(lsp.raw.as_ref()).ignore_in_testing(),
                 checksum: Some(lsp.cksum).ignore_in_testing(),
-                remaining_lifetime: Some(lsp.rem_lifetime()).ignore_in_testing(),
+                remaining_lifetime: Some(remaining_lifetime).ignore_in_testing_if(remaining_lifetime != 0),
                 sequence: Some(lsp.seqno).ignore_in_testing(),
                 ipv4_addresses: Some(Box::new(ipv4_addresses)),
                 ipv6_addresses: Some(Box::new(ipv6_addresses)),

@@ -649,11 +649,21 @@ impl Interface {
         // For point-to-point interfaces, all LSPs require acknowledgment.
         // Retransmissions will occur until an acknowledgment is received.
         if self.config.interface_type == InterfaceType::PointToPoint {
-            let rxmt_interval = self.config.lsp_rxmt_interval;
-            let dst = self.config.interface_type.multicast_addr(level);
-            let task =
-                tasks::lsp_rxmt_interval(self, lsp.clone(), dst, rxmt_interval);
-            self.state.srm_list.get_mut(level).insert(lsp.lsp_id, task);
+            if let Some(adj) = &self.state.p2p_adjacency
+                && adj.level_usage.intersects(level)
+            {
+                let rxmt_interval = self.config.lsp_rxmt_interval;
+                let dst = self.config.interface_type.multicast_addr(level);
+                let task = tasks::lsp_rxmt_interval(
+                    self,
+                    lsp.clone(),
+                    dst,
+                    rxmt_interval,
+                );
+                self.state.srm_list.get_mut(level).insert(lsp.lsp_id, task);
+            } else {
+                return;
+            }
         }
 
         // Enqueue LSP for transmission.

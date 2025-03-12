@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::net::IpAddr;
 
 use capctl::caps::CapState;
 use holo_utils::mpls::Label;
@@ -12,7 +12,7 @@ use holo_utils::protocol::Protocol;
 use holo_utils::southbound::Nexthop;
 use ipnetwork::IpNetwork;
 use netlink_packet_route::route::RouteProtocol;
-use rtnetlink::{Handle, RouteAddRequest, new_connection};
+use rtnetlink::{Handle, RouteMessageBuilder, new_connection};
 use tracing::error;
 
 use crate::rib::Route;
@@ -33,103 +33,42 @@ pub(crate) async fn ip_route_install(
     prefix: &IpNetwork,
     route: &Route,
 ) {
-    // Create netlink request.
-    let mut request = handle.route().add();
-
-    // Set route protocol.
+    // Create netlink message.
     let protocol = netlink_protocol(route.protocol);
-    request = request.protocol(protocol);
+    let mut msg = RouteMessageBuilder::<IpAddr>::new()
+        .destination_prefix(prefix.ip(), prefix.prefix())
+        .unwrap()
+        .protocol(protocol);
+    msg = add_nexthops(msg, route.nexthops.iter());
+    let msg = msg.build();
 
-    match prefix {
-        IpNetwork::V4(prefix) => {
-            // Set destination prefix.
-            let mut request = request
-                .v4()
-                .replace()
-                .destination_prefix(prefix.ip(), prefix.prefix());
-
-            // Add nexthops.
-            request = add_nexthops_ipv4(request, route.nexthops.iter());
-
-            // Execute request.
-            if let Err(error) = request.execute().await {
-                error!(%prefix, %error, "failed to install route");
-            }
-        }
-        IpNetwork::V6(prefix) => {
-            // Set destination prefix.
-            let mut request = request
-                .v6()
-                .replace()
-                .destination_prefix(prefix.ip(), prefix.prefix());
-
-            // Add nexthops.
-            request = add_nexthops_ipv6(request, route.nexthops.iter());
-
-            // Execute request.
-            if let Err(error) = request.execute().await {
-                error!(%prefix, %error, "failed to install route");
-            }
-        }
+    // Execute netlink request.
+    if let Err(error) = handle.route().add(msg).execute().await {
+        error!(%prefix, %error, "failed to install route");
     }
 }
 
-fn add_nexthops_ipv4<'a>(
-    mut request: RouteAddRequest<Ipv4Addr>,
+fn add_nexthops<'a>(
+    mut msg: RouteMessageBuilder<IpAddr>,
     nexthops: impl Iterator<Item = &'a Nexthop>,
-) -> RouteAddRequest<Ipv4Addr> {
+) -> RouteMessageBuilder<IpAddr> {
     for nexthop in nexthops {
-        request = match nexthop {
+        msg = match nexthop {
             Nexthop::Address { addr, ifindex, .. } => {
-                if let IpAddr::V4(addr) = addr {
-                    request.gateway(*addr).output_interface(*ifindex)
-                } else {
-                    request
-                }
+                msg.gateway(*addr).unwrap().output_interface(*ifindex)
             }
-            Nexthop::Interface { ifindex } => {
-                request.output_interface(*ifindex)
-            }
+            Nexthop::Interface { ifindex } => msg.output_interface(*ifindex),
             Nexthop::Special(_) => {
                 // TODO: not supported by the `rtnetlink` crate yet.
-                request
+                msg
             }
             Nexthop::Recursive { resolved, .. } => {
-                add_nexthops_ipv4(request, resolved.iter())
+                add_nexthops(msg, resolved.iter())
             }
         };
     }
 
-    request
-}
-
-fn add_nexthops_ipv6<'a>(
-    mut request: RouteAddRequest<Ipv6Addr>,
-    nexthops: impl Iterator<Item = &'a Nexthop>,
-) -> RouteAddRequest<Ipv6Addr> {
-    for nexthop in nexthops {
-        request = match nexthop {
-            Nexthop::Address { addr, ifindex, .. } => {
-                if let IpAddr::V6(addr) = addr {
-                    request.gateway(*addr).output_interface(*ifindex)
-                } else {
-                    request
-                }
-            }
-            Nexthop::Interface { ifindex } => {
-                request.output_interface(*ifindex)
-            }
-            Nexthop::Special(_) => {
-                // TODO: not supported by the `rtnetlink` crate yet.
-                request
-            }
-            Nexthop::Recursive { resolved, .. } => {
-                add_nexthops_ipv6(request, resolved.iter())
-            }
-        };
-    }
-
-    request
+    msg
 }
 
 pub(crate) async fn ip_route_uninstall(
@@ -137,38 +76,17 @@ pub(crate) async fn ip_route_uninstall(
     prefix: &IpNetwork,
     protocol: Protocol,
 ) {
-    // Create netlink request.
-    let mut request = handle.route().add();
-
-    // Set route protocol.
+    // Create netlink message.
     let protocol = netlink_protocol(protocol);
-    request = request.protocol(protocol);
+    let msg = RouteMessageBuilder::<IpAddr>::new()
+        .destination_prefix(prefix.ip(), prefix.prefix())
+        .unwrap()
+        .protocol(protocol)
+        .build();
 
-    match prefix {
-        IpNetwork::V4(prefix) => {
-            // Set destination prefix.
-            let mut request = request
-                .v4()
-                .destination_prefix(prefix.ip(), prefix.prefix());
-
-            // Execute request.
-            let request = handle.route().del(request.message_mut().clone());
-            if let Err(error) = request.execute().await {
-                error!(%prefix, %error, "failed to uninstall route");
-            }
-        }
-        IpNetwork::V6(prefix) => {
-            // Set destination prefix.
-            let mut request = request
-                .v6()
-                .destination_prefix(prefix.ip(), prefix.prefix());
-
-            // Execute request.
-            let request = handle.route().del(request.message_mut().clone());
-            if let Err(error) = request.execute().await {
-                error!(%prefix, %error, "failed to uninstall route");
-            }
-        }
+    // Execute netlink request.
+    if let Err(error) = handle.route().del(msg).execute().await {
+        error!(%prefix, %error, "failed to install route");
     }
 }
 

@@ -119,13 +119,13 @@ where
     let msg = PolicyApplyMsg::Redistribute {
         afi_safi: A::AFI_SAFI,
         prefix: msg.prefix,
-        route: RoutePolicyInfo::new(
+        route: Box::new(RoutePolicyInfo::new(
             RouteOrigin::Protocol(msg.protocol),
             RouteType::Internal,
             msg.tag,
             Some(msg.opaque_attrs),
             Default::default(),
-        ),
+        )),
         policies: apply_policy_cfg
             .import_policy
             .iter()

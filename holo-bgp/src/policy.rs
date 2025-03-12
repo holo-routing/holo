@@ -93,14 +93,14 @@ pub(crate) fn redistribute_apply(
     policy_resultp: &UnboundedSender<PolicyResultMsg>,
 ) {
     // Process routing policies.
-    let result = process_policies(
+    let result = Box::new(process_policies(
         afi_safi,
         prefix,
         rpinfo,
         policies,
         match_sets,
         default_policy,
-    );
+    ));
 
     // Send the resulting policy decision to the specified channel.
     let _ = policy_resultp.send(PolicyResultMsg::Redistribute {

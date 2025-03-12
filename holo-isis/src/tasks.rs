@@ -80,7 +80,7 @@ pub mod messages {
         #[derive(Debug)]
         #[derive(Deserialize, Serialize)]
         pub enum ProtocolMsg {
-            NetRxPdu(NetRxPduMsg),
+            NetRxPdu(Box<NetRxPduMsg>),
             AdjHoldTimer(AdjHoldTimerMsg),
             DisElection(DisElectionMsg),
             SendPsnp(SendPsnpMsg),
@@ -466,7 +466,7 @@ pub(crate) fn lsp_rxmt_interval(
         // Get interface ifindex.
         let ifindex = iface.system.ifindex.unwrap();
 
-        let pdu = Pdu::Lsp(lsp);
+        let pdu = Pdu::Lsp(Box::new(lsp));
         let net_tx_pdup = iface.state.net.as_ref().unwrap().net_tx_pdup.clone();
         IntervalTask::new(
             Duration::from_secs(interval.into()),

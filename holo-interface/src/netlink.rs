@@ -16,19 +16,20 @@ use libc::{RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, RTNLGRP_LINK};
 use netlink_packet_core::{NetlinkMessage, NetlinkPayload};
 use netlink_packet_route::RouteNetlinkMessage;
 use netlink_packet_route::address::{
-    AddressAttribute, AddressFlag, AddressMessage,
+    AddressAttribute, AddressFlags, AddressMessage,
 };
 use netlink_packet_route::link::{
-    LinkAttribute, LinkFlag, LinkLayerType, LinkMessage,
+    LinkAttribute, LinkFlags, LinkLayerType, LinkMessage, MacVlanMode,
 };
 use netlink_sys::{AsyncSocket, SocketAddr};
-use rtnetlink::{Handle, new_connection};
+use rtnetlink::{
+    Handle, LinkMacVlan, LinkMessageBuilder, LinkUnspec, LinkVlan,
+    new_connection,
+};
 use tracing::{error, trace};
 
 use crate::Master;
 use crate::interface::Owner;
-
-pub const MACVLAN_MODE_BRIDGE: u32 = 4;
 
 pub type NetlinkMonitor =
     UnboundedReceiver<(NetlinkMessage<RouteNetlinkMessage>, SocketAddr)>;
@@ -49,10 +50,10 @@ async fn process_newlink_msg(master: &mut Master, msg: LinkMessage) {
         flags.insert(InterfaceFlags::LOOPBACK);
     }
 
-    if msg.header.flags.contains(&LinkFlag::Running) {
+    if msg.header.flags.contains(LinkFlags::Running) {
         flags.insert(InterfaceFlags::OPERATIVE);
     }
-    if msg.header.flags.contains(&LinkFlag::Broadcast) {
+    if msg.header.flags.contains(LinkFlags::Broadcast) {
         flags.insert(InterfaceFlags::BROADCAST)
     }
 
@@ -112,8 +113,8 @@ fn process_newaddr_msg(master: &mut Master, msg: AddressMessage) {
             AddressAttribute::Flags(nla_flags) => {
                 // Ignore the address if it is still undergoing Duplicate
                 // Address Detection (DAD) or has failed DAD.
-                if nla_flags.contains(&AddressFlag::Tentative)
-                    || nla_flags.contains(&AddressFlag::Dadfailed)
+                if nla_flags.contains(AddressFlags::Tentative)
+                    || nla_flags.contains(AddressFlags::Dadfailed)
                 {
                     return;
                 }
@@ -195,25 +196,27 @@ pub(crate) async fn admin_status_change(
     ifindex: u32,
     enabled: bool,
 ) {
-    // Create netlink request.
-    let request = handle.link().set(ifindex);
-    let request = if enabled {
-        request.up()
-    } else {
-        request.down()
-    };
+    // Create netlink message.
+    let mut msg = LinkMessageBuilder::<LinkUnspec>::new().index(ifindex);
+    msg = if enabled { msg.up() } else { msg.down() };
+    let msg = msg.build();
 
-    // Execute request.
+    // Execute netlink request.
+    let request = handle.link().set(msg);
     if let Err(error) = request.execute().await {
         error!(%ifindex, %enabled, %error, "failed to change interface's admin status");
     }
 }
 
 pub(crate) async fn mtu_change(handle: &Handle, ifindex: u32, mtu: u32) {
-    // Create netlink request.
-    let request = handle.link().set(ifindex).mtu(mtu);
+    // Create netlink message.
+    let msg = LinkMessageBuilder::<LinkUnspec>::new()
+        .index(ifindex)
+        .mtu(mtu)
+        .build();
 
-    // Execute request.
+    // Execute netlink request.
+    let request = handle.link().set(msg);
     if let Err(error) = request.execute().await {
         error!(%ifindex, %mtu, %error, "failed to change interface's MTU");
     }
@@ -225,10 +228,14 @@ pub(crate) async fn vlan_create(
     parent_ifindex: u32,
     vlan_id: u16,
 ) {
-    // Create netlink request.
-    let request = handle.link().add().vlan(name, parent_ifindex, vlan_id);
+    // Create netlink message.
+    let msg = LinkMessageBuilder::<LinkVlan>::new(&name)
+        .link(parent_ifindex)
+        .id(vlan_id)
+        .build();
 
-    // Execute request.
+    // Execute netlink request.
+    let request = handle.link().add(msg);
     if let Err(error) = request.execute().await {
         error!(%parent_ifindex, %vlan_id, %error, "failed to create VLAN interface");
     }
@@ -240,18 +247,18 @@ pub(crate) async fn macvlan_create(
     mac_address: Option<[u8; 6]>,
     parent_ifindex: u32,
 ) {
-    // Create netlink request
-    let mut request = handle.link().add().macvlan(
-        name.clone(),
-        parent_ifindex,
-        MACVLAN_MODE_BRIDGE,
-    );
-
+    // Create netlink message
+    let mut msg = LinkMessageBuilder::<LinkMacVlan>::new(&name)
+        .link(parent_ifindex)
+        .mode(MacVlanMode::Bridge)
+        .up();
     if let Some(address) = mac_address {
-        request = request.address(address.to_vec());
+        msg = msg.address(address.to_vec());
     }
+    let msg = msg.build();
 
-    // Execute request.
+    // Execute netlink request.
+    let request = handle.link().add(msg);
     if let Err(error) = request.execute().await {
         error!(%parent_ifindex, %name, %error, "Failed to create MacVlan interface");
     }
@@ -272,7 +279,7 @@ pub(crate) async fn addr_install(
     // Create netlink request.
     let request = handle.address().add(ifindex, addr.ip(), addr.prefix());
 
-    // Execute request.
+    // Execute netlink request.
     if let Err(error) = request.execute().await {
         error!(%ifindex, %addr, %error, "failed to install interface address");
     }
@@ -286,7 +293,7 @@ pub(crate) async fn addr_uninstall(
     // Create netlink request.
     let mut request = handle.address().add(ifindex, addr.ip(), addr.prefix());
 
-    // Execute request.
+    // Execute netlink request.
     let request = handle.address().del(request.message_mut().clone());
     if let Err(error) = request.execute().await {
         error!(%ifindex, %addr, %error, "failed to uninstall interface address");

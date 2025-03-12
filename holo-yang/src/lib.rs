@@ -132,6 +132,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/augmentations/holo-bgp.yang"),
         EmbeddedModuleKey::new("holo-isis", None, None, None) =>
             include_str!("../modules/augmentations/holo-isis.yang"),
+        EmbeddedModuleKey::new("holo-isis-dev", None, None, None) =>
+            include_str!("../modules/augmentations/holo-isis-dev.yang"),
         EmbeddedModuleKey::new("holo-key-chain", None, None, None) =>
             include_str!("../modules/augmentations/holo-key-chain.yang"),
         EmbeddedModuleKey::new("holo-ospf", None, None, None) =>
@@ -233,6 +235,7 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
             // IETF Holo augmentations
             "holo-bgp",
             "holo-isis",
+            "holo-isis-dev",
             "holo-key-chain",
             "holo-ospf",
             "holo-ospf-dev",

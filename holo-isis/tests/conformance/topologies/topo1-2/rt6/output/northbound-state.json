@@ -954,7 +954,18 @@
                     ]
                   },
                   "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0
+                  "holo-isis:circuit-id": 0,
+                  "holo-isis-dev:srm": {
+                    "level": [
+                      {
+                        "level": 1,
+                        "lsp-id": [
+                          "0000.0000.0006.00-00",
+                          "0000.0000.0007.00-00"
+                        ]
+                      }
+                    ]
+                  }
                 },
                 {
                   "name": "eth-rt7",
@@ -969,7 +980,19 @@
                     ]
                   },
                   "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0
+                  "holo-isis:circuit-id": 0,
+                  "holo-isis-dev:srm": {
+                    "level": [
+                      {
+                        "level": 2,
+                        "lsp-id": [
+                          "0000.0000.0002.00-00",
+                          "0000.0000.0004.00-00",
+                          "0000.0000.0006.00-00"
+                        ]
+                      }
+                    ]
+                  }
                 },
                 {
                   "name": "lo",

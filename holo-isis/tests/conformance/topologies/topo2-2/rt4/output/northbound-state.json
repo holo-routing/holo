@@ -2310,7 +2310,19 @@
                     ]
                   },
                   "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0
+                  "holo-isis:circuit-id": 0,
+                  "holo-isis-dev:srm": {
+                    "level": [
+                      {
+                        "level": 1,
+                        "lsp-id": [
+                          "0000.0000.0004.00-00",
+                          "0000.0000.0005.00-00",
+                          "0000.0000.0006.00-00"
+                        ]
+                      }
+                    ]
+                  }
                 },
                 {
                   "name": "eth-rt2-2",
@@ -2325,7 +2337,19 @@
                     ]
                   },
                   "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0
+                  "holo-isis:circuit-id": 0,
+                  "holo-isis-dev:srm": {
+                    "level": [
+                      {
+                        "level": 1,
+                        "lsp-id": [
+                          "0000.0000.0004.00-00",
+                          "0000.0000.0005.00-00",
+                          "0000.0000.0006.00-00"
+                        ]
+                      }
+                    ]
+                  }
                 },
                 {
                   "name": "eth-rt5",
@@ -2355,7 +2379,22 @@
                     ]
                   },
                   "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0
+                  "holo-isis:circuit-id": 0,
+                  "holo-isis-dev:srm": {
+                    "level": [
+                      {
+                        "level": 2,
+                        "lsp-id": [
+                          "0000.0000.0001.00-00",
+                          "0000.0000.0002.00-00",
+                          "0000.0000.0003.00-00",
+                          "0000.0000.0003.01-00",
+                          "0000.0000.0004.00-00",
+                          "0000.0000.0005.00-00"
+                        ]
+                      }
+                    ]
+                  }
                 },
                 {
                   "name": "lo",

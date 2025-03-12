@@ -842,7 +842,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::9828:15ff:fea3:d84",
+                        "next-hop": "fe80::4c73:f1ff:fede:1ce0",
                         "outgoing-interface": "eth-rt1"
                       }
                     ]
@@ -855,7 +855,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::108e:f7ff:fefc:d47a",
+                        "next-hop": "fe80::28b4:30ff:fe23:f565",
                         "outgoing-interface": "eth-rt3"
                       }
                     ]
@@ -868,7 +868,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::108e:f7ff:fefc:d47a",
+                        "next-hop": "fe80::28b4:30ff:fe23:f565",
                         "outgoing-interface": "eth-rt3"
                       }
                     ]
@@ -881,7 +881,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::108e:f7ff:fefc:d47a",
+                        "next-hop": "fe80::28b4:30ff:fe23:f565",
                         "outgoing-interface": "eth-rt3"
                       }
                     ]
@@ -894,7 +894,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::108e:f7ff:fefc:d47a",
+                        "next-hop": "fe80::28b4:30ff:fe23:f565",
                         "outgoing-interface": "eth-rt3"
                       }
                     ]
@@ -907,7 +907,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::108e:f7ff:fefc:d47a",
+                        "next-hop": "fe80::28b4:30ff:fe23:f565",
                         "outgoing-interface": "eth-rt3"
                       }
                     ]
@@ -920,7 +920,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::9828:15ff:fea3:d84",
+                        "next-hop": "fe80::4c73:f1ff:fede:1ce0",
                         "outgoing-interface": "eth-rt1"
                       }
                     ]
@@ -933,7 +933,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::108e:f7ff:fefc:d47a",
+                        "next-hop": "fe80::28b4:30ff:fe23:f565",
                         "outgoing-interface": "eth-rt3"
                       }
                     ]
@@ -946,7 +946,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::108e:f7ff:fefc:d47a",
+                        "next-hop": "fe80::28b4:30ff:fe23:f565",
                         "outgoing-interface": "eth-rt3"
                       }
                     ]
@@ -959,7 +959,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::108e:f7ff:fefc:d47a",
+                        "next-hop": "fe80::28b4:30ff:fe23:f565",
                         "outgoing-interface": "eth-rt3"
                       }
                     ]
@@ -972,7 +972,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::108e:f7ff:fefc:d47a",
+                        "next-hop": "fe80::28b4:30ff:fe23:f565",
                         "outgoing-interface": "eth-rt3"
                       }
                     ]
@@ -985,7 +985,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::108e:f7ff:fefc:d47a",
+                        "next-hop": "fe80::28b4:30ff:fe23:f565",
                         "outgoing-interface": "eth-rt3"
                       }
                     ]

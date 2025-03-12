@@ -98,7 +98,7 @@
                     "value": 3
                   },
                   "priority": {
-                    "value": 100
+                    "value": 3
                   },
                   "address-families": {
                     "address-family-list": [

@@ -51,6 +51,9 @@
                   "hello-interval": {
                     "value": 3
                   },
+                  "priority": {
+                    "value": 1
+                  },
                   "address-families": {
                     "address-family-list": [
                       {

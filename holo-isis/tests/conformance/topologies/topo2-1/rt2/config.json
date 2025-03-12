@@ -97,6 +97,9 @@
                   "hello-interval": {
                     "value": 3
                   },
+                  "priority": {
+                    "value": 2
+                  },
                   "address-families": {
                     "address-family-list": [
                       {

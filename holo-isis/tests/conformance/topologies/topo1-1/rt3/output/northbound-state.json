@@ -842,7 +842,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::c806:7eff:fe27:f52c",
+                        "next-hop": "fe80::b8cd:78ff:fe19:7d9c",
                         "outgoing-interface": "eth-rt2"
                       }
                     ]
@@ -855,7 +855,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::c806:7eff:fe27:f52c",
+                        "next-hop": "fe80::b8cd:78ff:fe19:7d9c",
                         "outgoing-interface": "eth-rt2"
                       }
                     ]
@@ -868,7 +868,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::506e:14ff:fe48:7d4d",
+                        "next-hop": "fe80::84e5:acff:fe49:8483",
                         "outgoing-interface": "eth-rt4"
                       }
                     ]
@@ -881,7 +881,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::506e:14ff:fe48:7d4d",
+                        "next-hop": "fe80::84e5:acff:fe49:8483",
                         "outgoing-interface": "eth-rt4"
                       }
                     ]
@@ -894,7 +894,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::78b9:5dff:fe32:adbc",
+                        "next-hop": "fe80::64f9:4dff:fec6:bd11",
                         "outgoing-interface": "eth-rt6"
                       }
                     ]
@@ -907,7 +907,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::78b9:5dff:fe32:adbc",
+                        "next-hop": "fe80::64f9:4dff:fec6:bd11",
                         "outgoing-interface": "eth-rt6"
                       }
                     ]
@@ -920,7 +920,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::c806:7eff:fe27:f52c",
+                        "next-hop": "fe80::b8cd:78ff:fe19:7d9c",
                         "outgoing-interface": "eth-rt2"
                       }
                     ]
@@ -933,7 +933,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::c806:7eff:fe27:f52c",
+                        "next-hop": "fe80::b8cd:78ff:fe19:7d9c",
                         "outgoing-interface": "eth-rt2"
                       }
                     ]
@@ -946,7 +946,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::506e:14ff:fe48:7d4d",
+                        "next-hop": "fe80::84e5:acff:fe49:8483",
                         "outgoing-interface": "eth-rt4"
                       }
                     ]
@@ -959,7 +959,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::78b9:5dff:fe32:adbc",
+                        "next-hop": "fe80::64f9:4dff:fec6:bd11",
                         "outgoing-interface": "eth-rt6"
                       }
                     ]
@@ -972,7 +972,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::506e:14ff:fe48:7d4d",
+                        "next-hop": "fe80::84e5:acff:fe49:8483",
                         "outgoing-interface": "eth-rt4"
                       }
                     ]
@@ -985,7 +985,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::78b9:5dff:fe32:adbc",
+                        "next-hop": "fe80::64f9:4dff:fec6:bd11",
                         "outgoing-interface": "eth-rt6"
                       }
                     ]

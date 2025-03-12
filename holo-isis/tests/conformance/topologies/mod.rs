@@ -38,3 +38,11 @@ async fn topology2_2() {
         run_test_topology::<Instance>("topo2-2", &rt_name).await;
     }
 }
+
+#[tokio::test]
+async fn topology2_3() {
+    for rt_num in 1..=6 {
+        let rt_name = format!("rt{}", rt_num);
+        run_test_topology::<Instance>("topo2-3", &rt_name).await;
+    }
+}

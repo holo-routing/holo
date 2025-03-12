@@ -74,8 +74,7 @@ pub struct InterfaceUpdateMsg {
     pub ifindex: u32,
     pub mtu: u32,
     pub flags: InterfaceFlags,
-
-    #[serde(skip)]
+    #[serde(default)]
     pub mac_address: [u8; 6],
 }
 

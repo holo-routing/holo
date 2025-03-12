@@ -1,0 +1,63 @@
+module holo-isis-dev {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/holo-isis-dev";
+  prefix holo-isis-dev;
+
+  import ietf-routing {
+    prefix rt;
+  }
+
+  import ietf-isis {
+    prefix isis;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines augment statements for the ietf-isis
+     module.";
+
+  /*
+   * Augmentations.
+   */
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis/"
+        + "isis:interfaces/isis:interface" {
+    container srm {
+      description "SRM list.";
+      config false;
+      list level {
+        key "level";
+        leaf level {
+          type isis:level-number;
+          description
+            "IS-IS level.";
+        }
+        leaf-list lsp-id {
+          type isis:lsp-id;
+          description
+            "LSP ID of the LSP.";
+        }
+      }
+    }
+    container ssn {
+      description "SSN list.";
+      config false;
+      list level {
+        key "level";
+        leaf level {
+          type isis:level-number;
+          description
+            "IS-IS level.";
+        }
+        leaf-list lsp-id {
+          type isis:lsp-id;
+          description
+            "LSP ID of the LSP.";
+        }
+      }
+    }
+  }
+}

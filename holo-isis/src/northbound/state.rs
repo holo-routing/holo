@@ -63,6 +63,8 @@ pub enum ListEntry<'a> {
     SystemCounters(LevelNumber),
     Interface(&'a Interface),
     InterfacePacketCounters(&'a Interface, LevelNumber),
+    InterfaceSrmList(&'a Interface, LevelNumber),
+    InterfaceSsnList(&'a Interface, LevelNumber),
     Adjacency(&'a Adjacency),
 }
 
@@ -769,6 +771,34 @@ fn load_callbacks() -> Callbacks<Instance> {
             let packet_counters = iface.state.packet_counters.get(*level);
             Box::new(Unknown {
                 r#in: Some(packet_counters.unknown_in),
+            })
+        })
+        .path(isis::interfaces::interface::srm::level::PATH)
+        .get_iterate(|_instance, args| {
+            let iface = args.parent_list_entry.as_interface().unwrap();
+            let iter = LevelType::All.into_iter().filter(|level| !iface.state.srm_list.get(*level).is_empty()).map(|level| ListEntry::InterfaceSrmList(iface, level));
+            Some(Box::new(iter) as _).only_in_testing()
+        })
+        .get_object(|_instance, args| {
+            use isis::interfaces::interface::srm::level::Level;
+            let (iface, level) = args.list_entry.as_interface_srm_list().unwrap();
+            Box::new(Level {
+                level: *level as u8,
+                lsp_id: Some(Box::new(iface.state.srm_list.get(*level).keys().map(|lsp_id| lsp_id.to_yang()))),
+            })
+        })
+        .path(isis::interfaces::interface::ssn::level::PATH)
+        .get_iterate(|_instance, args| {
+            let iface = args.parent_list_entry.as_interface().unwrap();
+            let iter = LevelType::All.into_iter().filter(|level| !iface.state.ssn_list.get(*level).is_empty()).map(|level| ListEntry::InterfaceSsnList(iface, level));
+            Some(Box::new(iter) as _).only_in_testing()
+        })
+        .get_object(|_instance, args| {
+            use isis::interfaces::interface::ssn::level::Level;
+            let (iface, level) = args.list_entry.as_interface_ssn_list().unwrap();
+            Box::new(Level {
+                level: *level as u8,
+                lsp_id: Some(Box::new(iface.state.ssn_list.get(*level).keys().map(|lsp_id| lsp_id.to_yang()))),
             })
         })
         .build()

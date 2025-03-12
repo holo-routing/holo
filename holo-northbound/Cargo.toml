@@ -28,7 +28,7 @@ holo-utils = { path = "../holo-utils" }
 [build-dependencies]
 check_keyword.workspace = true
 convert_case.workspace = true
-yang3.workspace = true
+yang3 = { workspace = true, features = ["bundled"] }
 holo-yang = { path = "../holo-yang" }
 
 [lints]

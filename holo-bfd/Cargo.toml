@@ -34,6 +34,7 @@ holo-yang = { path = "../holo-yang" }
 
 [dev-dependencies]
 criterion.workspace = true
+yang3 = { workspace = true, features = ["bundled"] }
 
 holo-bfd = { path = ".", features = ["testing"] }
 holo-protocol = { path = "../holo-protocol", features = ["testing"] }

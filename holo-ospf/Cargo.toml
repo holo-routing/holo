@@ -43,6 +43,7 @@ holo-yang = { path = "../holo-yang" }
 const-addrs.workspace = true
 criterion.workspace = true
 maplit.workspace = true
+yang3 = { workspace = true, features = ["bundled"] }
 
 holo-ospf = { path = ".", features = ["testing", "deterministic"] }
 holo-protocol = { path = "../holo-protocol", features = ["testing"] }

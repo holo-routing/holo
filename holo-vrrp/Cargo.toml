@@ -26,6 +26,8 @@ holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
 
 [dev-dependencies]
+yang3 = { workspace = true, features = ["bundled"] }
+
 holo-vrrp = { path = ".", features = ["testing"] }
 holo-protocol = { path = "../holo-protocol", features = ["testing"] }
 holo-utils = { path = "../holo-utils", features = ["testing"] }

@@ -58,14 +58,17 @@ name = "holod"
 path = "src/main.rs"
 
 [features]
-default = [
-  # Base components
+default = ["base", "protocols", "yang3_bundled"]
+
+base = [
   "interface",
   "keychain",
   "policy",
   "routing",
   "system",
-  # Protocols
+]
+
+protocols = [
   "bfd",
   "bgp",
   "isis",
@@ -92,5 +95,6 @@ rip = ["dep:holo-rip", "holo-routing/rip"]
 vrrp = ["dep:holo-vrrp", "holo-interface/vrrp"]
 
 # Other features
-tokio_console = ["dep:console-subscriber"]
 io_uring = ["dep:tokio-uring"]
+tokio_console = ["dep:console-subscriber"]
+yang3_bundled = ["yang3/bundled"]

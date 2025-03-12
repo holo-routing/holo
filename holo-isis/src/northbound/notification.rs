@@ -371,7 +371,7 @@ pub(crate) fn lsp_received(
         interface_level: Some(iface.config.level_type.resolved.to_yang()),
         extended_circuit_id: None,
         lsp_id: Some(lsp.lsp_id.to_yang()),
-        sequence: Some(lsp.seqno),
+        sequence: Some(lsp.seqno).ignore_in_testing(),
         received_timestamp: lsp
             .base_time
             .as_ref()
@@ -390,7 +390,7 @@ pub(crate) fn lsp_generation(instance: &InstanceUpView<'_>, lsp: &Lsp) {
         routing_protocol_name: Some(Cow::Borrowed(instance.name)),
         isis_level: Some(instance.config.level_type.to_yang()),
         lsp_id: Some(lsp.lsp_id.to_yang()),
-        sequence: Some(lsp.seqno),
+        sequence: Some(lsp.seqno).ignore_in_testing(),
         send_timestamp: lsp.base_time.as_ref().map(Cow::Borrowed),
     };
     notification::send(&instance.tx.nb, path, data);

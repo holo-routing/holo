@@ -517,6 +517,9 @@ pub(crate) fn process_pdu_lsp(
         return Ok(());
     };
 
+    // Store LSP raw bytes.
+    lsp.raw = bytes;
+
     // Send YANG notification.
     notification::lsp_received(instance, iface, &lsp, &adj.system_id);
 
@@ -531,12 +534,7 @@ pub(crate) fn process_pdu_lsp(
     }
 
     // Validate LSP checksum.
-    //
-    // RFC 3719 - Section 7:
-    // "An implementation SHOULD treat all LSPs with a zero checksum and a
-    // non-zero remaining lifetime as if they had as checksum error".
-    lsp.raw = bytes;
-    if (lsp.cksum == 0 && lsp.rem_lifetime != 0) || !lsp.is_checksum_valid() {
+    if !lsp.is_checksum_valid() {
         // Send error notification.
         notification::lsp_error_detected(instance, iface, &lsp);
 

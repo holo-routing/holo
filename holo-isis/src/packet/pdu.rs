@@ -1000,14 +1000,11 @@ impl Lsp {
             }
         }
 
-        // If both are zero return correct.
-        if self.raw[24..26] == [0, 0] {
-            return true;
-        }
-
-        // If either, but not both are zero return incorrect.
-        if self.raw[24] == 0 || self.raw[25] == 0 {
-            return true;
+        // RFC 3719 - Section 7:
+        // "An implementation SHOULD treat all LSPs with a zero checksum and a
+        // non-zero remaining lifetime as if they had as checksum error".
+        if self.cksum == 0 {
+            return self.rem_lifetime == 0;
         }
 
         // Skip everything before (and including) the Remaining Lifetime field.

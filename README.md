@@ -215,6 +215,7 @@ Holo supports the following Internet Standards:
 ##### VRRP
 
 * RFC 3768 - Virtual Router Redundancy Protocol (VRRP)
+* RFC 5798 - Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6
 
 ##### IETF YANG implementation coverage
 
@@ -245,7 +246,7 @@ Holo supports the following Internet Standards:
 | ietf-segment-routing-mpls@2021-05-26 | 62.50% | 0.00% | - | 23.53% | [32.76%](https://holo-routing.github.io/ietf-yang-coverage/ietf-segment-routing-mpls@2021-05-26.html) |
 | ietf-segment-routing@2021-05-26 | 100.00% | - | - | - | [100.00%](https://holo-routing.github.io/ietf-yang-coverage/ietf-segment-routing@2021-05-26.html) |
 | ietf-system@2014-08-06 | 26.67% | 60.00% | 0.00% | - | [38.24%](https://holo-routing.github.io/ietf-yang-coverage/ietf-system@2014-08-06.html) |
-| ietf-vrrp@2018-03-13 | 25.53% | 40.00% | - | 25.00% | [31.73%](https://holo-routing.github.io/ietf-yang-coverage/ietf-vrrp@2018-03-13.html) |
+| ietf-vrrp@2018-03-13 | 51.06% | 80.00% | - | 25.00% | [60.58%](https://holo-routing.github.io/ietf-yang-coverage/ietf-vrrp@2018-03-13.html) |
 
 ## Funding
 

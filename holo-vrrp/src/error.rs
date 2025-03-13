@@ -49,7 +49,6 @@ pub enum VirtualRouterError {
     AddressListError,
     IntervalError,
     PacketLengthError,
-    IpTtlError,
 }
 
 // ===== impl Error =====
@@ -105,7 +104,7 @@ impl From<(IpAddr, DecodeError)> for Error {
                 VirtualRouterError::PacketLengthError,
             ),
             DecodeError::IpTtlError { .. } => {
-                Error::VirtualRouterError(src, VirtualRouterError::IpTtlError)
+                Error::GlobalError(src, GlobalError::IpTtlError)
             }
             DecodeError::VersionError { .. } => {
                 Error::GlobalError(src, GlobalError::VersionError)
@@ -219,9 +218,6 @@ impl std::fmt::Display for VirtualRouterError {
             }
             VirtualRouterError::PacketLengthError => {
                 write!(f, "invalid packet length")
-            }
-            VirtualRouterError::IpTtlError => {
-                write!(f, "invalid IP packet TTL")
             }
         }
     }

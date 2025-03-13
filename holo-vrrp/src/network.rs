@@ -8,10 +8,11 @@
 //
 
 use std::io::{IoSlice, IoSliceMut};
-use std::net::{SocketAddr, SocketAddrV4, SocketAddrV6};
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::ops::Deref;
 use std::os::fd::AsRawFd;
-use std::sync::Arc;
+use std::str::FromStr;
+use std::sync::{Arc, LazyLock as Lazy};
 
 use bytes::{BufMut, Bytes, BytesMut};
 use holo_utils::ip::AddressFamily;
@@ -26,9 +27,6 @@ use nix::sys::socket::{self, LinkAddr, SockaddrIn, SockaddrIn6};
 use socket2::{Domain, Protocol, Type};
 use tokio::sync::mpsc::error::SendError;
 
-use crate::consts::{
-    VRRP_MULTICAST_ADDR_IPV4, VRRP_MULTICAST_ADDR_IPV6, VRRP_PROTO_NUMBER,
-};
 use crate::debug::Debug;
 use crate::error::IoError;
 use crate::instance::{InstanceMacvlan, generate_solicitated_addr};
@@ -39,6 +37,17 @@ use crate::packet::{
 };
 use crate::tasks::messages::input::VrrpNetRxPacketMsg;
 use crate::tasks::messages::output::NetTxPacketMsg;
+
+// VRRP protocol number.
+pub const VRRP_PROTO_NUMBER: i32 = 112;
+
+// VRRP multicast addressess.
+pub static VRRP_MULTICAST_ADDR_IPV4: Lazy<Ipv4Addr> =
+    Lazy::new(|| Ipv4Addr::from_str("224.0.0.18").unwrap());
+pub static VRRP_MULTICAST_ADDR_IPV6: Lazy<Ipv6Addr> =
+    Lazy::new(|| Ipv6Addr::from_str("ff02::12").unwrap());
+pub static SOLICITATION_BASE_ADDR: Lazy<Ipv6Addr> =
+    Lazy::new(|| Ipv6Addr::from_str("ff02::1:ff00:0").unwrap());
 
 // ===== global functions =====
 

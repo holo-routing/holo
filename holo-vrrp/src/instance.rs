@@ -21,13 +21,13 @@ use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 
-use crate::consts::{
-    SOLICITATION_BASE_ADDR, VRRP_MULTICAST_ADDR_IPV4, VRRP_MULTICAST_ADDR_IPV6,
-    VRRP_PROTO_NUMBER,
-};
 use crate::debug::Debug;
 use crate::error::{Error, IoError};
 use crate::interface::{InterfaceSys, InterfaceView};
+use crate::network::{
+    SOLICITATION_BASE_ADDR, VRRP_MULTICAST_ADDR_IPV4, VRRP_MULTICAST_ADDR_IPV6,
+    VRRP_PROTO_NUMBER,
+};
 use crate::northbound::configuration::InstanceCfg;
 use crate::packet::{
     ArpHdr, EthernetHdr, Ipv4Hdr, Ipv6Hdr, NeighborAdvertisement, Vrrp4Packet,

@@ -13,7 +13,6 @@ use std::time::Duration;
 use chrono::Utc;
 use holo_utils::ip::{IpAddrKind, IpNetworkKind};
 
-use crate::consts::VALID_VRRP_VERSIONS;
 use crate::debug::Debug;
 use crate::error::{Error, GlobalError, VirtualRouterError};
 use crate::instance::{MasterReason, VrrpTimer, fsm};
@@ -70,7 +69,7 @@ pub(crate) fn process_vrrp_packet(
     instance.state.last_adv_src = Some(src);
 
     // Sanity checks.
-    if !VALID_VRRP_VERSIONS.contains(&packet.version.version()) {
+    if !VrrpHdr::VALID_VERSIONS.contains(&packet.version.version()) {
         interface.statistics.version_errors += 1;
         interface.statistics.discontinuity_time = Utc::now();
         let error = GlobalError::VersionError;
@@ -147,8 +146,7 @@ pub(crate) fn handle_master_down_timer(
     version: &Version,
 ) -> Result<(), Error> {
     // Lookup instance.
-    let Some((interface, instance)) =
-        interface.get_instance(vrid, version)
+    let Some((interface, instance)) = interface.get_instance(vrid, version)
     else {
         return Ok(());
     };

@@ -10,7 +10,7 @@
 use holo_utils::ip::AddressFamily;
 use serde::{Deserialize, Serialize};
 
-use crate::consts::MAX_VIRTUAL_IP_COUNT;
+const MAX_VIRTUAL_IP_COUNT: usize = 20;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]

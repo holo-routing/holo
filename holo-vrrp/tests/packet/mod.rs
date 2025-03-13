@@ -7,9 +7,9 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::sync::LazyLock;
 
+use const_addrs::{ip, ip4, ip6};
 use holo_protocol::assert_eq_hex;
 use holo_utils::ip::AddressFamily;
 use holo_vrrp::consts::{VRRP_MULTICAST_ADDR_IPV4, VRRP_PROTO_NUMBER};
@@ -31,7 +31,7 @@ static VRRPV2HDR: LazyLock<(Vec<u8>, VrrpHdr)> = LazyLock::new(|| {
             auth_type: 0,
             adver_int: 1,
             checksum: 0xb5c5,
-            ip_addresses: vec![IpAddr::V4(Ipv4Addr::new(10, 0, 1, 5))],
+            ip_addresses: vec![ip!("10.0.1.5")],
             auth_data: Some(0),
             auth_data2: Some(0),
         },
@@ -54,9 +54,7 @@ static VRRPV3HDR_IPV6: LazyLock<(Vec<u8>, VrrpHdr)> = LazyLock::new(|| {
             auth_type: 0,
             adver_int: 1,
             checksum: 0xb57f,
-            ip_addresses: vec![IpAddr::V6(Ipv6Addr::new(
-                0x2001, 0x0db8, 0x0000, 0x0000, 0x0000, 0x0000, 0x0370, 0x7334,
-            ))],
+            ip_addresses: vec![ip!("2001:db8::370:7334")],
             auth_data: None,
             auth_data2: None,
         },
@@ -80,8 +78,8 @@ static IPV4HDR: LazyLock<(Vec<u8>, Ipv4Hdr)> = LazyLock::new(|| {
             ttl: 255,
             protocol: VRRP_PROTO_NUMBER as u8,
             checksum: 0xad4b,
-            src_address: Ipv4Addr::new(192, 168, 100, 2),
-            dst_address: VRRP_MULTICAST_ADDR_IPV4,
+            src_address: ip4!("192.168.100.2"),
+            dst_address: *VRRP_MULTICAST_ADDR_IPV4,
             options: None,
             padding: None,
         },
@@ -103,12 +101,8 @@ static IPV6HDR: LazyLock<(Vec<u8>, Ipv6Hdr)> = LazyLock::new(|| {
             payload_length: 40,
             next_header: 6,
             hop_limit: 255,
-            source_address: Ipv6Addr::new(
-                0xfe80, 0x00, 0x00, 0x00, 0x5152, 0xd0b3, 0x7a4f, 0x3711,
-            ),
-            destination_address: Ipv6Addr::new(
-                0x2620, 0x2d, 0x4002, 0x1, 0x00, 0x00, 0x00, 0x198,
-            ),
+            source_address: ip6!("fe80::5152:d0b3:7a4f:3711"),
+            destination_address: ip6!("2620:2d:4002:1::198"),
         },
     )
 });

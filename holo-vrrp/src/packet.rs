@@ -15,7 +15,7 @@ use holo_utils::ip::AddressFamily;
 use internet_checksum::Checksum;
 use serde::{Deserialize, Serialize};
 
-use crate::version::VrrpVersion;
+use crate::version::Version;
 
 // Type aliases.
 pub type DecodeResult<T> = Result<T, DecodeError>;
@@ -66,7 +66,7 @@ pub type DecodeResult<T> = Result<T, DecodeError>;
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct VrrpHdr {
-    pub version: VrrpVersion,
+    pub version: Version,
     pub hdr_type: u8,
     pub vrid: u8,
     pub priority: u8,
@@ -230,7 +230,7 @@ pub struct NeighborAdvertisement {
 pub enum DecodeError {
     ChecksumError,
     // When the packet length is too small, there will be no vrid.
-    PacketLengthError { vrid: u8, version: VrrpVersion },
+    PacketLengthError { vrid: u8, version: Version },
     IpTtlError { ttl: u8 },
     VersionError { vrid: u8 },
     IncompletePacket,
@@ -254,7 +254,7 @@ impl VrrpHdr {
         buf.put_u8(self.count_ip);
 
         match self.version {
-            VrrpVersion::V2 => {
+            Version::V2 => {
                 buf.put_u8(self.auth_type);
                 let adv = self.adver_int as u8;
 
@@ -278,7 +278,7 @@ impl VrrpHdr {
                 check.add_bytes(&buf);
                 buf[6..8].copy_from_slice(&check.checksum());
             }
-            VrrpVersion::V3(address_family) => {
+            Version::V3(address_family) => {
                 let res_adv_int =
                     ((self.auth_type as u16) << 12) | self.adver_int;
                 buf.put_u16(res_adv_int);
@@ -323,7 +323,7 @@ impl VrrpHdr {
         let hdr_type = ver_type & 0x0F;
         let vrid = buf.get_u8();
 
-        let version = match VrrpVersion::new(ver, addr_family) {
+        let version = match Version::new(ver, addr_family) {
             None => {
                 return Err(DecodeError::VersionError { vrid });
             }

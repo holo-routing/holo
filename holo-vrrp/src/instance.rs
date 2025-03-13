@@ -34,7 +34,7 @@ use crate::packet::{
     Vrrp6Packet, VrrpHdr,
 };
 use crate::tasks::messages::output::NetTxPacketMsg;
-use crate::version::VrrpVersion;
+use crate::version::Version;
 use crate::{network, southbound, tasks};
 
 #[derive(Debug)]
@@ -50,7 +50,7 @@ pub struct Instance {
     // Interface raw sockets and Tx/Rx tasks.
     pub net: Option<InstanceNet>,
     // VRRP version.
-    pub vrrp_version: VrrpVersion,
+    pub version: Version,
 }
 
 #[derive(Debug, Default)]
@@ -149,9 +149,9 @@ pub struct Statistics {
 // ===== impl Instance =====
 
 impl Instance {
-    pub(crate) fn new(vrid: u8, vrrp_version: VrrpVersion) -> Self {
+    pub(crate) fn new(vrid: u8, version: Version) -> Self {
         Debug::InstanceCreate(vrid).log();
-        let mvlan = InstanceMacvlan::new(vrid, vrrp_version.address_family());
+        let mvlan = InstanceMacvlan::new(vrid, version.address_family());
 
         Instance {
             vrid,
@@ -159,7 +159,7 @@ impl Instance {
             state: InstanceState::default(),
             mvlan,
             net: None,
-            vrrp_version,
+            version,
         }
     }
 
@@ -175,7 +175,7 @@ impl Instance {
     }
 
     fn startup(&mut self, interface: &InterfaceView<'_>) {
-        match InstanceNet::new(interface, &self.mvlan, self.vrrp_version) {
+        match InstanceNet::new(interface, &self.mvlan, self.version) {
             Ok(net) => {
                 self.net = Some(net);
                 if self.config.priority == 255 {
@@ -323,7 +323,7 @@ impl Instance {
                 );
                 self.state.timer = VrrpTimer::MasterDownTimer(task);
             }
-            fsm::State::Master => match self.vrrp_version.address_family() {
+            fsm::State::Master => match self.version.address_family() {
                 AddressFamily::Ipv4 => {
                     let src_ip = interface
                         .system
@@ -384,7 +384,7 @@ impl Instance {
 
     /// Generates VRRP packet
     pub(crate) fn generate_vrrp_packet(&self) -> VrrpHdr {
-        match self.vrrp_version.address_family() {
+        match self.version.address_family() {
             AddressFamily::Ipv4 => self.vrrp_ipv4_packet(),
             AddressFamily::Ipv6 => self.vrrp_ipv6_packet(),
         }
@@ -409,7 +409,7 @@ impl Instance {
         let mut auth_data: Option<u32> = None;
         let mut auth_data2: Option<u32> = None;
 
-        if version == VrrpVersion::V2 {
+        if version == Version::V2 {
             auth_data = Some(0);
             auth_data2 = Some(0);
         };
@@ -463,7 +463,7 @@ impl Instance {
             .collect();
 
         VrrpHdr {
-            version: VrrpVersion::V3(AddressFamily::Ipv6),
+            version: Version::V3(AddressFamily::Ipv6),
             hdr_type: 1,
             vrid: self.vrid,
             priority: self.config.priority,
@@ -540,8 +540,8 @@ impl Instance {
     }
 
     pub(crate) fn send_vrrp_advertisement(&mut self, src_ip: IpAddr) {
-        match self.vrrp_version {
-            VrrpVersion::V2 => {
+        match self.version {
+            Version::V2 => {
                 if let IpAddr::V4(addr) = src_ip {
                     let packet = Vrrp4Packet {
                         ip: self.generate_ipv4_packet(addr),
@@ -552,7 +552,7 @@ impl Instance {
                     let _ = net.net_tx_packetp.send(msg);
                 }
             }
-            VrrpVersion::V3(_addr_fam) => match src_ip {
+            Version::V3(_addr_fam) => match src_ip {
                 IpAddr::V4(addr) => {
                     let packet = Vrrp4Packet {
                         ip: self.generate_ipv4_packet(addr),
@@ -674,11 +674,11 @@ impl InstanceNet {
     pub(crate) fn new(
         parent_iface: &InterfaceView<'_>,
         mvlan: &InstanceMacvlan,
-        vrrp_version: VrrpVersion,
+        version: Version,
     ) -> Result<Self, IoError> {
         let instance_channels_tx = &parent_iface.tx;
 
-        let socket_vrrp_rx = match vrrp_version.address_family() {
+        let socket_vrrp_rx = match version.address_family() {
             AddressFamily::Ipv4 => network::socket_vrrp_rx4(parent_iface)
                 .map_err(IoError::SocketError)
                 .and_then(|socket| {
@@ -693,7 +693,7 @@ impl InstanceNet {
                 .map(Arc::new)?,
         };
 
-        let socket_vrrp_tx = match vrrp_version.address_family() {
+        let socket_vrrp_tx = match version.address_family() {
             AddressFamily::Ipv4 => network::socket_vrrp_tx4(mvlan)
                 .map_err(IoError::SocketError)
                 .and_then(|socket| {
@@ -709,7 +709,7 @@ impl InstanceNet {
         };
 
         // - Arp when ipv4 Net Advert when IPV6 -
-        let socket_arp = match vrrp_version.address_family() {
+        let socket_arp = match version.address_family() {
             AddressFamily::Ipv4 => network::socket_arp(&mvlan.name)
                 .map_err(IoError::SocketError)
                 .and_then(|socket| {
@@ -736,7 +736,7 @@ impl InstanceNet {
         let vrrp_net_rx_task = tasks::vrrp_net_rx(
             socket_vrrp_rx.clone(),
             &instance_channels_tx.protocol_input.vrrp_net_packet_tx,
-            vrrp_version,
+            version,
         );
 
         Ok(Self {

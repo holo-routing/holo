@@ -14,7 +14,7 @@ use holo_protocol::assert_eq_hex;
 use holo_utils::ip::AddressFamily;
 use holo_vrrp::consts::{VRRP_MULTICAST_ADDR_IPV4, VRRP_PROTO_NUMBER};
 use holo_vrrp::packet::{DecodeError, EthernetHdr, Ipv4Hdr, Ipv6Hdr, VrrpHdr};
-use holo_vrrp::version::VrrpVersion;
+use holo_vrrp::version::Version;
 
 static VRRPV2HDR: LazyLock<(Vec<u8>, VrrpHdr)> = LazyLock::new(|| {
     (
@@ -23,7 +23,7 @@ static VRRPV2HDR: LazyLock<(Vec<u8>, VrrpHdr)> = LazyLock::new(|| {
             0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         ],
         VrrpHdr {
-            version: VrrpVersion::V2,
+            version: Version::V2,
             hdr_type: 1,
             vrid: 51,
             priority: 30,
@@ -46,7 +46,7 @@ static VRRPV3HDR_IPV6: LazyLock<(Vec<u8>, VrrpHdr)> = LazyLock::new(|| {
             0x73, 0x34,
         ],
         VrrpHdr {
-            version: VrrpVersion::V3(AddressFamily::Ipv6),
+            version: Version::V3(AddressFamily::Ipv6),
             hdr_type: 1,
             vrid: 1,
             priority: 22,
@@ -187,7 +187,7 @@ fn test_decode_vrrpv3_hdr_ipv6_too_long() {
         generated_hdr,
         Err(DecodeError::PacketLengthError {
             vrid: 1,
-            version: VrrpVersion::V3(AddressFamily::Ipv6)
+            version: Version::V3(AddressFamily::Ipv6)
         })
     );
 }

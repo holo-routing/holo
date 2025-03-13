@@ -15,12 +15,12 @@ use crate::consts::MAX_VIRTUAL_IP_COUNT;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 #[derive(PartialOrd, Ord)]
-pub enum VrrpVersion {
+pub enum Version {
     V2,
     V3(AddressFamily),
 }
 
-impl VrrpVersion {
+impl Version {
     // Minimum number of bytes in a VRRP packet
     pub const MIN_PACKET_LENGTH: u8 = 8;
 

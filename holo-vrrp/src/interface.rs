@@ -26,7 +26,7 @@ use crate::error::Error;
 use crate::instance::Instance;
 use crate::tasks::messages::input::{MasterDownTimerMsg, VrrpNetRxPacketMsg};
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
-use crate::version::VrrpVersion;
+use crate::version::Version;
 use crate::{events, southbound};
 
 #[derive(Debug)]
@@ -100,10 +100,10 @@ impl Interface {
     pub(crate) fn get_instance(
         &mut self,
         vrid: u8,
-        vrrp_version: &VrrpVersion,
+        version: &Version,
     ) -> Option<(InterfaceView<'_>, &mut Instance)> {
-        match vrrp_version {
-            VrrpVersion::V2 => {
+        match version {
+            Version::V2 => {
                 self.vrrp_v2_instances.get_mut(&vrid).map(|instance| {
                     (
                         InterfaceView {
@@ -117,7 +117,7 @@ impl Interface {
                     )
                 })
             }
-            VrrpVersion::V3(addr_family) => {
+            Version::V3(addr_family) => {
                 let instances = match addr_family {
                     AddressFamily::Ipv4 => &mut self.vrrp_v3_instances_ipv4,
                     AddressFamily::Ipv6 => &mut self.vrrp_v3_instances_ipv6,
@@ -216,7 +216,7 @@ impl ProtocolInstance for Interface {
                 events::handle_master_down_timer(
                     self,
                     msg.vrid,
-                    &msg.vrrp_version,
+                    &msg.version,
                 )
             }
         } {

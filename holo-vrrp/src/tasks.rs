@@ -22,7 +22,7 @@ use tracing::{Instrument, debug_span};
 use crate::instance::Instance;
 use crate::network;
 use crate::packet::{Vrrp4Packet, Vrrp6Packet};
-use crate::version::VrrpVersion;
+use crate::version::Version;
 
 //
 // VRRP tasks diagram:
@@ -61,7 +61,7 @@ pub mod messages {
         use std::net::IpAddr;
 
         use super::*;
-        use crate::version::VrrpVersion;
+        use crate::version::Version;
 
         #[derive(Debug, Deserialize, Serialize)]
         pub enum ProtocolMsg {
@@ -78,7 +78,7 @@ pub mod messages {
         #[derive(Debug, Deserialize, Serialize)]
         pub struct MasterDownTimerMsg {
             pub vrid: u8,
-            pub vrrp_version: VrrpVersion,
+            pub version: Version,
         }
     }
 
@@ -127,7 +127,7 @@ pub mod messages {
 pub(crate) fn vrrp_net_rx(
     socket_vrrp: Arc<AsyncFd<Socket>>,
     net_packet_rxp: &Sender<messages::input::VrrpNetRxPacketMsg>,
-    vrrp_version: VrrpVersion,
+    version: Version,
 ) -> Task<()> {
     #[cfg(not(feature = "testing"))]
     {
@@ -145,7 +145,7 @@ pub(crate) fn vrrp_net_rx(
                 let _ = network::read_loop(
                     socket_vrrp,
                     net_packet_rxp,
-                    vrrp_version.address_family(),
+                    version.address_family(),
                 )
                 .await;
             }
@@ -207,14 +207,14 @@ pub(crate) fn master_down_timer(
     #[cfg(not(feature = "testing"))]
     {
         let vrid = instance.vrid;
-        let vrrp_version = instance.vrrp_version;
+        let version = instance.version;
         let master_down_timer_rx = master_down_timer_rx.clone();
 
         TimeoutTask::new(duration, move || async move {
             let _ = master_down_timer_rx
                 .send(messages::input::MasterDownTimerMsg {
                     vrid,
-                    vrrp_version,
+                    version,
                 })
                 .await;
         })
@@ -233,8 +233,8 @@ pub(crate) fn advertisement_interval4(
 ) -> IntervalTask {
     #[cfg(not(feature = "testing"))]
     {
-        match instance.vrrp_version {
-            VrrpVersion::V2 => {
+        match instance.version {
+            Version::V2 => {
                 let packet = Vrrp4Packet {
                     ip: instance.generate_ipv4_packet(src_ip),
                     vrrp: instance.generate_vrrp_packet(),
@@ -258,7 +258,7 @@ pub(crate) fn advertisement_interval4(
                     },
                 )
             }
-            VrrpVersion::V3(_) => {
+            Version::V3(_) => {
                 let packet = Vrrp4Packet {
                     ip: instance.generate_ipv4_packet(src_ip),
                     vrrp: instance.generate_vrrp_packet(),

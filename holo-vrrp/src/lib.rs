@@ -13,7 +13,6 @@
 )]
 #![feature(let_chains)]
 
-pub mod consts;
 pub mod debug;
 pub mod error;
 pub mod events;

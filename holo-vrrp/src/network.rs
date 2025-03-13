@@ -86,8 +86,8 @@ pub(crate) fn socket_vrrp_tx6(
         })?;
         socket.set_nonblocking(true)?;
         socket.set_reuse_address(true)?;
+        socket.set_ipv6_checksum(VrrpHdr::CHECKSUM_OFFSET)?;
         socket.set_multicast_ifindex_v6(mvlan.system.ifindex.unwrap())?;
-        socket.set_ipv6_checksum(6)?;
         capabilities::raise(|| {
             socket.bind_device(Some(mvlan.name.as_bytes()))
         })?;
@@ -147,6 +147,7 @@ pub(crate) fn socket_vrrp_rx6(
             socket.bind_device(Some(interface.name.as_bytes()))
         })?;
         socket.set_nonblocking(true)?;
+        socket.set_ipv6_checksum(VrrpHdr::CHECKSUM_OFFSET)?;
         socket.join_multicast_v6(
             &VRRP_MULTICAST_ADDR_IPV6,
             interface.system.ifindex.unwrap(),

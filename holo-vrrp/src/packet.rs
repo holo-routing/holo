@@ -47,10 +47,6 @@ pub type DecodeResult<T> = Result<T, DecodeError>;
 // 0                   1                   2                   3
 // 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// |                    IPv4 Fields or IPv6 Fields                 |
-// ...                                                             ...
-// |                                                               |
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 // |Version| Type  | Virtual Rtr ID|   Priority    |IPvX Addr Count|
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 // |Reserve| Max Advertise Interval|          Checksum             |
@@ -66,6 +62,7 @@ pub type DecodeResult<T> = Result<T, DecodeError>;
 // +                                                               +
 // |                                                               |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct VrrpHdr {
@@ -240,9 +237,12 @@ pub enum DecodeError {
 }
 
 // ===== impl Packet =====
+
 impl VrrpHdr {
     // Minimum number of bytes in a VRRP header (either v2 or v3).
     const MIN_LEN: usize = 8;
+    // Byte offset where the checksum field is located within the VRRP header.
+    pub const CHECKSUM_OFFSET: i32 = 6;
 
     // Encodes VRRP packet into a bytes buffer.
     pub fn encode(&self) -> BytesMut {

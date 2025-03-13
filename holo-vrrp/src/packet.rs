@@ -232,16 +232,17 @@ pub struct NeighborAdvertisement {
 #[derive(Deserialize, Serialize)]
 pub enum DecodeError {
     ChecksumError,
-    PacketLengthError { vrid: u8 },
+    // When the packet length is too small, there will be no vrid.
+    PacketLengthError { vrid: u8, version: VrrpVersion },
     IpTtlError { ttl: u8 },
+    VersionError { vrid: u8 },
+    IncompletePacket,
 }
 
 // ===== impl Packet =====
-
 impl VrrpHdr {
-    const V2_MAX_LEN: usize = 96;
-    const V2_MIN_LEN: usize = 16;
-    const V2_MAX_IP_COUNT: usize = 20;
+    // Minimum number of bytes in a VRRP header (either v2 or v3).
+    const MIN_LEN: usize = 8;
 
     // Encodes VRRP packet into a bytes buffer.
     pub fn encode(&self) -> BytesMut {
@@ -310,12 +311,30 @@ impl VrrpHdr {
         addr_family: AddressFamily,
     ) -> DecodeResult<Self> {
         let pkt_size = data.len();
+        // Check if there is any data.
+        if pkt_size < Self::MIN_LEN {
+            return Err(DecodeError::IncompletePacket);
+        }
+
         let mut buf: Bytes = Bytes::copy_from_slice(data);
         let ver_type = buf.get_u8();
         let ver = ver_type >> 4;
 
         let hdr_type = ver_type & 0x0F;
         let vrid = buf.get_u8();
+
+        let version = match VrrpVersion::new(ver, addr_family) {
+            None => {
+                return Err(DecodeError::VersionError { vrid });
+            }
+            Some(version) => version,
+        };
+
+        // Check if packet length is valid.
+        if pkt_size > version.max_length() {
+            return Err(DecodeError::PacketLengthError { vrid, version });
+        }
+
         let priority = buf.get_u8();
         let count_ip = buf.get_u8();
 
@@ -326,18 +345,11 @@ impl VrrpHdr {
         let mut adver_int: u16 = 0;
         let mut checksum: u16 = 0;
         let mut ip_addresses: Vec<IpAddr> = vec![];
-        let mut version = VrrpVersion::V2;
         let mut check = Checksum::new();
 
         if ver == 2 {
             auth_type = buf.get_u8();
             adver_int = buf.get_u8() as u16;
-            if !(Self::V2_MIN_LEN..=Self::V2_MAX_LEN).contains(&pkt_size)
-                || count_ip as usize > Self::V2_MAX_IP_COUNT
-                || (count_ip * 4) + 16 != pkt_size as u8
-            {
-                return Err(DecodeError::PacketLengthError { vrid });
-            }
             checksum = buf.get_u16();
 
             for _ in 0..count_ip {
@@ -355,12 +367,12 @@ impl VrrpHdr {
         } else if ver == 3 {
             let res_adv_int = buf.get_u16();
             auth_type = (res_adv_int >> 12) as u8;
+            checksum = buf.get_u16();
             let advert: u16 = res_adv_int & 0x0FFF;
             adver_int = advert;
 
             match addr_family {
                 AddressFamily::Ipv4 => {
-                    version = VrrpVersion::V3(AddressFamily::Ipv4);
                     for _ in 0..count_ip {
                         ip_addresses.push(IpAddr::V4(buf.get_ipv4()));
                     }
@@ -372,7 +384,6 @@ impl VrrpHdr {
                 }
                 AddressFamily::Ipv6 => {
                     // TODO: add checksum calculation for vrrp v3 ipv6
-                    version = VrrpVersion::V3(AddressFamily::Ipv6);
                     for _ in 0..count_ip {
                         ip_addresses.push(IpAddr::V6(buf.get_ipv6()));
                     }

@@ -22,8 +22,8 @@ use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 
 use crate::consts::{
-    SOLICITATION_BASE_ADDRESS, VRRP_PROTO_NUMBER, VRRP_V2_MULTICAST_ADDRESS,
-    VRRP_V3_MULTICAST_ADDRESS,
+    SOLICITATION_BASE_ADDRESS, VRRP_MULTICAST_ADDRESS_IPV4,
+    VRRP_MULTICAST_ADDRESS_IPV6, VRRP_PROTO_NUMBER,
 };
 use crate::debug::Debug;
 use crate::error::{Error, IoError};
@@ -506,7 +506,7 @@ impl Instance {
             protocol: VRRP_PROTO_NUMBER as u8,
             checksum: 0x00,
             src_address,
-            dst_address: VRRP_V2_MULTICAST_ADDRESS,
+            dst_address: VRRP_MULTICAST_ADDRESS_IPV4,
             options: None,
             padding: None,
         }
@@ -535,7 +535,7 @@ impl Instance {
             next_header: 112,
             hop_limit: 255,
             source_address: src_address,
-            destination_address: VRRP_V3_MULTICAST_ADDRESS,
+            destination_address: VRRP_MULTICAST_ADDRESS_IPV6,
         }
     }
 

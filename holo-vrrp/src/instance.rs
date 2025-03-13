@@ -22,8 +22,8 @@ use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 
 use crate::consts::{
-    SOLICITATION_BASE_ADDRESS, VRRP_MULTICAST_ADDRESS_IPV4,
-    VRRP_MULTICAST_ADDRESS_IPV6, VRRP_PROTO_NUMBER,
+    SOLICITATION_BASE_ADDR, VRRP_MULTICAST_ADDR_IPV4, VRRP_MULTICAST_ADDR_IPV6,
+    VRRP_PROTO_NUMBER,
 };
 use crate::debug::Debug;
 use crate::error::{Error, IoError};
@@ -506,7 +506,7 @@ impl Instance {
             protocol: VRRP_PROTO_NUMBER as u8,
             checksum: 0x00,
             src_address,
-            dst_address: VRRP_MULTICAST_ADDRESS_IPV4,
+            dst_address: *VRRP_MULTICAST_ADDR_IPV4,
             options: None,
             padding: None,
         }
@@ -535,7 +535,7 @@ impl Instance {
             next_header: 112,
             hop_limit: 255,
             source_address: src_address,
-            destination_address: VRRP_MULTICAST_ADDRESS_IPV6,
+            destination_address: *VRRP_MULTICAST_ADDR_IPV6,
         }
     }
 
@@ -777,8 +777,7 @@ impl Default for Statistics {
 /// else // IPv6
 /// Compute and join the Solicited-Node multicast address [RFC4291] for the IPv6 address(es) associated with the Virtual Router.
 pub(crate) fn generate_solicitated_addr(addr: Ipv6Addr) -> Ipv6Addr {
-    let solic_base = SOLICITATION_BASE_ADDRESS;
     let addr_bits: u128 = (addr.to_bits() << 104) >> 104;
-    let solic_addr = solic_base.to_bits() | addr_bits;
+    let solic_addr = SOLICITATION_BASE_ADDR.to_bits() | addr_bits;
     Ipv6Addr::from(solic_addr)
 }

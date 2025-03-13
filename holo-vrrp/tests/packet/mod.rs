@@ -12,7 +12,7 @@ use std::sync::LazyLock;
 
 use holo_protocol::assert_eq_hex;
 use holo_utils::ip::AddressFamily;
-use holo_vrrp::consts::{VRRP_MULTICAST_ADDRESS_IPV4, VRRP_PROTO_NUMBER};
+use holo_vrrp::consts::{VRRP_MULTICAST_ADDR_IPV4, VRRP_PROTO_NUMBER};
 use holo_vrrp::packet::{DecodeError, EthernetHdr, Ipv4Hdr, Ipv6Hdr, VrrpHdr};
 use holo_vrrp::version::VrrpVersion;
 
@@ -81,7 +81,7 @@ static IPV4HDR: LazyLock<(Vec<u8>, Ipv4Hdr)> = LazyLock::new(|| {
             protocol: VRRP_PROTO_NUMBER as u8,
             checksum: 0xad4b,
             src_address: Ipv4Addr::new(192, 168, 100, 2),
-            dst_address: VRRP_MULTICAST_ADDRESS_IPV4,
+            dst_address: VRRP_MULTICAST_ADDR_IPV4,
             options: None,
             padding: None,
         },

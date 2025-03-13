@@ -37,9 +37,9 @@ pub struct Interface {
     pub system: InterfaceSys,
     // Interface VRRP V2 instances.
     pub vrrp_v2_instances: BTreeMap<u8, Instance>,
-    // Interface IPV4 VRRP V3 instances
+    // Interface IPV4 VRRP V3 instances.
     pub vrrp_v3_instances_ipv4: BTreeMap<u8, Instance>,
-    // Interface IPV6 VRRP V3 instances
+    // Interface IPV6 VRRP V3 instances.
     pub vrrp_v3_instances_ipv6: BTreeMap<u8, Instance>,
     // Global statistics.
     pub statistics: Statistics,
@@ -196,8 +196,7 @@ impl ProtocolInstance for Interface {
 
     async fn init(&mut self) {
         // Request system information about all interfaces.
-        self.tx.ibus.interface_sub(None, Some(AddressFamily::Ipv4));
-        self.tx.ibus.interface_sub(None, Some(AddressFamily::Ipv6));
+        self.tx.ibus.interface_sub(None, None);
     }
 
     async fn process_ibus_msg(&mut self, msg: IbusMsg) {

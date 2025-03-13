@@ -43,7 +43,6 @@ pub type DecodeResult<T> = Result<T, DecodeError>;
 // |                     Authentication Data (2)                   |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
-//
 // VRRP v3 Packet Format
 // 0                   1                   2                   3
 // 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1

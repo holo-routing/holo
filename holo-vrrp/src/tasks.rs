@@ -12,7 +12,6 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
-use holo_utils::ip::AddressFamily;
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{Sender, UnboundedReceiver, UnboundedSender};
@@ -128,7 +127,7 @@ pub mod messages {
 pub(crate) fn vrrp_net_rx(
     socket_vrrp: Arc<AsyncFd<Socket>>,
     net_packet_rxp: &Sender<messages::input::VrrpNetRxPacketMsg>,
-    vrrp_version: &VrrpVersion,
+    vrrp_version: VrrpVersion,
 ) -> Task<()> {
     #[cfg(not(feature = "testing"))]
     {
@@ -138,30 +137,17 @@ pub(crate) fn vrrp_net_rx(
         let _span2_guard = span2.enter();
 
         let net_packet_rxp = net_packet_rxp.clone();
-        let vrrp_version = vrrp_version.clone();
 
         let span = tracing::span::Span::current();
         Task::spawn(
             async move {
                 let _span_enter = span.enter();
-                match vrrp_version {
-                    VrrpVersion::V2 => {
-                        let _ = network::read_loop(
-                            socket_vrrp,
-                            net_packet_rxp,
-                            AddressFamily::Ipv4,
-                        )
-                        .await;
-                    }
-                    VrrpVersion::V3(addr_fam) => {
-                        let _ = network::read_loop(
-                            socket_vrrp,
-                            net_packet_rxp,
-                            addr_fam,
-                        )
-                        .await;
-                    }
-                }
+                let _ = network::read_loop(
+                    socket_vrrp,
+                    net_packet_rxp,
+                    vrrp_version.address_family(),
+                )
+                .await;
             }
             .in_current_span(),
         )
@@ -171,8 +157,6 @@ pub(crate) fn vrrp_net_rx(
         Task::spawn(async move { std::future::pending().await })
     }
 }
-
-// Network Rx task.
 
 // Network Tx task.
 #[allow(unused_mut)]
@@ -223,7 +207,7 @@ pub(crate) fn master_down_timer(
     #[cfg(not(feature = "testing"))]
     {
         let vrid = instance.vrid;
-        let vrrp_version = instance.vrrp_version.clone();
+        let vrrp_version = instance.vrrp_version;
         let master_down_timer_rx = master_down_timer_rx.clone();
 
         TimeoutTask::new(duration, move || async move {

@@ -19,10 +19,9 @@ use messages::input::MasterDownTimerMsg;
 use messages::output::NetTxPacketMsg;
 use tracing::{Instrument, debug_span};
 
-use crate::instance::Instance;
+use crate::instance::{Instance, Version};
 use crate::network;
 use crate::packet::{Vrrp4Packet, Vrrp6Packet};
-use crate::version::Version;
 
 //
 // VRRP tasks diagram:
@@ -61,7 +60,7 @@ pub mod messages {
         use std::net::IpAddr;
 
         use super::*;
-        use crate::version::Version;
+        use crate::instance::Version;
 
         #[derive(Debug, Deserialize, Serialize)]
         pub enum ProtocolMsg {
@@ -109,7 +108,6 @@ pub mod messages {
                 eth_hdr: EthernetHdr,
                 arp_hdr: ArpHdr,
             },
-            // Neighbor Advertisement
             NAdv {
                 vrid: u8,
                 ifindex: u32,
@@ -207,15 +205,12 @@ pub(crate) fn master_down_timer(
     #[cfg(not(feature = "testing"))]
     {
         let vrid = instance.vrid;
-        let version = instance.version;
+        let version = instance.config.version;
         let master_down_timer_rx = master_down_timer_rx.clone();
 
         TimeoutTask::new(duration, move || async move {
             let _ = master_down_timer_rx
-                .send(messages::input::MasterDownTimerMsg {
-                    vrid,
-                    version,
-                })
+                .send(messages::input::MasterDownTimerMsg { vrid, version })
                 .await;
         })
     }
@@ -225,7 +220,7 @@ pub(crate) fn master_down_timer(
     }
 }
 
-// Advertisement interval for IPV4 packets
+// Advertisement interval for IPv4 packets.
 pub(crate) fn advertisement_interval4(
     instance: &Instance,
     src_ip: Ipv4Addr,
@@ -233,56 +228,26 @@ pub(crate) fn advertisement_interval4(
 ) -> IntervalTask {
     #[cfg(not(feature = "testing"))]
     {
-        match instance.version {
-            Version::V2 => {
-                let packet = Vrrp4Packet {
-                    ip: instance.generate_ipv4_packet(src_ip),
-                    vrrp: instance.generate_vrrp_packet(),
-                };
-                let adv_sent = instance.state.statistics.adv_sent.clone();
+        let packet = Vrrp4Packet {
+            ip: instance.generate_ipv4_packet(src_ip),
+            vrrp: instance.generate_vrrp_packet(),
+        };
+        let adv_sent = instance.state.statistics.adv_sent.clone();
+        let net_tx_packetp = net_tx_packetp.clone();
+        IntervalTask::new(
+            Duration::from_secs(instance.config.advertise_interval as u64),
+            true,
+            move || {
+                let adv_sent = adv_sent.clone();
+                let packet = packet.clone();
                 let net_tx_packetp = net_tx_packetp.clone();
-                IntervalTask::new(
-                    Duration::from_secs(
-                        instance.config.advertise_interval as u64,
-                    ),
-                    true,
-                    move || {
-                        let adv_sent = adv_sent.clone();
-                        let packet = packet.clone();
-                        let net_tx_packetp = net_tx_packetp.clone();
-                        async move {
-                            adv_sent.fetch_add(1, Ordering::Relaxed);
-                            let msg = NetTxPacketMsg::Vrrp { packet };
-                            let _ = net_tx_packetp.send(msg);
-                        }
-                    },
-                )
-            }
-            Version::V3(_) => {
-                let packet = Vrrp4Packet {
-                    ip: instance.generate_ipv4_packet(src_ip),
-                    vrrp: instance.generate_vrrp_packet(),
-                };
-                let adv_sent = instance.state.statistics.adv_sent.clone();
-                let net_tx_packetp = net_tx_packetp.clone();
-                IntervalTask::new(
-                    Duration::from_secs(
-                        instance.config.advertise_interval as u64,
-                    ),
-                    true,
-                    move || {
-                        let adv_sent = adv_sent.clone();
-                        let packet = packet.clone();
-                        let net_tx_packetp = net_tx_packetp.clone();
-                        async move {
-                            adv_sent.fetch_add(1, Ordering::Relaxed);
-                            let msg = NetTxPacketMsg::Vrrp { packet };
-                            let _ = net_tx_packetp.send(msg);
-                        }
-                    },
-                )
-            }
-        }
+                async move {
+                    adv_sent.fetch_add(1, Ordering::Relaxed);
+                    let msg = NetTxPacketMsg::Vrrp { packet };
+                    let _ = net_tx_packetp.send(msg);
+                }
+            },
+        )
     }
     #[cfg(feature = "testing")]
     {
@@ -290,7 +255,7 @@ pub(crate) fn advertisement_interval4(
     }
 }
 
-// Advertisement interval for IPV6 packets
+// Advertisement interval for IPv6 packets.
 pub(crate) fn advertisement_interval6(
     instance: &Instance,
     src_ip: Ipv6Addr,

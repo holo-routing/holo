@@ -23,10 +23,9 @@ use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 
 use crate::error::Error;
-use crate::instance::Instance;
+use crate::instance::{Instance, Version};
 use crate::tasks::messages::input::{MasterDownTimerMsg, VrrpNetRxPacketMsg};
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
-use crate::version::Version;
 use crate::{events, southbound};
 
 #[derive(Debug)]
@@ -35,11 +34,11 @@ pub struct Interface {
     pub name: String,
     // Interface system data.
     pub system: InterfaceSys,
-    // Interface VRRP V2 instances.
+    // Interface VRRPv2 instances.
     pub vrrp_v2_instances: BTreeMap<u8, Instance>,
-    // Interface IPV4 VRRP V3 instances.
+    // Interface IPv4 VRRPv3 instances.
     pub vrrp_v3_instances_ipv4: BTreeMap<u8, Instance>,
-    // Interface IPV6 VRRP V3 instances.
+    // Interface IPv6 VRRPv3 instances.
     pub vrrp_v3_instances_ipv6: BTreeMap<u8, Instance>,
     // Global statistics.
     pub statistics: Statistics,
@@ -100,43 +99,29 @@ impl Interface {
     pub(crate) fn get_instance(
         &mut self,
         vrid: u8,
-        version: &Version,
+        version: Version,
     ) -> Option<(InterfaceView<'_>, &mut Instance)> {
-        match version {
-            Version::V2 => {
-                self.vrrp_v2_instances.get_mut(&vrid).map(|instance| {
-                    (
-                        InterfaceView {
-                            name: &self.name,
-                            system: &mut self.system,
-                            statistics: &mut self.statistics,
-                            tx: &self.tx,
-                            shared: &self.shared,
-                        },
-                        instance,
-                    )
-                })
+        let instances = match version {
+            Version::V2 => &mut self.vrrp_v2_instances,
+            Version::V3(AddressFamily::Ipv4) => {
+                &mut self.vrrp_v3_instances_ipv4
             }
-            Version::V3(addr_family) => {
-                let instances = match addr_family {
-                    AddressFamily::Ipv4 => &mut self.vrrp_v3_instances_ipv4,
-                    AddressFamily::Ipv6 => &mut self.vrrp_v3_instances_ipv6,
-                };
-                instances.get_mut(&vrid).map(|instance| {
-                    (
-                        InterfaceView {
-                            name: &self.name,
-                            system: &mut self.system,
-                            statistics: &mut self.statistics,
-                            tx: &self.tx,
-                            shared: &self.shared,
-                        },
-                        instance,
-                    )
-                })
-                // TODO: add a check for looking for an ipv4 vrrpv3 too
+            Version::V3(AddressFamily::Ipv6) => {
+                &mut self.vrrp_v3_instances_ipv6
             }
-        }
+        };
+        instances.get_mut(&vrid).map(|instance| {
+            (
+                InterfaceView {
+                    name: &self.name,
+                    system: &mut self.system,
+                    statistics: &mut self.statistics,
+                    tx: &self.tx,
+                    shared: &self.shared,
+                },
+                instance,
+            )
+        })
     }
 
     pub(crate) fn iter_instances(
@@ -207,17 +192,13 @@ impl ProtocolInstance for Interface {
 
     fn process_protocol_msg(&mut self, msg: ProtocolInputMsg) {
         if let Err(error) = match msg {
-            // Received VRRP v2 network packet.
+            // Received network packet.
             ProtocolInputMsg::VrrpNetRxPacket(msg) => {
                 events::process_vrrp_packet(self, msg.src, msg.packet)
             }
             // Master down timer.
             ProtocolInputMsg::MasterDownTimer(msg) => {
-                events::handle_master_down_timer(
-                    self,
-                    msg.vrid,
-                    &msg.version,
-                )
+                events::handle_master_down_timer(self, msg.vrid, msg.version)
             }
         } {
             error.log();

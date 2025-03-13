@@ -12,9 +12,9 @@ use std::sync::LazyLock;
 use const_addrs::{ip, ip4, ip6};
 use holo_protocol::assert_eq_hex;
 use holo_utils::ip::AddressFamily;
-use holo_vrrp::consts::{VRRP_MULTICAST_ADDR_IPV4, VRRP_PROTO_NUMBER};
+use holo_vrrp::instance::Version;
+use holo_vrrp::network::{VRRP_MULTICAST_ADDR_IPV4, VRRP_PROTO_NUMBER};
 use holo_vrrp::packet::{DecodeError, EthernetHdr, Ipv4Hdr, Ipv6Hdr, VrrpHdr};
-use holo_vrrp::version::Version;
 
 static VRRPV2HDR: LazyLock<(Vec<u8>, VrrpHdr)> = LazyLock::new(|| {
     (

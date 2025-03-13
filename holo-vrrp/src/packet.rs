@@ -15,7 +15,7 @@ use holo_utils::ip::AddressFamily;
 use internet_checksum::Checksum;
 use serde::{Deserialize, Serialize};
 
-use crate::version::Version;
+use crate::instance::Version;
 
 // Type aliases.
 pub type DecodeResult<T> = Result<T, DecodeError>;
@@ -245,6 +245,8 @@ impl VrrpHdr {
     pub const VALID_VERSIONS: [u8; 2] = [2, 3];
     // Byte offset where the checksum field is located within the VRRP header.
     pub const CHECKSUM_OFFSET: i32 = 6;
+    // Maximum number of virtual IP addresses allowed in a VRRP advertisement.
+    const MAX_VIRTUAL_IP_COUNT: usize = 20;
 
     // Encodes VRRP packet into a bytes buffer.
     pub fn encode(&self) -> BytesMut {
@@ -321,19 +323,17 @@ impl VrrpHdr {
         let mut buf: Bytes = Bytes::copy_from_slice(data);
         let ver_type = buf.get_u8();
         let ver = ver_type >> 4;
-
         let hdr_type = ver_type & 0x0F;
         let vrid = buf.get_u8();
-
-        let version = match Version::new(ver, addr_family) {
-            None => {
-                return Err(DecodeError::VersionError { vrid });
-            }
-            Some(version) => version,
+        let version = match (ver, addr_family) {
+            (2, AddressFamily::Ipv4) => Version::V2,
+            (3, AddressFamily::Ipv4) => Version::V3(AddressFamily::Ipv4),
+            (3, AddressFamily::Ipv6) => Version::V3(AddressFamily::Ipv6),
+            _ => return Err(DecodeError::VersionError { vrid }),
         };
 
         // Check if packet length is valid.
-        if pkt_size > version.max_length() {
+        if pkt_size > Self::max_length(version) {
             return Err(DecodeError::PacketLengthError { vrid, version });
         }
 
@@ -406,6 +406,12 @@ impl VrrpHdr {
             auth_data,
             auth_data2,
         })
+    }
+
+    // Maximum number of bytes in a packet.
+    pub fn max_length(version: Version) -> usize {
+        Self::MIN_LEN
+            + version.address_family().addr_len() * Self::MAX_VIRTUAL_IP_COUNT
     }
 }
 

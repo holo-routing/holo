@@ -97,6 +97,7 @@ pub(crate) fn socket_vrrp_tx6(
         socket.set_reuse_address(true)?;
         socket.set_ipv6_checksum(VrrpHdr::CHECKSUM_OFFSET)?;
         socket.set_multicast_ifindex_v6(mvlan.system.ifindex.unwrap())?;
+        socket.set_ipv6_tclass(libc::IPTOS_PREC_INTERNETCONTROL)?;
         capabilities::raise(|| {
             socket.bind_device(Some(mvlan.name.as_bytes()))
         })?;
@@ -230,7 +231,7 @@ pub(crate) fn socket_nadv(
     }
 }
 
-/// Sends VRRP packets for IPV4 virtual addresses.
+/// Sends VRRP packets for IPv4 virtual addresses.
 #[cfg(not(feature = "testing"))]
 async fn send_packet_vrrp4(
     socket: &AsyncFd<Socket>,
@@ -260,7 +261,7 @@ async fn send_packet_vrrp4(
         .map_err(IoError::SendError)
 }
 
-/// Sends VRRP packets for IPV6 virtual addresses.
+/// Sends VRRP packets for IPv6 virtual addresses.
 #[cfg(not(feature = "testing"))]
 async fn send_packet_vrrp6(
     socket: &AsyncFd<Socket>,

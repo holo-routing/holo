@@ -15,11 +15,10 @@ use holo_utils::ip::{IpAddrKind, IpNetworkKind};
 
 use crate::debug::Debug;
 use crate::error::{Error, GlobalError, VirtualRouterError};
-use crate::instance::{MasterReason, VrrpTimer, fsm};
+use crate::instance::{MasterReason, Version, VrrpTimer, fsm};
 use crate::interface::Interface;
 use crate::packet::{DecodeError, DecodeResult, VrrpHdr};
 use crate::tasks;
-use crate::version::Version;
 
 // ===== VRRP network packet receipt =====
 
@@ -39,16 +38,14 @@ pub(crate) fn process_vrrp_packet(
                 }
                 DecodeError::PacketLengthError { vrid, version } => {
                     if let Some((_, instance)) =
-                        interface.get_instance(vrid, &version)
+                        interface.get_instance(vrid, version)
                     {
                         instance.state.statistics.pkt_length_errors += 1;
                         instance.state.statistics.discontinuity_time =
                             Utc::now();
                     }
                 }
-                DecodeError::IpTtlError { .. } => {}
-                DecodeError::VersionError { .. } => {}
-                DecodeError::IncompletePacket => {}
+                _ => (),
             }
             return Err(Error::from((src, error)));
         }
@@ -57,8 +54,9 @@ pub(crate) fn process_vrrp_packet(
     // Log received packet.
     Debug::PacketRx(&src, &packet).log();
 
+    // Lookup instance.
     let Some((interface, instance)) =
-        interface.get_instance(packet.vrid, &packet.version)
+        interface.get_instance(packet.vrid, packet.version)
     else {
         interface.statistics.vrid_errors += 1;
         interface.statistics.discontinuity_time = Utc::now();
@@ -143,7 +141,7 @@ pub(crate) fn process_vrrp_packet(
 pub(crate) fn handle_master_down_timer(
     interface: &mut Interface,
     vrid: u8,
-    version: &Version,
+    version: Version,
 ) -> Result<(), Error> {
     // Lookup instance.
     let Some((interface, instance)) = interface.get_instance(vrid, version)

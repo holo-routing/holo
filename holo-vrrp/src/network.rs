@@ -27,7 +27,7 @@ use socket2::{Domain, Protocol, Type};
 use tokio::sync::mpsc::error::SendError;
 
 use crate::consts::{
-    VRRP_PROTO_NUMBER, VRRP_V2_MULTICAST_ADDRESS, VRRP_V3_MULTICAST_ADDRESS,
+    VRRP_MULTICAST_ADDRESS_IPV4, VRRP_MULTICAST_ADDRESS_IPV6, VRRP_PROTO_NUMBER,
 };
 use crate::debug::Debug;
 use crate::error::IoError;
@@ -119,8 +119,10 @@ pub(crate) fn socket_vrrp_rx4(
         if let Some(addr) = &interface.system.addresses.first()
             && let IpNetwork::V4(v4_net) = addr
         {
-            socket
-                .join_multicast_v4(&VRRP_V2_MULTICAST_ADDRESS, &v4_net.ip())?;
+            socket.join_multicast_v4(
+                &VRRP_MULTICAST_ADDRESS_IPV4,
+                &v4_net.ip(),
+            )?;
         }
 
         Ok(socket)
@@ -148,7 +150,7 @@ pub(crate) fn socket_vrrp_rx6(
         })?;
         socket.set_nonblocking(true)?;
         socket.join_multicast_v6(
-            &VRRP_V3_MULTICAST_ADDRESS,
+            &VRRP_MULTICAST_ADDRESS_IPV6,
             interface.system.ifindex.unwrap(),
         )?;
 
@@ -234,7 +236,7 @@ async fn send_packet_vrrp4(
     // Send packet.
     let iov = [IoSlice::new(&buf)];
     let sockaddr: SockaddrIn =
-        std::net::SocketAddrV4::new(VRRP_V2_MULTICAST_ADDRESS, 0).into();
+        std::net::SocketAddrV4::new(VRRP_MULTICAST_ADDRESS_IPV4, 0).into();
     socket
         .async_io(tokio::io::Interest::WRITABLE, |socket| {
             socket::sendmsg(
@@ -264,7 +266,8 @@ async fn send_packet_vrrp6(
     // Send packet.
     let iov = [IoSlice::new(&buf)];
     let sockaddr: SockaddrIn6 =
-        std::net::SocketAddrV6::new(VRRP_V3_MULTICAST_ADDRESS, 0, 0, 0).into();
+        std::net::SocketAddrV6::new(VRRP_MULTICAST_ADDRESS_IPV6, 0, 0, 0)
+            .into();
 
     socket
         .async_io(tokio::io::Interest::WRITABLE, |socket| {
@@ -477,8 +480,9 @@ pub(crate) async fn read_loop(
                     let addr = addr.ip();
                     let mut buf: &[u8] =
                         &Bytes::copy_from_slice(iov[0].deref());
-                    if let AddressFamily::Ipv4 = af {
-                        buf = &buf[20..bytes];
+                    match af {
+                        AddressFamily::Ipv4 => buf = &buf[20..bytes],
+                        AddressFamily::Ipv6 => buf = &buf[0..bytes],
                     }
 
                     let vrrp_pkt = VrrpHdr::decode(buf, af);

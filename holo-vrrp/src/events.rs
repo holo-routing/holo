@@ -38,9 +38,9 @@ pub(crate) fn process_vrrp_packet(
                     interface.statistics.checksum_errors += 1;
                     interface.statistics.discontinuity_time = Utc::now();
                 }
-                DecodeError::PacketLengthError { vrid } => {
-                    if let Some(instance) =
-                        interface.vrrp_v2_instances.get_mut(&vrid)
+                DecodeError::PacketLengthError { vrid, version } => {
+                    if let Some((_, instance)) =
+                        interface.get_instance(vrid, &version)
                     {
                         instance.state.statistics.pkt_length_errors += 1;
                         instance.state.statistics.discontinuity_time =
@@ -48,6 +48,8 @@ pub(crate) fn process_vrrp_packet(
                     }
                 }
                 DecodeError::IpTtlError { .. } => {}
+                DecodeError::VersionError { .. } => {}
+                DecodeError::IncompletePacket => {}
             }
             return Err(Error::from((src, error)));
         }

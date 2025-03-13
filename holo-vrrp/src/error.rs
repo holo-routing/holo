@@ -40,6 +40,7 @@ pub enum GlobalError {
     IpTtlError,
     VersionError,
     VridError,
+    IncompletePacket,
 }
 
 // VRRP error that occurred after a packet reaches a VRRP router.
@@ -105,6 +106,12 @@ impl From<(IpAddr, DecodeError)> for Error {
             ),
             DecodeError::IpTtlError { .. } => {
                 Error::VirtualRouterError(src, VirtualRouterError::IpTtlError)
+            }
+            DecodeError::VersionError { .. } => {
+                Error::GlobalError(src, GlobalError::VersionError)
+            }
+            DecodeError::IncompletePacket => {
+                Error::GlobalError(src, GlobalError::IncompletePacket)
             }
         }
     }
@@ -189,6 +196,9 @@ impl std::fmt::Display for GlobalError {
             }
             GlobalError::VridError => {
                 write!(f, "invalid VRID received")
+            }
+            GlobalError::IncompletePacket => {
+                write!(f, "incomplete packet")
             }
         }
     }

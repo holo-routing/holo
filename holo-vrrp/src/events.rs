@@ -11,6 +11,7 @@ use std::net::IpAddr;
 use std::time::Duration;
 
 use chrono::Utc;
+use holo_utils::ip::{IpAddrKind, IpNetworkKind};
 
 use crate::consts::VALID_VRRP_VERSIONS;
 use crate::debug::Debug;
@@ -73,7 +74,6 @@ pub(crate) fn process_vrrp_packet(
         let error = GlobalError::VersionError;
         return Err(Error::GlobalError(src, error));
     }
-
     if packet.adver_int != instance.config.advertise_interval {
         instance.state.statistics.interval_errors += 1;
         instance.state.statistics.discontinuity_time = Utc::now();
@@ -113,28 +113,10 @@ pub(crate) fn process_vrrp_packet(
             let primary_addr = interface
                 .system
                 .addresses
-                .clone()
                 .iter()
-                .find_map(|addr| {
-                    match src {
-                        // get first ipv4 address
-                        IpAddr::V4(_) => {
-                            if addr.is_ipv4() {
-                                return Some(addr.ip());
-                            }
-                        }
-
-                        // get first ipv6 address
-                        IpAddr::V6(_) => {
-                            if addr.is_ipv6() {
-                                return Some(addr.ip());
-                            }
-                        }
-                    }
-                    None
-                })
+                .find(|addr| addr.address_family() == src.address_family())
+                .map(|addr| addr.ip())
                 .unwrap();
-
             if packet.priority == 0 {
                 instance.send_vrrp_advertisement(primary_addr);
                 instance.timer_reset();

@@ -166,7 +166,7 @@ fn test_encode_ipv6hdr() {
     let generated_bytes = iphdr.encode();
     let generated_data = generated_bytes.as_ref();
     let expected_data: &[u8] = bytes.as_ref();
-    assert_eq!(generated_data, expected_data);
+    assert_eq_hex!(generated_data, expected_data);
 }
 
 #[test]

@@ -10,7 +10,7 @@
 use holo_utils::ip::AddressFamily;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 #[derive(PartialOrd, Ord)]
 pub enum VrrpVersion {

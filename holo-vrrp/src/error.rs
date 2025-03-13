@@ -211,7 +211,7 @@ impl std::fmt::Display for VirtualRouterError {
                 write!(f, "invalid packet length")
             }
             VirtualRouterError::IpTtlError => {
-                write!(f, "ip pkt with ttl != 255")
+                write!(f, "invalid IP packet TTL")
             }
         }
     }

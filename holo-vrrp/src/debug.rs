@@ -87,7 +87,7 @@ impl std::fmt::Display for Debug<'_> {
                 write!(f, "gratuitous ARP")
             }
             Debug::NeighborAdvertisementTx(..) => {
-                write!(f, "Neighbor Advertisement")
+                write!(f, "neighbor advertisement")
             }
         }
     }

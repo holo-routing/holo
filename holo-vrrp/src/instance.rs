@@ -45,11 +45,11 @@ pub struct Instance {
     pub config: InstanceCfg,
     // Instance state data.
     pub state: InstanceState,
-    // Macvlan interface
+    // Macvlan interface.
     pub mvlan: InstanceMacvlan,
     // Interface raw sockets and Tx/Rx tasks.
     pub net: Option<InstanceNet>,
-    // Vrrp version
+    // VRRP version.
     pub vrrp_version: VrrpVersion,
 }
 
@@ -77,7 +77,6 @@ pub struct InstanceNet {
     // Raw sockets.
     pub socket_vrrp_tx: Arc<AsyncFd<Socket>>,
     pub socket_vrrp_rx: Arc<AsyncFd<Socket>>,
-
     pub socket_arp: Arc<AsyncFd<Socket>>,
     // Network Tx/Rx tasks.
     _net_tx_task: Task<()>,
@@ -152,17 +151,7 @@ pub struct Statistics {
 impl Instance {
     pub(crate) fn new(vrid: u8, vrrp_version: VrrpVersion) -> Self {
         Debug::InstanceCreate(vrid).log();
-        let mvlan = match vrrp_version {
-            VrrpVersion::V2 => InstanceMacvlan::new(vrid, AddressFamily::Ipv4),
-            VrrpVersion::V3(addr_family) => match addr_family {
-                AddressFamily::Ipv4 => {
-                    InstanceMacvlan::new(vrid, AddressFamily::Ipv4)
-                }
-                AddressFamily::Ipv6 => {
-                    InstanceMacvlan::new(vrid, AddressFamily::Ipv6)
-                }
-            },
-        };
+        let mvlan = InstanceMacvlan::new(vrid, vrrp_version.address_family());
 
         Instance {
             vrid,
@@ -178,7 +167,6 @@ impl Instance {
         let is_ready = interface.system.ifindex.is_some()
             && !interface.system.addresses.is_empty()
             && self.mvlan.system.ifindex.is_some();
-
         if is_ready && self.state.state == fsm::State::Initialize {
             self.startup(interface);
         } else if !is_ready && self.state.state != fsm::State::Initialize {
@@ -187,7 +175,7 @@ impl Instance {
     }
 
     fn startup(&mut self, interface: &InterfaceView<'_>) {
-        match InstanceNet::new(interface, &self.mvlan, &self.vrrp_version) {
+        match InstanceNet::new(interface, &self.mvlan, self.vrrp_version) {
             Ok(net) => {
                 self.net = Some(net);
                 if self.config.priority == 255 {
@@ -417,11 +405,11 @@ impl Instance {
                 None
             })
             .collect();
-        let version = self.config.version.clone();
+        let version = self.config.version;
         let mut auth_data: Option<u32> = None;
         let mut auth_data2: Option<u32> = None;
 
-        if let VrrpVersion::V2 = self.config.version {
+        if version == VrrpVersion::V2 {
             auth_data = Some(0);
             auth_data2 = Some(0);
         };
@@ -496,14 +484,8 @@ impl Instance {
         let addr_count = self
             .config
             .virtual_addresses
-            .clone()
             .iter()
-            .filter_map(|addr| {
-                if let IpNetwork::V4(v4_net) = addr {
-                    return Some(IpAddr::V4(v4_net.ip()));
-                }
-                None
-            })
+            .filter(|addr| addr.ip().is_ipv4())
             .count();
 
         // 36 bytes (20 IP + 16 vrrp)
@@ -538,14 +520,8 @@ impl Instance {
         let addr_count = self
             .config
             .virtual_addresses
-            .clone()
             .iter()
-            .filter_map(|addr| {
-                if let IpNetwork::V6(v6_net) = addr {
-                    return Some(IpAddr::V6(v6_net.ip()));
-                }
-                None
-            })
+            .filter(|addr| addr.ip().is_ipv6())
             .count();
 
         // 384 bytes (40 IP + 8 VRRP ) + (16 * no of ipv6 addresses)
@@ -698,7 +674,7 @@ impl InstanceNet {
     pub(crate) fn new(
         parent_iface: &InterfaceView<'_>,
         mvlan: &InstanceMacvlan,
-        vrrp_version: &VrrpVersion,
+        vrrp_version: VrrpVersion,
     ) -> Result<Self, IoError> {
         let instance_channels_tx = &parent_iface.tx;
 
@@ -764,8 +740,8 @@ impl InstanceNet {
         );
 
         Ok(Self {
-            socket_vrrp_rx,
             socket_vrrp_tx,
+            socket_vrrp_rx,
             socket_arp,
             _net_tx_task: net_tx_task,
             _vrrp_net_rx_task: vrrp_net_rx_task,

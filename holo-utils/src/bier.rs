@@ -15,9 +15,26 @@ use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
 
 use crate::ip::AddressFamily;
+use crate::mpls::Label;
 
 pub type SubDomainId = u8;
 pub type BfrId = u16;
+
+#[derive(Clone, Debug, Eq, new, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub enum BierEncapId {
+    Mpls(Label),
+    NonMpls(BiftId),
+}
+
+impl BierEncapId {
+    pub fn get(self) -> u32 {
+        match self {
+            Self::Mpls(label) => label.get(),
+            Self::NonMpls(bift_id) => bift_id.get(),
+        }
+    }
+}
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]

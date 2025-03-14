@@ -174,7 +174,9 @@ Holo supports the following Internet Standards:
 * RFC 5304 - IS-IS Cryptographic Authentication
 * RFC 5305 - IS-IS Extensions for Traffic Engineering
 * RFC 5308 - Routing IPv6 with IS-IS
+* RFC 8401 - Bit Index Explicit Replication (BIER) Support via IS-IS
 * RFC 8405 - Shortest Path First (SPF) Back-Off Delay Algorithm for Link-State IGPs
+* draft-ietf-bier-lsr-non-mpls-extensions-03 - LSR Extensions for BIER non-MPLS Encapsulation
 
 ##### MPLS LDP
 

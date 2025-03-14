@@ -18,7 +18,7 @@ use holo_ospf::packet::tlv::*;
 use holo_ospf::packet::{DbDescFlags, Packet, PacketType};
 use holo_ospf::version::Ospfv3;
 use holo_protocol::assert_eq_hex;
-use holo_utils::bier::BiftId;
+use holo_utils::bier::{BierEncapId, BiftId};
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::AddressFamily;
 use holo_utils::keychain::Key;

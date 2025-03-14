@@ -15,7 +15,7 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use enum_as_inner::EnumAsInner;
 use holo_utils::UnboundedSender;
-use holo_utils::ip::AddressFamily;
+use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use ipnetwork::IpNetwork;
@@ -169,8 +169,10 @@ impl Instance {
 
     pub(crate) fn update(&mut self, interface: &InterfaceView<'_>) {
         let is_ready = interface.system.ifindex.is_some()
-            && !interface.system.addresses.is_empty()
-            && self.mvlan.system.ifindex.is_some();
+            && self.mvlan.system.ifindex.is_some()
+            && interface.system.addresses.iter().any(|addr| {
+                addr.address_family() == self.config.version.address_family()
+            });
         if is_ready && self.state.state == fsm::State::Initialize {
             self.startup(interface);
         } else if !is_ready && self.state.state != fsm::State::Initialize {
@@ -211,38 +213,44 @@ impl Instance {
     pub(crate) fn shutdown(&mut self, interface: &InterfaceView<'_>) {
         if self.state.state == fsm::State::Master {
             // Send an advertisement with Priority = 0.
-            if let Some(src_ip) = interface.system.addresses.first() {
-                match src_ip {
-                    IpNetwork::V4(v4_net) => {
+            match self.config.version.address_family() {
+                AddressFamily::Ipv4 => {
+                    if let Some(addr) = interface
+                        .system
+                        .addresses
+                        .iter()
+                        .find_map(|addr| Ipv4Addr::get(addr.ip()))
+                    {
                         let net = self.net.as_ref().unwrap();
-
                         let mut pkt = self.generate_vrrp_packet();
                         pkt.priority = 0;
-
                         let packet = Vrrp4Packet {
-                            ip: self.generate_ipv4_packet(v4_net.ip()),
+                            ip: self.generate_ipv4_packet(addr),
                             vrrp: pkt,
                         };
-
                         let msg = NetTxPacketMsg::Vrrp { packet };
                         let _ = net.net_tx_packetp.send(msg);
                     }
-                    IpNetwork::V6(v6_net) => {
+                }
+                AddressFamily::Ipv6 => {
+                    if let Some(addr) = interface
+                        .system
+                        .addresses
+                        .iter()
+                        .find_map(|addr| Ipv6Addr::get(addr.ip()))
+                    {
                         let net = self.net.as_ref().unwrap();
-
                         let mut pkt = self.generate_vrrp_packet();
                         pkt.priority = 0;
-
                         let packet = Vrrp6Packet {
-                            ip: self.generate_ipv6_packet(v6_net.ip()),
+                            ip: self.generate_ipv6_packet(addr),
                             vrrp: pkt,
                         };
-
                         let msg = NetTxPacketMsg::Vrrp6 { packet };
                         let _ = net.net_tx_packetp.send(msg);
                     }
                 }
-            };
+            }
         }
 
         // Transition to the Initialize state.
@@ -329,38 +337,32 @@ impl Instance {
             }
             fsm::State::Master => match self.config.version.address_family() {
                 AddressFamily::Ipv4 => {
-                    let src_ip = interface
+                    let src_addr = interface
                         .system
                         .addresses
                         .iter()
-                        .find(|net| net.is_ipv4());
-
-                    if let Some(src_addr) = src_ip
-                        && let IpNetwork::V4(addr) = src_addr
-                    {
+                        .find_map(|addr| Ipv4Addr::get(addr.ip()));
+                    if let Some(src_addr) = src_addr {
                         let net = self.net.as_ref().unwrap();
                         let task = tasks::advertisement_interval4(
                             self,
-                            addr.ip(),
+                            src_addr,
                             &net.net_tx_packetp,
                         );
                         self.state.timer = VrrpTimer::AdvTimer(task);
                     }
                 }
                 AddressFamily::Ipv6 => {
-                    let src_ip = interface
+                    let src_addr = interface
                         .system
                         .addresses
                         .iter()
-                        .find(|net| net.is_ipv6());
-
-                    if let Some(src_addr) = src_ip
-                        && let IpNetwork::V6(addr) = src_addr
-                    {
+                        .find_map(|addr| Ipv6Addr::get(addr.ip()));
+                    if let Some(src_addr) = src_addr {
                         let net = self.net.as_ref().unwrap();
                         let task = tasks::advertisement_interval6(
                             self,
-                            addr.ip(),
+                            src_addr,
                             &net.net_tx_packetp,
                         );
                         self.state.timer = VrrpTimer::AdvTimer(task);
@@ -386,54 +388,31 @@ impl Instance {
         }
     }
 
-    /// Generates VRRP packet
+    // Generates VRRP packet.
     pub(crate) fn generate_vrrp_packet(&self) -> VrrpHdr {
-        match self.config.version.address_family() {
-            AddressFamily::Ipv4 => self.vrrp_ipv4_packet(),
-            AddressFamily::Ipv6 => self.vrrp_ipv6_packet(),
-        }
-    }
-
-    /// A VRRP packet holding IPv4 virtual addresses
-    /// and coming from an IPv4 address (can either be vrrp v2 or v3)
-    fn vrrp_ipv4_packet(&self) -> VrrpHdr {
         let ip_addresses: Vec<IpAddr> = self
             .config
             .virtual_addresses
-            .clone()
             .iter()
-            .filter_map(|addr| {
-                if let IpNetwork::V4(v4_net) = addr {
-                    return Some(IpAddr::V4(v4_net.ip()));
-                }
-                None
+            .filter(|addr| {
+                addr.address_family() == self.config.version.address_family()
             })
+            .map(|addr| addr.ip())
             .collect();
-        let version = self.config.version;
-        let mut auth_data: Option<u32> = None;
-        let mut auth_data2: Option<u32> = None;
-
-        if version == Version::V2 {
-            auth_data = Some(0);
-            auth_data2 = Some(0);
-        };
 
         VrrpHdr {
-            version,
+            version: self.config.version,
             hdr_type: 1,
             vrid: self.vrid,
             priority: self.config.priority,
             count_ip: ip_addresses.len() as u8,
-            auth_type: 0,
             adver_int: self.config.advertise_interval,
             checksum: 0,
             ip_addresses,
-            auth_data,
-            auth_data2,
         }
     }
 
-    /// A Neighbor Advertisement packet, usually unsolicitated in VRRP
+    // A Neighbor Advertisement packet, usually unsolicitated in VRRP.
     fn neighbor_solicitation_packet(
         &self,
         addr: Ipv6Addr,
@@ -447,37 +426,6 @@ impl Instance {
             o: 1,
             reserved: 0,
             target_address: addr,
-        }
-    }
-
-    /// A VRRP packet holding IPv6 virtual addresses
-    /// and will be sent from an IPv6 address
-    fn vrrp_ipv6_packet(&self) -> VrrpHdr {
-        let ip_addresses: Vec<IpAddr> = self
-            .config
-            .virtual_addresses
-            .clone()
-            .iter()
-            .filter_map(|addr| {
-                if let IpNetwork::V6(v6_net) = addr {
-                    return Some(IpAddr::V6(v6_net.ip()));
-                }
-                None
-            })
-            .collect();
-
-        VrrpHdr {
-            version: Version::V3(AddressFamily::Ipv6),
-            hdr_type: 1,
-            vrid: self.vrid,
-            priority: self.config.priority,
-            count_ip: ip_addresses.len() as u8,
-            auth_type: 0,
-            adver_int: self.config.advertise_interval,
-            checksum: 0,
-            ip_addresses,
-            auth_data: None,
-            auth_data2: None,
         }
     }
 
@@ -682,51 +630,30 @@ impl InstanceNet {
     ) -> Result<Self, IoError> {
         let instance_channels_tx = &parent_iface.tx;
 
+        // Create raw sockets.
         let socket_vrrp_rx = match version.address_family() {
-            AddressFamily::Ipv4 => network::socket_vrrp_rx4(parent_iface)
-                .map_err(IoError::SocketError)
-                .and_then(|socket| {
-                    AsyncFd::new(socket).map_err(IoError::SocketError)
-                })
-                .map(Arc::new)?,
-            AddressFamily::Ipv6 => network::socket_vrrp_rx6(parent_iface)
-                .map_err(IoError::SocketError)
-                .and_then(|socket| {
-                    AsyncFd::new(socket).map_err(IoError::SocketError)
-                })
-                .map(Arc::new)?,
-        };
+            AddressFamily::Ipv4 => network::socket_vrrp_rx4(parent_iface),
+            AddressFamily::Ipv6 => network::socket_vrrp_rx6(parent_iface),
+        }
+        .map_err(IoError::SocketError)
+        .and_then(|socket| AsyncFd::new(socket).map_err(IoError::SocketError))
+        .map(Arc::new)?;
 
         let socket_vrrp_tx = match version.address_family() {
-            AddressFamily::Ipv4 => network::socket_vrrp_tx4(mvlan)
-                .map_err(IoError::SocketError)
-                .and_then(|socket| {
-                    AsyncFd::new(socket).map_err(IoError::SocketError)
-                })
-                .map(Arc::new)?,
-            AddressFamily::Ipv6 => network::socket_vrrp_tx6(mvlan)
-                .map_err(IoError::SocketError)
-                .and_then(|socket| {
-                    AsyncFd::new(socket).map_err(IoError::SocketError)
-                })
-                .map(Arc::new)?,
-        };
+            AddressFamily::Ipv4 => network::socket_vrrp_tx4(mvlan),
+            AddressFamily::Ipv6 => network::socket_vrrp_tx6(mvlan),
+        }
+        .map_err(IoError::SocketError)
+        .and_then(|socket| AsyncFd::new(socket).map_err(IoError::SocketError))
+        .map(Arc::new)?;
 
-        // - Arp when ipv4 Net Advert when IPv6 -
         let socket_arp = match version.address_family() {
-            AddressFamily::Ipv4 => network::socket_arp(&mvlan.name)
-                .map_err(IoError::SocketError)
-                .and_then(|socket| {
-                    AsyncFd::new(socket).map_err(IoError::SocketError)
-                })
-                .map(Arc::new)?,
-            AddressFamily::Ipv6 => network::socket_nadv(mvlan)
-                .map_err(IoError::SocketError)
-                .and_then(|socket| {
-                    AsyncFd::new(socket).map_err(IoError::SocketError)
-                })
-                .map(Arc::new)?,
-        };
+            AddressFamily::Ipv4 => network::socket_arp(&mvlan.name),
+            AddressFamily::Ipv6 => network::socket_nadv(mvlan),
+        }
+        .map_err(IoError::SocketError)
+        .and_then(|socket| AsyncFd::new(socket).map_err(IoError::SocketError))
+        .map(Arc::new)?;
 
         // Start network Tx/Rx tasks.
         let (net_tx_packetp, net_tx_packetc) = mpsc::unbounded_channel();
@@ -760,7 +687,7 @@ impl Version {
     pub fn address_family(&self) -> AddressFamily {
         match self {
             Self::V2 => AddressFamily::Ipv4,
-            Self::V3(addr_family) => *addr_family,
+            Self::V3(af) => *af,
         }
     }
 
@@ -790,14 +717,7 @@ impl Default for Statistics {
     }
 }
 
-/// gives us the Solicitated-Node multicast addresses that will be used for
-/// Neighbor Discovery
-///
-/// RFC 8568 - 6.4.2
-/// If the Active_Down_Timer fires, then:
-/// ...
-/// else // IPv6
-/// Compute and join the Solicited-Node multicast address [RFC4291] for the IPv6 address(es) associated with the Virtual Router.
+// Computes the Solicited-Node multicast address used for Neighbor Discovery.
 pub(crate) fn generate_solicitated_addr(addr: Ipv6Addr) -> Ipv6Addr {
     let addr_bits: u128 = (addr.to_bits() << 104) >> 104;
     let solic_addr = SOLICITATION_BASE_ADDR.to_bits() | addr_bits;

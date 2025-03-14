@@ -126,12 +126,10 @@ pub(crate) fn socket_vrrp_rx4(
             socket.bind_device(Some(interface.name.as_bytes()))
         })?;
         socket.set_nonblocking(true)?;
-        if let Some(addr) = &interface.system.addresses.first()
-            && let IpNetwork::V4(v4_net) = addr
-        {
-            socket
-                .join_multicast_v4(&VRRP_MULTICAST_ADDR_IPV4, &v4_net.ip())?;
-        }
+        socket.join_multicast_ifindex_v4(
+            &VRRP_MULTICAST_ADDR_IPV4,
+            interface.system.ifindex.unwrap(),
+        )?;
 
         Ok(socket)
     }
@@ -192,7 +190,6 @@ pub(crate) fn socket_arp(ifname: &str) -> Result<Socket, std::io::Error> {
     }
 }
 
-/// Network Advertisement socket
 pub(crate) fn socket_nadv(
     mvlan: &InstanceMacvlan,
 ) -> Result<Socket, std::io::Error> {
@@ -209,9 +206,9 @@ pub(crate) fn socket_nadv(
         socket.set_reuse_address(true)?;
 
         // Compute and join the Solicited-Node multicast address [RFC4291] for
+        // solicitated-node multicast address.
         for addr in &mvlan.system.addresses {
             if let IpNetwork::V6(addr) = addr {
-                // solicitated-node multicast address
                 let sol_addr = generate_solicitated_addr(addr.ip());
                 socket.join_multicast_v6(
                     &sol_addr,
@@ -231,7 +228,6 @@ pub(crate) fn socket_nadv(
     }
 }
 
-/// Sends VRRP packets for IPv4 virtual addresses.
 #[cfg(not(feature = "testing"))]
 async fn send_packet_vrrp4(
     socket: &AsyncFd<Socket>,
@@ -261,7 +257,6 @@ async fn send_packet_vrrp4(
         .map_err(IoError::SendError)
 }
 
-/// Sends VRRP packets for IPv6 virtual addresses.
 #[cfg(not(feature = "testing"))]
 async fn send_packet_vrrp6(
     socket: &AsyncFd<Socket>,
@@ -276,7 +271,6 @@ async fn send_packet_vrrp6(
     let iov = [IoSlice::new(&buf)];
     let sockaddr: SockaddrIn6 =
         std::net::SocketAddrV6::new(*VRRP_MULTICAST_ADDR_IPV6, 0, 0, 0).into();
-
     socket
         .async_io(tokio::io::Interest::WRITABLE, |socket| {
             socket::sendmsg(
@@ -325,7 +319,6 @@ async fn send_packet_arp(
         .map_err(IoError::SendError)
 }
 
-// send a neighbor advertisement
 #[cfg(not(feature = "testing"))]
 async fn send_packet_nadv(
     socket: &AsyncFd<Socket>,
@@ -337,12 +330,12 @@ async fn send_packet_nadv(
 ) -> Result<usize, IoError> {
     Debug::NeighborAdvertisementTx(vrid, &ip_hdr.source_address).log();
 
-    // collect relevant data for checksum
+    // Collect relevant data for checksum.
     let mut check = Checksum::new();
     check.add_bytes(&ip_hdr.pseudo_header());
     check.add_bytes(&adv_hdr.encode());
 
-    // Max size of a neighbor advertisement
+    // Max size of a neighbor advertisement.
     let mut buf = BytesMut::with_capacity(526);
     buf.put(eth_hdr.encode());
     buf.put(ip_hdr.encode());
@@ -353,7 +346,6 @@ async fn send_packet_nadv(
     let iov = [IoSlice::new(&buf)];
     let sockaddr =
         LinkAddr::new(libc::ETH_P_IPV6 as u16, ifindex, Some(eth_hdr.dst_mac));
-
     socket
         .async_io(tokio::io::Interest::WRITABLE, |socket| {
             socket::sendmsg(
@@ -409,8 +401,6 @@ pub(crate) async fn write_loop(
                     error.log();
                 }
             }
-
-            // Neighbor Advertisement
             NetTxPacketMsg::NAdv {
                 vrid,
                 ifindex,
@@ -455,15 +445,7 @@ pub(crate) async fn read_loop(
 ) -> Result<(), SendError<VrrpNetRxPacketMsg>> {
     let mut buf = [0u8; 16384];
     let mut iov = [IoSliceMut::new(&mut buf)];
-    let mut cmsgspace = match af {
-        AddressFamily::Ipv4 => {
-            nix::cmsg_space!(libc::in_pktinfo)
-        }
-
-        AddressFamily::Ipv6 => {
-            nix::cmsg_space!(libc::in6_pktinfo)
-        }
-    };
+    let mut cmsgspace = nix::cmsg_space!(libc::in6_pktinfo);
 
     loop {
         match socket_vrrp
@@ -483,29 +465,24 @@ pub(crate) async fn read_loop(
             })
             .await
         {
-            Ok((src, bytes)) => match src {
-                Some(addr) => {
-                    let addr = addr.ip();
-                    let mut buf: &[u8] =
-                        &Bytes::copy_from_slice(iov[0].deref());
-                    match af {
-                        AddressFamily::Ipv4 => buf = &buf[20..bytes],
-                        AddressFamily::Ipv6 => buf = &buf[0..bytes],
-                    }
-
-                    let vrrp_pkt = VrrpHdr::decode(buf, af);
-
-                    let msg = VrrpNetRxPacketMsg {
-                        src: addr,
-                        packet: vrrp_pkt,
-                    };
-                    vrrp_net_packet_rxp.send(msg).await.unwrap();
-                }
-                None => {
-                    // TODO: add an unavailable address error
+            Ok((src, bytes)) => {
+                let Some(src) = src else {
+                    IoError::RecvMissingSourceAddr.log();
                     continue;
+                };
+
+                let mut buf: &[u8] = &Bytes::copy_from_slice(iov[0].deref());
+                match af {
+                    AddressFamily::Ipv4 => buf = &buf[20..bytes],
+                    AddressFamily::Ipv6 => buf = &buf[0..bytes],
                 }
-            },
+                let vrrp_pkt = VrrpHdr::decode(buf, af);
+                let msg = VrrpNetRxPacketMsg {
+                    src: src.ip(),
+                    packet: vrrp_pkt,
+                };
+                vrrp_net_packet_rxp.send(msg).await.unwrap();
+            }
             Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {
                 // Retry if the syscall was interrupted (EINTR).
                 continue;

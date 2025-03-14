@@ -28,12 +28,9 @@ static VRRPV2HDR: LazyLock<(Vec<u8>, VrrpHdr)> = LazyLock::new(|| {
             vrid: 51,
             priority: 30,
             count_ip: 1,
-            auth_type: 0,
             adver_int: 1,
             checksum: 0xb5c5,
             ip_addresses: vec![ip!("10.0.1.5")],
-            auth_data: Some(0),
-            auth_data2: Some(0),
         },
     )
 });
@@ -51,12 +48,9 @@ static VRRPV3HDR_IPV6: LazyLock<(Vec<u8>, VrrpHdr)> = LazyLock::new(|| {
             vrid: 1,
             priority: 22,
             count_ip: 1,
-            auth_type: 0,
             adver_int: 1,
             checksum: 0xb57f,
             ip_addresses: vec![ip!("2001:db8::370:7334")],
-            auth_data: None,
-            auth_data2: None,
         },
     )
 });

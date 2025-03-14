@@ -433,7 +433,7 @@ impl InstanceCfg {
                     log_state_change,
                     preempt,
                     priority,
-                    advertise_interval: advertise_interval.into(),
+                    advertise_interval,
                     virtual_addresses: Default::default(),
                     version: Version::V3(AddressFamily::Ipv6),
                 }

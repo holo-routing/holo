@@ -168,6 +168,56 @@ pub trait SocketExt: Sized + AsRawFd {
         )
     }
 
+    // Executes an operation of the IP_ADD_MEMBERSHIP type.
+    fn join_multicast_ifindex_v4(
+        &self,
+        multiaddr: &Ipv4Addr,
+        ifindex: u32,
+    ) -> Result<()> {
+        let multiaddr: u32 = (*multiaddr).into();
+
+        let optval = ip_mreqn {
+            imr_multiaddr: libc::in_addr {
+                s_addr: multiaddr.to_be(),
+            },
+            imr_address: libc::in_addr { s_addr: 0 },
+            imr_ifindex: ifindex as c_int,
+        };
+
+        setsockopt(
+            self,
+            libc::IPPROTO_IP,
+            libc::IP_ADD_MEMBERSHIP,
+            &optval as *const _ as *const c_void,
+            std::mem::size_of::<ip_mreqn>() as libc::socklen_t,
+        )
+    }
+
+    // Executes an operation of the IP_DROP_MEMBERSHIP type.
+    fn leave_multicast_ifindex_v4(
+        &self,
+        multiaddr: &Ipv4Addr,
+        ifindex: u32,
+    ) -> Result<()> {
+        let multiaddr: u32 = (*multiaddr).into();
+
+        let optval = ip_mreqn {
+            imr_multiaddr: libc::in_addr {
+                s_addr: multiaddr.to_be(),
+            },
+            imr_address: libc::in_addr { s_addr: 0 },
+            imr_ifindex: ifindex as c_int,
+        };
+
+        setsockopt(
+            self,
+            libc::IPPROTO_IP,
+            libc::IP_DROP_MEMBERSHIP,
+            &optval as *const _ as *const c_void,
+            std::mem::size_of::<ip_mreqn>() as libc::socklen_t,
+        )
+    }
+
     // Executes an operation of the PACKET_ADD_MEMBERSHIP type.
     fn join_packet_multicast(&self, addr: [u8; 6], ifindex: u32) -> Result<()> {
         let mut optval = packet_mreq {
@@ -222,56 +272,6 @@ pub trait UdpSocketExt: SocketExt {
     // This is the same as [`UdpSocket::bind`], except that the `SO_REUSEADDR`
     // option is set before binding.
     fn bind_reuseaddr(addr: SocketAddr) -> Result<UdpSocket>;
-
-    // Executes an operation of the IP_ADD_MEMBERSHIP type.
-    fn join_multicast_ifindex_v4(
-        &self,
-        multiaddr: &Ipv4Addr,
-        ifindex: u32,
-    ) -> Result<()> {
-        let multiaddr: u32 = (*multiaddr).into();
-
-        let optval = ip_mreqn {
-            imr_multiaddr: libc::in_addr {
-                s_addr: multiaddr.to_be(),
-            },
-            imr_address: libc::in_addr { s_addr: 0 },
-            imr_ifindex: ifindex as c_int,
-        };
-
-        setsockopt(
-            self,
-            libc::IPPROTO_IP,
-            libc::IP_ADD_MEMBERSHIP,
-            &optval as *const _ as *const c_void,
-            std::mem::size_of::<ip_mreqn>() as libc::socklen_t,
-        )
-    }
-
-    // Executes an operation of the IP_DROP_MEMBERSHIP type.
-    fn leave_multicast_ifindex_v4(
-        &self,
-        multiaddr: &Ipv4Addr,
-        ifindex: u32,
-    ) -> Result<()> {
-        let multiaddr: u32 = (*multiaddr).into();
-
-        let optval = ip_mreqn {
-            imr_multiaddr: libc::in_addr {
-                s_addr: multiaddr.to_be(),
-            },
-            imr_address: libc::in_addr { s_addr: 0 },
-            imr_ifindex: ifindex as c_int,
-        };
-
-        setsockopt(
-            self,
-            libc::IPPROTO_IP,
-            libc::IP_DROP_MEMBERSHIP,
-            &optval as *const _ as *const c_void,
-            std::mem::size_of::<ip_mreqn>() as libc::socklen_t,
-        )
-    }
 
     // Sets the value of the IPV6_MULTICAST_HOPS option for this socket.
     fn set_ipv6_multicast_hopcount(&self, hopcount: u8) -> Result<()> {

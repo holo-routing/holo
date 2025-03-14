@@ -11,14 +11,14 @@ RUN apt-get update && \
 
 ARG BUILD_PROFILE=release
 
-# holod
-WORKDIR /usr/src/holo
-COPY . .
-RUN cargo build --profile $BUILD_PROFILE
-
 # holo-cli
 RUN git clone https://github.com/holo-routing/holo-cli.git /usr/src/holo-cli
 WORKDIR /usr/src/holo-cli
+RUN cargo build --profile $BUILD_PROFILE
+
+# holod
+WORKDIR /usr/src/holo
+COPY . .
 RUN cargo build --profile $BUILD_PROFILE
 
 # Final base

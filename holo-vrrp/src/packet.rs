@@ -12,6 +12,7 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use holo_utils::ip::AddressFamily;
+use holo_utils::socket::TTL_MAX;
 use internet_checksum::Checksum;
 use serde::{Deserialize, Serialize};
 
@@ -21,7 +22,7 @@ use crate::instance::Version;
 pub type DecodeResult<T> = Result<T, DecodeError>;
 
 //
-// VRRP V2 Packet Format.
+// VRRP v2 Packet Format.
 //
 //  0                   1                   2                   3
 //  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -71,14 +72,9 @@ pub struct VrrpHdr {
     pub vrid: u8,
     pub priority: u8,
     pub count_ip: u8,
-    //
-    pub auth_type: u8, // for vrrp v3 this will represent the reserve field
     pub adver_int: u16,
     pub checksum: u16,
     pub ip_addresses: Vec<IpAddr>,
-    // The following two are only used for backward compatibility.
-    pub auth_data: Option<u32>,
-    pub auth_data2: Option<u32>,
 }
 
 //
@@ -177,7 +173,7 @@ pub struct ArpHdr {
     pub target_proto_address: Ipv4Addr,
 }
 
-/// Headers for VRRP packets with ipv6 headers.
+// Headers for VRRP packets with IPv4 headers.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct Vrrp4Packet {
@@ -185,7 +181,7 @@ pub struct Vrrp4Packet {
     pub vrrp: VrrpHdr,
 }
 
-/// Headers for VRRP packets with ipv6 headers.
+// Headers for VRRP packets with IPv6 headers.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct Vrrp6Packet {
@@ -193,7 +189,7 @@ pub struct Vrrp6Packet {
     pub vrrp: VrrpHdr,
 }
 
-// Neighbor Advertisement Packet (basically ICMPV6 + NA fields)
+// Neighbor Advertisement Packet (ICMPV6 + NA fields).
 //
 //   0                   1                   2                   3
 //   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -229,11 +225,10 @@ pub struct NeighborAdvertisement {
 #[derive(Deserialize, Serialize)]
 pub enum DecodeError {
     ChecksumError,
-    // When the packet length is too small, there will be no vrid.
+    IncompletePacket,
     PacketLengthError { vrid: u8, version: Version },
     IpTtlError { ttl: u8 },
     VersionError { vrid: u8 },
-    IncompletePacket,
 }
 
 // ===== impl Packet =====
@@ -259,63 +254,37 @@ impl VrrpHdr {
 
         match self.version {
             Version::V2 => {
-                buf.put_u8(self.auth_type);
-                let adv = self.adver_int as u8;
-
-                buf.put_u8(adv);
+                buf.put_u8(0);
+                buf.put_u8(self.adver_int as u8);
                 buf.put_u16(self.checksum);
                 for addr in &self.ip_addresses {
                     if let IpAddr::V4(ipv4_addr) = addr {
                         buf.put_ipv4(ipv4_addr);
                     }
                 }
+                buf.put_u32(0);
+                buf.put_u32(0);
 
-                if let Some(auth_data) = self.auth_data {
-                    buf.put_u32(auth_data);
-                }
-                if let Some(auth_data2) = self.auth_data2 {
-                    buf.put_u32(auth_data2);
-                }
-
-                // generate checksum
+                // Generate checksum.
                 let mut check = Checksum::new();
                 check.add_bytes(&buf);
                 buf[6..8].copy_from_slice(&check.checksum());
             }
-            Version::V3(address_family) => {
-                let res_adv_int =
-                    ((self.auth_type as u16) << 12) | self.adver_int;
-                buf.put_u16(res_adv_int);
-
+            Version::V3(_) => {
+                buf.put_u16(self.adver_int & 0x0FFF);
                 buf.put_u16(self.checksum);
-                match address_family {
-                    AddressFamily::Ipv4 => {
-                        for addr in &self.ip_addresses {
-                            if let IpAddr::V4(ipv4_addr) = addr {
-                                buf.put_ipv4(ipv4_addr);
-                            }
-                        }
-                    }
-                    AddressFamily::Ipv6 => {
-                        for addr in &self.ip_addresses {
-                            if let IpAddr::V6(ipv6_addr) = addr {
-                                buf.put_ipv6(ipv6_addr);
-                            }
-                        }
-                    }
+                for addr in &self.ip_addresses {
+                    buf.put_ip(addr);
                 }
             }
         }
+
         buf
     }
 
     // Decodes VRRP packet from a bytes buffer.
-    pub fn decode(
-        data: &[u8],
-        addr_family: AddressFamily,
-    ) -> DecodeResult<Self> {
+    pub fn decode(data: &[u8], af: AddressFamily) -> DecodeResult<Self> {
         let pkt_size = data.len();
-        // Check if there is any data.
         if pkt_size < Self::MIN_LEN {
             return Err(DecodeError::IncompletePacket);
         }
@@ -325,71 +294,58 @@ impl VrrpHdr {
         let ver = ver_type >> 4;
         let hdr_type = ver_type & 0x0F;
         let vrid = buf.get_u8();
-        let version = match (ver, addr_family) {
+        let version = match (ver, af) {
             (2, AddressFamily::Ipv4) => Version::V2,
             (3, AddressFamily::Ipv4) => Version::V3(AddressFamily::Ipv4),
             (3, AddressFamily::Ipv6) => Version::V3(AddressFamily::Ipv6),
             _ => return Err(DecodeError::VersionError { vrid }),
         };
-
-        // Check if packet length is valid.
         if pkt_size > Self::max_length(version) {
             return Err(DecodeError::PacketLengthError { vrid, version });
         }
-
         let priority = buf.get_u8();
         let count_ip = buf.get_u8();
-
-        // auth data
-        let mut auth_data: Option<u32> = None;
-        let mut auth_data2: Option<u32> = None;
-        let mut auth_type: u8 = 0;
-        let mut adver_int: u16 = 0;
-        let mut checksum: u16 = 0;
-        let mut ip_addresses: Vec<IpAddr> = vec![];
-        let mut check = Checksum::new();
-
-        if ver == 2 {
-            auth_type = buf.get_u8();
-            adver_int = buf.get_u8() as u16;
-            checksum = buf.get_u16();
-
-            for _ in 0..count_ip {
-                ip_addresses.push(IpAddr::V4(buf.get_ipv4()));
+        let adver_int;
+        let checksum;
+        let mut ip_addresses = vec![];
+        match version {
+            Version::V2 => {
+                let _auth_type = buf.get_u8();
+                adver_int = buf.get_u8() as u16;
+                checksum = buf.get_u16();
+                for _ in 0..count_ip {
+                    ip_addresses.push(IpAddr::V4(buf.get_ipv4()));
+                }
+                let _auth_data = buf.get_u32();
+                let _auth_data2 = buf.get_u32();
             }
-
-            auth_data = Some(buf.get_u32());
-            auth_data2 = Some(buf.get_u32());
-
-            // Checksum Calculation. For v3
-            check.add_bytes(data);
-            if check.checksum() != [0, 0] {
-                return Err(DecodeError::ChecksumError);
-            }
-        } else if ver == 3 {
-            let res_adv_int = buf.get_u16();
-            auth_type = (res_adv_int >> 12) as u8;
-            checksum = buf.get_u16();
-            let advert: u16 = res_adv_int & 0x0FFF;
-            adver_int = advert;
-
-            match addr_family {
-                AddressFamily::Ipv4 => {
-                    for _ in 0..count_ip {
-                        ip_addresses.push(IpAddr::V4(buf.get_ipv4()));
-                    }
-                    // Checksum Calculation. For v3
-                    check.add_bytes(data);
-                    if check.checksum() != [0, 0] {
-                        return Err(DecodeError::ChecksumError);
+            Version::V3(af) => {
+                adver_int = buf.get_u16() & 0x0FFF;
+                checksum = buf.get_u16();
+                for _ in 0..count_ip {
+                    match af {
+                        AddressFamily::Ipv4 => {
+                            ip_addresses.push(IpAddr::V4(buf.get_ipv4()));
+                        }
+                        AddressFamily::Ipv6 => {
+                            ip_addresses.push(IpAddr::V6(buf.get_ipv6()));
+                        }
                     }
                 }
-                AddressFamily::Ipv6 => {
-                    // TODO: add checksum calculation for vrrp v3 ipv6
-                    for _ in 0..count_ip {
-                        ip_addresses.push(IpAddr::V6(buf.get_ipv6()));
-                    }
+            }
+        }
+
+        // Checksum validation.
+        match af {
+            AddressFamily::Ipv4 => {
+                let mut check = Checksum::new();
+                check.add_bytes(data);
+                if check.checksum() != [0, 0] {
+                    return Err(DecodeError::ChecksumError);
                 }
+            }
+            AddressFamily::Ipv6 => {
+                // For IPv6, checksum validation is offloaded to the kernel.
             }
         }
 
@@ -399,12 +355,9 @@ impl VrrpHdr {
             vrid,
             priority,
             count_ip,
-            auth_type,
             adver_int,
             checksum,
             ip_addresses,
-            auth_data,
-            auth_data2,
         })
     }
 
@@ -467,8 +420,7 @@ impl Ipv4Hdr {
         let offset: u16 = flag_off & 0xFFF;
 
         let ttl = buf.get_u8();
-
-        if ttl != 255 {
+        if ttl != TTL_MAX {
             return Err(DecodeError::IpTtlError { ttl });
         }
         let protocol = buf.get_u8();
@@ -547,8 +499,7 @@ impl Ipv6Hdr {
         let payload_length = buf.get_u16();
         let next_header = buf.get_u8();
         let hop_limit = buf.get_u8();
-
-        if hop_limit != 255 {
+        if hop_limit != TTL_MAX {
             return Err(DecodeError::IpTtlError { ttl: hop_limit });
         }
         let source_address = buf.get_ipv6();

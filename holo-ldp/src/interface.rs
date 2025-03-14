@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU32;
 use std::time::Duration;
 
-use holo_utils::socket::{UdpSocket, UdpSocketExt};
+use holo_utils::socket::{SocketExt, UdpSocket};
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::task::IntervalTask;
 use ipnetwork::{Ipv4Network, Ipv6Network};

@@ -13,7 +13,7 @@ num-traits.workspace = true
 serde_json.workspace = true
 similar.workspace = true
 tokio.workspace = true
-yang3.workspace = true
+yang3 = { workspace = true, features = ["bundled"] }
 
 holo-bfd = { path = "../holo-bfd", features = ["testing"] }
 holo-bgp = { path = "../holo-bgp", features = ["testing"] }

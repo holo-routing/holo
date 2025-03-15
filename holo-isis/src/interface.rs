@@ -343,6 +343,10 @@ impl Interface {
     }
 
     fn is_ready(&self) -> Result<(), InterfaceInactiveReason> {
+        if !self.config.enabled {
+            return Err(InterfaceInactiveReason::AdminDown);
+        }
+
         if !self.system.flags.contains(InterfaceFlags::OPERATIVE) {
             return Err(InterfaceInactiveReason::OperationalDown);
         }

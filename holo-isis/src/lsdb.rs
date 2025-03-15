@@ -262,7 +262,10 @@ fn lsp_build_tlvs(
         }
 
         // Add IPv4 information.
-        if instance.config.is_af_enabled(AddressFamily::Ipv4) {
+        if iface
+            .config
+            .is_af_enabled(AddressFamily::Ipv4, instance.config)
+        {
             for addr in iface.system.ipv4_addr_list.iter() {
                 ipv4_addrs.insert(addr.ip());
 
@@ -297,7 +300,10 @@ fn lsp_build_tlvs(
         }
 
         // Add IPv6 information.
-        if instance.config.is_af_enabled(AddressFamily::Ipv6) {
+        if iface
+            .config
+            .is_af_enabled(AddressFamily::Ipv6, instance.config)
+        {
             for addr in iface
                 .system
                 .ipv6_addr_list

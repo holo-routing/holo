@@ -28,10 +28,9 @@ pub type Bift = HashMap<
 #[cfg(feature = "fastclick")]
 pub async fn bift_sync_fastclick(bift: &Bift) {
     for ((_sd_id, nbr, _si), (bs, ids, idx, name)) in bift.iter() {
-        /* List the position of bits that are enabled in the bitstring, this is required by the
-           Bitvectors of Fastclick but this not ideal.
-           FIXME: Find a better way to share a bitstring with Fastclick
-        */
+        // List the position of bits that are enabled in the bitstring, this is
+        // required by the Bitvectors of Fastclick but this not ideal.
+        // FIXME: Find a better way to share a bitstring with Fastclick
         let bs = bs
             .bs
             .iter()

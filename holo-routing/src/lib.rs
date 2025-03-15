@@ -89,28 +89,28 @@ impl Master {
 
         loop {
             tokio::select! {
-               Some(request) = nb_rx.recv() => {
-                   process_northbound_msg(
-                       self,
-                       &mut resources,
-                       request,
-                   )
-                   .await;
-               }
-               Some(msg) = ibus_rx.recv() => {
-                   ibus::process_msg(self, msg);
-               }
-               Some(_) = self.rib.update_queue_rx.recv() => {
-                   self.rib
-                       .process_rib_update_queue(
-                           &self.netlink_handle,
-                       )
-                       .await;
-               }
-               Some(_) = self.birt.update_queue_rx.recv() => {
-                   self.birt
-                       .process_birt_update_queue(&self.interfaces).await;
-               }
+                Some(request) = nb_rx.recv() => {
+                    process_northbound_msg(
+                        self,
+                        &mut resources,
+                        request,
+                    )
+                    .await;
+                }
+                Some(msg) = ibus_rx.recv() => {
+                    ibus::process_msg(self, msg);
+                }
+                Some(_) = self.rib.update_queue_rx.recv() => {
+                    self.rib
+                        .process_rib_update_queue(
+                            &self.netlink_handle,
+                        )
+                        .await;
+                }
+                Some(_) = self.birt.update_queue_rx.recv() => {
+                    self.birt
+                        .process_birt_update_queue(&self.interfaces).await;
+                }
             }
         }
     }

@@ -1187,6 +1187,18 @@ impl Provider for Instance {
                     // Stop interface if it's active.
                     let reason = InterfaceInactiveReason::AdminDown;
                     iface.stop(&mut instance, &mut arenas.adjacencies, reason);
+
+                    // Update the routing table to remove nexthops that are no
+                    // longer reachable.
+                    for route in instance
+                        .state
+                        .rib_mut(instance.config.level_type)
+                        .values_mut()
+                    {
+                        route.nexthops.retain(|_, nexthop| {
+                            nexthop.iface_idx != iface_idx
+                        });
+                    }
                 }
 
                 self.arenas.interfaces.delete(iface_idx);

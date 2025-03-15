@@ -34,7 +34,8 @@ pub struct Route {
 bitflags! {
     #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
     pub struct RouteFlags: u8 {
-        const INSTALLED = 0x01;
+        const CONNECTED = 0x01;
+        const INSTALLED = 0x02;
     }
 }
 
@@ -55,6 +56,10 @@ impl Route {
         vertex_network: &VertexNetwork,
         level: LevelNumber,
     ) -> Route {
+        let mut flags = RouteFlags::empty();
+        if vertex.hops == 0 {
+            flags.insert(RouteFlags::CONNECTED);
+        }
         let route_type = match (level, vertex_network.external) {
             (LevelNumber::L1, false) => IsisRouteType::L1IntraArea,
             (LevelNumber::L1, true) => IsisRouteType::L1External,
@@ -67,7 +72,7 @@ impl Route {
             level,
             tag: None,
             nexthops: Self::build_nexthops(vertex, vertex_network),
-            flags: RouteFlags::empty(),
+            flags,
         }
     }
 
@@ -175,7 +180,9 @@ fn update_global_rib(
         // The list of nexthops might be empty in the case of nexthop
         // computation errors (e.g. adjacencies with missing IP address TLVs).
         // When that happens, ensure the route is removed from the global RIB.
-        if !route.nexthops.is_empty() {
+        if !route.flags.contains(RouteFlags::CONNECTED)
+            && !route.nexthops.is_empty()
+        {
             let distance = route.distance(instance.config);
             southbound::tx::route_install(
                 &instance.tx.ibus,

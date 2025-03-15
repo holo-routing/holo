@@ -728,6 +728,11 @@
                   "level": 2
                 },
                 {
+                  "prefix": "4.4.4.4/32",
+                  "metric": 10,
+                  "level": 2
+                },
+                {
                   "prefix": "5.5.5.5/32",
                   "next-hops": {
                     "next-hop": [
@@ -794,15 +799,7 @@
                 },
                 {
                   "prefix": "10.0.3.0/24",
-                  "next-hops": {
-                    "next-hop": [
-                      {
-                        "next-hop": "10.0.3.3",
-                        "outgoing-interface": "eth-rt3"
-                      }
-                    ]
-                  },
-                  "metric": 20,
+                  "metric": 10,
                   "level": 2
                 },
                 {
@@ -820,15 +817,7 @@
                 },
                 {
                   "prefix": "10.0.5.0/24",
-                  "next-hops": {
-                    "next-hop": [
-                      {
-                        "next-hop": "10.0.5.5",
-                        "outgoing-interface": "eth-rt5"
-                      }
-                    ]
-                  },
-                  "metric": 20,
+                  "metric": 10,
                   "level": 2
                 },
                 {
@@ -881,6 +870,11 @@
                     ]
                   },
                   "metric": 20,
+                  "level": 2
+                },
+                {
+                  "prefix": "2001:db8:1000::4/128",
+                  "metric": 10,
                   "level": 2
                 },
                 {
@@ -950,15 +944,7 @@
                 },
                 {
                   "prefix": "fc00:0:0:3::/64",
-                  "next-hops": {
-                    "next-hop": [
-                      {
-                        "next-hop": "fe80::fcda:ecff:fe28:35d9",
-                        "outgoing-interface": "eth-rt3"
-                      }
-                    ]
-                  },
-                  "metric": 20,
+                  "metric": 10,
                   "level": 2
                 },
                 {
@@ -976,15 +962,7 @@
                 },
                 {
                   "prefix": "fc00:0:0:5::/64",
-                  "next-hops": {
-                    "next-hop": [
-                      {
-                        "next-hop": "fe80::98ac:99ff:fea9:f295",
-                        "outgoing-interface": "eth-rt5"
-                      }
-                    ]
-                  },
-                  "metric": 20,
+                  "metric": 10,
                   "level": 2
                 },
                 {

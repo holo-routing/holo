@@ -5129,28 +5129,8 @@
                 },
                 {
                   "prefix": "3.3.3.3/32",
-                  "next-hops": {
-                    "next-hop": [
-                      {
-                        "next-hop": "10.0.1.1",
-                        "outgoing-interface": "eth-sw1"
-                      },
-                      {
-                        "next-hop": "10.0.1.2",
-                        "outgoing-interface": "eth-sw1"
-                      },
-                      {
-                        "next-hop": "10.0.4.5",
-                        "outgoing-interface": "eth-rt5-1"
-                      },
-                      {
-                        "next-hop": "10.0.5.5",
-                        "outgoing-interface": "eth-rt5-2"
-                      }
-                    ]
-                  },
-                  "metric": 30,
-                  "level": 2
+                  "metric": 10,
+                  "level": 1
                 },
                 {
                   "prefix": "4.4.4.4/32",
@@ -5209,19 +5189,7 @@
                 },
                 {
                   "prefix": "10.0.1.0/24",
-                  "next-hops": {
-                    "next-hop": [
-                      {
-                        "next-hop": "10.0.1.1",
-                        "outgoing-interface": "eth-sw1"
-                      },
-                      {
-                        "next-hop": "10.0.1.2",
-                        "outgoing-interface": "eth-sw1"
-                      }
-                    ]
-                  },
-                  "metric": 20,
+                  "metric": 10,
                   "level": 1
                 },
                 {
@@ -5252,36 +5220,12 @@
                 },
                 {
                   "prefix": "10.0.4.0/24",
-                  "next-hops": {
-                    "next-hop": [
-                      {
-                        "next-hop": "10.0.4.5",
-                        "outgoing-interface": "eth-rt5-1"
-                      },
-                      {
-                        "next-hop": "10.0.5.5",
-                        "outgoing-interface": "eth-rt5-2"
-                      }
-                    ]
-                  },
-                  "metric": 20,
+                  "metric": 10,
                   "level": 1
                 },
                 {
                   "prefix": "10.0.5.0/24",
-                  "next-hops": {
-                    "next-hop": [
-                      {
-                        "next-hop": "10.0.4.5",
-                        "outgoing-interface": "eth-rt5-1"
-                      },
-                      {
-                        "next-hop": "10.0.5.5",
-                        "outgoing-interface": "eth-rt5-2"
-                      }
-                    ]
-                  },
-                  "metric": 20,
+                  "metric": 10,
                   "level": 1
                 },
                 {
@@ -5367,28 +5311,8 @@
                 },
                 {
                   "prefix": "2001:db8:1000::3/128",
-                  "next-hops": {
-                    "next-hop": [
-                      {
-                        "next-hop": "fe80::141e:46ff:fe86:fd7e",
-                        "outgoing-interface": "eth-sw1"
-                      },
-                      {
-                        "next-hop": "fe80::2c09:f8ff:fe13:a33f",
-                        "outgoing-interface": "eth-rt5-1"
-                      },
-                      {
-                        "next-hop": "fe80::84d1:ceff:feab:ac52",
-                        "outgoing-interface": "eth-sw1"
-                      },
-                      {
-                        "next-hop": "fe80::f46e:dbff:fe5f:7385",
-                        "outgoing-interface": "eth-rt5-2"
-                      }
-                    ]
-                  },
-                  "metric": 30,
-                  "level": 2
+                  "metric": 10,
+                  "level": 1
                 },
                 {
                   "prefix": "2001:db8:1000::4/128",
@@ -5447,19 +5371,7 @@
                 },
                 {
                   "prefix": "fc00:0:0:1::/64",
-                  "next-hops": {
-                    "next-hop": [
-                      {
-                        "next-hop": "fe80::141e:46ff:fe86:fd7e",
-                        "outgoing-interface": "eth-sw1"
-                      },
-                      {
-                        "next-hop": "fe80::84d1:ceff:feab:ac52",
-                        "outgoing-interface": "eth-sw1"
-                      }
-                    ]
-                  },
-                  "metric": 20,
+                  "metric": 10,
                   "level": 1
                 },
                 {
@@ -5490,36 +5402,12 @@
                 },
                 {
                   "prefix": "fc00:0:0:4::/64",
-                  "next-hops": {
-                    "next-hop": [
-                      {
-                        "next-hop": "fe80::2c09:f8ff:fe13:a33f",
-                        "outgoing-interface": "eth-rt5-1"
-                      },
-                      {
-                        "next-hop": "fe80::f46e:dbff:fe5f:7385",
-                        "outgoing-interface": "eth-rt5-2"
-                      }
-                    ]
-                  },
-                  "metric": 20,
+                  "metric": 10,
                   "level": 1
                 },
                 {
                   "prefix": "fc00:0:0:5::/64",
-                  "next-hops": {
-                    "next-hop": [
-                      {
-                        "next-hop": "fe80::2c09:f8ff:fe13:a33f",
-                        "outgoing-interface": "eth-rt5-1"
-                      },
-                      {
-                        "next-hop": "fe80::f46e:dbff:fe5f:7385",
-                        "outgoing-interface": "eth-rt5-2"
-                      }
-                    ]
-                  },
-                  "metric": 20,
+                  "metric": 10,
                   "level": 1
                 },
                 {

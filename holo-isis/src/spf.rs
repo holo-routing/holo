@@ -604,13 +604,7 @@ fn compute_routes(
         instance.is_l2_attached_to_backbone(interfaces, adjacencies);
     let ipv4_enabled = instance.config.is_af_enabled(AddressFamily::Ipv4);
     let ipv6_enabled = instance.config.is_af_enabled(AddressFamily::Ipv6);
-    for vertex in instance
-        .state
-        .spt
-        .get(level)
-        .values()
-        .filter(|vertex| vertex.hops > 0)
-    {
+    for vertex in instance.state.spt.get(level).values() {
         // Skip if the zeroth LSP is missing.
         let Some(zeroth_lsp) = zeroth_lsp(vertex.id.lan_id, lsdb, lsp_entries)
         else {

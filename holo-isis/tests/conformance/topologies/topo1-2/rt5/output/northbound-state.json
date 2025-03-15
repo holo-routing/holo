@@ -226,6 +226,11 @@
                   "level": 1
                 },
                 {
+                  "prefix": "5.5.5.5/32",
+                  "metric": 10,
+                  "level": 1
+                },
+                {
                   "prefix": "10.0.3.0/24",
                   "next-hops": {
                     "next-hop": [
@@ -240,15 +245,7 @@
                 },
                 {
                   "prefix": "10.0.5.0/24",
-                  "next-hops": {
-                    "next-hop": [
-                      {
-                        "next-hop": "10.0.5.4",
-                        "outgoing-interface": "eth-rt4"
-                      }
-                    ]
-                  },
-                  "metric": 20,
+                  "metric": 10,
                   "level": 1
                 },
                 {
@@ -278,6 +275,11 @@
                   "level": 1
                 },
                 {
+                  "prefix": "2001:db8:1000::5/128",
+                  "metric": 10,
+                  "level": 1
+                },
+                {
                   "prefix": "fc00:0:0:3::/64",
                   "next-hops": {
                     "next-hop": [
@@ -292,15 +294,7 @@
                 },
                 {
                   "prefix": "fc00:0:0:5::/64",
-                  "next-hops": {
-                    "next-hop": [
-                      {
-                        "next-hop": "fe80::cc82:3aff:feab:2691",
-                        "outgoing-interface": "eth-rt4"
-                      }
-                    ]
-                  },
-                  "metric": 20,
+                  "metric": 10,
                   "level": 1
                 }
               ]

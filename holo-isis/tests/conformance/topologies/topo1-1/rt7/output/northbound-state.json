@@ -767,6 +767,11 @@
                   "level": 2
                 },
                 {
+                  "prefix": "7.7.7.7/32",
+                  "metric": 10,
+                  "level": 2
+                },
+                {
                   "prefix": "10.0.1.0/24",
                   "next-hops": {
                     "next-hop": [
@@ -833,15 +838,7 @@
                 },
                 {
                   "prefix": "10.0.6.0/24",
-                  "next-hops": {
-                    "next-hop": [
-                      {
-                        "next-hop": "10.0.6.6",
-                        "outgoing-interface": "eth-rt6"
-                      }
-                    ]
-                  },
-                  "metric": 20,
+                  "metric": 10,
                   "level": 2
                 },
                 {
@@ -923,6 +920,11 @@
                   "level": 2
                 },
                 {
+                  "prefix": "2001:db8:1000::7/128",
+                  "metric": 10,
+                  "level": 2
+                },
+                {
                   "prefix": "fc00:0:0:1::/64",
                   "next-hops": {
                     "next-hop": [
@@ -989,15 +991,7 @@
                 },
                 {
                   "prefix": "fc00:0:0:6::/64",
-                  "next-hops": {
-                    "next-hop": [
-                      {
-                        "next-hop": "fe80::90b1:36ff:fe0b:4d58",
-                        "outgoing-interface": "eth-rt6"
-                      }
-                    ]
-                  },
-                  "metric": 20,
+                  "metric": 10,
                   "level": 2
                 }
               ]

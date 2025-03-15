@@ -1301,6 +1301,11 @@
             "local-rib": {
               "route": [
                 {
+                  "prefix": "1.1.1.1/32",
+                  "metric": 10,
+                  "level": 2
+                },
+                {
                   "prefix": "2.2.2.2/32",
                   "next-hops": {
                     "next-hop": [
@@ -1371,19 +1376,7 @@
                 },
                 {
                   "prefix": "10.0.1.0/24",
-                  "next-hops": {
-                    "next-hop": [
-                      {
-                        "next-hop": "10.0.1.2",
-                        "outgoing-interface": "eth-sw1"
-                      },
-                      {
-                        "next-hop": "10.0.1.3",
-                        "outgoing-interface": "eth-sw1"
-                      }
-                    ]
-                  },
-                  "metric": 20,
+                  "metric": 10,
                   "level": 2
                 },
                 {
@@ -1482,6 +1475,11 @@
                   "level": 2
                 },
                 {
+                  "prefix": "2001:db8:1000::1/128",
+                  "metric": 10,
+                  "level": 2
+                },
+                {
                   "prefix": "2001:db8:1000::2/128",
                   "next-hops": {
                     "next-hop": [
@@ -1552,19 +1550,7 @@
                 },
                 {
                   "prefix": "fc00:0:0:1::/64",
-                  "next-hops": {
-                    "next-hop": [
-                      {
-                        "next-hop": "fe80::2ce5:dbff:fee8:94a3",
-                        "outgoing-interface": "eth-sw1"
-                      },
-                      {
-                        "next-hop": "fe80::e470:8aff:fe52:a7b5",
-                        "outgoing-interface": "eth-sw1"
-                      }
-                    ]
-                  },
-                  "metric": 20,
+                  "metric": 10,
                   "level": 2
                 },
                 {

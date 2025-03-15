@@ -689,6 +689,11 @@
             "local-rib": {
               "route": [
                 {
+                  "prefix": "1.1.1.1/32",
+                  "metric": 10,
+                  "level": 2
+                },
+                {
                   "prefix": "2.2.2.2/32",
                   "next-hops": {
                     "next-hop": [
@@ -768,15 +773,7 @@
                 },
                 {
                   "prefix": "10.0.1.0/24",
-                  "next-hops": {
-                    "next-hop": [
-                      {
-                        "next-hop": "10.0.1.2",
-                        "outgoing-interface": "eth-rt2"
-                      }
-                    ]
-                  },
-                  "metric": 20,
+                  "metric": 10,
                   "level": 2
                 },
                 {
@@ -842,6 +839,11 @@
                     ]
                   },
                   "metric": 40,
+                  "level": 2
+                },
+                {
+                  "prefix": "2001:db8:1000::1/128",
+                  "metric": 10,
                   "level": 2
                 },
                 {
@@ -924,15 +926,7 @@
                 },
                 {
                   "prefix": "fc00:0:0:1::/64",
-                  "next-hops": {
-                    "next-hop": [
-                      {
-                        "next-hop": "fe80::e896:56ff:fe79:482e",
-                        "outgoing-interface": "eth-rt2"
-                      }
-                    ]
-                  },
-                  "metric": 20,
+                  "metric": 10,
                   "level": 2
                 },
                 {

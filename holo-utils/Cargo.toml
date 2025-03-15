@@ -31,6 +31,7 @@ tracing.workspace = true
 yang3.workspace = true
 
 holo-yang = { path = "../holo-yang" }
+reqwest = { version = "0.12.8", optional = true }
 
 [lints.rust]
 rust_2018_idioms = "warn"
@@ -42,3 +43,4 @@ manual_range_contains = "allow"
 [features]
 default = []
 testing = []
+fastclick = ["dep:reqwest"]

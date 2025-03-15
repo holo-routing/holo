@@ -107,6 +107,10 @@ impl Master {
                         )
                         .await;
                 }
+                Some(_) = self.birt.update_queue_rx.recv() => {
+                    self.birt
+                        .process_birt_update_queue(&self.interfaces).await;
+                }
             }
         }
     }

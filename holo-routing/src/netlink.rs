@@ -43,7 +43,7 @@ pub(crate) async fn ip_route_install(
     let msg = msg.build();
 
     // Execute netlink request.
-    if let Err(error) = handle.route().add(msg).execute().await {
+    if let Err(error) = handle.route().add(msg).replace().execute().await {
         error!(%prefix, %error, "failed to install route");
     }
 }

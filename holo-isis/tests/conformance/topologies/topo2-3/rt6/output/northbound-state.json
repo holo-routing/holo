@@ -6,6 +6,20 @@
           "type": "ietf-isis:isis",
           "name": "test",
           "ietf-isis:isis": {
+            "spf-control": {
+              "ietf-spf-delay": {
+                "holo-isis:level": [
+                  {
+                    "level": 1,
+                    "current-state": "quiet"
+                  },
+                  {
+                    "level": 2,
+                    "current-state": "quiet"
+                  }
+                ]
+              }
+            },
             "hostnames": {
               "hostname": [
                 {

@@ -3,6 +3,14 @@ module holo-isis {
   namespace "http://holo-routing.org/yang/holo-isis";
   prefix holo-isis;
 
+  import ietf-yang-types {
+    prefix yang;
+  }
+
+  import ietf-routing-types {
+    prefix rt-types;
+  }
+
   import ietf-routing {
     prefix rt;
   }
@@ -94,6 +102,71 @@ module holo-isis {
       description
         "The maximum sized LSP which may be generated.
          The IS-IS reference is TLV 14.";
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis/isis:spf-control/"
+        + "isis:ietf-spf-delay" {
+    list level {
+      config false;
+      key "level";
+      leaf level {
+        type isis:level-number;
+        description
+          "IS-IS level.";
+      }
+      leaf current-state {
+        type enumeration {
+          enum quiet {
+            description
+              "QUIET state.";
+          }
+          enum short-wait {
+            description
+              "SHORT_WAIT state.";
+          }
+          enum long-wait {
+            description
+              "LONG_WAIT state.";
+          }
+        }
+        config false;
+        description
+          "Current SPF Back-Off algorithm state.";
+      }
+      leaf remaining-time-to-learn {
+        type rt-types:timer-value-milliseconds;
+        units "msec";
+        config false;
+        description
+          "Remaining time until the time-to-learn timer fires.";
+      }
+      leaf remaining-hold-down {
+        type rt-types:timer-value-milliseconds;
+        units "msec";
+        config false;
+        description
+          "Remaining time until the hold-down timer fires.";
+      }
+      leaf last-event-received {
+        type yang:timestamp;
+        config false;
+        description
+          "Time of the last IGP event received.";
+      }
+      leaf next-spf-time {
+        type yang:timestamp;
+        config false;
+        description
+          "Time when the next SPF has been scheduled.";
+      }
+      leaf last-spf-time {
+        type yang:timestamp;
+        config false;
+        description
+          "Time of the last SPF computation.";
+      }
     }
   }
 }

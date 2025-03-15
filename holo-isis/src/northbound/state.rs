@@ -13,6 +13,7 @@ use std::borrow::Cow;
 use std::collections::BTreeSet;
 use std::fmt::Write;
 use std::sync::{LazyLock as Lazy, atomic};
+use std::time::Instant;
 
 use enum_as_inner::EnumAsInner;
 use holo_northbound::state::{
@@ -35,7 +36,7 @@ use crate::packet::tlv::{
 };
 use crate::packet::{LanId, LevelNumber, LevelType, SystemId};
 use crate::route::{Nexthop, Route};
-use crate::spf::SpfLogEntry;
+use crate::spf::{SpfLogEntry, SpfScheduler};
 
 pub static CALLBACKS: Lazy<Callbacks<Instance>> = Lazy::new(load_callbacks);
 
@@ -44,6 +45,7 @@ pub static CALLBACKS: Lazy<Callbacks<Instance>> = Lazy::new(load_callbacks);
 pub enum ListEntry<'a> {
     #[default]
     None,
+    SpfDelay(LevelNumber, &'a SpfScheduler),
     SpfLog(&'a SpfLogEntry),
     SpfTriggerLsp(&'a LspLogId),
     LspLog(&'a LspLogEntry),
@@ -79,16 +81,23 @@ fn load_callbacks() -> Callbacks<Instance> {
                 discontinuity_time: instance.state.as_ref().map(|state| &state.discontinuity_time).map(Cow::Borrowed).ignore_in_testing(),
             })
         })
-        .path(isis::spf_control::ietf_spf_delay::PATH)
-        .get_object(|_instance, _args| {
-            use isis::spf_control::ietf_spf_delay::IetfSpfDelay;
-            Box::new(IetfSpfDelay {
-                current_state: None,
-                remaining_time_to_learn: None,
-                remaining_hold_down: None,
-                last_event_received: None,
-                next_spf_time: None,
-                last_spf_time: None,
+        .path(isis::spf_control::ietf_spf_delay::level::PATH)
+        .get_iterate(|instance, _args| {
+            let Some(instance_state) = &instance.state else { return None };
+            let iter = instance.config.levels().map(|level| ListEntry::SpfDelay(level, instance_state.spf_sched.get(level)));
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use isis::spf_control::ietf_spf_delay::level::Level;
+            let (level, spf_sched) = args.list_entry.as_spf_delay().unwrap();
+            Box::new(Level {
+                level: *level as u8,
+                current_state: Some(spf_sched.delay_state.to_yang()),
+                remaining_time_to_learn: spf_sched.learn_timer.as_ref().map(|task| task.remaining()).map(Cow::Owned).ignore_in_testing(),
+                remaining_hold_down: spf_sched.hold_down_timer.as_ref().map(|task| task.remaining()).map(Cow::Owned).ignore_in_testing(),
+                last_event_received: spf_sched.last_event_rcvd.as_ref().map(Cow::Borrowed).ignore_in_testing(),
+                next_spf_time: spf_sched.delay_timer.as_ref().map(|timer| Instant::now() + timer.remaining()).map(Cow::Owned).ignore_in_testing(),
+                last_spf_time: spf_sched.last_time.as_ref().map(Cow::Borrowed).ignore_in_testing(),
             })
         })
         .path(isis::spf_log::event::PATH)

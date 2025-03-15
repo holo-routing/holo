@@ -456,41 +456,29 @@ module holo-ietf-isis-deviations {
   }
   */
 
-  /*
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:current-state" {
     deviate not-supported;
   }
-  */
 
-  /*
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:remaining-time-to-learn" {
     deviate not-supported;
   }
-  */
 
-  /*
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:remaining-hold-down" {
     deviate not-supported;
   }
-  */
 
-  /*
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:last-event-received" {
     deviate not-supported;
   }
-  */
 
-  /*
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:next-spf-time" {
     deviate not-supported;
   }
-  */
 
-  /*
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:last-spf-time" {
     deviate not-supported;
   }
-  */
 
   /*
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:preference" {

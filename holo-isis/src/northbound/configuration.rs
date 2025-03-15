@@ -33,7 +33,8 @@ use crate::packet::auth::AuthMethod;
 use crate::packet::{
     AreaAddr, LevelNumber, LevelType, LevelTypeIterator, SystemId,
 };
-use crate::spf;
+use crate::route::RouteFlags;
+use crate::{southbound, spf};
 
 #[derive(Debug, Default)]
 #[derive(EnumAsInner)]
@@ -64,6 +65,7 @@ pub enum Event {
     ReoriginateLsps(LevelNumber),
     RefreshLsps,
     RerunSpf,
+    ReinstallRoutes,
     OverloadChange(bool),
 }
 
@@ -540,6 +542,9 @@ fn load_callbacks() -> Callbacks<Instance> {
         .modify_apply(|instance, args| {
             let preference = args.dnode.get_u8();
             instance.config.preference.internal = preference;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReinstallRoutes);
         })
         .delete_apply(|_instance, _args| {
             // Nothing to do.
@@ -548,6 +553,9 @@ fn load_callbacks() -> Callbacks<Instance> {
         .modify_apply(|instance, args| {
             let preference = args.dnode.get_u8();
             instance.config.preference.external = preference;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReinstallRoutes);
         })
         .delete_apply(|_instance, _args| {
             // Nothing to do.
@@ -557,6 +565,9 @@ fn load_callbacks() -> Callbacks<Instance> {
             let preference = args.dnode.get_u8();
             instance.config.preference.internal = preference;
             instance.config.preference.external = preference;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReinstallRoutes);
         })
         .delete_apply(|_instance, _args| {
             // Nothing to do.
@@ -1260,6 +1271,27 @@ impl Provider for Instance {
                         instance.tx.protocol_input.spf_delay_event(
                             level,
                             spf::fsm::Event::ConfigChange,
+                        );
+                    }
+                }
+            }
+            Event::ReinstallRoutes => {
+                if let Some((instance, arenas)) = self.as_up() {
+                    for (prefix, route) in instance
+                        .state
+                        .rib(instance.config.level_type)
+                        .iter()
+                        .filter(|(_, route)| {
+                            route.flags.contains(RouteFlags::INSTALLED)
+                        })
+                    {
+                        let distance = route.distance(instance.config);
+                        southbound::tx::route_install(
+                            &instance.tx.ibus,
+                            prefix,
+                            route,
+                            distance,
+                            &arenas.interfaces,
                         );
                     }
                 }

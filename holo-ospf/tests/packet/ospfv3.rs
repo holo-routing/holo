@@ -937,13 +937,12 @@ static EXT_INTRA_AREA_PREFIX_LSA_BIER_TLV: Lazy<(Vec<u8>, Lsa<Ospfv3>)> =
                             bfr_id: 2,
                             bar: 0,
                             ipa: 0,
-                            subtlvs: vec![BierSubSubTlv::BierEncapSubSubTlv(
-                                BierEncapSubSubTlv {
-                                    max_si: 128,
-                                    id: BierEncapId::NonMpls(BiftId::new(0)),
-                                    bs_len: 3,
-                                },
-                            )],
+                            encaps: vec![BierEncapSubSubTlv {
+                                max_si: 128,
+                                id: BierEncapId::NonMpls(BiftId::new(0)),
+                                bs_len: 3,
+                            }],
+                            unknown_sstlvs: vec![],
                         }],
                         unknown_stlvs: vec![],
                     }],

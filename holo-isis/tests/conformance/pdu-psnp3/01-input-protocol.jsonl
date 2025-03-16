@@ -1,0 +1,1 @@
+{"NetRxPdu":{"iface_key":{"Value":"eth-rt4"},"pdu":{"Ok":{"Snp":{"hdr":{"pdu_type":"PsnpL2","max_area_addrs":0},"source":{"system_id":[0,0,0,0,0,4],"pseudonode":0},"summary":null,"tlvs":{"lsp_entries":[{"list":[{"rem_lifetime":1200,"lsp_id":{"system_id":[0,0,0,0,0,4],"pseudonode":0,"fragment":0},"seqno":100,"cksum":1}]}]}}}}}}

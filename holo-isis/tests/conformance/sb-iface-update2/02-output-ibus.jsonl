@@ -1,0 +1,16 @@
+{"RouteIpAdd":{"protocol":"isis","prefix":"1.1.1.1/32","distance":115,"metric":40,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"10.0.8.5","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"isis","prefix":"2.2.2.2/32","distance":115,"metric":40,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"10.0.8.5","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"isis","prefix":"4.4.4.4/32","distance":115,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"10.0.8.5","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"isis","prefix":"10.0.1.0/24","distance":115,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"10.0.8.5","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"isis","prefix":"10.0.2.0/24","distance":115,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"10.0.8.5","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"isis","prefix":"10.0.3.0/24","distance":115,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"10.0.8.5","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"isis","prefix":"10.0.6.0/24","distance":115,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"10.0.8.5","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"isis","prefix":"10.0.7.0/24","distance":115,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"10.0.8.5","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"isis","prefix":"2001:db8:1000::1/128","distance":115,"metric":40,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::a4d1:11ff:fe57:de23","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"isis","prefix":"2001:db8:1000::2/128","distance":115,"metric":40,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::a4d1:11ff:fe57:de23","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"isis","prefix":"2001:db8:1000::4/128","distance":115,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::a4d1:11ff:fe57:de23","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"isis","prefix":"fc00:0:0:1::/64","distance":115,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::a4d1:11ff:fe57:de23","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"isis","prefix":"fc00:0:0:2::/64","distance":115,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::a4d1:11ff:fe57:de23","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"isis","prefix":"fc00:0:0:3::/64","distance":115,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::a4d1:11ff:fe57:de23","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"isis","prefix":"fc00:0:0:6::/64","distance":115,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::a4d1:11ff:fe57:de23","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"isis","prefix":"fc00:0:0:7::/64","distance":115,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::a4d1:11ff:fe57:de23","labels":[]}}]}}

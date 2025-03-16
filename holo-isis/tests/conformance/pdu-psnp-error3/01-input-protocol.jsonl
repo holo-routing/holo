@@ -1,0 +1,1 @@
+{"NetRxPdu":{"iface_key":{"Value":"eth-sw1"},"src":[99,99,99,99,99,99],"pdu":{"Ok":{"Snp":{"hdr":{"pdu_type":"PsnpL2","max_area_addrs":0},"source":{"system_id":[0,0,0,0,0,4],"pseudonode":0},"summary":null,"tlvs":{}}}}}}

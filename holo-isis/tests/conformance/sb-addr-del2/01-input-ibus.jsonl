@@ -1,0 +1,2 @@
+{"InterfaceAddressDel":{"ifname":"eth-rt4","addr":"172.16.1.1/24","flags":""}}
+{"InterfaceAddressDel":{"ifname":"eth-rt4","addr":"fc00::1/64","flags":""}}

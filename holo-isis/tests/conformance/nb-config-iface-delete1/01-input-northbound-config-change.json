@@ -1,0 +1,41 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-isis:isis",
+          "name": "test",
+          "ietf-isis:isis": {
+            "interfaces": {
+              "interface": [
+                {
+                  "@": {
+                    "yang:operation": "delete"
+                  },
+                  "name": "eth-rt5",
+                  "interface-type": "point-to-point",
+                  "hello-interval": {
+                    "value": 3
+                  },
+                  "address-families": {
+                    "address-family-list": [
+                      {
+                        "address-family": "ipv6"
+                      },
+                      {
+                        "address-family": "ipv4"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

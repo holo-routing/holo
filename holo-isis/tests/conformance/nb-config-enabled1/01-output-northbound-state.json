@@ -1,0 +1,33 @@
+{
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-isis:isis",
+          "name": "test",
+          "ietf-isis:isis": {
+            "interfaces": {
+              "interface": [
+                {
+                  "name": "eth-rt4",
+                  "holo-isis:state": "down",
+                  "holo-isis:circuit-id": 0
+                },
+                {
+                  "name": "eth-rt5",
+                  "holo-isis:state": "down",
+                  "holo-isis:circuit-id": 0
+                },
+                {
+                  "name": "lo",
+                  "holo-isis:state": "down",
+                  "holo-isis:circuit-id": 0
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

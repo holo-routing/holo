@@ -96,7 +96,9 @@ pub mod messages {
         #[derive(Deserialize, Serialize)]
         pub struct NetRxPduMsg {
             pub iface_key: InterfaceKey,
+            #[serde(default)]
             pub src: [u8; 6],
+            #[serde(default)]
             pub bytes: Bytes,
             pub pdu: Result<Pdu, DecodeError>,
         }

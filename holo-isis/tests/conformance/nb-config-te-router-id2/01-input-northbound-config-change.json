@@ -1,0 +1,25 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-isis:isis",
+          "name": "test",
+          "ietf-isis:isis": {
+            "mpls": {
+              "te-rid": {
+                "ipv6-router-id": "2001:db8:1000::6",
+                "@ipv6-router-id": {
+                  "yang:operation": "create"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,2 @@
+{"ietf-isis:database-overload":{"routing-protocol-name":"test","isis-level":"level-2","overload":"on"}}
+{"ietf-isis:lsp-generation":{"routing-protocol-name":"test","isis-level":"level-2","lsp-id":"0000.0000.0002.00-00"}}

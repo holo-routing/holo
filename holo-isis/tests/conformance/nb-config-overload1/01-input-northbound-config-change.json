@@ -1,0 +1,25 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-isis:isis",
+          "name": "test",
+          "ietf-isis:isis": {
+            "overload": {
+              "status": true,
+              "@status": {
+                "yang:operation": "replace",
+                "yang:orig-default": true,
+                "yang:orig-value": "false"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

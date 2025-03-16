@@ -1027,9 +1027,12 @@ impl Lsp {
         self.rem_lifetime = rem_lifetime;
 
         // Update raw data.
-        let mut raw = BytesMut::from(self.raw.as_ref());
-        raw[10..12].copy_from_slice(&rem_lifetime.to_be_bytes());
-        self.raw = raw.freeze();
+        #[cfg(not(feature = "testing"))]
+        {
+            let mut raw = BytesMut::from(self.raw.as_ref());
+            raw[10..12].copy_from_slice(&rem_lifetime.to_be_bytes());
+            self.raw = raw.freeze();
+        }
 
         // Update base time.
         self.base_time = lsp_base_time();

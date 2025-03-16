@@ -1,0 +1,25 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-isis:isis",
+          "name": "test",
+          "ietf-isis:isis": {
+            "mpls": {
+              "te-rid": {
+                "ipv4-router-id": "6.6.6.6",
+                "@ipv4-router-id": {
+                  "yang:operation": "create"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

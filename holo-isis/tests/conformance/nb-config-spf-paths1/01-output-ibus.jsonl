@@ -1,0 +1,4 @@
+{"RouteIpAdd":{"protocol":"isis","prefix":"6.6.6.6/32","distance":115,"metric":40,"tag":null,"nexthops":[{"Address":{"ifindex":2,"addr":"10.0.1.2","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"isis","prefix":"10.0.6.0/24","distance":115,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":2,"addr":"10.0.1.2","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"isis","prefix":"2001:db8:1000::6/128","distance":115,"metric":40,"tag":null,"nexthops":[{"Address":{"ifindex":2,"addr":"fe80::70:b3ff:fe7f:f842","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"isis","prefix":"fc00:0:0:6::/64","distance":115,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":2,"addr":"fe80::70:b3ff:fe7f:f842","labels":[]}}]}}

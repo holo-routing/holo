@@ -38,7 +38,7 @@ pub(crate) fn process_vrrp_packet(
                 }
                 DecodeError::PacketLengthError { vrid, version } => {
                     if let Some((_, instance)) =
-                        interface.get_instance(vrid, version)
+                        interface.get_instance(vrid, version.address_family())
                     {
                         instance.state.statistics.pkt_length_errors += 1;
                         instance.state.statistics.discontinuity_time =
@@ -56,7 +56,7 @@ pub(crate) fn process_vrrp_packet(
 
     // Lookup instance.
     let Some((interface, instance)) =
-        interface.get_instance(packet.vrid, packet.version)
+        interface.get_instance(packet.vrid, packet.version.address_family())
     else {
         interface.statistics.vrid_errors += 1;
         interface.statistics.discontinuity_time = Utc::now();
@@ -144,7 +144,8 @@ pub(crate) fn handle_master_down_timer(
     version: Version,
 ) -> Result<(), Error> {
     // Lookup instance.
-    let Some((interface, instance)) = interface.get_instance(vrid, version)
+    let Some((interface, instance)) =
+        interface.get_instance(vrid, version.address_family())
     else {
         return Ok(());
     };

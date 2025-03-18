@@ -181,7 +181,11 @@ impl Instance {
     }
 
     fn startup(&mut self, interface: &InterfaceView<'_>) {
-        match InstanceNet::new(interface, &self.mvlan, self.config.version) {
+        match InstanceNet::new(
+            interface,
+            &self.mvlan,
+            self.config.version.address_family(),
+        ) {
             Ok(net) => {
                 self.net = Some(net);
                 if self.config.priority == 255 {
@@ -626,12 +630,12 @@ impl InstanceNet {
     pub(crate) fn new(
         parent_iface: &InterfaceView<'_>,
         mvlan: &InstanceMacvlan,
-        version: Version,
+        address_family: AddressFamily,
     ) -> Result<Self, IoError> {
         let instance_channels_tx = &parent_iface.tx;
 
         // Create raw sockets.
-        let socket_vrrp_rx = match version.address_family() {
+        let socket_vrrp_rx = match address_family {
             AddressFamily::Ipv4 => network::socket_vrrp_rx4(parent_iface),
             AddressFamily::Ipv6 => network::socket_vrrp_rx6(parent_iface),
         }
@@ -639,7 +643,7 @@ impl InstanceNet {
         .and_then(|socket| AsyncFd::new(socket).map_err(IoError::SocketError))
         .map(Arc::new)?;
 
-        let socket_vrrp_tx = match version.address_family() {
+        let socket_vrrp_tx = match address_family {
             AddressFamily::Ipv4 => network::socket_vrrp_tx4(mvlan),
             AddressFamily::Ipv6 => network::socket_vrrp_tx6(mvlan),
         }
@@ -647,7 +651,7 @@ impl InstanceNet {
         .and_then(|socket| AsyncFd::new(socket).map_err(IoError::SocketError))
         .map(Arc::new)?;
 
-        let socket_arp = match version.address_family() {
+        let socket_arp = match address_family {
             AddressFamily::Ipv4 => network::socket_arp(&mvlan.name),
             AddressFamily::Ipv6 => network::socket_nadv(mvlan),
         }
@@ -667,7 +671,7 @@ impl InstanceNet {
         let vrrp_net_rx_task = tasks::vrrp_net_rx(
             socket_vrrp_rx.clone(),
             &instance_channels_tx.protocol_input.vrrp_net_packet_tx,
-            version,
+            address_family,
         );
 
         Ok(Self {

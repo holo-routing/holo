@@ -23,7 +23,7 @@ use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 
 use crate::error::Error;
-use crate::instance::{Instance, Version};
+use crate::instance::Instance;
 use crate::tasks::messages::input::{MasterDownTimerMsg, VrrpNetRxPacketMsg};
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
 use crate::{events, southbound};
@@ -34,12 +34,10 @@ pub struct Interface {
     pub name: String,
     // Interface system data.
     pub system: InterfaceSys,
-    // Interface VRRPv2 instances.
-    pub vrrp_v2_instances: BTreeMap<u8, Instance>,
-    // Interface IPv4 VRRPv3 instances.
-    pub vrrp_v3_instances_ipv4: BTreeMap<u8, Instance>,
-    // Interface IPv6 VRRPv3 instances.
-    pub vrrp_v3_instances_ipv6: BTreeMap<u8, Instance>,
+    // Interface VRRP instances.
+    pub vrrp_ipv4_instances: BTreeMap<u8, Instance>,
+    // Interface IPv6 VRRP instances.
+    pub vrrp_ipv6_instances: BTreeMap<u8, Instance>,
     // Global statistics.
     pub statistics: Statistics,
     // Tx channels.
@@ -99,16 +97,11 @@ impl Interface {
     pub(crate) fn get_instance(
         &mut self,
         vrid: u8,
-        version: Version,
+        address_family: AddressFamily,
     ) -> Option<(InterfaceView<'_>, &mut Instance)> {
-        let instances = match version {
-            Version::V2 => &mut self.vrrp_v2_instances,
-            Version::V3(AddressFamily::Ipv4) => {
-                &mut self.vrrp_v3_instances_ipv4
-            }
-            Version::V3(AddressFamily::Ipv6) => {
-                &mut self.vrrp_v3_instances_ipv6
-            }
+        let instances = match address_family {
+            AddressFamily::Ipv4 => &mut self.vrrp_ipv4_instances,
+            AddressFamily::Ipv6 => &mut self.vrrp_ipv6_instances,
         };
         instances.get_mut(&vrid).map(|instance| {
             (
@@ -135,10 +128,9 @@ impl Interface {
                 tx: &self.tx,
                 shared: &self.shared,
             },
-            self.vrrp_v2_instances
+            self.vrrp_ipv4_instances
                 .values_mut()
-                .chain(self.vrrp_v3_instances_ipv4.values_mut())
-                .chain(self.vrrp_v3_instances_ipv6.values_mut()),
+                .chain(self.vrrp_ipv6_instances.values_mut()),
         )
     }
 
@@ -170,9 +162,8 @@ impl ProtocolInstance for Interface {
         Interface {
             name,
             system: Default::default(),
-            vrrp_v2_instances: Default::default(),
-            vrrp_v3_instances_ipv4: Default::default(),
-            vrrp_v3_instances_ipv6: Default::default(),
+            vrrp_ipv4_instances: Default::default(),
+            vrrp_ipv6_instances: Default::default(),
             statistics: Default::default(),
             tx,
             shared,

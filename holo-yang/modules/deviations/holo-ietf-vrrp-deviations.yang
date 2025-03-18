@@ -56,10 +56,6 @@ module holo-ietf-vrrp-deviations {
     deviate not-supported;
   }
 
-  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:advertise-interval-choice/vrrp:v3" {
-    deviate not-supported;
-  }
-
   deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track" {
     deviate not-supported;
   }

@@ -8,7 +8,6 @@ use holo_utils::bier::{BierInfo, Bsl, UnderlayProtocolType};
 use holo_utils::ip::IpNetworkKind;
 
 use crate::instance::InstanceUpView;
-use crate::packet::tlv::BierSubSubTlv;
 use crate::route::RouteNet;
 use crate::spf::SpfIntraAreaNetwork;
 use crate::version::Version;
@@ -36,13 +35,9 @@ pub(crate) fn bier_route_add<V>(
             // TODO: Sanity check on bitstring lengths upon LSA reception
 
             let bfr_bss: Vec<Bsl> = tlv
-                .subtlvs
+                .encaps
                 .iter()
-                .filter_map(|stlv| match stlv {
-                    BierSubSubTlv::BierEncapSubSubTlv(encap) => {
-                        Bsl::try_from(encap.bs_len).ok()
-                    }
-                })
+                .map(|encap| Bsl::try_from(encap.bs_len).unwrap())
                 .collect();
 
             if !bfr_bss.is_empty() {

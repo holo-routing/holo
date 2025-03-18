@@ -31,7 +31,8 @@ use crate::lsdb::{LsaEntry, LsaLogEntry, LsaLogId};
 use crate::neighbor::Neighbor;
 use crate::packet::lsa::{LsaBodyVersion, LsaHdrVersion};
 use crate::packet::tlv::{
-    GrReason, NodeAdminTagTlv, SidLabelRangeTlv, SrLocalBlockTlv, UnknownTlv,
+    BierEncapSubSubTlv, BierSubTlv, GrReason, NodeAdminTagTlv,
+    SidLabelRangeTlv, SrLocalBlockTlv, UnknownTlv,
 };
 use crate::route::{Nexthop, RouteNet};
 use crate::spf::SpfLogEntry;
@@ -86,6 +87,10 @@ pub enum ListEntry<'a, V: Version> {
     Ospfv3PrefixSids(&'a BTreeMap<IgpAlgoType, ospfv3::packet::lsa::PrefixSid>),
     Ospfv3PrefixSid(&'a ospfv3::packet::lsa::PrefixSid),
     Ospfv3LinkLocalAddr(IpAddr),
+    Ospfv3Biers(&'a Vec<BierSubTlv>),
+    Ospfv3Bier(&'a BierSubTlv),
+    Ospfv3BierEncaps(&'a Vec<BierEncapSubSubTlv>),
+    Ospfv3BierEncap(&'a BierEncapSubSubTlv),
 }
 
 // ===== callbacks =====
@@ -2845,8 +2850,15 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::PATH)
         .get_iterate(|_instance, args| {
             let prefix = args.parent_list_entry.as_ospfv3_intra_area_lsa_prefix().unwrap();
-            let iter = prefix.unknown_stlvs.iter().map(ListEntry::UnknownTlv).chain(std::iter::once(ListEntry::Ospfv3PrefixSids(&prefix.prefix_sids)));
-            Some(Box::new(iter))
+            let mut iter: Box<dyn Iterator<Item = ListEntry<'_, _>>>;
+            iter = Box::new(prefix.unknown_stlvs.iter().map(ListEntry::UnknownTlv));
+            if !prefix.prefix_sids.is_empty() {
+                iter = Box::new(iter.chain(std::iter::once(ListEntry::Ospfv3PrefixSids(&prefix.prefix_sids))));
+            }
+            if !prefix.bier.is_empty() {
+                iter = Box::new(iter.chain(std::iter::once(ListEntry::Ospfv3Biers(&prefix.bier))));
+            }
+            Some(iter)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::unknown_sub_tlv::PATH)
         .get_object(|_instance, args| {
@@ -2870,6 +2882,54 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             Box::new(PrefixSidSubTlv {
                 algorithm: Some(prefix_sid.algo.to_yang()),
                 sid: Some(prefix_sid.sid.value()),
+            })
+        })
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::bier_info_sub_tlvs::bier_info_sub_tlv::PATH)
+        .get_iterate(|_instance, args| {
+            let biers = args.parent_list_entry.as_ospfv3_biers()?;
+            let iter = biers.iter().map(ListEntry::Ospfv3Bier);
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::bier_info_sub_tlvs::bier_info_sub_tlv::BierInfoSubTlv;
+            let bier = args.list_entry.as_ospfv3_bier().unwrap();
+            Box::new(BierInfoSubTlv{
+                sub_domain_id: Some(bier.sub_domain_id),
+                mt_id: Some(bier.mt_id),
+                bfr_id: Some(bier.bfr_id),
+                bar: Some(bier.bar),
+                ipa: Some(bier.ipa),
+            })
+        })
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::bier_info_sub_tlvs::bier_info_sub_tlv::sub_sub_tlvs::PATH)
+        .get_iterate(|_instance, args| {
+            let bier = args.parent_list_entry.as_ospfv3_bier().unwrap();
+            let iter = bier.unknown_sstlvs.iter().map(ListEntry::UnknownTlv).chain(std::iter::once(ListEntry::Ospfv3BierEncaps(&bier.encaps)));
+            Some(Box::new(iter))
+        })
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::bier_info_sub_tlvs::bier_info_sub_tlv::sub_sub_tlvs::unknown_sub_tlv::PATH)
+        .get_object(|_instance, args| {
+            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::bier_info_sub_tlvs::bier_info_sub_tlv::sub_sub_tlvs::unknown_sub_tlv::UnknownSubTlv;
+            let Some(tlv) = args.list_entry.as_unknown_tlv() else { return Box::new(UnknownSubTlv::default()) };
+            Box::new(UnknownSubTlv {
+                r#type: Some(tlv.tlv_type),
+                length: Some(tlv.length),
+                value: Some(tlv.value.as_ref()),
+            })
+        })
+        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::bier_info_sub_tlvs::bier_info_sub_tlv::sub_sub_tlvs::bier_encap_sub_sub_tlvs::bier_encap_sub_sub_tlv::PATH)
+        .get_iterate(|_instance, args| {
+            let bier_encaps = args.parent_list_entry.as_ospfv3_bier_encaps()?;
+            let iter = bier_encaps.iter().map(ListEntry::Ospfv3BierEncap);
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::bier_info_sub_tlvs::bier_info_sub_tlv::sub_sub_tlvs::bier_encap_sub_sub_tlvs::bier_encap_sub_sub_tlv::BierEncapSubSubTlv;
+            let bier_encap = args.list_entry.as_ospfv3_bier_encap().unwrap();
+            Box::new(BierEncapSubSubTlv {
+                max_si: Some(bier_encap.max_si),
+                id: Some(bier_encap.id.clone().get()),
+                bs_len: Some(bier_encap.bs_len)
             })
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::PATH)

@@ -342,13 +342,10 @@ pub struct BierSubTlv {
     pub bfr_id: u16,
     pub bar: u8,
     pub ipa: u8,
-    pub subtlvs: Vec<BierSubSubTlv>,
-}
-
-#[derive(Clone, Debug, Eq, new, PartialEq)]
-#[derive(Deserialize, Serialize)]
-pub enum BierSubSubTlv {
-    BierEncapSubSubTlv(BierEncapSubSubTlv),
+    #[new(default)]
+    pub encaps: Vec<BierEncapSubSubTlv>,
+    #[new(default)]
+    pub unknown_sstlvs: Vec<UnknownTlv>,
 }
 
 //
@@ -396,7 +393,7 @@ pub enum BierEncapId {
 }
 
 impl BierEncapId {
-    fn get(self) -> u32 {
+    pub fn get(self) -> u32 {
         match self {
             Self::Mpls(label) => label.get(),
             Self::NonMpls(bift_id) => bift_id.get(),
@@ -428,7 +425,8 @@ impl BierSubTlv {
         let bar = buf.get_u8();
         let ipa = buf.get_u8();
         let _reserved = buf.get_u16();
-        let mut subtlvs: Vec<BierSubSubTlv> = Vec::new();
+        let mut encaps: Vec<BierEncapSubSubTlv> = Vec::new();
+        let mut unknown: Vec<UnknownTlv> = Vec::new();
 
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse Sub-TLV type.
@@ -460,15 +458,17 @@ impl BierSubTlv {
                                     BierEncapId::NonMpls(BiftId::new(id))
                                 }
                             };
-                            subtlvs.push(BierSubSubTlv::BierEncapSubSubTlv(
-                                BierEncapSubSubTlv { max_si, id, bs_len },
-                            ));
+                            encaps.push(BierEncapSubSubTlv {
+                                max_si,
+                                id,
+                                bs_len,
+                            });
                         }
                     };
                 }
                 None => {
-                    // Ignore unknown Sub-TLV
-                    continue;
+                    unknown
+                        .push(UnknownTlv::new(stlv_type, stlv_len, buf_stlv));
                 }
             }
         }
@@ -479,7 +479,8 @@ impl BierSubTlv {
             bfr_id,
             bar,
             ipa,
-            subtlvs,
+            encaps,
+            unknown_sstlvs: unknown,
         })
     }
 
@@ -495,18 +496,17 @@ impl BierSubTlv {
         buf.put_u8(self.bar);
         buf.put_u8(self.ipa);
         buf.put_u16(0);
-        for subtlv in &self.subtlvs {
-            match subtlv {
-                BierSubSubTlv::BierEncapSubSubTlv(encap) => {
-                    let start_pos =
-                        tlv_encode_start(buf, BierSubTlvType::NonMplsEncap);
-                    buf.put_u8(encap.max_si);
-                    buf.put_u24(encap.id.clone().get());
-                    buf.put_u8((encap.bs_len << 4) & 0xf0);
-                    buf.put_u24(0);
-                    tlv_encode_end(buf, start_pos);
-                }
-            }
+        for encap in &self.encaps {
+            let encap_type = match encap.id {
+                BierEncapId::Mpls(_) => BierSubTlvType::MplsEncap,
+                BierEncapId::NonMpls(_) => BierSubTlvType::NonMplsEncap,
+            };
+            let start_pos = tlv_encode_start(buf, encap_type);
+            buf.put_u8(encap.max_si);
+            buf.put_u24(encap.id.clone().get());
+            buf.put_u8((encap.bs_len << 4) & 0xf0);
+            buf.put_u24(0);
+            tlv_encode_end(buf, start_pos);
         }
         tlv_encode_end(buf, start_pos);
     }

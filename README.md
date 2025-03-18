@@ -205,6 +205,8 @@ Holo supports the following Internet Standards:
 * RFC 8476 - Signaling Maximum SID Depth (MSD) Using OSPF
 * RFC 8665 - OSPF Extensions for Segment Routing
 * RFC 8666 - OSPFv3 Extensions for Segment Routing
+* draft-ietf-bier-ospfv3-extensions-07 - OSPFv3 Extensions for BIER
+* draft-ietf-bier-lsr-non-mpls-extensions-03 - LSR Extensions for BIER non-MPLS Encapsulation
 
 ##### RIP
 

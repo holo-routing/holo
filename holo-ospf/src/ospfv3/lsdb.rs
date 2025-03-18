@@ -37,9 +37,9 @@ use crate::packet::lsa::{
     Lsa, LsaHdrVersion, LsaKey, LsaScope, LsaTypeVersion, PrefixSidVersion,
 };
 use crate::packet::tlv::{
-    BierEncapId, BierEncapSubSubTlv, BierSubSubTlv, BierSubTlv,
-    DynamicHostnameTlv, NodeAdminTagTlv, PrefixSidFlags, RouterInfoCaps,
-    RouterInfoCapsTlv, SidLabelRangeTlv, SrAlgoTlv, SrLocalBlockTlv,
+    BierEncapId, BierEncapSubSubTlv, BierSubTlv, DynamicHostnameTlv,
+    NodeAdminTagTlv, PrefixSidFlags, RouterInfoCaps, RouterInfoCapsTlv,
+    SidLabelRangeTlv, SrAlgoTlv, SrLocalBlockTlv,
 };
 use crate::route::{SummaryNet, SummaryNetFlags, SummaryRtr};
 use crate::version::Ospfv3;
@@ -871,8 +871,16 @@ fn lsa_orig_intra_area_prefix(
                     af == &AddressFamily::Ipv6 && sd_cfg.bfr_prefix == prefix
                 })
                 .for_each(|((sd_id, _), sd_cfg)| {
+                    let mut bier = BierSubTlv::new(
+                        *sd_id,
+                        sd_cfg.mt_id,
+                        sd_cfg.bfr_id,
+                        sd_cfg.bar,
+                        sd_cfg.ipa,
+                    );
+
                     // BIER prefix has configured encap ?
-                    let bier_encaps = sd_cfg
+                    bier.encaps = sd_cfg
                         .encap
                         .iter()
                         .filter_map(|((bsl, encap_type), encap)| {
@@ -891,25 +899,14 @@ fn lsa_orig_intra_area_prefix(
                                 }),
                             }
                             .map(|id| {
-                                BierSubSubTlv::BierEncapSubSubTlv(
-                                    BierEncapSubSubTlv::new(
-                                        encap.max_si,
-                                        id,
-                                        (*bsl).into(),
-                                    ),
+                                BierEncapSubSubTlv::new(
+                                    encap.max_si,
+                                    id,
+                                    (*bsl).into(),
                                 )
                             })
                         })
-                        .collect::<Vec<BierSubSubTlv>>();
-
-                    let bier = BierSubTlv::new(
-                        *sd_id,
-                        sd_cfg.mt_id,
-                        sd_cfg.bfr_id,
-                        sd_cfg.bar,
-                        sd_cfg.ipa,
-                        bier_encaps,
-                    );
+                        .collect::<Vec<BierEncapSubSubTlv>>();
 
                     entry.bier.push(bier);
                 });

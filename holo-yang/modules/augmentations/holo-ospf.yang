@@ -22,6 +22,12 @@ module holo-ospf {
     prefix ospf;
   }
 
+  import ietf-ospfv3-extended-lsa {
+    prefix ospfv3-e-lsa;
+    reference
+      "RFC 9587 - YANG Data Model for OSPFv3 Extended LSAs";
+  }
+
   organization
     "Holo Routing Stack";
 
@@ -98,6 +104,52 @@ module holo-ospf {
       }
       description
         "BIER global config.";
+    }
+  }
+
+  grouping ospfv3-bier-encap-sub-sub-tlvs {
+    container bier-encap-sub-sub-tlvs {
+      list bier-encap-sub-sub-tlv {
+        description
+          "BIER sub-sub-TLVs.";
+        reference
+          "draft-ietf-bier-ospfv3-extensions-07 (Section 2.2)";
+        leaf max-si {
+          type uint8;
+        }
+        leaf id {
+          type uint32;
+        }
+        leaf bs-len {
+          type uint8;
+        }
+      }
+    }
+  }
+
+  grouping ospfv3-bier-info-sub-tlv {
+    description
+      "BIER Info sub-TLVs.";
+    reference
+      "draft-ietf-bier-ospfv3-extensions-07 (Section 2.1)";
+    leaf sub-domain-id {
+      type uint8;
+    }
+    leaf mt-id {
+      type uint8;
+    }
+    leaf bfr-id {
+      type uint16;
+    }
+    leaf bar {
+      type uint8;
+    }
+    leaf ipa {
+      type uint8;
+    }
+    list sub-sub-tlvs {
+      uses ospfv3-bier-encap-sub-sub-tlvs;
+      uses ospfv3-e-lsa:unknown-sub-tlv;
     }
   }
 
@@ -254,7 +306,33 @@ module holo-ospf {
         description
                       "Control of bier advertisement and reception.";
               }
+  }
+
+  /* BIER Info Sub-TLV in Extended Intra-Area Prefix TLV */
+  augment "/rt:routing/"
+             + "rt:control-plane-protocols/rt:control-plane-protocol/"
+             + "ospf:ospf/ospf:areas/ospf:area/ospf:database/"
+             + "ospf:area-scope-lsa-type/ospf:area-scope-lsas/"
+             + "ospf:area-scope-lsa/ospf:version/ospf:ospfv3/"
+             + "ospf:ospfv3/ospf:body/ospfv3-e-lsa:e-intra-area-prefix/"
+             + "ospfv3-e-lsa:e-intra-prefix-tlvs/"
+             + "ospfv3-e-lsa:intra-prefix-tlv/"
+             + "ospfv3-e-lsa:sub-tlvs" {
+    when "derived-from(/rt:routing/rt:control-plane-protocols/"
+            + "rt:control-plane-protocol/rt:type, 'ospf:ospfv3')" {
+      description
+        "This augmentation is only valid for OSPFv3
+         E-Intra-Area-Prefix LSAs";
     }
+    container bier-info-sub-tlvs {
+      config false;
+      description
+        "BIER Info TLV.";
+      list bier-info-sub-tlv {
+        uses ospfv3-bier-info-sub-tlv;
+      }
+    }
+  }
 
   /*
    * Notifications.

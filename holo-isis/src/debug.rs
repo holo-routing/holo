@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{debug, debug_span};
 
 use crate::adjacency::{Adjacency, AdjacencyEvent, AdjacencyState};
-use crate::interface::{DisCandidate, Interface};
+use crate::interface::{DisCandidate, Interface, InterfaceType};
 use crate::network::MulticastAddr;
 use crate::packet::LevelNumber;
 use crate::packet::pdu::{Lsp, Pdu};
@@ -121,23 +121,22 @@ impl Debug<'_> {
                 // Parent span(s): isis-instance
                 debug_span!("interface", %name).in_scope(|| {
                     if let Some(dis) = dis {
-                        debug!(?level, system_id = ?dis.system_id, "{}", self);
+                        debug!(%level, system_id = %dis.system_id.to_yang(), "{}", self);
                     } else {
-                        debug!(?level, system_id = "none", "{}", self);
+                        debug!(%level, system_id = "none", "{}", self);
                     }
                 })
             }
             Debug::AdjacencyCreate(adj) | Debug::AdjacencyDelete(adj) => {
                 // Parent span(s): isis-instance
-                debug_span!("adjacency", system_id = ?adj.system_id).in_scope(
-                    || {
+                debug_span!("adjacency", system_id = %adj.system_id.to_yang())
+                    .in_scope(|| {
                         debug!("{}", self);
-                    },
-                )
+                    })
             }
             Debug::AdjacencyStateChange(adj, new_state, event) => {
                 // Parent span(s): isis-instance
-                debug_span!("adjacency", system_id = ?adj.system_id, ?new_state, ?event)
+                debug_span!("adjacency", system_id = %adj.system_id.to_yang(), new_state = %new_state.to_yang(), event = %event.to_yang())
                     .in_scope(|| {
                         debug!("{}", self);
                     })
@@ -148,7 +147,11 @@ impl Debug<'_> {
                     debug_span!("input")
                         .in_scope(|| {
                             let data = serde_json::to_string(&pdu).unwrap();
-                            debug!(interface = %iface.name, ?src, %data, "{}", self);
+                            if iface.config.interface_type == InterfaceType::Broadcast {
+                                debug!(interface = %iface.name, ?src, %data, "{}", self);
+                            } else {
+                                debug!(interface = %iface.name, %data, "{}", self);
+                            }
                         })
                 })
             }
@@ -163,23 +166,23 @@ impl Debug<'_> {
             | Debug::LspDelete(level, lsp)
             | Debug::LspRefresh(level, lsp) => {
                 // Parent span(s): isis-instance
-                debug!(?level, lsp_id = %lsp.lsp_id.to_yang(), seqno = %lsp.seqno, len = %lsp.raw.len(), "{}", self);
+                debug!(%level, lsp_id = %lsp.lsp_id.to_yang(), seqno = %lsp.seqno, len = %lsp.raw.len(), "{}", self);
             }
             Debug::LspTooLarge(iface, level, lsp) => {
                 // Parent span(s): isis-instance
-                debug!(interface = %iface.name, ?level, lsp_id = %lsp.lsp_id.to_yang(), len = %lsp.raw.len(), "{}", self);
+                debug!(interface = %iface.name, %level, lsp_id = %lsp.lsp_id.to_yang(), len = %lsp.raw.len(), "{}", self);
             }
             Debug::LspPurge(level, lsp, reason) => {
                 // Parent span(s): isis-instance
-                debug!(?level, lsp_id = %lsp.lsp_id.to_yang(), seqno = %lsp.seqno, len = %lsp.raw.len(), ?reason, "{}", self);
+                debug!(%level, lsp_id = %lsp.lsp_id.to_yang(), seqno = %lsp.seqno, len = %lsp.raw.len(), %reason, "{}", self);
             }
             Debug::SpfDelayFsmEvent(state, event) => {
                 // Parent span(s): isis-instance:spf
-                debug!(?state, ?event, "{}", self);
+                debug!(state = %state.to_yang(), ?event, "{}", self);
             }
             Debug::SpfDelayFsmTransition(old_state, new_state) => {
                 // Parent span(s): isis-instance:spf
-                debug!(?old_state, ?new_state, "{}", self);
+                debug!(old_state = %old_state.to_yang(), new_state = %new_state.to_yang(), "{}", self);
             }
             Debug::SpfMaxPathMetric(vertex, link, distance) => {
                 // Parent span(s): isis-instance:spf

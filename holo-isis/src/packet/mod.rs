@@ -169,6 +169,12 @@ impl Iterator for LevelTypeIterator {
 
 // ===== impl LevelNumber =====
 
+impl std::fmt::Display for LevelNumber {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", *self as u8)
+    }
+}
+
 impl From<LevelType> for LevelNumber {
     fn from(level_type: LevelType) -> LevelNumber {
         match level_type {

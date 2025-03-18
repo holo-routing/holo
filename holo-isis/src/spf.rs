@@ -189,7 +189,7 @@ pub(crate) fn fsm(
     arenas: &mut InstanceArenas,
 ) -> Result<(), Error> {
     // Begin a debug span for logging within the SPF context.
-    let span = debug_span!("spf", ?level);
+    let span = debug_span!("spf", %level);
     let _span_guard = span.enter();
 
     // Retrieve the SPF scheduling container for the current level.

@@ -264,11 +264,6 @@ impl VrrpHdr {
                 }
                 buf.put_u32(0);
                 buf.put_u32(0);
-
-                // Generate checksum.
-                let mut check = Checksum::new();
-                check.add_bytes(&buf);
-                buf[6..8].copy_from_slice(&check.checksum());
             }
             Version::V3(_) => {
                 buf.put_u16(self.adver_int & 0x0FFF);
@@ -277,6 +272,13 @@ impl VrrpHdr {
                     buf.put_ip(addr);
                 }
             }
+        }
+
+        // Generate checksum.
+        if let AddressFamily::Ipv4 = self.version.address_family() {
+            let mut check = Checksum::new();
+            check.add_bytes(&buf);
+            buf[6..8].copy_from_slice(&check.checksum());
         }
 
         buf

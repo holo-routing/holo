@@ -12,6 +12,7 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
+use holo_utils::ip::AddressFamily;
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{Sender, UnboundedReceiver, UnboundedSender};
@@ -19,7 +20,7 @@ use messages::input::MasterDownTimerMsg;
 use messages::output::NetTxPacketMsg;
 use tracing::{Instrument, debug_span};
 
-use crate::instance::{Instance, Version};
+use crate::instance::Instance;
 use crate::network;
 use crate::packet::{Vrrp4Packet, Vrrp6Packet};
 
@@ -125,7 +126,7 @@ pub mod messages {
 pub(crate) fn vrrp_net_rx(
     socket_vrrp: Arc<AsyncFd<Socket>>,
     net_packet_rxp: &Sender<messages::input::VrrpNetRxPacketMsg>,
-    version: Version,
+    address_family: AddressFamily,
 ) -> Task<()> {
     #[cfg(not(feature = "testing"))]
     {
@@ -143,7 +144,7 @@ pub(crate) fn vrrp_net_rx(
                 let _ = network::read_loop(
                     socket_vrrp,
                     net_packet_rxp,
-                    version.address_family(),
+                    address_family,
                 )
                 .await;
             }

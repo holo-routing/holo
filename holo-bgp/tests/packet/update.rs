@@ -27,13 +27,13 @@ static UPDATE1: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
             0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x17, 0x02, 0x00, 0x00, 0x00,
             0x00,
         ],
-        Message::Update(UpdateMsg {
+        Message::Update(Box::new(UpdateMsg {
             reach: None,
             unreach: None,
             mp_reach: None,
             mp_unreach: None,
             attrs: None,
-        }),
+        })),
     )
 });
 
@@ -68,7 +68,7 @@ static UPDATE2: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
             0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x01, 0x20, 0x0a, 0x00, 0xff, 0x01, 0x20, 0x0a, 0x00, 0xff, 0x02,
         ],
-        Message::Update(UpdateMsg {
+        Message::Update(Box::new(UpdateMsg {
             reach: Some(ReachNlri {
                 prefixes: vec![net4!("10.0.255.1/32"), net4!("10.0.255.2/32")],
                 nexthop: ip4!("1.1.1.1"),
@@ -126,7 +126,7 @@ static UPDATE2: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
                 )),
                 unknown: None,
             }),
-        }),
+        })),
     )
 });
 

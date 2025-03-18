@@ -143,13 +143,13 @@ impl AddressFamily for Ipv4Unicast {
                             prefixes: chunk.collect(),
                             nexthop,
                         };
-                        Message::Update(UpdateMsg {
+                        Message::Update(Box::new(UpdateMsg {
                             reach: Some(reach),
                             unreach: None,
                             mp_reach: None,
                             mp_unreach: None,
                             attrs: Some(attrs.clone()),
-                        })
+                        }))
                     },
                 ),
             );
@@ -166,13 +166,13 @@ impl AddressFamily for Ipv4Unicast {
                         let unreach = UnreachNlri {
                             prefixes: chunk.collect(),
                         };
-                        Message::Update(UpdateMsg {
+                        Message::Update(Box::new(UpdateMsg {
                             reach: None,
                             unreach: Some(unreach),
                             mp_reach: None,
                             mp_unreach: None,
                             attrs: None,
-                        })
+                        }))
                     },
                 ),
             );
@@ -281,13 +281,13 @@ impl AddressFamily for Ipv6Unicast {
                             nexthop,
                             ll_nexthop,
                         };
-                        Message::Update(UpdateMsg {
+                        Message::Update(Box::new(UpdateMsg {
                             reach: None,
                             unreach: None,
                             mp_reach: Some(mp_reach),
                             mp_unreach: None,
                             attrs: Some(attrs.clone()),
-                        })
+                        }))
                     },
                 ),
             );
@@ -307,13 +307,13 @@ impl AddressFamily for Ipv6Unicast {
                         let mp_unreach = MpUnreachNlri::Ipv6Unicast {
                             prefixes: chunk.collect(),
                         };
-                        Message::Update(UpdateMsg {
+                        Message::Update(Box::new(UpdateMsg {
                             reach: None,
                             unreach: None,
                             mp_reach: None,
                             mp_unreach: Some(mp_unreach),
                             attrs: None,
-                        })
+                        }))
                     },
                 ),
             );

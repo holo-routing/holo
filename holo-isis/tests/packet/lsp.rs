@@ -30,7 +30,7 @@ static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
             0x00, 0x00, 0x01,
         ],
         None,
-        Pdu::Lsp(Lsp::new(
+        Pdu::Lsp(Box::new(Lsp::new(
             LevelNumber::L1,
             1170,
             LspId::from([0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00]),
@@ -125,7 +125,7 @@ static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 unknown: vec![],
             },
             None,
-        )),
+        ))),
     )
 });
 
@@ -147,7 +147,7 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
             0x80, 0xac, 0x10, 0x02, 0x00, 0xff, 0xff, 0xff, 0x00,
         ],
         None,
-        Pdu::Lsp(Lsp::new(
+        Pdu::Lsp(Box::new(Lsp::new(
             LevelNumber::L1,
             1187,
             LspId::from([0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00]),
@@ -252,7 +252,7 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 unknown: vec![],
             },
             None,
-        )),
+        ))),
     )
 });
 
@@ -270,7 +270,7 @@ static LSP3_HMAC_MD5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
             0x20, 0x01, 0x01, 0x01, 0x01,
         ],
         Some(&KEY_HMAC_MD5),
-        Pdu::Lsp(Lsp::new(
+        Pdu::Lsp(Box::new(Lsp::new(
             LevelNumber::L1,
             1170,
             LspId::from([0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00]),
@@ -324,7 +324,7 @@ static LSP3_HMAC_MD5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 unknown: vec![],
             },
             Some(&KEY_HMAC_MD5),
-        )),
+        ))),
     )
 });
 

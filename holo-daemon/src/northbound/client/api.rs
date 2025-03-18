@@ -99,21 +99,6 @@ pub mod client {
     pub struct GetTransactionResponse {
         pub dtree: DataTree<'static>,
     }
-
-    // ===== impl Request =====
-
-    impl std::fmt::Display for Request {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            match self {
-                Request::Get(_) => write!(f, "Get"),
-                Request::Validate(_) => write!(f, "Validate"),
-                Request::Commit(_) => write!(f, "Commit"),
-                Request::Execute(_) => write!(f, "Execute"),
-                Request::ListTransactions(_) => write!(f, "ListTransactions"),
-                Request::GetTransaction(_) => write!(f, "GetTransaction"),
-            }
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug)]

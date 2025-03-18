@@ -15,7 +15,7 @@ use holo_yang::{YANG_CTX, YANG_FEATURES};
 use tokio::sync::oneshot;
 use tonic::transport::{Server, ServerTlsConfig};
 use tonic::{Request, Response, Status};
-use tracing::{debug, debug_span, error, trace};
+use tracing::{error, trace, trace_span};
 use yang3::data::{
     Data, DataDiff, DataFormat, DataOperation, DataParserFlags,
     DataPrinterFlags, DataTree, DataValidationFlags,
@@ -45,10 +45,9 @@ impl proto::Northbound for NorthboundService {
     ) -> Result<Response<proto::CapabilitiesResponse>, Status> {
         let yang_ctx = YANG_CTX.get().unwrap();
         let grpc_request = grpc_request.into_inner();
-        debug_span!("northbound").in_scope(|| {
-            debug_span!("client", name = "grpc").in_scope(|| {
-                debug!("received Capabilities() request");
-                trace!("{:?}", grpc_request);
+        trace_span!("northbound").in_scope(|| {
+            trace_span!("client", name = "grpc").in_scope(|| {
+                trace!(data = ?grpc_request, "received Capabilities() request");
             });
         });
 
@@ -99,10 +98,9 @@ impl proto::Northbound for NorthboundService {
         grpc_request: Request<proto::GetSchemaRequest>,
     ) -> Result<Response<proto::GetSchemaResponse>, Status> {
         let grpc_request = grpc_request.into_inner();
-        debug_span!("northbound").in_scope(|| {
-            debug_span!("client", name = "grpc").in_scope(|| {
-                debug!("received GetSchema() request");
-                trace!("{:?}", grpc_request);
+        trace_span!("northbound").in_scope(|| {
+            trace_span!("client", name = "grpc").in_scope(|| {
+                trace!(data = ?grpc_request, "received GetSchema() request");
             });
         });
 
@@ -158,10 +156,9 @@ impl proto::Northbound for NorthboundService {
         grpc_request: Request<proto::GetRequest>,
     ) -> Result<Response<proto::GetResponse>, Status> {
         let grpc_request = grpc_request.into_inner();
-        debug_span!("northbound").in_scope(|| {
-            debug_span!("client", name = "grpc").in_scope(|| {
-                debug!("received Get() request");
-                trace!("{:?}", grpc_request);
+        trace_span!("northbound").in_scope(|| {
+            trace_span!("client", name = "grpc").in_scope(|| {
+                trace!(data = ?grpc_request, "received Get() request");
             });
         });
 
@@ -202,10 +199,9 @@ impl proto::Northbound for NorthboundService {
         grpc_request: Request<proto::ValidateRequest>,
     ) -> Result<Response<proto::ValidateResponse>, Status> {
         let grpc_request = grpc_request.into_inner();
-        debug_span!("northbound").in_scope(|| {
-            debug_span!("client", name = "grpc").in_scope(|| {
-                debug!("received Validate() request");
-                trace!("{:?}", grpc_request);
+        trace_span!("northbound").in_scope(|| {
+            trace_span!("client", name = "grpc").in_scope(|| {
+                trace!(data = ?grpc_request, "received Validate() request");
             });
         });
 
@@ -237,10 +233,9 @@ impl proto::Northbound for NorthboundService {
         grpc_request: Request<proto::CommitRequest>,
     ) -> Result<Response<proto::CommitResponse>, Status> {
         let grpc_request = grpc_request.into_inner();
-        debug_span!("northbound").in_scope(|| {
-            debug_span!("client", name = "grpc").in_scope(|| {
-                debug!("received Commit() request");
-                trace!("{:?}", grpc_request);
+        trace_span!("northbound").in_scope(|| {
+            trace_span!("client", name = "grpc").in_scope(|| {
+                trace!(data = ?grpc_request, "received Commit() request");
             });
         });
 
@@ -295,10 +290,9 @@ impl proto::Northbound for NorthboundService {
         grpc_request: Request<proto::ExecuteRequest>,
     ) -> Result<Response<proto::ExecuteResponse>, Status> {
         let grpc_request = grpc_request.into_inner();
-        debug_span!("northbound").in_scope(|| {
-            debug_span!("client", name = "grpc").in_scope(|| {
-                debug!("received Execute() request");
-                trace!("{:?}", grpc_request);
+        trace_span!("northbound").in_scope(|| {
+            trace_span!("client", name = "grpc").in_scope(|| {
+                trace!(data = ?grpc_request, "received Execute() request");
             });
         });
 
@@ -341,10 +335,9 @@ impl proto::Northbound for NorthboundService {
         grpc_request: Request<proto::ListTransactionsRequest>,
     ) -> Result<Response<Self::ListTransactionsStream>, Status> {
         let grpc_request = grpc_request.into_inner();
-        debug_span!("northbound").in_scope(|| {
-            debug_span!("client", name = "grpc").in_scope(|| {
-                debug!("received GetTransaction() request");
-                trace!("{:?}", grpc_request);
+        trace_span!("northbound").in_scope(|| {
+            trace_span!("client", name = "grpc").in_scope(|| {
+                trace!(data = ?grpc_request, "received GetTransaction() request");
             });
         });
 
@@ -380,10 +373,9 @@ impl proto::Northbound for NorthboundService {
         grpc_request: Request<proto::GetTransactionRequest>,
     ) -> Result<Response<proto::GetTransactionResponse>, Status> {
         let grpc_request = grpc_request.into_inner();
-        debug_span!("northbound").in_scope(|| {
-            debug_span!("client", name = "grpc").in_scope(|| {
-                debug!("received Execute() request");
-                trace!("{:?}", grpc_request);
+        trace_span!("northbound").in_scope(|| {
+            trace_span!("client", name = "grpc").in_scope(|| {
+                trace!(data = ?grpc_request, "received Execute() request");
             });
         });
 

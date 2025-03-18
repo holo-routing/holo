@@ -13,7 +13,7 @@ use tokio::sync::oneshot;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::transport::{Server, ServerTlsConfig};
 use tonic::{Request, Response, Status, Streaming};
-use tracing::{debug, debug_span, error, trace};
+use tracing::{error, trace, trace_span};
 use yang3::data::{Data, DataFormat, DataPrinterFlags, DataTree};
 use yang3::schema::SchemaNodeKind;
 
@@ -50,10 +50,9 @@ impl proto::GNmi for GNmiService {
     ) -> Result<Response<proto::CapabilityResponse>, Status> {
         let yang_ctx = YANG_CTX.get().unwrap();
         let grpc_request = grpc_request.into_inner();
-        debug_span!("northbound").in_scope(|| {
-            debug_span!("client", name = "grpc").in_scope(|| {
-                debug!("received Capabilities() request");
-                trace!("{:?}", grpc_request);
+        trace_span!("northbound").in_scope(|| {
+            trace_span!("client", name = "grpc").in_scope(|| {
+                trace!(data = ?grpc_request, "received Capabilities() request");
             });
         });
 
@@ -92,10 +91,9 @@ impl proto::GNmi for GNmiService {
         grpc_request: Request<proto::GetRequest>,
     ) -> Result<Response<proto::GetResponse>, Status> {
         let grpc_request = grpc_request.into_inner();
-        debug_span!("northbound").in_scope(|| {
-            debug_span!("client", name = "gnmi").in_scope(|| {
-                debug!("received Get() request");
-                trace!("{:?}", grpc_request);
+        trace_span!("northbound").in_scope(|| {
+            trace_span!("client", name = "gnmi").in_scope(|| {
+                trace!(data = ?grpc_request, "received Get() request");
             });
         });
 
@@ -183,10 +181,9 @@ impl proto::GNmi for GNmiService {
     ) -> Result<Response<proto::SetResponse>, Status> {
         let yang_ctx = YANG_CTX.get().unwrap();
         let grpc_request = grpc_request.into_inner();
-        debug_span!("northbound").in_scope(|| {
-            debug_span!("client", name = "gnmi").in_scope(|| {
-                debug!("received Set() request");
-                trace!("{:?}", grpc_request);
+        trace_span!("northbound").in_scope(|| {
+            trace_span!("client", name = "gnmi").in_scope(|| {
+                trace!(data = ?grpc_request, "received Set() request");
             });
         });
 

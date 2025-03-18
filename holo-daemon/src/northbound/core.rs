@@ -148,7 +148,6 @@ impl Northbound {
 
     // Processes a message received from an external client.
     async fn process_client_msg(&mut self, request: capi::client::Request) {
-        debug!(%request, "received client request");
         trace!(?request, "received client request");
 
         match request {
@@ -304,8 +303,7 @@ impl Northbound {
     }
 
     // Processes a message received from a data provider.
-    fn process_provider_msg(&mut self, request: papi::provider::Notification) {
-        trace!(?request, "received client request");
+    fn process_provider_msg(&mut self, _request: papi::provider::Notification) {
         // TODO: relay request to the external clients (e.g. YANG notification).
     }
 
@@ -362,7 +360,7 @@ impl Northbound {
         // Get list of configuration changes.
         let changes = northbound::configuration::changes_from_diff(&diff);
 
-        debug!("new transaction");
+        debug!(?confirmed_timeout, "configuration transaction");
         trace!(
             "configuration changes: {}",
             diff.print_string(

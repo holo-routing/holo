@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use tracing::{debug, debug_span, trace};
+use tracing::{trace, trace_span};
 
 use crate::configuration::CommitPhase;
 use crate::{CallbackOp, api};
@@ -23,27 +23,26 @@ impl Debug<'_> {
     pub fn log(&self) {
         match self {
             Debug::RequestRx(message) => {
-                debug_span!("northbound").in_scope(|| {
-                    debug!("{}", self);
-                    trace!(?message);
+                trace_span!("northbound").in_scope(|| {
+                    trace!(?message, "{}", self);
                 });
             }
             Debug::ValidationCallback(path) => {
-                debug_span!("northbound").in_scope(|| {
-                    debug!(%path, "{}", self);
+                trace_span!("northbound").in_scope(|| {
+                    trace!(%path, "{}", self);
                 });
             }
             Debug::ConfigurationCallback(phase, operation, path) => {
-                debug_span!("northbound").in_scope(|| {
-                    debug!(
+                trace_span!("northbound").in_scope(|| {
+                    trace!(
                         ?phase, ?operation, %path,
                         "{}", self
                     )
                 });
             }
             Debug::RpcCallback(path) => {
-                debug_span!("northbound")
-                    .in_scope(|| debug!(%path, "{}", self));
+                trace_span!("northbound")
+                    .in_scope(|| trace!(%path, "{}", self));
             }
         }
     }

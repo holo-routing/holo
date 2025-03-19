@@ -263,27 +263,7 @@ impl Interface {
         } else {
             AdjacencyEvent::Kill
         };
-        let new_state = AdjacencyState::Down;
-        match self.config.interface_type {
-            InterfaceType::Broadcast => {
-                let mut adjacencies =
-                    std::mem::take(&mut self.state.lan_adjacencies);
-                for level in self.config.levels() {
-                    let adjacencies = adjacencies.get_mut(level);
-                    for adj_idx in adjacencies.indexes() {
-                        let adj = &mut arena_adjacencies[adj_idx];
-                        adj.state_change(self, instance, event, new_state);
-                    }
-                    adjacencies.clear(arena_adjacencies);
-                }
-                self.state.lan_adjacencies = adjacencies;
-            }
-            InterfaceType::PointToPoint => {
-                if let Some(mut adj) = self.state.p2p_adjacency.take() {
-                    adj.state_change(self, instance, event, new_state);
-                }
-            }
-        }
+        self.clear_adjacencies(instance, arena_adjacencies, event);
 
         // Release Circuit ID back to the pool.
         if self.config.interface_type == InterfaceType::Broadcast {
@@ -383,6 +363,35 @@ impl Interface {
         let lan_l2 = self.state.lan_adjacencies.l2.iter(adjacencies);
         let p2p = self.state.p2p_adjacency.as_ref();
         lan_l1.chain(lan_l2).chain(p2p)
+    }
+
+    pub(crate) fn clear_adjacencies(
+        &mut self,
+        instance: &mut InstanceUpView<'_>,
+        arena_adjacencies: &mut Arena<Adjacency>,
+        event: AdjacencyEvent,
+    ) {
+        let new_state = AdjacencyState::Down;
+        match self.config.interface_type {
+            InterfaceType::Broadcast => {
+                let mut adjacencies =
+                    std::mem::take(&mut self.state.lan_adjacencies);
+                for level in self.config.levels() {
+                    let adjacencies = adjacencies.get_mut(level);
+                    for adj_idx in adjacencies.indexes() {
+                        let adj = &mut arena_adjacencies[adj_idx];
+                        adj.state_change(self, instance, event, new_state);
+                    }
+                    adjacencies.clear(arena_adjacencies);
+                }
+                self.state.lan_adjacencies = adjacencies;
+            }
+            InterfaceType::PointToPoint => {
+                if let Some(mut adj) = self.state.p2p_adjacency.take() {
+                    adj.state_change(self, instance, event, new_state);
+                }
+            }
+        }
     }
 
     // Returns the MTU size available for sending IS-IS PDUs.

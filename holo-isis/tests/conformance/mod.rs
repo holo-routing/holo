@@ -203,6 +203,16 @@ async fn nb_config_te_router_id2() {
 }
 
 #[tokio::test]
+async fn nb_rpc_clear_adjacency1() {
+    run_test::<Instance>("nb-rpc-clear-adjacency1", "topo2-1", "rt6").await;
+}
+
+#[tokio::test]
+async fn nb_rpc_clear_adjacency2() {
+    run_test::<Instance>("nb-rpc-clear-adjacency2", "topo2-1", "rt6").await;
+}
+
+#[tokio::test]
 async fn sb_addr_add1() {
     run_test::<Instance>("sb-addr-add1", "topo2-1", "rt6").await;
 }

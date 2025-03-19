@@ -78,6 +78,12 @@ fn find_instance(
             );
             (protocol, name)
         }
+        "ietf-isis" => {
+            let protocol = Protocol::ISIS;
+            let name =
+                rpc.get_string_relative("./routing-protocol-instance-name");
+            (protocol, name)
+        }
         "ietf-mpls-ldp" => {
             let protocol = Protocol::LDP;
             let name = match rpc.path().as_ref() {

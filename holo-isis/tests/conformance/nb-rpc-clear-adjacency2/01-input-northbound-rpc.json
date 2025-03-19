@@ -1,0 +1,6 @@
+{
+  "ietf-isis:clear-adjacency": {
+    "routing-protocol-instance-name":"test",
+    "interface":"eth-rt4"
+  }
+}

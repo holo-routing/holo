@@ -1,0 +1,5 @@
+{
+  "ietf-isis:clear-adjacency": {
+    "routing-protocol-instance-name":"test"
+  }
+}

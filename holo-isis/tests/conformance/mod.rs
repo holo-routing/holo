@@ -213,6 +213,11 @@ async fn nb_rpc_clear_adjacency2() {
 }
 
 #[tokio::test]
+async fn nb_rpc_clear_database1() {
+    run_test::<Instance>("nb-rpc-clear-database1", "topo2-1", "rt6").await;
+}
+
+#[tokio::test]
 async fn sb_addr_add1() {
     run_test::<Instance>("sb-addr-add1", "topo2-1", "rt6").await;
 }

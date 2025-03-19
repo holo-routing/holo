@@ -1,0 +1,5 @@
+{
+  "ietf-isis:clear-database": {
+    "routing-protocol-instance-name":"test"
+  }
+}

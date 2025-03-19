@@ -1,0 +1,218 @@
+{
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-isis:isis",
+          "name": "test",
+          "ietf-isis:isis": {
+            "spf-control": {
+              "ietf-spf-delay": {
+                "holo-isis:level": [
+                  {
+                    "level": 2,
+                    "current-state": "short-wait"
+                  }
+                ]
+              }
+            },
+            "hostnames": {
+              "hostname": [
+                {
+                  "system-id": "0000.0000.0001",
+                  "hostname": "rt1"
+                },
+                {
+                  "system-id": "0000.0000.0002",
+                  "hostname": "rt2"
+                },
+                {
+                  "system-id": "0000.0000.0003",
+                  "hostname": "rt3"
+                },
+                {
+                  "system-id": "0000.0000.0004",
+                  "hostname": "rt4"
+                },
+                {
+                  "system-id": "0000.0000.0005",
+                  "hostname": "rt5"
+                },
+                {
+                  "system-id": "0000.0000.0006",
+                  "hostname": "rt6"
+                }
+              ]
+            },
+            "database": {
+              "levels": [
+                {
+                  "level": 2,
+                  "lsp": [
+                    {
+                      "lsp-id": "0000.0000.0006.00-00",
+                      "attributes": {
+                        "lsp-flags": [
+                          "lsp-l2-system-flag"
+                        ]
+                      },
+                      "ipv4-addresses": [
+                        "6.6.6.6",
+                        "10.0.7.6",
+                        "10.0.8.6"
+                      ],
+                      "ipv6-addresses": [
+                        "2001:db8:1000::6",
+                        "fc00:0:0:7::6",
+                        "fc00:0:0:8::6"
+                      ],
+                      "protocol-supported": [
+                        204,
+                        142
+                      ],
+                      "dynamic-hostname": "rt6",
+                      "ipv4-internal-reachability": {
+                        "prefixes": [
+                          {
+                            "ip-prefix": "6.6.6.6",
+                            "prefix-len": 32,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          },
+                          {
+                            "ip-prefix": "10.0.7.0",
+                            "prefix-len": 24,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          },
+                          {
+                            "ip-prefix": "10.0.8.0",
+                            "prefix-len": 24,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          }
+                        ]
+                      },
+                      "ipv6-reachability": {
+                        "prefixes": [
+                          {
+                            "up-down": false,
+                            "ip-prefix": "2001:db8:1000::6",
+                            "prefix-len": 128,
+                            "metric": 10
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "fc00:0:0:7::",
+                            "prefix-len": 64,
+                            "metric": 10
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "fc00:0:0:8::",
+                            "prefix-len": 64,
+                            "metric": 10
+                          }
+                        ]
+                      },
+                      "holo-isis:area-addresses": [
+                        "49.0000"
+                      ],
+                      "holo-isis:lsp-buffer-size": 1492
+                    }
+                  ]
+                }
+              ]
+            },
+            "local-rib": {
+              "route": [
+                {
+                  "prefix": "6.6.6.6/32",
+                  "metric": 10,
+                  "level": 2
+                },
+                {
+                  "prefix": "10.0.7.0/24",
+                  "metric": 10,
+                  "level": 2
+                },
+                {
+                  "prefix": "10.0.8.0/24",
+                  "metric": 10,
+                  "level": 2
+                },
+                {
+                  "prefix": "2001:db8:1000::6/128",
+                  "metric": 10,
+                  "level": 2
+                },
+                {
+                  "prefix": "fc00:0:0:7::/64",
+                  "metric": 10,
+                  "level": 2
+                },
+                {
+                  "prefix": "fc00:0:0:8::/64",
+                  "metric": 10,
+                  "level": 2
+                }
+              ]
+            },
+            "interfaces": {
+              "interface": [
+                {
+                  "name": "eth-rt4",
+                  "holo-isis:state": "up",
+                  "holo-isis:circuit-id": 0
+                },
+                {
+                  "name": "eth-rt5",
+                  "holo-isis:state": "up",
+                  "holo-isis:circuit-id": 0
+                },
+                {
+                  "name": "lo",
+                  "holo-isis:state": "up",
+                  "holo-isis:circuit-id": 0
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

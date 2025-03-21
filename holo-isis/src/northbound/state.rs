@@ -205,7 +205,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                 raw_data: Some(lsp.raw.as_ref()).ignore_in_testing(),
                 checksum: Some(lsp.cksum).ignore_in_testing(),
                 remaining_lifetime: Some(remaining_lifetime).ignore_in_testing_if(remaining_lifetime != 0),
-                sequence: Some(lsp.seqno).ignore_in_testing(),
+                sequence: Some(lsp.seqno).ignore_in_testing_if(lsp.seqno != 0),
                 ipv4_addresses: Some(Box::new(ipv4_addresses)),
                 ipv6_addresses: Some(Box::new(ipv6_addresses)),
                 ipv4_te_routerid: lsp.tlvs.ipv4_router_id.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),

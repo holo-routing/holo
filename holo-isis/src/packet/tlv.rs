@@ -24,6 +24,8 @@ use crate::packet::consts::{
     AuthenticationType, NeighborSubTlvType, PrefixSubTlvType, TlvType,
 };
 use crate::packet::error::{DecodeError, DecodeResult};
+#[cfg(feature = "testing")]
+use crate::packet::pdu::serde_lsp_rem_lifetime_filter;
 use crate::packet::{AreaAddr, LanId, LspId, subtlvs};
 
 // TLV header size.
@@ -145,9 +147,15 @@ pub struct LspEntriesTlv {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct LspEntry {
+    #[cfg_attr(
+        feature = "testing",
+        serde(default, skip_serializing_if = "serde_lsp_rem_lifetime_filter")
+    )]
     pub rem_lifetime: u16,
     pub lsp_id: LspId,
+    #[cfg_attr(feature = "testing", serde(skip_serializing))]
     pub seqno: u32,
+    #[cfg_attr(feature = "testing", serde(skip_serializing))]
     pub cksum: u16,
 }
 

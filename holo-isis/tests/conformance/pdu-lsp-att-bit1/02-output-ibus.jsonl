@@ -1,0 +1,2 @@
+{"RouteIpDel":{"protocol":"isis","prefix":"0.0.0.0/0"}}
+{"RouteIpDel":{"protocol":"isis","prefix":"::/0"}}

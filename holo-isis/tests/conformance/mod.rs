@@ -23,6 +23,16 @@ async fn csnp_interval1() {
 }
 
 // Input:
+//  * Protocol: the refresh timer for L2 LSP 0000.0000.0004.00-00 has expired
+// Output:
+//  * Protocol: send LSP 0000.0000.0004.00-00 to all L2 adjacencies
+//  * Northbound: add 0000.0000.0004.00-00 to the SRM list of all L2 adjacencies
+#[tokio::test]
+async fn lsp_refresh1() {
+    run_test::<Instance>("lsp-refresh1", "topo2-2", "rt4").await;
+}
+
+// Input:
 //  * Protocol: received an L2 CSNP with zero LSP entries on eth-rt4
 // Output:
 //  * Protocol: send all L2 LSPs from the database on eth-rt4
@@ -48,8 +58,10 @@ async fn pdu_csnp2() {
 }
 
 // Input:
-//  * Protocol: received a CSNP with an invalid maximum area addresses value (4)
-// Output: no changes
+//  * Protocol: received an L1 CSNP with an invalid maximum area addresses
+//    value (4)
+// Output:
+//  * Northbound: send a "max-area-addresses-mismatch" YANG notification
 #[tokio::test]
 async fn pdu_csnp_error1() {
     run_test::<Instance>("pdu-csnp-error1", "topo2-2", "rt6").await;
@@ -70,6 +82,255 @@ async fn pdu_csnp_error2() {
 #[tokio::test]
 async fn pdu_csnp_error3() {
     run_test::<Instance>("pdu-csnp-error3", "topo2-1", "rt3").await;
+}
+
+// Input:
+//  * Protocol: received an LSP (0000.0000.0009.00-00) from eth-rt6 that doesn't
+//    exist in the database
+// Output:
+//  * Protocol: send LSP 0000.0000.0009.00-00 to all other adjacencies
+//  * Northbound:
+//    - add 0000.0000.0009.00-00 to the database
+//    - add 0000.0000.0009.00-00 to the SSN list of eth-rt6
+//    - add 0000.0000.0009.00-00 to the SRM list of all other adjacencies
+//    - transition the SPF Delay FSM state from "quiet" to "short-wait"
+//    - send an "lsp-received" YANG notification
+#[tokio::test]
+async fn pdu_lsp1() {
+    run_test::<Instance>("pdu-lsp1", "topo2-1", "rt4").await;
+}
+
+// Input:
+//  * Protocol: received an LSP (0000.0000.0009.00-00) from eth-rt6 that doesn't
+//    exist in the database
+// Output:
+//  * Protocol: send LSP 0000.0000.0009.00-00 to all other adjacencies
+//  * Northbound:
+//    - add 0000.0000.0009.00-00 to the database
+//    - add 0000.0000.0009.00-00 to the SSN list of eth-rt6
+//    - add 0000.0000.0009.00-00 to the SRM list of all other adjacencies
+//    - transition the SPF Delay FSM state from "quiet" to "short-wait"
+//    - send an "lsp-received" YANG notification
+//
+// Input:
+//  * Protocol: received three PSNPs with one LSP entry (0000.0000.0009.00-00)
+//    that exists in the database with the same sequence number and checksum
+// Output:
+//  * Northbound: remove 0000.0000.0009.00-00 from the SRM list of eth-rt2-1,
+//    eth-rt2-2, and eth-rt5
+//
+// Input:
+//  * Protocol: received an LSP (0000.0000.0009.00-00) from eth-rt6 that is more
+//    recent than the one in the database
+// Output:
+//  * Northbound:
+//    - add 0000.0000.0009.00-00 to the SRM list of eth-rt2-1, eth-rt2-2, and
+//      eth-rt5
+//    - send an "lsp-received" YANG notification
+#[tokio::test]
+async fn pdu_lsp2() {
+    run_test::<Instance>("pdu-lsp2", "topo2-1", "rt4").await;
+}
+
+// Input:
+//  * Protocol: received an LSP (0000.0000.0009.00-00) from eth-rt6 that doesn't
+//    exist in the database
+// Output:
+//  * Protocol: send LSP 0000.0000.0009.00-00 to all other adjacencies
+//  * Northbound:
+//    - add 0000.0000.0009.00-00 to the database
+//    - add 0000.0000.0009.00-00 to the SSN list of eth-rt6
+//    - add 0000.0000.0009.00-00 to the SRM list of all other adjacencies
+//    - transition the SPF Delay FSM state from "quiet" to "short-wait"
+//    - send an "lsp-received" YANG notification
+//
+// Input:
+//  * Protocol: received an LSP (0000.0000.0009.00-00) from eth-rt6 that is
+//    older than the one in the database
+// Output:
+//  * Northbound:
+//    - add 0000.0000.0009.00-00 to the SRM list of eth-rt6
+//    - remove 0000.0000.0009.00-00 from the SSN list of eth-rt6
+//    - send an "lsp-received" YANG notification
+#[tokio::test]
+async fn pdu_lsp3() {
+    run_test::<Instance>("pdu-lsp3", "topo2-1", "rt4").await;
+}
+
+// Input:
+//  * Protocol: received an LSP (0000.0000.0009.00-00) from eth-rt6 that doesn't
+//    exist in the database
+// Output:
+//  * Protocol: send LSP 0000.0000.0009.00-00 to all other adjacencies
+//  * Northbound:
+//    - add 0000.0000.0009.00-00 to the database
+//    - add 0000.0000.0009.00-00 to the SSN list of eth-rt6
+//    - add 0000.0000.0009.00-00 to the SRM list of all other adjacencies
+//    - transition the SPF Delay FSM state from "quiet" to "short-wait"
+//    - send an "lsp-received" YANG notification
+//
+// Input:
+//  * Protocol: received three PSNPs with one LSP entry (0000.0000.0009.00-00)
+//    that exists in the database with the same sequence number and checksum
+// Output:
+//  * Northbound: remove 0000.0000.0009.00-00 from the SRM list of eth-rt2-1,
+//    eth-rt2-2, and eth-rt5
+//
+// Input:
+//  * Protocol: received an LSP (0000.0000.0009.00-00) from eth-rt6 that is
+//    equal to the one in the database
+// Output:
+//  * Northbound: send an "lsp-received" YANG notification
+#[tokio::test]
+async fn pdu_lsp4() {
+    run_test::<Instance>("pdu-lsp4", "topo2-1", "rt4").await;
+}
+
+// Input:
+//  * Protocol: received an LSP (0000.0000.0009.00-00) with zero remaining
+//    lifetime from eth-rt6 that doesn't exist in the database
+// Output:
+//  * Protocol: send an acknowledgement back
+//  * Northbound: send an "lsp-received" YANG notification
+#[tokio::test]
+async fn pdu_lsp5() {
+    run_test::<Instance>("pdu-lsp5", "topo2-1", "rt4").await;
+}
+
+// Input:
+//  * Protocol: received an LSP (0000.0000.0006.00-00) from eth-rt6
+//    without the ATT bit set
+// Output:
+//  * Northbound:
+//    - update 0000.0000.0006.00-00 without the ATT bit set
+//    - add 0000.0000.0006.00-00 to the SSN list of eth-rt6
+//    - transition the SPF Delay FSM state from "quiet" to "short-wait"
+//    - send an "lsp-received" YANG notification
+//
+// Input:
+//  * Protocol: SPF_TIMER expiration for L2
+// Output:
+//  * Northbound: remove IPv4 and IPv6 default routes from the RIB
+//  * Southbound: uninstall the IPv4 and IPv6 default routes
+#[tokio::test]
+async fn pdu_lsp_att_bit1() {
+    run_test::<Instance>("pdu-lsp-att-bit1", "topo1-2", "rt7").await;
+}
+
+// Input:
+//  * Protocol: received an L1 LSP with an invalid maximum area addresses
+//    value (4)
+// Output:
+//  * Northbound: send a "max-area-addresses-mismatch" YANG notification
+#[tokio::test]
+async fn pdu_lsp_error1() {
+    run_test::<Instance>("pdu-lsp-error1", "topo2-2", "rt6").await;
+}
+
+// Input:
+//  * Protocol: received an LSP (0000.0000.0005.00-00) from eth-rt5
+//    with zero remaining lifetime
+// Output:
+//  * Protocol: send LSP 0000.0000.0005.00-00 to eth-rt4
+//  * Northbound:
+//    - update 0000.0000.0005.00-00 with zero remaining lifetime
+//    - add 0000.0000.0005.00-00 to the SSN list of eth-rt5
+//    - add 0000.0000.0005.00-00 to the SRM list of eth-rt4
+//    - remove the hostname mapping for 0000.0000.0005
+//    - transition the SPF Delay FSM state from "quiet" to "short-wait"
+//    - send an "lsp-received" YANG notification
+//
+// Input:
+//  * Protocol: SPF_TIMER expiration for L2
+// Output:
+//  * Northbound:
+//    - remove rt5's local networks from the local RIB
+//    - update all routes in the local RIB to use eth-rt4 instead of eth-rt5
+//  * Southbound:
+//    - uninstall rt5's local networks
+//    - reinstall all routes using eth-rt4 instead of eth-rt5
+#[tokio::test]
+async fn pdu_lsp_expiration1() {
+    run_test::<Instance>("pdu-lsp-expiration1", "topo2-1", "rt6").await;
+}
+
+// Input:
+//  * Protocol: received an LSP (0000.0000.0005.00-00) from eth-rt5
+//    containing a new value ("rt-500") for the hostname TLV
+// Output:
+//  * Protocol: send LSP 0000.0000.0005.00-00 to eth-rt5
+//  * Northbound:
+//    - update the dynamic-hostname TLV in 0000.0000.0005.00-00 with the new
+//      value
+//    - update the hostname mapping for 0000.0000.0005 with the new value
+//    - add 0000.0000.0005.00-00 to the SSN list of eth-rt5
+//    - add 0000.0000.0005.00-00 to the SRM list of eth-rt4
+//    - transition the SPF Delay FSM state from "quiet" to "short-wait"
+//    - send an "lsp-received" YANG notification
+//
+// Input:
+//  * Protocol: received an LSP (0000.0000.0005.00-00) from eth-rt5
+//    removing the hostname TLV
+// Output:
+//  * Protocol: send LSP 0000.0000.0005.00-00 to eth-rt5
+//  * Northbound:
+//    - remove the dynamic-hostname TLV in 0000.0000.0005.00-00
+//    - remove the hostname mapping for 0000.0000.0005
+//    - send an "lsp-received" YANG notification
+#[tokio::test]
+async fn pdu_lsp_hostname1() {
+    run_test::<Instance>("pdu-lsp-hostname1", "topo2-1", "rt6").await;
+}
+
+// Input:
+//  * Protocol: received an LSP (0000.0000.0005.00-00) from eth-rt5
+//    with the Overload bit set
+// Output:
+//  * Protocol: send LSP 0000.0000.0005.00-00 to eth-rt4
+//  * Northbound:
+//    - update 0000.0000.0005.00-00 with the Overload bit set
+//    - add 0000.0000.0005.00-00 to the SSN list of eth-rt5
+//    - add 0000.0000.0005.00-00 to the SRM list of eth-rt4
+//    - transition the SPF Delay FSM state from "quiet" to "short-wait"
+//    - send an "lsp-received" YANG notification
+//
+// Input:
+//  * Protocol: SPF_TIMER expiration for L2
+// Output:
+//  * Northbound: update all routes in the local RIB to use eth-rt5 instead of
+//    eth-rt4
+//  * Southbound: reinstall all routes using eth-rt5 instead of eth-rt4
+#[tokio::test]
+async fn pdu_lsp_overload1() {
+    run_test::<Instance>("pdu-lsp-overload1", "topo2-1", "rt6").await;
+}
+
+// Input:
+//  * Protocol: received a self-originated LSP (0000.0000.0006.00-01) from
+//    eth-rt4 that doesn't exist in the database
+// Output:
+//  * Protocol: send LSP 0000.0000.0006.00-01 with zero remaining lifetime to
+//    all adjacencies
+//  * Northbound:
+//    - add 0000.0000.0006.00-01 to the SRM list of all adjacencies
+//    - send an "lsp-received" YANG notification
+//    - send an "own-lsp-purge" YANG notification
+#[tokio::test]
+async fn pdu_lsp_self_orig1() {
+    run_test::<Instance>("pdu-lsp-self-orig1", "topo2-1", "rt6").await;
+}
+
+// Input:
+//  * Protocol: received a self-originated LSP (0000.0000.0006.00-00) from
+//    eth-rt4 that exists in the database
+// Output:
+//  * Protocol: send LSP 0000.0000.0006.00-00 to all adjacencies
+//  * Northbound:
+//    - add 0000.0000.0006.00-00 to the SRM list of all adjacencies
+//    - send an "lsp-received" YANG notification
+#[tokio::test]
+async fn pdu_lsp_self_orig2() {
+    run_test::<Instance>("pdu-lsp-self-orig2", "topo2-1", "rt6").await;
 }
 
 // Input:
@@ -174,8 +435,10 @@ async fn pdu_psnp6() {
 }
 
 // Input:
-//  * Protocol: received a PSNP with invalid maximum area addresses (4)
-// Output: no changes
+//  * Protocol: received an L1 PSNP with invalid maximum area addresses
+//    value (4)
+// Output:
+//  * Northbound: send a "max-area-addresses-mismatch" YANG notification
 #[tokio::test]
 async fn pdu_psnp_error1() {
     run_test::<Instance>("pdu-psnp-error1", "topo2-2", "rt6").await;
@@ -278,6 +541,30 @@ async fn nb_config_af1() {
 #[tokio::test]
 async fn nb_config_af2() {
     run_test::<Instance>("nb-config-af2", "topo2-1", "rt1").await;
+}
+
+// Input:
+//  * Northbound: configure to ignore the attached bit in L1 LSPs
+// Output:
+//  * Northbound: remove IPv4 and IPv6 default routes from the RIB
+//  * Southbound: uninstall the IPv4 and IPv6 default routes
+#[tokio::test]
+async fn nb_config_att_ignore1() {
+    run_test::<Instance>("nb-config-att-ignore1", "topo1-2", "rt7").await;
+}
+
+// Input:
+//  * Northbound: configure to suppress the ATT bit in L1 LSPs
+// Output:
+//  * Protocol: send an updated local LSP to 0000.0000.0007
+//  * Northbound:
+//    - unset the "lsp-attached-default-metric-flag" flag in the local LSP
+//    - add the local LSP to the SRM list of the 0000.0000.0007 adjacency
+//    - transition the SPF Delay FSM state from "quiet" to "short-wait"
+//    - send an "lsp-generation" YANG notification
+#[tokio::test]
+async fn nb_config_att_suppress1() {
+    run_test::<Instance>("nb-config-att-suppress1", "topo1-2", "rt6").await;
 }
 
 // Input:

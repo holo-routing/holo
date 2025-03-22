@@ -1,1 +1,1 @@
-{"NetRxPdu":{"iface_key":{"Value":"eth-rt4"},"pdu":{"Ok":{"Snp":{"hdr":{"pdu_type":"PsnpL2","max_area_addrs":4},"source":{"system_id":[0,0,0,0,0,4],"pseudonode":0},"summary":null,"tlvs":{}}}}}}
+{"NetRxPdu":{"iface_key":{"Value":"eth-rt4"},"pdu":{"Ok":{"Snp":{"hdr":{"pdu_type":"PsnpL1","max_area_addrs":4},"source":{"system_id":[0,0,0,0,0,4],"pseudonode":0},"summary":null,"tlvs":{}}}}}}

@@ -1,0 +1,1 @@
+{"NetTxPdu":{"pdu":{"Snp":{"hdr":{"pdu_type":"PsnpL2","max_area_addrs":0},"source":{"system_id":[0,0,0,0,0,4],"pseudonode":0},"summary":null,"tlvs":{"lsp_entries":[{"list":[{"rem_lifetime":0,"lsp_id":{"system_id":[0,0,0,0,0,9],"pseudonode":0,"fragment":0}}]}]}}},"ifindex":5,"dst":"AllIss"}}

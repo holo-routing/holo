@@ -1,0 +1,314 @@
+{
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-isis:isis",
+          "name": "test",
+          "ietf-isis:isis": {
+            "spf-control": {
+              "ietf-spf-delay": {
+                "holo-isis:level": [
+                  {
+                    "level": 1,
+                    "current-state": "short-wait"
+                  }
+                ]
+              }
+            },
+            "hostnames": {
+              "hostname": [
+                {
+                  "system-id": "0000.0000.0006",
+                  "hostname": "rt6"
+                },
+                {
+                  "system-id": "0000.0000.0007",
+                  "hostname": "rt7"
+                }
+              ]
+            },
+            "database": {
+              "levels": [
+                {
+                  "level": 1,
+                  "lsp": [
+                    {
+                      "lsp-id": "0000.0000.0006.00-00",
+                      "attributes": {
+                        "lsp-flags": [
+                          "lsp-l2-system-flag",
+                          "lsp-l1-system-flag"
+                        ]
+                      },
+                      "ipv4-addresses": [
+                        "6.6.6.6",
+                        "10.0.4.6",
+                        "10.0.6.6"
+                      ],
+                      "ipv6-addresses": [
+                        "2001:db8:1000::6",
+                        "fc00:0:0:4::6",
+                        "fc00:0:0:6::6"
+                      ],
+                      "protocol-supported": [
+                        204,
+                        142
+                      ],
+                      "dynamic-hostname": "rt6",
+                      "extended-is-neighbor": {
+                        "neighbor": [
+                          {
+                            "neighbor-id": "0000.0000.0007.00",
+                            "instances": {
+                              "instance": [
+                                {
+                                  "id": 0,
+                                  "metric": 10
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      "extended-ipv4-reachability": {
+                        "prefixes": [
+                          {
+                            "up-down": false,
+                            "ip-prefix": "6.6.6.6",
+                            "prefix-len": 32,
+                            "metric": 10
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "10.0.4.0",
+                            "prefix-len": 24,
+                            "metric": 10
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "10.0.6.0",
+                            "prefix-len": 24,
+                            "metric": 10
+                          }
+                        ]
+                      },
+                      "ipv6-reachability": {
+                        "prefixes": [
+                          {
+                            "up-down": false,
+                            "ip-prefix": "2001:db8:1000::6",
+                            "prefix-len": 128,
+                            "metric": 10
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "fc00:0:0:4::",
+                            "prefix-len": 64,
+                            "metric": 10
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "fc00:0:0:6::",
+                            "prefix-len": 64,
+                            "metric": 10
+                          }
+                        ]
+                      },
+                      "holo-isis:area-addresses": [
+                        "49.0003"
+                      ],
+                      "holo-isis:lsp-buffer-size": 1492
+                    },
+                    {
+                      "lsp-id": "0000.0000.0007.00-00",
+                      "attributes": {
+                        "lsp-flags": [
+                          "lsp-l1-system-flag"
+                        ]
+                      },
+                      "ipv4-addresses": [
+                        "7.7.7.7",
+                        "10.0.6.7"
+                      ],
+                      "ipv6-addresses": [
+                        "2001:db8:1000::7",
+                        "fc00:0:0:6::7"
+                      ],
+                      "protocol-supported": [
+                        204,
+                        142
+                      ],
+                      "dynamic-hostname": "rt7",
+                      "extended-is-neighbor": {
+                        "neighbor": [
+                          {
+                            "neighbor-id": "0000.0000.0006.00",
+                            "instances": {
+                              "instance": [
+                                {
+                                  "id": 0,
+                                  "metric": 10
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      "extended-ipv4-reachability": {
+                        "prefixes": [
+                          {
+                            "up-down": false,
+                            "ip-prefix": "7.7.7.7",
+                            "prefix-len": 32,
+                            "metric": 10
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "10.0.6.0",
+                            "prefix-len": 24,
+                            "metric": 10
+                          }
+                        ]
+                      },
+                      "ipv6-reachability": {
+                        "prefixes": [
+                          {
+                            "up-down": false,
+                            "ip-prefix": "2001:db8:1000::7",
+                            "prefix-len": 128,
+                            "metric": 10
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "fc00:0:0:6::",
+                            "prefix-len": 64,
+                            "metric": 10
+                          }
+                        ]
+                      },
+                      "holo-isis:area-addresses": [
+                        "49.0003"
+                      ],
+                      "holo-isis:lsp-buffer-size": 1492
+                    }
+                  ]
+                }
+              ]
+            },
+            "local-rib": {
+              "route": [
+                {
+                  "prefix": "6.6.6.6/32",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.6.6",
+                        "outgoing-interface": "eth-rt6"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "level": 1
+                },
+                {
+                  "prefix": "7.7.7.7/32",
+                  "metric": 10,
+                  "level": 1
+                },
+                {
+                  "prefix": "10.0.4.0/24",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.6.6",
+                        "outgoing-interface": "eth-rt6"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "level": 1
+                },
+                {
+                  "prefix": "10.0.6.0/24",
+                  "metric": 10,
+                  "level": 1
+                },
+                {
+                  "prefix": "2001:db8:1000::6/128",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "fe80::949c:97ff:fe98:3d4e",
+                        "outgoing-interface": "eth-rt6"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "level": 1
+                },
+                {
+                  "prefix": "2001:db8:1000::7/128",
+                  "metric": 10,
+                  "level": 1
+                },
+                {
+                  "prefix": "fc00:0:0:4::/64",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "fe80::949c:97ff:fe98:3d4e",
+                        "outgoing-interface": "eth-rt6"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "level": 1
+                },
+                {
+                  "prefix": "fc00:0:0:6::/64",
+                  "metric": 10,
+                  "level": 1
+                }
+              ]
+            },
+            "interfaces": {
+              "interface": [
+                {
+                  "name": "eth-rt6",
+                  "adjacencies": {
+                    "adjacency": [
+                      {
+                        "neighbor-sys-type": "level-all",
+                        "neighbor-sysid": "0000.0000.0006",
+                        "usage": "level-1",
+                        "state": "up"
+                      }
+                    ]
+                  },
+                  "holo-isis:state": "up",
+                  "holo-isis:circuit-id": 0,
+                  "holo-isis-dev:ssn": {
+                    "level": [
+                      {
+                        "level": 1,
+                        "lsp-id": [
+                          "0000.0000.0006.00-00"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "lo",
+                  "holo-isis:state": "up",
+                  "holo-isis:circuit-id": 0
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

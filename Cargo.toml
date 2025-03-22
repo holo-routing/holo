@@ -74,7 +74,7 @@ sha1 = "0.10"
 sha2 = "0.10"
 similar = "2.0"
 smallvec = { version = "1.11", features = ["serde"] }
-socket2 = { version = "0.4", features = ["all"] }
+socket2 = { version = "0.5", features = ["all"] }
 tokio = { version = "1.0", features = ["full"] }
 tonic = { version = "0.12", features = ["tls"] }
 tonic-build = "0.12"

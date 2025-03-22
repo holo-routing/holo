@@ -45,7 +45,7 @@ pub(crate) fn socket_vrrp_tx(
         socket.set_nonblocking(true)?;
         socket.set_reuse_address(true)?;
         socket.set_multicast_ifindex_v4(mvlan.system.ifindex.unwrap())?;
-        socket.set_header_included(true)?;
+        socket.set_header_included_v4(true)?;
         socket.set_multicast_ttl_v4(255)?;
         socket.set_tos(libc::IPTOS_PREC_INTERNETCONTROL as u32)?;
         capabilities::raise(|| {

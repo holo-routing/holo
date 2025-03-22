@@ -118,6 +118,22 @@ impl LspEntry {
 
 // ===== helper functions =====
 
+// Builds the local LSP.
+//
+// This function builds all required TLVs based on the local configuration,
+// interface state, and other relevant data. The TLVs are then split into
+// as many fragments as needed.
+//
+// Whenever a change occurs, all fragments are rebuilt from scratch. This is a
+// simple and reliable strategy that yields consistent results. However, when
+// multiple fragments exist, even a minor change may require multiple fragments
+// to be rebuilt, which can cause unnecessary churn in the network due to LSP
+// flooding.
+//
+// A more efficient strategy would be to manage LSP fragments independently
+// so that small changes, such as adding or removing an IS adjacency, affect
+// only a single fragment. This, however, would come at the cost of increased
+// code complexity.
 fn lsp_build(
     instance: &mut InstanceUpView<'_>,
     arenas: &InstanceArenas,
@@ -461,6 +477,7 @@ fn lsp_build_fragments(
     fragments
 }
 
+// Propagates L1 IP reachability to L2 for inter-area routing.
 fn lsp_propagate_l1_to_l2(
     instance: &mut InstanceUpView<'_>,
     arenas: &InstanceArenas,

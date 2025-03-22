@@ -374,7 +374,12 @@ pub(crate) fn fsm(
 
 // ===== helper functions =====
 
-// This is the SPF main function.
+// Main function for SPF computation.
+//
+// Based on the LSDB changes that triggered SPF, either a full or partial run is
+// performed. A full run is necessary when topological changes are detected, and
+// involves recomputing the shortest-path tree (SPT). Otherwise, a partial run
+// is sufficient, and the SPT recalculation is skipped.
 fn compute_spf(
     level: LevelNumber,
     instance: &mut InstanceUpView<'_>,
@@ -438,6 +443,13 @@ fn compute_spf(
 }
 
 // Computes the shortest-path tree.
+//
+// According to the ISO specification, the algorithm should begin by pre-loading
+// the candidate list (TENT) with the local adjacency database. However, in this
+// implementation, the local adjacency information is fetched directly from the
+// local LSP instead. This is done to ensure that the algorithm can be run with
+// any node as the root, which will be required later for implementing the
+// TI-LFA feature.
 fn compute_spt(
     level: LevelNumber,
     instance: &InstanceUpView<'_>,

@@ -38,5 +38,6 @@ fn test_encode_pdu1() {
 #[test]
 fn test_decode_pdu1() {
     let (ref bytes, ref pdu) = *PDU1;
-    IPV4_CXT.with(|cxt| test_decode_pdu(cxt, bytes, pdu));
+    let ref cxt = *IPV4_CXT;
+    test_decode_pdu(cxt, bytes, pdu);
 }

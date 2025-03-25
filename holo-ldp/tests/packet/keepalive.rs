@@ -16,5 +16,6 @@ fn test_encode_keepalive() {
 #[test]
 fn test_decode_keepalive() {
     let (ref bytes, ref msg) = *KEEPALIVE_MSG1;
-    IPV4_CXT.with(|cxt| test_decode_msg(cxt, bytes, msg));
+    let ref cxt = *IPV4_CXT;
+    test_decode_msg(cxt, bytes, msg);
 }

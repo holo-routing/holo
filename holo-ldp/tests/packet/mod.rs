@@ -20,26 +20,25 @@ use const_addrs::{ip, ip4, ip6, net};
 use holo_ldp::packet::*;
 use holo_protocol::assert_eq_hex;
 
-thread_local! {
-    static IPV4_CXT: DecodeCxt = DecodeCxt {
-        pkt_info: PacketInfo {
-            src_addr: ip!("1.1.1.1"),
-            multicast: None,
-        },
-        pdu_max_len: Pdu::DFLT_MAX_LEN,
-        validate_pdu_hdr: None,
-        validate_msg_hdr: None,
-    };
-    static IPV6_CXT: DecodeCxt = DecodeCxt {
-        pkt_info: PacketInfo {
-            src_addr: ip!("2001:db8:1000::1"),
-            multicast: None,
-        },
-        pdu_max_len: Pdu::DFLT_MAX_LEN,
-        validate_pdu_hdr: None,
-        validate_msg_hdr: None,
-    };
-}
+const IPV4_CXT: DecodeCxt = DecodeCxt {
+    pkt_info: PacketInfo {
+        src_addr: ip!("1.1.1.1"),
+        multicast: None,
+    },
+    pdu_max_len: Pdu::DFLT_MAX_LEN,
+    validate_pdu_hdr: None,
+    validate_msg_hdr: None,
+};
+
+const IPV6_CXT: DecodeCxt = DecodeCxt {
+    pkt_info: PacketInfo {
+        src_addr: ip!("2001:db8:1000::1"),
+        multicast: None,
+    },
+    pdu_max_len: Pdu::DFLT_MAX_LEN,
+    validate_pdu_hdr: None,
+    validate_msg_hdr: None,
+};
 
 //
 // Helper functions.

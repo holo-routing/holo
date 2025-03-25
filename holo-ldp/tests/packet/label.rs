@@ -66,7 +66,7 @@ fn test_encode_label_mapping1() {
 #[test]
 fn test_decode_label_mapping1() {
     let (ref bytes, ref msg) = *LABEL_MAPPING_MSG1;
-    IPV4_CXT.with(|cxt| test_decode_msg(cxt, bytes, msg));
+    test_decode_msg(&IPV4_CXT, bytes, msg);
 }
 
 #[test]
@@ -78,7 +78,7 @@ fn test_encode_label_mapping2() {
 #[test]
 fn test_decode_label_mapping2() {
     let (ref bytes, ref msg) = *LABEL_MAPPING_MSG2;
-    IPV4_CXT.with(|cxt| test_decode_msg(cxt, bytes, msg));
+    test_decode_msg(&IPV4_CXT, bytes, msg);
 }
 
 #[test]
@@ -90,5 +90,5 @@ fn test_encode_label_request1() {
 #[test]
 fn test_decode_label_request1() {
     let (ref bytes, ref msg) = *LABEL_REQUEST_MSG1;
-    IPV4_CXT.with(|cxt| test_decode_msg(cxt, bytes, msg));
+    test_decode_msg(&IPV4_CXT, bytes, msg);
 }

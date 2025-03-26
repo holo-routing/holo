@@ -19,7 +19,7 @@ use holo_utils::ip::AddressFamily;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::{Receiver, Sender};
-use ipnetwork::Ipv4Network;
+use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 
 use crate::error::Error;
@@ -34,8 +34,10 @@ pub struct Interface {
     pub name: String,
     // Interface system data.
     pub system: InterfaceSys,
-    // Interface VRRP instances.
-    pub instances: BTreeMap<u8, Instance>,
+    // Interface IPv4 VRRP instances.
+    pub vrrp_ipv4_instances: BTreeMap<u8, Instance>,
+    // Interface IPv6 VRRP instances.
+    pub vrrp_ipv6_instances: BTreeMap<u8, Instance>,
     // Global statistics.
     pub statistics: Statistics,
     // Tx channels.
@@ -50,8 +52,8 @@ pub struct InterfaceSys {
     pub flags: InterfaceFlags,
     // Interface index.
     pub ifindex: Option<u32>,
-    // Interface IPv4 addresses.
-    pub addresses: BTreeSet<Ipv4Network>,
+    // Interface IP addresses.
+    pub addresses: BTreeSet<IpNetwork>,
     // interface MAC Address
     pub mac_address: [u8; 6],
 }
@@ -95,8 +97,13 @@ impl Interface {
     pub(crate) fn get_instance(
         &mut self,
         vrid: u8,
+        af: AddressFamily,
     ) -> Option<(InterfaceView<'_>, &mut Instance)> {
-        self.instances.get_mut(&vrid).map(|instance| {
+        let instances = match af {
+            AddressFamily::Ipv4 => &mut self.vrrp_ipv4_instances,
+            AddressFamily::Ipv6 => &mut self.vrrp_ipv6_instances,
+        };
+        instances.get_mut(&vrid).map(|instance| {
             (
                 InterfaceView {
                     name: &self.name,
@@ -121,7 +128,9 @@ impl Interface {
                 tx: &self.tx,
                 shared: &self.shared,
             },
-            self.instances.values_mut(),
+            self.vrrp_ipv4_instances
+                .values_mut()
+                .chain(self.vrrp_ipv6_instances.values_mut()),
         )
     }
 
@@ -153,7 +162,8 @@ impl ProtocolInstance for Interface {
         Interface {
             name,
             system: Default::default(),
-            instances: Default::default(),
+            vrrp_ipv4_instances: Default::default(),
+            vrrp_ipv6_instances: Default::default(),
             statistics: Default::default(),
             tx,
             shared,
@@ -162,7 +172,7 @@ impl ProtocolInstance for Interface {
 
     async fn init(&mut self) {
         // Request system information about all interfaces.
-        self.tx.ibus.interface_sub(None, Some(AddressFamily::Ipv4));
+        self.tx.ibus.interface_sub(None, None);
     }
 
     async fn process_ibus_msg(&mut self, msg: IbusMsg) {
@@ -179,7 +189,7 @@ impl ProtocolInstance for Interface {
             }
             // Master down timer.
             ProtocolInputMsg::MasterDownTimer(msg) => {
-                events::handle_master_down_timer(self, msg.vrid)
+                events::handle_master_down_timer(self, msg.vrid, msg.version)
             }
         } {
             error.log();

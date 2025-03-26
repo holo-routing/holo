@@ -190,6 +190,13 @@ pub trait SocketAddrKind<I: IpAddrKind>:
 // ===== impl AddressFamily =====
 
 impl AddressFamily {
+    pub fn addr_len(&self) -> usize {
+        match self {
+            AddressFamily::Ipv4 => Ipv4Addr::LENGTH,
+            AddressFamily::Ipv6 => Ipv6Addr::LENGTH,
+        }
+    }
+
     pub fn max_prefixlen(&self) -> u8 {
         match self {
             AddressFamily::Ipv4 => Ipv4Network::MAX_PREFIXLEN,

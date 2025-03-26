@@ -7,18 +7,22 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use std::net::Ipv4Addr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::{BytesExt, BytesMutExt};
+use holo_utils::ip::AddressFamily;
+use holo_utils::socket::TTL_MAX;
 use internet_checksum::Checksum;
 use serde::{Deserialize, Serialize};
+
+use crate::instance::Version;
 
 // Type aliases.
 pub type DecodeResult<T> = Result<T, DecodeError>;
 
 //
-// VRRP Packet Format.
+// VRRP v2 Packet Format.
 //
 //  0                   1                   2                   3
 //  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -40,21 +44,37 @@ pub type DecodeResult<T> = Result<T, DecodeError>;
 // |                     Authentication Data (2)                   |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
+// VRRP v3 Packet Format
+// 0                   1                   2                   3
+// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |Version| Type  | Virtual Rtr ID|   Priority    |IPvX Addr Count|
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |Reserve| Max Advertise Interval|          Checksum             |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |                                                               |
+// +                                                               +
+// |                       IPvX Address(es)                        |
+// +                                                               +
+// +                                                               +
+// +                                                               +
+// +                                                               +
+// |                                                               |
+// +                                                               +
+// |                                                               |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct VrrpHdr {
-    pub version: u8,
+    pub version: Version,
     pub hdr_type: u8,
     pub vrid: u8,
     pub priority: u8,
     pub count_ip: u8,
-    pub auth_type: u8,
-    pub adver_int: u8,
+    pub adver_int: u16,
     pub checksum: u16,
-    pub ip_addresses: Vec<Ipv4Addr>,
-    // The following two are only used for backward compatibility.
-    pub auth_data: u32,
-    pub auth_data2: u32,
+    pub ip_addresses: Vec<IpAddr>,
 }
 
 //
@@ -95,6 +115,42 @@ pub struct Ipv4Hdr {
     pub padding: Option<u8>,
 }
 
+// IPv6 packet header
+//
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |Version| Traffic Class |           Flow Label                  |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |         Payload Length        |  Next Header  |   Hop Limit   |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |                                                               |
+// +                                                               +
+// |                                                               |
+// +                         Source Address                        +
+// |                                                               |
+// +                                                               +
+// |                                                               |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |                                                               |
+// +                                                               +
+// |                                                               |
+// +                      Destination Address                      +
+// |                                                               |
+// +                                                               +
+// |                                                               |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct Ipv6Hdr {
+    pub version: u8,
+    pub traffic_class: u8,
+    pub flow_label: u32,
+    pub payload_length: u16,
+    pub next_header: u8,
+    pub hop_limit: u8,
+    pub source_address: Ipv6Addr,
+    pub destination_address: Ipv6Addr,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct EthernetHdr {
@@ -117,88 +173,182 @@ pub struct ArpHdr {
     pub target_proto_address: Ipv4Addr,
 }
 
+// Headers for VRRP packets with IPv4 headers.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
-pub struct VrrpPacket {
+pub struct Vrrp4Packet {
     pub ip: Ipv4Hdr,
     pub vrrp: VrrpHdr,
+}
+
+// Headers for VRRP packets with IPv6 headers.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct Vrrp6Packet {
+    pub ip: Ipv6Hdr,
+    pub vrrp: VrrpHdr,
+}
+
+// Neighbor Advertisement Packet (ICMPV6 + NA fields).
+//
+//   0                   1                   2                   3
+//   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |     Type      |     Code      |          Checksum             |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |R|S|O|                     Reserved                            |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |                                                               |
+//  +                                                               +
+//  |                                                               |
+//  +                       Target Address                          +
+//  |                                                               |
+//  +                                                               +
+//  |                                                               |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |   Options ...
+//  +-+-+-+-+-+-+-+-+-+-+-+-
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct NeighborAdvertisement {
+    pub icmp_type: u8,
+    pub code: u8,
+    pub checksum: u16,
+    pub r: u8,
+    pub s: u8,
+    pub o: u8,
+    pub reserved: u32,
+    pub target_address: Ipv6Addr,
 }
 
 #[derive(Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub enum DecodeError {
     ChecksumError,
-    PacketLengthError { vrid: u8 },
+    IncompletePacket,
+    PacketLengthError { vrid: u8, version: Version },
+    IpTtlError { ttl: u8 },
+    VersionError { vrid: u8 },
 }
 
 // ===== impl Packet =====
 
 impl VrrpHdr {
-    const MAX_LEN: usize = 96;
-    const MIN_LEN: usize = 16;
-    const MAX_IP_COUNT: usize = 20;
+    // Minimum number of bytes in a VRRP header (either v2 or v3).
+    const MIN_LEN: usize = 8;
+    // Valid VRRP protocol versions.
+    pub const VALID_VERSIONS: [u8; 2] = [2, 3];
+    // Byte offset where the checksum field is located within the VRRP header.
+    pub const CHECKSUM_OFFSET: i32 = 6;
+    // Maximum number of virtual IP addresses allowed in a VRRP advertisement.
+    const MAX_VIRTUAL_IP_COUNT: usize = 20;
 
     // Encodes VRRP packet into a bytes buffer.
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::with_capacity(114);
-        let ver_type = (self.version << 4) | self.hdr_type;
+        let ver_type = (self.version.version() << 4) | self.hdr_type;
         buf.put_u8(ver_type);
         buf.put_u8(self.vrid);
         buf.put_u8(self.priority);
         buf.put_u8(self.count_ip);
-        buf.put_u8(self.auth_type);
-        buf.put_u8(self.adver_int);
-        buf.put_u16(self.checksum);
-        for addr in &self.ip_addresses {
-            buf.put_ipv4(addr);
+
+        match self.version {
+            Version::V2 => {
+                buf.put_u8(0);
+                buf.put_u8(self.adver_int as u8);
+                buf.put_u16(self.checksum);
+                for addr in &self.ip_addresses {
+                    if let IpAddr::V4(ipv4_addr) = addr {
+                        buf.put_ipv4(ipv4_addr);
+                    }
+                }
+                buf.put_u32(0);
+                buf.put_u32(0);
+            }
+            Version::V3(_) => {
+                buf.put_u16(self.adver_int & 0x0FFF);
+                buf.put_u16(self.checksum);
+                for addr in &self.ip_addresses {
+                    buf.put_ip(addr);
+                }
+            }
         }
 
-        buf.put_u32(self.auth_data);
-        buf.put_u32(self.auth_data2);
+        // Generate checksum.
+        if let AddressFamily::Ipv4 = self.version.address_family() {
+            let mut check = Checksum::new();
+            check.add_bytes(&buf);
+            buf[6..8].copy_from_slice(&check.checksum());
+        }
 
-        // generate_checksum
-        let mut check = Checksum::new();
-        check.add_bytes(&buf);
-        buf[6..8].copy_from_slice(&check.checksum());
         buf
     }
 
     // Decodes VRRP packet from a bytes buffer.
-    pub fn decode(data: &[u8]) -> DecodeResult<Self> {
+    pub fn decode(data: &[u8], af: AddressFamily) -> DecodeResult<Self> {
         let pkt_size = data.len();
+        if pkt_size < Self::MIN_LEN {
+            return Err(DecodeError::IncompletePacket);
+        }
 
         let mut buf: Bytes = Bytes::copy_from_slice(data);
         let ver_type = buf.get_u8();
-        let version = ver_type >> 4;
+        let ver = ver_type >> 4;
         let hdr_type = ver_type & 0x0F;
         let vrid = buf.get_u8();
+        let version = match (ver, af) {
+            (2, AddressFamily::Ipv4) => Version::V2,
+            (3, AddressFamily::Ipv4) => Version::V3(AddressFamily::Ipv4),
+            (3, AddressFamily::Ipv6) => Version::V3(AddressFamily::Ipv6),
+            _ => return Err(DecodeError::VersionError { vrid }),
+        };
+        if pkt_size > Self::max_length(version) {
+            return Err(DecodeError::PacketLengthError { vrid, version });
+        }
         let priority = buf.get_u8();
         let count_ip = buf.get_u8();
-        let auth_type = buf.get_u8();
-        let adver_int = buf.get_u8();
-
-        if !(Self::MIN_LEN..=Self::MAX_LEN).contains(&pkt_size)
-            || count_ip as usize > Self::MAX_IP_COUNT
-            || (count_ip * 4) + 16 != pkt_size as u8
-        {
-            return Err(DecodeError::PacketLengthError { vrid });
+        let adver_int;
+        let checksum;
+        let mut ip_addresses = vec![];
+        match version {
+            Version::V2 => {
+                let _auth_type = buf.get_u8();
+                adver_int = buf.get_u8() as u16;
+                checksum = buf.get_u16();
+                for _ in 0..count_ip {
+                    ip_addresses.push(IpAddr::V4(buf.get_ipv4()));
+                }
+                let _auth_data = buf.get_u32();
+                let _auth_data2 = buf.get_u32();
+            }
+            Version::V3(af) => {
+                adver_int = buf.get_u16() & 0x0FFF;
+                checksum = buf.get_u16();
+                for _ in 0..count_ip {
+                    match af {
+                        AddressFamily::Ipv4 => {
+                            ip_addresses.push(IpAddr::V4(buf.get_ipv4()));
+                        }
+                        AddressFamily::Ipv6 => {
+                            ip_addresses.push(IpAddr::V6(buf.get_ipv6()));
+                        }
+                    }
+                }
+            }
         }
 
-        let checksum = buf.get_u16();
-
-        let mut ip_addresses: Vec<Ipv4Addr> = vec![];
-        for _ in 0..count_ip {
-            ip_addresses.push(buf.get_ipv4());
-        }
-
-        let auth_data = buf.get_u32();
-        let auth_data2 = buf.get_u32();
-
-        // Checksum Calculation
-        let mut check = Checksum::new();
-        check.add_bytes(data);
-        if check.checksum() != [0, 0] {
-            return Err(DecodeError::ChecksumError);
+        // Checksum validation.
+        match af {
+            AddressFamily::Ipv4 => {
+                let mut check = Checksum::new();
+                check.add_bytes(data);
+                if check.checksum() != [0, 0] {
+                    return Err(DecodeError::ChecksumError);
+                }
+            }
+            AddressFamily::Ipv6 => {
+                // For IPv6, checksum validation is offloaded to the kernel.
+            }
         }
 
         Ok(Self {
@@ -207,13 +357,16 @@ impl VrrpHdr {
             vrid,
             priority,
             count_ip,
-            auth_type,
             adver_int,
             checksum,
             ip_addresses,
-            auth_data,
-            auth_data2,
         })
+    }
+
+    // Maximum number of bytes in a packet.
+    pub fn max_length(version: Version) -> usize {
+        Self::MIN_LEN
+            + version.address_family().addr_len() * Self::MAX_VIRTUAL_IP_COUNT
     }
 }
 
@@ -269,6 +422,9 @@ impl Ipv4Hdr {
         let offset: u16 = flag_off & 0xFFF;
 
         let ttl = buf.get_u8();
+        if ttl != TTL_MAX {
+            return Err(DecodeError::IpTtlError { ttl });
+        }
         let protocol = buf.get_u8();
         let checksum = buf.get_u16();
 
@@ -309,6 +465,61 @@ impl Ipv4Hdr {
     }
 }
 
+impl Ipv6Hdr {
+    pub fn encode(&self) -> BytesMut {
+        let mut buf = BytesMut::new();
+        let v: u32 = ((self.version as u32) << 28)
+            | ((self.traffic_class as u32) << 20)
+            | self.flow_label;
+
+        buf.put_u32(v);
+        buf.put_u16(self.payload_length);
+        buf.put_u8(self.next_header);
+        buf.put_u8(self.hop_limit);
+        buf.put_ipv6(&self.source_address);
+        buf.put_ipv6(&self.destination_address);
+        buf
+    }
+
+    pub fn pseudo_header(&self) -> BytesMut {
+        let mut buf = BytesMut::new();
+        buf.put_ipv6(&self.source_address);
+        buf.put_ipv6(&self.destination_address);
+        buf.put_u32(self.payload_length as u32);
+        buf.put_u32(self.next_header as u32);
+        buf
+    }
+
+    pub fn decode(data: &[u8]) -> DecodeResult<Self> {
+        let mut buf = Bytes::copy_from_slice(data);
+        // version, traffic, flow_label -> version[4b], traffic[8b], flow_label[20b]
+        let ver_traff_flow = buf.get_u32();
+        let version: u8 = (ver_traff_flow >> 28) as u8;
+        let traffic_class: u8 = ((ver_traff_flow >> 20) & 0x000000FF) as u8;
+        let flow_label: u32 = ver_traff_flow & 0x000FFFFF;
+
+        let payload_length = buf.get_u16();
+        let next_header = buf.get_u8();
+        let hop_limit = buf.get_u8();
+        if hop_limit != TTL_MAX {
+            return Err(DecodeError::IpTtlError { ttl: hop_limit });
+        }
+        let source_address = buf.get_ipv6();
+        let destination_address = buf.get_ipv6();
+
+        Ok(Self {
+            version,
+            traffic_class,
+            flow_label,
+            payload_length,
+            next_header,
+            hop_limit,
+            source_address,
+            destination_address,
+        })
+    }
+}
+
 impl EthernetHdr {
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::new();
@@ -333,7 +544,7 @@ impl EthernetHdr {
     }
 }
 
-impl VrrpPacket {
+impl Vrrp4Packet {
     // maximum size of IP + vrrp header.
     const MAX_LEN: usize = 130;
 
@@ -341,6 +552,37 @@ impl VrrpPacket {
         let mut buf = BytesMut::with_capacity(Self::MAX_LEN);
         buf.put(self.ip.encode());
         buf.put(self.vrrp.encode());
+        buf
+    }
+}
+
+impl Vrrp6Packet {
+    const MAX_LEN: usize = 2944;
+
+    pub fn encode(&self) -> BytesMut {
+        let mut buf = BytesMut::with_capacity(Self::MAX_LEN);
+        buf.put(self.ip.encode());
+        buf.put(self.vrrp.encode());
+        buf
+    }
+}
+
+impl NeighborAdvertisement {
+    const PKT_LEN: usize = 192;
+
+    pub fn encode(&self) -> BytesMut {
+        let mut buf = BytesMut::with_capacity(Self::PKT_LEN);
+        buf.put_u8(self.icmp_type);
+        buf.put_u8(self.code);
+        buf.put_u16(self.checksum);
+
+        let rso_reserved = ((self.r as u32) << 31)
+            | ((self.s as u32) << 30)
+            | ((self.o as u32) << 29)
+            | ((self.reserved) >> 3);
+
+        buf.put_u32(rso_reserved);
+        buf.put_ipv6(&self.target_address);
         buf
     }
 }

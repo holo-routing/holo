@@ -1157,8 +1157,9 @@ fn load_callbacks() -> Callbacks<Instance> {
             let enable = args.dnode.get_bool();
             instance.config.bier.enabled = enable;
 
-            //let event_queue = args.event_queue;
-            // event_queue.insert(Event::BierEnableChange(enable));
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
         .path(isis::bier::bier::advertise::PATH)
         .modify_apply(|instance, args| {

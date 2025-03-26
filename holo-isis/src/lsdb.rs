@@ -16,6 +16,7 @@ use derive_new::new;
 use holo_utils::UnboundedSender;
 use holo_utils::bier::{
     BierEncapId, BierEncapsulationType, BierInBiftId, BiftId,
+    UnderlayProtocolType,
 };
 use holo_utils::ip::{AddressFamily, Ipv4NetworkExt, Ipv6NetworkExt};
 use holo_utils::mpls::Label;
@@ -340,13 +341,21 @@ fn lsp_build_tlvs(
 
                 let mut sub_tlvs: Ipv6ReachSubTlvs = Default::default();
 
-                if instance.config.enabled && instance.config.bier.advertise {
+                // Add BIER Sub-TLV(s) if BIER is enabled and allowed to
+                // advertise
+                if instance.config.bier.enabled
+                    && instance.config.bier.advertise
+                {
                     bier_config
                         .sd_cfg
                         .iter()
                         .filter(|((_, af), sd_cfg)| {
                             af == &AddressFamily::Ipv6
                                 && sd_cfg.bfr_prefix == IpNetwork::V6(prefix)
+                                // Enforce RFC8401 Section 4.2
+                                && sd_cfg.bfr_prefix.prefix() == 128
+                                && sd_cfg.underlay_protocol
+                                    == UnderlayProtocolType::IsIs
                         })
                         .for_each(|((sd_id, _), sd_cfg)| {
                             let bier_encaps = sd_cfg

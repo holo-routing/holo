@@ -7,7 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
@@ -22,7 +22,7 @@ use tracing::{Instrument, debug_span};
 
 use crate::instance::Instance;
 use crate::network;
-use crate::packet::{Vrrp4Packet, Vrrp6Packet};
+use crate::packet::Vrrp4Packet;
 
 //
 // VRRP tasks diagram:
@@ -48,6 +48,8 @@ use crate::packet::{Vrrp4Packet, Vrrp6Packet};
 
 // VRRP inter-task message types.
 pub mod messages {
+    use std::net::IpAddr;
+
     use serde::{Deserialize, Serialize};
 
     use crate::packet::{DecodeError, VrrpHdr};
@@ -58,7 +60,6 @@ pub mod messages {
 
     // Input messages (child task -> main task).
     pub mod input {
-        use std::net::IpAddr;
 
         use super::*;
         use crate::instance::Version;
@@ -86,8 +87,7 @@ pub mod messages {
     pub mod output {
         use super::*;
         use crate::packet::{
-            ArpHdr, EthernetHdr, Ipv6Hdr, NeighborAdvertisement, Vrrp4Packet,
-            Vrrp6Packet,
+            ArpHdr, EthernetHdr, NeighborAdvertisement, Vrrp4Packet,
         };
 
         #[derive(Debug, Serialize)]
@@ -101,7 +101,9 @@ pub mod messages {
                 packet: Vrrp4Packet,
             },
             Vrrp6 {
-                packet: Vrrp6Packet,
+                src_ip: IpAddr,
+                ifindex: u32,
+                packet: VrrpHdr,
             },
             Arp {
                 vrid: u8,
@@ -112,8 +114,6 @@ pub mod messages {
             NAdv {
                 vrid: u8,
                 ifindex: u32,
-                eth_hdr: EthernetHdr,
-                ip_hdr: Ipv6Hdr,
                 nadv_hdr: NeighborAdvertisement,
             },
         }
@@ -255,17 +255,17 @@ pub(crate) fn advertisement_interval4(
 // Advertisement interval for IPv6 packets.
 pub(crate) fn advertisement_interval6(
     instance: &Instance,
-    src_ip: Ipv6Addr,
     net_tx_packetp: &UnboundedSender<NetTxPacketMsg>,
 ) -> IntervalTask {
     #[cfg(not(feature = "testing"))]
     {
-        let packet = Vrrp6Packet {
-            ip: instance.generate_ipv6_packet(src_ip),
-            vrrp: instance.generate_vrrp_packet(),
-        };
+        let packet = instance.generate_vrrp_packet();
+        let src_ip = instance.link_local_address();
+        let ifindex = instance.mvlan.system.ifindex.unwrap();
+
         let adv_sent = instance.state.statistics.adv_sent.clone();
         let net_tx_packetp = net_tx_packetp.clone();
+
         IntervalTask::new(
             Duration::from_secs(instance.config.advertise_interval as u64),
             true,
@@ -275,8 +275,14 @@ pub(crate) fn advertisement_interval6(
                 let net_tx_packetp = net_tx_packetp.clone();
                 async move {
                     adv_sent.fetch_add(1, Ordering::Relaxed);
-                    let msg = NetTxPacketMsg::Vrrp6 { packet };
-                    let _ = net_tx_packetp.send(msg);
+                    if let Some(src_ip) = src_ip {
+                        let msg = NetTxPacketMsg::Vrrp6 {
+                            packet,
+                            src_ip: IpAddr::V6(src_ip),
+                            ifindex,
+                        };
+                        let _ = net_tx_packetp.send(msg);
+                    }
                 }
             },
         )

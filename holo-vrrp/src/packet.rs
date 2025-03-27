@@ -17,6 +17,7 @@ use internet_checksum::Checksum;
 use serde::{Deserialize, Serialize};
 
 use crate::instance::Version;
+use crate::network::ICMP_PROTO_NUMBER;
 
 // Type aliases.
 pub type DecodeResult<T> = Result<T, DecodeError>;
@@ -115,42 +116,6 @@ pub struct Ipv4Hdr {
     pub padding: Option<u8>,
 }
 
-// IPv6 packet header
-//
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// |Version| Traffic Class |           Flow Label                  |
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// |         Payload Length        |  Next Header  |   Hop Limit   |
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// |                                                               |
-// +                                                               +
-// |                                                               |
-// +                         Source Address                        +
-// |                                                               |
-// +                                                               +
-// |                                                               |
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// |                                                               |
-// +                                                               +
-// |                                                               |
-// +                      Destination Address                      +
-// |                                                               |
-// +                                                               +
-// |                                                               |
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[derive(Deserialize, Serialize)]
-pub struct Ipv6Hdr {
-    pub version: u8,
-    pub traffic_class: u8,
-    pub flow_label: u32,
-    pub payload_length: u16,
-    pub next_header: u8,
-    pub hop_limit: u8,
-    pub source_address: Ipv6Addr,
-    pub destination_address: Ipv6Addr,
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct EthernetHdr {
@@ -178,14 +143,6 @@ pub struct ArpHdr {
 #[derive(Deserialize, Serialize)]
 pub struct Vrrp4Packet {
     pub ip: Ipv4Hdr,
-    pub vrrp: VrrpHdr,
-}
-
-// Headers for VRRP packets with IPv6 headers.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[derive(Deserialize, Serialize)]
-pub struct Vrrp6Packet {
-    pub ip: Ipv6Hdr,
     pub vrrp: VrrpHdr,
 }
 
@@ -465,61 +422,6 @@ impl Ipv4Hdr {
     }
 }
 
-impl Ipv6Hdr {
-    pub fn encode(&self) -> BytesMut {
-        let mut buf = BytesMut::new();
-        let v: u32 = ((self.version as u32) << 28)
-            | ((self.traffic_class as u32) << 20)
-            | self.flow_label;
-
-        buf.put_u32(v);
-        buf.put_u16(self.payload_length);
-        buf.put_u8(self.next_header);
-        buf.put_u8(self.hop_limit);
-        buf.put_ipv6(&self.source_address);
-        buf.put_ipv6(&self.destination_address);
-        buf
-    }
-
-    pub fn pseudo_header(&self) -> BytesMut {
-        let mut buf = BytesMut::new();
-        buf.put_ipv6(&self.source_address);
-        buf.put_ipv6(&self.destination_address);
-        buf.put_u32(self.payload_length as u32);
-        buf.put_u32(self.next_header as u32);
-        buf
-    }
-
-    pub fn decode(data: &[u8]) -> DecodeResult<Self> {
-        let mut buf = Bytes::copy_from_slice(data);
-        // version, traffic, flow_label -> version[4b], traffic[8b], flow_label[20b]
-        let ver_traff_flow = buf.get_u32();
-        let version: u8 = (ver_traff_flow >> 28) as u8;
-        let traffic_class: u8 = ((ver_traff_flow >> 20) & 0x000000FF) as u8;
-        let flow_label: u32 = ver_traff_flow & 0x000FFFFF;
-
-        let payload_length = buf.get_u16();
-        let next_header = buf.get_u8();
-        let hop_limit = buf.get_u8();
-        if hop_limit != TTL_MAX {
-            return Err(DecodeError::IpTtlError { ttl: hop_limit });
-        }
-        let source_address = buf.get_ipv6();
-        let destination_address = buf.get_ipv6();
-
-        Ok(Self {
-            version,
-            traffic_class,
-            flow_label,
-            payload_length,
-            next_header,
-            hop_limit,
-            source_address,
-            destination_address,
-        })
-    }
-}
-
 impl EthernetHdr {
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::new();
@@ -556,19 +458,11 @@ impl Vrrp4Packet {
     }
 }
 
-impl Vrrp6Packet {
-    const MAX_LEN: usize = 2944;
-
-    pub fn encode(&self) -> BytesMut {
-        let mut buf = BytesMut::with_capacity(Self::MAX_LEN);
-        buf.put(self.ip.encode());
-        buf.put(self.vrrp.encode());
-        buf
-    }
-}
-
 impl NeighborAdvertisement {
     const PKT_LEN: usize = 192;
+    // Number of bytes in the ipv6 pseudo header
+    const PSEUDO_LENGTH: usize = 40;
+    const PAYLOAD_LENGTH: u32 = 24;
 
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::with_capacity(Self::PKT_LEN);
@@ -583,6 +477,15 @@ impl NeighborAdvertisement {
 
         buf.put_u32(rso_reserved);
         buf.put_ipv6(&self.target_address);
+        buf
+    }
+
+    pub fn pseudo_header(&self) -> BytesMut {
+        let mut buf = BytesMut::with_capacity(Self::PSEUDO_LENGTH);
+        buf.put_ipv6(&self.target_address);
+        buf.put_ipv6(&self.target_address);
+        buf.put_u32(Self::PAYLOAD_LENGTH);
+        buf.put_i32(ICMP_PROTO_NUMBER);
         buf
     }
 }

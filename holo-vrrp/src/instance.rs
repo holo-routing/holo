@@ -25,14 +25,10 @@ use tokio::sync::mpsc;
 use crate::debug::Debug;
 use crate::error::{Error, IoError};
 use crate::interface::{InterfaceSys, InterfaceView};
-use crate::network::{
-    SOLICITATION_BASE_ADDR, VRRP_MULTICAST_ADDR_IPV4, VRRP_MULTICAST_ADDR_IPV6,
-    VRRP_PROTO_NUMBER,
-};
+use crate::network::{VRRP_MULTICAST_ADDR_IPV4, VRRP_PROTO_NUMBER};
 use crate::northbound::configuration::InstanceCfg;
 use crate::packet::{
-    ArpHdr, EthernetHdr, Ipv4Hdr, Ipv6Hdr, NeighborAdvertisement, Vrrp4Packet,
-    Vrrp6Packet, VrrpHdr,
+    ArpHdr, EthernetHdr, Ipv4Hdr, NeighborAdvertisement, Vrrp4Packet, VrrpHdr,
 };
 use crate::tasks::messages::output::NetTxPacketMsg;
 use crate::{network, southbound, tasks};
@@ -237,20 +233,16 @@ impl Instance {
                     }
                 }
                 AddressFamily::Ipv6 => {
-                    if let Some(addr) = interface
-                        .system
-                        .addresses
-                        .iter()
-                        .find_map(|addr| Ipv6Addr::get(addr.ip()))
-                    {
+                    if let Some(src_ip) = self.link_local_address() {
                         let net = self.net.as_ref().unwrap();
-                        let mut pkt = self.generate_vrrp_packet();
-                        pkt.priority = 0;
-                        let packet = Vrrp6Packet {
-                            ip: self.generate_ipv6_packet(addr),
-                            vrrp: pkt,
+                        let ifindex = interface.system.ifindex.unwrap();
+                        let mut packet = self.generate_vrrp_packet();
+                        packet.priority = 0;
+                        let msg = NetTxPacketMsg::Vrrp6 {
+                            packet,
+                            src_ip: src_ip.into(),
+                            ifindex,
                         };
-                        let msg = NetTxPacketMsg::Vrrp6 { packet };
                         let _ = net.net_tx_packetp.send(msg);
                     }
                 }
@@ -357,20 +349,12 @@ impl Instance {
                     }
                 }
                 AddressFamily::Ipv6 => {
-                    let src_addr = interface
-                        .system
-                        .addresses
-                        .iter()
-                        .find_map(|addr| Ipv6Addr::get(addr.ip()));
-                    if let Some(src_addr) = src_addr {
-                        let net = self.net.as_ref().unwrap();
-                        let task = tasks::advertisement_interval6(
-                            self,
-                            src_addr,
-                            &net.net_tx_packetp,
-                        );
-                        self.state.timer = VrrpTimer::AdvTimer(task);
-                    }
+                    let net = self.net.as_ref().unwrap();
+                    let task = tasks::advertisement_interval6(
+                        self,
+                        &net.net_tx_packetp,
+                    );
+                    self.state.timer = VrrpTimer::AdvTimer(task);
                 }
             },
         }
@@ -468,31 +452,18 @@ impl Instance {
         }
     }
 
-    pub(crate) fn generate_ipv6_packet(
-        &self,
-        src_address: Ipv6Addr,
-    ) -> Ipv6Hdr {
-        // Number of Virtual Ipv6 addresses
-        let addr_count = self
-            .config
-            .virtual_addresses
+    // RFC 5798-5.1.2 specifies using the link local
+    // address as the source address when sending out
+    // ipv6 packets. We will use the mvlans link local address
+    pub(crate) fn link_local_address(&self) -> Option<Ipv6Addr> {
+        self.mvlan
+            .system
+            .addresses
             .iter()
-            .filter(|addr| addr.ip().is_ipv6())
-            .count();
-
-        // 384 bytes (40 IP + 8 VRRP ) + (16 * no of ipv6 addresses)
-        let total_length = (48 + (16 * addr_count)) as u16;
-
-        Ipv6Hdr {
-            version: 6,
-            traffic_class: 0x00,
-            flow_label: 0x00,
-            payload_length: total_length,
-            next_header: 112,
-            hop_limit: 255,
-            source_address: src_address,
-            destination_address: *VRRP_MULTICAST_ADDR_IPV6,
-        }
+            .find_map(|addr| match Ipv6Addr::get(addr.ip()) {
+                None => None,
+                Some(addr) => addr.is_unicast_link_local().then_some(addr),
+            })
     }
 
     pub(crate) fn send_vrrp_advertisement(&mut self, src_ip: IpAddr) {
@@ -519,15 +490,18 @@ impl Instance {
                     let net = self.net.as_ref().unwrap();
                     let _ = net.net_tx_packetp.send(msg);
                 }
-                IpAddr::V6(addr) => {
-                    let packet = Vrrp6Packet {
-                        ip: self.generate_ipv6_packet(addr),
-                        vrrp: self.generate_vrrp_packet(),
-                    };
-
-                    let msg = NetTxPacketMsg::Vrrp6 { packet };
-                    let net = self.net.as_ref().unwrap();
-                    let _ = net.net_tx_packetp.send(msg);
+                IpAddr::V6(_) => {
+                    let packet = self.generate_vrrp_packet();
+                    let ifindex = self.mvlan.system.ifindex.unwrap();
+                    if let Some(src_ip) = self.link_local_address() {
+                        let msg = NetTxPacketMsg::Vrrp6 {
+                            packet,
+                            src_ip: src_ip.into(),
+                            ifindex,
+                        };
+                        let net = self.net.as_ref().unwrap();
+                        let _ = net.net_tx_packetp.send(msg);
+                    }
                 }
             },
         };
@@ -568,30 +542,11 @@ impl Instance {
                     let _ = net.net_tx_packetp.send(msg);
                 }
                 IpNetwork::V6(addr) => {
-                    let eth_hdr = EthernetHdr {
-                        dst_mac: self.mvlan.system.mac_address,
-                        src_mac: self.mvlan.system.mac_address,
-                        ethertype: 0x86DD,
-                    };
-                    let ip_hdr = Ipv6Hdr {
-                        version: 6,
-                        traffic_class: 0,
-                        flow_label: 0,
-                        payload_length: 24,
-                        next_header: 58,
-                        hop_limit: 255,
-                        source_address: addr.ip(),
-                        destination_address: generate_solicitated_addr(
-                            addr.ip(),
-                        ),
-                    };
                     let nadv_hdr = self.neighbor_solicitation_packet(addr.ip());
 
                     let msg = NetTxPacketMsg::NAdv {
                         vrid: self.vrid,
                         ifindex: self.mvlan.system.ifindex.unwrap(),
-                        eth_hdr,
-                        ip_hdr,
                         nadv_hdr,
                     };
                     let net = self.net.as_ref().unwrap();
@@ -719,11 +674,4 @@ impl Default for Statistics {
             pkt_length_errors: 0,
         }
     }
-}
-
-// Computes the Solicited-Node multicast address used for Neighbor Discovery.
-pub(crate) fn generate_solicitated_addr(addr: Ipv6Addr) -> Ipv6Addr {
-    let addr_bits: u128 = (addr.to_bits() << 104) >> 104;
-    let solic_addr = SOLICITATION_BASE_ADDR.to_bits() | addr_bits;
-    Ipv6Addr::from(solic_addr)
 }

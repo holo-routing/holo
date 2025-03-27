@@ -50,6 +50,15 @@ pub(crate) fn process_addr_add(interface: &mut Interface, msg: AddressMsg) {
         for instance in instances {
             instance.update(&interface);
         }
+        return;
+    }
+
+    // Check for if it's an mvlan interface whose address has been added.
+    for instance in instances {
+        if instance.mvlan.name == msg.ifname {
+            instance.mvlan.system.addresses.insert(msg.addr);
+            instance.update(&interface);
+        }
     }
 }
 
@@ -60,6 +69,15 @@ pub(crate) fn process_addr_del(interface: &mut Interface, msg: AddressMsg) {
     if msg.ifname == interface.name {
         interface.system.addresses.remove(&msg.addr);
         for instance in instances {
+            instance.update(&interface);
+        }
+        return;
+    }
+
+    // Check for if it's an mvlan interface whose address has been deleted.
+    for instance in instances {
+        if instance.mvlan.name == msg.ifname {
+            instance.mvlan.system.addresses.remove(&msg.addr);
             instance.update(&interface);
         }
     }

@@ -26,6 +26,7 @@ use crate::packet::consts::{
 use crate::packet::error::{DecodeError, DecodeResult};
 #[cfg(feature = "testing")]
 use crate::packet::pdu::serde_lsp_rem_lifetime_filter;
+use crate::packet::subtlvs::prefix::BierInfoSubTlv;
 use crate::packet::{AreaAddr, LanId, LspId, subtlvs};
 
 // TLV header size.
@@ -276,6 +277,7 @@ pub struct Ipv6Reach {
 )]
 #[derive(Deserialize, Serialize)]
 pub struct Ipv6ReachSubTlvs {
+    pub bier: Vec<BierInfoSubTlv>,
     pub unknown: Vec<UnknownTlv>,
 }
 
@@ -1362,6 +1364,13 @@ impl Ipv6ReachTlv {
                     let mut buf_stlv = buf.copy_to_bytes(stlv_len as usize);
                     sub_tlvs_len -= stlv_len;
                     match stlv_etype {
+                        Some(PrefixSubTlvType::BierInfo) => {
+                            let bier = BierInfoSubTlv::decode(
+                                stlv_len,
+                                &mut buf_stlv,
+                            )?;
+                            sub_tlvs.bier.push(bier);
+                        }
                         _ => {
                             // Save unknown Sub-TLV.
                             let value =
@@ -1405,6 +1414,10 @@ impl Ipv6ReachTlv {
             if entry.external {
                 flags |= Self::FLAG_EXTERNAL;
             }
+            let has_subtlvs = !entry.sub_tlvs.bier.is_empty();
+            if has_subtlvs {
+                flags |= Self::FLAG_SUBTLVS;
+            }
             buf.put_u8(flags);
 
             // Encode prefix length.
@@ -1416,6 +1429,21 @@ impl Ipv6ReachTlv {
             buf.put(&entry.prefix.ip().octets()[0..plen_wire]);
 
             // Encode Sub-TLVs.
+            // Enforce RFC5308 Section 2: "If the Sub-TLV bit is set to 0, then
+            // the octets of Sub-TLVs are not present. Otherwise, the bit is 1
+            // and the octet following the prefix will contain the length of the
+            // Sub-TLV portion of the structure."
+            if has_subtlvs {
+                let subtlvs_len_pos = buf.len();
+                buf.put_u8(0);
+
+                for bier_entry in &entry.sub_tlvs.bier {
+                    BierInfoSubTlv::encode(bier_entry, buf);
+                }
+
+                // Rewrite Sub-TLVs length field.
+                buf[subtlvs_len_pos] = (buf.len() - 1 - subtlvs_len_pos) as u8;
+            }
         }
         tlv_encode_end(buf, start_pos);
     }

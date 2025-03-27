@@ -14,9 +14,14 @@ use std::time::Instant;
 use bitflags::bitflags;
 use derive_new::new;
 use holo_utils::UnboundedSender;
+use holo_utils::bier::{
+    BierEncapId, BierEncapsulationType, BierInBiftId, BiftId,
+    UnderlayProtocolType,
+};
 use holo_utils::ip::{AddressFamily, Ipv4NetworkExt, Ipv6NetworkExt};
+use holo_utils::mpls::Label;
 use holo_utils::task::TimeoutTask;
-use ipnetwork::{Ipv4Network, Ipv6Network};
+use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 
 use crate::adjacency::AdjacencyState;
 use crate::collections::{Arena, LspEntryId};
@@ -26,9 +31,12 @@ use crate::interface::{Interface, InterfaceType};
 use crate::northbound::notification;
 use crate::packet::consts::LspFlags;
 use crate::packet::pdu::{Lsp, LspTlvs, Pdu};
+use crate::packet::subtlvs::prefix::{
+    BierEncapSubSubTlv, BierInfoSubTlv, BierSubSubTlv,
+};
 use crate::packet::tlv::{
-    ExtIpv4Reach, ExtIsReach, IpReachTlvEntry, Ipv4Reach, Ipv6Reach, IsReach,
-    MAX_NARROW_METRIC, Nlpid,
+    ExtIpv4Reach, ExtIsReach, IpReachTlvEntry, Ipv4Reach, Ipv6Reach,
+    Ipv6ReachSubTlvs, IsReach, MAX_NARROW_METRIC, Nlpid,
 };
 use crate::packet::{LanId, LevelNumber, LevelType, LspId};
 use crate::spf::{SpfType, VertexId};
@@ -211,6 +219,7 @@ fn lsp_build_tlvs(
     let mut ext_ipv4_reach = BTreeMap::new();
     let mut ipv6_addrs = BTreeSet::new();
     let mut ipv6_reach = BTreeMap::new();
+    let bier_config = &instance.shared.bier_config;
 
     // Add supported protocols.
     if instance.config.is_af_enabled(AddressFamily::Ipv4) {
@@ -329,6 +338,75 @@ fn lsp_build_tlvs(
                 ipv6_addrs.insert(addr.ip());
 
                 let prefix = addr.apply_mask();
+
+                let mut sub_tlvs: Ipv6ReachSubTlvs = Default::default();
+
+                // Add BIER Sub-TLV(s) if BIER is enabled and allowed to
+                // advertise
+                if instance.config.bier.enabled
+                    && instance.config.bier.advertise
+                {
+                    bier_config
+                        .sd_cfg
+                        .iter()
+                        .filter(|((_, af), sd_cfg)| {
+                            af == &AddressFamily::Ipv6
+                                && sd_cfg.bfr_prefix == IpNetwork::V6(prefix)
+                                // Enforce RFC8401 Section 4.2
+                                && sd_cfg.bfr_prefix.prefix() == 128
+                                && sd_cfg.underlay_protocol
+                                    == UnderlayProtocolType::IsIs
+                        })
+                        .for_each(|((sd_id, _), sd_cfg)| {
+                            let bier_encaps = sd_cfg
+                                .encap
+                                .iter()
+                                .filter_map(|((bsl, encap_type), encap)| {
+                                    match encap_type {
+                                        BierEncapsulationType::Mpls => {
+                                            // TODO: where is the label defined?
+                                            Some(BierEncapId::Mpls(Label::new(
+                                                0,
+                                            )))
+                                        }
+                                        _ => match encap.in_bift_id {
+                                            BierInBiftId::Base(id) => Some(id),
+                                            BierInBiftId::Encoding(true) => {
+                                                Some(0)
+                                            }
+                                            _ => None,
+                                        }
+                                        .map(|id| {
+                                            BierEncapId::NonMpls(BiftId::new(
+                                                id,
+                                            ))
+                                        }),
+                                    }
+                                    .map(
+                                        |id| {
+                                            BierSubSubTlv::BierEncapSubSubTlv(
+                                                BierEncapSubSubTlv::new(
+                                                    encap.max_si,
+                                                    (*bsl).into(),
+                                                    id,
+                                                ),
+                                            )
+                                        },
+                                    )
+                                })
+                                .collect::<Vec<BierSubSubTlv>>();
+
+                            let bier = BierInfoSubTlv::new(
+                                sd_cfg.bar,
+                                sd_cfg.ipa,
+                                *sd_id,
+                                sd_cfg.bfr_id,
+                                bier_encaps,
+                            );
+                            sub_tlvs.bier.push(bier);
+                        })
+                }
+
                 ipv6_reach.insert(
                     prefix,
                     Ipv6Reach {
@@ -336,7 +414,7 @@ fn lsp_build_tlvs(
                         up_down: false,
                         external: false,
                         prefix,
-                        sub_tlvs: Default::default(),
+                        sub_tlvs,
                     },
                 );
             }

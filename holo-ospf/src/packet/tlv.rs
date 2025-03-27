@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use bitflags::bitflags;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use derive_new::new;
-use holo_utils::bier::BiftId;
+use holo_utils::bier::{BierEncapId, BiftId};
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid};
@@ -383,22 +383,6 @@ pub struct BierEncapSubSubTlv {
     pub max_si: u8,
     pub id: BierEncapId,
     pub bs_len: u8,
-}
-
-#[derive(Clone, Debug, Eq, new, PartialEq)]
-#[derive(Deserialize, Serialize)]
-pub enum BierEncapId {
-    Mpls(Label),
-    NonMpls(BiftId),
-}
-
-impl BierEncapId {
-    pub fn get(self) -> u32 {
-        match self {
-            Self::Mpls(label) => label.get(),
-            Self::NonMpls(bift_id) => bift_id.get(),
-        }
-    }
 }
 
 #[derive(FromPrimitive, ToPrimitive)]

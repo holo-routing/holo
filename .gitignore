@@ -1,5 +1,4 @@
 target
 **/*.rs.bk
-Cargo.lock
 */rusty-tags.vi
 history.txt

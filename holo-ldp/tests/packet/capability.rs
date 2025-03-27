@@ -24,5 +24,6 @@ fn test_encode_capability1() {
 #[test]
 fn test_decode_capability1() {
     let (ref bytes, ref msg) = *CAPABILITY_MSG1;
-    IPV4_CXT.with(|cxt| test_decode_msg(cxt, bytes, msg));
+    let ref cxt = *IPV4_CXT;
+    test_decode_msg(cxt, bytes, msg);
 }

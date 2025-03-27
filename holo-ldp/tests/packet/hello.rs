@@ -54,7 +54,8 @@ fn test_encode_hello1() {
 #[test]
 fn test_decode_hello1() {
     let (ref bytes, ref msg) = *HELLO_MSG1;
-    IPV4_CXT.with(|cxt| test_decode_msg(cxt, bytes, msg));
+    let ref cxt = *IPV4_CXT;
+    test_decode_msg(cxt, bytes, msg);
 }
 
 #[test]
@@ -66,5 +67,6 @@ fn test_encode_hello2() {
 #[test]
 fn test_decode_hello2() {
     let (ref bytes, ref msg) = *HELLO_MSG2;
-    IPV6_CXT.with(|cxt| test_decode_msg(cxt, bytes, msg));
+    let ref cxt = *IPV6_CXT;
+    test_decode_msg(cxt, bytes, msg);
 }

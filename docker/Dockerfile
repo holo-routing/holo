@@ -11,12 +11,6 @@ RUN apt-get update && \
 
 ARG BUILD_PROFILE=release
 
-# holo-cli
-RUN git clone https://github.com/holo-routing/holo-cli.git /usr/src/holo-cli
-WORKDIR /usr/src/holo-cli
-RUN cargo build --profile $BUILD_PROFILE
-
-# holod
 WORKDIR /usr/src/holo
 COPY . .
 RUN cargo build --profile $BUILD_PROFILE
@@ -24,12 +18,11 @@ RUN cargo build --profile $BUILD_PROFILE
 # Final base
 # ==============================================================================
 
-FROM debian:bookworm-slim
+FROM ghcr.io/holo-routing/holo-cli:latest
 
 RUN apt-get update && \
     apt-get install -y ifupdown \
     iputils-ping \
-    less \
     tcpdump \
   && rm -rf /var/lib/apt/lists/*
 
@@ -44,9 +37,7 @@ RUN echo "alias ipr='ip -4 ro ; ip -6 ro ; ip -M ro'" >> /root/.bashrc
 ARG BUILD_PROFILE=release
 COPY --from=build /usr/src/holo/holo-daemon/holod.toml /etc/holod.toml
 COPY --from=build /usr/src/holo/target/$BUILD_PROFILE/holod /usr/local/sbin/
-COPY --from=build /usr/src/holo-cli/target/$BUILD_PROFILE/holo-cli /usr/local/sbin/
 
 ENV RUST_BACKTRACE=1
 ENV RUST_LOG=holo=debug
-
-CMD ["sh", "-c", "holod 2>> /tmp/holod.err"]
+ENTRYPOINT ["sh", "-c", "holod 2>> /tmp/holod.err"]

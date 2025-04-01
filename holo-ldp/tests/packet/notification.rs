@@ -32,5 +32,5 @@ fn test_encode_notification1() {
 #[test]
 fn test_decode_notification1() {
     let (ref bytes, ref msg) = *NOTIFICATION_MSG1;
-    IPV4_CXT.with(|cxt| test_decode_msg(cxt, bytes, msg));
+    test_decode_msg(&IPV4_CXT, bytes, msg);
 }

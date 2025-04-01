@@ -7,7 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::sync::LazyLock as Lazy;
 
@@ -21,6 +21,7 @@ use holo_northbound::yang::control_plane_protocol::isis;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::AddressFamily;
 use holo_utils::keychain::{Key, Keychains};
+use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
 
@@ -42,6 +43,7 @@ pub enum ListEntry {
     #[default]
     None,
     AddressFamily(AddressFamily),
+    Redistribution(AddressFamily, LevelNumber, Protocol),
     Interface(InterfaceIndex),
     InterfaceAddressFamily(InterfaceIndex, AddressFamily),
 }
@@ -67,6 +69,8 @@ pub enum Event {
     RerunSpf,
     ReinstallRoutes,
     OverloadChange(bool),
+    RedistributeAdd(AddressFamily, Protocol),
+    RedistributeDelete(AddressFamily, LevelNumber, Protocol),
 }
 
 pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
@@ -114,6 +118,7 @@ pub struct BierIsisCfg {
 #[derive(Debug)]
 pub struct AddressFamilyCfg {
     pub enabled: bool,
+    pub redistribution: HashMap<(LevelNumber, Protocol), RedistributionCfg>,
 }
 
 #[derive(Debug)]
@@ -128,6 +133,9 @@ pub enum MetricType {
     Wide,
     Both,
 }
+
+#[derive(Debug, Default)]
+pub struct RedistributionCfg {}
 
 #[derive(Debug)]
 pub struct InterfaceCfg {
@@ -481,6 +489,37 @@ fn load_callbacks() -> Callbacks<Instance> {
             let event_queue = args.event_queue;
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .path(isis::address_families::address_family_list::redistribution::PATH)
+        .create_apply(|instance, args| {
+            let af = args.list_entry.into_address_family().unwrap();
+            let af_cfg = instance.config.afs.get_mut(&af).unwrap();
+
+            let level = args.dnode.get_string_relative("./level").unwrap();
+            let level = LevelNumber::try_from_yang(&level).unwrap();
+            let protocol = args.dnode.get_string_relative("./type").unwrap();
+            let protocol = Protocol::try_from_yang(&protocol).unwrap();
+            af_cfg.redistribution.insert((level, protocol), Default::default());
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::RedistributeAdd(af, protocol));
+        })
+        .delete_apply(|instance, args| {
+            let (af, level, protocol) = args.list_entry.into_redistribution().unwrap();
+            let af_cfg = instance.config.afs.get_mut(&af).unwrap();
+
+            af_cfg.redistribution.remove(&(level, protocol));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::RedistributeDelete(af, level, protocol));
+        })
+        .lookup(|_instance, list_entry, dnode| {
+            let af = list_entry.into_address_family().unwrap();
+            let level = dnode.get_string_relative("./level").unwrap();
+            let level = LevelNumber::try_from_yang(&level).unwrap();
+            let protocol = dnode.get_string_relative("./type").unwrap();
+            let protocol = Protocol::try_from_yang(&protocol).unwrap();
+            ListEntry::Redistribution(af, level, protocol)
         })
         .path(isis::mpls::te_rid::ipv4_router_id::PATH)
         .modify_apply(|instance, args| {
@@ -1359,6 +1398,33 @@ impl Provider for Instance {
                     notification::database_overload(&instance, overload_status);
                 }
             }
+            Event::RedistributeAdd(af, protocol) => {
+                // Subscribe to route redistribution for the given protocol and
+                // address family.
+                self.tx.ibus.route_redistribute_sub(protocol, Some(af));
+            }
+            Event::RedistributeDelete(af, level, protocol) => {
+                // Unsubscribe from route redistribution for the given protocol
+                // and address family.
+                self.tx.ibus.route_redistribute_unsub(protocol, Some(af));
+
+                // Remove redistributed routes.
+                match af {
+                    AddressFamily::Ipv4 => {
+                        let routes = self.system.ipv4_routes.get_mut(level);
+                        routes.retain(|_, route| route.protocol != protocol);
+                    }
+                    AddressFamily::Ipv6 => {
+                        let routes = self.system.ipv6_routes.get_mut(level);
+                        routes.retain(|_, route| route.protocol != protocol);
+                    }
+                }
+
+                // Schedule LSP reorigination.
+                if let Some((mut instance, _)) = self.as_up() {
+                    instance.schedule_lsp_origination(level);
+                }
+            }
         }
     }
 }
@@ -1547,7 +1613,10 @@ impl Default for AddressFamilyCfg {
         let enabled =
             isis::address_families::address_family_list::enabled::DFLT;
 
-        AddressFamilyCfg { enabled }
+        AddressFamilyCfg {
+            enabled,
+            redistribution: Default::default(),
+        }
     }
 }
 

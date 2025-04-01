@@ -10,7 +10,8 @@ use std::net::IpAddr;
 use bitflags::bitflags;
 use derive_new::new;
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
-use holo_utils::southbound::IsisRouteType;
+use holo_utils::protocol::Protocol;
+use holo_utils::southbound::{IsisRouteType, RouteOpaqueAttrs};
 use ipnetwork::IpNetwork;
 
 use crate::collections::{InterfaceIndex, Interfaces};
@@ -46,6 +47,15 @@ pub struct Nexthop {
     pub iface_idx: InterfaceIndex,
     // Nexthop address (`None` for connected routes).
     pub addr: IpAddr,
+}
+
+// Route redistributed from the global RIB.
+#[derive(Clone, Debug)]
+pub struct RouteSys {
+    pub protocol: Protocol,
+    pub metric: u32,
+    pub tag: Option<u32>,
+    pub opaque_attrs: RouteOpaqueAttrs,
 }
 
 // ===== impl Route =====

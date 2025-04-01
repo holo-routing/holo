@@ -18,7 +18,7 @@ use crate::interface::InterfaceType;
 use crate::lsdb::LspLogReason;
 use crate::northbound::configuration::MetricType;
 use crate::packet::consts::LspFlags;
-use crate::packet::{AreaAddr, LanId, LevelType, LspId, SystemId};
+use crate::packet::{AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId};
 use crate::spf;
 use crate::spf::SpfType;
 
@@ -190,6 +190,16 @@ impl ToYang for SpfType {
 }
 
 // ===== TryFromYang implementations =====
+
+impl TryFromYang for LevelNumber {
+    fn try_from_yang(value: &str) -> Option<LevelNumber> {
+        match value {
+            "1" => Some(LevelNumber::L1),
+            "2" => Some(LevelNumber::L2),
+            _ => None,
+        }
+    }
+}
 
 impl TryFromYang for LevelType {
     fn try_from_yang(value: &str) -> Option<LevelType> {

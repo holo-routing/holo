@@ -95,6 +95,31 @@ module holo-isis {
 
   augment "/rt:routing/rt:control-plane-protocols/"
         + "rt:control-plane-protocol/isis:isis/"
+        + "isis:address-families/isis:address-family-list" {
+    list redistribution {
+      key "level type";
+      description
+        "Parameters relating to route redistribution for the address family";
+
+      leaf level {
+        type isis:level-number;
+        description
+          "IS-IS level into which the routes are redistributed.";
+      }
+      leaf type {
+        type identityref {
+          base rt:control-plane-protocol;
+        }
+        description
+          "Type of the control-plane protocol -- an identity
+           derived from the 'control-plane-protocol'
+           base identity.";
+      }
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis/"
         + "isis:interfaces/isis:interface" {
     description
       "IS-IS interface augmentations";

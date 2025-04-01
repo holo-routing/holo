@@ -9,12 +9,16 @@
 
 use std::net::Ipv4Addr;
 
-use holo_utils::southbound::{AddressMsg, InterfaceUpdateMsg};
+use holo_utils::ip::IpNetworkKind;
+use holo_utils::southbound::{
+    AddressMsg, InterfaceUpdateMsg, RouteKeyMsg, RouteMsg,
+};
 use ipnetwork::IpNetwork;
 
 use crate::error::Error;
 use crate::instance::Instance;
 use crate::packet::LevelType;
+use crate::route::RouteSys;
 
 // ===== global functions =====
 
@@ -129,6 +133,90 @@ pub(crate) fn process_addr_del(instance: &mut Instance, msg: AddressMsg) {
 
             // Schedule LSP reorigination.
             instance.schedule_lsp_origination(LevelType::All);
+        }
+    }
+}
+
+pub(crate) fn process_route_add(instance: &mut Instance, msg: RouteMsg) {
+    let prefix = msg.prefix;
+    if !prefix.is_routable() {
+        return;
+    }
+
+    // Return if no configuration exists for the address family.
+    let Some(af_cfg) = instance.config.afs.get(&prefix.address_family()) else {
+        return;
+    };
+
+    // Iterate over levels where redistribution is enabled for this route's
+    // protocol.
+    for level in instance
+        .config
+        .levels()
+        .filter(|level| {
+            af_cfg.redistribution.contains_key(&(*level, msg.protocol))
+        })
+        .collect::<Vec<_>>()
+    {
+        let route = RouteSys {
+            protocol: msg.protocol,
+            metric: msg.metric,
+            tag: msg.tag,
+            opaque_attrs: msg.opaque_attrs,
+        };
+        match prefix {
+            IpNetwork::V4(prefix) => {
+                let routes = instance.system.ipv4_routes.get_mut(level);
+                routes.insert(prefix, route);
+            }
+            IpNetwork::V6(prefix) => {
+                let routes = instance.system.ipv6_routes.get_mut(level);
+                routes.insert(prefix, route);
+            }
+        }
+
+        // Schedule LSP reorigination.
+        if let Some((mut instance, _)) = instance.as_up() {
+            instance.schedule_lsp_origination(level);
+        }
+    }
+}
+
+pub(crate) fn process_route_del(instance: &mut Instance, msg: RouteKeyMsg) {
+    let prefix = msg.prefix;
+    if !prefix.is_routable() {
+        return;
+    }
+
+    // Return if no configuration exists for the address family.
+    let Some(af_cfg) = instance.config.afs.get(&prefix.address_family()) else {
+        return;
+    };
+
+    // Iterate over levels where redistribution is enabled for this route's
+    // protocol.
+    for level in instance
+        .config
+        .levels()
+        .filter(|level| {
+            af_cfg.redistribution.contains_key(&(*level, msg.protocol))
+        })
+        .collect::<Vec<_>>()
+    {
+        match prefix {
+            IpNetwork::V4(prefix) => {
+                let routes = instance.system.ipv4_routes.get_mut(level);
+                routes.remove(&prefix);
+            }
+            IpNetwork::V6(prefix) => {
+                let routes = instance.system.ipv6_routes.get_mut(level);
+                routes.remove(&prefix);
+            }
+        }
+
+        // Schedule LSP reorigination.
+        if let Some((mut instance, _)) = instance.as_up() {
+            instance.schedule_lsp_origination(level);
         }
     }
 }

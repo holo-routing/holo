@@ -34,7 +34,7 @@ pub struct LevelTypeIterator {
 }
 
 // Represents a single IS-IS level.
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
 pub enum LevelNumber {
     L1 = 1,

@@ -1,0 +1,48 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-isis:isis",
+          "name": "test",
+          "ietf-isis:isis": {
+            "address-families": {
+              "address-family-list": [
+                {
+                  "address-family": "ipv6",
+                  "holo-isis:redistribution": [
+                    {
+                      "@": {
+                        "yang:operation": "create"
+                      },
+                      "level": 2,
+                      "type": "ietf-routing:direct"
+                    }
+                  ]
+                },
+                {
+                  "@": {
+                    "yang:operation": "none"
+                  },
+                  "address-family": "ipv4",
+                  "holo-isis:redistribution": [
+                    {
+                      "@": {
+                        "yang:operation": "create"
+                      },
+                      "level": 2,
+                      "type": "ietf-routing:direct"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

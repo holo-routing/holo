@@ -422,6 +422,54 @@ fn lsp_build_tlvs(
         }
     }
 
+    // Add redistributed routes.
+    if instance.config.is_af_enabled(AddressFamily::Ipv4) {
+        for (prefix, route) in instance.system.ipv4_routes.get(level) {
+            let prefix = prefix.apply_mask();
+            if metric_type.is_standard_enabled() {
+                ipv4_external_reach.insert(
+                    prefix,
+                    Ipv4Reach {
+                        up_down: false,
+                        ie_bit: false,
+                        metric: std::cmp::min(route.metric, MAX_NARROW_METRIC)
+                            as u8,
+                        metric_delay: None,
+                        metric_expense: None,
+                        metric_error: None,
+                        prefix,
+                    },
+                );
+            }
+            if metric_type.is_wide_enabled() {
+                ext_ipv4_reach.insert(
+                    prefix,
+                    ExtIpv4Reach {
+                        metric: route.metric,
+                        up_down: false,
+                        prefix,
+                        sub_tlvs: Default::default(),
+                    },
+                );
+            }
+        }
+    }
+    if instance.config.is_af_enabled(AddressFamily::Ipv6) {
+        for (prefix, route) in instance.system.ipv6_routes.get(level) {
+            let prefix = prefix.apply_mask();
+            ipv6_reach.insert(
+                prefix,
+                Ipv6Reach {
+                    metric: route.metric,
+                    up_down: false,
+                    external: true,
+                    prefix,
+                    sub_tlvs: Default::default(),
+                },
+            );
+        }
+    }
+
     // In an L1/L2 router, propagate L1 IP reachability to L2 for inter-area
     // routing.
     if level == LevelNumber::L2 && instance.config.level_type == LevelType::All

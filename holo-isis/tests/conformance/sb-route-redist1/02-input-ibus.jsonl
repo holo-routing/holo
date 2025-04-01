@@ -1,0 +1,2 @@
+{"RouteRedistributeAdd":{"protocol":"direct","prefix":"10.0.255.6/32","distance":0,"metric":0,"tag":null,"nexthops":[{"Interface":{"ifindex":1}}]}}
+{"RouteRedistributeAdd":{"protocol":"direct","prefix":"2001:db8:255::6/128","distance":0,"metric":0,"tag":null,"nexthops":[{"Interface":{"ifindex":1}}]}}

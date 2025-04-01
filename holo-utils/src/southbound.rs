@@ -142,7 +142,7 @@ pub struct LabelUninstallMsg {
 }
 
 // Route opaque attributes.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 #[derive(Deserialize, Serialize)]
 #[derive(EnumAsInner)]
 pub enum RouteOpaqueAttrs {

@@ -1,0 +1,2 @@
+{"RouteRedistributeDel":{"protocol":"direct","prefix":"10.0.255.6/32"}}
+{"RouteRedistributeDel":{"protocol":"direct","prefix":"2001:db8:255::6/128"}}

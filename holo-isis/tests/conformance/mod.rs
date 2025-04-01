@@ -1072,6 +1072,38 @@ async fn sb_hostname_update1() {
 }
 
 // Input:
+//  * Northbound: configure route redistribution for directly connected routes
+//    (IPv4 and IPv6)
+// Output:
+//  * Southbound: subscribe to route redistribution for directly connected
+//    routes (IPv4 and IPv6)
+//
+// Input:
+//  * Southbound: new redistributed routes (10.0.255.6/32 and
+//    2001:db8:255::6/128)
+// Output:
+//  * Protocol: send an updated local LSP to all adjacencies
+//  * Northbound:
+//    - add redistributed routes to the local LSP
+//    - add the local LSP to the SRM list of all adjacencies
+//    - transition the SPF Delay FSM state from "quiet" to "short-wait"
+//    - send an "lsp-generation" YANG notification
+//
+// Input:
+//  * Southbound: redistributed routes removed (10.0.255.6/32 and
+//    2001:db8:255::6/128)
+// Output:
+//  * Protocol: send an updated local LSP to all adjacencies
+//  * Northbound:
+//    - remove redistributed routes from the local LSP
+//    - add the local LSP to the SRM list of all adjacencies
+//    - send an "lsp-generation" YANG notification
+#[tokio::test]
+async fn sb_route_redist1() {
+    run_test::<Instance>("sb-route-redist1", "topo2-1", "rt6").await;
+}
+
+// Input:
 //  * Protocol: point-to-point adjacency on eth-rt4 timed out
 // Output:
 //  * Protocol: send an updated local LSP to the 0000.0000.0005 adjacency

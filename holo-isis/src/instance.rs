@@ -20,7 +20,7 @@ use holo_utils::ibus::IbusMsg;
 use holo_utils::protocol::Protocol;
 use holo_utils::task::TimeoutTask;
 use holo_utils::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
-use ipnetwork::IpNetwork;
+use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use tokio::sync::mpsc;
 
 use crate::adjacency::{Adjacency, AdjacencyState};
@@ -33,7 +33,7 @@ use crate::interface::CircuitIdAllocator;
 use crate::lsdb::{LspEntry, LspLogEntry};
 use crate::northbound::configuration::InstanceCfg;
 use crate::packet::{LevelNumber, LevelType, Levels, SystemId};
-use crate::route::{Route, RouteFlags};
+use crate::route::{Route, RouteFlags, RouteSys};
 use crate::spf::{SpfLogEntry, SpfScheduler, Vertex, VertexId};
 use crate::tasks::messages::input::{
     AdjHoldTimerMsg, DisElectionMsg, LspDeleteMsg, LspOriginateMsg,
@@ -65,6 +65,9 @@ pub struct Instance {
 pub struct InstanceSys {
     // System Router ID.
     pub router_id: Option<Ipv4Addr>,
+    // Redistributed routes.
+    pub ipv4_routes: Levels<BTreeMap<Ipv4Network, RouteSys>>,
+    pub ipv6_routes: Levels<BTreeMap<Ipv6Network, RouteSys>>,
 }
 
 #[derive(Debug)]
@@ -608,6 +611,14 @@ async fn process_ibus_msg(
         // Interface address deletion notification.
         IbusMsg::InterfaceAddressDel(msg) => {
             southbound::rx::process_addr_del(instance, msg);
+        }
+        // Route redistribute update notification.
+        IbusMsg::RouteRedistributeAdd(msg) => {
+            southbound::rx::process_route_add(instance, msg);
+        }
+        // Route redistribute delete notification.
+        IbusMsg::RouteRedistributeDel(msg) => {
+            southbound::rx::process_route_del(instance, msg);
         }
         // Keychain update event.
         IbusMsg::KeychainUpd(keychain) => {

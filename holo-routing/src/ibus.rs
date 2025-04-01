@@ -227,7 +227,7 @@ pub(crate) fn notify_redistribute_add(
         distance: route.distance,
         metric: route.metric,
         tag: route.tag,
-        opaque_attrs: route.opaque_attrs.clone(),
+        opaque_attrs: route.opaque_attrs,
         nexthops: route.nexthops.clone(),
     };
     let msg = IbusMsg::RouteRedistributeAdd(msg);

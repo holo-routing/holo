@@ -8,13 +8,15 @@
 //
 
 use std::io::{IoSlice, IoSliceMut};
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
+use std::net::{
+    IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6,
+};
 use std::ops::Deref;
 use std::os::fd::AsRawFd;
 use std::str::FromStr;
 use std::sync::{Arc, LazyLock as Lazy};
 
-use bytes::{BufMut, Bytes, BytesMut};
+use bytes::{BufMut, Bytes};
 use holo_utils::ip::AddressFamily;
 use holo_utils::socket::{
     AsyncFd, LinkAddrExt, RawSocketExt, Socket, SocketExt,
@@ -22,24 +24,24 @@ use holo_utils::socket::{
 use holo_utils::{Sender, UnboundedReceiver, capabilities};
 use internet_checksum::Checksum;
 use ipnetwork::IpNetwork;
-use libc::{ETH_P_ARP, ETH_P_IPV6};
+use libc::ETH_P_ARP;
 use nix::sys::socket::{self, LinkAddr, SockaddrIn, SockaddrIn6};
 use socket2::{Domain, Protocol, Type};
 use tokio::sync::mpsc::error::SendError;
 
 use crate::debug::Debug;
 use crate::error::IoError;
-use crate::instance::{InstanceMacvlan, generate_solicitated_addr};
+use crate::instance::InstanceMacvlan;
 use crate::interface::InterfaceView;
 use crate::packet::{
-    ArpHdr, EthernetHdr, Ipv6Hdr, NeighborAdvertisement, Vrrp4Packet,
-    Vrrp6Packet, VrrpHdr,
+    ArpHdr, EthernetHdr, NeighborAdvertisement, Vrrp4Packet, VrrpHdr,
 };
 use crate::tasks::messages::input::VrrpNetRxPacketMsg;
 use crate::tasks::messages::output::NetTxPacketMsg;
 
 // VRRP protocol number.
 pub const VRRP_PROTO_NUMBER: i32 = 112;
+pub const ICMP_PROTO_NUMBER: i32 = 58;
 
 // VRRP multicast addressess.
 pub static VRRP_MULTICAST_ADDR_IPV4: Lazy<Ipv4Addr> =
@@ -197,19 +199,23 @@ pub(crate) fn socket_nadv(
     {
         let socket = capabilities::raise(|| {
             Socket::new(
-                Domain::PACKET,
+                Domain::IPV6,
                 Type::RAW,
-                Some(Protocol::from(ETH_P_IPV6)),
+                Some(Protocol::from(ICMP_PROTO_NUMBER)),
             )
         })?;
         socket.set_nonblocking(true)?;
         socket.set_reuse_address(true)?;
+        socket.set_multicast_ifindex_v6(mvlan.system.ifindex.unwrap())?;
+        socket.set_ipv6_tclass(libc::IPTOS_PREC_INTERNETCONTROL)?;
 
         // Compute and join the Solicited-Node multicast address [RFC4291] for
         // solicitated-node multicast address.
         for addr in &mvlan.system.addresses {
-            if let IpNetwork::V6(addr) = addr {
-                let sol_addr = generate_solicitated_addr(addr.ip());
+            if let IpNetwork::V6(addr) = addr
+                && !addr.ip().is_unicast_link_local()
+            {
+                let sol_addr = generate_solicited_addr(addr.ip());
                 socket.join_multicast_v6(
                     &sol_addr,
                     mvlan.system.ifindex.unwrap(),
@@ -260,23 +266,33 @@ async fn send_packet_vrrp4(
 #[cfg(not(feature = "testing"))]
 async fn send_packet_vrrp6(
     socket: &AsyncFd<Socket>,
-    packet: Vrrp6Packet,
+    packet: VrrpHdr,
+    addr: Ipv6Addr,
+    ifindex: u32,
 ) -> Result<usize, IoError> {
-    Debug::PacketTx(&packet.vrrp).log();
+    Debug::PacketTx(&packet).log();
 
     // Encode packet.
-    let buf = packet.vrrp.encode();
+    let buf = packet.encode();
 
     // Send packet.
     let iov = [IoSlice::new(&buf)];
+    let pktinfo = libc::in6_pktinfo {
+        ipi6_addr: libc::in6_addr {
+            s6_addr: addr.octets(),
+        },
+        ipi6_ifindex: ifindex,
+    };
+    let cmsg = [socket::ControlMessage::Ipv6PacketInfo(&pktinfo)];
     let sockaddr: SockaddrIn6 =
-        std::net::SocketAddrV6::new(*VRRP_MULTICAST_ADDR_IPV6, 0, 0, 0).into();
+        std::net::SocketAddrV6::new(*VRRP_MULTICAST_ADDR_IPV6, 0, 0, ifindex)
+            .into();
     socket
         .async_io(tokio::io::Interest::WRITABLE, |socket| {
             socket::sendmsg(
                 socket.as_raw_fd(),
                 &iov,
-                &[],
+                &cmsg,
                 socket::MsgFlags::empty(),
                 Some(&sockaddr),
             )
@@ -321,32 +337,28 @@ async fn send_packet_arp(
 
 #[cfg(not(feature = "testing"))]
 async fn send_packet_nadv(
-    socket: &AsyncFd<Socket>,
+    nadv_socket: &AsyncFd<Socket>,
     vrid: u8,
     ifindex: u32,
-    eth_hdr: EthernetHdr,
-    ip_hdr: Ipv6Hdr,
     adv_hdr: NeighborAdvertisement,
 ) -> Result<usize, IoError> {
-    Debug::NeighborAdvertisementTx(vrid, &ip_hdr.source_address).log();
+    Debug::NeighborAdvertisementTx(vrid, &adv_hdr.target_address).log();
 
     // Collect relevant data for checksum.
     let mut check = Checksum::new();
-    check.add_bytes(&ip_hdr.pseudo_header());
+    check.add_bytes(&adv_hdr.pseudo_header());
     check.add_bytes(&adv_hdr.encode());
 
     // Max size of a neighbor advertisement.
-    let mut buf = BytesMut::with_capacity(526);
-    buf.put(eth_hdr.encode());
-    buf.put(ip_hdr.encode());
-    buf.put(adv_hdr.encode());
-    buf[40..42].copy_from_slice(&check.checksum());
+    let buf = &mut adv_hdr.encode();
+    buf[2..4].copy_from_slice(&check.checksum());
 
     // Send packet.
-    let iov = [IoSlice::new(&buf)];
-    let sockaddr =
-        LinkAddr::new(libc::ETH_P_IPV6 as u16, ifindex, Some(eth_hdr.dst_mac));
-    socket
+    let iov = [IoSlice::new(buf)];
+    let sockaddr: SockaddrIn6 =
+        std::net::SocketAddrV6::new(adv_hdr.target_address, 0, 0, ifindex)
+            .into();
+    nadv_socket
         .async_io(tokio::io::Interest::WRITABLE, |socket| {
             socket::sendmsg(
                 socket.as_raw_fd(),
@@ -376,11 +388,18 @@ pub(crate) async fn write_loop(
                     error.log();
                 }
             }
-            NetTxPacketMsg::Vrrp6 { packet } => {
-                if let Err(error) =
-                    send_packet_vrrp6(&socket_vrrp, packet).await
-                {
-                    error.log();
+            NetTxPacketMsg::Vrrp6 {
+                packet,
+                src_ip,
+                ifindex,
+            } => {
+                if let IpAddr::V6(addr) = src_ip {
+                    if let Err(error) =
+                        send_packet_vrrp6(&socket_vrrp, packet, addr, ifindex)
+                            .await
+                    {
+                        error.log();
+                    }
                 }
             }
             NetTxPacketMsg::Arp {
@@ -404,21 +423,12 @@ pub(crate) async fn write_loop(
             NetTxPacketMsg::NAdv {
                 vrid,
                 ifindex,
-                eth_hdr,
-                ip_hdr,
                 nadv_hdr,
             } => {
-                if let Err(error) = send_packet_nadv(
-                    &socket_arp,
-                    vrid,
-                    ifindex,
-                    eth_hdr,
-                    ip_hdr,
-                    nadv_hdr,
-                )
-                .await
+                if let Err(error) =
+                    send_packet_nadv(&socket_arp, vrid, ifindex, nadv_hdr).await
                 {
-                    error.log()
+                    error.log();
                 }
             }
         }
@@ -492,4 +502,10 @@ pub(crate) async fn read_loop(
             }
         }
     }
+}
+
+fn generate_solicited_addr(addr: Ipv6Addr) -> Ipv6Addr {
+    let addr_bits: u128 = (addr.to_bits() << 104) >> 104;
+    let solic_addr = SOLICITATION_BASE_ADDR.to_bits() | addr_bits;
+    Ipv6Addr::from(solic_addr)
 }

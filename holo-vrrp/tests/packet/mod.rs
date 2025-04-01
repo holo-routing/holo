@@ -9,12 +9,12 @@
 
 use std::sync::LazyLock;
 
-use const_addrs::{ip, ip4, ip6};
+use const_addrs::{ip, ip4};
 use holo_protocol::assert_eq_hex;
 use holo_utils::ip::AddressFamily;
 use holo_vrrp::instance::Version;
 use holo_vrrp::network::{VRRP_MULTICAST_ADDR_IPV4, VRRP_PROTO_NUMBER};
-use holo_vrrp::packet::{DecodeError, EthernetHdr, Ipv4Hdr, Ipv6Hdr, VrrpHdr};
+use holo_vrrp::packet::{DecodeError, EthernetHdr, Ipv4Hdr, VrrpHdr};
 
 static VRRPV2HDR: LazyLock<(Vec<u8>, VrrpHdr)> = LazyLock::new(|| {
     (
@@ -76,27 +76,6 @@ static IPV4HDR: LazyLock<(Vec<u8>, Ipv4Hdr)> = LazyLock::new(|| {
             dst_address: *VRRP_MULTICAST_ADDR_IPV4,
             options: None,
             padding: None,
-        },
-    )
-});
-
-static IPV6HDR: LazyLock<(Vec<u8>, Ipv6Hdr)> = LazyLock::new(|| {
-    (
-        vec![
-            0x60, 0x01, 0xbb, 0x1e, 0x00, 0x28, 0x06, 0xff, 0xfe, 0x80, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x51, 0x52, 0xd0, 0xb3, 0x7a, 0x4f,
-            0x37, 0x11, 0x26, 0x20, 0x00, 0x2d, 0x40, 0x02, 0x00, 0x01, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x98,
-        ],
-        Ipv6Hdr {
-            version: 6,
-            traffic_class: 0x00,
-            flow_label: 0x1bb1e,
-            payload_length: 40,
-            next_header: 6,
-            hop_limit: 255,
-            source_address: ip6!("fe80::5152:d0b3:7a4f:3711"),
-            destination_address: ip6!("2620:2d:4002:1::198"),
         },
     )
 });
@@ -229,27 +208,6 @@ fn test_decode_ipv4hdr() {
 
     let generated_hdr = generated_hdr.unwrap();
     assert_eq!(ipv4hdr, &generated_hdr);
-}
-
-#[test]
-fn test_encode_ipv6hdr() {
-    let (ref bytes, ref iphdr) = *IPV6HDR;
-
-    let generated_bytes = iphdr.encode();
-    let generated_data = generated_bytes.as_ref();
-    let expected_data: &[u8] = bytes.as_ref();
-    assert_eq_hex!(generated_data, expected_data);
-}
-
-#[test]
-fn test_decode_ipv6hdr() {
-    let (ref bytes, ref ipv6hdr) = *IPV6HDR;
-    let data = bytes.as_ref();
-    let generated_hdr = Ipv6Hdr::decode(data);
-    assert!(generated_hdr.is_ok());
-
-    let generated_hdr = generated_hdr.unwrap();
-    assert_eq!(ipv6hdr, &generated_hdr);
 }
 
 #[test]

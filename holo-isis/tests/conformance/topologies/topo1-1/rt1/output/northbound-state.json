@@ -57,7 +57,8 @@
                       "lsp-id": "0000.0000.0001.00-00",
                       "attributes": {
                         "lsp-flags": [
-                          "lsp-l2-system-flag"
+                          "lsp-l2-system-flag",
+                          "lsp-l1-system-flag"
                         ]
                       },
                       "ipv4-addresses": [
@@ -129,7 +130,8 @@
                       "lsp-id": "0000.0000.0002.00-00",
                       "attributes": {
                         "lsp-flags": [
-                          "lsp-l2-system-flag"
+                          "lsp-l2-system-flag",
+                          "lsp-l1-system-flag"
                         ]
                       },
                       "ipv4-addresses": [
@@ -226,7 +228,8 @@
                       "lsp-id": "0000.0000.0003.00-00",
                       "attributes": {
                         "lsp-flags": [
-                          "lsp-l2-system-flag"
+                          "lsp-l2-system-flag",
+                          "lsp-l1-system-flag"
                         ]
                       },
                       "ipv4-addresses": [
@@ -348,7 +351,8 @@
                       "lsp-id": "0000.0000.0004.00-00",
                       "attributes": {
                         "lsp-flags": [
-                          "lsp-l2-system-flag"
+                          "lsp-l2-system-flag",
+                          "lsp-l1-system-flag"
                         ]
                       },
                       "ipv4-addresses": [
@@ -445,7 +449,8 @@
                       "lsp-id": "0000.0000.0005.00-00",
                       "attributes": {
                         "lsp-flags": [
-                          "lsp-l2-system-flag"
+                          "lsp-l2-system-flag",
+                          "lsp-l1-system-flag"
                         ]
                       },
                       "ipv4-addresses": [
@@ -517,7 +522,8 @@
                       "lsp-id": "0000.0000.0006.00-00",
                       "attributes": {
                         "lsp-flags": [
-                          "lsp-l2-system-flag"
+                          "lsp-l2-system-flag",
+                          "lsp-l1-system-flag"
                         ]
                       },
                       "ipv4-addresses": [
@@ -614,7 +620,8 @@
                       "lsp-id": "0000.0000.0007.00-00",
                       "attributes": {
                         "lsp-flags": [
-                          "lsp-l2-system-flag"
+                          "lsp-l2-system-flag",
+                          "lsp-l1-system-flag"
                         ]
                       },
                       "ipv4-addresses": [
@@ -851,7 +858,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::e896:56ff:fe79:482e",
+                        "next-hop": "fe80::dc6f:64ff:fe4b:644a",
                         "outgoing-interface": "eth-rt2"
                       }
                     ]
@@ -864,7 +871,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::e896:56ff:fe79:482e",
+                        "next-hop": "fe80::dc6f:64ff:fe4b:644a",
                         "outgoing-interface": "eth-rt2"
                       }
                     ]
@@ -877,7 +884,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::e896:56ff:fe79:482e",
+                        "next-hop": "fe80::dc6f:64ff:fe4b:644a",
                         "outgoing-interface": "eth-rt2"
                       }
                     ]
@@ -890,7 +897,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::e896:56ff:fe79:482e",
+                        "next-hop": "fe80::dc6f:64ff:fe4b:644a",
                         "outgoing-interface": "eth-rt2"
                       }
                     ]
@@ -903,7 +910,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::e896:56ff:fe79:482e",
+                        "next-hop": "fe80::dc6f:64ff:fe4b:644a",
                         "outgoing-interface": "eth-rt2"
                       }
                     ]
@@ -916,7 +923,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::e896:56ff:fe79:482e",
+                        "next-hop": "fe80::dc6f:64ff:fe4b:644a",
                         "outgoing-interface": "eth-rt2"
                       }
                     ]
@@ -934,7 +941,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::e896:56ff:fe79:482e",
+                        "next-hop": "fe80::dc6f:64ff:fe4b:644a",
                         "outgoing-interface": "eth-rt2"
                       }
                     ]
@@ -947,7 +954,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::e896:56ff:fe79:482e",
+                        "next-hop": "fe80::dc6f:64ff:fe4b:644a",
                         "outgoing-interface": "eth-rt2"
                       }
                     ]
@@ -960,7 +967,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::e896:56ff:fe79:482e",
+                        "next-hop": "fe80::dc6f:64ff:fe4b:644a",
                         "outgoing-interface": "eth-rt2"
                       }
                     ]
@@ -973,7 +980,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::e896:56ff:fe79:482e",
+                        "next-hop": "fe80::dc6f:64ff:fe4b:644a",
                         "outgoing-interface": "eth-rt2"
                       }
                     ]
@@ -986,7 +993,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::e896:56ff:fe79:482e",
+                        "next-hop": "fe80::dc6f:64ff:fe4b:644a",
                         "outgoing-interface": "eth-rt2"
                       }
                     ]

@@ -179,9 +179,10 @@ fn lsp_build_flags(
     lsp_id: LspId,
 ) -> LspFlags {
     let mut lsp_flags = LspFlags::default();
-    if instance.config.level_type.intersects(LevelNumber::L1) {
-        lsp_flags.insert(LspFlags::IS_TYPE1);
-    }
+
+    // Per ISO 10589 - Section 9.9, the "Level 1 Intermediate System"
+    // bit must always be set, even in L2-only systems.
+    lsp_flags.insert(LspFlags::IS_TYPE1);
     if instance.config.level_type.intersects(LevelNumber::L2) {
         lsp_flags.insert(LspFlags::IS_TYPE2);
     }

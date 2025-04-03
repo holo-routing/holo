@@ -2,8 +2,6 @@
 {"ietf-isis:lsp-generation":{"routing-protocol-name":"test","lsp-id":"0000.0000.0006.00-00"}}
 {"ietf-isis:if-state-change":{"routing-protocol-name":"test","interface-name":"eth-rt3","state":"up"}}
 {"ietf-isis:if-state-change":{"routing-protocol-name":"test","interface-name":"eth-rt7","state":"up"}}
-{"ietf-isis:lsp-generation":{"routing-protocol-name":"test","lsp-id":"0000.0000.0006.00-00"}}
-{"ietf-isis:lsp-generation":{"routing-protocol-name":"test","lsp-id":"0000.0000.0006.00-00"}}
 {"ietf-isis:if-state-change":{"routing-protocol-name":"test","interface-name":"lo","state":"up"}}
 {"ietf-isis:lsp-generation":{"routing-protocol-name":"test","lsp-id":"0000.0000.0006.00-00"}}
 {"ietf-isis:lsp-generation":{"routing-protocol-name":"test","lsp-id":"0000.0000.0006.00-00"}}

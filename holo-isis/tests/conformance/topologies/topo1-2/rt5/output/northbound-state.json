@@ -253,7 +253,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::cc82:3aff:feab:2691",
+                        "next-hop": "fe80::4cd:72ff:fe1e:bd8d",
                         "outgoing-interface": "eth-rt4"
                       }
                     ]
@@ -266,7 +266,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::cc82:3aff:feab:2691",
+                        "next-hop": "fe80::4cd:72ff:fe1e:bd8d",
                         "outgoing-interface": "eth-rt4"
                       }
                     ]
@@ -284,7 +284,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::cc82:3aff:feab:2691",
+                        "next-hop": "fe80::4cd:72ff:fe1e:bd8d",
                         "outgoing-interface": "eth-rt4"
                       }
                     ]

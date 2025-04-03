@@ -7,6 +7,7 @@
 use std::net::{IpAddr, Ipv4Addr};
 
 use holo_utils::bgp::RouteType;
+use holo_utils::ip::IpNetworkExt;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{RouteKeyMsg, RouteMsg};
 use ipnetwork::IpNetwork;
@@ -44,6 +45,10 @@ pub(crate) fn process_nht_update(
 }
 
 pub(crate) fn process_route_add(instance: &mut Instance, msg: RouteMsg) {
+    if !msg.prefix.is_routable() {
+        return;
+    }
+
     let Some((mut instance, _)) = instance.as_up() else {
         return;
     };
@@ -59,6 +64,10 @@ pub(crate) fn process_route_add(instance: &mut Instance, msg: RouteMsg) {
 }
 
 pub(crate) fn process_route_del(instance: &mut Instance, msg: RouteKeyMsg) {
+    if !msg.prefix.is_routable() {
+        return;
+    }
+
     let Some((mut instance, _)) = instance.as_up() else {
         return;
     };

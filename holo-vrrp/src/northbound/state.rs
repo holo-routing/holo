@@ -50,9 +50,10 @@ fn load_callbacks() -> Callbacks<Interface> {
                 is_owner: None,
                 last_adv_source: instance.state.last_adv_src.as_ref().map(Cow::Borrowed).ignore_in_testing(),
                 up_datetime: instance.state.up_time.as_ref().map(Cow::Borrowed).ignore_in_testing(),
-                master_down_interval: instance.state.timer.as_master_down_timer().map(|task| task.remaining().as_millis() as u32 / 10).ignore_in_testing(),
-                // TODO
-                skew_time: None,
+                // `master_down_interval` multiplied by 100 since it's in centiseconds.
+                master_down_interval: Some((instance.config.master_down_interval() * 100.0) as u32),
+                // `skew_time` multiplied by 1000 since it's in microseconds.
+                skew_time: Some((instance.config.skew_time() * 1000.0) as u32),
                 last_event: Some(instance.state.last_event.to_yang()).ignore_in_testing(),
                 new_master_reason: Some(instance.state.new_master_reason.to_yang()),
             })
@@ -89,9 +90,10 @@ fn load_callbacks() -> Callbacks<Interface> {
                 is_owner: None,
                 last_adv_source: instance.state.last_adv_src.as_ref().map(Cow::Borrowed).ignore_in_testing(),
                 up_datetime: instance.state.up_time.as_ref().map(Cow::Borrowed).ignore_in_testing(),
-                master_down_interval: instance.state.timer.as_master_down_timer().map(|task| task.remaining().as_millis() as u32 / 10).ignore_in_testing(),
-                // TODO
-                skew_time: None,
+                // `master_down_interval` multiplied by 100 since it's in centiseconds.
+                master_down_interval: Some((instance.config.master_down_interval() * 100.0) as u32),
+                // `skew_time` multiplied by 1000 since it's in microseconds.
+                skew_time: Some((instance.config.skew_time() * 1000.0) as u32),
                 last_event: Some(instance.state.last_event.to_yang()).ignore_in_testing(),
                 new_master_reason: Some(instance.state.new_master_reason.to_yang()),
             })

@@ -114,58 +114,6 @@ pub(crate) fn socket(ifindex: u32) -> Result<Socket, std::io::Error> {
 }
 
 #[cfg(not(feature = "testing"))]
-pub(crate) async fn send_pdu(
-    socket: &AsyncFd<Socket>,
-    broadcast: bool,
-    ifindex: u32,
-    dst: MulticastAddr,
-    pdu: &Pdu,
-    auth: Option<&Key>,
-) -> Result<usize, IoError> {
-    Debug::PduTx(ifindex, dst, pdu).log();
-
-    // Encode PDU.
-    let buf = pdu.encode(auth);
-
-    // Send PDU.
-    socket
-        .async_io(tokio::io::Interest::WRITABLE, |socket| {
-            if broadcast {
-                // Prepend LLC header before IS-IS PDU.
-                let iov = [IoSlice::new(&LLC_HDR), IoSlice::new(&buf)];
-                let sockaddr = LinkAddr::new(
-                    (LLC_HDR.len() + buf.len()) as u16,
-                    ifindex,
-                    Some(dst.as_bytes()),
-                );
-                socket::sendmsg(
-                    socket.as_raw_fd(),
-                    &iov,
-                    &[],
-                    socket::MsgFlags::empty(),
-                    Some(&sockaddr),
-                )
-            } else {
-                // For non-broadcast media types, only GRE is supported.
-                let sockaddr = LinkAddr::new(
-                    GRE_PROTO_TYPE_ISO,
-                    ifindex,
-                    Some(dst.as_bytes()),
-                );
-                socket::sendto(
-                    socket.as_raw_fd(),
-                    &buf,
-                    &sockaddr,
-                    socket::MsgFlags::empty(),
-                )
-            }
-            .map_err(|errno| errno.into())
-        })
-        .await
-        .map_err(IoError::SendError)
-}
-
-#[cfg(not(feature = "testing"))]
 pub(crate) async fn write_loop(
     socket: Arc<AsyncFd<Socket>>,
     broadcast: bool,
@@ -285,6 +233,58 @@ pub(crate) async fn read_loop(
 }
 
 // ===== helper functions =====
+
+#[cfg(not(feature = "testing"))]
+async fn send_pdu(
+    socket: &AsyncFd<Socket>,
+    broadcast: bool,
+    ifindex: u32,
+    dst: MulticastAddr,
+    pdu: &Pdu,
+    auth: Option<&Key>,
+) -> Result<usize, IoError> {
+    Debug::PduTx(ifindex, dst, pdu).log();
+
+    // Encode PDU.
+    let buf = pdu.encode(auth);
+
+    // Send PDU.
+    socket
+        .async_io(tokio::io::Interest::WRITABLE, |socket| {
+            if broadcast {
+                // Prepend LLC header before IS-IS PDU.
+                let iov = [IoSlice::new(&LLC_HDR), IoSlice::new(&buf)];
+                let sockaddr = LinkAddr::new(
+                    (LLC_HDR.len() + buf.len()) as u16,
+                    ifindex,
+                    Some(dst.as_bytes()),
+                );
+                socket::sendmsg(
+                    socket.as_raw_fd(),
+                    &iov,
+                    &[],
+                    socket::MsgFlags::empty(),
+                    Some(&sockaddr),
+                )
+            } else {
+                // For non-broadcast media types, only GRE is supported.
+                let sockaddr = LinkAddr::new(
+                    GRE_PROTO_TYPE_ISO,
+                    ifindex,
+                    Some(dst.as_bytes()),
+                );
+                socket::sendto(
+                    socket.as_raw_fd(),
+                    &buf,
+                    &sockaddr,
+                    socket::MsgFlags::empty(),
+                )
+            }
+            .map_err(|errno| errno.into())
+        })
+        .await
+        .map_err(IoError::SendError)
+}
 
 const fn bpf_filter_block(
     code: u16,

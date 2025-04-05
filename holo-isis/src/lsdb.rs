@@ -9,6 +9,7 @@
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashSet, btree_map};
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::time::Instant;
 
 use bitflags::bitflags;
@@ -21,13 +22,14 @@ use holo_utils::bier::{
 use holo_utils::ip::{AddressFamily, Ipv4NetworkExt, Ipv6NetworkExt};
 use holo_utils::mpls::Label;
 use holo_utils::task::TimeoutTask;
-use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
+use ipnetwork::{Ipv4Network, Ipv6Network};
 
 use crate::adjacency::AdjacencyState;
 use crate::collections::{Arena, LspEntryId};
 use crate::debug::{Debug, LspPurgeReason};
 use crate::instance::{InstanceArenas, InstanceUpView};
 use crate::interface::{Interface, InterfaceType};
+use crate::northbound::configuration::MetricType;
 use crate::northbound::notification;
 use crate::packet::consts::LspFlags;
 use crate::packet::pdu::{Lsp, LspTlvs, Pdu};
@@ -220,7 +222,6 @@ fn lsp_build_tlvs(
     let mut ext_ipv4_reach = BTreeMap::new();
     let mut ipv6_addrs = BTreeSet::new();
     let mut ipv6_reach = BTreeMap::new();
-    let bier_config = &instance.shared.bier_config;
 
     // Add supported protocols.
     if instance.config.is_af_enabled(AddressFamily::Ipv4) {
@@ -232,243 +233,36 @@ fn lsp_build_tlvs(
 
     // Iterate over all active interfaces.
     for iface in arenas.interfaces.iter().filter(|iface| iface.state.active) {
-        let metric = iface.config.metric.get(level);
-
         // Add IS reachability information.
-        match iface.config.interface_type {
-            InterfaceType::Broadcast => {
-                if let Some(dis) = iface.state.dis.get(level) {
-                    if metric_type.is_standard_enabled() {
-                        is_reach.push(IsReach {
-                            metric: std::cmp::min(metric, MAX_NARROW_METRIC)
-                                as u8,
-                            metric_delay: None,
-                            metric_expense: None,
-                            metric_error: None,
-                            neighbor: dis.lan_id,
-                        });
-                    }
-                    if metric_type.is_wide_enabled() {
-                        ext_is_reach.push(ExtIsReach {
-                            neighbor: dis.lan_id,
-                            metric,
-                            sub_tlvs: Default::default(),
-                        });
-                    }
-                }
-            }
-            InterfaceType::PointToPoint => {
-                if let Some(adj) = iface
-                    .state
-                    .p2p_adjacency
-                    .as_ref()
-                    .filter(|adj| adj.level_usage.intersects(level))
-                    .filter(|adj| adj.state == AdjacencyState::Up)
-                {
-                    let neighbor = LanId::from((adj.system_id, 0));
-                    if metric_type.is_standard_enabled() {
-                        is_reach.push(IsReach {
-                            metric: std::cmp::min(metric, MAX_NARROW_METRIC)
-                                as u8,
-                            metric_delay: None,
-                            metric_expense: None,
-                            metric_error: None,
-                            neighbor,
-                        });
-                    }
-                    if metric_type.is_wide_enabled() {
-                        ext_is_reach.push(ExtIsReach {
-                            neighbor,
-                            metric,
-                            sub_tlvs: Default::default(),
-                        });
-                    }
-                }
-            }
-        }
+        lsp_build_tlvs_is_reach(
+            iface,
+            level,
+            metric_type,
+            &mut is_reach,
+            &mut ext_is_reach,
+        );
 
-        // Add IPv4 information.
-        if iface
-            .config
-            .is_af_enabled(AddressFamily::Ipv4, instance.config)
-        {
-            for addr in iface.system.ipv4_addr_list.iter() {
-                ipv4_addrs.insert(addr.ip());
-
-                let prefix = addr.apply_mask();
-                if metric_type.is_standard_enabled() {
-                    ipv4_internal_reach.insert(
-                        prefix,
-                        Ipv4Reach {
-                            up_down: false,
-                            ie_bit: false,
-                            metric: std::cmp::min(metric, MAX_NARROW_METRIC)
-                                as u8,
-                            metric_delay: None,
-                            metric_expense: None,
-                            metric_error: None,
-                            prefix,
-                        },
-                    );
-                }
-                if metric_type.is_wide_enabled() {
-                    ext_ipv4_reach.insert(
-                        prefix,
-                        ExtIpv4Reach {
-                            metric,
-                            up_down: false,
-                            prefix,
-                            sub_tlvs: Default::default(),
-                        },
-                    );
-                }
-            }
-        }
-
-        // Add IPv6 information.
-        if iface
-            .config
-            .is_af_enabled(AddressFamily::Ipv6, instance.config)
-        {
-            for addr in iface
-                .system
-                .ipv6_addr_list
-                .iter()
-                .filter(|addr| !addr.ip().is_unicast_link_local())
-            {
-                ipv6_addrs.insert(addr.ip());
-
-                let prefix = addr.apply_mask();
-
-                let mut sub_tlvs: Ipv6ReachSubTlvs = Default::default();
-
-                // Add BIER Sub-TLV(s) if BIER is enabled and allowed to
-                // advertise
-                if instance.config.bier.enabled
-                    && instance.config.bier.advertise
-                {
-                    bier_config
-                        .sd_cfg
-                        .iter()
-                        .filter(|((_, af), sd_cfg)| {
-                            af == &AddressFamily::Ipv6
-                                && sd_cfg.bfr_prefix == IpNetwork::V6(prefix)
-                                // Enforce RFC8401 Section 4.2
-                                && sd_cfg.bfr_prefix.prefix() == 128
-                                && sd_cfg.underlay_protocol
-                                    == UnderlayProtocolType::IsIs
-                        })
-                        .for_each(|((sd_id, _), sd_cfg)| {
-                            let bier_encaps = sd_cfg
-                                .encap
-                                .iter()
-                                .filter_map(|((bsl, encap_type), encap)| {
-                                    match encap_type {
-                                        BierEncapsulationType::Mpls => {
-                                            // TODO: where is the label defined?
-                                            Some(BierEncapId::Mpls(Label::new(
-                                                0,
-                                            )))
-                                        }
-                                        _ => match encap.in_bift_id {
-                                            BierInBiftId::Base(id) => Some(id),
-                                            BierInBiftId::Encoding(true) => {
-                                                Some(0)
-                                            }
-                                            _ => None,
-                                        }
-                                        .map(|id| {
-                                            BierEncapId::NonMpls(BiftId::new(
-                                                id,
-                                            ))
-                                        }),
-                                    }
-                                    .map(
-                                        |id| {
-                                            BierSubSubTlv::BierEncapSubSubTlv(
-                                                BierEncapSubSubTlv::new(
-                                                    encap.max_si,
-                                                    (*bsl).into(),
-                                                    id,
-                                                ),
-                                            )
-                                        },
-                                    )
-                                })
-                                .collect::<Vec<BierSubSubTlv>>();
-
-                            let bier = BierInfoSubTlv::new(
-                                sd_cfg.bar,
-                                sd_cfg.ipa,
-                                *sd_id,
-                                sd_cfg.bfr_id,
-                                bier_encaps,
-                            );
-                            sub_tlvs.bier.push(bier);
-                        })
-                }
-
-                ipv6_reach.insert(
-                    prefix,
-                    Ipv6Reach {
-                        metric,
-                        up_down: false,
-                        external: false,
-                        prefix,
-                        sub_tlvs,
-                    },
-                );
-            }
-        }
+        // Add IP addresses and IP reachability information.
+        lsp_build_tlvs_ip_local(
+            instance,
+            iface,
+            level,
+            &mut ipv4_addrs,
+            &mut ipv4_internal_reach,
+            &mut ext_ipv4_reach,
+            &mut ipv6_addrs,
+            &mut ipv6_reach,
+        );
     }
 
     // Add redistributed routes.
-    if instance.config.is_af_enabled(AddressFamily::Ipv4) {
-        for (prefix, route) in instance.system.ipv4_routes.get(level) {
-            let prefix = prefix.apply_mask();
-            if metric_type.is_standard_enabled() {
-                ipv4_external_reach.insert(
-                    prefix,
-                    Ipv4Reach {
-                        up_down: false,
-                        ie_bit: false,
-                        metric: std::cmp::min(route.metric, MAX_NARROW_METRIC)
-                            as u8,
-                        metric_delay: None,
-                        metric_expense: None,
-                        metric_error: None,
-                        prefix,
-                    },
-                );
-            }
-            if metric_type.is_wide_enabled() {
-                ext_ipv4_reach.insert(
-                    prefix,
-                    ExtIpv4Reach {
-                        metric: route.metric,
-                        up_down: false,
-                        prefix,
-                        sub_tlvs: Default::default(),
-                    },
-                );
-            }
-        }
-    }
-    if instance.config.is_af_enabled(AddressFamily::Ipv6) {
-        for (prefix, route) in instance.system.ipv6_routes.get(level) {
-            let prefix = prefix.apply_mask();
-            ipv6_reach.insert(
-                prefix,
-                Ipv6Reach {
-                    metric: route.metric,
-                    up_down: false,
-                    external: true,
-                    prefix,
-                    sub_tlvs: Default::default(),
-                },
-            );
-        }
-    }
+    lsp_build_tlvs_ip_redistributed(
+        instance,
+        level,
+        &mut ipv4_external_reach,
+        &mut ext_ipv4_reach,
+        &mut ipv6_reach,
+    );
 
     // In an L1/L2 router, propagate L1 IP reachability to L2 for inter-area
     // routing.
@@ -559,6 +353,261 @@ fn lsp_build_tlvs_pseudo(
         [],
         None,
     )
+}
+
+fn lsp_build_tlvs_is_reach(
+    iface: &Interface,
+    level: LevelNumber,
+    metric_type: MetricType,
+    is_reach: &mut Vec<IsReach>,
+    ext_is_reach: &mut Vec<ExtIsReach>,
+) {
+    let metric = iface.config.metric.get(level);
+
+    match iface.config.interface_type {
+        InterfaceType::Broadcast => {
+            if let Some(dis) = iface.state.dis.get(level) {
+                if metric_type.is_standard_enabled() {
+                    is_reach.push(IsReach {
+                        metric: std::cmp::min(metric, MAX_NARROW_METRIC) as u8,
+                        metric_delay: None,
+                        metric_expense: None,
+                        metric_error: None,
+                        neighbor: dis.lan_id,
+                    });
+                }
+                if metric_type.is_wide_enabled() {
+                    ext_is_reach.push(ExtIsReach {
+                        neighbor: dis.lan_id,
+                        metric,
+                        sub_tlvs: Default::default(),
+                    });
+                }
+            }
+        }
+        InterfaceType::PointToPoint => {
+            if let Some(adj) = iface
+                .state
+                .p2p_adjacency
+                .as_ref()
+                .filter(|adj| adj.level_usage.intersects(level))
+                .filter(|adj| adj.state == AdjacencyState::Up)
+            {
+                let neighbor = LanId::from((adj.system_id, 0));
+                if metric_type.is_standard_enabled() {
+                    is_reach.push(IsReach {
+                        metric: std::cmp::min(metric, MAX_NARROW_METRIC) as u8,
+                        metric_delay: None,
+                        metric_expense: None,
+                        metric_error: None,
+                        neighbor,
+                    });
+                }
+                if metric_type.is_wide_enabled() {
+                    ext_is_reach.push(ExtIsReach {
+                        neighbor,
+                        metric,
+                        sub_tlvs: Default::default(),
+                    });
+                }
+            }
+        }
+    }
+}
+
+fn lsp_build_tlvs_ip_local(
+    instance: &mut InstanceUpView<'_>,
+    iface: &Interface,
+    level: LevelNumber,
+    ipv4_addrs: &mut BTreeSet<Ipv4Addr>,
+    ipv4_internal_reach: &mut BTreeMap<Ipv4Network, Ipv4Reach>,
+    ext_ipv4_reach: &mut BTreeMap<Ipv4Network, ExtIpv4Reach>,
+    ipv6_addrs: &mut BTreeSet<Ipv6Addr>,
+    ipv6_reach: &mut BTreeMap<Ipv6Network, Ipv6Reach>,
+) {
+    let metric = iface.config.metric.get(level);
+
+    // Add IPv4 information.
+    if iface
+        .config
+        .is_af_enabled(AddressFamily::Ipv4, instance.config)
+    {
+        let metric_type = instance.config.metric_type.get(level);
+        for addr in iface.system.ipv4_addr_list.iter() {
+            ipv4_addrs.insert(addr.ip());
+
+            let prefix = addr.apply_mask();
+            if metric_type.is_standard_enabled() {
+                ipv4_internal_reach.insert(
+                    prefix,
+                    Ipv4Reach {
+                        up_down: false,
+                        ie_bit: false,
+                        metric: std::cmp::min(metric, MAX_NARROW_METRIC) as u8,
+                        metric_delay: None,
+                        metric_expense: None,
+                        metric_error: None,
+                        prefix,
+                    },
+                );
+            }
+            if metric_type.is_wide_enabled() {
+                ext_ipv4_reach.insert(
+                    prefix,
+                    ExtIpv4Reach {
+                        metric,
+                        up_down: false,
+                        prefix,
+                        sub_tlvs: Default::default(),
+                    },
+                );
+            }
+        }
+    }
+
+    // Add IPv6 information.
+    if iface
+        .config
+        .is_af_enabled(AddressFamily::Ipv6, instance.config)
+    {
+        for addr in iface
+            .system
+            .ipv6_addr_list
+            .iter()
+            .filter(|addr| !addr.ip().is_unicast_link_local())
+        {
+            ipv6_addrs.insert(addr.ip());
+
+            let prefix = addr.apply_mask();
+            let sub_tlvs = lsp_build_ipv6_reach_sub_tlvs(instance, prefix);
+            ipv6_reach.insert(
+                prefix,
+                Ipv6Reach {
+                    metric,
+                    up_down: false,
+                    external: false,
+                    prefix,
+                    sub_tlvs,
+                },
+            );
+        }
+    }
+}
+
+fn lsp_build_tlvs_ip_redistributed(
+    instance: &mut InstanceUpView<'_>,
+    level: LevelNumber,
+    ipv4_external_reach: &mut BTreeMap<Ipv4Network, Ipv4Reach>,
+    ext_ipv4_reach: &mut BTreeMap<Ipv4Network, ExtIpv4Reach>,
+    ipv6_reach: &mut BTreeMap<Ipv6Network, Ipv6Reach>,
+) {
+    if instance.config.is_af_enabled(AddressFamily::Ipv4) {
+        let metric_type = instance.config.metric_type.get(level);
+        for (prefix, route) in instance.system.ipv4_routes.get(level) {
+            let prefix = prefix.apply_mask();
+            if metric_type.is_standard_enabled() {
+                ipv4_external_reach.insert(
+                    prefix,
+                    Ipv4Reach {
+                        up_down: false,
+                        ie_bit: false,
+                        metric: std::cmp::min(route.metric, MAX_NARROW_METRIC)
+                            as u8,
+                        metric_delay: None,
+                        metric_expense: None,
+                        metric_error: None,
+                        prefix,
+                    },
+                );
+            }
+            if metric_type.is_wide_enabled() {
+                ext_ipv4_reach.insert(
+                    prefix,
+                    ExtIpv4Reach {
+                        metric: route.metric,
+                        up_down: false,
+                        prefix,
+                        sub_tlvs: Default::default(),
+                    },
+                );
+            }
+        }
+    }
+    if instance.config.is_af_enabled(AddressFamily::Ipv6) {
+        for (prefix, route) in instance.system.ipv6_routes.get(level) {
+            let prefix = prefix.apply_mask();
+            ipv6_reach.insert(
+                prefix,
+                Ipv6Reach {
+                    metric: route.metric,
+                    up_down: false,
+                    external: true,
+                    prefix,
+                    sub_tlvs: Default::default(),
+                },
+            );
+        }
+    }
+}
+
+fn lsp_build_ipv6_reach_sub_tlvs(
+    instance: &mut InstanceUpView<'_>,
+    prefix: Ipv6Network,
+) -> Ipv6ReachSubTlvs {
+    let bier_config = &instance.shared.bier_config;
+    let mut sub_tlvs = Ipv6ReachSubTlvs::default();
+
+    // Add BIER Sub-TLV(s) if BIER is enabled and allowed to advertise.
+    if instance.config.bier.enabled && instance.config.bier.advertise {
+        for ((sd_id, _), sd_cfg) in
+            bier_config.sd_cfg.iter().filter(|((_, af), sd_cfg)| {
+                *af == AddressFamily::Ipv6
+                    && sd_cfg.bfr_prefix == prefix.into()
+                    // Enforce RFC8401 Section 4.2
+                    && sd_cfg.bfr_prefix.prefix() == 128
+                    && sd_cfg.underlay_protocol == UnderlayProtocolType::IsIs
+            })
+        {
+            let bier_encaps = sd_cfg
+                .encap
+                .iter()
+                .filter_map(|((bsl, encap_type), encap)| {
+                    match encap_type {
+                        BierEncapsulationType::Mpls => {
+                            // TODO: where is the label defined?
+                            Some(BierEncapId::Mpls(Label::new(0)))
+                        }
+                        _ => match encap.in_bift_id {
+                            BierInBiftId::Base(id) => Some(id),
+                            BierInBiftId::Encoding(true) => Some(0),
+                            _ => None,
+                        }
+                        .map(|id| BierEncapId::NonMpls(BiftId::new(id))),
+                    }
+                    .map(|id| {
+                        BierSubSubTlv::BierEncapSubSubTlv(
+                            BierEncapSubSubTlv::new(
+                                encap.max_si,
+                                (*bsl).into(),
+                                id,
+                            ),
+                        )
+                    })
+                })
+                .collect::<Vec<_>>();
+
+            let bier = BierInfoSubTlv::new(
+                sd_cfg.bar,
+                sd_cfg.ipa,
+                *sd_id,
+                sd_cfg.bfr_id,
+                bier_encaps,
+            );
+            sub_tlvs.bier.push(bier);
+        }
+    }
+
+    sub_tlvs
 }
 
 fn lsp_build_fragments(

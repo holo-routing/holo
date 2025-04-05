@@ -9,9 +9,9 @@ use std::net::IpAddr;
 use capctl::caps::CapState;
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
-use holo_utils::southbound::Nexthop;
+use holo_utils::southbound::{Nexthop, NexthopSpecial};
 use ipnetwork::IpNetwork;
-use netlink_packet_route::route::RouteProtocol;
+use netlink_packet_route::route::{RouteProtocol, RouteType};
 use rtnetlink::{Handle, RouteMessageBuilder, new_connection};
 use tracing::error;
 
@@ -58,9 +58,13 @@ fn add_nexthops<'a>(
                 msg.gateway(*addr).unwrap().output_interface(*ifindex)
             }
             Nexthop::Interface { ifindex } => msg.output_interface(*ifindex),
-            Nexthop::Special(_) => {
-                // TODO: not supported by the `rtnetlink` crate yet.
-                msg
+            Nexthop::Special(kind) => {
+                let kind = match kind {
+                    NexthopSpecial::Blackhole => RouteType::BlackHole,
+                    NexthopSpecial::Unreachable => RouteType::Unreachable,
+                    NexthopSpecial::Prohibit => RouteType::Prohibit,
+                };
+                msg.kind(kind)
             }
             Nexthop::Recursive { resolved, .. } => {
                 add_nexthops(msg, resolved.iter())

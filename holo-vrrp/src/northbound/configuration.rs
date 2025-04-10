@@ -401,8 +401,8 @@ impl Provider for Interface {
 // ===== configuration helpers =====
 
 impl InstanceCfg {
-    pub(crate) const fn master_down_interval(&self) -> u32 {
-        (3 * self.advertise_interval as u32) + self.skew_time() as u32
+    pub(crate) const fn master_down_interval(&self) -> f32 {
+        (3 * self.advertise_interval) as f32 + self.skew_time()
     }
 
     pub(crate) const fn skew_time(&self) -> f32 {

@@ -34,11 +34,12 @@ use crate::northbound::notification;
 use crate::packet::consts::LspFlags;
 use crate::packet::pdu::{Lsp, LspTlvs, Pdu};
 use crate::packet::subtlvs::prefix::{
-    BierEncapSubSubTlv, BierInfoSubTlv, BierSubSubTlv,
+    BierEncapSubSubTlv, BierInfoSubTlv, BierSubSubTlv, Ipv4SourceRidSubTlv,
+    Ipv6SourceRidSubTlv,
 };
 use crate::packet::tlv::{
-    ExtIpv4Reach, ExtIsReach, IpReachTlvEntry, Ipv4Reach, Ipv6Reach,
-    Ipv6ReachSubTlvs, IsReach, MAX_NARROW_METRIC, Nlpid,
+    ExtIpv4Reach, ExtIsReach, IpReachTlvEntry, Ipv4Reach, Ipv4ReachSubTlvs,
+    Ipv6Reach, Ipv6ReachSubTlvs, IsReach, MAX_NARROW_METRIC, Nlpid,
 };
 use crate::packet::{LanId, LevelNumber, LevelType, LspId};
 use crate::spf::{SpfType, VertexId};
@@ -452,13 +453,14 @@ fn lsp_build_tlvs_ip_local(
                 );
             }
             if metric_type.is_wide_enabled() {
+                let sub_tlvs = lsp_build_ipv4_reach_sub_tlvs(instance);
                 ext_ipv4_reach.insert(
                     prefix,
                     ExtIpv4Reach {
                         metric,
                         up_down: false,
                         prefix,
-                        sub_tlvs: Default::default(),
+                        sub_tlvs,
                     },
                 );
             }
@@ -521,13 +523,14 @@ fn lsp_build_tlvs_ip_redistributed(
                 );
             }
             if metric_type.is_wide_enabled() {
+                let sub_tlvs = lsp_build_ipv4_reach_sub_tlvs(instance);
                 ext_ipv4_reach.insert(
                     prefix,
                     ExtIpv4Reach {
                         metric: route.metric,
                         up_down: false,
                         prefix,
-                        sub_tlvs: Default::default(),
+                        sub_tlvs,
                     },
                 );
             }
@@ -536,6 +539,7 @@ fn lsp_build_tlvs_ip_redistributed(
     if instance.config.is_af_enabled(AddressFamily::Ipv6) {
         for (prefix, route) in instance.system.ipv6_routes.get(level) {
             let prefix = prefix.apply_mask();
+            let sub_tlvs = lsp_build_ipv6_reach_sub_tlvs(instance, prefix);
             ipv6_reach.insert(
                 prefix,
                 Ipv6Reach {
@@ -543,11 +547,27 @@ fn lsp_build_tlvs_ip_redistributed(
                     up_down: false,
                     external: true,
                     prefix,
-                    sub_tlvs: Default::default(),
+                    sub_tlvs,
                 },
             );
         }
     }
+}
+
+fn lsp_build_ipv4_reach_sub_tlvs(
+    instance: &mut InstanceUpView<'_>,
+) -> Ipv4ReachSubTlvs {
+    let mut sub_tlvs = Ipv4ReachSubTlvs::default();
+
+    // Add Source Router ID Sub-TLV(s).
+    if let Some(router_id) = instance.config.ipv4_router_id {
+        sub_tlvs.ipv4_source_rid = Some(Ipv4SourceRidSubTlv::new(router_id));
+    }
+    if let Some(router_id) = instance.config.ipv6_router_id {
+        sub_tlvs.ipv6_source_rid = Some(Ipv6SourceRidSubTlv::new(router_id));
+    }
+
+    sub_tlvs
 }
 
 fn lsp_build_ipv6_reach_sub_tlvs(
@@ -556,6 +576,14 @@ fn lsp_build_ipv6_reach_sub_tlvs(
 ) -> Ipv6ReachSubTlvs {
     let bier_config = &instance.shared.bier_config;
     let mut sub_tlvs = Ipv6ReachSubTlvs::default();
+
+    // Add Source Router ID Sub-TLV(s).
+    if let Some(router_id) = instance.config.ipv4_router_id {
+        sub_tlvs.ipv4_source_rid = Some(Ipv4SourceRidSubTlv::new(router_id));
+    }
+    if let Some(router_id) = instance.config.ipv6_router_id {
+        sub_tlvs.ipv6_source_rid = Some(Ipv6SourceRidSubTlv::new(router_id));
+    }
 
     // Add BIER Sub-TLV(s) if BIER is enabled and allowed to advertise.
     if instance.config.bier.enabled && instance.config.bier.advertise {

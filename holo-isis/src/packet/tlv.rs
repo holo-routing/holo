@@ -26,7 +26,9 @@ use crate::packet::consts::{
 use crate::packet::error::{DecodeError, DecodeResult};
 #[cfg(feature = "testing")]
 use crate::packet::pdu::serde_lsp_rem_lifetime_filter;
-use crate::packet::subtlvs::prefix::BierInfoSubTlv;
+use crate::packet::subtlvs::prefix::{
+    BierInfoSubTlv, Ipv4SourceRidSubTlv, Ipv6SourceRidSubTlv,
+};
 use crate::packet::{AreaAddr, LanId, LspId, subtlvs};
 
 // TLV header size.
@@ -243,15 +245,18 @@ pub struct ExtIpv4Reach {
     pub metric: u32,
     pub up_down: bool,
     pub prefix: Ipv4Network,
-    pub sub_tlvs: ExtIpv4ReachSubTlvs,
+    pub sub_tlvs: Ipv4ReachSubTlvs,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
 #[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
     Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
 )]
 #[derive(Deserialize, Serialize)]
-pub struct ExtIpv4ReachSubTlvs {
+pub struct Ipv4ReachSubTlvs {
+    pub ipv4_source_rid: Option<Ipv4SourceRidSubTlv>,
+    pub ipv6_source_rid: Option<Ipv6SourceRidSubTlv>,
     pub unknown: Vec<UnknownTlv>,
 }
 
@@ -273,10 +278,13 @@ pub struct Ipv6Reach {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 #[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
     Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
 )]
 #[derive(Deserialize, Serialize)]
 pub struct Ipv6ReachSubTlvs {
+    pub ipv4_source_rid: Option<Ipv4SourceRidSubTlv>,
+    pub ipv6_source_rid: Option<Ipv6SourceRidSubTlv>,
     pub bier: Vec<BierInfoSubTlv>,
     pub unknown: Vec<UnknownTlv>,
 }
@@ -1194,7 +1202,7 @@ impl ExtIpv4ReachTlv {
             let prefix = Ipv4Addr::from(prefix_bytes);
 
             // Parse Sub-TLVs.
-            let mut sub_tlvs = ExtIpv4ReachSubTlvs::default();
+            let mut sub_tlvs = Ipv4ReachSubTlvs::default();
             if subtlvs {
                 let mut sub_tlvs_len = buf.get_u8();
                 while sub_tlvs_len >= TLV_HDR_SIZE as u8 {
@@ -1214,6 +1222,20 @@ impl ExtIpv4ReachTlv {
                     let mut buf_stlv = buf.copy_to_bytes(stlv_len as usize);
                     sub_tlvs_len -= stlv_len;
                     match stlv_etype {
+                        Some(PrefixSubTlvType::Ipv4SourceRouterId) => {
+                            let stlv = Ipv4SourceRidSubTlv::decode(
+                                stlv_len,
+                                &mut buf_stlv,
+                            )?;
+                            sub_tlvs.ipv4_source_rid = Some(stlv);
+                        }
+                        Some(PrefixSubTlvType::Ipv6SourceRouterId) => {
+                            let stlv = Ipv6SourceRidSubTlv::decode(
+                                stlv_len,
+                                &mut buf_stlv,
+                            )?;
+                            sub_tlvs.ipv6_source_rid = Some(stlv);
+                        }
                         _ => {
                             // Save unknown Sub-TLV.
                             let value =
@@ -1254,6 +1276,11 @@ impl ExtIpv4ReachTlv {
             if entry.up_down {
                 control |= Self::CONTROL_UPDOWN_BIT;
             }
+            let has_subtlvs = entry.sub_tlvs.ipv4_source_rid.is_some()
+                || entry.sub_tlvs.ipv6_source_rid.is_some();
+            if has_subtlvs {
+                control |= Self::CONTROL_SUBTLVS;
+            }
             control |= plen;
             buf.put_u8(control);
 
@@ -1262,6 +1289,20 @@ impl ExtIpv4ReachTlv {
             buf.put(&entry.prefix.ip().octets()[0..plen_wire]);
 
             // Encode Sub-TLVs.
+            if has_subtlvs {
+                let subtlvs_len_pos = buf.len();
+                buf.put_u8(0);
+
+                if let Some(stlv) = &entry.sub_tlvs.ipv4_source_rid {
+                    stlv.encode(buf);
+                }
+                if let Some(stlv) = &entry.sub_tlvs.ipv6_source_rid {
+                    stlv.encode(buf);
+                }
+
+                // Rewrite Sub-TLVs length field.
+                buf[subtlvs_len_pos] = (buf.len() - 1 - subtlvs_len_pos) as u8;
+            }
         }
         tlv_encode_end(buf, start_pos);
     }
@@ -1364,12 +1405,26 @@ impl Ipv6ReachTlv {
                     let mut buf_stlv = buf.copy_to_bytes(stlv_len as usize);
                     sub_tlvs_len -= stlv_len;
                     match stlv_etype {
-                        Some(PrefixSubTlvType::BierInfo) => {
-                            let bier = BierInfoSubTlv::decode(
+                        Some(PrefixSubTlvType::Ipv4SourceRouterId) => {
+                            let stlv = Ipv4SourceRidSubTlv::decode(
                                 stlv_len,
                                 &mut buf_stlv,
                             )?;
-                            sub_tlvs.bier.push(bier);
+                            sub_tlvs.ipv4_source_rid = Some(stlv);
+                        }
+                        Some(PrefixSubTlvType::Ipv6SourceRouterId) => {
+                            let stlv = Ipv6SourceRidSubTlv::decode(
+                                stlv_len,
+                                &mut buf_stlv,
+                            )?;
+                            sub_tlvs.ipv6_source_rid = Some(stlv);
+                        }
+                        Some(PrefixSubTlvType::BierInfo) => {
+                            let stlv = BierInfoSubTlv::decode(
+                                stlv_len,
+                                &mut buf_stlv,
+                            )?;
+                            sub_tlvs.bier.push(stlv);
                         }
                         _ => {
                             // Save unknown Sub-TLV.
@@ -1414,7 +1469,9 @@ impl Ipv6ReachTlv {
             if entry.external {
                 flags |= Self::FLAG_EXTERNAL;
             }
-            let has_subtlvs = !entry.sub_tlvs.bier.is_empty();
+            let has_subtlvs = entry.sub_tlvs.ipv4_source_rid.is_some()
+                || entry.sub_tlvs.ipv6_source_rid.is_some()
+                || !entry.sub_tlvs.bier.is_empty();
             if has_subtlvs {
                 flags |= Self::FLAG_SUBTLVS;
             }
@@ -1429,6 +1486,7 @@ impl Ipv6ReachTlv {
             buf.put(&entry.prefix.ip().octets()[0..plen_wire]);
 
             // Encode Sub-TLVs.
+            //
             // Enforce RFC5308 Section 2: "If the Sub-TLV bit is set to 0, then
             // the octets of Sub-TLVs are not present. Otherwise, the bit is 1
             // and the octet following the prefix will contain the length of the
@@ -1437,8 +1495,14 @@ impl Ipv6ReachTlv {
                 let subtlvs_len_pos = buf.len();
                 buf.put_u8(0);
 
-                for bier_entry in &entry.sub_tlvs.bier {
-                    BierInfoSubTlv::encode(bier_entry, buf);
+                if let Some(stlv) = &entry.sub_tlvs.ipv4_source_rid {
+                    stlv.encode(buf);
+                }
+                if let Some(stlv) = &entry.sub_tlvs.ipv6_source_rid {
+                    stlv.encode(buf);
+                }
+                for stlv in &entry.sub_tlvs.bier {
+                    stlv.encode(buf);
                 }
 
                 // Rewrite Sub-TLVs length field.

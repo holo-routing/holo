@@ -100,6 +100,8 @@ pub enum NeighborSubTlvType {
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
 pub enum PrefixSubTlvType {
+    Ipv4SourceRouterId = 11,
+    Ipv6SourceRouterId = 12,
     BierInfo = 32,
 }
 

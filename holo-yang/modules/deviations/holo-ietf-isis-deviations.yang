@@ -1664,14 +1664,6 @@ module holo-ietf-isis-deviations {
     deviate not-supported;
   }
 
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-ipv4-reachability/isis:prefixes/isis:ipv4-source-router-id" {
-    deviate not-supported;
-  }
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-ipv4-reachability/isis:prefixes/isis:ipv6-source-router-id" {
-    deviate not-supported;
-  }
-
   /*
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-ipv4-reachability/isis:prefixes/isis:unknown-tlvs" {
     deviate not-supported;
@@ -2355,14 +2347,6 @@ module holo-ietf-isis-deviations {
   }
 
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv6-reachability/isis:prefixes/isis:node-flag" {
-    deviate not-supported;
-  }
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv6-reachability/isis:prefixes/isis:ipv4-source-router-id" {
-    deviate not-supported;
-  }
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:ipv6-reachability/isis:prefixes/isis:ipv6-source-router-id" {
     deviate not-supported;
   }
 

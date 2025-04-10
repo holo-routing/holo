@@ -535,6 +535,8 @@ fn load_callbacks() -> Callbacks<Instance> {
                 ip_prefix: Some(Cow::Owned(reach.prefix.ip())),
                 prefix_len: Some(reach.prefix.prefix()),
                 metric: Some(reach.metric),
+                ipv4_source_router_id: reach.sub_tlvs.ipv4_source_rid.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
+                ipv6_source_router_id: reach.sub_tlvs.ipv6_source_rid.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
             })
         })
         .path(isis::database::levels::lsp::extended_ipv4_reachability::prefixes::unknown_tlvs::unknown_tlv::PATH)
@@ -567,6 +569,8 @@ fn load_callbacks() -> Callbacks<Instance> {
                 ip_prefix: Some(Cow::Owned(reach.prefix.ip())),
                 prefix_len: Some(reach.prefix.prefix()),
                 metric: Some(reach.metric),
+                ipv4_source_router_id: reach.sub_tlvs.ipv4_source_rid.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
+                ipv6_source_router_id: reach.sub_tlvs.ipv6_source_rid.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
             })
         })
         .path(isis::database::levels::lsp::ipv6_reachability::prefixes::unknown_tlvs::unknown_tlv::PATH)

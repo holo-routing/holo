@@ -1,3 +1,14 @@
+//
+// Copyright (c) The Holo Core Contributors
+//
+// SPDX-License-Identifier: MIT
+//
+// Sponsored by NLnet as part of the Next Generation Internet initiative.
+// See: https://nlnet.nl/NGI0
+//
+
+use std::net::{Ipv4Addr, Ipv6Addr};
+
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use derive_new::new;
 use holo_utils::bier::{BierEncapId, BiftId};
@@ -9,6 +20,16 @@ use serde::{Deserialize, Serialize};
 use crate::packet::consts::{BierSubSubTlvType, PrefixSubTlvType};
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::tlv::{TLV_HDR_SIZE, tlv_encode_end, tlv_encode_start};
+
+#[derive(Clone, Debug, PartialEq)]
+#[derive(new)]
+#[derive(Deserialize, Serialize)]
+pub struct Ipv4SourceRidSubTlv(Ipv4Addr);
+
+#[derive(Clone, Debug, PartialEq)]
+#[derive(new)]
+#[derive(Deserialize, Serialize)]
+pub struct Ipv6SourceRidSubTlv(Ipv6Addr);
 
 #[derive(Clone, Debug, PartialEq)]
 #[derive(new)]
@@ -35,6 +56,62 @@ pub struct BierEncapSubSubTlv {
     pub max_si: u8,
     pub bs_len: u8,
     pub id: BierEncapId,
+}
+
+// ===== impl Ipv4SourceRidSubTlv =====
+
+impl Ipv4SourceRidSubTlv {
+    const SIZE: usize = 4;
+
+    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+        // Validate the TLV length.
+        if tlv_len as usize != Self::SIZE {
+            return Err(DecodeError::InvalidTlvLength(tlv_len));
+        }
+
+        let addr = buf.get_ipv4();
+
+        Ok(Ipv4SourceRidSubTlv(addr))
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos =
+            tlv_encode_start(buf, PrefixSubTlvType::Ipv4SourceRouterId);
+        buf.put_ipv4(&self.0);
+        tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn get(&self) -> &Ipv4Addr {
+        &self.0
+    }
+}
+
+// ===== impl Ipv6SourceRidSubTlv =====
+
+impl Ipv6SourceRidSubTlv {
+    const SIZE: usize = 16;
+
+    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+        // Validate the TLV length.
+        if tlv_len as usize != Self::SIZE {
+            return Err(DecodeError::InvalidTlvLength(tlv_len));
+        }
+
+        let addr = buf.get_ipv6();
+
+        Ok(Ipv6SourceRidSubTlv(addr))
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos =
+            tlv_encode_start(buf, PrefixSubTlvType::Ipv6SourceRouterId);
+        buf.put_ipv6(&self.0);
+        tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn get(&self) -> &Ipv6Addr {
+        &self.0
+    }
 }
 
 // ===== impl BierInfoSubTlv =====

@@ -81,6 +81,10 @@ impl Ipv4SourceRidSubTlv {
         tlv_encode_end(buf, start_pos);
     }
 
+    pub(crate) fn len(&self) -> usize {
+        TLV_HDR_SIZE + Self::SIZE
+    }
+
     pub(crate) fn get(&self) -> &Ipv4Addr {
         &self.0
     }
@@ -109,6 +113,10 @@ impl Ipv6SourceRidSubTlv {
         tlv_encode_end(buf, start_pos);
     }
 
+    pub(crate) fn len(&self) -> usize {
+        TLV_HDR_SIZE + Self::SIZE
+    }
+
     pub(crate) fn get(&self) -> &Ipv6Addr {
         &self.0
     }
@@ -117,10 +125,10 @@ impl Ipv6SourceRidSubTlv {
 // ===== impl BierInfoSubTlv =====
 
 impl BierInfoSubTlv {
-    const ENTRY_MIN_SIZE: usize = 5;
+    const MIN_SIZE: usize = 5;
 
     pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
-        if tlv_len < Self::ENTRY_MIN_SIZE as u8 {
+        if tlv_len < Self::MIN_SIZE as u8 {
             return Err(DecodeError::InvalidTlvLength(tlv_len));
         }
         let bar = buf.get_u8();
@@ -205,5 +213,17 @@ impl BierInfoSubTlv {
             }
         }
         tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        TLV_HDR_SIZE
+            + Self::MIN_SIZE
+            + self
+                .subtlvs
+                .iter()
+                .map(|stlv| match stlv {
+                    BierSubSubTlv::BierEncapSubSubTlv(_) => 6,
+                })
+                .sum::<usize>()
     }
 }

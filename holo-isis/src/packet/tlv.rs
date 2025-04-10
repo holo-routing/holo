@@ -1317,7 +1317,7 @@ impl MultiTlv for ExtIpv4ReachTlv {
 
     fn entry_len(entry: &ExtIpv4Reach) -> usize {
         let plen = entry.prefix.prefix();
-        Self::ENTRY_MIN_SIZE + prefix_wire_len(plen)
+        Self::ENTRY_MIN_SIZE + prefix_wire_len(plen) + entry.sub_tlvs.len()
     }
 }
 
@@ -1351,6 +1351,26 @@ impl IpReachTlvEntry for ExtIpv4Reach {
 
     fn up_down(&self) -> bool {
         self.up_down
+    }
+}
+
+// ===== impl Ipv4ReachSubTlvs =====
+
+impl Ipv4ReachSubTlvs {
+    fn len(&self) -> usize {
+        let mut len = 0;
+
+        if self.ipv4_source_rid.is_some() || self.ipv6_source_rid.is_some() {
+            len += 1;
+        }
+        if let Some(stlv) = &self.ipv4_source_rid {
+            len += stlv.len();
+        }
+        if let Some(stlv) = &self.ipv6_source_rid {
+            len += stlv.len();
+        }
+
+        len
     }
 }
 
@@ -1522,7 +1542,7 @@ impl MultiTlv for Ipv6ReachTlv {
 
     fn entry_len(entry: &Ipv6Reach) -> usize {
         let plen = entry.prefix.prefix();
-        Self::ENTRY_MIN_SIZE + prefix_wire_len(plen)
+        Self::ENTRY_MIN_SIZE + prefix_wire_len(plen) + entry.sub_tlvs.len()
     }
 }
 
@@ -1556,6 +1576,32 @@ impl IpReachTlvEntry for Ipv6Reach {
 
     fn up_down(&self) -> bool {
         self.up_down
+    }
+}
+
+// ===== impl Ipv6ReachSubTlvs =====
+
+impl Ipv6ReachSubTlvs {
+    fn len(&self) -> usize {
+        let mut len = 0;
+
+        if self.ipv4_source_rid.is_some()
+            || self.ipv6_source_rid.is_some()
+            || !self.bier.is_empty()
+        {
+            len += 1;
+        }
+        if let Some(stlv) = &self.ipv4_source_rid {
+            len += stlv.len();
+        }
+        if let Some(stlv) = &self.ipv6_source_rid {
+            len += stlv.len();
+        }
+        for stlv in self.bier.iter() {
+            len += stlv.len();
+        }
+
+        len
     }
 }
 

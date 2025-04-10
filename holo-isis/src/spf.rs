@@ -29,6 +29,7 @@ use crate::lsdb::{LspEntry, LspLogId};
 use crate::northbound::configuration::MetricType;
 use crate::packet::consts::LspFlags;
 use crate::packet::pdu::Lsp;
+use crate::packet::subtlvs::prefix::PrefixAttrFlags;
 use crate::packet::tlv::{IpReachTlvEntry, Nlpid};
 use crate::packet::{LanId, LevelNumber, LevelType, LspId, SystemId};
 use crate::route::Route;
@@ -871,11 +872,11 @@ fn vertex_networks<'a>(
                                 // specifying whether the prefix has an external
                                 // origin, unlike TLV 235 (the IPv6 equivalent).
                                 // RFC 7794 specifies the Prefix Attributes
-                                // Sub-TLV which contains the External Prefix
-                                // Flag (X-flag). For now, let's just assume
-                                // all prefixes announced using this TLV are
-                                // internal.
-                                external: false,
+                                // Sub-TLV, which contains the External Prefix
+                                // Flag (X-flag) to address this omission.
+                                external: reach
+                                    .prefix_attr_flags_get(PrefixAttrFlags::X)
+                                    .unwrap_or(false),
                             }
                         });
                     ipv4_wide_iter = Some(iter);

@@ -26,7 +26,8 @@ use holo_isis::packet::subtlvs::neighbor::{
     UnreservedBwSubTlv,
 };
 use holo_isis::packet::subtlvs::prefix::{
-    Ipv4SourceRidSubTlv, Ipv6SourceRidSubTlv,
+    Ipv4SourceRidSubTlv, Ipv6SourceRidSubTlv, PrefixAttrFlags,
+    PrefixAttrFlagsSubTlv,
 };
 use holo_isis::packet::tlv::{
     AreaAddressesTlv, DynamicHostnameTlv, ExtIpv4Reach, ExtIpv4ReachTlv,

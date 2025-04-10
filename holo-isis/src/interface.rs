@@ -317,9 +317,12 @@ impl Interface {
         }
     }
 
-    pub(crate) const fn is_passive(&self) -> bool {
+    pub(crate) const fn is_loopback(&self) -> bool {
         self.system.flags.contains(InterfaceFlags::LOOPBACK)
-            || self.config.passive
+    }
+
+    pub(crate) const fn is_passive(&self) -> bool {
+        self.is_loopback() || self.config.passive
     }
 
     fn is_ready(&self) -> Result<(), InterfaceInactiveReason> {

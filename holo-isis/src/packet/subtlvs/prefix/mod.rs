@@ -9,6 +9,7 @@
 
 use std::net::{Ipv4Addr, Ipv6Addr};
 
+use bitflags::bitflags;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use derive_new::new;
 use holo_utils::bier::{BierEncapId, BiftId};
@@ -20,6 +21,22 @@ use serde::{Deserialize, Serialize};
 use crate::packet::consts::{BierSubSubTlvType, PrefixSubTlvType};
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::tlv::{TLV_HDR_SIZE, tlv_encode_end, tlv_encode_start};
+
+bitflags! {
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+    #[derive(Deserialize, Serialize)]
+    #[serde(transparent)]
+    pub struct PrefixAttrFlags: u8 {
+        const X = 0x80;
+        const R = 0x40;
+        const N = 0x20;
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(new)]
+#[derive(Deserialize, Serialize)]
+pub struct PrefixAttrFlagsSubTlv(PrefixAttrFlags);
 
 #[derive(Clone, Debug, PartialEq)]
 #[derive(new)]
@@ -56,6 +73,44 @@ pub struct BierEncapSubSubTlv {
     pub max_si: u8,
     pub bs_len: u8,
     pub id: BierEncapId,
+}
+
+// ===== impl PrefixAttrFlagsSubTlv =====
+
+impl PrefixAttrFlagsSubTlv {
+    const SIZE: usize = 1;
+
+    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+        // A TLV length of zero is permitted under RFC 7794.
+        if tlv_len == 0 {
+            return Ok(PrefixAttrFlagsSubTlv::default());
+        }
+
+        // Any remaining bits beyond the first byte are ignored.
+        let flags = buf.get_u8();
+        let flags = PrefixAttrFlags::from_bits_truncate(flags);
+
+        Ok(PrefixAttrFlagsSubTlv(flags))
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos =
+            tlv_encode_start(buf, PrefixSubTlvType::PrefixAttributeFlags);
+        buf.put_u8(self.0.bits());
+        tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        TLV_HDR_SIZE + Self::SIZE
+    }
+
+    pub(crate) fn get(&self) -> PrefixAttrFlags {
+        self.0
+    }
+
+    pub(crate) fn set(&mut self, flag: PrefixAttrFlags) {
+        self.0.insert(flag);
+    }
 }
 
 // ===== impl Ipv4SourceRidSubTlv =====

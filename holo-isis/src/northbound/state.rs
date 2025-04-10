@@ -30,9 +30,10 @@ use crate::collections::Lsdb;
 use crate::instance::Instance;
 use crate::interface::Interface;
 use crate::lsdb::{LspEntry, LspLogEntry, LspLogId};
+use crate::packet::subtlvs::prefix::PrefixAttrFlags;
 use crate::packet::tlv::{
-    AuthenticationTlv, ExtIpv4Reach, ExtIsReach, Ipv4Reach, Ipv6Reach, IsReach,
-    UnknownTlv,
+    AuthenticationTlv, ExtIpv4Reach, ExtIsReach, IpReachTlvEntry, Ipv4Reach,
+    Ipv6Reach, IsReach, UnknownTlv,
 };
 use crate::packet::{LanId, LevelNumber, LevelType, SystemId};
 use crate::route::{Nexthop, Route};
@@ -535,6 +536,9 @@ fn load_callbacks() -> Callbacks<Instance> {
                 ip_prefix: Some(Cow::Owned(reach.prefix.ip())),
                 prefix_len: Some(reach.prefix.prefix()),
                 metric: Some(reach.metric),
+                external_prefix_flag: reach.prefix_attr_flags_get(PrefixAttrFlags::X),
+                node_flag: reach.prefix_attr_flags_get(PrefixAttrFlags::N),
+                readvertisement_flag: reach.prefix_attr_flags_get(PrefixAttrFlags::R),
                 ipv4_source_router_id: reach.sub_tlvs.ipv4_source_rid.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
                 ipv6_source_router_id: reach.sub_tlvs.ipv6_source_rid.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
             })
@@ -569,6 +573,9 @@ fn load_callbacks() -> Callbacks<Instance> {
                 ip_prefix: Some(Cow::Owned(reach.prefix.ip())),
                 prefix_len: Some(reach.prefix.prefix()),
                 metric: Some(reach.metric),
+                external_prefix_flag: Some(reach.external),
+                node_flag: reach.prefix_attr_flags_get(PrefixAttrFlags::N),
+                readvertisement_flag: reach.prefix_attr_flags_get(PrefixAttrFlags::R),
                 ipv4_source_router_id: reach.sub_tlvs.ipv4_source_rid.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
                 ipv6_source_router_id: reach.sub_tlvs.ipv6_source_rid.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
             })

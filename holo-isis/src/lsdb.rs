@@ -35,7 +35,7 @@ use crate::packet::consts::LspFlags;
 use crate::packet::pdu::{Lsp, LspTlvs, Pdu};
 use crate::packet::subtlvs::prefix::{
     BierEncapSubSubTlv, BierInfoSubTlv, BierSubSubTlv, Ipv4SourceRidSubTlv,
-    Ipv6SourceRidSubTlv,
+    Ipv6SourceRidSubTlv, PrefixAttrFlags, PrefixAttrFlagsSubTlv,
 };
 use crate::packet::tlv::{
     ExtIpv4Reach, ExtIsReach, IpReachTlvEntry, Ipv4Reach, Ipv4ReachSubTlvs,
@@ -453,7 +453,12 @@ fn lsp_build_tlvs_ip_local(
                 );
             }
             if metric_type.is_wide_enabled() {
-                let sub_tlvs = lsp_build_ipv4_reach_sub_tlvs(instance);
+                let mut prefix_attr_flags = PrefixAttrFlags::empty();
+                if iface.is_loopback() && prefix.is_host_prefix() {
+                    prefix_attr_flags.insert(PrefixAttrFlags::N);
+                }
+                let sub_tlvs =
+                    lsp_build_ipv4_reach_sub_tlvs(instance, prefix_attr_flags);
                 ext_ipv4_reach.insert(
                     prefix,
                     ExtIpv4Reach {
@@ -481,7 +486,15 @@ fn lsp_build_tlvs_ip_local(
             ipv6_addrs.insert(addr.ip());
 
             let prefix = addr.apply_mask();
-            let sub_tlvs = lsp_build_ipv6_reach_sub_tlvs(instance, prefix);
+            let mut prefix_attr_flags = PrefixAttrFlags::empty();
+            if iface.is_loopback() && prefix.is_host_prefix() {
+                prefix_attr_flags.insert(PrefixAttrFlags::N);
+            }
+            let sub_tlvs = lsp_build_ipv6_reach_sub_tlvs(
+                instance,
+                prefix,
+                prefix_attr_flags,
+            );
             ipv6_reach.insert(
                 prefix,
                 Ipv6Reach {
@@ -523,7 +536,9 @@ fn lsp_build_tlvs_ip_redistributed(
                 );
             }
             if metric_type.is_wide_enabled() {
-                let sub_tlvs = lsp_build_ipv4_reach_sub_tlvs(instance);
+                let prefix_attr_flags = PrefixAttrFlags::X;
+                let sub_tlvs =
+                    lsp_build_ipv4_reach_sub_tlvs(instance, prefix_attr_flags);
                 ext_ipv4_reach.insert(
                     prefix,
                     ExtIpv4Reach {
@@ -539,7 +554,12 @@ fn lsp_build_tlvs_ip_redistributed(
     if instance.config.is_af_enabled(AddressFamily::Ipv6) {
         for (prefix, route) in instance.system.ipv6_routes.get(level) {
             let prefix = prefix.apply_mask();
-            let sub_tlvs = lsp_build_ipv6_reach_sub_tlvs(instance, prefix);
+            let prefix_attr_flags = PrefixAttrFlags::empty();
+            let sub_tlvs = lsp_build_ipv6_reach_sub_tlvs(
+                instance,
+                prefix,
+                prefix_attr_flags,
+            );
             ipv6_reach.insert(
                 prefix,
                 Ipv6Reach {
@@ -556,8 +576,15 @@ fn lsp_build_tlvs_ip_redistributed(
 
 fn lsp_build_ipv4_reach_sub_tlvs(
     instance: &mut InstanceUpView<'_>,
+    prefix_attr_flags: PrefixAttrFlags,
 ) -> Ipv4ReachSubTlvs {
     let mut sub_tlvs = Ipv4ReachSubTlvs::default();
+
+    // Add IPv4 Extended Reachability Attribute Flags.
+    if !prefix_attr_flags.is_empty() {
+        sub_tlvs.prefix_attr_flags =
+            Some(PrefixAttrFlagsSubTlv::new(prefix_attr_flags));
+    }
 
     // Add Source Router ID Sub-TLV(s).
     if let Some(router_id) = instance.config.ipv4_router_id {
@@ -573,9 +600,16 @@ fn lsp_build_ipv4_reach_sub_tlvs(
 fn lsp_build_ipv6_reach_sub_tlvs(
     instance: &mut InstanceUpView<'_>,
     prefix: Ipv6Network,
+    prefix_attr_flags: PrefixAttrFlags,
 ) -> Ipv6ReachSubTlvs {
     let bier_config = &instance.shared.bier_config;
     let mut sub_tlvs = Ipv6ReachSubTlvs::default();
+
+    // Add IPv6 Extended Reachability Attribute Flags.
+    if !prefix_attr_flags.is_empty() {
+        sub_tlvs.prefix_attr_flags =
+            Some(PrefixAttrFlagsSubTlv::new(prefix_attr_flags));
+    }
 
     // Add Source Router ID Sub-TLV(s).
     if let Some(router_id) = instance.config.ipv4_router_id {
@@ -776,6 +810,10 @@ fn propagate_ip_reach<'a, T: IpReachTlvEntry + 'a>(
         // LSP, plus the distance from the level 2 router to the appropriate
         // level 1 router".
         reach.metric_add(l1_lsp_dist);
+
+        // Set the Re-advertisement Flag for reachability TLVs that support
+        // the Extended Reachability Attribute Flags Sub-TLV.
+        reach.prefix_attr_flags_set(PrefixAttrFlags::R);
 
         // Keep only the entry with the lowest total metric for each prefix.
         match l2_reach.entry(reach.prefix()) {

@@ -27,7 +27,8 @@ use crate::packet::error::{DecodeError, DecodeResult};
 #[cfg(feature = "testing")]
 use crate::packet::pdu::serde_lsp_rem_lifetime_filter;
 use crate::packet::subtlvs::prefix::{
-    BierInfoSubTlv, Ipv4SourceRidSubTlv, Ipv6SourceRidSubTlv,
+    BierInfoSubTlv, Ipv4SourceRidSubTlv, Ipv6SourceRidSubTlv, PrefixAttrFlags,
+    PrefixAttrFlagsSubTlv,
 };
 use crate::packet::{AreaAddr, LanId, LspId, subtlvs};
 
@@ -84,6 +85,14 @@ pub trait IpReachTlvEntry: Clone {
 
     // Return whether the up/down bit is set.
     fn up_down(&self) -> bool;
+
+    // Return the value of the specified prefix attribute flag, if present.
+    fn prefix_attr_flags_get(&self, flag: PrefixAttrFlags) -> Option<bool>;
+
+    // Set the specified prefix attribute flag, if supported.
+    //
+    // If the Prefix Attribute Flags sub-TLV is not present, it will be created.
+    fn prefix_attr_flags_set(&mut self, flag: PrefixAttrFlags);
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -255,6 +264,7 @@ pub struct ExtIpv4Reach {
 )]
 #[derive(Deserialize, Serialize)]
 pub struct Ipv4ReachSubTlvs {
+    pub prefix_attr_flags: Option<PrefixAttrFlagsSubTlv>,
     pub ipv4_source_rid: Option<Ipv4SourceRidSubTlv>,
     pub ipv6_source_rid: Option<Ipv6SourceRidSubTlv>,
     pub unknown: Vec<UnknownTlv>,
@@ -283,6 +293,7 @@ pub struct Ipv6Reach {
 )]
 #[derive(Deserialize, Serialize)]
 pub struct Ipv6ReachSubTlvs {
+    pub prefix_attr_flags: Option<PrefixAttrFlagsSubTlv>,
     pub ipv4_source_rid: Option<Ipv4SourceRidSubTlv>,
     pub ipv6_source_rid: Option<Ipv6SourceRidSubTlv>,
     pub bier: Vec<BierInfoSubTlv>,
@@ -1172,6 +1183,15 @@ impl IpReachTlvEntry for Ipv4Reach {
     fn up_down(&self) -> bool {
         self.up_down
     }
+
+    fn prefix_attr_flags_get(&self, _flag: PrefixAttrFlags) -> Option<bool> {
+        // TLVs 128 and 130 don't support Sub-TLVs.
+        None
+    }
+
+    fn prefix_attr_flags_set(&mut self, _flag: PrefixAttrFlags) {
+        // TLVs 128 and 130 don't support Sub-TLVs.
+    }
 }
 
 // ===== impl ExtIpv4ReachTlv =====
@@ -1222,6 +1242,13 @@ impl ExtIpv4ReachTlv {
                     let mut buf_stlv = buf.copy_to_bytes(stlv_len as usize);
                     sub_tlvs_len -= stlv_len;
                     match stlv_etype {
+                        Some(PrefixSubTlvType::PrefixAttributeFlags) => {
+                            let stlv = PrefixAttrFlagsSubTlv::decode(
+                                stlv_len,
+                                &mut buf_stlv,
+                            )?;
+                            sub_tlvs.prefix_attr_flags = Some(stlv);
+                        }
                         Some(PrefixSubTlvType::Ipv4SourceRouterId) => {
                             let stlv = Ipv4SourceRidSubTlv::decode(
                                 stlv_len,
@@ -1276,7 +1303,8 @@ impl ExtIpv4ReachTlv {
             if entry.up_down {
                 control |= Self::CONTROL_UPDOWN_BIT;
             }
-            let has_subtlvs = entry.sub_tlvs.ipv4_source_rid.is_some()
+            let has_subtlvs = entry.sub_tlvs.prefix_attr_flags.is_some()
+                || entry.sub_tlvs.ipv4_source_rid.is_some()
                 || entry.sub_tlvs.ipv6_source_rid.is_some();
             if has_subtlvs {
                 control |= Self::CONTROL_SUBTLVS;
@@ -1293,6 +1321,9 @@ impl ExtIpv4ReachTlv {
                 let subtlvs_len_pos = buf.len();
                 buf.put_u8(0);
 
+                if let Some(stlv) = &entry.sub_tlvs.prefix_attr_flags {
+                    stlv.encode(buf);
+                }
                 if let Some(stlv) = &entry.sub_tlvs.ipv4_source_rid {
                     stlv.encode(buf);
                 }
@@ -1352,6 +1383,20 @@ impl IpReachTlvEntry for ExtIpv4Reach {
     fn up_down(&self) -> bool {
         self.up_down
     }
+
+    fn prefix_attr_flags_get(&self, flag: PrefixAttrFlags) -> Option<bool> {
+        self.sub_tlvs
+            .prefix_attr_flags
+            .as_ref()
+            .map(|stlv| stlv.get().contains(flag))
+    }
+
+    fn prefix_attr_flags_set(&mut self, flag: PrefixAttrFlags) {
+        self.sub_tlvs
+            .prefix_attr_flags
+            .get_or_insert_default()
+            .set(flag);
+    }
 }
 
 // ===== impl Ipv4ReachSubTlvs =====
@@ -1360,8 +1405,14 @@ impl Ipv4ReachSubTlvs {
     fn len(&self) -> usize {
         let mut len = 0;
 
-        if self.ipv4_source_rid.is_some() || self.ipv6_source_rid.is_some() {
+        if self.prefix_attr_flags.is_some()
+            || self.ipv4_source_rid.is_some()
+            || self.ipv6_source_rid.is_some()
+        {
             len += 1;
+        }
+        if let Some(stlv) = &self.prefix_attr_flags {
+            len += stlv.len();
         }
         if let Some(stlv) = &self.ipv4_source_rid {
             len += stlv.len();
@@ -1425,6 +1476,13 @@ impl Ipv6ReachTlv {
                     let mut buf_stlv = buf.copy_to_bytes(stlv_len as usize);
                     sub_tlvs_len -= stlv_len;
                     match stlv_etype {
+                        Some(PrefixSubTlvType::PrefixAttributeFlags) => {
+                            let stlv = PrefixAttrFlagsSubTlv::decode(
+                                stlv_len,
+                                &mut buf_stlv,
+                            )?;
+                            sub_tlvs.prefix_attr_flags = Some(stlv);
+                        }
                         Some(PrefixSubTlvType::Ipv4SourceRouterId) => {
                             let stlv = Ipv4SourceRidSubTlv::decode(
                                 stlv_len,
@@ -1489,7 +1547,8 @@ impl Ipv6ReachTlv {
             if entry.external {
                 flags |= Self::FLAG_EXTERNAL;
             }
-            let has_subtlvs = entry.sub_tlvs.ipv4_source_rid.is_some()
+            let has_subtlvs = entry.sub_tlvs.prefix_attr_flags.is_some()
+                || entry.sub_tlvs.ipv4_source_rid.is_some()
                 || entry.sub_tlvs.ipv6_source_rid.is_some()
                 || !entry.sub_tlvs.bier.is_empty();
             if has_subtlvs {
@@ -1515,6 +1574,9 @@ impl Ipv6ReachTlv {
                 let subtlvs_len_pos = buf.len();
                 buf.put_u8(0);
 
+                if let Some(stlv) = &entry.sub_tlvs.prefix_attr_flags {
+                    stlv.encode(buf);
+                }
                 if let Some(stlv) = &entry.sub_tlvs.ipv4_source_rid {
                     stlv.encode(buf);
                 }
@@ -1577,6 +1639,20 @@ impl IpReachTlvEntry for Ipv6Reach {
     fn up_down(&self) -> bool {
         self.up_down
     }
+
+    fn prefix_attr_flags_get(&self, flag: PrefixAttrFlags) -> Option<bool> {
+        self.sub_tlvs
+            .prefix_attr_flags
+            .as_ref()
+            .map(|stlv| stlv.get().contains(flag))
+    }
+
+    fn prefix_attr_flags_set(&mut self, flag: PrefixAttrFlags) {
+        self.sub_tlvs
+            .prefix_attr_flags
+            .get_or_insert_default()
+            .set(flag);
+    }
 }
 
 // ===== impl Ipv6ReachSubTlvs =====
@@ -1585,11 +1661,15 @@ impl Ipv6ReachSubTlvs {
     fn len(&self) -> usize {
         let mut len = 0;
 
-        if self.ipv4_source_rid.is_some()
+        if self.prefix_attr_flags.is_some()
+            || self.ipv4_source_rid.is_some()
             || self.ipv6_source_rid.is_some()
             || !self.bier.is_empty()
         {
             len += 1;
+        }
+        if let Some(stlv) = &self.prefix_attr_flags {
+            len += stlv.len();
         }
         if let Some(stlv) = &self.ipv4_source_rid {
             len += stlv.len();

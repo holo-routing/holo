@@ -85,6 +85,9 @@ pub trait Ipv4NetworkExt {
     #[must_use]
     fn apply_mask(&self) -> Ipv4Network;
 
+    // Returns true if this is a host prefix.
+    fn is_host_prefix(&self) -> bool;
+
     // Returns true if this is a routable network.
     fn is_routable(&self) -> bool;
 }
@@ -96,6 +99,9 @@ pub trait Ipv6NetworkExt {
     // Apply mask to prefix.
     #[must_use]
     fn apply_mask(&self) -> Ipv6Network;
+
+    // Returns true if this is a host prefix.
+    fn is_host_prefix(&self) -> bool;
 
     // Returns true if this is a routable network.
     fn is_routable(&self) -> bool;
@@ -435,6 +441,10 @@ impl Ipv4NetworkExt for Ipv4Network {
         Ipv4Network::new(self.network(), self.prefix()).unwrap()
     }
 
+    fn is_host_prefix(&self) -> bool {
+        self.prefix() == Self::MAX_PREFIXLEN
+    }
+
     fn is_routable(&self) -> bool {
         !self.ip().is_broadcast()
             && !self.ip().is_loopback()
@@ -495,6 +505,10 @@ impl Ipv6NetworkExt for Ipv6Network {
 
     fn apply_mask(&self) -> Ipv6Network {
         Ipv6Network::new(self.network(), self.prefix()).unwrap()
+    }
+
+    fn is_host_prefix(&self) -> bool {
+        self.prefix() == Self::MAX_PREFIXLEN
     }
 
     fn is_routable(&self) -> bool {

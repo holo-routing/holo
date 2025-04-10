@@ -14,7 +14,7 @@ use holo_northbound::NbDaemonSender;
 use holo_utils::ibus::IbusSender;
 use holo_utils::ip::{AddressFamily, IpAddrKind, Ipv4NetworkExt};
 use holo_utils::southbound::{AddressFlags, InterfaceFlags};
-use ipnetwork::{IpNetwork, Ipv4Network};
+use ipnetwork::IpNetwork;
 
 use crate::northbound::configuration::InterfaceCfg;
 use crate::{ibus, netlink};
@@ -333,8 +333,8 @@ impl Interfaces {
         // Add address to the interface.
         let mut flags = AddressFlags::empty();
         if !iface.flags.contains(InterfaceFlags::LOOPBACK)
-            && addr.is_ipv4()
-            && addr.prefix() == Ipv4Network::MAX_PREFIXLEN
+            && let IpNetwork::V4(addr) = addr
+            && addr.is_host_prefix()
         {
             flags.insert(AddressFlags::UNNUMBERED);
         }

@@ -656,7 +656,7 @@ fn lsa_orig_ext_prefix(
         for ((prefix, algo), prefix_sid) in sr_config.prefix_sids.iter() {
             if let IpNetwork::V4(prefix) = prefix {
                 let mut flags = LsaExtPrefixFlags::empty();
-                if prefix.prefix() == 32 {
+                if prefix.is_host_prefix() {
                     flags.insert(LsaExtPrefixFlags::N);
                 }
 

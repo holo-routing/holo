@@ -210,31 +210,38 @@
                             "up-down": false,
                             "ip-prefix": "2001:db8:1000::4",
                             "prefix-len": 128,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": false,
+                            "node-flag": true
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:2::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:3::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:6::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:7::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           }
                         ]
                       },
@@ -416,31 +423,38 @@
                             "up-down": false,
                             "ip-prefix": "2001:db8:1000::5",
                             "prefix-len": 128,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": false,
+                            "node-flag": true
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:4::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:5::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:6::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:8::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           }
                         ]
                       },
@@ -582,19 +596,24 @@
                             "up-down": false,
                             "ip-prefix": "2001:db8:1000::6",
                             "prefix-len": 128,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": false,
+                            "node-flag": true
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:7::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:8::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           }
                         ]
                       },
@@ -741,12 +760,12 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::481:50ff:fe90:ba0a",
-                        "outgoing-interface": "eth-rt5"
+                        "next-hop": "fe80::608a:d6ff:fe50:82e4",
+                        "outgoing-interface": "eth-rt4"
                       },
                       {
-                        "next-hop": "fe80::a8fd:59ff:fee4:bf4e",
-                        "outgoing-interface": "eth-rt4"
+                        "next-hop": "fe80::9c5b:faff:fee3:521d",
+                        "outgoing-interface": "eth-rt5"
                       }
                     ]
                   },
@@ -758,7 +777,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::a8fd:59ff:fee4:bf4e",
+                        "next-hop": "fe80::608a:d6ff:fe50:82e4",
                         "outgoing-interface": "eth-rt4"
                       }
                     ]
@@ -771,7 +790,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::481:50ff:fe90:ba0a",
+                        "next-hop": "fe80::9c5b:faff:fee3:521d",
                         "outgoing-interface": "eth-rt5"
                       }
                     ]
@@ -789,7 +808,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::a8fd:59ff:fee4:bf4e",
+                        "next-hop": "fe80::608a:d6ff:fe50:82e4",
                         "outgoing-interface": "eth-rt4"
                       }
                     ]
@@ -802,7 +821,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::a8fd:59ff:fee4:bf4e",
+                        "next-hop": "fe80::608a:d6ff:fe50:82e4",
                         "outgoing-interface": "eth-rt4"
                       }
                     ]
@@ -815,7 +834,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::481:50ff:fe90:ba0a",
+                        "next-hop": "fe80::9c5b:faff:fee3:521d",
                         "outgoing-interface": "eth-rt5"
                       }
                     ]
@@ -828,7 +847,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::481:50ff:fe90:ba0a",
+                        "next-hop": "fe80::9c5b:faff:fee3:521d",
                         "outgoing-interface": "eth-rt5"
                       }
                     ]
@@ -841,12 +860,12 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::481:50ff:fe90:ba0a",
-                        "outgoing-interface": "eth-rt5"
+                        "next-hop": "fe80::608a:d6ff:fe50:82e4",
+                        "outgoing-interface": "eth-rt4"
                       },
                       {
-                        "next-hop": "fe80::a8fd:59ff:fee4:bf4e",
-                        "outgoing-interface": "eth-rt4"
+                        "next-hop": "fe80::9c5b:faff:fee3:521d",
+                        "outgoing-interface": "eth-rt5"
                       }
                     ]
                   },

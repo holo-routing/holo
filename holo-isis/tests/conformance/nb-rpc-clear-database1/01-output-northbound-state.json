@@ -133,19 +133,24 @@
                             "up-down": false,
                             "ip-prefix": "2001:db8:1000::6",
                             "prefix-len": 128,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": false,
+                            "node-flag": true
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:7::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:8::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           }
                         ]
                       },
@@ -335,12 +340,12 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::78c0:5bff:fe11:59fd",
-                        "outgoing-interface": "eth-rt5"
+                        "next-hop": "fe80::18c4:f8ff:fe09:3280",
+                        "outgoing-interface": "eth-rt4"
                       },
                       {
-                        "next-hop": "fe80::b0d8:32ff:fe4a:ddb0",
-                        "outgoing-interface": "eth-rt4"
+                        "next-hop": "fe80::a098:7cff:fef6:12a2",
+                        "outgoing-interface": "eth-rt5"
                       }
                     ]
                   },
@@ -352,7 +357,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::b0d8:32ff:fe4a:ddb0",
+                        "next-hop": "fe80::18c4:f8ff:fe09:3280",
                         "outgoing-interface": "eth-rt4"
                       }
                     ]
@@ -365,7 +370,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::78c0:5bff:fe11:59fd",
+                        "next-hop": "fe80::a098:7cff:fef6:12a2",
                         "outgoing-interface": "eth-rt5"
                       }
                     ]
@@ -378,7 +383,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::b0d8:32ff:fe4a:ddb0",
+                        "next-hop": "fe80::18c4:f8ff:fe09:3280",
                         "outgoing-interface": "eth-rt4"
                       }
                     ]
@@ -391,7 +396,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::78c0:5bff:fe11:59fd",
+                        "next-hop": "fe80::a098:7cff:fef6:12a2",
                         "outgoing-interface": "eth-rt5"
                       }
                     ]
@@ -409,12 +414,12 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::78c0:5bff:fe11:59fd",
-                        "outgoing-interface": "eth-rt5"
+                        "next-hop": "fe80::18c4:f8ff:fe09:3280",
+                        "outgoing-interface": "eth-rt4"
                       },
                       {
-                        "next-hop": "fe80::b0d8:32ff:fe4a:ddb0",
-                        "outgoing-interface": "eth-rt4"
+                        "next-hop": "fe80::a098:7cff:fef6:12a2",
+                        "outgoing-interface": "eth-rt5"
                       }
                     ]
                   },
@@ -426,7 +431,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::b0d8:32ff:fe4a:ddb0",
+                        "next-hop": "fe80::18c4:f8ff:fe09:3280",
                         "outgoing-interface": "eth-rt4"
                       }
                     ]
@@ -439,7 +444,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::b0d8:32ff:fe4a:ddb0",
+                        "next-hop": "fe80::18c4:f8ff:fe09:3280",
                         "outgoing-interface": "eth-rt4"
                       }
                     ]
@@ -452,7 +457,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::78c0:5bff:fe11:59fd",
+                        "next-hop": "fe80::a098:7cff:fef6:12a2",
                         "outgoing-interface": "eth-rt5"
                       }
                     ]
@@ -465,7 +470,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::78c0:5bff:fe11:59fd",
+                        "next-hop": "fe80::a098:7cff:fef6:12a2",
                         "outgoing-interface": "eth-rt5"
                       }
                     ]
@@ -478,12 +483,12 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::78c0:5bff:fe11:59fd",
-                        "outgoing-interface": "eth-rt5"
+                        "next-hop": "fe80::18c4:f8ff:fe09:3280",
+                        "outgoing-interface": "eth-rt4"
                       },
                       {
-                        "next-hop": "fe80::b0d8:32ff:fe4a:ddb0",
-                        "outgoing-interface": "eth-rt4"
+                        "next-hop": "fe80::a098:7cff:fef6:12a2",
+                        "outgoing-interface": "eth-rt5"
                       }
                     ]
                   },

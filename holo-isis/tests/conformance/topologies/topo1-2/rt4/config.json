@@ -50,6 +50,12 @@
             "metric-type": {
               "value": "wide-only"
             },
+            "mpls": {
+              "te-rid": {
+                "ipv4-router-id": "4.4.4.4",
+                "ipv6-router-id": "2001:db8:1000::4"
+              }
+            },
             "interfaces": {
               "interface": [
                 {

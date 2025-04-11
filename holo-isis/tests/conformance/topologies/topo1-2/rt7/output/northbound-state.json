@@ -52,6 +52,8 @@
                         "fc00:0:0:4::6",
                         "fc00:0:0:6::6"
                       ],
+                      "ipv4-te-routerid": "6.6.6.6",
+                      "ipv6-te-routerid": "2001:db8:1000::6",
                       "protocol-supported": [
                         204,
                         142
@@ -78,19 +80,28 @@
                             "up-down": false,
                             "ip-prefix": "6.6.6.6",
                             "prefix-len": 32,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": false,
+                            "node-flag": true,
+                            "ipv4-source-router-id": "6.6.6.6",
+                            "ipv6-source-router-id": "2001:db8:1000::6"
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "10.0.4.0",
                             "prefix-len": 24,
-                            "metric": 10
+                            "metric": 10,
+                            "ipv4-source-router-id": "6.6.6.6",
+                            "ipv6-source-router-id": "2001:db8:1000::6"
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "10.0.6.0",
                             "prefix-len": 24,
-                            "metric": 10
+                            "metric": 10,
+                            "ipv4-source-router-id": "6.6.6.6",
+                            "ipv6-source-router-id": "2001:db8:1000::6"
                           }
                         ]
                       },
@@ -100,19 +111,30 @@
                             "up-down": false,
                             "ip-prefix": "2001:db8:1000::6",
                             "prefix-len": 128,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": false,
+                            "node-flag": true,
+                            "ipv4-source-router-id": "6.6.6.6",
+                            "ipv6-source-router-id": "2001:db8:1000::6"
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:4::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false,
+                            "ipv4-source-router-id": "6.6.6.6",
+                            "ipv6-source-router-id": "2001:db8:1000::6"
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:6::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false,
+                            "ipv4-source-router-id": "6.6.6.6",
+                            "ipv6-source-router-id": "2001:db8:1000::6"
                           }
                         ]
                       },
@@ -136,6 +158,8 @@
                         "2001:db8:1000::7",
                         "fc00:0:0:6::7"
                       ],
+                      "ipv4-te-routerid": "7.7.7.7",
+                      "ipv6-te-routerid": "2001:db8:1000::7",
                       "protocol-supported": [
                         204,
                         142
@@ -162,13 +186,20 @@
                             "up-down": false,
                             "ip-prefix": "7.7.7.7",
                             "prefix-len": 32,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": false,
+                            "node-flag": true,
+                            "ipv4-source-router-id": "7.7.7.7",
+                            "ipv6-source-router-id": "2001:db8:1000::7"
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "10.0.6.0",
                             "prefix-len": 24,
-                            "metric": 10
+                            "metric": 10,
+                            "ipv4-source-router-id": "7.7.7.7",
+                            "ipv6-source-router-id": "2001:db8:1000::7"
                           }
                         ]
                       },
@@ -178,13 +209,21 @@
                             "up-down": false,
                             "ip-prefix": "2001:db8:1000::7",
                             "prefix-len": 128,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": false,
+                            "node-flag": true,
+                            "ipv4-source-router-id": "7.7.7.7",
+                            "ipv6-source-router-id": "2001:db8:1000::7"
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:6::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false,
+                            "ipv4-source-router-id": "7.7.7.7",
+                            "ipv6-source-router-id": "2001:db8:1000::7"
                           }
                         ]
                       },
@@ -253,7 +292,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::2c06:caff:feff:eb6c",
+                        "next-hop": "fe80::a880:6aff:fe0e:bcf",
                         "outgoing-interface": "eth-rt6"
                       }
                     ]
@@ -266,7 +305,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::2c06:caff:feff:eb6c",
+                        "next-hop": "fe80::a880:6aff:fe0e:bcf",
                         "outgoing-interface": "eth-rt6"
                       }
                     ]
@@ -284,7 +323,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::2c06:caff:feff:eb6c",
+                        "next-hop": "fe80::a880:6aff:fe0e:bcf",
                         "outgoing-interface": "eth-rt6"
                       }
                     ]

@@ -141,13 +141,17 @@
                             "up-down": false,
                             "ip-prefix": "2001:db8:1000::1",
                             "prefix-len": 128,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": false,
+                            "node-flag": true
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:1::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           }
                         ]
                       },
@@ -325,25 +329,31 @@
                             "up-down": false,
                             "ip-prefix": "2001:db8:1000::2",
                             "prefix-len": 128,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": false,
+                            "node-flag": true
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:1::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:2::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:3::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           }
                         ]
                       },
@@ -521,25 +531,31 @@
                             "up-down": false,
                             "ip-prefix": "2001:db8:1000::3",
                             "prefix-len": 128,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": false,
+                            "node-flag": true
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:1::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:4::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:5::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           }
                         ]
                       },
@@ -841,31 +857,38 @@
                             "up-down": false,
                             "ip-prefix": "2001:db8:1000::4",
                             "prefix-len": 128,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": false,
+                            "node-flag": true
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:2::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:3::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:6::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:7::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           }
                         ]
                       },
@@ -1085,31 +1108,38 @@
                             "up-down": false,
                             "ip-prefix": "2001:db8:1000::5",
                             "prefix-len": 128,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": false,
+                            "node-flag": true
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:4::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:5::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:6::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:8::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           }
                         ]
                       },
@@ -1252,19 +1282,24 @@
                             "up-down": false,
                             "ip-prefix": "2001:db8:1000::6",
                             "prefix-len": 128,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": false,
+                            "node-flag": true
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:7::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           },
                           {
                             "up-down": false,
                             "ip-prefix": "fc00:0:0:8::",
                             "prefix-len": 64,
-                            "metric": 10
+                            "metric": 10,
+                            "external-prefix-flag": false
                           }
                         ]
                       },
@@ -1466,7 +1501,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::1c09:78ff:fe5f:60d7",
+                        "next-hop": "fe80::4875:fbff:fefb:6598",
                         "outgoing-interface": "eth-sw1"
                       }
                     ]
@@ -1479,7 +1514,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::545b:ebff:feab:221b",
+                        "next-hop": "fe80::848:3dff:febb:3fbe",
                         "outgoing-interface": "eth-sw1"
                       }
                     ]
@@ -1497,16 +1532,16 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::2435:b8ff:fe66:c4ee",
-                        "outgoing-interface": "eth-rt5-2"
-                      },
-                      {
-                        "next-hop": "fe80::545b:ebff:feab:221b",
+                        "next-hop": "fe80::848:3dff:febb:3fbe",
                         "outgoing-interface": "eth-sw1"
                       },
                       {
-                        "next-hop": "fe80::fc12:23ff:fefb:8683",
+                        "next-hop": "fe80::4479:baff:fe0d:fbef",
                         "outgoing-interface": "eth-rt5-1"
+                      },
+                      {
+                        "next-hop": "fe80::f8e3:2dff:fefd:5e02",
+                        "outgoing-interface": "eth-rt5-2"
                       }
                     ]
                   },
@@ -1518,12 +1553,12 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::2435:b8ff:fe66:c4ee",
-                        "outgoing-interface": "eth-rt5-2"
+                        "next-hop": "fe80::4479:baff:fe0d:fbef",
+                        "outgoing-interface": "eth-rt5-1"
                       },
                       {
-                        "next-hop": "fe80::fc12:23ff:fefb:8683",
-                        "outgoing-interface": "eth-rt5-1"
+                        "next-hop": "fe80::f8e3:2dff:fefd:5e02",
+                        "outgoing-interface": "eth-rt5-2"
                       }
                     ]
                   },
@@ -1535,12 +1570,12 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::2435:b8ff:fe66:c4ee",
-                        "outgoing-interface": "eth-rt5-2"
+                        "next-hop": "fe80::4479:baff:fe0d:fbef",
+                        "outgoing-interface": "eth-rt5-1"
                       },
                       {
-                        "next-hop": "fe80::fc12:23ff:fefb:8683",
-                        "outgoing-interface": "eth-rt5-1"
+                        "next-hop": "fe80::f8e3:2dff:fefd:5e02",
+                        "outgoing-interface": "eth-rt5-2"
                       }
                     ]
                   },
@@ -1557,7 +1592,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::545b:ebff:feab:221b",
+                        "next-hop": "fe80::848:3dff:febb:3fbe",
                         "outgoing-interface": "eth-sw1"
                       }
                     ]
@@ -1570,7 +1605,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::545b:ebff:feab:221b",
+                        "next-hop": "fe80::848:3dff:febb:3fbe",
                         "outgoing-interface": "eth-sw1"
                       }
                     ]
@@ -1593,12 +1628,12 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::2435:b8ff:fe66:c4ee",
-                        "outgoing-interface": "eth-rt5-2"
+                        "next-hop": "fe80::4479:baff:fe0d:fbef",
+                        "outgoing-interface": "eth-rt5-1"
                       },
                       {
-                        "next-hop": "fe80::fc12:23ff:fefb:8683",
-                        "outgoing-interface": "eth-rt5-1"
+                        "next-hop": "fe80::f8e3:2dff:fefd:5e02",
+                        "outgoing-interface": "eth-rt5-2"
                       }
                     ]
                   },
@@ -1610,16 +1645,16 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::2435:b8ff:fe66:c4ee",
-                        "outgoing-interface": "eth-rt5-2"
-                      },
-                      {
-                        "next-hop": "fe80::545b:ebff:feab:221b",
+                        "next-hop": "fe80::848:3dff:febb:3fbe",
                         "outgoing-interface": "eth-sw1"
                       },
                       {
-                        "next-hop": "fe80::fc12:23ff:fefb:8683",
+                        "next-hop": "fe80::4479:baff:fe0d:fbef",
                         "outgoing-interface": "eth-rt5-1"
+                      },
+                      {
+                        "next-hop": "fe80::f8e3:2dff:fefd:5e02",
+                        "outgoing-interface": "eth-rt5-2"
                       }
                     ]
                   },
@@ -1631,12 +1666,12 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::2435:b8ff:fe66:c4ee",
-                        "outgoing-interface": "eth-rt5-2"
+                        "next-hop": "fe80::4479:baff:fe0d:fbef",
+                        "outgoing-interface": "eth-rt5-1"
                       },
                       {
-                        "next-hop": "fe80::fc12:23ff:fefb:8683",
-                        "outgoing-interface": "eth-rt5-1"
+                        "next-hop": "fe80::f8e3:2dff:fefd:5e02",
+                        "outgoing-interface": "eth-rt5-2"
                       }
                     ]
                   },

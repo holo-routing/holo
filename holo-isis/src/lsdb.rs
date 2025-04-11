@@ -40,6 +40,7 @@ use crate::packet::subtlvs::prefix::{
 use crate::packet::tlv::{
     ExtIpv4Reach, ExtIsReach, IpReachTlvEntry, Ipv4Reach, Ipv4ReachSubTlvs,
     Ipv6Reach, Ipv6ReachSubTlvs, IsReach, MAX_NARROW_METRIC, Nlpid,
+    RouterCapFlags, RouterCapTlv,
 };
 use crate::packet::{LanId, LevelNumber, LevelType, LspId};
 use crate::spf::{SpfType, VertexId};
@@ -215,6 +216,7 @@ fn lsp_build_tlvs(
 ) -> LspTlvs {
     let metric_type = instance.config.metric_type.get(level);
     let mut protocols_supported = vec![];
+    let mut router_cap = vec![];
     let mut is_reach = vec![];
     let mut ext_is_reach = vec![];
     let mut ipv4_addrs = BTreeSet::new();
@@ -272,6 +274,7 @@ fn lsp_build_tlvs(
         lsp_propagate_l1_to_l2(
             instance,
             arenas,
+            &mut router_cap,
             &mut ipv4_internal_reach,
             &mut ipv4_external_reach,
             &mut ext_ipv4_reach,
@@ -281,6 +284,7 @@ fn lsp_build_tlvs(
 
     LspTlvs::new(
         protocols_supported,
+        router_cap,
         instance.config.area_addrs.clone(),
         instance.shared.hostname.clone(),
         Some(instance.config.lsp_mtu),
@@ -340,6 +344,7 @@ fn lsp_build_tlvs_pseudo(
 
     LspTlvs::new(
         [],
+        [].into(),
         [],
         None,
         None,
@@ -715,14 +720,15 @@ fn lsp_build_fragments(
     fragments
 }
 
-// Propagates L1 IP reachability to L2 for inter-area routing.
+// Propagates L1 TLVs to L2 for inter-area routing.
 fn lsp_propagate_l1_to_l2(
     instance: &mut InstanceUpView<'_>,
     arenas: &InstanceArenas,
-    ipv4_internal_reach: &mut BTreeMap<Ipv4Network, Ipv4Reach>,
-    ipv4_external_reach: &mut BTreeMap<Ipv4Network, Ipv4Reach>,
-    ext_ipv4_reach: &mut BTreeMap<Ipv4Network, ExtIpv4Reach>,
-    ipv6_reach: &mut BTreeMap<Ipv6Network, Ipv6Reach>,
+    l2_router_cap: &mut Vec<RouterCapTlv>,
+    l2_ipv4_internal_reach: &mut BTreeMap<Ipv4Network, Ipv4Reach>,
+    l2_ipv4_external_reach: &mut BTreeMap<Ipv4Network, Ipv4Reach>,
+    l2_ext_ipv4_reach: &mut BTreeMap<Ipv4Network, ExtIpv4Reach>,
+    l2_ipv6_reach: &mut BTreeMap<Ipv6Network, Ipv6Reach>,
 ) {
     let system_id = instance.config.system_id.unwrap();
     let metric_type = &instance.config.metric_type;
@@ -748,6 +754,17 @@ fn lsp_propagate_l1_to_l2(
             continue;
         };
 
+        // Propagate the Router Capability TLV.
+        for l1_router_cap in l1_lsp
+            .tlvs
+            .router_cap
+            .iter()
+            .filter(|router_cap| router_cap.flags.contains(RouterCapFlags::S))
+            .cloned()
+        {
+            l2_router_cap.push(l1_router_cap);
+        }
+
         // Propagate IPv4 reachability information.
         //
         // Propagation for both old and new metric types occurs only if the
@@ -760,12 +777,12 @@ fn lsp_propagate_l1_to_l2(
                 propagate_ip_reach(
                     l1_lsp_dist,
                     l1_lsp.tlvs.ipv4_internal_reach(),
-                    ipv4_internal_reach,
+                    l2_ipv4_internal_reach,
                 );
                 propagate_ip_reach(
                     l1_lsp_dist,
                     l1_lsp.tlvs.ipv4_external_reach(),
-                    ipv4_external_reach,
+                    l2_ipv4_external_reach,
                 );
             }
             if LevelType::All
@@ -775,7 +792,7 @@ fn lsp_propagate_l1_to_l2(
                 propagate_ip_reach(
                     l1_lsp_dist,
                     l1_lsp.tlvs.ext_ipv4_reach(),
-                    ext_ipv4_reach,
+                    l2_ext_ipv4_reach,
                 );
             }
         }
@@ -785,7 +802,7 @@ fn lsp_propagate_l1_to_l2(
             propagate_ip_reach(
                 l1_lsp_dist,
                 l1_lsp.tlvs.ipv6_reach(),
-                ipv6_reach,
+                l2_ipv6_reach,
             );
         }
     }

@@ -1061,6 +1061,7 @@ impl Lsp {
 impl LspTlvs {
     pub(crate) fn new(
         protocols_supported: impl IntoIterator<Item = u8>,
+        router_cap: Vec<RouterCapTlv>,
         area_addrs: impl IntoIterator<Item = AreaAddr>,
         hostname: Option<String>,
         lsp_buf_size: Option<u16>,
@@ -1080,7 +1081,7 @@ impl LspTlvs {
             protocols_supported: Some(ProtocolsSupportedTlv::from(
                 protocols_supported,
             )),
-            router_cap: Default::default(),
+            router_cap,
             area_addrs: tlv_entries_split(area_addrs),
             hostname: hostname.map(|hostname| DynamicHostnameTlv { hostname }),
             lsp_buf_size: lsp_buf_size.map(|size| LspBufferSizeTlv { size }),

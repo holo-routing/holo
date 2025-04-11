@@ -35,7 +35,7 @@ use holo_isis::packet::tlv::{
     Ipv4ReachSubTlvs, Ipv4ReachTlv, Ipv4RouterIdTlv, Ipv6AddressesTlv,
     Ipv6Reach, Ipv6ReachSubTlvs, Ipv6ReachTlv, Ipv6RouterIdTlv, IsReach,
     IsReachTlv, LspBufferSizeTlv, LspEntriesTlv, LspEntry, NeighborsTlv,
-    PaddingTlv, ProtocolsSupportedTlv,
+    PaddingTlv, ProtocolsSupportedTlv, RouterCapFlags, RouterCapTlv,
 };
 use holo_isis::packet::{
     AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId,

@@ -832,58 +832,6 @@ module holo-ietf-isis-deviations {
   }
   */
 
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:router-capabilities" {
-    deviate not-supported;
-  }
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:router-capabilities/isis:router-capability" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:router-capabilities/isis:router-capability/isis:flags" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:router-capabilities/isis:router-capability/isis:flags/isis:router-capability-flags" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:router-capabilities/isis:router-capability/isis:unknown-tlvs" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:router-capabilities/isis:router-capability/isis:unknown-tlvs/isis:unknown-tlv" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:router-capabilities/isis:router-capability/isis:unknown-tlvs/isis:unknown-tlv/isis:type" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:router-capabilities/isis:router-capability/isis:unknown-tlvs/isis:unknown-tlv/isis:length" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:router-capabilities/isis:router-capability/isis:unknown-tlvs/isis:unknown-tlv/isis:value" {
-    deviate not-supported;
-  }
-  */
-
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:links-srlgs" {
     deviate not-supported;
   }

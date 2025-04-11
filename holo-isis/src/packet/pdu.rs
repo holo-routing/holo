@@ -29,8 +29,9 @@ use crate::packet::tlv::{
     ExtIpv4ReachTlv, ExtIsReach, ExtIsReachTlv, Ipv4AddressesTlv, Ipv4Reach,
     Ipv4ReachTlv, Ipv4RouterIdTlv, Ipv6AddressesTlv, Ipv6Reach, Ipv6ReachTlv,
     Ipv6RouterIdTlv, IsReach, IsReachTlv, LspBufferSizeTlv, LspEntriesTlv,
-    LspEntry, NeighborsTlv, PaddingTlv, ProtocolsSupportedTlv, TLV_HDR_SIZE,
-    TLV_MAX_LEN, Tlv, UnknownTlv, tlv_entries_split, tlv_take_max,
+    LspEntry, NeighborsTlv, PaddingTlv, ProtocolsSupportedTlv, RouterCapTlv,
+    TLV_HDR_SIZE, TLV_MAX_LEN, Tlv, UnknownTlv, tlv_entries_split,
+    tlv_take_max,
 };
 use crate::packet::{
     AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId, auth,
@@ -122,6 +123,7 @@ pub struct Lsp {
 pub struct LspTlvs {
     pub auth: Option<AuthenticationTlv>,
     pub protocols_supported: Option<ProtocolsSupportedTlv>,
+    pub router_cap: Vec<RouterCapTlv>,
     pub area_addrs: Vec<AreaAddressesTlv>,
     pub hostname: Option<DynamicHostnameTlv>,
     pub lsp_buf_size: Option<LspBufferSizeTlv>,
@@ -862,6 +864,10 @@ impl Lsp {
                     let tlv = Ipv6RouterIdTlv::decode(tlv_len, &mut buf_tlv)?;
                     tlvs.ipv6_router_id = Some(tlv);
                 }
+                Some(TlvType::RouterCapability) => {
+                    let tlv = RouterCapTlv::decode(tlv_len, &mut buf_tlv)?;
+                    tlvs.router_cap.push(tlv);
+                }
                 _ => {
                     // Save unknown top-level TLV.
                     let value = buf_tlv.copy_to_bytes(tlv_len as usize);
@@ -916,6 +922,9 @@ impl Lsp {
                 self.tlvs.auth = Some(tlv);
             }
             if let Some(tlv) = &self.tlvs.protocols_supported {
+                tlv.encode(&mut buf);
+            }
+            for tlv in &self.tlvs.router_cap {
                 tlv.encode(&mut buf);
             }
             for tlv in &self.tlvs.area_addrs {
@@ -1071,6 +1080,7 @@ impl LspTlvs {
             protocols_supported: Some(ProtocolsSupportedTlv::from(
                 protocols_supported,
             )),
+            router_cap: Default::default(),
             area_addrs: tlv_entries_split(area_addrs),
             hostname: hostname.map(|hostname| DynamicHostnameTlv { hostname }),
             lsp_buf_size: lsp_buf_size.map(|size| LspBufferSizeTlv { size }),
@@ -1129,6 +1139,7 @@ impl LspTlvs {
         Some(LspTlvs {
             auth: None,
             protocols_supported,
+            router_cap: Default::default(),
             area_addrs,
             hostname,
             lsp_buf_size,

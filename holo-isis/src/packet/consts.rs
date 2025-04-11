@@ -61,6 +61,7 @@ pub enum TlvType {
     Ipv6RouterId = 140,
     Ipv6Addresses = 232,
     Ipv6Reach = 236,
+    RouterCapability = 242,
 }
 
 // IS-IS Authentication Type Codes.
@@ -105,6 +106,15 @@ pub enum PrefixSubTlvType {
     Ipv6SourceRouterId = 12,
     BierInfo = 32,
 }
+
+// IS-IS Sub-TLVs for the Router Capability TLV.
+//
+// IANA registry:
+// https://www.iana.org/assignments/isis-tlv-codepoints/isis-tlv-codepoints.xhtml#isis-tlv-codepoints-242
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(FromPrimitive, ToPrimitive)]
+#[derive(Deserialize, Serialize)]
+pub enum RouterCapSubTlvType {}
 
 // IS-IS Sub-Sub-TLVs for BIER Info Sub-TLV.
 //

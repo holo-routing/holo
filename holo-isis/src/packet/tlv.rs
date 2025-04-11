@@ -11,6 +11,7 @@
 
 use std::net::{Ipv4Addr, Ipv6Addr};
 
+use bitflags::bitflags;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use derive_new::new;
 use holo_utils::bytes::{BytesExt, BytesMutExt};
@@ -21,7 +22,8 @@ use num_traits::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
 
 use crate::packet::consts::{
-    AuthenticationType, NeighborSubTlvType, PrefixSubTlvType, TlvType,
+    AuthenticationType, NeighborSubTlvType, PrefixSubTlvType,
+    RouterCapSubTlvType, TlvType,
 };
 use crate::packet::error::{DecodeError, DecodeResult};
 #[cfg(feature = "testing")]
@@ -309,6 +311,33 @@ pub struct Ipv4RouterIdTlv(Ipv4Addr);
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
 pub struct Ipv6RouterIdTlv(Ipv6Addr);
+
+#[derive(Clone, Debug, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct RouterCapTlv {
+    pub router_id: Option<Ipv4Addr>,
+    pub flags: RouterCapFlags,
+    pub sub_tlvs: RouterCapSubTlvs,
+}
+
+bitflags! {
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+    #[derive(Deserialize, Serialize)]
+    #[serde(transparent)]
+    pub struct RouterCapFlags: u8 {
+        const S = 0x01;
+        const D = 0x02;
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+#[serde_with::apply(
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
+#[derive(Deserialize, Serialize)]
+pub struct RouterCapSubTlvs {
+    pub unknown: Vec<UnknownTlv>,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 #[derive(new)]
@@ -1748,6 +1777,71 @@ impl Ipv6RouterIdTlv {
 impl Tlv for Ipv6RouterIdTlv {
     fn len(&self) -> usize {
         TLV_HDR_SIZE + Self::SIZE
+    }
+}
+
+// ===== impl RouterCapTlv =====
+
+impl RouterCapTlv {
+    const MIN_SIZE: usize = 5;
+
+    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+        // Validate the TLV length.
+        if (tlv_len as usize) < Self::MIN_SIZE {
+            return Err(DecodeError::InvalidTlvLength(tlv_len));
+        }
+
+        let router_id = buf.get_opt_ipv4();
+        let flags = buf.get_u8();
+        let flags = RouterCapFlags::from_bits_truncate(flags);
+
+        // Parse Sub-TLVs.
+        let mut sub_tlvs = RouterCapSubTlvs::default();
+        while buf.remaining() >= TLV_HDR_SIZE {
+            // Parse TLV type.
+            let stlv_type = buf.get_u8();
+            let stlv_etype = RouterCapSubTlvType::from_u8(stlv_type);
+
+            // Parse and validate TLV length.
+            let stlv_len = buf.get_u8();
+            if stlv_len as usize > buf.remaining() {
+                return Err(DecodeError::InvalidTlvLength(stlv_len));
+            }
+
+            // Parse Sub-TLV value.
+            let mut buf_stlv = buf.copy_to_bytes(stlv_len as usize);
+            match stlv_etype {
+                _ => {
+                    // Save unknown Sub-TLV.
+                    let value = buf_stlv.copy_to_bytes(stlv_len as usize);
+                    sub_tlvs
+                        .unknown
+                        .push(UnknownTlv::new(stlv_type, stlv_len, value));
+                }
+            }
+        }
+
+        Ok(RouterCapTlv {
+            router_id,
+            flags,
+            sub_tlvs,
+        })
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, TlvType::RouterCapability);
+        // Encode Router ID.
+        buf.put_ipv4(&self.router_id.unwrap_or(Ipv4Addr::UNSPECIFIED));
+        // Encode flags.
+        buf.put_u8(self.flags.bits());
+        // Encode Sub-TLVs.
+        tlv_encode_end(buf, start_pos);
+    }
+}
+
+impl Tlv for RouterCapTlv {
+    fn len(&self) -> usize {
+        TLV_HDR_SIZE + Self::MIN_SIZE
     }
 }
 

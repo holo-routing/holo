@@ -33,7 +33,7 @@ use crate::lsdb::{LspEntry, LspLogEntry, LspLogId};
 use crate::packet::subtlvs::prefix::PrefixAttrFlags;
 use crate::packet::tlv::{
     AuthenticationTlv, ExtIpv4Reach, ExtIsReach, IpReachTlvEntry, Ipv4Reach,
-    Ipv6Reach, IsReach, UnknownTlv,
+    Ipv6Reach, IsReach, RouterCapTlv, UnknownTlv,
 };
 use crate::packet::{LanId, LevelNumber, LevelType, SystemId};
 use crate::route::{Nexthop, Route};
@@ -53,6 +53,7 @@ pub enum ListEntry<'a> {
     Hostname(&'a SystemId, &'a String),
     Lsdb(LevelNumber, &'a Lsdb),
     LspEntry(&'a LspEntry),
+    RouterCap(&'a RouterCapTlv),
     IsReach(&'a LspEntry, LanId),
     IsReachInstance(u32, &'a IsReach),
     ExtIsReach(u32, &'a ExtIsReach),
@@ -251,6 +252,37 @@ fn load_callbacks() -> Callbacks<Instance> {
             Box::new(Authentication {
                 authentication_type,
                 authentication_key,
+            })
+        })
+        .path(isis::database::levels::lsp::router_capabilities::router_capability::PATH)
+        .get_iterate(|_instance, args| {
+            let lse = args.parent_list_entry.as_lsp_entry().unwrap();
+            let lsp = &lse.data;
+            let iter = lsp.tlvs.router_cap.iter().map(ListEntry::RouterCap);
+            Some(Box::new(iter))
+        })
+        .path(isis::database::levels::lsp::router_capabilities::router_capability::flags::PATH)
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::router_capabilities::router_capability::flags::Flags;
+            let router_cap = args.list_entry.as_router_cap().unwrap();
+            let iter = router_cap.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
+            Box::new(Flags {
+                router_capability_flags: Some(Box::new(iter)),
+            })
+        })
+        .path(isis::database::levels::lsp::router_capabilities::router_capability::unknown_tlvs::unknown_tlv::PATH)
+        .get_iterate(|_instance, args| {
+            let router_cap = args.parent_list_entry.as_router_cap().unwrap();
+            let iter = router_cap.sub_tlvs.unknown.iter().map(ListEntry::UnknownTlv);
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::router_capabilities::router_capability::unknown_tlvs::unknown_tlv::UnknownTlv;
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Box::new(UnknownTlv {
+                r#type: Some(tlv.tlv_type as u16),
+                length: Some(tlv.length as u16),
+                value: Some(tlv.value.as_ref()),
             })
         })
         .path(isis::database::levels::lsp::unknown_tlvs::unknown_tlv::PATH)

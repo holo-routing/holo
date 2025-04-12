@@ -21,6 +21,7 @@ use holo_utils::bier::{
 };
 use holo_utils::ip::{AddressFamily, Ipv4NetworkExt, Ipv6NetworkExt};
 use holo_utils::mpls::Label;
+use holo_utils::sr::{IgpAlgoType, Sid};
 use holo_utils::task::TimeoutTask;
 use ipnetwork::{Ipv4Network, Ipv6Network};
 
@@ -33,6 +34,10 @@ use crate::northbound::configuration::MetricType;
 use crate::northbound::notification;
 use crate::packet::consts::LspFlags;
 use crate::packet::pdu::{Lsp, LspTlvs, Pdu};
+use crate::packet::subtlvs::capability::{
+    LabelBlockEntry, SrAlgoSubTlv, SrCapabilitiesFlags, SrCapabilitiesSubTlv,
+    SrLocalBlockSubTlv,
+};
 use crate::packet::subtlvs::prefix::{
     BierEncapSubSubTlv, BierInfoSubTlv, BierSubSubTlv, Ipv4SourceRidSubTlv,
     Ipv6SourceRidSubTlv, PrefixAttrFlags, PrefixAttrFlagsSubTlv,
@@ -234,6 +239,9 @@ fn lsp_build_tlvs(
         protocols_supported.push(Nlpid::Ipv6 as u8);
     }
 
+    // Add router capabilities.
+    lsp_build_tlvs_router_cap(instance, &mut router_cap);
+
     // Iterate over all active interfaces.
     for iface in arenas.interfaces.iter().filter(|iface| iface.state.active) {
         // Add IS reachability information.
@@ -359,6 +367,52 @@ fn lsp_build_tlvs_pseudo(
         [],
         None,
     )
+}
+
+fn lsp_build_tlvs_router_cap(
+    instance: &mut InstanceUpView<'_>,
+    router_cap: &mut Vec<RouterCapTlv>,
+) {
+    let sr_config = &instance.shared.sr_config;
+    if instance.config.sr.enabled && !sr_config.srgb.is_empty() {
+        let mut cap = RouterCapTlv::default();
+        cap.router_id =
+            instance.config.ipv4_router_id.or(instance.system.router_id);
+
+        // Add SR-Capabilities Sub-TLV.
+        let mut sr_cap_flags = SrCapabilitiesFlags::empty();
+        if instance.config.is_af_enabled(AddressFamily::Ipv4) {
+            sr_cap_flags.insert(SrCapabilitiesFlags::I);
+        }
+        if instance.config.is_af_enabled(AddressFamily::Ipv6) {
+            sr_cap_flags.insert(SrCapabilitiesFlags::V);
+        }
+        let mut srgb = vec![];
+        for range in &sr_config.srgb {
+            let first = Sid::Label(Label::new(range.lower_bound));
+            let range = range.upper_bound - range.lower_bound + 1;
+            srgb.push(LabelBlockEntry::new(range, first));
+        }
+        cap.sub_tlvs.sr_cap =
+            Some(SrCapabilitiesSubTlv::new(sr_cap_flags, srgb));
+
+        // Add SR-Algorithm Sub-TLV.
+        cap.sub_tlvs.sr_algo =
+            Some(SrAlgoSubTlv::new([IgpAlgoType::Spf].into()));
+
+        // Add SR Local Block Sub-TLV.
+        let mut srlb = vec![];
+        for range in &sr_config.srlb {
+            let first = Sid::Label(Label::new(range.lower_bound));
+            let range = range.upper_bound - range.lower_bound + 1;
+            srlb.push(LabelBlockEntry::new(range, first));
+        }
+        if !srlb.is_empty() {
+            cap.sub_tlvs.srlb = Some(SrLocalBlockSubTlv::new(srlb));
+        }
+
+        router_cap.push(cap);
+    }
 }
 
 fn lsp_build_tlvs_is_reach(

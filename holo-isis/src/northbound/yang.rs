@@ -18,6 +18,7 @@ use crate::interface::InterfaceType;
 use crate::lsdb::LspLogReason;
 use crate::northbound::configuration::MetricType;
 use crate::packet::consts::LspFlags;
+use crate::packet::subtlvs::capability::SrCapabilitiesFlags;
 use crate::packet::tlv::RouterCapFlags;
 use crate::packet::{AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId};
 use crate::spf;
@@ -124,6 +125,21 @@ impl ToYangBits for RouterCapFlags {
         }
         if self.contains(RouterCapFlags::D) {
             flags.push("ietf-isis:router-capability-down-flag");
+        }
+
+        flags
+    }
+}
+
+impl ToYangBits for SrCapabilitiesFlags {
+    fn to_yang_bits(&self) -> Vec<&'static str> {
+        let mut flags = vec![];
+
+        if self.contains(SrCapabilitiesFlags::I) {
+            flags.push("ietf-isis-sr-mpls:mpls-ipv4");
+        }
+        if self.contains(SrCapabilitiesFlags::V) {
+            flags.push("ietf-isis-sr-mpls:mpls-ipv6");
         }
 
         flags

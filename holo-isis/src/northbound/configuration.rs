@@ -104,7 +104,13 @@ pub struct InstanceCfg {
     pub overload_status: bool,
     pub att_suppress: bool,
     pub att_ignore: bool,
+    pub sr: InstanceSrCfg,
     pub bier: InstanceBierCfg,
+}
+
+#[derive(Debug)]
+pub struct InstanceSrCfg {
+    pub enabled: bool,
 }
 
 #[derive(Debug)]
@@ -1210,6 +1216,15 @@ fn load_callbacks() -> Callbacks<Instance> {
             let receive = args.dnode.get_bool();
             instance.config.bier.receive = receive;
        })
+        .path(isis::segment_routing::enabled::PATH)
+        .modify_apply(|instance, args| {
+            let enable = args.dnode.get_bool();
+            instance.config.sr.enabled = enable;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
         .build()
 }
 
@@ -1589,8 +1604,16 @@ impl Default for InstanceCfg {
             overload_status,
             att_suppress,
             att_ignore,
+            sr: Default::default(),
             bier: Default::default(),
         }
+    }
+}
+
+impl Default for InstanceSrCfg {
+    fn default() -> Self {
+        let enabled = isis::segment_routing::enabled::DFLT;
+        Self { enabled }
     }
 }
 

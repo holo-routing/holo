@@ -23,6 +23,7 @@ pub enum DecodeError {
     InvalidIdLength(u8),
     UnknownPduType(u8),
     InvalidPduLength(u16),
+    UnexpectedTlvType(u8),
     InvalidTlvLength(u8),
     AuthUnsupportedType(u8),
     AuthTypeMismatch,
@@ -60,6 +61,9 @@ impl std::fmt::Display for DecodeError {
             }
             DecodeError::InvalidPduLength(pdu_len) => {
                 write!(f, "invalid PDU length: {}", pdu_len)
+            }
+            DecodeError::UnexpectedTlvType(tlv_type) => {
+                write!(f, "unexpected tlv type: {}", tlv_type)
             }
             DecodeError::InvalidTlvLength(tlv_len) => {
                 write!(f, "invalid TLV length: {}", tlv_len)

@@ -9,9 +9,11 @@
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use bytes::Bytes;
 use chrono::Utc;
+use holo_utils::sr::SrCfg;
 
 use crate::adjacency::{Adjacency, AdjacencyEvent, AdjacencyState};
 use crate::collections::{
@@ -1283,6 +1285,23 @@ pub(crate) fn process_hostname_update(
 
     // Schedule LSP reorigination.
     if let Some((mut instance, _)) = instance.as_up() {
+        instance.schedule_lsp_origination(instance.config.level_type);
+    }
+}
+
+// ===== SR configuration change event =====
+
+pub(crate) fn process_sr_cfg_update(
+    instance: &mut Instance,
+    sr_config: Arc<SrCfg>,
+) {
+    // Update SR configuration.
+    instance.shared.sr_config = sr_config;
+
+    // Schedule LSP reorigination.
+    if instance.config.sr.enabled
+        && let Some((mut instance, _)) = instance.as_up()
+    {
         instance.schedule_lsp_origination(instance.config.level_type);
     }
 }

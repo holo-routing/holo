@@ -114,7 +114,22 @@ pub enum PrefixSubTlvType {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
-pub enum RouterCapSubTlvType {}
+pub enum RouterCapSubTlvType {
+    SrCapability = 2,
+    SrAlgorithm = 19,
+    SrLocalBlock = 22,
+}
+
+// IS-IS Sub-TLVs for Segment Identifier/Label Binding TLVs.
+//
+// IANA registry:
+// https://www.iana.org/assignments/isis-tlv-codepoints/isis-tlv-codepoints.xhtml#tlv-149-150
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(FromPrimitive, ToPrimitive)]
+#[derive(Deserialize, Serialize)]
+pub enum LabelBindingSubTlvType {
+    SidLabel = 1,
+}
 
 // IS-IS Sub-Sub-TLVs for BIER Info Sub-TLV.
 //

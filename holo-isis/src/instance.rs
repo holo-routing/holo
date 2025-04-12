@@ -643,6 +643,10 @@ async fn process_ibus_msg(
         IbusMsg::HostnameUpdate(hostname) => {
             events::process_hostname_update(instance, hostname);
         }
+        // SR configuration update.
+        IbusMsg::SrCfgUpd(sr_config) => {
+            events::process_sr_cfg_update(instance, sr_config);
+        }
         // BIER configuration update.
         IbusMsg::BierCfgUpd(bier_config) => {
             instance.shared.bier_config = bier_config;

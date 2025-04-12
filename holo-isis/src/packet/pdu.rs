@@ -1103,6 +1103,7 @@ impl LspTlvs {
         if let Some(protocols_supported) = &protocols_supported {
             rem_len -= protocols_supported.len();
         }
+        let router_cap = tlv_take_max(&mut self.router_cap, &mut rem_len);
         let area_addrs = tlv_take_max(&mut self.area_addrs, &mut rem_len);
         let hostname = self.hostname.take();
         if let Some(hostname) = &hostname {
@@ -1138,7 +1139,7 @@ impl LspTlvs {
         Some(LspTlvs {
             auth: None,
             protocols_supported,
-            router_cap: Default::default(),
+            router_cap,
             area_addrs,
             hostname,
             lsp_buf_size,

@@ -88,6 +88,7 @@ unsafe_code = "forbid"
 
 [workspace.lints.clippy]
 borrowed_box = "allow"
+field_reassign_with_default = "allow"
 large_enum_variant = "allow"
 manual_range_contains = "allow"
 single_match = "allow"

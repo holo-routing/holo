@@ -20,6 +20,10 @@ use holo_isis::packet::consts::LspFlags;
 use holo_isis::packet::pdu::{
     Hello, HelloTlvs, HelloVariant, Lsp, LspTlvs, Pdu, Snp, SnpTlvs,
 };
+use holo_isis::packet::subtlvs::capability::{
+    LabelBlockEntry, SrAlgoSubTlv, SrCapabilitiesFlags, SrCapabilitiesSubTlv,
+    SrLocalBlockSubTlv,
+};
 use holo_isis::packet::subtlvs::neighbor::{
     AdminGroupSubTlv, Ipv4InterfaceAddrSubTlv, Ipv4NeighborAddrSubTlv,
     MaxLinkBwSubTlv, MaxResvLinkBwSubTlv, TeDefaultMetricSubTlv,
@@ -35,7 +39,8 @@ use holo_isis::packet::tlv::{
     Ipv4ReachSubTlvs, Ipv4ReachTlv, Ipv4RouterIdTlv, Ipv6AddressesTlv,
     Ipv6Reach, Ipv6ReachSubTlvs, Ipv6ReachTlv, Ipv6RouterIdTlv, IsReach,
     IsReachTlv, LspBufferSizeTlv, LspEntriesTlv, LspEntry, NeighborsTlv,
-    PaddingTlv, ProtocolsSupportedTlv, RouterCapFlags, RouterCapTlv,
+    PaddingTlv, ProtocolsSupportedTlv, RouterCapFlags, RouterCapSubTlvs,
+    RouterCapTlv,
 };
 use holo_isis::packet::{
     AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId,
@@ -43,6 +48,8 @@ use holo_isis::packet::{
 use holo_protocol::assert_eq_hex;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::keychain::Key;
+use holo_utils::mpls::Label;
+use holo_utils::sr::{IgpAlgoType, Sid};
 
 //
 // Helper functions.

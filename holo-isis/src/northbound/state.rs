@@ -22,6 +22,7 @@ use holo_northbound::state::{
 use holo_northbound::yang::control_plane_protocol::isis;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::option::OptionExt;
+use holo_utils::sr::Sid;
 use holo_yang::{ToYang, ToYangBits};
 use ipnetwork::IpNetwork;
 
@@ -30,6 +31,7 @@ use crate::collections::Lsdb;
 use crate::instance::Instance;
 use crate::interface::Interface;
 use crate::lsdb::{LspEntry, LspLogEntry, LspLogId};
+use crate::packet::subtlvs::capability::LabelBlockEntry;
 use crate::packet::subtlvs::prefix::PrefixAttrFlags;
 use crate::packet::tlv::{
     AuthenticationTlv, ExtIpv4Reach, ExtIsReach, IpReachTlvEntry, Ipv4Reach,
@@ -54,6 +56,7 @@ pub enum ListEntry<'a> {
     Lsdb(LevelNumber, &'a Lsdb),
     LspEntry(&'a LspEntry),
     RouterCap(&'a RouterCapTlv),
+    LabelBlockEntry(&'a LabelBlockEntry),
     IsReach(&'a LspEntry, LanId),
     IsReachInstance(u32, &'a IsReach),
     ExtIsReach(u32, &'a ExtIsReach),
@@ -283,6 +286,92 @@ fn load_callbacks() -> Callbacks<Instance> {
                 r#type: Some(tlv.tlv_type as u16),
                 length: Some(tlv.length as u16),
                 value: Some(tlv.value.as_ref()),
+            })
+        })
+        .path(isis::database::levels::lsp::router_capabilities::router_capability::sr_capability::sr_capability::PATH)
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::router_capabilities::router_capability::sr_capability::sr_capability::SrCapability;
+            let router_cap = args.list_entry.as_router_cap().unwrap();
+            let mut sr_capability_flags = None;
+            if let Some(sr_cap) = &router_cap.sub_tlvs.sr_cap {
+                let iter = sr_cap.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
+                sr_capability_flags = Some(Box::new(iter) as _);
+            }
+            Box::new(SrCapability {
+                sr_capability_flags,
+            })
+        })
+        .path(isis::database::levels::lsp::router_capabilities::router_capability::sr_capability::global_blocks::global_block::PATH)
+        .get_iterate(|_instance, args| {
+            let router_cap = args.parent_list_entry.as_router_cap().unwrap();
+            if let Some(sr_cap) = &router_cap.sub_tlvs.sr_cap {
+                let iter = sr_cap.entries.iter().map(ListEntry::LabelBlockEntry);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::router_capabilities::router_capability::sr_capability::global_blocks::global_block::GlobalBlock;
+            let entry = args.list_entry.as_label_block_entry().unwrap();
+            Box::new(GlobalBlock {
+                range_size: Some(entry.range),
+            })
+        })
+        .path(isis::database::levels::lsp::router_capabilities::router_capability::sr_capability::global_blocks::global_block::sid_sub_tlv::PATH)
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::router_capabilities::router_capability::sr_capability::global_blocks::global_block::sid_sub_tlv::SidSubTlv;
+            let entry = args.list_entry.as_label_block_entry().unwrap();
+            let length = match entry.first {
+                Sid::Index(_) => 4,
+                Sid::Label(_) => 3,
+            };
+            Box::new(SidSubTlv {
+                length: Some(length),
+                sid: Some(entry.first.value()),
+            })
+        })
+        .path(isis::database::levels::lsp::router_capabilities::router_capability::sr_algorithms::PATH)
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::router_capabilities::router_capability::sr_algorithms::SrAlgorithms;
+            let router_cap = args.list_entry.as_router_cap().unwrap();
+            let mut sr_algorithm = None;
+            if let Some(sr_algo) = &router_cap.sub_tlvs.sr_algo {
+                let iter = sr_algo.get().iter().map(|algo| algo.to_yang());
+                sr_algorithm = Some(Box::new(iter) as _);
+            }
+            Box::new(SrAlgorithms {
+                sr_algorithm,
+            })
+        })
+        .path(isis::database::levels::lsp::router_capabilities::router_capability::local_blocks::local_block::PATH)
+        .get_iterate(|_instance, args| {
+            let router_cap = args.parent_list_entry.as_router_cap().unwrap();
+            if let Some(srlb) = &router_cap.sub_tlvs.srlb {
+                let iter = srlb.entries.iter().map(ListEntry::LabelBlockEntry);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::router_capabilities::router_capability::local_blocks::local_block::LocalBlock;
+            let entry = args.list_entry.as_label_block_entry().unwrap();
+            Box::new(LocalBlock {
+                range_size: Some(entry.range),
+            })
+        })
+        .path(isis::database::levels::lsp::router_capabilities::router_capability::local_blocks::local_block::sid_sub_tlv::PATH)
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::router_capabilities::router_capability::local_blocks::local_block::sid_sub_tlv::SidSubTlv;
+            let entry = args.list_entry.as_label_block_entry().unwrap();
+            let length = match entry.first {
+                Sid::Index(_) => 4,
+                Sid::Label(_) => 3,
+            };
+            Box::new(SidSubTlv {
+                length: Some(length),
+                sid: Some(entry.first.value()),
             })
         })
         .path(isis::database::levels::lsp::unknown_tlvs::unknown_tlv::PATH)

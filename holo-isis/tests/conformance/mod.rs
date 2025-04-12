@@ -828,6 +828,25 @@ async fn nb_config_spf_paths1() {
 }
 
 // Input:
+//  * Northbound: enable segment routing
+// Output: no changes
+//
+// Input:
+//  * Southbound: SR configuration update  (SRGB and SRLB)
+// Output:
+//  * Protocol: send an updated local LSP to all adjacencies
+//  * Northbound:
+//    - add a Router Capability TLV including the configured SRGB and SRLB to
+//      the local LSP
+//    - add the local LSP to the SRM list of all adjacencies
+//    - transition the SPF Delay FSM state from "quiet" to "short-wait"
+//    - send an "lsp-generation" YANG notification
+#[tokio::test]
+async fn nb_config_sr_enabled1() {
+    run_test::<Instance>("nb-config-sr-enabled1", "topo2-1", "rt6").await;
+}
+
+// Input:
 //  * Northbound: configure a TE IPv4 Router ID of 6.6.6.6
 // Output:
 //  * Protocol: send an updated local LSP to all adjacencies

@@ -24,7 +24,12 @@ use crate::instance::Instance;
 
 impl ProviderBase for Instance {
     fn yang_modules() -> &'static [&'static str] {
-        &["ietf-isis", "holo-isis", "holo-isis-dev"]
+        &[
+            "ietf-isis",
+            "ietf-isis-sr-mpls",
+            "holo-isis",
+            "holo-isis-dev",
+        ]
     }
 
     fn top_level_node(&self) -> String {

@@ -28,6 +28,9 @@ use crate::packet::consts::{
 use crate::packet::error::{DecodeError, DecodeResult};
 #[cfg(feature = "testing")]
 use crate::packet::pdu::serde_lsp_rem_lifetime_filter;
+use crate::packet::subtlvs::capability::{
+    SrAlgoSubTlv, SrCapabilitiesSubTlv, SrLocalBlockSubTlv,
+};
 use crate::packet::subtlvs::prefix::{
     BierInfoSubTlv, Ipv4SourceRidSubTlv, Ipv6SourceRidSubTlv, PrefixAttrFlags,
     PrefixAttrFlagsSubTlv,
@@ -313,7 +316,7 @@ pub struct Ipv4RouterIdTlv(Ipv4Addr);
 #[derive(Deserialize, Serialize)]
 pub struct Ipv6RouterIdTlv(Ipv6Addr);
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct RouterCapTlv {
     pub router_id: Option<Ipv4Addr>,
@@ -333,10 +336,14 @@ bitflags! {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 #[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
     Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
 )]
 #[derive(Deserialize, Serialize)]
 pub struct RouterCapSubTlvs {
+    pub sr_cap: Option<SrCapabilitiesSubTlv>,
+    pub sr_algo: Option<SrAlgoSubTlv>,
+    pub srlb: Option<SrLocalBlockSubTlv>,
     pub unknown: Vec<UnknownTlv>,
 }
 
@@ -1807,6 +1814,29 @@ impl RouterCapTlv {
             // Parse Sub-TLV value.
             let mut buf_stlv = buf.copy_to_bytes(stlv_len as usize);
             match stlv_etype {
+                Some(RouterCapSubTlvType::SrCapability) => {
+                    if sub_tlvs.sr_cap.is_some() {
+                        continue;
+                    }
+                    let stlv =
+                        SrCapabilitiesSubTlv::decode(stlv_len, &mut buf_stlv)?;
+                    sub_tlvs.sr_cap = Some(stlv);
+                }
+                Some(RouterCapSubTlvType::SrAlgorithm) => {
+                    if sub_tlvs.sr_algo.is_some() {
+                        continue;
+                    }
+                    let stlv = SrAlgoSubTlv::decode(stlv_len, &mut buf_stlv)?;
+                    sub_tlvs.sr_algo = Some(stlv);
+                }
+                Some(RouterCapSubTlvType::SrLocalBlock) => {
+                    if sub_tlvs.srlb.is_some() {
+                        continue;
+                    }
+                    let stlv =
+                        SrLocalBlockSubTlv::decode(stlv_len, &mut buf_stlv)?;
+                    sub_tlvs.srlb = Some(stlv);
+                }
                 _ => {
                     // Save unknown Sub-TLV.
                     sub_tlvs
@@ -1830,13 +1860,34 @@ impl RouterCapTlv {
         // Encode flags.
         buf.put_u8(self.flags.bits());
         // Encode Sub-TLVs.
+        if let Some(stlv) = &self.sub_tlvs.sr_cap {
+            stlv.encode(buf);
+        }
+        if let Some(stlv) = &self.sub_tlvs.sr_algo {
+            stlv.encode(buf);
+        }
+        if let Some(stlv) = &self.sub_tlvs.srlb {
+            stlv.encode(buf);
+        }
         tlv_encode_end(buf, start_pos);
     }
 }
 
 impl Tlv for RouterCapTlv {
     fn len(&self) -> usize {
-        TLV_HDR_SIZE + Self::MIN_SIZE
+        let mut len = TLV_HDR_SIZE + Self::MIN_SIZE;
+
+        if let Some(stlv) = &self.sub_tlvs.sr_cap {
+            len += stlv.len();
+        }
+        if let Some(stlv) = &self.sub_tlvs.sr_algo {
+            len += stlv.len();
+        }
+        if let Some(stlv) = &self.sub_tlvs.srlb {
+            len += stlv.len();
+        }
+
+        len
     }
 }
 

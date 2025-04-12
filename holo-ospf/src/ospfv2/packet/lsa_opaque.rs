@@ -470,10 +470,9 @@ impl LsaGrace {
                 }
                 _ => {
                     // Save unknown TLV.
-                    let value = buf_tlv.copy_to_bytes(tlv_len as usize);
                     grace
                         .unknown_tlvs
-                        .push(UnknownTlv::new(tlv_type, tlv_len, value));
+                        .push(UnknownTlv::new(tlv_type, tlv_len, buf_tlv));
                 }
             }
         }
@@ -583,10 +582,9 @@ impl LsaRouterInfo {
                 }
                 _ => {
                     // Save unknown TLV.
-                    let value = buf_tlv.copy_to_bytes(tlv_len as usize);
                     router_info
                         .unknown_tlvs
-                        .push(UnknownTlv::new(tlv_type, tlv_len, value));
+                        .push(UnknownTlv::new(tlv_type, tlv_len, buf_tlv));
                 }
             }
         }
@@ -752,19 +750,19 @@ impl ExtPrefixTlv {
         // Parse Sub-TLVs.
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse Sub-TLV type.
-            let tlv_type = buf.get_u16();
-            let tlv_etype = ExtPrefixSubTlvType::from_u16(tlv_type);
+            let stlv_type = buf.get_u16();
+            let stlv_etype = ExtPrefixSubTlvType::from_u16(stlv_type);
 
             // Parse and validate Sub-TLV length.
-            let tlv_len = buf.get_u16();
-            let tlv_wlen = tlv_wire_len(tlv_len);
-            if tlv_wlen as usize > buf.remaining() {
-                return Err(DecodeError::InvalidTlvLength(tlv_len));
+            let stlv_len = buf.get_u16();
+            let stlv_wlen = tlv_wire_len(stlv_len);
+            if stlv_wlen as usize > buf.remaining() {
+                return Err(DecodeError::InvalidTlvLength(stlv_len));
             }
 
             // Parse Sub-TLV value.
-            let mut buf_stlv = buf.copy_to_bytes(tlv_wlen as usize);
-            match tlv_etype {
+            let mut buf_stlv = buf.copy_to_bytes(stlv_wlen as usize);
+            match stlv_etype {
                 Some(ExtPrefixSubTlvType::PrefixSid) => {
                     let flags = buf_stlv.get_u8();
                     let flags = PrefixSidFlags::from_bits_truncate(flags);
@@ -805,9 +803,8 @@ impl ExtPrefixTlv {
                 }
                 _ => {
                     // Save unknown Sub-TLV.
-                    let value = buf_stlv.copy_to_bytes(tlv_len as usize);
                     tlv.unknown_tlvs
-                        .push(UnknownTlv::new(tlv_type, tlv_len, value));
+                        .push(UnknownTlv::new(stlv_type, stlv_len, buf_stlv));
                 }
             }
         }
@@ -870,21 +867,21 @@ impl ExtLinkTlv {
         // Parse Sub-TLVs.
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse Sub-TLV type.
-            let tlv_type = buf.get_u16();
-            let tlv_etype = ExtLinkSubTlvType::from_u16(tlv_type);
+            let stlv_type = buf.get_u16();
+            let stlv_etype = ExtLinkSubTlvType::from_u16(stlv_type);
 
             // Parse and validate Sub-TLV length.
-            let tlv_len = buf.get_u16();
-            let tlv_wlen = tlv_wire_len(tlv_len);
-            if tlv_wlen as usize > buf.remaining() {
-                return Err(DecodeError::InvalidTlvLength(tlv_len));
+            let stlv_len = buf.get_u16();
+            let stlv_wlen = tlv_wire_len(stlv_len);
+            if stlv_wlen as usize > buf.remaining() {
+                return Err(DecodeError::InvalidTlvLength(stlv_len));
             }
 
             // Parse Sub-TLV value.
-            let mut buf_stlv = buf.copy_to_bytes(tlv_wlen as usize);
-            match tlv_etype {
+            let mut buf_stlv = buf.copy_to_bytes(stlv_wlen as usize);
+            match stlv_etype {
                 Some(ExtLinkSubTlvType::LinkMsd) => {
-                    let msds = MsdTlv::decode(tlv_len, &mut buf_stlv)?;
+                    let msds = MsdTlv::decode(stlv_len, &mut buf_stlv)?;
                     tlv.msds.get_or_insert(msds);
                 }
                 Some(
@@ -901,7 +898,7 @@ impl ExtLinkTlv {
                     let weight = buf_stlv.get_u8();
 
                     // Parse Neighbor ID (LAN Adj-SID only).
-                    let nbr_router_id = (tlv_etype
+                    let nbr_router_id = (stlv_etype
                         == Some(ExtLinkSubTlvType::LanAdjSid))
                     .then(|| buf_stlv.get_ipv4());
 
@@ -924,9 +921,8 @@ impl ExtLinkTlv {
                 }
                 _ => {
                     // Save unknown Sub-TLV.
-                    let value = buf_stlv.copy_to_bytes(tlv_len as usize);
                     tlv.unknown_tlvs
-                        .push(UnknownTlv::new(tlv_type, tlv_len, value));
+                        .push(UnknownTlv::new(stlv_type, stlv_len, buf_stlv));
                 }
             }
         }

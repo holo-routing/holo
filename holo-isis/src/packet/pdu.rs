@@ -549,9 +549,8 @@ impl Hello {
                 }
                 _ => {
                     // Save unknown top-level TLV.
-                    let value = buf_tlv.copy_to_bytes(tlv_len as usize);
                     tlvs.unknown
-                        .push(UnknownTlv::new(tlv_type, tlv_len, value));
+                        .push(UnknownTlv::new(tlv_type, tlv_len, buf_tlv));
                 }
             }
         }
@@ -870,9 +869,8 @@ impl Lsp {
                 }
                 _ => {
                     // Save unknown top-level TLV.
-                    let value = buf_tlv.copy_to_bytes(tlv_len as usize);
                     tlvs.unknown
-                        .push(UnknownTlv::new(tlv_type, tlv_len, value));
+                        .push(UnknownTlv::new(tlv_type, tlv_len, buf_tlv));
                 }
             }
         }
@@ -1320,9 +1318,8 @@ impl Snp {
                 }
                 _ => {
                     // Save unknown top-level TLV.
-                    let value = buf_tlv.copy_to_bytes(tlv_len as usize);
                     tlvs.unknown
-                        .push(UnknownTlv::new(tlv_type, tlv_len, value));
+                        .push(UnknownTlv::new(tlv_type, tlv_len, buf_tlv));
                 }
             }
         }

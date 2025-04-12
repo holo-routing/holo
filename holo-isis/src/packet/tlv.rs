@@ -994,10 +994,9 @@ impl ExtIsReachTlv {
                     }
                     _ => {
                         // Save unknown Sub-TLV.
-                        let value = buf_stlv.copy_to_bytes(stlv_len as usize);
-                        sub_tlvs
-                            .unknown
-                            .push(UnknownTlv::new(stlv_type, stlv_len, value));
+                        sub_tlvs.unknown.push(UnknownTlv::new(
+                            stlv_type, stlv_len, buf_stlv,
+                        ));
                     }
                 }
             }
@@ -1294,10 +1293,8 @@ impl ExtIpv4ReachTlv {
                         }
                         _ => {
                             // Save unknown Sub-TLV.
-                            let value =
-                                buf_stlv.copy_to_bytes(stlv_len as usize);
                             sub_tlvs.unknown.push(UnknownTlv::new(
-                                stlv_type, stlv_len, value,
+                                stlv_type, stlv_len, buf_stlv,
                             ));
                         }
                     }
@@ -1535,10 +1532,8 @@ impl Ipv6ReachTlv {
                         }
                         _ => {
                             // Save unknown Sub-TLV.
-                            let value =
-                                buf_stlv.copy_to_bytes(stlv_len as usize);
                             sub_tlvs.unknown.push(UnknownTlv::new(
-                                stlv_type, stlv_len, value,
+                                stlv_type, stlv_len, buf_stlv,
                             ));
                         }
                     }
@@ -1813,10 +1808,9 @@ impl RouterCapTlv {
             match stlv_etype {
                 _ => {
                     // Save unknown Sub-TLV.
-                    let value = buf_stlv.copy_to_bytes(stlv_len as usize);
                     sub_tlvs
                         .unknown
-                        .push(UnknownTlv::new(stlv_type, stlv_len, value));
+                        .push(UnknownTlv::new(stlv_type, stlv_len, buf_stlv));
                 }
             }
         }

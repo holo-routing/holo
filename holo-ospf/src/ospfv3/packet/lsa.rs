@@ -1411,9 +1411,8 @@ impl LsaRouter {
                 }
                 _ => {
                     // Save unknown top-level TLV.
-                    let value = buf_tlv.copy_to_bytes(tlv_len as usize);
                     unknown_tlvs
-                        .push(UnknownTlv::new(tlv_type, tlv_len, value));
+                        .push(UnknownTlv::new(tlv_type, tlv_len, buf_tlv));
                 }
             }
         }
@@ -1609,9 +1608,8 @@ impl LsaNetwork {
                 }
                 _ => {
                     // Save unknown top-level TLV.
-                    let value = buf_tlv.copy_to_bytes(tlv_len as usize);
                     unknown_tlvs
-                        .push(UnknownTlv::new(tlv_type, tlv_len, value));
+                        .push(UnknownTlv::new(tlv_type, tlv_len, buf_tlv));
                 }
             }
         }
@@ -1739,9 +1737,8 @@ impl LsaInterAreaPrefix {
                 }
                 _ => {
                     // Save unknown top-level TLV.
-                    let value = buf_tlv.copy_to_bytes(tlv_len as usize);
                     unknown_tlvs
-                        .push(UnknownTlv::new(tlv_type, tlv_len, value));
+                        .push(UnknownTlv::new(tlv_type, tlv_len, buf_tlv));
                 }
             }
         }
@@ -1860,9 +1857,8 @@ impl LsaInterAreaRouter {
                 }
                 _ => {
                     // Save unknown top-level TLV.
-                    let value = buf_tlv.copy_to_bytes(tlv_len as usize);
                     unknown_tlvs
-                        .push(UnknownTlv::new(tlv_type, tlv_len, value));
+                        .push(UnknownTlv::new(tlv_type, tlv_len, buf_tlv));
                 }
             }
         }
@@ -2033,9 +2029,8 @@ impl LsaAsExternal {
                 }
                 _ => {
                     // Save unknown top-level TLV.
-                    let value = buf_tlv.copy_to_bytes(tlv_len as usize);
                     unknown_tlvs
-                        .push(UnknownTlv::new(tlv_type, tlv_len, value));
+                        .push(UnknownTlv::new(tlv_type, tlv_len, buf_tlv));
                 }
             }
         }
@@ -2207,9 +2202,8 @@ impl LsaLink {
                 }
                 _ => {
                     // Save unknown top-level TLV.
-                    let value = buf_tlv.copy_to_bytes(tlv_len as usize);
                     unknown_tlvs
-                        .push(UnknownTlv::new(tlv_type, tlv_len, value));
+                        .push(UnknownTlv::new(tlv_type, tlv_len, buf_tlv));
                 }
             }
         }
@@ -2388,9 +2382,8 @@ impl LsaIntraAreaPrefix {
                 }
                 _ => {
                     // Save unknown top-level TLV.
-                    let value = buf_tlv.copy_to_bytes(tlv_len as usize);
                     iap.unknown_tlvs
-                        .push(UnknownTlv::new(tlv_type, tlv_len, value));
+                        .push(UnknownTlv::new(tlv_type, tlv_len, buf_tlv));
                 }
             }
         }
@@ -2507,10 +2500,9 @@ impl LsaGrace {
                 }
                 _ => {
                     // Save unknown TLV.
-                    let value = buf_tlv.copy_to_bytes(tlv_len as usize);
                     grace
                         .unknown_tlvs
-                        .push(UnknownTlv::new(tlv_type, tlv_len, value));
+                        .push(UnknownTlv::new(tlv_type, tlv_len, buf_tlv));
                 }
             }
         }
@@ -2597,10 +2589,9 @@ impl LsaRouterInfo {
                 }
                 _ => {
                     // Save unknown TLV.
-                    let value = buf_tlv.copy_to_bytes(tlv_len as usize);
                     router_info
                         .unknown_tlvs
-                        .push(UnknownTlv::new(tlv_type, tlv_len, value));
+                        .push(UnknownTlv::new(tlv_type, tlv_len, buf_tlv));
                 }
             }
         }
@@ -2676,35 +2667,35 @@ impl ExtLsaSubTlvs {
 
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse Sub-TLV type.
-            let tlv_type = buf.get_u16();
-            let tlv_etype = ExtLsaSubTlv::from_u16(tlv_type);
+            let stlv_type = buf.get_u16();
+            let stlv_etype = ExtLsaSubTlv::from_u16(stlv_type);
 
             // Parse and validate Sub-TLV length.
-            let tlv_len = buf.get_u16();
-            let tlv_wlen = tlv_wire_len(tlv_len);
-            if tlv_wlen as usize > buf.remaining() {
-                return Err(DecodeError::InvalidTlvLength(tlv_len));
+            let stlv_len = buf.get_u16();
+            let stlv_wlen = tlv_wire_len(stlv_len);
+            if stlv_wlen as usize > buf.remaining() {
+                return Err(DecodeError::InvalidTlvLength(stlv_len));
             }
 
             // Parse Sub-TLV value.
-            let mut buf_value = buf.copy_to_bytes(tlv_wlen as usize);
-            match tlv_etype {
+            let mut buf_stlv = buf.copy_to_bytes(stlv_wlen as usize);
+            match stlv_etype {
                 Some(ExtLsaSubTlv::Ipv6FwdAddr) => {
-                    let addr = buf_value.get_ipv6();
+                    let addr = buf_stlv.get_ipv6();
                     stlvs.ipv6_fwd_addr.get_or_insert(addr);
                 }
                 Some(ExtLsaSubTlv::Ipv4FwdAddr) => {
-                    let addr = buf_value.get_ipv4();
+                    let addr = buf_stlv.get_ipv4();
                     stlvs.ipv4_fwd_addr.get_or_insert(addr);
                 }
                 Some(ExtLsaSubTlv::RouteTag) => {
-                    let tag = buf_value.get_u32();
+                    let tag = buf_stlv.get_u32();
                     stlvs.route_tag.get_or_insert(tag);
                 }
                 Some(ExtLsaSubTlv::PrefixSid) => {
-                    let flags = buf_value.get_u8();
+                    let flags = buf_stlv.get_u8();
                     let flags = PrefixSidFlags::from_bits_truncate(flags);
-                    let algo = buf_value.get_u8();
+                    let algo = buf_stlv.get_u8();
                     let algo = match IgpAlgoType::from_u8(algo) {
                         Some(algo) => algo,
                         None => {
@@ -2713,17 +2704,17 @@ impl ExtLsaSubTlvs {
                         }
                     };
 
-                    let _reserved = buf_value.get_u16();
+                    let _reserved = buf_stlv.get_u16();
 
                     // Parse SID (variable length).
                     let sid = if !flags
                         .intersects(PrefixSidFlags::V | PrefixSidFlags::L)
                     {
-                        Sid::Index(buf_value.get_u32())
+                        Sid::Index(buf_stlv.get_u32())
                     } else if flags
                         .contains(PrefixSidFlags::V | PrefixSidFlags::L)
                     {
-                        let label = buf_value.get_u24() & Label::VALUE_MASK;
+                        let label = buf_stlv.get_u24() & Label::VALUE_MASK;
                         Sid::Label(Label::new(label))
                     } else {
                         // Invalid V-Flag and L-Flag combination - ignore.
@@ -2737,22 +2728,22 @@ impl ExtLsaSubTlvs {
                 }
                 Some(ExtLsaSubTlv::AdjSid | ExtLsaSubTlv::LanAdjSid) => {
                     let flags =
-                        AdjSidFlags::from_bits_truncate(buf_value.get_u8());
-                    let weight = buf_value.get_u8();
-                    let _reserved = buf_value.get_u16();
+                        AdjSidFlags::from_bits_truncate(buf_stlv.get_u8());
+                    let weight = buf_stlv.get_u8();
+                    let _reserved = buf_stlv.get_u16();
 
                     // Parse Neighbor ID (LAN Adj-SID only).
-                    let nbr_router_id = (tlv_etype
+                    let nbr_router_id = (stlv_etype
                         == Some(ExtLsaSubTlv::LanAdjSid))
-                    .then(|| buf_value.get_ipv4());
+                    .then(|| buf_stlv.get_ipv4());
 
                     // Parse SID (variable length).
                     let sid = if !flags
                         .intersects(AdjSidFlags::V | AdjSidFlags::L)
                     {
-                        Sid::Index(buf_value.get_u32())
+                        Sid::Index(buf_stlv.get_u32())
                     } else if flags.contains(AdjSidFlags::V | AdjSidFlags::L) {
-                        let label = buf_value.get_u24() & Label::VALUE_MASK;
+                        let label = buf_stlv.get_u24() & Label::VALUE_MASK;
                         Sid::Label(Label::new(label))
                     } else {
                         // Invalid V-Flag and L-Flag combination - ignore.
@@ -2764,15 +2755,14 @@ impl ExtLsaSubTlvs {
                     stlvs.adj_sids.push(adj_sid);
                 }
                 Some(ExtLsaSubTlv::Bier) => {
-                    let bier = BierSubTlv::decode(tlv_len, &mut buf_value)?;
+                    let bier = BierSubTlv::decode(stlv_len, &mut buf_stlv)?;
                     stlvs.bier.push(bier);
                 }
                 _ => {
                     // Save unknown Sub-TLV.
-                    let value = buf_value.copy_to_bytes(tlv_len as usize);
                     stlvs
                         .unknown
-                        .push(UnknownTlv::new(tlv_type, tlv_len, value));
+                        .push(UnknownTlv::new(stlv_type, stlv_len, buf_stlv));
                 }
             }
         }

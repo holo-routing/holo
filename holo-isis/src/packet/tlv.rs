@@ -53,8 +53,9 @@ pub trait Tlv {
     fn len(&self) -> usize;
 }
 
-// Trait for TLVs that might span across multiple instances.
-pub trait MultiTlv: From<Vec<Self::Entry>> {
+// Trait for TLV types whose payload is made up of multiple logical entries,
+// which may span across multiple TLV instances.
+pub trait EntryBasedTlv: From<Vec<Self::Entry>> {
     type Entry;
     const FIXED_FIELDS_LEN: usize = 0;
 
@@ -395,7 +396,7 @@ impl AreaAddressesTlv {
     }
 }
 
-impl MultiTlv for AreaAddressesTlv {
+impl EntryBasedTlv for AreaAddressesTlv {
     type Entry = AreaAddr;
 
     fn entries(&self) -> impl Iterator<Item = &AreaAddr> {
@@ -450,7 +451,7 @@ impl NeighborsTlv {
     }
 }
 
-impl MultiTlv for NeighborsTlv {
+impl EntryBasedTlv for NeighborsTlv {
     type Entry = [u8; 6];
 
     fn entries(&self) -> impl Iterator<Item = &[u8; 6]> {
@@ -683,7 +684,7 @@ impl Ipv4AddressesTlv {
     }
 }
 
-impl MultiTlv for Ipv4AddressesTlv {
+impl EntryBasedTlv for Ipv4AddressesTlv {
     type Entry = Ipv4Addr;
 
     fn entries(&self) -> impl Iterator<Item = &Ipv4Addr> {
@@ -735,7 +736,7 @@ impl Ipv6AddressesTlv {
     }
 }
 
-impl MultiTlv for Ipv6AddressesTlv {
+impl EntryBasedTlv for Ipv6AddressesTlv {
     type Entry = Ipv6Addr;
 
     fn entries(&self) -> impl Iterator<Item = &Ipv6Addr> {
@@ -804,7 +805,7 @@ impl LspEntriesTlv {
     }
 }
 
-impl MultiTlv for LspEntriesTlv {
+impl EntryBasedTlv for LspEntriesTlv {
     type Entry = LspEntry;
 
     fn entries(&self) -> impl Iterator<Item = &LspEntry> {
@@ -885,7 +886,7 @@ impl IsReachTlv {
     }
 }
 
-impl MultiTlv for IsReachTlv {
+impl EntryBasedTlv for IsReachTlv {
     type Entry = IsReach;
     const FIXED_FIELDS_LEN: usize = 1;
 
@@ -1049,7 +1050,7 @@ impl ExtIsReachTlv {
     }
 }
 
-impl MultiTlv for ExtIsReachTlv {
+impl EntryBasedTlv for ExtIsReachTlv {
     type Entry = ExtIsReach;
 
     fn entries(&self) -> impl Iterator<Item = &ExtIsReach> {
@@ -1156,7 +1157,7 @@ impl Ipv4ReachTlv {
     }
 }
 
-impl MultiTlv for Ipv4ReachTlv {
+impl EntryBasedTlv for Ipv4ReachTlv {
     type Entry = Ipv4Reach;
 
     fn entries(&self) -> impl Iterator<Item = &Ipv4Reach> {
@@ -1365,7 +1366,7 @@ impl ExtIpv4ReachTlv {
     }
 }
 
-impl MultiTlv for ExtIpv4ReachTlv {
+impl EntryBasedTlv for ExtIpv4ReachTlv {
     type Entry = ExtIpv4Reach;
 
     fn entries(&self) -> impl Iterator<Item = &ExtIpv4Reach> {
@@ -1619,7 +1620,7 @@ impl Ipv6ReachTlv {
     }
 }
 
-impl MultiTlv for Ipv6ReachTlv {
+impl EntryBasedTlv for Ipv6ReachTlv {
     type Entry = Ipv6Reach;
 
     fn entries(&self) -> impl Iterator<Item = &Ipv6Reach> {
@@ -1841,7 +1842,7 @@ impl Tlv for RouterCapTlv {
 
 // ===== blanket implementations =====
 
-impl<T: MultiTlv> Tlv for T {
+impl<T: EntryBasedTlv> Tlv for T {
     fn len(&self) -> usize {
         self.len()
     }
@@ -1907,7 +1908,7 @@ pub(crate) fn tlv_entries_split<T>(
     entries: impl IntoIterator<Item = T::Entry>,
 ) -> Vec<T>
 where
-    T: MultiTlv,
+    T: EntryBasedTlv,
 {
     let mut tlvs = vec![];
     let mut tlv_entries = vec![];

@@ -104,11 +104,11 @@ pub struct InstanceCfg {
     pub overload_status: bool,
     pub att_suppress: bool,
     pub att_ignore: bool,
-    pub bier: BierIsisCfg,
+    pub bier: InstanceBierCfg,
 }
 
 #[derive(Debug)]
-pub struct BierIsisCfg {
+pub struct InstanceBierCfg {
     pub mt_id: u8,
     pub enabled: bool,
     pub advertise: bool,
@@ -1594,7 +1594,7 @@ impl Default for InstanceCfg {
     }
 }
 
-impl Default for BierIsisCfg {
+impl Default for InstanceBierCfg {
     fn default() -> Self {
         let enabled = isis::bier::bier::enable::DFLT;
         let advertise = isis::bier::bier::advertise::DFLT;

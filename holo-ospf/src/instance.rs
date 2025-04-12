@@ -788,7 +788,7 @@ where
         }
         // BIER configuration update.
         IbusMsg::BierCfgUpd(bier_config) => {
-            instance.shared.bier_config = bier_config.clone();
+            instance.shared.bier_config = bier_config;
         }
         // SR configuration event.
         IbusMsg::SrCfgEvent(event) => {

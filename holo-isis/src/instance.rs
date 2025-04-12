@@ -645,7 +645,7 @@ async fn process_ibus_msg(
         }
         // BIER configuration update.
         IbusMsg::BierCfgUpd(bier_config) => {
-            instance.shared.bier_config = bier_config.clone();
+            instance.shared.bier_config = bier_config;
         }
         // Ignore other events.
         _ => {}

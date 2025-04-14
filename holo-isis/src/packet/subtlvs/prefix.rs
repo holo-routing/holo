@@ -18,7 +18,7 @@ use holo_utils::mpls::Label;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
-use crate::packet::consts::{BierSubSubTlvType, PrefixSubTlvType};
+use crate::packet::consts::{BierSubStlvType, PrefixStlvType};
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::tlv::{TLV_HDR_SIZE, tlv_encode_end, tlv_encode_start};
 
@@ -36,66 +36,66 @@ bitflags! {
 #[derive(Clone, Debug, Default, PartialEq)]
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
-pub struct PrefixAttrFlagsSubTlv(PrefixAttrFlags);
+pub struct PrefixAttrFlagsStlv(PrefixAttrFlags);
 
 #[derive(Clone, Debug, PartialEq)]
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
-pub struct Ipv4SourceRidSubTlv(Ipv4Addr);
+pub struct Ipv4SourceRidStlv(Ipv4Addr);
 
 #[derive(Clone, Debug, PartialEq)]
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
-pub struct Ipv6SourceRidSubTlv(Ipv6Addr);
+pub struct Ipv6SourceRidStlv(Ipv6Addr);
 
 #[derive(Clone, Debug, PartialEq)]
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
-pub struct BierInfoSubTlv {
+pub struct BierInfoStlv {
     pub bar: u8,
     pub ipa: u8,
     pub sub_domain_id: u8,
     pub bfr_id: u16,
-    pub subtlvs: Vec<BierSubSubTlv>,
+    pub subtlvs: Vec<BierSubStlv>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
-pub enum BierSubSubTlv {
-    BierEncapSubSubTlv(BierEncapSubSubTlv),
+pub enum BierSubStlv {
+    BierEncapSubStlv(BierEncapSubStlv),
 }
 
 #[derive(Clone, Debug, PartialEq)]
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
-pub struct BierEncapSubSubTlv {
+pub struct BierEncapSubStlv {
     pub max_si: u8,
     pub bs_len: u8,
     pub id: BierEncapId,
 }
 
-// ===== impl PrefixAttrFlagsSubTlv =====
+// ===== impl PrefixAttrFlagsStlv =====
 
-impl PrefixAttrFlagsSubTlv {
+impl PrefixAttrFlagsStlv {
     const SIZE: usize = 1;
 
     pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
         // A TLV length of zero is permitted under RFC 7794.
         if tlv_len == 0 {
-            return Ok(PrefixAttrFlagsSubTlv::default());
+            return Ok(PrefixAttrFlagsStlv::default());
         }
 
         // Any remaining bits beyond the first byte are ignored.
         let flags = buf.get_u8();
         let flags = PrefixAttrFlags::from_bits_truncate(flags);
 
-        Ok(PrefixAttrFlagsSubTlv(flags))
+        Ok(PrefixAttrFlagsStlv(flags))
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
         let start_pos =
-            tlv_encode_start(buf, PrefixSubTlvType::PrefixAttributeFlags);
+            tlv_encode_start(buf, PrefixStlvType::PrefixAttributeFlags);
         buf.put_u8(self.0.bits());
         tlv_encode_end(buf, start_pos);
     }
@@ -113,9 +113,9 @@ impl PrefixAttrFlagsSubTlv {
     }
 }
 
-// ===== impl Ipv4SourceRidSubTlv =====
+// ===== impl Ipv4SourceRidStlv =====
 
-impl Ipv4SourceRidSubTlv {
+impl Ipv4SourceRidStlv {
     const SIZE: usize = 4;
 
     pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
@@ -126,12 +126,12 @@ impl Ipv4SourceRidSubTlv {
 
         let addr = buf.get_ipv4();
 
-        Ok(Ipv4SourceRidSubTlv(addr))
+        Ok(Ipv4SourceRidStlv(addr))
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
         let start_pos =
-            tlv_encode_start(buf, PrefixSubTlvType::Ipv4SourceRouterId);
+            tlv_encode_start(buf, PrefixStlvType::Ipv4SourceRouterId);
         buf.put_ipv4(&self.0);
         tlv_encode_end(buf, start_pos);
     }
@@ -145,9 +145,9 @@ impl Ipv4SourceRidSubTlv {
     }
 }
 
-// ===== impl Ipv6SourceRidSubTlv =====
+// ===== impl Ipv6SourceRidStlv =====
 
-impl Ipv6SourceRidSubTlv {
+impl Ipv6SourceRidStlv {
     const SIZE: usize = 16;
 
     pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
@@ -158,12 +158,12 @@ impl Ipv6SourceRidSubTlv {
 
         let addr = buf.get_ipv6();
 
-        Ok(Ipv6SourceRidSubTlv(addr))
+        Ok(Ipv6SourceRidStlv(addr))
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
         let start_pos =
-            tlv_encode_start(buf, PrefixSubTlvType::Ipv6SourceRouterId);
+            tlv_encode_start(buf, PrefixStlvType::Ipv6SourceRouterId);
         buf.put_ipv6(&self.0);
         tlv_encode_end(buf, start_pos);
     }
@@ -177,9 +177,9 @@ impl Ipv6SourceRidSubTlv {
     }
 }
 
-// ===== impl BierInfoSubTlv =====
+// ===== impl BierInfoStlv =====
 
-impl BierInfoSubTlv {
+impl BierInfoStlv {
     const MIN_SIZE: usize = 5;
 
     pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
@@ -191,39 +191,38 @@ impl BierInfoSubTlv {
         let sub_domain_id = buf.get_u8();
         let bfr_id = buf.get_u16();
 
-        let mut subtlvs: Vec<BierSubSubTlv> = Vec::new();
+        let mut subtlvs: Vec<BierSubStlv> = Vec::new();
 
         while buf.remaining() >= TLV_HDR_SIZE {
-            // Parse SubTlv type.
+            // Parse Stlv type.
             let stlv_type = buf.get_u8();
-            let stlv_etype = BierSubSubTlvType::from_u8(stlv_type);
+            let stlv_etype = BierSubStlvType::from_u8(stlv_type);
 
-            // Parse and validate SubTlv length.
+            // Parse and validate Stlv length.
             let stlv_len = buf.get_u8();
             if stlv_len as usize > buf.remaining() {
                 return Err(DecodeError::InvalidTlvLength(stlv_len));
             }
 
-            // Parse SubTlv value.
+            // Parse Stlv value.
             let mut buf_stlv = buf.copy_to_bytes(stlv_len as usize);
             match stlv_etype {
                 Some(
-                    BierSubSubTlvType::MplsEncap
-                    | BierSubSubTlvType::NonMplsEncap,
+                    BierSubStlvType::MplsEncap | BierSubStlvType::NonMplsEncap,
                 ) => {
                     let max_si = buf_stlv.get_u8();
                     let id = buf_stlv.get_u24();
                     let bs_len = ((id >> 20) & 0xf) as u8;
                     let id = match stlv_etype.unwrap() {
-                        BierSubSubTlvType::MplsEncap => {
+                        BierSubStlvType::MplsEncap => {
                             BierEncapId::Mpls(Label::new(id))
                         }
-                        BierSubSubTlvType::NonMplsEncap => {
+                        BierSubStlvType::NonMplsEncap => {
                             BierEncapId::NonMpls(BiftId::new(id))
                         }
                     };
-                    subtlvs.push(BierSubSubTlv::BierEncapSubSubTlv(
-                        BierEncapSubSubTlv { max_si, bs_len, id },
+                    subtlvs.push(BierSubStlv::BierEncapSubStlv(
+                        BierEncapSubStlv { max_si, bs_len, id },
                     ));
                 }
                 _ => {
@@ -233,7 +232,7 @@ impl BierInfoSubTlv {
             }
         }
 
-        Ok(BierInfoSubTlv {
+        Ok(BierInfoStlv {
             bar,
             ipa,
             sub_domain_id,
@@ -243,19 +242,19 @@ impl BierInfoSubTlv {
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
-        let start_pos = tlv_encode_start(buf, PrefixSubTlvType::BierInfo);
+        let start_pos = tlv_encode_start(buf, PrefixStlvType::BierInfo);
         buf.put_u8(self.bar);
         buf.put_u8(self.ipa);
         buf.put_u8(self.sub_domain_id);
         buf.put_u16(self.bfr_id);
         for subtlv in &self.subtlvs {
             match subtlv {
-                BierSubSubTlv::BierEncapSubSubTlv(encap) => {
+                BierSubStlv::BierEncapSubStlv(encap) => {
                     let tlv_type = match encap.id {
                         BierEncapId::NonMpls(_) => {
-                            BierSubSubTlvType::NonMplsEncap
+                            BierSubStlvType::NonMplsEncap
                         }
-                        BierEncapId::Mpls(_) => BierSubSubTlvType::MplsEncap,
+                        BierEncapId::Mpls(_) => BierSubStlvType::MplsEncap,
                     };
                     let start_pos = tlv_encode_start(buf, tlv_type);
                     buf.put_u8(encap.max_si);
@@ -277,7 +276,7 @@ impl BierInfoSubTlv {
                 .subtlvs
                 .iter()
                 .map(|stlv| match stlv {
-                    BierSubSubTlv::BierEncapSubSubTlv(_) => 6,
+                    BierSubStlv::BierEncapSubStlv(_) => 6,
                 })
                 .sum::<usize>()
     }

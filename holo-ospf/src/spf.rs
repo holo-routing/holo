@@ -24,7 +24,7 @@ use crate::interface::Interface;
 use crate::lsdb::{LsaEntry, LsaLogId};
 use crate::neighbor::Neighbor;
 use crate::packet::lsa::{Lsa, LsaKey};
-use crate::packet::tlv::{BierSubTlv, SidLabelRangeTlv, SrAlgoTlv};
+use crate::packet::tlv::{BierStlv, SidLabelRangeTlv, SrAlgoTlv};
 use crate::route::{Nexthops, PathType, RouteRtr};
 use crate::version::Version;
 use crate::{area, route, tasks};
@@ -73,7 +73,7 @@ pub struct SpfIntraAreaNetwork<'a, V: Version> {
     pub prefix_options: V::PrefixOptions,
     pub metric: u16,
     pub prefix_sids: BTreeMap<IgpAlgoType, V::PrefixSid>,
-    pub bier: Vec<BierSubTlv>,
+    pub bier: Vec<BierStlv>,
 }
 
 #[derive(Debug)]

@@ -35,16 +35,16 @@ use crate::northbound::notification;
 use crate::packet::consts::LspFlags;
 use crate::packet::pdu::{Lsp, LspTlvs, Pdu};
 use crate::packet::subtlvs::capability::{
-    LabelBlockEntry, SrAlgoSubTlv, SrCapabilitiesFlags, SrCapabilitiesSubTlv,
-    SrLocalBlockSubTlv,
+    LabelBlockEntry, SrAlgoStlv, SrCapabilitiesFlags, SrCapabilitiesStlv,
+    SrLocalBlockStlv,
 };
 use crate::packet::subtlvs::prefix::{
-    BierEncapSubSubTlv, BierInfoSubTlv, BierSubSubTlv, Ipv4SourceRidSubTlv,
-    Ipv6SourceRidSubTlv, PrefixAttrFlags, PrefixAttrFlagsSubTlv,
+    BierEncapSubStlv, BierInfoStlv, BierSubStlv, Ipv4SourceRidStlv,
+    Ipv6SourceRidStlv, PrefixAttrFlags, PrefixAttrFlagsStlv,
 };
 use crate::packet::tlv::{
-    ExtIpv4Reach, ExtIsReach, IpReachTlvEntry, Ipv4Reach, Ipv4ReachSubTlvs,
-    Ipv6Reach, Ipv6ReachSubTlvs, IsReach, MAX_NARROW_METRIC, Nlpid,
+    ExtIpv4Reach, ExtIsReach, IpReachTlvEntry, Ipv4Reach, Ipv4ReachStlvs,
+    Ipv6Reach, Ipv6ReachStlvs, IsReach, MAX_NARROW_METRIC, Nlpid,
     RouterCapFlags, RouterCapTlv,
 };
 use crate::packet::{LanId, LevelNumber, LevelType, LspId};
@@ -393,12 +393,10 @@ fn lsp_build_tlvs_router_cap(
             let range = range.upper_bound - range.lower_bound + 1;
             srgb.push(LabelBlockEntry::new(range, first));
         }
-        cap.sub_tlvs.sr_cap =
-            Some(SrCapabilitiesSubTlv::new(sr_cap_flags, srgb));
+        cap.sub_tlvs.sr_cap = Some(SrCapabilitiesStlv::new(sr_cap_flags, srgb));
 
         // Add SR-Algorithm Sub-TLV.
-        cap.sub_tlvs.sr_algo =
-            Some(SrAlgoSubTlv::new([IgpAlgoType::Spf].into()));
+        cap.sub_tlvs.sr_algo = Some(SrAlgoStlv::new([IgpAlgoType::Spf].into()));
 
         // Add SR Local Block Sub-TLV.
         let mut srlb = vec![];
@@ -408,7 +406,7 @@ fn lsp_build_tlvs_router_cap(
             srlb.push(LabelBlockEntry::new(range, first));
         }
         if !srlb.is_empty() {
-            cap.sub_tlvs.srlb = Some(SrLocalBlockSubTlv::new(srlb));
+            cap.sub_tlvs.srlb = Some(SrLocalBlockStlv::new(srlb));
         }
 
         router_cap.push(cap);
@@ -517,7 +515,7 @@ fn lsp_build_tlvs_ip_local(
                     prefix_attr_flags.insert(PrefixAttrFlags::N);
                 }
                 let sub_tlvs =
-                    lsp_build_ipv4_reach_sub_tlvs(instance, prefix_attr_flags);
+                    lsp_build_ipv4_reach_stlvs(instance, prefix_attr_flags);
                 ext_ipv4_reach.insert(
                     prefix,
                     ExtIpv4Reach {
@@ -549,11 +547,8 @@ fn lsp_build_tlvs_ip_local(
             if iface.is_loopback() && prefix.is_host_prefix() {
                 prefix_attr_flags.insert(PrefixAttrFlags::N);
             }
-            let sub_tlvs = lsp_build_ipv6_reach_sub_tlvs(
-                instance,
-                prefix,
-                prefix_attr_flags,
-            );
+            let sub_tlvs =
+                lsp_build_ipv6_reach_stlvs(instance, prefix, prefix_attr_flags);
             ipv6_reach.insert(
                 prefix,
                 Ipv6Reach {
@@ -597,7 +592,7 @@ fn lsp_build_tlvs_ip_redistributed(
             if metric_type.is_wide_enabled() {
                 let prefix_attr_flags = PrefixAttrFlags::X;
                 let sub_tlvs =
-                    lsp_build_ipv4_reach_sub_tlvs(instance, prefix_attr_flags);
+                    lsp_build_ipv4_reach_stlvs(instance, prefix_attr_flags);
                 ext_ipv4_reach.insert(
                     prefix,
                     ExtIpv4Reach {
@@ -614,11 +609,8 @@ fn lsp_build_tlvs_ip_redistributed(
         for (prefix, route) in instance.system.ipv6_routes.get(level) {
             let prefix = prefix.apply_mask();
             let prefix_attr_flags = PrefixAttrFlags::empty();
-            let sub_tlvs = lsp_build_ipv6_reach_sub_tlvs(
-                instance,
-                prefix,
-                prefix_attr_flags,
-            );
+            let sub_tlvs =
+                lsp_build_ipv6_reach_stlvs(instance, prefix, prefix_attr_flags);
             ipv6_reach.insert(
                 prefix,
                 Ipv6Reach {
@@ -633,49 +625,49 @@ fn lsp_build_tlvs_ip_redistributed(
     }
 }
 
-fn lsp_build_ipv4_reach_sub_tlvs(
+fn lsp_build_ipv4_reach_stlvs(
     instance: &mut InstanceUpView<'_>,
     prefix_attr_flags: PrefixAttrFlags,
-) -> Ipv4ReachSubTlvs {
-    let mut sub_tlvs = Ipv4ReachSubTlvs::default();
+) -> Ipv4ReachStlvs {
+    let mut sub_tlvs = Ipv4ReachStlvs::default();
 
     // Add IPv4 Extended Reachability Attribute Flags.
     if !prefix_attr_flags.is_empty() {
         sub_tlvs.prefix_attr_flags =
-            Some(PrefixAttrFlagsSubTlv::new(prefix_attr_flags));
+            Some(PrefixAttrFlagsStlv::new(prefix_attr_flags));
     }
 
     // Add Source Router ID Sub-TLV(s).
     if let Some(router_id) = instance.config.ipv4_router_id {
-        sub_tlvs.ipv4_source_rid = Some(Ipv4SourceRidSubTlv::new(router_id));
+        sub_tlvs.ipv4_source_rid = Some(Ipv4SourceRidStlv::new(router_id));
     }
     if let Some(router_id) = instance.config.ipv6_router_id {
-        sub_tlvs.ipv6_source_rid = Some(Ipv6SourceRidSubTlv::new(router_id));
+        sub_tlvs.ipv6_source_rid = Some(Ipv6SourceRidStlv::new(router_id));
     }
 
     sub_tlvs
 }
 
-fn lsp_build_ipv6_reach_sub_tlvs(
+fn lsp_build_ipv6_reach_stlvs(
     instance: &mut InstanceUpView<'_>,
     prefix: Ipv6Network,
     prefix_attr_flags: PrefixAttrFlags,
-) -> Ipv6ReachSubTlvs {
+) -> Ipv6ReachStlvs {
     let bier_config = &instance.shared.bier_config;
-    let mut sub_tlvs = Ipv6ReachSubTlvs::default();
+    let mut sub_tlvs = Ipv6ReachStlvs::default();
 
     // Add IPv6 Extended Reachability Attribute Flags.
     if !prefix_attr_flags.is_empty() {
         sub_tlvs.prefix_attr_flags =
-            Some(PrefixAttrFlagsSubTlv::new(prefix_attr_flags));
+            Some(PrefixAttrFlagsStlv::new(prefix_attr_flags));
     }
 
     // Add Source Router ID Sub-TLV(s).
     if let Some(router_id) = instance.config.ipv4_router_id {
-        sub_tlvs.ipv4_source_rid = Some(Ipv4SourceRidSubTlv::new(router_id));
+        sub_tlvs.ipv4_source_rid = Some(Ipv4SourceRidStlv::new(router_id));
     }
     if let Some(router_id) = instance.config.ipv6_router_id {
-        sub_tlvs.ipv6_source_rid = Some(Ipv6SourceRidSubTlv::new(router_id));
+        sub_tlvs.ipv6_source_rid = Some(Ipv6SourceRidStlv::new(router_id));
     }
 
     // Add BIER Sub-TLV(s) if BIER is enabled and allowed to advertise.
@@ -706,18 +698,16 @@ fn lsp_build_ipv6_reach_sub_tlvs(
                         .map(|id| BierEncapId::NonMpls(BiftId::new(id))),
                     }
                     .map(|id| {
-                        BierSubSubTlv::BierEncapSubSubTlv(
-                            BierEncapSubSubTlv::new(
-                                encap.max_si,
-                                (*bsl).into(),
-                                id,
-                            ),
-                        )
+                        BierSubStlv::BierEncapSubStlv(BierEncapSubStlv::new(
+                            encap.max_si,
+                            (*bsl).into(),
+                            id,
+                        ))
                     })
                 })
                 .collect::<Vec<_>>();
 
-            let bier = BierInfoSubTlv::new(
+            let bier = BierInfoStlv::new(
                 sd_cfg.bar,
                 sd_cfg.ipa,
                 *sd_id,

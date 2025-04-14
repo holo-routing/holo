@@ -14,48 +14,48 @@ use derive_new::new;
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use serde::{Deserialize, Serialize};
 
-use crate::packet::consts::NeighborSubTlvType;
+use crate::packet::consts::NeighborStlvType;
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::tlv::{tlv_encode_end, tlv_encode_start};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
-pub struct AdminGroupSubTlv(u32);
+pub struct AdminGroupStlv(u32);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
-pub struct Ipv4InterfaceAddrSubTlv(Ipv4Addr);
+pub struct Ipv4InterfaceAddrStlv(Ipv4Addr);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
-pub struct Ipv4NeighborAddrSubTlv(Ipv4Addr);
+pub struct Ipv4NeighborAddrStlv(Ipv4Addr);
 
 #[derive(Clone, Debug, PartialEq)]
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
-pub struct MaxLinkBwSubTlv(f32);
+pub struct MaxLinkBwStlv(f32);
 
 #[derive(Clone, Debug, PartialEq)]
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
-pub struct MaxResvLinkBwSubTlv(f32);
+pub struct MaxResvLinkBwStlv(f32);
 
 #[derive(Clone, Debug, PartialEq)]
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
-pub struct UnreservedBwSubTlv([f32; 8]);
+pub struct UnreservedBwStlv([f32; 8]);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
-pub struct TeDefaultMetricSubTlv(u32);
+pub struct TeDefaultMetricStlv(u32);
 
-// ===== impl AdminGroupSubTlv =====
+// ===== impl AdminGroupStlv =====
 
-impl AdminGroupSubTlv {
+impl AdminGroupStlv {
     const SIZE: usize = 4;
 
     pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
@@ -66,11 +66,11 @@ impl AdminGroupSubTlv {
 
         let groups = buf.get_u32();
 
-        Ok(AdminGroupSubTlv(groups))
+        Ok(AdminGroupStlv(groups))
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
-        let start_pos = tlv_encode_start(buf, NeighborSubTlvType::AdminGroup);
+        let start_pos = tlv_encode_start(buf, NeighborStlvType::AdminGroup);
         buf.put_u32(self.0);
         tlv_encode_end(buf, start_pos);
     }
@@ -80,9 +80,9 @@ impl AdminGroupSubTlv {
     }
 }
 
-// ===== impl Ipv4InterfaceAddrSubTlv =====
+// ===== impl Ipv4InterfaceAddrStlv =====
 
-impl Ipv4InterfaceAddrSubTlv {
+impl Ipv4InterfaceAddrStlv {
     const SIZE: usize = 4;
 
     pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
@@ -93,12 +93,12 @@ impl Ipv4InterfaceAddrSubTlv {
 
         let addr = buf.get_ipv4();
 
-        Ok(Ipv4InterfaceAddrSubTlv(addr))
+        Ok(Ipv4InterfaceAddrStlv(addr))
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
         let start_pos =
-            tlv_encode_start(buf, NeighborSubTlvType::Ipv4InterfaceAddress);
+            tlv_encode_start(buf, NeighborStlvType::Ipv4InterfaceAddress);
         buf.put_ipv4(&self.0);
         tlv_encode_end(buf, start_pos);
     }
@@ -108,9 +108,9 @@ impl Ipv4InterfaceAddrSubTlv {
     }
 }
 
-// ===== impl Ipv4NeighborAddrSubTlv =====
+// ===== impl Ipv4NeighborAddrStlv =====
 
-impl Ipv4NeighborAddrSubTlv {
+impl Ipv4NeighborAddrStlv {
     const SIZE: usize = 4;
 
     pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
@@ -121,12 +121,12 @@ impl Ipv4NeighborAddrSubTlv {
 
         let addr = buf.get_ipv4();
 
-        Ok(Ipv4NeighborAddrSubTlv(addr))
+        Ok(Ipv4NeighborAddrStlv(addr))
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
         let start_pos =
-            tlv_encode_start(buf, NeighborSubTlvType::Ipv4NeighborAddress);
+            tlv_encode_start(buf, NeighborStlvType::Ipv4NeighborAddress);
         buf.put_ipv4(&self.0);
         tlv_encode_end(buf, start_pos);
     }
@@ -136,9 +136,9 @@ impl Ipv4NeighborAddrSubTlv {
     }
 }
 
-// ===== impl MaxLinkBwSubTlv =====
+// ===== impl MaxLinkBwStlv =====
 
-impl MaxLinkBwSubTlv {
+impl MaxLinkBwStlv {
     const SIZE: usize = 4;
 
     pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
@@ -149,12 +149,12 @@ impl MaxLinkBwSubTlv {
 
         let bw = buf.get_f32();
 
-        Ok(MaxLinkBwSubTlv(bw))
+        Ok(MaxLinkBwStlv(bw))
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
         let start_pos =
-            tlv_encode_start(buf, NeighborSubTlvType::MaxLinkBandwidth);
+            tlv_encode_start(buf, NeighborStlvType::MaxLinkBandwidth);
         buf.put_f32(self.0);
         tlv_encode_end(buf, start_pos);
     }
@@ -164,9 +164,9 @@ impl MaxLinkBwSubTlv {
     }
 }
 
-// ===== impl MaxResvLinkBwSubTlv =====
+// ===== impl MaxResvLinkBwStlv =====
 
-impl MaxResvLinkBwSubTlv {
+impl MaxResvLinkBwStlv {
     const SIZE: usize = 4;
 
     pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
@@ -177,12 +177,12 @@ impl MaxResvLinkBwSubTlv {
 
         let bw = buf.get_f32();
 
-        Ok(MaxResvLinkBwSubTlv(bw))
+        Ok(MaxResvLinkBwStlv(bw))
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
         let start_pos =
-            tlv_encode_start(buf, NeighborSubTlvType::MaxResvLinkBandwidth);
+            tlv_encode_start(buf, NeighborStlvType::MaxResvLinkBandwidth);
         buf.put_f32(self.0);
         tlv_encode_end(buf, start_pos);
     }
@@ -192,9 +192,9 @@ impl MaxResvLinkBwSubTlv {
     }
 }
 
-// ===== impl UnreservedBwSubTlv =====
+// ===== impl UnreservedBwStlv =====
 
-impl UnreservedBwSubTlv {
+impl UnreservedBwStlv {
     const SIZE: usize = 32;
 
     pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
@@ -208,12 +208,12 @@ impl UnreservedBwSubTlv {
             *bw = buf.get_f32();
         }
 
-        Ok(UnreservedBwSubTlv(bws))
+        Ok(UnreservedBwStlv(bws))
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
         let start_pos =
-            tlv_encode_start(buf, NeighborSubTlvType::UnreservedBandwidth);
+            tlv_encode_start(buf, NeighborStlvType::UnreservedBandwidth);
         for bw in &self.0 {
             buf.put_f32(*bw);
         }
@@ -225,9 +225,9 @@ impl UnreservedBwSubTlv {
     }
 }
 
-// ===== impl TeDefaultMetricSubTlv =====
+// ===== impl TeDefaultMetricStlv =====
 
-impl TeDefaultMetricSubTlv {
+impl TeDefaultMetricStlv {
     const SIZE: usize = 3;
 
     pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
@@ -238,12 +238,12 @@ impl TeDefaultMetricSubTlv {
 
         let metric = buf.get_u24();
 
-        Ok(TeDefaultMetricSubTlv(metric))
+        Ok(TeDefaultMetricStlv(metric))
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
         let start_pos =
-            tlv_encode_start(buf, NeighborSubTlvType::TeDefaultMetric);
+            tlv_encode_start(buf, NeighborStlvType::TeDefaultMetric);
         buf.put_u24(self.0);
         tlv_encode_end(buf, start_pos);
     }

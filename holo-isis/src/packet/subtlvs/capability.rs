@@ -18,14 +18,14 @@ use holo_utils::sr::{IgpAlgoType, Sid};
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
-use crate::packet::consts::{LabelBindingSubTlvType, RouterCapSubTlvType};
+use crate::packet::consts::{LabelBindingStlvType, RouterCapStlvType};
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::tlv::{TLV_HDR_SIZE, tlv_encode_end, tlv_encode_start};
 
 #[derive(Clone, Debug, PartialEq)]
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
-pub struct SrCapabilitiesSubTlv {
+pub struct SrCapabilitiesStlv {
     pub flags: SrCapabilitiesFlags,
     pub entries: Vec<LabelBlockEntry>,
 }
@@ -43,12 +43,12 @@ bitflags! {
 #[derive(Clone, Debug, PartialEq)]
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
-pub struct SrAlgoSubTlv(BTreeSet<IgpAlgoType>);
+pub struct SrAlgoStlv(BTreeSet<IgpAlgoType>);
 
 #[derive(Clone, Debug, PartialEq)]
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
-pub struct SrLocalBlockSubTlv {
+pub struct SrLocalBlockStlv {
     pub entries: Vec<LabelBlockEntry>,
 }
 
@@ -60,9 +60,9 @@ pub struct LabelBlockEntry {
     pub first: Sid,
 }
 
-// ===== impl SrCapabilitiesSubTlv =====
+// ===== impl SrCapabilitiesStlv =====
 
-impl SrCapabilitiesSubTlv {
+impl SrCapabilitiesStlv {
     const MIN_SIZE: usize = 1;
 
     pub(crate) fn decode(stlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
@@ -79,12 +79,11 @@ impl SrCapabilitiesSubTlv {
             entries.push(entry);
         }
 
-        Ok(SrCapabilitiesSubTlv { flags, entries })
+        Ok(SrCapabilitiesStlv { flags, entries })
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
-        let start_pos =
-            tlv_encode_start(buf, RouterCapSubTlvType::SrCapability);
+        let start_pos = tlv_encode_start(buf, RouterCapStlvType::SrCapability);
         // Flags.
         buf.put_u8(self.flags.bits());
         // SRGB entries.
@@ -101,9 +100,9 @@ impl SrCapabilitiesSubTlv {
     }
 }
 
-// ===== impl SrAlgoSubTlv =====
+// ===== impl SrAlgoStlv =====
 
-impl SrAlgoSubTlv {
+impl SrAlgoStlv {
     pub(crate) fn decode(stlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
         let mut list = BTreeSet::new();
         for _ in 0..stlv_len {
@@ -120,11 +119,11 @@ impl SrAlgoSubTlv {
 
         // TODO: return an error if algorithm 0 isn't present.
 
-        Ok(SrAlgoSubTlv(list))
+        Ok(SrAlgoStlv(list))
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
-        let start_pos = tlv_encode_start(buf, RouterCapSubTlvType::SrAlgorithm);
+        let start_pos = tlv_encode_start(buf, RouterCapStlvType::SrAlgorithm);
         for algo in &self.0 {
             buf.put_u8(*algo as u8);
         }
@@ -140,9 +139,9 @@ impl SrAlgoSubTlv {
     }
 }
 
-// ===== impl SrLocalBlockSubTlv =====
+// ===== impl SrLocalBlockStlv =====
 
-impl SrLocalBlockSubTlv {
+impl SrLocalBlockStlv {
     const MIN_SIZE: usize = 1;
 
     pub(crate) fn decode(stlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
@@ -158,12 +157,11 @@ impl SrLocalBlockSubTlv {
             entries.push(entry);
         }
 
-        Ok(SrLocalBlockSubTlv { entries })
+        Ok(SrLocalBlockStlv { entries })
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
-        let start_pos =
-            tlv_encode_start(buf, RouterCapSubTlvType::SrLocalBlock);
+        let start_pos = tlv_encode_start(buf, RouterCapStlvType::SrLocalBlock);
         // Flags.
         buf.put_u8(0);
         // SRLB entries.
@@ -188,7 +186,7 @@ impl LabelBlockEntry {
 
         // Only the SID/Label sub-TLV is valid here.
         let stlv_type = buf.get_u8();
-        if stlv_type != LabelBindingSubTlvType::SidLabel as u8 {
+        if stlv_type != LabelBindingStlvType::SidLabel as u8 {
             return Err(DecodeError::UnexpectedTlvType(stlv_type));
         }
         let stlv_len = buf.get_u8();
@@ -211,7 +209,7 @@ impl LabelBlockEntry {
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
         buf.put_u24(self.range);
-        let start_pos = tlv_encode_start(buf, LabelBindingSubTlvType::SidLabel);
+        let start_pos = tlv_encode_start(buf, LabelBindingStlvType::SidLabel);
         match self.first {
             Sid::Index(index) => {
                 buf.put_u32(index);

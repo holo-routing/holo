@@ -931,13 +931,13 @@ static EXT_INTRA_AREA_PREFIX_LSA_BIER_TLV: Lazy<(Vec<u8>, Lsa<Ospfv3>)> =
                         value: net!("fc00::1/128"),
                         metric: 0,
                         prefix_sids: btreemap![],
-                        bier: vec![BierSubTlv {
+                        bier: vec![BierStlv {
                             sub_domain_id: 0,
                             mt_id: 0,
                             bfr_id: 2,
                             bar: 0,
                             ipa: 0,
-                            encaps: vec![BierEncapSubSubTlv {
+                            encaps: vec![BierEncapSubStlv {
                                 max_si: 128,
                                 id: BierEncapId::NonMpls(BiftId::new(0)),
                                 bs_len: 3,

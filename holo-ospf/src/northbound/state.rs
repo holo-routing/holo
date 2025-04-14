@@ -31,8 +31,8 @@ use crate::lsdb::{LsaEntry, LsaLogEntry, LsaLogId};
 use crate::neighbor::Neighbor;
 use crate::packet::lsa::{LsaBodyVersion, LsaHdrVersion};
 use crate::packet::tlv::{
-    BierEncapSubSubTlv, BierSubTlv, GrReason, NodeAdminTagTlv,
-    SidLabelRangeTlv, SrLocalBlockTlv, UnknownTlv,
+    BierEncapSubStlv, BierStlv, GrReason, NodeAdminTagTlv, SidLabelRangeTlv,
+    SrLocalBlockTlv, UnknownTlv,
 };
 use crate::route::{Nexthop, RouteNet};
 use crate::spf::SpfLogEntry;
@@ -87,10 +87,10 @@ pub enum ListEntry<'a, V: Version> {
     Ospfv3PrefixSids(&'a BTreeMap<IgpAlgoType, ospfv3::packet::lsa::PrefixSid>),
     Ospfv3PrefixSid(&'a ospfv3::packet::lsa::PrefixSid),
     Ospfv3LinkLocalAddr(IpAddr),
-    Ospfv3Biers(&'a Vec<BierSubTlv>),
-    Ospfv3Bier(&'a BierSubTlv),
-    Ospfv3BierEncaps(&'a Vec<BierEncapSubSubTlv>),
-    Ospfv3BierEncap(&'a BierEncapSubSubTlv),
+    Ospfv3Biers(&'a Vec<BierStlv>),
+    Ospfv3Bier(&'a BierStlv),
+    Ospfv3BierEncaps(&'a Vec<BierEncapSubStlv>),
+    Ospfv3BierEncap(&'a BierEncapSubStlv),
 }
 
 // ===== callbacks =====

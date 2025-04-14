@@ -83,7 +83,7 @@ pub enum AuthenticationType {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
-pub enum NeighborSubTlvType {
+pub enum NeighborStlvType {
     AdminGroup = 3,
     Ipv4InterfaceAddress = 6,
     Ipv4NeighborAddress = 8,
@@ -100,7 +100,7 @@ pub enum NeighborSubTlvType {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
-pub enum PrefixSubTlvType {
+pub enum PrefixStlvType {
     PrefixAttributeFlags = 4,
     Ipv4SourceRouterId = 11,
     Ipv6SourceRouterId = 12,
@@ -114,7 +114,7 @@ pub enum PrefixSubTlvType {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
-pub enum RouterCapSubTlvType {
+pub enum RouterCapStlvType {
     SrCapability = 2,
     SrAlgorithm = 19,
     SrLocalBlock = 22,
@@ -127,7 +127,7 @@ pub enum RouterCapSubTlvType {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
-pub enum LabelBindingSubTlvType {
+pub enum LabelBindingStlvType {
     SidLabel = 1,
 }
 
@@ -138,7 +138,7 @@ pub enum LabelBindingSubTlvType {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
-pub enum BierSubSubTlvType {
+pub enum BierSubStlvType {
     MplsEncap = 1,
     // FIXME: TBD1 in https://datatracker.ietf.org/doc/html/draft-ietf-bier-lsr-non-mpls-extensions-03#name-is-is-bier-non-mpls-encapsu
     NonMplsEncap = 42,

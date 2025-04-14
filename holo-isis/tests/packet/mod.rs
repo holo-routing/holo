@@ -21,26 +21,23 @@ use holo_isis::packet::pdu::{
     Hello, HelloTlvs, HelloVariant, Lsp, LspTlvs, Pdu, Snp, SnpTlvs,
 };
 use holo_isis::packet::subtlvs::capability::{
-    LabelBlockEntry, SrAlgoSubTlv, SrCapabilitiesFlags, SrCapabilitiesSubTlv,
-    SrLocalBlockSubTlv,
+    LabelBlockEntry, SrAlgoStlv, SrCapabilitiesFlags, SrCapabilitiesStlv,
+    SrLocalBlockStlv,
 };
 use holo_isis::packet::subtlvs::neighbor::{
-    AdminGroupSubTlv, Ipv4InterfaceAddrSubTlv, Ipv4NeighborAddrSubTlv,
-    MaxLinkBwSubTlv, MaxResvLinkBwSubTlv, TeDefaultMetricSubTlv,
-    UnreservedBwSubTlv,
+    AdminGroupStlv, Ipv4InterfaceAddrStlv, Ipv4NeighborAddrStlv, MaxLinkBwStlv,
+    MaxResvLinkBwStlv, TeDefaultMetricStlv, UnreservedBwStlv,
 };
 use holo_isis::packet::subtlvs::prefix::{
-    Ipv4SourceRidSubTlv, Ipv6SourceRidSubTlv, PrefixAttrFlags,
-    PrefixAttrFlagsSubTlv,
+    Ipv4SourceRidStlv, Ipv6SourceRidStlv, PrefixAttrFlags, PrefixAttrFlagsStlv,
 };
 use holo_isis::packet::tlv::{
     AreaAddressesTlv, DynamicHostnameTlv, ExtIpv4Reach, ExtIpv4ReachTlv,
-    ExtIsReach, ExtIsReachSubTlvs, ExtIsReachTlv, Ipv4AddressesTlv, Ipv4Reach,
-    Ipv4ReachSubTlvs, Ipv4ReachTlv, Ipv4RouterIdTlv, Ipv6AddressesTlv,
-    Ipv6Reach, Ipv6ReachSubTlvs, Ipv6ReachTlv, Ipv6RouterIdTlv, IsReach,
-    IsReachTlv, LspBufferSizeTlv, LspEntriesTlv, LspEntry, NeighborsTlv,
-    PaddingTlv, ProtocolsSupportedTlv, RouterCapFlags, RouterCapSubTlvs,
-    RouterCapTlv,
+    ExtIsReach, ExtIsReachStlvs, ExtIsReachTlv, Ipv4AddressesTlv, Ipv4Reach,
+    Ipv4ReachStlvs, Ipv4ReachTlv, Ipv4RouterIdTlv, Ipv6AddressesTlv, Ipv6Reach,
+    Ipv6ReachStlvs, Ipv6ReachTlv, Ipv6RouterIdTlv, IsReach, IsReachTlv,
+    LspBufferSizeTlv, LspEntriesTlv, LspEntry, NeighborsTlv, PaddingTlv,
+    ProtocolsSupportedTlv, RouterCapFlags, RouterCapStlvs, RouterCapTlv,
 };
 use holo_isis::packet::{
     AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId,

@@ -52,18 +52,18 @@ static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 router_cap: vec![RouterCapTlv {
                     router_id: Some(ip4!("1.1.1.1")),
                     flags: RouterCapFlags::empty(),
-                    sub_tlvs: RouterCapSubTlvs {
-                        sr_cap: Some(SrCapabilitiesSubTlv::new(
+                    sub_tlvs: RouterCapStlvs {
+                        sr_cap: Some(SrCapabilitiesStlv::new(
                             SrCapabilitiesFlags::I | SrCapabilitiesFlags::V,
                             vec![LabelBlockEntry::new(
                                 8000,
                                 Sid::Label(Label::new(16000)),
                             )],
                         )),
-                        sr_algo: Some(SrAlgoSubTlv::new(
+                        sr_algo: Some(SrAlgoStlv::new(
                             [IgpAlgoType::Spf].into(),
                         )),
-                        srlb: Some(SrLocalBlockSubTlv::new(vec![
+                        srlb: Some(SrLocalBlockStlv::new(vec![
                             LabelBlockEntry::new(
                                 1000,
                                 Sid::Label(Label::new(15000)),
@@ -84,27 +84,25 @@ static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                             0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03,
                         ]),
                         metric: 10,
-                        sub_tlvs: ExtIsReachSubTlvs {
-                            admin_group: Some(AdminGroupSubTlv::new(0x0f)),
+                        sub_tlvs: ExtIsReachStlvs {
+                            admin_group: Some(AdminGroupStlv::new(0x0f)),
                             ipv4_interface_addr: vec![
-                                Ipv4InterfaceAddrSubTlv::new(ip4!("10.0.1.1")),
+                                Ipv4InterfaceAddrStlv::new(ip4!("10.0.1.1")),
                             ],
                             ipv4_neighbor_addr: vec![
-                                Ipv4NeighborAddrSubTlv::new(ip4!("10.0.1.2")),
+                                Ipv4NeighborAddrStlv::new(ip4!("10.0.1.2")),
                             ],
-                            max_link_bw: Some(MaxLinkBwSubTlv::new(
-                                125000000.0,
-                            )),
-                            max_resv_link_bw: Some(MaxResvLinkBwSubTlv::new(
+                            max_link_bw: Some(MaxLinkBwStlv::new(125000000.0)),
+                            max_resv_link_bw: Some(MaxResvLinkBwStlv::new(
                                 12500000.0,
                             )),
-                            unreserved_bw: Some(UnreservedBwSubTlv::new([
+                            unreserved_bw: Some(UnreservedBwStlv::new([
                                 12500000.0, 12500000.0, 12500000.0, 12500000.0,
                                 12500000.0, 12500000.0, 12500000.0, 12500000.0,
                             ])),
-                            te_default_metric: Some(
-                                TeDefaultMetricSubTlv::new(100),
-                            ),
+                            te_default_metric: Some(TeDefaultMetricStlv::new(
+                                100,
+                            )),
                             unknown: vec![],
                         },
                     }],
@@ -120,20 +118,18 @@ static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                             metric: 10,
                             up_down: false,
                             prefix: net4!("10.0.1.0/24"),
-                            sub_tlvs: Ipv4ReachSubTlvs {
+                            sub_tlvs: Ipv4ReachStlvs {
                                 prefix_attr_flags: Some(
-                                    PrefixAttrFlagsSubTlv::new(
+                                    PrefixAttrFlagsStlv::new(
                                         PrefixAttrFlags::R,
                                     ),
                                 ),
-                                ipv4_source_rid: Some(
-                                    Ipv4SourceRidSubTlv::new(ip4!("1.1.1.1")),
-                                ),
-                                ipv6_source_rid: Some(
-                                    Ipv6SourceRidSubTlv::new(ip6!(
-                                        "2001:db8::1"
-                                    )),
-                                ),
+                                ipv4_source_rid: Some(Ipv4SourceRidStlv::new(
+                                    ip4!("1.1.1.1"),
+                                )),
+                                ipv6_source_rid: Some(Ipv6SourceRidStlv::new(
+                                    ip6!("2001:db8::1"),
+                                )),
                                 ..Default::default()
                             },
                         },
@@ -156,20 +152,18 @@ static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                             up_down: false,
                             external: false,
                             prefix: net6!("2001:db8::1/128"),
-                            sub_tlvs: Ipv6ReachSubTlvs {
+                            sub_tlvs: Ipv6ReachStlvs {
                                 prefix_attr_flags: Some(
-                                    PrefixAttrFlagsSubTlv::new(
+                                    PrefixAttrFlagsStlv::new(
                                         PrefixAttrFlags::N,
                                     ),
                                 ),
-                                ipv4_source_rid: Some(
-                                    Ipv4SourceRidSubTlv::new(ip4!("1.1.1.1")),
-                                ),
-                                ipv6_source_rid: Some(
-                                    Ipv6SourceRidSubTlv::new(ip6!(
-                                        "2001:db8::1"
-                                    )),
-                                ),
+                                ipv4_source_rid: Some(Ipv4SourceRidStlv::new(
+                                    ip4!("1.1.1.1"),
+                                )),
+                                ipv6_source_rid: Some(Ipv6SourceRidStlv::new(
+                                    ip6!("2001:db8::1"),
+                                )),
                                 ..Default::default()
                             },
                         },

@@ -37,7 +37,7 @@ use crate::packet::lsa::{
     Lsa, LsaHdrVersion, LsaKey, LsaScope, LsaTypeVersion, PrefixSidVersion,
 };
 use crate::packet::tlv::{
-    BierEncapSubSubTlv, BierSubTlv, DynamicHostnameTlv, NodeAdminTagTlv,
+    BierEncapSubStlv, BierStlv, DynamicHostnameTlv, NodeAdminTagTlv,
     PrefixSidFlags, RouterInfoCaps, RouterInfoCapsTlv, SidLabelRangeTlv,
     SrAlgoTlv, SrLocalBlockTlv,
 };
@@ -871,7 +871,7 @@ fn lsa_orig_intra_area_prefix(
                     af == &AddressFamily::Ipv6 && sd_cfg.bfr_prefix == prefix
                 })
                 .for_each(|((sd_id, _), sd_cfg)| {
-                    let mut bier = BierSubTlv::new(
+                    let mut bier = BierStlv::new(
                         *sd_id,
                         sd_cfg.mt_id,
                         sd_cfg.bfr_id,
@@ -899,14 +899,14 @@ fn lsa_orig_intra_area_prefix(
                                 }),
                             }
                             .map(|id| {
-                                BierEncapSubSubTlv::new(
+                                BierEncapSubStlv::new(
                                     encap.max_si,
                                     id,
                                     (*bsl).into(),
                                 )
                             })
                         })
-                        .collect::<Vec<BierEncapSubSubTlv>>();
+                        .collect::<Vec<BierEncapSubStlv>>();
 
                     entry.bier.push(bier);
                 });

@@ -336,14 +336,14 @@ pub enum GrReason {
 //
 #[derive(Clone, Debug, Eq, new, PartialEq)]
 #[derive(Deserialize, Serialize)]
-pub struct BierSubTlv {
+pub struct BierStlv {
     pub sub_domain_id: u8,
     pub mt_id: u8,
     pub bfr_id: u16,
     pub bar: u8,
     pub ipa: u8,
     #[new(default)]
-    pub encaps: Vec<BierEncapSubSubTlv>,
+    pub encaps: Vec<BierEncapSubStlv>,
     #[new(default)]
     pub unknown_sstlvs: Vec<UnknownTlv>,
 }
@@ -379,14 +379,14 @@ pub struct BierSubTlv {
 //
 #[derive(Clone, Debug, Eq, new, PartialEq)]
 #[derive(Deserialize, Serialize)]
-pub struct BierEncapSubSubTlv {
+pub struct BierEncapSubStlv {
     pub max_si: u8,
     pub id: BierEncapId,
     pub bs_len: u8,
 }
 
 #[derive(FromPrimitive, ToPrimitive)]
-pub enum BierSubTlvType {
+pub enum BierStlvType {
     MplsEncap = 41,
     NonMplsEncap = 42,
 }
@@ -399,9 +399,9 @@ pub struct UnknownTlv {
     pub value: Bytes,
 }
 
-// ===== impl BierSubTlv =====
+// ===== impl BierStlv =====
 
-impl BierSubTlv {
+impl BierStlv {
     pub(crate) fn decode(_tlv_len: u16, buf: &mut Bytes) -> DecodeResult<Self> {
         let sub_domain_id = buf.get_u8();
         let mt_id = buf.get_u8();
@@ -409,7 +409,7 @@ impl BierSubTlv {
         let bar = buf.get_u8();
         let ipa = buf.get_u8();
         let _reserved = buf.get_u16();
-        let mut encaps: Vec<BierEncapSubSubTlv> = Vec::new();
+        let mut encaps: Vec<BierEncapSubStlv> = Vec::new();
         let mut unknown: Vec<UnknownTlv> = Vec::new();
 
         while buf.remaining() >= TLV_HDR_SIZE as usize {
@@ -425,24 +425,24 @@ impl BierSubTlv {
 
             // Parse Sub-TLV value.
             let mut buf_stlv = buf.copy_to_bytes(stlv_wlen as usize);
-            match BierSubTlvType::from_u16(stlv_type) {
+            match BierStlvType::from_u16(stlv_type) {
                 Some(stlv_type) => {
                     match stlv_type {
-                        BierSubTlvType::MplsEncap
-                        | BierSubTlvType::NonMplsEncap => {
+                        BierStlvType::MplsEncap
+                        | BierStlvType::NonMplsEncap => {
                             let max_si = buf_stlv.get_u8();
                             let id = buf_stlv.get_u24();
                             let bs_len = (buf_stlv.get_u8() & 0xf0) >> 4;
 
                             let id = match stlv_type {
-                                BierSubTlvType::MplsEncap => {
+                                BierStlvType::MplsEncap => {
                                     BierEncapId::Mpls(Label::new(id))
                                 }
-                                BierSubTlvType::NonMplsEncap => {
+                                BierStlvType::NonMplsEncap => {
                                     BierEncapId::NonMpls(BiftId::new(id))
                                 }
                             };
-                            encaps.push(BierEncapSubSubTlv {
+                            encaps.push(BierEncapSubStlv {
                                 max_si,
                                 id,
                                 bs_len,
@@ -457,7 +457,7 @@ impl BierSubTlv {
             }
         }
 
-        Ok(BierSubTlv {
+        Ok(BierStlv {
             sub_domain_id,
             mt_id,
             bfr_id,
@@ -482,8 +482,8 @@ impl BierSubTlv {
         buf.put_u16(0);
         for encap in &self.encaps {
             let encap_type = match encap.id {
-                BierEncapId::Mpls(_) => BierSubTlvType::MplsEncap,
-                BierEncapId::NonMpls(_) => BierSubTlvType::NonMplsEncap,
+                BierEncapId::Mpls(_) => BierStlvType::MplsEncap,
+                BierEncapId::NonMpls(_) => BierStlvType::NonMplsEncap,
             };
             let start_pos = tlv_encode_start(buf, encap_type);
             buf.put_u8(encap.max_si);

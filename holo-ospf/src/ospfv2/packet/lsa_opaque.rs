@@ -247,7 +247,7 @@ bitflags! {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
-pub enum ExtPrefixSubTlvType {
+pub enum ExtPrefixStlvType {
     SidLabel = 1,
     PrefixSid = 2,
 }
@@ -325,7 +325,7 @@ pub struct ExtLinkTlv {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
-pub enum ExtLinkSubTlvType {
+pub enum ExtLinkStlvType {
     SidLabel = 1,
     AdjSid = 2,
     LanAdjSid = 3,
@@ -751,7 +751,7 @@ impl ExtPrefixTlv {
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse Sub-TLV type.
             let stlv_type = buf.get_u16();
-            let stlv_etype = ExtPrefixSubTlvType::from_u16(stlv_type);
+            let stlv_etype = ExtPrefixStlvType::from_u16(stlv_type);
 
             // Parse and validate Sub-TLV length.
             let stlv_len = buf.get_u16();
@@ -763,7 +763,7 @@ impl ExtPrefixTlv {
             // Parse Sub-TLV value.
             let mut buf_stlv = buf.copy_to_bytes(stlv_wlen as usize);
             match stlv_etype {
-                Some(ExtPrefixSubTlvType::PrefixSid) => {
+                Some(ExtPrefixStlvType::PrefixSid) => {
                     let flags = buf_stlv.get_u8();
                     let flags = PrefixSidFlags::from_bits_truncate(flags);
                     let _reserved = buf_stlv.get_u8();
@@ -821,8 +821,7 @@ impl ExtPrefixTlv {
         buf.put_ipv4(&self.prefix.ip());
         // Prefix-SID Sub-TLVs.
         for (algo, prefix_sid) in &self.prefix_sids {
-            let start_pos =
-                tlv_encode_start(buf, ExtPrefixSubTlvType::PrefixSid);
+            let start_pos = tlv_encode_start(buf, ExtPrefixStlvType::PrefixSid);
             buf.put_u8(prefix_sid.flags.bits());
             buf.put_u8(0);
             buf.put_u8(0);
@@ -868,7 +867,7 @@ impl ExtLinkTlv {
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse Sub-TLV type.
             let stlv_type = buf.get_u16();
-            let stlv_etype = ExtLinkSubTlvType::from_u16(stlv_type);
+            let stlv_etype = ExtLinkStlvType::from_u16(stlv_type);
 
             // Parse and validate Sub-TLV length.
             let stlv_len = buf.get_u16();
@@ -880,13 +879,11 @@ impl ExtLinkTlv {
             // Parse Sub-TLV value.
             let mut buf_stlv = buf.copy_to_bytes(stlv_wlen as usize);
             match stlv_etype {
-                Some(ExtLinkSubTlvType::LinkMsd) => {
+                Some(ExtLinkStlvType::LinkMsd) => {
                     let msds = MsdTlv::decode(stlv_len, &mut buf_stlv)?;
                     tlv.msds.get_or_insert(msds);
                 }
-                Some(
-                    ExtLinkSubTlvType::AdjSid | ExtLinkSubTlvType::LanAdjSid,
-                ) => {
+                Some(ExtLinkStlvType::AdjSid | ExtLinkStlvType::LanAdjSid) => {
                     let flags =
                         AdjSidFlags::from_bits_truncate(buf_stlv.get_u8());
                     let _reserved = buf_stlv.get_u8();
@@ -899,7 +896,7 @@ impl ExtLinkTlv {
 
                     // Parse Neighbor ID (LAN Adj-SID only).
                     let nbr_router_id = (stlv_etype
-                        == Some(ExtLinkSubTlvType::LanAdjSid))
+                        == Some(ExtLinkStlvType::LanAdjSid))
                     .then(|| buf_stlv.get_ipv4());
 
                     // Parse SID (variable length).
@@ -940,8 +937,8 @@ impl ExtLinkTlv {
         // (LAN)Adj-SID Sub-TLVs.
         for adj_sid in &self.adj_sids {
             let stlv_type = match adj_sid.nbr_router_id.is_some() {
-                true => ExtLinkSubTlvType::LanAdjSid,
-                false => ExtLinkSubTlvType::AdjSid,
+                true => ExtLinkStlvType::LanAdjSid,
+                false => ExtLinkStlvType::AdjSid,
             };
             let start_pos = tlv_encode_start(buf, stlv_type);
             buf.put_u8(adj_sid.flags.bits());
@@ -959,7 +956,7 @@ impl ExtLinkTlv {
         }
         // MSD Sub-TLV.
         if let Some(msds) = &self.msds {
-            msds.encode(ExtLinkSubTlvType::LinkMsd as u16, buf);
+            msds.encode(ExtLinkStlvType::LinkMsd as u16, buf);
         }
         tlv_encode_end(buf, start_pos);
     }

@@ -30,7 +30,7 @@ use crate::packet::lsa::{
     PrefixSidVersion,
 };
 use crate::packet::tlv::{
-    AdjSidFlags, BierSubTlv, DynamicHostnameTlv, GrReason, GrReasonTlv,
+    AdjSidFlags, BierStlv, DynamicHostnameTlv, GrReason, GrReasonTlv,
     GracePeriodTlv, MsdTlv, NodeAdminTagTlv, PrefixSidFlags, RouterFuncCapsTlv,
     RouterInfoCapsTlv, RouterInfoTlvType, SidLabelRangeTlv, SrAlgoTlv,
     SrLocalBlockTlv, SrmsPrefTlv, TLV_HDR_SIZE, UnknownTlv, tlv_encode_end,
@@ -180,7 +180,7 @@ pub enum ExtLsaTlv {
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
-pub enum ExtLsaSubTlv {
+pub enum ExtLsaStlv {
     Ipv6FwdAddr = 1,
     Ipv4FwdAddr = 2,
     RouteTag = 3,
@@ -238,13 +238,13 @@ pub enum ExtLsaSubTlv {
 //
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
-pub struct ExtLsaSubTlvs {
+pub struct ExtLsaStlvs {
     pub ipv6_fwd_addr: Option<Ipv6Addr>,
     pub ipv4_fwd_addr: Option<Ipv4Addr>,
     pub route_tag: Option<u32>,
     pub prefix_sids: BTreeMap<IgpAlgoType, PrefixSid>,
     pub adj_sids: Vec<AdjSid>,
-    pub bier: Vec<BierSubTlv>,
+    pub bier: Vec<BierStlv>,
     pub unknown: Vec<UnknownTlv>,
 }
 
@@ -889,7 +889,7 @@ pub struct LsaIntraAreaPrefixEntry {
     #[new(default)]
     pub prefix_sids: BTreeMap<IgpAlgoType, PrefixSid>,
     #[new(default)]
-    pub bier: Vec<BierSubTlv>,
+    pub bier: Vec<BierStlv>,
     #[new(default)]
     pub unknown_stlvs: Vec<UnknownTlv>,
 }
@@ -1510,7 +1510,7 @@ impl LsaRouterLink {
 
         // Parse Sub-TLVs.
         if extended {
-            let stlvs = ExtLsaSubTlvs::decode(buf)?;
+            let stlvs = ExtLsaStlvs::decode(buf)?;
             link.adj_sids = stlvs.adj_sids;
             link.unknown_stlvs = stlvs.unknown;
         }
@@ -1530,8 +1530,8 @@ impl LsaRouterLink {
         }
     }
 
-    fn sub_tlvs(&self) -> ExtLsaSubTlvs {
-        ExtLsaSubTlvs {
+    fn sub_tlvs(&self) -> ExtLsaStlvs {
+        ExtLsaStlvs {
             adj_sids: self.adj_sids.clone(),
             ..Default::default()
         }
@@ -1729,7 +1729,7 @@ impl LsaInterAreaPrefix {
                     tlv.extended = true;
 
                     // Parse Sub-TLVs.
-                    let stlvs = ExtLsaSubTlvs::decode(&mut buf_tlv)?;
+                    let stlvs = ExtLsaStlvs::decode(&mut buf_tlv)?;
                     tlv.prefix_sids = stlvs.prefix_sids;
                     tlv.unknown_stlvs = stlvs.unknown;
 
@@ -1782,8 +1782,8 @@ impl LsaInterAreaPrefix {
         tlv_encode_end(buf, start_pos);
     }
 
-    fn sub_tlvs(&self) -> ExtLsaSubTlvs {
-        ExtLsaSubTlvs {
+    fn sub_tlvs(&self) -> ExtLsaStlvs {
+        ExtLsaStlvs {
             prefix_sids: self.prefix_sids.clone(),
             ..Default::default()
         }
@@ -1850,7 +1850,7 @@ impl LsaInterAreaRouter {
                     tlv.extended = true;
 
                     // Parse Sub-TLVs.
-                    let stlvs = ExtLsaSubTlvs::decode(&mut buf_tlv)?;
+                    let stlvs = ExtLsaStlvs::decode(&mut buf_tlv)?;
                     tlv.unknown_stlvs = stlvs.unknown;
 
                     iar = Some(tlv);
@@ -2012,7 +2012,7 @@ impl LsaAsExternal {
                     );
 
                     // Parse Sub-TLVs.
-                    let stlvs = ExtLsaSubTlvs::decode(&mut buf_tlv)?;
+                    let stlvs = ExtLsaStlvs::decode(&mut buf_tlv)?;
                     tlv.fwd_addr = match af {
                         AddressFamily::Ipv6 => {
                             stlvs.ipv6_fwd_addr.map(std::convert::Into::into)
@@ -2090,8 +2090,8 @@ impl LsaAsExternal {
         tlv_encode_end(buf, start_pos);
     }
 
-    fn sub_tlvs(&self) -> ExtLsaSubTlvs {
-        let mut sub_tlvs = ExtLsaSubTlvs::default();
+    fn sub_tlvs(&self) -> ExtLsaStlvs {
+        let mut sub_tlvs = ExtLsaStlvs::default();
         if let Some(fwd_addr) = &self.fwd_addr {
             match fwd_addr {
                 IpAddr::V6(addr) => sub_tlvs.ipv6_fwd_addr = Some(*addr),
@@ -2179,14 +2179,14 @@ impl LsaLink {
                     let mut prefix = LsaLinkPrefix::new(prefix_options, prefix);
 
                     // Parse Sub-TLVs.
-                    let stlvs = ExtLsaSubTlvs::decode(&mut buf_tlv)?;
+                    let stlvs = ExtLsaStlvs::decode(&mut buf_tlv)?;
                     prefix.unknown_stlvs = stlvs.unknown;
 
                     prefixes.push(prefix);
                 }
                 Some(ExtLsaTlv::Ipv6LinkLocalAddr) => {
                     let addr = buf_tlv.get_ipv6();
-                    let _stlvs = ExtLsaSubTlvs::decode(&mut buf_tlv)?;
+                    let _stlvs = ExtLsaStlvs::decode(&mut buf_tlv)?;
 
                     if af == AddressFamily::Ipv6 {
                         linklocal = Some(addr.into());
@@ -2194,7 +2194,7 @@ impl LsaLink {
                 }
                 Some(ExtLsaTlv::Ipv4LinkLocalAddr) => {
                     let addr = buf_tlv.get_ipv4();
-                    let _stlvs = ExtLsaSubTlvs::decode(&mut buf_tlv)?;
+                    let _stlvs = ExtLsaStlvs::decode(&mut buf_tlv)?;
 
                     if af == AddressFamily::Ipv4 {
                         linklocal = Some(addr.into());
@@ -2373,7 +2373,7 @@ impl LsaIntraAreaPrefix {
                     );
 
                     // Parse Sub-TLVs.
-                    let stlvs = ExtLsaSubTlvs::decode(&mut buf_tlv)?;
+                    let stlvs = ExtLsaStlvs::decode(&mut buf_tlv)?;
                     prefix.prefix_sids = stlvs.prefix_sids;
                     prefix.bier = stlvs.bier;
                     prefix.unknown_stlvs = stlvs.unknown;
@@ -2453,8 +2453,8 @@ impl LsaIntraAreaPrefixEntry {
     pub const MAX_LENGTH_LEGACY: usize = 20;
     pub const MAX_LENGTH_EXT: usize = 28;
 
-    fn sub_tlvs(&self) -> ExtLsaSubTlvs {
-        ExtLsaSubTlvs {
+    fn sub_tlvs(&self) -> ExtLsaStlvs {
+        ExtLsaStlvs {
             prefix_sids: self.prefix_sids.clone(),
             bier: self.bier.clone(),
             ..Default::default()
@@ -2659,16 +2659,16 @@ impl LsaUnknown {
     }
 }
 
-// ===== impl ExtLsaSubTlvs =====
+// ===== impl ExtLsaStlvs =====
 
-impl ExtLsaSubTlvs {
+impl ExtLsaStlvs {
     fn decode(buf: &mut Bytes) -> DecodeResult<Self> {
-        let mut stlvs = ExtLsaSubTlvs::default();
+        let mut stlvs = ExtLsaStlvs::default();
 
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse Sub-TLV type.
             let stlv_type = buf.get_u16();
-            let stlv_etype = ExtLsaSubTlv::from_u16(stlv_type);
+            let stlv_etype = ExtLsaStlv::from_u16(stlv_type);
 
             // Parse and validate Sub-TLV length.
             let stlv_len = buf.get_u16();
@@ -2680,19 +2680,19 @@ impl ExtLsaSubTlvs {
             // Parse Sub-TLV value.
             let mut buf_stlv = buf.copy_to_bytes(stlv_wlen as usize);
             match stlv_etype {
-                Some(ExtLsaSubTlv::Ipv6FwdAddr) => {
+                Some(ExtLsaStlv::Ipv6FwdAddr) => {
                     let addr = buf_stlv.get_ipv6();
                     stlvs.ipv6_fwd_addr.get_or_insert(addr);
                 }
-                Some(ExtLsaSubTlv::Ipv4FwdAddr) => {
+                Some(ExtLsaStlv::Ipv4FwdAddr) => {
                     let addr = buf_stlv.get_ipv4();
                     stlvs.ipv4_fwd_addr.get_or_insert(addr);
                 }
-                Some(ExtLsaSubTlv::RouteTag) => {
+                Some(ExtLsaStlv::RouteTag) => {
                     let tag = buf_stlv.get_u32();
                     stlvs.route_tag.get_or_insert(tag);
                 }
-                Some(ExtLsaSubTlv::PrefixSid) => {
+                Some(ExtLsaStlv::PrefixSid) => {
                     let flags = buf_stlv.get_u8();
                     let flags = PrefixSidFlags::from_bits_truncate(flags);
                     let algo = buf_stlv.get_u8();
@@ -2726,7 +2726,7 @@ impl ExtLsaSubTlvs {
                     // algorithm, all of them need to be ignored.
                     stlvs.prefix_sids.insert(algo, prefix_sid);
                 }
-                Some(ExtLsaSubTlv::AdjSid | ExtLsaSubTlv::LanAdjSid) => {
+                Some(ExtLsaStlv::AdjSid | ExtLsaStlv::LanAdjSid) => {
                     let flags =
                         AdjSidFlags::from_bits_truncate(buf_stlv.get_u8());
                     let weight = buf_stlv.get_u8();
@@ -2734,7 +2734,7 @@ impl ExtLsaSubTlvs {
 
                     // Parse Neighbor ID (LAN Adj-SID only).
                     let nbr_router_id = (stlv_etype
-                        == Some(ExtLsaSubTlv::LanAdjSid))
+                        == Some(ExtLsaStlv::LanAdjSid))
                     .then(|| buf_stlv.get_ipv4());
 
                     // Parse SID (variable length).
@@ -2754,8 +2754,8 @@ impl ExtLsaSubTlvs {
                         AdjSid::new(flags, weight, nbr_router_id, sid);
                     stlvs.adj_sids.push(adj_sid);
                 }
-                Some(ExtLsaSubTlv::Bier) => {
-                    let bier = BierSubTlv::decode(stlv_len, &mut buf_stlv)?;
+                Some(ExtLsaStlv::Bier) => {
+                    let bier = BierStlv::decode(stlv_len, &mut buf_stlv)?;
                     stlvs.bier.push(bier);
                 }
                 _ => {
@@ -2772,22 +2772,22 @@ impl ExtLsaSubTlvs {
 
     fn encode(&self, buf: &mut BytesMut) {
         if let Some(ipv6_fwd_addr) = &self.ipv6_fwd_addr {
-            let start_pos = tlv_encode_start(buf, ExtLsaSubTlv::Ipv6FwdAddr);
+            let start_pos = tlv_encode_start(buf, ExtLsaStlv::Ipv6FwdAddr);
             buf.put_ipv6(ipv6_fwd_addr);
             tlv_encode_end(buf, start_pos);
         }
         if let Some(ipv4_fwd_addr) = &self.ipv4_fwd_addr {
-            let start_pos = tlv_encode_start(buf, ExtLsaSubTlv::Ipv4FwdAddr);
+            let start_pos = tlv_encode_start(buf, ExtLsaStlv::Ipv4FwdAddr);
             buf.put_ipv4(ipv4_fwd_addr);
             tlv_encode_end(buf, start_pos);
         }
         if let Some(route_tag) = &self.route_tag {
-            let start_pos = tlv_encode_start(buf, ExtLsaSubTlv::RouteTag);
+            let start_pos = tlv_encode_start(buf, ExtLsaStlv::RouteTag);
             buf.put_u32(*route_tag);
             tlv_encode_end(buf, start_pos);
         }
         for (algo, prefix_sid) in &self.prefix_sids {
-            let start_pos = tlv_encode_start(buf, ExtLsaSubTlv::PrefixSid);
+            let start_pos = tlv_encode_start(buf, ExtLsaStlv::PrefixSid);
             buf.put_u8(prefix_sid.flags.bits());
             buf.put_u8(*algo as u8);
             buf.put_u16(0);
@@ -2799,8 +2799,8 @@ impl ExtLsaSubTlvs {
         }
         for adj_sid in &self.adj_sids {
             let stlv_type = match adj_sid.nbr_router_id.is_some() {
-                true => ExtLsaSubTlv::LanAdjSid,
-                false => ExtLsaSubTlv::AdjSid,
+                true => ExtLsaStlv::LanAdjSid,
+                false => ExtLsaStlv::AdjSid,
             };
             let start_pos = tlv_encode_start(buf, stlv_type);
             buf.put_u8(adj_sid.flags.bits());
@@ -2816,7 +2816,7 @@ impl ExtLsaSubTlvs {
             tlv_encode_end(buf, start_pos);
         }
         for bier in &self.bier {
-            BierSubTlv::encode(bier, buf, ExtLsaSubTlv::Bier);
+            BierStlv::encode(bier, buf, ExtLsaStlv::Bier);
         }
     }
 }

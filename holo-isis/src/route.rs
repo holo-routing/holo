@@ -10,6 +10,7 @@ use std::net::IpAddr;
 use bitflags::bitflags;
 use derive_new::new;
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
+use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{IsisRouteType, RouteOpaqueAttrs};
 use ipnetwork::IpNetwork;
@@ -17,17 +18,20 @@ use ipnetwork::IpNetwork;
 use crate::collections::{InterfaceIndex, Interfaces};
 use crate::instance::InstanceUpView;
 use crate::northbound::configuration::InstanceCfg;
-use crate::packet::{LevelNumber, LevelType};
+use crate::packet::subtlvs::prefix::PrefixSidStlv;
+use crate::packet::{LevelNumber, LevelType, SystemId};
 use crate::southbound;
 use crate::spf::{Vertex, VertexNetwork};
 
 // Routing table entry.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Route {
     pub route_type: IsisRouteType,
     pub metric: u32,
     pub level: LevelNumber,
     pub tag: Option<u32>,
+    pub prefix_sid: Option<PrefixSidStlv>,
+    pub sr_label: Option<Label>,
     pub nexthops: BTreeMap<IpAddr, Nexthop>,
     pub flags: RouteFlags,
 }
@@ -43,10 +47,14 @@ bitflags! {
 // Route nexthop.
 #[derive(Clone, Copy, Debug, Eq, new, PartialEq)]
 pub struct Nexthop {
+    // System ID of the nexthop router.
+    pub system_id: SystemId,
     // Nexthop interface.
     pub iface_idx: InterfaceIndex,
     // Nexthop address (`None` for connected routes).
     pub addr: IpAddr,
+    // SR Prefix-SID output label.
+    pub sr_label: Option<Label>,
 }
 
 // Route redistributed from the global RIB.
@@ -81,6 +89,8 @@ impl Route {
             metric: vertex.distance + vertex_network.metric,
             level,
             tag: None,
+            prefix_sid: vertex_network.prefix_sid,
+            sr_label: None,
             nexthops: Self::build_nexthops(vertex, vertex_network),
             flags,
         }
@@ -103,12 +113,19 @@ impl Route {
             .nexthops
             .iter()
             .filter_map(|nexthop| {
-                let iface_idx = nexthop.iface_idx;
                 let addr = match vertex_network.prefix.address_family() {
                     AddressFamily::Ipv4 => nexthop.ipv4.map(IpAddr::V4),
                     AddressFamily::Ipv6 => nexthop.ipv6.map(IpAddr::V6),
                 }?;
-                Some((addr, Nexthop { iface_idx, addr }))
+                Some((
+                    addr,
+                    Nexthop {
+                        system_id: nexthop.system_id,
+                        iface_idx: nexthop.iface_idx,
+                        addr,
+                        sr_label: None,
+                    },
+                ))
             })
             .collect()
     }
@@ -173,8 +190,12 @@ fn update_global_rib(
     //
     // TODO: prioritize loopback routes to speedup BGP convergence.
     for (prefix, route) in rib {
+        let mut old_sr_label = None;
+
         // Remove route from the old RIB if it's present.
         if let Some(old_route) = old_rib.remove(prefix) {
+            old_sr_label = old_route.sr_label;
+
             // Skip reinstalling the route if it hasn't changed.
             if old_route.metric == route.metric
                 && old_route.tag == route.tag
@@ -198,6 +219,7 @@ fn update_global_rib(
                 &instance.tx.ibus,
                 prefix,
                 route,
+                old_sr_label,
                 distance,
                 interfaces,
             );

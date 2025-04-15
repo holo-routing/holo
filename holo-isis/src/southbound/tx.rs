@@ -10,9 +10,11 @@
 use std::collections::BTreeSet;
 
 use holo_utils::ibus::IbusChannelsTx;
+use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{
-    Nexthop, RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
+    LabelInstallMsg, LabelUninstallMsg, Nexthop, RouteKeyMsg, RouteMsg,
+    RouteOpaqueAttrs,
 };
 use ipnetwork::IpNetwork;
 
@@ -33,6 +35,7 @@ pub(crate) fn route_install(
     ibus_tx: &IbusChannelsTx,
     destination: &IpNetwork,
     route: &Route,
+    old_sr_label: Option<Label>,
     distance: u8,
     interfaces: &Interfaces,
 ) {
@@ -45,7 +48,10 @@ pub(crate) fn route_install(
             Nexthop::Address {
                 ifindex: iface.system.ifindex.unwrap(),
                 addr: nexthop.addr,
-                labels: vec![],
+                labels: nexthop
+                    .sr_label
+                    .map(|label| vec![label])
+                    .unwrap_or_default(),
             }
         })
         .collect::<BTreeSet<_>>();
@@ -63,12 +69,37 @@ pub(crate) fn route_install(
         nexthops: nexthops.clone(),
     };
     ibus_tx.route_ip_add(msg);
+
+    // Unnstall previous SR Prefix-SID input label if it has changed.
+    if old_sr_label != route.sr_label
+        && let Some(old_sr_label) = old_sr_label
+    {
+        let msg = LabelUninstallMsg {
+            protocol: Protocol::ISIS,
+            label: old_sr_label,
+            nexthops: BTreeSet::new(),
+            route: None,
+        };
+        ibus_tx.route_mpls_del(msg);
+    }
+
+    // Install SR Prefix-SID input label.
+    if let Some(sr_label) = route.sr_label {
+        let msg = LabelInstallMsg {
+            protocol: Protocol::ISIS,
+            label: sr_label,
+            nexthops,
+            route: None,
+            replace: true,
+        };
+        ibus_tx.route_mpls_add(msg);
+    }
 }
 
 pub(crate) fn route_uninstall(
     ibus_tx: &IbusChannelsTx,
     destination: &IpNetwork,
-    _route: &Route,
+    route: &Route,
 ) {
     // Uninstall route.
     let msg = RouteKeyMsg {
@@ -76,4 +107,15 @@ pub(crate) fn route_uninstall(
         prefix: *destination,
     };
     ibus_tx.route_ip_del(msg);
+
+    // Uninstall SR Prefix-SID input label.
+    if let Some(sr_label) = route.sr_label {
+        let msg = LabelUninstallMsg {
+            protocol: Protocol::ISIS,
+            label: sr_label,
+            nexthops: BTreeSet::new(),
+            route: None,
+        };
+        ibus_tx.route_mpls_del(msg);
+    }
 }

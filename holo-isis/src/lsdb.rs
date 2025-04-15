@@ -21,7 +21,7 @@ use holo_utils::bier::{
 };
 use holo_utils::ip::{AddressFamily, Ipv4NetworkExt, Ipv6NetworkExt};
 use holo_utils::mpls::Label;
-use holo_utils::sr::{IgpAlgoType, Sid};
+use holo_utils::sr::{IgpAlgoType, Sid, SidLastHopBehavior, SrCfgPrefixSid};
 use holo_utils::task::TimeoutTask;
 use ipnetwork::{Ipv4Network, Ipv6Network};
 
@@ -40,7 +40,8 @@ use crate::packet::subtlvs::capability::{
 };
 use crate::packet::subtlvs::prefix::{
     BierEncapSubStlv, BierInfoStlv, BierSubStlv, Ipv4SourceRidStlv,
-    Ipv6SourceRidStlv, PrefixAttrFlags, PrefixAttrFlagsStlv,
+    Ipv6SourceRidStlv, PrefixAttrFlags, PrefixAttrFlagsStlv, PrefixSidFlags,
+    PrefixSidStlv,
 };
 use crate::packet::tlv::{
     ExtIpv4Reach, ExtIsReach, IpReachTlvEntry, Ipv4Reach, Ipv4ReachStlvs,
@@ -514,8 +515,11 @@ fn lsp_build_tlvs_ip_local(
                 if iface.is_loopback() && prefix.is_host_prefix() {
                     prefix_attr_flags.insert(PrefixAttrFlags::N);
                 }
-                let sub_tlvs =
-                    lsp_build_ipv4_reach_stlvs(instance, prefix_attr_flags);
+                let sub_tlvs = lsp_build_ipv4_reach_stlvs(
+                    instance,
+                    prefix,
+                    prefix_attr_flags,
+                );
                 ext_ipv4_reach.insert(
                     prefix,
                     ExtIpv4Reach {
@@ -591,8 +595,11 @@ fn lsp_build_tlvs_ip_redistributed(
             }
             if metric_type.is_wide_enabled() {
                 let prefix_attr_flags = PrefixAttrFlags::X;
-                let sub_tlvs =
-                    lsp_build_ipv4_reach_stlvs(instance, prefix_attr_flags);
+                let sub_tlvs = lsp_build_ipv4_reach_stlvs(
+                    instance,
+                    prefix,
+                    prefix_attr_flags,
+                );
                 ext_ipv4_reach.insert(
                     prefix,
                     ExtIpv4Reach {
@@ -627,6 +634,7 @@ fn lsp_build_tlvs_ip_redistributed(
 
 fn lsp_build_ipv4_reach_stlvs(
     instance: &mut InstanceUpView<'_>,
+    prefix: Ipv4Network,
     prefix_attr_flags: PrefixAttrFlags,
 ) -> Ipv4ReachStlvs {
     let mut sub_tlvs = Ipv4ReachStlvs::default();
@@ -643,6 +651,20 @@ fn lsp_build_ipv4_reach_stlvs(
     }
     if let Some(router_id) = instance.config.ipv6_router_id {
         sub_tlvs.ipv6_source_rid = Some(Ipv6SourceRidStlv::new(router_id));
+    }
+
+    // Add Prefix-SID Sub-TLV(s).
+    if instance.config.sr.enabled {
+        let algo = IgpAlgoType::Spf;
+        if let Some(prefix_sid_cfg) = instance
+            .shared
+            .sr_config
+            .prefix_sids
+            .get(&(prefix.into(), algo))
+        {
+            let prefix_sid = lsp_build_prefix_sid_stlv(prefix_sid_cfg);
+            sub_tlvs.prefix_sids.insert(algo, prefix_sid);
+        }
     }
 
     sub_tlvs
@@ -668,6 +690,20 @@ fn lsp_build_ipv6_reach_stlvs(
     }
     if let Some(router_id) = instance.config.ipv6_router_id {
         sub_tlvs.ipv6_source_rid = Some(Ipv6SourceRidStlv::new(router_id));
+    }
+
+    // Add Prefix-SID Sub-TLV(s).
+    if instance.config.sr.enabled {
+        let algo = IgpAlgoType::Spf;
+        if let Some(prefix_sid_cfg) = instance
+            .shared
+            .sr_config
+            .prefix_sids
+            .get(&(prefix.into(), algo))
+        {
+            let prefix_sid = lsp_build_prefix_sid_stlv(prefix_sid_cfg);
+            sub_tlvs.prefix_sids.insert(algo, prefix_sid);
+        }
     }
 
     // Add BIER Sub-TLV(s) if BIER is enabled and allowed to advertise.
@@ -719,6 +755,23 @@ fn lsp_build_ipv6_reach_stlvs(
     }
 
     sub_tlvs
+}
+
+fn lsp_build_prefix_sid_stlv(prefix_sid_cfg: &SrCfgPrefixSid) -> PrefixSidStlv {
+    let mut flags = PrefixSidFlags::empty();
+    match prefix_sid_cfg.last_hop {
+        SidLastHopBehavior::ExpNull => {
+            flags.insert(PrefixSidFlags::P);
+            flags.insert(PrefixSidFlags::E);
+        }
+        SidLastHopBehavior::NoPhp => {
+            flags.insert(PrefixSidFlags::P);
+        }
+        SidLastHopBehavior::Php => (),
+    }
+    let algo = IgpAlgoType::Spf;
+    let sid = Sid::Index(prefix_sid_cfg.index);
+    PrefixSidStlv::new(flags, algo, sid)
 }
 
 fn lsp_build_fragments(
@@ -875,6 +928,18 @@ fn propagate_ip_reach<'a, T: IpReachTlvEntry + 'a>(
         // Set the Re-advertisement Flag for reachability TLVs that support
         // the Extended Reachability Attribute Flags Sub-TLV.
         reach.prefix_attr_flags_set(PrefixAttrFlags::R);
+
+        // Update flags for each associated Prefix-SID.
+        for prefix_sid in reach.prefix_sids_mut() {
+            // Set the Re-advertisement Flag.
+            prefix_sid.flags.insert(PrefixSidFlags::R);
+
+            // When propagating a reachability advertisement originated by
+            // another IS-IS speaker, the router MUST set the P-Flag and MUST
+            // clear the E-Flag of the related Prefix-SIDs.
+            prefix_sid.flags.insert(PrefixSidFlags::P);
+            prefix_sid.flags.remove(PrefixSidFlags::E);
+        }
 
         // Keep only the entry with the lowest total metric for each prefix.
         match l2_reach.entry(reach.prefix()) {

@@ -9,6 +9,7 @@
 
 #![allow(clippy::len_without_is_empty, clippy::match_single_binding)]
 
+use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use bitflags::bitflags;
@@ -17,6 +18,7 @@ use derive_new::new;
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::{AddressFamily, Ipv4AddrExt, Ipv6AddrExt};
+use holo_utils::sr::IgpAlgoType;
 use ipnetwork::{Ipv4Network, Ipv6Network};
 use num_traits::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
@@ -33,7 +35,7 @@ use crate::packet::subtlvs::capability::{
 };
 use crate::packet::subtlvs::prefix::{
     BierInfoStlv, Ipv4SourceRidStlv, Ipv6SourceRidStlv, PrefixAttrFlags,
-    PrefixAttrFlagsStlv,
+    PrefixAttrFlagsStlv, PrefixSidStlv,
 };
 use crate::packet::{AreaAddr, LanId, LspId, subtlvs};
 
@@ -99,6 +101,10 @@ pub trait IpReachTlvEntry: Clone {
     //
     // If the Prefix Attribute Flags sub-TLV is not present, it will be created.
     fn prefix_attr_flags_set(&mut self, flag: PrefixAttrFlags);
+
+    // Returns a mutable iterator over the Prefix-SIDs associated with this
+    // reachability entry.
+    fn prefix_sids_mut(&mut self) -> impl Iterator<Item = &mut PrefixSidStlv>;
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -266,6 +272,7 @@ pub struct ExtIpv4Reach {
 #[derive(Clone, Debug, Default, PartialEq)]
 #[serde_with::apply(
     Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+    BTreeMap => #[serde(default, skip_serializing_if = "BTreeMap::is_empty")],
     Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
 )]
 #[derive(Deserialize, Serialize)]
@@ -273,6 +280,7 @@ pub struct Ipv4ReachStlvs {
     pub prefix_attr_flags: Option<PrefixAttrFlagsStlv>,
     pub ipv4_source_rid: Option<Ipv4SourceRidStlv>,
     pub ipv6_source_rid: Option<Ipv6SourceRidStlv>,
+    pub prefix_sids: BTreeMap<IgpAlgoType, PrefixSidStlv>,
     pub unknown: Vec<UnknownTlv>,
 }
 
@@ -295,6 +303,7 @@ pub struct Ipv6Reach {
 #[derive(Clone, Debug, Default, PartialEq)]
 #[serde_with::apply(
     Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+    BTreeMap => #[serde(default, skip_serializing_if = "BTreeMap::is_empty")],
     Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
 )]
 #[derive(Deserialize, Serialize)]
@@ -302,6 +311,7 @@ pub struct Ipv6ReachStlvs {
     pub prefix_attr_flags: Option<PrefixAttrFlagsStlv>,
     pub ipv4_source_rid: Option<Ipv4SourceRidStlv>,
     pub ipv6_source_rid: Option<Ipv6SourceRidStlv>,
+    pub prefix_sids: BTreeMap<IgpAlgoType, PrefixSidStlv>,
     pub bier: Vec<BierInfoStlv>,
     pub unknown: Vec<UnknownTlv>,
 }
@@ -1224,6 +1234,11 @@ impl IpReachTlvEntry for Ipv4Reach {
     fn prefix_attr_flags_set(&mut self, _flag: PrefixAttrFlags) {
         // TLVs 128 and 130 don't support Sub-TLVs.
     }
+
+    fn prefix_sids_mut(&mut self) -> impl Iterator<Item = &mut PrefixSidStlv> {
+        // TLVs 128 and 130 don't support Sub-TLVs.
+        std::iter::empty()
+    }
 }
 
 // ===== impl ExtIpv4ReachTlv =====
@@ -1295,6 +1310,13 @@ impl ExtIpv4ReachTlv {
                             )?;
                             sub_tlvs.ipv6_source_rid = Some(stlv);
                         }
+                        Some(PrefixStlvType::PrefixSid) => {
+                            if let Some(stlv) =
+                                PrefixSidStlv::decode(stlv_len, &mut buf_stlv)?
+                            {
+                                sub_tlvs.prefix_sids.insert(stlv.algo, stlv);
+                            }
+                        }
                         _ => {
                             // Save unknown Sub-TLV.
                             sub_tlvs.unknown.push(UnknownTlv::new(
@@ -1358,6 +1380,9 @@ impl ExtIpv4ReachTlv {
                     stlv.encode(buf);
                 }
                 if let Some(stlv) = &entry.sub_tlvs.ipv6_source_rid {
+                    stlv.encode(buf);
+                }
+                for stlv in entry.sub_tlvs.prefix_sids.values() {
                     stlv.encode(buf);
                 }
 
@@ -1427,6 +1452,10 @@ impl IpReachTlvEntry for ExtIpv4Reach {
             .get_or_insert_default()
             .set(flag);
     }
+
+    fn prefix_sids_mut(&mut self) -> impl Iterator<Item = &mut PrefixSidStlv> {
+        self.sub_tlvs.prefix_sids.values_mut()
+    }
 }
 
 // ===== impl Ipv4ReachStlvs =====
@@ -1438,6 +1467,7 @@ impl Ipv4ReachStlvs {
         if self.prefix_attr_flags.is_some()
             || self.ipv4_source_rid.is_some()
             || self.ipv6_source_rid.is_some()
+            || !self.prefix_sids.is_empty()
         {
             len += 1;
         }
@@ -1448,6 +1478,9 @@ impl Ipv4ReachStlvs {
             len += stlv.len();
         }
         if let Some(stlv) = &self.ipv6_source_rid {
+            len += stlv.len();
+        }
+        for stlv in self.prefix_sids.values() {
             len += stlv.len();
         }
 
@@ -1526,6 +1559,13 @@ impl Ipv6ReachTlv {
                                 &mut buf_stlv,
                             )?;
                             sub_tlvs.ipv6_source_rid = Some(stlv);
+                        }
+                        Some(PrefixStlvType::PrefixSid) => {
+                            if let Some(stlv) =
+                                PrefixSidStlv::decode(stlv_len, &mut buf_stlv)?
+                            {
+                                sub_tlvs.prefix_sids.insert(stlv.algo, stlv);
+                            }
                         }
                         Some(PrefixStlvType::BierInfo) => {
                             let stlv =
@@ -1609,6 +1649,9 @@ impl Ipv6ReachTlv {
                 if let Some(stlv) = &entry.sub_tlvs.ipv6_source_rid {
                     stlv.encode(buf);
                 }
+                for stlv in entry.sub_tlvs.prefix_sids.values() {
+                    stlv.encode(buf);
+                }
                 for stlv in &entry.sub_tlvs.bier {
                     stlv.encode(buf);
                 }
@@ -1679,6 +1722,10 @@ impl IpReachTlvEntry for Ipv6Reach {
             .get_or_insert_default()
             .set(flag);
     }
+
+    fn prefix_sids_mut(&mut self) -> impl Iterator<Item = &mut PrefixSidStlv> {
+        self.sub_tlvs.prefix_sids.values_mut()
+    }
 }
 
 // ===== impl Ipv6ReachStlvs =====
@@ -1690,6 +1737,7 @@ impl Ipv6ReachStlvs {
         if self.prefix_attr_flags.is_some()
             || self.ipv4_source_rid.is_some()
             || self.ipv6_source_rid.is_some()
+            || !self.prefix_sids.is_empty()
             || !self.bier.is_empty()
         {
             len += 1;
@@ -1701,6 +1749,9 @@ impl Ipv6ReachStlvs {
             len += stlv.len();
         }
         if let Some(stlv) = &self.ipv6_source_rid {
+            len += stlv.len();
+        }
+        for stlv in self.prefix_sids.values() {
             len += stlv.len();
         }
         for stlv in self.bier.iter() {

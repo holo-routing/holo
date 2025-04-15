@@ -32,7 +32,7 @@ use crate::instance::Instance;
 use crate::interface::Interface;
 use crate::lsdb::{LspEntry, LspLogEntry, LspLogId};
 use crate::packet::subtlvs::capability::LabelBlockEntry;
-use crate::packet::subtlvs::prefix::PrefixAttrFlags;
+use crate::packet::subtlvs::prefix::{PrefixAttrFlags, PrefixSidStlv};
 use crate::packet::tlv::{
     AuthenticationTlv, ExtIpv4Reach, ExtIsReach, IpReachTlvEntry, Ipv4Reach,
     Ipv6Reach, IsReach, RouterCapTlv, UnknownTlv,
@@ -64,6 +64,7 @@ pub enum ListEntry<'a> {
     Ipv4Reach(&'a Ipv4Reach),
     ExtIpv4Reach(&'a ExtIpv4Reach),
     Ipv6Reach(&'a Ipv6Reach),
+    PrefixSidStlv(&'a PrefixSidStlv),
     UnknownTlv(&'a UnknownTlv),
     Route(&'a IpNetwork, &'a Route),
     Nexthop(&'a Nexthop),
@@ -305,7 +306,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .get_iterate(|_instance, args| {
             let router_cap = args.parent_list_entry.as_router_cap().unwrap();
             if let Some(sr_cap) = &router_cap.sub_tlvs.sr_cap {
-                let iter = sr_cap.entries.iter().map(ListEntry::LabelBlockEntry);
+                let iter = sr_cap.srgb_entries.iter().map(ListEntry::LabelBlockEntry);
                 Some(Box::new(iter))
             } else {
                 None
@@ -679,6 +680,29 @@ fn load_callbacks() -> Callbacks<Instance> {
                 value: Some(tlv.value.as_ref()),
             })
         })
+        .path(isis::database::levels::lsp::extended_ipv4_reachability::prefixes::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PATH)
+        .get_iterate(|_instance, args| {
+            let reach = args.parent_list_entry.as_ext_ipv4_reach().unwrap();
+            let iter = reach.sub_tlvs.prefix_sids.values().map(ListEntry::PrefixSidStlv);
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::extended_ipv4_reachability::prefixes::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PrefixSidSubTlv;
+            let stlv = args.list_entry.as_prefix_sid_stlv().unwrap();
+            Box::new(PrefixSidSubTlv {
+                sid: stlv.sid.value(),
+                algorithm: Some(stlv.algo.to_yang()),
+            })
+        })
+        .path(isis::database::levels::lsp::extended_ipv4_reachability::prefixes::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::prefix_sid_flags::PATH)
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::extended_ipv4_reachability::prefixes::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::prefix_sid_flags::PrefixSidFlags;
+            let stlv = args.list_entry.as_prefix_sid_stlv().unwrap();
+            let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
+            Box::new(PrefixSidFlags {
+                flags: Some(Box::new(iter)),
+            })
+        })
         .path(isis::database::levels::lsp::ipv6_reachability::prefixes::PATH)
         .get_iterate(|_instance, args| {
             let lse = args.parent_list_entry.as_lsp_entry().unwrap();
@@ -714,6 +738,29 @@ fn load_callbacks() -> Callbacks<Instance> {
                 r#type: Some(tlv.tlv_type as u16),
                 length: Some(tlv.length as u16),
                 value: Some(tlv.value.as_ref()),
+            })
+        })
+        .path(isis::database::levels::lsp::ipv6_reachability::prefixes::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PATH)
+        .get_iterate(|_instance, args| {
+            let reach = args.parent_list_entry.as_ipv6_reach().unwrap();
+            let iter = reach.sub_tlvs.prefix_sids.values().map(ListEntry::PrefixSidStlv);
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::ipv6_reachability::prefixes::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PrefixSidSubTlv;
+            let stlv = args.list_entry.as_prefix_sid_stlv().unwrap();
+            Box::new(PrefixSidSubTlv {
+                sid: stlv.sid.value(),
+                algorithm: Some(stlv.algo.to_yang()),
+            })
+        })
+        .path(isis::database::levels::lsp::ipv6_reachability::prefixes::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::prefix_sid_flags::PATH)
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::ipv6_reachability::prefixes::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::prefix_sid_flags::PrefixSidFlags;
+            let stlv = args.list_entry.as_prefix_sid_stlv().unwrap();
+            let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
+            Box::new(PrefixSidFlags {
+                flags: Some(Box::new(iter)),
             })
         })
         .path(isis::local_rib::route::PATH)

@@ -15,6 +15,7 @@ use derive_new::new;
 use holo_utils::bier::{BierEncapId, BiftId};
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use holo_utils::mpls::Label;
+use holo_utils::sr::{IgpAlgoType, Sid};
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
@@ -47,6 +48,29 @@ pub struct Ipv4SourceRidStlv(Ipv4Addr);
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
 pub struct Ipv6SourceRidStlv(Ipv6Addr);
+
+bitflags! {
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+    #[derive(Deserialize, Serialize)]
+    #[serde(transparent)]
+    pub struct PrefixSidFlags: u8 {
+        const R = 0x80;
+        const N = 0x40;
+        const P = 0x20;
+        const E = 0x10;
+        const V = 0x08;
+        const L = 0x04;
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(new)]
+#[derive(Deserialize, Serialize)]
+pub struct PrefixSidStlv {
+    pub flags: PrefixSidFlags,
+    pub algo: IgpAlgoType,
+    pub sid: Sid,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 #[derive(new)]
@@ -174,6 +198,59 @@ impl Ipv6SourceRidStlv {
 
     pub(crate) fn get(&self) -> &Ipv6Addr {
         &self.0
+    }
+}
+
+// ===== impl PrefixSidStlv =====
+
+impl PrefixSidStlv {
+    pub(crate) fn decode(
+        _tlv_len: u8,
+        buf: &mut Bytes,
+    ) -> DecodeResult<Option<Self>> {
+        let flags = buf.get_u8();
+        let flags = PrefixSidFlags::from_bits_truncate(flags);
+        let algo = buf.get_u8();
+        let algo = match IgpAlgoType::from_u8(algo) {
+            Some(algo) => algo,
+            None => {
+                // Unsupported algorithm - ignore.
+                return Ok(None);
+            }
+        };
+
+        // Parse SID (variable length).
+        let sid = if !flags.intersects(PrefixSidFlags::V | PrefixSidFlags::L) {
+            Sid::Index(buf.get_u32())
+        } else if flags.contains(PrefixSidFlags::V | PrefixSidFlags::L) {
+            let label = buf.get_u24() & Label::VALUE_MASK;
+            Sid::Label(Label::new(label))
+        } else {
+            // Invalid V-Flag and L-Flag combination - ignore.
+            return Ok(None);
+        };
+
+        Ok(Some(PrefixSidStlv { flags, algo, sid }))
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, PrefixStlvType::PrefixSid);
+        buf.put_u8(self.flags.bits());
+        buf.put_u8(self.algo as u8);
+        match self.sid {
+            Sid::Index(index) => buf.put_u32(index),
+            Sid::Label(label) => buf.put_u24(label.get()),
+        }
+        tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        TLV_HDR_SIZE
+            + 2
+            + match self.sid {
+                Sid::Index(_) => 4,
+                Sid::Label(_) => 3,
+            }
     }
 }
 

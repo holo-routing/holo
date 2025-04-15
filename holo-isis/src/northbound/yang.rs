@@ -19,6 +19,7 @@ use crate::lsdb::LspLogReason;
 use crate::northbound::configuration::MetricType;
 use crate::packet::consts::LspFlags;
 use crate::packet::subtlvs::capability::SrCapabilitiesFlags;
+use crate::packet::subtlvs::prefix::PrefixSidFlags;
 use crate::packet::tlv::RouterCapFlags;
 use crate::packet::{AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId};
 use crate::spf;
@@ -140,6 +141,33 @@ impl ToYangBits for SrCapabilitiesFlags {
         }
         if self.contains(SrCapabilitiesFlags::V) {
             flags.push("ietf-isis-sr-mpls:mpls-ipv6");
+        }
+
+        flags
+    }
+}
+
+impl ToYangBits for PrefixSidFlags {
+    fn to_yang_bits(&self) -> Vec<&'static str> {
+        let mut flags = vec![];
+
+        if self.contains(PrefixSidFlags::R) {
+            flags.push("ietf-isis-sr-mpls:r-flag");
+        }
+        if self.contains(PrefixSidFlags::N) {
+            flags.push("ietf-isis-sr-mpls:n-flag");
+        }
+        if self.contains(PrefixSidFlags::P) {
+            flags.push("ietf-isis-sr-mpls:p-flag");
+        }
+        if self.contains(PrefixSidFlags::E) {
+            flags.push("ietf-isis-sr-mpls:e-flag");
+        }
+        if self.contains(PrefixSidFlags::V) {
+            flags.push("ietf-isis-sr-mpls:v-flag");
+        }
+        if self.contains(PrefixSidFlags::L) {
+            flags.push("ietf-isis-sr-mpls:l-flag");
         }
 
         flags

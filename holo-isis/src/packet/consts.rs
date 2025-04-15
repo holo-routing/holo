@@ -101,6 +101,7 @@ pub enum NeighborStlvType {
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
 pub enum PrefixStlvType {
+    PrefixSid = 3,
     PrefixAttributeFlags = 4,
     Ipv4SourceRouterId = 11,
     Ipv6SourceRouterId = 12,

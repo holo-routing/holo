@@ -15,6 +15,7 @@ use std::time::{Duration, Instant};
 use chrono::Utc;
 use derive_new::new;
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
+use holo_utils::sr::IgpAlgoType;
 use holo_utils::task::TimeoutTask;
 use ipnetwork::IpNetwork;
 use tracing::debug_span;
@@ -29,11 +30,11 @@ use crate::lsdb::{LspEntry, LspLogId};
 use crate::northbound::configuration::MetricType;
 use crate::packet::consts::LspFlags;
 use crate::packet::pdu::Lsp;
-use crate::packet::subtlvs::prefix::PrefixAttrFlags;
+use crate::packet::subtlvs::prefix::{PrefixAttrFlags, PrefixSidStlv};
 use crate::packet::tlv::{IpReachTlvEntry, Nlpid};
 use crate::packet::{LanId, LevelNumber, LevelType, LspId, SystemId};
 use crate::route::Route;
-use crate::{route, tasks};
+use crate::{route, sr, tasks};
 
 // Maximum size of the SPF log record.
 const SPF_LOG_MAX_SIZE: usize = 32;
@@ -106,6 +107,7 @@ pub struct VertexNetwork {
     pub prefix: IpNetwork,
     pub metric: u32,
     pub external: bool,
+    pub prefix_sid: Option<PrefixSidStlv>,
 }
 
 // Container containing scheduling and timing information of SPF computations.
@@ -677,6 +679,23 @@ fn compute_routes(
                     .take(max_paths as usize)
                     .collect();
             }
+
+            // Update route's Prefix-SID (if any).
+            if instance.config.sr.enabled && route.prefix_sid.is_some() {
+                let af = network.prefix.address_family();
+                let local = vertex.hops == 0;
+                let last_hop = vertex.hops == 1;
+                sr::prefix_sid_update(
+                    instance,
+                    level,
+                    vertex.id.lan_id,
+                    af,
+                    route,
+                    local,
+                    last_hop,
+                    lsp_entries,
+                );
+            }
         }
     }
 
@@ -818,6 +837,7 @@ fn vertex_networks<'a>(
                         prefix: IpNetwork::default(AddressFamily::Ipv4),
                         metric: 0,
                         external: false,
+                        prefix_sid: None,
                     });
                 }
                 if ipv6_enabled {
@@ -825,6 +845,7 @@ fn vertex_networks<'a>(
                         prefix: IpNetwork::default(AddressFamily::Ipv6),
                         metric: 0,
                         external: false,
+                        prefix_sid: None,
                     });
                 }
                 inter_area_defaults_iter =
@@ -840,6 +861,7 @@ fn vertex_networks<'a>(
                                 prefix: reach.prefix.into(),
                                 metric: reach.metric(),
                                 external: false,
+                                prefix_sid: None,
                             }
                         });
                     // NOTE: RFC 1195 initially restricted the IP External
@@ -851,6 +873,7 @@ fn vertex_networks<'a>(
                                 prefix: reach.prefix.into(),
                                 metric: reach.metric(),
                                 external: true,
+                                prefix_sid: None,
                             }
                         });
                     ipv4_standard_iter = Some(internal.chain(external));
@@ -877,6 +900,11 @@ fn vertex_networks<'a>(
                                 external: reach
                                     .prefix_attr_flags_get(PrefixAttrFlags::X)
                                     .unwrap_or(false),
+                                prefix_sid: reach
+                                    .sub_tlvs
+                                    .prefix_sids
+                                    .get(&IgpAlgoType::Spf)
+                                    .cloned(),
                             }
                         });
                     ipv4_wide_iter = Some(iter);
@@ -889,6 +917,11 @@ fn vertex_networks<'a>(
                     prefix: reach.prefix.into(),
                     metric: reach.metric,
                     external: reach.external,
+                    prefix_sid: reach
+                        .sub_tlvs
+                        .prefix_sids
+                        .get(&IgpAlgoType::Spf)
+                        .cloned(),
                 });
                 ipv6_iter = Some(iter);
             }

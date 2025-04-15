@@ -7,6 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
+use holo_yang::ToYang;
 use tracing::{error, warn, warn_span};
 
 use crate::collections::{
@@ -14,8 +15,8 @@ use crate::collections::{
 };
 use crate::instance::InstanceArenas;
 use crate::network::MulticastAddr;
-use crate::packet::LevelNumber;
 use crate::packet::error::DecodeError;
+use crate::packet::{LevelNumber, SystemId};
 use crate::spf;
 
 // IS-IS errors.
@@ -30,6 +31,9 @@ pub enum Error {
     // Packet input
     PduDecodeError(InterfaceIndex, [u8; 6], DecodeError),
     AdjacencyReject(InterfaceIndex, [u8; 6], AdjacencyRejectError),
+    // Segment Routing
+    SrgbNotFound(LevelNumber, SystemId),
+    InvalidSidIndex(u32),
     // Other
     CircuitIdAllocationFailed,
     SpfDelayUnexpectedEvent(LevelNumber, spf::fsm::State, spf::fsm::Event),
@@ -94,6 +98,12 @@ impl Error {
             Error::CircuitIdAllocationFailed => {
                 warn!("{}", self);
             }
+            Error::SrgbNotFound(level, system_id) => {
+                warn!(%level, system_id = %system_id.to_yang(), "{}", self);
+            }
+            Error::InvalidSidIndex(sid_index) => {
+                warn!(%sid_index, "{}", self);
+            }
             Error::SpfDelayUnexpectedEvent(level, state, event) => {
                 warn!(?level, ?state, ?event, "{}", self);
             }
@@ -126,6 +136,12 @@ impl std::fmt::Display for Error {
             Error::AdjacencyReject(_, _, error) => error.fmt(f),
             Error::CircuitIdAllocationFailed => {
                 write!(f, "failed to allocate Circuit ID")
+            }
+            Error::SrgbNotFound(..) => {
+                write!(f, "failed to find nexthop's neighbor SRGB")
+            }
+            Error::InvalidSidIndex(..) => {
+                write!(f, "failed to map SID index to MPLS label")
             }
             Error::SpfDelayUnexpectedEvent(..) => {
                 write!(f, "unexpected SPF Delay FSM event")

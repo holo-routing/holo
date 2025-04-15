@@ -24,6 +24,7 @@ use crate::packet::consts::{
     VERSION_PROTO_EXT,
 };
 use crate::packet::error::{DecodeError, DecodeResult};
+use crate::packet::subtlvs::capability::{SrAlgoStlv, SrCapabilitiesStlv};
 use crate::packet::tlv::{
     AreaAddressesTlv, AuthenticationTlv, DynamicHostnameTlv, ExtIpv4Reach,
     ExtIpv4ReachTlv, ExtIsReach, ExtIsReachTlv, Ipv4AddressesTlv, Ipv4Reach,
@@ -1230,6 +1231,22 @@ impl LspTlvs {
     // type 236.
     pub(crate) fn ipv6_reach(&self) -> impl Iterator<Item = &Ipv6Reach> {
         self.ipv6_reach.iter().flat_map(|tlv| tlv.list.iter())
+    }
+
+    // Returns the first SR-Capabilities Sub-TLV found within any Router
+    // Capabilities TLV.
+    pub(crate) fn sr_cap(&self) -> Option<&SrCapabilitiesStlv> {
+        self.router_cap
+            .iter()
+            .find_map(|router_cap| router_cap.sub_tlvs.sr_cap.as_ref())
+    }
+
+    // Returns the first SR-Algorithm Sub-TLV found within any Router
+    // Capabilities TLV.
+    pub(crate) fn sr_algos(&self) -> Option<&SrAlgoStlv> {
+        self.router_cap
+            .iter()
+            .find_map(|router_cap| router_cap.sub_tlvs.sr_algo.as_ref())
     }
 }
 

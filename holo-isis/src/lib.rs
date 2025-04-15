@@ -27,4 +27,5 @@ pub mod packet;
 pub mod route;
 pub mod southbound;
 pub mod spf;
+pub mod sr;
 pub mod tasks;

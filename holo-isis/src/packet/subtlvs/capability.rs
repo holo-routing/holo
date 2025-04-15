@@ -27,7 +27,7 @@ use crate::packet::tlv::{TLV_HDR_SIZE, tlv_encode_end, tlv_encode_start};
 #[derive(Deserialize, Serialize)]
 pub struct SrCapabilitiesStlv {
     pub flags: SrCapabilitiesFlags,
-    pub entries: Vec<LabelBlockEntry>,
+    pub srgb_entries: Vec<LabelBlockEntry>,
 }
 
 bitflags! {
@@ -73,13 +73,16 @@ impl SrCapabilitiesStlv {
 
         let flags = buf.get_u8();
         let flags = SrCapabilitiesFlags::from_bits_truncate(flags);
-        let mut entries = vec![];
+        let mut srgb_entries = vec![];
         while buf.remaining() >= 1 {
             let entry = LabelBlockEntry::decode(buf)?;
-            entries.push(entry);
+            srgb_entries.push(entry);
         }
 
-        Ok(SrCapabilitiesStlv { flags, entries })
+        Ok(SrCapabilitiesStlv {
+            flags,
+            srgb_entries,
+        })
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
@@ -87,7 +90,7 @@ impl SrCapabilitiesStlv {
         // Flags.
         buf.put_u8(self.flags.bits());
         // SRGB entries.
-        for entry in &self.entries {
+        for entry in &self.srgb_entries {
             entry.encode(buf);
         }
         tlv_encode_end(buf, start_pos);
@@ -96,7 +99,11 @@ impl SrCapabilitiesStlv {
     pub(crate) fn len(&self) -> usize {
         TLV_HDR_SIZE
             + 1
-            + self.entries.iter().map(|entry| entry.len()).sum::<usize>()
+            + self
+                .srgb_entries
+                .iter()
+                .map(|entry| entry.len())
+                .sum::<usize>()
     }
 }
 

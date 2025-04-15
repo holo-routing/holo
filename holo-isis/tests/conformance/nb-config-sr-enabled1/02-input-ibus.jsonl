@@ -1,1 +1,1 @@
-{"SrCfgUpd":{"prefix_sids":[],"srgb":[{"lower_bound":16000,"upper_bound":23999}],"srlb":[{"lower_bound":15000,"upper_bound":15999}]}}
+{"SrCfgUpd":{"prefix_sids":[[["3.3.3.3/32","Spf"],{"index":30,"last_hop":"NoPhp"}],[["2001:db8:1000::3/128","Spf"],{"index":31,"last_hop":"NoPhp"}]],"srgb":[{"lower_bound":16000,"upper_bound":23999}],"srlb":[{"lower_bound":15000,"upper_bound":15999}]}}

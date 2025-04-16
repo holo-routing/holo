@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use arbitrary::Arbitrary;
 use bitflags::bitflags;
 use holo_utils::ip::AddressFamily;
 use num_derive::{FromPrimitive, ToPrimitive};
@@ -213,6 +214,7 @@ pub type Afi = AddressFamily;
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
+#[derive(Arbitrary)]
 pub enum Safi {
     Unicast = 1,
     Multicast = 2,

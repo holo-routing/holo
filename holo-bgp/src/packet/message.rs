@@ -7,6 +7,7 @@
 use std::collections::BTreeSet;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
+use arbitrary::Arbitrary;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use enum_as_inner::EnumAsInner;
 use holo_utils::bytes::{BytesExt, BytesMutExt, TLS_BUF};
@@ -130,6 +131,7 @@ pub enum Capability {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 #[derive(EnumAsInner)]
 #[derive(Deserialize, Serialize)]
+#[derive(Arbitrary)]
 pub enum NegotiatedCapability {
     MultiProtocol { afi: Afi, safi: Safi },
     FourOctetAsNumber,
@@ -260,6 +262,8 @@ pub struct EncodeCxt {
 }
 
 // BGP message decoding context.
+#[derive(Debug)]
+#[derive(Arbitrary)]
 pub struct DecodeCxt {
     pub peer_type: PeerType,
     pub peer_as: u32,
@@ -407,7 +411,7 @@ impl OpenMsg {
         buf[opt_param_len_pos] = opt_param_len as u8;
     }
 
-    fn decode(buf: &mut Bytes, msg_len: u16) -> DecodeResult<Self> {
+    pub fn decode(buf: &mut Bytes, msg_len: u16) -> DecodeResult<Self> {
         if msg_len < Self::MIN_LEN {
             return Err(MessageHeaderError::BadMessageLength(msg_len).into());
         }
@@ -543,7 +547,7 @@ impl Capability {
         buf[start_pos + 1] = cap_len as u8;
     }
 
-    fn decode(buf: &mut Bytes) -> DecodeResult<Option<Self>> {
+    pub fn decode(buf: &mut Bytes) -> DecodeResult<Option<Self>> {
         if buf.remaining() < 2 {
             return Err(OpenMessageError::MalformedOptParam.into());
         }
@@ -735,7 +739,7 @@ impl UpdateMsg {
         }
     }
 
-    fn decode(
+    pub fn decode(
         buf: &mut Bytes,
         msg_len: u16,
         cxt: &DecodeCxt,
@@ -840,7 +844,7 @@ impl NotificationMsg {
         buf.put_slice(&self.data);
     }
 
-    fn decode(buf: &mut Bytes, msg_len: u16) -> DecodeResult<Self> {
+    pub fn decode(buf: &mut Bytes, msg_len: u16) -> DecodeResult<Self> {
         if msg_len < Self::MIN_LEN {
             return Err(MessageHeaderError::BadMessageLength(msg_len).into());
         }
@@ -943,7 +947,7 @@ impl KeepaliveMsg {
         buf.put_u8(MessageType::Keepalive as u8);
     }
 
-    fn decode(_buf: &mut Bytes, msg_len: u16) -> DecodeResult<Self> {
+    pub fn decode(_buf: &mut Bytes, msg_len: u16) -> DecodeResult<Self> {
         if msg_len != Self::LEN {
             return Err(MessageHeaderError::BadMessageLength(msg_len).into());
         }
@@ -965,7 +969,7 @@ impl RouteRefreshMsg {
         buf.put_u8(self.safi);
     }
 
-    fn decode(buf: &mut Bytes, msg_len: u16) -> DecodeResult<Self> {
+    pub fn decode(buf: &mut Bytes, msg_len: u16) -> DecodeResult<Self> {
         if msg_len != Self::LEN {
             return Err(MessageHeaderError::BadMessageLength(msg_len).into());
         }

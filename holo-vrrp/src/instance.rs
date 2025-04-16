@@ -12,6 +12,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use std::time::Duration;
 
+use arbitrary::Arbitrary;
 use chrono::{DateTime, Utc};
 use enum_as_inner::EnumAsInner;
 use holo_utils::UnboundedSender;
@@ -80,6 +81,7 @@ pub struct InstanceNet {
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
+#[derive(Arbitrary)]
 pub enum Version {
     V2,
     V3(AddressFamily),

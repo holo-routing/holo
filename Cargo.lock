@@ -69,6 +69,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "69f7f8c3906b62b754cd5326047894316021dcfe5a194c8ea52bdd94934a3457"
 
 [[package]]
+name = "arbitrary"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dde20b3d026af13f561bdd0f15edf01fc734f0dafcedbaf42bba506a9517f223"
+dependencies = [
+ "derive_arbitrary",
+]
+
+[[package]]
 name = "async-stream"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -615,6 +624,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "derive_arbitrary"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "30542c1ad912e0e3d22a1935c290e12e8a29d704a420177a31faad4a601a0800"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.100",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1071,6 +1091,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "holo-fuzz"
+version = "0.7.0"
+dependencies = [
+ "holo-northbound",
+ "holo-protocol",
+ "holo-utils",
+ "holo-vrrp",
+ "holo-yang",
+ "libfuzzer-sys",
+ "pkg-config",
+ "yang3",
+]
+
+[[package]]
 name = "holo-interface"
 version = "0.7.0"
 dependencies = [
@@ -1393,6 +1427,7 @@ dependencies = [
 name = "holo-utils"
 version = "0.7.0"
 dependencies = [
+ "arbitrary",
  "async-trait",
  "bitflags 2.9.0",
  "bytes",
@@ -1423,6 +1458,7 @@ dependencies = [
 name = "holo-vrrp"
 version = "0.7.0"
 dependencies = [
+ "arbitrary",
  "async-trait",
  "bytes",
  "chrono",
@@ -1870,6 +1906,16 @@ name = "libc"
 version = "0.2.171"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c19937216e9d3aa9956d9bb8dfc0b0c8beb6058fc4f7a4dc4d850edf86a237d6"
+
+[[package]]
+name = "libfuzzer-sys"
+version = "0.4.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf78f52d400cf2d84a3a973a78a592b4adc535739e0a5597a0da6f0c357adc75"
+dependencies = [
+ "arbitrary",
+ "cc",
+]
 
 [[package]]
 name = "libyang3-sys"

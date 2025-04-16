@@ -9,6 +9,7 @@
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
+use arbitrary::Arbitrary;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use holo_utils::ip::AddressFamily;
@@ -70,6 +71,7 @@ pub type DecodeResult<T> = Result<T, DecodeError>;
 //
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
+#[derive(Arbitrary)]
 pub struct VrrpHdr {
     pub version: Version,
     pub hdr_type: u8,

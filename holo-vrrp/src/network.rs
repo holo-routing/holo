@@ -435,18 +435,6 @@ pub(crate) async fn write_loop(
 }
 
 #[cfg(not(feature = "testing"))]
-fn get_packet_src(sa: Option<&socket::SockaddrStorage>) -> Option<SocketAddr> {
-    sa.and_then(|sa| {
-        sa.as_sockaddr_in()
-            .map(|sa| SocketAddrV4::from(*sa).into())
-            .or_else(|| {
-                sa.as_sockaddr_in6()
-                    .map(|sa| SocketAddrV6::from(*sa).into())
-            })
-    })
-}
-
-#[cfg(not(feature = "testing"))]
 pub(crate) async fn read_loop(
     socket_vrrp: Arc<AsyncFd<Socket>>,
     vrrp_net_packet_rxp: Sender<VrrpNetRxPacketMsg>,
@@ -501,6 +489,19 @@ pub(crate) async fn read_loop(
             }
         }
     }
+}
+
+// Helper functions.
+#[cfg(not(feature = "testing"))]
+fn get_packet_src(sa: Option<&socket::SockaddrStorage>) -> Option<SocketAddr> {
+    sa.and_then(|sa| {
+        sa.as_sockaddr_in()
+            .map(|sa| SocketAddrV4::from(*sa).into())
+            .or_else(|| {
+                sa.as_sockaddr_in6()
+                    .map(|sa| SocketAddrV6::from(*sa).into())
+            })
+    })
 }
 
 fn generate_solicited_addr(addr: Ipv6Addr) -> Ipv6Addr {

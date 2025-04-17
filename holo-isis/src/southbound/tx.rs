@@ -8,6 +8,7 @@
 //
 
 use std::collections::BTreeSet;
+use std::net::IpAddr;
 
 use holo_utils::ibus::IbusChannelsTx;
 use holo_utils::mpls::Label;
@@ -19,6 +20,7 @@ use holo_utils::southbound::{
 use ipnetwork::IpNetwork;
 
 use crate::collections::Interfaces;
+use crate::interface::Interface;
 use crate::route::Route;
 
 // ===== global functions =====
@@ -118,4 +120,35 @@ pub(crate) fn route_uninstall(
         };
         ibus_tx.route_mpls_del(msg);
     }
+}
+
+pub(crate) fn adj_sid_install(
+    ibus_tx: &IbusChannelsTx,
+    iface: &Interface,
+    nbr_addr: IpAddr,
+    label: Label,
+) {
+    let msg = LabelInstallMsg {
+        protocol: Protocol::ISIS,
+        label,
+        nexthops: [Nexthop::Address {
+            ifindex: iface.system.ifindex.unwrap(),
+            addr: nbr_addr,
+            labels: vec![Label::new(Label::IMPLICIT_NULL)],
+        }]
+        .into(),
+        route: None,
+        replace: true,
+    };
+    ibus_tx.route_mpls_add(msg);
+}
+
+pub(crate) fn adj_sid_uninstall(ibus_tx: &IbusChannelsTx, label: Label) {
+    let msg = LabelUninstallMsg {
+        protocol: Protocol::ISIS,
+        label,
+        nexthops: Default::default(),
+        route: None,
+    };
+    ibus_tx.route_mpls_del(msg);
 }

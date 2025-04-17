@@ -230,6 +230,7 @@ pub struct ExtIsReachStlvs {
     pub max_resv_link_bw: Option<subtlvs::neighbor::MaxResvLinkBwStlv>,
     pub unreserved_bw: Option<subtlvs::neighbor::UnreservedBwStlv>,
     pub te_default_metric: Option<subtlvs::neighbor::TeDefaultMetricStlv>,
+    pub adj_sids: Vec<subtlvs::neighbor::AdjSidStlv>,
     pub unknown: Vec<UnknownTlv>,
 }
 
@@ -934,9 +935,9 @@ impl ExtIsReachTlv {
 
     pub(crate) fn decode(_tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
         use subtlvs::neighbor::{
-            AdminGroupStlv, Ipv4InterfaceAddrStlv, Ipv4NeighborAddrStlv,
-            MaxLinkBwStlv, MaxResvLinkBwStlv, TeDefaultMetricStlv,
-            UnreservedBwStlv,
+            AdjSidStlv, AdminGroupStlv, Ipv4InterfaceAddrStlv,
+            Ipv4NeighborAddrStlv, MaxLinkBwStlv, MaxResvLinkBwStlv,
+            TeDefaultMetricStlv, UnreservedBwStlv,
         };
 
         let mut list = vec![];
@@ -1006,6 +1007,20 @@ impl ExtIsReachTlv {
                         )?;
                         sub_tlvs.te_default_metric = Some(stlv);
                     }
+                    Some(NeighborStlvType::AdjacencySid) => {
+                        if let Some(stlv) =
+                            AdjSidStlv::decode(stlv_len, false, &mut buf_stlv)?
+                        {
+                            sub_tlvs.adj_sids.push(stlv);
+                        }
+                    }
+                    Some(NeighborStlvType::LanAdjacencySid) => {
+                        if let Some(stlv) =
+                            AdjSidStlv::decode(stlv_len, true, &mut buf_stlv)?
+                        {
+                            sub_tlvs.adj_sids.push(stlv);
+                        }
+                    }
                     _ => {
                         // Save unknown Sub-TLV.
                         sub_tlvs.unknown.push(UnknownTlv::new(
@@ -1054,6 +1069,9 @@ impl ExtIsReachTlv {
                 stlv.encode(buf);
             }
             if let Some(stlv) = &entry.sub_tlvs.te_default_metric {
+                stlv.encode(buf);
+            }
+            for stlv in &entry.sub_tlvs.adj_sids {
                 stlv.encode(buf);
             }
             // Rewrite Sub-TLVs length field.

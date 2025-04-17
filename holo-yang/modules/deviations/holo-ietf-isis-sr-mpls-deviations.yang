@@ -32,40 +32,6 @@ module holo-ietf-isis-sr-mpls-deviations {
   }
   */
 
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis-sr-mpls:sid-list" {
-    deviate not-supported;
-  }
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis-sr-mpls:sid-list/isis-sr-mpls:sid" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis-sr-mpls:sid-list/isis-sr-mpls:adj-sid-flags" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis-sr-mpls:sid-list/isis-sr-mpls:adj-sid-flags/isis-sr-mpls:flags" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis-sr-mpls:sid-list/isis-sr-mpls:weight" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis-sr-mpls:sid-list/isis-sr-mpls:neighbor-id" {
-    deviate not-supported;
-  }
-  */
-
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis-sr-mpls:sid-list" {
     deviate not-supported;
   }
@@ -430,34 +396,6 @@ module holo-ietf-isis-sr-mpls-deviations {
 
   /*
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis-sr-mpls:mt-sid-binding-tlvs/isis-sr-mpls:mt-sid-binding-tlv/isis-sr-mpls:unknown-tlvs/isis-sr-mpls:unknown-tlv/isis-sr-mpls:value" {
-    deviate not-supported;
-  }
-  */
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:adjacencies/isis:adjacency/isis-sr-mpls:adjacency-sid" {
-    deviate not-supported;
-  }
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:adjacencies/isis:adjacency/isis-sr-mpls:adjacency-sid/isis-sr-mpls:value" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:adjacencies/isis:adjacency/isis-sr-mpls:adjacency-sid/isis-sr-mpls:address-family" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:adjacencies/isis:adjacency/isis-sr-mpls:adjacency-sid/isis-sr-mpls:weight" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:adjacencies/isis:adjacency/isis-sr-mpls:adjacency-sid/isis-sr-mpls:protection-requested" {
     deviate not-supported;
   }
   */

@@ -1,0 +1,6 @@
+{"RouteMplsAdd":{"protocol":"isis","label":16,"nexthops":[{"Address":{"ifindex":2,"addr":"10.0.2.2","labels":[3]}}],"route":null,"replace":true}}
+{"RouteMplsAdd":{"protocol":"isis","label":17,"nexthops":[{"Address":{"ifindex":2,"addr":"fe80::f0e6:72ff:fe5d:a15","labels":[3]}}],"route":null,"replace":true}}
+{"RouteMplsAdd":{"protocol":"isis","label":18,"nexthops":[{"Address":{"ifindex":3,"addr":"10.0.3.4","labels":[3]}}],"route":null,"replace":true}}
+{"RouteMplsAdd":{"protocol":"isis","label":19,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::bc8d:a5ff:fe26:1bb0","labels":[3]}}],"route":null,"replace":true}}
+{"RouteMplsAdd":{"protocol":"isis","label":20,"nexthops":[{"Address":{"ifindex":4,"addr":"10.0.4.6","labels":[3]}}],"route":null,"replace":true}}
+{"RouteMplsAdd":{"protocol":"isis","label":21,"nexthops":[{"Address":{"ifindex":4,"addr":"fe80::8cff:31ff:fe61:df7c","labels":[3]}}],"route":null,"replace":true}}

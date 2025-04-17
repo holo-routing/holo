@@ -771,8 +771,9 @@ module ietf-isis-sr-mpls {
   augment "/rt:routing/"
         + "rt:control-plane-protocols/rt:control-plane-protocol"
         + "/isis:isis/isis:database/isis:levels/isis:lsp"
-        + "/isis:extended-is-neighbor/isis:neighbor" {
-    when "derived-from-or-self(../../../../../../rt:type,"
+        + "/isis:extended-is-neighbor/isis:neighbor"
+        + "/isis:instances/isis:instance" {
+    when "derived-from-or-self(../../../../../../../../rt:type,"
        + "'isis:isis')" {
       description
         "This augments ISIS routing protocol when used";

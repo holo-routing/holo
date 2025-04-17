@@ -12,6 +12,10 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 use std::time::Instant;
 
 use chrono::Utc;
+use derive_new::new;
+use holo_utils::ip::AddressFamily;
+use holo_utils::mpls::Label;
+use holo_utils::sr::Sid;
 use holo_utils::task::TimeoutTask;
 
 use crate::collections::AdjacencyId;
@@ -19,8 +23,9 @@ use crate::debug::Debug;
 use crate::instance::InstanceUpView;
 use crate::interface::{Interface, InterfaceType};
 use crate::northbound::notification;
+use crate::packet::subtlvs::neighbor::{AdjSidFlags, AdjSidStlv};
 use crate::packet::{AreaAddr, LanId, LevelType, SystemId};
-use crate::tasks;
+use crate::{sr, tasks};
 
 #[derive(Debug)]
 pub struct Adjacency {
@@ -36,6 +41,7 @@ pub struct Adjacency {
     pub neighbors: BTreeSet<[u8; 6]>,
     pub ipv4_addrs: BTreeSet<Ipv4Addr>,
     pub ipv6_addrs: BTreeSet<Ipv6Addr>,
+    pub adj_sids: Vec<AdjacencySid>,
     pub last_uptime: Option<Instant>,
     pub holdtimer: Option<TimeoutTask>,
 }
@@ -45,6 +51,14 @@ pub enum AdjacencyState {
     Down,
     Initializing,
     Up,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[derive(new)]
+pub struct AdjacencySid {
+    pub af: AddressFamily,
+    pub label: Label,
+    pub nbr_system_id: Option<SystemId>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -80,6 +94,7 @@ impl Adjacency {
             neighbors: Default::default(),
             ipv4_addrs: Default::default(),
             ipv6_addrs: Default::default(),
+            adj_sids: Default::default(),
             last_uptime: None,
             holdtimer: None,
         };
@@ -130,6 +145,15 @@ impl Adjacency {
             }
         }
 
+        // Update Adj-SID(s) associated to this adjacency.
+        if instance.config.sr.enabled {
+            if new_state == AdjacencyState::Up {
+                sr::adj_sids_add(instance, iface, self);
+            } else if self.state == AdjacencyState::Up {
+                sr::adj_sids_del(instance, self);
+            }
+        }
+
         // If no adjacencies remain in the Up state, clear SRM and SSN lists.
         if iface.state.event_counters.adjacency_number == 0 {
             for level in iface.config.levels() {
@@ -176,5 +200,18 @@ impl Adjacency {
 impl Drop for Adjacency {
     fn drop(&mut self) {
         Debug::AdjacencyDelete(self).log();
+    }
+}
+
+// ===== impl AdjacencySid =====
+
+impl AdjacencySid {
+    pub(crate) fn to_stlv(&self) -> AdjSidStlv {
+        let mut flags = AdjSidFlags::V | AdjSidFlags::L;
+        if self.af == AddressFamily::Ipv6 {
+            flags.insert(AdjSidFlags::F);
+        }
+        let sid = Sid::Label(self.label);
+        AdjSidStlv::new(flags, 0, self.nbr_system_id, sid)
     }
 }

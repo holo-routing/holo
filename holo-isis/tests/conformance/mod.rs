@@ -829,7 +829,14 @@ async fn nb_config_spf_paths1() {
 
 // Input:
 //  * Northbound: enable segment routing
-// Output: no changes
+// Output:
+//  * Protocol: send an updated local LSP to all adjacencies
+//  * Northbound:
+//    - add IPv4 and IPv6 Adj-SIDs for all adjacencies to the local LSP
+//    - add the local LSP to the SRM list of all adjacencies
+//    - transition the SPF Delay FSM state from "quiet" to "short-wait"
+//    - send an "lsp-generation" YANG notification
+//  * Southbound: install IPv4 and IPv6 Adj-SIDs for all adjacencies
 //
 // Input:
 //  * Southbound: SR configuration update  (SRGB, SRLB and Prefix-SIDs)
@@ -840,7 +847,6 @@ async fn nb_config_spf_paths1() {
 //      the local LSP
 //    - add Prefix-SID sub-TLVs as per the configuration update
 //    - add the local LSP to the SRM list of all adjacencies
-//    - transition the SPF Delay FSM state from "quiet" to "short-wait"
 //    - send an "lsp-generation" YANG notification
 #[tokio::test]
 async fn nb_config_sr_enabled1() {

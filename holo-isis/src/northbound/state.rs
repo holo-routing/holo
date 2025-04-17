@@ -26,12 +26,13 @@ use holo_utils::sr::Sid;
 use holo_yang::{ToYang, ToYangBits};
 use ipnetwork::IpNetwork;
 
-use crate::adjacency::Adjacency;
+use crate::adjacency::{Adjacency, AdjacencySid};
 use crate::collections::Lsdb;
 use crate::instance::Instance;
 use crate::interface::Interface;
 use crate::lsdb::{LspEntry, LspLogEntry, LspLogId};
 use crate::packet::subtlvs::capability::LabelBlockEntry;
+use crate::packet::subtlvs::neighbor::AdjSidStlv;
 use crate::packet::subtlvs::prefix::{PrefixAttrFlags, PrefixSidStlv};
 use crate::packet::tlv::{
     AuthenticationTlv, ExtIpv4Reach, ExtIsReach, IpReachTlvEntry, Ipv4Reach,
@@ -61,6 +62,7 @@ pub enum ListEntry<'a> {
     IsReachInstance(u32, &'a IsReach),
     ExtIsReach(u32, &'a ExtIsReach),
     ExtIsReachUnreservedBw(usize, &'a f32),
+    AdjSidStlv(&'a AdjSidStlv),
     Ipv4Reach(&'a Ipv4Reach),
     ExtIpv4Reach(&'a ExtIpv4Reach),
     Ipv6Reach(&'a Ipv6Reach),
@@ -74,6 +76,7 @@ pub enum ListEntry<'a> {
     InterfaceSrmList(&'a Interface, LevelNumber),
     InterfaceSsnList(&'a Interface, LevelNumber),
     Adjacency(&'a Adjacency),
+    AdjacencySid(&'a AdjacencySid),
 }
 
 // ===== callbacks =====
@@ -541,6 +544,30 @@ fn load_callbacks() -> Callbacks<Instance> {
                 value: Some(tlv.value.as_ref()),
             })
         })
+        .path(isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::sid_list::PATH)
+        .get_iterate(|_instance, args| {
+            let (_, reach) = args.parent_list_entry.as_ext_is_reach().unwrap();
+            let iter = reach.sub_tlvs.adj_sids.iter().map(ListEntry::AdjSidStlv);
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::sid_list::SidList;
+            let stlv = args.list_entry.as_adj_sid_stlv().unwrap();
+            Box::new(SidList {
+                sid: stlv.sid.value(),
+                weight: Some(stlv.weight),
+                neighbor_id: stlv.nbr_system_id.as_ref().map(|system_id| system_id.to_yang()),
+            })
+        })
+        .path(isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::sid_list::adj_sid_flags::PATH)
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::sid_list::adj_sid_flags::AdjSidFlags;
+            let stlv = args.list_entry.as_adj_sid_stlv().unwrap();
+            let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
+            Box::new(AdjSidFlags {
+                flags: Some(Box::new(iter)),
+            })
+        })
         .path(isis::database::levels::lsp::ipv4_internal_reachability::prefixes::PATH)
         .get_iterate(|_instance, args| {
             let lse = args.parent_list_entry.as_lsp_entry().unwrap();
@@ -881,6 +908,22 @@ fn load_callbacks() -> Callbacks<Instance> {
                 neighbor_priority: adj.priority,
                 lastuptime: adj.last_uptime.as_ref().map(Cow::Borrowed).ignore_in_testing(),
                 state: Some(adj.state.to_yang()),
+            })
+        })
+        .path(isis::interfaces::interface::adjacencies::adjacency::adjacency_sid::PATH)
+        .get_iterate(|_instance, args| {
+            let adj = args.parent_list_entry.as_adjacency().unwrap();
+            let iter = adj.adj_sids.iter().map(ListEntry::AdjacencySid);
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use isis::interfaces::interface::adjacencies::adjacency::adjacency_sid::AdjacencySid;
+            let adj_sid = args.list_entry.as_adjacency_sid().unwrap();
+            Box::new(AdjacencySid {
+                value: adj_sid.label.get(),
+                address_family: Some(adj_sid.af.to_yang()),
+                weight: Some(0),
+                protection_requested: Some(false),
             })
         })
         .path(isis::interfaces::interface::event_counters::PATH)

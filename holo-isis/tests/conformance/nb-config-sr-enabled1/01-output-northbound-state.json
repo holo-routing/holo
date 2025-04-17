@@ -264,47 +264,6 @@
                         142
                       ],
                       "dynamic-hostname": "rt3",
-                      "router-capabilities": {
-                        "router-capability": [
-                          {
-                            "ietf-isis-sr-mpls:sr-capability": {
-                              "sr-capability": {
-                                "sr-capability-flags": [
-                                  "mpls-ipv4",
-                                  "mpls-ipv6"
-                                ]
-                              },
-                              "global-blocks": {
-                                "global-block": [
-                                  {
-                                    "range-size": 8000,
-                                    "sid-sub-tlv": {
-                                      "length": 3,
-                                      "sid": 16000
-                                    }
-                                  }
-                                ]
-                              }
-                            },
-                            "ietf-isis-sr-mpls:sr-algorithms": {
-                              "sr-algorithm": [
-                                "ietf-segment-routing-common:prefix-sid-algorithm-shortest-path"
-                              ]
-                            },
-                            "ietf-isis-sr-mpls:local-blocks": {
-                              "local-block": [
-                                {
-                                  "range-size": 1000,
-                                  "sid-sub-tlv": {
-                                    "length": 3,
-                                    "sid": 15000
-                                  }
-                                }
-                              ]
-                            }
-                          }
-                        ]
-                      },
                       "extended-is-neighbor": {
                         "neighbor": [
                           {
@@ -420,20 +379,7 @@
                             "metric": 10,
                             "external-prefix-flag": false,
                             "readvertisement-flag": false,
-                            "node-flag": true,
-                            "ietf-isis-sr-mpls:prefix-sid-sub-tlvs": {
-                              "prefix-sid-sub-tlv": [
-                                {
-                                  "sid": 30,
-                                  "prefix-sid-flags": {
-                                    "flags": [
-                                      "p-flag"
-                                    ]
-                                  },
-                                  "algorithm": "ietf-segment-routing-common:prefix-sid-algorithm-shortest-path"
-                                }
-                              ]
-                            }
+                            "node-flag": true
                           },
                           {
                             "up-down": false,
@@ -464,20 +410,7 @@
                             "metric": 10,
                             "external-prefix-flag": false,
                             "readvertisement-flag": false,
-                            "node-flag": true,
-                            "ietf-isis-sr-mpls:prefix-sid-sub-tlvs": {
-                              "prefix-sid-sub-tlv": [
-                                {
-                                  "sid": 31,
-                                  "prefix-sid-flags": {
-                                    "flags": [
-                                      "p-flag"
-                                    ]
-                                  },
-                                  "algorithm": "ietf-segment-routing-common:prefix-sid-algorithm-shortest-path"
-                                }
-                              ]
-                            }
+                            "node-flag": true
                           },
                           {
                             "up-down": false,

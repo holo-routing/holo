@@ -25,17 +25,18 @@ use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
 
+use crate::adjacency::Adjacency;
 use crate::collections::InterfaceIndex;
 use crate::debug::InterfaceInactiveReason;
 use crate::instance::Instance;
-use crate::interface::InterfaceType;
+use crate::interface::{Interface, InterfaceType};
 use crate::northbound::notification;
 use crate::packet::auth::AuthMethod;
 use crate::packet::{
     AreaAddr, LevelNumber, LevelType, LevelTypeIterator, SystemId,
 };
 use crate::route::RouteFlags;
-use crate::{southbound, spf};
+use crate::{southbound, spf, sr};
 
 #[derive(Debug, Default)]
 #[derive(EnumAsInner)]
@@ -69,6 +70,7 @@ pub enum Event {
     RerunSpf,
     ReinstallRoutes,
     OverloadChange(bool),
+    SrEnabledChange(bool),
     RedistributeAdd(AddressFamily, Protocol),
     RedistributeDelete(AddressFamily, LevelNumber, Protocol),
 }
@@ -1218,10 +1220,11 @@ fn load_callbacks() -> Callbacks<Instance> {
        })
         .path(isis::segment_routing::enabled::PATH)
         .modify_apply(|instance, args| {
-            let enable = args.dnode.get_bool();
-            instance.config.sr.enabled = enable;
+            let enabled = args.dnode.get_bool();
+            instance.config.sr.enabled = enabled;
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::SrEnabledChange(enabled));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
@@ -1412,6 +1415,48 @@ impl Provider for Instance {
 
                     // Send YANG notification.
                     notification::database_overload(&instance, overload_status);
+                }
+            }
+            Event::SrEnabledChange(enabled) => {
+                let Some((instance, arenas)) = self.as_up() else {
+                    return;
+                };
+
+                // Closure to add or delete Adjacency-SIDs.
+                let update_sid = |iface: &Interface, adj: &mut Adjacency| {
+                    if enabled {
+                        sr::adj_sids_add(&instance, iface, adj);
+                    } else {
+                        sr::adj_sids_del(&instance, adj);
+                    }
+                };
+
+                // Iterate over all existing adjacencies.
+                for iface in arenas.interfaces.iter_mut() {
+                    match iface.config.interface_type {
+                        InterfaceType::Broadcast => {
+                            let mut adjacencies = std::mem::take(
+                                &mut iface.state.lan_adjacencies,
+                            );
+                            for level in iface.config.levels() {
+                                for adj_idx in
+                                    adjacencies.get_mut(level).indexes()
+                                {
+                                    let adj = &mut arenas.adjacencies[adj_idx];
+                                    update_sid(iface, adj);
+                                }
+                            }
+                            iface.state.lan_adjacencies = adjacencies;
+                        }
+                        InterfaceType::PointToPoint => {
+                            if let Some(mut adj) =
+                                iface.state.p2p_adjacency.take()
+                            {
+                                update_sid(iface, &mut adj);
+                                iface.state.p2p_adjacency = Some(adj);
+                            }
+                        }
+                    }
                 }
             }
             Event::RedistributeAdd(af, protocol) => {

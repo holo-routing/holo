@@ -25,7 +25,7 @@ use holo_utils::sr::{IgpAlgoType, Sid, SidLastHopBehavior, SrCfgPrefixSid};
 use holo_utils::task::TimeoutTask;
 use ipnetwork::{Ipv4Network, Ipv6Network};
 
-use crate::adjacency::AdjacencyState;
+use crate::adjacency::{Adjacency, AdjacencyState};
 use crate::collections::{Arena, LspEntryId};
 use crate::debug::{Debug, LspPurgeReason};
 use crate::instance::{InstanceArenas, InstanceUpView};
@@ -44,9 +44,9 @@ use crate::packet::subtlvs::prefix::{
     PrefixSidStlv,
 };
 use crate::packet::tlv::{
-    ExtIpv4Reach, ExtIsReach, IpReachTlvEntry, Ipv4Reach, Ipv4ReachStlvs,
-    Ipv6Reach, Ipv6ReachStlvs, IsReach, MAX_NARROW_METRIC, Nlpid,
-    RouterCapFlags, RouterCapTlv,
+    ExtIpv4Reach, ExtIsReach, ExtIsReachStlvs, IpReachTlvEntry, Ipv4Reach,
+    Ipv4ReachStlvs, Ipv6Reach, Ipv6ReachStlvs, IsReach, MAX_NARROW_METRIC,
+    Nlpid, RouterCapFlags, RouterCapTlv,
 };
 use crate::packet::{LanId, LevelNumber, LevelType, LspId};
 use crate::spf::{SpfType, VertexId};
@@ -247,11 +247,13 @@ fn lsp_build_tlvs(
     for iface in arenas.interfaces.iter().filter(|iface| iface.state.active) {
         // Add IS reachability information.
         lsp_build_tlvs_is_reach(
+            instance,
             iface,
             level,
             metric_type,
             &mut is_reach,
             &mut ext_is_reach,
+            &arenas.adjacencies,
         );
 
         // Add IP addresses and IP reachability information.
@@ -415,11 +417,13 @@ fn lsp_build_tlvs_router_cap(
 }
 
 fn lsp_build_tlvs_is_reach(
+    instance: &mut InstanceUpView<'_>,
     iface: &Interface,
     level: LevelNumber,
     metric_type: MetricType,
     is_reach: &mut Vec<IsReach>,
     ext_is_reach: &mut Vec<ExtIsReach>,
+    adjacencies: &Arena<Adjacency>,
 ) {
     let metric = iface.config.metric.get(level);
 
@@ -436,10 +440,16 @@ fn lsp_build_tlvs_is_reach(
                     });
                 }
                 if metric_type.is_wide_enabled() {
+                    let sub_tlvs = lsp_build_is_reach_lan_stlvs(
+                        instance,
+                        iface,
+                        level,
+                        adjacencies,
+                    );
                     ext_is_reach.push(ExtIsReach {
                         neighbor: dis.lan_id,
                         metric,
-                        sub_tlvs: Default::default(),
+                        sub_tlvs,
                     });
                 }
             }
@@ -463,10 +473,11 @@ fn lsp_build_tlvs_is_reach(
                     });
                 }
                 if metric_type.is_wide_enabled() {
+                    let sub_tlvs = lsp_build_is_reach_p2p_stlvs(instance, adj);
                     ext_is_reach.push(ExtIsReach {
                         neighbor,
                         metric,
-                        sub_tlvs: Default::default(),
+                        sub_tlvs,
                     });
                 }
             }
@@ -630,6 +641,47 @@ fn lsp_build_tlvs_ip_redistributed(
             );
         }
     }
+}
+
+fn lsp_build_is_reach_lan_stlvs(
+    instance: &InstanceUpView<'_>,
+    iface: &Interface,
+    level: LevelNumber,
+    adjacencies: &Arena<Adjacency>,
+) -> ExtIsReachStlvs {
+    let mut sub_tlvs = ExtIsReachStlvs::default();
+
+    // Add Adj-SID Sub-TLV(s).
+    if instance.config.sr.enabled {
+        sub_tlvs.adj_sids = iface
+            .state
+            .lan_adjacencies
+            .get(level)
+            .iter(adjacencies)
+            .flat_map(|adj| adj.adj_sids.iter())
+            .map(|adj_sid| adj_sid.to_stlv())
+            .collect();
+    }
+
+    sub_tlvs
+}
+
+fn lsp_build_is_reach_p2p_stlvs(
+    instance: &InstanceUpView<'_>,
+    adj: &Adjacency,
+) -> ExtIsReachStlvs {
+    let mut sub_tlvs = ExtIsReachStlvs::default();
+
+    // Add Adj-SID Sub-TLV(s).
+    if instance.config.sr.enabled {
+        sub_tlvs.adj_sids = adj
+            .adj_sids
+            .iter()
+            .map(|adj_sid| adj_sid.to_stlv())
+            .collect();
+    }
+
+    sub_tlvs
 }
 
 fn lsp_build_ipv4_reach_stlvs(

@@ -7,18 +7,23 @@
 // See: https://nlnet.nl/NGI0
 //
 
+use std::net::IpAddr;
+
 use holo_utils::ip::AddressFamily;
 use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid};
 
+use crate::adjacency::{Adjacency, AdjacencySid};
 use crate::collections::Arena;
 use crate::error::Error;
 use crate::instance::InstanceUpView;
+use crate::interface::{Interface, InterfaceType};
 use crate::lsdb::LspEntry;
 use crate::packet::subtlvs::capability::LabelBlockEntry;
 use crate::packet::subtlvs::prefix::{PrefixSidFlags, PrefixSidStlv};
 use crate::packet::{LanId, LevelNumber, SystemId};
 use crate::route::Route;
+use crate::southbound;
 
 // ===== global functions =====
 
@@ -82,6 +87,65 @@ pub(crate) fn prefix_sid_update(
                 // TODO: log error.
             }
         }
+    }
+}
+
+// Adds SR Adjacency SIDs to the given adjacency.
+pub(crate) fn adj_sids_add(
+    instance: &InstanceUpView<'_>,
+    iface: &Interface,
+    adj: &mut Adjacency,
+) {
+    let mut label_manager = instance.shared.label_manager.lock().unwrap();
+
+    // Include neighbor System ID if the interface is broadcast.
+    let nbr_system_id = (iface.config.interface_type
+        == InterfaceType::Broadcast)
+        .then_some(adj.system_id);
+
+    // Iterate over enabled address families for the interface.
+    for af in [AddressFamily::Ipv4, AddressFamily::Ipv6]
+        .into_iter()
+        .filter(|af| iface.config.is_af_enabled(*af, instance.config))
+    {
+        // Allocate a label and create a new Adjacency SID.
+        let label = label_manager.label_request().unwrap();
+        let adj_sid = AdjacencySid::new(af, label, nbr_system_id);
+        adj.adj_sids.push(adj_sid);
+
+        // Get the first IP address for the current address family.
+        let addr = match af {
+            AddressFamily::Ipv4 => {
+                adj.ipv4_addrs.first().copied().map(IpAddr::from)
+            }
+            AddressFamily::Ipv6 => {
+                adj.ipv6_addrs.first().copied().map(IpAddr::from)
+            }
+        };
+
+        // Install the Adjacency SID if we have an address.
+        if let Some(addr) = addr {
+            southbound::tx::adj_sid_install(
+                &instance.tx.ibus,
+                iface,
+                addr,
+                label,
+            );
+        }
+    }
+}
+
+// Deletes all SR Adjacency SIDs from the given adjacency.
+pub(crate) fn adj_sids_del(instance: &InstanceUpView<'_>, adj: &mut Adjacency) {
+    let mut label_manager = instance.shared.label_manager.lock().unwrap();
+
+    // Remove and process each existing Adjacency SID.
+    for adj_sid in std::mem::take(&mut adj.adj_sids) {
+        let label = adj_sid.label;
+
+        // Release and uninstall the Adjacency SID label.
+        label_manager.label_release(label);
+        southbound::tx::adj_sid_uninstall(&instance.tx.ibus, label);
     }
 }
 

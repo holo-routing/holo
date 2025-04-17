@@ -178,6 +178,7 @@ Holo supports the following Internet Standards:
 * RFC 7981 - IS-IS Extensions for Advertising Router Information
 * RFC 8401 - Bit Index Explicit Replication (BIER) Support via IS-IS
 * RFC 8405 - Shortest Path First (SPF) Back-Off Delay Algorithm for Link-State IGPs
+* RFC 8667 - IS-IS Extensions for Segment Routing
 * draft-ietf-bier-lsr-non-mpls-extensions-03 - LSR Extensions for BIER non-MPLS Encapsulation
 
 ##### MPLS LDP
@@ -239,7 +240,7 @@ Holo supports the following Internet Standards:
 | ietf-ip@2018-02-22 | 52.17% | 0.00% | - | - | [40.00%](https://holo-routing.github.io/ietf-yang-coverage/ietf-ip@2018-02-22.html) |
 | ietf-ipv4-unicast-routing@2018-03-13 | 100.00% | 100.00% | - | - | [100.00%](https://holo-routing.github.io/ietf-yang-coverage/ietf-ipv4-unicast-routing@2018-03-13.html) |
 | ietf-ipv6-unicast-routing@2018-03-13 | 40.62% | 100.00% | - | - | [45.71%](https://holo-routing.github.io/ietf-yang-coverage/ietf-ipv6-unicast-routing@2018-03-13.html) |
-| ietf-isis-sr-mpls@2025-01-29 | 15.38% | 27.62% | - | - | [26.27%](https://holo-routing.github.io/ietf-yang-coverage/ietf-isis-sr-mpls@2025-01-29.html) |
+| ietf-isis-sr-mpls@2025-01-29 | 15.38% | 33.33% | - | - | [31.36%](https://holo-routing.github.io/ietf-yang-coverage/ietf-isis-sr-mpls@2025-01-29.html) |
 | ietf-isis@2022-10-19 | 94.64% | 55.24% | 100.00% | 100.00% | [71.14%](https://holo-routing.github.io/ietf-yang-coverage/ietf-isis@2022-10-19.html) |
 | ietf-key-chain@2017-06-15 | 100.00% | 100.00% | - | - | [100.00%](https://holo-routing.github.io/ietf-yang-coverage/ietf-key-chain@2017-06-15.html) |
 | ietf-mpls-ldp@2022-03-14 | 86.96% | 92.31% | 100.00% | 100.00% | [92.38%](https://holo-routing.github.io/ietf-yang-coverage/ietf-mpls-ldp@2022-03-14.html) |

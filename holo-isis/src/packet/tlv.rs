@@ -1035,26 +1035,26 @@ impl ExtIsReachTlv {
             // Encode Sub-TLVs.
             let subtlvs_len_pos = buf.len();
             buf.put_u8(0);
-            if let Some(tlv) = &entry.sub_tlvs.admin_group {
-                tlv.encode(buf);
+            if let Some(stlv) = &entry.sub_tlvs.admin_group {
+                stlv.encode(buf);
             }
-            for tlv in &entry.sub_tlvs.ipv4_interface_addr {
-                tlv.encode(buf);
+            for stlv in &entry.sub_tlvs.ipv4_interface_addr {
+                stlv.encode(buf);
             }
-            for tlv in &entry.sub_tlvs.ipv4_neighbor_addr {
-                tlv.encode(buf);
+            for stlv in &entry.sub_tlvs.ipv4_neighbor_addr {
+                stlv.encode(buf);
             }
-            if let Some(tlv) = &entry.sub_tlvs.max_link_bw {
-                tlv.encode(buf);
+            if let Some(stlv) = &entry.sub_tlvs.max_link_bw {
+                stlv.encode(buf);
             }
-            if let Some(tlv) = &entry.sub_tlvs.max_resv_link_bw {
-                tlv.encode(buf);
+            if let Some(stlv) = &entry.sub_tlvs.max_resv_link_bw {
+                stlv.encode(buf);
             }
-            if let Some(tlv) = &entry.sub_tlvs.unreserved_bw {
-                tlv.encode(buf);
+            if let Some(stlv) = &entry.sub_tlvs.unreserved_bw {
+                stlv.encode(buf);
             }
-            if let Some(tlv) = &entry.sub_tlvs.te_default_metric {
-                tlv.encode(buf);
+            if let Some(stlv) = &entry.sub_tlvs.te_default_metric {
+                stlv.encode(buf);
             }
             // Rewrite Sub-TLVs length field.
             buf[subtlvs_len_pos] = (buf.len() - 1 - subtlvs_len_pos) as u8;

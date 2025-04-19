@@ -20,7 +20,9 @@ use crate::instance::InstanceUpView;
 use crate::interface::{Interface, InterfaceType};
 use crate::lsdb::LspEntry;
 use crate::northbound::notification;
-use crate::packet::subtlvs::capability::LabelBlockEntry;
+use crate::packet::subtlvs::capability::{
+    LabelBlockEntry, SrCapabilitiesFlags,
+};
 use crate::packet::subtlvs::prefix::{PrefixSidFlags, PrefixSidStlv};
 use crate::packet::{LanId, LevelNumber, SystemId};
 use crate::route::Route;
@@ -182,7 +184,7 @@ fn prefix_sid_input_label(
                 .filter(|lsp| lsp.seqno != 0)
                 .find_map(|lsp| lsp.tlvs.sr_cap())
             else {
-                return Err(Error::SrgbNotFound(level, system_id));
+                return Err(Error::SrCapNotFound(level, system_id));
             };
             index_to_label(instance, system_id, index, &sr_cap.srgb_entries)?
         }
@@ -205,44 +207,51 @@ fn prefix_sid_output_label(
     last_hop: bool,
     lsp_entries: &Arena<LspEntry>,
 ) -> Result<Label, Error> {
-    if last_hop {
-        // Handle the N-Flag.
-        if !prefix_sid.flags.contains(PrefixSidFlags::N) {
-            let label = Label::IMPLICIT_NULL;
-            return Ok(Label::new(label));
-        }
+    // Handle the N-Flag.
+    if last_hop && !prefix_sid.flags.contains(PrefixSidFlags::N) {
+        let label = Label::IMPLICIT_NULL;
+        return Ok(Label::new(label));
+    }
 
-        // Handle the E-Flag.
-        if prefix_sid.flags.contains(PrefixSidFlags::E) {
-            let label = match af {
-                AddressFamily::Ipv4 => Label::IPV4_EXPLICIT_NULL,
-                AddressFamily::Ipv6 => Label::IPV6_EXPLICIT_NULL,
-            };
-            return Ok(Label::new(label));
-        }
+    // Get SR capabilities of the next-hop router.
+    let lsdb = instance.state.lsdb.get(level);
+    let Some(sr_cap) = lsdb
+        .iter_for_system_id(lsp_entries, nexthop_system_id)
+        .map(|lse| &lse.data)
+        .filter(|lsp| lsp.rem_lifetime != 0)
+        .filter(|lsp| lsp.seqno != 0)
+        .find_map(|lsp| lsp.tlvs.sr_cap())
+    else {
+        return Err(Error::SrCapNotFound(level, nexthop_system_id));
+    };
+
+    // Check whether the next-hop router supports SR-MPLS for the given address
+    // family.
+    let af_flag = match af {
+        AddressFamily::Ipv4 => SrCapabilitiesFlags::I,
+        AddressFamily::Ipv6 => SrCapabilitiesFlags::V,
+    };
+    if !sr_cap.flags.contains(af_flag) {
+        return Err(Error::SrCapUnsupportedAf(level, nexthop_system_id, af));
+    }
+
+    // Handle the E-Flag.
+    if last_hop && prefix_sid.flags.contains(PrefixSidFlags::E) {
+        let label = match af {
+            AddressFamily::Ipv4 => Label::IPV4_EXPLICIT_NULL,
+            AddressFamily::Ipv6 => Label::IPV6_EXPLICIT_NULL,
+        };
+        return Ok(Label::new(label));
     }
 
     // Get resolved MPLS label.
     match prefix_sid.sid {
-        Sid::Index(index) => {
-            // Get SRGB of the nexthop router.
-            let lsdb = instance.state.lsdb.get(level);
-            let Some(sr_cap) = lsdb
-                .iter_for_system_id(lsp_entries, nexthop_system_id)
-                .map(|lse| &lse.data)
-                .filter(|lsp| lsp.rem_lifetime != 0)
-                .filter(|lsp| lsp.seqno != 0)
-                .find_map(|lsp| lsp.tlvs.sr_cap())
-            else {
-                return Err(Error::SrgbNotFound(level, nexthop_system_id));
-            };
-            index_to_label(
-                instance,
-                nexthop_system_id,
-                index,
-                &sr_cap.srgb_entries,
-            )
-        }
+        Sid::Index(index) => index_to_label(
+            instance,
+            nexthop_system_id,
+            index,
+            &sr_cap.srgb_entries,
+        ),
         Sid::Label(label) => {
             // V/L SIDs have local significance, so only adjacent routers can
             // use them.

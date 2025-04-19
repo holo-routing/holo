@@ -7,6 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
+use holo_utils::ip::AddressFamily;
 use holo_yang::ToYang;
 use tracing::{error, warn, warn_span};
 
@@ -32,7 +33,8 @@ pub enum Error {
     PduDecodeError(InterfaceIndex, [u8; 6], DecodeError),
     AdjacencyReject(InterfaceIndex, [u8; 6], AdjacencyRejectError),
     // Segment Routing
-    SrgbNotFound(LevelNumber, SystemId),
+    SrCapNotFound(LevelNumber, SystemId),
+    SrCapUnsupportedAf(LevelNumber, SystemId, AddressFamily),
     InvalidSidIndex(u32),
     // Other
     CircuitIdAllocationFailed,
@@ -98,8 +100,11 @@ impl Error {
             Error::CircuitIdAllocationFailed => {
                 warn!("{}", self);
             }
-            Error::SrgbNotFound(level, system_id) => {
+            Error::SrCapNotFound(level, system_id) => {
                 warn!(%level, system_id = %system_id.to_yang(), "{}", self);
+            }
+            Error::SrCapUnsupportedAf(level, system_id, af) => {
+                warn!(%level, system_id = %system_id.to_yang(), %af, "{}", self);
             }
             Error::InvalidSidIndex(sid_index) => {
                 warn!(%sid_index, "{}", self);
@@ -137,8 +142,14 @@ impl std::fmt::Display for Error {
             Error::CircuitIdAllocationFailed => {
                 write!(f, "failed to allocate Circuit ID")
             }
-            Error::SrgbNotFound(..) => {
-                write!(f, "failed to find nexthop's neighbor SRGB")
+            Error::SrCapNotFound(..) => {
+                write!(f, "failed to find next-hop's neighbor SR capabilities")
+            }
+            Error::SrCapUnsupportedAf(..) => {
+                write!(
+                    f,
+                    "next-hop router doesn't support SR-MPLS for the address family"
+                )
             }
             Error::InvalidSidIndex(..) => {
                 write!(f, "failed to map SID index to MPLS label")

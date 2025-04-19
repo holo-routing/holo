@@ -19,6 +19,7 @@ use crate::error::Error;
 use crate::instance::InstanceUpView;
 use crate::interface::{Interface, InterfaceType};
 use crate::lsdb::LspEntry;
+use crate::northbound::notification;
 use crate::packet::subtlvs::capability::LabelBlockEntry;
 use crate::packet::subtlvs::prefix::{PrefixSidFlags, PrefixSidStlv};
 use crate::packet::{LanId, LevelNumber, SystemId};
@@ -183,7 +184,7 @@ fn prefix_sid_input_label(
             else {
                 return Err(Error::SrgbNotFound(level, system_id));
             };
-            index_to_label(index, &sr_cap.srgb_entries)?
+            index_to_label(instance, system_id, index, &sr_cap.srgb_entries)?
         }
         Sid::Label(label) => {
             // Absolute label (V/L flags are set).
@@ -235,7 +236,12 @@ fn prefix_sid_output_label(
             else {
                 return Err(Error::SrgbNotFound(level, nexthop_system_id));
             };
-            index_to_label(index, &sr_cap.srgb_entries)
+            index_to_label(
+                instance,
+                nexthop_system_id,
+                index,
+                &sr_cap.srgb_entries,
+            )
         }
         Sid::Label(label) => {
             // V/L SIDs have local significance, so only adjacent routers can
@@ -251,6 +257,8 @@ fn prefix_sid_output_label(
 
 // Maps SID index to MPLS label value.
 fn index_to_label(
+    instance: &InstanceUpView<'_>,
+    system_id: SystemId,
     mut index: u32,
     srgbs: &[LabelBlockEntry],
 ) -> Result<Label, Error> {
@@ -275,5 +283,6 @@ fn index_to_label(
         return Ok(Label::new(label));
     }
 
+    notification::sr_index_out_of_range(instance, system_id, index);
     Err(Error::InvalidSidIndex(index))
 }

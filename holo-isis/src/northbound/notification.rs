@@ -395,3 +395,24 @@ pub(crate) fn lsp_generation(instance: &InstanceUpView<'_>, lsp: &Lsp) {
     };
     notification::send(&instance.tx.nb, path, data);
 }
+
+pub(crate) fn sr_index_out_of_range(
+    instance: &InstanceUpView<'_>,
+    system_id: SystemId,
+    index: u32,
+) {
+    use yang::segment_routing_index_out_of_range::{
+        self, SegmentRoutingIndexOutOfRange,
+    };
+
+    let data = SegmentRoutingIndexOutOfRange {
+        received_target: Some(system_id.to_yang()),
+        received_index: Some(index),
+        routing_protocol: Some(instance.name.into()),
+    };
+    notification::send(
+        &instance.tx.nb,
+        segment_routing_index_out_of_range::PATH,
+        data,
+    );
+}

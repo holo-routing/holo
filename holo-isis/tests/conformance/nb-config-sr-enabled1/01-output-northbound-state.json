@@ -273,29 +273,31 @@
                                 {
                                   "id": 0,
                                   "metric": 10,
-                                  "ietf-isis-sr-mpls:sid-list": [
-                                    {
-                                      "sid": 16,
-                                      "adj-sid-flags": {
-                                        "flags": [
-                                          "vi-flag",
-                                          "lo-flag"
-                                        ]
+                                  "ietf-isis-sr-mpls:adj-sid-sub-tlvs": {
+                                    "adj-sid-sub-tlv": [
+                                      {
+                                        "adj-sid-flags": {
+                                          "flag": [
+                                            "vi-flag",
+                                            "lg-flag"
+                                          ]
+                                        },
+                                        "weight": 0,
+                                        "sid": 16
                                       },
-                                      "weight": 0
-                                    },
-                                    {
-                                      "sid": 17,
-                                      "adj-sid-flags": {
-                                        "flags": [
-                                          "f-flag",
-                                          "vi-flag",
-                                          "lo-flag"
-                                        ]
-                                      },
-                                      "weight": 0
-                                    }
-                                  ]
+                                      {
+                                        "adj-sid-flags": {
+                                          "flag": [
+                                            "f-flag",
+                                            "vi-flag",
+                                            "lg-flag"
+                                          ]
+                                        },
+                                        "weight": 0,
+                                        "sid": 17
+                                      }
+                                    ]
+                                  }
                                 }
                               ]
                             }
@@ -307,29 +309,31 @@
                                 {
                                   "id": 1,
                                   "metric": 10,
-                                  "ietf-isis-sr-mpls:sid-list": [
-                                    {
-                                      "sid": 18,
-                                      "adj-sid-flags": {
-                                        "flags": [
-                                          "vi-flag",
-                                          "lo-flag"
-                                        ]
+                                  "ietf-isis-sr-mpls:adj-sid-sub-tlvs": {
+                                    "adj-sid-sub-tlv": [
+                                      {
+                                        "adj-sid-flags": {
+                                          "flag": [
+                                            "vi-flag",
+                                            "lg-flag"
+                                          ]
+                                        },
+                                        "weight": 0,
+                                        "sid": 18
                                       },
-                                      "weight": 0
-                                    },
-                                    {
-                                      "sid": 19,
-                                      "adj-sid-flags": {
-                                        "flags": [
-                                          "f-flag",
-                                          "vi-flag",
-                                          "lo-flag"
-                                        ]
-                                      },
-                                      "weight": 0
-                                    }
-                                  ]
+                                      {
+                                        "adj-sid-flags": {
+                                          "flag": [
+                                            "f-flag",
+                                            "vi-flag",
+                                            "lg-flag"
+                                          ]
+                                        },
+                                        "weight": 0,
+                                        "sid": 19
+                                      }
+                                    ]
+                                  }
                                 }
                               ]
                             }
@@ -341,29 +345,31 @@
                                 {
                                   "id": 2,
                                   "metric": 10,
-                                  "ietf-isis-sr-mpls:sid-list": [
-                                    {
-                                      "sid": 20,
-                                      "adj-sid-flags": {
-                                        "flags": [
-                                          "vi-flag",
-                                          "lo-flag"
-                                        ]
+                                  "ietf-isis-sr-mpls:adj-sid-sub-tlvs": {
+                                    "adj-sid-sub-tlv": [
+                                      {
+                                        "adj-sid-flags": {
+                                          "flag": [
+                                            "vi-flag",
+                                            "lg-flag"
+                                          ]
+                                        },
+                                        "weight": 0,
+                                        "sid": 20
                                       },
-                                      "weight": 0
-                                    },
-                                    {
-                                      "sid": 21,
-                                      "adj-sid-flags": {
-                                        "flags": [
-                                          "f-flag",
-                                          "vi-flag",
-                                          "lo-flag"
-                                        ]
-                                      },
-                                      "weight": 0
-                                    }
-                                  ]
+                                      {
+                                        "adj-sid-flags": {
+                                          "flag": [
+                                            "f-flag",
+                                            "vi-flag",
+                                            "lg-flag"
+                                          ]
+                                        },
+                                        "weight": 0,
+                                        "sid": 21
+                                      }
+                                    ]
+                                  }
                                 }
                               ]
                             }

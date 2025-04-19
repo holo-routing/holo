@@ -268,23 +268,21 @@
                         "router-capability": [
                           {
                             "ietf-isis-sr-mpls:sr-capability": {
-                              "sr-capability": {
-                                "sr-capability-flags": [
-                                  "mpls-ipv4",
-                                  "mpls-ipv6"
-                                ]
-                              },
-                              "global-blocks": {
-                                "global-block": [
-                                  {
-                                    "range-size": 8000,
-                                    "sid-sub-tlv": {
-                                      "length": 3,
-                                      "sid": 16000
-                                    }
+                              "sr-capability-flag": [
+                                "mpls-ipv4",
+                                "mpls-ipv6"
+                              ]
+                            },
+                            "ietf-isis-sr-mpls:global-blocks": {
+                              "global-block": [
+                                {
+                                  "range-size": 8000,
+                                  "sid-sub-tlv": {
+                                    "length": 3,
+                                    "label-value": 16000
                                   }
-                                ]
-                              }
+                                }
+                              ]
                             },
                             "ietf-isis-sr-mpls:sr-algorithms": {
                               "sr-algorithm": [
@@ -297,7 +295,7 @@
                                   "range-size": 1000,
                                   "sid-sub-tlv": {
                                     "length": 3,
-                                    "sid": 15000
+                                    "label-value": 15000
                                   }
                                 }
                               ]
@@ -314,29 +312,31 @@
                                 {
                                   "id": 0,
                                   "metric": 10,
-                                  "ietf-isis-sr-mpls:sid-list": [
-                                    {
-                                      "sid": 16,
-                                      "adj-sid-flags": {
-                                        "flags": [
-                                          "vi-flag",
-                                          "lo-flag"
-                                        ]
+                                  "ietf-isis-sr-mpls:adj-sid-sub-tlvs": {
+                                    "adj-sid-sub-tlv": [
+                                      {
+                                        "adj-sid-flags": {
+                                          "flag": [
+                                            "vi-flag",
+                                            "lg-flag"
+                                          ]
+                                        },
+                                        "weight": 0,
+                                        "sid": 16
                                       },
-                                      "weight": 0
-                                    },
-                                    {
-                                      "sid": 17,
-                                      "adj-sid-flags": {
-                                        "flags": [
-                                          "f-flag",
-                                          "vi-flag",
-                                          "lo-flag"
-                                        ]
-                                      },
-                                      "weight": 0
-                                    }
-                                  ]
+                                      {
+                                        "adj-sid-flags": {
+                                          "flag": [
+                                            "f-flag",
+                                            "vi-flag",
+                                            "lg-flag"
+                                          ]
+                                        },
+                                        "weight": 0,
+                                        "sid": 17
+                                      }
+                                    ]
+                                  }
                                 }
                               ]
                             }
@@ -348,29 +348,31 @@
                                 {
                                   "id": 1,
                                   "metric": 10,
-                                  "ietf-isis-sr-mpls:sid-list": [
-                                    {
-                                      "sid": 18,
-                                      "adj-sid-flags": {
-                                        "flags": [
-                                          "vi-flag",
-                                          "lo-flag"
-                                        ]
+                                  "ietf-isis-sr-mpls:adj-sid-sub-tlvs": {
+                                    "adj-sid-sub-tlv": [
+                                      {
+                                        "adj-sid-flags": {
+                                          "flag": [
+                                            "vi-flag",
+                                            "lg-flag"
+                                          ]
+                                        },
+                                        "weight": 0,
+                                        "sid": 18
                                       },
-                                      "weight": 0
-                                    },
-                                    {
-                                      "sid": 19,
-                                      "adj-sid-flags": {
-                                        "flags": [
-                                          "f-flag",
-                                          "vi-flag",
-                                          "lo-flag"
-                                        ]
-                                      },
-                                      "weight": 0
-                                    }
-                                  ]
+                                      {
+                                        "adj-sid-flags": {
+                                          "flag": [
+                                            "f-flag",
+                                            "vi-flag",
+                                            "lg-flag"
+                                          ]
+                                        },
+                                        "weight": 0,
+                                        "sid": 19
+                                      }
+                                    ]
+                                  }
                                 }
                               ]
                             }
@@ -382,29 +384,31 @@
                                 {
                                   "id": 2,
                                   "metric": 10,
-                                  "ietf-isis-sr-mpls:sid-list": [
-                                    {
-                                      "sid": 20,
-                                      "adj-sid-flags": {
-                                        "flags": [
-                                          "vi-flag",
-                                          "lo-flag"
-                                        ]
+                                  "ietf-isis-sr-mpls:adj-sid-sub-tlvs": {
+                                    "adj-sid-sub-tlv": [
+                                      {
+                                        "adj-sid-flags": {
+                                          "flag": [
+                                            "vi-flag",
+                                            "lg-flag"
+                                          ]
+                                        },
+                                        "weight": 0,
+                                        "sid": 20
                                       },
-                                      "weight": 0
-                                    },
-                                    {
-                                      "sid": 21,
-                                      "adj-sid-flags": {
-                                        "flags": [
-                                          "f-flag",
-                                          "vi-flag",
-                                          "lo-flag"
-                                        ]
-                                      },
-                                      "weight": 0
-                                    }
-                                  ]
+                                      {
+                                        "adj-sid-flags": {
+                                          "flag": [
+                                            "f-flag",
+                                            "vi-flag",
+                                            "lg-flag"
+                                          ]
+                                        },
+                                        "weight": 0,
+                                        "sid": 21
+                                      }
+                                    ]
+                                  }
                                 }
                               ]
                             }
@@ -424,13 +428,13 @@
                             "ietf-isis-sr-mpls:prefix-sid-sub-tlvs": {
                               "prefix-sid-sub-tlv": [
                                 {
-                                  "sid": 30,
                                   "prefix-sid-flags": {
-                                    "flags": [
+                                    "flag": [
                                       "p-flag"
                                     ]
                                   },
-                                  "algorithm": "ietf-segment-routing-common:prefix-sid-algorithm-shortest-path"
+                                  "algorithm": "ietf-segment-routing-common:prefix-sid-algorithm-shortest-path",
+                                  "sid": 30
                                 }
                               ]
                             }
@@ -468,13 +472,13 @@
                             "ietf-isis-sr-mpls:prefix-sid-sub-tlvs": {
                               "prefix-sid-sub-tlv": [
                                 {
-                                  "sid": 31,
                                   "prefix-sid-flags": {
-                                    "flags": [
+                                    "flag": [
                                       "p-flag"
                                     ]
                                   },
-                                  "algorithm": "ietf-segment-routing-common:prefix-sid-algorithm-shortest-path"
+                                  "algorithm": "ietf-segment-routing-common:prefix-sid-algorithm-shortest-path",
+                                  "sid": 31
                                 }
                               ]
                             }

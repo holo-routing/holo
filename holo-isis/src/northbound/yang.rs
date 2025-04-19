@@ -162,7 +162,7 @@ impl ToYangBits for AdjSidFlags {
             flags.push("ietf-isis-sr-mpls:vi-flag");
         }
         if self.contains(AdjSidFlags::L) {
-            flags.push("ietf-isis-sr-mpls:lo-flag");
+            flags.push("ietf-isis-sr-mpls:lg-flag");
         }
         if self.contains(AdjSidFlags::S) {
             flags.push("ietf-isis-sr-mpls:s-flag");

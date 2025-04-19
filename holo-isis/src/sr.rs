@@ -209,8 +209,7 @@ fn prefix_sid_output_label(
 ) -> Result<Label, Error> {
     // Handle the N-Flag.
     if last_hop && !prefix_sid.flags.contains(PrefixSidFlags::N) {
-        let label = Label::IMPLICIT_NULL;
-        return Ok(Label::new(label));
+        return Ok(Label::implicit_null());
     }
 
     // Get SR capabilities of the next-hop router.
@@ -237,11 +236,7 @@ fn prefix_sid_output_label(
 
     // Handle the E-Flag.
     if last_hop && prefix_sid.flags.contains(PrefixSidFlags::E) {
-        let label = match af {
-            AddressFamily::Ipv4 => Label::IPV4_EXPLICIT_NULL,
-            AddressFamily::Ipv6 => Label::IPV6_EXPLICIT_NULL,
-        };
-        return Ok(Label::new(label));
+        return Ok(Label::explicit_null(af));
     }
 
     // Get resolved MPLS label.
@@ -258,7 +253,7 @@ fn prefix_sid_output_label(
             if last_hop {
                 Ok(label)
             } else {
-                Ok(Label::new(Label::IMPLICIT_NULL))
+                Ok(Label::implicit_null())
             }
         }
     }

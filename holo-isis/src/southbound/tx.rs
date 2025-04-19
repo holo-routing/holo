@@ -134,7 +134,7 @@ pub(crate) fn adj_sid_install(
         nexthops: [Nexthop::Address {
             ifindex: iface.system.ifindex.unwrap(),
             addr: nbr_addr,
-            labels: vec![Label::new(Label::IMPLICIT_NULL)],
+            labels: vec![Label::implicit_null()],
         }]
         .into(),
         route: None,

@@ -6,7 +6,6 @@
 
 use std::net::Ipv4Addr;
 
-use holo_utils::ip::AddressFamily;
 use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid};
 
@@ -174,17 +173,12 @@ where
 
         // Handle the NP-Flag.
         if !prefix_sid.flags().contains(PrefixSidFlags::NP) {
-            let label = Label::IMPLICIT_NULL;
-            return Ok(Label::new(label));
+            return Ok(Label::implicit_null());
         }
 
         // Handle the E-Flag.
         if prefix_sid.flags().contains(PrefixSidFlags::E) {
-            let label = match instance.state.af {
-                AddressFamily::Ipv4 => Label::IPV4_EXPLICIT_NULL,
-                AddressFamily::Ipv6 => Label::IPV6_EXPLICIT_NULL,
-            };
-            return Ok(Label::new(label));
+            return Ok(Label::explicit_null(instance.state.af));
         }
     }
 
@@ -208,7 +202,7 @@ where
             if last_hop {
                 Ok(label)
             } else {
-                Ok(Label::new(Label::IMPLICIT_NULL))
+                Ok(Label::implicit_null())
             }
         }
     }

@@ -11,6 +11,8 @@ use derive_new::new;
 use holo_yang::ToYang;
 use serde::{Deserialize, Serialize};
 
+use crate::ip::AddressFamily;
+
 // MPLS label.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
@@ -73,6 +75,17 @@ impl Label {
 
     pub fn is_reserved(&self) -> bool {
         Self::RESERVED_RANGE.contains(&self.0)
+    }
+
+    pub const fn implicit_null() -> Label {
+        Label(Self::IMPLICIT_NULL)
+    }
+
+    pub const fn explicit_null(af: AddressFamily) -> Label {
+        match af {
+            AddressFamily::Ipv4 => Label(Self::IPV4_EXPLICIT_NULL),
+            AddressFamily::Ipv6 => Label(Self::IPV6_EXPLICIT_NULL),
+        }
     }
 }
 

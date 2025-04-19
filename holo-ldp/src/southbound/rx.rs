@@ -32,7 +32,7 @@ fn local_label_update(fec: &mut Fec, label_manager: &Mutex<LabelManager>) {
 
     let protocol = fec.inner.protocol.unwrap();
     let label = if protocol == Protocol::DIRECT {
-        Label::new(Label::IMPLICIT_NULL)
+        Label::implicit_null()
     } else {
         let mut label_manager = label_manager.lock().unwrap();
         label_manager.label_request().unwrap()

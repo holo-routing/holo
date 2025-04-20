@@ -196,7 +196,7 @@ impl ToYangBits for AdjSidFlags {
             flags.push("ietf-ospf-sr-mpls:vi-flag");
         }
         if self.contains(AdjSidFlags::L) {
-            flags.push("ietf-ospf-sr-mpls:lo-flag");
+            flags.push("ietf-ospf-sr-mpls:lg-flag");
         }
         if self.contains(AdjSidFlags::G) {
             flags.push("ietf-ospf-sr-mpls:g-flag");

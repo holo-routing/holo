@@ -19,7 +19,7 @@ use holo_utils::ip::IpAddrKind;
 use holo_utils::num::SaturatingInto;
 use holo_utils::option::OptionExt;
 use holo_utils::protocol::Protocol;
-use holo_utils::sr::IgpAlgoType;
+use holo_utils::sr::{IgpAlgoType, Sid};
 use holo_yang::{ToYang, ToYangBits};
 use num_traits::FromPrimitive;
 
@@ -783,9 +783,18 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         .get_object(|_instance, args| {
             use ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::opaque::ri_opaque::sid_range_tlvs::sid_range_tlv::sid_sub_tlv::SidSubTlv;
             let srgb = args.list_entry.as_srgb().unwrap();
-            Box::new(SidSubTlv {
-                sid: Some(srgb.first.value()),
-            })
+            let mut stlv = SidSubTlv::default();
+            match srgb.first {
+                Sid::Index(index) => {
+                    stlv.length = Some(4);
+                    stlv.index_value = Some(index);
+                },
+                Sid::Label(label) => {
+                    stlv.length = Some(3);
+                    stlv.label_value = Some(label.get());
+                },
+            };
+            Box::new(stlv)
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::opaque::ri_opaque::local_block_tlvs::local_block_tlv::PATH)
         .get_iterate(|_instance, args| {
@@ -811,9 +820,18 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         .get_object(|_instance, args| {
             use ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::opaque::ri_opaque::local_block_tlvs::local_block_tlv::sid_sub_tlv::SidSubTlv;
             let srlb = args.list_entry.as_srlb().unwrap();
-            Box::new(SidSubTlv {
-                sid: Some(srlb.first.value()),
-            })
+            let mut stlv = SidSubTlv::default();
+            match srlb.first {
+                Sid::Index(index) => {
+                    stlv.length = Some(4);
+                    stlv.index_value = Some(index);
+                },
+                Sid::Label(label) => {
+                    stlv.length = Some(3);
+                    stlv.label_value = Some(label.get());
+                },
+            };
+            Box::new(stlv)
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::opaque::ri_opaque::srms_preference_tlv::PATH)
         .get_object(|_instance, args| {
@@ -884,11 +902,18 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         .get_object(|_instance, args| {
             use ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::opaque::extended_prefix_opaque::extended_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PrefixSidSubTlv;
             let prefix_sid = args.list_entry.as_ospfv2_prefix_sid().unwrap();
-            Box::new(PrefixSidSubTlv {
-                mt_id: Some(0),
-                algorithm: Some(prefix_sid.algo.to_yang()),
-                sid: Some(prefix_sid.sid.value()),
-            })
+            let mut stlv = PrefixSidSubTlv::default();
+            stlv.mt_id = Some(0);
+            stlv.algorithm = Some(prefix_sid.algo.to_yang());
+            match prefix_sid.sid {
+                Sid::Index(index) => {
+                    stlv.index_value = Some(index);
+                },
+                Sid::Label(label) => {
+                    stlv.label_value = Some(label.get());
+                },
+            };
+            Box::new(stlv)
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::opaque::extended_prefix_opaque::extended_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::prefix_sid_flags::PATH)
         .get_object(|_instance, args| {
@@ -896,7 +921,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             let prefix_sid = args.list_entry.as_ospfv2_prefix_sid().unwrap();
             let iter = prefix_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
             Box::new(PrefixSidFlags {
-                flags: Some(Box::new(iter)),
+                flag: Some(Box::new(iter)),
             })
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::header::PATH)
@@ -1228,9 +1253,18 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         .get_object(|_instance, args| {
             use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::sid_range_tlvs::sid_range_tlv::sid_sub_tlv::SidSubTlv;
             let srgb = args.list_entry.as_srgb().unwrap();
-            Box::new(SidSubTlv {
-                sid: Some(srgb.first.value()),
-            })
+            let mut stlv = SidSubTlv::default();
+            match srgb.first {
+                Sid::Index(index) => {
+                    stlv.length = Some(4);
+                    stlv.index_value = Some(index);
+                },
+                Sid::Label(label) => {
+                    stlv.length = Some(3);
+                    stlv.label_value = Some(label.get());
+                },
+            };
+            Box::new(stlv)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::local_block_tlvs::local_block_tlv::PATH)
         .get_iterate(|_instance, args| {
@@ -1256,9 +1290,18 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         .get_object(|_instance, args| {
             use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::local_block_tlvs::local_block_tlv::sid_sub_tlv::SidSubTlv;
             let srlb = args.list_entry.as_srlb().unwrap();
-            Box::new(SidSubTlv {
-                sid: Some(srlb.first.value()),
-            })
+            let mut stlv = SidSubTlv::default();
+            match srlb.first {
+                Sid::Index(index) => {
+                    stlv.length = Some(4);
+                    stlv.index_value = Some(index);
+                },
+                Sid::Label(label) => {
+                    stlv.length = Some(3);
+                    stlv.label_value = Some(label.get());
+                },
+            };
+            Box::new(stlv)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::srms_preference_tlv::PATH)
         .get_object(|_instance, args| {
@@ -1330,11 +1373,18 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         .get_object(|_instance, args| {
             use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::extended_prefix_opaque::extended_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PrefixSidSubTlv;
             let prefix_sid = args.list_entry.as_ospfv2_prefix_sid().unwrap();
-            Box::new(PrefixSidSubTlv {
-                mt_id: Some(0),
-                algorithm: Some(prefix_sid.algo.to_yang()),
-                sid: Some(prefix_sid.sid.value()),
-            })
+            let mut stlv = PrefixSidSubTlv::default();
+            stlv.mt_id = Some(0);
+            stlv.algorithm = Some(prefix_sid.algo.to_yang());
+            match prefix_sid.sid {
+                Sid::Index(index) => {
+                    stlv.index_value = Some(index);
+                },
+                Sid::Label(label) => {
+                    stlv.label_value = Some(label.get());
+                },
+            };
+            Box::new(stlv)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::extended_prefix_opaque::extended_prefix_tlv::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::prefix_sid_flags::PATH)
         .get_object(|_instance, args| {
@@ -1342,7 +1392,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             let prefix_sid = args.list_entry.as_ospfv2_prefix_sid().unwrap();
             let iter = prefix_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
             Box::new(PrefixSidFlags {
-                flags: Some(Box::new(iter)),
+                flag: Some(Box::new(iter)),
             })
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::extended_link_opaque::extended_link_tlv::PATH)
@@ -1430,11 +1480,18 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         .get_object(|_instance, args| {
             use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::extended_link_opaque::extended_link_tlv::adj_sid_sub_tlvs::adj_sid_sub_tlv::AdjSidSubTlv;
             let adj_sid = args.list_entry.as_ospfv2_adj_sid().unwrap();
-            Box::new(AdjSidSubTlv {
-                mt_id: Some(0),
-                weight: Some(adj_sid.weight),
-                sid: Some(adj_sid.sid.value()),
-            })
+            let mut stlv = AdjSidSubTlv::default();
+            stlv.mt_id = Some(0);
+            stlv.weight = Some(adj_sid.weight);
+            match adj_sid.sid {
+                Sid::Index(index) => {
+                    stlv.index_value = Some(index);
+                },
+                Sid::Label(label) => {
+                    stlv.label_value = Some(label.get());
+                },
+            };
+            Box::new(stlv)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::extended_link_opaque::extended_link_tlv::adj_sid_sub_tlvs::adj_sid_sub_tlv::adj_sid_flags::PATH)
         .get_object(|_instance, args| {
@@ -1442,7 +1499,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             let adj_sid = args.list_entry.as_ospfv2_adj_sid().unwrap();
             let iter = adj_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
             Box::new(AdjSidFlags {
-                flags: Some(Box::new(iter)),
+                flag: Some(Box::new(iter)),
             })
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::extended_link_opaque::extended_link_tlv::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::PATH)
@@ -1462,12 +1519,19 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         .get_object(|_instance, args| {
             use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::extended_link_opaque::extended_link_tlv::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::LanAdjSidSubTlv;
             let adj_sid = args.list_entry.as_ospfv2_adj_sid().unwrap();
-            Box::new(LanAdjSidSubTlv {
-                mt_id: Some(0),
-                weight: Some(adj_sid.weight),
-                neighbor_router_id: Some(Cow::Owned(adj_sid.nbr_router_id.unwrap())),
-                sid: Some(adj_sid.sid.value()),
-            })
+            let mut stlv = LanAdjSidSubTlv::default();
+            stlv.mt_id = Some(0);
+            stlv.weight = Some(adj_sid.weight);
+            stlv.neighbor_router_id = Some(Cow::Owned(adj_sid.nbr_router_id.unwrap()));
+            match adj_sid.sid {
+                Sid::Index(index) => {
+                    stlv.index_value = Some(index);
+                },
+                Sid::Label(label) => {
+                    stlv.label_value = Some(label.get());
+                },
+            };
+            Box::new(stlv)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::extended_link_opaque::extended_link_tlv::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::lan_adj_sid_flags::PATH)
         .get_object(|_instance, args| {
@@ -1475,7 +1539,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             let adj_sid = args.list_entry.as_ospfv2_adj_sid().unwrap();
             let iter = adj_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
             Box::new(LanAdjSidFlags {
-                flags: Some(Box::new(iter)),
+                flag: Some(Box::new(iter)),
             })
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::header::PATH)
@@ -1610,93 +1674,6 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
                 r#type: Some(tlv.tlv_type),
                 length: Some(tlv.length),
                 value: Some(tlv.value.as_ref()),
-            })
-        })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::sr_algorithm_tlv::PATH)
-        .get_object(|_instance, args| {
-            use ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::sr_algorithm_tlv::SrAlgorithmTlv;
-            let lse: &LsaEntry<Ospfv2> = args.list_entry.as_interface_lsa().unwrap();
-            let mut sr_algorithm = None;
-            let lsa = &lse.data;
-            if let Some(lsa_body) = lsa.body.as_opaque_link()
-                && let Some(lsa_body) = lsa_body.as_router_info()
-            {
-                let iter = lsa_body.sr_algo.iter().flat_map(|tlv| tlv.get().iter()).map(|algo| algo.to_yang());
-                sr_algorithm = Some(Box::new(iter) as _);
-            }
-            Box::new(SrAlgorithmTlv {
-                sr_algorithm,
-            })
-        })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::sid_range_tlvs::sid_range_tlv::PATH)
-        .get_iterate(|_instance, args| {
-            let lse: &LsaEntry<Ospfv2> = args.parent_list_entry.as_interface_lsa().unwrap();
-            let lsa = &lse.data;
-            if let Some(lsa_body) = lsa.body.as_opaque_link()
-                && let Some(lsa_body) = lsa_body.as_router_info()
-            {
-                let iter = lsa_body.srgb.iter().map(ListEntry::Srgb);
-                Some(Box::new(iter))
-            } else {
-                None
-            }
-        })
-        .get_object(|_instance, args| {
-            use ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::sid_range_tlvs::sid_range_tlv::SidRangeTlv;
-            let srgb = args.list_entry.as_srgb().unwrap();
-            Box::new(SidRangeTlv {
-                range_size: Some(srgb.range),
-            })
-        })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::sid_range_tlvs::sid_range_tlv::sid_sub_tlv::PATH)
-        .get_object(|_instance, args| {
-            use ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::sid_range_tlvs::sid_range_tlv::sid_sub_tlv::SidSubTlv;
-            let srgb = args.list_entry.as_srgb().unwrap();
-            Box::new(SidSubTlv {
-                sid: Some(srgb.first.value()),
-            })
-        })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::local_block_tlvs::local_block_tlv::PATH)
-        .get_iterate(|_instance, args| {
-            let lse: &LsaEntry<Ospfv2> = args.parent_list_entry.as_interface_lsa().unwrap();
-            let lsa = &lse.data;
-            if let Some(lsa_body) = lsa.body.as_opaque_link()
-                && let Some(lsa_body) = lsa_body.as_router_info()
-            {
-                let iter = lsa_body.srlb.iter().map(ListEntry::Srlb);
-                Some(Box::new(iter))
-            } else {
-                None
-            }
-        })
-        .get_object(|_instance, args| {
-            use ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::local_block_tlvs::local_block_tlv::LocalBlockTlv;
-            let srlb = args.list_entry.as_srlb().unwrap();
-            Box::new(LocalBlockTlv {
-                range_size: Some(srlb.range),
-            })
-        })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::local_block_tlvs::local_block_tlv::sid_sub_tlv::PATH)
-        .get_object(|_instance, args| {
-            use ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::local_block_tlvs::local_block_tlv::sid_sub_tlv::SidSubTlv;
-            let srlb = args.list_entry.as_srlb().unwrap();
-            Box::new(SidSubTlv {
-                sid: Some(srlb.first.value()),
-            })
-        })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::srms_preference_tlv::PATH)
-        .get_object(|_instance, args| {
-            use ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::srms_preference_tlv::SrmsPreferenceTlv;
-            let lse: &LsaEntry<Ospfv2> = args.list_entry.as_interface_lsa().unwrap();
-            let mut preference = None;
-            let lsa = &lse.data;
-            if let Some(lsa_body) = lsa.body.as_opaque_link()
-                && let Some(lsa_body) = lsa_body.as_router_info()
-            {
-                preference = lsa_body.srms_pref.as_ref().map(|tlv| tlv.get());
-            }
-            Box::new(SrmsPreferenceTlv {
-                preference,
             })
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::grace::PATH)
@@ -1911,9 +1888,18 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_object(|_instance, args| {
             use ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::router_information::sid_range_tlvs::sid_range_tlv::sid_sub_tlv::SidSubTlv;
             let srgb = args.list_entry.as_srgb().unwrap();
-            Box::new(SidSubTlv {
-                sid: Some(srgb.first.value()),
-            })
+            let mut stlv = SidSubTlv::default();
+            match srgb.first {
+                Sid::Index(index) => {
+                    stlv.length = Some(4);
+                    stlv.index_value = Some(index);
+                },
+                Sid::Label(label) => {
+                    stlv.length = Some(3);
+                    stlv.label_value = Some(label.get());
+                },
+            };
+            Box::new(stlv)
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::router_information::local_block_tlvs::local_block_tlv::PATH)
         .get_iterate(|_instance, args| {
@@ -1937,9 +1923,18 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_object(|_instance, args| {
             use ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::router_information::local_block_tlvs::local_block_tlv::sid_sub_tlv::SidSubTlv;
             let srlb = args.list_entry.as_srlb().unwrap();
-            Box::new(SidSubTlv {
-                sid: Some(srlb.first.value()),
-            })
+            let mut stlv = SidSubTlv::default();
+            match srlb.first {
+                Sid::Index(index) => {
+                    stlv.length = Some(4);
+                    stlv.index_value = Some(index);
+                },
+                Sid::Label(label) => {
+                    stlv.length = Some(3);
+                    stlv.label_value = Some(label.get());
+                },
+            };
+            Box::new(stlv)
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::router_information::srms_preference_tlv::PATH)
         .get_object(|_instance, args| {
@@ -2063,10 +2058,17 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_object(|_instance, args| {
             use ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PrefixSidSubTlv;
             let prefix_sid = args.list_entry.as_ospfv3_prefix_sid().unwrap();
-            Box::new(PrefixSidSubTlv {
-                algorithm: Some(prefix_sid.algo.to_yang()),
-                sid: Some(prefix_sid.sid.value()),
-            })
+            let mut stlv = PrefixSidSubTlv::default();
+            stlv.algorithm = Some(prefix_sid.algo.to_yang());
+            match prefix_sid.sid {
+                Sid::Index(index) => {
+                    stlv.index_value = Some(index);
+                },
+                Sid::Label(label) => {
+                    stlv.label_value = Some(label.get());
+                },
+            };
+            Box::new(stlv)
         })
         .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::PATH)
         .get_object(|_instance, args| {
@@ -2074,7 +2076,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let prefix_sid = args.list_entry.as_ospfv3_prefix_sid().unwrap();
             let iter = prefix_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
             Box::new(Ospfv3PrefixSidFlags {
-                flags: Some(Box::new(iter)),
+                flag: Some(Box::new(iter)),
             })
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::header::PATH)
@@ -2416,9 +2418,18 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_object(|_instance, args| {
             use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::sid_range_tlvs::sid_range_tlv::sid_sub_tlv::SidSubTlv;
             let srgb = args.list_entry.as_srgb().unwrap();
-            Box::new(SidSubTlv {
-                sid: Some(srgb.first.value()),
-            })
+            let mut stlv = SidSubTlv::default();
+            match srgb.first {
+                Sid::Index(index) => {
+                    stlv.length = Some(4);
+                    stlv.index_value = Some(index);
+                },
+                Sid::Label(label) => {
+                    stlv.length = Some(3);
+                    stlv.label_value = Some(label.get());
+                },
+            };
+            Box::new(stlv)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::local_block_tlvs::local_block_tlv::PATH)
         .get_iterate(|_instance, args| {
@@ -2442,9 +2453,18 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_object(|_instance, args| {
             use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::local_block_tlvs::local_block_tlv::sid_sub_tlv::SidSubTlv;
             let srlb = args.list_entry.as_srlb().unwrap();
-            Box::new(SidSubTlv {
-                sid: Some(srlb.first.value()),
-            })
+            let mut stlv = SidSubTlv::default();
+            match srlb.first {
+                Sid::Index(index) => {
+                    stlv.length = Some(4);
+                    stlv.index_value = Some(index);
+                },
+                Sid::Label(label) => {
+                    stlv.length = Some(3);
+                    stlv.label_value = Some(label.get());
+                },
+            };
+            Box::new(stlv)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::srms_preference_tlv::PATH)
         .get_object(|_instance, args| {
@@ -2541,10 +2561,17 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_object(|_instance, args| {
             use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::sub_tlvs::adj_sid_sub_tlvs::adj_sid_sub_tlv::AdjSidSubTlv;
             let adj_sid = args.list_entry.as_ospfv3_adj_sid().unwrap();
-            Box::new(AdjSidSubTlv {
-                weight: Some(adj_sid.weight),
-                sid: Some(adj_sid.sid.value()),
-            })
+            let mut stlv = AdjSidSubTlv::default();
+            stlv.weight = Some(adj_sid.weight);
+            match adj_sid.sid {
+                Sid::Index(index) => {
+                    stlv.index_value = Some(index);
+                },
+                Sid::Label(label) => {
+                    stlv.label_value = Some(label.get());
+                },
+            };
+            Box::new(stlv)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::sub_tlvs::adj_sid_sub_tlvs::adj_sid_sub_tlv::adj_sid_flags::PATH)
         .get_object(|_instance, args| {
@@ -2552,7 +2579,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let adj_sid = args.list_entry.as_ospfv3_adj_sid().unwrap();
             let iter = adj_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
             Box::new(AdjSidFlags {
-                flags: Some(Box::new(iter)),
+                flag: Some(Box::new(iter)),
             })
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::sub_tlvs::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::PATH)
@@ -2564,11 +2591,18 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_object(|_instance, args| {
             use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::sub_tlvs::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::LanAdjSidSubTlv;
             let adj_sid = args.list_entry.as_ospfv3_adj_sid().unwrap();
-            Box::new(LanAdjSidSubTlv {
-                weight: Some(adj_sid.weight),
-                neighbor_router_id: Some(Cow::Owned(adj_sid.nbr_router_id.unwrap())),
-                sid: Some(adj_sid.sid.value()),
-            })
+            let mut stlv = LanAdjSidSubTlv::default();
+            stlv.weight = Some(adj_sid.weight);
+            stlv.neighbor_router_id = Some(Cow::Owned(adj_sid.nbr_router_id.unwrap()));
+            match adj_sid.sid {
+                Sid::Index(index) => {
+                    stlv.index_value = Some(index);
+                },
+                Sid::Label(label) => {
+                    stlv.label_value = Some(label.get());
+                },
+            };
+            Box::new(stlv)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::sub_tlvs::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::lan_adj_sid_flags::PATH)
         .get_object(|_instance, args| {
@@ -2576,7 +2610,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let adj_sid = args.list_entry.as_ospfv3_adj_sid().unwrap();
             let iter = adj_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
             Box::new(LanAdjSidFlags {
-                flags: Some(Box::new(iter)),
+                flag: Some(Box::new(iter)),
             })
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_network::lsa_options::PATH)
@@ -2703,10 +2737,17 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_object(|_instance, args| {
             use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::sub_tlvs::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PrefixSidSubTlv;
             let prefix_sid = args.list_entry.as_ospfv3_prefix_sid().unwrap();
-            Box::new(PrefixSidSubTlv {
-                algorithm: Some(prefix_sid.algo.to_yang()),
-                sid: Some(prefix_sid.sid.value()),
-            })
+            let mut stlv = PrefixSidSubTlv::default();
+            stlv.algorithm = Some(prefix_sid.algo.to_yang());
+            match prefix_sid.sid {
+                Sid::Index(index) => {
+                    stlv.index_value = Some(index);
+                },
+                Sid::Label(label) => {
+                    stlv.label_value = Some(label.get());
+                },
+            };
+            Box::new(stlv)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::sub_tlvs::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::ospfv3_prefix_sid_flags::PATH)
         .get_object(|_instance, args| {
@@ -2714,7 +2755,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let prefix_sid = args.list_entry.as_ospfv3_prefix_sid().unwrap();
             let iter = prefix_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
             Box::new(Ospfv3PrefixSidFlags {
-                flags: Some(Box::new(iter)),
+                flag: Some(Box::new(iter)),
             })
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::PATH)
@@ -2879,10 +2920,17 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_object(|_instance, args| {
             use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PrefixSidSubTlv;
             let prefix_sid = args.list_entry.as_ospfv3_prefix_sid().unwrap();
-            Box::new(PrefixSidSubTlv {
-                algorithm: Some(prefix_sid.algo.to_yang()),
-                sid: Some(prefix_sid.sid.value()),
-            })
+            let mut stlv = PrefixSidSubTlv::default();
+            stlv.algorithm = Some(prefix_sid.algo.to_yang());
+            match prefix_sid.sid {
+                Sid::Index(index) => {
+                    stlv.index_value = Some(index);
+                },
+                Sid::Label(label) => {
+                    stlv.label_value = Some(label.get());
+                },
+            };
+            Box::new(stlv)
         })
         .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::bier_info_sub_tlvs::bier_info_sub_tlv::PATH)
         .get_iterate(|_instance, args| {
@@ -2938,7 +2986,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let prefix_sid = args.list_entry.as_ospfv3_prefix_sid().unwrap();
             let iter = prefix_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
             Box::new(Ospfv3PrefixSidFlags {
-                flags: Some(Box::new(iter)),
+                flag: Some(Box::new(iter)),
             })
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::header::PATH)
@@ -3076,81 +3124,6 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let flag = args.list_entry.as_flag_u32().unwrap();
             Box::new(FunctionalCapabilities {
                 functional_flag: Some(*flag),
-            })
-        })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::router_information::sr_algorithm_tlv::PATH)
-        .get_object(|_instance, args| {
-            use ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::router_information::sr_algorithm_tlv::SrAlgorithmTlv;
-            let lse: &LsaEntry<Ospfv3> = args.list_entry.as_interface_lsa().unwrap();
-            let mut sr_algorithm = None;
-            let lsa = &lse.data;
-            if let Some(lsa_body) = lsa.body.as_router_info() {
-                let iter = lsa_body.sr_algo.iter().flat_map(|tlv| tlv.get().iter()).map(|algo| algo.to_yang());
-                sr_algorithm = Some(Box::new(iter) as _);
-            }
-            Box::new(SrAlgorithmTlv {
-                sr_algorithm,
-            })
-        })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::router_information::sid_range_tlvs::sid_range_tlv::PATH)
-        .get_iterate(|_instance, args| {
-            let lse: &LsaEntry<Ospfv3> = args.parent_list_entry.as_interface_lsa().unwrap();
-            let lsa = &lse.data;
-            if let Some(lsa_body) = lsa.body.as_router_info() {
-                let iter = lsa_body.srgb.iter().map(ListEntry::Srgb);
-                Some(Box::new(iter))
-            } else {
-                None
-            }
-        })
-        .get_object(|_instance, args| {
-            use ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::router_information::sid_range_tlvs::sid_range_tlv::SidRangeTlv;
-            let srgb = args.list_entry.as_srgb().unwrap();
-            Box::new(SidRangeTlv {
-                range_size: Some(srgb.range),
-            })
-        })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::router_information::sid_range_tlvs::sid_range_tlv::sid_sub_tlv::PATH)
-        .get_object(|_instance, args| {
-            use ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::router_information::sid_range_tlvs::sid_range_tlv::sid_sub_tlv::SidSubTlv;
-            let srgb = args.list_entry.as_srgb().unwrap();
-            Box::new(SidSubTlv {
-                sid: Some(srgb.first.value()),
-            })
-        })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::router_information::local_block_tlvs::local_block_tlv::PATH)
-        .get_iterate(|_instance, args| {
-            let lse: &LsaEntry<Ospfv3> = args.parent_list_entry.as_interface_lsa().unwrap();
-            let lsa = &lse.data;
-            if let Some(lsa_body) = lsa.body.as_router_info() {
-                let iter = lsa_body.srlb.iter().map(ListEntry::Srlb);
-                Some(Box::new(iter))
-            } else {
-                None
-            }
-        })
-        .get_object(|_instance, args| {
-            use ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::router_information::local_block_tlvs::local_block_tlv::LocalBlockTlv;
-            let srlb = args.list_entry.as_srlb().unwrap();
-            Box::new(LocalBlockTlv {
-                range_size: Some(srlb.range),
-            })
-        })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::router_information::local_block_tlvs::local_block_tlv::sid_sub_tlv::PATH)
-        .get_object(|_instance, args| {
-            use ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::router_information::local_block_tlvs::local_block_tlv::sid_sub_tlv::SidSubTlv;
-            let srlb = args.list_entry.as_srlb().unwrap();
-            Box::new(SidSubTlv {
-                sid: Some(srlb.first.value()),
-            })
-        })
-        .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::router_information::srms_preference_tlv::PATH)
-        .get_object(|_instance, args| {
-            use ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::router_information::srms_preference_tlv::SrmsPreferenceTlv;
-            let lse: &LsaEntry<Ospfv3> = args.list_entry.as_interface_lsa().unwrap();
-            let lsa = &lse.data;
-            Box::new(SrmsPreferenceTlv {
-                preference: lsa.body.as_router_info().and_then(|lsa_body| lsa_body.srms_pref.as_ref().map(|tlv| tlv.get())),
             })
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::grace::PATH)

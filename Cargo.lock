@@ -1428,6 +1428,7 @@ dependencies = [
  "ipnetwork",
  "libc",
  "nix",
+ "rand 0.9.0",
  "serde",
  "serde_json",
  "socket2 0.5.8",

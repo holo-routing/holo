@@ -13,7 +13,6 @@ use const_addrs::{ip, ip4};
 use holo_protocol::assert_eq_hex;
 use holo_utils::ip::AddressFamily;
 use holo_vrrp::instance::Version;
-use holo_vrrp::network::{VRRP_MULTICAST_ADDR_IPV4, VRRP_PROTO_NUMBER};
 use holo_vrrp::packet::{DecodeError, EthernetHdr, Ipv4Hdr, VrrpHdr};
 
 static VRRPV2HDR: LazyLock<(Vec<u8>, VrrpHdr)> = LazyLock::new(|| {
@@ -55,27 +54,16 @@ static VRRPV3HDR_IPV6: LazyLock<(Vec<u8>, VrrpHdr)> = LazyLock::new(|| {
     )
 });
 
+// Unique identifier for the packet.
 static IPV4HDR: LazyLock<(Vec<u8>, Ipv4Hdr)> = LazyLock::new(|| {
     (
         vec![
-            0x45, 0xc0, 0x00, 0x28, 0x08, 0x9d, 0x00, 0x00, 0xff, 0x70, 0xad,
-            0x4b, 0xc0, 0xa8, 0x64, 0x02, 0xe0, 0x00, 0x00, 0x12,
+            0x45, 0xc0, 0x00, 0x28, 0x00, 0x00, 0x00, 0x00, 0xff, 0x70, 0xb5,
+            0xe8, 0xc0, 0xa8, 0x64, 0x02, 0xe0, 0x00, 0x00, 0x12,
         ],
         Ipv4Hdr {
-            version: 4,
-            ihl: 5,
-            tos: 0xc0,
             total_length: 40,
-            identification: 0x089d,
-            flags: 0,
-            offset: 0,
-            ttl: 255,
-            protocol: VRRP_PROTO_NUMBER as u8,
-            checksum: 0xad4b,
             src_address: ip4!("192.168.100.2"),
-            dst_address: *VRRP_MULTICAST_ADDR_IPV4,
-            options: None,
-            padding: None,
         },
     )
 });
@@ -190,24 +178,13 @@ fn test_decode_vrrpv2_wrong_checksum() {
 #[test]
 fn test_encode_ipv4hdr() {
     let (ref bytes, ref iphdr) = *IPV4HDR;
-    let mut iphdr = iphdr.clone();
-    iphdr.checksum = 0;
+    let iphdr = iphdr.clone();
 
     let generated_bytes = iphdr.encode();
     let generated_data = generated_bytes.as_ref();
+
     let expected_data: &[u8] = bytes.as_ref();
     assert_eq_hex!(generated_data, expected_data);
-}
-
-#[test]
-fn test_decode_ipv4hdr() {
-    let (ref bytes, ref ipv4hdr) = *IPV4HDR;
-    let data = bytes.as_ref();
-    let generated_hdr = Ipv4Hdr::decode(data);
-    assert!(generated_hdr.is_ok());
-
-    let generated_hdr = generated_hdr.unwrap();
-    assert_eq!(ipv4hdr, &generated_hdr);
 }
 
 #[test]

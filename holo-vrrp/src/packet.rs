@@ -14,10 +14,13 @@ use holo_utils::bytes::{BytesExt, BytesMutExt};
 use holo_utils::ip::AddressFamily;
 use holo_utils::socket::TTL_MAX;
 use internet_checksum::Checksum;
+use rand::prelude::SliceRandom;
 use serde::{Deserialize, Serialize};
 
 use crate::instance::Version;
-use crate::network::ICMP_PROTO_NUMBER;
+use crate::network::{
+    ICMP_PROTO_NUMBER, VRRP_MULTICAST_ADDR_IPV4, VRRP_PROTO_NUMBER,
+};
 
 // Type aliases.
 pub type DecodeResult<T> = Result<T, DecodeError>;
@@ -100,20 +103,8 @@ pub struct VrrpHdr {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct Ipv4Hdr {
-    pub version: u8,
-    pub ihl: u8,
-    pub tos: u8,
     pub total_length: u16,
-    pub identification: u16,
-    pub flags: u8,
-    pub offset: u16,
-    pub ttl: u8,
-    pub protocol: u8,
-    pub checksum: u16,
     pub src_address: Ipv4Addr,
-    pub dst_address: Ipv4Addr,
-    pub options: Option<u32>,
-    pub padding: Option<u8>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -328,97 +319,52 @@ impl VrrpHdr {
 }
 
 impl Ipv4Hdr {
-    const MIN_LEN: usize = 20;
-
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::new();
 
         // ver_ihl -> version[4 bits] + ihl[4 bits]
-        buf.put_u8((self.version << 4) | self.ihl);
-        buf.put_u8(self.tos);
+        let version: u8 = 4;
+        let ihl: u8 = 5;
+        buf.put_u8((version << 4) | ihl);
+
+        // Tos.
+        buf.put_u8(0xc0);
+
+        // Total Length ip header + payload.
         buf.put_u16(self.total_length);
-        buf.put_u16(self.identification);
 
-        // flag_off -> flags[4 bits] + offset[12 bits]
-        let flag_off: u16 = ((self.flags as u16) << 12) | self.offset;
-        buf.put_u16(flag_off);
-        buf.put_u8(self.ttl);
-        buf.put_u8(self.protocol);
-        buf.put_u16(self.checksum);
-        buf.put_ipv4(&self.src_address);
-        buf.put_ipv4(&self.dst_address);
-
-        // the header length for IP is between 20 and 24
-        // when 24, the options and padding fields are present.
-        if let (Some(options), Some(padding)) = (self.options, self.padding) {
-            let opt_pad: u32 = (options << 8) | (padding as u32);
-            buf.put_u32(opt_pad);
+        // Identification.
+        if cfg!(test) {
+            // Generate random ID.
+            let mut rng = rand::rng();
+            let mut ids: Vec<u16> = (u16::MIN..u16::MAX).collect();
+            ids.shuffle(&mut rng);
+            buf.put_u16(*(ids.first().unwrap()));
+        } else {
+            // When testing, have the ID as 0.
+            buf.put_u16(0x00);
         }
+
+        // Flags & offset -> flags[4 bits] + offset[12 bits].
+        buf.put_u16(0x00);
+
+        // Ttl.
+        buf.put_u8(TTL_MAX);
+
+        // Protocol.
+        buf.put_u8(VRRP_PROTO_NUMBER as u8);
+
+        // Checksum.
+        buf.put_u16(0x00);
+        buf.put_ipv4(&self.src_address);
+
+        // Destination Address.
+        buf.put_ipv4(&VRRP_MULTICAST_ADDR_IPV4);
 
         let mut check = Checksum::new();
         check.add_bytes(&buf);
         buf[10..12].copy_from_slice(&check.checksum());
         buf
-    }
-
-    pub fn decode(data: &[u8]) -> DecodeResult<Self> {
-        let mut buf = Bytes::copy_from_slice(data);
-
-        // ver_ihl -> version[4 bits] + ihl[4 bits]
-        let ver_ihl = buf.get_u8();
-        let version = ver_ihl >> 4;
-        let ihl = ver_ihl & 0x0F;
-
-        let tos = buf.get_u8();
-        let total_length = buf.get_u16();
-        let identification = buf.get_u16();
-
-        // flag_off -> flags[4 bits] + offset[12 bits]
-        let flag_off = buf.get_u16();
-        let flags: u8 = (flag_off >> 12) as u8;
-        let offset: u16 = flag_off & 0xFFF;
-
-        let ttl = buf.get_u8();
-        if ttl != TTL_MAX {
-            return Err(DecodeError::IpTtlError { ttl });
-        }
-        let protocol = buf.get_u8();
-        let checksum = buf.get_u16();
-
-        let src_address = buf.get_ipv4();
-        let dst_address = buf.get_ipv4();
-
-        let mut options: Option<u32> = None;
-        let mut padding: Option<u8> = None;
-
-        if ihl > Self::MIN_LEN as u8 {
-            let opt_pad = buf.get_u32();
-            options = Some(opt_pad >> 8);
-            padding = Some((opt_pad & 0xFF) as u8);
-        }
-
-        let mut check = Checksum::new();
-        check.add_bytes(data);
-        if check.checksum() != [0, 0] {
-            return Err(DecodeError::ChecksumError);
-        }
-
-        Ok(Self {
-            version,
-            ihl,
-            tos,
-            total_length,
-            identification,
-            flags,
-            offset,
-            ttl,
-            protocol,
-            checksum,
-            src_address,
-            dst_address,
-            options,
-            padding,
-        })
     }
 }
 

@@ -14,7 +14,7 @@ use holo_vrrp::interface::Interface;
 async fn topology_v2_1_1() {
     for rt_num in 1..=3 {
         let rt_name = format!("rt{}", rt_num);
-        run_test_topology::<Interface>("v2-topo1-1", &rt_name).await;
+        run_test_topology::<Interface>("vrrpv2-topo-1-1", &rt_name).await;
     }
 }
 
@@ -22,7 +22,7 @@ async fn topology_v2_1_1() {
 async fn topology_v3_1_1() {
     for rt_num in 1..=3 {
         let rt_name = format!("rt{}", rt_num);
-        run_test_topology::<Interface>("v3-topo1-1", &rt_name).await;
+        run_test_topology::<Interface>("vrrpv3-topo-1-1", &rt_name).await;
     }
 }
 
@@ -30,6 +30,6 @@ async fn topology_v3_1_1() {
 async fn topology_v3_1_2() {
     for rt_num in 1..=3 {
         let rt_name = format!("rt{}", rt_num);
-        run_test_topology::<Interface>("v3-topo1-2", &rt_name).await;
+        run_test_topology::<Interface>("vrrpv3-topo-1-2", &rt_name).await;
     }
 }

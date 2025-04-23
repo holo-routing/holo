@@ -27,5 +27,15 @@ use holo_vrrp::interface::Interface;
 //  * Southbound: install the 10.0.1.5/32 address to the mvlan-vrrp-1 interface
 #[tokio::test]
 async fn master_down_timer1() {
-    run_test::<Interface>("master-down-timer1", "v2-topo1-1", "rt1").await;
+    run_test::<Interface>("master-down-timer1", "vrrpv2-topo-1-1", "rt1").await;
+}
+
+#[tokio::test]
+async fn master_down_timer2() {
+    run_test::<Interface>("master-down-timer1", "vrrpv3-topo-1-1", "rt1").await;
+}
+
+#[tokio::test]
+async fn master_down_timer3() {
+    run_test::<Interface>("master-down-timer1", "vrrpv3-topo-1-2", "rt1").await;
 }

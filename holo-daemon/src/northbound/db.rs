@@ -26,7 +26,7 @@ pub(crate) fn transaction_get(
     db: &PickleDb,
     transaction_id: u32,
 ) -> Option<Transaction> {
-    let key = format!("transaction{}", transaction_id);
+    let key = format!("transaction{transaction_id}");
     db.get(&key)
 }
 

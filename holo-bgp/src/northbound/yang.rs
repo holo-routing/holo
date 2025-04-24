@@ -219,7 +219,7 @@ impl ToYang for NotificationMsg {
                 }
             }
         };
-        format!("iana-bgp-notification:{}", identity).into()
+        format!("iana-bgp-notification:{identity}").into()
     }
 }
 

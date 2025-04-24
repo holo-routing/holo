@@ -274,12 +274,11 @@ impl ProtocolInstance for Instance {
 
     fn process_protocol_msg(&mut self, msg: ProtocolInputMsg) {
         // Ignore event if the instance isn't active.
-        if let Some((mut instance, neighbors)) = self.as_up() {
-            if let Err(error) =
+        if let Some((mut instance, neighbors)) = self.as_up()
+            && let Err(error) =
                 process_protocol_msg(&mut instance, neighbors, msg)
-            {
-                error.log();
-            }
+        {
+            error.log();
         }
     }
 

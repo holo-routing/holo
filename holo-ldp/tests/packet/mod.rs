@@ -51,7 +51,7 @@ fn test_encode_msg(bytes_expected: &[u8], msg: &Message) {
 }
 
 fn test_decode_msg(cxt: &DecodeCxt, bytes: &[u8], msg_expected: &Message) {
-    let mut buf = Bytes::copy_from_slice(&bytes);
+    let mut buf = Bytes::copy_from_slice(bytes);
 
     // Create fake PDU decode information, required to decode LDP messages.
     let len = buf.len() as u16;
@@ -65,7 +65,7 @@ fn test_decode_msg(cxt: &DecodeCxt, bytes: &[u8], msg_expected: &Message) {
     };
 
     let msg_actual =
-        Message::decode(&mut buf, &cxt, &mut pdui).unwrap().unwrap();
+        Message::decode(&mut buf, cxt, &mut pdui).unwrap().unwrap();
     assert_eq!(pdui.pdu_rlen, 0);
     assert_eq!(*msg_expected, msg_actual);
 }
@@ -76,7 +76,7 @@ fn test_encode_pdu(bytes_expected: &[u8], pdu: &Pdu) {
 }
 
 fn test_decode_pdu(cxt: &DecodeCxt, bytes: &[u8], pdu_expected: &Pdu) {
-    let _pdu_size = Pdu::get_pdu_size(&bytes, cxt).unwrap();
-    let pdu_actual = Pdu::decode(&bytes, &cxt).unwrap();
+    let _pdu_size = Pdu::get_pdu_size(bytes, cxt).unwrap();
+    let pdu_actual = Pdu::decode(bytes, cxt).unwrap();
     assert_eq!(*pdu_expected, pdu_actual);
 }

@@ -224,10 +224,10 @@ fn process_pdu_response<V>(
         let mut nexthop = *src.ip();
         // RIPv2 nexthop handling.
         let ripv2_nexthop = rte.nexthop();
-        if let Some(rte_nexthop) = ripv2_nexthop {
-            if iface.core.system.contains_addr(rte_nexthop) {
-                nexthop = *rte_nexthop;
-            }
+        if let Some(rte_nexthop) = ripv2_nexthop
+            && iface.core.system.contains_addr(rte_nexthop)
+        {
+            nexthop = *rte_nexthop;
         }
         // RIPng nexthop handling.
         if let Some(rte_nexthop) = ripng_nexthop {

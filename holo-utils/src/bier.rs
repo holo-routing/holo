@@ -450,11 +450,8 @@ mod test_bitstring {
     #[test]
     fn test_bfr_id_0() {
         let bsl = Bsl::try_from(1).unwrap();
-        match Bitstring::from(0, bsl) {
-            Ok(_) => {
-                assert!(false);
-            }
-            Err(_) => {}
+        if Bitstring::from(0, bsl).is_ok() {
+            unreachable!();
         }
     }
 

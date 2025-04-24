@@ -134,8 +134,7 @@ fn calculate_coverage(mut yang_ctx: Context, matches: &clap::ArgMatches<'_>) {
             total: Coverage::new(post_dev.total, pre_dev.total),
         };
         let coverage_link = format!(
-            "https://holo-routing.github.io/ietf-yang-coverage/{}.html",
-            module_name
+            "https://holo-routing.github.io/ietf-yang-coverage/{module_name}.html"
         );
         println!(
             "| {} | {} | {} | {} | {} | [{}]({}) |",
@@ -185,7 +184,7 @@ fn generate_tree_diff(
             similar::ChangeTag::Insert => "+",
             similar::ChangeTag::Equal => " ",
         };
-        print!("{}{}", sign, change);
+        print!("{sign}{change}");
     }
 }
 

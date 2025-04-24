@@ -59,7 +59,7 @@ impl EventRecorder {
         P: ProtocolInstance,
     {
         let event = serde_json::to_string(msg).unwrap();
-        if let Err(error) = writeln!(self.0, "{}", event) {
+        if let Err(error) = writeln!(self.0, "{event}") {
             warn!(%error, "couldn't write to file");
         }
     }

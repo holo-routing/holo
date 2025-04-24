@@ -462,10 +462,10 @@ where
             return Some(AuthMethod::ManualKey(auth_key));
         }
 
-        if let Some(keychain) = &self.config.auth_keychain {
-            if let Some(keychain) = keychains.get(keychain) {
-                return Some(AuthMethod::Keychain(keychain.clone()));
-            }
+        if let Some(keychain) = &self.config.auth_keychain
+            && let Some(keychain) = keychains.get(keychain)
+        {
+            return Some(AuthMethod::Keychain(keychain.clone()));
         }
 
         None

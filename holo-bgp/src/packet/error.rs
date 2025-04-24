@@ -101,10 +101,10 @@ impl std::fmt::Display for MessageHeaderError {
                 write!(f, "Connection not synchronized")
             }
             MessageHeaderError::BadMessageLength(len) => {
-                write!(f, "Invalid message length: {}", len)
+                write!(f, "Invalid message length: {len}")
             }
             MessageHeaderError::BadMessageType(msg_type) => {
-                write!(f, "Invalid message type: {}", msg_type)
+                write!(f, "Invalid message type: {msg_type}")
             }
         }
     }
@@ -118,7 +118,7 @@ impl std::fmt::Display for OpenMessageError {
 
         match self {
             OpenMessageError::UnsupportedVersion(version) => {
-                write!(f, "unsupported version number: {}", version)
+                write!(f, "unsupported version number: {version}")
             }
             OpenMessageError::BadPeerAs => {
                 write!(f, "bad peer AS")

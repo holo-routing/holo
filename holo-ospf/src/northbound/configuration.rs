@@ -1157,8 +1157,7 @@ fn load_validation_callbacks_ospfv3() -> ValidationCallbacks {
             };
             if !range.contains(&instance_id) {
                 return Err(format!(
-                    "Instance ID {} isn't valid for the {} address family",
-                    instance_id, af
+                    "Instance ID {instance_id} isn't valid for the {af} address family"
                 ));
             }
 
@@ -1180,8 +1179,7 @@ fn load_validation_callbacks_ospfv3() -> ValidationCallbacks {
             };
             if !range.contains(&instance_id) {
                 return Err(format!(
-                    "Instance ID {} isn't valid for the {} address family",
-                    instance_id, af
+                    "Instance ID {instance_id} isn't valid for the {af} address family"
                 ));
             }
 

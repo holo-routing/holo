@@ -1127,7 +1127,7 @@ fn format_hmac_digest(digest: &[u8]) -> String {
     digest.iter().fold(
         String::with_capacity(digest.len() * 2),
         |mut output, &byte| {
-            write!(&mut output, "{:02x}", byte).unwrap();
+            write!(&mut output, "{byte:02x}").unwrap();
             output
         },
     )

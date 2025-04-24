@@ -238,12 +238,11 @@ impl PduVersion<Ipv6Addr, Ipv6Network, DecodeError> for Pdu {
             return false;
         }
 
-        if let Rte::Ipv6(rte) = &self.rtes[0] {
-            if rte.prefix.prefix() == 0
-                && rte.metric == Metric::from(Metric::INFINITE)
-            {
-                return true;
-            }
+        if let Rte::Ipv6(rte) = &self.rtes[0]
+            && rte.prefix.prefix() == 0
+            && rte.metric == Metric::from(Metric::INFINITE)
+        {
+            return true;
         }
 
         false
@@ -399,25 +398,25 @@ impl std::fmt::Display for DecodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DecodeError::InvalidLength(length) => {
-                write!(f, "Invalid Length: {}", length)
+                write!(f, "Invalid Length: {length}")
             }
             DecodeError::InvalidCommand(command) => {
-                write!(f, "Invalid RIP command: {}", command)
+                write!(f, "Invalid RIP command: {command}")
             }
             DecodeError::InvalidVersion(version) => {
-                write!(f, "Invalid RIP version: {}", version)
+                write!(f, "Invalid RIP version: {version}")
             }
             DecodeError::InvalidRtePrefix(addr) => {
-                write!(f, "Invalid RTE prefix address: {}", addr)
+                write!(f, "Invalid RTE prefix address: {addr}")
             }
             DecodeError::InvalidRtePrefixLength(plen) => {
-                write!(f, "Invalid RTE prefix length: {}", plen)
+                write!(f, "Invalid RTE prefix length: {plen}")
             }
             DecodeError::InvalidRteNexthop(nexthop) => {
-                write!(f, "Invalid RTE nexthop: {}", nexthop)
+                write!(f, "Invalid RTE nexthop: {nexthop}")
             }
             DecodeError::InvalidRteMetric(metric) => {
-                write!(f, "Invalid RIP metric: {}", metric)
+                write!(f, "Invalid RIP metric: {metric}")
             }
         }
     }

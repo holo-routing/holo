@@ -49,10 +49,10 @@ impl Provider for Master {
             }
 
             // Filter by protocol name.
-            if let Some(name) = &name {
-                if instance_id.name != *name {
-                    continue;
-                }
+            if let Some(name) = &name
+                && instance_id.name != *name
+            {
+                continue;
             }
 
             child_tasks.push(instance.nb_tx.clone());

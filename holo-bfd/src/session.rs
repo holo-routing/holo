@@ -206,11 +206,11 @@ impl Session {
             if new_state == State::AdminDown {
                 return false;
             }
-            if let Some(remote) = &self.state.remote {
-                if new_state == State::Down && remote.state == State::AdminDown
-                {
-                    return false;
-                }
+            if let Some(remote) = &self.state.remote
+                && new_state == State::Down
+                && remote.state == State::AdminDown
+            {
+                return false;
             }
 
             return true;
@@ -513,15 +513,14 @@ impl Sessions {
         self.id_tree.remove(&sess.id);
         self.key_tree.remove(&sess.key);
         self.discr_tree.remove(&sess.state.local_discr);
-        if let SessionKey::IpSingleHop { ifname, .. } = &sess.key {
-            if let hash_map::Entry::Occupied(mut o) =
+        if let SessionKey::IpSingleHop { ifname, .. } = &sess.key
+            && let hash_map::Entry::Occupied(mut o) =
                 self.ifname_tree.entry(ifname.clone())
-            {
-                let tree = o.get_mut();
-                tree.remove(&sess_idx);
-                if tree.is_empty() {
-                    o.remove_entry();
-                }
+        {
+            let tree = o.get_mut();
+            tree.remove(&sess_idx);
+            if tree.is_empty() {
+                o.remove_entry();
             }
         }
         if let Some(sockaddr) = &sess.state.sockaddr {

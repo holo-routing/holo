@@ -1580,10 +1580,10 @@ impl AuthCfg {
             return Some(AuthMethod::ManualKey(auth_key));
         }
 
-        if let Some(keychain) = &self.keychain {
-            if let Some(keychain) = keychains.get(keychain) {
-                return Some(AuthMethod::Keychain(keychain.clone()));
-            }
+        if let Some(keychain) = &self.keychain
+            && let Some(keychain) = keychains.get(keychain)
+        {
+            return Some(AuthMethod::Keychain(keychain.clone()));
         }
 
         None

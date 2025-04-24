@@ -448,19 +448,18 @@ where
 
     fn process_protocol_msg(&mut self, msg: ProtocolInputMsg<V>) {
         // Ignore event if the instance isn't active.
-        if let Some((mut instance, arenas)) = self.as_up() {
-            if let Err(error) = process_protocol_msg(&mut instance, arenas, msg)
-            {
-                error.log();
+        if let Some((mut instance, arenas)) = self.as_up()
+            && let Err(error) = process_protocol_msg(&mut instance, arenas, msg)
+        {
+            error.log();
 
-                // Send notification.
-                if let Error::InterfaceCfgError(ifname, src, pkt_type, error) =
-                    &error
-                {
-                    notification::if_config_error(
-                        &instance, ifname, src, pkt_type, error,
-                    );
-                }
+            // Send notification.
+            if let Error::InterfaceCfgError(ifname, src, pkt_type, error) =
+                &error
+            {
+                notification::if_config_error(
+                    &instance, ifname, src, pkt_type, error,
+                );
             }
         }
     }

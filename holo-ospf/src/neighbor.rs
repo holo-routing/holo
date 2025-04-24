@@ -391,10 +391,10 @@ where
         };
 
         // Check for FSM state change.
-        if let Some(new_state) = new_state {
-            if new_state != self.state {
-                self.fsm_state_change(iface, area, instance, event, new_state);
-            }
+        if let Some(new_state) = new_state
+            && new_state != self.state
+        {
+            self.fsm_state_change(iface, area, instance, event, new_state);
         }
     }
 
@@ -533,13 +533,12 @@ where
     }
 
     pub(crate) fn dbdesc_is_dup(&self, dbdesc: &V::PacketDbDesc) -> bool {
-        if let Some(last_rcvd_dbdesc) = &self.last_rcvd_dbdesc {
-            if last_rcvd_dbdesc.options == dbdesc.options()
-                && last_rcvd_dbdesc.dd_flags == dbdesc.dd_flags()
-                && last_rcvd_dbdesc.dd_seq_no == dbdesc.dd_seq_no()
-            {
-                return true;
-            }
+        if let Some(last_rcvd_dbdesc) = &self.last_rcvd_dbdesc
+            && last_rcvd_dbdesc.options == dbdesc.options()
+            && last_rcvd_dbdesc.dd_flags == dbdesc.dd_flags()
+            && last_rcvd_dbdesc.dd_seq_no == dbdesc.dd_seq_no()
+        {
+            return true;
         }
 
         false

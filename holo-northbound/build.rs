@@ -37,7 +37,7 @@ fn binary_to_yang(value: &[u8]) -> String {
 }
 
 fn hex_string_to_yang(value: &[u8]) -> String {
-    value.iter().map(|byte| format!("{:02x}", byte)).join(":")
+    value.iter().map(|byte| format!("{byte:02x}")).join(":")
 }
 
 fn timer_secs16_to_yang(timer: Cow<'_, Duration>) -> String {
@@ -87,26 +87,26 @@ fn bandwidth_ieee_float32_to_yang(value: &f32) -> String {
     let fraction = bits & 0x7FFFFF;
 
     // Normalize the fraction by adding the leading 1.
-    let mut fraction_hex = format!("{:x}", fraction);
+    let mut fraction_hex = format!("{fraction:x}");
 
     // Ensure 6 digits in hexadecimal.
     while fraction_hex.len() < 6 {
-        fraction_hex = format!("0{}", fraction_hex);
+        fraction_hex = format!("0{fraction_hex}");
     }
 
     // Format the exponent as a signed decimal.
     let exponent_str = if exponent >= 0 {
-        format!("p+{}", exponent)
+        format!("p+{exponent}")
     } else {
-        format!("p{}", exponent)
+        format!("p{exponent}")
     };
 
     // Build the final string.
-    format!("0x1.{}{}", fraction_hex, exponent_str)
+    format!("0x1.{fraction_hex}{exponent_str}")
 }
 
 fn fletcher_checksum16_to_yang(cksum: u16) -> String {
-    format!("{:#06x}", cksum)
+    format!("{cksum:#06x}")
 }
 "#;
 
@@ -190,10 +190,9 @@ impl<'a> StructBuilder<'a> {
         if self.snode.kind() != SchemaNodeKind::List
             || self.snode.is_keyless_list()
         {
-            writeln!(output, "{}#[derive(Default)]", indent1).unwrap();
+            writeln!(output, "{indent1}#[derive(Default)]").unwrap();
         }
-        writeln!(output, "{}pub struct {}{} {{", indent1, name, lifetime)
-            .unwrap();
+        writeln!(output, "{indent1}pub struct {name}{lifetime} {{").unwrap();
         for snode in &self.fields {
             let field_name = snode_normalized_name(snode, Case::Snake);
             let field_type = match snode.kind() {
@@ -210,7 +209,7 @@ impl<'a> StructBuilder<'a> {
                     if snode.is_list_key() {
                         field_type
                     } else {
-                        format!("Option<{}>", field_type)
+                        format!("Option<{field_type}>")
                     }
                 }
                 SchemaNodeKind::LeafList => {
@@ -223,7 +222,7 @@ impl<'a> StructBuilder<'a> {
                 _ => unreachable!(),
             };
 
-            writeln!(output, "{}pub {}: {},", indent2, field_name, field_type,)
+            writeln!(output, "{indent2}pub {field_name}: {field_type},",)
                 .unwrap();
         }
         if self.snode.is_within_notification()
@@ -235,33 +234,29 @@ impl<'a> StructBuilder<'a> {
         {
             writeln!(
                 output,
-                "{}_marker: std::marker::PhantomData<&'a str>,",
-                indent2
+                "{indent2}_marker: std::marker::PhantomData<&'a str>,"
             )
             .unwrap();
         }
-        writeln!(output, "{}}}", indent1).unwrap();
+        writeln!(output, "{indent1}}}").unwrap();
 
         // YangObject trait implementation.
         writeln!(output).unwrap();
         writeln!(
             output,
-            "{}impl YangObject for {}{} {{",
-            indent1, name, anon_lifetime
+            "{indent1}impl YangObject for {name}{anon_lifetime} {{"
         )
         .unwrap();
 
         // into_data_node() function implementation.
         writeln!(
             output,
-            "{}fn into_data_node(self: Box<Self>, dnode: &mut DataNodeRef<'_>) {{",
-            indent2
+            "{indent2}fn into_data_node(self: Box<Self>, dnode: &mut DataNodeRef<'_>) {{"
         )
         .unwrap();
         writeln!(
             output,
-            "{}let module: Option<&SchemaModule<'_>> = None;",
-            indent3
+            "{indent3}let module: Option<&SchemaModule<'_>> = None;"
         )
         .unwrap();
         for snode in self.fields.iter().filter(|snode| !snode.is_list_key()) {
@@ -270,8 +265,7 @@ impl<'a> StructBuilder<'a> {
 
             writeln!(
                 output,
-                "{}if let Some({}) = self.{} {{",
-                indent3, field_name, field_name
+                "{indent3}if let Some({field_name}) = self.{field_name} {{"
             )
             .unwrap();
 
@@ -279,7 +273,7 @@ impl<'a> StructBuilder<'a> {
                 && snode.module() != parent_snode.module()
             {
                 writeln!(output, "{}let module = YANG_CTX.get().unwrap().get_module_latest(\"{}\").unwrap();", indent4, module.name()).unwrap();
-                writeln!(output, "{}let module = Some(&module);", indent4)
+                writeln!(output, "{indent4}let module = Some(&module);")
                     .unwrap();
             }
 
@@ -288,8 +282,7 @@ impl<'a> StructBuilder<'a> {
                     writeln!(output, "{}let mut dnode = dnode.new_inner(module, \"{}\").unwrap();", indent4, snode.name()).unwrap();
                     writeln!(
                         output,
-                        "{}{}.into_data_node(&mut dnode);",
-                        indent4, field_name
+                        "{indent4}{field_name}.into_data_node(&mut dnode);"
                     )
                     .unwrap();
                 }
@@ -307,12 +300,8 @@ impl<'a> StructBuilder<'a> {
                 }
                 SchemaNodeKind::LeafList => {
                     let leaf_type = snode.leaf_type().unwrap();
-                    writeln!(
-                        output,
-                        "{}for element in {} {{",
-                        indent4, field_name
-                    )
-                    .unwrap();
+                    writeln!(output, "{indent4}for element in {field_name} {{")
+                        .unwrap();
                     let value = leaf_type_value(&leaf_type, "element");
                     writeln!(
                         output,
@@ -322,19 +311,19 @@ impl<'a> StructBuilder<'a> {
                         value
                     )
                     .unwrap();
-                    writeln!(output, "{}}}", indent4).unwrap();
+                    writeln!(output, "{indent4}}}").unwrap();
                 }
                 _ => unreachable!(),
             }
-            writeln!(output, "{}}}", indent3).unwrap();
+            writeln!(output, "{indent3}}}").unwrap();
         }
-        writeln!(output, "{}}}", indent2).unwrap();
+        writeln!(output, "{indent2}}}").unwrap();
 
         // list_keys() function implementation.
         if self.snode.kind() == SchemaNodeKind::List
             && !self.snode.is_keyless_list()
         {
-            writeln!(output, "{}fn list_keys(&self) -> String {{", indent2)
+            writeln!(output, "{indent2}fn list_keys(&self) -> String {{")
                 .unwrap();
 
             let fmt_string = self
@@ -348,21 +337,17 @@ impl<'a> StructBuilder<'a> {
                 .list_keys()
                 .map(|snode| {
                     let field_name = snode_normalized_name(&snode, Case::Snake);
-                    format!("self.{}", field_name)
+                    format!("self.{field_name}")
                 })
                 .collect::<Vec<_>>()
                 .join(", ");
 
-            writeln!(
-                output,
-                "{}format!(\"{}\", {})",
-                indent3, fmt_string, fmt_args
-            )
-            .unwrap();
-            writeln!(output, "{}}}", indent2).unwrap();
+            writeln!(output, "{indent3}format!(\"{fmt_string}\", {fmt_args})")
+                .unwrap();
+            writeln!(output, "{indent2}}}").unwrap();
         }
 
-        writeln!(output, "{}}}", indent1).unwrap();
+        writeln!(output, "{indent1}}}").unwrap();
     }
 }
 
@@ -469,37 +454,35 @@ fn leaf_typedef_value(
         Some(
             "ip-address" | "ipv4-address" | "dotted-quad" | "router-id"
             | "ipv6-address" | "ip-prefix" | "ipv4-prefix" | "ipv6-prefix",
-        ) => Some(format!("Some(&{}.to_string())", field_name)),
+        ) => Some(format!("Some(&{field_name}.to_string())")),
         Some("date-and-time") => {
-            Some(format!("Some(&{}.to_rfc3339())", field_name))
+            Some(format!("Some(&{field_name}.to_rfc3339())"))
         }
         Some("timer-value-seconds16") => {
-            Some(format!("Some(&timer_secs16_to_yang({}))", field_name))
+            Some(format!("Some(&timer_secs16_to_yang({field_name}))"))
         }
         Some("timer-value-seconds32") => {
-            Some(format!("Some(&timer_secs32_to_yang({}))", field_name))
+            Some(format!("Some(&timer_secs32_to_yang({field_name}))"))
         }
         Some("timer-value-milliseconds") => {
-            Some(format!("Some(&timer_millis_to_yang({}))", field_name))
+            Some(format!("Some(&timer_millis_to_yang({field_name}))"))
         }
         Some("timeticks") => {
-            Some(format!("Some(&timeticks_to_yang({}))", field_name))
+            Some(format!("Some(&timeticks_to_yang({field_name}))"))
         }
         Some("timeticks64") => {
-            Some(format!("Some(&timeticks64_to_yang({}))", field_name))
+            Some(format!("Some(&timeticks64_to_yang({field_name}))"))
         }
         Some("hex-string") => {
-            Some(format!("Some(&hex_string_to_yang({}))", field_name))
+            Some(format!("Some(&hex_string_to_yang({field_name}))"))
         }
         Some("bandwidth-ieee-float32") => Some(format!(
-            "Some(&bandwidth_ieee_float32_to_yang({}))",
-            field_name
+            "Some(&bandwidth_ieee_float32_to_yang({field_name}))"
         )),
         // ietf-ospf
-        Some("fletcher-checksum16-type") => Some(format!(
-            "Some(&fletcher_checksum16_to_yang({}))",
-            field_name
-        )),
+        Some("fletcher-checksum16-type") => {
+            Some(format!("Some(&fletcher_checksum16_to_yang({field_name}))"))
+        }
         _ => None,
     }
 }
@@ -552,11 +535,11 @@ fn leaf_type_value(leaf_type: &SchemaLeafType<'_>, field_name: &str) -> String {
         | DataValueType::Int32
         | DataValueType::Int64
         | DataValueType::Bool => {
-            format!("Some(&{}.to_string())", field_name)
+            format!("Some(&{field_name}.to_string())")
         }
         DataValueType::Empty => "None".to_owned(),
         DataValueType::Binary => {
-            format!("Some(&binary_to_yang({}))", field_name)
+            format!("Some(&binary_to_yang({field_name}))")
         }
         DataValueType::String
         | DataValueType::Union
@@ -564,7 +547,7 @@ fn leaf_type_value(leaf_type: &SchemaLeafType<'_>, field_name: &str) -> String {
         | DataValueType::Enum
         | DataValueType::IdentityRef
         | DataValueType::InstanceId
-        | DataValueType::Bits => format!("Some(&{})", field_name),
+        | DataValueType::Bits => format!("Some(&{field_name})"),
         DataValueType::LeafRef => {
             let real_type = leaf_type.leafref_real_type().unwrap();
             leaf_type_value(&real_type, field_name)
@@ -579,8 +562,8 @@ fn generate_module(output: &mut String, snode: &SchemaNode<'_>, level: usize) {
         let name = snode_normalized_name(snode, Case::Snake);
 
         // Generate module.
-        writeln!(output, "{}pub mod {} {{", indent, name).unwrap();
-        writeln!(output, "{}  use super::*;", indent).unwrap();
+        writeln!(output, "{indent}pub mod {name} {{").unwrap();
+        writeln!(output, "{indent}  use super::*;").unwrap();
 
         // Generate paths.
         generate_paths(output, snode, level);
@@ -618,7 +601,7 @@ fn generate_module(output: &mut String, snode: &SchemaNode<'_>, level: usize) {
 
     if !snode.is_schema_only() {
         // Close generated module.
-        writeln!(output, "{}}}", indent).unwrap();
+        writeln!(output, "{indent}}}").unwrap();
     }
 }
 
@@ -629,29 +612,25 @@ fn generate_paths(output: &mut String, snode: &SchemaNode<'_>, level: usize) {
     let path = snode.path(SchemaPathFormat::DATA);
     writeln!(
         output,
-        "{}  pub const PATH: YangPath = YangPath::new(\"{}\");",
-        indent, path
+        "{indent}  pub const PATH: YangPath = YangPath::new(\"{path}\");"
     )
     .unwrap();
 
     // For notifications, generate data path relative to the nearest parent
     // list.
-    if snode.kind() == SchemaNodeKind::Notification {
-        if let Some(snode_parent_list) = snode
+    if snode.kind() == SchemaNodeKind::Notification
+        && let Some(snode_parent_list) = snode
             .ancestors()
             .find(|snode| snode.kind() == SchemaNodeKind::List)
-        {
-            let path_parent_list =
-                snode_parent_list.path(SchemaPathFormat::DATA);
-            let relative_path = &path[path_parent_list.len()..];
+    {
+        let path_parent_list = snode_parent_list.path(SchemaPathFormat::DATA);
+        let relative_path = &path[path_parent_list.len()..];
 
-            writeln!(
-                output,
-                "{}  pub const RELATIVE_PATH: &str = \"{}\";",
-                indent, relative_path
-            )
-            .unwrap();
-        }
+        writeln!(
+            output,
+            "{indent}  pub const RELATIVE_PATH: &str = \"{relative_path}\";"
+        )
+        .unwrap();
     }
 }
 
@@ -679,13 +658,12 @@ fn generate_default_value(
     };
     let mut dflt_value = snode.default_value_canonical().unwrap().to_owned();
     if matches!(default, DataValue::Other(_)) {
-        dflt_value = format!("\"{}\"", dflt_value);
+        dflt_value = format!("\"{dflt_value}\"");
     }
 
     writeln!(
         output,
-        "{}  pub const DFLT: {} = {};",
-        indent, dflt_type, dflt_value,
+        "{indent}  pub const DFLT: {dflt_type} = {dflt_value};",
     )
     .unwrap();
 }
@@ -707,7 +685,7 @@ fn main() {
 
     // Generate file header.
     let mut output = String::new();
-    writeln!(output, "{}", HEADER).unwrap();
+    writeln!(output, "{HEADER}").unwrap();
 
     // Generate modules.
     for snode in yang_ctx

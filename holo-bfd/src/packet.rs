@@ -175,10 +175,10 @@ impl std::fmt::Display for DecodeError {
                 write!(f, "Incomplete packet")
             }
             DecodeError::InvalidVersion(version) => {
-                write!(f, "Invalid BFD version: {}", version)
+                write!(f, "Invalid BFD version: {version}")
             }
             DecodeError::InvalidPacketLength(len) => {
-                write!(f, "Invalid packet length: {}", len)
+                write!(f, "Invalid packet length: {len}")
             }
         }
     }

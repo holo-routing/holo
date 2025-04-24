@@ -36,7 +36,7 @@ fn test_decode_msg(bytes: &[u8], msg_expected: &Message) {
         capabilities: [NegotiatedCapability::FourOctetAsNumber].into(),
     };
 
-    let msg_size = Message::get_message_len(&bytes)
+    let msg_size = Message::get_message_len(bytes)
         .expect("Buffer doesn't contain a full BGP message");
     let msg_actual = Message::decode(&bytes[0..msg_size], &cxt).unwrap();
     assert_eq!(*msg_expected, msg_actual);

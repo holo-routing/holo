@@ -393,13 +393,12 @@ pub(crate) async fn write_loop(
                 src_ip,
                 ifindex,
             } => {
-                if let IpAddr::V6(addr) = src_ip {
-                    if let Err(error) =
+                if let IpAddr::V6(addr) = src_ip
+                    && let Err(error) =
                         send_packet_vrrp6(&socket_vrrp, packet, addr, ifindex)
                             .await
-                    {
-                        error.log();
-                    }
+                {
+                    error.log();
                 }
             }
             NetTxPacketMsg::Arp {

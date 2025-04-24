@@ -75,7 +75,7 @@ impl ToYang for AreaAddr {
         let hex_string: String = self
             .as_ref()
             .iter()
-            .map(|byte| format!("{:02X}", byte))
+            .map(|byte| format!("{byte:02X}"))
             .collect();
 
         // Split the hex string into groups of 4, starting with the first two

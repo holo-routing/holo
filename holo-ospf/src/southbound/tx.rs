@@ -79,16 +79,16 @@ pub(crate) fn route_install<V>(
     ibus_tx.route_ip_add(msg);
 
     // Unnstall previous SR Prefix-SID input label if it has changed.
-    if old_sr_label != route.sr_label {
-        if let Some(old_sr_label) = old_sr_label {
-            let msg = LabelUninstallMsg {
-                protocol: V::PROTOCOL,
-                label: old_sr_label,
-                nexthops: BTreeSet::new(),
-                route: None,
-            };
-            ibus_tx.route_mpls_del(msg);
-        }
+    if old_sr_label != route.sr_label
+        && let Some(old_sr_label) = old_sr_label
+    {
+        let msg = LabelUninstallMsg {
+            protocol: V::PROTOCOL,
+            label: old_sr_label,
+            nexthops: BTreeSet::new(),
+            route: None,
+        };
+        ibus_tx.route_mpls_del(msg);
     }
 
     // Install SR Prefix-SID input label.

@@ -461,16 +461,16 @@ where
         }
     };
 
-    if let Some(new_fsm_state) = new_fsm_state {
-        if new_fsm_state != instance.state.spf_delay_state {
-            // Effectively transition to the new FSM state.
-            Debug::<V>::SpfDelayFsmTransition(
-                &instance.state.spf_delay_state,
-                &new_fsm_state,
-            )
-            .log();
-            instance.state.spf_delay_state = new_fsm_state;
-        }
+    if let Some(new_fsm_state) = new_fsm_state
+        && new_fsm_state != instance.state.spf_delay_state
+    {
+        // Effectively transition to the new FSM state.
+        Debug::<V>::SpfDelayFsmTransition(
+            &instance.state.spf_delay_state,
+            &new_fsm_state,
+        )
+        .log();
+        instance.state.spf_delay_state = new_fsm_state;
     }
 
     Ok(())

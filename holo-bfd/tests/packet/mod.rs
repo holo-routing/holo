@@ -26,7 +26,7 @@ fn test_decode_packet(
     bytes: &[u8],
     packet_expected: &Result<Packet, DecodeError>,
 ) {
-    let packet_actual = Packet::decode(&bytes);
+    let packet_actual = Packet::decode(bytes);
     assert_eq!(*packet_expected, packet_actual);
 }
 

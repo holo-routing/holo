@@ -57,27 +57,27 @@ impl LsdbVersion<Self> for Ospfv2 {
         }
 
         // Opaque LSAs are only flooded to opaque-capable neighbors.
-        if let Some(nbr_options) = nbr_options {
-            if lsa_type.is_opaque() && !nbr_options.contains(Options::O) {
-                return false;
-            }
+        if let Some(nbr_options) = nbr_options
+            && lsa_type.is_opaque()
+            && !nbr_options.contains(Options::O)
+        {
+            return false;
         }
 
         // Reject AS-external and type-4 summary LSAs (as per errata 3746 of RFC
         // 2328) on stub/NSSA areas.
-        if let Some(area_type) = area_type {
-            if area_type != AreaType::Normal
-                && matches!(
-                    lsa_type.type_code(),
-                    Some(
-                        LsaTypeCode::SummaryRouter
-                            | LsaTypeCode::AsExternal
-                            | LsaTypeCode::OpaqueAs
-                    )
+        if let Some(area_type) = area_type
+            && area_type != AreaType::Normal
+            && matches!(
+                lsa_type.type_code(),
+                Some(
+                    LsaTypeCode::SummaryRouter
+                        | LsaTypeCode::AsExternal
+                        | LsaTypeCode::OpaqueAs
                 )
-            {
-                return false;
-            }
+            )
+        {
+            return false;
         }
 
         true

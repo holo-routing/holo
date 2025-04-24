@@ -392,13 +392,13 @@ pub fn load_module(ctx: &mut Context, name: &str) {
         .map(|features| features.as_slice())
         .unwrap_or_else(|| &[]);
     if let Err(error) = ctx.load_module(name, None, features) {
-        panic!("failed to load YANG module: {}", error);
+        panic!("failed to load YANG module: {error}");
     }
 }
 
 // Loads a YANG deviations module.
 pub fn load_deviations(ctx: &mut Context, name: &str) {
-    let name = format!("holo-{}-deviations", name);
+    let name = format!("holo-{name}-deviations");
     // Ignore errors since the deviation module might not exist.
     let _ = ctx.load_module(&name, None, &[]);
 }

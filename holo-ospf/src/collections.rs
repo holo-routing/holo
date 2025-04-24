@@ -779,7 +779,7 @@ where
                     cksum_sum: 0,
                 });
         if lsdb_type.tree.insert(key, lse_idx).is_some() {
-            panic!("LSA key={:?} already exists", key);
+            panic!("LSA key={key:?} already exists");
         }
 
         // If the LSA's age is MaxAge, update the MaxAge list and schedule the

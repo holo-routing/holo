@@ -127,10 +127,10 @@ where
 
         // 1.c) If the new LSA was received from this neighbor, examine the
         // next neighbor.
-        if let Some((_, nbr_src_idx)) = src {
-            if nbr_src_idx == nbr_idx {
-                continue;
-            }
+        if let Some((_, nbr_src_idx)) = src
+            && nbr_src_idx == nbr_idx
+        {
+            continue;
         }
 
         // 1.d) Add LSA to the neighbor's rxmt list (or update the old version).
@@ -145,29 +145,29 @@ where
         return flooded_back;
     }
 
-    if let Some((iface_src_idx, nbr_src_idx)) = src {
-        if iface_src_idx == iface_idx {
-            let nbr_src = &neighbors[nbr_src_idx];
-            let nbr_src_net_id = nbr_src.network_id();
+    if let Some((iface_src_idx, nbr_src_idx)) = src
+        && iface_src_idx == iface_idx
+    {
+        let nbr_src = &neighbors[nbr_src_idx];
+        let nbr_src_net_id = nbr_src.network_id();
 
-            // 3) If the new LSA was received on this interface, and it was
-            // received from either the DR or the BDR, chances are
-            // that all the neighbors have received the LSA already.
-            // Therefore, examine the next interface.
-            if iface.state.dr == Some(nbr_src_net_id)
-                || iface.state.bdr == Some(nbr_src_net_id)
-            {
-                return flooded_back;
-            }
-
-            // 4) If the new LSA was received on this interface, and the
-            // interface state is BDR, examine the next interface.
-            if iface.state.ism_state == ism::State::Backup {
-                return flooded_back;
-            }
-
-            flooded_back = true;
+        // 3) If the new LSA was received on this interface, and it was
+        // received from either the DR or the BDR, chances are
+        // that all the neighbors have received the LSA already.
+        // Therefore, examine the next interface.
+        if iface.state.dr == Some(nbr_src_net_id)
+            || iface.state.bdr == Some(nbr_src_net_id)
+        {
+            return flooded_back;
         }
+
+        // 4) If the new LSA was received on this interface, and the
+        // interface state is BDR, examine the next interface.
+        if iface.state.ism_state == ism::State::Backup {
+            return flooded_back;
+        }
+
+        flooded_back = true;
     }
 
     // Flood the LSA out the interface. Schedule the transmission as an attempt

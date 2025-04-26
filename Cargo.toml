@@ -1,9 +1,8 @@
 [workspace]
-members = [
+members = [ 
   "holo-bfd",
   "holo-bgp",
   "holo-daemon",
-  "holo-fuzz",
   "holo-interface",
   "holo-isis",
   "holo-keychain",
@@ -20,6 +19,7 @@ members = [
   "holo-vrrp",
   "holo-yang",
 ]
+exclude = ["fuzz"]
 default-members = ["holo-daemon"]
 resolver = "2"
 
@@ -55,7 +55,6 @@ internet-checksum = "0.2"
 ipnetwork = "0.20"
 itertools = "0.14"
 libc = "0.2"
-libfuzzer-sys = "0.4"
 maplit = "1.0"
 md-5 = "0.10"
 nix = { version = "0.29", features = ["fs", "net", "socket", "uio", "user"] }

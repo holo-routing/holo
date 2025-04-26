@@ -10,6 +10,7 @@ use std::sync::Arc;
 use std::sync::atomic::{self, AtomicU32};
 use std::time::Duration;
 
+use arbitrary::Arbitrary;
 use chrono::{DateTime, Utc};
 use holo_protocol::InstanceChannelsTx;
 use holo_utils::bgp::{AfiSafi, RouteType, WellKnownCommunities};
@@ -70,6 +71,7 @@ pub struct Neighbor {
 
 // BGP peer type.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Arbitrary)]
 pub enum PeerType {
     Internal,
     External,

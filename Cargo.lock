@@ -1014,6 +1014,7 @@ dependencies = [
 name = "holo-bgp"
 version = "0.7.0"
 dependencies = [
+ "arbitrary",
  "async-trait",
  "bitflags 2.9.0",
  "bytes",
@@ -1087,20 +1088,6 @@ dependencies = [
  "tracing-appender",
  "tracing-journald",
  "tracing-subscriber",
- "yang3",
-]
-
-[[package]]
-name = "holo-fuzz"
-version = "0.7.0"
-dependencies = [
- "holo-northbound",
- "holo-protocol",
- "holo-utils",
- "holo-vrrp",
- "holo-yang",
- "libfuzzer-sys",
- "pkg-config",
  "yang3",
 ]
 
@@ -1906,16 +1893,6 @@ name = "libc"
 version = "0.2.171"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c19937216e9d3aa9956d9bb8dfc0b0c8beb6058fc4f7a4dc4d850edf86a237d6"
-
-[[package]]
-name = "libfuzzer-sys"
-version = "0.4.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf78f52d400cf2d84a3a973a78a592b4adc535739e0a5597a0da6f0c357adc75"
-dependencies = [
- "arbitrary",
- "cc",
-]
 
 [[package]]
 name = "libyang3-sys"

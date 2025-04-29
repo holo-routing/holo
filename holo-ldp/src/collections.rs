@@ -441,8 +441,8 @@ impl Adjacencies {
         Some(
             self.iface_tree
                 .get(ifname)?
-                .iter()
-                .map(|(_, adj_idx)| &self.arena[*adj_idx]),
+                .values()
+                .map(|adj_idx| &self.arena[*adj_idx]),
         )
     }
 
@@ -457,8 +457,8 @@ impl Adjacencies {
         Some(
             self.lsr_id_tree
                 .get(lsr_id)?
-                .iter()
-                .map(|(_, adj_idx)| &self.arena[*adj_idx]),
+                .values()
+                .map(|adj_idx| &self.arena[*adj_idx]),
         )
     }
 

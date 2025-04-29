@@ -652,28 +652,28 @@ impl std::fmt::Display for DecodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DecodeError::InvalidLength(length) => {
-                write!(f, "Invalid Length: {}", length)
+                write!(f, "Invalid Length: {length}")
             }
             DecodeError::InvalidCommand(command) => {
-                write!(f, "Invalid RIP command: {}", command)
+                write!(f, "Invalid RIP command: {command}")
             }
             DecodeError::InvalidVersion(version) => {
-                write!(f, "Invalid RIP version: {}", version)
+                write!(f, "Invalid RIP version: {version}")
             }
             DecodeError::InvalidRteAddressFamily(afi) => {
-                write!(f, "Invalid RIP address-family: {}", afi)
+                write!(f, "Invalid RIP address-family: {afi}")
             }
             DecodeError::InvalidRtePrefix(addr, mask) => {
-                write!(f, "Invalid RTE prefix: {} mask {}", addr, mask)
+                write!(f, "Invalid RTE prefix: {addr} mask {mask}")
             }
             DecodeError::InvalidRteNexthop(nexthop) => {
-                write!(f, "Invalid RTE nexthop: {}", nexthop)
+                write!(f, "Invalid RTE nexthop: {nexthop}")
             }
             DecodeError::InvalidRteMetric(metric) => {
-                write!(f, "Invalid RIP metric: {}", metric)
+                write!(f, "Invalid RIP metric: {metric}")
             }
             DecodeError::InvalidRteAuthType(auth_type) => {
-                write!(f, "Invalid authentication type: {}", auth_type)
+                write!(f, "Invalid authentication type: {auth_type}")
             }
             DecodeError::AuthTypeMismatch => {
                 write!(f, "Authentication type mismatch")

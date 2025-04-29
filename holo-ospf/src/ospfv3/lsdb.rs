@@ -59,14 +59,13 @@ impl LsdbVersion<Self> for Ospfv3 {
 
         // Reject AS-scoped and type-4 summary LSAs (as per errata 3746 of RFC
         // 2328) on stub/NSSA areas.
-        if let Some(area_type) = area_type {
-            if area_type != AreaType::Normal
-                && (lsa_type.scope() == LsaScope::As
-                    || lsa_type.function_code_normalized()
-                        == Some(LsaFunctionCode::InterAreaRouter))
-            {
-                return false;
-            }
+        if let Some(area_type) = area_type
+            && area_type != AreaType::Normal
+            && (lsa_type.scope() == LsaScope::As
+                || lsa_type.function_code_normalized()
+                    == Some(LsaFunctionCode::InterAreaRouter))
+        {
+            return false;
         }
 
         true
@@ -433,29 +432,27 @@ impl LsdbVersion<Self> for Ospfv3 {
         lsa: &Lsa<Self>,
     ) {
         // (Re)originate LSAs that might have been affected.
-        if let LsdbId::Link(area_id, iface_id) = lsdb_id {
-            if lsa.hdr.lsa_type().function_code_normalized()
+        if let LsdbId::Link(area_id, iface_id) = lsdb_id
+            && lsa.hdr.lsa_type().function_code_normalized()
                 == Some(LsaFunctionCode::Link)
-            {
-                instance.tx.protocol_input.lsa_orig_event(
-                    LsaOriginateEvent::LinkLsaRcvd { area_id, iface_id },
-                );
-            }
+        {
+            instance.tx.protocol_input.lsa_orig_event(
+                LsaOriginateEvent::LinkLsaRcvd { area_id, iface_id },
+            );
         }
 
         // Check for DynamicHostnameTlv
         if lsa.hdr.lsa_type.function_code_normalized()
             == Some(LsaFunctionCode::RouterInfo)
+            && let LsaBody::RouterInfo(router_info) = &lsa.body
         {
-            if let LsaBody::RouterInfo(router_info) = &lsa.body {
-                if let Some(hostname_tlv) = router_info.info_hostname.as_ref() {
-                    instance
-                        .state
-                        .hostnames
-                        .insert(lsa.hdr.adv_rtr, hostname_tlv.hostname.clone());
-                } else {
-                    instance.state.hostnames.remove(&lsa.hdr.adv_rtr);
-                }
+            if let Some(hostname_tlv) = router_info.info_hostname.as_ref() {
+                instance
+                    .state
+                    .hostnames
+                    .insert(lsa.hdr.adv_rtr, hostname_tlv.hostname.clone());
+            } else {
+                instance.state.hostnames.remove(&lsa.hdr.adv_rtr);
             }
         }
     }
@@ -838,27 +835,26 @@ fn lsa_orig_intra_area_prefix(
         };
 
         // Add Prefix-SID Sub-TLV.
-        if instance.config.sr_enabled {
-            if let Some(prefix_sid) =
+        if instance.config.sr_enabled
+            && let Some(prefix_sid) =
                 sr_config.prefix_sids.get(&(prefix, IgpAlgoType::Spf))
-            {
-                let mut flags = PrefixSidFlags::empty();
-                match prefix_sid.last_hop {
-                    SidLastHopBehavior::ExpNull => {
-                        flags.insert(PrefixSidFlags::NP);
-                        flags.insert(PrefixSidFlags::E);
-                    }
-                    SidLastHopBehavior::NoPhp => {
-                        flags.insert(PrefixSidFlags::NP);
-                    }
-                    SidLastHopBehavior::Php => (),
+        {
+            let mut flags = PrefixSidFlags::empty();
+            match prefix_sid.last_hop {
+                SidLastHopBehavior::ExpNull => {
+                    flags.insert(PrefixSidFlags::NP);
+                    flags.insert(PrefixSidFlags::E);
                 }
-                let algo = IgpAlgoType::Spf;
-                let sid = Sid::Index(prefix_sid.index);
-                entry
-                    .prefix_sids
-                    .insert(algo, PrefixSid::new(flags, algo, sid));
+                SidLastHopBehavior::NoPhp => {
+                    flags.insert(PrefixSidFlags::NP);
+                }
+                SidLastHopBehavior::Php => (),
             }
+            let algo = IgpAlgoType::Spf;
+            let sid = Sid::Index(prefix_sid.index);
+            entry
+                .prefix_sids
+                .insert(algo, PrefixSid::new(flags, algo, sid));
         }
 
         // Add BIER Sub-TLV(s) if BIER is enabled and allowed to advertise

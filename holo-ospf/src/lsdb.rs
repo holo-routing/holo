@@ -448,10 +448,10 @@ where
     // * The type of the new LSA is unknown
     // * The new LSA is a self-originated summary
     let mut content_change = true;
-    if let Some(old_lsa) = &old_lsa {
-        if lsa_same_contents(old_lsa, &lsa) {
-            content_change = false;
-        }
+    if let Some(old_lsa) = &old_lsa
+        && lsa_same_contents(old_lsa, &lsa)
+    {
+        content_change = false;
     }
     let lsa_type = lsa.hdr.lsa_type();
     let self_orig_summary = lse.flags.contains(LsaEntryFlags::SELF_ORIGINATED)
@@ -529,22 +529,22 @@ pub(crate) fn originate<V>(
     // has been acknowledged by all adjacent neighbors, a new instance can
     // be originated with sequence number of InitialSequenceNumber.
     let lsa_key = lsa.hdr.key();
-    if let Some((old_lse_idx, _)) = lsdb.get(&arenas.lsa_entries, &lsa_key) {
-        if lsa.hdr.seq_no() == LSA_MAX_SEQ_NO + 1 {
-            // Record LSA that will be originated later and then flush the
-            // existing instance.
-            match lsdb.seqno_wrapping.entry(lsa_key) {
-                hash_map::Entry::Occupied(mut o) => {
-                    *o.get_mut() = lsa;
-                }
-                hash_map::Entry::Vacant(v) => {
-                    v.insert(lsa);
-                }
+    if let Some((old_lse_idx, _)) = lsdb.get(&arenas.lsa_entries, &lsa_key)
+        && lsa.hdr.seq_no() == LSA_MAX_SEQ_NO + 1
+    {
+        // Record LSA that will be originated later and then flush the
+        // existing instance.
+        match lsdb.seqno_wrapping.entry(lsa_key) {
+            hash_map::Entry::Occupied(mut o) => {
+                *o.get_mut() = lsa;
             }
-            let reason = LsaFlushReason::PrematureAging;
-            flush(instance, arenas, lsdb_idx, old_lse_idx, reason);
-            return;
+            hash_map::Entry::Vacant(v) => {
+                v.insert(lsa);
+            }
         }
+        let reason = LsaFlushReason::PrematureAging;
+        flush(instance, arenas, lsdb_idx, old_lse_idx, reason);
+        return;
     }
 
     Debug::<V>::LsaOriginate(&lsa.hdr).log();
@@ -795,10 +795,10 @@ fn rxmt_lists_remove<V>(
             let iface = &arenas.interfaces[iface_idx];
 
             // Filter by LSA interface.
-            if let LsdbIndex::Link(_, lsdb_iface_idx) = lsdb_idx {
-                if iface_idx != lsdb_iface_idx {
-                    continue;
-                }
+            if let LsdbIndex::Link(_, lsdb_iface_idx) = lsdb_idx
+                && iface_idx != lsdb_iface_idx
+            {
+                continue;
             }
 
             // Iterate over all neighbors from this interface.

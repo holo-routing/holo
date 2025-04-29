@@ -45,31 +45,31 @@ impl std::fmt::Display for DecodeError {
                 write!(f, "incomplete PDU")
             }
             DecodeError::InvalidHeaderLength(hdr_len) => {
-                write!(f, "invalid header length: {}", hdr_len)
+                write!(f, "invalid header length: {hdr_len}")
             }
             DecodeError::InvalidIrdpDiscriminator(discriminator) => {
-                write!(f, "invalid IDRP discriminator: {}", discriminator)
+                write!(f, "invalid IDRP discriminator: {discriminator}")
             }
             DecodeError::InvalidVersion(version) => {
-                write!(f, "invalid version: {}", version)
+                write!(f, "invalid version: {version}")
             }
             DecodeError::InvalidIdLength(id_len) => {
-                write!(f, "invalid ID length: {}", id_len)
+                write!(f, "invalid ID length: {id_len}")
             }
             DecodeError::UnknownPduType(pdu_type) => {
-                write!(f, "unknown PDU type: {}", pdu_type)
+                write!(f, "unknown PDU type: {pdu_type}")
             }
             DecodeError::InvalidPduLength(pdu_len) => {
-                write!(f, "invalid PDU length: {}", pdu_len)
+                write!(f, "invalid PDU length: {pdu_len}")
             }
             DecodeError::UnexpectedTlvType(tlv_type) => {
-                write!(f, "unexpected tlv type: {}", tlv_type)
+                write!(f, "unexpected tlv type: {tlv_type}")
             }
             DecodeError::InvalidTlvLength(tlv_len) => {
-                write!(f, "invalid TLV length: {}", tlv_len)
+                write!(f, "invalid TLV length: {tlv_len}")
             }
             DecodeError::AuthUnsupportedType(auth_type) => {
-                write!(f, "unsupported authentication type: {}", auth_type)
+                write!(f, "unsupported authentication type: {auth_type}")
             }
             DecodeError::AuthTypeMismatch => {
                 write!(f, "authentication type mismatch")
@@ -81,13 +81,13 @@ impl std::fmt::Display for DecodeError {
                 write!(f, "authentication failed")
             }
             DecodeError::InvalidHelloCircuitType(circuit_type) => {
-                write!(f, "invalid hello circuit type: {}", circuit_type)
+                write!(f, "invalid hello circuit type: {circuit_type}")
             }
             DecodeError::InvalidHelloHoldtime(holdtime) => {
-                write!(f, "invalid hello holdtime: {}", holdtime)
+                write!(f, "invalid hello holdtime: {holdtime}")
             }
             DecodeError::InvalidAreaAddrLen(area_len) => {
-                write!(f, "invalid area address length: {}", area_len)
+                write!(f, "invalid area address length: {area_len}")
             }
         }
     }

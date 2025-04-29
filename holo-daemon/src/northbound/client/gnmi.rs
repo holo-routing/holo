@@ -434,7 +434,7 @@ impl std::fmt::Display for proto::Path {
             "/",
         );
 
-        write!(f, "{}", path)
+        write!(f, "{path}")
     }
 }
 

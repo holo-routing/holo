@@ -131,10 +131,10 @@ pub(crate) fn helper_process_topology_change<V>(
                 }
 
                 // Check if the LSA was flooded to the neighbor.
-                if let Some(lsa_type) = lsa_type {
-                    if !V::lsa_type_is_valid(Some(area_type), None, lsa_type) {
-                        continue;
-                    }
+                if let Some(lsa_type) = lsa_type
+                    && !V::lsa_type_is_valid(Some(area_type), None, lsa_type)
+                {
+                    continue;
                 }
 
                 // Exit from the helper mode for this neighbor.

@@ -52,58 +52,58 @@ impl std::fmt::Display for DecodeError {
                 write!(f, "Incomplete PDU")
             }
             DecodeError::InvalidPduLength(len) => {
-                write!(f, "Invalid PDU length: {}", len)
+                write!(f, "Invalid PDU length: {len}")
             }
             DecodeError::InvalidVersion(version) => {
-                write!(f, "Invalid LDP version: {}", version)
+                write!(f, "Invalid LDP version: {version}")
             }
             DecodeError::InvalidLsrId(lsr_id) => {
-                write!(f, "Invalid LSR-ID: {}", lsr_id)
+                write!(f, "Invalid LSR-ID: {lsr_id}")
             }
             DecodeError::InvalidLabelSpace(lspace) => {
-                write!(f, "Invalid label space: {}", lspace)
+                write!(f, "Invalid label space: {lspace}")
             }
             DecodeError::InvalidMessageLength(len) => {
-                write!(f, "Invalid message length: {}", len)
+                write!(f, "Invalid message length: {len}")
             }
             DecodeError::UnknownMessage(_msgi, msg_type) => {
-                write!(f, "Unknown message: {}", msg_type)
+                write!(f, "Unknown message: {msg_type}")
             }
             DecodeError::MissingMsgParams(_msgi, tlv_type) => {
-                write!(f, "Missing message parameters: {}", tlv_type)
+                write!(f, "Missing message parameters: {tlv_type}")
             }
             DecodeError::InvalidTlvLength(len) => {
-                write!(f, "Invalid TLV length: {}", len)
+                write!(f, "Invalid TLV length: {len}")
             }
             DecodeError::UnknownTlv(_msgi, tlv_type, _raw_tlv) => {
-                write!(f, "Unknown TLV: {}", tlv_type)
+                write!(f, "Unknown TLV: {tlv_type}")
             }
             DecodeError::InvalidTlvValue(_tlvi) => {
                 write!(f, "Invalid TLV value")
             }
             DecodeError::UnsupportedAf(_tlvi, af) => {
-                write!(f, "Unsupported address family: {}", af)
+                write!(f, "Unsupported address family: {af}")
             }
             DecodeError::UnknownFec(_tlvi, fec) => {
-                write!(f, "Unknown FEC type: {}", fec)
+                write!(f, "Unknown FEC type: {fec}")
             }
             DecodeError::BadKeepaliveTime(_tlvi, time) => {
-                write!(f, "Invalid KeepAlive time: {}", time)
+                write!(f, "Invalid KeepAlive time: {time}")
             }
             DecodeError::McastTHello(_tlvi, addr) => {
-                write!(f, "Multicast targeted hello from {}", addr)
+                write!(f, "Multicast targeted hello from {addr}")
             }
             DecodeError::UcastLHello(_tlvi, addr) => {
-                write!(f, "Unicast link hello from {}", addr)
+                write!(f, "Unicast link hello from {addr}")
             }
             DecodeError::InvalidSrcAddr(_tlvi, addr) => {
-                write!(f, "Invalid source address: {}", addr)
+                write!(f, "Invalid source address: {addr}")
             }
             DecodeError::InvalidTransportAddr(_tlvi, addr) => {
-                write!(f, "Invalid transport address: {}", addr)
+                write!(f, "Invalid transport address: {addr}")
             }
             DecodeError::InvalidTransportPref(_tlvi, trans_pref) => {
-                write!(f, "Invalid transport preference: {}", trans_pref)
+                write!(f, "Invalid transport preference: {trans_pref}")
             }
         }
     }

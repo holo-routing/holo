@@ -571,7 +571,7 @@ impl InstanceMacvlan {
             AddressFamily::Ipv4 => 4,
             AddressFamily::Ipv6 => 6,
         };
-        let name = format!("mvlan{}-vrrp-{}", ver, vrid);
+        let name = format!("mvlan{ver}-vrrp-{vrid}");
         Self {
             name,
             system: InterfaceSys::default(),

@@ -34,7 +34,7 @@ fn test_decode_pdu(
     pdu_expected: &DecodeResult<Pdu>,
     auth: &Option<AuthCtx>,
 ) {
-    let pdu_actual = Pdu::decode(&bytes, auth.as_ref());
+    let pdu_actual = Pdu::decode(bytes, auth.as_ref());
     assert_eq!(*pdu_expected, pdu_actual);
 }
 

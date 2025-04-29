@@ -92,7 +92,7 @@ fn config_callbacks(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
 
         // Print path.
         let path = snode_module_path(&snode);
-        println!("        .path({})", path);
+        println!("        .path({path})");
 
         // Print callbacks.
         if create {
@@ -149,14 +149,13 @@ fn rpc_callbacks(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
         let path = snode_module_path(&snode);
         if CallbackOp::Rpc.is_valid(&snode) {
             println!(
-                "        .path({})\
+                "        .path({path})\
                \n        .rpc(|_context, _args| {{\
                \n            Box::pin(async move {{\
                \n                // TODO: implement me!\
                \n                Ok(())\
                \n            }})\
-               \n        }})",
-                path
+               \n        }})"
             );
         }
 
@@ -164,14 +163,13 @@ fn rpc_callbacks(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
             let path = snode_module_path(&snode);
             if CallbackOp::Rpc.is_valid(&snode) {
                 println!(
-                    "        .path({})\
+                    "        .path({path})\
                        \n        .rpc(|_context, _args| {{\
                        \n            Box::pin(async move {{\
                        \n                // TODO: implement me!\
                        \n                Ok(())\
                        \n            }})\
-                       \n        }})",
-                    path
+                       \n        }})"
                 );
             }
         }
@@ -208,7 +206,7 @@ fn state_callbacks(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
         let indent2 = " ".repeat(3 * 4);
         let indent3 = " ".repeat(4 * 4);
         let path = snode_module_path(&snode);
-        println!("        .path({})", path);
+        println!("        .path({path})");
 
         if get_iterate {
             println!(
@@ -220,14 +218,14 @@ fn state_callbacks(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
         }
         if get_object {
             let struct_name = snode_normalized_name(&snode, Case::Pascal);
-            println!("{}.get_object(|_context, _args| {{", indent1);
+            println!("{indent1}.get_object(|_context, _args| {{");
             println!(
                 "{}use {}::{};",
                 indent2,
                 snode_module(&snode),
                 struct_name
             );
-            println!("{}Box::new({} {{", indent2, struct_name);
+            println!("{indent2}Box::new({struct_name} {{");
             for snode in snode
                 .children()
                 .filter(|snode| {
@@ -239,10 +237,10 @@ fn state_callbacks(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
                 .filter(|snode| snode.is_state() || snode.is_list_key())
             {
                 let field_name = snode_normalized_name(&snode, Case::Snake);
-                println!("{}{}: todo!(),", indent3, field_name);
+                println!("{indent3}{field_name}: todo!(),");
             }
-            println!("{}}})", indent2);
-            println!("{}}})", indent1);
+            println!("{indent2}}})");
+            println!("{indent1}}})");
         }
     }
 

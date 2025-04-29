@@ -588,10 +588,10 @@ where
             LsaScope::As => &instance.state.lsdb,
             LsaScope::Unknown => unreachable!(),
         };
-        if let Some((_, lse)) = lsdb.get(lsa_entries, &lsa_key) {
-            if lsa_compare::<V>(&lse.data.hdr, lsa_hdr) != Ordering::Less {
-                continue;
-            }
+        if let Some((_, lse)) = lsdb.get(lsa_entries, &lsa_key)
+            && lsa_compare::<V>(&lse.data.hdr, lsa_hdr) != Ordering::Less
+        {
+            continue;
         }
         nbr.lists.ls_request.insert(lsa_key, *lsa_hdr);
     }
@@ -810,14 +810,14 @@ where
     let lsa_cmp = lse.map(|lse| lsa_compare::<V>(&lse.data.hdr, &lsa.hdr));
     if matches!(lsa_cmp, None | Some(Ordering::Less)) {
         // (5.a) MinLSArrival check.
-        if let Some(lse) = lse {
-            if lsdb::lsa_min_arrival_check(lse) {
-                // Log why the LSA is being discarded.
-                Debug::<V>::LsaMinArrivalDiscard(nbr.router_id, &lsa.hdr).log();
+        if let Some(lse) = lse
+            && lsdb::lsa_min_arrival_check(lse)
+        {
+            // Log why the LSA is being discarded.
+            Debug::<V>::LsaMinArrivalDiscard(nbr.router_id, &lsa.hdr).log();
 
-                // Examine the next LSA.
-                return false;
-            }
+            // Examine the next LSA.
+            return false;
         }
 
         // Move LSA into a reference-counting pointer.
@@ -1415,15 +1415,15 @@ pub(crate) fn process_sr_cfg_change<V>(
 where
     V: Version,
 {
-    if let Some((instance, arenas)) = instance.as_up() {
-        if instance.config.sr_enabled {
-            // Check which LSAs need to be reoriginated or flushed.
-            V::lsa_orig_event(
-                &instance,
-                arenas,
-                LsaOriginateEvent::SrCfgChange { change },
-            )?;
-        }
+    if let Some((instance, arenas)) = instance.as_up()
+        && instance.config.sr_enabled
+    {
+        // Check which LSAs need to be reoriginated or flushed.
+        V::lsa_orig_event(
+            &instance,
+            arenas,
+            LsaOriginateEvent::SrCfgChange { change },
+        )?;
     }
 
     Ok(())

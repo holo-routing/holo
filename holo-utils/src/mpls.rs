@@ -64,7 +64,7 @@ impl Label {
 
     pub fn new(label: u32) -> Label {
         if label > *Self::UNRESERVED_RANGE.end() {
-            panic!("invalid label value: {}", label);
+            panic!("invalid label value: {label}");
         }
         Label(label)
     }

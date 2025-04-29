@@ -24,7 +24,7 @@ fn test_encode_pdu(bytes_expected: &[u8], pdu: &DecodeResult<Pdu>) {
 }
 
 fn test_decode_pdu(bytes: &[u8], pdu_expected: &DecodeResult<Pdu>) {
-    let pdu_actual = Pdu::decode(&bytes, None);
+    let pdu_actual = Pdu::decode(bytes, None);
     assert_eq!(*pdu_expected, pdu_actual);
 }
 

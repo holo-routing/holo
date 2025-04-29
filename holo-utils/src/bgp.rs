@@ -158,7 +158,7 @@ impl ToYang for Comm {
                 // Return community as plain integer.
                 let global = self.0 >> 16;
                 let local = self.0 & 0xFFFF;
-                format!("{}:{}", global, local).into()
+                format!("{global}:{local}").into()
             }
         }
     }
@@ -220,15 +220,15 @@ impl ToYang for Extv6Comm {
             .0
             .segments()
             .into_iter()
-            .map(|s| format!("{:02x}", s))
+            .map(|s| format!("{s:02x}"))
             .join(":");
         let local = self
             .1
             .to_be_bytes()
             .into_iter()
-            .map(|s| format!("{:02x}", s))
+            .map(|s| format!("{s:02x}"))
             .join(":");
-        format!("ipv6-raw:{}:{}", addr, local,).into()
+        format!("ipv6-raw:{addr}:{local}",).into()
     }
 }
 

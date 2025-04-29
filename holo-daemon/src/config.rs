@@ -123,7 +123,7 @@ impl Config {
             Ok(config_str) => toml::from_str(&config_str)
                 .expect("Failed to parse configuration file"),
             Err(err) => {
-                eprintln!("Failed to load configuration file: {}", err);
+                eprintln!("Failed to load configuration file: {err}");
                 eprintln!("Falling back to default configuration...");
                 Config::default()
             }

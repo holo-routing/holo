@@ -21,10 +21,10 @@ impl InterfaceVersion<Self> for Ripng {
         }
 
         for (iface_idx, iface) in interfaces.arena.iter_mut() {
-            if let Some(ifindex) = iface.core().system.ifindex {
-                if source.scope_id() == ifindex {
-                    return Some((iface_idx, iface));
-                }
+            if let Some(ifindex) = iface.core().system.ifindex
+                && source.scope_id() == ifindex
+            {
+                return Some((iface_idx, iface));
             }
         }
 

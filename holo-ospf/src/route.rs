@@ -352,10 +352,10 @@ fn update_rib_intra_area<V>(
         // This is done by looking up the stub network's current routing table
         // entry. If the calculated distance D is larger, go on to examine the
         // next stub network link in the LSA.
-        if let Some(best_route) = rib.get(&stub.prefix) {
-            if metric > best_route.metric {
-                continue;
-            }
+        if let Some(best_route) = rib.get(&stub.prefix)
+            && metric > best_route.metric
+        {
+            continue;
         }
 
         // Get LS Origin.
@@ -369,16 +369,16 @@ fn update_rib_intra_area<V>(
         // overwritten if and only if the newly found path is just as short and
         // the current routing table entry's Link State Origin has a smaller
         // Link State ID than the newly added vertex' LSA.
-        if !stub.vertex.lsa.is_router() {
-            if let btree_map::Entry::Occupied(o) = rib.entry(stub.prefix) {
-                let curr_route = o.get();
-                if metric > curr_route.metric
-                    || origin.lsa_id < curr_route.origin.unwrap().lsa_id
-                {
-                    continue;
-                }
-                o.remove();
+        if !stub.vertex.lsa.is_router()
+            && let btree_map::Entry::Occupied(o) = rib.entry(stub.prefix)
+        {
+            let curr_route = o.get();
+            if metric > curr_route.metric
+                || origin.lsa_id < curr_route.origin.unwrap().lsa_id
+            {
+                continue;
             }
+            o.remove();
         }
 
         // Create new intra-area route.
@@ -402,21 +402,21 @@ fn update_rib_intra_area<V>(
         };
 
         // Update route's Prefix-SID (if any).
-        if instance.config.sr_enabled {
-            if let Some(prefix_sid) = stub.prefix_sids.get(&IgpAlgoType::Spf) {
-                let local = stub.vertex.hops == 0;
-                let last_hop = stub.vertex.hops == 1;
-                sr::prefix_sid_update(
-                    area,
-                    instance,
-                    origin.adv_rtr,
-                    &mut new_route,
-                    prefix_sid,
-                    local,
-                    last_hop,
-                    lsa_entries,
-                );
-            }
+        if instance.config.sr_enabled
+            && let Some(prefix_sid) = stub.prefix_sids.get(&IgpAlgoType::Spf)
+        {
+            let local = stub.vertex.hops == 0;
+            let last_hop = stub.vertex.hops == 1;
+            sr::prefix_sid_update(
+                area,
+                instance,
+                origin.adv_rtr,
+                &mut new_route,
+                prefix_sid,
+                local,
+                last_hop,
+                lsa_entries,
+            );
         }
 
         // Update BIER Routing Table (BIRT)
@@ -495,19 +495,19 @@ fn update_rib_inter_area_networks<V>(
         };
 
         // Update route's Prefix-SID (if any).
-        if instance.config.sr_enabled {
-            if let Some(prefix_sid) = lsa.prefix_sids.get(&IgpAlgoType::Spf) {
-                sr::prefix_sid_update(
-                    area,
-                    instance,
-                    lsa.adv_rtr,
-                    &mut new_route,
-                    prefix_sid,
-                    false,
-                    false,
-                    lsa_entries,
-                );
-            }
+        if instance.config.sr_enabled
+            && let Some(prefix_sid) = lsa.prefix_sids.get(&IgpAlgoType::Spf)
+        {
+            sr::prefix_sid_update(
+                area,
+                instance,
+                lsa.adv_rtr,
+                &mut new_route,
+                prefix_sid,
+                false,
+                false,
+                lsa_entries,
+            );
         }
 
         // Try to add or update summary route in the RIB.

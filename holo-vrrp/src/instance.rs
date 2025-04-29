@@ -25,7 +25,6 @@ use tokio::sync::mpsc;
 use crate::debug::Debug;
 use crate::error::{Error, IoError};
 use crate::interface::{InterfaceSys, InterfaceView};
-use crate::network::{VRRP_MULTICAST_ADDR_IPV4, VRRP_PROTO_NUMBER};
 use crate::northbound::configuration::InstanceCfg;
 use crate::packet::{
     ArpHdr, EthernetHdr, Ipv4Hdr, NeighborAdvertisement, Vrrp4Packet, VrrpHdr,
@@ -435,20 +434,8 @@ impl Instance {
         let total_length = (36 + (4 * addr_count)) as u16;
 
         Ipv4Hdr {
-            version: 4,
-            ihl: 5,
-            tos: 0xc0,
             total_length,
-            identification: 0x0007,
-            flags: 0x00,
-            offset: 0x00,
-            ttl: 255,
-            protocol: VRRP_PROTO_NUMBER as u8,
-            checksum: 0x00,
             src_address,
-            dst_address: *VRRP_MULTICAST_ADDR_IPV4,
-            options: None,
-            padding: None,
         }
     }
 
@@ -474,6 +461,7 @@ impl Instance {
                         ip: self.generate_ipv4_packet(addr),
                         vrrp: self.generate_vrrp_packet(),
                     };
+
                     let msg = NetTxPacketMsg::Vrrp { packet };
                     let net = self.net.as_ref().unwrap();
                     let _ = net.net_tx_packetp.send(msg);

@@ -162,10 +162,10 @@ fn prefix_sid_input_label(
     local: bool,
     lsp_entries: &Arena<LspEntry>,
 ) -> Result<Option<Label>, Error> {
-    // Do not assign a label for local Prefix-SIDs unless the N-Flag is
+    // Do not assign a label for local Prefix-SIDs unless the P-Flag is
     // set and the E-Flag is unset.
     if local
-        && (!prefix_sid.flags.contains(PrefixSidFlags::N)
+        && (!prefix_sid.flags.contains(PrefixSidFlags::P)
             || prefix_sid.flags.contains(PrefixSidFlags::E))
     {
         return Ok(None);
@@ -207,8 +207,8 @@ fn prefix_sid_output_label(
     last_hop: bool,
     lsp_entries: &Arena<LspEntry>,
 ) -> Result<Label, Error> {
-    // Handle the N-Flag.
-    if last_hop && !prefix_sid.flags.contains(PrefixSidFlags::N) {
+    // Handle the P-Flag.
+    if last_hop && !prefix_sid.flags.contains(PrefixSidFlags::P) {
         return Ok(Label::implicit_null());
     }
 

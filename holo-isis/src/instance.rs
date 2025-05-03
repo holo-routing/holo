@@ -332,7 +332,7 @@ impl ProtocolInstance for Instance {
 
     async fn process_ibus_msg(&mut self, msg: IbusMsg) {
         if let Err(error) = process_ibus_msg(self, msg).await {
-            error.log(&self.arenas);
+            error.log();
         }
     }
 
@@ -343,7 +343,7 @@ impl ProtocolInstance for Instance {
         };
 
         if let Err(error) = process_protocol_msg(&mut instance, arenas, msg) {
-            error.log(arenas);
+            error.log();
         }
     }
 

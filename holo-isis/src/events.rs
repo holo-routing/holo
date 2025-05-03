@@ -91,7 +91,7 @@ pub(crate) fn process_pdu(
                 }
                 _ => (),
             }
-            return Err(Error::PduDecodeError(iface_idx, src, error));
+            return Err(Error::PduDecodeError(iface.name.clone(), src, error));
         }
     };
 
@@ -188,7 +188,7 @@ pub(crate) fn process_pdu_hello(
                 );
             }
         }
-        return Err(Error::AdjacencyReject(iface_idx, src, error));
+        return Err(Error::AdjacencyReject(iface.name.clone(), src, error));
     }
 
     Ok(())

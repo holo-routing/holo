@@ -1269,7 +1269,7 @@ impl Provider for Instance {
                     if let Err(error) =
                         iface.update(&mut instance, &mut arenas.adjacencies)
                     {
-                        error.log(arenas);
+                        error.log();
                     }
                 }
             }
@@ -1305,7 +1305,7 @@ impl Provider for Instance {
                     if let Err(error) =
                         iface.reset(&mut instance, &mut arenas.adjacencies)
                     {
-                        error.log(arenas);
+                        error.log();
                     }
                 }
             }

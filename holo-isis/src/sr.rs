@@ -69,8 +69,8 @@ pub(crate) fn prefix_sid_update(
         lsp_entries,
     ) {
         Ok(label) => route.sr_label = label,
-        Err(_error) => {
-            // TODO: log error.
+        Err(error) => {
+            error.log();
         }
     }
 
@@ -86,8 +86,8 @@ pub(crate) fn prefix_sid_update(
             lsp_entries,
         ) {
             Ok(label) => nexthop.sr_label = Some(label),
-            Err(_error) => {
-                // TODO: log error.
+            Err(error) => {
+                error.log();
             }
         }
     }

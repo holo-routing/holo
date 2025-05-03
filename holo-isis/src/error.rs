@@ -11,10 +11,7 @@ use holo_utils::ip::AddressFamily;
 use holo_yang::ToYang;
 use tracing::{error, warn, warn_span};
 
-use crate::collections::{
-    AdjacencyId, InterfaceId, InterfaceIndex, LspEntryId,
-};
-use crate::instance::InstanceArenas;
+use crate::collections::{AdjacencyId, InterfaceId, LspEntryId};
 use crate::network::MulticastAddr;
 use crate::packet::error::DecodeError;
 use crate::packet::{LevelNumber, SystemId};
@@ -30,8 +27,8 @@ pub enum Error {
     AdjacencyIdNotFound(AdjacencyId),
     LspEntryIdNotFound(LspEntryId),
     // Packet input
-    PduDecodeError(InterfaceIndex, [u8; 6], DecodeError),
-    AdjacencyReject(InterfaceIndex, [u8; 6], AdjacencyRejectError),
+    PduDecodeError(String, [u8; 6], DecodeError),
+    AdjacencyReject(String, [u8; 6], AdjacencyRejectError),
     // Segment Routing
     SrCapNotFound(LevelNumber, SystemId),
     SrCapUnsupportedAf(LevelNumber, SystemId, AddressFamily),
@@ -67,7 +64,7 @@ pub enum AdjacencyRejectError {
 // ===== impl Error =====
 
 impl Error {
-    pub(crate) fn log(&self, arenas: &InstanceArenas) {
+    pub(crate) fn log(&self) {
         match self {
             Error::IoError(error) => {
                 error.log();
@@ -81,17 +78,15 @@ impl Error {
             Error::LspEntryIdNotFound(lse_id) => {
                 warn!(?lse_id, "{}", self);
             }
-            Error::PduDecodeError(iface_idx, source, error) => {
-                let iface = &arenas.interfaces[*iface_idx];
-                warn_span!("interface", name = %iface.name, ?source).in_scope(
+            Error::PduDecodeError(ifname, source, error) => {
+                warn_span!("interface", name = %ifname, ?source).in_scope(
                     || {
                         warn!(%error, "{}", self);
                     },
                 )
             }
-            Error::AdjacencyReject(iface_idx, source, error) => {
-                let iface = &arenas.interfaces[*iface_idx];
-                warn_span!("interface", name = %iface.name, ?source).in_scope(
+            Error::AdjacencyReject(ifname, source, error) => {
+                warn_span!("interface", name = %ifname, ?source).in_scope(
                     || {
                         error.log();
                     },

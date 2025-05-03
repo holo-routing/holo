@@ -530,6 +530,7 @@ fn lsp_build_tlvs_ip_local(
                     instance,
                     prefix,
                     prefix_attr_flags,
+                    false,
                 );
                 ext_ipv4_reach.insert(
                     prefix,
@@ -562,8 +563,12 @@ fn lsp_build_tlvs_ip_local(
             if iface.is_loopback() && prefix.is_host_prefix() {
                 prefix_attr_flags.insert(PrefixAttrFlags::N);
             }
-            let sub_tlvs =
-                lsp_build_ipv6_reach_stlvs(instance, prefix, prefix_attr_flags);
+            let sub_tlvs = lsp_build_ipv6_reach_stlvs(
+                instance,
+                prefix,
+                prefix_attr_flags,
+                false,
+            );
             ipv6_reach.insert(
                 prefix,
                 Ipv6Reach {
@@ -610,6 +615,7 @@ fn lsp_build_tlvs_ip_redistributed(
                     instance,
                     prefix,
                     prefix_attr_flags,
+                    true,
                 );
                 ext_ipv4_reach.insert(
                     prefix,
@@ -627,8 +633,12 @@ fn lsp_build_tlvs_ip_redistributed(
         for (prefix, route) in instance.system.ipv6_routes.get(level) {
             let prefix = prefix.apply_mask();
             let prefix_attr_flags = PrefixAttrFlags::empty();
-            let sub_tlvs =
-                lsp_build_ipv6_reach_stlvs(instance, prefix, prefix_attr_flags);
+            let sub_tlvs = lsp_build_ipv6_reach_stlvs(
+                instance,
+                prefix,
+                prefix_attr_flags,
+                true,
+            );
             ipv6_reach.insert(
                 prefix,
                 Ipv6Reach {
@@ -688,6 +698,7 @@ fn lsp_build_ipv4_reach_stlvs(
     instance: &mut InstanceUpView<'_>,
     prefix: Ipv4Network,
     prefix_attr_flags: PrefixAttrFlags,
+    redistributed: bool,
 ) -> Ipv4ReachStlvs {
     let mut sub_tlvs = Ipv4ReachStlvs::default();
 
@@ -706,7 +717,7 @@ fn lsp_build_ipv4_reach_stlvs(
     }
 
     // Add Prefix-SID Sub-TLV(s).
-    if instance.config.sr.enabled {
+    if instance.config.sr.enabled && !redistributed {
         let algo = IgpAlgoType::Spf;
         if let Some(prefix_sid_cfg) = instance
             .shared
@@ -726,6 +737,7 @@ fn lsp_build_ipv6_reach_stlvs(
     instance: &mut InstanceUpView<'_>,
     prefix: Ipv6Network,
     prefix_attr_flags: PrefixAttrFlags,
+    redistributed: bool,
 ) -> Ipv6ReachStlvs {
     let bier_config = &instance.shared.bier_config;
     let mut sub_tlvs = Ipv6ReachStlvs::default();
@@ -745,7 +757,7 @@ fn lsp_build_ipv6_reach_stlvs(
     }
 
     // Add Prefix-SID Sub-TLV(s).
-    if instance.config.sr.enabled {
+    if instance.config.sr.enabled && !redistributed {
         let algo = IgpAlgoType::Spf;
         if let Some(prefix_sid_cfg) = instance
             .shared

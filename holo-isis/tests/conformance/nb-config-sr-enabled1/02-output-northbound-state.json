@@ -271,18 +271,18 @@
                               "sr-capability-flag": [
                                 "mpls-ipv4",
                                 "mpls-ipv6"
-                              ]
-                            },
-                            "ietf-isis-sr-mpls:global-blocks": {
-                              "global-block": [
-                                {
-                                  "range-size": 8000,
-                                  "sid-sub-tlv": {
-                                    "length": 3,
-                                    "label-value": 16000
+                              ],
+                              "global-blocks": {
+                                "global-block": [
+                                  {
+                                    "range-size": 8000,
+                                    "sid-sub-tlv": {
+                                      "length": 3,
+                                      "label-value": 16000
+                                    }
                                   }
-                                }
-                              ]
+                                ]
+                              }
                             },
                             "ietf-isis-sr-mpls:sr-algorithms": {
                               "sr-algorithm": [
@@ -322,7 +322,7 @@
                                           ]
                                         },
                                         "weight": 0,
-                                        "sid": 16
+                                        "label-value": 16
                                       },
                                       {
                                         "adj-sid-flags": {
@@ -333,7 +333,7 @@
                                           ]
                                         },
                                         "weight": 0,
-                                        "sid": 17
+                                        "label-value": 17
                                       }
                                     ]
                                   }
@@ -358,7 +358,7 @@
                                           ]
                                         },
                                         "weight": 0,
-                                        "sid": 18
+                                        "label-value": 18
                                       },
                                       {
                                         "adj-sid-flags": {
@@ -369,7 +369,7 @@
                                           ]
                                         },
                                         "weight": 0,
-                                        "sid": 19
+                                        "label-value": 19
                                       }
                                     ]
                                   }
@@ -394,7 +394,7 @@
                                           ]
                                         },
                                         "weight": 0,
-                                        "sid": 20
+                                        "label-value": 20
                                       },
                                       {
                                         "adj-sid-flags": {
@@ -405,7 +405,7 @@
                                           ]
                                         },
                                         "weight": 0,
-                                        "sid": 21
+                                        "label-value": 21
                                       }
                                     ]
                                   }
@@ -434,7 +434,7 @@
                                     ]
                                   },
                                   "algorithm": "ietf-segment-routing-common:prefix-sid-algorithm-shortest-path",
-                                  "sid": 30
+                                  "index-value": 30
                                 }
                               ]
                             }
@@ -478,7 +478,7 @@
                                     ]
                                   },
                                   "algorithm": "ietf-segment-routing-common:prefix-sid-algorithm-shortest-path",
-                                  "sid": 31
+                                  "index-value": 31
                                 }
                               ]
                             }

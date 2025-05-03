@@ -283,7 +283,7 @@
                                           ]
                                         },
                                         "weight": 0,
-                                        "sid": 16
+                                        "label-value": 16
                                       },
                                       {
                                         "adj-sid-flags": {
@@ -294,7 +294,7 @@
                                           ]
                                         },
                                         "weight": 0,
-                                        "sid": 17
+                                        "label-value": 17
                                       }
                                     ]
                                   }
@@ -319,7 +319,7 @@
                                           ]
                                         },
                                         "weight": 0,
-                                        "sid": 18
+                                        "label-value": 18
                                       },
                                       {
                                         "adj-sid-flags": {
@@ -330,7 +330,7 @@
                                           ]
                                         },
                                         "weight": 0,
-                                        "sid": 19
+                                        "label-value": 19
                                       }
                                     ]
                                   }
@@ -355,7 +355,7 @@
                                           ]
                                         },
                                         "weight": 0,
-                                        "sid": 20
+                                        "label-value": 20
                                       },
                                       {
                                         "adj-sid-flags": {
@@ -366,7 +366,7 @@
                                           ]
                                         },
                                         "weight": 0,
-                                        "sid": 21
+                                        "label-value": 21
                                       }
                                     ]
                                   }

@@ -91,7 +91,7 @@ module ietf-isis-sr-mpls {
   // RFC Ed.: Replace XXXX with actual RFC number and remove
   // this note
 
-  revision 2025-04-15 {
+  revision 2025-04-22 {
     description
       "Initial revision.";
     reference
@@ -100,7 +100,7 @@ module ietf-isis-sr-mpls {
   }
 
   // RFC Ed.: Replace XXXX with actual RFC number.
-  // Also, replace '2025-04-14' with the module publication date
+  // Also, replace '2025-04-22' with the module publication date
   // in the format (YYYY-MM-DD) and remove this note.
 
   /* Features */
@@ -307,6 +307,46 @@ module ietf-isis-sr-mpls {
 
   /* Groupings */
 
+  grouping sid-tlv-encoding {
+    description
+      "SID TLV Encoding -  20-bit label or 32-bit SID index whose
+       interpretation is dependent on the TLV length (3 for an
+       MPLS label or 4 for a 32-bit value)  or the TLV V-Flag and
+       L-Flag settings:
+
+        If the  V-Flag is set to 0 and L-Flag is set to 0:
+        The SID/Index/Label field is a 4-octet index defining
+        the offset in the SID/Label space advertised by this
+        router.
+
+        If V-Flag is set to 1 and L-Flag is set to 1: The
+        ID/Index/Label field is a 3-octet local label where the
+        20 rightmost bits are used for encoding the label value.";
+    reference
+      "RFC 8667: IS-IS Extensions for Segment Routing, Section 2.1.1.1";
+    choice sid {
+      case sid-label {
+        leaf label-value {
+          type uint32 {
+            range "0 .. 1048575";
+          }
+          description
+            "A 20-bit MPLS Label";
+        }
+      }
+      case sid-index {
+        leaf index-value {
+          type uint32;
+          description
+            "Index into a label space advertised by this router.";
+        }
+      }
+      description
+        "Choice of either a 20-bit MPLS label or 32-bit index into
+         an advertised label space.";
+    }
+  }
+
   grouping sid-sub-tlv {
     description
       "SID/Label sub-TLV grouping.";
@@ -323,27 +363,7 @@ module ietf-isis-sr-mpls {
            is necessary since it dictates the semantics of the
            SID.";
       }
-      choice sid {
-        description
-          "Choice of either a 20-bit MPLS label or 32-bit index into
-           an advertised label space.";
-        case sid-label {
-          leaf label-value {
-            type uint32 {
-              range "0 .. 1048575";
-            }
-            description
-              "A 20-bit MPLS Label";
-          }
-        }
-        case sid-index {
-          leaf index-value {
-            type uint32;
-            description
-              "Index into a label space advertised by this router.";
-          }
-        }
-      }
+      uses sid-tlv-encoding;
     }
   }
 
@@ -362,19 +382,19 @@ module ietf-isis-sr-mpls {
         description
           "SR Capability sub-TLV flags.";
       }
-    }
-    container global-blocks {
-      description
-        "Segment Routing Global Blocks.";
-      list global-block {
+      container global-blocks {
         description
-          "Segment Routing Global Block.";
-        leaf range-size {
-          type uint32;
+          "Segment Routing Global Blocks.";
+        list global-block {
           description
-            "The SID range.";
+            "Segment Routing Global Block.";
+          leaf range-size {
+            type rt-types:uint24;
+            description
+              "The SID range.";
+          }
+          uses sid-sub-tlv;
         }
-        uses sid-sub-tlv;
       }
     }
   }
@@ -504,11 +524,7 @@ module ietf-isis-sr-mpls {
           description
             "Algorithm to be used for path computation.";
         }
-        leaf sid {
-          type uint32;
-          description
-            "Value of the prefix-SID.";
-        }
+        uses sid-tlv-encoding;
       }
     }
   }
@@ -549,11 +565,7 @@ module ietf-isis-sr-mpls {
              associated with the SID value. This is only
              used on LAN adjacencies.";
         }
-        leaf sid {
-          type uint32;
-          description
-            "Value of the Adj-SID.";
-        }
+        uses sid-tlv-encoding;
       }
     }
   }

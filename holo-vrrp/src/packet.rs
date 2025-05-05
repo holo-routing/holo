@@ -244,20 +244,31 @@ impl VrrpHdr {
         let ver = ver_type >> 4;
         let hdr_type = ver_type & 0x0F;
         let vrid = buf.get_u8();
+
         let version = match (ver, af) {
             (2, AddressFamily::Ipv4) => Version::V2,
             (3, AddressFamily::Ipv4) => Version::V3(AddressFamily::Ipv4),
             (3, AddressFamily::Ipv6) => Version::V3(AddressFamily::Ipv6),
             _ => return Err(DecodeError::VersionError { vrid }),
         };
-        if pkt_size > Self::max_length(version) {
-            return Err(DecodeError::PacketLengthError { vrid, version });
-        }
+
         let priority = buf.get_u8();
         let count_ip = buf.get_u8();
+
+        // Check for required Virtual IP count.
+        // Size Checks:
+        //  1. Count of IP Addresses.
+        //  2. Check of the expected packet size.
+        if (usize::from(count_ip) > Self::MAX_VIRTUAL_IP_COUNT)
+            || (Self::expected_length(version, count_ip) != pkt_size)
+        {
+            return Err(DecodeError::PacketLengthError { vrid, version });
+        }
+
         let adver_int;
         let checksum;
         let mut ip_addresses = vec![];
+
         match version {
             Version::V2 => {
                 let _auth_type = buf.get_u8();
@@ -285,17 +296,12 @@ impl VrrpHdr {
             }
         }
 
-        // Checksum validation.
-        match af {
-            AddressFamily::Ipv4 => {
-                let mut check = Checksum::new();
-                check.add_bytes(data);
-                if check.checksum() != [0, 0] {
-                    return Err(DecodeError::ChecksumError);
-                }
-            }
-            AddressFamily::Ipv6 => {
-                // For IPv6, checksum validation is offloaded to the kernel.
+        // Checksum validation. IPv6's validation is offloaded to the kernel.
+        if let AddressFamily::Ipv4 = af {
+            let mut check = Checksum::new();
+            check.add_bytes(data);
+            if check.checksum() != [0, 0] {
+                return Err(DecodeError::ChecksumError);
             }
         }
 
@@ -311,10 +317,19 @@ impl VrrpHdr {
         })
     }
 
-    // Maximum number of bytes in a packet.
-    pub fn max_length(version: Version) -> usize {
+    // Once we have the number of IPs expected, we can calculate the expected
+    // length of the packet.
+    pub fn expected_length(version: Version, count_ip: u8) -> usize {
+        // Get number of bytes the authentication header sections will occupy.
+        let auth_len = match version.address_family() {
+            AddressFamily::Ipv6 => 0,
+            AddressFamily::Ipv4 => 8,
+        };
+
+        // [Minimum Length] + [virtual ip size] + size of pkt's auth section.
         Self::MIN_LEN
-            + version.address_family().addr_len() * Self::MAX_VIRTUAL_IP_COUNT
+            + (version.address_family().addr_len() * usize::from(count_ip))
+            + auth_len
     }
 }
 

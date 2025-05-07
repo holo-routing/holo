@@ -179,7 +179,7 @@ pub enum DecodeError {
     VersionError { vrid: u8 },
 }
 
-// ===== impl Packet =====
+// ===== impl VrrpHdr =====
 
 impl VrrpHdr {
     // Minimum number of bytes in a VRRP header (either v2 or v3).
@@ -333,6 +333,8 @@ impl VrrpHdr {
     }
 }
 
+// ===== impl Ipv4Hdr =====
+
 impl Ipv4Hdr {
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::new();
@@ -384,6 +386,8 @@ impl Ipv4Hdr {
 }
 
 impl EthernetHdr {
+    const LEN: usize = 14;
+
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::new();
         self.dst_mac.iter().for_each(|i| buf.put_u8(*i));
@@ -393,6 +397,9 @@ impl EthernetHdr {
     }
 
     pub fn decode(data: &[u8]) -> DecodeResult<Self> {
+        if data.len() != Self::LEN {
+            return Err(DecodeError::IncompletePacket);
+        }
         let dst_mac = &data[0..6].try_into();
         let dst_mac: [u8; 6] = dst_mac.unwrap();
 
@@ -452,6 +459,8 @@ impl NeighborAdvertisement {
 }
 
 impl ArpHdr {
+    const LEN: usize = 28;
+
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::with_capacity(28);
         buf.put_u16(self.hw_type);
@@ -467,6 +476,9 @@ impl ArpHdr {
     }
 
     pub fn decode(data: &[u8]) -> DecodeResult<Self> {
+        if data.len() != Self::LEN {
+            return Err(DecodeError::IncompletePacket);
+        }
         let mut buf = Bytes::copy_from_slice(data);
         let mut sender_hw_address: [u8; 6] = [0; 6];
         let mut target_hw_address: [u8; 6] = [0; 6];

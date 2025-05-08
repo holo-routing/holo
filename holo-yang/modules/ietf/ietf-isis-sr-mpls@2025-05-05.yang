@@ -91,12 +91,12 @@ module ietf-isis-sr-mpls {
   // RFC Ed.: Replace XXXX with actual RFC number and remove
   // this note
 
-  revision 2025-04-22 {
+  revision 2025-05-06 {
     description
       "Initial revision.";
     reference
-      "RFC XXXX: A YANG Data Model for IS-IS Segment Routing over the
-                 MPLS Data Plane";
+      "RFC XXXX: A YANG Data Model for IS-IS Segment Routing over
+                 the MPLS Data Plane";
   }
 
   // RFC Ed.: Replace XXXX with actual RFC number.
@@ -323,7 +323,8 @@ module ietf-isis-sr-mpls {
         ID/Index/Label field is a 3-octet local label where the
         20 rightmost bits are used for encoding the label value.";
     reference
-      "RFC 8667: IS-IS Extensions for Segment Routing, Section 2.1.1.1";
+      "RFC 8667: IS-IS Extensions for Segment Routing,
+       Section 2.1.1.1";
     choice sid {
       case sid-label {
         leaf label-value {
@@ -344,26 +345,6 @@ module ietf-isis-sr-mpls {
       description
         "Choice of either a 20-bit MPLS label or 32-bit index into
          an advertised label space.";
-    }
-  }
-
-  grouping sid-sub-tlv {
-    description
-      "SID/Label sub-TLV grouping.";
-    reference
-      "RFC 8667: IS-IS Extensions for Segment Routing, Section 2.4";
-    container sid-sub-tlv {
-      description
-        "Used to advertise the SID/Label associated with a
-         prefix or adjacency.";
-      leaf length {
-        type uint8;
-        description
-          "Length of the SID value. YANG model specification
-           is necessary since it dictates the semantics of the
-           SID.";
-      }
-      uses sid-tlv-encoding;
     }
   }
 
@@ -393,7 +374,7 @@ module ietf-isis-sr-mpls {
             description
               "The SID range.";
           }
-          uses sid-sub-tlv;
+          uses sid-tlv-encoding;
         }
       }
     }
@@ -434,7 +415,7 @@ module ietf-isis-sr-mpls {
           description
             "The SID range.";
         }
-        uses sid-sub-tlv;
+        uses sid-tlv-encoding;
       }
     }
   }
@@ -613,7 +594,7 @@ module ietf-isis-sr-mpls {
       reference
         "RFC 8667: IS-IS Extensions for Segment Routing,
          Section 2.4.5";
-      uses sid-sub-tlv;
+      uses sid-tlv-encoding;
     }
     uses isis:unknown-tlvs;
   }

@@ -276,10 +276,7 @@
                                 "global-block": [
                                   {
                                     "range-size": 8000,
-                                    "sid-sub-tlv": {
-                                      "length": 3,
-                                      "label-value": 16000
-                                    }
+                                    "label-value": 16000
                                   }
                                 ]
                               }
@@ -293,10 +290,7 @@
                               "local-block": [
                                 {
                                   "range-size": 1000,
-                                  "sid-sub-tlv": {
-                                    "length": 3,
-                                    "label-value": 15000
-                                  }
+                                  "label-value": 15000
                                 }
                               ]
                             }

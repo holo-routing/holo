@@ -318,25 +318,16 @@ fn load_callbacks() -> Callbacks<Instance> {
         .get_object(|_instance, args| {
             use isis::database::levels::lsp::router_capabilities::router_capability::sr_capability::global_blocks::global_block::GlobalBlock;
             let entry = args.list_entry.as_label_block_entry().unwrap();
-            Box::new(GlobalBlock {
-                range_size: Some(entry.range),
-            })
-        })
-        .path(isis::database::levels::lsp::router_capabilities::router_capability::sr_capability::global_blocks::global_block::sid_sub_tlv::PATH)
-        .get_object(|_instance, args| {
-            use isis::database::levels::lsp::router_capabilities::router_capability::sr_capability::global_blocks::global_block::sid_sub_tlv::SidSubTlv;
-            let entry = args.list_entry.as_label_block_entry().unwrap();
-            let mut obj = SidSubTlv::default();
+            let mut obj = GlobalBlock::default();
+            obj.range_size = Some(entry.range);
             match entry.first {
                 Sid::Index(index) => {
-                    obj.length = Some(4);
                     obj.index_value = Some(index);
                 },
                 Sid::Label(label) => {
-                    obj.length = Some(3);
                     obj.label_value = Some(label.get());
                 },
-            };
+            }
             Box::new(obj)
         })
         .path(isis::database::levels::lsp::router_capabilities::router_capability::sr_algorithms::PATH)
@@ -365,25 +356,16 @@ fn load_callbacks() -> Callbacks<Instance> {
         .get_object(|_instance, args| {
             use isis::database::levels::lsp::router_capabilities::router_capability::local_blocks::local_block::LocalBlock;
             let entry = args.list_entry.as_label_block_entry().unwrap();
-            Box::new(LocalBlock {
-                range_size: Some(entry.range),
-            })
-        })
-        .path(isis::database::levels::lsp::router_capabilities::router_capability::local_blocks::local_block::sid_sub_tlv::PATH)
-        .get_object(|_instance, args| {
-            use isis::database::levels::lsp::router_capabilities::router_capability::local_blocks::local_block::sid_sub_tlv::SidSubTlv;
-            let entry = args.list_entry.as_label_block_entry().unwrap();
-            let mut obj = SidSubTlv::default();
+            let mut obj = LocalBlock::default();
+            obj.range_size = Some(entry.range);
             match entry.first {
                 Sid::Index(index) => {
-                    obj.length = Some(4);
                     obj.index_value = Some(index);
                 },
                 Sid::Label(label) => {
-                    obj.length = Some(3);
                     obj.label_value = Some(label.get());
                 },
-            };
+            }
             Box::new(obj)
         })
         .path(isis::database::levels::lsp::unknown_tlvs::unknown_tlv::PATH)

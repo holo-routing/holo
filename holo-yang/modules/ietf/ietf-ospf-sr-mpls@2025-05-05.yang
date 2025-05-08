@@ -91,7 +91,7 @@ module ietf-ospf-sr-mpls {
   // RFC Ed.: Replace XXXX with actual RFC number and remove
   // this note
 
-  revision 2025-04-14 {
+  revision 2025-05-05 {
     description
       "Initial revision.";
     reference
@@ -260,7 +260,8 @@ module ietf-ospf-sr-mpls {
         ID/Index/Label field is a 3-octet local label where the
         20 rightmost bits are used for encoding the label value.";
     reference
-      "RFC 8665: OSPF Extensions for Segment Routing, Section 5
+      "RFC 8665: OSPF Extensions for Segment Routing, Section 2.1
+       RFC 8665: OSPF Extensions for Segment Routing, Section 5
        RFC 8666: OSPFv3 Extensions for Segment Routing, Section 3";
     choice sid {
       case sid-label {
@@ -282,27 +283,6 @@ module ietf-ospf-sr-mpls {
       description
         "Choice of either a 20-bit MPLS label or 32-bit index into
          an advertised label space.";
-    }
-  }
-
-  grouping sid-sub-tlv {
-    description
-      "SID/Label sub-TLV grouping.";
-    reference
-      "RFC 8665: OSPF Extensions for Segment Routing
-       (Section 2.1)";
-    container sid-sub-tlv {
-      description
-        "Used to advertise the SID/Label associated with a
-         prefix or adjacency.";
-      leaf length {
-        type uint16;
-        description
-          "Length of the SID value. YANG model specification
-           is necessary since it dictates the semantics of the
-           SID.";
-      }
-      uses sid-tlv-encoding;
     }
   }
 
@@ -525,7 +505,7 @@ module ietf-ospf-sr-mpls {
           description
             "SID range.";
         }
-        uses sid-sub-tlv;
+        uses sid-tlv-encoding;
       }
     }
   }
@@ -549,7 +529,7 @@ module ietf-ospf-sr-mpls {
             "SID range. The return of a zero value would indicate
              an error.";
         }
-        uses sid-sub-tlv;
+        uses sid-tlv-encoding;
       }
     }
   }
@@ -919,6 +899,40 @@ module ietf-ospf-sr-mpls {
         "Force remote LFA to use segment routing path instead of LDP
          path. The value of this leaf is in effect only when
          remote-lfa is enabled.";
+    }
+  }
+
+  /* Operational states */
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/ospf:ospf/"
+        + "ospf:areas/ospf:area/ospf:interfaces/ospf:interface/"
+        + "ospf:neighbors/ospf:neighbor" {
+    when "derived-from(/rt:routing/rt:control-plane-protocols/"
+       + "rt:control-plane-protocol/rt:type, 'ospf:ospf')" {
+      description
+        "This augments the OSPF routing protocol when used.";
+    }
+    description
+      "This augments OSPF interface adjancency-sid state.";
+    list adjacency-sid {
+      description
+        "List of adjacency Segment IDs.";
+      leaf value {
+        type uint32;
+        description
+          "Value of the Adj-SID.";
+      }
+      leaf weight {
+        type uint8;
+        description
+          "Weight associated with the adjacency SID.";
+      }
+      leaf protection-requested {
+        type boolean;
+        description
+          "Describe if the adjacency SID is protected.";
+      }
     }
   }
 

@@ -775,22 +775,13 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         .get_object(|_instance, args| {
             use ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::opaque::ri_opaque::sid_range_tlvs::sid_range_tlv::SidRangeTlv;
             let srgb = args.list_entry.as_srgb().unwrap();
-            Box::new(SidRangeTlv {
-                range_size: Some(srgb.range),
-            })
-        })
-        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::opaque::ri_opaque::sid_range_tlvs::sid_range_tlv::sid_sub_tlv::PATH)
-        .get_object(|_instance, args| {
-            use ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::opaque::ri_opaque::sid_range_tlvs::sid_range_tlv::sid_sub_tlv::SidSubTlv;
-            let srgb = args.list_entry.as_srgb().unwrap();
-            let mut stlv = SidSubTlv::default();
+            let mut stlv = SidRangeTlv::default();
+            stlv.range_size = Some(srgb.range);
             match srgb.first {
                 Sid::Index(index) => {
-                    stlv.length = Some(4);
                     stlv.index_value = Some(index);
                 },
                 Sid::Label(label) => {
-                    stlv.length = Some(3);
                     stlv.label_value = Some(label.get());
                 },
             };
@@ -812,22 +803,13 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         .get_object(|_instance, args| {
             use ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::opaque::ri_opaque::local_block_tlvs::local_block_tlv::LocalBlockTlv;
             let srlb = args.list_entry.as_srlb().unwrap();
-            Box::new(LocalBlockTlv {
-                range_size: Some(srlb.range),
-            })
-        })
-        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::opaque::ri_opaque::local_block_tlvs::local_block_tlv::sid_sub_tlv::PATH)
-        .get_object(|_instance, args| {
-            use ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::opaque::ri_opaque::local_block_tlvs::local_block_tlv::sid_sub_tlv::SidSubTlv;
-            let srlb = args.list_entry.as_srlb().unwrap();
-            let mut stlv = SidSubTlv::default();
+            let mut stlv = LocalBlockTlv::default();
+            stlv.range_size = Some(srlb.range);
             match srlb.first {
                 Sid::Index(index) => {
-                    stlv.length = Some(4);
                     stlv.index_value = Some(index);
                 },
                 Sid::Label(label) => {
-                    stlv.length = Some(3);
                     stlv.label_value = Some(label.get());
                 },
             };
@@ -1245,22 +1227,13 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         .get_object(|_instance, args| {
             use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::sid_range_tlvs::sid_range_tlv::SidRangeTlv;
             let srgb = args.list_entry.as_srgb().unwrap();
-            Box::new(SidRangeTlv {
-                range_size: Some(srgb.range),
-            })
-        })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::sid_range_tlvs::sid_range_tlv::sid_sub_tlv::PATH)
-        .get_object(|_instance, args| {
-            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::sid_range_tlvs::sid_range_tlv::sid_sub_tlv::SidSubTlv;
-            let srgb = args.list_entry.as_srgb().unwrap();
-            let mut stlv = SidSubTlv::default();
+            let mut stlv = SidRangeTlv::default();
+            stlv.range_size = Some(srgb.range);
             match srgb.first {
                 Sid::Index(index) => {
-                    stlv.length = Some(4);
                     stlv.index_value = Some(index);
                 },
                 Sid::Label(label) => {
-                    stlv.length = Some(3);
                     stlv.label_value = Some(label.get());
                 },
             };
@@ -1282,22 +1255,13 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         .get_object(|_instance, args| {
             use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::local_block_tlvs::local_block_tlv::LocalBlockTlv;
             let srlb = args.list_entry.as_srlb().unwrap();
-            Box::new(LocalBlockTlv {
-                range_size: Some(srlb.range),
-            })
-        })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::local_block_tlvs::local_block_tlv::sid_sub_tlv::PATH)
-        .get_object(|_instance, args| {
-            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::ri_opaque::local_block_tlvs::local_block_tlv::sid_sub_tlv::SidSubTlv;
-            let srlb = args.list_entry.as_srlb().unwrap();
-            let mut stlv = SidSubTlv::default();
+            let mut stlv = LocalBlockTlv::default();
+            stlv.range_size = Some(srlb.range);
             match srlb.first {
                 Sid::Index(index) => {
-                    stlv.length = Some(4);
                     stlv.index_value = Some(index);
                 },
                 Sid::Label(label) => {
-                    stlv.length = Some(3);
                     stlv.label_value = Some(label.get());
                 },
             };
@@ -1880,22 +1844,13 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_object(|_instance, args| {
             use ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::router_information::sid_range_tlvs::sid_range_tlv::SidRangeTlv;
             let srgb = args.list_entry.as_srgb().unwrap();
-            Box::new(SidRangeTlv {
-                range_size: Some(srgb.range),
-            })
-        })
-        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::router_information::sid_range_tlvs::sid_range_tlv::sid_sub_tlv::PATH)
-        .get_object(|_instance, args| {
-            use ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::router_information::sid_range_tlvs::sid_range_tlv::sid_sub_tlv::SidSubTlv;
-            let srgb = args.list_entry.as_srgb().unwrap();
-            let mut stlv = SidSubTlv::default();
+            let mut stlv = SidRangeTlv::default();
+            stlv.range_size = Some(srgb.range);
             match srgb.first {
                 Sid::Index(index) => {
-                    stlv.length = Some(4);
                     stlv.index_value = Some(index);
                 },
                 Sid::Label(label) => {
-                    stlv.length = Some(3);
                     stlv.label_value = Some(label.get());
                 },
             };
@@ -1915,22 +1870,13 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_object(|_instance, args| {
             use ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::router_information::local_block_tlvs::local_block_tlv::LocalBlockTlv;
             let srlb = args.list_entry.as_srlb().unwrap();
-            Box::new(LocalBlockTlv {
-                range_size: Some(srlb.range),
-            })
-        })
-        .path(ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::router_information::local_block_tlvs::local_block_tlv::sid_sub_tlv::PATH)
-        .get_object(|_instance, args| {
-            use ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::router_information::local_block_tlvs::local_block_tlv::sid_sub_tlv::SidSubTlv;
-            let srlb = args.list_entry.as_srlb().unwrap();
-            let mut stlv = SidSubTlv::default();
+            let mut stlv = LocalBlockTlv::default();
+            stlv.range_size = Some(srlb.range);
             match srlb.first {
                 Sid::Index(index) => {
-                    stlv.length = Some(4);
                     stlv.index_value = Some(index);
                 },
                 Sid::Label(label) => {
-                    stlv.length = Some(3);
                     stlv.label_value = Some(label.get());
                 },
             };
@@ -2410,22 +2356,13 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_object(|_instance, args| {
             use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::sid_range_tlvs::sid_range_tlv::SidRangeTlv;
             let srgb = args.list_entry.as_srgb().unwrap();
-            Box::new(SidRangeTlv {
-                range_size: Some(srgb.range),
-            })
-        })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::sid_range_tlvs::sid_range_tlv::sid_sub_tlv::PATH)
-        .get_object(|_instance, args| {
-            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::sid_range_tlvs::sid_range_tlv::sid_sub_tlv::SidSubTlv;
-            let srgb = args.list_entry.as_srgb().unwrap();
-            let mut stlv = SidSubTlv::default();
+            let mut stlv = SidRangeTlv::default();
+            stlv.range_size = Some(srgb.range);
             match srgb.first {
                 Sid::Index(index) => {
-                    stlv.length = Some(4);
                     stlv.index_value = Some(index);
                 },
                 Sid::Label(label) => {
-                    stlv.length = Some(3);
                     stlv.label_value = Some(label.get());
                 },
             };
@@ -2445,22 +2382,13 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         .get_object(|_instance, args| {
             use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::local_block_tlvs::local_block_tlv::LocalBlockTlv;
             let srlb = args.list_entry.as_srlb().unwrap();
-            Box::new(LocalBlockTlv {
-                range_size: Some(srlb.range),
-            })
-        })
-        .path(ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::local_block_tlvs::local_block_tlv::sid_sub_tlv::PATH)
-        .get_object(|_instance, args| {
-            use ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::router_information::local_block_tlvs::local_block_tlv::sid_sub_tlv::SidSubTlv;
-            let srlb = args.list_entry.as_srlb().unwrap();
-            let mut stlv = SidSubTlv::default();
+            let mut stlv = LocalBlockTlv::default();
+            stlv.range_size = Some(srlb.range);
             match srlb.first {
                 Sid::Index(index) => {
-                    stlv.length = Some(4);
                     stlv.index_value = Some(index);
                 },
                 Sid::Label(label) => {
-                    stlv.length = Some(3);
                     stlv.label_value = Some(label.get());
                 },
             };

@@ -306,6 +306,14 @@ impl Message {
     // This function panics if the provided buffer doesn't contain an entire
     // message.
     pub fn decode(data: &[u8], cxt: &DecodeCxt) -> DecodeResult<Self> {
+        // Check if the number of bytes is actually more than the minimum
+        // required number of bytes.
+        if data.len() < usize::from(Self::MIN_LEN) {
+            return Err(
+                MessageHeaderError::BadMessageLength(data.len() as u16).into(),
+            );
+        }
+
         let mut buf = Bytes::copy_from_slice(data);
 
         // Parse and validate marker.
@@ -407,8 +415,12 @@ impl OpenMsg {
         buf[opt_param_len_pos] = opt_param_len as u8;
     }
 
-    fn decode(buf: &mut Bytes, msg_len: u16) -> DecodeResult<Self> {
-        if msg_len < Self::MIN_LEN {
+    pub fn decode(buf: &mut Bytes, msg_len: u16) -> DecodeResult<Self> {
+        if msg_len < Self::MIN_LEN
+            // Below, we check for if the size declared by msg_len can be
+            // verified by the size of the buffer.
+            || msg_len != buf.len() as u16 + Message::MIN_LEN
+        {
             return Err(MessageHeaderError::BadMessageLength(msg_len).into());
         }
 
@@ -1001,11 +1013,14 @@ pub(crate) fn encode_ipv6_prefix(buf: &mut BytesMut, prefix: &Ipv6Network) {
     buf.put(&prefix_bytes[0..plen_wire]);
 }
 
-pub(crate) fn decode_ipv4_prefix(
+pub fn decode_ipv4_prefix(
     buf: &mut Bytes,
 ) -> DecodeResult<Option<Ipv4Network>> {
     // Parse prefix length.
-    let plen = buf.get_u8();
+    let plen = buf
+        .try_get_u8()
+        .map_err(|_| UpdateMessageError::InvalidNetworkField)?;
+
     let plen_wire = prefix_wire_len(plen);
     if plen_wire > buf.remaining() || plen > Ipv4Network::MAX_PREFIXLEN {
         return Err(UpdateMessageError::InvalidNetworkField.into());
@@ -1030,11 +1045,14 @@ pub(crate) fn decode_ipv4_prefix(
     Ok(Some(prefix))
 }
 
-pub(crate) fn decode_ipv6_prefix(
+pub fn decode_ipv6_prefix(
     buf: &mut Bytes,
 ) -> DecodeResult<Option<Ipv6Network>> {
     // Parse prefix length.
-    let plen = buf.get_u8();
+    let plen = match buf.try_get_u8() {
+        Ok(plen) => plen,
+        Err(_) => return Err(UpdateMessageError::InvalidNetworkField.into()),
+    };
     let plen_wire = prefix_wire_len(plen);
     if plen_wire > buf.remaining() || plen > Ipv6Network::MAX_PREFIXLEN {
         return Err(UpdateMessageError::InvalidNetworkField.into());

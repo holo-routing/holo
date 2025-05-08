@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 pub type DecodeResult<T> = Result<T, DecodeError>;
 
 // BGP message decoding errors.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub enum DecodeError {
     MessageHeader(MessageHeaderError),

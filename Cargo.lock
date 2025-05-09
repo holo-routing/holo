@@ -1329,6 +1329,8 @@ dependencies = [
  "holo-utils",
  "holo-yang",
  "ipnetwork",
+ "libc",
+ "netlink-packet-core",
  "netlink-packet-route",
  "prefix-trie",
  "regex",

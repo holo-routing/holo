@@ -5,14 +5,16 @@
 //
 
 use std::net::IpAddr;
+use std::num::NonZeroI32;
 
 use capctl::caps::CapState;
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{Nexthop, NexthopSpecial};
 use ipnetwork::IpNetwork;
+use netlink_packet_core::ErrorMessage;
 use netlink_packet_route::route::{RouteProtocol, RouteType};
-use rtnetlink::{Handle, RouteMessageBuilder, new_connection};
+use rtnetlink::{Error, Handle, RouteMessageBuilder, new_connection};
 use tracing::error;
 
 use crate::rib::Route;
@@ -89,8 +91,18 @@ pub(crate) async fn ip_route_uninstall(
         .build();
 
     // Execute netlink request.
-    if let Err(error) = handle.route().del(msg).execute().await {
-        error!(%prefix, %error, "failed to install route");
+    if let Err(error) = handle.route().del(msg).execute().await
+        // Ignore "No such process" error (route is already gone).
+        && !matches!(
+            error,
+            Error::NetlinkError(ErrorMessage {
+                code: Some(code),
+                ..
+            })
+            if code == NonZeroI32::new(-libc::ESRCH).unwrap()
+        )
+    {
+        error!(%prefix, ?error, "failed to uninstall route");
     }
 }
 

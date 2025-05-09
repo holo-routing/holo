@@ -240,12 +240,12 @@ Holo supports the following Internet Standards:
 | ietf-ip@2018-02-22 | 52.17% | 0.00% | - | - | [40.00%](https://holo-routing.github.io/ietf-yang-coverage/ietf-ip@2018-02-22.html) |
 | ietf-ipv4-unicast-routing@2018-03-13 | 100.00% | 100.00% | - | - | [100.00%](https://holo-routing.github.io/ietf-yang-coverage/ietf-ipv4-unicast-routing@2018-03-13.html) |
 | ietf-ipv6-unicast-routing@2018-03-13 | 40.62% | 100.00% | - | - | [45.71%](https://holo-routing.github.io/ietf-yang-coverage/ietf-ipv6-unicast-routing@2018-03-13.html) |
-| ietf-isis-sr-mpls@2025-04-22 | 15.38% | 38.14% | - | - | [35.88%](https://holo-routing.github.io/ietf-yang-coverage/ietf-isis-sr-mpls@2025-04-22.html) |
+| ietf-isis-sr-mpls@2025-05-06 | 15.38% | 37.27% | - | - | [34.96%](https://holo-routing.github.io/ietf-yang-coverage/ietf-isis-sr-mpls@2025-05-06.html) |
 | ietf-isis@2022-10-19 | 94.64% | 55.24% | 100.00% | 100.00% | [71.14%](https://holo-routing.github.io/ietf-yang-coverage/ietf-isis@2022-10-19.html) |
 | ietf-key-chain@2017-06-15 | 100.00% | 100.00% | - | - | [100.00%](https://holo-routing.github.io/ietf-yang-coverage/ietf-key-chain@2017-06-15.html) |
 | ietf-mpls-ldp@2022-03-14 | 86.96% | 92.31% | 100.00% | 100.00% | [92.38%](https://holo-routing.github.io/ietf-yang-coverage/ietf-mpls-ldp@2022-03-14.html) |
 | ietf-mpls@2020-12-18 | 0.00% | 57.14% | - | - | [35.29%](https://holo-routing.github.io/ietf-yang-coverage/ietf-mpls@2020-12-18.html) |
-| ietf-ospf-sr-mpls@2025-04-14 | 26.67% | 55.02% | - | - | [53.52%](https://holo-routing.github.io/ietf-yang-coverage/ietf-ospf-sr-mpls@2025-04-14.html) |
+| ietf-ospf-sr-mpls@2025-05-05 | 20.00% | 51.36% | - | - | [49.63%](https://holo-routing.github.io/ietf-yang-coverage/ietf-ospf-sr-mpls@2025-05-05.html) |
 | ietf-ospf@2022-10-19 | 75.82% | 64.25% | 100.00% | 41.94% | [63.58%](https://holo-routing.github.io/ietf-yang-coverage/ietf-ospf@2022-10-19.html) |
 | ietf-ospfv3-extended-lsa@2024-06-07 | 50.00% | 85.28% | - | - | [84.85%](https://holo-routing.github.io/ietf-yang-coverage/ietf-ospfv3-extended-lsa@2024-06-07.html) |
 | ietf-rip@2020-02-20 | 27.91% | 93.33% | 100.00% | - | [55.41%](https://holo-routing.github.io/ietf-yang-coverage/ietf-rip@2020-02-20.html) |
@@ -254,7 +254,7 @@ Holo supports the following Internet Standards:
 | ietf-segment-routing-mpls@2021-05-26 | 62.50% | 0.00% | - | 23.53% | [32.76%](https://holo-routing.github.io/ietf-yang-coverage/ietf-segment-routing-mpls@2021-05-26.html) |
 | ietf-segment-routing@2021-05-26 | 100.00% | - | - | - | [100.00%](https://holo-routing.github.io/ietf-yang-coverage/ietf-segment-routing@2021-05-26.html) |
 | ietf-system@2014-08-06 | 26.67% | 60.00% | 0.00% | - | [38.24%](https://holo-routing.github.io/ietf-yang-coverage/ietf-system@2014-08-06.html) |
-| ietf-vrrp@2018-03-13 | 51.06% | 80.00% | - | 25.00% | [60.58%](https://holo-routing.github.io/ietf-yang-coverage/ietf-vrrp@2018-03-13.html) |
+| ietf-vrrp@2018-03-13 | 53.19% | 80.00% | - | 25.00% | [61.54%](https://holo-routing.github.io/ietf-yang-coverage/ietf-vrrp@2018-03-13.html) |
 
 ## Funding
 

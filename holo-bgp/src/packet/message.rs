@@ -1005,7 +1005,7 @@ pub(crate) fn encode_ipv6_prefix(buf: &mut BytesMut, prefix: &Ipv6Network) {
     buf.put(&prefix_bytes[0..plen_wire]);
 }
 
-pub(crate) fn decode_ipv4_prefix(
+pub fn decode_ipv4_prefix(
     buf: &mut Bytes,
 ) -> DecodeResult<Option<Ipv4Network>> {
     // Parse prefix length.
@@ -1034,7 +1034,7 @@ pub(crate) fn decode_ipv4_prefix(
     Ok(Some(prefix))
 }
 
-pub(crate) fn decode_ipv6_prefix(
+pub fn decode_ipv6_prefix(
     buf: &mut Bytes,
 ) -> DecodeResult<Option<Ipv6Network>> {
     // Parse prefix length.

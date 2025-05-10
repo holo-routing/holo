@@ -256,7 +256,7 @@ impl Attrs {
         }
     }
 
-    pub(crate) fn decode(
+    pub fn decode(
         buf: &mut Bytes,
         cxt: &DecodeCxt,
         nexthop: &mut Option<Ipv4Addr>,
@@ -633,7 +633,7 @@ impl AsPath {
         buf[start_pos..start_pos + 2].copy_from_slice(&attr_len.to_be_bytes());
     }
 
-    fn decode(
+    pub fn decode(
         buf: &mut Bytes,
         cxt: &DecodeCxt,
         attr_type: AttrType,
@@ -739,6 +739,8 @@ impl AsPath {
     }
 }
 
+// ===== impl AsPathSegment =====
+
 impl AsPathSegment {
     const MIN_LEN: u16 = 2;
 
@@ -750,7 +752,7 @@ impl AsPathSegment {
         }
     }
 
-    fn decode(
+    pub fn decode(
         buf: &mut Bytes,
         attr_type: AttrType,
         four_byte_asns: bool,
@@ -956,7 +958,7 @@ impl Aggregator {
         buf[start_pos] = attr_len as u8;
     }
 
-    fn decode(
+    pub fn decode(
         buf: &mut Bytes,
         attr_type: AttrType,
         four_byte_asn_cap: bool,
@@ -1128,7 +1130,7 @@ impl MpReachNlri {
         buf[start_pos..start_pos + 2].copy_from_slice(&attr_len.to_be_bytes());
     }
 
-    fn decode(
+    pub fn decode(
         buf: &mut Bytes,
         mp_reach: &mut Option<Self>,
     ) -> Result<(), AttrError> {
@@ -1251,7 +1253,7 @@ impl MpUnreachNlri {
         buf[start_pos..start_pos + 2].copy_from_slice(&attr_len.to_be_bytes());
     }
 
-    fn decode(
+    pub fn decode(
         buf: &mut Bytes,
         mp_unreach: &mut Option<Self>,
     ) -> Result<(), AttrError> {
@@ -1398,7 +1400,7 @@ impl<T: CommType> CommList<T> {
         buf[start_pos..start_pos + 2].copy_from_slice(&attr_len.to_be_bytes());
     }
 
-    fn decode(
+    pub fn decode(
         buf: &mut Bytes,
         comm: &mut Option<Self>,
     ) -> Result<(), AttrError> {

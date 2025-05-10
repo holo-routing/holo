@@ -262,6 +262,7 @@ bitflags! {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
+#[derive(Arbitrary)]
 pub enum AttrType {
     Origin = 1,
     AsPath = 2,

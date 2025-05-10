@@ -17,16 +17,60 @@ holo-vrrp = { path = "../holo-vrrp/" }
 # ===== BGP fuzzers =====
 
 [[bin]]
+name = "bgp_aggregator_decode"
+path = "fuzz_targets/bgp/aggregator_decode.rs"
+
+[[bin]]
+name = "bgp_as_path_decode"
+path = "fuzz_targets/bgp/as_path_decode.rs"
+
+[[bin]]
+name = "bgp_as_path_segment_decode"
+path = "fuzz_targets/bgp/as_path_segment_decode.rs"
+
+[[bin]]
+name = "bgp_attrs_decode"
+path = "fuzz_targets/bgp/attrs_decode.rs"
+
+[[bin]]
 name = "bgp_capability_decode"
 path = "fuzz_targets/bgp/capability_decode.rs"
+
+[[bin]]
+name = "bgp_comm_decode"
+path = "fuzz_targets/bgp/comm_decode.rs"
+
+[[bin]]
+name = "bgp_ext_comm_decode"
+path = "fuzz_targets/bgp/ext_comm_decode.rs"
+
+[[bin]]
+name = "bgp_extv6_comm_decode"
+path = "fuzz_targets/bgp/extv6_comm_decode.rs"
+
+[[bin]]
+name = "bgp_ipv4_prefix_decode"
+path = "fuzz_targets/bgp/decode_ipv4_prefix.rs"
+
+[[bin]]
+name = "bgp_ipv6_prefix_decode"
+path = "fuzz_targets/bgp/decode_ipv6_prefix.rs"
 
 [[bin]]
 name = "bgp_keepalivemsg_decode"
 path = "fuzz_targets/bgp/keepalivemsg_decode.rs"
 
 [[bin]]
+name = "bgp_large_comm_decode"
+path = "fuzz_targets/bgp/large_comm_decode.rs"
+
+[[bin]]
 name = "bgp_message_decode"
 path = "fuzz_targets/bgp/message_decode.rs"
+
+[[bin]]
+name = "bgp_mpreachnlri_decode"
+path = "fuzz_targets/bgp/mpreachnlri_decode.rs"
 
 [[bin]]
 name = "bgp_notificationmsg_decode"

@@ -211,10 +211,8 @@ pub(crate) fn net_rx(
         let iface_id = iface.id;
         let net_pdu_rxp = net_pdu_rxp.clone();
 
-        let span = tracing::span::Span::current();
         Task::spawn(
             async move {
-                let _span_enter = span.enter();
                 let _ = network::read_loop(
                     socket,
                     broadcast,
@@ -254,10 +252,8 @@ pub(crate) fn net_tx(
         let span2 = debug_span!("output");
         let _span2_guard = span2.enter();
 
-        let span = tracing::span::Span::current();
         Task::spawn(
             async move {
-                let _span_enter = span.enter();
                 network::write_loop(
                     socket,
                     broadcast,

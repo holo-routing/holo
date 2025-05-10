@@ -259,10 +259,8 @@ where
         let auth = iface.state.auth.clone();
         let net_packet_rxp = net_packet_rxp.clone();
 
-        let span = tracing::span::Span::current();
         Task::spawn(
             async move {
-                let _span_enter = span.enter();
                 let _ = network::read_loop(
                     socket,
                     area_id,
@@ -305,10 +303,8 @@ where
 
         let auth_seqno = auth_seqno.clone();
 
-        let span = tracing::span::Span::current();
         Task::spawn(
             async move {
-                let _span_enter = span.enter();
                 network::write_loop(socket, auth, auth_seqno, net_packet_txc)
                     .await;
             }

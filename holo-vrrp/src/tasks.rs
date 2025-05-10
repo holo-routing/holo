@@ -137,10 +137,8 @@ pub(crate) fn vrrp_net_rx(
 
         let net_packet_rxp = net_packet_rxp.clone();
 
-        let span = tracing::span::Span::current();
         Task::spawn(
             async move {
-                let _span_enter = span.enter();
                 let _ =
                     network::read_loop(socket_vrrp, net_packet_rxp, af).await;
             }
@@ -170,10 +168,8 @@ pub(crate) fn net_tx(
         let span2 = debug_span!("output");
         let _span2_guard = span2.enter();
 
-        let span = tracing::span::Span::current();
         Task::spawn(
             async move {
-                let _span_enter = span.enter();
                 network::write_loop(socket_vrrp, socket_arp, net_packet_txc)
                     .await;
             }

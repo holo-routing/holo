@@ -491,7 +491,7 @@ pub(crate) async fn read_loop(
     }
 }
 
-// Helper functions.
+// ===== helper functions =====
 #[cfg(not(feature = "testing"))]
 fn get_packet_src(sa: Option<&socket::SockaddrStorage>) -> Option<SocketAddr> {
     sa.and_then(|sa| {

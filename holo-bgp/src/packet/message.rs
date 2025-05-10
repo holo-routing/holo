@@ -262,6 +262,7 @@ pub struct EncodeCxt {
 }
 
 // BGP message decoding context.
+#[derive(Debug)]
 #[derive(Arbitrary)]
 pub struct DecodeCxt {
     pub peer_type: PeerType,

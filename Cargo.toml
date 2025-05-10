@@ -1,5 +1,5 @@
 [workspace]
-members = [ 
+members = [
   "holo-bfd",
   "holo-bgp",
   "holo-daemon",

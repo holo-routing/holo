@@ -262,6 +262,7 @@ bitflags! {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
+#[derive(Arbitrary)]
 pub enum AttrType {
     Origin = 1,
     AsPath = 2,
@@ -319,6 +320,7 @@ pub type Origin = holo_utils::bgp::Origin;
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
+#[derive(Arbitrary)]
 pub enum AsPathSegmentType {
     Set = 1,
     Sequence = 2,

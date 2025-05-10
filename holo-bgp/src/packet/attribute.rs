@@ -7,10 +7,13 @@
 use std::collections::{BTreeSet, HashSet, VecDeque};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
+use arbitrary::{Arbitrary, Result as ArbitraryResult, Unstructured};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use derive_new::new;
+use holo_utils::arbitrary::{Ipv4NetworkArbitrary, Ipv6NetworkArbitrary};
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use holo_utils::ip::{Ipv4AddrExt, Ipv6AddrExt};
+use ipnetwork::{Ipv4Network, Ipv6Network};
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -62,12 +65,14 @@ pub struct BaseAttrs {
 
 #[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
+#[derive(Arbitrary)]
 pub struct AsPath {
     pub segments: VecDeque<AsPathSegment>,
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
+#[derive(Arbitrary)]
 pub struct AsPathSegment {
     pub seg_type: AsPathSegmentType,
     pub members: VecDeque<u32>,
@@ -75,6 +80,7 @@ pub struct AsPathSegment {
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
+#[derive(Arbitrary)]
 pub struct Aggregator {
     pub asn: u32,
     pub identifier: Ipv4Addr,
@@ -92,6 +98,7 @@ pub type LargeComm = holo_utils::bgp::LargeComm;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
+#[derive(Arbitrary)]
 pub struct CommList<T: CommType>(pub BTreeSet<T>);
 
 pub trait CommType:
@@ -633,7 +640,7 @@ impl AsPath {
         buf[start_pos..start_pos + 2].copy_from_slice(&attr_len.to_be_bytes());
     }
 
-    fn decode(
+    pub fn decode(
         buf: &mut Bytes,
         cxt: &DecodeCxt,
         attr_type: AttrType,
@@ -738,6 +745,8 @@ impl AsPath {
         self.segments.iter().any(|segment| segment.contains(asn))
     }
 }
+
+// ===== impl AsPathSegment =====
 
 impl AsPathSegment {
     const MIN_LEN: u16 = 2;
@@ -956,7 +965,7 @@ impl Aggregator {
         buf[start_pos] = attr_len as u8;
     }
 
-    fn decode(
+    pub fn decode(
         buf: &mut Bytes,
         attr_type: AttrType,
         four_byte_asn_cap: bool,
@@ -1215,6 +1224,39 @@ impl MpReachNlri {
     }
 }
 
+impl Arbitrary<'_> for MpReachNlri {
+    fn arbitrary(u: &mut Unstructured<'_>) -> ArbitraryResult<Self> {
+        let variant = u.int_in_range(0..=1)?;
+
+        match variant {
+            1 => {
+                let prefixes: Vec<Ipv4Network> =
+                    Vec::<Ipv4NetworkArbitrary>::arbitrary(u)?
+                        .iter()
+                        .map(|p| p.0)
+                        .collect();
+                let nexthop = Ipv4Addr::arbitrary(u)?;
+                Ok(Self::Ipv4Unicast { prefixes, nexthop })
+            }
+            2 => {
+                let prefixes: Vec<Ipv6Network> =
+                    Vec::<Ipv6NetworkArbitrary>::arbitrary(u)?
+                        .iter()
+                        .map(|p| p.0)
+                        .collect();
+                let nexthop = Ipv6Addr::arbitrary(u)?;
+                let ll_nexthop = Option::<Ipv6Addr>::arbitrary(u)?;
+                Ok(Self::Ipv6Unicast {
+                    prefixes,
+                    nexthop,
+                    ll_nexthop,
+                })
+            }
+            _ => Err(arbitrary::Error::EmptyChoose),
+        }
+    }
+}
+
 // ===== impl MpUnreachNlri =====
 
 impl MpUnreachNlri {
@@ -1304,6 +1346,32 @@ impl MpUnreachNlri {
         }
 
         Ok(())
+    }
+}
+
+impl Arbitrary<'_> for MpUnreachNlri {
+    fn arbitrary(u: &mut Unstructured<'_>) -> ArbitraryResult<Self> {
+        let variant = u.int_in_range(0..=1)?;
+
+        match variant {
+            1 => {
+                let prefixes: Vec<Ipv4Network> =
+                    Vec::<Ipv4NetworkArbitrary>::arbitrary(u)?
+                        .iter()
+                        .map(|p| p.0)
+                        .collect();
+                Ok(Self::Ipv4Unicast { prefixes })
+            }
+            2 => {
+                let prefixes: Vec<Ipv6Network> =
+                    Vec::<Ipv6NetworkArbitrary>::arbitrary(u)?
+                        .iter()
+                        .map(|p| p.0)
+                        .collect();
+                Ok(Self::Ipv6Unicast { prefixes })
+            }
+            _ => Err(arbitrary::Error::EmptyChoose),
+        }
     }
 }
 
@@ -1398,7 +1466,7 @@ impl<T: CommType> CommList<T> {
         buf[start_pos..start_pos + 2].copy_from_slice(&attr_len.to_be_bytes());
     }
 
-    fn decode(
+    pub fn decode(
         buf: &mut Bytes,
         comm: &mut Option<Self>,
     ) -> Result<(), AttrError> {

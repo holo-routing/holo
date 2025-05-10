@@ -595,6 +595,10 @@ async fn process_ibus_msg(
     instance: &mut Instance,
     msg: IbusMsg,
 ) -> Result<(), Error> {
+    if instance.config.trace_opts.ibus {
+        Debug::IbusRx(&msg).log();
+    }
+
     match msg {
         // Router ID update notification.
         IbusMsg::RouterIdUpdate(router_id) => {

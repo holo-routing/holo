@@ -9,8 +9,9 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::net::{Ipv4Addr, Ipv6Addr};
-use std::sync::LazyLock as Lazy;
+use std::sync::{Arc, LazyLock as Lazy};
 
+use arc_swap::ArcSwap;
 use async_trait::async_trait;
 use enum_as_inner::EnumAsInner;
 use holo_northbound::configuration::{
@@ -32,6 +33,7 @@ use crate::instance::Instance;
 use crate::interface::{Interface, InterfaceType};
 use crate::northbound::notification;
 use crate::packet::auth::AuthMethod;
+use crate::packet::consts::PduType;
 use crate::packet::{
     AreaAddr, LevelNumber, LevelType, LevelTypeIterator, SystemId,
 };
@@ -45,8 +47,10 @@ pub enum ListEntry {
     None,
     AddressFamily(AddressFamily),
     Redistribution(AddressFamily, LevelNumber, Protocol),
+    TraceOption(InstanceTraceOption),
     Interface(InterfaceIndex),
     InterfaceAddressFamily(InterfaceIndex, AddressFamily),
+    InterfaceTraceOption(InterfaceIndex, InterfaceTraceOption),
 }
 
 #[derive(Debug)]
@@ -73,6 +77,7 @@ pub enum Event {
     SrEnabledChange(bool),
     RedistributeAdd(AddressFamily, Protocol),
     RedistributeDelete(AddressFamily, LevelNumber, Protocol),
+    UpdateTraceOptions,
 }
 
 pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
@@ -108,6 +113,7 @@ pub struct InstanceCfg {
     pub att_ignore: bool,
     pub sr: InstanceSrCfg,
     pub bier: InstanceBierCfg,
+    pub trace_opts: InstanceTraceOptions,
 }
 
 #[derive(Debug)]
@@ -121,6 +127,26 @@ pub struct InstanceBierCfg {
     pub enabled: bool,
     pub advertise: bool,
     pub receive: bool,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum InstanceTraceOption {
+    InternalBus,
+    Lsdb,
+    PacketsAll,
+    PacketsHello,
+    PacketsPsnp,
+    PacketsCsnp,
+    PacketsLsp,
+    Spf,
+}
+
+#[derive(Debug, Default)]
+pub struct InstanceTraceOptions {
+    pub ibus: bool,
+    pub lsdb: bool,
+    pub packets: TraceOptionPacket,
+    pub spf: bool,
 }
 
 #[derive(Debug)]
@@ -161,6 +187,22 @@ pub struct InterfaceCfg {
     pub priority: LevelsCfg<u8>,
     pub metric: LevelsCfg<u32>,
     pub afs: BTreeSet<AddressFamily>,
+    pub trace_opts: InterfaceTraceOptions,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum InterfaceTraceOption {
+    PacketsAll,
+    PacketsHello,
+    PacketsPsnp,
+    PacketsCsnp,
+    PacketsLsp,
+}
+
+#[derive(Debug, Default)]
+pub struct InterfaceTraceOptions {
+    pub packets: TraceOptionPacket,
+    pub packets_resolved: Arc<ArcSwap<TraceOptionPacketResolved>>,
 }
 
 #[derive(Debug, Default)]
@@ -182,6 +224,29 @@ pub struct LevelsOptCfg<T> {
     pub all: T,
     pub l1: T,
     pub l2: T,
+}
+
+#[derive(Debug, Default)]
+pub struct TraceOptionPacket {
+    pub all: Option<TraceOptionPacketType>,
+    pub hello: Option<TraceOptionPacketType>,
+    pub psnp: Option<TraceOptionPacketType>,
+    pub csnp: Option<TraceOptionPacketType>,
+    pub lsp: Option<TraceOptionPacketType>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct TraceOptionPacketResolved {
+    pub hello: TraceOptionPacketType,
+    pub psnp: TraceOptionPacketType,
+    pub csnp: TraceOptionPacketType,
+    pub lsp: TraceOptionPacketType,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct TraceOptionPacketType {
+    pub tx: bool,
+    pub rx: bool,
 }
 
 // ===== callbacks =====
@@ -654,6 +719,97 @@ fn load_callbacks() -> Callbacks<Instance> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::RerunSpf);
+        })
+        .path(isis::trace_options::flag::PATH)
+        .create_apply(|instance, args| {
+            let trace_opt = args.dnode.get_string_relative("name").unwrap();
+            let trace_opt = InstanceTraceOption::try_from_yang(&trace_opt).unwrap();
+            let trace_opts = &mut instance.config.trace_opts;
+            match trace_opt {
+                InstanceTraceOption::InternalBus => trace_opts.ibus = true,
+                InstanceTraceOption::PacketsAll => {
+                    trace_opts.packets.all.get_or_insert_default();
+                }
+                InstanceTraceOption::PacketsHello => {
+                    trace_opts.packets.hello.get_or_insert_default();
+                }
+                InstanceTraceOption::PacketsPsnp => {
+                    trace_opts.packets.psnp.get_or_insert_default();
+                }
+                InstanceTraceOption::PacketsCsnp => {
+                    trace_opts.packets.csnp.get_or_insert_default();
+                }
+                InstanceTraceOption::PacketsLsp => {
+                    trace_opts.packets.lsp.get_or_insert_default();
+                }
+                InstanceTraceOption::Lsdb => trace_opts.lsdb = true,
+                InstanceTraceOption::Spf => trace_opts.spf = true,
+            }
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
+        })
+        .delete_apply(|instance, args| {
+            let trace_opt = args.list_entry.into_trace_option().unwrap();
+            let trace_opts = &mut instance.config.trace_opts;
+            match trace_opt {
+                InstanceTraceOption::InternalBus => trace_opts.ibus = false,
+                InstanceTraceOption::PacketsAll => trace_opts.packets.all = None,
+                InstanceTraceOption::PacketsHello => trace_opts.packets.hello = None,
+                InstanceTraceOption::PacketsPsnp => trace_opts.packets.psnp = None,
+                InstanceTraceOption::PacketsCsnp => trace_opts.packets.csnp = None,
+                InstanceTraceOption::PacketsLsp => trace_opts.packets.lsp = None,
+                InstanceTraceOption::Lsdb => trace_opts.lsdb = false,
+                InstanceTraceOption::Spf => trace_opts.spf = false,
+            }
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
+        })
+        .lookup(|_instance, _list_entry, dnode| {
+            let trace_opt = dnode.get_string_relative("name").unwrap();
+            let trace_opt = InstanceTraceOption::try_from_yang(&trace_opt).unwrap();
+            ListEntry::TraceOption(trace_opt)
+        })
+        .path(isis::trace_options::flag::send::PATH)
+        .modify_apply(|instance, args| {
+            let trace_opt = args.list_entry.into_trace_option().unwrap();
+            let enable = args.dnode.get_bool();
+            let trace_opts = &mut instance.config.trace_opts;
+            let Some(trace_opt_packet) = (match trace_opt {
+                InstanceTraceOption::PacketsAll => trace_opts.packets.all.as_mut(),
+                InstanceTraceOption::PacketsHello => trace_opts.packets.hello.as_mut(),
+                InstanceTraceOption::PacketsPsnp => trace_opts.packets.psnp.as_mut(),
+                InstanceTraceOption::PacketsCsnp => trace_opts.packets.csnp.as_mut(),
+                InstanceTraceOption::PacketsLsp => trace_opts.packets.lsp.as_mut(),
+                _ => None,
+            }) else {
+                return;
+            };
+            trace_opt_packet.tx = enable;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
+        })
+        .path(isis::trace_options::flag::receive::PATH)
+        .modify_apply(|instance, args| {
+            let trace_opt = args.list_entry.into_trace_option().unwrap();
+            let enable = args.dnode.get_bool();
+            let trace_opts = &mut instance.config.trace_opts;
+            let Some(trace_opt_packet) = (match trace_opt {
+                InstanceTraceOption::PacketsAll => trace_opts.packets.all.as_mut(),
+                InstanceTraceOption::PacketsHello => trace_opts.packets.hello.as_mut(),
+                InstanceTraceOption::PacketsPsnp => trace_opts.packets.psnp.as_mut(),
+                InstanceTraceOption::PacketsCsnp => trace_opts.packets.csnp.as_mut(),
+                InstanceTraceOption::PacketsLsp => trace_opts.packets.lsp.as_mut(),
+                _ => None,
+            }) else {
+                return;
+            };
+            trace_opt_packet.rx = enable;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
         })
         .path(isis::interfaces::interface::PATH)
         .create_apply(|instance, args| {
@@ -1188,6 +1344,99 @@ fn load_callbacks() -> Callbacks<Instance> {
             let af = AddressFamily::try_from_yang(&af).unwrap();
             ListEntry::InterfaceAddressFamily(iface_idx, af)
         })
+        .path(isis::interfaces::interface::trace_options::flag::PATH)
+        .create_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let trace_opt = args.dnode.get_string_relative("name").unwrap();
+            let trace_opt = InterfaceTraceOption::try_from_yang(&trace_opt).unwrap();
+            let trace_opts = &mut iface.config.trace_opts;
+            match trace_opt {
+                InterfaceTraceOption::PacketsAll => {
+                    trace_opts.packets.all.get_or_insert_default();
+                }
+                InterfaceTraceOption::PacketsHello => {
+                    trace_opts.packets.hello.get_or_insert_default();
+                }
+                InterfaceTraceOption::PacketsPsnp => {
+                    trace_opts.packets.psnp.get_or_insert_default();
+                }
+                InterfaceTraceOption::PacketsCsnp => {
+                    trace_opts.packets.csnp.get_or_insert_default();
+                }
+                InterfaceTraceOption::PacketsLsp => {
+                    trace_opts.packets.lsp.get_or_insert_default();
+                }
+            }
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
+        })
+        .delete_apply(|instance, args| {
+            let (iface_idx, trace_opt) = args.list_entry.into_interface_trace_option().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let trace_opts = &mut iface.config.trace_opts;
+            match trace_opt {
+                InterfaceTraceOption::PacketsAll => trace_opts.packets.all = None,
+                InterfaceTraceOption::PacketsHello => trace_opts.packets.hello = None,
+                InterfaceTraceOption::PacketsPsnp => trace_opts.packets.psnp = None,
+                InterfaceTraceOption::PacketsCsnp => trace_opts.packets.csnp = None,
+                InterfaceTraceOption::PacketsLsp => trace_opts.packets.lsp = None,
+            }
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
+        })
+        .lookup(|_instance, list_entry, dnode| {
+            let iface_idx = list_entry.into_interface().unwrap();
+            let trace_opt = dnode.get_string_relative("name").unwrap();
+            let trace_opt = InterfaceTraceOption::try_from_yang(&trace_opt).unwrap();
+            ListEntry::InterfaceTraceOption(iface_idx, trace_opt)
+        })
+        .path(isis::interfaces::interface::trace_options::flag::send::PATH)
+        .modify_apply(|instance, args| {
+            let (iface_idx, trace_opt) = args.list_entry.into_interface_trace_option().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let enable = args.dnode.get_bool();
+            let trace_opts = &mut iface.config.trace_opts;
+            let Some(trace_opt_packet) = (match trace_opt {
+                InterfaceTraceOption::PacketsAll => trace_opts.packets.all.as_mut(),
+                InterfaceTraceOption::PacketsHello => trace_opts.packets.hello.as_mut(),
+                InterfaceTraceOption::PacketsPsnp => trace_opts.packets.psnp.as_mut(),
+                InterfaceTraceOption::PacketsCsnp => trace_opts.packets.csnp.as_mut(),
+                InterfaceTraceOption::PacketsLsp => trace_opts.packets.lsp.as_mut(),
+            }) else {
+                return;
+            };
+            trace_opt_packet.tx = enable;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
+        })
+        .path(isis::interfaces::interface::trace_options::flag::receive::PATH)
+        .modify_apply(|instance, args| {
+            let (iface_idx, trace_opt) = args.list_entry.into_interface_trace_option().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let enable = args.dnode.get_bool();
+            let trace_opts = &mut iface.config.trace_opts;
+            let Some(trace_opt_packet) = (match trace_opt {
+                InterfaceTraceOption::PacketsAll => trace_opts.packets.all.as_mut(),
+                InterfaceTraceOption::PacketsHello => trace_opts.packets.hello.as_mut(),
+                InterfaceTraceOption::PacketsPsnp => trace_opts.packets.psnp.as_mut(),
+                InterfaceTraceOption::PacketsCsnp => trace_opts.packets.csnp.as_mut(),
+                InterfaceTraceOption::PacketsLsp => trace_opts.packets.lsp.as_mut(),
+            }) else {
+                return;
+            };
+            trace_opt_packet.rx = enable;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
+        })
         .path(isis::bier::mt_id::PATH)
         .modify_apply(|instance, args| {
             let mt_id = args.dnode.get_u8();
@@ -1486,6 +1735,49 @@ impl Provider for Instance {
                     instance.schedule_lsp_origination(level);
                 }
             }
+            Event::UpdateTraceOptions => {
+                for iface in self.arenas.interfaces.iter_mut() {
+                    let iface_trace_opts = &iface.config.trace_opts.packets;
+                    let instance_trace_opts = &self.config.trace_opts.packets;
+
+                    let disabled = TraceOptionPacketType {
+                        tx: false,
+                        rx: false,
+                    };
+                    let hello = iface_trace_opts
+                        .hello
+                        .or(iface_trace_opts.all)
+                        .or(instance_trace_opts.hello)
+                        .or(instance_trace_opts.all)
+                        .unwrap_or(disabled);
+                    let psnp = iface_trace_opts
+                        .psnp
+                        .or(iface_trace_opts.all)
+                        .or(instance_trace_opts.psnp)
+                        .or(instance_trace_opts.all)
+                        .unwrap_or(disabled);
+                    let csnp = iface_trace_opts
+                        .csnp
+                        .or(iface_trace_opts.all)
+                        .or(instance_trace_opts.csnp)
+                        .or(instance_trace_opts.all)
+                        .unwrap_or(disabled);
+                    let lsp = iface_trace_opts
+                        .lsp
+                        .or(iface_trace_opts.all)
+                        .or(instance_trace_opts.lsp)
+                        .or(instance_trace_opts.all)
+                        .unwrap_or(disabled);
+
+                    let resolved = Arc::new(TraceOptionPacketResolved {
+                        hello,
+                        psnp,
+                        csnp,
+                        lsp,
+                    });
+                    iface.config.trace_opts.packets_resolved.store(resolved);
+                }
+            }
         }
     }
 }
@@ -1590,6 +1882,30 @@ impl AuthCfg {
     }
 }
 
+impl TraceOptionPacketResolved {
+    pub(crate) fn tx(&self, pdu_type: PduType) -> bool {
+        match pdu_type {
+            PduType::HelloP2P | PduType::HelloLanL1 | PduType::HelloLanL2 => {
+                self.hello.tx
+            }
+            PduType::LspL1 | PduType::LspL2 => self.lsp.tx,
+            PduType::CsnpL1 | PduType::CsnpL2 => self.csnp.tx,
+            PduType::PsnpL1 | PduType::PsnpL2 => self.psnp.tx,
+        }
+    }
+
+    pub(crate) fn rx(&self, pdu_type: PduType) -> bool {
+        match pdu_type {
+            PduType::HelloP2P | PduType::HelloLanL1 | PduType::HelloLanL2 => {
+                self.hello.rx
+            }
+            PduType::LspL1 | PduType::LspL2 => self.lsp.rx,
+            PduType::CsnpL1 | PduType::CsnpL2 => self.csnp.rx,
+            PduType::PsnpL1 | PduType::PsnpL2 => self.psnp.rx,
+        }
+    }
+}
+
 // ===== configuration defaults =====
 
 impl Default for InstanceCfg {
@@ -1652,6 +1968,7 @@ impl Default for InstanceCfg {
             att_ignore,
             sr: Default::default(),
             bier: Default::default(),
+            trace_opts: Default::default(),
         }
     }
 }
@@ -1759,6 +2076,31 @@ impl Default for InterfaceCfg {
             priority,
             metric,
             afs: Default::default(),
+            trace_opts: Default::default(),
         }
+    }
+}
+
+impl Default for TraceOptionPacketResolved {
+    fn default() -> TraceOptionPacketResolved {
+        let disabled = TraceOptionPacketType {
+            tx: false,
+            rx: false,
+        };
+        TraceOptionPacketResolved {
+            hello: disabled,
+            psnp: disabled,
+            csnp: disabled,
+            lsp: disabled,
+        }
+    }
+}
+
+impl Default for TraceOptionPacketType {
+    fn default() -> TraceOptionPacketType {
+        let tx = isis::trace_options::flag::send::DFLT;
+        let rx = isis::trace_options::flag::receive::DFLT;
+
+        TraceOptionPacketType { tx, rx }
     }
 }

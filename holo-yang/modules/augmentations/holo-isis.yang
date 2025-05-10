@@ -91,6 +91,39 @@ module holo-isis {
            route for any level 1/2 router that sets the ATT bit.";
       }
     }
+
+    container trace-options {
+      description "Instance level trace options for IS-IS.";
+
+      list flag {
+        key name;
+        description "List of tracing options.";
+        leaf name {
+          description
+            "List of tracing options";
+          type enumeration {
+            enum internal-bus;
+            enum lsdb;
+            enum packets-all;
+            enum packets-hello;
+            enum packets-psnp;
+            enum packets-csnp;
+            enum packets-lsp;
+            enum spf;
+          }
+        }
+        leaf send {
+          description "Trace sent packets.";
+          type boolean;
+          default true;
+        }
+        leaf receive {
+          description "Trace received packets.";
+          type boolean;
+          default true;
+        }
+      }
+    }
   }
 
   augment "/rt:routing/rt:control-plane-protocols/"
@@ -123,6 +156,37 @@ module holo-isis {
         + "isis:interfaces/isis:interface" {
     description
       "IS-IS interface augmentations";
+
+    container trace-options {
+      description "Interface level trace options for IS-IS.";
+
+      list flag {
+        key name;
+        description "List of tracing options.";
+        leaf name {
+          description
+            "List of tracing options";
+          type enumeration {
+            enum packets-all;
+            enum packets-hello;
+            enum packets-psnp;
+            enum packets-csnp;
+            enum packets-lsp;
+          }
+        }
+        leaf send {
+          description "Trace sent packets.";
+          type boolean;
+          default true;
+        }
+        leaf receive {
+          description "Trace received packets.";
+          type boolean;
+          default true;
+        }
+      }
+    }
+
     leaf state {
       config false;
       type enumeration {

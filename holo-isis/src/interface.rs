@@ -790,6 +790,7 @@ impl InterfaceNet {
         let keychains = &instance.shared.keychains;
         let hello_auth = iface.config.hello_auth.all.method(keychains);
         let global_auth = instance.config.auth.all.method(keychains);
+        let trace_opts = iface.config.trace_opts.packets_resolved.clone();
         let (net_tx_pdup, net_tx_pduc) = mpsc::unbounded_channel();
         let mut net_tx_task = tasks::net_tx(
             socket.clone(),
@@ -797,6 +798,7 @@ impl InterfaceNet {
             hello_padding,
             hello_auth.clone(),
             global_auth.clone(),
+            trace_opts,
             net_tx_pduc,
             #[cfg(feature = "testing")]
             &instance.tx.protocol_output,

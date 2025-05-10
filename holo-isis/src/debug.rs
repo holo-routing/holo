@@ -7,6 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
+use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
 use holo_yang::ToYang;
 use serde::{Deserialize, Serialize};
@@ -56,6 +57,8 @@ pub enum Debug<'a> {
     SpfMaxPathMetric(&'a Vertex, &'a VertexEdge, u32),
     SpfMissingProtocolsTlv(&'a Vertex),
     SpfUnsupportedProtocol(&'a Vertex, AddressFamily),
+    // Internal bus
+    IbusRx(&'a IbusMsg),
 }
 
 // Reason why an IS-IS instance is inactive.
@@ -196,6 +199,15 @@ impl Debug<'_> {
                 // Parent span(s): isis-instance:spf
                 debug!(vertex = %vertex.id.lan_id.to_yang(), %protocol, "{}", self);
             }
+            Debug::IbusRx(msg) => {
+                // Parent span(s): isis-instance
+                debug_span!("internal-bus").in_scope(|| {
+                    debug_span!("input").in_scope(|| {
+                        let data = serde_json::to_string(&msg).unwrap();
+                        debug!(%data, "{}", self);
+                    })
+                })
+            }
         }
     }
 }
@@ -277,6 +289,9 @@ impl std::fmt::Display for Debug<'_> {
             }
             Debug::SpfUnsupportedProtocol(..) => {
                 write!(f, "unsupported protocol")
+            }
+            Debug::IbusRx(..) => {
+                write!(f, "message")
             }
         }
     }

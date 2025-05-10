@@ -16,7 +16,9 @@ use crate::adjacency::{AdjacencyEvent, AdjacencyState};
 use crate::error::AdjacencyRejectError;
 use crate::interface::InterfaceType;
 use crate::lsdb::LspLogReason;
-use crate::northbound::configuration::MetricType;
+use crate::northbound::configuration::{
+    InstanceTraceOption, InterfaceTraceOption, MetricType,
+};
 use crate::packet::consts::LspFlags;
 use crate::packet::subtlvs::capability::SrCapabilitiesFlags;
 use crate::packet::subtlvs::neighbor::AdjSidFlags;
@@ -361,6 +363,35 @@ impl TryFromYang for MetricType {
             "wide-only" => Some(MetricType::Wide),
             "old-only" => Some(MetricType::Standard),
             "both" => Some(MetricType::Both),
+            _ => None,
+        }
+    }
+}
+
+impl TryFromYang for InstanceTraceOption {
+    fn try_from_yang(value: &str) -> Option<InstanceTraceOption> {
+        match value {
+            "internal-bus" => Some(InstanceTraceOption::InternalBus),
+            "lsdb" => Some(InstanceTraceOption::Lsdb),
+            "packets-all" => Some(InstanceTraceOption::PacketsAll),
+            "packets-hello" => Some(InstanceTraceOption::PacketsHello),
+            "packets-psnp" => Some(InstanceTraceOption::PacketsPsnp),
+            "packets-csnp" => Some(InstanceTraceOption::PacketsCsnp),
+            "packets-lsp" => Some(InstanceTraceOption::PacketsLsp),
+            "spf" => Some(InstanceTraceOption::Spf),
+            _ => None,
+        }
+    }
+}
+
+impl TryFromYang for InterfaceTraceOption {
+    fn try_from_yang(value: &str) -> Option<InterfaceTraceOption> {
+        match value {
+            "packets-all" => Some(InterfaceTraceOption::PacketsAll),
+            "packets-hello" => Some(InterfaceTraceOption::PacketsHello),
+            "packets-psnp" => Some(InterfaceTraceOption::PacketsPsnp),
+            "packets-csnp" => Some(InterfaceTraceOption::PacketsCsnp),
+            "packets-lsp" => Some(InterfaceTraceOption::PacketsLsp),
             _ => None,
         }
     }

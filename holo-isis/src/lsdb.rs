@@ -1078,7 +1078,9 @@ pub(crate) fn install<'a>(
     level: LevelNumber,
     lsp: Lsp,
 ) -> &'a mut LspEntry {
-    Debug::LspInstall(level, &lsp).log();
+    if instance.config.trace_opts.lsdb {
+        Debug::LspInstall(level, &lsp).log();
+    }
 
     // Remove old instance of the LSP.
     let lsdb = instance.state.lsdb.get_mut(level);
@@ -1191,7 +1193,9 @@ pub(crate) fn lsp_originate_all(
         }
 
         // Log LSP origination.
-        Debug::LspOriginate(level, &lsp).log();
+        if instance.config.trace_opts.lsdb {
+            Debug::LspOriginate(level, &lsp).log();
+        }
 
         // Send YANG notification.
         notification::lsp_generation(instance, &lsp);

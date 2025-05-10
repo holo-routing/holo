@@ -96,7 +96,8 @@ pub(crate) fn process_pdu(
     };
 
     // Update packet counters.
-    match pdu.pdu_type() {
+    let pdu_type = pdu.pdu_type();
+    match pdu_type {
         PduType::HelloP2P => {
             iface.state.packet_counters.l1.iih_in += 1;
             iface.state.packet_counters.l2.iih_in += 1;
@@ -129,7 +130,9 @@ pub(crate) fn process_pdu(
     iface.state.discontinuity_time = Utc::now();
 
     // Log received PDU.
-    Debug::PduRx(iface, &src, &pdu).log();
+    if iface.config.trace_opts.packets_resolved.load().rx(pdu_type) {
+        Debug::PduRx(iface, &src, &pdu).log();
+    }
 
     match pdu {
         Pdu::Hello(hello) => {
@@ -1149,7 +1152,9 @@ pub(crate) fn process_lsp_purge(
     let expired = lsp.rem_lifetime() == 0;
 
     // Log LSP purge.
-    Debug::LspPurge(level, lsp, reason).log();
+    if instance.config.trace_opts.lsdb {
+        Debug::LspPurge(level, lsp, reason).log();
+    }
 
     // Set remaining lifetime to zero if it's not already.
     lsp.set_rem_lifetime(0);
@@ -1195,7 +1200,9 @@ pub(crate) fn process_lsp_delete(
     assert!(lse.flags.contains(LspEntryFlags::PURGED));
 
     // Log LSP deletion.
-    Debug::LspDelete(level, &lse.data).log();
+    if instance.config.trace_opts.lsdb {
+        Debug::LspDelete(level, &lse.data).log();
+    }
 
     // Delete the LSP entry from the LSDB.
     lsdb.delete(&mut arenas.lsp_entries, lse_idx);
@@ -1220,7 +1227,9 @@ pub(crate) fn process_lsp_refresh(
         .map(|(_, lse)| &lse.data)?;
 
     // Log LSP refresh.
-    Debug::LspRefresh(level, lsp).log();
+    if instance.config.trace_opts.lsdb {
+        Debug::LspRefresh(level, lsp).log();
+    }
 
     // Originate new instance of the LSP.
     let auth = instance.config.auth.all.method(&instance.shared.keychains);

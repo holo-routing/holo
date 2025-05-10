@@ -12,6 +12,7 @@ use std::ops::Deref;
 use std::os::fd::AsRawFd;
 use std::sync::Arc;
 
+use arc_swap::ArcSwap;
 use bytes::Bytes;
 use holo_utils::keychain::Key;
 use holo_utils::socket::{AsyncFd, LinkAddrExt, Socket};
@@ -24,6 +25,7 @@ use tokio::sync::mpsc::error::SendError;
 use crate::collections::InterfaceId;
 use crate::debug::Debug;
 use crate::error::IoError;
+use crate::northbound::configuration::TraceOptionPacketResolved;
 use crate::packet::auth::AuthMethod;
 use crate::packet::pdu::Pdu;
 use crate::tasks::messages::input::NetRxPduMsg;
@@ -120,6 +122,7 @@ pub(crate) async fn write_loop(
     hello_padding: Option<u16>,
     hello_auth: Option<AuthMethod>,
     global_auth: Option<AuthMethod>,
+    trace_opts: Arc<ArcSwap<TraceOptionPacketResolved>>,
     mut net_tx_packetc: UnboundedReceiver<NetTxPduMsg>,
 ) {
     while let Some(NetTxPduMsg {
@@ -152,7 +155,8 @@ pub(crate) async fn write_loop(
 
         // Send PDU out the interface.
         if let Err(error) =
-            send_pdu(&socket, broadcast, ifindex, dst, &pdu, auth).await
+            send_pdu(&socket, broadcast, ifindex, dst, &pdu, auth, &trace_opts)
+                .await
         {
             error.log();
         }
@@ -242,8 +246,12 @@ async fn send_pdu(
     dst: MulticastAddr,
     pdu: &Pdu,
     auth: Option<&Key>,
+    trace_opts: &Arc<ArcSwap<TraceOptionPacketResolved>>,
 ) -> Result<usize, IoError> {
-    Debug::PduTx(ifindex, dst, pdu).log();
+    // Log PDU being sent.
+    if trace_opts.load().tx(pdu.pdu_type()) {
+        Debug::PduTx(ifindex, dst, pdu).log();
+    }
 
     // Encode PDU.
     let buf = pdu.encode(auth);

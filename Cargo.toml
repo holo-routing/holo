@@ -30,6 +30,7 @@ edition = "2024"
 repository = "https://github.com/holo-routing/holo"
 
 [workspace.dependencies]
+arc-swap = "1.7"
 async-trait = "0.1"
 base64 = "0.21"
 bitflags = { version = "2.4", features = ["serde"] }

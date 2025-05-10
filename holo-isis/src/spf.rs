@@ -199,7 +199,9 @@ pub(crate) fn fsm(
     let spf_sched = instance.state.spf_sched.get_mut(level);
 
     // Log the received event.
-    Debug::SpfDelayFsmEvent(spf_sched.delay_state, event).log();
+    if instance.config.trace_opts.spf {
+        Debug::SpfDelayFsmEvent(spf_sched.delay_state, event).log();
+    }
 
     // Update time of last SPF triggering event.
     spf_sched.last_event_rcvd = Some(Instant::now());
@@ -366,8 +368,13 @@ pub(crate) fn fsm(
         let spf_sched = instance.state.spf_sched.get_mut(level);
         if new_fsm_state != spf_sched.delay_state {
             // Effectively transition to the new FSM state.
-            Debug::SpfDelayFsmTransition(spf_sched.delay_state, new_fsm_state)
+            if instance.config.trace_opts.spf {
+                Debug::SpfDelayFsmTransition(
+                    spf_sched.delay_state,
+                    new_fsm_state,
+                )
                 .log();
+            }
             spf_sched.delay_state = new_fsm_state;
         }
     }
@@ -507,14 +514,18 @@ fn compute_spt(
             let Some(protocols_supported) =
                 &zeroth_lsp.tlvs.protocols_supported
             else {
-                Debug::SpfMissingProtocolsTlv(vertex).log();
+                if instance.config.trace_opts.spf {
+                    Debug::SpfMissingProtocolsTlv(vertex).log();
+                }
                 continue;
             };
             for af in [AddressFamily::Ipv4, AddressFamily::Ipv6] {
                 if instance.config.is_af_enabled(af)
                     && !protocols_supported.contains(Nlpid::from(af))
                 {
-                    Debug::SpfUnsupportedProtocol(vertex, af).log();
+                    if instance.config.trace_opts.spf {
+                        Debug::SpfUnsupportedProtocol(vertex, af).log();
+                    }
                     continue 'spf_loop;
                 }
             }
@@ -543,7 +554,9 @@ fn compute_spt(
                 MetricType::Standard => MAX_PATH_METRIC_STANDARD,
             };
             if distance > max_path_metric {
-                Debug::SpfMaxPathMetric(vertex, &link, distance).log();
+                if instance.config.trace_opts.spf {
+                    Debug::SpfMaxPathMetric(vertex, &link, distance).log();
+                }
                 continue;
             }
 

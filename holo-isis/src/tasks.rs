@@ -10,6 +10,7 @@
 use std::sync::{Arc, atomic};
 use std::time::Duration;
 
+use arc_swap::ArcSwap;
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{Sender, UnboundedReceiver, UnboundedSender};
@@ -21,6 +22,7 @@ use crate::debug::LspPurgeReason;
 use crate::instance::InstanceUpView;
 use crate::interface::{Interface, InterfaceType};
 use crate::network::MulticastAddr;
+use crate::northbound::configuration::TraceOptionPacketResolved;
 use crate::packet::auth::AuthMethod;
 use crate::packet::pdu::{Lsp, Pdu};
 use crate::packet::{LevelNumber, LevelType, Levels};
@@ -240,6 +242,7 @@ pub(crate) fn net_tx(
     hello_padding: Option<u16>,
     hello_auth: Option<AuthMethod>,
     global_auth: Option<AuthMethod>,
+    trace_opts: Arc<ArcSwap<TraceOptionPacketResolved>>,
     mut net_pdu_txc: UnboundedReceiver<messages::output::NetTxPduMsg>,
     #[cfg(feature = "testing")] proto_output_tx: &Sender<
         messages::ProtocolOutputMsg,
@@ -260,6 +263,7 @@ pub(crate) fn net_tx(
                     hello_padding,
                     hello_auth,
                     global_auth,
+                    trace_opts,
                     net_pdu_txc,
                 )
                 .await;

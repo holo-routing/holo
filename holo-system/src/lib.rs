@@ -4,8 +4,6 @@
 // SPDX-License-Identifier: MIT
 //
 
-#![feature(let_chains)]
-
 mod ibus;
 pub mod northbound;
 

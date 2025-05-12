@@ -4,8 +4,6 @@
 // SPDX-License-Identifier: MIT
 //
 
-#![feature(let_chains)]
-
 use std::env;
 use std::fmt::Write;
 use std::path::PathBuf;

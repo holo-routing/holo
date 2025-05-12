@@ -529,7 +529,7 @@ pub(crate) fn process_pdu_lsp(
     notification::lsp_received(instance, iface, &lsp, &adj.system_id);
 
     // Check if we're receiving a purge from a self-originated LSP.
-    if lsp.rem_lifetime == 0 && lsp.lsp_id.system_id == system_id {
+    if lsp.is_expired() && lsp.lsp_id.system_id == system_id {
         // Send YANG notification.
         notification::own_lsp_purge(instance, iface, &lsp);
 
@@ -563,7 +563,7 @@ pub(crate) fn process_pdu_lsp(
         .map(|(_, lse)| lse);
 
     // LSP expiration synchronization (ISO 10589 - Section 7.3.16.4.a).
-    if lsp.rem_lifetime == 0 && lse.is_none() {
+    if lsp.is_expired() && lse.is_none() {
         if iface.config.interface_type != InterfaceType::Broadcast {
             // Send an acknowledgement.
             let pdu = Pdu::Snp(Snp::new(

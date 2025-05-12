@@ -1016,7 +1016,16 @@ impl Lsp {
         fletcher::calc_fletcher16(&self.raw[12..]) == 0
     }
 
+    // Returns whether the LSP has expired (i.e., its remaining lifetime has
+    // reached zero).
+    pub(crate) fn is_expired(&self) -> bool {
+        self.rem_lifetime == 0
+    }
+
     // Returns the current LSP remaining lifetime.
+    //
+    // This value is computed by subtracting the elapsed time since the LSP was
+    // received or originated from its initial lifetime.
     pub(crate) fn rem_lifetime(&self) -> u16 {
         let mut rem_lifetime = self.rem_lifetime;
 

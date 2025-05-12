@@ -1094,6 +1094,7 @@ pub(crate) fn install<'a>(
     let mut content_change = true;
     let mut topology_change = true;
     if let Some(old_lsp) = old_lsp
+        && lsp.is_expired() == old_lsp.is_expired()
         && lsp.flags == old_lsp.flags
     {
         if old_lsp.tlvs == lsp.tlvs {

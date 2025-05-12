@@ -1,1 +1,1 @@
-{"NetRxPdu":{"iface_key":{"Value":"eth-rt4"},"pdu":{"Ok":{"Lsp":{"hdr":{"pdu_type":"LspL2","max_area_addrs":0},"rem_lifetime":1200,"lsp_id":{"system_id":[0,0,0,0,0,9],"pseudonode":0,"fragment":0},"seqno":100,"cksum":0,"flags":"IS_TYPE2","tlvs":{},"raw":[]}}}}}
+{"NetRxPdu":{"iface_key":{"Value":"eth-rt4"},"pdu":{"Ok":{"Lsp":{"hdr":{"pdu_type":"LspL2","max_area_addrs":0},"rem_lifetime":1200,"lsp_id":{"system_id":[0,0,0,0,0,9],"pseudonode":0,"fragment":0},"seqno":100,"cksum":0,"flags":"IS_TYPE1 | IS_TYPE2","tlvs":{},"raw":[]}}}}}

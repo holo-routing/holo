@@ -1313,7 +1313,8 @@
                       "remaining-lifetime": 0,
                       "attributes": {
                         "lsp-flags": [
-                          "lsp-l2-system-flag"
+                          "lsp-l2-system-flag",
+                          "lsp-l1-system-flag"
                         ]
                       }
                     }

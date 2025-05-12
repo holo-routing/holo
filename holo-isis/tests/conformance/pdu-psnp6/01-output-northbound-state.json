@@ -1312,7 +1312,8 @@
                       "lsp-id": "0000.0000.0009.00-00",
                       "attributes": {
                         "lsp-flags": [
-                          "lsp-l2-system-flag"
+                          "lsp-l2-system-flag",
+                          "lsp-l1-system-flag"
                         ]
                       }
                     }

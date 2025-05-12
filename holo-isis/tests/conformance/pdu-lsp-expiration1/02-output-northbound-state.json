@@ -898,7 +898,8 @@
                       "remaining-lifetime": 0,
                       "attributes": {
                         "lsp-flags": [
-                          "lsp-l2-system-flag"
+                          "lsp-l2-system-flag",
+                          "lsp-l1-system-flag"
                         ]
                       },
                       "ipv4-addresses": [
@@ -1315,6 +1316,10 @@
                       {
                         "next-hop": "10.0.7.4",
                         "outgoing-interface": "eth-rt4"
+                      },
+                      {
+                        "next-hop": "10.0.8.5",
+                        "outgoing-interface": "eth-rt5"
                       }
                     ]
                   },
@@ -1339,12 +1344,12 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "10.0.7.4",
-                        "outgoing-interface": "eth-rt4"
+                        "next-hop": "10.0.8.5",
+                        "outgoing-interface": "eth-rt5"
                       }
                     ]
                   },
-                  "metric": 40,
+                  "metric": 30,
                   "level": 2
                 },
                 {
@@ -1372,6 +1377,10 @@
                       {
                         "next-hop": "10.0.7.4",
                         "outgoing-interface": "eth-rt4"
+                      },
+                      {
+                        "next-hop": "10.0.8.5",
+                        "outgoing-interface": "eth-rt5"
                       }
                     ]
                   },
@@ -1409,12 +1418,12 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "10.0.7.4",
-                        "outgoing-interface": "eth-rt4"
+                        "next-hop": "10.0.8.5",
+                        "outgoing-interface": "eth-rt5"
                       }
                     ]
                   },
-                  "metric": 40,
+                  "metric": 30,
                   "level": 2
                 },
                 {
@@ -1422,12 +1431,12 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "10.0.7.4",
-                        "outgoing-interface": "eth-rt4"
+                        "next-hop": "10.0.8.5",
+                        "outgoing-interface": "eth-rt5"
                       }
                     ]
                   },
-                  "metric": 40,
+                  "metric": 30,
                   "level": 2
                 },
                 {
@@ -1460,6 +1469,10 @@
                       {
                         "next-hop": "fe80::18c4:f8ff:fe09:3280",
                         "outgoing-interface": "eth-rt4"
+                      },
+                      {
+                        "next-hop": "fe80::a098:7cff:fef6:12a2",
+                        "outgoing-interface": "eth-rt5"
                       }
                     ]
                   },
@@ -1484,12 +1497,12 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::18c4:f8ff:fe09:3280",
-                        "outgoing-interface": "eth-rt4"
+                        "next-hop": "fe80::a098:7cff:fef6:12a2",
+                        "outgoing-interface": "eth-rt5"
                       }
                     ]
                   },
-                  "metric": 40,
+                  "metric": 30,
                   "level": 2
                 },
                 {
@@ -1517,6 +1530,10 @@
                       {
                         "next-hop": "fe80::18c4:f8ff:fe09:3280",
                         "outgoing-interface": "eth-rt4"
+                      },
+                      {
+                        "next-hop": "fe80::a098:7cff:fef6:12a2",
+                        "outgoing-interface": "eth-rt5"
                       }
                     ]
                   },
@@ -1554,12 +1571,12 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::18c4:f8ff:fe09:3280",
-                        "outgoing-interface": "eth-rt4"
+                        "next-hop": "fe80::a098:7cff:fef6:12a2",
+                        "outgoing-interface": "eth-rt5"
                       }
                     ]
                   },
-                  "metric": 40,
+                  "metric": 30,
                   "level": 2
                 },
                 {
@@ -1567,12 +1584,12 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::18c4:f8ff:fe09:3280",
-                        "outgoing-interface": "eth-rt4"
+                        "next-hop": "fe80::a098:7cff:fef6:12a2",
+                        "outgoing-interface": "eth-rt5"
                       }
                     ]
                   },
-                  "metric": 40,
+                  "metric": 30,
                   "level": 2
                 },
                 {

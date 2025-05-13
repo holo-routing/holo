@@ -1,0 +1,6 @@
+{"InterfaceSub":{"ifname":null,"af":null}}
+{"MacvlanAdd":{"parent_ifname":"eth-sw1","ifname":"mvlan4-vrrp-1","mac_addr":[0,0,94,0,1,1]}}
+{"InterfaceIpAddRequest":{"ifname":"mvlan4-vrrp-1","addr":"10.0.1.5/32"}}
+{"InterfaceIpAddRequest":{"ifname":"mvlan4-vrrp-1","addr":"10.0.1.6/32"}}
+{"InterfaceIpDelRequest":{"ifname":"mvlan4-vrrp-1","addr":"10.0.1.5/32"}}
+{"InterfaceIpDelRequest":{"ifname":"mvlan4-vrrp-1","addr":"10.0.1.6/32"}}

@@ -1,0 +1,3 @@
+{"NetTxPacket":{"Vrrp":{"packet":{"ip":{"total_length":36,"src_address":"10.0.1.3"},"vrrp":{"version":{"V3":"Ipv6"},"hdr_type":1,"vrid":1,"priority":30,"count_ip":2,"adver_int":1,"checksum":0,"ip_addresses":["2001:db8::370:7334","2001:db8::370:7335"]}}}}}
+{"NetTxPacket":{"NAdv":{"vrid":1,"ifindex":3,"nadv_hdr":{"icmp_type":136,"code":0,"checksum":0,"r":1,"s":0,"o":1,"reserved":0,"target_address":"2001:db8::370:7334"}}}}
+{"NetTxPacket":{"NAdv":{"vrid":1,"ifindex":3,"nadv_hdr":{"icmp_type":136,"code":0,"checksum":0,"r":1,"s":0,"o":1,"reserved":0,"target_address":"2001:db8::370:7335"}}}}

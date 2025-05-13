@@ -1,0 +1,13 @@
+{"Ibus":{"InterfaceUpd":{"ifname":"eth-sw1","ifindex":2,"mtu":1500,"flags":"OPERATIVE | BROADCAST","mac_address":[26,244,250,41,184,158]}}}
+{"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-sw1","addr":"10.0.1.3/24","flags":""}}}
+{"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-sw1","addr":"fc00:0:0:1::3/64","flags":""}}}
+{"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-sw1","addr":"fe80::18f4:faff:fe29:b89e/64","flags":""}}}
+{"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE","mac_address":[0,0,0,0,0,0]}}}
+{"Ibus":{"InterfaceAddressAdd":{"ifname":"lo","addr":"3.3.3.3/32","flags":""}}}
+{"Ibus":{"InterfaceUpd":{"ifname":"mvlan4-vrrp-1","ifindex":3,"mtu":1500,"flags":"OPERATIVE | BROADCAST","mac_address":[0,0,94,0,1,1]}}}
+{"Ibus":{"InterfaceAddressAdd":{"ifname":"mvlan4-vrrp-1","addr":"fe80::200:5eff:fe00:101/64","flags":""}}}
+{"Protocol":{"VrrpNetRxPacket":{"src":"10.0.1.2","packet":{"Ok":{"version":{"V3":"Ipv4"},"hdr_type":1,"vrid":1,"priority":20,"count_ip":2,"adver_int":1,"checksum":42224,"ip_addresses":["10.0.1.5","10.0.1.6"]}}}}}
+{"Protocol":{"VrrpNetRxPacket":{"src":"10.0.1.2","packet":{"Ok":{"version":{"V3":"Ipv4"},"hdr_type":1,"vrid":1,"priority":20,"count_ip":2,"adver_int":1,"checksum":42224,"ip_addresses":["10.0.1.5","10.0.1.6"]}}}}}
+{"Protocol":{"MasterDownTimer":{"vrid":1,"version":{"V3":"Ipv4"}}}}
+{"Ibus":{"InterfaceAddressAdd":{"ifname":"mvlan4-vrrp-1","addr":"10.0.1.5/32","flags":"UNNUMBERED"}}}
+{"Ibus":{"InterfaceAddressAdd":{"ifname":"mvlan4-vrrp-1","addr":"10.0.1.6/32","flags":"UNNUMBERED"}}}

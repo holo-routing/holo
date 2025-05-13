@@ -1,0 +1,2 @@
+{"InterfaceSub":{"ifname":null,"af":null}}
+{"MacvlanAdd":{"parent_ifname":"eth-sw1","ifname":"mvlan6-vrrp-1","mac_addr":[0,0,94,0,2,1]}}

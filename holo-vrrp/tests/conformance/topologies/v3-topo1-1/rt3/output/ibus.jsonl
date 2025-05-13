@@ -1,0 +1,4 @@
+{"InterfaceSub":{"ifname":null,"af":null}}
+{"MacvlanAdd":{"parent_ifname":"eth-sw1","ifname":"mvlan6-vrrp-1","mac_addr":[0,0,94,0,2,1]}}
+{"InterfaceIpAddRequest":{"ifname":"mvlan6-vrrp-1","addr":"2001:db8::370:7334/128"}}
+{"InterfaceIpAddRequest":{"ifname":"mvlan6-vrrp-1","addr":"2001:db8::370:7335/128"}}

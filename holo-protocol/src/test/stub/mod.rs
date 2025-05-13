@@ -11,6 +11,7 @@ use std::collections::BTreeMap;
 use std::sync::LazyLock as Lazy;
 
 use derive_new::new;
+use holo_utils::protocol::Protocol;
 use holo_utils::{Responder, Sender, ibus};
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug_span, info};
@@ -229,7 +230,14 @@ where
     let topo_dir = topology_dir::<P>(topology, router);
 
     // Spawn protocol instance.
-    let mut stub = start_test_instance::<P>("test").await;
+    //
+    // TODO: Extract name from the configuration file.
+    let name = if P::PROTOCOL == Protocol::VRRP {
+        "eth-sw1"
+    } else {
+        "test"
+    };
+    let mut stub = start_test_instance::<P>(name).await;
 
     // Push configuration through stub northbound.
     let path = format!("{}/{}", topo_dir, "config.json");

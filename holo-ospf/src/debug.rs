@@ -6,6 +6,7 @@
 
 use std::net::Ipv4Addr;
 
+use holo_utils::ibus::IbusMsg;
 use ipnetwork::{Ipv4Network, Ipv6Network};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, debug_span};
@@ -36,9 +37,10 @@ pub enum Debug<'a, V: Version> {
     InterfacePrimaryAddrDelete(&'a str),
     InterfaceLinkLocalSelect(&'a str, &'a Ipv6Network),
     InterfaceLinkLocalDelete(&'a str),
-    IsmEvent(&'a ism::State, &'a ism::Event),
-    IsmTransition(&'a ism::State, &'a ism::State),
+    IsmEvent(&'a str, &'a ism::State, &'a ism::Event),
+    IsmTransition(&'a str, &'a ism::State, &'a ism::State),
     IsmDrElection(
+        &'a str,
         Option<NeighborNetId>,
         Option<NeighborNetId>,
         Option<NeighborNetId>,
@@ -81,6 +83,8 @@ pub enum Debug<'a, V: Version> {
     GrHelperReject(Ipv4Addr, GrRejectReason),
     GrHelperEnter(Ipv4Addr, GrReason, u32),
     GrHelperExit(Ipv4Addr, GrExitReason),
+    // Internal bus
+    IbusRx(&'a IbusMsg),
 }
 
 // Reason why an OSPF instance is inactive.
@@ -192,21 +196,25 @@ where
                     debug!("{}", self);
                 })
             }
-            Debug::IsmEvent(state, event) => {
+            Debug::IsmEvent(name, state, event) => {
                 // Parent span(s): ospf-instance
-                debug_span!("fsm").in_scope(|| {
-                    debug!(?state, ?event, "{}", self);
+                debug_span!("interface", %name).in_scope(|| {
+                    debug_span!("fsm").in_scope(|| {
+                        debug!(?state, ?event, "{}", self);
+                    })
                 })
             }
-            Debug::IsmTransition(old_state, new_state) => {
+            Debug::IsmTransition(name, old_state, new_state) => {
                 // Parent span(s): ospf-instance
-                debug_span!("fsm").in_scope(|| {
-                    debug!(?old_state, ?new_state, "{}", self);
+                debug_span!("interface", %name).in_scope(|| {
+                    debug_span!("fsm").in_scope(|| {
+                        debug!(?old_state, ?new_state, "{}", self);
+                    })
                 })
             }
-            Debug::IsmDrElection(old_dr, new_dr, old_bdr, new_bdr) => {
+            Debug::IsmDrElection(name, old_dr, new_dr, old_bdr, new_bdr) => {
                 // Parent span(s): ospf-instance
-                debug_span!("fsm").in_scope(|| {
+                debug_span!("interface", %name).in_scope(|| {
                     debug!(?old_dr, ?new_dr, ?old_bdr, ?new_bdr, "{}", self);
                 })
             }
@@ -318,6 +326,15 @@ where
                 // Parent span(s): ospf-instance
                 debug_span!("neighbor", %router_id).in_scope(|| {
                     debug!(%reason, "{}", self);
+                })
+            }
+            Debug::IbusRx(msg) => {
+                // Parent span(s): ospf-instance
+                debug_span!("internal-bus").in_scope(|| {
+                    debug_span!("input").in_scope(|| {
+                        let data = serde_json::to_string(&msg).unwrap();
+                        debug!(%data, "{}", self);
+                    })
                 })
             }
         }
@@ -453,6 +470,9 @@ where
             }
             Debug::GrHelperExit(..) => {
                 write!(f, "exiting from helper mode")
+            }
+            Debug::IbusRx(..) => {
+                write!(f, "message")
             }
         }
     }

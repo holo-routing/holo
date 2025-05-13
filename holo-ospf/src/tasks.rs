@@ -8,6 +8,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use std::time::{Duration, Instant};
 
+use arc_swap::ArcSwap;
 use holo_utils::ip::AddressFamily;
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
@@ -21,6 +22,7 @@ use crate::instance::InstanceUpView;
 use crate::interface::{Interface, ism};
 use crate::neighbor::{Neighbor, nsm};
 use crate::network::{self, SendDestination};
+use crate::northbound::configuration::TraceOptionPacketResolved;
 use crate::packet::auth::AuthMethod;
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::version::Version;
@@ -286,6 +288,7 @@ pub(crate) fn net_tx<V>(
     socket: Arc<AsyncFd<Socket>>,
     auth: Option<AuthMethod>,
     auth_seqno: &Arc<AtomicU64>,
+    trace_opts: Arc<ArcSwap<TraceOptionPacketResolved>>,
     mut net_packet_txc: UnboundedReceiver<messages::output::NetTxPacketMsg<V>>,
     #[cfg(feature = "testing")] proto_output_tx: &Sender<
         messages::ProtocolOutputMsg<V>,
@@ -305,8 +308,14 @@ where
 
         Task::spawn(
             async move {
-                network::write_loop(socket, auth, auth_seqno, net_packet_txc)
-                    .await;
+                network::write_loop(
+                    socket,
+                    auth,
+                    auth_seqno,
+                    trace_opts,
+                    net_packet_txc,
+                )
+                .await;
             }
             .in_current_span(),
         )

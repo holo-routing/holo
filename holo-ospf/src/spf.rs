@@ -302,7 +302,10 @@ pub(crate) fn fsm<V>(
 where
     V: Version,
 {
-    Debug::<V>::SpfDelayFsmEvent(&instance.state.spf_delay_state, &event).log();
+    if instance.config.trace_opts.spf {
+        Debug::<V>::SpfDelayFsmEvent(&instance.state.spf_delay_state, &event)
+            .log();
+    }
 
     // Update time of last SPF triggering event.
     instance.state.spf_last_event_rcvd = Some(Instant::now());
@@ -465,11 +468,13 @@ where
         && new_fsm_state != instance.state.spf_delay_state
     {
         // Effectively transition to the new FSM state.
-        Debug::<V>::SpfDelayFsmTransition(
-            &instance.state.spf_delay_state,
-            &new_fsm_state,
-        )
-        .log();
+        if instance.config.trace_opts.spf {
+            Debug::<V>::SpfDelayFsmTransition(
+                &instance.state.spf_delay_state,
+                &new_fsm_state,
+            )
+            .log();
+        }
         instance.state.spf_delay_state = new_fsm_state;
     }
 

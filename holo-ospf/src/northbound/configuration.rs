@@ -6,8 +6,9 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::net::Ipv4Addr;
-use std::sync::LazyLock as Lazy;
+use std::sync::{Arc, LazyLock as Lazy};
 
+use arc_swap::ArcSwap;
 use async_trait::async_trait;
 use enum_as_inner::EnumAsInner;
 use holo_northbound::configuration::{
@@ -30,6 +31,7 @@ use crate::instance::Instance;
 use crate::interface::{InterfaceType, ism};
 use crate::lsdb::LsaOriginateEvent;
 use crate::neighbor::nsm;
+use crate::packet::PacketType;
 use crate::route::RouteNetFlags;
 use crate::version::{Ospfv2, Ospfv3, Version};
 use crate::{gr, southbound, spf, sr};
@@ -38,10 +40,12 @@ use crate::{gr, southbound, spf, sr};
 pub enum ListEntry<V: Version> {
     None,
     NodeTag(u32),
+    TraceOption(InstanceTraceOption),
     Area(AreaIndex),
     AreaRange(AreaIndex, V::IpNetwork),
     Interface(AreaIndex, InterfaceIndex),
     StaticNbr(InterfaceIndex, V::NetIpAddr),
+    InterfaceTraceOption(InterfaceIndex, InterfaceTraceOption),
 }
 
 #[derive(Debug)]
@@ -75,6 +79,7 @@ pub enum Event {
     ReinstallRoutes,
     BierEnableChange(bool),
     NodeTagsChange,
+    UpdateTraceOptions,
 }
 
 pub static VALIDATION_CALLBACKS_OSPFV2: Lazy<ValidationCallbacks> =
@@ -107,6 +112,7 @@ pub struct InstanceCfg {
     pub sr_enabled: bool,
     pub instance_id: u8,
     pub bier: BierOspfCfg,
+    pub trace_opts: InstanceTraceOptions,
 }
 
 #[derive(Debug)]
@@ -128,6 +134,33 @@ pub struct Preference {
 pub struct InstanceGrCfg {
     pub helper_enabled: bool,
     pub helper_strict_lsa_checking: bool,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum InstanceTraceOption {
+    Flooding,
+    GracefulRestart,
+    InternalBus,
+    Lsdb,
+    Neighbor,
+    PacketsAll,
+    PacketsHello,
+    PacketsDbDesc,
+    PacketsLsUpdate,
+    PacketsLsRequest,
+    PacketsLsAck,
+    Spf,
+}
+
+#[derive(Debug, Default)]
+pub struct InstanceTraceOptions {
+    pub flooding: bool,
+    pub gr: bool,
+    pub ibus: bool,
+    pub lsdb: bool,
+    pub neighbor: bool,
+    pub packets: TraceOptionPacket,
+    pub spf: bool,
 }
 
 #[derive(Debug)]
@@ -163,6 +196,7 @@ pub struct InterfaceCfg<V: Version> {
     pub auth_algo: Option<CryptoAlgo>,
     pub bfd_enabled: bool,
     pub bfd_params: bfd::ClientCfg,
+    pub trace_opts: InterfaceTraceOptions,
 }
 
 #[derive(Debug)]
@@ -170,6 +204,47 @@ pub struct StaticNbr {
     pub cost: Option<u16>,
     pub poll_interval: u16,
     pub priority: u8,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum InterfaceTraceOption {
+    PacketsAll,
+    PacketsHello,
+    PacketsDbDesc,
+    PacketsLsUpdate,
+    PacketsLsRequest,
+    PacketsLsAck,
+}
+
+#[derive(Debug, Default)]
+pub struct InterfaceTraceOptions {
+    pub packets: TraceOptionPacket,
+    pub packets_resolved: Arc<ArcSwap<TraceOptionPacketResolved>>,
+}
+
+#[derive(Debug, Default)]
+pub struct TraceOptionPacket {
+    pub all: Option<TraceOptionPacketType>,
+    pub hello: Option<TraceOptionPacketType>,
+    pub dbdesc: Option<TraceOptionPacketType>,
+    pub lsreq: Option<TraceOptionPacketType>,
+    pub lsupd: Option<TraceOptionPacketType>,
+    pub lsack: Option<TraceOptionPacketType>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct TraceOptionPacketResolved {
+    pub hello: TraceOptionPacketType,
+    pub dbdesc: TraceOptionPacketType,
+    pub lsreq: TraceOptionPacketType,
+    pub lsupd: TraceOptionPacketType,
+    pub lsack: TraceOptionPacketType,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct TraceOptionPacketType {
+    pub tx: bool,
+    pub rx: bool,
 }
 
 // ===== callbacks =====
@@ -811,6 +886,105 @@ where
             let mtu_ignore = args.dnode.get_bool();
             iface.config.mtu_ignore = mtu_ignore;
         })
+        .path(ospf::areas::area::interfaces::interface::trace_options::flag::PATH)
+        .create_apply(|instance, args| {
+            let (_, iface_idx) = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let trace_opt = args.dnode.get_string_relative("name").unwrap();
+            let trace_opt = InterfaceTraceOption::try_from_yang(&trace_opt).unwrap();
+            let trace_opts = &mut iface.config.trace_opts;
+            match trace_opt {
+                InterfaceTraceOption::PacketsAll => {
+                    trace_opts.packets.all.get_or_insert_default();
+                }
+                InterfaceTraceOption::PacketsHello => {
+                    trace_opts.packets.hello.get_or_insert_default();
+                }
+                InterfaceTraceOption::PacketsDbDesc => {
+                    trace_opts.packets.dbdesc.get_or_insert_default();
+                }
+                InterfaceTraceOption::PacketsLsRequest => {
+                    trace_opts.packets.lsreq.get_or_insert_default();
+                }
+                InterfaceTraceOption::PacketsLsUpdate => {
+                    trace_opts.packets.lsupd.get_or_insert_default();
+                }
+                InterfaceTraceOption::PacketsLsAck => {
+                    trace_opts.packets.lsack.get_or_insert_default();
+                }
+            }
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
+        })
+        .delete_apply(|instance, args| {
+            let (iface_idx, trace_opt) = args.list_entry.into_interface_trace_option().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let trace_opts = &mut iface.config.trace_opts;
+            match trace_opt {
+                InterfaceTraceOption::PacketsAll => trace_opts.packets.all = None,
+                InterfaceTraceOption::PacketsHello => trace_opts.packets.hello = None,
+                InterfaceTraceOption::PacketsDbDesc => trace_opts.packets.dbdesc = None,
+                InterfaceTraceOption::PacketsLsRequest => trace_opts.packets.lsreq = None,
+                InterfaceTraceOption::PacketsLsUpdate => trace_opts.packets.lsupd = None,
+                InterfaceTraceOption::PacketsLsAck => trace_opts.packets.lsack = None,
+            }
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
+        })
+        .lookup(|_instance, list_entry, dnode| {
+            let (_, iface_idx) = list_entry.into_interface().unwrap();
+            let trace_opt = dnode.get_string_relative("name").unwrap();
+            let trace_opt = InterfaceTraceOption::try_from_yang(&trace_opt).unwrap();
+            ListEntry::InterfaceTraceOption(iface_idx, trace_opt)
+        })
+        .path(ospf::areas::area::interfaces::interface::trace_options::flag::send::PATH)
+        .modify_apply(|instance, args| {
+            let (iface_idx, trace_opt) = args.list_entry.into_interface_trace_option().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let enable = args.dnode.get_bool();
+            let trace_opts = &mut iface.config.trace_opts;
+            let Some(trace_opt_packet) = (match trace_opt {
+                InterfaceTraceOption::PacketsAll => trace_opts.packets.all.as_mut(),
+                InterfaceTraceOption::PacketsHello => trace_opts.packets.hello.as_mut(),
+                InterfaceTraceOption::PacketsDbDesc => trace_opts.packets.dbdesc.as_mut(),
+                InterfaceTraceOption::PacketsLsRequest => trace_opts.packets.lsreq.as_mut(),
+                InterfaceTraceOption::PacketsLsUpdate => trace_opts.packets.lsupd.as_mut(),
+                InterfaceTraceOption::PacketsLsAck => trace_opts.packets.lsack.as_mut(),
+            }) else {
+                return;
+            };
+            trace_opt_packet.tx = enable;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
+        })
+        .path(ospf::areas::area::interfaces::interface::trace_options::flag::receive::PATH)
+        .modify_apply(|instance, args| {
+            let (iface_idx, trace_opt) = args.list_entry.into_interface_trace_option().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let enable = args.dnode.get_bool();
+            let trace_opts = &mut iface.config.trace_opts;
+            let Some(trace_opt_packet) = (match trace_opt {
+                InterfaceTraceOption::PacketsAll => trace_opts.packets.all.as_mut(),
+                InterfaceTraceOption::PacketsHello => trace_opts.packets.hello.as_mut(),
+                InterfaceTraceOption::PacketsDbDesc => trace_opts.packets.dbdesc.as_mut(),
+                InterfaceTraceOption::PacketsLsRequest => trace_opts.packets.lsreq.as_mut(),
+                InterfaceTraceOption::PacketsLsUpdate => trace_opts.packets.lsupd.as_mut(),
+                InterfaceTraceOption::PacketsLsAck => trace_opts.packets.lsack.as_mut(),
+            }) else {
+                return;
+            };
+            trace_opt_packet.rx = enable;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
+        })
         .path(ospf::bier::mt_id::PATH)
         .modify_apply(|instance, args| {
             let mt_id = args.dnode.get_u8();
@@ -839,7 +1013,111 @@ where
         .modify_apply(|instance, args| {
             let receive = args.dnode.get_bool();
             instance.config.bier.receive = receive;
-       })
+        })
+        .path(ospf::trace_options::flag::PATH)
+        .create_apply(|instance, args| {
+            let trace_opt = args.dnode.get_string_relative("name").unwrap();
+            let trace_opt = InstanceTraceOption::try_from_yang(&trace_opt).unwrap();
+            let trace_opts = &mut instance.config.trace_opts;
+            match trace_opt {
+                InstanceTraceOption::Flooding => trace_opts.flooding = true,
+                InstanceTraceOption::GracefulRestart => trace_opts.gr = true,
+                InstanceTraceOption::InternalBus => trace_opts.ibus = true,
+                InstanceTraceOption::Lsdb => trace_opts.lsdb = true,
+                InstanceTraceOption::Neighbor => trace_opts.neighbor = true,
+                InstanceTraceOption::PacketsAll => {
+                    trace_opts.packets.all.get_or_insert_default();
+                }
+                InstanceTraceOption::PacketsHello => {
+                    trace_opts.packets.hello.get_or_insert_default();
+                }
+                InstanceTraceOption::PacketsDbDesc => {
+                    trace_opts.packets.dbdesc.get_or_insert_default();
+                }
+                InstanceTraceOption::PacketsLsRequest => {
+                    trace_opts.packets.lsreq.get_or_insert_default();
+                }
+                InstanceTraceOption::PacketsLsUpdate => {
+                    trace_opts.packets.lsupd.get_or_insert_default();
+                }
+                InstanceTraceOption::PacketsLsAck => {
+                    trace_opts.packets.lsack.get_or_insert_default();
+                }
+                InstanceTraceOption::Spf => trace_opts.spf = true,
+            }
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
+        })
+        .delete_apply(|instance, args| {
+            let trace_opt = args.list_entry.into_trace_option().unwrap();
+            let trace_opts = &mut instance.config.trace_opts;
+            match trace_opt {
+                InstanceTraceOption::Flooding => trace_opts.flooding = false,
+                InstanceTraceOption::GracefulRestart => trace_opts.gr = false,
+                InstanceTraceOption::InternalBus => trace_opts.ibus = false,
+                InstanceTraceOption::Lsdb => trace_opts.lsdb = false,
+                InstanceTraceOption::Neighbor => trace_opts.neighbor = false,
+                InstanceTraceOption::PacketsAll => trace_opts.packets.all = None,
+                InstanceTraceOption::PacketsHello => trace_opts.packets.hello = None,
+                InstanceTraceOption::PacketsDbDesc => trace_opts.packets.dbdesc = None,
+                InstanceTraceOption::PacketsLsRequest => trace_opts.packets.lsreq = None,
+                InstanceTraceOption::PacketsLsUpdate => trace_opts.packets.lsupd = None,
+                InstanceTraceOption::PacketsLsAck => trace_opts.packets.lsack = None,
+                InstanceTraceOption::Spf => trace_opts.spf = false,
+            }
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
+        })
+        .lookup(|_instance, _list_entry, dnode| {
+            let trace_opt = dnode.get_string_relative("name").unwrap();
+            let trace_opt = InstanceTraceOption::try_from_yang(&trace_opt).unwrap();
+            ListEntry::TraceOption(trace_opt)
+        })
+        .path(ospf::trace_options::flag::send::PATH)
+        .modify_apply(|instance, args| {
+            let trace_opt = args.list_entry.into_trace_option().unwrap();
+            let enable = args.dnode.get_bool();
+            let trace_opts = &mut instance.config.trace_opts;
+            let Some(trace_opt_packet) = (match trace_opt {
+                InstanceTraceOption::PacketsAll => trace_opts.packets.all.as_mut(),
+                InstanceTraceOption::PacketsHello => trace_opts.packets.hello.as_mut(),
+                InstanceTraceOption::PacketsDbDesc => trace_opts.packets.dbdesc.as_mut(),
+                InstanceTraceOption::PacketsLsRequest => trace_opts.packets.lsreq.as_mut(),
+                InstanceTraceOption::PacketsLsUpdate => trace_opts.packets.lsupd.as_mut(),
+                InstanceTraceOption::PacketsLsAck => trace_opts.packets.lsack.as_mut(),
+                _ => None,
+            }) else {
+                return;
+            };
+            trace_opt_packet.tx = enable;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
+        })
+        .path(ospf::trace_options::flag::receive::PATH)
+        .modify_apply(|instance, args| {
+            let trace_opt = args.list_entry.into_trace_option().unwrap();
+            let enable = args.dnode.get_bool();
+            let trace_opts = &mut instance.config.trace_opts;
+            let Some(trace_opt_packet) = (match trace_opt {
+                InstanceTraceOption::PacketsAll => trace_opts.packets.all.as_mut(),
+                InstanceTraceOption::PacketsHello => trace_opts.packets.hello.as_mut(),
+                InstanceTraceOption::PacketsDbDesc => trace_opts.packets.dbdesc.as_mut(),
+                InstanceTraceOption::PacketsLsRequest => trace_opts.packets.lsreq.as_mut(),
+                InstanceTraceOption::PacketsLsUpdate => trace_opts.packets.lsupd.as_mut(),
+                InstanceTraceOption::PacketsLsAck => trace_opts.packets.lsack.as_mut(),
+                _ => None,
+            }) else {
+                return;
+            };
+            trace_opt_packet.rx = enable;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
+        })
+
         .build()
 }
 
@@ -1602,6 +1880,92 @@ where
                     );
                 }
             }
+            Event::UpdateTraceOptions => {
+                for area_idx in self.arenas.areas.indexes().collect::<Vec<_>>()
+                {
+                    let area = &mut self.arenas.areas[area_idx];
+                    for iface_idx in
+                        area.interfaces.indexes().collect::<Vec<_>>()
+                    {
+                        let iface = &mut self.arenas.interfaces[iface_idx];
+                        let iface_trace_opts = &iface.config.trace_opts.packets;
+                        let instance_trace_opts =
+                            &self.config.trace_opts.packets;
+
+                        let disabled = TraceOptionPacketType {
+                            tx: false,
+                            rx: false,
+                        };
+                        let hello = iface_trace_opts
+                            .hello
+                            .or(iface_trace_opts.all)
+                            .or(instance_trace_opts.hello)
+                            .or(instance_trace_opts.all)
+                            .unwrap_or(disabled);
+                        let dbdesc = iface_trace_opts
+                            .dbdesc
+                            .or(iface_trace_opts.all)
+                            .or(instance_trace_opts.dbdesc)
+                            .or(instance_trace_opts.all)
+                            .unwrap_or(disabled);
+                        let lsreq = iface_trace_opts
+                            .lsreq
+                            .or(iface_trace_opts.all)
+                            .or(instance_trace_opts.lsreq)
+                            .or(instance_trace_opts.all)
+                            .unwrap_or(disabled);
+                        let lsupd = iface_trace_opts
+                            .lsupd
+                            .or(iface_trace_opts.all)
+                            .or(instance_trace_opts.lsupd)
+                            .or(instance_trace_opts.all)
+                            .unwrap_or(disabled);
+                        let lsack = iface_trace_opts
+                            .lsack
+                            .or(iface_trace_opts.all)
+                            .or(instance_trace_opts.lsack)
+                            .or(instance_trace_opts.all)
+                            .unwrap_or(disabled);
+
+                        let resolved = Arc::new(TraceOptionPacketResolved {
+                            hello,
+                            dbdesc,
+                            lsreq,
+                            lsupd,
+                            lsack,
+                        });
+                        iface
+                            .config
+                            .trace_opts
+                            .packets_resolved
+                            .store(resolved);
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ===== configuration helpers =====
+
+impl TraceOptionPacketResolved {
+    pub(crate) fn tx(&self, pkt_type: PacketType) -> bool {
+        match pkt_type {
+            PacketType::Hello => self.hello.tx,
+            PacketType::DbDesc => self.dbdesc.tx,
+            PacketType::LsRequest => self.lsreq.tx,
+            PacketType::LsUpdate => self.lsupd.tx,
+            PacketType::LsAck => self.lsack.tx,
+        }
+    }
+
+    pub(crate) fn rx(&self, pkt_type: PacketType) -> bool {
+        match pkt_type {
+            PacketType::Hello => self.hello.rx,
+            PacketType::DbDesc => self.dbdesc.rx,
+            PacketType::LsRequest => self.lsreq.rx,
+            PacketType::LsUpdate => self.lsupd.rx,
+            PacketType::LsAck => self.lsack.rx,
         }
     }
 }
@@ -1655,6 +2019,7 @@ impl Default for InstanceCfg {
             sr_enabled,
             instance_id,
             bier: Default::default(),
+            trace_opts: Default::default(),
         }
     }
 }
@@ -1771,6 +2136,7 @@ where
             auth_algo: None,
             bfd_enabled,
             bfd_params: Default::default(),
+            trace_opts: Default::default(),
         }
     }
 }
@@ -1787,5 +2153,30 @@ impl Default for StaticNbr {
             poll_interval,
             priority,
         }
+    }
+}
+
+impl Default for TraceOptionPacketResolved {
+    fn default() -> TraceOptionPacketResolved {
+        let disabled = TraceOptionPacketType {
+            tx: false,
+            rx: false,
+        };
+        TraceOptionPacketResolved {
+            hello: disabled,
+            dbdesc: disabled,
+            lsreq: disabled,
+            lsupd: disabled,
+            lsack: disabled,
+        }
+    }
+}
+
+impl Default for TraceOptionPacketType {
+    fn default() -> TraceOptionPacketType {
+        let tx = ospf::trace_options::flag::send::DFLT;
+        let rx = ospf::trace_options::flag::receive::DFLT;
+
+        TraceOptionPacketType { tx, rx }
     }
 }

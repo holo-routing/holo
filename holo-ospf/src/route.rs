@@ -468,8 +468,13 @@ fn update_rib_inter_area_networks<V>(
             None => {
                 // If no such entry exists for router BR, do nothing with this
                 // LSA and consider the next in the list.
-                Debug::<V>::SpfNetworkUnreachableAbr(&lsa.prefix, lsa.adv_rtr)
+                if instance.config.trace_opts.spf {
+                    Debug::<V>::SpfNetworkUnreachableAbr(
+                        &lsa.prefix,
+                        lsa.adv_rtr,
+                    )
                     .log();
+                }
                 continue;
             }
         };
@@ -554,11 +559,13 @@ fn update_rib_inter_area_routers<V>(
             None => {
                 // If no such entry exists for router BR, do nothing with this
                 // LSA and consider the next in the list.
-                Debug::<V>::SpfRouterUnreachableAbr(
-                    &lsa.router_id,
-                    lsa.adv_rtr,
-                )
-                .log();
+                if instance.config.trace_opts.spf {
+                    Debug::<V>::SpfRouterUnreachableAbr(
+                        &lsa.router_id,
+                        lsa.adv_rtr,
+                    )
+                    .log();
+                }
                 continue;
             }
         };
@@ -654,7 +661,10 @@ fn update_rib_external<V>(
             None => {
                 // If no entries exist for router ASBR, do nothing with this
                 // LSA and consider the next in the list.
-                Debug::<V>::SpfUnreachableAsbr(&lsa.prefix, lsa.adv_rtr).log();
+                if instance.config.trace_opts.spf {
+                    Debug::<V>::SpfUnreachableAsbr(&lsa.prefix, lsa.adv_rtr)
+                        .log();
+                }
                 continue;
             }
         };

@@ -199,7 +199,9 @@ where
     }
 
     // Log received packet.
-    Debug::<V>::PacketRx(iface, &src, &dst, &packet).log();
+    if iface.config.trace_opts.packets_resolved.load().rx(pkt_type) {
+        Debug::<V>::PacketRx(iface, &src, &dst, &packet).log();
+    }
 
     if let Packet::Hello(pkt) = packet {
         process_packet_hello(
@@ -239,7 +241,7 @@ where
             Packet::LsUpdate(pkt) => process_packet_lsupd(
                 nbr_idx, iface_idx, area_idx, instance, arenas, src, pkt,
             ),
-            Packet::LsAck(pkt) => process_packet_lsack(nbr, pkt),
+            Packet::LsAck(pkt) => process_packet_lsack(nbr, instance, pkt),
         }
     }
 }
@@ -662,7 +664,9 @@ where
     V: Version,
 {
     if nbr.state < nsm::State::Exchange {
-        Debug::<V>::PacketRxIgnore(nbr.router_id, &nbr.state).log();
+        if instance.config.trace_opts.flooding {
+            Debug::<V>::PacketRxIgnore(nbr.router_id, &nbr.state).log();
+        }
         return Ok(());
     }
 
@@ -715,7 +719,9 @@ where
 {
     let nbr = &arenas.neighbors[nbr_idx];
     if nbr.state < nsm::State::Exchange {
-        Debug::<V>::PacketRxIgnore(nbr.router_id, &nbr.state).log();
+        if instance.config.trace_opts.flooding {
+            Debug::<V>::PacketRxIgnore(nbr.router_id, &nbr.state).log();
+        }
         return Ok(());
     }
 
@@ -761,7 +767,9 @@ where
         notification::if_rx_bad_lsa(instance, src, error);
 
         // Log why the LSA is being discarded.
-        Debug::<V>::LsaDiscard(nbr.router_id, &lsa.hdr, &error).log();
+        if instance.config.trace_opts.flooding {
+            Debug::<V>::LsaDiscard(nbr.router_id, &lsa.hdr, &error).log();
+        }
 
         // Examine the next LSA.
         return false;
@@ -814,7 +822,9 @@ where
             && lsdb::lsa_min_arrival_check(lse)
         {
             // Log why the LSA is being discarded.
-            Debug::<V>::LsaMinArrivalDiscard(nbr.router_id, &lsa.hdr).log();
+            if instance.config.trace_opts.flooding {
+                Debug::<V>::LsaMinArrivalDiscard(nbr.router_id, &lsa.hdr).log();
+            }
 
             // Examine the next LSA.
             return false;
@@ -896,7 +906,10 @@ where
 
         // (5.f) Check if this is a self-originated LSA.
         if lse.flags.contains(LsaEntryFlags::SELF_ORIGINATED) {
-            Debug::<V>::LsaSelfOriginated(nbr_router_id, &lse.data.hdr).log();
+            if instance.config.trace_opts.flooding {
+                Debug::<V>::LsaSelfOriginated(nbr_router_id, &lse.data.hdr)
+                    .log();
+            }
 
             // (Re)originate or flush self-originated LSA.
             let (lsdb_id, _) = lsdb_index(
@@ -983,7 +996,9 @@ where
             .send_lsupd(area.id, iface.id, Some(nbr.id));
     } else {
         // Log why the LSA is being discarded.
-        Debug::<V>::LsaMinArrivalDiscard(nbr.router_id, &lsa.hdr).log();
+        if instance.config.trace_opts.flooding {
+            Debug::<V>::LsaMinArrivalDiscard(nbr.router_id, &lsa.hdr).log();
+        }
     }
 
     // Examine the next LSA.
@@ -992,13 +1007,16 @@ where
 
 fn process_packet_lsack<V>(
     nbr: &mut Neighbor<V>,
+    instance: &InstanceUpView<'_, V>,
     ls_ack: V::PacketLsAck,
 ) -> Result<(), Error<V>>
 where
     V: Version,
 {
     if nbr.state < nsm::State::Exchange {
-        Debug::<V>::PacketRxIgnore(nbr.router_id, &nbr.state).log();
+        if instance.config.trace_opts.flooding {
+            Debug::<V>::PacketRxIgnore(nbr.router_id, &nbr.state).log();
+        }
         return Ok(());
     }
 
@@ -1011,7 +1029,7 @@ where
             if lsa_compare::<V>(&lsa.hdr, lsa_hdr) == Ordering::Equal {
                 o.remove();
                 nbr.rxmt_lsupd_stop_check();
-            } else {
+            } else if instance.config.trace_opts.flooding {
                 Debug::<V>::QuestionableAck(nbr.router_id, lsa_hdr).log();
             }
         }
@@ -1268,7 +1286,9 @@ where
 
     assert!(lse.flags.contains(LsaEntryFlags::SELF_ORIGINATED));
 
-    Debug::<V>::LsaRefresh(&lse.data.hdr).log();
+    if instance.config.trace_opts.lsdb {
+        Debug::<V>::LsaRefresh(&lse.data.hdr).log();
+    }
 
     // Originate new instance of the LSA.
     let lsa = Lsa::new(

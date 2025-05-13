@@ -15,6 +15,9 @@ use crate::gr::GrExitReason;
 use crate::interface::{InterfaceType, ism};
 use crate::lsdb::LsaLogReason;
 use crate::neighbor::nsm;
+use crate::northbound::configuration::{
+    InstanceTraceOption, InterfaceTraceOption,
+};
 use crate::packet::PacketType;
 use crate::packet::error::LsaValidationError;
 use crate::packet::tlv::{
@@ -547,6 +550,42 @@ impl TryFromYang for InterfaceType {
             "non-broadcast" => Some(InterfaceType::NonBroadcast),
             "point-to-multipoint" => Some(InterfaceType::PointToMultipoint),
             "point-to-point" => Some(InterfaceType::PointToPoint),
+            _ => None,
+        }
+    }
+}
+
+impl TryFromYang for InstanceTraceOption {
+    fn try_from_yang(value: &str) -> Option<InstanceTraceOption> {
+        match value {
+            "flooding" => Some(InstanceTraceOption::Flooding),
+            "graceful-restart" => Some(InstanceTraceOption::GracefulRestart),
+            "internal-bus" => Some(InstanceTraceOption::InternalBus),
+            "lsdb" => Some(InstanceTraceOption::Lsdb),
+            "neighbor" => Some(InstanceTraceOption::Neighbor),
+            "packets-all" => Some(InstanceTraceOption::PacketsAll),
+            "packets-hello" => Some(InstanceTraceOption::PacketsHello),
+            "packets-dbdescr" => Some(InstanceTraceOption::PacketsDbDesc),
+            "packets-ls-request" => Some(InstanceTraceOption::PacketsLsRequest),
+            "packets-ls-update" => Some(InstanceTraceOption::PacketsLsUpdate),
+            "packets-ls-ack" => Some(InstanceTraceOption::PacketsLsAck),
+            "spf" => Some(InstanceTraceOption::Spf),
+            _ => None,
+        }
+    }
+}
+
+impl TryFromYang for InterfaceTraceOption {
+    fn try_from_yang(value: &str) -> Option<InterfaceTraceOption> {
+        match value {
+            "packets-all" => Some(InterfaceTraceOption::PacketsAll),
+            "packets-hello" => Some(InterfaceTraceOption::PacketsHello),
+            "packets-dbdescr" => Some(InterfaceTraceOption::PacketsDbDesc),
+            "packets-ls-request" => {
+                Some(InterfaceTraceOption::PacketsLsRequest)
+            }
+            "packets-ls-update" => Some(InterfaceTraceOption::PacketsLsUpdate),
+            "packets-ls-ack" => Some(InterfaceTraceOption::PacketsLsAck),
             _ => None,
         }
     }

@@ -210,7 +210,9 @@ where
         lsa_entries: &Arena<LsaEntry<V>>,
         event: Event,
     ) {
-        Debug::<V>::NsmEvent(self.router_id, &self.state, &event).log();
+        if instance.config.trace_opts.neighbor {
+            Debug::<V>::NsmEvent(self.router_id, &self.state, &event).log();
+        }
 
         let new_state = match (self.state, &event) {
             // NSM (state, event) -> (Action, new state)
@@ -485,8 +487,10 @@ where
         }
 
         // Effectively transition to the new FSM state.
-        Debug::<V>::NsmTransition(self.router_id, &self.state, &new_state)
-            .log();
+        if instance.config.trace_opts.neighbor {
+            Debug::<V>::NsmTransition(self.router_id, &self.state, &new_state)
+                .log();
+        }
         self.state = new_state;
         notification::nbr_state_change(instance, iface, self);
 
@@ -549,7 +553,9 @@ where
         iface: &Interface<V>,
         instance: &InstanceUpView<'_, V>,
     ) {
-        Debug::<V>::NeighborBfdReg(self.router_id).log();
+        if instance.config.trace_opts.neighbor {
+            Debug::<V>::NeighborBfdReg(self.router_id).log();
+        }
 
         instance.tx.ibus.bfd_session_reg(
             self.bfd_session_key(iface),
@@ -563,7 +569,9 @@ where
         iface: &Interface<V>,
         instance: &InstanceUpView<'_, V>,
     ) {
-        Debug::<V>::NeighborBfdUnreg(self.router_id).log();
+        if instance.config.trace_opts.neighbor {
+            Debug::<V>::NeighborBfdUnreg(self.router_id).log();
+        }
 
         instance
             .tx

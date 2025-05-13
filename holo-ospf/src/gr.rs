@@ -76,8 +76,10 @@ pub(crate) fn helper_process_grace_lsa<V>(
 
         // Check if the neighbor is fully adjacent.
         if nbr.state != nsm::State::Full {
-            let reason = GrRejectReason::NeighborNotFull;
-            Debug::<V>::GrHelperReject(nbr.router_id, reason).log();
+            if instance.config.trace_opts.gr {
+                let reason = GrRejectReason::NeighborNotFull;
+                Debug::<V>::GrHelperReject(nbr.router_id, reason).log();
+            }
             return;
         }
 
@@ -89,22 +91,28 @@ pub(crate) fn helper_process_grace_lsa<V>(
                 .values()
                 .any(|lsa| lsa.hdr.lsa_type().is_gr_topology_info())
         {
-            let reason = GrRejectReason::TopologyChange;
-            Debug::<V>::GrHelperReject(nbr.router_id, reason).log();
+            if instance.config.trace_opts.gr {
+                let reason = GrRejectReason::TopologyChange;
+                Debug::<V>::GrHelperReject(nbr.router_id, reason).log();
+            }
             return;
         }
 
         // Check if the grace period has already expired.
         if lsa_hdr.age() as u32 >= grace_period {
-            let reason = GrRejectReason::GracePeriodExpired;
-            Debug::<V>::GrHelperReject(nbr.router_id, reason).log();
+            if instance.config.trace_opts.gr {
+                let reason = GrRejectReason::GracePeriodExpired;
+                Debug::<V>::GrHelperReject(nbr.router_id, reason).log();
+            }
             return;
         }
 
         // Check if helper mode is enabled in the configuration.
         if !instance.config.gr.helper_enabled {
-            let reason = GrRejectReason::HelperDisabled;
-            Debug::<V>::GrHelperReject(nbr.router_id, reason).log();
+            if instance.config.trace_opts.gr {
+                let reason = GrRejectReason::HelperDisabled;
+                Debug::<V>::GrHelperReject(nbr.router_id, reason).log();
+            }
             return;
         }
 
@@ -159,7 +167,9 @@ pub(crate) fn helper_exit<V>(
 ) where
     V: Version,
 {
-    Debug::<V>::GrHelperExit(nbr.router_id, reason).log();
+    if instance.config.trace_opts.gr {
+        Debug::<V>::GrHelperExit(nbr.router_id, reason).log();
+    }
     notification::nbr_restart_helper_exit(instance, iface, nbr, reason);
 
     // Stop the grace period timeout.
@@ -199,8 +209,10 @@ fn helper_enter<V>(
 ) where
     V: Version,
 {
-    Debug::<V>::GrHelperEnter(nbr.router_id, restart_reason, grace_period)
-        .log();
+    if instance.config.trace_opts.gr {
+        Debug::<V>::GrHelperEnter(nbr.router_id, restart_reason, grace_period)
+            .log();
+    }
     notification::nbr_restart_helper_enter(instance, iface, nbr, grace_period);
 
     // Start the grace period timeout.

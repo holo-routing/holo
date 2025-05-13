@@ -741,6 +741,10 @@ async fn process_ibus_msg<V>(
 where
     V: Version,
 {
+    if instance.config.trace_opts.ibus {
+        Debug::<V>::IbusRx(&msg).log();
+    }
+
     match msg {
         // BFD peer state update event.
         IbusMsg::BfdStateUpd { sess_key, state } => {

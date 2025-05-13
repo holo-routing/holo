@@ -184,6 +184,43 @@ module holo-ospf {
       description
         "Hostname-to-router-ID mapping database.";
     }
+
+    container trace-options {
+      description "Instance level trace options for OSPF.";
+
+      list flag {
+        key name;
+        description "List of tracing options.";
+        leaf name {
+          description
+            "List of tracing options";
+          type enumeration {
+            enum flooding;
+            enum graceful-restart;
+            enum internal-bus;
+            enum lsdb;
+            enum neighbor;
+            enum packets-all;
+            enum packets-dbdescr;
+            enum packets-hello;
+            enum packets-ls-ack;
+            enum packets-ls-request;
+            enum packets-ls-update;
+            enum spf;
+          }
+        }
+        leaf send {
+          description "Trace sent packets.";
+          type boolean;
+          default true;
+        }
+        leaf receive {
+          description "Trace received packets.";
+          type boolean;
+          default true;
+        }
+      }
+    }
   }
 
   augment "/rt:routing/rt:control-plane-protocols/"
@@ -200,6 +237,41 @@ module holo-ospf {
       default "0";
       description
         "OSPFv3 instance ID.";
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/"
+        + "ospf:interfaces/ospf:interface" {
+    container trace-options {
+      description "Interface level trace options for OSPF.";
+
+      list flag {
+        key name;
+        description "List of tracing options.";
+        leaf name {
+          description
+            "List of tracing options";
+          type enumeration {
+            enum packets-all;
+            enum packets-dbdescr;
+            enum packets-hello;
+            enum packets-ls-ack;
+            enum packets-ls-request;
+            enum packets-ls-update;
+          }
+        }
+        leaf send {
+          description "Trace sent packets.";
+          type boolean;
+          default true;
+        }
+        leaf receive {
+          description "Trace received packets.";
+          type boolean;
+          default true;
+        }
+      }
     }
   }
 

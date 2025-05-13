@@ -508,7 +508,7 @@ where
         lsa_entries: &Arena<LsaEntry<V>>,
         event: Event,
     ) {
-        Debug::<V>::IsmEvent(&self.state.ism_state, &event).log();
+        Debug::<V>::IsmEvent(&self.name, &self.state.ism_state, &event).log();
 
         let new_ism_state = match (self.state.ism_state, &event) {
             (State::Down, Event::InterfaceUp) => {
@@ -587,7 +587,12 @@ where
         }
 
         // Effectively transition to the new FSM state.
-        Debug::<V>::IsmTransition(&self.state.ism_state, &new_ism_state).log();
+        Debug::<V>::IsmTransition(
+            &self.name,
+            &self.state.ism_state,
+            &new_ism_state,
+        )
+        .log();
         self.state.ism_state = new_ism_state;
         notification::if_state_change(instance, self);
 
@@ -733,7 +738,8 @@ where
         }
 
         // Step 5: set the interface state accordingly.
-        Debug::<V>::IsmDrElection(old_dr, new_dr, old_bdr, new_bdr).log();
+        Debug::<V>::IsmDrElection(&self.name, old_dr, new_dr, old_bdr, new_bdr)
+            .log();
         let next_state = if new_dr == Some(net_id) {
             ism::State::Dr
         } else if new_bdr == Some(net_id) {
@@ -1007,6 +1013,7 @@ where
             socket.clone(),
             iface.state.auth.clone(),
             auth_seqno,
+            iface.config.trace_opts.packets_resolved.clone(),
             net_tx_packetc,
             #[cfg(feature = "testing")]
             &instance_channels_tx.protocol_output,
@@ -1044,6 +1051,7 @@ where
             self.socket.clone(),
             iface.state.auth.clone(),
             auth_seqno,
+            iface.config.trace_opts.packets_resolved.clone(),
             net_tx_packetc,
             #[cfg(feature = "testing")]
             &instance_channels_tx.protocol_output,

@@ -10,6 +10,7 @@ use std::os::fd::AsRawFd;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 
+use arc_swap::ArcSwap;
 use bytes::Bytes;
 use derive_new::new;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
@@ -23,9 +24,10 @@ use tokio::sync::mpsc::error::SendError;
 use crate::collections::{AreaId, InterfaceId};
 use crate::debug::Debug;
 use crate::error::{Error, IoError};
-use crate::packet::Packet;
+use crate::northbound::configuration::TraceOptionPacketResolved;
 use crate::packet::auth::{AuthDecodeCtx, AuthEncodeCtx, AuthMethod};
 use crate::packet::error::DecodeResult;
+use crate::packet::{Packet, PacketHdrVersion};
 use crate::tasks::messages::input::NetRxPacketMsg;
 use crate::tasks::messages::output::NetTxPacketMsg;
 use crate::version::Version;
@@ -107,11 +109,15 @@ pub(crate) async fn send_packet<V>(
     dst_addr: V::NetIpAddr,
     packet: &Packet<V>,
     auth: Option<AuthEncodeCtx<'_>>,
+    trace_opts: &Arc<ArcSwap<TraceOptionPacketResolved>>,
 ) -> Result<usize, IoError>
 where
     V: Version,
 {
-    Debug::<V>::PacketTx(dst_ifindex, &dst_addr, packet).log();
+    // Log packet being sent.
+    if trace_opts.load().tx(packet.hdr().pkt_type()) {
+        Debug::<V>::PacketTx(dst_ifindex, &dst_addr, packet).log();
+    }
 
     // Encode packet.
     let buf = packet.encode(auth);
@@ -141,6 +147,7 @@ pub(crate) async fn write_loop<V>(
     socket: Arc<AsyncFd<Socket>>,
     auth: Option<AuthMethod>,
     auth_seqno: Arc<AtomicU64>,
+    trace_opts: Arc<ArcSwap<TraceOptionPacketResolved>>,
     mut net_tx_packetc: UnboundedReceiver<NetTxPacketMsg<V>>,
 ) where
     V: Version,
@@ -170,9 +177,16 @@ pub(crate) async fn write_loop<V>(
 
         // Send packet to all requested destinations.
         for dst_addr in dst.addrs.into_iter() {
-            if let Err(error) =
-                send_packet(&socket, src, dst.ifindex, dst_addr, &packet, auth)
-                    .await
+            if let Err(error) = send_packet(
+                &socket,
+                src,
+                dst.ifindex,
+                dst_addr,
+                &packet,
+                auth,
+                &trace_opts,
+            )
+            .await
             {
                 error.log();
             }

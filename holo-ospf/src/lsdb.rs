@@ -397,7 +397,9 @@ pub(crate) fn install<V>(
 where
     V: Version,
 {
-    Debug::<V>::LsaInstall(&lsa.hdr).log();
+    if instance.config.trace_opts.lsdb {
+        Debug::<V>::LsaInstall(&lsa.hdr).log();
+    }
 
     // Remove old instance (if any) from all neighbors' Link state
     // retransmission lists.
@@ -547,7 +549,9 @@ pub(crate) fn originate<V>(
         return;
     }
 
-    Debug::<V>::LsaOriginate(&lsa.hdr).log();
+    if instance.config.trace_opts.lsdb {
+        Debug::<V>::LsaOriginate(&lsa.hdr).log();
+    }
 
     let lse_idx = install(instance, arenas, lsdb_idx, Arc::new(lsa));
 
@@ -621,7 +625,9 @@ pub(crate) fn originate_check<V>(
         if lsdb.delayed_orig.contains_key(&lsa_key)
             || lsa_min_orig_interval_check(old_lse)
         {
-            Debug::<V>::LsaOriginateMinInterval(&lsa.hdr).log();
+            if instance.config.trace_opts.flooding {
+                Debug::<V>::LsaOriginateMinInterval(&lsa.hdr).log();
+            }
 
             match lsdb.delayed_orig.entry(lsa_key) {
                 hash_map::Entry::Occupied(mut o) => {
@@ -669,7 +675,9 @@ pub(crate) fn flush<V>(
         assert!(lse.flags.contains(LsaEntryFlags::SELF_ORIGINATED));
     }
 
-    Debug::<V>::LsaFlush(&lse.data.hdr, reason).log();
+    if instance.config.trace_opts.lsdb {
+        Debug::<V>::LsaFlush(&lse.data.hdr, reason).log();
+    }
 
     // Disarm timers.
     lse.expiry_timer = None;

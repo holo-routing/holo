@@ -1,0 +1,61 @@
+{
+  "ietf-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "eth-sw1",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {
+          "address": [
+            {
+              "ip": "10.0.1.2",
+              "prefix-length": 24
+            }
+          ]
+        },
+        "ietf-ip:ipv6": {
+          "ietf-vrrp:vrrp": {
+            "vrrp-instance": [
+              {
+                "vrid": 1,
+                "log-state-change": true,
+                "priority": 20,
+                "advertise-interval-centi-sec": 1,
+                "virtual-ipv6-addresses": {
+                  "virtual-ipv6-address": [
+                    {
+                      "ipv6-address": "2001:db8::370:7334"
+                    },
+                    {
+                      "ipv6-address": "2001:db8::370:7335"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "lo",
+        "type": "iana-if-type:softwareLoopback",
+        "ietf-ip:ipv4": {
+          "address": [
+            {
+              "ip": "2.2.2.2",
+              "prefix-length": 32
+            }
+          ]
+        },
+        "ietf-ip:ipv6": {
+          "address": [
+            {
+              "ip": "2001:db8:1000::2",
+              "prefix-length": 128
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+

@@ -1,0 +1,17 @@
+{"Ibus":{"InterfaceUpd":{"ifname":"eth-sw1","ifindex":2,"mtu":1500,"flags":"OPERATIVE | BROADCAST","mac_address":[146,202,152,255,14,24]}}}
+{"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-sw1","addr":"fe80::90ca:98ff:feff:e18/64","flags":""}}}
+{"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE","mac_address":[0,0,0,0,0,0]}}}
+{"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-sw1","addr":"10.0.1.1/24","flags":""}}}
+{"Ibus":{"InterfaceAddressAdd":{"ifname":"lo","addr":"1.1.1.1/32","flags":""}}}
+{"Ibus":{"InterfaceUpd":{"ifname":"mvlan4-vrrp-1","ifindex":3,"mtu":1500,"flags":"OPERATIVE | BROADCAST","mac_address":[0,0,94,0,1,1]}}}
+{"Ibus":{"InterfaceAddressAdd":{"ifname":"mvlan4-vrrp-1","addr":"fe80::200:5eff:fe00:101/64","flags":""}}}
+{"Protocol":{"VrrpNetRxPacket":{"src":"10.0.1.3","packet":{"Ok":{"version":"V2","hdr_type":1,"vrid":1,"priority":30,"count_ip":1,"adver_int":1,"checksum":46583,"ip_addresses":["10.0.1.5"]}}}}}
+{"Protocol":{"VrrpNetRxPacket":{"src":"10.0.1.3","packet":{"Ok":{"version":"V2","hdr_type":1,"vrid":1,"priority":30,"count_ip":1,"adver_int":1,"checksum":46583,"ip_addresses":["10.0.1.5"]}}}}}
+{"Protocol":{"VrrpNetRxPacket":{"src":"10.0.1.3","packet":{"Ok":{"version":"V2","hdr_type":1,"vrid":1,"priority":30,"count_ip":1,"adver_int":1,"checksum":46583,"ip_addresses":["10.0.1.5"]}}}}}
+{"Protocol":{"VrrpNetRxPacket":{"src":"10.0.1.3","packet":{"Ok":{"version":"V2","hdr_type":1,"vrid":1,"priority":30,"count_ip":1,"adver_int":1,"checksum":46583,"ip_addresses":["10.0.1.5"]}}}}}
+{"Protocol":{"VrrpNetRxPacket":{"src":"10.0.1.3","packet":{"Ok":{"version":"V2","hdr_type":1,"vrid":1,"priority":30,"count_ip":1,"adver_int":1,"checksum":46583,"ip_addresses":["10.0.1.5"]}}}}}
+{"Protocol":{"VrrpNetRxPacket":{"src":"10.0.1.3","packet":{"Ok":{"version":"V2","hdr_type":1,"vrid":1,"priority":30,"count_ip":1,"adver_int":1,"checksum":46583,"ip_addresses":["10.0.1.5"]}}}}}
+{"Protocol":{"VrrpNetRxPacket":{"src":"10.0.1.3","packet":{"Ok":{"version":"V2","hdr_type":1,"vrid":1,"priority":30,"count_ip":1,"adver_int":1,"checksum":46583,"ip_addresses":["10.0.1.5"]}}}}}
+{"Protocol":{"VrrpNetRxPacket":{"src":"10.0.1.3","packet":{"Ok":{"version":"V2","hdr_type":1,"vrid":1,"priority":30,"count_ip":1,"adver_int":1,"checksum":46583,"ip_addresses":["10.0.1.5"]}}}}}
+{"Protocol":{"VrrpNetRxPacket":{"src":"10.0.1.3","packet":{"Ok":{"version":"V2","hdr_type":1,"vrid":1,"priority":30,"count_ip":1,"adver_int":1,"checksum":46583,"ip_addresses":["10.0.1.5"]}}}}}
+{"Protocol":{"VrrpNetRxPacket":{"src":"10.0.1.3","packet":{"Ok":{"version":"V2","hdr_type":1,"vrid":1,"priority":30,"count_ip":1,"adver_int":1,"checksum":46583,"ip_addresses":["10.0.1.5"]}}}}}

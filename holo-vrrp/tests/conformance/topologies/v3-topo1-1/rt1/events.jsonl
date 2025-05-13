@@ -1,0 +1,19 @@
+{"Ibus":{"InterfaceUpd":{"ifname":"eth-sw1","ifindex":2,"mtu":1500,"flags":"OPERATIVE | BROADCAST","mac_address":[122,61,20,170,75,215]}}}
+{"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-sw1","addr":"10.0.1.1/24","flags":""}}}
+{"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-sw1","addr":"fc00:0:0:1::1/64","flags":""}}}
+{"Ibus":{"InterfaceAddressAdd":{"ifname":"eth-sw1","addr":"fe80::783d:14ff:feaa:4bd7/64","flags":""}}}
+{"Ibus":{"InterfaceUpd":{"ifname":"lo","ifindex":1,"mtu":65536,"flags":"LOOPBACK | OPERATIVE","mac_address":[0,0,0,0,0,0]}}}
+{"Ibus":{"InterfaceAddressAdd":{"ifname":"lo","addr":"1.1.1.1/32","flags":""}}}
+{"Ibus":{"InterfaceAddressAdd":{"ifname":"lo","addr":"2001:db8:1000::1/128","flags":""}}}
+{"Ibus":{"InterfaceUpd":{"ifname":"mvlan6-vrrp-1","ifindex":3,"mtu":1500,"flags":"OPERATIVE | BROADCAST","mac_address":[0,0,94,0,2,1]}}}
+{"Ibus":{"InterfaceAddressAdd":{"ifname":"mvlan6-vrrp-1","addr":"fe80::200:5eff:fe00:201/64","flags":""}}}
+{"Protocol":{"VrrpNetRxPacket":{"src":"fe80::200:5eff:fe00:201","packet":{"Ok":{"version":{"V3":"Ipv6"},"hdr_type":1,"vrid":1,"priority":20,"count_ip":2,"adver_int":1,"checksum":4880,"ip_addresses":["2001:db8::370:7334","2001:db8::370:7335"]}}}}}
+{"Protocol":{"VrrpNetRxPacket":{"src":"fe80::200:5eff:fe00:201","packet":{"Ok":{"version":{"V3":"Ipv6"},"hdr_type":1,"vrid":1,"priority":30,"count_ip":2,"adver_int":1,"checksum":2320,"ip_addresses":["2001:db8::370:7334","2001:db8::370:7335"]}}}}}
+{"Protocol":{"VrrpNetRxPacket":{"src":"fe80::200:5eff:fe00:201","packet":{"Ok":{"version":{"V3":"Ipv6"},"hdr_type":1,"vrid":1,"priority":30,"count_ip":2,"adver_int":1,"checksum":2320,"ip_addresses":["2001:db8::370:7334","2001:db8::370:7335"]}}}}}
+{"Protocol":{"VrrpNetRxPacket":{"src":"fe80::200:5eff:fe00:201","packet":{"Ok":{"version":{"V3":"Ipv6"},"hdr_type":1,"vrid":1,"priority":30,"count_ip":2,"adver_int":1,"checksum":2320,"ip_addresses":["2001:db8::370:7334","2001:db8::370:7335"]}}}}}
+{"Protocol":{"VrrpNetRxPacket":{"src":"fe80::200:5eff:fe00:201","packet":{"Ok":{"version":{"V3":"Ipv6"},"hdr_type":1,"vrid":1,"priority":30,"count_ip":2,"adver_int":1,"checksum":2320,"ip_addresses":["2001:db8::370:7334","2001:db8::370:7335"]}}}}}
+{"Protocol":{"VrrpNetRxPacket":{"src":"fe80::200:5eff:fe00:201","packet":{"Ok":{"version":{"V3":"Ipv6"},"hdr_type":1,"vrid":1,"priority":30,"count_ip":2,"adver_int":1,"checksum":2320,"ip_addresses":["2001:db8::370:7334","2001:db8::370:7335"]}}}}}
+{"Protocol":{"VrrpNetRxPacket":{"src":"fe80::200:5eff:fe00:201","packet":{"Ok":{"version":{"V3":"Ipv6"},"hdr_type":1,"vrid":1,"priority":30,"count_ip":2,"adver_int":1,"checksum":2320,"ip_addresses":["2001:db8::370:7334","2001:db8::370:7335"]}}}}}
+{"Protocol":{"VrrpNetRxPacket":{"src":"fe80::200:5eff:fe00:201","packet":{"Ok":{"version":{"V3":"Ipv6"},"hdr_type":1,"vrid":1,"priority":30,"count_ip":2,"adver_int":1,"checksum":2320,"ip_addresses":["2001:db8::370:7334","2001:db8::370:7335"]}}}}}
+{"Protocol":{"VrrpNetRxPacket":{"src":"fe80::200:5eff:fe00:201","packet":{"Ok":{"version":{"V3":"Ipv6"},"hdr_type":1,"vrid":1,"priority":30,"count_ip":2,"adver_int":1,"checksum":2320,"ip_addresses":["2001:db8::370:7334","2001:db8::370:7335"]}}}}}
+{"Protocol":{"VrrpNetRxPacket":{"src":"fe80::200:5eff:fe00:201","packet":{"Ok":{"version":{"V3":"Ipv6"},"hdr_type":1,"vrid":1,"priority":30,"count_ip":2,"adver_int":1,"checksum":2320,"ip_addresses":["2001:db8::370:7334","2001:db8::370:7335"]}}}}}

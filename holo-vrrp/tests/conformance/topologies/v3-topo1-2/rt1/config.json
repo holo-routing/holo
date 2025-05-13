@@ -1,0 +1,52 @@
+{
+  "ietf-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "eth-sw1",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {
+          "address": [
+            {
+              "ip": "10.0.1.1",
+              "prefix-length": 24
+            }
+          ],
+          "ietf-vrrp:vrrp": {
+            "vrrp-instance": [
+              {
+                "vrid": 1,
+                "version": "vrrp-v3",
+                "log-state-change": true,
+                "priority": 10,
+                "advertise-interval-centi-sec": 1,
+                "virtual-ipv4-addresses": {
+                  "virtual-ipv4-address": [
+                    {
+                      "ipv4-address": "10.0.1.5"
+                    },
+                    {
+                      "ipv4-address": "10.0.1.6"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "lo",
+        "type": "iana-if-type:softwareLoopback",
+        "ietf-ip:ipv4": {
+          "address": [
+            {
+              "ip": "1.1.1.1",
+              "prefix-length": 32
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+

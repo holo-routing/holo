@@ -6,15 +6,17 @@
 
 use std::sync::LazyLock as Lazy;
 
+use bytes::Bytes;
 use const_addrs::{ip4, ip6, net4, net6};
 use holo_bgp::neighbor::PeerType;
 use holo_bgp::packet::attribute::{
     Aggregator, AsPath, AsPathSegment, Attrs, BaseAttrs, ClusterList, CommList,
 };
 use holo_bgp::packet::consts::{AsPathSegmentType, Origin};
+use holo_bgp::packet::error::{DecodeError, UpdateMessageError};
 use holo_bgp::packet::message::{
     DecodeCxt, Message, MpReachNlri, MpUnreachNlri, NegotiatedCapability,
-    ReachNlri, UnreachNlri, UpdateMsg,
+    ReachNlri, UnreachNlri, UpdateMsg, decode_ipv4_prefix, decode_ipv6_prefix,
 };
 use holo_utils::bgp::{Comm, ExtComm, Extv6Comm, LargeComm};
 
@@ -187,4 +189,26 @@ fn test_decode_malformed_updates() {
             let _ = Message::decode(&bytes[0..msg_size], &cxt);
         }
     }
+}
+
+// Try decode_ipv6_prefix with empty bytes, which should not be decodable.
+#[test]
+fn test_decode_ipv6_prefix1() {
+    let mut b = Bytes::new();
+    let result = decode_ipv6_prefix(&mut b);
+    let expected_err = Err(DecodeError::UpdateMessage(
+        UpdateMessageError::InvalidNetworkField,
+    ));
+    assert_eq!(result, expected_err);
+}
+
+// Try decode_ipv4_prefix with empty bytes, which should not be decodable.
+#[test]
+fn test_decode_ipv4_prefix1() {
+    let mut b = Bytes::new();
+    let result = decode_ipv4_prefix(&mut b);
+    let expected_err = Err(DecodeError::UpdateMessage(
+        UpdateMessageError::InvalidNetworkField,
+    ));
+    assert_eq!(result, expected_err);
 }

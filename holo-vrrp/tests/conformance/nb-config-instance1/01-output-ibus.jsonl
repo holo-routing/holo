@@ -1,0 +1,1 @@
+{"MacvlanAdd":{"parent_ifname":"eth-sw1","ifname":"mvlan4-vrrp-2","mac_addr":[0,0,94,0,1,2]}}

@@ -1,0 +1,9 @@
+{
+  "ietf-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "eth-sw1"
+      }
+    ]
+  }
+}

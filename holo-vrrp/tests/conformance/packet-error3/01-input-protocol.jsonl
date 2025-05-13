@@ -1,0 +1,1 @@
+{"VrrpNetRxPacket":{"src":"10.0.1.3","packet":{"Ok":{"version":"V2","hdr_type":1,"vrid":100,"priority":30,"count_ip":1,"adver_int":1,"checksum":46583,"ip_addresses":["10.0.1.5"]}}}}

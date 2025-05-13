@@ -1,0 +1,20 @@
+{
+  "ietf-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "eth-sw1",
+        "ietf-ip:ipv4": {
+          "ietf-vrrp:vrrp": {
+            "vrrp-instance": [
+              {
+                "vrid": 1,
+                "state": "initialize",
+                "new-master-reason": "not-master"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

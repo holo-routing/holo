@@ -1,0 +1,31 @@
+{
+  "ietf-interfaces:interfaces": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "interface": [
+      {
+        "name": "eth-sw1",
+        "ietf-ip:ipv4": {
+          "ietf-vrrp:vrrp": {
+            "vrrp-instance": [
+              {
+                "vrid": 1,
+                "virtual-ipv4-addresses": {
+                  "virtual-ipv4-address": [
+                    {
+                      "@": {
+                        "yang:operation": "create"
+                      },
+                      "ipv4-address": "10.0.1.6"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

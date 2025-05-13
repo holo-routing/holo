@@ -7,6 +7,8 @@
 // See: https://nlnet.nl/NGI0
 //
 
+use std::time::Duration;
+
 use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
 use holo_yang::ToYang;
@@ -19,7 +21,7 @@ use crate::network::MulticastAddr;
 use crate::packet::LevelNumber;
 use crate::packet::pdu::{Lsp, Pdu};
 use crate::spf;
-use crate::spf::{Vertex, VertexEdge};
+use crate::spf::{SpfType, Vertex, VertexEdge};
 
 // IS-IS debug messages.
 #[derive(Debug)]
@@ -54,6 +56,8 @@ pub enum Debug<'a> {
     // SPF
     SpfDelayFsmEvent(spf::fsm::State, spf::fsm::Event),
     SpfDelayFsmTransition(spf::fsm::State, spf::fsm::State),
+    SpfStart(SpfType),
+    SpfFinish(Duration),
     SpfMaxPathMetric(&'a Vertex, &'a VertexEdge, u32),
     SpfMissingProtocolsTlv(&'a Vertex),
     SpfUnsupportedProtocol(&'a Vertex, AddressFamily),
@@ -187,6 +191,14 @@ impl Debug<'_> {
                 // Parent span(s): isis-instance:spf
                 debug!(old_state = %old_state.to_yang(), new_state = %new_state.to_yang(), "{}", self);
             }
+            Debug::SpfStart(spf_type) => {
+                // Parent span(s): isis-instance:spf
+                debug!(spf_type = %spf_type.to_yang(), "{}", self);
+            }
+            Debug::SpfFinish(run_duration) => {
+                // Parent span(s): isis-instance:spf
+                debug!(run_duration_ns = %run_duration.as_nanos(), "{}", self);
+            }
             Debug::SpfMaxPathMetric(vertex, link, distance) => {
                 // Parent span(s): isis-instance:spf
                 debug!(vertex = %vertex.id.lan_id.to_yang(), link = %link.id.lan_id.to_yang(), %distance, "{}", self);
@@ -280,6 +292,12 @@ impl std::fmt::Display for Debug<'_> {
             }
             Debug::SpfDelayFsmTransition(..) => {
                 write!(f, "delay FSM state transition")
+            }
+            Debug::SpfStart(..) => {
+                write!(f, "starting SPF calculation")
+            }
+            Debug::SpfFinish(..) => {
+                write!(f, "finished SPF calculation")
             }
             Debug::SpfMaxPathMetric(..) => {
                 write!(f, "maximum path metric exceeded")

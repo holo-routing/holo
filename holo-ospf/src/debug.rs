@@ -5,8 +5,10 @@
 //
 
 use std::net::Ipv4Addr;
+use std::time::Duration;
 
 use holo_utils::ibus::IbusMsg;
+use holo_yang::ToYang;
 use ipnetwork::{Ipv4Network, Ipv6Network};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, debug_span};
@@ -18,6 +20,7 @@ use crate::packet::Packet;
 use crate::packet::error::LsaValidationError;
 use crate::packet::tlv::GrReason;
 use crate::spf;
+use crate::spf::SpfLogType;
 use crate::version::Version;
 
 // OSPF debug messages.
@@ -76,6 +79,8 @@ pub enum Debug<'a, V: Version> {
     // SPF
     SpfDelayFsmEvent(&'a spf::fsm::State, &'a spf::fsm::Event),
     SpfDelayFsmTransition(&'a spf::fsm::State, &'a spf::fsm::State),
+    SpfStart(SpfLogType),
+    SpfFinish(Duration),
     SpfNetworkUnreachableAbr(&'a V::IpNetwork, Ipv4Addr),
     SpfRouterUnreachableAbr(&'a Ipv4Addr, Ipv4Addr),
     SpfUnreachableAsbr(&'a V::IpNetwork, Ipv4Addr),
@@ -298,6 +303,14 @@ where
                 // Parent span(s): ospf-instance
                 debug!(?old_state, ?new_state, "{}", self);
             }
+            Debug::SpfStart(spf_type) => {
+                // Parent span(s): ospf-instance:spf
+                debug!(spf_type = %spf_type.to_yang(), "{}", self);
+            }
+            Debug::SpfFinish(run_duration) => {
+                // Parent span(s): ospf-instance:spf
+                debug!(run_duration_ns = %run_duration.as_nanos(), "{}", self);
+            }
             Debug::SpfNetworkUnreachableAbr(destination, abr) => {
                 // Parent span(s): ospf-instance
                 debug!(%destination, %abr, "{}", self);
@@ -450,10 +463,16 @@ where
                 write!(f, "refreshing LSA")
             }
             Debug::SpfDelayFsmEvent(..) => {
-                write!(f, "SPF Delay FSM event")
+                write!(f, "delay FSM event")
             }
             Debug::SpfDelayFsmTransition(..) => {
-                write!(f, "SPF Delay FSM state transition")
+                write!(f, "delay FSM state transition")
+            }
+            Debug::SpfStart(..) => {
+                write!(f, "starting SPF calculation")
+            }
+            Debug::SpfFinish(..) => {
+                write!(f, "finished SPF calculation")
             }
             Debug::SpfNetworkUnreachableAbr(..)
             | Debug::SpfRouterUnreachableAbr(..) => {

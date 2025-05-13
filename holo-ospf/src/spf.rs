@@ -14,6 +14,7 @@ use chrono::Utc;
 use derive_new::new;
 use holo_utils::ip::AddressFamily;
 use holo_utils::sr::IgpAlgoType;
+use tracing::debug_span;
 
 use crate::area::Area;
 use crate::collections::{Areas, Arena, Lsdb};
@@ -118,7 +119,7 @@ pub struct SpfTriggerLsa<V: Version> {
     pub log_id: LsaLogId<V>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum SpfLogType {
     Full,
     Intra,
@@ -302,6 +303,10 @@ pub(crate) fn fsm<V>(
 where
     V: Version,
 {
+    // Begin a debug span for logging within the SPF context.
+    let span = debug_span!("spf");
+    let _span_guard = span.enter();
+
     if instance.config.trace_opts.spf {
         Debug::<V>::SpfDelayFsmEvent(&instance.state.spf_delay_state, &event)
             .log();
@@ -512,6 +517,26 @@ fn compute_spf<V>(
         true => SpfComputation::Full,
         false => V::spf_computation_type(&trigger_lsas),
     };
+
+    // Get SPF computation type in log format.
+    let spf_log_type = match &spf_computation_type {
+        SpfComputation::Full => SpfLogType::Full,
+        SpfComputation::Partial(partial) => {
+            if !partial.intra.is_empty() {
+                SpfLogType::Intra
+            } else if !partial.inter_network.is_empty() {
+                SpfLogType::Inter
+            } else {
+                SpfLogType::External
+            }
+        }
+    };
+
+    // Log SPF computation start.
+    if instance.config.trace_opts.spf {
+        Debug::<V>::SpfStart(spf_log_type).log();
+    }
+
     match &mut spf_computation_type {
         SpfComputation::Full => {
             // Calculate shortest-path trees.
@@ -541,10 +566,16 @@ fn compute_spf<V>(
     let end_time = Instant::now();
     instance.state.spf_last_time = Some(end_time);
 
+    // Log SPF completion and duration.
+    if instance.config.trace_opts.spf {
+        let run_duration = end_time - start_time;
+        Debug::<V>::SpfFinish(run_duration).log();
+    }
+
     // Add entry to SPF log.
     log_spf_run(
         instance,
-        &spf_computation_type,
+        spf_log_type,
         schedule_time,
         start_time,
         end_time,
@@ -741,7 +772,7 @@ where
 // Adds log entry for the SPF run.
 fn log_spf_run<V>(
     instance: &mut InstanceUpView<'_, V>,
-    spf_computation_type: &SpfComputation<V>,
+    spf_log_type: SpfLogType,
     schedule_time: Instant,
     start_time: Instant,
     end_time: Instant,
@@ -752,20 +783,6 @@ fn log_spf_run<V>(
     // Get next log ID.
     let log_id = &mut instance.state.spf_log_next_id;
     *log_id += 1;
-
-    // Get SPF computation type in log format.
-    let spf_log_type = match spf_computation_type {
-        SpfComputation::Full => SpfLogType::Full,
-        SpfComputation::Partial(partial) => {
-            if !partial.intra.is_empty() {
-                SpfLogType::Intra
-            } else if !partial.inter_network.is_empty() {
-                SpfLogType::Inter
-            } else {
-                SpfLogType::External
-            }
-        }
-    };
 
     // Get trigger LSAs in log format.
     let trigger_lsas = trigger_lsas

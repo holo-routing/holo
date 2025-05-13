@@ -416,6 +416,11 @@ fn compute_spf(
         *instance.state.spt.get_mut(level) = spt;
     }
 
+    // Log SPF computation start.
+    if instance.config.trace_opts.spf {
+        Debug::SpfStart(spf_type).log();
+    }
+
     // Compute the new RIB for the current level.
     let new_rib =
         compute_routes(level, instance, interfaces, adjacencies, lsp_entries);
@@ -439,6 +444,12 @@ fn compute_spf(
     let end_time = Instant::now();
     let spf_sched = instance.state.spf_sched.get_mut(level);
     spf_sched.last_time = Some(end_time);
+
+    // Log SPF completion and duration.
+    if instance.config.trace_opts.spf {
+        let run_duration = end_time - start_time;
+        Debug::SpfFinish(run_duration).log();
+    }
 
     // Add entry to SPF log.
     log_spf_run(

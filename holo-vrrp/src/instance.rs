@@ -17,6 +17,7 @@ use enum_as_inner::EnumAsInner;
 use holo_utils::UnboundedSender;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
 use holo_utils::socket::{AsyncFd, Socket};
+use holo_utils::southbound::InterfaceFlags;
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
@@ -163,11 +164,13 @@ impl Instance {
     }
 
     pub(crate) fn update(&mut self, interface: &InterfaceView<'_>) {
-        let is_ready = interface.system.ifindex.is_some()
-            && self.mvlan.system.ifindex.is_some()
-            && interface.system.addresses.iter().any(|addr| {
-                addr.address_family() == self.config.version.address_family()
-            });
+        let is_ready =
+            interface.system.flags.contains(InterfaceFlags::OPERATIVE)
+                && self.mvlan.system.flags.contains(InterfaceFlags::OPERATIVE)
+                && interface.system.addresses.iter().any(|addr| {
+                    addr.address_family()
+                        == self.config.version.address_family()
+                });
         if is_ready && self.state.state == fsm::State::Initialize {
             self.startup(interface);
         } else if !is_ready && self.state.state != fsm::State::Initialize {

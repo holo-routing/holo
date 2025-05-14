@@ -36,6 +36,10 @@ pub(crate) fn process_vrrp_packet(
                     interface.statistics.checksum_errors += 1;
                     interface.statistics.discontinuity_time = Utc::now();
                 }
+                DecodeError::VersionError { .. } => {
+                    interface.statistics.version_errors += 1;
+                    interface.statistics.discontinuity_time = Utc::now();
+                }
                 DecodeError::PacketLengthError { vrid, version } => {
                     if let Some((_, instance)) =
                         interface.get_instance(vrid, version.address_family())
@@ -67,12 +71,6 @@ pub(crate) fn process_vrrp_packet(
     instance.state.last_adv_src = Some(src);
 
     // Sanity checks.
-    if !VrrpHdr::VALID_VERSIONS.contains(&packet.version.version()) {
-        interface.statistics.version_errors += 1;
-        interface.statistics.discontinuity_time = Utc::now();
-        let error = GlobalError::VersionError;
-        return Err(Error::GlobalError(src, error));
-    }
     if packet.adver_int != instance.config.advertise_interval {
         instance.state.statistics.interval_errors += 1;
         instance.state.statistics.discontinuity_time = Utc::now();

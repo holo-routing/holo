@@ -184,8 +184,6 @@ pub enum DecodeError {
 impl VrrpHdr {
     // Minimum number of bytes in a VRRP header (either v2 or v3).
     const MIN_LEN: usize = 8;
-    // Valid VRRP protocol versions.
-    pub const VALID_VERSIONS: [u8; 2] = [2, 3];
     // Byte offset where the checksum field is located within the VRRP header.
     pub const CHECKSUM_OFFSET: i32 = 6;
     // Maximum number of virtual IP addresses allowed in a VRRP advertisement.

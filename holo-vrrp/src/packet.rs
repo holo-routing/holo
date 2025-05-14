@@ -189,7 +189,7 @@ impl VrrpHdr {
     // Byte offset where the checksum field is located within the VRRP header.
     pub const CHECKSUM_OFFSET: i32 = 6;
     // Maximum number of virtual IP addresses allowed in a VRRP advertisement.
-    const MAX_VIRTUAL_IP_COUNT: usize = 20;
+    const MAX_VIRTUAL_IP_COUNT: u8 = 20;
 
     // Encodes VRRP packet into a bytes buffer.
     pub fn encode(&self) -> BytesMut {
@@ -259,8 +259,8 @@ impl VrrpHdr {
         // Size Checks:
         //  1. Count of IP Addresses.
         //  2. Check of the expected packet size.
-        if (usize::from(count_ip) > Self::MAX_VIRTUAL_IP_COUNT)
-            || (Self::expected_length(version, count_ip) != pkt_size)
+        if count_ip > Self::MAX_VIRTUAL_IP_COUNT
+            || Self::expected_length(version, count_ip) != pkt_size
         {
             return Err(DecodeError::PacketLengthError { vrid, version });
         }
@@ -321,9 +321,9 @@ impl VrrpHdr {
     // length of the packet.
     pub fn expected_length(version: Version, count_ip: u8) -> usize {
         // Get number of bytes the authentication header sections will occupy.
-        let auth_len = match version.address_family() {
-            AddressFamily::Ipv6 => 0,
-            AddressFamily::Ipv4 => 8,
+        let auth_len = match version {
+            Version::V2 => 8,
+            Version::V3(_) => 0,
         };
 
         // [Minimum Length] + [virtual ip size] + size of pkt's auth section.

@@ -12,10 +12,7 @@ use std::sync::LazyLock as Lazy;
 
 use async_trait::async_trait;
 use enum_as_inner::EnumAsInner;
-use holo_northbound::configuration::{
-    Callbacks, CallbacksBuilder, Provider, ValidationCallbacks,
-    ValidationCallbacksBuilder,
-};
+use holo_northbound::configuration::{Callbacks, CallbacksBuilder, Provider};
 use holo_northbound::yang::interfaces;
 use holo_utils::ip::AddressFamily;
 use holo_utils::yang::DataNodeRefExt;
@@ -63,8 +60,6 @@ pub enum Event {
     },
 }
 
-pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
-    Lazy::new(load_validation_callbacks);
 pub static CALLBACKS: Lazy<Callbacks<Interface>> = Lazy::new(load_callbacks);
 
 // ===== configuration structs =====
@@ -295,22 +290,6 @@ fn load_callbacks() -> Callbacks<Interface> {
         .build()
 }
 
-fn load_validation_callbacks() -> ValidationCallbacks {
-    ValidationCallbacksBuilder::default()
-        .path(interfaces::interface::ipv4::vrrp::vrrp_instance::version::PATH)
-        .validate(|args| {
-            let version = args.dnode.get_string();
-            if ["ietf-vrrp:vrrp-v2", "ietf-vrrp:vrrp-v3"]
-                .contains(&version.as_str())
-            {
-                return Err("unsupported VRRP version".to_string());
-            }
-
-            Ok(())
-        })
-        .build()
-}
-
 // ===== impl Interface =====
 
 #[async_trait]
@@ -318,10 +297,6 @@ impl Provider for Interface {
     type ListEntry = ListEntry;
     type Event = Event;
     type Resource = Resource;
-
-    fn validation_callbacks() -> Option<&'static ValidationCallbacks> {
-        Some(&VALIDATION_CALLBACKS)
-    }
 
     fn callbacks() -> Option<&'static Callbacks<Interface>> {
         Some(&CALLBACKS)

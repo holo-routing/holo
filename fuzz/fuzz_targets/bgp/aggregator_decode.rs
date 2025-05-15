@@ -12,13 +12,12 @@ fuzz_target!(|data: &[u8]| {
     if let Ok(mut buf) = BytesArbitrary::arbitrary(&mut u)
         && let Ok(attr_type) = AttrType::arbitrary(&mut u)
         && let Ok(four_byte_asn_cap) = bool::arbitrary(&mut u)
-        && let Ok(mut aggregator) = Option::<Aggregator>::arbitrary(&mut u)
     {
         let _ = Aggregator::decode(
             &mut buf.0,
             attr_type,
             four_byte_asn_cap,
-            &mut aggregator,
+            &mut None,
         );
     }
 });

@@ -65,14 +65,12 @@ pub struct BaseAttrs {
 
 #[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
-#[derive(Arbitrary)]
 pub struct AsPath {
     pub segments: VecDeque<AsPathSegment>,
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
-#[derive(Arbitrary)]
 pub struct AsPathSegment {
     pub seg_type: AsPathSegmentType,
     pub members: VecDeque<u32>,
@@ -80,7 +78,6 @@ pub struct AsPathSegment {
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
-#[derive(Arbitrary)]
 pub struct Aggregator {
     pub asn: u32,
     pub identifier: Ipv4Addr,
@@ -98,7 +95,6 @@ pub type LargeComm = holo_utils::bgp::LargeComm;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
-#[derive(Arbitrary)]
 pub struct CommList<T: CommType>(pub BTreeSet<T>);
 
 pub trait CommType:
@@ -263,7 +259,7 @@ impl Attrs {
         }
     }
 
-    pub(crate) fn decode(
+    pub fn decode(
         buf: &mut Bytes,
         cxt: &DecodeCxt,
         nexthop: &mut Option<Ipv4Addr>,
@@ -759,7 +755,7 @@ impl AsPathSegment {
         }
     }
 
-    fn decode(
+    pub fn decode(
         buf: &mut Bytes,
         attr_type: AttrType,
         four_byte_asns: bool,
@@ -1137,7 +1133,7 @@ impl MpReachNlri {
         buf[start_pos..start_pos + 2].copy_from_slice(&attr_len.to_be_bytes());
     }
 
-    fn decode(
+    pub fn decode(
         buf: &mut Bytes,
         mp_reach: &mut Option<Self>,
     ) -> Result<(), AttrError> {
@@ -1293,7 +1289,7 @@ impl MpUnreachNlri {
         buf[start_pos..start_pos + 2].copy_from_slice(&attr_len.to_be_bytes());
     }
 
-    fn decode(
+    pub fn decode(
         buf: &mut Bytes,
         mp_unreach: &mut Option<Self>,
     ) -> Result<(), AttrError> {

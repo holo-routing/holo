@@ -411,7 +411,7 @@ impl OpenMsg {
         buf[opt_param_len_pos] = opt_param_len as u8;
     }
 
-    fn decode(buf: &mut Bytes, msg_len: u16) -> DecodeResult<Self> {
+    pub fn decode(buf: &mut Bytes, msg_len: u16) -> DecodeResult<Self> {
         if msg_len < Self::MIN_LEN {
             return Err(MessageHeaderError::BadMessageLength(msg_len).into());
         }
@@ -1020,7 +1020,7 @@ pub(crate) fn encode_ipv6_prefix(buf: &mut BytesMut, prefix: &Ipv6Network) {
     buf.put(&prefix_bytes[0..plen_wire]);
 }
 
-pub(crate) fn decode_ipv4_prefix(
+pub fn decode_ipv4_prefix(
     buf: &mut Bytes,
 ) -> DecodeResult<Option<Ipv4Network>> {
     // Parse prefix length.
@@ -1049,7 +1049,7 @@ pub(crate) fn decode_ipv4_prefix(
     Ok(Some(prefix))
 }
 
-pub(crate) fn decode_ipv6_prefix(
+pub fn decode_ipv6_prefix(
     buf: &mut Bytes,
 ) -> DecodeResult<Option<Ipv6Network>> {
     // Parse prefix length.

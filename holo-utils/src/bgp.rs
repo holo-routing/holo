@@ -14,7 +14,6 @@
 use std::borrow::Cow;
 use std::net::Ipv6Addr;
 
-use arbitrary::Arbitrary;
 use holo_yang::{ToYang, TryFromYang};
 use itertools::Itertools;
 use num_derive::{FromPrimitive, ToPrimitive};
@@ -50,22 +49,18 @@ pub enum Origin {
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
-#[derive(Arbitrary)]
 pub struct Comm(pub u32);
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
-#[derive(Arbitrary)]
 pub struct ExtComm(pub [u8; 8]);
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
-#[derive(Arbitrary)]
 pub struct Extv6Comm(pub Ipv6Addr, pub u32);
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
-#[derive(Arbitrary)]
 pub struct LargeComm(pub [u8; 12]);
 
 // BGP Well-known Communities.

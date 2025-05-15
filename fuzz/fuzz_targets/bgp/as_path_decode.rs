@@ -20,7 +20,7 @@ fuzz_target!(|data: &[u8]| {
             &cxt,
             attr_type,
             four_byte_asn_cap,
-            &None,
+            &mut None,
         );
     }
 });

@@ -46,7 +46,7 @@ impl Provider for Master {}
 // Matches on the protocol type and instance name of a YANG path.
 static REGEX_VRRP_STR: Lazy<String> = Lazy::new(|| {
     format!(
-        r"{}\[name='(.+?)'\]/ietf-ip:(?:ipv4|ipv6)/ietf-vrrp:vrrp/*",
+        r"{}\[name='(.+?)'\](?:/ietf-ip:(?:ipv4|ipv6))?/(?:ietf-vrrp|holo-vrrp):vrrp/*",
         interfaces::interface::PATH
     )
 });

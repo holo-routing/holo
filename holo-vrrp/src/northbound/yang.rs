@@ -9,10 +9,11 @@
 
 use std::borrow::Cow;
 
-use holo_yang::ToYang;
+use holo_yang::{ToYang, TryFromYang};
 
 use crate::error::{GlobalError, VirtualRouterError};
 use crate::instance::{MasterReason, fsm};
+use crate::northbound::configuration::TraceOption;
 
 // ===== ToYang implementations =====
 
@@ -106,6 +107,17 @@ impl ToYang for VirtualRouterError {
             VirtualRouterError::PacketLengthError => {
                 "ietf-vrrp:packet-length-error".into()
             }
+        }
+    }
+}
+
+impl TryFromYang for TraceOption {
+    fn try_from_yang(value: &str) -> Option<TraceOption> {
+        match value {
+            "events" => Some(TraceOption::Events),
+            "internal-bus" => Some(TraceOption::InternalBus),
+            "packets" => Some(TraceOption::Packets),
+            _ => None,
         }
     }
 }

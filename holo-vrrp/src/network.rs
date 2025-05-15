@@ -14,7 +14,8 @@ use std::net::{
 use std::ops::Deref;
 use std::os::fd::AsRawFd;
 use std::str::FromStr;
-use std::sync::{Arc, LazyLock as Lazy};
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, LazyLock as Lazy, atomic};
 
 use bytes::{BufMut, Bytes};
 use holo_utils::ip::AddressFamily;
@@ -238,8 +239,11 @@ pub(crate) fn socket_nadv(
 async fn send_packet_vrrp4(
     socket: &AsyncFd<Socket>,
     packet: Vrrp4Packet,
+    trace_opts_packets: &Arc<AtomicBool>,
 ) -> Result<usize, IoError> {
-    Debug::PacketTx(&packet.vrrp).log();
+    if trace_opts_packets.load(atomic::Ordering::Relaxed) {
+        Debug::PacketTx(&packet.vrrp).log();
+    }
 
     // Encode packet.
     let buf = packet.encode();
@@ -269,8 +273,11 @@ async fn send_packet_vrrp6(
     packet: VrrpHdr,
     addr: Ipv6Addr,
     ifindex: u32,
+    trace_opts_packets: &Arc<AtomicBool>,
 ) -> Result<usize, IoError> {
-    Debug::PacketTx(&packet).log();
+    if trace_opts_packets.load(atomic::Ordering::Relaxed) {
+        Debug::PacketTx(&packet).log();
+    }
 
     // Encode packet.
     let buf = packet.encode();
@@ -309,8 +316,11 @@ async fn send_packet_arp(
     ifindex: u32,
     eth_hdr: EthernetHdr,
     arp_hdr: ArpHdr,
+    trace_opts_packets: &Arc<AtomicBool>,
 ) -> Result<usize, IoError> {
-    Debug::ArpTx(vrid, &arp_hdr.sender_proto_address).log();
+    if trace_opts_packets.load(atomic::Ordering::Relaxed) {
+        Debug::ArpTx(vrid, &arp_hdr.sender_proto_address).log();
+    }
 
     // Encode packet.
     let mut buf = eth_hdr.encode();
@@ -341,8 +351,11 @@ async fn send_packet_nadv(
     vrid: u8,
     ifindex: u32,
     adv_hdr: NeighborAdvertisement,
+    trace_opts_packets: &Arc<AtomicBool>,
 ) -> Result<usize, IoError> {
-    Debug::NeighborAdvertisementTx(vrid, &adv_hdr.target_address).log();
+    if trace_opts_packets.load(atomic::Ordering::Relaxed) {
+        Debug::NeighborAdvertisementTx(vrid, &adv_hdr.target_address).log();
+    }
 
     // Collect relevant data for checksum.
     let mut check = Checksum::new();
@@ -377,13 +390,15 @@ async fn send_packet_nadv(
 pub(crate) async fn write_loop(
     socket_vrrp: Arc<AsyncFd<Socket>>,
     socket_arp: Arc<AsyncFd<Socket>>,
+    trace_opts_packets: Arc<AtomicBool>,
     mut net_tx_packetc: UnboundedReceiver<NetTxPacketMsg>,
 ) {
     while let Some(msg) = net_tx_packetc.recv().await {
         match msg {
             NetTxPacketMsg::Vrrp { packet } => {
                 if let Err(error) =
-                    send_packet_vrrp4(&socket_vrrp, packet).await
+                    send_packet_vrrp4(&socket_vrrp, packet, &trace_opts_packets)
+                        .await
                 {
                     error.log();
                 }
@@ -394,9 +409,14 @@ pub(crate) async fn write_loop(
                 ifindex,
             } => {
                 if let IpAddr::V6(addr) = src_ip
-                    && let Err(error) =
-                        send_packet_vrrp6(&socket_vrrp, packet, addr, ifindex)
-                            .await
+                    && let Err(error) = send_packet_vrrp6(
+                        &socket_vrrp,
+                        packet,
+                        addr,
+                        ifindex,
+                        &trace_opts_packets,
+                    )
+                    .await
                 {
                     error.log();
                 }
@@ -413,6 +433,7 @@ pub(crate) async fn write_loop(
                     ifindex,
                     eth_hdr,
                     arp_hdr,
+                    &trace_opts_packets,
                 )
                 .await
                 {
@@ -424,8 +445,14 @@ pub(crate) async fn write_loop(
                 ifindex,
                 nadv_hdr,
             } => {
-                if let Err(error) =
-                    send_packet_nadv(&socket_arp, vrid, ifindex, nadv_hdr).await
+                if let Err(error) = send_packet_nadv(
+                    &socket_arp,
+                    vrid,
+                    ifindex,
+                    nadv_hdr,
+                    &trace_opts_packets,
+                )
+                .await
                 {
                     error.log();
                 }

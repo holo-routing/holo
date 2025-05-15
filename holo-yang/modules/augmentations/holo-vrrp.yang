@@ -3,6 +3,10 @@ module holo-vrrp {
   namespace "http://holo-routing.org/yang/holo-vrrp";
   prefix holo-vrrp;
 
+  import ietf-interfaces {
+    prefix if;
+  }
+
   import ietf-routing {
     prefix rt;
   }
@@ -33,5 +37,37 @@ module holo-vrrp {
     description
       "A packet has been received with a packet length less
        than the length of the VRRP header.";
+  }
+
+  /*
+   * Augmentations.
+   */
+
+  augment "/if:interfaces/if:interface" {
+    description
+      "VRRP interface augmentations";
+
+    container vrrp {
+      description
+        "VRRP interface parameters.";
+
+      container trace-options {
+        description "Trace options for VRRP.";
+
+        list flag {
+          key name;
+          description "List of tracing options.";
+          leaf name {
+            description
+              "List of tracing options";
+            type enumeration {
+              enum events;
+              enum internal-bus;
+              enum packets;
+            }
+          }
+        }
+      }
+    }
   }
 }

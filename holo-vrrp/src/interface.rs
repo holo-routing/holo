@@ -22,8 +22,10 @@ use holo_utils::{Receiver, Sender};
 use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 
+use crate::debug::Debug;
 use crate::error::Error;
 use crate::instance::Instance;
+use crate::northbound::configuration::InterfaceCfg;
 use crate::northbound::notification;
 use crate::tasks::messages::input::{MasterDownTimerMsg, VrrpNetRxPacketMsg};
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
@@ -35,6 +37,8 @@ pub struct Interface {
     pub name: String,
     // Interface system data.
     pub system: InterfaceSys,
+    // Interface configuration data.
+    pub config: InterfaceCfg,
     // Interface IPv4 VRRP instances.
     pub vrrp_ipv4_instances: BTreeMap<u8, Instance>,
     // Interface IPv6 VRRP instances.
@@ -87,6 +91,7 @@ pub struct ProtocolInputChannelsRx {
 pub struct InterfaceView<'a> {
     pub name: &'a str,
     pub system: &'a mut InterfaceSys,
+    pub config: &'a mut InterfaceCfg,
     pub statistics: &'a mut Statistics,
     pub tx: &'a InstanceChannelsTx<Interface>,
     pub shared: &'a InstanceShared,
@@ -109,6 +114,7 @@ impl Interface {
                 InterfaceView {
                     name: &self.name,
                     system: &mut self.system,
+                    config: &mut self.config,
                     statistics: &mut self.statistics,
                     tx: &self.tx,
                     shared: &self.shared,
@@ -125,6 +131,7 @@ impl Interface {
             InterfaceView {
                 name: &self.name,
                 system: &mut self.system,
+                config: &mut self.config,
                 statistics: &mut self.statistics,
                 tx: &self.tx,
                 shared: &self.shared,
@@ -139,6 +146,7 @@ impl Interface {
         InterfaceView {
             name: &self.name,
             system: &mut self.system,
+            config: &mut self.config,
             statistics: &mut self.statistics,
             tx: &self.tx,
             shared: &self.shared,
@@ -163,6 +171,7 @@ impl ProtocolInstance for Interface {
         Interface {
             name,
             system: Default::default(),
+            config: Default::default(),
             vrrp_ipv4_instances: Default::default(),
             vrrp_ipv6_instances: Default::default(),
             statistics: Default::default(),
@@ -259,6 +268,10 @@ async fn process_ibus_msg(
     interface: &mut Interface,
     msg: IbusMsg,
 ) -> Result<(), Error> {
+    if interface.config.trace_opts.ibus {
+        Debug::IbusRx(&msg).log();
+    }
+
     match msg {
         // Interface update notification.
         IbusMsg::InterfaceUpd(msg) => {

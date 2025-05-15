@@ -276,8 +276,15 @@ impl Instance {
         }
 
         // Log the state transition.
-        Debug::InstanceStateChange(self.vrid, event, self.state.state, state)
+        if interface.config.trace_opts.events {
+            Debug::InstanceStateChange(
+                self.vrid,
+                event,
+                self.state.state,
+                state,
+            )
             .log();
+        }
 
         match (self.state.state, state) {
             (fsm::State::Initialize, _) => {
@@ -619,6 +626,7 @@ impl InstanceNet {
         let net_tx_task = tasks::net_tx(
             socket_vrrp_tx.clone(),
             socket_arp.clone(),
+            parent_iface.config.trace_opts.packets.clone(),
             net_tx_packetc,
             #[cfg(feature = "testing")]
             &instance_channels_tx.protocol_output,

@@ -8,7 +8,8 @@
 //
 
 use std::collections::BTreeSet;
-use std::sync::LazyLock as Lazy;
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, LazyLock as Lazy, atomic};
 
 use async_trait::async_trait;
 use enum_as_inner::EnumAsInner;
@@ -16,6 +17,7 @@ use holo_northbound::configuration::{Callbacks, CallbacksBuilder, Provider};
 use holo_northbound::yang::interfaces;
 use holo_utils::ip::AddressFamily;
 use holo_utils::yang::DataNodeRefExt;
+use holo_yang::TryFromYang;
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 
 use crate::instance::{Instance, Version, fsm};
@@ -29,6 +31,7 @@ pub enum ListEntry {
     Vrid(u8),
     VirtualIpv4Addr(u8, Ipv4Network),
     VirtualIpv6Addr(u8, Ipv6Network),
+    TraceOption(TraceOption),
 }
 
 #[derive(Debug)]
@@ -64,6 +67,11 @@ pub static CALLBACKS: Lazy<Callbacks<Interface>> = Lazy::new(load_callbacks);
 
 // ===== configuration structs =====
 
+#[derive(Debug, Default)]
+pub struct InterfaceCfg {
+    pub trace_opts: TraceOptions,
+}
+
 #[derive(Debug)]
 pub struct InstanceCfg {
     pub log_state_change: bool,
@@ -72,6 +80,20 @@ pub struct InstanceCfg {
     pub advertise_interval: u16,
     pub version: Version,
     pub virtual_addresses: BTreeSet<IpNetwork>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum TraceOption {
+    Events,
+    InternalBus,
+    Packets,
+}
+
+#[derive(Debug, Default)]
+pub struct TraceOptions {
+    pub events: bool,
+    pub ibus: bool,
+    pub packets: Arc<AtomicBool>,
 }
 
 // ===== callbacks =====
@@ -286,6 +308,32 @@ fn load_callbacks() -> Callbacks<Interface> {
             let vrid = list_entry.into_vrid().unwrap();
             let addr = dnode.get_prefix6_relative("ipv6-address").unwrap();
             ListEntry::VirtualIpv6Addr(vrid, addr)
+        })
+        .path(interfaces::interface::vrrp::trace_options::flag::PATH)
+        .create_apply(|interface, args| {
+            let trace_opt = args.dnode.get_string_relative("name").unwrap();
+            let trace_opt = TraceOption::try_from_yang(&trace_opt).unwrap();
+            let trace_opts = &mut interface.config.trace_opts;
+            match trace_opt {
+                TraceOption::Events => trace_opts.events = true,
+                TraceOption::InternalBus => trace_opts.ibus = true,
+                TraceOption::Packets => trace_opts.packets.store(true, atomic::Ordering::Relaxed),
+            }
+        })
+        .delete_apply(|interface, args| {
+            let trace_opt = args.list_entry.into_trace_option().unwrap();
+            let trace_opts = &mut interface.config.trace_opts;
+            match trace_opt {
+                TraceOption::Events => trace_opts.events = false,
+                TraceOption::InternalBus => trace_opts.ibus = false,
+                TraceOption::Packets => trace_opts.packets.store(false, atomic::Ordering::Relaxed),
+            }
+
+        })
+        .lookup(|_interface, _list_entry, dnode| {
+            let trace_opt = dnode.get_string_relative("name").unwrap();
+            let trace_opt = TraceOption::try_from_yang(&trace_opt).unwrap();
+            ListEntry::TraceOption(trace_opt)
         })
         .build()
 }

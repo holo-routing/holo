@@ -8,6 +8,7 @@
 //
 
 use std::net::IpAddr;
+use std::sync::atomic;
 use std::time::Duration;
 
 use chrono::Utc;
@@ -56,7 +57,14 @@ pub(crate) fn process_vrrp_packet(
     };
 
     // Log received packet.
-    Debug::PacketRx(&src, &packet).log();
+    if interface
+        .config
+        .trace_opts
+        .packets
+        .load(atomic::Ordering::Relaxed)
+    {
+        Debug::PacketRx(&src, &packet).log();
+    }
 
     // Lookup instance.
     let Some((interface, instance)) =

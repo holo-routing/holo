@@ -9,7 +9,7 @@
 
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use holo_utils::ip::AddressFamily;
@@ -156,6 +156,7 @@ pub(crate) fn vrrp_net_rx(
 pub(crate) fn net_tx(
     socket_vrrp: Arc<AsyncFd<Socket>>,
     socket_arp: Arc<AsyncFd<Socket>>,
+    trace_opts_packets: Arc<AtomicBool>,
     mut net_packet_txc: UnboundedReceiver<messages::output::NetTxPacketMsg>,
     #[cfg(feature = "testing")] proto_output_tx: &Sender<
         messages::ProtocolOutputMsg,
@@ -170,8 +171,13 @@ pub(crate) fn net_tx(
 
         Task::spawn(
             async move {
-                network::write_loop(socket_vrrp, socket_arp, net_packet_txc)
-                    .await;
+                network::write_loop(
+                    socket_vrrp,
+                    socket_arp,
+                    trace_opts_packets,
+                    net_packet_txc,
+                )
+                .await;
             }
             .in_current_span(),
         )

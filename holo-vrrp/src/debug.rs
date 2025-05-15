@@ -9,6 +9,7 @@
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
+use holo_utils::ibus::IbusMsg;
 use tracing::{debug, debug_span};
 
 use crate::instance::fsm;
@@ -26,6 +27,8 @@ pub enum Debug<'a> {
     PacketTx(&'a VrrpHdr),
     ArpTx(u8, &'a Ipv4Addr),
     NeighborAdvertisementTx(u8, &'a Ipv6Addr),
+    // Internal bus
+    IbusRx(&'a IbusMsg),
 }
 
 // ===== impl Debug =====
@@ -64,6 +67,15 @@ impl Debug<'_> {
                 // Parent span(s): vrrp:network:output
                 debug!(%vrid, %addr, "{}", self);
             }
+            Debug::IbusRx(msg) => {
+                // Parent span(s): vrrp
+                debug_span!("internal-bus").in_scope(|| {
+                    debug_span!("input").in_scope(|| {
+                        let data = serde_json::to_string(&msg).unwrap();
+                        debug!(%data, "{}", self);
+                    })
+                })
+            }
         }
     }
 }
@@ -88,6 +100,9 @@ impl std::fmt::Display for Debug<'_> {
             }
             Debug::NeighborAdvertisementTx(..) => {
                 write!(f, "neighbor advertisement")
+            }
+            Debug::IbusRx(..) => {
+                write!(f, "message")
             }
         }
     }

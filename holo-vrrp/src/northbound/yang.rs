@@ -11,6 +11,7 @@ use std::borrow::Cow;
 
 use holo_yang::ToYang;
 
+use crate::error::{GlobalError, VirtualRouterError};
 use crate::instance::{MasterReason, fsm};
 
 // ===== ToYang implementations =====
@@ -75,6 +76,36 @@ impl ToYang for MasterReason {
             MasterReason::Priority => "priority".into(),
             MasterReason::Preempted => "preempted".into(),
             MasterReason::NoResponse => "no-response".into(),
+        }
+    }
+}
+
+impl ToYang for GlobalError {
+    fn to_yang(&self) -> Cow<'static, str> {
+        match self {
+            GlobalError::ChecksumError => "ietf-vrrp:checksum-error".into(),
+            GlobalError::IpTtlError => "ietf-vrrp:ip-ttl-error".into(),
+            GlobalError::VersionError => "ietf-vrrp:version-error".into(),
+            GlobalError::VridError => "ietf-vrrp:vrid-error".into(),
+            GlobalError::IncompletePacket => {
+                "holo-vrrp:incomplete-packet".into()
+            }
+        }
+    }
+}
+
+impl ToYang for VirtualRouterError {
+    fn to_yang(&self) -> Cow<'static, str> {
+        match self {
+            VirtualRouterError::AddressListError => {
+                "ietf-vrrp:address-list-error".into()
+            }
+            VirtualRouterError::IntervalError => {
+                "ietf-vrrp:interval-error".into()
+            }
+            VirtualRouterError::PacketLengthError => {
+                "ietf-vrrp:packet-length-error".into()
+            }
         }
     }
 }

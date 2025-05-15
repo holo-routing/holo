@@ -24,6 +24,7 @@ use tokio::sync::mpsc;
 
 use crate::error::Error;
 use crate::instance::Instance;
+use crate::northbound::notification;
 use crate::tasks::messages::input::{MasterDownTimerMsg, VrrpNetRxPacketMsg};
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
 use crate::{events, southbound};
@@ -192,6 +193,22 @@ impl ProtocolInstance for Interface {
                 events::handle_master_down_timer(self, msg.vrid, msg.version)
             }
         } {
+            // Send YANG notification.
+            match &error {
+                Error::GlobalError(_, error) => {
+                    notification::protocol_error_event(&self.tx.nb, error);
+                }
+                Error::VirtualRouterError(_, error) => {
+                    notification::virtual_router_error_event(
+                        &self.tx.nb,
+                        &self.name,
+                        error,
+                    );
+                }
+                _ => (),
+            }
+
+            // Log the error.
             error.log();
         }
     }

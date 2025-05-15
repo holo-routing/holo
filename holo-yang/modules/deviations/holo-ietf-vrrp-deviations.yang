@@ -206,35 +206,7 @@ module holo-ietf-vrrp-deviations {
   }
   */
 
-  /*
-  deviation "/vrrp:vrrp-new-master-event" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/vrrp:vrrp-new-master-event/vrrp:master-ip-address" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/vrrp:vrrp-new-master-event/vrrp:new-master-reason" {
-    deviate not-supported;
-  }
-  */
-
-  deviation "/vrrp:vrrp-protocol-error-event" {
-    deviate not-supported;
-  }
-
-  /*
-  deviation "/vrrp:vrrp-protocol-error-event/vrrp:protocol-error-reason" {
-    deviate not-supported;
-  }
-  */
-
-  deviation "/vrrp:vrrp-virtual-router-error-event" {
+  deviation "/vrrp:vrrp-virtual-router-error-event/vrrp:ip-version" {
     deviate not-supported;
   }
 }

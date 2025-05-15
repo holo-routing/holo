@@ -27,6 +27,7 @@ use crate::debug::Debug;
 use crate::error::{Error, IoError};
 use crate::interface::{InterfaceSys, InterfaceView};
 use crate::northbound::configuration::InstanceCfg;
+use crate::northbound::notification;
 use crate::packet::{
     ArpHdr, EthernetHdr, Ipv4Hdr, NeighborAdvertisement, Vrrp4Packet, VrrpHdr,
 };
@@ -307,6 +308,14 @@ impl Instance {
                         *addr,
                     );
                 }
+
+                // Send YANG notification.
+                let addr = interface.system.addresses.first().unwrap().ip();
+                notification::new_master_event(
+                    &interface.tx.nb,
+                    addr,
+                    new_master_reason,
+                );
             }
         }
 

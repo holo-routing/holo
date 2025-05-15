@@ -7,6 +7,10 @@ module holo-vrrp {
     prefix rt;
   }
 
+  import ietf-vrrp {
+    prefix vrrp;
+  }
+
   organization
     "Holo Routing Stack";
 
@@ -22,5 +26,12 @@ module holo-vrrp {
     base rt:routing-protocol;
     description
       "VRRP protocol.";
+  }
+
+  identity incomplete-packet {
+    base vrrp:vrrp-error-global;
+    description
+      "A packet has been received with a packet length less
+       than the length of the VRRP header.";
   }
 }

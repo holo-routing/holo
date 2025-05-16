@@ -258,7 +258,9 @@ impl VrrpHdr {
         //  1. Count of IP Addresses.
         //  2. Check of the expected packet size.
         if count_ip > Self::MAX_VIRTUAL_IP_COUNT
-            || Self::expected_length(version, count_ip) != pkt_size
+            || pkt_size
+                < Self::MIN_LEN
+                    + version.address_family().addr_len() * count_ip as usize
         {
             return Err(DecodeError::PacketLengthError { vrid, version });
         }
@@ -313,21 +315,6 @@ impl VrrpHdr {
             checksum,
             ip_addresses,
         })
-    }
-
-    // Once we have the number of IPs expected, we can calculate the expected
-    // length of the packet.
-    pub fn expected_length(version: Version, count_ip: u8) -> usize {
-        // Get number of bytes the authentication header sections will occupy.
-        let auth_len = match version {
-            Version::V2 => 8,
-            Version::V3(_) => 0,
-        };
-
-        // [Minimum Length] + [virtual ip size] + size of pkt's auth section.
-        Self::MIN_LEN
-            + (version.address_family().addr_len() * usize::from(count_ip))
-            + auth_len
     }
 }
 
@@ -456,9 +443,9 @@ impl NeighborAdvertisement {
     }
 }
 
-impl ArpHdr {
-    const LEN: usize = 28;
+// ===== impl ArpHdr ====
 
+impl ArpHdr {
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::with_capacity(28);
         buf.put_u16(self.hw_type);
@@ -471,36 +458,5 @@ impl ArpHdr {
         buf.put_slice(&self.target_hw_address);
         buf.put_ipv4(&self.target_proto_address);
         buf
-    }
-
-    pub fn decode(data: &[u8]) -> DecodeResult<Self> {
-        if data.len() != Self::LEN {
-            return Err(DecodeError::IncompletePacket);
-        }
-        let mut buf = Bytes::copy_from_slice(data);
-        let mut sender_hw_address: [u8; 6] = [0; 6];
-        let mut target_hw_address: [u8; 6] = [0; 6];
-
-        let hw_type = buf.get_u16();
-        let proto_type = buf.get_u16();
-        let hw_length = buf.get_u8();
-        let proto_length = buf.get_u8();
-        let operation = buf.get_u16();
-        buf.copy_to_slice(&mut sender_hw_address);
-        let sender_proto_address = buf.get_ipv4();
-        buf.copy_to_slice(&mut target_hw_address);
-        let target_proto_address = buf.get_ipv4();
-
-        Ok(Self {
-            hw_type,
-            proto_type,
-            hw_length,
-            proto_length,
-            operation,
-            sender_hw_address,
-            sender_proto_address,
-            target_hw_address,
-            target_proto_address,
-        })
     }
 }

@@ -10,8 +10,8 @@ use holo_utils::ip::SocketAddrKind;
 
 use crate::debug::Debug;
 use crate::error::Error;
-use crate::instance::InstanceUp;
-use crate::interface::{Interface, InterfaceIndex};
+use crate::instance::InstanceUpView;
+use crate::interface::{Interface, Interfaces};
 use crate::network::SendDestination;
 use crate::output::{self, ResponseType};
 use crate::packet::{Command, PduVersion, RteRouteVersion, RteVersion};
@@ -22,22 +22,22 @@ use crate::{neighbor, southbound};
 // ===== UDP packet receipt =====
 
 pub(crate) fn process_pdu<V>(
-    instance: &mut InstanceUp<V>,
+    instance: &mut InstanceUpView<'_, V>,
+    interfaces: &mut Interfaces<V>,
     src: V::SocketAddr,
     pdu: Result<V::Pdu, V::PduDecodeError>,
 ) where
     V: Version,
 {
     // Lookup interface.
-    let (iface_idx, iface) =
-        match V::get_iface_by_source(&mut instance.core.interfaces, src) {
-            Some(value) => value,
-            None => return,
-        };
-    let iface = match iface.as_up_mut() {
-        Some(iface) => iface,
-        None => return,
+    let Some(iface) = V::get_iface_by_source(interfaces, src) else {
+        return;
     };
+
+    // Ignore PDUs received on inactive interfaces.
+    if !iface.state.active {
+        return;
+    }
 
     Debug::<V>::PduRx(iface, src.ip(), &pdu).log();
 
@@ -45,7 +45,7 @@ pub(crate) fn process_pdu<V>(
     let nbr = neighbor::update(
         &mut instance.state.neighbors,
         *src.ip(),
-        instance.core.config.invalid_interval,
+        instance.config.invalid_interval,
         &instance.tx.protocol_input.nbr_timeout,
     );
 
@@ -89,10 +89,10 @@ pub(crate) fn process_pdu<V>(
 
             match pdu.command() {
                 Command::Request => {
-                    process_pdu_request(instance, iface_idx, src, pdu);
+                    process_pdu_request(instance, iface, src, pdu);
                 }
                 Command::Response => {
-                    process_pdu_response(instance, iface_idx, src, pdu);
+                    process_pdu_response(instance, iface, src, pdu);
                 }
             }
         }
@@ -111,16 +111,13 @@ pub(crate) fn process_pdu<V>(
 }
 
 fn process_pdu_request<V>(
-    instance: &mut InstanceUp<V>,
-    iface_idx: InterfaceIndex,
+    instance: &mut InstanceUpView<'_, V>,
+    iface: &mut Interface<V>,
     src: V::SocketAddr,
     mut pdu: V::Pdu,
 ) where
     V: Version,
 {
-    let iface = &mut instance.core.interfaces[iface_idx];
-    let iface = iface.as_up_mut().unwrap();
-
     // Ignore requests received on passive interfaces.
     if iface.is_passive() {
         return;
@@ -136,12 +133,7 @@ fn process_pdu_request<V>(
 
     // Check if it's a request to send the entire routing table.
     if pdu.is_dump_request() {
-        output::send_response(
-            &mut instance.state,
-            iface,
-            dst,
-            ResponseType::Normal,
-        );
+        output::send_response(instance, iface, dst, ResponseType::Normal);
     } else {
         // Examine the list of RTEs in the Request one by one. For each entry,
         // look up the destination in the router's routing database and, if
@@ -164,7 +156,7 @@ fn process_pdu_request<V>(
             }
         }
         pdu.set_command(Command::Response);
-        output::send_pdu(&mut instance.state, iface, dst, pdu);
+        output::send_pdu(instance, iface, dst, pdu);
     }
 }
 
@@ -176,18 +168,16 @@ fn process_pdu_request<V>(
 //
 // Processing is the same no matter why the Response was generated.
 fn process_pdu_response<V>(
-    instance: &mut InstanceUp<V>,
-    iface_idx: InterfaceIndex,
+    instance: &mut InstanceUpView<'_, V>,
+    iface: &mut Interface<V>,
     src: V::SocketAddr,
     pdu: V::Pdu,
 ) where
     V: Version,
 {
-    let iface = &instance.core.interfaces[iface_idx];
-    let iface = iface.as_up().unwrap();
-    let invalid_interval = iface.core.config.invalid_interval;
-    let flush_interval = iface.core.config.flush_interval;
-    let distance = instance.core.config.distance;
+    let invalid_interval = iface.config.invalid_interval;
+    let flush_interval = iface.config.flush_interval;
+    let distance = instance.config.distance;
 
     // The Response must be ignored if it is not from the RIP port.
     if src.port() != V::UDP_PORT {
@@ -217,7 +207,7 @@ fn process_pdu_response<V>(
         // Update the metric by adding the cost of the network on which the
         // message arrived.
         let mut metric = rte.metric();
-        metric.add(iface.core.config.cost);
+        metric.add(iface.config.cost);
 
         // Use nexthop from the nexthop field (RIPv2) or nexthop RTE (RIPng) if
         // it's present. Otherwise, use the source of the RIP advertisement.
@@ -225,7 +215,7 @@ fn process_pdu_response<V>(
         // RIPv2 nexthop handling.
         let ripv2_nexthop = rte.nexthop();
         if let Some(rte_nexthop) = ripv2_nexthop
-            && iface.core.system.contains_addr(rte_nexthop)
+            && iface.system.contains_addr(rte_nexthop)
         {
             nexthop = *rte_nexthop;
         }
@@ -255,7 +245,7 @@ fn process_pdu_response<V>(
                     let old_metric = route.metric;
 
                     // Update route.
-                    route.ifindex = iface.core.system.ifindex.unwrap();
+                    route.ifindex = iface.system.ifindex.unwrap();
                     route.source = source;
                     route.nexthop = nexthop;
                     route.metric = metric;
@@ -304,7 +294,7 @@ fn process_pdu_response<V>(
                 // Create new route.
                 let mut route = Route::new(
                     *rte.prefix(),
-                    iface.core.system.ifindex.unwrap(),
+                    iface.system.ifindex.unwrap(),
                     source,
                     metric,
                     rte.tag(),
@@ -338,29 +328,35 @@ fn process_pdu_response<V>(
 
 // ===== instance initial update =====
 
-pub(crate) fn process_initial_update<V>(instance: &mut InstanceUp<V>)
-where
+pub(crate) fn process_initial_update<V>(
+    instance: &mut InstanceUpView<'_, V>,
+    interfaces: &mut Interfaces<V>,
+) where
     V: Version,
 {
     Debug::<V>::InitialUpdate.log();
     instance.state.initial_update_task = None;
-    output::send_response_all(instance, ResponseType::Normal);
+    output::send_response_all(instance, interfaces, ResponseType::Normal);
 }
 
 // ===== instance update interval =====
 
-pub(crate) fn process_update_interval<V>(instance: &mut InstanceUp<V>)
-where
+pub(crate) fn process_update_interval<V>(
+    instance: &mut InstanceUpView<'_, V>,
+    interfaces: &mut Interfaces<V>,
+) where
     V: Version,
 {
     Debug::<V>::UpdateInterval.log();
-    output::send_response_all(instance, ResponseType::Normal);
+    output::send_response_all(instance, interfaces, ResponseType::Normal);
 }
 
 // ===== instance triggered update =====
 
-pub(crate) fn process_triggered_update<V>(instance: &mut InstanceUp<V>)
-where
+pub(crate) fn process_triggered_update<V>(
+    instance: &mut InstanceUpView<'_, V>,
+    interfaces: &mut Interfaces<V>,
+) where
     V: Version,
 {
     // Don't generate triggered updates before the initial update is sent.
@@ -374,17 +370,19 @@ where
         return;
     }
 
-    output::triggered_update(instance);
+    output::triggered_update(instance, interfaces);
 }
 
 // ===== instance triggered update timeout =====
 
-pub(crate) fn process_triggered_update_timeout<V>(instance: &mut InstanceUp<V>)
-where
+pub(crate) fn process_triggered_update_timeout<V>(
+    instance: &mut InstanceUpView<'_, V>,
+    interfaces: &mut Interfaces<V>,
+) where
     V: Version,
 {
     if instance.state.pending_trigger_upd {
-        output::triggered_update(instance);
+        output::triggered_update(instance, interfaces);
     }
 
     output::cancel_triggered_update(instance);
@@ -393,7 +391,7 @@ where
 // ===== neighbor timeout =====
 
 pub(crate) fn process_nbr_timeout<V>(
-    instance: &mut InstanceUp<V>,
+    instance: &mut InstanceUpView<'_, V>,
     addr: V::IpAddr,
 ) where
     V: Version,
@@ -405,7 +403,8 @@ pub(crate) fn process_nbr_timeout<V>(
 // ===== route timeout =====
 
 pub(crate) fn process_route_timeout<V>(
-    instance: &mut InstanceUp<V>,
+    instance: &mut InstanceUpView<'_, V>,
+    interfaces: &mut Interfaces<V>,
     prefix: V::IpNetwork,
 ) where
     V: Version,
@@ -415,19 +414,17 @@ pub(crate) fn process_route_timeout<V>(
         None => return,
     };
 
-    if let Some((_, Interface::Up(iface))) =
-        instance.core.interfaces.get_by_ifindex(route.ifindex)
-    {
+    if let Some((_, iface)) = interfaces.get_by_ifindex(route.ifindex) {
         Debug::<V>::RouteTimeout(&prefix).log();
 
-        route.invalidate(iface.core.config.flush_interval, &instance.tx);
+        route.invalidate(iface.config.flush_interval, instance.tx);
     }
 }
 
 // ===== route garbage-collection timeout =====
 
 pub(crate) fn process_route_gc_timeout<V>(
-    instance: &mut InstanceUp<V>,
+    instance: &mut InstanceUpView<'_, V>,
     prefix: V::IpNetwork,
 ) where
     V: Version,

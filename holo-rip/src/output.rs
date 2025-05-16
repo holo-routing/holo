@@ -10,8 +10,8 @@ use itertools::Itertools;
 use rand::Rng;
 
 use crate::debug::Debug;
-use crate::instance::{InstanceState, InstanceUp};
-use crate::interface::{Interface, InterfaceUp, SplitHorizon};
+use crate::instance::InstanceUpView;
+use crate::interface::{Interface, Interfaces, SplitHorizon};
 use crate::network::SendDestination;
 use crate::packet::{Command, PduVersion, RteVersion};
 use crate::route::{RouteFlags, RouteType};
@@ -28,8 +28,8 @@ pub enum ResponseType {
 // ===== global functions =====
 
 pub(crate) fn send_pdu<V>(
-    instance_state: &mut InstanceState<V>,
-    iface: &mut InterfaceUp<V>,
+    instance: &mut InstanceUpView<'_, V>,
+    iface: &mut Interface<V>,
     dst: SendDestination<V::SocketAddr>,
     pdu: V::Pdu,
 ) where
@@ -38,7 +38,7 @@ pub(crate) fn send_pdu<V>(
     Debug::<V>::PduTx(iface, &pdu).log();
 
     // Update instance statistics.
-    instance_state.statistics.update(pdu.command(), true);
+    instance.state.statistics.update(pdu.command(), true);
 
     // Update interface statistics.
     if pdu.command() == Command::Response {
@@ -53,8 +53,8 @@ pub(crate) fn send_pdu<V>(
 }
 
 pub(crate) fn send_request<V>(
-    instance_state: &mut InstanceState<V>,
-    iface: &mut InterfaceUp<V>,
+    instance: &mut InstanceUpView<'_, V>,
+    iface: &mut Interface<V>,
     dst: SendDestination<V::SocketAddr>,
 ) where
     V: Version,
@@ -66,12 +66,12 @@ pub(crate) fn send_request<V>(
 
     // Send request to send the entire routing table.
     let pdu = V::Pdu::new_dump_request();
-    send_pdu(instance_state, iface, dst, pdu);
+    send_pdu(instance, iface, dst, pdu);
 }
 
 pub(crate) fn send_response<V>(
-    instance_state: &mut InstanceState<V>,
-    iface: &mut InterfaceUp<V>,
+    instance: &mut InstanceUpView<'_, V>,
+    iface: &mut Interface<V>,
     dst: SendDestination<V::SocketAddr>,
     response_type: ResponseType,
 ) where
@@ -84,7 +84,7 @@ pub(crate) fn send_response<V>(
 
     // Build Response PDU.
     let mut rtes = vec![];
-    for route in instance_state.routes.values() {
+    for route in instance.state.routes.values() {
         let mut metric = route.metric;
 
         // Skip unchanged routes for triggered updates.
@@ -96,9 +96,9 @@ pub(crate) fn send_response<V>(
 
         // Split-horizon processing.
         if route.route_type == RouteType::Rip {
-            let suppress = route.ifindex == iface.core.system.ifindex.unwrap();
+            let suppress = route.ifindex == iface.system.ifindex.unwrap();
 
-            match iface.core.config.split_horizon {
+            match iface.config.split_horizon {
                 SplitHorizon::Disabled => (),
                 SplitHorizon::Simple => {
                     if suppress {
@@ -129,10 +129,8 @@ pub(crate) fn send_response<V>(
     }
 
     // Send as many PDUs as necessary.
-    let max_entries = V::Pdu::max_entries(
-        iface.core.system.mtu.unwrap(),
-        iface.core.config.auth_algo,
-    );
+    let max_entries =
+        V::Pdu::max_entries(iface.system.mtu.unwrap(), iface.config.auth_algo);
     for rtes in rtes
         .into_iter()
         .chunks(max_entries)
@@ -140,22 +138,21 @@ pub(crate) fn send_response<V>(
         .map(|c| c.collect())
     {
         let pdu = V::Pdu::new(Command::Response, rtes);
-        send_pdu(instance_state, iface, dst, pdu);
+        send_pdu(instance, iface, dst, pdu);
     }
 }
 
 pub(crate) fn send_response_all<V>(
-    instance: &mut InstanceUp<V>,
+    instance: &mut InstanceUpView<'_, V>,
+    interfaces: &mut Interfaces<V>,
     response_type: ResponseType,
 ) where
     V: Version,
 {
-    for iface in instance.core.interfaces.iter_mut() {
-        if let Interface::Up(iface) = iface {
-            iface.with_destinations(|iface, dst| {
-                send_response(&mut instance.state, iface, dst, response_type);
-            })
-        }
+    for iface in interfaces.iter_mut().filter(|iface| iface.state.active) {
+        iface.with_destinations(|iface, dst| {
+            send_response(instance, iface, dst, response_type);
+        })
     }
 
     // A triggered update should be suppressed if a regular update is due by the
@@ -168,18 +165,20 @@ pub(crate) fn send_response_all<V>(
     }
 }
 
-pub(crate) fn triggered_update<V>(instance: &mut InstanceUp<V>)
-where
+pub(crate) fn triggered_update<V>(
+    instance: &mut InstanceUpView<'_, V>,
+    interfaces: &mut Interfaces<V>,
+) where
     V: Version,
 {
     Debug::<V>::TriggeredUpdate.log();
 
     // Send routes.
-    send_response_all(instance, ResponseType::Triggered);
+    send_response_all(instance, interfaces, ResponseType::Triggered);
 
     // Start triggered update timeout.
-    let timeout = rand::rng()
-        .random_range(1..instance.core.config.triggered_update_threshold);
+    let timeout =
+        rand::rng().random_range(1..instance.config.triggered_update_threshold);
     let triggered_upd_timeout_task = tasks::triggered_upd_timeout(
         Duration::from_secs(timeout.into()),
         &instance.tx.protocol_input.triggered_upd_timeout,
@@ -188,7 +187,7 @@ where
         Some(triggered_upd_timeout_task);
 }
 
-pub(crate) fn cancel_triggered_update<V>(instance: &mut InstanceUp<V>)
+pub(crate) fn cancel_triggered_update<V>(instance: &mut InstanceUpView<'_, V>)
 where
     V: Version,
 {

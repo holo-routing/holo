@@ -9,7 +9,7 @@ use std::sync::LazyLock as Lazy;
 use holo_northbound::rpc::{Callbacks, CallbacksBuilder, Provider};
 use holo_northbound::yang;
 
-use crate::instance::{Instance, InstanceUp};
+use crate::instance::{Instance, InstanceUpView};
 use crate::route::RouteType;
 use crate::southbound;
 use crate::version::{Ripng, Ripv2, Version};
@@ -30,8 +30,8 @@ where
         .rpc(|instance, _args| {
             Box::pin(async move {
                 // Clear routes.
-                if let Instance::Up(instance) = instance {
-                    clear_routes(instance);
+                if let Some((mut instance, _)) = instance.as_up() {
+                    clear_routes(&mut instance);
                 }
                 Ok(())
             })
@@ -52,7 +52,7 @@ where
 
 // ===== helper functions =====
 
-fn clear_routes<V>(instance: &mut InstanceUp<V>)
+fn clear_routes<V>(instance: &mut InstanceUpView<'_, V>)
 where
     V: Version,
 {

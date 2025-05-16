@@ -6,7 +6,7 @@
 
 use tracing::{debug, debug_span};
 
-use crate::interface::InterfaceUp;
+use crate::interface::Interface;
 use crate::route::Metric;
 use crate::version::Version;
 
@@ -25,11 +25,11 @@ pub enum Debug<'a, V: Version> {
     UpdateInterval,
     TriggeredUpdate,
     PduRx(
-        &'a InterfaceUp<V>,
+        &'a Interface<V>,
         &'a V::IpAddr,
         &'a Result<V::Pdu, V::PduDecodeError>,
     ),
-    PduTx(&'a InterfaceUp<V>, &'a V::Pdu),
+    PduTx(&'a Interface<V>, &'a V::Pdu),
     NbrCreate(&'a V::IpAddr),
     NbrTimeout(&'a V::IpAddr),
     RouteCreate(&'a V::IpNetwork, &'a Option<V::IpAddr>, &'a Metric),
@@ -97,7 +97,7 @@ where
             Debug::PduRx(iface, source, pdu) => {
                 // Parent span(s): rip-instance
                 debug_span!("network").in_scope(|| {
-                    debug_span!("input", interface = %iface.core.name, %source)
+                    debug_span!("input", interface = %iface.name, %source)
                         .in_scope(|| {
                             let data = serde_json::to_string(&pdu).unwrap();
                             debug!(%data, "{}", self);
@@ -107,11 +107,12 @@ where
             Debug::PduTx(iface, pdu) => {
                 // Parent span(s): rip-instance
                 debug_span!("network").in_scope(|| {
-                    debug_span!("output", interface = %iface.core.name)
-                        .in_scope(|| {
+                    debug_span!("output", interface = %iface.name).in_scope(
+                        || {
                             let data = serde_json::to_string(&pdu).unwrap();
                             debug!(%data, "{}", self);
-                        });
+                        },
+                    );
                 });
             }
             Debug::NbrCreate(addr) | Debug::NbrTimeout(addr) => {

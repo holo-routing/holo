@@ -12,7 +12,6 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use enum_as_inner::EnumAsInner;
 use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
 };
@@ -37,37 +36,20 @@ use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
 use crate::version::Version;
 use crate::{events, southbound, tasks};
 
-#[derive(Debug, EnumAsInner)]
-pub enum Instance<V: Version> {
-    Up(InstanceUp<V>),
-    Down(InstanceDown<V>),
-    // This state is required to allow in-place mutations of Instance.
-    Transitioning,
-}
-
-pub type InstanceUp<V> = InstanceCommon<V, InstanceState<V>>;
-pub type InstanceDown<V> = InstanceCommon<V, InstanceStateDown>;
-
 #[derive(Debug)]
-pub struct InstanceCommon<V: Version, State> {
-    // Instance state-independent data.
-    pub core: InstanceCore<V>,
-    // Instance state-dependent data.
-    pub state: State,
-    // Instance Tx channels.
-    pub tx: InstanceChannelsTx<Instance<V>>,
-}
-
-#[derive(Debug)]
-pub struct InstanceCore<V: Version> {
+pub struct Instance<V: Version> {
     // Instance name.
     pub name: String,
     // Instance system data.
     pub system: InstanceSys,
     // Instance configuration data.
     pub config: InstanceCfg,
+    // Instance state data.
+    pub state: Option<InstanceState<V>>,
     // Instance interfaces.
     pub interfaces: Interfaces<V>,
+    // Instance Tx channels.
+    pub tx: InstanceChannelsTx<Instance<V>>,
 }
 
 #[derive(Debug, Default)]
@@ -93,9 +75,6 @@ pub struct InstanceState<V: Version> {
     pub auth_seqno: Arc<AtomicU32>,
 }
 
-#[derive(Debug)]
-pub struct InstanceStateDown();
-
 // Inbound and outbound statistic counters.
 #[derive(Debug, Default)]
 pub struct MessageStatistics {
@@ -104,6 +83,14 @@ pub struct MessageStatistics {
     pub requests_sent: u32,
     pub responses_rcvd: u32,
     pub responses_sent: u32,
+}
+
+pub struct InstanceUpView<'a, V: Version> {
+    pub name: &'a str,
+    pub system: &'a InstanceSys,
+    pub config: &'a InstanceCfg,
+    pub state: &'a mut InstanceState<V>,
+    pub tx: &'a InstanceChannelsTx<Instance<V>>,
 }
 
 #[derive(Clone, Debug)]
@@ -167,13 +154,17 @@ where
     }
 
     async fn start(&mut self) {
-        let instance = &self.as_down().unwrap();
-        let update_interval = instance.core.config.update_interval;
-        let instance = std::mem::replace(self, Instance::Transitioning)
-            .into_down()
-            .unwrap();
-        let state = InstanceState::new(update_interval, &instance.tx).await;
-        *self = Instance::Up(instance.start(state));
+        Debug::<V>::InstanceStart.log();
+
+        let update_interval = self.config.update_interval;
+        let state = InstanceState::new(update_interval, &self.tx).await;
+        self.state = Some(state);
+        let (mut instance, interfaces) = self.as_up().unwrap();
+
+        // Try to start interfaces.
+        for iface in interfaces.iter_mut() {
+            iface.update(&mut instance);
+        }
     }
 
     fn stop(&mut self, reason: InstanceInactiveReason) {
@@ -181,14 +172,17 @@ where
             return;
         }
 
-        let instance = std::mem::replace(self, Instance::Transitioning)
-            .into_up()
-            .unwrap();
-        *self = Instance::Down(instance.stop(reason));
+        Debug::<V>::InstanceStop(reason).log();
+
+        // Stop interfaces.
+        let (mut instance, interfaces) = self.as_up().unwrap();
+        for iface in interfaces.iter_mut() {
+            iface.stop(&mut instance, InterfaceInactiveReason::InstanceDown);
+        }
     }
 
-    fn is_active(&self) -> bool {
-        matches!(self, Instance::Up(_))
+    pub(crate) fn is_active(&self) -> bool {
+        self.state.is_some()
     }
 
     // Returns whether the instance is ready for RIP operation.
@@ -200,21 +194,21 @@ where
         Ok(())
     }
 
-    #[inline]
-    pub(crate) fn core(&self) -> &InstanceCore<V> {
-        match self {
-            Instance::Up(instance) => &instance.core,
-            Instance::Down(instance) => &instance.core,
-            Instance::Transitioning => unreachable!(),
-        }
-    }
-
-    #[inline]
-    pub(crate) fn core_mut(&mut self) -> &mut InstanceCore<V> {
-        match self {
-            Instance::Up(instance) => &mut instance.core,
-            Instance::Down(instance) => &mut instance.core,
-            Instance::Transitioning => unreachable!(),
+    // Returns a view struct for the instance if it's operational.
+    pub(crate) fn as_up(
+        &mut self,
+    ) -> Option<(InstanceUpView<'_, V>, &mut Interfaces<V>)> {
+        if let Some(state) = &mut self.state {
+            let instance = InstanceUpView {
+                name: &self.name,
+                system: &self.system,
+                config: &self.config,
+                state,
+                tx: &self.tx,
+            };
+            Some((instance, &mut self.interfaces))
+        } else {
+            None
         }
     }
 }
@@ -238,16 +232,14 @@ where
     ) -> Instance<V> {
         Debug::<V>::InstanceCreate.log();
 
-        Instance::Down(InstanceDown {
-            core: InstanceCore {
-                name,
-                system: Default::default(),
-                config: Default::default(),
-                interfaces: Default::default(),
-            },
-            state: InstanceStateDown(),
+        Instance {
+            name,
+            system: Default::default(),
+            config: Default::default(),
+            interfaces: Default::default(),
+            state: None,
             tx,
-        })
+        }
     }
 
     async fn init(&mut self) {
@@ -268,8 +260,13 @@ where
 
     fn process_protocol_msg(&mut self, msg: ProtocolInputMsg<V>) {
         // Ignore event if the instance isn't active.
-        if let Instance::Up(instance) = self {
-            instance.process_protocol_msg(msg);
+        let Some((mut instance, interfaces)) = self.as_up() else {
+            return;
+        };
+
+        if let Err(error) = process_protocol_msg(&mut instance, interfaces, msg)
+        {
+            error.log();
         }
     }
 
@@ -315,99 +312,6 @@ where
             env!("CARGO_MANIFEST_DIR"),
             V::PROTOCOL
         )
-    }
-}
-
-// ===== impl InstanceCommon =====
-
-// Active RIP instance.
-impl<V> InstanceCommon<V, InstanceState<V>>
-where
-    V: Version,
-{
-    fn process_protocol_msg(&mut self, msg: ProtocolInputMsg<V>) {
-        match msg {
-            // Received UDP discovery PDU.
-            ProtocolInputMsg::UdpRxPdu(msg) => {
-                events::process_pdu(self, msg.src, msg.pdu);
-            }
-            // Route initial update.
-            ProtocolInputMsg::InitialUpdate(_msg) => {
-                events::process_initial_update(self);
-            }
-            // Route update interval.
-            ProtocolInputMsg::UpdateInterval(_msg) => {
-                events::process_update_interval(self);
-            }
-            // Signal to send triggered update.
-            ProtocolInputMsg::TriggeredUpd(_msg) => {
-                events::process_triggered_update(self);
-            }
-            // Triggered update timeout has expired.
-            ProtocolInputMsg::TriggeredUpdTimeout(_msg) => {
-                events::process_triggered_update_timeout(self);
-            }
-            // Neighbor's timeout has expired.
-            ProtocolInputMsg::NbrTimeout(msg) => {
-                events::process_nbr_timeout(self, msg.addr);
-            }
-            // Route's timeout has expired.
-            ProtocolInputMsg::RouteTimeout(msg) => {
-                events::process_route_timeout(self, msg.prefix);
-            }
-            // Route's garbage-collection timeout has expired.
-            ProtocolInputMsg::RouteGcTimeout(msg) => {
-                events::process_route_gc_timeout(self, msg.prefix);
-            }
-        }
-    }
-
-    fn stop(
-        mut self,
-        reason: InstanceInactiveReason,
-    ) -> InstanceCommon<V, InstanceStateDown> {
-        Debug::<V>::InstanceStop(reason).log();
-
-        // Stop interfaces.
-        for iface in self.core.interfaces.iter_mut() {
-            iface.stop(
-                &mut self.state,
-                &self.tx,
-                InterfaceInactiveReason::InstanceDown,
-            );
-        }
-
-        InstanceCommon::<V, InstanceStateDown> {
-            core: self.core,
-            state: InstanceStateDown(),
-            tx: self.tx,
-        }
-    }
-}
-
-// Inactive RIP instance.
-impl<V> InstanceCommon<V, InstanceStateDown>
-where
-    V: Version,
-{
-    fn start(
-        self,
-        state: InstanceState<V>,
-    ) -> InstanceCommon<V, InstanceState<V>> {
-        Debug::<V>::InstanceStart.log();
-
-        let mut instance = InstanceCommon::<V, InstanceState<V>> {
-            core: self.core,
-            state,
-            tx: self.tx,
-        };
-
-        // Try to start interfaces.
-        for iface in instance.core.interfaces.iter_mut() {
-            iface.update(&mut instance.state, &instance.tx);
-        }
-
-        instance
     }
 }
 
@@ -551,6 +455,52 @@ where
         }
         // Ignore other events.
         _ => {}
+    }
+
+    Ok(())
+}
+
+fn process_protocol_msg<V>(
+    instance: &mut InstanceUpView<'_, V>,
+    interfaces: &mut Interfaces<V>,
+    msg: ProtocolInputMsg<V>,
+) -> Result<(), Error<V>>
+where
+    V: Version,
+{
+    match msg {
+        // Received UDP discovery PDU.
+        ProtocolInputMsg::UdpRxPdu(msg) => {
+            events::process_pdu(instance, interfaces, msg.src, msg.pdu);
+        }
+        // Route initial update.
+        ProtocolInputMsg::InitialUpdate(_msg) => {
+            events::process_initial_update(instance, interfaces);
+        }
+        // Route update interval.
+        ProtocolInputMsg::UpdateInterval(_msg) => {
+            events::process_update_interval(instance, interfaces);
+        }
+        // Signal to send triggered update.
+        ProtocolInputMsg::TriggeredUpd(_msg) => {
+            events::process_triggered_update(instance, interfaces);
+        }
+        // Triggered update timeout has expired.
+        ProtocolInputMsg::TriggeredUpdTimeout(_msg) => {
+            events::process_triggered_update_timeout(instance, interfaces);
+        }
+        // Neighbor's timeout has expired.
+        ProtocolInputMsg::NbrTimeout(msg) => {
+            events::process_nbr_timeout(instance, msg.addr);
+        }
+        // Route's timeout has expired.
+        ProtocolInputMsg::RouteTimeout(msg) => {
+            events::process_route_timeout(instance, interfaces, msg.prefix);
+        }
+        // Route's garbage-collection timeout has expired.
+        ProtocolInputMsg::RouteGcTimeout(msg) => {
+            events::process_route_gc_timeout(instance, msg.prefix);
+        }
     }
 
     Ok(())

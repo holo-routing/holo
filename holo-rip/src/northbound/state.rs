@@ -50,13 +50,12 @@ where
             use rip::Rip;
             let mut next_triggered_update = None;
             let mut num_of_routes = None;
-            if let Instance::Up(instance) = instance {
-                next_triggered_update = instance
-                    .state
+            if let Some(instance_state) = &instance.state {
+                next_triggered_update = instance_state
                     .next_triggered_update()
                     .map(|d| d.as_secs().saturating_into());
                 num_of_routes =
-                    Some(instance.state.routes.len().saturating_into());
+                    Some(instance_state.routes.len().saturating_into());
             }
             Box::new(Rip {
                 next_triggered_update: next_triggered_update
@@ -66,53 +65,43 @@ where
         })
         .path(rip::interfaces::interface::PATH)
         .get_iterate(|instance, _args| {
-            let Instance::Up(instance) = instance else {
+            if !instance.is_active() {
                 return None;
             };
-            let iter =
-                instance.core.interfaces.iter().map(ListEntry::Interface);
+            let iter = instance.interfaces.iter().map(ListEntry::Interface);
             Some(Box::new(iter))
         })
         .get_object(|instance, args| {
             use rip::interfaces::interface::Interface;
             let iface = args.list_entry.as_interface().unwrap();
+            let mut next_full_update = None;
+            if let Some(instance_state) = &instance.state
+                && iface.state.active
+            {
+                // The same update interval is shared by all interfaces.
+                next_full_update = Some(
+                    instance_state.next_update().as_secs().saturating_into(),
+                );
+            }
             Box::new(Interface {
-                interface: iface.core().name.as_str().into(),
+                interface: iface.name.as_str().into(),
                 oper_status: Some(
-                    (if iface.is_active() { "up" } else { "down" }).into(),
+                    (if iface.state.active { "up" } else { "down" }).into(),
                 ),
-                next_full_update: iface
-                    .is_active()
-                    .then(|| {
-                        // The same update interval is shared by all interfaces.
-                        instance
-                            .as_up()
-                            .unwrap()
-                            .state
-                            .next_update()
-                            .as_secs()
-                            .saturating_into()
-                    })
-                    .ignore_in_testing(),
-                valid_address: Some(!iface.core().system.addr_list.is_empty()),
+                next_full_update: next_full_update.ignore_in_testing(),
+                valid_address: Some(!iface.system.addr_list.is_empty()),
             })
         })
         .path(rip::interfaces::interface::statistics::PATH)
         .get_object(|_instance, args| {
             use rip::interfaces::interface::statistics::Statistics;
             let iface = args.list_entry.as_interface().unwrap();
-            let mut discontinuity_time = None;
-            let mut bad_packets_rcvd = None;
-            let mut bad_routes_rcvd = None;
-            let mut updates_sent = None;
-            if let Interface::Up(iface) = iface {
-                discontinuity_time =
-                    iface.state.statistics.discontinuity_time.as_ref();
-                bad_packets_rcvd =
-                    Some(iface.state.statistics.bad_packets_rcvd);
-                bad_routes_rcvd = Some(iface.state.statistics.bad_routes_rcvd);
-                updates_sent = Some(iface.state.statistics.updates_sent);
-            }
+            let discontinuity_time =
+                iface.state.statistics.discontinuity_time.as_ref();
+            let bad_packets_rcvd =
+                Some(iface.state.statistics.bad_packets_rcvd);
+            let bad_routes_rcvd = Some(iface.state.statistics.bad_routes_rcvd);
+            let updates_sent = Some(iface.state.statistics.updates_sent);
             Box::new(Statistics {
                 discontinuity_time: discontinuity_time
                     .map(Cow::Borrowed)
@@ -130,13 +119,13 @@ where
             let mut requests_sent = None;
             let mut responses_rcvd = None;
             let mut responses_sent = None;
-            if let Instance::Up(instance) = instance {
+            if let Some(instance_state) = &instance.state {
                 discontinuity_time =
-                    instance.state.statistics.discontinuity_time.as_ref();
-                requests_rcvd = Some(instance.state.statistics.requests_rcvd);
-                requests_sent = Some(instance.state.statistics.requests_sent);
-                responses_rcvd = Some(instance.state.statistics.responses_rcvd);
-                responses_sent = Some(instance.state.statistics.responses_sent);
+                    instance_state.statistics.discontinuity_time.as_ref();
+                requests_rcvd = Some(instance_state.statistics.requests_rcvd);
+                requests_sent = Some(instance_state.statistics.requests_sent);
+                responses_rcvd = Some(instance_state.statistics.responses_rcvd);
+                responses_sent = Some(instance_state.statistics.responses_sent);
             }
             Box::new(Statistics {
                 discontinuity_time: discontinuity_time
@@ -156,11 +145,10 @@ fn load_callbacks_ripv2() -> Callbacks<Instance<Ripv2>> {
     CallbacksBuilder::new(core_cbs)
         .path(rip::ipv4::neighbors::neighbor::PATH)
         .get_iterate(|instance, _args| {
-            let Instance::Up(instance) = instance else {
+            let Some(instance_state) = &instance.state else {
                 return None;
             };
-            let iter = instance
-                .state
+            let iter = instance_state
                 .neighbors
                 .values()
                 .map(ListEntry::Ipv4Neighbor);
@@ -180,10 +168,10 @@ fn load_callbacks_ripv2() -> Callbacks<Instance<Ripv2>> {
         })
         .path(rip::ipv4::routes::route::PATH)
         .get_iterate(|instance, _args| {
-            let Instance::Up(instance) = instance else {
+            let Some(instance_state) = &instance.state else {
                 return None;
             };
-            let iter = instance.state.routes.values().map(ListEntry::Ipv4Route);
+            let iter = instance_state.routes.values().map(ListEntry::Ipv4Route);
             Some(Box::new(iter))
         })
         .get_object(|instance, args| {
@@ -193,10 +181,9 @@ fn load_callbacks_ripv2() -> Callbacks<Instance<Ripv2>> {
                 ipv4_prefix: Cow::Borrowed(&route.prefix),
                 next_hop: route.nexthop.as_ref().map(Cow::Borrowed),
                 interface: instance
-                    .core()
                     .interfaces
                     .get_by_ifindex(route.ifindex)
-                    .map(|(_, iface)| iface.core().name.as_str().into()),
+                    .map(|(_, iface)| iface.name.as_str().into()),
                 redistributed: Some(false),
                 route_type: Some(route.route_type.to_yang()),
                 metric: Some(route.metric.get()),
@@ -219,11 +206,10 @@ fn load_callbacks_ripng() -> Callbacks<Instance<Ripng>> {
     CallbacksBuilder::new(core_cbs)
         .path(rip::ipv6::neighbors::neighbor::PATH)
         .get_iterate(|instance, _args| {
-            let Instance::Up(instance) = instance else {
+            let Some(instance_state) = &instance.state else {
                 return None;
             };
-            let iter = instance
-                .state
+            let iter = instance_state
                 .neighbors
                 .values()
                 .map(ListEntry::Ipv6Neighbor);
@@ -243,10 +229,10 @@ fn load_callbacks_ripng() -> Callbacks<Instance<Ripng>> {
         })
         .path(rip::ipv6::routes::route::PATH)
         .get_iterate(|instance, _args| {
-            let Instance::Up(instance) = instance else {
+            let Some(instance_state) = &instance.state else {
                 return None;
             };
-            let iter = instance.state.routes.values().map(ListEntry::Ipv6Route);
+            let iter = instance_state.routes.values().map(ListEntry::Ipv6Route);
             Some(Box::new(iter))
         })
         .get_object(|instance, args| {
@@ -256,10 +242,9 @@ fn load_callbacks_ripng() -> Callbacks<Instance<Ripng>> {
                 ipv6_prefix: Cow::Borrowed(&route.prefix),
                 next_hop: route.nexthop.as_ref().map(Cow::Borrowed),
                 interface: instance
-                    .core()
                     .interfaces
                     .get_by_ifindex(route.ifindex)
-                    .map(|(_, iface)| iface.core().name.as_str().into()),
+                    .map(|(_, iface)| iface.name.as_str().into()),
                 redistributed: Some(false),
                 route_type: Some(route.route_type.to_yang()),
                 metric: Some(route.metric.get()),

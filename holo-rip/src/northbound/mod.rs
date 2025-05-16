@@ -44,7 +44,7 @@ where
         format!(
             "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='{}']/ietf-rip:rip",
             V::PROTOCOL.to_yang(),
-            self.core().name
+            self.name
         )
     }
 

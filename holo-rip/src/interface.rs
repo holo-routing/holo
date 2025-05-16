@@ -9,7 +9,6 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU32;
 
 use chrono::{DateTime, Utc};
-use enum_as_inner::EnumAsInner;
 use generational_arena::{Arena, Index};
 use holo_protocol::InstanceChannelsTx;
 use holo_utils::UnboundedSender;
@@ -22,7 +21,7 @@ use tokio::sync::mpsc;
 
 use crate::debug::{Debug, InterfaceInactiveReason};
 use crate::error::{Error, IoError};
-use crate::instance::{Instance, InstanceState};
+use crate::instance::{Instance, InstanceUpView};
 use crate::network::SendDestination;
 use crate::northbound::configuration::InterfaceCfg;
 use crate::packet::AuthCtx;
@@ -31,30 +30,13 @@ use crate::version::Version;
 use crate::{output, tasks};
 
 pub type InterfaceIndex = Index;
-pub type InterfaceUp<V> = InterfaceCommon<V, InterfaceState<V>>;
-pub type InterfaceDown<V> = InterfaceCommon<V, InterfaceStateDown>;
-
-#[derive(Debug, EnumAsInner)]
-pub enum Interface<V: Version> {
-    Up(InterfaceUp<V>),
-    Down(InterfaceDown<V>),
-    // This state is required to allow in-place mutations of Interface.
-    Transitioning,
-}
 
 #[derive(Debug)]
-pub struct InterfaceCommon<V: Version, State> {
-    // Interface state-independent data.
-    pub core: InterfaceCore<V>,
-    // Interface state-dependent data.
-    pub state: State,
-}
-
-#[derive(Debug)]
-pub struct InterfaceCore<V: Version> {
+pub struct Interface<V: Version> {
     pub name: String,
     pub system: InterfaceSys<V>,
     pub config: InterfaceCfg<V>,
+    pub state: InterfaceState<V>,
 }
 
 #[derive(Debug)]
@@ -65,16 +47,15 @@ pub struct InterfaceSys<V: Version> {
     pub addr_list: BTreeSet<V::IpNetwork>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct InterfaceState<V: Version> {
+    // Interface protocol status.
+    pub active: bool,
     // UDP socket and Tx/Rx tasks.
     pub net: Option<InterfaceNet<V>>,
     // Message statistics.
     pub statistics: MessageStatistics,
 }
-
-#[derive(Debug)]
-pub struct InterfaceStateDown();
 
 #[derive(Debug)]
 pub struct InterfaceNet<V: Version> {
@@ -105,7 +86,7 @@ pub struct MessageStatistics {
 
 #[derive(Debug)]
 pub struct Interfaces<V: Version> {
-    pub arena: Arena<Interface<V>>,
+    arena: Arena<Interface<V>>,
     name_tree: BTreeMap<String, InterfaceIndex>,
     ifindex_tree: HashMap<u32, InterfaceIndex>,
 }
@@ -117,7 +98,7 @@ pub trait InterfaceVersion<V: Version> {
     fn get_iface_by_source(
         interfaces: &mut Interfaces<V>,
         source: V::SocketAddr,
-    ) -> Option<(InterfaceIndex, &mut Interface<V>)>;
+    ) -> Option<&mut Interface<V>>;
 }
 
 // ===== impl Interface =====
@@ -129,30 +110,25 @@ where
     fn new(name: String) -> Interface<V> {
         Debug::<V>::InterfaceCreate(&name).log();
 
-        Interface::Down(InterfaceDown {
-            core: InterfaceCore {
-                name,
-                system: InterfaceSys::default(),
-                config: InterfaceCfg::default(),
-            },
-            state: InterfaceStateDown(),
-        })
+        Interface {
+            name,
+            system: InterfaceSys::default(),
+            config: InterfaceCfg::default(),
+            state: InterfaceState::default(),
+        }
     }
 
     // Checks if the interface needs to be started or stopped in response to a
     // northbound or southbound event.
-    pub(crate) fn update(
-        &mut self,
-        instance_state: &mut InstanceState<V>,
-        instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
-    ) {
+    pub(crate) fn update(&mut self, instance: &mut InstanceUpView<'_, V>) {
         match self.is_ready() {
-            Ok(()) if !self.is_active() => {
-                self.start(instance_state, instance_channels_tx);
+            Ok(()) if !self.state.active => {
+                if let Err(error) = self.start(instance) {
+                    Error::<V>::InterfaceStartError(self.name.clone(), error)
+                        .log();
+                }
             }
-            Err(reason) if self.is_active() => {
-                self.stop(instance_state, instance_channels_tx, reason);
-            }
+            Err(reason) if self.state.active => self.stop(instance, reason),
             _ => (),
         }
     }
@@ -160,128 +136,91 @@ where
     // Starts RIP operation on this interface.
     fn start(
         &mut self,
-        instance_state: &mut InstanceState<V>,
-        instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
-    ) {
-        let iface = std::mem::replace(self, Interface::Transitioning)
-            .into_down()
-            .unwrap();
-        match iface.start(instance_state, instance_channels_tx) {
-            Ok(iface) => {
-                *self = Interface::Up(iface);
+        instance: &mut InstanceUpView<'_, V>,
+    ) -> Result<(), IoError> {
+        Debug::<V>::InterfaceStart(&self.name).log();
+
+        // Start network Tx/Rx tasks.
+        if !self.system.flags.contains(InterfaceFlags::LOOPBACK) {
+            let net = InterfaceNet::new(
+                &self.name,
+                self.auth(&instance.state.auth_seqno),
+                instance.tx,
+            )?;
+            if !self.config.no_listen {
+                self.system.join_multicast(&net.socket);
             }
-            Err(error) => {
-                let ifname = self.core().name.clone();
-                Error::<V>::InterfaceStartError(ifname, error).log();
-            }
+            self.state.net = Some(net);
         }
+
+        // Send RIP request.
+        if !self.is_passive() {
+            self.with_destinations(|iface, destination| {
+                output::send_request(instance, iface, destination);
+            });
+        }
+
+        // Mark interface as active.
+        self.state.active = true;
+
+        Ok(())
     }
 
     // Stops RIP operation on this interface.
     pub(crate) fn stop(
         &mut self,
-        instance_state: &mut InstanceState<V>,
-        instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
+        instance: &mut InstanceUpView<'_, V>,
         reason: InterfaceInactiveReason,
     ) {
-        if !self.is_active() {
+        if !self.state.active {
             return;
         }
 
-        let iface = std::mem::replace(self, Interface::Transitioning)
-            .into_up()
-            .unwrap();
-        *self = Interface::Down(iface.stop(
-            instance_state,
-            instance_channels_tx,
-            reason,
-        ));
-    }
+        Debug::<V>::InterfaceStop(&self.name, reason).log();
 
-    // Checks if RIP is operational on this interface.
-    pub(crate) fn is_active(&self) -> bool {
-        matches!(self, Interface::Up(_))
+        // Invalidate all routes that go through this interface.
+        for route in instance
+            .state
+            .routes
+            .values_mut()
+            .filter(|route| route.ifindex == self.system.ifindex.unwrap())
+        {
+            route.invalidate(self.config.flush_interval, instance.tx);
+        }
+
+        // Reset interface state.
+        self.state.active = false;
+        self.state.net = None;
+        self.state.statistics = Default::default();
     }
 
     // Returns whether the interface is ready for RIP operation.
     fn is_ready(&self) -> Result<(), InterfaceInactiveReason> {
-        if !self.core().system.flags.contains(InterfaceFlags::OPERATIVE) {
+        if !self.system.flags.contains(InterfaceFlags::OPERATIVE) {
             return Err(InterfaceInactiveReason::OperationalDown);
         }
 
-        if self.core().system.ifindex.is_none() {
+        if self.system.ifindex.is_none() {
             return Err(InterfaceInactiveReason::MissingIfindex);
         }
 
-        if self.core().system.addr_list.is_empty() {
+        if self.system.addr_list.is_empty() {
             return Err(InterfaceInactiveReason::MissingIpAddress);
         }
 
         Ok(())
     }
 
-    #[inline]
-    pub(crate) fn core(&self) -> &InterfaceCore<V> {
-        match self {
-            Interface::Up(iface) => &iface.core,
-            Interface::Down(iface) => &iface.core,
-            Interface::Transitioning => unreachable!(),
-        }
-    }
-
-    #[inline]
-    pub(crate) fn core_mut(&mut self) -> &mut InterfaceCore<V> {
-        match self {
-            Interface::Up(iface) => &mut iface.core,
-            Interface::Down(iface) => &mut iface.core,
-            Interface::Transitioning => unreachable!(),
-        }
-    }
-}
-
-// ===== impl InterfaceCommon =====
-
-// Active RIP interface.
-impl<V> InterfaceCommon<V, InterfaceState<V>>
-where
-    V: Version,
-{
-    fn stop(
-        self,
-        instance_state: &mut InstanceState<V>,
-        instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
-        reason: InterfaceInactiveReason,
-    ) -> InterfaceCommon<V, InterfaceStateDown> {
-        Debug::<V>::InterfaceStop(&self.core.name, reason).log();
-
-        // Invalidate all routes that go through this interface.
-        for route in instance_state
-            .routes
-            .values_mut()
-            .filter(|route| route.ifindex == self.core.system.ifindex.unwrap())
-        {
-            route.invalidate(
-                self.core.config.flush_interval,
-                instance_channels_tx,
-            );
-        }
-
-        InterfaceCommon::<V, InterfaceStateDown> {
-            core: self.core,
-            state: InterfaceStateDown(),
-        }
-    }
-
     pub(crate) fn is_passive(&self) -> bool {
-        self.core.system.flags.contains(InterfaceFlags::LOOPBACK)
-            || self.core.config.passive
+        self.system.flags.contains(InterfaceFlags::LOOPBACK)
+            || self.config.passive
     }
 
     pub(crate) fn auth(&self, seqno: &Arc<AtomicU32>) -> Option<AuthCtx> {
-        self.core.config.auth_key.as_ref().map(|auth_key| {
+        self.config.auth_key.as_ref().map(|auth_key| {
             AuthCtx::new(
                 auth_key.clone(),
-                self.core.config.auth_algo.unwrap_or(CryptoAlgo::Md5),
+                self.config.auth_algo.unwrap_or(CryptoAlgo::Md5),
                 seqno.clone(),
             )
         })
@@ -291,67 +230,23 @@ where
     // destinations (multicast and unicast).
     pub(crate) fn with_destinations<F>(&mut self, mut f: F)
     where
-        F: FnMut(&mut InterfaceUp<V>, SendDestination<V::SocketAddr>),
+        F: FnMut(&mut Interface<V>, SendDestination<V::SocketAddr>),
     {
         // Multicast dst.
-        let dst = SendDestination::Multicast(self.core.system.ifindex.unwrap());
+        let dst = SendDestination::Multicast(self.system.ifindex.unwrap());
         f(self, dst);
 
         // Unicast destinations (explicit neighbors).
         let explicit_neighbors =
-            std::mem::take(&mut self.core.config.explicit_neighbors);
+            std::mem::take(&mut self.config.explicit_neighbors);
         for nbr_addr in &explicit_neighbors {
-            if self.core.system.contains_addr(nbr_addr) {
+            if self.system.contains_addr(nbr_addr) {
                 let sockaddr = V::SocketAddr::new(*nbr_addr, V::UDP_PORT);
                 let dst = SendDestination::Unicast(sockaddr);
                 f(self, dst);
             }
         }
-        self.core.config.explicit_neighbors = explicit_neighbors;
-    }
-}
-
-// Inactive RIP interface.
-impl<V> InterfaceCommon<V, InterfaceStateDown>
-where
-    V: Version,
-{
-    fn start(
-        self,
-        instance_state: &mut InstanceState<V>,
-        instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
-    ) -> Result<InterfaceCommon<V, InterfaceState<V>>, IoError> {
-        Debug::<V>::InterfaceStart(&self.core.name).log();
-
-        let mut iface = InterfaceCommon {
-            core: self.core,
-            state: InterfaceState {
-                net: None,
-                statistics: Default::default(),
-            },
-        };
-
-        // Start network Tx/Rx tasks.
-        if !iface.core.system.flags.contains(InterfaceFlags::LOOPBACK) {
-            let net = InterfaceNet::new(
-                &iface.core.name,
-                iface.auth(&instance_state.auth_seqno),
-                instance_channels_tx,
-            )?;
-            if !iface.core.config.no_listen {
-                iface.core.system.join_multicast(&net.socket);
-            }
-            iface.state.net = Some(net);
-        }
-
-        // Send RIP request.
-        if !iface.is_passive() {
-            iface.with_destinations(|iface, destination| {
-                output::send_request(instance_state, iface, destination);
-            });
-        }
-
-        Ok(iface)
+        self.config.explicit_neighbors = explicit_neighbors;
     }
 }
 
@@ -490,7 +385,7 @@ where
 
         // Link interface to different collections.
         let iface = &mut self.arena[iface_idx];
-        self.name_tree.insert(iface.core().name.clone(), iface_idx);
+        self.name_tree.insert(iface.name.clone(), iface_idx);
 
         (iface_idx, iface)
     }
@@ -498,11 +393,11 @@ where
     pub(crate) fn delete(&mut self, iface_idx: InterfaceIndex) {
         let iface = &mut self.arena[iface_idx];
 
-        Debug::<V>::InterfaceDelete(&iface.core().name).log();
+        Debug::<V>::InterfaceDelete(&iface.name).log();
 
         // Unlink interface from different collections.
-        self.name_tree.remove(&iface.core().name);
-        if let Some(ifindex) = iface.core().system.ifindex {
+        self.name_tree.remove(&iface.name);
+        if let Some(ifindex) = iface.system.ifindex {
             self.ifindex_tree.remove(&ifindex);
         }
 
@@ -519,10 +414,10 @@ where
         let iface = &mut self.arena[iface_idx];
 
         // Update interface ifindex.
-        if let Some(ifindex) = iface.core().system.ifindex {
+        if let Some(ifindex) = iface.system.ifindex {
             self.ifindex_tree.remove(&ifindex);
         }
-        iface.core_mut().system.ifindex = ifindex;
+        iface.system.ifindex = ifindex;
         if let Some(ifindex) = ifindex {
             self.ifindex_tree.insert(ifindex, iface_idx);
         }

@@ -37,7 +37,7 @@ where
     V: Version,
 {
     fn yang_modules() -> &'static [&'static str] {
-        &["ietf-rip"]
+        &["ietf-rip", "holo-rip"]
     }
 
     fn top_level_node(&self) -> String {

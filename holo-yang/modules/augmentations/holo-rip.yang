@@ -1,0 +1,63 @@
+module holo-rip {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/holo-rip";
+  prefix holo-rip;
+
+  import ietf-routing-types {
+    prefix rt-types;
+  }
+
+  import ietf-routing {
+    prefix rt;
+  }
+
+  import ietf-rip {
+    prefix rip;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines augment statements for the ietf-rip
+     module.";
+
+  /*
+   * Augmentations.
+   */
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/rip:rip" {
+    description
+      "IS-IS instance augmentations";
+
+    container trace-options {
+      description "Instance level trace options for IS-IS.";
+
+      list flag {
+        key name;
+        description "List of tracing options.";
+        leaf name {
+          description
+            "List of tracing options";
+          type enumeration {
+            enum events;
+            enum internal-bus;
+            enum packets;
+            enum route;
+          }
+        }
+        leaf send {
+          description "Trace sent packets.";
+          type boolean;
+          default true;
+        }
+        leaf receive {
+          description "Trace received packets.";
+          type boolean;
+          default true;
+        }
+      }
+    }
+  }
+}

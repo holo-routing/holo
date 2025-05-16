@@ -9,6 +9,7 @@ use std::borrow::Cow;
 use holo_yang::{ToYang, TryFromYang};
 
 use crate::interface::SplitHorizon;
+use crate::northbound::configuration::TraceOption;
 use crate::route::RouteType;
 
 // ===== ToYang implementations =====
@@ -30,6 +31,18 @@ impl TryFromYang for SplitHorizon {
             "disabled" => Some(SplitHorizon::Disabled),
             "simple" => Some(SplitHorizon::Simple),
             "poison-reverse" => Some(SplitHorizon::PoisonReverse),
+            _ => None,
+        }
+    }
+}
+
+impl TryFromYang for TraceOption {
+    fn try_from_yang(value: &str) -> Option<TraceOption> {
+        match value {
+            "events" => Some(TraceOption::Events),
+            "internal-bus" => Some(TraceOption::InternalBus),
+            "packets" => Some(TraceOption::Packets),
+            "route" => Some(TraceOption::Route),
             _ => None,
         }
     }

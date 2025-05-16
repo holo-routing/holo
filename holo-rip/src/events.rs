@@ -39,7 +39,10 @@ pub(crate) fn process_pdu<V>(
         return;
     }
 
-    Debug::<V>::PduRx(iface, src.ip(), &pdu).log();
+    // Log received PDU.
+    if instance.config.trace_opts.packets_rx {
+        Debug::<V>::PduRx(iface, src.ip(), &pdu).log();
+    }
 
     // Update or create new neighbor.
     let nbr = neighbor::update(
@@ -239,8 +242,14 @@ fn process_pdu_response<V>(
                             || nexthop != route.nexthop
                             || rte.tag() != route.tag))
                 {
-                    Debug::<V>::RouteUpdate(&route.prefix, &source, &metric)
+                    if instance.config.trace_opts.route {
+                        Debug::<V>::RouteUpdate(
+                            &route.prefix,
+                            &source,
+                            &metric,
+                        )
                         .log();
+                    }
 
                     let old_metric = route.metric;
 
@@ -299,6 +308,7 @@ fn process_pdu_response<V>(
                     metric,
                     rte.tag(),
                     RouteType::Rip,
+                    &instance.config.trace_opts,
                 );
                 route.nexthop = nexthop;
                 route.rcvd_metric = Some(rte.metric());
@@ -334,7 +344,9 @@ pub(crate) fn process_initial_update<V>(
 ) where
     V: Version,
 {
-    Debug::<V>::InitialUpdate.log();
+    if instance.config.trace_opts.events {
+        Debug::<V>::InitialUpdate.log();
+    }
     instance.state.initial_update_task = None;
     output::send_response_all(instance, interfaces, ResponseType::Normal);
 }
@@ -347,7 +359,9 @@ pub(crate) fn process_update_interval<V>(
 ) where
     V: Version,
 {
-    Debug::<V>::UpdateInterval.log();
+    if instance.config.trace_opts.events {
+        Debug::<V>::UpdateInterval.log();
+    }
     output::send_response_all(instance, interfaces, ResponseType::Normal);
 }
 
@@ -396,7 +410,9 @@ pub(crate) fn process_nbr_timeout<V>(
 ) where
     V: Version,
 {
-    Debug::<V>::NbrTimeout(&addr).log();
+    if instance.config.trace_opts.events {
+        Debug::<V>::NbrTimeout(&addr).log();
+    }
     instance.state.neighbors.remove(&addr);
 }
 
@@ -415,9 +431,15 @@ pub(crate) fn process_route_timeout<V>(
     };
 
     if let Some((_, iface)) = interfaces.get_by_ifindex(route.ifindex) {
-        Debug::<V>::RouteTimeout(&prefix).log();
+        if instance.config.trace_opts.route {
+            Debug::<V>::RouteTimeout(&prefix).log();
+        }
 
-        route.invalidate(iface.config.flush_interval, instance.tx);
+        route.invalidate(
+            iface.config.flush_interval,
+            instance.tx,
+            &instance.config.trace_opts,
+        );
     }
 }
 
@@ -437,6 +459,8 @@ pub(crate) fn process_route_gc_timeout<V>(
         return;
     }
 
-    Debug::<V>::RouteGcTimeout(&prefix).log();
+    if instance.config.trace_opts.route {
+        Debug::<V>::RouteGcTimeout(&prefix).log();
+    }
     instance.state.routes.remove(&prefix);
 }

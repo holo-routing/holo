@@ -32,6 +32,7 @@ pub enum ListEntry<V: Version> {
     None,
     Interface(InterfaceIndex),
     StaticNbr(InterfaceIndex, V::IpAddr),
+    TraceOption(TraceOption),
 }
 
 #[derive(Debug)]
@@ -69,6 +70,7 @@ pub struct InstanceCfg {
     pub update_interval: u16,
     pub invalid_interval: u16,
     pub flush_interval: u16,
+    pub trace_opts: TraceOptions,
 }
 
 #[derive(Debug)]
@@ -82,6 +84,23 @@ pub struct InterfaceCfg<V: Version> {
     pub flush_interval: u16,
     pub auth_key: Option<String>,
     pub auth_algo: Option<CryptoAlgo>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum TraceOption {
+    Events,
+    InternalBus,
+    Packets,
+    Route,
+}
+
+#[derive(Debug, Default)]
+pub struct TraceOptions {
+    pub events: bool,
+    pub ibus: bool,
+    pub packets_tx: bool,
+    pub packets_rx: bool,
+    pub route: bool,
 }
 
 // ===== callbacks =====
@@ -127,6 +146,57 @@ where
         .modify_apply(|instance, args| {
             let flush_interval = args.dnode.get_u16();
             instance.config.flush_interval = flush_interval;
+        })
+        .path(rip::trace_options::flag::PATH)
+        .create_apply(|instance, args| {
+            let trace_opt = args.dnode.get_string_relative("name").unwrap();
+            let trace_opt = TraceOption::try_from_yang(&trace_opt).unwrap();
+            let trace_opts = &mut instance.config.trace_opts;
+            match trace_opt {
+                TraceOption::Events => trace_opts.events = true,
+                TraceOption::InternalBus => trace_opts.ibus = true,
+                TraceOption::Packets => {
+                    trace_opts.packets_tx = true;
+                    trace_opts.packets_rx = true;
+                }
+                TraceOption::Route => trace_opts.route = true,
+            }
+        })
+        .delete_apply(|instance, args| {
+            let trace_opt = args.list_entry.into_trace_option().unwrap();
+            let trace_opts = &mut instance.config.trace_opts;
+            match trace_opt {
+                TraceOption::Events => trace_opts.events = false,
+                TraceOption::InternalBus => trace_opts.ibus = false,
+                TraceOption::Packets => {
+                    trace_opts.packets_tx = false;
+                    trace_opts.packets_rx = false;
+                }
+                TraceOption::Route => trace_opts.route = false,
+            }
+        })
+        .lookup(|_instance, _list_entry, dnode| {
+            let trace_opt = dnode.get_string_relative("name").unwrap();
+            let trace_opt = TraceOption::try_from_yang(&trace_opt).unwrap();
+            ListEntry::TraceOption(trace_opt)
+        })
+        .path(rip::trace_options::flag::send::PATH)
+        .modify_apply(|instance, args| {
+            let trace_opt = args.list_entry.into_trace_option().unwrap();
+            let enable = args.dnode.get_bool();
+            let trace_opts = &mut instance.config.trace_opts;
+            if trace_opt == TraceOption::Packets {
+                trace_opts.packets_tx = enable;
+            }
+        })
+        .path(rip::trace_options::flag::receive::PATH)
+        .modify_apply(|instance, args| {
+            let trace_opt = args.list_entry.into_trace_option().unwrap();
+            let enable = args.dnode.get_bool();
+            let trace_opts = &mut instance.config.trace_opts;
+            if trace_opt == TraceOption::Packets {
+                trace_opts.packets_rx = enable;
+            }
         })
         .path(rip::interfaces::interface::PATH)
         .create_apply(|instance, args| {
@@ -404,12 +474,14 @@ where
                         metric.add(rcvd_metric);
                     }
 
-                    Debug::<V>::RouteUpdate(
-                        &route.prefix,
-                        &route.source,
-                        &metric,
-                    )
-                    .log();
+                    if instance.config.trace_opts.route {
+                        Debug::<V>::RouteUpdate(
+                            &route.prefix,
+                            &route.source,
+                            &metric,
+                        )
+                        .log();
+                    }
 
                     // Update route.
                     route.metric = metric;
@@ -528,6 +600,7 @@ impl Default for InstanceCfg {
             update_interval,
             invalid_interval,
             flush_interval,
+            trace_opts: Default::default(),
         }
     }
 }

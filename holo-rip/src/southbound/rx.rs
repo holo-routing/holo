@@ -147,6 +147,7 @@ fn connected_route_add<V>(
         iface.config.cost,
         0,
         RouteType::Connected,
+        &instance.config.trace_opts,
     );
     instance.state.routes.insert(prefix, route);
 
@@ -167,6 +168,10 @@ fn connected_route_invalidate<V>(
 
     let prefix = addr.apply_mask();
     if let Some(route) = instance.state.routes.get_mut(&prefix) {
-        route.invalidate(iface.config.flush_interval, instance.tx);
+        route.invalidate(
+            iface.config.flush_interval,
+            instance.tx,
+            &instance.config.trace_opts,
+        );
     }
 }

@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use crate::debug::Debug;
 use crate::error::MetricError;
 use crate::instance::Instance;
+use crate::northbound::configuration::TraceOptions;
 use crate::tasks::messages::input::{RouteGcTimeoutMsg, RouteTimeoutMsg};
 use crate::version::Version;
 use crate::{southbound, tasks};
@@ -63,8 +64,11 @@ where
         metric: Metric,
         tag: u16,
         route_type: RouteType,
+        trace_opts: &TraceOptions,
     ) -> Self {
-        Debug::<V>::RouteCreate(&prefix, &source, &metric).log();
+        if trace_opts.route {
+            Debug::<V>::RouteCreate(&prefix, &source, &metric).log();
+        }
 
         Route {
             prefix,
@@ -85,8 +89,11 @@ where
         &mut self,
         flush_interval: u16,
         instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
+        trace_opts: &TraceOptions,
     ) {
-        Debug::<V>::RouteInvalidate(&self.prefix).log();
+        if trace_opts.route {
+            Debug::<V>::RouteInvalidate(&self.prefix).log();
+        }
 
         // Uninstall route.
         southbound::tx::route_uninstall(&instance_channels_tx.ibus, self);

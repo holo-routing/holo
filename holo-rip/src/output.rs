@@ -35,7 +35,10 @@ pub(crate) fn send_pdu<V>(
 ) where
     V: Version,
 {
-    Debug::<V>::PduTx(iface, &pdu).log();
+    // Log PDU being sent.
+    if instance.config.trace_opts.packets_tx {
+        Debug::<V>::PduTx(iface, &pdu).log();
+    }
 
     // Update instance statistics.
     instance.state.statistics.update(pdu.command(), true);
@@ -171,7 +174,9 @@ pub(crate) fn triggered_update<V>(
 ) where
     V: Version,
 {
-    Debug::<V>::TriggeredUpdate.log();
+    if instance.config.trace_opts.events {
+        Debug::<V>::TriggeredUpdate.log();
+    }
 
     // Send routes.
     send_response_all(instance, interfaces, ResponseType::Triggered);

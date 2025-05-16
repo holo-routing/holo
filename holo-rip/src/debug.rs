@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use holo_utils::ibus::IbusMsg;
 use tracing::{debug, debug_span};
 
 use crate::interface::Interface;
@@ -37,6 +38,7 @@ pub enum Debug<'a, V: Version> {
     RouteTimeout(&'a V::IpNetwork),
     RouteGcTimeout(&'a V::IpNetwork),
     RouteInvalidate(&'a V::IpNetwork),
+    IbusRx(&'a IbusMsg),
 }
 
 // Reason why an RIP instance is inactive.
@@ -135,6 +137,15 @@ where
                 // Parent span(s): rip-instance
                 debug!(%prefix, "{}", self);
             }
+            Debug::IbusRx(msg) => {
+                // Parent span(s): rip-instance
+                debug_span!("internal-bus").in_scope(|| {
+                    debug_span!("input").in_scope(|| {
+                        let data = serde_json::to_string(&msg).unwrap();
+                        debug!(%data, "{}", self);
+                    })
+                })
+            }
         }
     }
 }
@@ -201,6 +212,9 @@ where
             }
             Debug::RouteInvalidate(..) => {
                 write!(f, "route invalidated")
+            }
+            Debug::IbusRx(..) => {
+                write!(f, "message")
             }
         }
     }

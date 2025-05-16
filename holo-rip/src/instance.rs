@@ -440,6 +440,10 @@ async fn process_ibus_msg<V>(
 where
     V: Version,
 {
+    if instance.config.trace_opts.ibus {
+        Debug::<V>::IbusRx(&msg).log();
+    }
+
     match msg {
         // Interface update notification.
         IbusMsg::InterfaceUpd(msg) => {

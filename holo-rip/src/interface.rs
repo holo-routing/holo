@@ -185,7 +185,11 @@ where
             .values_mut()
             .filter(|route| route.ifindex == self.system.ifindex.unwrap())
         {
-            route.invalidate(self.config.flush_interval, instance.tx);
+            route.invalidate(
+                self.config.flush_interval,
+                instance.tx,
+                &instance.config.trace_opts,
+            );
         }
 
         // Reset interface state.

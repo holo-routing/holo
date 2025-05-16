@@ -9,6 +9,7 @@ use std::net::{
     IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6,
 };
 
+use arbitrary::Arbitrary;
 use holo_yang::{ToYang, TryFromYang};
 use ipnetwork::{IpNetwork, IpNetworkError, Ipv4Network, Ipv6Network};
 use num_derive::{FromPrimitive, ToPrimitive};
@@ -22,6 +23,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
+#[derive(Arbitrary)]
 pub enum AddressFamily {
     Ipv4 = 1,
     Ipv6 = 2,

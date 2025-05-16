@@ -256,7 +256,7 @@ impl Attrs {
         }
     }
 
-    pub(crate) fn decode(
+    pub fn decode(
         buf: &mut Bytes,
         cxt: &DecodeCxt,
         nexthop: &mut Option<Ipv4Addr>,
@@ -318,6 +318,7 @@ impl Attrs {
                 }
                 buf.get_u8() as usize
             };
+
             if attr_len > buf.remaining() {
                 withdraw = true;
                 break;
@@ -750,11 +751,15 @@ impl AsPathSegment {
         }
     }
 
-    fn decode(
+    pub fn decode(
         buf: &mut Bytes,
         attr_type: AttrType,
         four_byte_asns: bool,
     ) -> Result<Self, AttrError> {
+        if buf.remaining() < Self::MIN_LEN as usize {
+            return Err(AttrError::Discard);
+        }
+
         // Decode segment type.
         let seg_type = buf.get_u8();
         let Some(seg_type) = AsPathSegmentType::from_u8(seg_type) else {
@@ -766,7 +771,7 @@ impl AsPathSegment {
         };
 
         // Decode segment length.
-        let seg_len = buf.get_u8();
+        let seg_len = buf.try_get_u8().map_err(|_| AttrError::Discard)?;
         if seg_len == 0 {
             if attr_type == AttrType::AsPath {
                 return Err(AttrError::Withdraw);
@@ -776,10 +781,19 @@ impl AsPathSegment {
         }
 
         // Decode segment members.
-        let members = (0..seg_len as usize)
+        let members: Vec<Option<u32>> = (0..seg_len as usize)
             .map(|_| decode_asn(buf, four_byte_asns))
             .collect();
-        let segment = AsPathSegment { seg_type, members };
+
+        // Ensure all the segment numbers decoded were valid.
+        if members.iter().any(|member| member.is_none()) {
+            return Err(AttrError::Discard);
+        }
+
+        let segment = AsPathSegment {
+            seg_type,
+            members: members.into_iter().map(|m| m.unwrap()).collect(),
+        };
 
         // RFC 7607's AS 0 processing.
         if segment.contains(0) {
@@ -973,7 +987,10 @@ impl Aggregator {
             return Err(AttrError::Discard);
         }
 
-        let asn = decode_asn(buf, four_byte_asns);
+        let asn = match decode_asn(buf, four_byte_asns) {
+            Some(asn) => asn,
+            None => return Err(AttrError::Discard),
+        };
         let identifier = buf.get_ipv4();
 
         // RFC 7607's AS 0 processing.
@@ -1128,7 +1145,7 @@ impl MpReachNlri {
         buf[start_pos..start_pos + 2].copy_from_slice(&attr_len.to_be_bytes());
     }
 
-    fn decode(
+    pub fn decode(
         buf: &mut Bytes,
         mp_reach: &mut Option<Self>,
     ) -> Result<(), AttrError> {
@@ -1181,7 +1198,8 @@ impl MpReachNlri {
                 let mut ll_nexthop = None;
 
                 // Parse nexthops(s).
-                let nexthop_len = buf.get_u8() as usize;
+                let nexthop_len =
+                    buf.try_get_u8().map_err(|_| AttrError::Reset)? as usize;
                 if (nexthop_len != Ipv6Addr::LENGTH
                     && nexthop_len != Ipv6Addr::LENGTH * 2)
                     || nexthop_len > buf.remaining()
@@ -1194,7 +1212,8 @@ impl MpReachNlri {
                 }
 
                 // Parse prefixes.
-                let _reserved = buf.get_u8();
+                let _reserved =
+                    buf.try_get_u8().map_err(|_| AttrError::Reset)?;
                 while buf.remaining() > 0 {
                     if let Some(prefix) =
                         decode_ipv6_prefix(buf).map_err(|_| AttrError::Reset)?
@@ -1464,10 +1483,13 @@ fn encode_asn(buf: &mut BytesMut, asn: u32, four_byte_asns: bool) {
     }
 }
 
-fn decode_asn(buf: &mut Bytes, four_byte_asns: bool) -> u32 {
+fn decode_asn(buf: &mut Bytes, four_byte_asns: bool) -> Option<u32> {
     if four_byte_asns {
-        buf.get_u32()
+        buf.try_get_u32().ok()
     } else {
-        buf.get_u16() as u32
+        match buf.try_get_u16() {
+            Ok(asn) => Some(asn as u32),
+            Err(_) => None,
+        }
     }
 }

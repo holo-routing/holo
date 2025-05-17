@@ -994,6 +994,7 @@ dependencies = [
 name = "holo-bgp"
 version = "0.7.0"
 dependencies = [
+ "arc-swap",
  "async-trait",
  "bitflags 2.9.0",
  "bytes",

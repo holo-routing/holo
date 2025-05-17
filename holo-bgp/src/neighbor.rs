@@ -221,7 +221,9 @@ impl Neighbor {
         instance: &mut InstanceUpView<'_>,
         event: fsm::Event,
     ) {
-        Debug::NbrFsmEvent(&self.remote_addr, &event).log();
+        if self.config.trace_opts.events_resolved {
+            Debug::NbrFsmEvent(&self.remote_addr, &event).log();
+        }
 
         // Process FSM event.
         let rib = &mut instance.state.rib;
@@ -481,8 +483,14 @@ impl Neighbor {
         instance: &mut InstanceUpView<'_>,
         next_state: fsm::State,
     ) {
-        Debug::NbrFsmTransition(&self.remote_addr, &self.state, &next_state)
+        if self.config.trace_opts.events_resolved {
+            Debug::NbrFsmTransition(
+                &self.remote_addr,
+                &self.state,
+                &next_state,
+            )
             .log();
+        }
 
         // Send YANG-modeled notification.
         if next_state == fsm::State::Established {
@@ -617,7 +625,9 @@ impl Neighbor {
 
     // Enqueues a single BGP message for transmission.
     pub(crate) fn message_send(&mut self, msg: Message) {
-        Debug::NbrMsgTx(&self.remote_addr, &msg).log();
+        if self.config.trace_opts.packets_resolved.load().tx(&msg) {
+            Debug::NbrMsgTx(&self.remote_addr, &msg).log();
+        }
 
         // Update statistics.
         self.statistics.msgs_sent.update(&msg);
@@ -640,7 +650,9 @@ impl Neighbor {
     // as they are sent all at once.
     pub(crate) fn message_list_send(&mut self, msg_list: Vec<Message>) {
         for msg in &msg_list {
-            Debug::NbrMsgTx(&self.remote_addr, msg).log();
+            if self.config.trace_opts.packets_resolved.load().tx(msg) {
+                Debug::NbrMsgTx(&self.remote_addr, msg).log();
+            }
 
             // Update statistics.
             self.statistics.msgs_sent.update(msg);

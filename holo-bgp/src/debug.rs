@@ -6,6 +6,7 @@
 
 use std::net::IpAddr;
 
+use holo_utils::ibus::IbusMsg;
 use ipnetwork::IpNetwork;
 use tracing::{debug, debug_span};
 
@@ -30,6 +31,7 @@ pub enum Debug<'a> {
     BestPathFound(IpNetwork, &'a Route),
     BestPathNotFound(IpNetwork),
     NhtUpdate(IpAddr, Option<u32>),
+    IbusRx(&'a IbusMsg),
 }
 
 // Reason why an BGP instance is inactive.
@@ -109,6 +111,15 @@ impl Debug<'_> {
                     debug!(%addr, metric="unreachable", "{}", self);
                 }
             }
+            Debug::IbusRx(msg) => {
+                // Parent span(s): bgp-instance
+                debug_span!("internal-bus").in_scope(|| {
+                    debug_span!("input").in_scope(|| {
+                        let data = serde_json::to_string(&msg).unwrap();
+                        debug!(%data, "{}", self);
+                    })
+                })
+            }
         }
     }
 }
@@ -148,6 +159,9 @@ impl std::fmt::Display for Debug<'_> {
             }
             Debug::NhtUpdate(..) => {
                 write!(f, "nexthop tracking update")
+            }
+            Debug::IbusRx(..) => {
+                write!(f, "message")
             }
         }
     }

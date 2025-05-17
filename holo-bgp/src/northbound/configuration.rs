@@ -8,8 +8,9 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::net::{IpAddr, Ipv4Addr};
-use std::sync::LazyLock as Lazy;
+use std::sync::{Arc, LazyLock as Lazy};
 
+use arc_swap::ArcSwap;
 use async_trait::async_trait;
 use enum_as_inner::EnumAsInner;
 use holo_northbound::configuration::{
@@ -29,7 +30,7 @@ use crate::instance::{Instance, InstanceUpView};
 use crate::neighbor::{Neighbor, PeerType, fsm};
 use crate::network;
 use crate::packet::consts::{CeaseSubcode, ErrorCode};
-use crate::packet::message::NotificationMsg;
+use crate::packet::message::{Message, NotificationMsg};
 use crate::rib::RouteOrigin;
 
 #[derive(Debug, Default, EnumAsInner)]
@@ -38,8 +39,10 @@ pub enum ListEntry {
     None,
     AfiSafi(AfiSafi),
     Redistribution(AfiSafi, Protocol),
+    TraceOption(InstanceTraceOption),
     Neighbor(IpAddr),
     NeighborAfiSafi(IpAddr, AfiSafi),
+    NeighborTraceOption(IpAddr, NeighborTraceOption),
 }
 
 #[derive(Debug)]
@@ -54,6 +57,7 @@ pub enum Event {
     NeighborUpdateAuth(IpAddr),
     RedistributeIbusSub(Protocol, AddressFamily),
     RedistributeDelete(Protocol, AddressFamily, AfiSafi),
+    UpdateTraceOptions,
 }
 
 pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
@@ -71,6 +75,7 @@ pub struct InstanceCfg {
     pub route_selection: RouteSelectionCfg,
     pub apply_policy: ApplyPolicyCfg,
     pub afi_safi: BTreeMap<AfiSafi, InstanceAfiSafiCfg>,
+    pub trace_opts: InstanceTraceOptions,
 }
 
 #[derive(Debug)]
@@ -98,6 +103,29 @@ pub struct InstanceAfiSafiCfg {
     pub redistribution: HashMap<Protocol, RedistributionCfg>,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub enum InstanceTraceOption {
+    Events,
+    InternalBus,
+    Nht,
+    PacketsAll,
+    PacketsOpen,
+    PacketsUpdate,
+    PacketsNotification,
+    PacketsKeepalive,
+    PacketsRefresh,
+    Route,
+}
+
+#[derive(Debug, Default)]
+pub struct InstanceTraceOptions {
+    pub events: bool,
+    pub ibus: bool,
+    pub nht: bool,
+    pub packets: TraceOptionPacket,
+    pub route: bool,
+}
+
 #[derive(Debug)]
 pub struct NeighborCfg {
     pub enabled: bool,
@@ -111,6 +139,7 @@ pub struct NeighborCfg {
     pub apply_policy: ApplyPolicyCfg,
     pub prefix_limit: PrefixLimitCfg,
     pub afi_safi: BTreeMap<AfiSafi, NeighborAfiSafiCfg>,
+    pub trace_opts: NeighborTraceOptions,
 }
 
 #[derive(Debug)]
@@ -141,6 +170,25 @@ pub struct NeighborAfiSafiCfg {
     pub prefix_limit: PrefixLimitCfg,
     pub send_default_route: bool,
     pub apply_policy: ApplyPolicyCfg,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum NeighborTraceOption {
+    Events,
+    PacketsAll,
+    PacketsOpen,
+    PacketsUpdate,
+    PacketsNotification,
+    PacketsKeepalive,
+    PacketsRefresh,
+}
+
+#[derive(Debug, Default)]
+pub struct NeighborTraceOptions {
+    pub events: Option<bool>,
+    pub events_resolved: bool,
+    pub packets: TraceOptionPacket,
+    pub packets_resolved: Arc<ArcSwap<TraceOptionPacketResolved>>,
 }
 
 #[derive(Debug)]
@@ -174,6 +222,31 @@ pub struct AsPathOptions {
 pub enum PrivateAsRemove {
     RemoveAll,
     ReplaceAll,
+}
+
+#[derive(Debug, Default)]
+pub struct TraceOptionPacket {
+    pub all: Option<TraceOptionPacketType>,
+    pub open: Option<TraceOptionPacketType>,
+    pub update: Option<TraceOptionPacketType>,
+    pub notification: Option<TraceOptionPacketType>,
+    pub keepalive: Option<TraceOptionPacketType>,
+    pub refresh: Option<TraceOptionPacketType>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct TraceOptionPacketResolved {
+    pub open: TraceOptionPacketType,
+    pub update: TraceOptionPacketType,
+    pub notification: TraceOptionPacketType,
+    pub keepalive: TraceOptionPacketType,
+    pub refresh: TraceOptionPacketType,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct TraceOptionPacketType {
+    pub tx: bool,
+    pub rx: bool,
 }
 
 // ===== callbacks =====
@@ -607,6 +680,105 @@ fn load_callbacks() -> Callbacks<Instance> {
             let default = args.dnode.get_string();
             let default = DefaultPolicyType::try_from_yang(&default).unwrap();
             instance.config.apply_policy.default_export_policy = default;
+        })
+        .path(bgp::global::trace_options::flag::PATH)
+        .create_apply(|instance, args| {
+            let trace_opt = args.dnode.get_string_relative("name").unwrap();
+            let trace_opt = InstanceTraceOption::try_from_yang(&trace_opt).unwrap();
+            let trace_opts = &mut instance.config.trace_opts;
+            match trace_opt {
+                InstanceTraceOption::InternalBus => trace_opts.ibus = true,
+                InstanceTraceOption::Nht => trace_opts.nht = true,
+                InstanceTraceOption::Events => trace_opts.events = true,
+                InstanceTraceOption::PacketsAll => {
+                    trace_opts.packets.all.get_or_insert_default();
+                }
+                InstanceTraceOption::PacketsOpen => {
+                    trace_opts.packets.open.get_or_insert_default();
+                }
+                InstanceTraceOption::PacketsUpdate => {
+                    trace_opts.packets.update.get_or_insert_default();
+                }
+                InstanceTraceOption::PacketsNotification => {
+                    trace_opts.packets.notification.get_or_insert_default();
+                }
+                InstanceTraceOption::PacketsKeepalive => {
+                    trace_opts.packets.keepalive.get_or_insert_default();
+                }
+                InstanceTraceOption::PacketsRefresh => {
+                    trace_opts.packets.refresh.get_or_insert_default();
+                }
+                InstanceTraceOption::Route => trace_opts.route = true,
+            }
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
+        })
+        .delete_apply(|instance, args| {
+            let trace_opt = args.list_entry.into_trace_option().unwrap();
+            let trace_opts = &mut instance.config.trace_opts;
+            match trace_opt {
+                InstanceTraceOption::Events => trace_opts.events = false,
+                InstanceTraceOption::InternalBus => trace_opts.ibus = false,
+                InstanceTraceOption::Nht => trace_opts.nht = false,
+                InstanceTraceOption::PacketsAll => trace_opts.packets.all = None,
+                InstanceTraceOption::PacketsOpen => trace_opts.packets.open = None,
+                InstanceTraceOption::PacketsUpdate => trace_opts.packets.update = None,
+                InstanceTraceOption::PacketsNotification => trace_opts.packets.notification = None,
+                InstanceTraceOption::PacketsKeepalive => trace_opts.packets.keepalive = None,
+                InstanceTraceOption::PacketsRefresh => trace_opts.packets.refresh = None,
+                InstanceTraceOption::Route => trace_opts.route = false,
+            }
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
+        })
+        .lookup(|_instance, _list_entry, dnode| {
+            let trace_opt = dnode.get_string_relative("name").unwrap();
+            let trace_opt = InstanceTraceOption::try_from_yang(&trace_opt).unwrap();
+            ListEntry::TraceOption(trace_opt)
+        })
+        .path(bgp::global::trace_options::flag::send::PATH)
+        .modify_apply(|instance, args| {
+            let trace_opt = args.list_entry.into_trace_option().unwrap();
+            let enable = args.dnode.get_bool();
+            let trace_opts = &mut instance.config.trace_opts;
+            let Some(trace_opt_packet) = (match trace_opt {
+                InstanceTraceOption::PacketsAll => trace_opts.packets.all.as_mut(),
+                InstanceTraceOption::PacketsOpen => trace_opts.packets.open.as_mut(),
+                InstanceTraceOption::PacketsUpdate => trace_opts.packets.update.as_mut(),
+                InstanceTraceOption::PacketsNotification => trace_opts.packets.notification.as_mut(),
+                InstanceTraceOption::PacketsKeepalive => trace_opts.packets.keepalive.as_mut(),
+                InstanceTraceOption::PacketsRefresh => trace_opts.packets.refresh.as_mut(),
+                _ => None,
+            }) else {
+                return;
+            };
+            trace_opt_packet.tx = enable;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
+        })
+        .path(bgp::global::trace_options::flag::receive::PATH)
+        .modify_apply(|instance, args| {
+            let trace_opt = args.list_entry.into_trace_option().unwrap();
+            let enable = args.dnode.get_bool();
+            let trace_opts = &mut instance.config.trace_opts;
+            let Some(trace_opt_packet) = (match trace_opt {
+                InstanceTraceOption::PacketsAll => trace_opts.packets.all.as_mut(),
+                InstanceTraceOption::PacketsOpen => trace_opts.packets.open.as_mut(),
+                InstanceTraceOption::PacketsUpdate => trace_opts.packets.update.as_mut(),
+                InstanceTraceOption::PacketsNotification => trace_opts.packets.notification.as_mut(),
+                InstanceTraceOption::PacketsKeepalive => trace_opts.packets.keepalive.as_mut(),
+                InstanceTraceOption::PacketsRefresh => trace_opts.packets.refresh.as_mut(),
+                _ => None,
+            }) else {
+                return;
+            };
+            trace_opt_packet.rx = enable;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
         })
         .path(bgp::neighbors::neighbor::PATH)
         .create_apply(|instance, args| {
@@ -1258,6 +1430,109 @@ fn load_callbacks() -> Callbacks<Instance> {
             let send = args.dnode.get_bool();
             afi_safi.send_default_route = send;
         })
+        .path(bgp::neighbors::neighbor::trace_options::flag::PATH)
+        .create_apply(|instance, args| {
+            let nbr_addr = args.list_entry.into_neighbor().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+
+            let trace_opt = args.dnode.get_string_relative("name").unwrap();
+            let trace_opt = NeighborTraceOption::try_from_yang(&trace_opt).unwrap();
+            let trace_opts = &mut nbr.config.trace_opts;
+            match trace_opt {
+                NeighborTraceOption::Events => trace_opts.events = Some(true),
+                NeighborTraceOption::PacketsAll => {
+                    trace_opts.packets.all.get_or_insert_default();
+                }
+                NeighborTraceOption::PacketsOpen => {
+                    trace_opts.packets.open.get_or_insert_default();
+                }
+                NeighborTraceOption::PacketsUpdate => {
+                    trace_opts.packets.update.get_or_insert_default();
+                }
+                NeighborTraceOption::PacketsNotification => {
+                    trace_opts.packets.notification.get_or_insert_default();
+                }
+                NeighborTraceOption::PacketsKeepalive => {
+                    trace_opts.packets.keepalive.get_or_insert_default();
+                }
+                NeighborTraceOption::PacketsRefresh => {
+                    trace_opts.packets.refresh.get_or_insert_default();
+                }
+            }
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
+        })
+        .delete_apply(|instance, args| {
+            let (nbr_addr, trace_opt) = args.list_entry.into_neighbor_trace_option().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+
+            let trace_opts = &mut nbr.config.trace_opts;
+            match trace_opt {
+                NeighborTraceOption::Events => trace_opts.events = None,
+                NeighborTraceOption::PacketsAll => trace_opts.packets.all = None,
+                NeighborTraceOption::PacketsOpen => trace_opts.packets.open = None,
+                NeighborTraceOption::PacketsUpdate => trace_opts.packets.update = None,
+                NeighborTraceOption::PacketsNotification => trace_opts.packets.notification = None,
+                NeighborTraceOption::PacketsKeepalive => trace_opts.packets.keepalive = None,
+                NeighborTraceOption::PacketsRefresh => trace_opts.packets.refresh = None,
+            }
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
+        })
+        .lookup(|_instance, list_entry, dnode| {
+            let nbr_addr = list_entry.into_neighbor().unwrap();
+            let trace_opt = dnode.get_string_relative("name").unwrap();
+            let trace_opt = NeighborTraceOption::try_from_yang(&trace_opt).unwrap();
+            ListEntry::NeighborTraceOption(nbr_addr, trace_opt)
+        })
+        .path(bgp::neighbors::neighbor::trace_options::flag::send::PATH)
+        .modify_apply(|instance, args| {
+            let (nbr_addr, trace_opt) = args.list_entry.into_neighbor_trace_option().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+
+            let enable = args.dnode.get_bool();
+            let trace_opts = &mut nbr.config.trace_opts;
+            let Some(trace_opt_packet) = (match trace_opt {
+                NeighborTraceOption::PacketsAll => trace_opts.packets.all.as_mut(),
+                NeighborTraceOption::PacketsOpen => trace_opts.packets.open.as_mut(),
+                NeighborTraceOption::PacketsUpdate => trace_opts.packets.update.as_mut(),
+                NeighborTraceOption::PacketsNotification => trace_opts.packets.notification.as_mut(),
+                NeighborTraceOption::PacketsKeepalive => trace_opts.packets.keepalive.as_mut(),
+                NeighborTraceOption::PacketsRefresh => trace_opts.packets.refresh.as_mut(),
+                _ => None,
+            }) else {
+                return;
+            };
+            trace_opt_packet.tx = enable;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
+        })
+        .path(bgp::neighbors::neighbor::trace_options::flag::receive::PATH)
+        .modify_apply(|instance, args| {
+            let (nbr_addr, trace_opt) = args.list_entry.into_neighbor_trace_option().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+
+            let enable = args.dnode.get_bool();
+            let trace_opts = &mut nbr.config.trace_opts;
+            let Some(trace_opt_packet) = (match trace_opt {
+                NeighborTraceOption::PacketsAll => trace_opts.packets.all.as_mut(),
+                NeighborTraceOption::PacketsOpen => trace_opts.packets.open.as_mut(),
+                NeighborTraceOption::PacketsUpdate => trace_opts.packets.update.as_mut(),
+                NeighborTraceOption::PacketsNotification => trace_opts.packets.notification.as_mut(),
+                NeighborTraceOption::PacketsKeepalive => trace_opts.packets.keepalive.as_mut(),
+                NeighborTraceOption::PacketsRefresh => trace_opts.packets.refresh.as_mut(),
+                _ => None,
+            }) else {
+                return;
+            };
+            trace_opt_packet.rx = enable;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateTraceOptions);
+        })
         .build()
 }
 
@@ -1384,6 +1659,89 @@ impl Provider for Instance {
                     }
                 }
             }
+            Event::UpdateTraceOptions => {
+                for nbr in self.neighbors.values_mut() {
+                    let nbr_trace_opts = &nbr.config.trace_opts;
+                    let instance_trace_opts = &self.config.trace_opts;
+
+                    let disabled = TraceOptionPacketType {
+                        tx: false,
+                        rx: false,
+                    };
+                    let open = nbr_trace_opts
+                        .packets
+                        .open
+                        .or(nbr_trace_opts.packets.all)
+                        .or(instance_trace_opts.packets.open)
+                        .or(instance_trace_opts.packets.all)
+                        .unwrap_or(disabled);
+                    let update = nbr_trace_opts
+                        .packets
+                        .update
+                        .or(nbr_trace_opts.packets.all)
+                        .or(instance_trace_opts.packets.update)
+                        .or(instance_trace_opts.packets.all)
+                        .unwrap_or(disabled);
+                    let notification = nbr_trace_opts
+                        .packets
+                        .notification
+                        .or(nbr_trace_opts.packets.all)
+                        .or(instance_trace_opts.packets.notification)
+                        .or(instance_trace_opts.packets.all)
+                        .unwrap_or(disabled);
+                    let keepalive = nbr_trace_opts
+                        .packets
+                        .keepalive
+                        .or(nbr_trace_opts.packets.all)
+                        .or(instance_trace_opts.packets.keepalive)
+                        .or(instance_trace_opts.packets.all)
+                        .unwrap_or(disabled);
+                    let refresh = nbr_trace_opts
+                        .packets
+                        .refresh
+                        .or(nbr_trace_opts.packets.all)
+                        .or(instance_trace_opts.packets.refresh)
+                        .or(instance_trace_opts.packets.all)
+                        .unwrap_or(disabled);
+
+                    nbr.config.trace_opts.events_resolved = nbr_trace_opts
+                        .events
+                        .unwrap_or(instance_trace_opts.events);
+                    nbr.config.trace_opts.packets_resolved.store(Arc::new(
+                        TraceOptionPacketResolved {
+                            open,
+                            update,
+                            notification,
+                            keepalive,
+                            refresh,
+                        },
+                    ));
+                }
+            }
+        }
+    }
+}
+
+// ===== configuration helpers =====
+
+impl TraceOptionPacketResolved {
+    pub(crate) fn tx(&self, msg: &Message) -> bool {
+        match msg {
+            Message::Open(_) => self.open.tx,
+            Message::Update(_) => self.update.tx,
+            Message::Notification(_) => self.notification.tx,
+            Message::Keepalive(_) => self.keepalive.tx,
+            Message::RouteRefresh(_) => self.refresh.tx,
+        }
+    }
+
+    pub(crate) fn rx(&self, msg: &Message) -> bool {
+        match msg {
+            Message::Open(_) => self.open.rx,
+            Message::Update(_) => self.update.rx,
+            Message::Notification(_) => self.notification.rx,
+            Message::Keepalive(_) => self.keepalive.rx,
+            Message::RouteRefresh(_) => self.refresh.rx,
         }
     }
 }
@@ -1426,6 +1784,7 @@ impl Default for InstanceCfg {
             route_selection: Default::default(),
             apply_policy: Default::default(),
             afi_safi: Default::default(),
+            trace_opts: Default::default(),
         }
     }
 }
@@ -1491,6 +1850,7 @@ impl Default for NeighborCfg {
             apply_policy: Default::default(),
             prefix_limit: Default::default(),
             afi_safi: Default::default(),
+            trace_opts: Default::default(),
         }
     }
 }
@@ -1580,5 +1940,30 @@ impl Default for AsPathOptions {
             replace_peer_as: false,
             disable_peer_as_filter: false,
         }
+    }
+}
+
+impl Default for TraceOptionPacketResolved {
+    fn default() -> TraceOptionPacketResolved {
+        let disabled = TraceOptionPacketType {
+            tx: false,
+            rx: false,
+        };
+        TraceOptionPacketResolved {
+            open: disabled,
+            update: disabled,
+            notification: disabled,
+            keepalive: disabled,
+            refresh: disabled,
+        }
+    }
+}
+
+impl Default for TraceOptionPacketType {
+    fn default() -> TraceOptionPacketType {
+        let tx = bgp::global::trace_options::flag::send::DFLT;
+        let rx = bgp::global::trace_options::flag::receive::DFLT;
+
+        TraceOptionPacketType { tx, rx }
     }
 }

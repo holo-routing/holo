@@ -20,7 +20,7 @@ use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
 use crate::debug::Debug;
 use crate::neighbor::{Neighbor, PeerType};
 use crate::northbound::configuration::{
-    DistanceCfg, MultipathCfg, RouteSelectionCfg,
+    DistanceCfg, InstanceTraceOptions, MultipathCfg, RouteSelectionCfg,
 };
 use crate::packet::attribute::{
     Attrs, BaseAttrs, Comms, ExtComms, Extv6Comms, LargeComms, UnknownAttr,
@@ -761,12 +761,15 @@ pub(crate) fn loc_rib_update<A>(
     selection_cfg: &RouteSelectionCfg,
     mpath_cfg: &MultipathCfg,
     distance_cfg: &DistanceCfg,
+    trace_opts: &InstanceTraceOptions,
     ibus_tx: &IbusChannelsTx,
 ) where
     A: AddressFamily,
 {
     if let Some(best_route) = best_route {
-        Debug::BestPathFound(prefix.into(), &best_route).log();
+        if trace_opts.route {
+            Debug::BestPathFound(prefix.into(), &best_route).log();
+        }
 
         // Compute route nexthops, considering multipath configuration.
         let nexthops =
@@ -807,7 +810,9 @@ pub(crate) fn loc_rib_update<A>(
         // Insert local route into the Loc-RIB.
         dest.local = Some(Box::new(local_route));
     } else {
-        Debug::BestPathNotFound(prefix.into()).log();
+        if trace_opts.route {
+            Debug::BestPathNotFound(prefix.into()).log();
+        }
 
         // Remove route from the Loc-RIB.
         if let Some(local_route) = dest.local.take() {

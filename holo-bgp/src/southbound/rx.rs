@@ -38,7 +38,9 @@ pub(crate) fn process_nht_update(
         return;
     };
 
-    Debug::NhtUpdate(addr, metric).log();
+    if instance.config.trace_opts.nht {
+        Debug::NhtUpdate(addr, metric).log();
+    }
 
     process_nht_update_af::<Ipv4Unicast>(&mut instance, addr, metric);
     process_nht_update_af::<Ipv6Unicast>(&mut instance, addr, metric);

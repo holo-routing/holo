@@ -10,7 +10,9 @@ use holo_yang::{ToYang, TryFromYang};
 use num_traits::FromPrimitive;
 
 use crate::neighbor::{PeerType, fsm};
-use crate::northbound::configuration::PrivateAsRemove;
+use crate::northbound::configuration::{
+    InstanceTraceOption, NeighborTraceOption, PrivateAsRemove,
+};
 use crate::packet::consts::{
     AddPathMode, AsPathSegmentType, CapabilityCode, CeaseSubcode, ErrorCode,
     FsmErrorSubcode, MessageHeaderErrorSubcode, OpenMessageErrorSubcode,
@@ -338,6 +340,43 @@ impl TryFromYang for PrivateAsRemove {
             "iana-bgp-types:private-as-replace-all" => {
                 Some(PrivateAsRemove::ReplaceAll)
             }
+            _ => None,
+        }
+    }
+}
+
+impl TryFromYang for InstanceTraceOption {
+    fn try_from_yang(value: &str) -> Option<InstanceTraceOption> {
+        match value {
+            "events" => Some(InstanceTraceOption::Events),
+            "internal-bus" => Some(InstanceTraceOption::InternalBus),
+            "nexthop-tracking" => Some(InstanceTraceOption::Nht),
+            "packets-all" => Some(InstanceTraceOption::PacketsAll),
+            "packets-open" => Some(InstanceTraceOption::PacketsOpen),
+            "packets-update" => Some(InstanceTraceOption::PacketsUpdate),
+            "packets-notification" => {
+                Some(InstanceTraceOption::PacketsNotification)
+            }
+            "packets-keepalive" => Some(InstanceTraceOption::PacketsKeepalive),
+            "packets-refresh" => Some(InstanceTraceOption::PacketsRefresh),
+            "route" => Some(InstanceTraceOption::Route),
+            _ => None,
+        }
+    }
+}
+
+impl TryFromYang for NeighborTraceOption {
+    fn try_from_yang(value: &str) -> Option<NeighborTraceOption> {
+        match value {
+            "events" => Some(NeighborTraceOption::Events),
+            "packets-all" => Some(NeighborTraceOption::PacketsAll),
+            "packets-open" => Some(NeighborTraceOption::PacketsOpen),
+            "packets-update" => Some(NeighborTraceOption::PacketsUpdate),
+            "packets-notification" => {
+                Some(NeighborTraceOption::PacketsNotification)
+            }
+            "packets-keepalive" => Some(NeighborTraceOption::PacketsKeepalive),
+            "packets-refresh" => Some(NeighborTraceOption::PacketsRefresh),
             _ => None,
         }
     }

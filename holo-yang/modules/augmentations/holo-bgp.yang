@@ -77,6 +77,44 @@ module holo-bgp {
    */
 
   augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/bgp:bgp/bgp:global" {
+    container trace-options {
+      description "Instance level trace options for BGP.";
+
+      list flag {
+        key name;
+        description "List of tracing options.";
+        leaf name {
+          description
+            "List of tracing options";
+          type enumeration {
+            enum internal-bus;
+            enum events;
+            enum nexthop-tracking;
+            enum packets-all;
+            enum packets-open;
+            enum packets-update;
+            enum packets-notification;
+            enum packets-keepalive;
+            enum packets-refresh;
+            enum route;
+          }
+        }
+        leaf send {
+          description "Trace sent packets.";
+          type boolean;
+          default true;
+        }
+        leaf receive {
+          description "Trace received packets.";
+          type boolean;
+          default true;
+        }
+      }
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
         + "rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:clear/bgp:input" {
     leaf remote-addr {
       type leafref {
@@ -86,6 +124,39 @@ module holo-bgp {
       }
       description
         "IP address of the neighbor";
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:neighbor" {
+    container trace-options {
+      list flag {
+        key name;
+        description "List of tracing options.";
+        leaf name {
+          description
+            "List of tracing options";
+          type enumeration {
+            enum events;
+            enum packets-all;
+            enum packets-open;
+            enum packets-update;
+            enum packets-notification;
+            enum packets-keepalive;
+            enum packets-refresh;
+          }
+        }
+        leaf send {
+          description "Trace sent packets.";
+          type boolean;
+          default true;
+        }
+        leaf receive {
+          description "Trace received packets.";
+          type boolean;
+          default true;
+        }
+      }
     }
   }
 

@@ -108,7 +108,9 @@ pub(crate) fn process_nbr_msg(
     // Process received message.
     match msg {
         Ok(msg) => {
-            Debug::NbrMsgRx(&nbr.remote_addr, &msg).log();
+            if nbr.config.trace_opts.packets_resolved.load().rx(&msg) {
+                Debug::NbrMsgRx(&nbr.remote_addr, &msg).log();
+            }
 
             // Update statistics.
             nbr.statistics.msgs_rcvd.update(&msg);
@@ -690,6 +692,7 @@ where
             selection_cfg,
             mpath_cfg,
             &instance.config.distance,
+            &instance.config.trace_opts,
             &instance.tx.ibus,
         );
 

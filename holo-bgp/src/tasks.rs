@@ -397,6 +397,7 @@ pub(crate) fn nbr_kalive_interval(
         let msg_txp = nbr.msg_txp.as_ref().unwrap().clone();
         let nbr_addr = nbr.remote_addr;
         let msg_counter = nbr.statistics.msgs_sent.total.clone();
+        let trace_opts = nbr.config.trace_opts.packets_resolved.clone();
 
         IntervalTask::new(
             Duration::from_secs(interval.into()),
@@ -404,10 +405,13 @@ pub(crate) fn nbr_kalive_interval(
             move || {
                 let msg_txp = msg_txp.clone();
                 let msg_counter = msg_counter.clone();
+                let trace_opts = trace_opts.clone();
 
                 async move {
                     let msg = Message::Keepalive(KeepaliveMsg {});
-                    Debug::NbrMsgTx(&nbr_addr, &msg).log();
+                    if trace_opts.load().tx(&msg) {
+                        Debug::NbrMsgTx(&nbr_addr, &msg).log();
+                    }
 
                     let msg = messages::output::NbrTxMsg::SendMessage {
                         nbr_addr,

@@ -276,7 +276,7 @@ impl Instance {
         }
 
         // Log the state transition.
-        if interface.config.trace_opts.events {
+        if self.config.log_state_change || interface.config.trace_opts.events {
             Debug::InstanceStateChange(
                 self.vrid,
                 event,

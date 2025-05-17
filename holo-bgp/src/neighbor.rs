@@ -483,7 +483,9 @@ impl Neighbor {
         instance: &mut InstanceUpView<'_>,
         next_state: fsm::State,
     ) {
-        if self.config.trace_opts.events_resolved {
+        if self.config.log_neighbor_state_changes
+            || self.config.trace_opts.events_resolved
+        {
             Debug::NbrFsmTransition(
                 &self.remote_addr,
                 &self.state,

@@ -227,16 +227,14 @@ fn process_hello(
         adj.discontinuity_time = Utc::now();
         adj.reset(holdtime_negotiated, &instance.tx.protocol_input.adj_timeout);
 
-        if shutdown_nbr {
-            if let Some((nbr_idx, nbr)) =
+        if shutdown_nbr
+            && let Some((nbr_idx, nbr)) =
                 instance.state.neighbors.get_mut_by_lsr_id(&lsr_id)
-            {
-                if nbr.is_operational() {
-                    // Send Shutdown notification.
-                    nbr.send_shutdown(&instance.state.msg_id, None);
-                    Neighbor::fsm(instance, nbr_idx, fsm::Event::ErrorSent);
-                }
-            }
+            && nbr.is_operational()
+        {
+            // Send Shutdown notification.
+            nbr.send_shutdown(&instance.state.msg_id, None);
+            Neighbor::fsm(instance, nbr_idx, fsm::Event::ErrorSent);
         }
     } else {
         let id = instance.state.ipv4.adjacencies.next_id();
@@ -332,13 +330,12 @@ pub(crate) fn process_adj_timeout(
     Debug::AdjacencyTimeout(&adj.source, &adj.lsr_id).log();
 
     // Remove the corresponding dynamic targeted neighbor, if any.
-    if adj.source.ifname.is_none() {
-        if let Some((tnbr_idx, tnbr)) =
+    if adj.source.ifname.is_none()
+        && let Some((tnbr_idx, tnbr)) =
             tneighbors.get_mut_by_addr(&adj.source.addr)
-        {
-            tnbr.dynamic = false;
-            TargetedNbr::update(instance, tneighbors, tnbr_idx);
-        }
+    {
+        tnbr.dynamic = false;
+        TargetedNbr::update(instance, tneighbors, tnbr_idx);
     }
 
     // Delete adjacency.
@@ -378,11 +375,11 @@ pub(crate) fn process_tcp_accept(
     // Enable GTSM in single-hop peering sessions.
     #[cfg(not(feature = "testing"))]
     {
-        if nbr.flags.contains(NeighborFlags::GTSM) {
-            if let Err(error) = stream.set_ipv4_minttl(TTL_MAX) {
-                IoError::TcpSocketError(error).log();
-                return;
-            }
+        if nbr.flags.contains(NeighborFlags::GTSM)
+            && let Err(error) = stream.set_ipv4_minttl(TTL_MAX)
+        {
+            IoError::TcpSocketError(error).log();
+            return;
         }
     }
 
@@ -1182,10 +1179,10 @@ fn process_nbr_msg_label_release(
     }
 
     // LRl.3: first check if we have a pending withdraw running.
-    if let btree_map::Entry::Occupied(o) = nbr.sent_withdraws.entry(prefix) {
-        if msg.label.is_none() || msg.get_label().unwrap() == *o.get() {
-            o.remove_entry();
-        }
+    if let btree_map::Entry::Occupied(o) = nbr.sent_withdraws.entry(prefix)
+        && (msg.label.is_none() || msg.get_label().unwrap() == *o.get())
+    {
+        o.remove_entry();
     }
 
     // LRl.11 - 13 are unnecessary since we remove the label from
@@ -1226,10 +1223,9 @@ fn process_nbr_msg_label_release_wcard(
 
         // LRl.3: first check if we have a pending withdraw running.
         if let btree_map::Entry::Occupied(o) = nbr.sent_withdraws.entry(prefix)
+            && (msg.label.is_none() || msg.get_label().unwrap() == *o.get())
         {
-            if msg.label.is_none() || msg.get_label().unwrap() == *o.get() {
-                o.remove_entry();
-            }
+            o.remove_entry();
         }
 
         // LRl.11 - 13 are unnecessary since we remove the label from

@@ -259,15 +259,14 @@ where
     let snode_path = snode.data_path();
     let cb_key = CallbackKey::new(snode_path, CallbackOp::GetIterate);
 
-    if let Some(cb) = cbs.get_iterate(&cb_key) {
-        if let Some(list_iter) =
+    if let Some(cb) = cbs.get_iterate(&cb_key)
+        && let Some(list_iter) =
             (*cb)(provider, GetIterateArgs { parent_list_entry })
-        {
-            for list_entry in list_iter {
-                iterate_list_entry(
-                    provider, cbs, dnode, snode, list_entry, relay_list,
-                )?;
-            }
+    {
+        for list_entry in list_iter {
+            iterate_list_entry(
+                provider, cbs, dnode, snode, list_entry, relay_list,
+            )?;
         }
     }
 
@@ -472,14 +471,11 @@ where
             GetIterateArgs {
                 parent_list_entry: &list_entry,
             },
-        ) {
-            if let Some(entry) = list_iter.find(|entry| {
-                let obj =
-                    (*cb_get)(provider, GetObjectArgs { list_entry: entry });
-                list_keys == obj.list_keys()
-            }) {
-                list_entry = entry;
-            }
+        ) && let Some(entry) = list_iter.find(|entry| {
+            let obj = (*cb_get)(provider, GetObjectArgs { list_entry: entry });
+            list_keys == obj.list_keys()
+        }) {
+            list_entry = entry;
         }
     }
 

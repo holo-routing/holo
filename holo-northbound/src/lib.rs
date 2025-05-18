@@ -128,10 +128,10 @@ impl CallbackOp {
 
                 // Only optional leaves can be deleted, or leaves whose
                 // parent is a case statement.
-                if let Some(parent) = snode.ancestors().next() {
-                    if parent.kind() == SchemaNodeKind::Case {
-                        return true;
-                    }
+                if let Some(parent) = snode.ancestors().next()
+                    && parent.kind() == SchemaNodeKind::Case
+                {
+                    return true;
                 }
                 if snode.whens().next().is_some() {
                     return true;

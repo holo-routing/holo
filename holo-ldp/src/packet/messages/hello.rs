@@ -256,15 +256,14 @@ impl TlvKind for TlvCommonHelloParams {
         let flags = HelloFlags::from_bits_truncate(buf.get_u16());
 
         // Additional sanity checks.
-        if let IpAddr::V6(addr) = cxt.pkt_info.src_addr {
-            if flags.contains(HelloFlags::TARGETED)
-                && addr.is_unicast_link_local()
-            {
-                return Err(DecodeError::InvalidSrcAddr(
-                    tlvi.clone(),
-                    cxt.pkt_info.src_addr,
-                ));
-            }
+        if let IpAddr::V6(addr) = cxt.pkt_info.src_addr
+            && flags.contains(HelloFlags::TARGETED)
+            && addr.is_unicast_link_local()
+        {
+            return Err(DecodeError::InvalidSrcAddr(
+                tlvi.clone(),
+                cxt.pkt_info.src_addr,
+            ));
         }
 
         if let Some(multicast) = cxt.pkt_info.multicast {

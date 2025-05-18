@@ -108,15 +108,15 @@ impl KeyLifetime {
     pub fn is_active(&self) -> bool {
         let now = Utc::now();
 
-        if let Some(start) = self.start {
-            if now < start {
-                return false;
-            }
+        if let Some(start) = self.start
+            && now < start
+        {
+            return false;
         }
-        if let Some(end) = self.end {
-            if now > end {
-                return false;
-            }
+        if let Some(end) = self.end
+            && now > end
+        {
+            return false;
         }
 
         true

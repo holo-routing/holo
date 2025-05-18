@@ -313,12 +313,11 @@ impl ProtocolInstance for Instance {
 
     fn process_protocol_msg(&mut self, msg: ProtocolInputMsg) {
         // Ignore event if the instance isn't active.
-        if let Some((mut instance, interfaces, tneighbors)) = self.as_up() {
-            if let Err(error) =
+        if let Some((mut instance, interfaces, tneighbors)) = self.as_up()
+            && let Err(error) =
                 process_protocol_msg(&mut instance, interfaces, tneighbors, msg)
-            {
-                error.log();
-            }
+        {
+            error.log();
         }
     }
 
@@ -370,10 +369,10 @@ impl InstanceCfg {
         &self,
         lsr_id: Ipv4Addr,
     ) -> Option<&str> {
-        if let Some(nbr_cfg) = self.neighbors.get(&lsr_id) {
-            if nbr_cfg.password.is_some() {
-                return nbr_cfg.password.as_deref();
-            }
+        if let Some(nbr_cfg) = self.neighbors.get(&lsr_id)
+            && nbr_cfg.password.is_some()
+        {
+            return nbr_cfg.password.as_deref();
         }
 
         self.password.as_deref()

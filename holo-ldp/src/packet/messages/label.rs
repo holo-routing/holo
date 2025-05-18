@@ -303,14 +303,13 @@ impl MessageKind for LabelMsg {
         // Check for invalid explicit null labels.
         if let Some(label) = &msg.label {
             for fec_elem in &msg.fec.0 {
-                if let FecElem::Prefix(prefix) = fec_elem {
-                    if (prefix.is_ipv4()
+                if let FecElem::Prefix(prefix) = fec_elem
+                    && ((prefix.is_ipv4()
                         && label.0.get() == Label::IPV6_EXPLICIT_NULL)
                         || (prefix.is_ipv6()
-                            && label.0.get() == Label::IPV4_EXPLICIT_NULL)
-                    {
-                        return Err(DecodeError::InvalidTlvValue(tlvi));
-                    }
+                            && label.0.get() == Label::IPV4_EXPLICIT_NULL))
+                {
+                    return Err(DecodeError::InvalidTlvValue(tlvi));
                 }
             }
         }

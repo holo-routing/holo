@@ -535,18 +535,17 @@ impl Provider for Instance {
                 }
             }
             Event::ResetNeighbor(lsr_id) => {
-                if let Some((instance, _, _)) = self.as_up() {
-                    if let Some((_, nbr)) =
+                if let Some((instance, _, _)) = self.as_up()
+                    && let Some((_, nbr)) =
                         instance.state.neighbors.get_mut_by_lsr_id(&lsr_id)
-                    {
-                        // Send Shutdown notification.
-                        if nbr.state != neighbor::fsm::State::NonExistent {
-                            nbr.send_shutdown(&instance.state.msg_id, None);
-                        }
-
-                        // Stop the connection task.
-                        nbr.tasks.connect = None;
+                {
+                    // Send Shutdown notification.
+                    if nbr.state != neighbor::fsm::State::NonExistent {
+                        nbr.send_shutdown(&instance.state.msg_id, None);
                     }
+
+                    // Stop the connection task.
+                    nbr.tasks.connect = None;
                 }
             }
             Event::UpdateNeighborsAuth => {
@@ -563,18 +562,17 @@ impl Provider for Instance {
                 }
             }
             Event::UpdateNeighborAuth(lsr_id) => {
-                if let Some((instance, _, _)) = self.as_up() {
-                    if let Some((_, nbr)) =
+                if let Some((instance, _, _)) = self.as_up()
+                    && let Some((_, nbr)) =
                         instance.state.neighbors.get_by_lsr_id(&lsr_id)
-                    {
-                        let password =
-                            instance.config.get_neighbor_password(nbr.lsr_id);
-                        network::tcp::listen_socket_md5sig_update(
-                            &instance.state.ipv4.session_socket,
-                            &nbr.trans_addr,
-                            password,
-                        );
-                    }
+                {
+                    let password =
+                        instance.config.get_neighbor_password(nbr.lsr_id);
+                    network::tcp::listen_socket_md5sig_update(
+                        &instance.state.ipv4.session_socket,
+                        &nbr.trans_addr,
+                        password,
+                    );
                 }
             }
             Event::CfgSeqNumberUpdate => {

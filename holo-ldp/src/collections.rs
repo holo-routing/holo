@@ -340,15 +340,14 @@ impl Adjacencies {
                 o.remove_entry();
             }
         }
-        if let Some(ifname) = &adj.source.ifname {
-            if let hash_map::Entry::Occupied(mut o) =
+        if let Some(ifname) = &adj.source.ifname
+            && let hash_map::Entry::Occupied(mut o) =
                 self.iface_tree.entry(ifname.clone())
-            {
-                let tree = o.get_mut();
-                tree.remove(&adj.source);
-                if tree.is_empty() {
-                    o.remove_entry();
-                }
+        {
+            let tree = o.get_mut();
+            tree.remove(&adj.source);
+            if tree.is_empty() {
+                o.remove_entry();
             }
         }
 

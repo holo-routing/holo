@@ -803,12 +803,12 @@ fn validate_callbacks(callbacks: &BTreeMap<CallbackKey, NbDaemonSender>) {
 fn validate_callback(callback: &CallbackKey) {
     let yang_ctx = YANG_CTX.get().unwrap();
 
-    if let Ok(snode) = yang_ctx.find_path(&callback.path) {
-        if !callback.operation.is_valid(&snode) {
-            error!(xpath = %callback.path, operation = ?callback.operation,
-                "invalid callback",
-            );
-            std::process::exit(1);
-        }
+    if let Ok(snode) = yang_ctx.find_path(&callback.path)
+        && !callback.operation.is_valid(&snode)
+    {
+        error!(xpath = %callback.path, operation = ?callback.operation,
+            "invalid callback",
+        );
+        std::process::exit(1);
     }
 }

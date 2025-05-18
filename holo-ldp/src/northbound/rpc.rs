@@ -119,15 +119,15 @@ fn clear_peers(
         }
 
         // Filter by LSR-ID.
-        if let Some(lsr_id) = lsr_id {
-            if nbr.lsr_id != lsr_id {
-                continue;
-            }
+        if let Some(lsr_id) = lsr_id
+            && nbr.lsr_id != lsr_id
+        {
+            continue;
         }
-        if let Some(lspace_id) = lspace_id {
-            if lspace_id != 0 {
-                continue;
-            }
+        if let Some(lspace_id) = lspace_id
+            && lspace_id != 0
+        {
+            continue;
         }
 
         // Send Shutdown notification.
@@ -154,20 +154,20 @@ fn clear_adjacencies(
 
         // Filter by source.
         if let Some(ifname) = &adj.source.ifname {
-            if let Some(nexthop_ifname) = &nexthop_ifname {
-                if *ifname != *nexthop_ifname {
-                    continue;
-                }
-            }
-            if let Some(nexthop_addr) = &nexthop_addr {
-                if adj.source.addr != *nexthop_addr {
-                    continue;
-                }
-            }
-        } else if let Some(tnbr_addr) = &tnbr_addr {
-            if adj.source.addr != *tnbr_addr {
+            if let Some(nexthop_ifname) = &nexthop_ifname
+                && *ifname != *nexthop_ifname
+            {
                 continue;
             }
+            if let Some(nexthop_addr) = &nexthop_addr
+                && adj.source.addr != *nexthop_addr
+            {
+                continue;
+            }
+        } else if let Some(tnbr_addr) = &tnbr_addr
+            && adj.source.addr != *tnbr_addr
+        {
+            continue;
         }
 
         // Delete adjacency.
@@ -182,15 +182,15 @@ fn clear_statistics(
 ) {
     for nbr in instance.state.neighbors.iter_mut() {
         // Filter by LSR-ID.
-        if let Some(lsr_id) = lsr_id {
-            if nbr.lsr_id != lsr_id {
-                continue;
-            }
+        if let Some(lsr_id) = lsr_id
+            && nbr.lsr_id != lsr_id
+        {
+            continue;
         }
-        if let Some(lspace_id) = lspace_id {
-            if lspace_id != 0 {
-                continue;
-            }
+        if let Some(lspace_id) = lspace_id
+            && lspace_id != 0
+        {
+            continue;
         }
 
         // Clear neighbor statistics.

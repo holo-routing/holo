@@ -10,7 +10,7 @@ use std::num::NonZeroI32;
 use capctl::caps::CapState;
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
-use holo_utils::southbound::{Nexthop, NexthopSpecial};
+use holo_utils::southbound::{Nexthop, RouteKind};
 use ipnetwork::IpNetwork;
 use netlink_packet_core::ErrorMessage;
 use netlink_packet_route::route::{RouteProtocol, RouteType};
@@ -41,6 +41,12 @@ pub(crate) async fn ip_route_install(
         .destination_prefix(prefix.ip(), prefix.prefix())
         .unwrap()
         .protocol(protocol);
+    msg = msg.kind(match route.kind {
+        RouteKind::Unicast => RouteType::Unicast,
+        RouteKind::Blackhole => RouteType::BlackHole,
+        RouteKind::Unreachable => RouteType::Unreachable,
+        RouteKind::Prohibit => RouteType::Prohibit,
+    });
     msg = add_nexthops(msg, route.nexthops.iter());
     let msg = msg.build();
 
@@ -60,14 +66,6 @@ fn add_nexthops<'a>(
                 msg.gateway(*addr).unwrap().output_interface(*ifindex)
             }
             Nexthop::Interface { ifindex } => msg.output_interface(*ifindex),
-            Nexthop::Special(kind) => {
-                let kind = match kind {
-                    NexthopSpecial::Blackhole => RouteType::BlackHole,
-                    NexthopSpecial::Unreachable => RouteType::Unreachable,
-                    NexthopSpecial::Prohibit => RouteType::Prohibit,
-                };
-                msg.kind(kind)
-            }
             Nexthop::Recursive { resolved, .. } => {
                 add_nexthops(msg, resolved.iter())
             }

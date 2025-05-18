@@ -19,8 +19,8 @@ use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{
     AddressFlags, AddressMsg, BierNbrInstallMsg, BierNbrUninstallMsg,
-    LabelInstallMsg, LabelUninstallMsg, Nexthop, RouteKeyMsg, RouteMsg,
-    RouteOpaqueAttrs,
+    LabelInstallMsg, LabelUninstallMsg, Nexthop, RouteKeyMsg, RouteKind,
+    RouteMsg, RouteOpaqueAttrs,
 };
 use holo_utils::{UnboundedReceiver, UnboundedSender};
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
@@ -54,6 +54,7 @@ pub struct Birt {
 #[derive(Clone, Debug, new)]
 pub struct Route {
     pub protocol: Protocol,
+    pub kind: RouteKind,
     pub distance: u32,
     pub metric: u32,
     pub tag: Option<u32>,
@@ -220,6 +221,7 @@ impl Rib {
                 // If the IP route does not exist, create a new entry.
                 v.insert(Route::new(
                     Protocol::DIRECT,
+                    RouteKind::Unicast,
                     distance,
                     0,
                     None,
@@ -273,6 +275,7 @@ impl Rib {
                 // If the IP route does not exist, create a new entry.
                 v.insert(Route::new(
                     msg.protocol,
+                    msg.kind,
                     msg.distance,
                     msg.metric,
                     msg.tag,
@@ -286,6 +289,7 @@ impl Rib {
                 let route = o.into_mut();
 
                 // Update the existing IP route with the new information.
+                route.kind = msg.kind;
                 route.distance = msg.distance;
                 route.metric = msg.metric;
                 route.tag = msg.tag;
@@ -325,6 +329,7 @@ impl Rib {
                 // If the MPLS route does not exist, create a new entry.
                 v.insert(Route::new(
                     msg.protocol,
+                    RouteKind::Unicast,
                     0,
                     0,
                     None,

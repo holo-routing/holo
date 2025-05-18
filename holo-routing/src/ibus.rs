@@ -223,6 +223,7 @@ pub(crate) fn notify_redistribute_add(
 
     let msg = RouteMsg {
         protocol: route.protocol,
+        kind: route.kind,
         prefix,
         distance: route.distance,
         metric: route.metric,

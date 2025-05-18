@@ -7,6 +7,7 @@
 pub mod configuration;
 pub mod rpc;
 pub mod state;
+pub mod yang;
 
 use std::sync::LazyLock as Lazy;
 

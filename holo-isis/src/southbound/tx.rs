@@ -14,8 +14,8 @@ use holo_utils::ibus::IbusChannelsTx;
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{
-    LabelInstallMsg, LabelUninstallMsg, Nexthop, RouteKeyMsg, RouteMsg,
-    RouteOpaqueAttrs,
+    LabelInstallMsg, LabelUninstallMsg, Nexthop, RouteKeyMsg, RouteKind,
+    RouteMsg, RouteOpaqueAttrs,
 };
 use ipnetwork::IpNetwork;
 
@@ -61,6 +61,7 @@ pub(crate) fn route_install(
     // Install route.
     let msg = RouteMsg {
         protocol: Protocol::ISIS,
+        kind: RouteKind::Unicast,
         prefix: *destination,
         distance: distance.into(),
         metric: route.metric,

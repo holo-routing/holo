@@ -10,7 +10,7 @@ use std::net::IpAddr;
 use holo_utils::ibus::IbusChannelsTx;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{
-    Nexthop, RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
+    Nexthop, RouteKeyMsg, RouteKind, RouteMsg, RouteOpaqueAttrs,
 };
 use ipnetwork::IpNetwork;
 
@@ -43,6 +43,7 @@ pub(crate) fn route_install(
     // Install route.
     let msg = RouteMsg {
         protocol: Protocol::BGP,
+        kind: RouteKind::Unicast,
         prefix: prefix.into(),
         distance: distance.into(),
         metric: route.attrs.base.value.med.unwrap_or(0),

@@ -28,7 +28,7 @@ use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::mpls::LabelRange;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{
-    Nexthop, NexthopSpecial, RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
+    Nexthop, RouteKeyMsg, RouteKind, RouteMsg, RouteOpaqueAttrs,
 };
 use holo_utils::sr::{
     IgpAlgoType, SidLastHopBehavior, SrCfgEvent, SrCfgPrefixSid,
@@ -98,6 +98,13 @@ pub struct StaticRoute {
 pub struct StaticRouteNexthop {
     pub ifname: Option<String>,
     pub addr: Option<IpAddr>,
+}
+
+#[derive(Clone, Debug)]
+pub enum NexthopSpecial {
+    Blackhole,
+    Unreachable,
+    Prohibit,
 }
 
 // ===== callbacks =====
@@ -1175,14 +1182,19 @@ impl Provider for Master {
                 let route = self.static_routes.get(&prefix).unwrap();
 
                 // Get nexthops.
+                let mut kind = RouteKind::Unicast;
                 let mut nexthops = BTreeSet::default();
                 if let Some(nexthop) =
                     static_nexthop_get(&self.interfaces, &route.nexthop_single)
                 {
                     nexthops.insert(nexthop);
                 }
-                if let Some(special) = route.nexthop_special {
-                    nexthops.insert(Nexthop::Special(special));
+                if let Some(special) = &route.nexthop_special {
+                    kind = match special {
+                        NexthopSpecial::Blackhole => RouteKind::Blackhole,
+                        NexthopSpecial::Unreachable => RouteKind::Unreachable,
+                        NexthopSpecial::Prohibit => RouteKind::Prohibit,
+                    };
                 }
                 for nexthop in
                     route.nexthop_list.values().filter_map(|nexthop| {
@@ -1195,6 +1207,7 @@ impl Provider for Master {
                 // Prepare message.
                 let msg = RouteMsg {
                     protocol: Protocol::STATIC,
+                    kind,
                     prefix,
                     distance: 1,
                     metric: 0,

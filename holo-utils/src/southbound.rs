@@ -10,7 +10,7 @@ use std::net::IpAddr;
 
 use bitflags::bitflags;
 use enum_as_inner::EnumAsInner;
-use holo_yang::{ToYang, TryFromYang};
+use holo_yang::ToYang;
 use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
 
@@ -49,7 +49,6 @@ pub enum Nexthop {
     Interface {
         ifindex: u32,
     },
-    Special(NexthopSpecial),
     Recursive {
         addr: IpAddr,
         labels: Vec<Label>,
@@ -57,9 +56,11 @@ pub enum Nexthop {
     },
 }
 
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[derive(Deserialize, Serialize)]
-pub enum NexthopSpecial {
+pub enum RouteKind {
+    #[default]
+    Unicast,
     Blackhole,
     Unreachable,
     Prohibit,
@@ -90,6 +91,8 @@ pub struct AddressMsg {
 #[derive(Deserialize, Serialize)]
 pub struct RouteMsg {
     pub protocol: Protocol,
+    #[serde(skip)]
+    pub kind: RouteKind,
     pub prefix: IpNetwork,
     pub distance: u32,
     pub metric: u32,
@@ -206,9 +209,6 @@ impl Nexthop {
                 Nexthop::Interface { ifindex: ifindex1 },
                 Nexthop::Interface { ifindex: ifindex2 },
             ) => ifindex1 == ifindex2,
-            (Nexthop::Special(nexthop1), Nexthop::Special(nexthop2)) => {
-                nexthop1 == nexthop2
-            }
             _ => false,
         }
     }
@@ -232,29 +232,6 @@ impl Nexthop {
         ) = (self, other)
         {
             labels1.clone_from(labels2)
-        }
-    }
-}
-
-// ===== impl NexthopSpecial =====
-
-impl ToYang for NexthopSpecial {
-    fn to_yang(&self) -> Cow<'static, str> {
-        match self {
-            NexthopSpecial::Blackhole => "blackhole".into(),
-            NexthopSpecial::Unreachable => "unreachable".into(),
-            NexthopSpecial::Prohibit => "prohibit".into(),
-        }
-    }
-}
-
-impl TryFromYang for NexthopSpecial {
-    fn try_from_yang(value: &str) -> Option<NexthopSpecial> {
-        match value {
-            "blackhole" => Some(NexthopSpecial::Blackhole),
-            "unreachable" => Some(NexthopSpecial::Unreachable),
-            "prohibit" => Some(NexthopSpecial::Prohibit),
-            _ => None,
         }
     }
 }

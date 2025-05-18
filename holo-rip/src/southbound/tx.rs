@@ -6,7 +6,7 @@
 
 use holo_utils::ibus::IbusChannelsTx;
 use holo_utils::southbound::{
-    Nexthop, RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
+    Nexthop, RouteKeyMsg, RouteKind, RouteMsg, RouteOpaqueAttrs,
 };
 
 use crate::route::{Route, RouteType};
@@ -29,6 +29,7 @@ pub(crate) fn route_install<V>(
     // Fill-in message.
     let msg = RouteMsg {
         protocol: V::PROTOCOL,
+        kind: RouteKind::Unicast,
         prefix: route.prefix.into(),
         distance: distance.into(),
         metric: route.metric.get() as u32,

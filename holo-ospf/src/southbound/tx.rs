@@ -11,7 +11,7 @@ use holo_utils::ibus::IbusChannelsTx;
 use holo_utils::mpls::Label;
 use holo_utils::southbound::{
     BierNbrInstallMsg, BierNbrUninstallMsg, LabelInstallMsg, LabelUninstallMsg,
-    Nexthop, RouteKeyMsg, RouteMsg, RouteOpaqueAttrs,
+    Nexthop, RouteKeyMsg, RouteKind, RouteMsg, RouteOpaqueAttrs,
 };
 
 use crate::collections::Arena;
@@ -67,6 +67,7 @@ pub(crate) fn route_install<V>(
     // Install route.
     let msg = RouteMsg {
         protocol: V::PROTOCOL,
+        kind: RouteKind::Unicast,
         prefix: (*destination).into(),
         distance: distance.into(),
         metric: route.metric(),

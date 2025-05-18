@@ -19,10 +19,11 @@ use holo_northbound::{CallbackKey, NbDaemonSender};
 use holo_utils::bier::{BfrId, Bsl};
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
-use holo_utils::southbound::Nexthop;
+use holo_utils::southbound::{Nexthop, RouteKind};
 use holo_yang::ToYang;
 use ipnetwork::{Ipv4Network, Ipv6Network};
 
+use crate::northbound::configuration::NexthopSpecial;
 use crate::rib::{Route, RouteFlags};
 use crate::{InstanceId, Master};
 
@@ -163,24 +164,38 @@ fn load_callbacks() -> Callbacks<Master> {
             let mut ipv4_next_hop_address = None;
             let mut ipv6_next_hop_address = None;
             let mut special_next_hop = None;
-            if route.nexthops.len() == 1 {
-                let nexthop = route.nexthops.first().unwrap();
-                match nexthop {
-                    Nexthop::Address {
-                        addr, ..
-                    }
-                    | Nexthop::Recursive {
-                        addr, ..
-                    } => match addr {
-                        IpAddr::V4(addr) => ipv4_next_hop_address = Some(Cow::Borrowed(addr)),
-                        IpAddr::V6(addr) => ipv6_next_hop_address = Some(Cow::Borrowed(addr)),
-                    },
-                    Nexthop::Special(nexthop) => {
-                        special_next_hop = Some(nexthop.to_yang());
-                    }
-                    _ => (),
-                };
+
+            match route.kind {
+                RouteKind::Unicast if route.nexthops.len() == 1 => {
+                    let nexthop = route.nexthops.first().unwrap();
+                    match nexthop {
+                        Nexthop::Address { addr, .. }
+                        | Nexthop::Recursive { addr, .. } => match addr {
+                            IpAddr::V4(addr) => {
+                                ipv4_next_hop_address =
+                                    Some(Cow::Borrowed(addr))
+                            }
+                            IpAddr::V6(addr) => {
+                                ipv6_next_hop_address =
+                                    Some(Cow::Borrowed(addr))
+                            }
+                        },
+                        _ => (),
+                    };
+                }
+                RouteKind::Blackhole => {
+                    special_next_hop = Some(NexthopSpecial::Blackhole.to_yang())
+                }
+                RouteKind::Unreachable => {
+                    special_next_hop =
+                        Some(NexthopSpecial::Unreachable.to_yang())
+                }
+                RouteKind::Prohibit => {
+                    special_next_hop = Some(NexthopSpecial::Prohibit.to_yang())
+                }
+		_ => (),
             }
+
             Box::new(NextHop {
                 // TODO
                 outgoing_interface: None,

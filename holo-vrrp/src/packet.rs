@@ -389,20 +389,6 @@ impl EthernetHdr {
         buf.put_u16(self.ethertype);
         buf
     }
-
-    pub fn decode(data: &[u8]) -> DecodeResult<Self> {
-        let dst_mac = &data[0..6].try_into();
-        let dst_mac: [u8; 6] = dst_mac.unwrap();
-
-        let src_mac = &data[6..12].try_into();
-        let src_mac: [u8; 6] = src_mac.unwrap();
-
-        Ok(Self {
-            dst_mac,
-            src_mac,
-            ethertype: libc::ETH_P_IP as _,
-        })
-    }
 }
 
 impl Vrrp4Packet {
@@ -449,6 +435,8 @@ impl NeighborAdvertisement {
     }
 }
 
+// ===== impl ArpHdr ====
+
 impl ArpHdr {
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::with_capacity(28);
@@ -462,33 +450,5 @@ impl ArpHdr {
         buf.put_slice(&self.target_hw_address);
         buf.put_ipv4(&self.target_proto_address);
         buf
-    }
-
-    pub fn decode(data: &[u8]) -> DecodeResult<Self> {
-        let mut buf = Bytes::copy_from_slice(data);
-        let mut sender_hw_address: [u8; 6] = [0; 6];
-        let mut target_hw_address: [u8; 6] = [0; 6];
-
-        let hw_type = buf.get_u16();
-        let proto_type = buf.get_u16();
-        let hw_length = buf.get_u8();
-        let proto_length = buf.get_u8();
-        let operation = buf.get_u16();
-        buf.copy_to_slice(&mut sender_hw_address);
-        let sender_proto_address = buf.get_ipv4();
-        buf.copy_to_slice(&mut target_hw_address);
-        let target_proto_address = buf.get_ipv4();
-
-        Ok(Self {
-            hw_type,
-            proto_type,
-            hw_length,
-            proto_length,
-            operation,
-            sender_hw_address,
-            sender_proto_address,
-            target_hw_address,
-            target_proto_address,
-        })
     }
 }

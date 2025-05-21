@@ -118,14 +118,8 @@ pub struct EthernetHdr {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct ArpHdr {
-    pub hw_type: u16,
-    pub proto_type: u16,
-    pub hw_length: u8,
-    pub proto_length: u8,
-    pub operation: u16,
     pub sender_hw_address: [u8; 6],
     pub sender_proto_address: Ipv4Addr,
-    pub target_hw_address: [u8; 6],
     pub target_proto_address: Ipv4Addr,
 }
 
@@ -159,13 +153,6 @@ pub struct Vrrp4Packet {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct NeighborAdvertisement {
-    pub icmp_type: u8,
-    pub code: u8,
-    pub checksum: u16,
-    pub r: u8,
-    pub s: u8,
-    pub o: u8,
-    pub reserved: u32,
     pub target_address: Ipv6Addr,
 }
 
@@ -381,6 +368,8 @@ impl Ipv4Hdr {
     }
 }
 
+// ===== impl EthernetHdr =====
+
 impl EthernetHdr {
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::new();
@@ -390,6 +379,8 @@ impl EthernetHdr {
         buf
     }
 }
+
+// ===== impl Vrrp4Packet =====
 
 impl Vrrp4Packet {
     // maximum size of IP + vrrp header.
@@ -403,22 +394,23 @@ impl Vrrp4Packet {
     }
 }
 
+// ===== impl NeighborAdvertisement =====
+
 impl NeighborAdvertisement {
     const PKT_LEN: usize = 192;
     // Number of bytes in the ipv6 pseudo header
     const PSEUDO_LENGTH: usize = 40;
     const PAYLOAD_LENGTH: u32 = 24;
+    const ICMP_TYPE: u8 = 136;
 
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::with_capacity(Self::PKT_LEN);
-        buf.put_u8(self.icmp_type);
-        buf.put_u8(self.code);
-        buf.put_u16(self.checksum);
+        buf.put_u8(Self::ICMP_TYPE);
+        buf.put_u8(0_u8); // Code.
+        buf.put_u16(0_u16); // Checksum.
 
-        let rso_reserved = ((self.r as u32) << 31)
-            | ((self.s as u32) << 30)
-            | ((self.o as u32) << 29)
-            | ((self.reserved) >> 3);
+        let rso_reserved: u32 = 5_u32 << 29; // rso values. r[1], s[0], r[1].
+        // reserved = 0.
 
         buf.put_u32(rso_reserved);
         buf.put_ipv6(&self.target_address);
@@ -440,14 +432,14 @@ impl NeighborAdvertisement {
 impl ArpHdr {
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::with_capacity(28);
-        buf.put_u16(self.hw_type);
-        buf.put_u16(self.proto_type);
-        buf.put_u8(self.hw_length);
-        buf.put_u8(self.proto_length);
-        buf.put_u16(self.operation);
+        buf.put_u16(1_u16); // Hardware type = 1.
+        buf.put_u16(libc::ETH_P_IP as _); // Proto Type.
+        buf.put_u8(6_u8); // Harware(Mac Addr) Length = 6.
+        buf.put_u8(4_u8); // Proto(Ip) length = 4.
+        buf.put_u16(1_u16); // Operation = 1.
         buf.put_slice(&self.sender_hw_address);
         buf.put_ipv4(&self.sender_proto_address);
-        buf.put_slice(&self.target_hw_address);
+        buf.put_slice(&[0xff; 6]); // Target hw address (Broadcast address).
         buf.put_ipv4(&self.target_proto_address);
         buf
     }

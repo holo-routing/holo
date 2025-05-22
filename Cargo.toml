@@ -19,6 +19,7 @@ members = [
   "holo-vrrp",
   "holo-yang",
 ]
+exclude = ["fuzz"]
 default-members = ["holo-daemon"]
 resolver = "2"
 
@@ -30,6 +31,7 @@ edition = "2024"
 repository = "https://github.com/holo-routing/holo"
 
 [workspace.dependencies]
+arbitrary = { version = "1.4.1", features = ["derive"] }
 arc-swap = "1.7"
 async-trait = "0.1"
 base64 = "0.21"

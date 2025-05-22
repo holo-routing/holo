@@ -424,13 +424,6 @@ impl Instance {
         addr: Ipv6Addr,
     ) -> NeighborAdvertisement {
         NeighborAdvertisement {
-            icmp_type: 136,
-            code: 0,
-            checksum: 0,
-            r: 1,
-            s: 0,
-            o: 1,
-            reserved: 0,
             target_address: addr,
         }
     }
@@ -525,17 +518,10 @@ impl Instance {
             match addr {
                 IpNetwork::V4(addr) => {
                     let arp_hdr = ArpHdr {
-                        hw_type: 1,
-                        proto_type: libc::ETH_P_IP as _,
-                        // MAC address length
-                        hw_length: 6,
-                        proto_length: 4,
-                        operation: 1,
                         // Sender HW address is virtual MAC
                         // https://datatracker.ietf.org/doc/html/rfc3768#section-7.3
                         sender_hw_address: self.mvlan.system.mac_address,
                         sender_proto_address: addr.ip(),
-                        target_hw_address: [0xff; 6],
                         target_proto_address: addr.ip(),
                     };
 

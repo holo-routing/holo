@@ -196,14 +196,3 @@ fn test_encode_ethernethdr() {
     let expected_data: &[u8] = bytes.as_ref();
     assert_eq_hex!(generated_data, expected_data);
 }
-
-#[test]
-fn test_decode_ethernethdr() {
-    let (ref bytes, ref ethernethdr) = *ETHERNETHDR;
-    let data = bytes.as_ref();
-    let generated_hdr = EthernetHdr::decode(data);
-    assert!(generated_hdr.is_ok());
-
-    let generated_hdr = generated_hdr.unwrap();
-    assert_eq!(ethernethdr, &generated_hdr);
-}

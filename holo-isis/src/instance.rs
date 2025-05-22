@@ -33,7 +33,7 @@ use crate::interface::CircuitIdAllocator;
 use crate::lsdb::{LspEntry, LspLogEntry};
 use crate::northbound::configuration::InstanceCfg;
 use crate::packet::{LevelNumber, LevelType, Levels, SystemId};
-use crate::route::{Route, RouteFlags, RouteSys};
+use crate::route::{Route, RouteFlags, RouteSys, SummaryRoute};
 use crate::spf::{SpfLogEntry, SpfScheduler, Vertex, VertexId};
 use crate::tasks::messages::input::{
     AdjHoldTimerMsg, DisElectionMsg, LspDeleteMsg, LspOriginateMsg,
@@ -89,6 +89,8 @@ pub struct InstanceState {
     // Routing table (per-level and L1/L2).
     pub rib_single: Levels<BTreeMap<IpNetwork, Route>>,
     pub rib_multi: BTreeMap<IpNetwork, Route>,
+    // Summary routes (L1 to L2).
+    pub summaries: BTreeMap<IpNetwork, SummaryRoute>,
     // Event counters.
     pub counters: Levels<InstanceCounters>,
     pub discontinuity_time: DateTime<Utc>,
@@ -409,6 +411,7 @@ impl InstanceState {
             spt: Default::default(),
             rib_single: Default::default(),
             rib_multi: Default::default(),
+            summaries: Default::default(),
             counters: Default::default(),
             discontinuity_time: Utc::now(),
             lsp_log: Default::default(),

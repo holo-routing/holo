@@ -21,7 +21,7 @@ use ipnetwork::IpNetwork;
 
 use crate::collections::Interfaces;
 use crate::interface::Interface;
-use crate::route::Route;
+use crate::route::{Route, RouteFlags};
 
 // ===== global functions =====
 
@@ -61,7 +61,11 @@ pub(crate) fn route_install(
     // Install route.
     let msg = RouteMsg {
         protocol: Protocol::ISIS,
-        kind: RouteKind::Unicast,
+        kind: if route.flags.contains(RouteFlags::SUMMARY) {
+            RouteKind::Blackhole
+        } else {
+            RouteKind::Unicast
+        },
         prefix: *destination,
         distance: distance.into(),
         metric: route.metric,

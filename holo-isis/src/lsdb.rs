@@ -23,7 +23,7 @@ use holo_utils::ip::{AddressFamily, Ipv4NetworkExt, Ipv6NetworkExt};
 use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid, SidLastHopBehavior, SrCfgPrefixSid};
 use holo_utils::task::TimeoutTask;
-use ipnetwork::{Ipv4Network, Ipv6Network};
+use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 
 use crate::adjacency::{Adjacency, AdjacencyState};
 use crate::collections::{Arena, LspEntryId};
@@ -530,7 +530,7 @@ fn lsp_build_tlvs_ip_local(
                     instance,
                     prefix,
                     prefix_attr_flags,
-                    false,
+                    true,
                 );
                 ext_ipv4_reach.insert(
                     prefix,
@@ -567,7 +567,7 @@ fn lsp_build_tlvs_ip_local(
                 instance,
                 prefix,
                 prefix_attr_flags,
-                false,
+                true,
             );
             ipv6_reach.insert(
                 prefix,
@@ -615,7 +615,7 @@ fn lsp_build_tlvs_ip_redistributed(
                     instance,
                     prefix,
                     prefix_attr_flags,
-                    true,
+                    false,
                 );
                 ext_ipv4_reach.insert(
                     prefix,
@@ -637,7 +637,7 @@ fn lsp_build_tlvs_ip_redistributed(
                 instance,
                 prefix,
                 prefix_attr_flags,
-                true,
+                false,
             );
             ipv6_reach.insert(
                 prefix,
@@ -695,10 +695,10 @@ fn lsp_build_is_reach_p2p_stlvs(
 }
 
 fn lsp_build_ipv4_reach_stlvs(
-    instance: &mut InstanceUpView<'_>,
+    instance: &InstanceUpView<'_>,
     prefix: Ipv4Network,
     prefix_attr_flags: PrefixAttrFlags,
-    redistributed: bool,
+    add_prefix_sid: bool,
 ) -> Ipv4ReachStlvs {
     let mut sub_tlvs = Ipv4ReachStlvs::default();
 
@@ -717,7 +717,7 @@ fn lsp_build_ipv4_reach_stlvs(
     }
 
     // Add Prefix-SID Sub-TLV(s).
-    if instance.config.sr.enabled && !redistributed {
+    if add_prefix_sid && instance.config.sr.enabled {
         let algo = IgpAlgoType::Spf;
         if let Some(prefix_sid_cfg) = instance
             .shared
@@ -734,10 +734,10 @@ fn lsp_build_ipv4_reach_stlvs(
 }
 
 fn lsp_build_ipv6_reach_stlvs(
-    instance: &mut InstanceUpView<'_>,
+    instance: &InstanceUpView<'_>,
     prefix: Ipv6Network,
     prefix_attr_flags: PrefixAttrFlags,
-    redistributed: bool,
+    add_prefix_sid: bool,
 ) -> Ipv6ReachStlvs {
     let bier_config = &instance.shared.bier_config;
     let mut sub_tlvs = Ipv6ReachStlvs::default();
@@ -757,7 +757,7 @@ fn lsp_build_ipv6_reach_stlvs(
     }
 
     // Add Prefix-SID Sub-TLV(s).
-    if instance.config.sr.enabled && !redistributed {
+    if add_prefix_sid && instance.config.sr.enabled {
         let algo = IgpAlgoType::Spf;
         if let Some(prefix_sid_cfg) = instance
             .shared
@@ -883,7 +883,7 @@ fn lsp_build_fragments(
 
 // Propagates L1 TLVs to L2 for inter-area routing.
 fn lsp_propagate_l1_to_l2(
-    instance: &mut InstanceUpView<'_>,
+    instance: &InstanceUpView<'_>,
     arenas: &InstanceArenas,
     l2_router_cap: &mut Vec<RouterCapTlv>,
     l2_ipv4_internal_reach: &mut BTreeMap<Ipv4Network, Ipv4Reach>,
@@ -936,11 +936,13 @@ fn lsp_propagate_l1_to_l2(
                 .all(|level| metric_type.get(level).is_standard_enabled())
             {
                 propagate_ip_reach(
+                    instance,
                     l1_lsp_dist,
                     l1_lsp.tlvs.ipv4_internal_reach(),
                     l2_ipv4_internal_reach,
                 );
                 propagate_ip_reach(
+                    instance,
                     l1_lsp_dist,
                     l1_lsp.tlvs.ipv4_external_reach(),
                     l2_ipv4_external_reach,
@@ -951,6 +953,7 @@ fn lsp_propagate_l1_to_l2(
                 .all(|level| metric_type.get(level).is_wide_enabled())
             {
                 propagate_ip_reach(
+                    instance,
                     l1_lsp_dist,
                     l1_lsp.tlvs.ext_ipv4_reach(),
                     l2_ext_ipv4_reach,
@@ -961,25 +964,93 @@ fn lsp_propagate_l1_to_l2(
         // Propagate IPv6 reachability information.
         if instance.config.is_af_enabled(AddressFamily::Ipv6) {
             propagate_ip_reach(
+                instance,
                 l1_lsp_dist,
                 l1_lsp.tlvs.ipv6_reach(),
                 l2_ipv6_reach,
             );
         }
     }
+
+    // Add active summary routes.
+    for (prefix, summary) in &instance.state.summaries {
+        match prefix {
+            IpNetwork::V4(prefix) => {
+                if !instance.config.is_af_enabled(AddressFamily::Ipv4) {
+                    continue;
+                }
+                if metric_type.get(LevelNumber::L2).is_standard_enabled() {
+                    let entry = Ipv4Reach {
+                        up_down: false,
+                        ie_bit: false,
+                        metric: std::cmp::min(
+                            summary.metric(),
+                            MAX_NARROW_METRIC,
+                        ) as u8,
+                        metric_delay: None,
+                        metric_expense: None,
+                        metric_error: None,
+                        prefix: *prefix,
+                    };
+                    l2_ipv4_internal_reach.insert(*prefix, entry);
+                }
+                if metric_type.get(LevelNumber::L2).is_wide_enabled() {
+                    let sub_tlvs = lsp_build_ipv4_reach_stlvs(
+                        instance,
+                        *prefix,
+                        PrefixAttrFlags::empty(),
+                        false,
+                    );
+                    let entry = ExtIpv4Reach {
+                        up_down: false,
+                        metric: summary.metric(),
+                        prefix: *prefix,
+                        sub_tlvs,
+                    };
+                    l2_ext_ipv4_reach.insert(*prefix, entry);
+                }
+            }
+            IpNetwork::V6(prefix) => {
+                if !instance.config.is_af_enabled(AddressFamily::Ipv6) {
+                    continue;
+                }
+                let sub_tlvs = lsp_build_ipv6_reach_stlvs(
+                    instance,
+                    *prefix,
+                    PrefixAttrFlags::empty(),
+                    false,
+                );
+                let entry = Ipv6Reach {
+                    metric: summary.metric(),
+                    up_down: false,
+                    external: false,
+                    prefix: *prefix,
+                    sub_tlvs,
+                };
+                l2_ipv6_reach.insert(*prefix, entry);
+            }
+        }
+    }
 }
 
 // Propagates IP reachability entries from an L1 LSP to an L2 LSP.
 fn propagate_ip_reach<'a, T: IpReachTlvEntry + 'a>(
+    instance: &InstanceUpView<'_>,
     l1_lsp_dist: u32,
     l1_reach: impl Iterator<Item = &'a T>,
     l2_reach: &mut BTreeMap<T::IpNetwork, T>,
 ) {
     for mut reach in l1_reach
-        // RFC 5302 - Section 2:
-        // "Prefixes with the up/down bit set that are learned via L1 routing
-        // MUST NOT be advertised by L1L2 routers back into L2".
+        // Exclude prefixes with the up/down bit set.
         .filter(|reach| !reach.up_down())
+        // Exclude prefixes that are covered by configured summary routes.
+        .filter(|reach| {
+            instance
+                .config
+                .summaries
+                .get_spm(&reach.prefix().into())
+                .is_none()
+        })
         .cloned()
     {
         // RFC 1195 - Section 3.2:

@@ -19,7 +19,7 @@ use holo_utils::bytes::{BytesExt, BytesMutExt};
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::{AddressFamily, Ipv4AddrExt, Ipv6AddrExt};
 use holo_utils::sr::IgpAlgoType;
-use ipnetwork::{Ipv4Network, Ipv6Network};
+use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use num_traits::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
 
@@ -80,7 +80,7 @@ pub trait EntryBasedTlv: From<Vec<Self::Entry>> {
 
 // Trait for entries of IP reachability TLVs.
 pub trait IpReachTlvEntry: Clone {
-    type IpNetwork: Ord;
+    type IpNetwork: Ord + Into<IpNetwork>;
 
     // Return the network prefix.
     fn prefix(&self) -> Self::IpNetwork;

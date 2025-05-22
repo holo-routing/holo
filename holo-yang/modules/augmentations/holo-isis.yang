@@ -7,6 +7,10 @@ module holo-isis {
     prefix yang;
   }
 
+  import ietf-inet-types {
+    prefix inet;
+  }
+
   import ietf-routing-types {
     prefix rt-types;
   }
@@ -89,6 +93,34 @@ module holo-isis {
           "When enabled, this level 1 router ignores the ATT bit in level
            1 LSPs it receives. As a result, it will not install a default
            route for any level 1/2 router that sets the ATT bit.";
+      }
+    }
+
+    container inter-level-propagation-policies {
+      description
+        "Configuration options to control the propagation of routing information
+         between IS-IS levels.";
+      container level1-to-level2 {
+        description
+          "Configuration options to control the propagation of routing
+           information from level 1 to level 2.";
+        list summary-prefixes {
+          description
+            "List of summarization prefixes";
+          key "prefix";
+          leaf prefix {
+            type inet:ip-prefix;
+            description
+              "The IP prefix to be advertised as a summary route into level 2.";
+          }
+          leaf metric {
+            type uint32;
+            description
+              "Optional metric value for the summary route. If not specified,
+               the lowest metric among the contributing more-specific level 1
+               routes is used.";
+          }
+        }
       }
     }
 

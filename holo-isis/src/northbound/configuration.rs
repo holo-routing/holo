@@ -25,6 +25,8 @@ use holo_utils::keychain::{Key, Keychains};
 use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
+use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
+use prefix_trie::map::PrefixMap;
 
 use crate::adjacency::Adjacency;
 use crate::collections::InterfaceIndex;
@@ -45,6 +47,7 @@ use crate::{southbound, spf, sr};
 pub enum ListEntry {
     #[default]
     None,
+    Summary(IpNetwork),
     AddressFamily(AddressFamily),
     Redistribution(AddressFamily, LevelNumber, Protocol),
     TraceOption(InstanceTraceOption),
@@ -109,6 +112,7 @@ pub struct InstanceCfg {
     pub spf_time_to_learn: u32,
     pub preference: Preference,
     pub overload_status: bool,
+    pub summaries: SummariesCfg,
     pub att_suppress: bool,
     pub att_ignore: bool,
     pub sr: InstanceSrCfg,
@@ -155,6 +159,12 @@ pub struct AddressFamilyCfg {
     pub redistribution: HashMap<(LevelNumber, Protocol), RedistributionCfg>,
 }
 
+#[derive(Debug, Default)]
+pub struct SummariesCfg {
+    pub ipv4: PrefixMap<Ipv4Network, SummaryCfg>,
+    pub ipv6: PrefixMap<Ipv6Network, SummaryCfg>,
+}
+
 #[derive(Debug)]
 pub struct Preference {
     pub internal: u8,
@@ -170,6 +180,11 @@ pub enum MetricType {
 
 #[derive(Debug, Default)]
 pub struct RedistributionCfg {}
+
+#[derive(Clone, Debug, Default)]
+pub struct SummaryCfg {
+    pub metric: Option<u32>,
+}
 
 #[derive(Debug)]
 pub struct InterfaceCfg {
@@ -716,6 +731,45 @@ fn load_callbacks() -> Callbacks<Instance> {
         .modify_apply(|instance, args| {
             let enabled = args.dnode.get_bool();
             instance.config.att_ignore = enabled;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::RerunSpf);
+        })
+        .path(isis::inter_level_propagation_policies::level1_to_level2::summary_prefixes::PATH)
+        .create_apply(|instance, args| {
+            let prefix = args.dnode.get_prefix_relative("prefix").unwrap();
+            instance.config.summaries.insert(prefix, SummaryCfg::default());
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::RerunSpf);
+        })
+        .delete_apply(|instance, args| {
+            let prefix = args.list_entry.into_summary().unwrap();
+            instance.config.summaries.remove(&prefix);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::RerunSpf);
+        })
+        .lookup(|_instance, _list_entry, dnode| {
+            let prefix = dnode.get_prefix_relative("prefix").unwrap();
+            ListEntry::Summary(prefix)
+        })
+        .path(isis::inter_level_propagation_policies::level1_to_level2::summary_prefixes::metric::PATH)
+        .modify_apply(|instance, args| {
+            let prefix = args.list_entry.into_summary().unwrap();
+            let summary_cfg = instance.config.summaries.get_mut(&prefix).unwrap();
+
+            let metric = args.dnode.get_u32();
+            summary_cfg.metric = Some(metric);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::RerunSpf);
+        })
+        .delete_apply(|instance, args| {
+            let prefix = args.list_entry.into_summary().unwrap();
+            let summary_cfg = instance.config.summaries.get_mut(&prefix).unwrap();
+
+            summary_cfg.metric = None;
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::RerunSpf);
@@ -1882,6 +1936,56 @@ impl AuthCfg {
     }
 }
 
+impl SummariesCfg {
+    pub(crate) fn insert(&mut self, prefix: IpNetwork, config: SummaryCfg) {
+        match prefix {
+            IpNetwork::V4(prefix) => {
+                self.ipv4.insert(prefix, config);
+            }
+            IpNetwork::V6(prefix) => {
+                self.ipv6.insert(prefix, config);
+            }
+        }
+    }
+
+    pub(crate) fn remove(&mut self, prefix: &IpNetwork) {
+        match prefix {
+            IpNetwork::V4(prefix) => {
+                self.ipv4.remove(prefix);
+            }
+            IpNetwork::V6(prefix) => {
+                self.ipv6.remove(prefix);
+            }
+        }
+    }
+
+    pub(crate) fn get_mut(
+        &mut self,
+        prefix: &IpNetwork,
+    ) -> Option<&mut SummaryCfg> {
+        match prefix {
+            IpNetwork::V4(prefix) => self.ipv4.get_mut(prefix),
+            IpNetwork::V6(prefix) => self.ipv6.get_mut(prefix),
+        }
+    }
+
+    pub(crate) fn get_spm(
+        &self,
+        prefix: &IpNetwork,
+    ) -> Option<(IpNetwork, &SummaryCfg)> {
+        match prefix {
+            IpNetwork::V4(prefix) => self
+                .ipv4
+                .get_spm(prefix)
+                .map(|(prefix, cfg)| ((*prefix).into(), cfg)),
+            IpNetwork::V6(prefix) => self
+                .ipv6
+                .get_spm(prefix)
+                .map(|(prefix, cfg)| ((*prefix).into(), cfg)),
+        }
+    }
+}
+
 impl TraceOptionPacketResolved {
     pub(crate) fn tx(&self, pdu_type: PduType) -> bool {
         match pdu_type {
@@ -1964,6 +2068,7 @@ impl Default for InstanceCfg {
             spf_time_to_learn,
             preference: Default::default(),
             overload_status,
+            summaries: Default::default(),
             att_suppress,
             att_ignore,
             sr: Default::default(),

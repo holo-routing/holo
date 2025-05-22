@@ -854,6 +854,90 @@ async fn nb_config_sr_enabled1() {
 }
 
 // Input:
+//  * Northbound: add a summary route (1.0.0.0/8)
+// Output:
+//  * Protocol: send an updated L2 local LSP to rt3
+//  * Northbound:
+//    - remove the 1.1.1.1/32 reachability entry from the local L2 LSP
+//    - add the 1.0.0.0/8 reachability entry to the local L2 LSP
+//    - add the 1.0.0.0/8 summary to the local RIB
+//    - add the L2 local LSP to the SRM list for the 0000.0000.0003 adjacency
+//    - transition the SPF Delay FSM state from "quiet" to "short-wait"
+//    - send an "lsp-generation" YANG notification
+//  * Southbound: install a blackhole route for 1.0.0.0/8 with a metric of 20
+//
+// Input:
+//  * Northbound: set the metric for the 1.0.0.0/8 summary route to 100
+// Output:
+//  * Protocol: send an updated L2 local LSP to rt3
+//  * Northbound:
+//    - update the metric of the 1.0.0.0/8 reachability entry in the local L2
+//      LSP from 20 to 100
+//    - update the metric of the 1.0.0.0/8 route in the local RIB from 20 to 100
+//    - send an "lsp-generation" YANG notification
+//  * Southbound: install a blackhole route for 1.0.0.0/8 with a metric of 100
+//
+// Input:
+//  * Northbound: remove the 1.0.0.0/8 summary route
+// Output:
+//  * Protocol: send an updated L2 local LSP to rt3
+//  * Northbound:
+//    - remove the 1.0.0.0/8 reachability entry from the local L2 LSP
+//    - add the 1.1.1.1/32 reachability entry to the local L2 LSP
+//    - send an "lsp-generation" YANG notification
+//
+// Input:
+//  * Protocol: L2 SPF_TIMER expiration
+// Output:
+//  * Northbound: remove the 1.0.0.0/8 summary from the local RIB
+//  * Southbound: uninstall the blackhole route for 1.0.0.0/8
+#[tokio::test]
+async fn nb_config_summary1() {
+    run_test::<Instance>("nb-config-summary1", "topo1-2", "rt2").await;
+}
+
+// Input:
+//  * Northbound: add a summary route (1.0.0.0/8)
+// Output:
+//  * Protocol: send an updated L2 local LSP to rt3
+//  * Northbound:
+//    - remove the 1.1.1.1/32 reachability entry from the local L2 LSP
+//    - add the 1.0.0.0/8 reachability entry to the local L2 LSP
+//    - add the 1.0.0.0/8 summary to the local RIB
+//    - add the L2 local LSP to the SRM list for the 0000.0000.0003 adjacency
+//    - transition the SPF Delay FSM state from "quiet" to "short-wait"
+//    - send an "lsp-generation" YANG notification
+//  * Southbound: install a blackhole route for 1.0.0.0/8 with a metric of 20
+//
+// Input:
+//  * Protocol: receive an L1 LSP (0000.0000.0001.00-00) from eth-rt1
+//    with the 1.1.1.1/32 IPv4 reachability removed
+// Output:
+//  * Northbound:
+//    - remove the 1.1.1.1/32 reachability entry from the 0000.0000.0001.00-00
+//      L1 LSP
+//    - add 0000.0000.0001.00-00 to the SSN list for eth-rt1
+//    - send an "lsp-generation" YANG notification
+//
+// Input:
+//  * Protocol:
+//    - L1 SPF_TIMER expiration
+//    - LSP_ORIGINATE_TIMER expiration
+//    - L2 SPF_TIMER expiration
+// Output:
+//  * Protocol: send an updated L2 local LSP to rt3
+//  * Northbound:
+//    - remove the 1.0.0.0/8 reachability entry from the local L2 LSP
+//    - remove the 1.0.0.0/8 summary from the local RIB
+//    - remove the 1.1.1.1/32 route from the local RIB
+//    - send an "lsp-generation" YANG notification
+//  * Southbound: uninstall the blackhole route for 1.0.0.0/8
+#[tokio::test]
+async fn nb_config_summary2() {
+    run_test::<Instance>("nb-config-summary2", "topo1-2", "rt2").await;
+}
+
+// Input:
 //  * Northbound: configure a TE IPv4 Router ID of 6.6.6.6
 // Output:
 //  * Protocol: send an updated local LSP to all adjacencies

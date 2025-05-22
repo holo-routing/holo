@@ -1,0 +1,29 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-isis:isis",
+          "name": "test",
+          "ietf-isis:isis": {
+            "holo-isis:inter-level-propagation-policies": {
+              "level1-to-level2": {
+                "summary-prefixes": [
+                  {
+                    "@": {
+                      "yang:operation": "create"
+                    },
+                    "prefix": "1.0.0.0/8"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

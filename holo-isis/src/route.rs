@@ -17,7 +17,7 @@ use ipnetwork::IpNetwork;
 
 use crate::collections::{InterfaceIndex, Interfaces};
 use crate::instance::InstanceUpView;
-use crate::northbound::configuration::InstanceCfg;
+use crate::northbound::configuration::{InstanceCfg, SummaryCfg};
 use crate::packet::subtlvs::prefix::PrefixSidStlv;
 use crate::packet::{LevelNumber, LevelType, SystemId};
 use crate::southbound;
@@ -41,6 +41,7 @@ bitflags! {
     pub struct RouteFlags: u8 {
         const CONNECTED = 0x01;
         const INSTALLED = 0x02;
+        const SUMMARY = 0x04;
     }
 }
 
@@ -64,6 +65,13 @@ pub struct RouteSys {
     pub metric: u32,
     pub tag: Option<u32>,
     pub opaque_attrs: RouteOpaqueAttrs,
+}
+
+// Summary route.
+#[derive(Clone, Debug)]
+pub struct SummaryRoute {
+    pub config: SummaryCfg,
+    pub metric: u32,
 }
 
 // ===== impl Route =====
@@ -142,6 +150,31 @@ impl Route {
     }
 }
 
+impl From<&SummaryRoute> for Route {
+    fn from(summary: &SummaryRoute) -> Route {
+        Route {
+            route_type: IsisRouteType::L2IntraArea,
+            metric: summary.metric(),
+            level: LevelNumber::L2,
+            tag: None,
+            prefix_sid: None,
+            sr_label: None,
+            nexthops: [].into(),
+            flags: RouteFlags::SUMMARY,
+        }
+    }
+}
+
+// ===== impl SummaryRoute =====
+
+impl SummaryRoute {
+    // Returns the configured summary metric if set. Otherwise, returns the
+    // lowest metric from contributing more-specific routes.
+    pub(crate) fn metric(&self) -> u32 {
+        self.config.metric.unwrap_or(self.metric)
+    }
+}
+
 // ===== global functions =====
 
 // Updates the local RIB for the specified level and the combined L1/L2 RIB for
@@ -157,6 +190,44 @@ pub(crate) fn update_rib(
         std::mem::take(instance.state.rib_mut(instance.config.level_type));
 
     if instance.config.level_type == LevelType::All {
+        match level {
+            LevelNumber::L1 => {
+                // Whenever the L1 RIB is updated, we need to recompute the L2
+                // summary routes.
+                instance.state.summaries.clear();
+                for (prefix, route) in &new_rib {
+                    if let Some((summary_prefix, summary_cfg)) =
+                        instance.config.summaries.get_spm(prefix)
+                    {
+                        instance
+                            .state
+                            .summaries
+                            .entry(summary_prefix)
+                            .and_modify(|summary: &mut SummaryRoute| {
+                                // Keep track of the lowest metric among the
+                                // contributing more-specific routes.
+                                summary.metric =
+                                    std::cmp::min(summary.metric, route.metric);
+                            })
+                            .or_insert_with(|| SummaryRoute {
+                                config: summary_cfg.clone(),
+                                metric: route.metric,
+                            });
+                    }
+                }
+            }
+            LevelNumber::L2 => {
+                // Add active summary routes to the L2 RIB. These will be
+                // installed in the global RIB as blackhole routes to prevent
+                // routing loops.
+                new_rib.extend(
+                    instance.state.summaries.iter().map(|(prefix, summary)| {
+                        (*prefix, Route::from(summary))
+                    }),
+                );
+            }
+        }
+
         // Store the new local RIB for the current level.
         *instance.state.rib_single.get_mut(level) = new_rib;
 
@@ -212,7 +283,8 @@ fn update_global_rib(
         // computation errors (e.g. adjacencies with missing IP address TLVs).
         // When that happens, ensure the route is removed from the global RIB.
         if !route.flags.contains(RouteFlags::CONNECTED)
-            && !route.nexthops.is_empty()
+            && (route.flags.contains(RouteFlags::SUMMARY)
+                || !route.nexthops.is_empty())
         {
             let distance = route.distance(instance.config);
             southbound::tx::route_install(

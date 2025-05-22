@@ -1,0 +1,1 @@
+{"RouteIpAdd":{"protocol":"isis","prefix":"1.0.0.0/8","distance":115,"metric":20,"tag":null,"nexthops":[]}}

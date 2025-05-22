@@ -86,6 +86,7 @@ pub(crate) async fn ip_route_uninstall(
         .destination_prefix(prefix.ip(), prefix.prefix())
         .unwrap()
         .protocol(protocol)
+        .kind(RouteType::Unspec)
         .build();
 
     // Execute netlink request.

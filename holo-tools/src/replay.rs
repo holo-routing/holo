@@ -63,6 +63,9 @@ async fn main() {
         Protocol::BFD => replay::<holo_bfd::master::Master>(filename).await,
         Protocol::BGP => replay::<holo_bgp::instance::Instance>(filename).await,
         Protocol::LDP => replay::<holo_ldp::instance::Instance>(filename).await,
+        Protocol::IGMP => {
+            replay::<holo_igmp::instance::Instance>(filename).await
+        }
         Protocol::ISIS => {
             replay::<holo_isis::instance::Instance>(filename).await
         }

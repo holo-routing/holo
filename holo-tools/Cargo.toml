@@ -18,6 +18,7 @@ yang3 = { workspace = true, features = ["bundled"] }
 holo-bfd = { path = "../holo-bfd", features = ["testing"] }
 holo-bgp = { path = "../holo-bgp", features = ["testing"] }
 holo-ldp = { path = "../holo-ldp", features = ["testing"] }
+holo-igmp = { path = "../holo-igmp", features = ["testing"] }
 holo-isis = { path = "../holo-isis", features = ["testing"] }
 holo-rip = { path = "../holo-rip", features = ["testing"] }
 holo-northbound = { path = "../holo-northbound" }

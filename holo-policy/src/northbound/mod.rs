@@ -17,7 +17,11 @@ use crate::Master;
 
 impl ProviderBase for Master {
     fn yang_modules() -> &'static [&'static str] {
-        &["ietf-routing-policy", "ietf-bgp-policy"]
+        &[
+            "ietf-access-control-list",
+            "ietf-routing-policy",
+            "ietf-bgp-policy",
+        ]
     }
 
     fn top_level_node(&self) -> String {

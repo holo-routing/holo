@@ -34,6 +34,7 @@ yang3.workspace = true
 holo-interface = { path = "../holo-interface", optional = true  }
 holo-bfd = { path = "../holo-bfd", optional = true }
 holo-bgp = { path = "../holo-bgp", optional = true }
+holo-igmp = { path = "../holo-igmp", optional = true }
 holo-isis = { path = "../holo-isis", optional = true }
 holo-keychain = { path = "../holo-keychain", optional = true }
 holo-ldp = { path = "../holo-ldp", optional = true }
@@ -73,6 +74,8 @@ base = [
 protocols = [
   "bfd",
   "bgp",
+  # IGMP support is under development and currently non-functional.
+  #"igmp",
   "isis",
   "ldp",
   "ospf",
@@ -90,6 +93,7 @@ system = ["dep:holo-system"]
 # Protocols
 bfd = ["dep:holo-bfd", "holo-routing/bfd"]
 bgp = ["dep:holo-bgp", "holo-routing/bgp"]
+igmp = ["dep:holo-igmp", "holo-routing/igmp"]
 isis = ["dep:holo-isis", "holo-routing/isis"]
 ldp = ["dep:holo-ldp", "holo-routing/ldp"]
 ospf = ["dep:holo-ospf", "holo-routing/ospf"]

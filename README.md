@@ -203,6 +203,10 @@ Holo supports the following Internet Standards:
 * RFC 5919 - Signaling LDP Label Advertisement Completion
 * RFC 6720 - The Generalized TTL Security Mechanism (GTSM) for the Label Distribution Protocol (LDP)
 
+##### Multicast
+
+* RFC 2236 - Internet Group Management Protocol, Version 2
+
 ##### OSPF
 
 * RFC 2328 - OSPF Version 2
@@ -251,6 +255,7 @@ Holo supports the following Internet Standards:
 | ietf-bier@2023-09-12 | 100.00% | - | - | 0.00% | [72.50%](https://holo-routing.github.io/ietf-yang-coverage/ietf-bier@2023-09-12.html) |
 | ietf-if-extensions@2023-01-26 | 100.00% | 0.00% | - | - | [50.00%](https://holo-routing.github.io/ietf-yang-coverage/ietf-if-extensions@2023-01-26.html) |
 | ietf-if-vlan-encapsulation@2023-01-26 | 42.86% | - | - | - | [42.86%](https://holo-routing.github.io/ietf-yang-coverage/ietf-if-vlan-encapsulation@2023-01-26.html) |
+| ietf-igmp-mld@2019-11-01 | 84.62% | 100.00% | - | - | [95.83%](https://holo-routing.github.io/ietf-yang-coverage/ietf-igmp-mld@2019-11-01.html) |
 | ietf-interfaces@2018-02-20 | 100.00% | 0.00% | - | - | [22.22%](https://holo-routing.github.io/ietf-yang-coverage/ietf-interfaces@2018-02-20.html) |
 | ietf-ip@2018-02-22 | 52.17% | 0.00% | - | - | [40.00%](https://holo-routing.github.io/ietf-yang-coverage/ietf-ip@2018-02-22.html) |
 | ietf-ipv4-unicast-routing@2018-03-13 | 100.00% | 100.00% | - | - | [100.00%](https://holo-routing.github.io/ietf-yang-coverage/ietf-ipv4-unicast-routing@2018-03-13.html) |

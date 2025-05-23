@@ -1,0 +1,60 @@
+module holo-ietf-igmp-mld-deviations {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/holo-ietf-igmp-mld-deviations";
+  prefix holo-ietf-igmp-mld-deviations;
+
+  import ietf-routing {
+    prefix rt;
+  }
+
+  import ietf-igmp-mld {
+    prefix igmp-mld;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines deviation statements for the ietf-igmp-mld
+     module.";
+
+  /*
+   * Default values
+   */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/igmp-mld:igmp/igmp-mld:interfaces/igmp-mld:interface/igmp-mld:last-member-query-interval" {
+    deviate add {
+      default "1";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/igmp-mld:igmp/igmp-mld:interfaces/igmp-mld:interface/igmp-mld:query-interval" {
+    deviate add {
+      default "125";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/igmp-mld:igmp/igmp-mld:interfaces/igmp-mld:interface/igmp-mld:query-max-response-time" {
+    deviate add {
+      default "10";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/igmp-mld:igmp/igmp-mld:interfaces/igmp-mld:interface/igmp-mld:robustness-variable" {
+    deviate add {
+      default "2";
+    }
+  }
+
+  /*
+   * Not supported nodes
+   */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/igmp-mld:igmp/igmp-mld:interfaces/igmp-mld:interface/igmp-mld:version" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/igmp-mld:igmp/igmp-mld:interfaces/igmp-mld:interface/igmp-mld:group-policy" {
+    deviate not-supported;
+  }
+}

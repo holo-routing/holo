@@ -1,0 +1,20 @@
+module holo-ietf-access-control-list-deviations {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/holo-ietf-access-control-list-deviations";
+  prefix holo-ietf-access-control-list-deviations;
+
+  import ietf-access-control-list {
+    prefix acl;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines deviation statements for the ietf-access-control-list
+     module.";
+
+  deviation "/acl:acls" {
+    deviate not-supported;
+  }
+}

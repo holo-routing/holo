@@ -384,6 +384,8 @@ impl Provider for Master {
             holo_bfd::northbound::state::CALLBACKS.keys(),
             #[cfg(feature = "bgp")]
             holo_bgp::northbound::state::CALLBACKS.keys(),
+            #[cfg(feature = "igmp")]
+            holo_igmp::northbound::state::CALLBACKS.keys(),
             #[cfg(feature = "isis")]
             holo_isis::northbound::state::CALLBACKS.keys(),
             #[cfg(feature = "ldp")]
@@ -411,6 +413,7 @@ impl ListEntryKind for ListEntry<'_> {
                 match (module_name, instance.id.protocol) {
                     ("ietf-bfd", Protocol::BFD)
                     | ("ietf-bgp", Protocol::BGP)
+                    | ("ietf-igmp-mld", Protocol::IGMP)
                     | ("ietf-isis", Protocol::ISIS)
                     | ("ietf-mpls-ldp", Protocol::LDP)
                     | ("ietf-ospf", Protocol::OSPFV2 | Protocol::OSPFV3)

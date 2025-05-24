@@ -7,6 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
+use bytes::TryGetError;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
@@ -18,6 +19,7 @@ pub type TlvDecodeResult<T> = Result<T, TlvDecodeError>;
 #[derive(Debug)]
 #[derive(Deserialize, Serialize)]
 pub enum DecodeError {
+    ReadOutOfBounds,
     IncompletePdu,
     InvalidHeaderLength(u8),
     InvalidIrdpDiscriminator(u8),
@@ -38,6 +40,7 @@ pub enum DecodeError {
 #[derive(Debug)]
 #[derive(Deserialize, Serialize)]
 pub enum TlvDecodeError {
+    ReadOutOfBounds,
     UnexpectedType(u8),
     InvalidLength(u8),
     InvalidAreaAddrLen(u8),
@@ -49,6 +52,9 @@ pub enum TlvDecodeError {
 impl std::fmt::Display for DecodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            DecodeError::ReadOutOfBounds => {
+                write!(f, "attempt to read out of bounds")
+            }
             DecodeError::IncompletePdu => {
                 write!(f, "incomplete PDU")
             }
@@ -94,6 +100,12 @@ impl std::fmt::Display for DecodeError {
 
 impl std::error::Error for DecodeError {}
 
+impl From<TryGetError> for DecodeError {
+    fn from(_error: TryGetError) -> DecodeError {
+        DecodeError::ReadOutOfBounds
+    }
+}
+
 // ===== impl TlvDecodeError =====
 
 impl TlvDecodeError {
@@ -105,6 +117,9 @@ impl TlvDecodeError {
 impl std::fmt::Display for TlvDecodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            TlvDecodeError::ReadOutOfBounds => {
+                write!(f, "attempt to read out of bounds")
+            }
             TlvDecodeError::UnexpectedType(tlv_type) => {
                 write!(f, "unexpected type: {tlv_type}")
             }
@@ -122,3 +137,9 @@ impl std::fmt::Display for TlvDecodeError {
 }
 
 impl std::error::Error for TlvDecodeError {}
+
+impl From<TryGetError> for TlvDecodeError {
+    fn from(_error: TryGetError) -> TlvDecodeError {
+        TlvDecodeError::ReadOutOfBounds
+    }
+}

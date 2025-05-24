@@ -332,28 +332,28 @@ impl Header {
         }
 
         // Parse IDRP discriminator.
-        let idrp_discr = buf.get_u8();
+        let idrp_discr = buf.try_get_u8()?;
         if idrp_discr != IDRP_DISCRIMINATOR {
             return Err(DecodeError::InvalidIrdpDiscriminator(idrp_discr));
         }
 
         // Parse length of fixed header.
-        let fixed_header_length = buf.get_u8();
+        let fixed_header_length = buf.try_get_u8()?;
 
         // Parse version/protocol ID extension.
-        let version_proto_ext = buf.get_u8();
+        let version_proto_ext = buf.try_get_u8()?;
         if version_proto_ext != VERSION_PROTO_EXT {
             return Err(DecodeError::InvalidVersion(version_proto_ext));
         }
 
         // Parse ID length.
-        let id_len = buf.get_u8();
+        let id_len = buf.try_get_u8()?;
         if id_len != 0 && id_len != SYSTEM_ID_LEN {
             return Err(DecodeError::InvalidIdLength(id_len));
         }
 
         // Parse PDU type.
-        let pdu_type = buf.get_u8();
+        let pdu_type = buf.try_get_u8()?;
         let pdu_type = match PduType::from_u8(pdu_type) {
             Some(pdu_type) => pdu_type,
             None => return Err(DecodeError::UnknownPduType(pdu_type)),
@@ -368,16 +368,16 @@ impl Header {
         }
 
         // Parse version.
-        let version = buf.get_u8();
+        let version = buf.try_get_u8()?;
         if version != VERSION {
             return Err(DecodeError::InvalidVersion(version));
         }
 
         // Parse reserved field.
-        let _reserved = buf.get_u8();
+        let _reserved = buf.try_get_u8()?;
 
         // Parse maximum area addresses.
-        let max_area_addrs = buf.get_u8();
+        let max_area_addrs = buf.try_get_u8()?;
 
         Ok(Header {
             pdu_type,
@@ -455,7 +455,7 @@ impl Hello {
         auth: Option<&AuthMethod>,
     ) -> DecodeResult<Self> {
         // Parse circuit type.
-        let circuit_type = buf.get_u8() & Self::CIRCUIT_TYPE_MASK;
+        let circuit_type = buf.try_get_u8()? & Self::CIRCUIT_TYPE_MASK;
         let circuit_type = match circuit_type {
             1 if hdr.pdu_type != PduType::HelloLanL2 => LevelType::L1,
             2 if hdr.pdu_type != PduType::HelloLanL1 => LevelType::L2,
@@ -469,13 +469,13 @@ impl Hello {
         let source = SystemId::decode(buf);
 
         // Parse holding time.
-        let holdtime = buf.get_u16();
+        let holdtime = buf.try_get_u16()?;
         if holdtime == 0 {
             return Err(DecodeError::InvalidHelloHoldtime(holdtime));
         }
 
         // Parse PDU length.
-        let pdu_len = buf.get_u16();
+        let pdu_len = buf.try_get_u16()?;
         if pdu_len != buf_orig.len() as u16 {
             return Err(DecodeError::InvalidPduLength(pdu_len));
         }
@@ -483,12 +483,12 @@ impl Hello {
         // Parse custom fields.
         let variant = if hdr.pdu_type == PduType::HelloP2P {
             // Parse local circuit ID.
-            let local_circuit_id = buf.get_u8();
+            let local_circuit_id = buf.try_get_u8()?;
 
             HelloVariant::P2P { local_circuit_id }
         } else {
             // Parse priority.
-            let priority = buf.get_u8() & Self::PRIORITY_MASK;
+            let priority = buf.try_get_u8()? & Self::PRIORITY_MASK;
             // Parse LAN ID.
             let lan_id = LanId::decode(buf);
 
@@ -502,11 +502,11 @@ impl Hello {
         let mut tlv_auth = None;
         while buf.remaining() >= TLV_HDR_SIZE {
             // Parse TLV type.
-            let tlv_type = buf.get_u8();
+            let tlv_type = buf.try_get_u8()?;
             let tlv_etype = TlvType::from_u8(tlv_type);
 
             // Parse and validate TLV length.
-            let tlv_len = buf.get_u8();
+            let tlv_len = buf.try_get_u8()?;
             if tlv_len as usize > buf.remaining() {
                 return Err(DecodeError::InvalidTlvLength(tlv_len));
             }
@@ -768,25 +768,25 @@ impl Lsp {
         auth: Option<&AuthMethod>,
     ) -> DecodeResult<Self> {
         // Parse PDU length.
-        let pdu_len = buf.get_u16();
+        let pdu_len = buf.try_get_u16()?;
         if pdu_len != buf_orig.len() as u16 {
             return Err(DecodeError::InvalidPduLength(pdu_len));
         }
 
         // Parse remaining lifetime.
-        let rem_lifetime = buf.get_u16();
+        let rem_lifetime = buf.try_get_u16()?;
 
         // Parse LSP ID.
         let lsp_id = LspId::decode(buf);
 
         // Parse sequence number.
-        let seqno = buf.get_u32();
+        let seqno = buf.try_get_u32()?;
 
         // Parse checksum.
-        let cksum = buf.get_u16();
+        let cksum = buf.try_get_u16()?;
 
         // Parse flags.
-        let flags = buf.get_u8();
+        let flags = buf.try_get_u8()?;
         let flags = LspFlags::from_bits_truncate(flags);
 
         // Parse top-level TLVs.
@@ -796,11 +796,11 @@ impl Lsp {
         let mut tlv_auth = None;
         while buf.remaining() >= TLV_HDR_SIZE {
             // Parse TLV type.
-            let tlv_type = buf.get_u8();
+            let tlv_type = buf.try_get_u8()?;
             let tlv_etype = TlvType::from_u8(tlv_type);
 
             // Parse and validate TLV length.
-            let tlv_len = buf.get_u8();
+            let tlv_len = buf.try_get_u8()?;
             if tlv_len as usize > buf.remaining() {
                 return Err(DecodeError::InvalidTlvLength(tlv_len));
             }
@@ -1349,7 +1349,7 @@ impl Snp {
         auth: Option<&AuthMethod>,
     ) -> DecodeResult<Self> {
         // Parse PDU length.
-        let pdu_len = buf.get_u16();
+        let pdu_len = buf.try_get_u16()?;
         if pdu_len != buf_orig.len() as u16 {
             return Err(DecodeError::InvalidPduLength(pdu_len));
         }
@@ -1372,11 +1372,11 @@ impl Snp {
         let mut tlv_auth = None;
         while buf.remaining() >= TLV_HDR_SIZE {
             // Parse TLV type.
-            let tlv_type = buf.get_u8();
+            let tlv_type = buf.try_get_u8()?;
             let tlv_etype = TlvType::from_u8(tlv_type);
 
             // Parse and validate TLV length.
-            let tlv_len = buf.get_u8();
+            let tlv_len = buf.try_get_u8()?;
             if tlv_len as usize > buf.remaining() {
                 return Err(DecodeError::InvalidTlvLength(tlv_len));
             }

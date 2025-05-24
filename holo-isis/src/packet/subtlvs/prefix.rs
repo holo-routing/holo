@@ -114,7 +114,7 @@ impl PrefixAttrFlagsStlv {
         }
 
         // Any remaining bits beyond the first byte are ignored.
-        let flags = buf.get_u8();
+        let flags = buf.try_get_u8()?;
         let flags = PrefixAttrFlags::from_bits_truncate(flags);
 
         Ok(PrefixAttrFlagsStlv(flags))
@@ -154,7 +154,7 @@ impl Ipv4SourceRidStlv {
             return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 
-        let addr = buf.get_ipv4();
+        let addr = buf.try_get_ipv4()?;
 
         Ok(Ipv4SourceRidStlv(addr))
     }
@@ -189,7 +189,7 @@ impl Ipv6SourceRidStlv {
             return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 
-        let addr = buf.get_ipv6();
+        let addr = buf.try_get_ipv6()?;
 
         Ok(Ipv6SourceRidStlv(addr))
     }
@@ -217,9 +217,9 @@ impl PrefixSidStlv {
         _stlv_len: u8,
         buf: &mut Bytes,
     ) -> TlvDecodeResult<Option<Self>> {
-        let flags = buf.get_u8();
+        let flags = buf.try_get_u8()?;
         let flags = PrefixSidFlags::from_bits_truncate(flags);
-        let algo = buf.get_u8();
+        let algo = buf.try_get_u8()?;
         let algo = match IgpAlgoType::from_u8(algo) {
             Some(algo) => algo,
             None => {
@@ -230,9 +230,9 @@ impl PrefixSidStlv {
 
         // Parse SID (variable length).
         let sid = if !flags.intersects(PrefixSidFlags::V | PrefixSidFlags::L) {
-            Sid::Index(buf.get_u32())
+            Sid::Index(buf.try_get_u32()?)
         } else if flags.contains(PrefixSidFlags::V | PrefixSidFlags::L) {
-            let label = buf.get_u24() & Label::VALUE_MASK;
+            let label = buf.try_get_u24()? & Label::VALUE_MASK;
             Sid::Label(Label::new(label))
         } else {
             // Invalid V-Flag and L-Flag combination - ignore.
@@ -275,20 +275,20 @@ impl BierInfoStlv {
         if stlv_len < Self::MIN_SIZE as u8 {
             return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
-        let bar = buf.get_u8();
-        let ipa = buf.get_u8();
-        let sub_domain_id = buf.get_u8();
-        let bfr_id = buf.get_u16();
+        let bar = buf.try_get_u8()?;
+        let ipa = buf.try_get_u8()?;
+        let sub_domain_id = buf.try_get_u8()?;
+        let bfr_id = buf.try_get_u16()?;
 
         let mut subtlvs: Vec<BierSubStlv> = Vec::new();
 
         while buf.remaining() >= TLV_HDR_SIZE {
             // Parse Stlv type.
-            let stlv_type = buf.get_u8();
+            let stlv_type = buf.try_get_u8()?;
             let stlv_etype = BierSubStlvType::from_u8(stlv_type);
 
             // Parse and validate Stlv length.
-            let stlv_len = buf.get_u8();
+            let stlv_len = buf.try_get_u8()?;
             if stlv_len as usize > buf.remaining() {
                 return Err(TlvDecodeError::InvalidLength(stlv_len));
             }
@@ -299,8 +299,8 @@ impl BierInfoStlv {
                 Some(
                     BierSubStlvType::MplsEncap | BierSubStlvType::NonMplsEncap,
                 ) => {
-                    let max_si = buf_stlv.get_u8();
-                    let id = buf_stlv.get_u24();
+                    let max_si = buf_stlv.try_get_u8()?;
+                    let id = buf_stlv.try_get_u24()?;
                     let bs_len = ((id >> 20) & 0xf) as u8;
                     let id = match stlv_etype.unwrap() {
                         BierSubStlvType::MplsEncap => {

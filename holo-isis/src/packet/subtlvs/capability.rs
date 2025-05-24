@@ -74,7 +74,7 @@ impl SrCapabilitiesStlv {
             return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 
-        let flags = buf.get_u8();
+        let flags = buf.try_get_u8()?;
         let flags = SrCapabilitiesFlags::from_bits_truncate(flags);
         let mut srgb_entries = vec![];
         while buf.remaining() >= 1 {
@@ -119,7 +119,7 @@ impl SrAlgoStlv {
     ) -> TlvDecodeResult<Self> {
         let mut list = BTreeSet::new();
         for _ in 0..stlv_len {
-            let algo = buf.get_u8();
+            let algo = buf.try_get_u8()?;
             let algo = match IgpAlgoType::from_u8(algo) {
                 Some(algo) => algo,
                 None => {
@@ -166,7 +166,7 @@ impl SrLocalBlockStlv {
             return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 
-        let _flags = buf.get_u8();
+        let _flags = buf.try_get_u8()?;
         let mut entries = vec![];
         while buf.remaining() >= 1 {
             let entry = LabelBlockEntry::decode(buf)?;
@@ -198,21 +198,21 @@ impl SrLocalBlockStlv {
 
 impl LabelBlockEntry {
     pub(crate) fn decode(buf: &mut Bytes) -> TlvDecodeResult<Self> {
-        let range = buf.get_u24();
+        let range = buf.try_get_u24()?;
 
         // Only the SID/Label sub-TLV is valid here.
-        let stlv_type = buf.get_u8();
+        let stlv_type = buf.try_get_u8()?;
         if stlv_type != LabelBindingStlvType::SidLabel as u8 {
             return Err(TlvDecodeError::UnexpectedType(stlv_type));
         }
-        let stlv_len = buf.get_u8();
+        let stlv_len = buf.try_get_u8()?;
         if stlv_len as usize > buf.remaining() {
             return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
         let first = match stlv_len {
-            4 => Sid::Index(buf.get_u32()),
+            4 => Sid::Index(buf.try_get_u32()?),
             3 => {
-                let label = buf.get_u24() & Label::VALUE_MASK;
+                let label = buf.try_get_u24()? & Label::VALUE_MASK;
                 Sid::Label(Label::new(label))
             }
             _ => {

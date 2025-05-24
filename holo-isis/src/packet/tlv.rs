@@ -390,7 +390,7 @@ impl AreaAddressesTlv {
 
         while buf.remaining() >= 1 {
             // Parse area address length.
-            let addr_len = buf.get_u8();
+            let addr_len = buf.try_get_u8()?;
 
             // Sanity checks.
             if addr_len > AreaAddr::MAX_LEN {
@@ -534,7 +534,7 @@ impl AuthenticationTlv {
         }
 
         // Parse authentication type.
-        let auth_type = buf.get_u8();
+        let auth_type = buf.try_get_u8()?;
         let Some(auth_type) = AuthenticationType::from_u8(auth_type) else {
             return Err(TlvDecodeError::AuthUnsupportedType(auth_type));
         };
@@ -596,7 +596,7 @@ impl LspBufferSizeTlv {
             return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
-        let size = buf.get_u16();
+        let size = buf.try_get_u16()?;
 
         Ok(LspBufferSizeTlv { size })
     }
@@ -658,7 +658,7 @@ impl ProtocolsSupportedTlv {
         let mut list = vec![];
 
         while buf.remaining() >= 1 {
-            let proto = buf.get_u8();
+            let proto = buf.try_get_u8()?;
             list.push(proto);
         }
 
@@ -711,7 +711,7 @@ impl Ipv4AddressesTlv {
 
         while buf.remaining() >= Ipv4Addr::LENGTH {
             // Parse IPv4 address.
-            let addr = buf.get_ipv4();
+            let addr = buf.try_get_ipv4()?;
             list.push(addr);
         }
 
@@ -766,7 +766,7 @@ impl Ipv6AddressesTlv {
 
         while buf.remaining() >= Ipv6Addr::LENGTH {
             // Parse IPv6 address.
-            let addr = buf.get_ipv6();
+            let addr = buf.try_get_ipv6()?;
             list.push(addr);
         }
 
@@ -825,10 +825,10 @@ impl LspEntriesTlv {
         }
 
         while buf.remaining() >= Self::ENTRY_SIZE {
-            let rem_lifetime = buf.get_u16();
+            let rem_lifetime = buf.try_get_u16()?;
             let lsp_id = LspId::decode(buf);
-            let seqno = buf.get_u32();
-            let cksum = buf.get_u16();
+            let seqno = buf.try_get_u32()?;
+            let cksum = buf.try_get_u16()?;
 
             let entry = LspEntry {
                 rem_lifetime,
@@ -895,17 +895,17 @@ impl IsReachTlv {
             return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
-        let _virtual_flag = buf.get_u8();
+        let _virtual_flag = buf.try_get_u8()?;
         while buf.remaining() >= Self::ENTRY_SIZE {
-            let metric = buf.get_u8();
+            let metric = buf.try_get_u8()?;
             let metric = metric & Self::METRIC_MASK;
-            let metric_delay = buf.get_u8();
+            let metric_delay = buf.try_get_u8()?;
             let metric_delay = (metric_delay & Self::METRIC_S_BIT == 0)
                 .then_some(metric_delay & Self::METRIC_MASK);
-            let metric_expense = buf.get_u8();
+            let metric_expense = buf.try_get_u8()?;
             let metric_expense = (metric_expense & Self::METRIC_S_BIT == 0)
                 .then_some(metric_expense & Self::METRIC_MASK);
-            let metric_error = buf.get_u8();
+            let metric_error = buf.try_get_u8()?;
             let metric_error = (metric_error & Self::METRIC_S_BIT == 0)
                 .then_some(metric_error & Self::METRIC_MASK);
             let neighbor = LanId::decode(buf);
@@ -981,19 +981,19 @@ impl ExtIsReachTlv {
 
         while buf.remaining() >= Self::ENTRY_MIN_SIZE {
             let neighbor = LanId::decode(buf);
-            let metric = buf.get_u24();
+            let metric = buf.try_get_u24()?;
 
             // Parse Sub-TLVs.
             let mut sub_tlvs = ExtIsReachStlvs::default();
-            let mut sub_tlvs_len = buf.get_u8();
+            let mut sub_tlvs_len = buf.try_get_u8()?;
             while sub_tlvs_len >= TLV_HDR_SIZE as u8 {
                 // Parse TLV type.
-                let stlv_type = buf.get_u8();
+                let stlv_type = buf.try_get_u8()?;
                 sub_tlvs_len -= 1;
                 let stlv_etype = NeighborStlvType::from_u8(stlv_type);
 
                 // Parse and validate TLV length.
-                let stlv_len = buf.get_u8();
+                let stlv_len = buf.try_get_u8()?;
                 sub_tlvs_len -= 1;
                 if stlv_len as usize > buf.remaining() {
                     return Err(TlvDecodeError::InvalidLength(stlv_len));
@@ -1189,21 +1189,21 @@ impl Ipv4ReachTlv {
         }
 
         while buf.remaining() >= Self::ENTRY_SIZE {
-            let metric = buf.get_u8();
+            let metric = buf.try_get_u8()?;
             let up_down = metric & Self::METRIC_UP_DOWN_BIT != 0;
             let ie_bit = metric & Self::METRIC_IE_BIT != 0;
             let metric = metric & Self::METRIC_MASK;
-            let metric_delay = buf.get_u8();
+            let metric_delay = buf.try_get_u8()?;
             let metric_delay = (metric_delay & Self::METRIC_S_BIT == 0)
                 .then_some(metric_delay & Self::METRIC_MASK);
-            let metric_expense = buf.get_u8();
+            let metric_expense = buf.try_get_u8()?;
             let metric_expense = (metric_expense & Self::METRIC_S_BIT == 0)
                 .then_some(metric_expense & Self::METRIC_MASK);
-            let metric_error = buf.get_u8();
+            let metric_error = buf.try_get_u8()?;
             let metric_error = (metric_error & Self::METRIC_S_BIT == 0)
                 .then_some(metric_error & Self::METRIC_MASK);
-            let addr = buf.get_ipv4();
-            let mask = buf.get_ipv4();
+            let addr = buf.try_get_ipv4()?;
+            let mask = buf.try_get_ipv4()?;
 
             // Per RFC 5302 Section 3.3, ignore internal reachability
             // information with external metric type.
@@ -1338,10 +1338,10 @@ impl ExtIpv4ReachTlv {
 
         while buf.remaining() >= Self::ENTRY_MIN_SIZE {
             // Parse metric.
-            let metric = buf.get_u32();
+            let metric = buf.try_get_u32()?;
 
             // Parse control field.
-            let control = buf.get_u8();
+            let control = buf.try_get_u8()?;
             let up_down = (control & Self::CONTROL_UPDOWN_BIT) != 0;
             let subtlvs = (control & Self::CONTROL_SUBTLVS) != 0;
             let plen = control & Self::CONTROL_PLEN_MASK;
@@ -1355,15 +1355,15 @@ impl ExtIpv4ReachTlv {
             // Parse Sub-TLVs.
             let mut sub_tlvs = Ipv4ReachStlvs::default();
             if subtlvs {
-                let mut sub_tlvs_len = buf.get_u8();
+                let mut sub_tlvs_len = buf.try_get_u8()?;
                 while sub_tlvs_len >= TLV_HDR_SIZE as u8 {
                     // Parse TLV type.
-                    let stlv_type = buf.get_u8();
+                    let stlv_type = buf.try_get_u8()?;
                     sub_tlvs_len -= 1;
                     let stlv_etype = PrefixStlvType::from_u8(stlv_type);
 
                     // Parse and validate TLV length.
-                    let stlv_len = buf.get_u8();
+                    let stlv_len = buf.try_get_u8()?;
                     sub_tlvs_len -= 1;
                     if stlv_len as usize > buf.remaining() {
                         return Err(TlvDecodeError::InvalidLength(stlv_len));
@@ -1612,16 +1612,16 @@ impl Ipv6ReachTlv {
 
         while buf.remaining() >= Self::ENTRY_MIN_SIZE {
             // Parse metric.
-            let metric = buf.get_u32();
+            let metric = buf.try_get_u32()?;
 
             // Parse flags field.
-            let flags = buf.get_u8();
+            let flags = buf.try_get_u8()?;
             let up_down = (flags & Self::FLAG_UPDOWN) != 0;
             let external = (flags & Self::FLAG_EXTERNAL) != 0;
             let subtlvs = (flags & Self::FLAG_SUBTLVS) != 0;
 
             // Parse prefix length.
-            let plen = buf.get_u8();
+            let plen = buf.try_get_u8()?;
 
             // Parse prefix (variable length).
             let mut prefix_bytes = [0; Ipv6Addr::LENGTH];
@@ -1632,15 +1632,15 @@ impl Ipv6ReachTlv {
             // Parse Sub-TLVs.
             let mut sub_tlvs = Ipv6ReachStlvs::default();
             if subtlvs {
-                let mut sub_tlvs_len = buf.get_u8();
+                let mut sub_tlvs_len = buf.try_get_u8()?;
                 while sub_tlvs_len >= TLV_HDR_SIZE as u8 {
                     // Parse TLV type.
-                    let stlv_type = buf.get_u8();
+                    let stlv_type = buf.try_get_u8()?;
                     sub_tlvs_len -= 1;
                     let stlv_etype = PrefixStlvType::from_u8(stlv_type);
 
                     // Parse and validate TLV length.
-                    let stlv_len = buf.get_u8();
+                    let stlv_len = buf.try_get_u8()?;
                     sub_tlvs_len -= 1;
                     if stlv_len as usize > buf.remaining() {
                         return Err(TlvDecodeError::InvalidLength(stlv_len));
@@ -1913,7 +1913,7 @@ impl Ipv4RouterIdTlv {
             return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
-        let addr = buf.get_ipv4();
+        let addr = buf.try_get_ipv4()?;
 
         Ok(Ipv4RouterIdTlv(addr))
     }
@@ -1949,7 +1949,7 @@ impl Ipv6RouterIdTlv {
             return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
-        let addr = buf.get_ipv6();
+        let addr = buf.try_get_ipv6()?;
 
         Ok(Ipv6RouterIdTlv(addr))
     }
@@ -1985,19 +1985,19 @@ impl RouterCapTlv {
             return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
-        let router_id = buf.get_opt_ipv4();
-        let flags = buf.get_u8();
+        let router_id = buf.try_get_opt_ipv4()?;
+        let flags = buf.try_get_u8()?;
         let flags = RouterCapFlags::from_bits_truncate(flags);
 
         // Parse Sub-TLVs.
         let mut sub_tlvs = RouterCapStlvs::default();
         while buf.remaining() >= TLV_HDR_SIZE {
             // Parse TLV type.
-            let stlv_type = buf.get_u8();
+            let stlv_type = buf.try_get_u8()?;
             let stlv_etype = RouterCapStlvType::from_u8(stlv_type);
 
             // Parse and validate TLV length.
-            let stlv_len = buf.get_u8();
+            let stlv_len = buf.try_get_u8()?;
             if stlv_len as usize > buf.remaining() {
                 return Err(TlvDecodeError::InvalidLength(stlv_len));
             }

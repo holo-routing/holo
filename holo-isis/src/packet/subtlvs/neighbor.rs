@@ -95,7 +95,7 @@ impl AdminGroupStlv {
             return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 
-        let groups = buf.get_u32();
+        let groups = buf.try_get_u32()?;
 
         Ok(AdminGroupStlv(groups))
     }
@@ -125,7 +125,7 @@ impl Ipv4InterfaceAddrStlv {
             return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 
-        let addr = buf.get_ipv4();
+        let addr = buf.try_get_ipv4()?;
 
         Ok(Ipv4InterfaceAddrStlv(addr))
     }
@@ -156,7 +156,7 @@ impl Ipv4NeighborAddrStlv {
             return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 
-        let addr = buf.get_ipv4();
+        let addr = buf.try_get_ipv4()?;
 
         Ok(Ipv4NeighborAddrStlv(addr))
     }
@@ -187,7 +187,7 @@ impl MaxLinkBwStlv {
             return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 
-        let bw = buf.get_f32();
+        let bw = buf.try_get_f32()?;
 
         Ok(MaxLinkBwStlv(bw))
     }
@@ -218,7 +218,7 @@ impl MaxResvLinkBwStlv {
             return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 
-        let bw = buf.get_f32();
+        let bw = buf.try_get_f32()?;
 
         Ok(MaxResvLinkBwStlv(bw))
     }
@@ -251,7 +251,7 @@ impl UnreservedBwStlv {
 
         let mut bws = [0f32; 8];
         for bw in &mut bws {
-            *bw = buf.get_f32();
+            *bw = buf.try_get_f32()?;
         }
 
         Ok(UnreservedBwStlv(bws))
@@ -285,7 +285,7 @@ impl TeDefaultMetricStlv {
             return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 
-        let metric = buf.get_u24();
+        let metric = buf.try_get_u24()?;
 
         Ok(TeDefaultMetricStlv(metric))
     }
@@ -310,9 +310,9 @@ impl AdjSidStlv {
         lan: bool,
         buf: &mut Bytes,
     ) -> TlvDecodeResult<Option<Self>> {
-        let flags = buf.get_u8();
+        let flags = buf.try_get_u8()?;
         let flags = AdjSidFlags::from_bits_truncate(flags);
-        let weight = buf.get_u8();
+        let weight = buf.try_get_u8()?;
 
         let mut nbr_system_id = None;
         if lan {
@@ -321,9 +321,9 @@ impl AdjSidStlv {
 
         // Parse SID (variable length).
         let sid = if !flags.intersects(AdjSidFlags::V | AdjSidFlags::L) {
-            Sid::Index(buf.get_u32())
+            Sid::Index(buf.try_get_u32()?)
         } else if flags.contains(AdjSidFlags::V | AdjSidFlags::L) {
-            let label = buf.get_u24() & Label::VALUE_MASK;
+            let label = buf.try_get_u24()? & Label::VALUE_MASK;
             Sid::Label(Label::new(label))
         } else {
             // Invalid V-Flag and L-Flag combination - ignore.

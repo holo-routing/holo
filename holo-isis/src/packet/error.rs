@@ -8,9 +8,11 @@
 //
 
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 
 // Type aliases.
 pub type DecodeResult<T> = Result<T, DecodeError>;
+pub type TlvDecodeResult<T> = Result<T, TlvDecodeError>;
 
 // IS-IS message decoding errors.
 #[derive(Debug)]
@@ -23,17 +25,23 @@ pub enum DecodeError {
     InvalidIdLength(u8),
     UnknownPduType(u8),
     InvalidPduLength(u16),
-    UnexpectedTlvType(u8),
     InvalidTlvLength(u8),
-    AuthUnsupportedType(u8),
     AuthTypeMismatch,
     AuthKeyNotFound,
     AuthError,
     // Hello
     InvalidHelloCircuitType(u8),
     InvalidHelloHoldtime(u16),
-    // TLVs
+}
+
+// IS-IS TLV decoding errors.
+#[derive(Debug)]
+#[derive(Deserialize, Serialize)]
+pub enum TlvDecodeError {
+    UnexpectedType(u8),
+    InvalidLength(u8),
     InvalidAreaAddrLen(u8),
+    AuthUnsupportedType(u8),
 }
 
 // ===== impl DecodeError =====
@@ -62,14 +70,8 @@ impl std::fmt::Display for DecodeError {
             DecodeError::InvalidPduLength(pdu_len) => {
                 write!(f, "invalid PDU length: {pdu_len}")
             }
-            DecodeError::UnexpectedTlvType(tlv_type) => {
-                write!(f, "unexpected tlv type: {tlv_type}")
-            }
             DecodeError::InvalidTlvLength(tlv_len) => {
                 write!(f, "invalid TLV length: {tlv_len}")
-            }
-            DecodeError::AuthUnsupportedType(auth_type) => {
-                write!(f, "unsupported authentication type: {auth_type}")
             }
             DecodeError::AuthTypeMismatch => {
                 write!(f, "authentication type mismatch")
@@ -86,11 +88,37 @@ impl std::fmt::Display for DecodeError {
             DecodeError::InvalidHelloHoldtime(holdtime) => {
                 write!(f, "invalid hello holdtime: {holdtime}")
             }
-            DecodeError::InvalidAreaAddrLen(area_len) => {
+        }
+    }
+}
+
+impl std::error::Error for DecodeError {}
+
+// ===== impl TlvDecodeError =====
+
+impl TlvDecodeError {
+    pub(crate) fn log(&self) {
+        warn!("{}", self);
+    }
+}
+
+impl std::fmt::Display for TlvDecodeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TlvDecodeError::UnexpectedType(tlv_type) => {
+                write!(f, "unexpected type: {tlv_type}")
+            }
+            TlvDecodeError::InvalidLength(tlv_len) => {
+                write!(f, "invalid length: {tlv_len}")
+            }
+            TlvDecodeError::AuthUnsupportedType(auth_type) => {
+                write!(f, "unsupported authentication type: {auth_type}")
+            }
+            TlvDecodeError::InvalidAreaAddrLen(area_len) => {
                 write!(f, "invalid area address length: {area_len}")
             }
         }
     }
 }
 
-impl std::error::Error for DecodeError {}
+impl std::error::Error for TlvDecodeError {}

@@ -6,4 +6,3 @@
 {"NetRxPdu":{"iface_key":{"Value":"eth-sw1"},"src":[154,80,126,196,130,124],"bytes":[],"pdu":{"Err":{"InvalidTlvLength": 100}}}}
 {"NetRxPdu":{"iface_key":{"Value":"eth-sw1"},"src":[154,80,126,196,130,124],"bytes":[],"pdu":{"Err":{"InvalidHelloCircuitType": 100}}}}
 {"NetRxPdu":{"iface_key":{"Value":"eth-sw1"},"src":[154,80,126,196,130,124],"bytes":[],"pdu":{"Err":{"InvalidHelloHoldtime": 0}}}}
-{"NetRxPdu":{"iface_key":{"Value":"eth-sw1"},"src":[154,80,126,196,130,124],"bytes":[],"pdu":{"Err":{"InvalidAreaAddrLen": 100}}}}

@@ -20,7 +20,7 @@ use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
 use crate::packet::consts::{BierSubStlvType, PrefixStlvType};
-use crate::packet::error::{DecodeError, DecodeResult};
+use crate::packet::error::{TlvDecodeError, TlvDecodeResult};
 use crate::packet::tlv::{TLV_HDR_SIZE, tlv_encode_end, tlv_encode_start};
 
 bitflags! {
@@ -104,7 +104,10 @@ pub struct BierEncapSubStlv {
 impl PrefixAttrFlagsStlv {
     const SIZE: usize = 1;
 
-    pub(crate) fn decode(stlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         // A TLV length of zero is permitted under RFC 7794.
         if stlv_len == 0 {
             return Ok(PrefixAttrFlagsStlv::default());
@@ -142,10 +145,13 @@ impl PrefixAttrFlagsStlv {
 impl Ipv4SourceRidStlv {
     const SIZE: usize = 4;
 
-    pub(crate) fn decode(stlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         // Validate the TLV length.
         if stlv_len as usize != Self::SIZE {
-            return Err(DecodeError::InvalidTlvLength(stlv_len));
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 
         let addr = buf.get_ipv4();
@@ -174,10 +180,13 @@ impl Ipv4SourceRidStlv {
 impl Ipv6SourceRidStlv {
     const SIZE: usize = 16;
 
-    pub(crate) fn decode(stlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         // Validate the TLV length.
         if stlv_len as usize != Self::SIZE {
-            return Err(DecodeError::InvalidTlvLength(stlv_len));
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 
         let addr = buf.get_ipv6();
@@ -207,7 +216,7 @@ impl PrefixSidStlv {
     pub(crate) fn decode(
         _stlv_len: u8,
         buf: &mut Bytes,
-    ) -> DecodeResult<Option<Self>> {
+    ) -> TlvDecodeResult<Option<Self>> {
         let flags = buf.get_u8();
         let flags = PrefixSidFlags::from_bits_truncate(flags);
         let algo = buf.get_u8();
@@ -259,9 +268,12 @@ impl PrefixSidStlv {
 impl BierInfoStlv {
     const MIN_SIZE: usize = 5;
 
-    pub(crate) fn decode(stlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         if stlv_len < Self::MIN_SIZE as u8 {
-            return Err(DecodeError::InvalidTlvLength(stlv_len));
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
         let bar = buf.get_u8();
         let ipa = buf.get_u8();
@@ -278,7 +290,7 @@ impl BierInfoStlv {
             // Parse and validate Stlv length.
             let stlv_len = buf.get_u8();
             if stlv_len as usize > buf.remaining() {
-                return Err(DecodeError::InvalidTlvLength(stlv_len));
+                return Err(TlvDecodeError::InvalidLength(stlv_len));
             }
 
             // Parse Stlv value.

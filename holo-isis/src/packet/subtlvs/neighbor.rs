@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::packet::SystemId;
 use crate::packet::consts::NeighborStlvType;
-use crate::packet::error::{DecodeError, DecodeResult};
+use crate::packet::error::{TlvDecodeError, TlvDecodeResult};
 use crate::packet::tlv::{tlv_encode_end, tlv_encode_start};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -86,10 +86,13 @@ pub struct AdjSidStlv {
 impl AdminGroupStlv {
     const SIZE: usize = 4;
 
-    pub(crate) fn decode(stlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         // Validate the TLV length.
         if stlv_len as usize != Self::SIZE {
-            return Err(DecodeError::InvalidTlvLength(stlv_len));
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 
         let groups = buf.get_u32();
@@ -113,10 +116,13 @@ impl AdminGroupStlv {
 impl Ipv4InterfaceAddrStlv {
     const SIZE: usize = 4;
 
-    pub(crate) fn decode(stlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         // Validate the TLV length.
         if stlv_len as usize != Self::SIZE {
-            return Err(DecodeError::InvalidTlvLength(stlv_len));
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 
         let addr = buf.get_ipv4();
@@ -141,10 +147,13 @@ impl Ipv4InterfaceAddrStlv {
 impl Ipv4NeighborAddrStlv {
     const SIZE: usize = 4;
 
-    pub(crate) fn decode(stlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         // Validate the TLV length.
         if stlv_len as usize != Self::SIZE {
-            return Err(DecodeError::InvalidTlvLength(stlv_len));
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 
         let addr = buf.get_ipv4();
@@ -169,10 +178,13 @@ impl Ipv4NeighborAddrStlv {
 impl MaxLinkBwStlv {
     const SIZE: usize = 4;
 
-    pub(crate) fn decode(stlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         // Validate the TLV length.
         if stlv_len as usize != Self::SIZE {
-            return Err(DecodeError::InvalidTlvLength(stlv_len));
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 
         let bw = buf.get_f32();
@@ -197,10 +209,13 @@ impl MaxLinkBwStlv {
 impl MaxResvLinkBwStlv {
     const SIZE: usize = 4;
 
-    pub(crate) fn decode(stlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         // Validate the TLV length.
         if stlv_len as usize != Self::SIZE {
-            return Err(DecodeError::InvalidTlvLength(stlv_len));
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 
         let bw = buf.get_f32();
@@ -225,10 +240,13 @@ impl MaxResvLinkBwStlv {
 impl UnreservedBwStlv {
     const SIZE: usize = 32;
 
-    pub(crate) fn decode(stlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         // Validate the TLV length.
         if stlv_len as usize != Self::SIZE {
-            return Err(DecodeError::InvalidTlvLength(stlv_len));
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 
         let mut bws = [0f32; 8];
@@ -258,10 +276,13 @@ impl UnreservedBwStlv {
 impl TeDefaultMetricStlv {
     const SIZE: usize = 3;
 
-    pub(crate) fn decode(stlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         // Validate the TLV length.
         if stlv_len as usize != Self::SIZE {
-            return Err(DecodeError::InvalidTlvLength(stlv_len));
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 
         let metric = buf.get_u24();
@@ -288,7 +309,7 @@ impl AdjSidStlv {
         _stlv_len: u8,
         lan: bool,
         buf: &mut Bytes,
-    ) -> DecodeResult<Option<Self>> {
+    ) -> TlvDecodeResult<Option<Self>> {
         let flags = buf.get_u8();
         let flags = AdjSidFlags::from_bits_truncate(flags);
         let weight = buf.get_u8();

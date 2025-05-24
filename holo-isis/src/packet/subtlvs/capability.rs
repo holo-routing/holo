@@ -19,7 +19,7 @@ use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
 use crate::packet::consts::{LabelBindingStlvType, RouterCapStlvType};
-use crate::packet::error::{DecodeError, DecodeResult};
+use crate::packet::error::{TlvDecodeError, TlvDecodeResult};
 use crate::packet::tlv::{TLV_HDR_SIZE, tlv_encode_end, tlv_encode_start};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -65,10 +65,13 @@ pub struct LabelBlockEntry {
 impl SrCapabilitiesStlv {
     const MIN_SIZE: usize = 1;
 
-    pub(crate) fn decode(stlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         // Validate the TLV length.
         if (stlv_len as usize) < Self::MIN_SIZE {
-            return Err(DecodeError::InvalidTlvLength(stlv_len));
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 
         let flags = buf.get_u8();
@@ -110,7 +113,10 @@ impl SrCapabilitiesStlv {
 // ===== impl SrAlgoStlv =====
 
 impl SrAlgoStlv {
-    pub(crate) fn decode(stlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         let mut list = BTreeSet::new();
         for _ in 0..stlv_len {
             let algo = buf.get_u8();
@@ -151,10 +157,13 @@ impl SrAlgoStlv {
 impl SrLocalBlockStlv {
     const MIN_SIZE: usize = 1;
 
-    pub(crate) fn decode(stlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         // Validate the TLV length.
         if (stlv_len as usize) < Self::MIN_SIZE {
-            return Err(DecodeError::InvalidTlvLength(stlv_len));
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 
         let _flags = buf.get_u8();
@@ -188,17 +197,17 @@ impl SrLocalBlockStlv {
 // ===== impl LabelBlockEntry =====
 
 impl LabelBlockEntry {
-    pub(crate) fn decode(buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(buf: &mut Bytes) -> TlvDecodeResult<Self> {
         let range = buf.get_u24();
 
         // Only the SID/Label sub-TLV is valid here.
         let stlv_type = buf.get_u8();
         if stlv_type != LabelBindingStlvType::SidLabel as u8 {
-            return Err(DecodeError::UnexpectedTlvType(stlv_type));
+            return Err(TlvDecodeError::UnexpectedType(stlv_type));
         }
         let stlv_len = buf.get_u8();
         if stlv_len as usize > buf.remaining() {
-            return Err(DecodeError::InvalidTlvLength(stlv_len));
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
         let first = match stlv_len {
             4 => Sid::Index(buf.get_u32()),
@@ -207,7 +216,7 @@ impl LabelBlockEntry {
                 Sid::Label(Label::new(label))
             }
             _ => {
-                return Err(DecodeError::InvalidTlvLength(stlv_len));
+                return Err(TlvDecodeError::InvalidLength(stlv_len));
             }
         };
 

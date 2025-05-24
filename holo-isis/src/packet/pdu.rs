@@ -15,8 +15,10 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::TLS_BUF;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::keychain::Key;
+use holo_yang::ToYang;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
+use tracing::debug_span;
 
 use crate::packet::auth::AuthMethod;
 use crate::packet::consts::{
@@ -494,6 +496,8 @@ impl Hello {
         };
 
         // Parse top-level TLVs.
+        let span = debug_span!("Hello", source = %source.to_yang());
+        let _span_guard = span.enter();
         let mut tlvs = HelloTlvs::default();
         let mut tlv_auth = None;
         while buf.remaining() >= TLV_HDR_SIZE {
@@ -508,45 +512,60 @@ impl Hello {
             }
 
             // Parse TLV value.
+            let span = debug_span!("TLV", r#type = tlv_type, length = tlv_len);
+            let _span_guard = span.enter();
             let tlv_offset = buf_orig.len() - buf.remaining();
             let mut buf_tlv = buf.copy_to_bytes(tlv_len as usize);
             match tlv_etype {
                 Some(TlvType::AreaAddresses) => {
-                    let tlv = AreaAddressesTlv::decode(tlv_len, &mut buf_tlv)?;
-                    tlvs.area_addrs.push(tlv);
+                    match AreaAddressesTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.area_addrs.push(tlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(TlvType::Neighbors)
                     if hdr.pdu_type != PduType::HelloP2P =>
                 {
-                    let tlv = NeighborsTlv::decode(tlv_len, &mut buf_tlv)?;
-                    tlvs.neighbors.push(tlv);
+                    match NeighborsTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.neighbors.push(tlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(TlvType::Padding) => {
-                    let tlv = PaddingTlv::decode(tlv_len, &mut buf_tlv)?;
-                    tlvs.padding.push(tlv);
+                    match PaddingTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.padding.push(tlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(TlvType::Authentication) => {
                     if tlv_auth.is_some() {
                         continue;
                     }
-                    let tlv = AuthenticationTlv::decode(tlv_len, &mut buf_tlv)?;
-                    tlv_auth = Some((tlv, tlv_offset));
+                    match AuthenticationTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlv_auth = Some((tlv, tlv_offset)),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(TlvType::ProtocolsSupported) => {
                     if tlvs.protocols_supported.is_some() {
                         continue;
                     }
-                    let tlv =
-                        ProtocolsSupportedTlv::decode(tlv_len, &mut buf_tlv)?;
-                    tlvs.protocols_supported = Some(tlv);
+                    match ProtocolsSupportedTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.protocols_supported = Some(tlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(TlvType::Ipv4Addresses) => {
-                    let tlv = Ipv4AddressesTlv::decode(tlv_len, &mut buf_tlv)?;
-                    tlvs.ipv4_addrs.push(tlv);
+                    match Ipv4AddressesTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.ipv4_addrs.push(tlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(TlvType::Ipv6Addresses) => {
-                    let tlv = Ipv6AddressesTlv::decode(tlv_len, &mut buf_tlv)?;
-                    tlvs.ipv6_addrs.push(tlv);
+                    match Ipv6AddressesTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.ipv6_addrs.push(tlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 _ => {
                     // Save unknown top-level TLV.
@@ -771,6 +790,8 @@ impl Lsp {
         let flags = LspFlags::from_bits_truncate(flags);
 
         // Parse top-level TLVs.
+        let span = debug_span!("LSP", lsp_id = %lsp_id.to_yang(), seqno);
+        let _span_guard = span.enter();
         let mut tlvs = LspTlvs::default();
         let mut tlv_auth = None;
         while buf.remaining() >= TLV_HDR_SIZE {
@@ -785,88 +806,118 @@ impl Lsp {
             }
 
             // Parse TLV value.
+            let span = debug_span!("TLV", r#type = tlv_type, length = tlv_len);
+            let _span_guard = span.enter();
             let tlv_offset = buf_orig.len() - buf.remaining();
             let mut buf_tlv = buf.copy_to_bytes(tlv_len as usize);
             match tlv_etype {
                 Some(TlvType::AreaAddresses) => {
-                    let tlv = AreaAddressesTlv::decode(tlv_len, &mut buf_tlv)?;
-                    tlvs.area_addrs.push(tlv);
+                    match AreaAddressesTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.area_addrs.push(tlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(TlvType::Authentication) => {
                     if tlv_auth.is_some() {
                         continue;
                     }
-                    let tlv = AuthenticationTlv::decode(tlv_len, &mut buf_tlv)?;
-                    tlv_auth = Some((tlv, tlv_offset));
+                    match AuthenticationTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlv_auth = Some((tlv, tlv_offset)),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(TlvType::DynamicHostname) => {
-                    let tlv =
-                        DynamicHostnameTlv::decode(tlv_len, &mut buf_tlv)?;
-                    tlvs.hostname = Some(tlv);
+                    match DynamicHostnameTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.hostname = Some(tlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(TlvType::LspBufferSize) => {
-                    let tlv = LspBufferSizeTlv::decode(tlv_len, &mut buf_tlv)?;
-                    tlvs.lsp_buf_size = Some(tlv);
+                    match LspBufferSizeTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.lsp_buf_size = Some(tlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(TlvType::IsReach) => {
-                    let tlv = IsReachTlv::decode(tlv_len, &mut buf_tlv)?;
-                    tlvs.is_reach.push(tlv);
+                    match IsReachTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.is_reach.push(tlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(TlvType::ExtIsReach) => {
-                    let tlv = ExtIsReachTlv::decode(tlv_len, &mut buf_tlv)?;
-                    tlvs.ext_is_reach.push(tlv);
+                    match ExtIsReachTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.ext_is_reach.push(tlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(TlvType::Ipv4InternalReach) => {
-                    let tlv =
-                        Ipv4ReachTlv::decode(tlv_len, &mut buf_tlv, false)?;
-                    tlvs.ipv4_internal_reach.push(tlv);
+                    match Ipv4ReachTlv::decode(tlv_len, &mut buf_tlv, false) {
+                        Ok(tlv) => tlvs.ipv4_internal_reach.push(tlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(TlvType::ProtocolsSupported) => {
                     if tlvs.protocols_supported.is_some() {
                         continue;
                     }
-                    let tlv =
-                        ProtocolsSupportedTlv::decode(tlv_len, &mut buf_tlv)?;
-                    tlvs.protocols_supported = Some(tlv);
+                    match ProtocolsSupportedTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.protocols_supported = Some(tlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(TlvType::Ipv4ExternalReach) => {
-                    let tlv =
-                        Ipv4ReachTlv::decode(tlv_len, &mut buf_tlv, true)?;
-                    tlvs.ipv4_external_reach.push(tlv);
+                    match Ipv4ReachTlv::decode(tlv_len, &mut buf_tlv, true) {
+                        Ok(tlv) => tlvs.ipv4_external_reach.push(tlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(TlvType::Ipv4Addresses) => {
-                    let tlv = Ipv4AddressesTlv::decode(tlv_len, &mut buf_tlv)?;
-                    tlvs.ipv4_addrs.push(tlv);
+                    match Ipv4AddressesTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.ipv4_addrs.push(tlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(TlvType::ExtIpv4Reach) => {
-                    let tlv = ExtIpv4ReachTlv::decode(tlv_len, &mut buf_tlv)?;
-                    tlvs.ext_ipv4_reach.push(tlv);
+                    match ExtIpv4ReachTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.ext_ipv4_reach.push(tlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(TlvType::Ipv4RouterId) => {
                     if tlvs.ipv4_router_id.is_some() {
                         continue;
                     }
-                    let tlv = Ipv4RouterIdTlv::decode(tlv_len, &mut buf_tlv)?;
-                    tlvs.ipv4_router_id = Some(tlv);
+                    match Ipv4RouterIdTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.ipv4_router_id = Some(tlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(TlvType::Ipv6Addresses) => {
-                    let tlv = Ipv6AddressesTlv::decode(tlv_len, &mut buf_tlv)?;
-                    tlvs.ipv6_addrs.push(tlv);
+                    match Ipv6AddressesTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.ipv6_addrs.push(tlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(TlvType::Ipv6Reach) => {
-                    let tlv = Ipv6ReachTlv::decode(tlv_len, &mut buf_tlv)?;
-                    tlvs.ipv6_reach.push(tlv);
+                    match Ipv6ReachTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.ipv6_reach.push(tlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(TlvType::Ipv6RouterId) => {
                     if tlvs.ipv6_router_id.is_some() {
                         continue;
                     }
-                    let tlv = Ipv6RouterIdTlv::decode(tlv_len, &mut buf_tlv)?;
-                    tlvs.ipv6_router_id = Some(tlv);
+                    match Ipv6RouterIdTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.ipv6_router_id = Some(tlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(TlvType::RouterCapability) => {
-                    let tlv = RouterCapTlv::decode(tlv_len, &mut buf_tlv)?;
-                    tlvs.router_cap.push(tlv);
+                    match RouterCapTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.router_cap.push(tlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 _ => {
                     // Save unknown top-level TLV.
@@ -1315,6 +1366,8 @@ impl Snp {
         }
 
         // Parse top-level TLVs.
+        let span = debug_span!("SNP", source = %source.to_yang());
+        let _span_guard = span.enter();
         let mut tlvs = SnpTlvs::default();
         let mut tlv_auth = None;
         while buf.remaining() >= TLV_HDR_SIZE {
@@ -1329,6 +1382,8 @@ impl Snp {
             }
 
             // Parse TLV value.
+            let span = debug_span!("TLV", r#type = tlv_type, length = tlv_len);
+            let _span_guard = span.enter();
             let tlv_offset = buf_orig.len() - buf.remaining();
             let mut buf_tlv = buf.copy_to_bytes(tlv_len as usize);
             match tlv_etype {
@@ -1336,12 +1391,16 @@ impl Snp {
                     if tlv_auth.is_some() {
                         continue;
                     }
-                    let tlv = AuthenticationTlv::decode(tlv_len, &mut buf_tlv)?;
-                    tlv_auth = Some((tlv, tlv_offset));
+                    match AuthenticationTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlv_auth = Some((tlv, tlv_offset)),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(TlvType::LspEntries) => {
-                    let tlv = LspEntriesTlv::decode(tlv_len, &mut buf_tlv)?;
-                    tlvs.lsp_entries.push(tlv);
+                    match LspEntriesTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.lsp_entries.push(tlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 _ => {
                     // Save unknown top-level TLV.

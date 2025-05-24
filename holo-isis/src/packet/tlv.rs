@@ -22,12 +22,13 @@ use holo_utils::sr::IgpAlgoType;
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use num_traits::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
+use tracing::debug_span;
 
 use crate::packet::consts::{
     AuthenticationType, NeighborStlvType, PrefixStlvType, RouterCapStlvType,
     TlvType,
 };
-use crate::packet::error::{DecodeError, DecodeResult};
+use crate::packet::error::{TlvDecodeError, TlvDecodeResult};
 #[cfg(feature = "testing")]
 use crate::packet::pdu::serde_lsp_rem_lifetime_filter;
 use crate::packet::subtlvs::capability::{
@@ -381,7 +382,10 @@ impl From<AddressFamily> for Nlpid {
 // ===== impl AreaAddressesTlv =====
 
 impl AreaAddressesTlv {
-    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        tlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         let mut list = vec![];
 
         while buf.remaining() >= 1 {
@@ -390,10 +394,10 @@ impl AreaAddressesTlv {
 
             // Sanity checks.
             if addr_len > AreaAddr::MAX_LEN {
-                return Err(DecodeError::InvalidAreaAddrLen(addr_len));
+                return Err(TlvDecodeError::InvalidAreaAddrLen(addr_len));
             }
             if addr_len as usize > buf.remaining() {
-                return Err(DecodeError::InvalidTlvLength(tlv_len));
+                return Err(TlvDecodeError::InvalidLength(tlv_len));
             }
 
             // Parse area address.
@@ -442,12 +446,15 @@ where
 impl NeighborsTlv {
     const MAC_ADDR_LEN: usize = 6;
 
-    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        tlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         let mut list = vec![];
 
         // Validate the TLV length.
         if tlv_len as usize % Self::MAC_ADDR_LEN != 0 {
-            return Err(DecodeError::InvalidTlvLength(tlv_len));
+            return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
         while buf.remaining() >= Self::MAC_ADDR_LEN {
@@ -497,7 +504,10 @@ where
 impl PaddingTlv {
     const PADDING: [u8; 255] = [0; 255];
 
-    pub(crate) fn decode(tlv_len: u8, _buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        tlv_len: u8,
+        _buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         // Ignore padding data.
         Ok(PaddingTlv { length: tlv_len })
     }
@@ -514,22 +524,25 @@ impl PaddingTlv {
 impl AuthenticationTlv {
     pub const MIN_LEN: usize = 1;
 
-    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        tlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         // Validate the TLV length.
         if (tlv_len as usize) < Self::MIN_LEN {
-            return Err(DecodeError::InvalidTlvLength(tlv_len));
+            return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
         // Parse authentication type.
         let auth_type = buf.get_u8();
         let Some(auth_type) = AuthenticationType::from_u8(auth_type) else {
-            return Err(DecodeError::AuthUnsupportedType(auth_type));
+            return Err(TlvDecodeError::AuthUnsupportedType(auth_type));
         };
 
         match auth_type {
             AuthenticationType::ClearText => {
                 if buf.remaining() == 0 {
-                    return Err(DecodeError::InvalidTlvLength(tlv_len));
+                    return Err(TlvDecodeError::InvalidLength(tlv_len));
                 }
 
                 // Parse password.
@@ -542,7 +555,7 @@ impl AuthenticationTlv {
             AuthenticationType::HmacMd5 => {
                 if buf.remaining() != CryptoAlgo::HmacMd5.digest_size() as usize
                 {
-                    return Err(DecodeError::InvalidTlvLength(tlv_len));
+                    return Err(TlvDecodeError::InvalidLength(tlv_len));
                 }
 
                 // Parse HMAC digest.
@@ -574,10 +587,13 @@ impl AuthenticationTlv {
 impl LspBufferSizeTlv {
     const SIZE: usize = 2;
 
-    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        tlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         // Validate the TLV length.
         if tlv_len as usize != Self::SIZE {
-            return Err(DecodeError::InvalidTlvLength(tlv_len));
+            return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
         let size = buf.get_u16();
@@ -601,10 +617,13 @@ impl Tlv for LspBufferSizeTlv {
 // ===== impl DynamicHostnameTlv =====
 
 impl DynamicHostnameTlv {
-    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        tlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         // Validate the TLV length.
         if tlv_len == 0 {
-            return Err(DecodeError::InvalidTlvLength(tlv_len));
+            return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
         let mut hostname_bytes = [0; 255];
@@ -632,7 +651,10 @@ impl Tlv for DynamicHostnameTlv {
 // ===== impl ProtocolsSupportedTlv =====
 
 impl ProtocolsSupportedTlv {
-    pub(crate) fn decode(_tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        _tlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         let mut list = vec![];
 
         while buf.remaining() >= 1 {
@@ -676,12 +698,15 @@ where
 // ===== impl Ipv4AddressesTlv =====
 
 impl Ipv4AddressesTlv {
-    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        tlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         let mut list = vec![];
 
         // Validate the TLV length.
         if tlv_len as usize % Ipv4Addr::LENGTH != 0 {
-            return Err(DecodeError::InvalidTlvLength(tlv_len));
+            return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
         while buf.remaining() >= Ipv4Addr::LENGTH {
@@ -728,12 +753,15 @@ where
 // ===== impl Ipv6AddressesTlv =====
 
 impl Ipv6AddressesTlv {
-    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        tlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         let mut list = vec![];
 
         // Validate the TLV length.
         if tlv_len as usize % Ipv6Addr::LENGTH != 0 {
-            return Err(DecodeError::InvalidTlvLength(tlv_len));
+            return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
         while buf.remaining() >= Ipv6Addr::LENGTH {
@@ -785,12 +813,15 @@ impl LspEntriesTlv {
     pub const MAX_SIZE: usize =
         TLV_HDR_SIZE + Self::MAX_ENTRIES * Self::ENTRY_SIZE;
 
-    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        tlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         let mut list = vec![];
 
         // Validate the TLV length.
         if tlv_len as usize % Self::ENTRY_SIZE != 0 {
-            return Err(DecodeError::InvalidTlvLength(tlv_len));
+            return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
         while buf.remaining() >= Self::ENTRY_SIZE {
@@ -853,12 +884,15 @@ impl IsReachTlv {
     const METRIC_S_BIT: u8 = 0x80;
     const METRIC_MASK: u8 = 0x3F;
 
-    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        tlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         let mut list = vec![];
 
         // Validate the TLV length.
         if (tlv_len - 1) as usize % Self::ENTRY_SIZE != 0 {
-            return Err(DecodeError::InvalidTlvLength(tlv_len));
+            return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
         let _virtual_flag = buf.get_u8();
@@ -933,7 +967,10 @@ where
 impl ExtIsReachTlv {
     const ENTRY_MIN_SIZE: usize = 11;
 
-    pub(crate) fn decode(_tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        _tlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         use subtlvs::neighbor::{
             AdjSidStlv, AdminGroupStlv, Ipv4InterfaceAddrStlv,
             Ipv4NeighborAddrStlv, MaxLinkBwStlv, MaxResvLinkBwStlv,
@@ -959,66 +996,92 @@ impl ExtIsReachTlv {
                 let stlv_len = buf.get_u8();
                 sub_tlvs_len -= 1;
                 if stlv_len as usize > buf.remaining() {
-                    return Err(DecodeError::InvalidTlvLength(stlv_len));
+                    return Err(TlvDecodeError::InvalidLength(stlv_len));
                 }
 
                 // Parse Sub-TLV value.
+                let span = debug_span!(
+                    "sub-TLV",
+                    r#type = stlv_type,
+                    length = stlv_len
+                );
+                let _span_guard = span.enter();
                 let mut buf_stlv = buf.copy_to_bytes(stlv_len as usize);
                 sub_tlvs_len -= stlv_len;
                 match stlv_etype {
                     Some(NeighborStlvType::AdminGroup) => {
-                        let stlv =
-                            AdminGroupStlv::decode(stlv_len, &mut buf_stlv)?;
-                        sub_tlvs.admin_group = Some(stlv);
+                        match AdminGroupStlv::decode(stlv_len, &mut buf_stlv) {
+                            Ok(stlv) => sub_tlvs.admin_group = Some(stlv),
+                            Err(error) => error.log(),
+                        }
                     }
                     Some(NeighborStlvType::Ipv4InterfaceAddress) => {
-                        let stlv = Ipv4InterfaceAddrStlv::decode(
+                        match Ipv4InterfaceAddrStlv::decode(
                             stlv_len,
                             &mut buf_stlv,
-                        )?;
-                        sub_tlvs.ipv4_interface_addr.push(stlv);
+                        ) {
+                            Ok(stlv) => sub_tlvs.ipv4_interface_addr.push(stlv),
+                            Err(error) => error.log(),
+                        }
                     }
                     Some(NeighborStlvType::Ipv4NeighborAddress) => {
-                        let stlv = Ipv4NeighborAddrStlv::decode(
+                        match Ipv4NeighborAddrStlv::decode(
                             stlv_len,
                             &mut buf_stlv,
-                        )?;
-                        sub_tlvs.ipv4_neighbor_addr.push(stlv);
+                        ) {
+                            Ok(stlv) => sub_tlvs.ipv4_neighbor_addr.push(stlv),
+                            Err(error) => error.log(),
+                        }
                     }
                     Some(NeighborStlvType::MaxLinkBandwidth) => {
-                        let stlv =
-                            MaxLinkBwStlv::decode(stlv_len, &mut buf_stlv)?;
-                        sub_tlvs.max_link_bw = Some(stlv);
+                        match MaxLinkBwStlv::decode(stlv_len, &mut buf_stlv) {
+                            Ok(stlv) => sub_tlvs.max_link_bw = Some(stlv),
+                            Err(error) => error.log(),
+                        }
                     }
                     Some(NeighborStlvType::MaxResvLinkBandwidth) => {
-                        let stlv =
-                            MaxResvLinkBwStlv::decode(stlv_len, &mut buf_stlv)?;
-                        sub_tlvs.max_resv_link_bw = Some(stlv);
+                        match MaxResvLinkBwStlv::decode(stlv_len, &mut buf_stlv)
+                        {
+                            Ok(stlv) => sub_tlvs.max_resv_link_bw = Some(stlv),
+                            Err(error) => error.log(),
+                        }
                     }
                     Some(NeighborStlvType::UnreservedBandwidth) => {
-                        let stlv =
-                            UnreservedBwStlv::decode(stlv_len, &mut buf_stlv)?;
-                        sub_tlvs.unreserved_bw = Some(stlv);
+                        match UnreservedBwStlv::decode(stlv_len, &mut buf_stlv)
+                        {
+                            Ok(stlv) => sub_tlvs.unreserved_bw = Some(stlv),
+                            Err(error) => error.log(),
+                        }
                     }
                     Some(NeighborStlvType::TeDefaultMetric) => {
-                        let stlv = TeDefaultMetricStlv::decode(
+                        match TeDefaultMetricStlv::decode(
                             stlv_len,
                             &mut buf_stlv,
-                        )?;
-                        sub_tlvs.te_default_metric = Some(stlv);
+                        ) {
+                            Ok(stlv) => sub_tlvs.te_default_metric = Some(stlv),
+                            Err(error) => error.log(),
+                        }
                     }
                     Some(NeighborStlvType::AdjacencySid) => {
-                        if let Some(stlv) =
-                            AdjSidStlv::decode(stlv_len, false, &mut buf_stlv)?
+                        match AdjSidStlv::decode(stlv_len, false, &mut buf_stlv)
                         {
-                            sub_tlvs.adj_sids.push(stlv);
+                            Ok(stlv) => {
+                                if let Some(stlv) = stlv {
+                                    sub_tlvs.adj_sids.push(stlv);
+                                }
+                            }
+                            Err(error) => error.log(),
                         }
                     }
                     Some(NeighborStlvType::LanAdjacencySid) => {
-                        if let Some(stlv) =
-                            AdjSidStlv::decode(stlv_len, true, &mut buf_stlv)?
+                        match AdjSidStlv::decode(stlv_len, true, &mut buf_stlv)
                         {
-                            sub_tlvs.adj_sids.push(stlv);
+                            Ok(stlv) => {
+                                if let Some(stlv) = stlv {
+                                    sub_tlvs.adj_sids.push(stlv);
+                                }
+                            }
+                            Err(error) => error.log(),
                         }
                     }
                     _ => {
@@ -1117,12 +1180,12 @@ impl Ipv4ReachTlv {
         tlv_len: u8,
         buf: &mut Bytes,
         external: bool,
-    ) -> DecodeResult<Self> {
+    ) -> TlvDecodeResult<Self> {
         let mut list = vec![];
 
         // Validate the TLV length.
         if tlv_len as usize % Self::ENTRY_SIZE != 0 {
-            return Err(DecodeError::InvalidTlvLength(tlv_len));
+            return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
         while buf.remaining() >= Self::ENTRY_SIZE {
@@ -1267,7 +1330,10 @@ impl ExtIpv4ReachTlv {
     const CONTROL_SUBTLVS: u8 = 0x40;
     const CONTROL_PLEN_MASK: u8 = 0x3F;
 
-    pub(crate) fn decode(_tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        _tlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         let mut list = vec![];
 
         while buf.remaining() >= Self::ENTRY_MIN_SIZE {
@@ -1300,39 +1366,63 @@ impl ExtIpv4ReachTlv {
                     let stlv_len = buf.get_u8();
                     sub_tlvs_len -= 1;
                     if stlv_len as usize > buf.remaining() {
-                        return Err(DecodeError::InvalidTlvLength(stlv_len));
+                        return Err(TlvDecodeError::InvalidLength(stlv_len));
                     }
 
                     // Parse Sub-TLV value.
+                    let span = debug_span!(
+                        "sub-TLV",
+                        r#type = stlv_type,
+                        length = stlv_len
+                    );
+                    let _span_guard = span.enter();
                     let mut buf_stlv = buf.copy_to_bytes(stlv_len as usize);
                     sub_tlvs_len -= stlv_len;
                     match stlv_etype {
                         Some(PrefixStlvType::PrefixAttributeFlags) => {
-                            let stlv = PrefixAttrFlagsStlv::decode(
+                            match PrefixAttrFlagsStlv::decode(
                                 stlv_len,
                                 &mut buf_stlv,
-                            )?;
-                            sub_tlvs.prefix_attr_flags = Some(stlv);
+                            ) {
+                                Ok(stlv) => {
+                                    sub_tlvs.prefix_attr_flags = Some(stlv)
+                                }
+                                Err(error) => error.log(),
+                            }
                         }
                         Some(PrefixStlvType::Ipv4SourceRouterId) => {
-                            let stlv = Ipv4SourceRidStlv::decode(
+                            match Ipv4SourceRidStlv::decode(
                                 stlv_len,
                                 &mut buf_stlv,
-                            )?;
-                            sub_tlvs.ipv4_source_rid = Some(stlv);
+                            ) {
+                                Ok(stlv) => {
+                                    sub_tlvs.ipv4_source_rid = Some(stlv)
+                                }
+                                Err(error) => error.log(),
+                            }
                         }
                         Some(PrefixStlvType::Ipv6SourceRouterId) => {
-                            let stlv = Ipv6SourceRidStlv::decode(
+                            match Ipv6SourceRidStlv::decode(
                                 stlv_len,
                                 &mut buf_stlv,
-                            )?;
-                            sub_tlvs.ipv6_source_rid = Some(stlv);
+                            ) {
+                                Ok(stlv) => {
+                                    sub_tlvs.ipv6_source_rid = Some(stlv)
+                                }
+                                Err(error) => error.log(),
+                            }
                         }
                         Some(PrefixStlvType::PrefixSid) => {
-                            if let Some(stlv) =
-                                PrefixSidStlv::decode(stlv_len, &mut buf_stlv)?
+                            match PrefixSidStlv::decode(stlv_len, &mut buf_stlv)
                             {
-                                sub_tlvs.prefix_sids.insert(stlv.algo, stlv);
+                                Ok(stlv) => {
+                                    if let Some(stlv) = stlv {
+                                        sub_tlvs
+                                            .prefix_sids
+                                            .insert(stlv.algo, stlv);
+                                    }
+                                }
+                                Err(error) => error.log(),
                             }
                         }
                         _ => {
@@ -1514,7 +1604,10 @@ impl Ipv6ReachTlv {
     const FLAG_EXTERNAL: u8 = 0x40;
     const FLAG_SUBTLVS: u8 = 0x20;
 
-    pub(crate) fn decode(_tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        _tlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         let mut list = vec![];
 
         while buf.remaining() >= Self::ENTRY_MIN_SIZE {
@@ -1550,45 +1643,71 @@ impl Ipv6ReachTlv {
                     let stlv_len = buf.get_u8();
                     sub_tlvs_len -= 1;
                     if stlv_len as usize > buf.remaining() {
-                        return Err(DecodeError::InvalidTlvLength(stlv_len));
+                        return Err(TlvDecodeError::InvalidLength(stlv_len));
                     }
 
                     // Parse Sub-TLV value.
+                    let span = debug_span!(
+                        "sub-TLV",
+                        r#type = stlv_type,
+                        length = stlv_len
+                    );
+                    let _span_guard = span.enter();
                     let mut buf_stlv = buf.copy_to_bytes(stlv_len as usize);
                     sub_tlvs_len -= stlv_len;
                     match stlv_etype {
                         Some(PrefixStlvType::PrefixAttributeFlags) => {
-                            let stlv = PrefixAttrFlagsStlv::decode(
+                            match PrefixAttrFlagsStlv::decode(
                                 stlv_len,
                                 &mut buf_stlv,
-                            )?;
-                            sub_tlvs.prefix_attr_flags = Some(stlv);
+                            ) {
+                                Ok(stlv) => {
+                                    sub_tlvs.prefix_attr_flags = Some(stlv)
+                                }
+                                Err(error) => error.log(),
+                            }
                         }
                         Some(PrefixStlvType::Ipv4SourceRouterId) => {
-                            let stlv = Ipv4SourceRidStlv::decode(
+                            match Ipv4SourceRidStlv::decode(
                                 stlv_len,
                                 &mut buf_stlv,
-                            )?;
-                            sub_tlvs.ipv4_source_rid = Some(stlv);
+                            ) {
+                                Ok(stlv) => {
+                                    sub_tlvs.ipv4_source_rid = Some(stlv)
+                                }
+                                Err(error) => error.log(),
+                            }
                         }
                         Some(PrefixStlvType::Ipv6SourceRouterId) => {
-                            let stlv = Ipv6SourceRidStlv::decode(
+                            match Ipv6SourceRidStlv::decode(
                                 stlv_len,
                                 &mut buf_stlv,
-                            )?;
-                            sub_tlvs.ipv6_source_rid = Some(stlv);
+                            ) {
+                                Ok(stlv) => {
+                                    sub_tlvs.ipv6_source_rid = Some(stlv)
+                                }
+                                Err(error) => error.log(),
+                            }
                         }
                         Some(PrefixStlvType::PrefixSid) => {
-                            if let Some(stlv) =
-                                PrefixSidStlv::decode(stlv_len, &mut buf_stlv)?
+                            match PrefixSidStlv::decode(stlv_len, &mut buf_stlv)
                             {
-                                sub_tlvs.prefix_sids.insert(stlv.algo, stlv);
+                                Ok(stlv) => {
+                                    if let Some(stlv) = stlv {
+                                        sub_tlvs
+                                            .prefix_sids
+                                            .insert(stlv.algo, stlv);
+                                    }
+                                }
+                                Err(error) => error.log(),
                             }
                         }
                         Some(PrefixStlvType::BierInfo) => {
-                            let stlv =
-                                BierInfoStlv::decode(stlv_len, &mut buf_stlv)?;
-                            sub_tlvs.bier.push(stlv);
+                            match BierInfoStlv::decode(stlv_len, &mut buf_stlv)
+                            {
+                                Ok(stlv) => sub_tlvs.bier.push(stlv),
+                                Err(error) => error.log(),
+                            }
                         }
                         _ => {
                             // Save unknown Sub-TLV.
@@ -1785,10 +1904,13 @@ impl Ipv6ReachStlvs {
 impl Ipv4RouterIdTlv {
     const SIZE: usize = 4;
 
-    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        tlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         // Validate the TLV length.
         if tlv_len as usize != Self::SIZE {
-            return Err(DecodeError::InvalidTlvLength(tlv_len));
+            return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
         let addr = buf.get_ipv4();
@@ -1818,10 +1940,13 @@ impl Tlv for Ipv4RouterIdTlv {
 impl Ipv6RouterIdTlv {
     const SIZE: usize = 16;
 
-    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        tlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         // Validate the TLV length.
         if tlv_len as usize != Self::SIZE {
-            return Err(DecodeError::InvalidTlvLength(tlv_len));
+            return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
         let addr = buf.get_ipv6();
@@ -1851,10 +1976,13 @@ impl Tlv for Ipv6RouterIdTlv {
 impl RouterCapTlv {
     const MIN_SIZE: usize = 5;
 
-    pub(crate) fn decode(tlv_len: u8, buf: &mut Bytes) -> DecodeResult<Self> {
+    pub(crate) fn decode(
+        tlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
         // Validate the TLV length.
         if (tlv_len as usize) < Self::MIN_SIZE {
-            return Err(DecodeError::InvalidTlvLength(tlv_len));
+            return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
         let router_id = buf.get_opt_ipv4();
@@ -1871,34 +1999,41 @@ impl RouterCapTlv {
             // Parse and validate TLV length.
             let stlv_len = buf.get_u8();
             if stlv_len as usize > buf.remaining() {
-                return Err(DecodeError::InvalidTlvLength(stlv_len));
+                return Err(TlvDecodeError::InvalidLength(stlv_len));
             }
 
             // Parse Sub-TLV value.
+            let span =
+                debug_span!("sub-TLV", r#type = stlv_type, length = stlv_len);
+            let _span_guard = span.enter();
             let mut buf_stlv = buf.copy_to_bytes(stlv_len as usize);
             match stlv_etype {
                 Some(RouterCapStlvType::SrCapability) => {
                     if sub_tlvs.sr_cap.is_some() {
                         continue;
                     }
-                    let stlv =
-                        SrCapabilitiesStlv::decode(stlv_len, &mut buf_stlv)?;
-                    sub_tlvs.sr_cap = Some(stlv);
+                    match SrCapabilitiesStlv::decode(stlv_len, &mut buf_stlv) {
+                        Ok(stlv) => sub_tlvs.sr_cap = Some(stlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(RouterCapStlvType::SrAlgorithm) => {
                     if sub_tlvs.sr_algo.is_some() {
                         continue;
                     }
-                    let stlv = SrAlgoStlv::decode(stlv_len, &mut buf_stlv)?;
-                    sub_tlvs.sr_algo = Some(stlv);
+                    match SrAlgoStlv::decode(stlv_len, &mut buf_stlv) {
+                        Ok(stlv) => sub_tlvs.sr_algo = Some(stlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 Some(RouterCapStlvType::SrLocalBlock) => {
                     if sub_tlvs.srlb.is_some() {
                         continue;
                     }
-                    let stlv =
-                        SrLocalBlockStlv::decode(stlv_len, &mut buf_stlv)?;
-                    sub_tlvs.srlb = Some(stlv);
+                    match SrLocalBlockStlv::decode(stlv_len, &mut buf_stlv) {
+                        Ok(stlv) => sub_tlvs.srlb = Some(stlv),
+                        Err(error) => error.log(),
+                    }
                 }
                 _ => {
                     // Save unknown Sub-TLV.

@@ -8,9 +8,7 @@ use libfuzzer_sys::fuzz_target;
 fuzz_target!(|data: &[u8]| {
     let mut u = Unstructured::new(data);
 
-    if let Ok(mut buf) = BytesArbitrary::arbitrary(&mut u)
-        && let Ok(msg_len) = u16::arbitrary(&mut u)
-    {
-        let _ = NotificationMsg::decode(&mut buf.0, msg_len);
+    if let Ok(mut buf) = BytesArbitrary::arbitrary(&mut u) {
+        let _ = NotificationMsg::decode(&mut buf.0);
     }
 });

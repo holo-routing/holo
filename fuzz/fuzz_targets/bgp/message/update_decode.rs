@@ -9,9 +9,8 @@ fuzz_target!(|data: &[u8]| {
     let mut u = Unstructured::new(data);
 
     if let Ok(mut buf) = BytesArbitrary::arbitrary(&mut u)
-        && let Ok(msg_len) = u16::arbitrary(&mut u)
         && let Ok(cxt) = DecodeCxt::arbitrary(&mut u)
     {
-        let _ = UpdateMsg::decode(&mut buf.0, msg_len, &cxt);
+        let _ = UpdateMsg::decode(&mut buf.0, &cxt);
     }
 });

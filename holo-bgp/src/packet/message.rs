@@ -326,30 +326,42 @@ impl Message {
 
         // Parse message type.
         let msg_type = buf.get_u8();
+        let Some(msg_etype) = MessageType::from_u8(msg_type) else {
+            return Err(MessageHeaderError::BadMessageType(msg_type).into());
+        };
 
         // Parse message body.
-        match MessageType::from_u8(msg_type) {
-            Some(MessageType::Open) => {
-                let msg = OpenMsg::decode(&mut buf, msg_len)?;
+        let min_msg_len = match msg_etype {
+            MessageType::Open => OpenMsg::MIN_LEN,
+            MessageType::Update => UpdateMsg::MIN_LEN,
+            MessageType::Notification => NotificationMsg::MIN_LEN,
+            MessageType::Keepalive => KeepaliveMsg::LEN,
+            MessageType::RouteRefresh => RouteRefreshMsg::LEN,
+        };
+        if msg_len < min_msg_len {
+            return Err(MessageHeaderError::BadMessageLength(msg_len).into());
+        }
+        match msg_etype {
+            MessageType::Open => {
+                let msg = OpenMsg::decode(&mut buf)?;
                 Ok(Message::Open(msg))
             }
-            Some(MessageType::Update) => {
-                let msg = UpdateMsg::decode(&mut buf, msg_len, cxt)?;
+            MessageType::Update => {
+                let msg = UpdateMsg::decode(&mut buf, cxt)?;
                 Ok(Message::Update(msg))
             }
-            Some(MessageType::Notification) => {
-                let msg = NotificationMsg::decode(&mut buf, msg_len)?;
+            MessageType::Notification => {
+                let msg = NotificationMsg::decode(&mut buf)?;
                 Ok(Message::Notification(msg))
             }
-            Some(MessageType::Keepalive) => {
-                let msg = KeepaliveMsg::decode(&mut buf, msg_len)?;
+            MessageType::Keepalive => {
+                let msg = KeepaliveMsg::decode(&mut buf)?;
                 Ok(Message::Keepalive(msg))
             }
-            Some(MessageType::RouteRefresh) => {
-                let msg = RouteRefreshMsg::decode(&mut buf, msg_len)?;
+            MessageType::RouteRefresh => {
+                let msg = RouteRefreshMsg::decode(&mut buf)?;
                 Ok(Message::RouteRefresh(msg))
             }
-            None => Err(MessageHeaderError::BadMessageType(msg_type).into()),
         }
     }
 
@@ -411,11 +423,7 @@ impl OpenMsg {
         buf[opt_param_len_pos] = opt_param_len as u8;
     }
 
-    pub fn decode(buf: &mut Bytes, msg_len: u16) -> DecodeResult<Self> {
-        if msg_len < Self::MIN_LEN {
-            return Err(MessageHeaderError::BadMessageLength(msg_len).into());
-        }
-
+    pub fn decode(buf: &mut Bytes) -> DecodeResult<Self> {
         // Parse and validate BGP version.
         let version = buf.get_u8();
         if version != BGP_VERSION {
@@ -739,15 +747,7 @@ impl UpdateMsg {
         }
     }
 
-    pub fn decode(
-        buf: &mut Bytes,
-        msg_len: u16,
-        cxt: &DecodeCxt,
-    ) -> DecodeResult<Self> {
-        if msg_len < Self::MIN_LEN {
-            return Err(MessageHeaderError::BadMessageLength(msg_len).into());
-        }
-
+    pub fn decode(buf: &mut Bytes, cxt: &DecodeCxt) -> DecodeResult<Self> {
         let mut reach = None;
         let mut unreach = None;
         let mut mp_reach = None;
@@ -844,20 +844,14 @@ impl NotificationMsg {
         buf.put_slice(&self.data);
     }
 
-    pub fn decode(buf: &mut Bytes, msg_len: u16) -> DecodeResult<Self> {
-        if msg_len < Self::MIN_LEN {
-            return Err(MessageHeaderError::BadMessageLength(msg_len).into());
-        }
-
+    pub fn decode(buf: &mut Bytes) -> DecodeResult<Self> {
         let error_code = buf.get_u8();
         let error_subcode = buf.get_u8();
-        let data_len = msg_len - Self::MIN_LEN;
-        let data = buf.copy_to_bytes(data_len as usize).to_vec();
 
         Ok(NotificationMsg {
             error_code,
             error_subcode,
-            data,
+            data: buf.to_vec(),
         })
     }
 }
@@ -947,11 +941,7 @@ impl KeepaliveMsg {
         buf.put_u8(MessageType::Keepalive as u8);
     }
 
-    pub fn decode(_buf: &mut Bytes, msg_len: u16) -> DecodeResult<Self> {
-        if msg_len != Self::LEN {
-            return Err(MessageHeaderError::BadMessageLength(msg_len).into());
-        }
-
+    pub fn decode(_buf: &mut Bytes) -> DecodeResult<Self> {
         // A KEEPALIVE message consists of only the message header.
         Ok(KeepaliveMsg {})
     }
@@ -969,11 +959,7 @@ impl RouteRefreshMsg {
         buf.put_u8(self.safi);
     }
 
-    pub fn decode(buf: &mut Bytes, msg_len: u16) -> DecodeResult<Self> {
-        if msg_len != Self::LEN {
-            return Err(MessageHeaderError::BadMessageLength(msg_len).into());
-        }
-
+    pub fn decode(buf: &mut Bytes) -> DecodeResult<Self> {
         let afi = buf.get_u16();
         let _reserved = buf.get_u8();
         let safi = buf.get_u8();

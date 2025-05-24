@@ -460,7 +460,7 @@ impl NeighborsTlv {
         while buf.remaining() >= Self::MAC_ADDR_LEN {
             // Parse MAC address.
             let mut addr: [u8; Self::MAC_ADDR_LEN] = [0; Self::MAC_ADDR_LEN];
-            buf.copy_to_slice(&mut addr);
+            buf.try_copy_to_slice(&mut addr)?;
             list.push(addr);
         }
 
@@ -548,7 +548,7 @@ impl AuthenticationTlv {
                 // Parse password.
                 let mut passwd_bytes = [0; 255];
                 let passwd_len = tlv_len as usize - 1;
-                buf.copy_to_slice(&mut passwd_bytes[..passwd_len]);
+                buf.try_copy_to_slice(&mut passwd_bytes[..passwd_len])?;
                 let passwd = Vec::from(&passwd_bytes[..passwd_len]);
                 Ok(AuthenticationTlv::ClearText(passwd))
             }
@@ -560,7 +560,7 @@ impl AuthenticationTlv {
 
                 // Parse HMAC digest.
                 let mut digest = [0; 16];
-                buf.copy_to_slice(&mut digest);
+                buf.try_copy_to_slice(&mut digest)?;
                 Ok(AuthenticationTlv::HmacMd5(digest))
             }
         }
@@ -627,7 +627,7 @@ impl DynamicHostnameTlv {
         }
 
         let mut hostname_bytes = [0; 255];
-        buf.copy_to_slice(&mut hostname_bytes[..tlv_len as usize]);
+        buf.try_copy_to_slice(&mut hostname_bytes[..tlv_len as usize])?;
         let hostname =
             String::from_utf8_lossy(&hostname_bytes[..tlv_len as usize])
                 .to_string();
@@ -826,7 +826,7 @@ impl LspEntriesTlv {
 
         while buf.remaining() >= Self::ENTRY_SIZE {
             let rem_lifetime = buf.try_get_u16()?;
-            let lsp_id = LspId::decode(buf);
+            let lsp_id = LspId::decode(buf)?;
             let seqno = buf.try_get_u32()?;
             let cksum = buf.try_get_u16()?;
 
@@ -908,7 +908,7 @@ impl IsReachTlv {
             let metric_error = buf.try_get_u8()?;
             let metric_error = (metric_error & Self::METRIC_S_BIT == 0)
                 .then_some(metric_error & Self::METRIC_MASK);
-            let neighbor = LanId::decode(buf);
+            let neighbor = LanId::decode(buf)?;
 
             let entry = IsReach {
                 metric,
@@ -980,7 +980,7 @@ impl ExtIsReachTlv {
         let mut list = vec![];
 
         while buf.remaining() >= Self::ENTRY_MIN_SIZE {
-            let neighbor = LanId::decode(buf);
+            let neighbor = LanId::decode(buf)?;
             let metric = buf.try_get_u24()?;
 
             // Parse Sub-TLVs.
@@ -1349,7 +1349,7 @@ impl ExtIpv4ReachTlv {
             // Parse prefix (variable length).
             let mut prefix_bytes = [0; Ipv4Addr::LENGTH];
             let plen_wire = prefix_wire_len(plen);
-            buf.copy_to_slice(&mut prefix_bytes[..plen_wire]);
+            buf.try_copy_to_slice(&mut prefix_bytes[..plen_wire])?;
             let prefix = Ipv4Addr::from(prefix_bytes);
 
             // Parse Sub-TLVs.
@@ -1626,7 +1626,7 @@ impl Ipv6ReachTlv {
             // Parse prefix (variable length).
             let mut prefix_bytes = [0; Ipv6Addr::LENGTH];
             let plen_wire = prefix_wire_len(plen);
-            buf.copy_to_slice(&mut prefix_bytes[..plen_wire]);
+            buf.try_copy_to_slice(&mut prefix_bytes[..plen_wire])?;
             let prefix = Ipv6Addr::from(prefix_bytes);
 
             // Parse Sub-TLVs.

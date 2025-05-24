@@ -466,7 +466,7 @@ impl Hello {
         };
 
         // Parse source ID.
-        let source = SystemId::decode(buf);
+        let source = SystemId::decode(buf)?;
 
         // Parse holding time.
         let holdtime = buf.try_get_u16()?;
@@ -490,7 +490,7 @@ impl Hello {
             // Parse priority.
             let priority = buf.try_get_u8()? & Self::PRIORITY_MASK;
             // Parse LAN ID.
-            let lan_id = LanId::decode(buf);
+            let lan_id = LanId::decode(buf)?;
 
             HelloVariant::Lan { priority, lan_id }
         };
@@ -777,7 +777,7 @@ impl Lsp {
         let rem_lifetime = buf.try_get_u16()?;
 
         // Parse LSP ID.
-        let lsp_id = LspId::decode(buf);
+        let lsp_id = LspId::decode(buf)?;
 
         // Parse sequence number.
         let seqno = buf.try_get_u32()?;
@@ -1355,13 +1355,13 @@ impl Snp {
         }
 
         // Parse source ID.
-        let source = LanId::decode(buf);
+        let source = LanId::decode(buf)?;
 
         // Parse start and end LSP IDs.
         let mut summary = None;
         if matches!(hdr.pdu_type, PduType::CsnpL1 | PduType::CsnpL2) {
-            let start_lsp_id = LspId::decode(buf);
-            let end_lsp_id = LspId::decode(buf);
+            let start_lsp_id = LspId::decode(buf)?;
+            let end_lsp_id = LspId::decode(buf)?;
             summary = Some((start_lsp_id, end_lsp_id));
         }
 

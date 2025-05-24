@@ -14,7 +14,7 @@ pub mod pdu;
 pub mod subtlvs;
 pub mod tlv;
 
-use bytes::{Buf, BufMut, Bytes, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut, TryGetError};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
@@ -240,10 +240,10 @@ impl From<&[u8]> for AreaAddr {
 // ===== impl SystemId =====
 
 impl SystemId {
-    pub(crate) fn decode(buf: &mut Bytes) -> Self {
+    pub(crate) fn decode(buf: &mut Bytes) -> Result<Self, TryGetError> {
         let mut system_id = [0; 6];
-        buf.copy_to_slice(&mut system_id);
-        SystemId(system_id)
+        buf.try_copy_to_slice(&mut system_id)?;
+        Ok(SystemId(system_id))
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
@@ -266,10 +266,10 @@ impl From<[u8; 6]> for SystemId {
 // ===== impl LanId =====
 
 impl LanId {
-    pub(crate) fn decode(buf: &mut Bytes) -> Self {
+    pub(crate) fn decode(buf: &mut Bytes) -> Result<Self, TryGetError> {
         let mut bytes = [0; 7];
-        buf.copy_to_slice(&mut bytes);
-        Self::from(bytes)
+        buf.try_copy_to_slice(&mut bytes)?;
+        Ok(Self::from(bytes))
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
@@ -305,10 +305,10 @@ impl From<(SystemId, u8)> for LanId {
 // ===== impl LspId =====
 
 impl LspId {
-    pub(crate) fn decode(buf: &mut Bytes) -> Self {
+    pub(crate) fn decode(buf: &mut Bytes) -> Result<Self, TryGetError> {
         let mut bytes = [0; 8];
-        buf.copy_to_slice(&mut bytes);
-        Self::from(bytes)
+        buf.try_copy_to_slice(&mut bytes)?;
+        Ok(Self::from(bytes))
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {

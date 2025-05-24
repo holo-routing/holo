@@ -316,7 +316,7 @@ impl AdjSidStlv {
 
         let mut nbr_system_id = None;
         if lan {
-            nbr_system_id = Some(SystemId::decode(buf));
+            nbr_system_id = Some(SystemId::decode(buf)?);
         }
 
         // Parse SID (variable length).

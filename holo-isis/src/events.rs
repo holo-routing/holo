@@ -29,8 +29,8 @@ use crate::packet::consts::PduType;
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::pdu::{Hello, HelloVariant, Lsp, Pdu, Snp, SnpTlvs};
 use crate::packet::{LanId, LevelNumber, LevelType, LspId};
+use crate::spf;
 use crate::spf::SpfType;
-use crate::{spf, tasks};
 
 // ===== Network PDU receipt =====
 
@@ -1146,42 +1146,27 @@ pub(crate) fn process_lsp_purge(
         .lsdb
         .get_mut(level)
         .get_mut_by_key(&mut arenas.lsp_entries, &lse_key)?;
-    let lsp = &mut lse.data;
-
-    // Check if the LSP expired.
-    let expired = lsp.rem_lifetime() == 0;
+    let mut lsp = lse.data.clone();
 
     // Log LSP purge.
     if instance.config.trace_opts.lsdb {
-        Debug::LspPurge(level, lsp, reason).log();
+        Debug::LspPurge(level, &lsp, reason).log();
     }
 
     // Set remaining lifetime to zero if it's not already.
     lsp.set_rem_lifetime(0);
 
-    // Stop the LSP's expiration and refresh timers.
-    lse.expiry_timer = None;
+    // Reinstall the LSP to trigger a SPF run.
+    let lse = lsdb::install(instance, &mut arenas.lsp_entries, level, lsp);
+    let lsp = &lse.data;
+
+    // Stop the LSP's refresh timer.
     lse.refresh_timer = None;
 
     // Send purged LSP to all interfaces.
     for iface in arenas.interfaces.iter_mut() {
         iface.srm_list_add(instance, level, lsp.clone());
     }
-
-    // Mark the LSP as purged and start the delete timer.
-    lse.flags.insert(LspEntryFlags::PURGED);
-    let delete_timeout = if expired {
-        lsdb::LSP_ZERO_AGE_LIFETIME
-    } else {
-        instance.config.lsp_lifetime as u64
-    };
-    let delete_timer = tasks::lsp_delete_timer(
-        level,
-        lse.id,
-        delete_timeout,
-        &instance.tx.protocol_input.lsp_delete,
-    );
-    lse.delete_timer = Some(delete_timer);
 
     Ok(())
 }

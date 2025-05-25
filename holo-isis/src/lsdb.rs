@@ -1202,6 +1202,18 @@ pub(crate) fn install<'a>(
         }
     }
 
+    // Start the delete timer if the LSP has expired.
+    if lsp.is_expired() {
+        lse.flags.insert(LspEntryFlags::PURGED);
+        let delete_timer = tasks::lsp_delete_timer(
+            level,
+            lse.id,
+            LSP_ZERO_AGE_LIFETIME,
+            &instance.tx.protocol_input.lsp_delete,
+        );
+        lse.delete_timer = Some(delete_timer);
+    }
+
     // Add entry to LSP log.
     let lsp_log_id = LspLogId::new(lsp.lsp_id, lsp.seqno);
     let reason = if content_change {

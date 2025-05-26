@@ -166,9 +166,11 @@ fn process_stmt_condition(
     let attrs = &rpinfo.attrs;
     match condition {
         // "source-protocol"
-        PolicyCondition::SrcProtocol(value)
-            if let RouteOrigin::Protocol(protocol) = &rpinfo.origin =>
-        {
+        PolicyCondition::SrcProtocol(value) => {
+            let RouteOrigin::Protocol(protocol) = &rpinfo.origin else {
+                return true;
+            };
+
             protocol == value
         }
         // "match-interface"
@@ -187,10 +189,12 @@ fn process_stmt_condition(
             })
         }
         // "match-neighbor-set"
-        PolicyCondition::MatchNeighborSet(value)
-            if let RouteOrigin::Neighbor { remote_addr, .. } =
-                &rpinfo.origin =>
-        {
+        PolicyCondition::MatchNeighborSet(value) => {
+            let RouteOrigin::Neighbor { remote_addr, .. } = &rpinfo.origin
+            else {
+                return true;
+            };
+
             let set = match_sets.neighbors.get(value).unwrap();
             set.addrs.contains(remote_addr)
         }
@@ -204,17 +208,21 @@ fn process_stmt_condition(
             }
         }
         // "match-route-type"
-        PolicyCondition::MatchRouteType(_value)
-            if let Some(_opaque_attrs) = &rpinfo.opaque_attrs =>
-        {
+        PolicyCondition::MatchRouteType(_value) => {
+            let Some(_opaque_attrs) = &rpinfo.opaque_attrs else {
+                return true;
+            };
+
             // TODO
             true
         }
         // "bgp-conditions"
-        PolicyCondition::Bgp(condition)
-            if let RouteOrigin::Neighbor { remote_addr, .. } =
-                &rpinfo.origin =>
-        {
+        PolicyCondition::Bgp(condition) => {
+            let RouteOrigin::Neighbor { remote_addr, .. } = &rpinfo.origin
+            else {
+                return true;
+            };
+
             match condition {
                 // "local-pref"
                 BgpPolicyCondition::LocalPref { value, op } => {

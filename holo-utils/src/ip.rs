@@ -451,7 +451,9 @@ impl Ipv4NetworkExt for Ipv4Network {
         !self.ip().is_broadcast()
             && !self.ip().is_loopback()
             && !self.ip().is_multicast()
-            && !self.ip().is_reserved()
+            // Treat addresses in the 240.0.0.0/4 block (reserved for future
+            // use) as non-routable.
+            && self.ip().octets()[0] < 240
     }
 }
 

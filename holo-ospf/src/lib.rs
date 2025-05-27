@@ -9,7 +9,6 @@
     allow(dead_code, unused_variables, unused_imports)
 )]
 #![allow(type_alias_bounds)]
-#![feature(btree_extract_if)]
 
 pub mod area;
 pub mod bier;

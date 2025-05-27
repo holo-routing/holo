@@ -33,7 +33,7 @@ fn snode_module_path(snode: &SchemaNode<'_>) -> String {
     format!("{}::PATH", snode_module(snode))
 }
 
-fn snode_normalized_name(snode: &SchemaNode<'_>, case: Case) -> String {
+fn snode_normalized_name(snode: &SchemaNode<'_>, case: Case<'_>) -> String {
     let mut name = snode.name().to_owned();
 
     // HACK: distinguish nodes with the same names but different namespaces.
@@ -58,7 +58,7 @@ fn snode_normalized_name(snode: &SchemaNode<'_>, case: Case) -> String {
     // Case conversion.
     name = name
         .from_case(Case::Kebab)
-        .without_boundaries(&[Boundary::DigitUpper, Boundary::DigitLower])
+        .without_boundaries(&[Boundary::UPPER_DIGIT, Boundary::LOWER_DIGIT])
         .to_case(case);
 
     // Handle Rust reserved keywords.

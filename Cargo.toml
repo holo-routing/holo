@@ -34,15 +34,15 @@ repository = "https://github.com/holo-routing/holo"
 arbitrary = { version = "1.4.1", features = ["derive"] }
 arc-swap = "1.7"
 async-trait = "0.1"
-base64 = "0.21"
-bitflags = { version = "2.4", features = ["serde"] }
-bytes = { version = "1", features = ["serde"] }
+base64 = "0.22"
+bitflags = { version = "2.9", features = ["serde"] }
+bytes = { version = "1.10", features = ["serde"] }
 capctl = "0.2"
-check_keyword = "0.2"
+check_keyword = "0.4"
 clap = "2.33"
 chrono = { version = "0.4", features = ["serde"] }
 const-addrs = { version = "0.1", features = ["ipnet"] }
-convert_case = "0.6"
+convert_case = "0.8"
 criterion = "0.4"
 crossbeam-channel = "0.5"
 derive-new = "0.7"
@@ -57,7 +57,7 @@ itertools = "0.14"
 libc = "0.2"
 maplit = "1.0"
 md-5 = "0.10"
-nix = { version = "0.29", features = ["fs", "net", "socket", "uio", "user"] }
+nix = { version = "0.30", features = ["fs", "net", "socket", "uio", "user"] }
 netlink-packet-core = "0.7"
 netlink-packet-route = "0.21"
 netlink-packet-utils = "0.5"
@@ -65,22 +65,22 @@ netlink-sys = "0.8"
 num-derive = "0.4"
 num-traits = "0.2"
 pickledb = "0.5"
-prefix-trie = { version = "0.4.1", default-features = false, features = ["ipnetwork"]  }
+prefix-trie = { version = "0.7", default-features = false, features = ["ipnetwork"]  }
 prost = "0.13"
 rand = { version = "0.9", features = ["thread_rng"] }
-regex = "1.10"
+regex = "1.11"
 rtnetlink = "0.15"
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0"
-serde_with = "3.7"
+serde_with = "3.12"
 sha1 = "0.10"
 sha2 = "0.10"
-similar = "2.0"
-smallvec = { version = "1.11", features = ["serde"] }
+similar = "2.7"
+smallvec = { version = "1.15", features = ["serde"] }
 socket2 = { version = "0.5", features = ["all"] }
-tokio = { version = "1.0", features = ["full"] }
-tonic = { version = "0.12", features = ["tls"] }
-tonic-build = "0.12"
+tokio = { version = "1.45", features = ["full"] }
+tonic = { version = "0.13", features = ["tls-ring"] }
+tonic-build = "0.13"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 yang3 = { version = "0.16" }

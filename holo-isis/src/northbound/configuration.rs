@@ -28,11 +28,10 @@ use holo_yang::TryFromYang;
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use prefix_trie::map::PrefixMap;
 
-use crate::adjacency::Adjacency;
 use crate::collections::InterfaceIndex;
 use crate::debug::InterfaceInactiveReason;
 use crate::instance::Instance;
-use crate::interface::{Interface, InterfaceType};
+use crate::interface::InterfaceType;
 use crate::northbound::notification;
 use crate::packet::auth::AuthMethod;
 use crate::packet::consts::PduType;
@@ -1725,41 +1724,18 @@ impl Provider for Instance {
                     return;
                 };
 
-                // Closure to add or delete Adjacency-SIDs.
-                let update_sid = |iface: &Interface, adj: &mut Adjacency| {
-                    if enabled {
-                        sr::adj_sids_add(&instance, iface, adj);
-                    } else {
-                        sr::adj_sids_del(&instance, adj);
-                    }
-                };
-
                 // Iterate over all existing adjacencies.
                 for iface in arenas.interfaces.iter_mut() {
-                    match iface.config.interface_type {
-                        InterfaceType::Broadcast => {
-                            let mut adjacencies = std::mem::take(
-                                &mut iface.state.lan_adjacencies,
-                            );
-                            for level in iface.config.levels() {
-                                for adj_idx in
-                                    adjacencies.get_mut(level).indexes()
-                                {
-                                    let adj = &mut arenas.adjacencies[adj_idx];
-                                    update_sid(iface, adj);
-                                }
+                    iface.with_adjacencies(
+                        &mut arenas.adjacencies,
+                        |iface, adj| {
+                            if enabled {
+                                sr::adj_sids_add(&instance, iface, adj);
+                            } else {
+                                sr::adj_sids_del(&instance, adj);
                             }
-                            iface.state.lan_adjacencies = adjacencies;
-                        }
-                        InterfaceType::PointToPoint => {
-                            if let Some(mut adj) =
-                                iface.state.p2p_adjacency.take()
-                            {
-                                update_sid(iface, &mut adj);
-                                iface.state.p2p_adjacency = Some(adj);
-                            }
-                        }
-                    }
+                        },
+                    );
                 }
             }
             Event::RedistributeAdd(af, protocol) => {

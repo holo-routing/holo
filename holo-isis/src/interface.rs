@@ -368,31 +368,55 @@ impl Interface {
         lan_l1.chain(lan_l2).chain(p2p)
     }
 
+    // Runs the provided closure on each adjacency of the interface, abstracting
+    // over whether the interface is broadcast or point-to-point.
+    pub(crate) fn with_adjacencies<F>(
+        &mut self,
+        arena_adjacencies: &mut Arena<Adjacency>,
+        mut f: F,
+    ) where
+        F: FnMut(&mut Interface, &mut Adjacency),
+    {
+        match self.config.interface_type {
+            InterfaceType::Broadcast => {
+                let mut adjacencies =
+                    std::mem::take(&mut self.state.lan_adjacencies);
+                for level in self.config.levels() {
+                    for adj_idx in adjacencies.get_mut(level).indexes() {
+                        let adj = &mut arena_adjacencies[adj_idx];
+                        f(self, adj);
+                    }
+                }
+                self.state.lan_adjacencies = adjacencies;
+            }
+            InterfaceType::PointToPoint => {
+                if let Some(mut adj) = self.state.p2p_adjacency.take() {
+                    f(self, &mut adj);
+                    self.state.p2p_adjacency = Some(adj);
+                }
+            }
+        }
+    }
+
     pub(crate) fn clear_adjacencies(
         &mut self,
         instance: &mut InstanceUpView<'_>,
         arena_adjacencies: &mut Arena<Adjacency>,
         event: AdjacencyEvent,
     ) {
-        let new_state = AdjacencyState::Down;
+        // Transition each adjacency to the Down state.
+        self.with_adjacencies(arena_adjacencies, |iface, adj| {
+            adj.state_change(iface, instance, event, AdjacencyState::Down);
+        });
+
+        // Remove adjacencies based on the interface type.
         match self.config.interface_type {
             InterfaceType::Broadcast => {
-                let mut adjacencies =
-                    std::mem::take(&mut self.state.lan_adjacencies);
-                for level in self.config.levels() {
-                    let adjacencies = adjacencies.get_mut(level);
-                    for adj_idx in adjacencies.indexes() {
-                        let adj = &mut arena_adjacencies[adj_idx];
-                        adj.state_change(self, instance, event, new_state);
-                    }
-                    adjacencies.clear(arena_adjacencies);
-                }
-                self.state.lan_adjacencies = adjacencies;
+                self.state.lan_adjacencies.l1.clear(arena_adjacencies);
+                self.state.lan_adjacencies.l2.clear(arena_adjacencies);
             }
             InterfaceType::PointToPoint => {
-                if let Some(mut adj) = self.state.p2p_adjacency.take() {
-                    adj.state_change(self, instance, event, new_state);
-                }
+                self.state.p2p_adjacency = None;
             }
         }
     }

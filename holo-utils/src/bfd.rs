@@ -72,6 +72,13 @@ impl ToYang for PathType {
 // ===== impl SessionKey =====
 
 impl SessionKey {
+    pub fn dst(&self) -> &IpAddr {
+        match self {
+            SessionKey::IpSingleHop { dst, .. }
+            | SessionKey::IpMultihop { dst, .. } => dst,
+        }
+    }
+
     pub fn path_type(&self) -> PathType {
         match self {
             SessionKey::IpSingleHop { .. } => PathType::IpSingleHop,

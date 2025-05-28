@@ -603,6 +603,10 @@ async fn process_ibus_msg(
     }
 
     match msg {
+        // BFD peer state update event.
+        IbusMsg::BfdStateUpd { sess_key, state } => {
+            events::process_bfd_state_update(instance, sess_key, state)?
+        }
         // Router ID update notification.
         IbusMsg::RouterIdUpdate(router_id) => {
             southbound::rx::process_router_id_update(instance, router_id).await;

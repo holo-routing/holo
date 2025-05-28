@@ -1,0 +1,1 @@
+{"BfdSessionReg":{"sess_key":{"IpSingleHop":{"ifname":"eth-sw1","dst":"10.0.1.9"}},"client_id":{"protocol":"isis","name":"test"},"client_config":{"local_multiplier":3,"min_tx":1000000,"min_rx":1000000}}}

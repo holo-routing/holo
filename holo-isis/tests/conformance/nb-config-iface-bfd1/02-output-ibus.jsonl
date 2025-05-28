@@ -1,0 +1,2 @@
+{"BfdSessionReg":{"sess_key":{"IpSingleHop":{"ifname":"eth-rt4","dst":"10.0.7.4"}},"client_id":{"protocol":"isis","name":"test"},"client_config":{"local_multiplier":3,"min_tx":500000,"min_rx":500000}}}
+{"BfdSessionReg":{"sess_key":{"IpSingleHop":{"ifname":"eth-rt4","dst":"fe80::18c4:f8ff:fe09:3280"}},"client_id":{"protocol":"isis","name":"test"},"client_config":{"local_multiplier":3,"min_tx":500000,"min_rx":500000}}}

@@ -222,6 +222,7 @@ impl ToYang for AdjacencyEvent {
             AdjacencyEvent::HelloOneWayRcvd => "hello-one-way".into(),
             AdjacencyEvent::HelloTwoWayRcvd => "hello-two-way".into(),
             AdjacencyEvent::HoldtimeExpired => "hold-time-expired".into(),
+            AdjacencyEvent::BfdDown => "bfd-down".into(),
             AdjacencyEvent::LinkDown => "link-down".into(),
             AdjacencyEvent::Kill => "kill".into(),
         }

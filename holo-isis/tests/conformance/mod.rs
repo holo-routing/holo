@@ -635,6 +635,73 @@ async fn nb_config_iface_af2() {
 }
 
 // Input:
+//  * Northbound: enable BFD on the eth-rt4 interface
+// Output:
+//  * Southbound: register IPv4 and IPv6 BFD sessions on eth-rt4
+//
+// Input:
+//  * Northbound: configure a custom BFD min-interval (500000 us) on the
+//    eth-rt4 interface
+// Output:
+//  * Southbound: register IPv4 and IPv6 BFD sessions on eth-rt4 using the
+//    new interval
+//
+// Input:
+//  * Northbound: disable BFD on the eth-rt4 interface
+// Output:
+//  * Southbound: unregister IPv4 and IPv6 BFD sessions on eth-rt4
+#[tokio::test]
+async fn nb_config_iface_bfd1() {
+    run_test::<Instance>("nb-config-iface-bfd1", "topo2-1", "rt6").await;
+}
+
+// Input:
+//  * Northbound: enable BFD on the eth-rt4 interface
+// Output:
+//  * Southbound: register IPv4 and IPv6 BFD sessions on eth-rt4
+//
+// Input:
+//  * Southbound: BFD session to 10.0.7.4 on eth-rt4 is down
+// Output:
+//  * Protocol: send an updated local LSP to the 0000.0000.0005 adjacency
+//  * Northbound:
+//    - remove the 0000.0000.0004 adjacency from eth-rt4
+//    - remove 0000.0000.0004 IS reachability from the local LSP
+//    - add the local LSP to the SRM list of the 0000.0000.0005 adjacency
+//    - transition the SPF Delay FSM state from "quiet" to "short-wait"
+//    - send an "adjacency-state-change" YANG notification
+//    - send an "lsp-generation" YANG notification
+//  * Southbound: unregister IPv4 and IPv6 BFD sessions on eth-rt4
+#[tokio::test]
+async fn nb_config_iface_bfd2() {
+    run_test::<Instance>("nb-config-iface-bfd2", "topo2-1", "rt6").await;
+}
+
+// Input:
+//  * Northbound: enable BFD on the eth-sw1 interface
+// Output:
+//  * Southbound: register IPv4 and IPv6 BFD sessions on eth-sw1
+//
+// Input:
+//  * Protocol: receive an L2 LAN Hello on eth-sw1 from a new adjacency
+//    (0000.0000.0009) containing the 10.0.1.9 IPv4 address
+// Output:
+//  * Northbound:
+//    - add 0000.0000.0009 adjacency in the "init" state
+//    - send an "adjacency-state-change" YANG notification
+//  * Southbound: register BFD session to 10.0.1.9
+//
+// Input:
+//  * Protocol: receive an L2 LAN Hello on eth-sw1 from the 0000.0000.0009
+//    adjacency containing no IPv4 addresses
+// Output:
+//  * Southbound: unregister BFD session to 10.0.1.9
+#[tokio::test]
+async fn nb_config_iface_bfd3() {
+    run_test::<Instance>("nb-config-iface-bfd3", "topo2-1", "rt1").await;
+}
+
+// Input:
 //  * Northbound: delete the eth-rt5 interface
 // Output:
 //  * Protocol: send an updated local LSP to the 0000.0000.0004 adjacency

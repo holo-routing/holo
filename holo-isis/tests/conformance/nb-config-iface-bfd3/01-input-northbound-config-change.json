@@ -1,0 +1,32 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-isis:isis",
+          "name": "test",
+          "ietf-isis:isis": {
+            "interfaces": {
+              "interface": [
+                {
+                  "name": "eth-sw1",
+                  "bfd": {
+                    "enabled": true,
+                    "@enabled": {
+                      "yang:operation": "replace",
+                      "yang:orig-default": true,
+                      "yang:orig-value": "false"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

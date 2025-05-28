@@ -13,6 +13,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use chrono::Utc;
+use holo_utils::bfd;
 use holo_utils::sr::SrCfg;
 
 use crate::adjacency::{Adjacency, AdjacencyEvent, AdjacencyState};
@@ -335,6 +336,11 @@ pub(crate) fn process_pdu_hello_lan(
         );
     }
 
+    // Reevaluate BFD sessions associated with this adjacency.
+    if iface.config.bfd_enabled {
+        adj.bfd_update_sessions(iface, instance, false);
+    }
+
     // Restart Hello Tx task if this is a new adjacency (updated list
     // of neighbors).
     if new_adj {
@@ -461,6 +467,12 @@ pub(crate) fn process_pdu_hello_p2p(
         AdjacencyEvent::HelloOneWayRcvd,
         AdjacencyState::Up,
     );
+
+    // Reevaluate BFD sessions associated with this adjacency.
+    if iface.config.bfd_enabled {
+        adj.bfd_update_sessions(iface, instance, false);
+    }
+
     iface.state.p2p_adjacency = Some(adj);
 
     Ok(())
@@ -1242,6 +1254,55 @@ pub(crate) fn process_spf_delay_event(
 ) -> Result<(), Error> {
     // Trigger SPF Delay FSM event.
     spf::fsm(level, event, instance, arenas)
+}
+
+// ===== BFD state update event =====
+
+pub(crate) fn process_bfd_state_update(
+    instance: &mut Instance,
+    sess_key: bfd::SessionKey,
+    state: bfd::State,
+) -> Result<(), Error> {
+    // We're only interested on peer down notifications.
+    if state != bfd::State::Down {
+        return Ok(());
+    }
+
+    // Ignore notification if the IS-IS instance isn't active anymore.
+    let Some((mut instance, arenas)) = instance.as_up() else {
+        return Ok(());
+    };
+
+    // Lookup interface.
+    let bfd::SessionKey::IpSingleHop { ifname, .. } = &sess_key else {
+        return Ok(());
+    };
+    let Some(iface) = arenas.interfaces.get_mut_by_name(ifname) else {
+        return Ok(());
+    };
+
+    // On LAN interfaces, both L1 and L2 adjacencies share the same BFD session.
+    iface.with_adjacencies(&mut arenas.adjacencies, |iface, adj| {
+        let bfd = adj
+            .bfd
+            .iter_mut()
+            .find_map(|(_, b)| b.as_mut())
+            .filter(|b| b.sess_key == sess_key);
+        if let Some(bfd) = bfd {
+            // Update the status of the BFD session.
+            bfd.state = Some(state);
+            if !adj.is_bfd_healthy() {
+                adj.state_change(
+                    iface,
+                    &mut instance,
+                    AdjacencyEvent::BfdDown,
+                    AdjacencyState::Down,
+                );
+            }
+        }
+    });
+
+    Ok(())
 }
 
 // ===== Keychain update event =====

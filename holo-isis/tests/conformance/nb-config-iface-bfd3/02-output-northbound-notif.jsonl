@@ -1,0 +1,1 @@
+{"ietf-isis:adjacency-state-change":{"routing-protocol-name":"test","isis-level":"level-2","interface-name":"eth-sw1","interface-level":"level-2","neighbor-system-id":"0000.0000.0009","state":"init"}}

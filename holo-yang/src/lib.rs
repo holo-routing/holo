@@ -275,6 +275,7 @@ pub static YANG_FEATURES: Lazy<HashMap<&'static str, Vec<&'static str>>> =
             ],
             "ietf-isis" => vec![
                 "admin-control",
+                "bfd",
                 "ietf-spf-delay",
                 "key-chain",
                 "lsp-refresh",

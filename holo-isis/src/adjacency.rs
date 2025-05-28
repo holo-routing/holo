@@ -13,8 +13,10 @@ use std::time::Instant;
 
 use chrono::Utc;
 use derive_new::new;
-use holo_utils::ip::AddressFamily;
+use holo_utils::bfd;
+use holo_utils::ip::{AddressFamilies, AddressFamily};
 use holo_utils::mpls::Label;
+use holo_utils::protocol::Protocol;
 use holo_utils::sr::Sid;
 use holo_utils::task::TimeoutTask;
 
@@ -41,6 +43,7 @@ pub struct Adjacency {
     pub neighbors: BTreeSet<[u8; 6]>,
     pub ipv4_addrs: BTreeSet<Ipv4Addr>,
     pub ipv6_addrs: BTreeSet<Ipv6Addr>,
+    pub bfd: AddressFamilies<Option<AdjacencyBfd>>,
     pub adj_sids: Vec<AdjacencySid>,
     pub last_uptime: Option<Instant>,
     pub holdtimer: Option<TimeoutTask>,
@@ -53,21 +56,28 @@ pub enum AdjacencyState {
     Up,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AdjacencyEvent {
+    HelloOneWayRcvd,
+    HelloTwoWayRcvd,
+    HoldtimeExpired,
+    BfdDown,
+    LinkDown,
+    Kill,
+}
+
+#[derive(Debug)]
+pub struct AdjacencyBfd {
+    pub sess_key: bfd::SessionKey,
+    pub state: Option<bfd::State>,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 #[derive(new)]
 pub struct AdjacencySid {
     pub af: AddressFamily,
     pub label: Label,
     pub nbr_system_id: Option<SystemId>,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum AdjacencyEvent {
-    HelloOneWayRcvd,
-    HelloTwoWayRcvd,
-    HoldtimeExpired,
-    LinkDown,
-    Kill,
 }
 
 // ===== impl Adjacency =====
@@ -94,6 +104,7 @@ impl Adjacency {
             neighbors: Default::default(),
             ipv4_addrs: Default::default(),
             ipv6_addrs: Default::default(),
+            bfd: Default::default(),
             adj_sids: Default::default(),
             last_uptime: None,
             holdtimer: None,
@@ -154,6 +165,11 @@ impl Adjacency {
             }
         }
 
+        // Removes BFD peers if the adjacency transitions to Down.
+        if new_state == AdjacencyState::Down {
+            self.bfd_clear_sessions(instance);
+        }
+
         // If no adjacencies remain in the Up state, clear SRM and SSN lists.
         if iface.state.event_counters.adjacency_number == 0 {
             for level in iface.config.levels() {
@@ -195,11 +211,120 @@ impl Adjacency {
             self.holdtimer = Some(task);
         }
     }
+
+    // Registers or updates BFD sessions for this adjacency based on the current
+    // set of IPv4 and IPv6 addresses.
+    //
+    // For each address family, if a local address is present, a BFD session is
+    // registered if one is missing or if `force` is `true`. If no address is
+    // available for a given family, any existing session for that family is
+    // unregistered.
+    pub(crate) fn bfd_update_sessions(
+        &mut self,
+        iface: &Interface,
+        instance: &InstanceUpView<'_>,
+        force: bool,
+    ) {
+        let mut bfd = std::mem::take(&mut self.bfd);
+        for (af, bfd) in bfd.iter_mut() {
+            let addr = match af {
+                AddressFamily::Ipv4 => {
+                    self.ipv4_addrs.first().copied().map(Into::into)
+                }
+                AddressFamily::Ipv6 => {
+                    self.ipv6_addrs.first().copied().map(Into::into)
+                }
+            };
+
+            if let Some(addr) = addr {
+                if bfd.is_none() || force {
+                    let sess_key = bfd::SessionKey::new_ip_single_hop(
+                        iface.name.clone(),
+                        addr,
+                    );
+                    self.bfd_register(sess_key.clone(), iface, instance);
+                    *bfd = Some(AdjacencyBfd::new(sess_key));
+                }
+            } else if let Some(bfd) = bfd.take() {
+                self.bfd_unregister(bfd.sess_key, instance);
+            }
+        }
+        self.bfd = bfd;
+    }
+
+    // Unregisters and removes all BFD sessions associated with this adjacency.
+    pub(crate) fn bfd_clear_sessions(&mut self, instance: &InstanceUpView<'_>) {
+        if let Some(bfd) = self.bfd.ipv4.take() {
+            self.bfd_unregister(bfd.sess_key, instance);
+        }
+        if let Some(bfd) = self.bfd.ipv6.take() {
+            self.bfd_unregister(bfd.sess_key, instance);
+        }
+    }
+
+    // Registers a BFD session for this adjacency with the given session key.
+    fn bfd_register(
+        &self,
+        sess_key: bfd::SessionKey,
+        iface: &Interface,
+        instance: &InstanceUpView<'_>,
+    ) {
+        Debug::AdjacencyBfdReg(self, sess_key.dst()).log();
+
+        let client_id =
+            bfd::ClientId::new(Protocol::ISIS, instance.name.to_owned());
+        instance.tx.ibus.bfd_session_reg(
+            sess_key.clone(),
+            client_id,
+            Some(iface.config.bfd_params),
+        );
+    }
+
+    // Unregisters the BFD session associated with the given session key.
+    fn bfd_unregister(
+        &self,
+        sess_key: bfd::SessionKey,
+        instance: &InstanceUpView<'_>,
+    ) {
+        Debug::AdjacencyBfdUnreg(self, sess_key.dst()).log();
+
+        instance.tx.ibus.bfd_session_unreg(sess_key);
+    }
+
+    // Returns whether this adjacency should be operational based on the state
+    // of its associated IPv4 and/or IPv6 BFD sessions.
+    //
+    // In single-topology mode, the adjacency is considered UP only if all
+    // associated BFD sessions are UP.
+    pub(crate) fn is_bfd_healthy(&self) -> bool {
+        self.bfd
+            .iter()
+            .filter_map(|(_, bfd)| bfd.as_ref())
+            .all(|bfd| bfd.is_up())
+    }
 }
 
 impl Drop for Adjacency {
     fn drop(&mut self) {
         Debug::AdjacencyDelete(self).log();
+    }
+}
+
+// ===== impl AdjacencyBfd =====
+
+impl AdjacencyBfd {
+    fn new(sess_key: bfd::SessionKey) -> AdjacencyBfd {
+        AdjacencyBfd {
+            sess_key,
+            state: None,
+        }
+    }
+
+    fn is_up(&self) -> bool {
+        self.state
+            .as_ref()
+            .map(|state| *state == bfd::State::Up)
+            .unwrap_or(true)
     }
 }
 

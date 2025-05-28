@@ -19,6 +19,7 @@ use holo_northbound::configuration::{
     ValidationCallbacks, ValidationCallbacksBuilder,
 };
 use holo_northbound::yang::control_plane_protocol::isis;
+use holo_utils::bfd;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::AddressFamily;
 use holo_utils::keychain::{Key, Keychains};
@@ -70,6 +71,7 @@ pub enum Event {
     InterfacePriorityChange(InterfaceIndex, LevelNumber),
     InterfaceUpdateHelloInterval(InterfaceIndex, LevelNumber),
     InterfaceUpdateCsnpInterval(InterfaceIndex),
+    InterfaceBfdChange(InterfaceIndex),
     InterfaceIbusSub(InterfaceIndex),
     ReoriginateLsps(LevelNumber),
     RefreshLsps,
@@ -200,6 +202,8 @@ pub struct InterfaceCfg {
     pub hello_multiplier: LevelsCfg<u16>,
     pub priority: LevelsCfg<u8>,
     pub metric: LevelsCfg<u32>,
+    pub bfd_enabled: bool,
+    pub bfd_params: bfd::ClientCfg,
     pub afs: BTreeSet<AddressFamily>,
     pub trace_opts: InterfaceTraceOptions,
 }
@@ -1368,6 +1372,71 @@ fn load_callbacks() -> Callbacks<Instance> {
             let event_queue = args.event_queue;
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
+        .path(isis::interfaces::interface::bfd::enabled::PATH)
+        .modify_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let enabled = args.dnode.get_bool();
+            iface.config.bfd_enabled = enabled;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceBfdChange(iface_idx));
+        })
+        .path(isis::interfaces::interface::bfd::local_multiplier::PATH)
+        .modify_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let local_multiplier = args.dnode.get_u8();
+            iface.config.bfd_params.local_multiplier = local_multiplier;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceBfdChange(iface_idx));
+        })
+        .path(isis::interfaces::interface::bfd::desired_min_tx_interval::PATH)
+        .modify_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let min_tx = args.dnode.get_u32();
+            iface.config.bfd_params.min_tx = min_tx;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceBfdChange(iface_idx));
+        })
+        .delete_apply(|_instance, _args| {
+            // Nothing to do.
+        })
+        .path(isis::interfaces::interface::bfd::required_min_rx_interval::PATH)
+        .modify_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let min_rx = args.dnode.get_u32();
+            iface.config.bfd_params.min_rx = min_rx;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceBfdChange(iface_idx));
+        })
+        .delete_apply(|_instance, _args| {
+            // Nothing to do.
+        })
+        .path(isis::interfaces::interface::bfd::min_interval::PATH)
+        .modify_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let min_interval = args.dnode.get_u32();
+            iface.config.bfd_params.min_tx = min_interval;
+            iface.config.bfd_params.min_rx = min_interval;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceBfdChange(iface_idx));
+        })
+        .delete_apply(|_instance, _args| {
+            // Nothing to do.
+        })
         .path(isis::interfaces::interface::address_families::address_family_list::PATH)
         .create_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -1646,6 +1715,22 @@ impl Provider for Instance {
                 };
                 let iface = &mut arenas.interfaces[iface_idx];
                 iface.csnp_interval_reset(&instance);
+            }
+            Event::InterfaceBfdChange(iface_idx) => {
+                let Some((instance, arenas)) = self.as_up() else {
+                    return;
+                };
+                let iface = &mut arenas.interfaces[iface_idx];
+                iface.with_adjacencies(
+                    &mut arenas.adjacencies,
+                    |iface, adj| {
+                        if iface.config.bfd_enabled {
+                            adj.bfd_update_sessions(iface, &instance, true);
+                        } else {
+                            adj.bfd_clear_sessions(&instance);
+                        }
+                    },
+                );
             }
             Event::InterfaceIbusSub(iface_idx) => {
                 let iface = &self.arenas.interfaces[iface_idx];
@@ -2142,6 +2227,7 @@ impl Default for InterfaceCfg {
             l1: None,
             l2: None,
         };
+        let bfd_enabled = isis::interfaces::interface::bfd::enabled::DFLT;
         InterfaceCfg {
             enabled,
             level_type,
@@ -2156,6 +2242,8 @@ impl Default for InterfaceCfg {
             hello_multiplier,
             priority,
             metric,
+            bfd_enabled,
+            bfd_params: Default::default(),
             afs: Default::default(),
             trace_opts: Default::default(),
         }

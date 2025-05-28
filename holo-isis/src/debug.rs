@@ -7,6 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
+use std::net::IpAddr;
 use std::time::Duration;
 
 use holo_utils::ibus::IbusMsg;
@@ -41,6 +42,8 @@ pub enum Debug<'a> {
     AdjacencyCreate(&'a Adjacency),
     AdjacencyDelete(&'a Adjacency),
     AdjacencyStateChange(&'a Adjacency, AdjacencyState, AdjacencyEvent),
+    AdjacencyBfdReg(&'a Adjacency, &'a IpAddr),
+    AdjacencyBfdUnreg(&'a Adjacency, &'a IpAddr),
     // Network
     PduRx(&'a Interface, &'a [u8; 6], &'a Pdu),
     PduTx(u32, MulticastAddr, &'a Pdu),
@@ -144,6 +147,14 @@ impl Debug<'_> {
             Debug::AdjacencyStateChange(adj, new_state, event) => {
                 // Parent span(s): isis-instance
                 debug_span!("adjacency", system_id = %adj.system_id.to_yang(), new_state = %new_state.to_yang(), event = %event.to_yang())
+                    .in_scope(|| {
+                        debug!("{}", self);
+                    })
+            }
+            Debug::AdjacencyBfdReg(adj, addr)
+            | Debug::AdjacencyBfdUnreg(adj, addr) => {
+                // Parent span(s): isis-instance
+                debug_span!("adjacency", system_id = %adj.system_id.to_yang(), %addr)
                     .in_scope(|| {
                         debug!("{}", self);
                     })
@@ -262,6 +273,12 @@ impl std::fmt::Display for Debug<'_> {
             }
             Debug::AdjacencyStateChange(..) => {
                 write!(f, "adjacency state change")
+            }
+            Debug::AdjacencyBfdReg(..) => {
+                write!(f, "BFD peer registered")
+            }
+            Debug::AdjacencyBfdUnreg(..) => {
+                write!(f, "BFD peer unregistered")
             }
             Debug::PduRx(..) | Debug::PduTx(..) => {
                 write!(f, "PDU")

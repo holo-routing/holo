@@ -403,21 +403,23 @@ pub struct UnknownTlv {
 
 impl BierStlv {
     pub(crate) fn decode(_tlv_len: u16, buf: &mut Bytes) -> DecodeResult<Self> {
-        let sub_domain_id = buf.get_u8();
-        let mt_id = buf.get_u8();
-        let bfr_id = buf.get_u16();
-        let bar = buf.get_u8();
-        let ipa = buf.get_u8();
-        let _reserved = buf.get_u16();
+        let sub_domain_id = buf.try_get_u8()?;
+        let mt_id = buf.try_get_u8()?;
+        let bfr_id = buf.try_get_u16()?;
+        let bar = buf.try_get_u8()?;
+        let ipa = buf.try_get_u8()?;
+        let _reserved = buf.try_get_u16()?;
+
         let mut encaps: Vec<BierEncapSubStlv> = Vec::new();
         let mut unknown: Vec<UnknownTlv> = Vec::new();
 
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse Sub-TLV type.
-            let stlv_type = buf.get_u16();
+            let stlv_type = buf.try_get_u16()?;
 
             // Parse and validate Sub-TLV length.
-            let stlv_len = buf.get_u16();
+            let stlv_len = buf.try_get_u16()?;
+
             let stlv_wlen = tlv_wire_len(stlv_len);
             if stlv_wlen as usize > buf.remaining() {
                 return Err(DecodeError::InvalidTlvLength(stlv_len));
@@ -430,9 +432,9 @@ impl BierStlv {
                     match stlv_type {
                         BierStlvType::MplsEncap
                         | BierStlvType::NonMplsEncap => {
-                            let max_si = buf_stlv.get_u8();
-                            let id = buf_stlv.get_u24();
-                            let bs_len = (buf_stlv.get_u8() & 0xf0) >> 4;
+                            let max_si = buf_stlv.try_get_u8()?;
+                            let id = buf_stlv.try_get_u24()?;
+                            let bs_len = (buf_stlv.try_get_u8()? & 0xf0) >> 4;
 
                             let id = match stlv_type {
                                 BierStlvType::MplsEncap => {
@@ -506,7 +508,7 @@ impl RouterInfoCapsTlv {
         }
 
         // Read capabilities (ignoring unknown ones).
-        let caps = buf.get_u32();
+        let caps = buf.try_get_u32()?;
         let caps = RouterInfoCaps::from_bits_truncate(caps);
         let caps = RouterInfoCapsTlv(caps);
 
@@ -541,7 +543,7 @@ impl RouterFuncCapsTlv {
         }
 
         // Read capabilities (ignoring unknown ones).
-        let caps = buf.get_u32();
+        let caps = buf.try_get_u32()?;
         let caps = RouterFuncCaps::from_bits_truncate(caps);
         let caps = RouterFuncCapsTlv(caps);
 
@@ -578,7 +580,7 @@ impl NodeAdminTagTlv {
         let mut tags = BTreeSet::new();
         let mut tlv_rlen = tlv_len;
         while tlv_rlen >= 4 {
-            let tag = buf.get_u32();
+            let tag = buf.try_get_u32()?;
             tags.insert(tag);
             tlv_rlen -= 4;
         }
@@ -604,10 +606,10 @@ impl DynamicHostnameTlv {
         }
 
         let mut hostname_bytes = [0; 255];
-        buf.copy_to_slice(
+        buf.try_copy_to_slice(
             &mut hostname_bytes
                 [..usize::min(tlv_len as usize, MAX_HOSTNAME_LEN)],
-        );
+        )?;
 
         let hostname =
             String::from_utf8_lossy(&hostname_bytes[..tlv_len as usize])
@@ -636,7 +638,7 @@ impl SrAlgoTlv {
     pub(crate) fn decode(tlv_len: u16, buf: &mut Bytes) -> DecodeResult<Self> {
         let mut list = BTreeSet::new();
         for _ in 0..tlv_len {
-            let algo = buf.get_u8();
+            let algo = buf.try_get_u8()?;
             let algo = match IgpAlgoType::from_u8(algo) {
                 Some(algo) => algo,
                 None => {
@@ -668,16 +670,17 @@ impl SrAlgoTlv {
 impl SidLabelRangeTlv {
     pub(crate) fn decode(_tlv_len: u16, buf: &mut Bytes) -> DecodeResult<Self> {
         let mut first = None;
-        let range = buf.get_u24();
-        let _reserved = buf.get_u8();
+
+        let range = buf.try_get_u24()?;
+        let _reserved = buf.try_get_u8()?;
 
         // Parse Sub-TLVs.
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse Sub-TLV type.
-            let stlv_type = buf.get_u16();
+            let stlv_type = buf.try_get_u16()?;
 
             // Parse and validate Sub-TLV length.
-            let stlv_len = buf.get_u16();
+            let stlv_len = buf.try_get_u16()?;
             let stlv_wlen = tlv_wire_len(stlv_len);
             if stlv_wlen as usize > buf.remaining() {
                 return Err(DecodeError::InvalidTlvLength(stlv_len));
@@ -688,9 +691,10 @@ impl SidLabelRangeTlv {
             match stlv_type {
                 SUBTLV_SID_LABEL => {
                     let sid = match stlv_len {
-                        4 => Sid::Index(buf_stlv.get_u32()),
+                        4 => Sid::Index(buf_stlv.try_get_u32()?),
                         3 => {
-                            let label = buf_stlv.get_u24() & Label::VALUE_MASK;
+                            let label =
+                                buf_stlv.try_get_u24()? & Label::VALUE_MASK;
                             Sid::Label(Label::new(label))
                         }
                         _ => {
@@ -737,16 +741,16 @@ impl SidLabelRangeTlv {
 impl SrLocalBlockTlv {
     pub(crate) fn decode(_tlv_len: u16, buf: &mut Bytes) -> DecodeResult<Self> {
         let mut first = None;
-        let range = buf.get_u24();
-        let _reserved = buf.get_u8();
+        let range = buf.try_get_u24()?;
+        let _reserved = buf.try_get_u8()?;
 
         // Parse Sub-TLVs.
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse Sub-TLV type.
-            let stlv_type = buf.get_u16();
+            let stlv_type = buf.try_get_u16()?;
 
             // Parse and validate Sub-TLV length.
-            let stlv_len = buf.get_u16();
+            let stlv_len = buf.try_get_u16()?;
             let stlv_wlen = tlv_wire_len(stlv_len);
             if stlv_wlen as usize > buf.remaining() {
                 return Err(DecodeError::InvalidTlvLength(stlv_len));
@@ -757,9 +761,10 @@ impl SrLocalBlockTlv {
             match stlv_type {
                 SUBTLV_SID_LABEL => {
                     let sid = match stlv_len {
-                        4 => Sid::Index(buf_stlv.get_u32()),
+                        4 => Sid::Index(buf_stlv.try_get_u32()?),
                         3 => {
-                            let label = buf_stlv.get_u24() & Label::VALUE_MASK;
+                            let label =
+                                buf_stlv.try_get_u24()? & Label::VALUE_MASK;
                             Sid::Label(Label::new(label))
                         }
                         _ => {
@@ -813,8 +818,9 @@ impl MsdTlv {
         let mut msds = BTreeMap::new();
         let mut tlv_rlen = tlv_len;
         while tlv_rlen >= 2 {
-            let msd_type = buf.get_u8();
-            let msd_value = buf.get_u8();
+            let msd_type = buf.try_get_u8()?;
+
+            let msd_value = buf.try_get_u8()?;
             msds.insert(msd_type, msd_value);
 
             tlv_rlen -= 2;
@@ -846,7 +852,7 @@ impl GracePeriodTlv {
             return Err(DecodeError::InvalidTlvLength(tlv_len));
         }
 
-        let period = buf.get_u32();
+        let period = buf.try_get_u32()?;
 
         Ok(GracePeriodTlv(period))
     }
@@ -871,7 +877,7 @@ impl GrReasonTlv {
             return Err(DecodeError::InvalidTlvLength(tlv_len));
         }
 
-        let reason = buf.get_u8();
+        let reason = buf.try_get_u8()?;
 
         Ok(GrReasonTlv(reason))
     }
@@ -917,7 +923,7 @@ impl SrmsPrefTlv {
             return Err(DecodeError::InvalidTlvLength(tlv_len));
         }
 
-        let pref = buf.get_u8();
+        let pref = buf.try_get_u8()?;
 
         Ok(SrmsPrefTlv(pref))
     }

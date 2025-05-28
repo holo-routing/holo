@@ -154,13 +154,13 @@ impl NetworkVersion<Self> for Ospfv2 {
         let buf_len = buf.len() as u16;
 
         // Parse IHL (header length).
-        let hdr_len = buf.get_u8() & 0x0F;
+        let hdr_len = buf.try_get_u8()? & 0x0F;
 
         // Ignore TOS.
-        let _ = buf.get_u8();
+        let _ = buf.try_get_u8()?;
 
         // Parse and validate the IP header total length.
-        let total_len = buf.get_u16();
+        let total_len = buf.try_get_u16()?;
         if buf_len != total_len {
             return Err(DecodeError::InvalidIpHdrLength(total_len));
         }

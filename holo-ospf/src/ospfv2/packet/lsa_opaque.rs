@@ -442,11 +442,11 @@ impl LsaGrace {
 
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse TLV type.
-            let tlv_type = buf.get_u16();
+            let tlv_type = buf.try_get_u16()?;
             let tlv_etype = GraceTlvType::from_u16(tlv_type);
 
             // Parse and validate TLV length.
-            let tlv_len = buf.get_u16();
+            let tlv_len = buf.try_get_u16()?;
             let tlv_wlen = tlv_wire_len(tlv_len);
             if tlv_wlen as usize > buf.remaining() {
                 return Err(DecodeError::InvalidTlvLength(tlv_len));
@@ -502,7 +502,7 @@ impl GrInterfaceAddrTlv {
             return Err(DecodeError::InvalidTlvLength(tlv_len));
         }
 
-        let addr = buf.get_ipv4();
+        let addr = buf.try_get_ipv4()?;
 
         Ok(GrInterfaceAddrTlv(addr))
     }
@@ -527,11 +527,11 @@ impl LsaRouterInfo {
 
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse TLV type.
-            let tlv_type = buf.get_u16();
+            let tlv_type = buf.try_get_u16()?;
             let tlv_etype = RouterInfoTlvType::from_u16(tlv_type);
 
             // Parse and validate TLV length.
-            let tlv_len = buf.get_u16();
+            let tlv_len = buf.try_get_u16()?;
             let tlv_wlen = tlv_wire_len(tlv_len);
             if tlv_wlen as usize > buf.remaining() {
                 return Err(DecodeError::InvalidTlvLength(tlv_len));
@@ -631,11 +631,11 @@ impl LsaExtPrefix {
 
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse TLV type.
-            let tlv_type = buf.get_u16();
+            let tlv_type = buf.try_get_u16()?;
             let tlv_etype = ExtPrefixTlvType::from_u16(tlv_type);
 
             // Parse and validate TLV length.
-            let tlv_len = buf.get_u16();
+            let tlv_len = buf.try_get_u16()?;
             let tlv_wlen = tlv_wire_len(tlv_len);
             if tlv_wlen as usize > buf.remaining() {
                 return Err(DecodeError::InvalidTlvLength(tlv_len));
@@ -683,11 +683,11 @@ impl LsaExtLink {
 
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse TLV type.
-            let tlv_type = buf.get_u16();
+            let tlv_type = buf.try_get_u16()?;
             let tlv_etype = ExtLinkTlvType::from_u16(tlv_type);
 
             // Parse and validate TLV length.
-            let tlv_len = buf.get_u16();
+            let tlv_len = buf.try_get_u16()?;
             let tlv_wlen = tlv_wire_len(tlv_len);
             if tlv_wlen as usize > buf.remaining() {
                 return Err(DecodeError::InvalidTlvLength(tlv_len));
@@ -735,14 +735,14 @@ impl ExtPrefixTlv {
         }
 
         // Parse fixed fields.
-        let route_type = buf.get_u8();
+        let route_type = buf.try_get_u8()?;
         let route_type = ExtPrefixRouteType::from_u8(route_type)
             .ok_or(DecodeError::InvalidExtPrefixRouteType(route_type))?;
-        let prefixlen = buf.get_u8();
-        let af = buf.get_u8();
-        let flags = buf.get_u8();
+        let prefixlen = buf.try_get_u8()?;
+        let af = buf.try_get_u8()?;
+        let flags = buf.try_get_u8()?;
         let flags = LsaExtPrefixFlags::from_bits_truncate(flags);
-        let addr = buf.get_ipv4();
+        let addr = buf.try_get_ipv4()?;
         let prefix = Ipv4Network::new(addr, prefixlen)
             .map_err(|_| DecodeError::InvalidIpPrefix)?;
         let mut tlv = ExtPrefixTlv::new(route_type, af, flags, prefix);
@@ -750,11 +750,11 @@ impl ExtPrefixTlv {
         // Parse Sub-TLVs.
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse Sub-TLV type.
-            let stlv_type = buf.get_u16();
+            let stlv_type = buf.try_get_u16()?;
             let stlv_etype = ExtPrefixStlvType::from_u16(stlv_type);
 
             // Parse and validate Sub-TLV length.
-            let stlv_len = buf.get_u16();
+            let stlv_len = buf.try_get_u16()?;
             let stlv_wlen = tlv_wire_len(stlv_len);
             if stlv_wlen as usize > buf.remaining() {
                 return Err(DecodeError::InvalidTlvLength(stlv_len));
@@ -764,15 +764,15 @@ impl ExtPrefixTlv {
             let mut buf_stlv = buf.copy_to_bytes(stlv_wlen as usize);
             match stlv_etype {
                 Some(ExtPrefixStlvType::PrefixSid) => {
-                    let flags = buf_stlv.get_u8();
+                    let flags = buf_stlv.try_get_u8()?;
                     let flags = PrefixSidFlags::from_bits_truncate(flags);
-                    let _reserved = buf_stlv.get_u8();
-                    let mtid = buf_stlv.get_u8();
+                    let _reserved = buf_stlv.try_get_u8()?;
+                    let mtid = buf_stlv.try_get_u8()?;
                     if mtid != 0 {
                         // Unsupported MT-ID - ignore.
                         continue;
                     }
-                    let algo = buf_stlv.get_u8();
+                    let algo = buf_stlv.try_get_u8()?;
                     let algo = match IgpAlgoType::from_u8(algo) {
                         Some(algo) => algo,
                         None => {
@@ -785,11 +785,11 @@ impl ExtPrefixTlv {
                     let sid = if !flags
                         .intersects(PrefixSidFlags::V | PrefixSidFlags::L)
                     {
-                        Sid::Index(buf_stlv.get_u32())
+                        Sid::Index(buf_stlv.try_get_u32()?)
                     } else if flags
                         .contains(PrefixSidFlags::V | PrefixSidFlags::L)
                     {
-                        let label = buf_stlv.get_u24() & Label::VALUE_MASK;
+                        let label = buf_stlv.try_get_u24()? & Label::VALUE_MASK;
                         Sid::Label(Label::new(label))
                     } else {
                         // Invalid V-Flag and L-Flag combination - ignore.
@@ -848,13 +848,13 @@ impl ExtLinkTlv {
         }
 
         // Parse fixed fields.
-        let link_type = buf.get_u8();
+        let link_type = buf.try_get_u8()?;
         let link_type = LsaRouterLinkType::from_u8(link_type)
             .ok_or(DecodeError::UnknownRouterLinkType(link_type))?;
-        let _ = buf.get_u8();
-        let _ = buf.get_u16();
-        let link_id = buf.get_ipv4();
-        let link_data = buf.get_ipv4();
+        let _ = buf.try_get_u8()?;
+        let _ = buf.try_get_u16()?;
+        let link_id = buf.try_get_ipv4()?;
+        let link_data = buf.try_get_ipv4()?;
         let mut tlv = ExtLinkTlv::new(
             link_type,
             link_id,
@@ -866,11 +866,11 @@ impl ExtLinkTlv {
         // Parse Sub-TLVs.
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse Sub-TLV type.
-            let stlv_type = buf.get_u16();
+            let stlv_type = buf.try_get_u16()?;
             let stlv_etype = ExtLinkStlvType::from_u16(stlv_type);
 
             // Parse and validate Sub-TLV length.
-            let stlv_len = buf.get_u16();
+            let stlv_len = buf.try_get_u16()?;
             let stlv_wlen = tlv_wire_len(stlv_len);
             if stlv_wlen as usize > buf.remaining() {
                 return Err(DecodeError::InvalidTlvLength(stlv_len));
@@ -885,27 +885,30 @@ impl ExtLinkTlv {
                 }
                 Some(ExtLinkStlvType::AdjSid | ExtLinkStlvType::LanAdjSid) => {
                     let flags =
-                        AdjSidFlags::from_bits_truncate(buf_stlv.get_u8());
-                    let _reserved = buf_stlv.get_u8();
-                    let mtid = buf_stlv.get_u8();
+                        AdjSidFlags::from_bits_truncate(buf_stlv.try_get_u8()?);
+                    let _reserved = buf_stlv.try_get_u8()?;
+                    let mtid = buf_stlv.try_get_u8()?;
                     if mtid != 0 {
                         // Unsupported MT-ID - ignore.
                         continue;
                     }
-                    let weight = buf_stlv.get_u8();
+                    let weight = buf_stlv.try_get_u8()?;
 
                     // Parse Neighbor ID (LAN Adj-SID only).
-                    let nbr_router_id = (stlv_etype
-                        == Some(ExtLinkStlvType::LanAdjSid))
-                    .then(|| buf_stlv.get_ipv4());
+                    let nbr_router_id: Option<Ipv4Addr> =
+                        if stlv_etype == Some(ExtLinkStlvType::LanAdjSid) {
+                            Some(buf_stlv.try_get_ipv4()?)
+                        } else {
+                            None
+                        };
 
                     // Parse SID (variable length).
                     let sid = if !flags
                         .intersects(AdjSidFlags::V | AdjSidFlags::L)
                     {
-                        Sid::Index(buf_stlv.get_u32())
+                        Sid::Index(buf_stlv.try_get_u32()?)
                     } else if flags.contains(AdjSidFlags::V | AdjSidFlags::L) {
-                        let label = buf_stlv.get_u24() & Label::VALUE_MASK;
+                        let label = buf_stlv.try_get_u24()? & Label::VALUE_MASK;
                         Sid::Label(Label::new(label))
                     } else {
                         // Invalid V-Flag and L-Flag combination - ignore.

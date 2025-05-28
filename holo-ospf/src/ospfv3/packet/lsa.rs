@@ -1084,13 +1084,13 @@ impl LsaHdrVersion<Ospfv3> for LsaHdr {
     }
 
     fn decode(buf: &mut Bytes) -> DecodeResult<Self> {
-        let age = buf.get_u16();
-        let lsa_type = LsaType(buf.get_u16());
-        let lsa_id = buf.get_ipv4();
-        let adv_rtr = buf.get_ipv4();
-        let seq_no = buf.get_u32();
-        let cksum = buf.get_u16();
-        let length = buf.get_u16();
+        let age = buf.try_get_u16()?;
+        let lsa_type = LsaType(buf.try_get_u16()?);
+        let lsa_id = buf.try_get_ipv4()?;
+        let adv_rtr = buf.try_get_ipv4()?;
+        let seq_no = buf.try_get_u32()?;
+        let cksum = buf.try_get_u16()?;
+        let length = buf.try_get_u16()?;
 
         Ok(LsaHdr {
             age,
@@ -1368,8 +1368,8 @@ impl LsaRouter {
     pub const BASE_LENGTH: u16 = 4;
 
     fn decode_legacy(buf: &mut Bytes) -> DecodeResult<Self> {
-        let flags = LsaRouterFlags::from_bits_truncate(buf.get_u8());
-        let options = Options::decode(buf);
+        let flags = LsaRouterFlags::from_bits_truncate(buf.try_get_u8()?);
+        let options = Options::decode(buf)?;
 
         let mut links = vec![];
         let links_cnt = buf.remaining() / LsaRouterLink::LENGTH_LEGACY as usize;
@@ -1385,18 +1385,18 @@ impl LsaRouter {
         let mut unknown_tlvs = vec![];
 
         // Parse fixed-format fields.
-        let flags = LsaRouterFlags::from_bits_truncate(buf.get_u8());
-        let options = Options::decode(buf);
+        let flags = LsaRouterFlags::from_bits_truncate(buf.try_get_u8()?);
+        let options = Options::decode(buf)?;
 
         // Parse top-level TLVs.
         let mut links = vec![];
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse TLV type.
-            let tlv_type = buf.get_u16();
+            let tlv_type = buf.try_get_u16()?;
             let tlv_etype = ExtLsaTlv::from_u16(tlv_type);
 
             // Parse and validate TLV length.
-            let tlv_len = buf.get_u16();
+            let tlv_len = buf.try_get_u16()?;
             let tlv_wlen = tlv_wire_len(tlv_len);
             if tlv_wlen as usize > buf.remaining() {
                 return Err(DecodeError::InvalidTlvLength(tlv_len));
@@ -1488,16 +1488,16 @@ impl LsaRouterLink {
     pub const MAX_LENGTH_EXT: u16 = 20;
 
     fn decode(buf: &mut Bytes, extended: bool) -> DecodeResult<Self> {
-        let link_type = buf.get_u8();
+        let link_type = buf.try_get_u8()?;
         let link_type = match LsaRouterLinkType::from_u8(link_type) {
             Some(link_type) => link_type,
             None => return Err(DecodeError::UnknownRouterLinkType(link_type)),
         };
-        let _ = buf.get_u8();
-        let metric = buf.get_u16();
-        let iface_id = buf.get_u32();
-        let nbr_iface_id = buf.get_u32();
-        let nbr_router_id = buf.get_ipv4();
+        let _ = buf.try_get_u8()?;
+        let metric = buf.try_get_u16()?;
+        let iface_id = buf.try_get_u32()?;
+        let nbr_iface_id = buf.try_get_u32()?;
+        let nbr_router_id = buf.try_get_ipv4()?;
 
         let mut link = LsaRouterLink::new(
             link_type,
@@ -1549,13 +1549,13 @@ impl LsaRouterLink {
 
 impl LsaNetwork {
     fn decode_legacy(buf: &mut Bytes) -> DecodeResult<Self> {
-        let _ = buf.get_u8();
-        let options = Options::decode(buf);
+        let _ = buf.try_get_u8()?;
+        let options = Options::decode(buf)?;
 
         let mut attached_rtrs = BTreeSet::new();
         let rtrs_cnt = buf.remaining() / 4;
         for _ in 0..rtrs_cnt {
-            let rtr = buf.get_ipv4();
+            let rtr = buf.try_get_ipv4()?;
             attached_rtrs.insert(rtr);
         }
 
@@ -1567,17 +1567,17 @@ impl LsaNetwork {
         let mut unknown_tlvs = vec![];
 
         // Parse fixed-format fields.
-        let _ = buf.get_u8();
-        let options = Options::decode(buf);
+        let _ = buf.try_get_u8()?;
+        let options = Options::decode(buf)?;
 
         // Parse top-level TLVs.
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse TLV type.
-            let tlv_type = buf.get_u16();
+            let tlv_type = buf.try_get_u16()?;
             let tlv_etype = ExtLsaTlv::from_u16(tlv_type);
 
             // Parse and validate TLV length.
-            let tlv_len = buf.get_u16();
+            let tlv_len = buf.try_get_u16()?;
             let tlv_wlen = tlv_wire_len(tlv_len);
             if tlv_wlen as usize > buf.remaining() {
                 return Err(DecodeError::InvalidTlvLength(tlv_len));
@@ -1600,7 +1600,7 @@ impl LsaNetwork {
 
                     let rtrs_cnt = buf_tlv.remaining() / 4;
                     for _ in 0..rtrs_cnt {
-                        let rtr = buf_tlv.get_ipv4();
+                        let rtr = buf_tlv.try_get_ipv4()?;
                         attached_rtrs.insert(rtr);
                     }
 
@@ -1677,11 +1677,12 @@ impl LsaNetwork {
 
 impl LsaInterAreaPrefix {
     fn decode_legacy(af: AddressFamily, buf: &mut Bytes) -> DecodeResult<Self> {
-        let _ = buf.get_u8();
-        let metric = buf.get_u24();
-        let plen = buf.get_u8();
-        let prefix_options = PrefixOptions::from_bits_truncate(buf.get_u8());
-        let _ = buf.get_u16();
+        let _ = buf.try_get_u8()?;
+        let metric = buf.try_get_u24()?;
+        let plen = buf.try_get_u8()?;
+        let prefix_options =
+            PrefixOptions::from_bits_truncate(buf.try_get_u8()?);
+        let _ = buf.try_get_u16()?;
         let prefix = decode_prefix(af, plen, buf)?;
 
         Ok(LsaInterAreaPrefix::new(
@@ -1703,11 +1704,11 @@ impl LsaInterAreaPrefix {
         // Parse top-level TLVs.
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse TLV type.
-            let tlv_type = buf.get_u16();
+            let tlv_type = buf.try_get_u16()?;
             let tlv_etype = ExtLsaTlv::from_u16(tlv_type);
 
             // Parse and validate TLV length.
-            let tlv_len = buf.get_u16();
+            let tlv_len = buf.try_get_u16()?;
             let tlv_wlen = tlv_wire_len(tlv_len);
             if tlv_wlen as usize > buf.remaining() {
                 return Err(DecodeError::InvalidTlvLength(tlv_len));
@@ -1808,11 +1809,11 @@ impl LsaInterAreaPrefix {
 
 impl LsaInterAreaRouter {
     fn decode_legacy(buf: &mut Bytes) -> DecodeResult<Self> {
-        let _ = buf.get_u8();
-        let options = Options::decode(buf);
-        let _ = buf.get_u8();
-        let metric = buf.get_u24();
-        let router_id = buf.get_ipv4();
+        let _ = buf.try_get_u8()?;
+        let options = Options::decode(buf)?;
+        let _ = buf.try_get_u8()?;
+        let metric = buf.try_get_u24()?;
+        let router_id = buf.try_get_ipv4()?;
 
         Ok(LsaInterAreaRouter::new(false, options, metric, router_id))
     }
@@ -1824,11 +1825,11 @@ impl LsaInterAreaRouter {
         // Parse top-level TLVs.
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse TLV type.
-            let tlv_type = buf.get_u16();
+            let tlv_type = buf.try_get_u16()?;
             let tlv_etype = ExtLsaTlv::from_u16(tlv_type);
 
             // Parse and validate TLV length.
-            let tlv_len = buf.get_u16();
+            let tlv_len = buf.try_get_u16()?;
             let tlv_wlen = tlv_wire_len(tlv_len);
             if tlv_wlen as usize > buf.remaining() {
                 return Err(DecodeError::InvalidTlvLength(tlv_len));
@@ -1920,11 +1921,12 @@ impl LsaInterAreaRouter {
 
 impl LsaAsExternal {
     fn decode_legacy(af: AddressFamily, buf: &mut Bytes) -> DecodeResult<Self> {
-        let flags = LsaAsExternalFlags::from_bits_truncate(buf.get_u8());
-        let metric = buf.get_u24();
-        let plen = buf.get_u8();
-        let prefix_options = PrefixOptions::from_bits_truncate(buf.get_u8());
-        let ref_lsa_type = buf.get_u16();
+        let flags = LsaAsExternalFlags::from_bits_truncate(buf.try_get_u8()?);
+        let metric = buf.try_get_u24()?;
+        let plen = buf.try_get_u8()?;
+        let prefix_options =
+            PrefixOptions::from_bits_truncate(buf.try_get_u8()?);
+        let ref_lsa_type = buf.try_get_u16()?;
         let ref_lsa_type = if ref_lsa_type != 0 {
             Some(LsaType(ref_lsa_type))
         } else {
@@ -1932,17 +1934,17 @@ impl LsaAsExternal {
         };
         let prefix = decode_prefix(af, plen, buf)?;
         let fwd_addr = if flags.contains(LsaAsExternalFlags::F) {
-            Some(decode_16bit_addr(af, buf))
+            Some(decode_16bit_addr(af, buf)?)
         } else {
             None
         };
         let tag = if flags.contains(LsaAsExternalFlags::T) {
-            Some(buf.get_u32())
+            Some(buf.try_get_u32()?)
         } else {
             None
         };
         let ref_lsa_id = if ref_lsa_type.is_some() {
-            Some(buf.get_ipv4())
+            Some(buf.try_get_ipv4()?)
         } else {
             None
         };
@@ -1970,11 +1972,11 @@ impl LsaAsExternal {
         // Parse top-level TLVs.
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse TLV type.
-            let tlv_type = buf.get_u16();
+            let tlv_type = buf.try_get_u16()?;
             let tlv_etype = ExtLsaTlv::from_u16(tlv_type);
 
             // Parse and validate TLV length.
-            let tlv_len = buf.get_u16();
+            let tlv_len = buf.try_get_u16()?;
             let tlv_wlen = tlv_wire_len(tlv_len);
             if tlv_wlen as usize > buf.remaining() {
                 return Err(DecodeError::InvalidTlvLength(tlv_len));
@@ -1991,13 +1993,14 @@ impl LsaAsExternal {
                     }
 
                     let flags = LsaAsExternalFlags::from_bits_truncate(
-                        buf_tlv.get_u8(),
+                        buf_tlv.try_get_u8()?,
                     );
-                    let metric = buf_tlv.get_u24();
-                    let plen = buf_tlv.get_u8();
-                    let prefix_options =
-                        PrefixOptions::from_bits_truncate(buf_tlv.get_u8());
-                    let _ = buf_tlv.get_u16();
+                    let metric = buf_tlv.try_get_u24()?;
+                    let plen = buf_tlv.try_get_u8()?;
+                    let prefix_options = PrefixOptions::from_bits_truncate(
+                        buf_tlv.try_get_u8()?,
+                    );
+                    let _ = buf_tlv.try_get_u16()?;
                     let prefix = decode_prefix(af, plen, &mut buf_tlv)?;
                     let mut tlv = LsaAsExternal::new(
                         true,
@@ -2122,17 +2125,17 @@ impl LsaAsExternal {
 
 impl LsaLink {
     fn decode_legacy(af: AddressFamily, buf: &mut Bytes) -> DecodeResult<Self> {
-        let priority = buf.get_u8();
-        let options = Options::decode(buf);
-        let linklocal = decode_16bit_addr(af, buf);
+        let priority = buf.try_get_u8()?;
+        let options = Options::decode(buf)?;
+        let linklocal = decode_16bit_addr(af, buf)?;
 
         let mut prefixes = vec![];
-        let prefixes_cnt = buf.get_u32();
+        let prefixes_cnt = buf.try_get_u32()?;
         for _ in 0..prefixes_cnt {
-            let plen = buf.get_u8();
+            let plen = buf.try_get_u8()?;
             let prefix_options =
-                PrefixOptions::from_bits_truncate(buf.get_u8());
-            let _ = buf.get_u16();
+                PrefixOptions::from_bits_truncate(buf.try_get_u8()?);
+            let _ = buf.try_get_u16()?;
             let prefix = decode_prefix(af, plen, buf)?;
             let prefix = LsaLinkPrefix::new(prefix_options, prefix);
             prefixes.push(prefix);
@@ -2146,8 +2149,8 @@ impl LsaLink {
         buf: &mut Bytes,
     ) -> DecodeResult<Self> {
         // Parse fixed-format fields.
-        let priority = buf.get_u8();
-        let options = Options::decode(buf);
+        let priority = buf.try_get_u8()?;
+        let options = Options::decode(buf)?;
         let mut linklocal = None;
         let mut prefixes = vec![];
         let mut unknown_tlvs = vec![];
@@ -2155,11 +2158,11 @@ impl LsaLink {
         // Parse top-level TLVs.
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse TLV type.
-            let tlv_type = buf.get_u16();
+            let tlv_type = buf.try_get_u16()?;
             let tlv_etype = ExtLsaTlv::from_u16(tlv_type);
 
             // Parse and validate TLV length.
-            let tlv_len = buf.get_u16();
+            let tlv_len = buf.try_get_u16()?;
             let tlv_wlen = tlv_wire_len(tlv_len);
             if tlv_wlen as usize > buf.remaining() {
                 return Err(DecodeError::InvalidTlvLength(tlv_len));
@@ -2169,12 +2172,13 @@ impl LsaLink {
             let mut buf_tlv = buf.copy_to_bytes(tlv_wlen as usize);
             match tlv_etype {
                 Some(ExtLsaTlv::IntraAreaPrefix) => {
-                    let _ = buf_tlv.get_u16();
-                    let _metric = buf_tlv.get_u16();
-                    let plen = buf_tlv.get_u8();
-                    let prefix_options =
-                        PrefixOptions::from_bits_truncate(buf_tlv.get_u8());
-                    let _ = buf_tlv.get_u16();
+                    let _ = buf_tlv.try_get_u16()?;
+                    let _metric = buf_tlv.try_get_u16()?;
+                    let plen = buf_tlv.try_get_u8()?;
+                    let prefix_options = PrefixOptions::from_bits_truncate(
+                        buf_tlv.try_get_u8()?,
+                    );
+                    let _ = buf_tlv.try_get_u16()?;
                     let prefix = decode_prefix(af, plen, &mut buf_tlv)?;
                     let mut prefix = LsaLinkPrefix::new(prefix_options, prefix);
 
@@ -2185,7 +2189,7 @@ impl LsaLink {
                     prefixes.push(prefix);
                 }
                 Some(ExtLsaTlv::Ipv6LinkLocalAddr) => {
-                    let addr = buf_tlv.get_ipv6();
+                    let addr = buf_tlv.try_get_ipv6()?;
                     let _stlvs = ExtLsaStlvs::decode(&mut buf_tlv)?;
 
                     if af == AddressFamily::Ipv6 {
@@ -2193,7 +2197,7 @@ impl LsaLink {
                     }
                 }
                 Some(ExtLsaTlv::Ipv4LinkLocalAddr) => {
-                    let addr = buf_tlv.get_ipv4();
+                    let addr = buf_tlv.try_get_ipv4()?;
                     let _stlvs = ExtLsaStlvs::decode(&mut buf_tlv)?;
 
                     if af == AddressFamily::Ipv4 {
@@ -2299,17 +2303,17 @@ impl LsaIntraAreaPrefix {
     pub const BASE_LENGTH: u16 = 12;
 
     fn decode_legacy(af: AddressFamily, buf: &mut Bytes) -> DecodeResult<Self> {
-        let prefixes_cnt = buf.get_u16();
-        let ref_lsa_type = LsaType(buf.get_u16());
-        let ref_lsa_id = buf.get_ipv4();
-        let ref_adv_rtr = buf.get_ipv4();
+        let prefixes_cnt = buf.try_get_u16()?;
+        let ref_lsa_type = LsaType(buf.try_get_u16()?);
+        let ref_lsa_id = buf.try_get_ipv4()?;
+        let ref_adv_rtr = buf.try_get_ipv4()?;
 
         let mut prefixes = vec![];
         for _ in 0..prefixes_cnt {
-            let plen = buf.get_u8();
+            let plen = buf.try_get_u8()?;
             let prefix_options =
-                PrefixOptions::from_bits_truncate(buf.get_u8());
-            let metric = buf.get_u16();
+                PrefixOptions::from_bits_truncate(buf.try_get_u8()?);
+            let metric = buf.try_get_u16()?;
             let prefix = decode_prefix(af, plen, buf)?;
             let prefix =
                 LsaIntraAreaPrefixEntry::new(prefix_options, prefix, metric);
@@ -2330,10 +2334,10 @@ impl LsaIntraAreaPrefix {
         buf: &mut Bytes,
     ) -> DecodeResult<Self> {
         // Parse fixed-format fields.
-        let _ = buf.get_u16();
-        let ref_lsa_type = LsaType(buf.get_u16());
-        let ref_lsa_id = buf.get_ipv4();
-        let ref_adv_rtr = buf.get_ipv4();
+        let _ = buf.try_get_u16()?;
+        let ref_lsa_type = LsaType(buf.try_get_u16()?);
+        let ref_lsa_id = buf.try_get_ipv4()?;
+        let ref_adv_rtr = buf.try_get_ipv4()?;
         let mut iap = LsaIntraAreaPrefix::new(
             true,
             ref_lsa_type,
@@ -2345,11 +2349,11 @@ impl LsaIntraAreaPrefix {
         // Parse top-level TLVs.
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse TLV type.
-            let tlv_type = buf.get_u16();
+            let tlv_type = buf.try_get_u16()?;
             let tlv_etype = ExtLsaTlv::from_u16(tlv_type);
 
             // Parse and validate TLV length.
-            let tlv_len = buf.get_u16();
+            let tlv_len = buf.try_get_u16()?;
             let tlv_wlen = tlv_wire_len(tlv_len);
             if tlv_wlen as usize > buf.remaining() {
                 return Err(DecodeError::InvalidTlvLength(tlv_len));
@@ -2359,12 +2363,13 @@ impl LsaIntraAreaPrefix {
             let mut buf_tlv = buf.copy_to_bytes(tlv_wlen as usize);
             match tlv_etype {
                 Some(ExtLsaTlv::IntraAreaPrefix) => {
-                    let _ = buf_tlv.get_u16();
-                    let metric = buf_tlv.get_u16();
-                    let plen = buf_tlv.get_u8();
-                    let prefix_options =
-                        PrefixOptions::from_bits_truncate(buf_tlv.get_u8());
-                    let _ = buf_tlv.get_u16();
+                    let _ = buf_tlv.try_get_u16()?;
+                    let metric = buf_tlv.try_get_u16()?;
+                    let plen = buf_tlv.try_get_u8()?;
+                    let prefix_options = PrefixOptions::from_bits_truncate(
+                        buf_tlv.try_get_u8()?,
+                    );
+                    let _ = buf_tlv.try_get_u16()?;
                     let prefix = decode_prefix(af, plen, &mut buf_tlv)?;
                     let mut prefix = LsaIntraAreaPrefixEntry::new(
                         prefix_options,
@@ -2477,11 +2482,11 @@ impl LsaGrace {
 
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse TLV type.
-            let tlv_type = buf.get_u16();
+            let tlv_type = buf.try_get_u16()?;
             let tlv_etype = GraceTlvType::from_u16(tlv_type);
 
             // Parse and validate TLV length.
-            let tlv_len = buf.get_u16();
+            let tlv_len = buf.try_get_u16()?;
             let tlv_wlen = tlv_wire_len(tlv_len);
             if tlv_wlen as usize > buf.remaining() {
                 return Err(DecodeError::InvalidTlvLength(tlv_len));
@@ -2534,11 +2539,11 @@ impl LsaRouterInfo {
 
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse TLV type.
-            let tlv_type = buf.get_u16();
+            let tlv_type = buf.try_get_u16()?;
             let tlv_etype = RouterInfoTlvType::from_u16(tlv_type);
 
             // Parse and validate TLV length.
-            let tlv_len = buf.get_u16();
+            let tlv_len = buf.try_get_u16()?;
             let tlv_wlen = tlv_wire_len(tlv_len);
             if tlv_wlen as usize > buf.remaining() {
                 return Err(DecodeError::InvalidTlvLength(tlv_len));
@@ -2667,11 +2672,11 @@ impl ExtLsaStlvs {
 
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse Sub-TLV type.
-            let stlv_type = buf.get_u16();
+            let stlv_type = buf.try_get_u16()?;
             let stlv_etype = ExtLsaStlv::from_u16(stlv_type);
 
             // Parse and validate Sub-TLV length.
-            let stlv_len = buf.get_u16();
+            let stlv_len = buf.try_get_u16()?;
             let stlv_wlen = tlv_wire_len(stlv_len);
             if stlv_wlen as usize > buf.remaining() {
                 return Err(DecodeError::InvalidTlvLength(stlv_len));
@@ -2681,21 +2686,21 @@ impl ExtLsaStlvs {
             let mut buf_stlv = buf.copy_to_bytes(stlv_wlen as usize);
             match stlv_etype {
                 Some(ExtLsaStlv::Ipv6FwdAddr) => {
-                    let addr = buf_stlv.get_ipv6();
+                    let addr = buf_stlv.try_get_ipv6()?;
                     stlvs.ipv6_fwd_addr.get_or_insert(addr);
                 }
                 Some(ExtLsaStlv::Ipv4FwdAddr) => {
-                    let addr = buf_stlv.get_ipv4();
+                    let addr = buf_stlv.try_get_ipv4()?;
                     stlvs.ipv4_fwd_addr.get_or_insert(addr);
                 }
                 Some(ExtLsaStlv::RouteTag) => {
-                    let tag = buf_stlv.get_u32();
+                    let tag = buf_stlv.try_get_u32()?;
                     stlvs.route_tag.get_or_insert(tag);
                 }
                 Some(ExtLsaStlv::PrefixSid) => {
-                    let flags = buf_stlv.get_u8();
+                    let flags = buf_stlv.try_get_u8()?;
                     let flags = PrefixSidFlags::from_bits_truncate(flags);
-                    let algo = buf_stlv.get_u8();
+                    let algo = buf_stlv.try_get_u8()?;
                     let algo = match IgpAlgoType::from_u8(algo) {
                         Some(algo) => algo,
                         None => {
@@ -2704,17 +2709,17 @@ impl ExtLsaStlvs {
                         }
                     };
 
-                    let _reserved = buf_stlv.get_u16();
+                    let _reserved = buf_stlv.try_get_u16()?;
 
                     // Parse SID (variable length).
                     let sid = if !flags
                         .intersects(PrefixSidFlags::V | PrefixSidFlags::L)
                     {
-                        Sid::Index(buf_stlv.get_u32())
+                        Sid::Index(buf_stlv.try_get_u32()?)
                     } else if flags
                         .contains(PrefixSidFlags::V | PrefixSidFlags::L)
                     {
-                        let label = buf_stlv.get_u24() & Label::VALUE_MASK;
+                        let label = buf_stlv.try_get_u24()? & Label::VALUE_MASK;
                         Sid::Label(Label::new(label))
                     } else {
                         // Invalid V-Flag and L-Flag combination - ignore.
@@ -2728,22 +2733,25 @@ impl ExtLsaStlvs {
                 }
                 Some(ExtLsaStlv::AdjSid | ExtLsaStlv::LanAdjSid) => {
                     let flags =
-                        AdjSidFlags::from_bits_truncate(buf_stlv.get_u8());
-                    let weight = buf_stlv.get_u8();
-                    let _reserved = buf_stlv.get_u16();
+                        AdjSidFlags::from_bits_truncate(buf_stlv.try_get_u8()?);
+                    let weight = buf_stlv.try_get_u8()?;
+                    let _reserved = buf_stlv.try_get_u16()?;
 
                     // Parse Neighbor ID (LAN Adj-SID only).
-                    let nbr_router_id = (stlv_etype
-                        == Some(ExtLsaStlv::LanAdjSid))
-                    .then(|| buf_stlv.get_ipv4());
+                    let nbr_router_id: Option<Ipv4Addr> =
+                        if stlv_etype == Some(ExtLsaStlv::LanAdjSid) {
+                            Some(buf_stlv.try_get_ipv4()?)
+                        } else {
+                            None
+                        };
 
                     // Parse SID (variable length).
                     let sid = if !flags
                         .intersects(AdjSidFlags::V | AdjSidFlags::L)
                     {
-                        Sid::Index(buf_stlv.get_u32())
+                        Sid::Index(buf_stlv.try_get_u32()?)
                     } else if flags.contains(AdjSidFlags::V | AdjSidFlags::L) {
-                        let label = buf_stlv.get_u24() & Label::VALUE_MASK;
+                        let label = buf_stlv.try_get_u24()? & Label::VALUE_MASK;
                         Sid::Label(Label::new(label))
                     } else {
                         // Invalid V-Flag and L-Flag combination - ignore.
@@ -2886,16 +2894,19 @@ fn prefix_wire_len(len: u8) -> usize {
     (len as usize).div_ceil(32) * 4
 }
 
-fn decode_16bit_addr(af: AddressFamily, buf: &mut Bytes) -> IpAddr {
+fn decode_16bit_addr(
+    af: AddressFamily,
+    buf: &mut Bytes,
+) -> DecodeResult<IpAddr> {
     match af {
         AddressFamily::Ipv4 => {
             // As per RFC5838, fetch the address from the first four bytes and
             // ignore the rest.
-            let addr = IpAddr::V4(buf.get_ipv4());
+            let addr = IpAddr::V4(buf.try_get_ipv4()?);
             buf.advance(12);
-            addr
+            Ok(addr)
         }
-        AddressFamily::Ipv6 => IpAddr::V6(buf.get_ipv6()),
+        AddressFamily::Ipv6 => Ok(IpAddr::V6(buf.try_get_ipv6()?)),
     }
 }
 
@@ -2922,12 +2933,12 @@ fn decode_prefix(
     let prefix = match af {
         AddressFamily::Ipv4 => {
             let mut prefix_bytes = [0; Ipv4Addr::LENGTH];
-            buf.copy_to_slice(&mut prefix_bytes[..plen_wire]);
+            buf.try_copy_to_slice(&mut prefix_bytes[..plen_wire])?;
             Ipv4Addr::from(prefix_bytes).into()
         }
         AddressFamily::Ipv6 => {
             let mut prefix_bytes = [0; Ipv6Addr::LENGTH];
-            buf.copy_to_slice(&mut prefix_bytes[..plen_wire]);
+            buf.try_copy_to_slice(&mut prefix_bytes[..plen_wire])?;
             Ipv6Addr::from(prefix_bytes).into()
         }
     };

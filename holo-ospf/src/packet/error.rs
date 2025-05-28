@@ -6,14 +6,16 @@
 
 use std::net::Ipv4Addr;
 
+use bytes::TryGetError;
 use serde::{Deserialize, Serialize};
 
 // Type aliases.
 pub type DecodeResult<T> = Result<T, DecodeError>;
 
 // OSPFv2 decode errors.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum DecodeError {
+    ReadOutOfBounds,
     InvalidIpHdrLength(u16),
     InvalidVersion(u8),
     UnknownPacketType(u8),
@@ -51,6 +53,9 @@ pub enum LsaValidationError {
 impl std::fmt::Display for DecodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            DecodeError::ReadOutOfBounds => {
+                write!(f, "attempt to read out of bounds")
+            }
             DecodeError::InvalidIpHdrLength(length) => {
                 write!(f, "invalid IP header length: {length}")
             }
@@ -107,6 +112,12 @@ impl std::fmt::Display for DecodeError {
 }
 
 impl std::error::Error for DecodeError {}
+
+impl From<TryGetError> for DecodeError {
+    fn from(_error: TryGetError) -> DecodeError {
+        DecodeError::ReadOutOfBounds
+    }
+}
 
 // ===== impl LsaValidationError =====
 

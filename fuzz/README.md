@@ -50,14 +50,14 @@ As said earlier, we primarily fuzz decoders in holo.
 If we want to fuzz a single target, let's say `bgp_attr_aggregator_decode` we'll run the following command (remember, still from holo's root directory):
 
 ```
-$ cargo fuzz run bgp_attr_aggregator_decode
+$ RUST_BACKTRACE=1 cargo fuzz run bgp_attr_aggregator_decode
 ```
 The fuzzer will run infinitely until you stop it yourself (`Ctrl+C`).
 
 What if you want it to run for a specific amount of time. Say five minutes:
 
 ```
-$ cargo fuzz run bgp_attr_aggregator_decode -- -timeout=300
+$ RUST_BACKTRACE=1 cargo fuzz run bgp_attr_aggregator_decode -- -timeout=300
 ```
 
 We'll add `-timeout={number-of-seconds}` as arguments for our run command.

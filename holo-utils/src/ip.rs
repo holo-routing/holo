@@ -29,6 +29,13 @@ pub enum AddressFamily {
     Ipv6 = 2,
 }
 
+// Container for storing separate values for IPv4 and IPv6.
+#[derive(Debug, Default)]
+pub struct AddressFamilies<T> {
+    pub ipv4: T,
+    pub ipv6: T,
+}
+
 // Extension methods for IpAddr.
 pub trait IpAddrExt {
     // Returns length of the IP address.
@@ -238,6 +245,50 @@ impl TryFromYang for AddressFamily {
             "ipv6" => Some(AddressFamily::Ipv6),
             _ => None,
         }
+    }
+}
+
+// ===== impl AddressFamilies =====
+
+impl<T> AddressFamilies<T> {
+    // Returns a reference to the value corresponding to the given address
+    // family.
+    pub fn get(&self, af: AddressFamily) -> &T {
+        match af {
+            AddressFamily::Ipv4 => &self.ipv4,
+            AddressFamily::Ipv6 => &self.ipv6,
+        }
+    }
+
+    // Returns a mutable reference to the value corresponding to the given
+    // address family.
+    pub fn get_mut(&mut self, af: AddressFamily) -> &mut T {
+        match af {
+            AddressFamily::Ipv4 => &mut self.ipv4,
+            AddressFamily::Ipv6 => &mut self.ipv6,
+        }
+    }
+
+    // Returns an iterator over immutable references to all address family
+    // values.
+    pub fn iter(&self) -> impl Iterator<Item = (AddressFamily, &T)> {
+        [
+            (AddressFamily::Ipv4, &self.ipv4),
+            (AddressFamily::Ipv6, &self.ipv6),
+        ]
+        .into_iter()
+    }
+
+    // Returns an iterator over mutable references to all address family
+    // values.
+    pub fn iter_mut(
+        &mut self,
+    ) -> impl Iterator<Item = (AddressFamily, &mut T)> {
+        [
+            (AddressFamily::Ipv4, &mut self.ipv4),
+            (AddressFamily::Ipv6, &mut self.ipv6),
+        ]
+        .into_iter()
     }
 }
 

@@ -60,7 +60,6 @@ md-5 = "0.10"
 nix = { version = "0.30", features = ["fs", "net", "socket", "uio", "user"] }
 netlink-packet-core = "0.7"
 netlink-packet-route = "0.21"
-netlink-packet-utils = "0.5"
 netlink-sys = "0.8"
 num-derive = "0.4"
 num-traits = "0.2"

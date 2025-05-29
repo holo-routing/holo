@@ -1160,7 +1160,6 @@ dependencies = [
  "libc",
  "netlink-packet-core",
  "netlink-packet-route",
- "netlink-packet-utils",
  "netlink-sys",
  "regex",
  "rtnetlink",

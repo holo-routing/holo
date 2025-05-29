@@ -13,8 +13,11 @@ use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{Nexthop, RouteKind};
 use ipnetwork::IpNetwork;
 use netlink_packet_core::ErrorMessage;
-use netlink_packet_route::route::{RouteProtocol, RouteType};
-use rtnetlink::{Error, Handle, RouteMessageBuilder, new_connection};
+use netlink_packet_route::AddressFamily;
+use netlink_packet_route::route::{RouteNextHop, RouteProtocol, RouteType};
+use rtnetlink::{
+    Error, Handle, RouteMessageBuilder, RouteNextHopBuilder, new_connection,
+};
 use tracing::error;
 
 use crate::rib::Route;
@@ -37,18 +40,23 @@ pub(crate) async fn ip_route_install(
 ) {
     // Create netlink message.
     let protocol = netlink_protocol(route.protocol);
-    let mut msg = RouteMessageBuilder::<IpAddr>::new()
+    let af = match prefix {
+        IpNetwork::V4(_) => AddressFamily::Inet,
+        IpNetwork::V6(_) => AddressFamily::Inet6,
+    };
+    let nexthops = add_nexthops(af, route.nexthops.iter());
+    let msg = RouteMessageBuilder::<IpAddr>::new()
         .destination_prefix(prefix.ip(), prefix.prefix())
         .unwrap()
-        .protocol(protocol);
-    msg = msg.kind(match route.kind {
-        RouteKind::Unicast => RouteType::Unicast,
-        RouteKind::Blackhole => RouteType::BlackHole,
-        RouteKind::Unreachable => RouteType::Unreachable,
-        RouteKind::Prohibit => RouteType::Prohibit,
-    });
-    msg = add_nexthops(msg, route.nexthops.iter());
-    let msg = msg.build();
+        .protocol(protocol)
+        .kind(match route.kind {
+            RouteKind::Unicast => RouteType::Unicast,
+            RouteKind::Blackhole => RouteType::BlackHole,
+            RouteKind::Unreachable => RouteType::Unreachable,
+            RouteKind::Prohibit => RouteType::Prohibit,
+        })
+        .multipath(nexthops)
+        .build();
 
     // Execute netlink request.
     if let Err(error) = handle.route().add(msg).replace().execute().await {
@@ -57,22 +65,32 @@ pub(crate) async fn ip_route_install(
 }
 
 fn add_nexthops<'a>(
-    mut msg: RouteMessageBuilder<IpAddr>,
+    af: AddressFamily,
     nexthops: impl Iterator<Item = &'a Nexthop>,
-) -> RouteMessageBuilder<IpAddr> {
+) -> Vec<RouteNextHop> {
+    let mut nl_nexthops = vec![];
     for nexthop in nexthops {
-        msg = match nexthop {
+        match nexthop {
             Nexthop::Address { addr, ifindex, .. } => {
-                msg.gateway(*addr).unwrap().output_interface(*ifindex)
+                let nl_nexthop = RouteNextHopBuilder::new(af)
+                    .interface(*ifindex)
+                    .via(*addr)
+                    .unwrap()
+                    .build();
+                nl_nexthops.push(nl_nexthop);
             }
-            Nexthop::Interface { ifindex } => msg.output_interface(*ifindex),
+            Nexthop::Interface { ifindex } => {
+                let nl_nexthop =
+                    RouteNextHopBuilder::new(af).interface(*ifindex).build();
+                nl_nexthops.push(nl_nexthop);
+            }
             Nexthop::Recursive { resolved, .. } => {
-                add_nexthops(msg, resolved.iter())
+                nl_nexthops.extend(add_nexthops(af, resolved.iter()))
             }
         };
     }
 
-    msg
+    nl_nexthops
 }
 
 pub(crate) async fn ip_route_uninstall(

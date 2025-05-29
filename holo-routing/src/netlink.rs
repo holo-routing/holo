@@ -14,7 +14,9 @@ use holo_utils::southbound::{Nexthop, RouteKind};
 use ipnetwork::IpNetwork;
 use netlink_packet_core::ErrorMessage;
 use netlink_packet_route::AddressFamily;
-use netlink_packet_route::route::{RouteNextHop, RouteProtocol, RouteType};
+use netlink_packet_route::route::{
+    MplsLabel, RouteNextHop, RouteProtocol, RouteType,
+};
 use rtnetlink::{
     Error, Handle, RouteMessageBuilder, RouteNextHopBuilder, new_connection,
 };
@@ -71,11 +73,29 @@ fn add_nexthops<'a>(
     let mut nl_nexthops = vec![];
     for nexthop in nexthops {
         match nexthop {
-            Nexthop::Address { addr, ifindex, .. } => {
+            Nexthop::Address {
+                addr,
+                ifindex,
+                labels,
+            } => {
+                let mut labels = labels
+                    .iter()
+                    .filter(|label| !label.is_implicit_null())
+                    .map(|label| MplsLabel {
+                        label: label.get(),
+                        traffic_class: 0,
+                        bottom_of_stack: false,
+                        ttl: 0,
+                    })
+                    .collect::<Vec<_>>();
+                if let Some(label) = labels.last_mut() {
+                    label.bottom_of_stack = true;
+                }
                 let nl_nexthop = RouteNextHopBuilder::new(af)
                     .interface(*ifindex)
                     .via(*addr)
                     .unwrap()
+                    .mpls(labels)
                     .build();
                 nl_nexthops.push(nl_nexthop);
             }
@@ -124,19 +144,63 @@ pub(crate) async fn ip_route_uninstall(
 }
 
 pub(crate) async fn mpls_route_install(
-    _handle: &Handle,
-    _local_label: Label,
-    _route: &Route,
+    handle: &Handle,
+    local_label: Label,
+    route: &Route,
 ) {
-    // TODO: not supported by the `rtnetlink` crate yet.
+    // Create netlink message.
+    let label = MplsLabel {
+        label: local_label.get(),
+        traffic_class: 0,
+        bottom_of_stack: true,
+        ttl: 0,
+    };
+    let protocol = netlink_protocol(route.protocol);
+    let nexthops = add_nexthops(AddressFamily::Mpls, route.nexthops.iter());
+    let msg = RouteMessageBuilder::<MplsLabel>::new()
+        .label(label)
+        .protocol(protocol)
+        .multipath(nexthops)
+        .build();
+
+    // Execute netlink request.
+    if let Err(error) = handle.route().add(msg).replace().execute().await {
+        error!(?label, %error, "failed to install MPLS route");
+    }
 }
 
 pub(crate) async fn mpls_route_uninstall(
-    _handle: &Handle,
-    _local_label: Label,
-    _protocol: Protocol,
+    handle: &Handle,
+    local_label: Label,
+    protocol: Protocol,
 ) {
-    // TODO: not supported by the `rtnetlink` crate yet.
+    // Create netlink message.
+    let label = MplsLabel {
+        label: local_label.get(),
+        traffic_class: 0,
+        bottom_of_stack: true,
+        ttl: 0,
+    };
+    let protocol = netlink_protocol(protocol);
+    let msg = RouteMessageBuilder::<MplsLabel>::new()
+        .label(label)
+        .protocol(protocol)
+        .build();
+
+    // Execute netlink request.
+    if let Err(error) = handle.route().del(msg).execute().await
+        // Ignore "No such process" error (route is already gone).
+        && !matches!(
+            error,
+            Error::NetlinkError(ErrorMessage {
+                code: Some(code),
+                ..
+            })
+            if code == NonZeroI32::new(-libc::ESRCH).unwrap()
+            )
+    {
+        error!(?label, %error, "failed to uninstall MPLS route");
+    }
 }
 
 pub(crate) fn init() -> Handle {

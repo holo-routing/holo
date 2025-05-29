@@ -77,6 +77,10 @@ impl Label {
         Self::RESERVED_RANGE.contains(&self.0)
     }
 
+    pub fn is_implicit_null(&self) -> bool {
+        self.0 == Self::IMPLICIT_NULL
+    }
+
     pub const fn implicit_null() -> Label {
         Label(Self::IMPLICIT_NULL)
     }

@@ -236,7 +236,9 @@ impl Adjacency {
                 }
             };
 
-            if let Some(addr) = addr {
+            if iface.config.is_af_enabled(af, instance.config)
+                && let Some(addr) = addr
+            {
                 if bfd.is_none() || force {
                     let sess_key = bfd::SessionKey::new_ip_single_hop(
                         iface.name.clone(),

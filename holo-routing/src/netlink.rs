@@ -24,16 +24,7 @@ use tracing::error;
 
 use crate::rib::Route;
 
-fn netlink_protocol(protocol: Protocol) -> RouteProtocol {
-    match protocol {
-        Protocol::BGP => RouteProtocol::Bgp,
-        Protocol::ISIS => RouteProtocol::Isis,
-        Protocol::OSPFV2 | Protocol::OSPFV3 => RouteProtocol::Ospf,
-        Protocol::RIPV2 | Protocol::RIPNG => RouteProtocol::Rip,
-        Protocol::STATIC => RouteProtocol::Static,
-        _ => RouteProtocol::Unspec,
-    }
-}
+// ===== global functions =====
 
 pub(crate) async fn ip_route_install(
     handle: &Handle,
@@ -46,7 +37,7 @@ pub(crate) async fn ip_route_install(
         IpNetwork::V4(_) => AddressFamily::Inet,
         IpNetwork::V6(_) => AddressFamily::Inet6,
     };
-    let nexthops = add_nexthops(af, route.nexthops.iter());
+    let nexthops = netlink_nexthops(af, route.nexthops.iter());
     let msg = RouteMessageBuilder::<IpAddr>::new()
         .destination_prefix(prefix.ip(), prefix.prefix())
         .unwrap()
@@ -64,53 +55,6 @@ pub(crate) async fn ip_route_install(
     if let Err(error) = handle.route().add(msg).replace().execute().await {
         error!(%prefix, %error, "failed to install route");
     }
-}
-
-fn add_nexthops<'a>(
-    af: AddressFamily,
-    nexthops: impl Iterator<Item = &'a Nexthop>,
-) -> Vec<RouteNextHop> {
-    let mut nl_nexthops = vec![];
-    for nexthop in nexthops {
-        match nexthop {
-            Nexthop::Address {
-                addr,
-                ifindex,
-                labels,
-            } => {
-                let mut labels = labels
-                    .iter()
-                    .filter(|label| !label.is_implicit_null())
-                    .map(|label| MplsLabel {
-                        label: label.get(),
-                        traffic_class: 0,
-                        bottom_of_stack: false,
-                        ttl: 0,
-                    })
-                    .collect::<Vec<_>>();
-                if let Some(label) = labels.last_mut() {
-                    label.bottom_of_stack = true;
-                }
-                let nl_nexthop = RouteNextHopBuilder::new(af)
-                    .interface(*ifindex)
-                    .via(*addr)
-                    .unwrap()
-                    .mpls(labels)
-                    .build();
-                nl_nexthops.push(nl_nexthop);
-            }
-            Nexthop::Interface { ifindex } => {
-                let nl_nexthop =
-                    RouteNextHopBuilder::new(af).interface(*ifindex).build();
-                nl_nexthops.push(nl_nexthop);
-            }
-            Nexthop::Recursive { resolved, .. } => {
-                nl_nexthops.extend(add_nexthops(af, resolved.iter()))
-            }
-        };
-    }
-
-    nl_nexthops
 }
 
 pub(crate) async fn ip_route_uninstall(
@@ -156,7 +100,7 @@ pub(crate) async fn mpls_route_install(
         ttl: 0,
     };
     let protocol = netlink_protocol(route.protocol);
-    let nexthops = add_nexthops(AddressFamily::Mpls, route.nexthops.iter());
+    let nexthops = netlink_nexthops(AddressFamily::Mpls, route.nexthops.iter());
     let msg = RouteMessageBuilder::<MplsLabel>::new()
         .label(label)
         .protocol(protocol)
@@ -223,4 +167,73 @@ pub(crate) fn init() -> Handle {
 
     // Return handle used to send netlink requests to the kernel.
     handle
+}
+
+// ===== helper functions =====
+
+fn netlink_protocol(protocol: Protocol) -> RouteProtocol {
+    match protocol {
+        Protocol::BGP => RouteProtocol::Bgp,
+        Protocol::ISIS => RouteProtocol::Isis,
+        Protocol::OSPFV2 | Protocol::OSPFV3 => RouteProtocol::Ospf,
+        Protocol::RIPV2 | Protocol::RIPNG => RouteProtocol::Rip,
+        Protocol::STATIC => RouteProtocol::Static,
+        _ => RouteProtocol::Unspec,
+    }
+}
+
+fn netlink_nexthops<'a>(
+    af: AddressFamily,
+    nexthops: impl Iterator<Item = &'a Nexthop>,
+) -> Vec<RouteNextHop> {
+    let mut nl_nexthops = vec![];
+
+    for nexthop in nexthops {
+        match nexthop {
+            Nexthop::Address {
+                addr,
+                ifindex,
+                labels,
+            } => {
+                let mut nl_nexthop = RouteNextHopBuilder::new(af)
+                    .interface(*ifindex)
+                    .via(*addr)
+                    .unwrap();
+
+                // Add MPLS labels if present.
+                if !labels.is_empty() {
+                    nl_nexthop = nl_nexthop.mpls(netlink_label_stack(labels));
+                }
+
+                nl_nexthops.push(nl_nexthop.build());
+            }
+            Nexthop::Interface { ifindex } => {
+                let nl_nexthop =
+                    RouteNextHopBuilder::new(af).interface(*ifindex);
+                nl_nexthops.push(nl_nexthop.build());
+            }
+            Nexthop::Recursive { resolved, .. } => {
+                nl_nexthops.extend(netlink_nexthops(af, resolved.iter()))
+            }
+        };
+    }
+
+    nl_nexthops
+}
+
+fn netlink_label_stack(labels: &[Label]) -> Vec<MplsLabel> {
+    let mut labels = labels
+        .iter()
+        .filter(|label| !label.is_implicit_null())
+        .map(|label| MplsLabel {
+            label: label.get(),
+            traffic_class: 0,
+            bottom_of_stack: false,
+            ttl: 0,
+        })
+        .collect::<Vec<_>>();
+    if let Some(label) = labels.last_mut() {
+        label.bottom_of_stack = true;
+    }
+    labels
 }

@@ -7,13 +7,15 @@
 use std::collections::{BTreeMap, HashMap};
 
 use generational_arena::{Arena, Index};
-use holo_utils::southbound::InterfaceFlags;
+use holo_utils::southbound::{AddressFlags, InterfaceFlags};
+use ipnetwork::IpNetwork;
 
 #[derive(Debug)]
 pub struct Interface {
     pub name: String,
     pub ifindex: u32,
     pub flags: InterfaceFlags,
+    pub addresses: BTreeMap<IpNetwork, AddressFlags>,
 }
 
 #[derive(Debug, Default)]
@@ -24,6 +26,16 @@ pub struct Interfaces {
     name_tree: BTreeMap<String, Index>,
     // Interface hash table keyed by ifindex.
     ifindex_tree: HashMap<u32, Index>,
+}
+
+// ===== impl Interface =====
+
+impl Interface {
+    pub(crate) fn is_unnumbered(&self) -> bool {
+        self.addresses
+            .values()
+            .any(|flags| flags.contains(AddressFlags::UNNUMBERED))
+    }
 }
 
 // ===== impl Interfaces =====
@@ -55,6 +67,7 @@ impl Interfaces {
                     name: ifname.clone(),
                     ifindex,
                     flags,
+                    addresses: Default::default(),
                 };
                 let iface_idx = self.arena.insert(iface);
                 self.name_tree.insert(ifname.clone(), iface_idx);
@@ -86,7 +99,6 @@ impl Interfaces {
 
     // Returns a mutable reference to the interface corresponding to the given
     // name.
-    #[expect(unused)]
     pub(crate) fn get_mut_by_name(
         &mut self,
         ifname: &str,

@@ -22,6 +22,7 @@ use rtnetlink::{
 };
 use tracing::error;
 
+use crate::interface::Interfaces;
 use crate::rib::Route;
 
 // ===== global functions =====
@@ -30,6 +31,7 @@ pub(crate) async fn ip_route_install(
     handle: &Handle,
     prefix: &IpNetwork,
     route: &Route,
+    interfaces: &Interfaces,
 ) {
     // Create netlink message.
     let protocol = netlink_protocol(route.protocol);
@@ -37,7 +39,7 @@ pub(crate) async fn ip_route_install(
         IpNetwork::V4(_) => AddressFamily::Inet,
         IpNetwork::V6(_) => AddressFamily::Inet6,
     };
-    let nexthops = netlink_nexthops(af, route.nexthops.iter());
+    let nexthops = netlink_nexthops(af, route.nexthops.iter(), interfaces);
     let msg = RouteMessageBuilder::<IpAddr>::new()
         .destination_prefix(prefix.ip(), prefix.prefix())
         .unwrap()
@@ -91,6 +93,7 @@ pub(crate) async fn mpls_route_install(
     handle: &Handle,
     local_label: Label,
     route: &Route,
+    interfaces: &Interfaces,
 ) {
     // Create netlink message.
     let label = MplsLabel {
@@ -100,7 +103,11 @@ pub(crate) async fn mpls_route_install(
         ttl: 0,
     };
     let protocol = netlink_protocol(route.protocol);
-    let nexthops = netlink_nexthops(AddressFamily::Mpls, route.nexthops.iter());
+    let nexthops = netlink_nexthops(
+        AddressFamily::Mpls,
+        route.nexthops.iter(),
+        interfaces,
+    );
     let msg = RouteMessageBuilder::<MplsLabel>::new()
         .label(label)
         .protocol(protocol)
@@ -185,6 +192,7 @@ fn netlink_protocol(protocol: Protocol) -> RouteProtocol {
 fn netlink_nexthops<'a>(
     af: AddressFamily,
     nexthops: impl Iterator<Item = &'a Nexthop>,
+    interfaces: &Interfaces,
 ) -> Vec<RouteNextHop> {
     let mut nl_nexthops = vec![];
 
@@ -205,6 +213,14 @@ fn netlink_nexthops<'a>(
                     nl_nexthop = nl_nexthop.mpls(netlink_label_stack(labels));
                 }
 
+                // Use 'onlink' for IPv4 with unnumbered interface.
+                if addr.is_ipv4()
+                    && let Some(iface) = interfaces.get_by_ifindex(*ifindex)
+                    && iface.is_unnumbered()
+                {
+                    nl_nexthop = nl_nexthop.onlink();
+                }
+
                 nl_nexthops.push(nl_nexthop.build());
             }
             Nexthop::Interface { ifindex } => {
@@ -212,9 +228,8 @@ fn netlink_nexthops<'a>(
                     RouteNextHopBuilder::new(af).interface(*ifindex);
                 nl_nexthops.push(nl_nexthop.build());
             }
-            Nexthop::Recursive { resolved, .. } => {
-                nl_nexthops.extend(netlink_nexthops(af, resolved.iter()))
-            }
+            Nexthop::Recursive { resolved, .. } => nl_nexthops
+                .extend(netlink_nexthops(af, resolved.iter(), interfaces)),
         };
     }
 

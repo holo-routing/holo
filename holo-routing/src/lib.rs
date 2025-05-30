@@ -95,6 +95,7 @@ impl Master {
                 Some(_) = self.rib.update_queue_rx.recv() => {
                     self.rib
                         .process_rib_update_queue(
+                            &self.interfaces,
                             &self.netlink_handle,
                         )
                         .await;

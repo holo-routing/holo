@@ -28,7 +28,7 @@ use prefix_trie::map::PrefixMap;
 use tokio::sync::mpsc;
 use tracing::{debug, warn};
 
-use crate::interface::Interfaces;
+use crate::interface::{Interface, Interfaces};
 use crate::{ibus, netlink};
 
 #[derive(Debug)]
@@ -198,18 +198,13 @@ impl Rib {
     // Adds connected route to the RIB.
     pub(crate) fn connected_route_add(
         &mut self,
+        iface: &Interface,
         msg: AddressMsg,
-        interfaces: &Interfaces,
     ) {
         // Ignore unnumbered addresses.
         if msg.flags.contains(AddressFlags::UNNUMBERED) {
             return;
         }
-
-        // Lookup interface.
-        let Some(iface) = interfaces.get_by_name(&msg.ifname) else {
-            return;
-        };
 
         let prefix = msg.addr.apply_mask();
         let rib_prefix = self.prefix_entry(prefix);
@@ -484,6 +479,7 @@ impl Rib {
     // Processes routes present in the update queue.
     pub(crate) async fn process_rib_update_queue(
         &mut self,
+        interfaces: &Interfaces,
         netlink_handle: &rtnetlink::Handle,
     ) {
         // Process IP update queue.
@@ -515,6 +511,7 @@ impl Rib {
                             netlink_handle,
                             &prefix,
                             route,
+                            interfaces,
                         )
                         .await;
                     }
@@ -582,7 +579,13 @@ impl Rib {
             }
 
             // Install the route using the netlink handle.
-            netlink::mpls_route_install(netlink_handle, label, route).await;
+            netlink::mpls_route_install(
+                netlink_handle,
+                label,
+                route,
+                interfaces,
+            )
+            .await;
         }
 
         // Reevaluate all registered nexthops.

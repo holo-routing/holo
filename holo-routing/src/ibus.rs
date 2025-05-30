@@ -54,11 +54,27 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
         }
         // Interface address addition notification.
         IbusMsg::InterfaceAddressAdd(msg) => {
+            let Some(iface) = master.interfaces.get_mut_by_name(&msg.ifname)
+            else {
+                return;
+            };
+
+            // Add address to interface.
+            iface.addresses.insert(msg.addr, msg.flags);
+
             // Add connected route to the RIB.
-            master.rib.connected_route_add(msg, &master.interfaces);
+            master.rib.connected_route_add(iface, msg);
         }
         // Interface address delete notification.
         IbusMsg::InterfaceAddressDel(msg) => {
+            let Some(iface) = master.interfaces.get_mut_by_name(&msg.ifname)
+            else {
+                return;
+            };
+
+            // Remove address from interface.
+            iface.addresses.remove(&msg.addr);
+
             // Remove connected route from the RIB.
             master.rib.connected_route_del(msg);
         }

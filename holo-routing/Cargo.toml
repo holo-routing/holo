@@ -13,6 +13,7 @@ chrono.workspace = true
 derive-new.workspace = true
 enum-as-inner.workspace = true
 futures.workspace = true
+generational-arena.workspace = true
 ipnetwork.workspace = true
 libc.workspace = true
 prefix-trie.workspace = true

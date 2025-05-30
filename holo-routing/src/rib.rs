@@ -28,7 +28,8 @@ use prefix_trie::map::PrefixMap;
 use tokio::sync::mpsc;
 use tracing::{debug, warn};
 
-use crate::{Interface, ibus, netlink};
+use crate::interface::Interfaces;
+use crate::{ibus, netlink};
 
 #[derive(Debug)]
 pub struct Rib {
@@ -119,7 +120,7 @@ impl Birt {
 
     pub(crate) async fn process_birt_update_queue(
         &mut self,
-        ifaces: &BTreeMap<String, Interface>,
+        interfaces: &Interfaces,
     ) {
         let mut bift = Bift::new();
 
@@ -127,11 +128,11 @@ impl Birt {
         for ((sd_id, bfr_id, bsl), nbr) in &self.entries {
             match Bitstring::from(*bfr_id, *bsl) {
                 Ok(bfr_bs) => {
-                    let ifname = ifaces
+                    let ifname = interfaces
                         .iter()
-                        .filter_map(|(_, iface)| {
+                        .filter_map(|iface| {
                             if iface.ifindex == nbr.ifindex {
-                                Some(iface.ifname.clone())
+                                Some(iface.name.clone())
                             } else {
                                 None
                             }
@@ -198,7 +199,7 @@ impl Rib {
     pub(crate) fn connected_route_add(
         &mut self,
         msg: AddressMsg,
-        interfaces: &BTreeMap<String, Interface>,
+        interfaces: &Interfaces,
     ) {
         // Ignore unnumbered addresses.
         if msg.flags.contains(AddressFlags::UNNUMBERED) {
@@ -206,7 +207,7 @@ impl Rib {
         }
 
         // Lookup interface.
-        let Some(iface) = interfaces.get(&msg.ifname) else {
+        let Some(iface) = interfaces.get_by_name(&msg.ifname) else {
             return;
         };
 

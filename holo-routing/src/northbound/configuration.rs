@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap};
 use std::net::IpAddr;
 use std::sync::{Arc, LazyLock as Lazy};
 
@@ -38,8 +38,9 @@ use holo_yang::TryFromYang;
 use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 
+use crate::interface::Interfaces;
 use crate::northbound::REGEX_PROTOCOLS;
-use crate::{InstanceHandle, InstanceId, Interface, Master};
+use crate::{InstanceHandle, InstanceId, Master};
 
 static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
     Lazy::new(load_validation_callbacks);
@@ -1422,15 +1423,17 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
 }
 
 fn static_nexthop_get(
-    interfaces: &BTreeMap<String, Interface>,
+    interfaces: &Interfaces,
     nexthop: &StaticRouteNexthop,
 ) -> Option<Nexthop> {
     if let (Some(ifname), Some(addr)) = (&nexthop.ifname, nexthop.addr) {
-        interfaces.get(ifname).map(|iface| Nexthop::Address {
-            ifindex: iface.ifindex,
-            addr,
-            labels: Default::default(),
-        })
+        interfaces
+            .get_by_name(ifname)
+            .map(|iface| Nexthop::Address {
+                ifindex: iface.ifindex,
+                addr,
+                labels: Default::default(),
+            })
     } else {
         None
     }

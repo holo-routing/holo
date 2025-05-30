@@ -1395,6 +1395,7 @@ dependencies = [
  "derive-new",
  "enum-as-inner",
  "futures",
+ "generational-arena",
  "holo-bfd",
  "holo-bgp",
  "holo-isis",

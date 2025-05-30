@@ -158,9 +158,10 @@ fn load_callbacks() -> Callbacks<Master> {
             })
         })
         .path(ribs::rib::routes::route::next_hop::PATH)
-        .get_object(|_master, args| {
+        .get_object(|master, args| {
             use ribs::rib::routes::route::next_hop::NextHop;
             let (_, route) = args.list_entry.as_route().unwrap();
+            let mut outgoing_interface = None;
             let mut ipv4_next_hop_address = None;
             let mut ipv6_next_hop_address = None;
             let mut special_next_hop = None;
@@ -169,8 +170,33 @@ fn load_callbacks() -> Callbacks<Master> {
                 RouteKind::Unicast if route.nexthops.len() == 1 => {
                     let nexthop = route.nexthops.first().unwrap();
                     match nexthop {
-                        Nexthop::Address { addr, .. }
-                        | Nexthop::Recursive { addr, .. } => match addr {
+                        Nexthop::Address { ifindex, addr, .. } => {
+                            if let Some(iface) =
+                                master.interfaces.get_by_ifindex(*ifindex)
+                            {
+                                outgoing_interface =
+                                    Some(Cow::Borrowed(iface.name.as_str()));
+                            }
+                            match addr {
+                                IpAddr::V4(addr) => {
+                                    ipv4_next_hop_address =
+                                        Some(Cow::Borrowed(addr))
+                                }
+                                IpAddr::V6(addr) => {
+                                    ipv6_next_hop_address =
+                                        Some(Cow::Borrowed(addr))
+                                }
+                            }
+                        }
+                        Nexthop::Interface { ifindex } => {
+                            if let Some(iface) =
+                                master.interfaces.get_by_ifindex(*ifindex)
+                            {
+                                outgoing_interface =
+                                    Some(Cow::Borrowed(iface.name.as_str()));
+                            }
+                        }
+                        Nexthop::Recursive { addr, .. } => match addr {
                             IpAddr::V4(addr) => {
                                 ipv4_next_hop_address =
                                     Some(Cow::Borrowed(addr))
@@ -180,8 +206,7 @@ fn load_callbacks() -> Callbacks<Master> {
                                     Some(Cow::Borrowed(addr))
                             }
                         },
-                        _ => (),
-                    };
+                    }
                 }
                 RouteKind::Blackhole => {
                     special_next_hop = Some(NexthopSpecial::Blackhole.to_yang())
@@ -197,8 +222,7 @@ fn load_callbacks() -> Callbacks<Master> {
             }
 
             Box::new(NextHop {
-                // TODO
-                outgoing_interface: None,
+                outgoing_interface,
                 ipv4_next_hop_address,
                 ipv6_next_hop_address,
                 special_next_hop,
@@ -240,10 +264,20 @@ fn load_callbacks() -> Callbacks<Master> {
                 None
             }
         })
-        .get_object(|_master, args| {
+        .get_object(|master, args| {
             use ribs::rib::routes::route::next_hop::next_hop_list::next_hop::NextHop;
             let nexthop = args.list_entry.as_nexthop().unwrap();
-
+            let outgoing_interface =
+                if let Nexthop::Address { ifindex, .. }
+                | Nexthop::Interface { ifindex } = nexthop
+                {
+                    master
+                        .interfaces
+                        .get_by_ifindex(*ifindex)
+                        .map(|iface| Cow::Borrowed(iface.name.as_str()))
+                } else {
+                    None
+                };
             let (ipv4_address, ipv6_address) = match nexthop {
                 Nexthop::Address {
                     addr, ..
@@ -257,8 +291,7 @@ fn load_callbacks() -> Callbacks<Master> {
                 _ => (None, None),
             };
             Box::new(NextHop {
-                // TODO
-                outgoing_interface: None,
+                outgoing_interface,
                 ipv4_address,
                 ipv6_address,
             })

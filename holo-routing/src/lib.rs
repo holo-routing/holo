@@ -5,8 +5,9 @@
 //
 
 mod ibus;
+mod interface;
 mod netlink;
-pub mod northbound;
+mod northbound;
 mod rib;
 
 use std::collections::BTreeMap;
@@ -20,12 +21,12 @@ use holo_protocol::InstanceShared;
 use holo_utils::bier::BierCfg;
 use holo_utils::ibus::{IbusChannelsTx, IbusReceiver, IbusSender};
 use holo_utils::protocol::Protocol;
-use holo_utils::southbound::InterfaceFlags;
 use holo_utils::sr::SrCfg;
 use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 use tracing::Instrument;
 
+use crate::interface::Interfaces;
 use crate::northbound::configuration::StaticRoute;
 use crate::rib::{Birt, Rib};
 
@@ -39,7 +40,7 @@ pub struct Master {
     // Netlink socket.
     pub netlink_handle: rtnetlink::Handle,
     // List of interfaces.
-    pub interfaces: BTreeMap<String, Interface>,
+    pub interfaces: Interfaces,
     // RIB.
     pub rib: Rib,
     // Static routes.
@@ -66,13 +67,6 @@ pub struct InstanceId {
 pub struct InstanceHandle {
     pub nb_tx: NbDaemonSender,
     pub ibus_tx: IbusSender,
-}
-
-#[derive(Debug, new)]
-pub struct Interface {
-    pub ifname: String,
-    pub ifindex: u32,
-    pub flags: InterfaceFlags,
 }
 
 // ===== impl Master =====

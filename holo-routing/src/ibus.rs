@@ -14,7 +14,7 @@ use holo_utils::southbound::{RouteKeyMsg, RouteMsg};
 use ipnetwork::IpNetwork;
 
 use crate::rib::{NhtEntry, RedistributeSub, Route, RouteFlags};
-use crate::{InstanceId, Interface, Master};
+use crate::{InstanceId, Master};
 
 // ===== global functions =====
 
@@ -46,10 +46,7 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
     match msg {
         // Interface update notification.
         IbusMsg::InterfaceUpd(msg) => {
-            master.interfaces.insert(
-                msg.ifname.clone(),
-                Interface::new(msg.ifname, msg.ifindex, msg.flags),
-            );
+            master.interfaces.update(msg.ifname, msg.ifindex, msg.flags);
         }
         // Interface delete notification.
         IbusMsg::InterfaceDel(ifname) => {

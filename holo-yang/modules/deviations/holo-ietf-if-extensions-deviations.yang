@@ -18,6 +18,10 @@ module holo-ietf-if-extensions-deviations {
     "This module defines deviation statements for the ietf-if-extensions
      module.";
 
+  /*
+   * Not supported nodes
+   */
+
   deviation "/if:interfaces/if:interface/if:statistics/if-ext:in-discard-unknown-encaps" {
     deviate not-supported;
   }

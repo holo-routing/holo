@@ -18,6 +18,10 @@ module holo-ietf-mpls-deviations {
     "This module defines deviation statements for the ietf-mpls
      module.";
 
+  /*
+   * Not supported nodes
+   */
+
   deviation "/rt:routing/rt:ribs/rt:rib/rt:routes/rt:route/rt:next-hop/rt:next-hop-options/rt:simple-next-hop/mpls:mpls-label-stack/mpls:entry/mpls:ttl" {
     deviate not-supported;
   }
@@ -53,82 +57,4 @@ module holo-ietf-mpls-deviations {
   deviation "/rt:routing/mpls:mpls" {
     deviate not-supported;
   }
-
-  /*
-  deviation "/rt:routing/mpls:mpls/mpls:ttl-propagate" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/mpls:mpls/mpls:mpls-label-blocks" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/mpls:mpls/mpls:mpls-label-blocks/mpls:mpls-label-block" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/mpls:mpls/mpls:mpls-label-blocks/mpls:mpls-label-block/mpls:index" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/mpls:mpls/mpls:mpls-label-blocks/mpls:mpls-label-block/mpls:start-label" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/mpls:mpls/mpls:mpls-label-blocks/mpls:mpls-label-block/mpls:end-label" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/mpls:mpls/mpls:mpls-label-blocks/mpls:mpls-label-block/mpls:block-allocation-mode" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/mpls:mpls/mpls:mpls-label-blocks/mpls:mpls-label-block/mpls:inuse-labels-count" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/mpls:mpls/mpls:interfaces" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/mpls:mpls/mpls:interfaces/mpls:interface" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/mpls:mpls/mpls:interfaces/mpls:interface/mpls:name" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/mpls:mpls/mpls:interfaces/mpls:interface/mpls:mpls-enabled" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/rt:routing/mpls:mpls/mpls:interfaces/mpls:interface/mpls:maximum-labeled-packet" {
-    deviate not-supported;
-  }
-  */
 }

@@ -60,54 +60,6 @@ module holo-ietf-vrrp-deviations {
     deviate not-supported;
   }
 
-  /*
-  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:interfaces" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:interfaces/vrrp:interface" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:interfaces/vrrp:interface/vrrp:interface" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:interfaces/vrrp:interface/vrrp:priority-decrement" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:networks" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:networks/vrrp:network" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:networks/vrrp:network/vrrp:prefix" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/if:interfaces/if:interface/ip:ipv4/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:networks/vrrp:network/vrrp:priority-decrement" {
-    deviate not-supported;
-  }
-  */
-
   deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:preempt/vrrp:hold-time" {
     deviate not-supported;
   }
@@ -120,91 +72,9 @@ module holo-ietf-vrrp-deviations {
     deviate not-supported;
   }
 
-  /*
-  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:interfaces" {
-    deviate not-supported;
-  }
-
-  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:interfaces/vrrp:interface" {
-    deviate not-supported;
-  }
-
-  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:interfaces/vrrp:interface/vrrp:interface" {
-    deviate not-supported;
-  }
-
-  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:interfaces/vrrp:interface/vrrp:priority-decrement" {
-    deviate not-supported;
-  }
-
-  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:networks" {
-    deviate not-supported;
-  }
-
-  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:networks/vrrp:network" {
-    deviate not-supported;
-  }
-
-  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:networks/vrrp:network/vrrp:prefix" {
-    deviate not-supported;
-  }
-
-  deviation "/if:interfaces/if:interface/ip:ipv6/vrrp:vrrp/vrrp:vrrp-instance/vrrp:track/vrrp:networks/vrrp:network/vrrp:priority-decrement" {
-    deviate not-supported;
-  }
-  */
-
   deviation "/vrrp:vrrp" {
     deviate not-supported;
   }
-
-  /*
-  deviation "/vrrp:vrrp/vrrp:virtual-routers" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/vrrp:vrrp/vrrp:interfaces" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/vrrp:vrrp/vrrp:statistics" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/vrrp:vrrp/vrrp:statistics/vrrp:discontinuity-datetime" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/vrrp:vrrp/vrrp:statistics/vrrp:checksum-errors" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/vrrp:vrrp/vrrp:statistics/vrrp:version-errors" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/vrrp:vrrp/vrrp:statistics/vrrp:vrid-errors" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/vrrp:vrrp/vrrp:statistics/vrrp:ip-ttl-errors" {
-    deviate not-supported;
-  }
-  */
 
   deviation "/vrrp:vrrp-virtual-router-error-event/vrrp:ip-version" {
     deviate not-supported;

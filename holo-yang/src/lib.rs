@@ -169,8 +169,6 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/deviations/holo-ietf-isis-sr-mpls-deviations.yang"),
         EmbeddedModuleKey::new("holo-ietf-mpls-deviations", None, None, None) =>
             include_str!("../modules/deviations/holo-ietf-mpls-deviations.yang"),
-        EmbeddedModuleKey::new("holo-ietf-key-chain-deviations", None, None, None) =>
-            include_str!("../modules/deviations/holo-ietf-key-chain-deviations.yang"),
         EmbeddedModuleKey::new("holo-ietf-ospf-deviations", None, None, None) =>
             include_str!("../modules/deviations/holo-ietf-ospf-deviations.yang"),
         EmbeddedModuleKey::new("holo-ietf-ospf-sr-mpls-deviations", None, None, None) =>

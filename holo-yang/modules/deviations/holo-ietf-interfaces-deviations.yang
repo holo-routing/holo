@@ -14,6 +14,10 @@ module holo-ietf-interfaces-deviations {
     "This module defines deviation statements for the ietf-interfaces
      module.";
 
+  /*
+   * Not supported nodes
+   */
+
   deviation "/if:interfaces/if:interface/if:oper-status" {
     deviate not-supported;
   }

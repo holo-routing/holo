@@ -26,6 +26,10 @@ module holo-ietf-ospf-sr-mpls-deviations {
     "This module defines deviation statements for the ietf-ospf-sr-mpls
      module.";
 
+  /*
+   * Not supported nodes
+   */
+
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque/ospf-sr-mpls:extended-prefix-range-tlvs" {
     deviate not-supported;
   }

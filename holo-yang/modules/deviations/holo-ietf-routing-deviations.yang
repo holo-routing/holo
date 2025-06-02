@@ -14,6 +14,10 @@ module holo-ietf-routing-deviations {
     "This module defines deviation statements for the ietf-routing
      module.";
 
+  /*
+   * Not supported nodes
+   */
+
   deviation "/rt:routing/rt:router-id" {
     deviate not-supported;
   }

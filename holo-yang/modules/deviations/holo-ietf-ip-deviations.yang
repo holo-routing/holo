@@ -18,6 +18,10 @@ module holo-ietf-ip-deviations {
     "This module defines deviation statements for the ietf-ip
      module.";
 
+  /*
+   * Not supported nodes
+   */
+
   deviation "/if:interfaces/if:interface/ip:ipv4/ip:forwarding" {
     deviate not-supported;
   }
@@ -29,24 +33,6 @@ module holo-ietf-ip-deviations {
   deviation "/if:interfaces/if:interface/ip:ipv4/ip:neighbor" {
     deviate not-supported;
   }
-
-  /*
-  deviation "/if:interfaces/if:interface/ip:ipv4/ip:neighbor/ip:ip" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/if:interfaces/if:interface/ip:ipv4/ip:neighbor/ip:link-layer-address" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/if:interfaces/if:interface/ip:ipv4/ip:neighbor/ip:origin" {
-    deviate not-supported;
-  }
-  */
 
   deviation "/if:interfaces/if:interface/ip:ipv6/ip:forwarding" {
     deviate not-supported;
@@ -64,36 +50,6 @@ module holo-ietf-ip-deviations {
     deviate not-supported;
   }
 
-  /*
-  deviation "/if:interfaces/if:interface/ip:ipv6/ip:neighbor/ip:ip" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/if:interfaces/if:interface/ip:ipv6/ip:neighbor/ip:link-layer-address" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/if:interfaces/if:interface/ip:ipv6/ip:neighbor/ip:origin" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/if:interfaces/if:interface/ip:ipv6/ip:neighbor/ip:is-router" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/if:interfaces/if:interface/ip:ipv6/ip:neighbor/ip:state" {
-    deviate not-supported;
-  }
-  */
-
   deviation "/if:interfaces/if:interface/ip:ipv6/ip:dup-addr-detect-transmits" {
     deviate not-supported;
   }
@@ -101,10 +57,4 @@ module holo-ietf-ip-deviations {
   deviation "/if:interfaces/if:interface/ip:ipv6/ip:autoconf" {
     deviate not-supported;
   }
-
-  /*
-  deviation "/if:interfaces/if:interface/ip:ipv6/ip:autoconf/ip:create-global-addresses" {
-    deviate not-supported;
-  }
-  */
 }

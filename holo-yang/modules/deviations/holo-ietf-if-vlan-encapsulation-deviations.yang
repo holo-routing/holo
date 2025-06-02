@@ -29,6 +29,10 @@ module holo-ietf-if-vlan-encapsulation-deviations {
     }
   }
 
+  /*
+   * Not supported nodes
+   */
+
   deviation "/if:interfaces/if:interface/if-ext:encapsulation/if-ext:encaps-type/if-vlan:dot1q-vlan/if-vlan:dot1q-vlan/if-vlan:outer-tag/if-vlan:tag-type" {
     deviate not-supported;
   }
@@ -36,16 +40,4 @@ module holo-ietf-if-vlan-encapsulation-deviations {
   deviation "/if:interfaces/if:interface/if-ext:encapsulation/if-ext:encaps-type/if-vlan:dot1q-vlan/if-vlan:dot1q-vlan/if-vlan:second-tag" {
     deviate not-supported;
   }
-
-  /*
-  deviation "/if:interfaces/if:interface/if-ext:encapsulation/if-ext:encaps-type/if-vlan:dot1q-vlan/if-vlan:dot1q-vlan/if-vlan:second-tag/if-vlan:tag-type" {
-    deviate not-supported;
-  }
-  */
-
-  /*
-  deviation "/if:interfaces/if:interface/if-ext:encapsulation/if-ext:encaps-type/if-vlan:dot1q-vlan/if-vlan:dot1q-vlan/if-vlan:second-tag/if-vlan:vlan-id" {
-    deviate not-supported;
-  }
-  */
 }

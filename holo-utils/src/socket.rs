@@ -584,15 +584,13 @@ pub mod mock {
 
 fn setsockopt<F: AsRawFd>(
     sock: &F,
-    opt: c_int,
-    val: c_int,
+    level: c_int,
+    optname: c_int,
     optval: *const c_void,
     optlen: libc::socklen_t,
 ) -> Result<()> {
-    let ret;
-
-    unsafe {
-        ret = libc::setsockopt(sock.as_raw_fd(), opt, val, optval, optlen);
+    let ret = unsafe {
+        libc::setsockopt(sock.as_raw_fd(), level, optname, optval, optlen)
     };
     if ret == -1 {
         return Err(std::io::Error::last_os_error());

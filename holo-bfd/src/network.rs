@@ -91,6 +91,7 @@ pub(crate) fn socket_rx(
 }
 
 pub(crate) fn socket_tx(
+    ifname: Option<&str>,
     af: AddressFamily,
     addr: IpAddr,
     ttl: u8,
@@ -116,6 +117,11 @@ pub(crate) fn socket_tx(
         let sockaddr = SocketAddr::from((addr, port));
         let socket =
             capabilities::raise(|| UdpSocket::bind_reuseaddr(sockaddr))?;
+
+        // Bind to interface.
+        if let Some(ifname) = ifname {
+            socket.bind_device(Some(ifname.as_bytes()))?;
+        }
 
         // Set socket options.
         match af {

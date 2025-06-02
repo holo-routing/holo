@@ -341,19 +341,19 @@ impl Session {
 
     // Creates or updates the UDP socket used to send BFD packets.
     pub(crate) fn update_socket_tx(&mut self) {
-        let (af, src, ttl) = match &self.key {
-            SessionKey::IpSingleHop { dst, .. } => {
+        let (ifname, af, src, ttl) = match &self.key {
+            SessionKey::IpSingleHop { ifname, dst } => {
                 let af = dst.address_family();
                 let src = self.config.src.unwrap_or(IpAddr::unspecified(af));
-                (af, src, TTL_MAX)
+                (Some(ifname.as_str()), af, src, TTL_MAX)
             }
             SessionKey::IpMultihop { src, dst } => {
                 let af = dst.address_family();
                 let ttl = self.config.tx_ttl.unwrap_or(TTL_MAX);
-                (af, *src, ttl)
+                (None, af, *src, ttl)
             }
         };
-        match network::socket_tx(af, src, ttl) {
+        match network::socket_tx(ifname, af, src, ttl) {
             Ok(socket) => self.state.socket_tx = Some(Arc::new(socket)),
             Err(error) => {
                 IoError::UdpSocketError(error).log();

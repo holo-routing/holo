@@ -77,10 +77,12 @@ static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 area_addrs: vec![AreaAddressesTlv {
                     list: vec![AreaAddr::from([0x49, 0, 0].as_slice())],
                 }],
+                multi_topology: vec![],
                 hostname: None,
                 lsp_buf_size: None,
                 is_reach: vec![],
                 ext_is_reach: vec![ExtIsReachTlv {
+                    mt_id: None,
                     list: vec![ExtIsReach {
                         neighbor: LanId::from([
                             0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03,
@@ -117,12 +119,14 @@ static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                         },
                     }],
                 }],
+                mt_is_reach: vec![],
                 ipv4_addrs: vec![Ipv4AddressesTlv {
                     list: vec![ip4!("1.1.1.1")],
                 }],
                 ipv4_internal_reach: vec![],
                 ipv4_external_reach: vec![],
                 ext_ipv4_reach: vec![ExtIpv4ReachTlv {
+                    mt_id: None,
                     list: vec![
                         ExtIpv4Reach {
                             metric: 10,
@@ -160,11 +164,13 @@ static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                         },
                     ],
                 }],
+                mt_ipv4_reach: vec![],
                 ipv4_router_id: Some(Ipv4RouterIdTlv::new(ip4!("1.1.1.1"))),
                 ipv6_addrs: vec![Ipv6AddressesTlv {
                     list: vec![ip6!("2001:db8::1")],
                 }],
                 ipv6_reach: vec![Ipv6ReachTlv {
+                    mt_id: None,
                     list: vec![
                         Ipv6Reach {
                             metric: 10,
@@ -204,6 +210,7 @@ static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                         },
                     ],
                 }],
+                mt_ipv6_reach: vec![],
                 ipv6_router_id: Some(Ipv6RouterIdTlv::new(ip6!("2001:db8::1"))),
                 unknown: vec![],
             },
@@ -245,6 +252,7 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 area_addrs: vec![AreaAddressesTlv {
                     list: vec![AreaAddr::from([0x49, 0, 0].as_slice())],
                 }],
+                multi_topology: vec![],
                 hostname: Some(DynamicHostnameTlv {
                     hostname: "holo".to_owned(),
                 }),
@@ -272,6 +280,7 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                     ],
                 }],
                 ext_is_reach: vec![],
+                mt_is_reach: vec![],
                 ipv4_addrs: vec![Ipv4AddressesTlv {
                     list: vec![ip4!("6.6.6.6")],
                 }],
@@ -329,9 +338,11 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                     ],
                 }],
                 ext_ipv4_reach: vec![],
+                mt_ipv4_reach: vec![],
                 ipv4_router_id: None,
                 ipv6_addrs: vec![],
                 ipv6_reach: vec![],
+                mt_ipv6_reach: vec![],
                 ipv6_router_id: None,
                 unknown: vec![],
             },
@@ -369,10 +380,12 @@ static LSP3_HMAC_MD5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 area_addrs: vec![AreaAddressesTlv {
                     list: vec![AreaAddr::from([0x49, 0, 0].as_slice())],
                 }],
+                multi_topology: vec![],
                 hostname: None,
                 lsp_buf_size: None,
                 is_reach: vec![],
                 ext_is_reach: vec![ExtIsReachTlv {
+                    mt_id: None,
                     list: vec![ExtIsReach {
                         neighbor: LanId::from([
                             0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03,
@@ -381,12 +394,14 @@ static LSP3_HMAC_MD5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                         sub_tlvs: Default::default(),
                     }],
                 }],
+                mt_is_reach: vec![],
                 ipv4_addrs: vec![Ipv4AddressesTlv {
                     list: vec![ip4!("1.1.1.1")],
                 }],
                 ipv4_internal_reach: vec![],
                 ipv4_external_reach: vec![],
                 ext_ipv4_reach: vec![ExtIpv4ReachTlv {
+                    mt_id: None,
                     list: vec![
                         ExtIpv4Reach {
                             metric: 10,
@@ -402,13 +417,139 @@ static LSP3_HMAC_MD5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                         },
                     ],
                 }],
+                mt_ipv4_reach: vec![],
                 ipv4_router_id: None,
                 ipv6_addrs: vec![],
                 ipv6_reach: vec![],
+                mt_ipv6_reach: vec![],
                 ipv6_router_id: None,
                 unknown: vec![],
             },
             Some(&KEY_HMAC_MD5),
+        )),
+    )
+});
+
+static LSP4: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
+    (
+        vec![
+            0x83, 0x1b, 0x01, 0x00, 0x12, 0x01, 0x00, 0x00, 0x00, 0x9a, 0x04,
+            0x92, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x04, 0x3a, 0x4b, 0x01, 0x81, 0x02, 0xcc, 0x8e, 0x01, 0x04,
+            0x03, 0x49, 0x00, 0x00, 0xe5, 0x04, 0x00, 0x00, 0x00, 0x02, 0x16,
+            0x0b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03, 0x00, 0x00, 0x0a,
+            0x00, 0xde, 0x0d, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02,
+            0x03, 0x00, 0x00, 0x0a, 0x00, 0x84, 0x04, 0x01, 0x01, 0x01, 0x01,
+            0x87, 0x11, 0x00, 0x00, 0x00, 0x0a, 0x18, 0x0a, 0x00, 0x01, 0x00,
+            0x00, 0x00, 0x0a, 0x20, 0x01, 0x01, 0x01, 0x01, 0xe8, 0x10, 0x20,
+            0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x01, 0xed, 0x26, 0x00, 0x02, 0x00, 0x00, 0x00,
+            0x0a, 0x00, 0x80, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+            0x0a, 0x00, 0x40, 0x20, 0x01, 0x0d, 0xb8, 0x10, 0x00, 0x00, 0x00,
+        ],
+        None,
+        Pdu::Lsp(Lsp::new(
+            LevelNumber::L1,
+            1170,
+            LspId::from([0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00]),
+            0x00000004,
+            LspFlags::IS_TYPE1,
+            LspTlvs {
+                auth: None,
+                protocols_supported: Some(ProtocolsSupportedTlv {
+                    list: vec![0xcc, 0x8e],
+                }),
+                router_cap: vec![],
+                area_addrs: vec![AreaAddressesTlv {
+                    list: vec![AreaAddr::from([0x49, 0, 0].as_slice())],
+                }],
+                multi_topology: vec![MultiTopologyTlv {
+                    list: vec![
+                        MultiTopologyEntry {
+                            flags: MtFlags::empty(),
+                            mt_id: 0,
+                        },
+                        MultiTopologyEntry {
+                            flags: MtFlags::empty(),
+                            mt_id: 2,
+                        },
+                    ],
+                }],
+                hostname: None,
+                lsp_buf_size: None,
+                is_reach: vec![],
+                ext_is_reach: vec![ExtIsReachTlv {
+                    mt_id: None,
+                    list: vec![ExtIsReach {
+                        neighbor: LanId::from([
+                            0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03,
+                        ]),
+                        metric: 10,
+                        sub_tlvs: Default::default(),
+                    }],
+                }],
+                mt_is_reach: vec![ExtIsReachTlv {
+                    mt_id: Some(2),
+                    list: vec![ExtIsReach {
+                        neighbor: LanId::from([
+                            0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03,
+                        ]),
+                        metric: 10,
+                        sub_tlvs: Default::default(),
+                    }],
+                }],
+                ipv4_addrs: vec![Ipv4AddressesTlv {
+                    list: vec![ip4!("1.1.1.1")],
+                }],
+                ipv4_internal_reach: vec![],
+                ipv4_external_reach: vec![],
+                ext_ipv4_reach: vec![ExtIpv4ReachTlv {
+                    mt_id: None,
+                    list: vec![
+                        ExtIpv4Reach {
+                            metric: 10,
+                            up_down: false,
+                            prefix: net4!("10.0.1.0/24"),
+                            sub_tlvs: Default::default(),
+                        },
+                        ExtIpv4Reach {
+                            metric: 10,
+                            up_down: false,
+                            prefix: net4!("1.1.1.1/32"),
+                            sub_tlvs: Default::default(),
+                        },
+                    ],
+                }],
+                mt_ipv4_reach: vec![],
+                ipv4_router_id: None,
+                ipv6_addrs: vec![Ipv6AddressesTlv {
+                    list: vec![ip6!("2001:db8::1")],
+                }],
+                ipv6_reach: vec![],
+                mt_ipv6_reach: vec![Ipv6ReachTlv {
+                    mt_id: Some(2),
+                    list: vec![
+                        Ipv6Reach {
+                            metric: 10,
+                            up_down: false,
+                            external: false,
+                            prefix: net6!("2001:db8::1/128"),
+                            sub_tlvs: Default::default(),
+                        },
+                        Ipv6Reach {
+                            metric: 10,
+                            up_down: false,
+                            external: false,
+                            prefix: net6!("2001:db8:1000::0/64"),
+                            sub_tlvs: Default::default(),
+                        },
+                    ],
+                }],
+                ipv6_router_id: None,
+                unknown: vec![],
+            },
+            None,
         )),
     )
 });
@@ -450,5 +591,17 @@ fn test_encode_lsp3_hmac_md5() {
 #[test]
 fn test_decode_lsp3_hmac_md5() {
     let (ref bytes, ref auth, ref lsp) = *LSP3_HMAC_MD5;
+    test_decode_pdu(bytes, lsp, auth);
+}
+
+#[test]
+fn test_encode_lsp4() {
+    let (ref bytes, ref auth, ref lsp) = *LSP4;
+    test_encode_pdu(bytes, lsp, auth);
+}
+
+#[test]
+fn test_decode_lsp4() {
+    let (ref bytes, ref auth, ref lsp) = *LSP4;
     test_decode_pdu(bytes, lsp, auth);
 }

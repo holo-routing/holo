@@ -36,7 +36,7 @@ use crate::packet::subtlvs::neighbor::AdjSidStlv;
 use crate::packet::subtlvs::prefix::{PrefixAttrFlags, PrefixSidStlv};
 use crate::packet::tlv::{
     AuthenticationTlv, ExtIpv4Reach, ExtIsReach, IpReachTlvEntry, Ipv4Reach,
-    Ipv6Reach, IsReach, RouterCapTlv, UnknownTlv,
+    Ipv6Reach, IsReach, MultiTopologyEntry, RouterCapTlv, UnknownTlv,
 };
 use crate::packet::{LanId, LevelNumber, LevelType, SystemId};
 use crate::route::{Nexthop, Route};
@@ -58,14 +58,18 @@ pub enum ListEntry<'a> {
     LspEntry(&'a LspEntry),
     RouterCap(&'a RouterCapTlv),
     LabelBlockEntry(&'a LabelBlockEntry),
+    MultiTopologyEntry(&'a MultiTopologyEntry),
     IsReach(&'a LspEntry, LanId),
     IsReachInstance(u32, &'a IsReach),
     ExtIsReach(u32, &'a ExtIsReach),
     ExtIsReachUnreservedBw(usize, &'a f32),
+    MtIsReach(u16, u32, &'a ExtIsReach),
     AdjSidStlv(&'a AdjSidStlv),
     Ipv4Reach(&'a Ipv4Reach),
     ExtIpv4Reach(&'a ExtIpv4Reach),
+    MtIpv4Reach(u16, &'a ExtIpv4Reach),
     Ipv6Reach(&'a Ipv6Reach),
+    MtIpv6Reach(u16, &'a Ipv6Reach),
     PrefixSidStlv(&'a PrefixSidStlv),
     UnknownTlv(&'a UnknownTlv),
     Route(&'a IpNetwork, &'a Route),
@@ -259,6 +263,29 @@ fn load_callbacks() -> Callbacks<Instance> {
             Box::new(Authentication {
                 authentication_type,
                 authentication_key,
+            })
+        })
+        .path(isis::database::levels::lsp::mt_entries::topology::PATH)
+        .get_iterate(|_instance, args| {
+            let lse = args.parent_list_entry.as_lsp_entry().unwrap();
+            let lsp = &lse.data;
+            let iter = lsp.tlvs.multi_topology().map(ListEntry::MultiTopologyEntry);
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::mt_entries::topology::Topology;
+            let mt = args.list_entry.as_multi_topology_entry().unwrap();
+            Box::new(Topology {
+                mt_id: Some(mt.mt_id),
+            })
+        })
+        .path(isis::database::levels::lsp::mt_entries::topology::attributes::PATH)
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::mt_entries::topology::attributes::Attributes;
+            let mt = args.list_entry.as_multi_topology_entry().unwrap();
+            let iter = mt.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
+            Box::new(Attributes {
+                flags: Some(Box::new(iter) as _),
             })
         })
         .path(isis::database::levels::lsp::router_capabilities::router_capability::PATH)
@@ -732,6 +759,166 @@ fn load_callbacks() -> Callbacks<Instance> {
             let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
             Box::new(PrefixSidFlags {
                 flag: Some(Box::new(iter)),
+            })
+        })
+        .path(isis::database::levels::lsp::mt_is_neighbor::neighbor::PATH)
+        .get_iterate(|_instance, args| {
+            let lse = args.parent_list_entry.as_lsp_entry().unwrap();
+            let lsp = &lse.data;
+            let iter = lsp.tlvs.mt_is_reach().enumerate().map(|(id, (mt_id, reach))| ListEntry::MtIsReach(mt_id, id as u32, reach));
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::mt_is_neighbor::neighbor::Neighbor;
+            let (mt_id, _, reach) = args.list_entry.as_mt_is_reach().unwrap();
+            Box::new(Neighbor {
+                mt_id: Some(*mt_id),
+                neighbor_id: Some(reach.neighbor.to_yang()),
+            })
+        })
+        .path(isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::PATH)
+        .get_iterate(|_instance, args| {
+            let (mt_id, id, reach) = args.parent_list_entry.as_mt_is_reach().unwrap();
+            let iter = std::iter::once(ListEntry::MtIsReach(*mt_id, *id, reach));
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::Instance;
+            let (_, id, reach) = args.list_entry.as_mt_is_reach().unwrap();
+            Box::new(Instance {
+                id: *id,
+                metric: Some(reach.metric),
+                admin_group: reach.sub_tlvs.admin_group.as_ref().map(|tlv| tlv.get()),
+                te_metric: reach.sub_tlvs.te_default_metric.as_ref().map(|tlv| tlv.get()),
+                max_bandwidth: reach.sub_tlvs.max_link_bw.as_ref().map(|tlv| tlv.get()),
+                max_reservable_bandwidth: reach.sub_tlvs.max_resv_link_bw.as_ref().map(|tlv| tlv.get()),
+            })
+        })
+        .path(isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::local_if_ipv4_addrs::PATH)
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::local_if_ipv4_addrs::LocalIfIpv4Addrs;
+            let (_, _, reach) = args.list_entry.as_mt_is_reach().unwrap();
+            let iter = reach.sub_tlvs.ipv4_interface_addr.iter().map(|tlv| tlv.get()).map(Cow::Borrowed);
+            Box::new(LocalIfIpv4Addrs {
+                local_if_ipv4_addr: Some(Box::new(iter)),
+            })
+        })
+        .path(isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::remote_if_ipv4_addrs::PATH)
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::remote_if_ipv4_addrs::RemoteIfIpv4Addrs;
+            let (_, _, reach) = args.list_entry.as_mt_is_reach().unwrap();
+            let iter = reach.sub_tlvs.ipv4_neighbor_addr.iter().map(|tlv| tlv.get()).map(Cow::Borrowed);
+            Box::new(RemoteIfIpv4Addrs {
+                remote_if_ipv4_addr: Some(Box::new(iter)),
+            })
+        })
+        .path(isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unreserved_bandwidths::unreserved_bandwidth::PATH)
+        .get_iterate(|_instance, args| {
+            let (_, _, reach) = args.parent_list_entry.as_mt_is_reach().unwrap();
+            if let Some(unreserved_bw) = &reach.sub_tlvs.unreserved_bw {
+                let iter = unreserved_bw.iter().map(|(prio, bw)| ListEntry::ExtIsReachUnreservedBw(prio, bw));
+                Some(Box::new(iter))
+            } else {
+                None
+            }
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unreserved_bandwidths::unreserved_bandwidth::UnreservedBandwidth;
+            let (priority, unreserved_bandwidth) = args.list_entry.as_ext_is_reach_unreserved_bw().unwrap();
+            Box::new(UnreservedBandwidth {
+                priority: Some(*priority as u8),
+                unreserved_bandwidth: Some(unreserved_bandwidth),
+            })
+        })
+        .path(isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unknown_tlvs::unknown_tlv::PATH)
+        .get_iterate(|_instance, args| {
+            let (_, _, reach) = args.parent_list_entry.as_mt_is_reach().unwrap();
+            let iter = reach.sub_tlvs.unknown.iter().map(ListEntry::UnknownTlv);
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unknown_tlvs::unknown_tlv::UnknownTlv;
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Box::new(UnknownTlv {
+                r#type: Some(tlv.tlv_type as u16),
+                length: Some(tlv.length as u16),
+                value: Some(tlv.value.as_ref()),
+            })
+        })
+        .path(isis::database::levels::lsp::mt_extended_ipv4_reachability::prefixes::PATH)
+        .get_iterate(|_instance, args| {
+            let lse = args.parent_list_entry.as_lsp_entry().unwrap();
+            let lsp = &lse.data;
+            let iter = lsp.tlvs.mt_ipv4_reach().map(|(mt_id, entry)| ListEntry::MtIpv4Reach(mt_id, entry));
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::mt_extended_ipv4_reachability::prefixes::Prefixes;
+            let (mt_id, reach) = args.list_entry.as_mt_ipv4_reach().unwrap();
+            Box::new(Prefixes {
+                mt_id: Some(*mt_id),
+                up_down: Some(reach.up_down),
+                ip_prefix: Some(Cow::Owned(reach.prefix.ip())),
+                prefix_len: Some(reach.prefix.prefix()),
+                metric: Some(reach.metric),
+                external_prefix_flag: reach.prefix_attr_flags_get(PrefixAttrFlags::X),
+                node_flag: reach.prefix_attr_flags_get(PrefixAttrFlags::N),
+                readvertisement_flag: reach.prefix_attr_flags_get(PrefixAttrFlags::R),
+                ipv4_source_router_id: reach.sub_tlvs.ipv4_source_rid.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
+                ipv6_source_router_id: reach.sub_tlvs.ipv6_source_rid.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
+            })
+        })
+        .path(isis::database::levels::lsp::mt_extended_ipv4_reachability::prefixes::unknown_tlvs::unknown_tlv::PATH)
+        .get_iterate(|_instance, args| {
+            let (_, reach) = args.parent_list_entry.as_mt_ipv4_reach().unwrap();
+            let iter = reach.sub_tlvs.unknown.iter().map(ListEntry::UnknownTlv);
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::mt_extended_ipv4_reachability::prefixes::unknown_tlvs::unknown_tlv::UnknownTlv;
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Box::new(UnknownTlv {
+                r#type: Some(tlv.tlv_type as u16),
+                length: Some(tlv.length as u16),
+                value: Some(tlv.value.as_ref()),
+            })
+        })
+        .path(isis::database::levels::lsp::mt_ipv6_reachability::prefixes::PATH)
+        .get_iterate(|_instance, args| {
+            let lse = args.parent_list_entry.as_lsp_entry().unwrap();
+            let lsp = &lse.data;
+            let iter = lsp.tlvs.mt_ipv6_reach().map(|(mt_id, entry)| ListEntry::MtIpv6Reach(mt_id, entry));
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::mt_ipv6_reachability::prefixes::Prefixes;
+            let (mt_id, reach) = args.list_entry.as_mt_ipv6_reach().unwrap();
+            Box::new(Prefixes {
+                mt_id: Some(*mt_id),
+                up_down: Some(reach.up_down),
+                ip_prefix: Some(Cow::Owned(reach.prefix.ip())),
+                prefix_len: Some(reach.prefix.prefix()),
+                metric: Some(reach.metric),
+                external_prefix_flag: Some(reach.external),
+                node_flag: reach.prefix_attr_flags_get(PrefixAttrFlags::N),
+                readvertisement_flag: reach.prefix_attr_flags_get(PrefixAttrFlags::R),
+                ipv4_source_router_id: reach.sub_tlvs.ipv4_source_rid.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
+                ipv6_source_router_id: reach.sub_tlvs.ipv6_source_rid.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
+            })
+        })
+        .path(isis::database::levels::lsp::mt_ipv6_reachability::prefixes::unknown_tlvs::unknown_tlv::PATH)
+        .get_iterate(|_instance, args| {
+            let (_, reach) = args.parent_list_entry.as_mt_ipv6_reach().unwrap();
+            let iter = reach.sub_tlvs.unknown.iter().map(ListEntry::UnknownTlv);
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::mt_ipv6_reachability::prefixes::unknown_tlvs::unknown_tlv::UnknownTlv;
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Box::new(UnknownTlv {
+                r#type: Some(tlv.tlv_type as u16),
+                length: Some(tlv.length as u16),
+                value: Some(tlv.value.as_ref()),
             })
         })
         .path(isis::database::levels::lsp::ipv6_reachability::prefixes::PATH)

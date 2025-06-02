@@ -59,8 +59,12 @@ pub enum TlvType {
     ExtIpv4Reach = 135,
     DynamicHostname = 137,
     Ipv6RouterId = 140,
+    MtIsReach = 222,
+    MultiTopology = 229,
     Ipv6Addresses = 232,
+    MtIpv4Reach = 235,
     Ipv6Reach = 236,
+    MtIpv6Reach = 237,
     RouterCapability = 242,
 }
 
@@ -145,6 +149,22 @@ pub enum BierSubStlvType {
     MplsEncap = 1,
     // FIXME: TBD1 in https://datatracker.ietf.org/doc/html/draft-ietf-bier-lsr-non-mpls-extensions-03#name-is-is-bier-non-mpls-encapsu
     NonMplsEncap = 42,
+}
+
+// IS-IS Multi-Topology ID Values.
+//
+// IANA registry:
+// https://www.iana.org/assignments/isis-mt-parameters/isis-mt-parameters.xhtml
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(FromPrimitive, ToPrimitive)]
+#[derive(Deserialize, Serialize)]
+pub enum MtId {
+    Standard = 0,
+    Ipv4Mgmt = 1,
+    Ipv6Unicast = 2,
+    Ipv4Multicast = 3,
+    Ipv6Multicast = 4,
+    Ipv6Mgmt = 5,
 }
 
 // IS-IS LSP flags field.

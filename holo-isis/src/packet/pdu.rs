@@ -22,8 +22,8 @@ use tracing::debug_span;
 
 use crate::packet::auth::AuthMethod;
 use crate::packet::consts::{
-    IDRP_DISCRIMINATOR, LspFlags, PduType, SYSTEM_ID_LEN, TlvType, VERSION,
-    VERSION_PROTO_EXT,
+    IDRP_DISCRIMINATOR, LspFlags, MtId, PduType, SYSTEM_ID_LEN, TlvType,
+    VERSION, VERSION_PROTO_EXT,
 };
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::subtlvs::capability::{SrAlgoStlv, SrCapabilitiesStlv};
@@ -32,9 +32,9 @@ use crate::packet::tlv::{
     ExtIpv4ReachTlv, ExtIsReach, ExtIsReachTlv, Ipv4AddressesTlv, Ipv4Reach,
     Ipv4ReachTlv, Ipv4RouterIdTlv, Ipv6AddressesTlv, Ipv6Reach, Ipv6ReachTlv,
     Ipv6RouterIdTlv, IsReach, IsReachTlv, LspBufferSizeTlv, LspEntriesTlv,
-    LspEntry, NeighborsTlv, PaddingTlv, ProtocolsSupportedTlv, RouterCapTlv,
-    TLV_HDR_SIZE, TLV_MAX_LEN, Tlv, UnknownTlv, tlv_entries_split,
-    tlv_take_max,
+    LspEntry, MultiTopologyEntry, MultiTopologyTlv, NeighborsTlv, PaddingTlv,
+    ProtocolsSupportedTlv, RouterCapTlv, TLV_HDR_SIZE, TLV_MAX_LEN, Tlv,
+    UnknownTlv, tlv_entries_split, tlv_take_max,
 };
 use crate::packet::{
     AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId, auth,
@@ -85,6 +85,7 @@ pub enum HelloVariant {
 pub struct HelloTlvs {
     pub protocols_supported: Option<ProtocolsSupportedTlv>,
     pub area_addrs: Vec<AreaAddressesTlv>,
+    pub multi_topology: Vec<MultiTopologyTlv>,
     pub neighbors: Vec<NeighborsTlv>,
     pub ipv4_addrs: Vec<Ipv4AddressesTlv>,
     pub ipv6_addrs: Vec<Ipv6AddressesTlv>,
@@ -128,17 +129,21 @@ pub struct LspTlvs {
     pub protocols_supported: Option<ProtocolsSupportedTlv>,
     pub router_cap: Vec<RouterCapTlv>,
     pub area_addrs: Vec<AreaAddressesTlv>,
+    pub multi_topology: Vec<MultiTopologyTlv>,
     pub hostname: Option<DynamicHostnameTlv>,
     pub lsp_buf_size: Option<LspBufferSizeTlv>,
     pub is_reach: Vec<IsReachTlv>,
     pub ext_is_reach: Vec<ExtIsReachTlv>,
+    pub mt_is_reach: Vec<ExtIsReachTlv>,
     pub ipv4_addrs: Vec<Ipv4AddressesTlv>,
     pub ipv4_internal_reach: Vec<Ipv4ReachTlv>,
     pub ipv4_external_reach: Vec<Ipv4ReachTlv>,
     pub ext_ipv4_reach: Vec<ExtIpv4ReachTlv>,
+    pub mt_ipv4_reach: Vec<ExtIpv4ReachTlv>,
     pub ipv4_router_id: Option<Ipv4RouterIdTlv>,
     pub ipv6_addrs: Vec<Ipv6AddressesTlv>,
     pub ipv6_reach: Vec<Ipv6ReachTlv>,
+    pub mt_ipv6_reach: Vec<Ipv6ReachTlv>,
     pub ipv6_router_id: Option<Ipv6RouterIdTlv>,
     pub unknown: Vec<UnknownTlv>,
 }
@@ -523,6 +528,12 @@ impl Hello {
                         Err(error) => error.log(),
                     }
                 }
+                Some(TlvType::MultiTopology) => {
+                    match MultiTopologyTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.multi_topology.push(tlv),
+                        Err(error) => error.log(),
+                    }
+                }
                 Some(TlvType::Neighbors)
                     if hdr.pdu_type != PduType::HelloP2P =>
                 {
@@ -631,6 +642,9 @@ impl Hello {
             for tlv in &self.tlvs.area_addrs {
                 tlv.encode(&mut buf);
             }
+            for tlv in &self.tlvs.multi_topology {
+                tlv.encode(&mut buf);
+            }
             for tlv in &self.tlvs.neighbors {
                 tlv.encode(&mut buf);
             }
@@ -655,6 +669,9 @@ impl Hello {
             total_tlv_len += tlv.len();
         }
         for tlv in &self.tlvs.area_addrs {
+            total_tlv_len += tlv.len();
+        }
+        for tlv in &self.tlvs.multi_topology {
             total_tlv_len += tlv.len();
         }
         for tlv in &self.tlvs.neighbors {
@@ -688,6 +705,7 @@ impl HelloTlvs {
     pub(crate) fn new(
         protocols_supported: impl IntoIterator<Item = u8>,
         area_addrs: impl IntoIterator<Item = AreaAddr>,
+        multi_topology: impl IntoIterator<Item = MultiTopologyEntry>,
         neighbors: impl IntoIterator<Item = [u8; 6]>,
         ipv4_addrs: impl IntoIterator<Item = Ipv4Addr>,
         ipv6_addrs: impl IntoIterator<Item = Ipv6Addr>,
@@ -697,6 +715,7 @@ impl HelloTlvs {
                 protocols_supported,
             )),
             area_addrs: tlv_entries_split(area_addrs),
+            multi_topology: tlv_entries_split(multi_topology),
             neighbors: tlv_entries_split(neighbors),
             ipv4_addrs: tlv_entries_split(ipv4_addrs),
             ipv6_addrs: tlv_entries_split(ipv6_addrs),
@@ -708,6 +727,15 @@ impl HelloTlvs {
     // Returns an iterator over all area addresses from TLVs of type 1.
     pub(crate) fn area_addrs(&self) -> impl Iterator<Item = &AreaAddr> {
         self.area_addrs.iter().flat_map(|tlv| tlv.list.iter())
+    }
+
+    // Returns an iterator over all multi-topology entries from TLVs of type
+    // 229.
+    #[expect(unused)]
+    pub(crate) fn multi_topology(
+        &self,
+    ) -> impl Iterator<Item = &MultiTopologyEntry> {
+        self.multi_topology.iter().flat_map(|tlv| tlv.list.iter())
     }
 
     // Returns an iterator over all IS neighbors from TLVs of type 6.
@@ -817,6 +845,12 @@ impl Lsp {
                         Err(error) => error.log(),
                     }
                 }
+                Some(TlvType::MultiTopology) => {
+                    match MultiTopologyTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.multi_topology.push(tlv),
+                        Err(error) => error.log(),
+                    }
+                }
                 Some(TlvType::Authentication) => {
                     if tlv_auth.is_some() {
                         continue;
@@ -845,8 +879,14 @@ impl Lsp {
                     }
                 }
                 Some(TlvType::ExtIsReach) => {
-                    match ExtIsReachTlv::decode(tlv_len, &mut buf_tlv) {
+                    match ExtIsReachTlv::decode(false, tlv_len, &mut buf_tlv) {
                         Ok(tlv) => tlvs.ext_is_reach.push(tlv),
+                        Err(error) => error.log(),
+                    }
+                }
+                Some(TlvType::MtIsReach) => {
+                    match ExtIsReachTlv::decode(true, tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.mt_is_reach.push(tlv),
                         Err(error) => error.log(),
                     }
                 }
@@ -878,8 +918,15 @@ impl Lsp {
                     }
                 }
                 Some(TlvType::ExtIpv4Reach) => {
-                    match ExtIpv4ReachTlv::decode(tlv_len, &mut buf_tlv) {
+                    match ExtIpv4ReachTlv::decode(false, tlv_len, &mut buf_tlv)
+                    {
                         Ok(tlv) => tlvs.ext_ipv4_reach.push(tlv),
+                        Err(error) => error.log(),
+                    }
+                }
+                Some(TlvType::MtIpv4Reach) => {
+                    match ExtIpv4ReachTlv::decode(true, tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.mt_ipv4_reach.push(tlv),
                         Err(error) => error.log(),
                     }
                 }
@@ -899,8 +946,14 @@ impl Lsp {
                     }
                 }
                 Some(TlvType::Ipv6Reach) => {
-                    match Ipv6ReachTlv::decode(tlv_len, &mut buf_tlv) {
+                    match Ipv6ReachTlv::decode(false, tlv_len, &mut buf_tlv) {
                         Ok(tlv) => tlvs.ipv6_reach.push(tlv),
+                        Err(error) => error.log(),
+                    }
+                }
+                Some(TlvType::MtIpv6Reach) => {
+                    match Ipv6ReachTlv::decode(true, tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.mt_ipv6_reach.push(tlv),
                         Err(error) => error.log(),
                     }
                 }
@@ -980,6 +1033,9 @@ impl Lsp {
             for tlv in &self.tlvs.area_addrs {
                 tlv.encode(&mut buf);
             }
+            for tlv in &self.tlvs.multi_topology {
+                tlv.encode(&mut buf);
+            }
             if let Some(tlv) = &self.tlvs.hostname {
                 tlv.encode(&mut buf);
             }
@@ -990,6 +1046,9 @@ impl Lsp {
                 tlv.encode(&mut buf);
             }
             for tlv in &self.tlvs.ext_is_reach {
+                tlv.encode(&mut buf);
+            }
+            for tlv in &self.tlvs.mt_is_reach {
                 tlv.encode(&mut buf);
             }
             for tlv in &self.tlvs.ipv4_addrs {
@@ -1004,6 +1063,9 @@ impl Lsp {
             for tlv in &self.tlvs.ext_ipv4_reach {
                 tlv.encode(&mut buf);
             }
+            for tlv in &self.tlvs.mt_ipv4_reach {
+                tlv.encode(&mut buf);
+            }
             if let Some(tlv) = &self.tlvs.ipv4_router_id {
                 tlv.encode(&mut buf);
             }
@@ -1011,6 +1073,9 @@ impl Lsp {
                 tlv.encode(&mut buf);
             }
             for tlv in &self.tlvs.ipv6_reach {
+                tlv.encode(&mut buf);
+            }
+            for tlv in &self.tlvs.mt_ipv6_reach {
                 tlv.encode(&mut buf);
             }
             if let Some(tlv) = &self.tlvs.ipv6_router_id {
@@ -1122,17 +1187,21 @@ impl LspTlvs {
         protocols_supported: impl IntoIterator<Item = u8>,
         router_cap: Vec<RouterCapTlv>,
         area_addrs: impl IntoIterator<Item = AreaAddr>,
+        multi_topology: impl IntoIterator<Item = MultiTopologyEntry>,
         hostname: Option<String>,
         lsp_buf_size: Option<u16>,
         is_reach: impl IntoIterator<Item = IsReach>,
         ext_is_reach: impl IntoIterator<Item = ExtIsReach>,
+        mt_is_reach: impl IntoIterator<Item = ExtIsReach>,
         ipv4_addrs: impl IntoIterator<Item = Ipv4Addr>,
         ipv4_internal_reach: impl IntoIterator<Item = Ipv4Reach>,
         ipv4_external_reach: impl IntoIterator<Item = Ipv4Reach>,
         ext_ipv4_reach: impl IntoIterator<Item = ExtIpv4Reach>,
+        mt_ipv4_reach: impl IntoIterator<Item = ExtIpv4Reach>,
         ipv4_router_id: Option<Ipv4Addr>,
         ipv6_addrs: impl IntoIterator<Item = Ipv6Addr>,
         ipv6_reach: impl IntoIterator<Item = Ipv6Reach>,
+        mt_ipv6_reach: impl IntoIterator<Item = Ipv6Reach>,
         ipv6_router_id: Option<Ipv6Addr>,
     ) -> Self {
         LspTlvs {
@@ -1142,17 +1211,27 @@ impl LspTlvs {
             )),
             router_cap,
             area_addrs: tlv_entries_split(area_addrs),
+            multi_topology: tlv_entries_split(multi_topology),
             hostname: hostname.map(|hostname| DynamicHostnameTlv { hostname }),
             lsp_buf_size: lsp_buf_size.map(|size| LspBufferSizeTlv { size }),
             is_reach: tlv_entries_split(is_reach),
             ext_is_reach: tlv_entries_split(ext_is_reach),
+            mt_is_reach: tlv_entries_split(mt_is_reach),
             ipv4_addrs: tlv_entries_split(ipv4_addrs),
             ipv4_internal_reach: tlv_entries_split(ipv4_internal_reach),
             ipv4_external_reach: tlv_entries_split(ipv4_external_reach),
             ext_ipv4_reach: tlv_entries_split(ext_ipv4_reach),
+            mt_ipv4_reach: tlv_entries_split(mt_ipv4_reach),
             ipv4_router_id: ipv4_router_id.map(Ipv4RouterIdTlv::new),
             ipv6_addrs: tlv_entries_split(ipv6_addrs),
             ipv6_reach: tlv_entries_split(ipv6_reach),
+            mt_ipv6_reach: tlv_entries_split(mt_ipv6_reach)
+                .into_iter()
+                .map(|mut tlv: Ipv6ReachTlv| {
+                    tlv.mt_id = Some(MtId::Ipv6Unicast as u16);
+                    tlv
+                })
+                .collect(),
             ipv6_router_id: ipv6_router_id.map(Ipv6RouterIdTlv::new),
             unknown: Default::default(),
         }
@@ -1166,6 +1245,8 @@ impl LspTlvs {
         }
         let router_cap = tlv_take_max(&mut self.router_cap, &mut rem_len);
         let area_addrs = tlv_take_max(&mut self.area_addrs, &mut rem_len);
+        let multi_topology =
+            tlv_take_max(&mut self.multi_topology, &mut rem_len);
         let hostname = self.hostname.take();
         if let Some(hostname) = &hostname {
             rem_len -= hostname.len();
@@ -1184,6 +1265,7 @@ impl LspTlvs {
         }
         let is_reach = tlv_take_max(&mut self.is_reach, &mut rem_len);
         let ext_is_reach = tlv_take_max(&mut self.ext_is_reach, &mut rem_len);
+        let mt_is_reach = tlv_take_max(&mut self.mt_is_reach, &mut rem_len);
         let ipv4_addrs = tlv_take_max(&mut self.ipv4_addrs, &mut rem_len);
         let ipv4_internal_reach =
             tlv_take_max(&mut self.ipv4_internal_reach, &mut rem_len);
@@ -1191,8 +1273,10 @@ impl LspTlvs {
             tlv_take_max(&mut self.ipv4_external_reach, &mut rem_len);
         let ext_ipv4_reach =
             tlv_take_max(&mut self.ext_ipv4_reach, &mut rem_len);
+        let mt_ipv4_reach = tlv_take_max(&mut self.mt_ipv4_reach, &mut rem_len);
         let ipv6_addrs = tlv_take_max(&mut self.ipv6_addrs, &mut rem_len);
         let ipv6_reach = tlv_take_max(&mut self.ipv6_reach, &mut rem_len);
+        let mt_ipv6_reach = tlv_take_max(&mut self.mt_ipv6_reach, &mut rem_len);
         if rem_len == max_len {
             return None;
         }
@@ -1202,17 +1286,21 @@ impl LspTlvs {
             protocols_supported,
             router_cap,
             area_addrs,
+            multi_topology,
             hostname,
             lsp_buf_size,
             is_reach,
             ext_is_reach,
+            mt_is_reach,
             ipv4_addrs,
             ipv4_internal_reach,
             ipv4_external_reach,
             ext_ipv4_reach,
+            mt_ipv4_reach,
             ipv4_router_id,
             ipv6_addrs,
             ipv6_reach,
+            mt_ipv6_reach,
             ipv6_router_id,
             unknown: Default::default(),
         })
@@ -1229,6 +1317,14 @@ impl LspTlvs {
     // Returns an iterator over all area addresses from TLVs of type 1.
     pub(crate) fn area_addrs(&self) -> impl Iterator<Item = &AreaAddr> {
         self.area_addrs.iter().flat_map(|tlv| tlv.list.iter())
+    }
+
+    // Returns an iterator over all multi-topology entries from TLVs of type
+    // 229.
+    pub(crate) fn multi_topology(
+        &self,
+    ) -> impl Iterator<Item = &MultiTopologyEntry> {
+        self.multi_topology.iter().flat_map(|tlv| tlv.list.iter())
     }
 
     // Returns the dynamic hostname (TLV type 137).
@@ -1249,6 +1345,15 @@ impl LspTlvs {
     // Returns an iterator over all IS neighbors from TLVs of type 22.
     pub(crate) fn ext_is_reach(&self) -> impl Iterator<Item = &ExtIsReach> {
         self.ext_is_reach.iter().flat_map(|tlv| tlv.list.iter())
+    }
+
+    // Returns an iterator over all IS neighbors from TLVs of type 222.
+    pub(crate) fn mt_is_reach(
+        &self,
+    ) -> impl Iterator<Item = (u16, &ExtIsReach)> {
+        self.mt_is_reach.iter().flat_map(|tlv| {
+            tlv.list.iter().map(|reach| (tlv.mt_id.unwrap(), reach))
+        })
     }
 
     // Returns an iterator over all IPv4 addresses from TLVs of type 132.
@@ -1282,6 +1387,16 @@ impl LspTlvs {
         self.ext_ipv4_reach.iter().flat_map(|tlv| tlv.list.iter())
     }
 
+    // Returns an iterator over all IPv4 reachability entries from TLVs of
+    // type 235.
+    pub(crate) fn mt_ipv4_reach(
+        &self,
+    ) -> impl Iterator<Item = (u16, &ExtIpv4Reach)> {
+        self.mt_ipv4_reach.iter().flat_map(|tlv| {
+            tlv.list.iter().map(|reach| (tlv.mt_id.unwrap(), reach))
+        })
+    }
+
     // Returns an iterator over all IPv6 addresses from TLVs of type 232.
     pub(crate) fn ipv6_addrs(&self) -> impl Iterator<Item = &Ipv6Addr> {
         self.ipv6_addrs.iter().flat_map(|tlv| tlv.list.iter())
@@ -1291,6 +1406,16 @@ impl LspTlvs {
     // type 236.
     pub(crate) fn ipv6_reach(&self) -> impl Iterator<Item = &Ipv6Reach> {
         self.ipv6_reach.iter().flat_map(|tlv| tlv.list.iter())
+    }
+
+    // Returns an iterator over all IPv6 reachability entries from TLVs of
+    // type 237.
+    pub(crate) fn mt_ipv6_reach(
+        &self,
+    ) -> impl Iterator<Item = (u16, &Ipv6Reach)> {
+        self.mt_ipv6_reach.iter().flat_map(|tlv| {
+            tlv.list.iter().map(|reach| (tlv.mt_id.unwrap(), reach))
+        })
     }
 
     // Returns the first SR-Capabilities Sub-TLV found within any Router

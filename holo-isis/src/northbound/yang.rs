@@ -23,7 +23,7 @@ use crate::packet::consts::LspFlags;
 use crate::packet::subtlvs::capability::SrCapabilitiesFlags;
 use crate::packet::subtlvs::neighbor::AdjSidFlags;
 use crate::packet::subtlvs::prefix::PrefixSidFlags;
-use crate::packet::tlv::RouterCapFlags;
+use crate::packet::tlv::{MtFlags, RouterCapFlags};
 use crate::packet::{AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId};
 use crate::spf;
 use crate::spf::SpfType;
@@ -129,6 +129,21 @@ impl ToYangBits for RouterCapFlags {
         }
         if self.contains(RouterCapFlags::D) {
             flags.push("ietf-isis:router-capability-down-flag");
+        }
+
+        flags
+    }
+}
+
+impl ToYangBits for MtFlags {
+    fn to_yang_bits(&self) -> Vec<&'static str> {
+        let mut flags = vec![];
+
+        if self.contains(MtFlags::OL) {
+            flags.push("ietf-isis:tlv229-overload-flag");
+        }
+        if self.contains(MtFlags::ATT) {
+            flags.push("ietf-isis:tlv229-attached-flag");
         }
 
         flags

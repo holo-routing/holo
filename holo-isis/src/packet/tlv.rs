@@ -46,6 +46,10 @@ pub const TLV_HDR_SIZE: usize = 2;
 pub const TLV_MAX_LEN: usize = 255;
 // Maximum narrow metric.
 pub const MAX_NARROW_METRIC: u32 = 63;
+// Multi-Topology flags mask.
+pub const MT_FLAGS_MASK: u16 = 0xf000;
+// Multi-Topology ID mask.
+pub const MT_ID_MASK: u16 = 0x0fff;
 
 // Network Layer Protocol IDs.
 pub enum Nlpid {
@@ -114,6 +118,28 @@ pub struct AreaAddressesTlv {
     pub list: Vec<AreaAddr>,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct MultiTopologyTlv {
+    pub list: Vec<MultiTopologyEntry>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct MultiTopologyEntry {
+    pub flags: MtFlags,
+    pub mt_id: u16,
+}
+
+bitflags! {
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+    #[derive(Deserialize, Serialize)]
+    #[serde(transparent)]
+    pub struct MtFlags: u16 {
+        const OL = 0x8000;
+        const ATT = 0x4000;
+    }
+}
 #[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct NeighborsTlv {
@@ -204,8 +230,12 @@ pub struct IsReach {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct ExtIsReachTlv {
+    pub mt_id: Option<u16>,
     pub list: Vec<ExtIsReach>,
 }
 
@@ -257,8 +287,12 @@ pub struct Ipv4Reach {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct ExtIpv4ReachTlv {
+    pub mt_id: Option<u16>,
     pub list: Vec<ExtIpv4Reach>,
 }
 
@@ -287,8 +321,12 @@ pub struct Ipv4ReachStlvs {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct Ipv6ReachTlv {
+    pub mt_id: Option<u16>,
     pub list: Vec<Ipv6Reach>,
 }
 
@@ -436,6 +474,69 @@ where
 {
     fn from(iter: I) -> AreaAddressesTlv {
         AreaAddressesTlv {
+            list: iter.into_iter().collect(),
+        }
+    }
+}
+
+// ===== impl MultiTopologyTlv =====
+
+impl MultiTopologyTlv {
+    pub const ENTRY_SIZE: usize = 2;
+
+    pub(crate) fn decode(
+        tlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
+        let mut list = vec![];
+
+        // Validate the TLV length.
+        if tlv_len as usize % Self::ENTRY_SIZE != 0 {
+            return Err(TlvDecodeError::InvalidLength(tlv_len));
+        }
+
+        while buf.remaining() >= Self::ENTRY_SIZE {
+            // Parse MT component.
+            let mt_component = buf.try_get_u16()?;
+            let flags =
+                MtFlags::from_bits_truncate(mt_component & MT_FLAGS_MASK);
+            let mt_id = mt_component & MT_ID_MASK;
+
+            let entry = MultiTopologyEntry { flags, mt_id };
+            list.push(entry);
+        }
+
+        Ok(MultiTopologyTlv { list })
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, TlvType::MultiTopology);
+        for entry in &self.list {
+            let mt_component = entry.flags.bits() | entry.mt_id;
+            buf.put_u16(mt_component);
+        }
+        tlv_encode_end(buf, start_pos);
+    }
+}
+
+impl EntryBasedTlv for MultiTopologyTlv {
+    type Entry = MultiTopologyEntry;
+
+    fn entries(&self) -> impl Iterator<Item = &MultiTopologyEntry> {
+        self.list.iter()
+    }
+
+    fn entry_len(_entry: &MultiTopologyEntry) -> usize {
+        Self::ENTRY_SIZE
+    }
+}
+
+impl<I> From<I> for MultiTopologyTlv
+where
+    I: IntoIterator<Item = MultiTopologyEntry>,
+{
+    fn from(iter: I) -> MultiTopologyTlv {
+        MultiTopologyTlv {
             list: iter.into_iter().collect(),
         }
     }
@@ -968,6 +1069,7 @@ impl ExtIsReachTlv {
     const ENTRY_MIN_SIZE: usize = 11;
 
     pub(crate) fn decode(
+        multi_topology: bool,
         _tlv_len: u8,
         buf: &mut Bytes,
     ) -> TlvDecodeResult<Self> {
@@ -977,7 +1079,14 @@ impl ExtIsReachTlv {
             TeDefaultMetricStlv, UnreservedBwStlv,
         };
 
+        let mut mt_id = None;
         let mut list = vec![];
+
+        // Parse MT membership.
+        if multi_topology {
+            let mt_field = buf.try_get_u16()?;
+            mt_id = Some(mt_field & MT_ID_MASK);
+        }
 
         while buf.remaining() >= Self::ENTRY_MIN_SIZE {
             let neighbor = LanId::decode(buf)?;
@@ -1100,11 +1209,22 @@ impl ExtIsReachTlv {
             });
         }
 
-        Ok(ExtIsReachTlv { list })
+        Ok(ExtIsReachTlv { mt_id, list })
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
-        let start_pos = tlv_encode_start(buf, TlvType::ExtIsReach);
+        let tlv_type = if self.mt_id.is_some() {
+            TlvType::MtIsReach
+        } else {
+            TlvType::ExtIsReach
+        };
+        let start_pos = tlv_encode_start(buf, tlv_type);
+
+        // Encode MT membership.
+        if let Some(mt_id) = self.mt_id {
+            buf.put_u16(mt_id);
+        }
+
         for entry in &self.list {
             // Encode neighbor ID.
             entry.neighbor.encode(buf);
@@ -1162,6 +1282,7 @@ where
 {
     fn from(iter: I) -> ExtIsReachTlv {
         ExtIsReachTlv {
+            mt_id: None,
             list: iter.into_iter().collect(),
         }
     }
@@ -1331,10 +1452,18 @@ impl ExtIpv4ReachTlv {
     const CONTROL_PLEN_MASK: u8 = 0x3F;
 
     pub(crate) fn decode(
+        multi_topology: bool,
         _tlv_len: u8,
         buf: &mut Bytes,
     ) -> TlvDecodeResult<Self> {
+        let mut mt_id = None;
         let mut list = vec![];
+
+        // Parse MT membership.
+        if multi_topology {
+            let mt_field = buf.try_get_u16()?;
+            mt_id = Some(mt_field & MT_ID_MASK);
+        }
 
         while buf.remaining() >= Self::ENTRY_MIN_SIZE {
             // Parse metric.
@@ -1448,11 +1577,22 @@ impl ExtIpv4ReachTlv {
             });
         }
 
-        Ok(ExtIpv4ReachTlv { list })
+        Ok(ExtIpv4ReachTlv { mt_id, list })
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
-        let start_pos = tlv_encode_start(buf, TlvType::ExtIpv4Reach);
+        let tlv_type = if self.mt_id.is_some() {
+            TlvType::MtIpv4Reach
+        } else {
+            TlvType::ExtIpv4Reach
+        };
+        let start_pos = tlv_encode_start(buf, tlv_type);
+
+        // Encode MT membership.
+        if let Some(mt_id) = self.mt_id {
+            buf.put_u16(mt_id);
+        }
+
         for entry in &self.list {
             // Encode metric.
             buf.put_u32(entry.metric);
@@ -1521,6 +1661,7 @@ where
 {
     fn from(iter: I) -> ExtIpv4ReachTlv {
         ExtIpv4ReachTlv {
+            mt_id: None,
             list: iter.into_iter().collect(),
         }
     }
@@ -1605,10 +1746,18 @@ impl Ipv6ReachTlv {
     const FLAG_SUBTLVS: u8 = 0x20;
 
     pub(crate) fn decode(
+        multi_topology: bool,
         _tlv_len: u8,
         buf: &mut Bytes,
     ) -> TlvDecodeResult<Self> {
+        let mut mt_id = None;
         let mut list = vec![];
+
+        // Parse MT membership.
+        if multi_topology {
+            let mt_field = buf.try_get_u16()?;
+            mt_id = Some(mt_field & MT_ID_MASK);
+        }
 
         while buf.remaining() >= Self::ENTRY_MIN_SIZE {
             // Parse metric.
@@ -1733,11 +1882,22 @@ impl Ipv6ReachTlv {
             });
         }
 
-        Ok(Ipv6ReachTlv { list })
+        Ok(Ipv6ReachTlv { mt_id, list })
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
-        let start_pos = tlv_encode_start(buf, TlvType::Ipv6Reach);
+        let tlv_type = if self.mt_id.is_some() {
+            TlvType::MtIpv6Reach
+        } else {
+            TlvType::Ipv6Reach
+        };
+        let start_pos = tlv_encode_start(buf, tlv_type);
+
+        // Encode MT membership.
+        if let Some(mt_id) = self.mt_id {
+            buf.put_u16(mt_id);
+        }
+
         for entry in &self.list {
             // Encode metric.
             buf.put_u32(entry.metric);
@@ -1820,6 +1980,7 @@ where
 {
     fn from(iter: I) -> Ipv6ReachTlv {
         Ipv6ReachTlv {
+            mt_id: None,
             list: iter.into_iter().collect(),
         }
     }

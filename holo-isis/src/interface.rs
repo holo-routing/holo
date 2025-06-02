@@ -565,6 +565,7 @@ impl Interface {
             HelloTlvs::new(
                 protocols_supported,
                 area_addrs,
+                [],
                 neighbors,
                 ipv4_addrs,
                 ipv6_addrs,

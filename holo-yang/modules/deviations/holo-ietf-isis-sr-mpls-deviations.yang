@@ -30,18 +30,6 @@ module holo-ietf-isis-sr-mpls-deviations {
     deviate not-supported;
   }
 
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis-sr-mpls:adj-sid-sub-tlvs" {
-    deviate not-supported;
-  }
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-extended-ipv4-reachability/isis:prefixes/isis-sr-mpls:prefix-sid-sub-tlvs" {
-    deviate not-supported;
-  }
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-ipv6-reachability/isis:prefixes/isis-sr-mpls:prefix-sid-sub-tlvs" {
-    deviate not-supported;
-  }
-
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis-sr-mpls:sid-binding-tlvs" {
     deviate not-supported;
   }

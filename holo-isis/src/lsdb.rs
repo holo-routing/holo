@@ -32,8 +32,8 @@ use crate::instance::{InstanceArenas, InstanceUpView};
 use crate::interface::{Interface, InterfaceType};
 use crate::northbound::configuration::MetricType;
 use crate::northbound::notification;
-use crate::packet::consts::LspFlags;
-use crate::packet::pdu::{Lsp, LspTlvs, Pdu};
+use crate::packet::consts::Nlpid;
+use crate::packet::pdu::{Lsp, LspFlags, LspTlvs, Pdu};
 use crate::packet::subtlvs::capability::{
     LabelBlockEntry, SrAlgoStlv, SrCapabilitiesFlags, SrCapabilitiesStlv,
     SrLocalBlockStlv,
@@ -44,9 +44,9 @@ use crate::packet::subtlvs::prefix::{
     PrefixSidStlv,
 };
 use crate::packet::tlv::{
-    ExtIpv4Reach, ExtIsReach, ExtIsReachStlvs, IpReachTlvEntry, Ipv4Reach,
-    Ipv4ReachStlvs, Ipv6Reach, Ipv6ReachStlvs, IsReach, MAX_NARROW_METRIC,
-    Nlpid, RouterCapFlags, RouterCapTlv,
+    IpReachTlvEntry, Ipv4Reach, Ipv4ReachStlvs, Ipv6Reach, Ipv6ReachStlvs,
+    IsReach, IsReachStlvs, LegacyIpv4Reach, LegacyIsReach, MAX_NARROW_METRIC,
+    RouterCapFlags, RouterCapTlv,
 };
 use crate::packet::{LanId, LevelNumber, LevelType, LspId};
 use crate::spf::{SpfType, VertexId};
@@ -340,7 +340,7 @@ fn lsp_build_tlvs_pseudo(
         .chain(std::iter::once(LanId::from((system_id, 0))))
     {
         if metric_type.is_standard_enabled() {
-            is_reach.push(IsReach {
+            is_reach.push(LegacyIsReach {
                 metric: 0,
                 metric_delay: None,
                 metric_expense: None,
@@ -349,7 +349,7 @@ fn lsp_build_tlvs_pseudo(
             });
         }
         if metric_type.is_wide_enabled() {
-            ext_is_reach.push(ExtIsReach {
+            ext_is_reach.push(IsReach {
                 neighbor,
                 metric: 0,
                 sub_tlvs: Default::default(),
@@ -429,8 +429,8 @@ fn lsp_build_tlvs_is_reach(
     iface: &Interface,
     level: LevelNumber,
     metric_type: MetricType,
-    is_reach: &mut Vec<IsReach>,
-    ext_is_reach: &mut Vec<ExtIsReach>,
+    is_reach: &mut Vec<LegacyIsReach>,
+    ext_is_reach: &mut Vec<IsReach>,
     adjacencies: &Arena<Adjacency>,
 ) {
     let metric = iface.config.metric.get(level);
@@ -439,7 +439,7 @@ fn lsp_build_tlvs_is_reach(
         InterfaceType::Broadcast => {
             if let Some(dis) = iface.state.dis.get(level) {
                 if metric_type.is_standard_enabled() {
-                    is_reach.push(IsReach {
+                    is_reach.push(LegacyIsReach {
                         metric: std::cmp::min(metric, MAX_NARROW_METRIC) as u8,
                         metric_delay: None,
                         metric_expense: None,
@@ -454,7 +454,7 @@ fn lsp_build_tlvs_is_reach(
                         level,
                         adjacencies,
                     );
-                    ext_is_reach.push(ExtIsReach {
+                    ext_is_reach.push(IsReach {
                         neighbor: dis.lan_id,
                         metric,
                         sub_tlvs,
@@ -472,7 +472,7 @@ fn lsp_build_tlvs_is_reach(
             {
                 let neighbor = LanId::from((adj.system_id, 0));
                 if metric_type.is_standard_enabled() {
-                    is_reach.push(IsReach {
+                    is_reach.push(LegacyIsReach {
                         metric: std::cmp::min(metric, MAX_NARROW_METRIC) as u8,
                         metric_delay: None,
                         metric_expense: None,
@@ -482,7 +482,7 @@ fn lsp_build_tlvs_is_reach(
                 }
                 if metric_type.is_wide_enabled() {
                     let sub_tlvs = lsp_build_is_reach_p2p_stlvs(instance, adj);
-                    ext_is_reach.push(ExtIsReach {
+                    ext_is_reach.push(IsReach {
                         neighbor,
                         metric,
                         sub_tlvs,
@@ -498,8 +498,8 @@ fn lsp_build_tlvs_ip_local(
     iface: &Interface,
     level: LevelNumber,
     ipv4_addrs: &mut BTreeSet<Ipv4Addr>,
-    ipv4_internal_reach: &mut BTreeMap<Ipv4Network, Ipv4Reach>,
-    ext_ipv4_reach: &mut BTreeMap<Ipv4Network, ExtIpv4Reach>,
+    ipv4_internal_reach: &mut BTreeMap<Ipv4Network, LegacyIpv4Reach>,
+    ext_ipv4_reach: &mut BTreeMap<Ipv4Network, Ipv4Reach>,
     ipv6_addrs: &mut BTreeSet<Ipv6Addr>,
     ipv6_reach: &mut BTreeMap<Ipv6Network, Ipv6Reach>,
 ) {
@@ -518,7 +518,7 @@ fn lsp_build_tlvs_ip_local(
             if metric_type.is_standard_enabled() {
                 ipv4_internal_reach.insert(
                     prefix,
-                    Ipv4Reach {
+                    LegacyIpv4Reach {
                         up_down: false,
                         ie_bit: false,
                         metric: std::cmp::min(metric, MAX_NARROW_METRIC) as u8,
@@ -542,7 +542,7 @@ fn lsp_build_tlvs_ip_local(
                 );
                 ext_ipv4_reach.insert(
                     prefix,
-                    ExtIpv4Reach {
+                    Ipv4Reach {
                         metric,
                         up_down: false,
                         prefix,
@@ -594,8 +594,8 @@ fn lsp_build_tlvs_ip_local(
 fn lsp_build_tlvs_ip_redistributed(
     instance: &mut InstanceUpView<'_>,
     level: LevelNumber,
-    ipv4_external_reach: &mut BTreeMap<Ipv4Network, Ipv4Reach>,
-    ext_ipv4_reach: &mut BTreeMap<Ipv4Network, ExtIpv4Reach>,
+    ipv4_external_reach: &mut BTreeMap<Ipv4Network, LegacyIpv4Reach>,
+    ext_ipv4_reach: &mut BTreeMap<Ipv4Network, Ipv4Reach>,
     ipv6_reach: &mut BTreeMap<Ipv6Network, Ipv6Reach>,
 ) {
     if instance.config.is_af_enabled(AddressFamily::Ipv4) {
@@ -605,7 +605,7 @@ fn lsp_build_tlvs_ip_redistributed(
             if metric_type.is_standard_enabled() {
                 ipv4_external_reach.insert(
                     prefix,
-                    Ipv4Reach {
+                    LegacyIpv4Reach {
                         up_down: false,
                         ie_bit: false,
                         metric: std::cmp::min(route.metric, MAX_NARROW_METRIC)
@@ -627,7 +627,7 @@ fn lsp_build_tlvs_ip_redistributed(
                 );
                 ext_ipv4_reach.insert(
                     prefix,
-                    ExtIpv4Reach {
+                    Ipv4Reach {
                         metric: route.metric,
                         up_down: false,
                         prefix,
@@ -666,8 +666,8 @@ fn lsp_build_is_reach_lan_stlvs(
     iface: &Interface,
     level: LevelNumber,
     adjacencies: &Arena<Adjacency>,
-) -> ExtIsReachStlvs {
-    let mut sub_tlvs = ExtIsReachStlvs::default();
+) -> IsReachStlvs {
+    let mut sub_tlvs = IsReachStlvs::default();
 
     // Add Adj-SID Sub-TLV(s).
     if instance.config.sr.enabled {
@@ -687,8 +687,8 @@ fn lsp_build_is_reach_lan_stlvs(
 fn lsp_build_is_reach_p2p_stlvs(
     instance: &InstanceUpView<'_>,
     adj: &Adjacency,
-) -> ExtIsReachStlvs {
-    let mut sub_tlvs = ExtIsReachStlvs::default();
+) -> IsReachStlvs {
+    let mut sub_tlvs = IsReachStlvs::default();
 
     // Add Adj-SID Sub-TLV(s).
     if instance.config.sr.enabled {
@@ -894,9 +894,9 @@ fn lsp_propagate_l1_to_l2(
     instance: &InstanceUpView<'_>,
     arenas: &InstanceArenas,
     l2_router_cap: &mut Vec<RouterCapTlv>,
-    l2_ipv4_internal_reach: &mut BTreeMap<Ipv4Network, Ipv4Reach>,
-    l2_ipv4_external_reach: &mut BTreeMap<Ipv4Network, Ipv4Reach>,
-    l2_ext_ipv4_reach: &mut BTreeMap<Ipv4Network, ExtIpv4Reach>,
+    l2_ipv4_internal_reach: &mut BTreeMap<Ipv4Network, LegacyIpv4Reach>,
+    l2_ipv4_external_reach: &mut BTreeMap<Ipv4Network, LegacyIpv4Reach>,
+    l2_ext_ipv4_reach: &mut BTreeMap<Ipv4Network, Ipv4Reach>,
     l2_ipv6_reach: &mut BTreeMap<Ipv6Network, Ipv6Reach>,
 ) {
     let system_id = instance.config.system_id.unwrap();
@@ -988,7 +988,7 @@ fn lsp_propagate_l1_to_l2(
                     continue;
                 }
                 if metric_type.get(LevelNumber::L2).is_standard_enabled() {
-                    let entry = Ipv4Reach {
+                    let entry = LegacyIpv4Reach {
                         up_down: false,
                         ie_bit: false,
                         metric: std::cmp::min(
@@ -1009,7 +1009,7 @@ fn lsp_propagate_l1_to_l2(
                         PrefixAttrFlags::empty(),
                         false,
                     );
-                    let entry = ExtIpv4Reach {
+                    let entry = Ipv4Reach {
                         up_down: false,
                         metric: summary.metric(),
                         prefix: *prefix,

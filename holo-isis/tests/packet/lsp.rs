@@ -1,4 +1,45 @@
-use super::*;
+//
+// Copyright (c) The Holo Core Contributors
+//
+// SPDX-License-Identifier: MIT
+//
+// Sponsored by NLnet as part of the Next Generation Internet initiative.
+// See: https://nlnet.nl/NGI0
+//
+
+use std::sync::LazyLock as Lazy;
+
+use const_addrs::{ip4, ip6, net4, net6};
+use holo_isis::packet::pdu::{Lsp, LspFlags, LspTlvs, Pdu};
+use holo_isis::packet::subtlvs::capability::{
+    LabelBlockEntry, SrAlgoStlv, SrCapabilitiesFlags, SrCapabilitiesStlv,
+    SrLocalBlockStlv,
+};
+use holo_isis::packet::subtlvs::neighbor::{
+    AdjSidFlags, AdjSidStlv, AdminGroupStlv, Ipv4InterfaceAddrStlv,
+    Ipv4NeighborAddrStlv, MaxLinkBwStlv, MaxResvLinkBwStlv,
+    TeDefaultMetricStlv, UnreservedBwStlv,
+};
+use holo_isis::packet::subtlvs::prefix::{
+    Ipv4SourceRidStlv, Ipv6SourceRidStlv, PrefixAttrFlags, PrefixAttrFlagsStlv,
+    PrefixSidFlags, PrefixSidStlv,
+};
+use holo_isis::packet::tlv::{
+    AreaAddressesTlv, DynamicHostnameTlv, Ipv4AddressesTlv, Ipv4Reach,
+    Ipv4ReachStlvs, Ipv4ReachTlv, Ipv4RouterIdTlv, Ipv6AddressesTlv, Ipv6Reach,
+    Ipv6ReachStlvs, Ipv6ReachTlv, Ipv6RouterIdTlv, IsReach, IsReachStlvs,
+    IsReachTlv, LegacyIpv4Reach, LegacyIpv4ReachTlv, LegacyIsReach,
+    LegacyIsReachTlv, LspBufferSizeTlv, MtFlags, MultiTopologyEntry,
+    MultiTopologyTlv, ProtocolsSupportedTlv, RouterCapFlags, RouterCapStlvs,
+    RouterCapTlv,
+};
+use holo_isis::packet::{AreaAddr, LanId, LevelNumber, LspId, SystemId};
+use holo_utils::keychain::Key;
+use holo_utils::mpls::Label;
+use holo_utils::sr::{IgpAlgoType, Sid};
+use maplit::btreemap;
+
+use super::{KEY_HMAC_MD5, test_decode_pdu, test_encode_pdu};
 
 //
 // Test packets.
@@ -81,14 +122,14 @@ static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 hostname: None,
                 lsp_buf_size: None,
                 is_reach: vec![],
-                ext_is_reach: vec![ExtIsReachTlv {
+                ext_is_reach: vec![IsReachTlv {
                     mt_id: None,
-                    list: vec![ExtIsReach {
+                    list: vec![IsReach {
                         neighbor: LanId::from([
                             0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03,
                         ]),
                         metric: 10,
-                        sub_tlvs: ExtIsReachStlvs {
+                        sub_tlvs: IsReachStlvs {
                             admin_group: Some(AdminGroupStlv::new(0x0f)),
                             ipv4_interface_addr: vec![
                                 Ipv4InterfaceAddrStlv::new(ip4!("10.0.1.1")),
@@ -125,10 +166,10 @@ static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 }],
                 ipv4_internal_reach: vec![],
                 ipv4_external_reach: vec![],
-                ext_ipv4_reach: vec![ExtIpv4ReachTlv {
+                ext_ipv4_reach: vec![Ipv4ReachTlv {
                     mt_id: None,
                     list: vec![
-                        ExtIpv4Reach {
+                        Ipv4Reach {
                             metric: 10,
                             up_down: false,
                             prefix: net4!("10.0.1.0/24"),
@@ -156,7 +197,7 @@ static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                                 ..Default::default()
                             },
                         },
-                        ExtIpv4Reach {
+                        Ipv4Reach {
                             metric: 10,
                             up_down: false,
                             prefix: net4!("1.1.1.1/32"),
@@ -257,9 +298,9 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                     hostname: "holo".to_owned(),
                 }),
                 lsp_buf_size: Some(LspBufferSizeTlv { size: 1492 }),
-                is_reach: vec![IsReachTlv {
+                is_reach: vec![LegacyIsReachTlv {
                     list: vec![
-                        IsReach {
+                        LegacyIsReach {
                             metric: 10,
                             metric_delay: None,
                             metric_expense: None,
@@ -268,7 +309,7 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00,
                             ]),
                         },
-                        IsReach {
+                        LegacyIsReach {
                             metric: 10,
                             metric_delay: None,
                             metric_expense: None,
@@ -284,9 +325,9 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 ipv4_addrs: vec![Ipv4AddressesTlv {
                     list: vec![ip4!("6.6.6.6")],
                 }],
-                ipv4_internal_reach: vec![Ipv4ReachTlv {
+                ipv4_internal_reach: vec![LegacyIpv4ReachTlv {
                     list: vec![
-                        Ipv4Reach {
+                        LegacyIpv4Reach {
                             up_down: false,
                             ie_bit: false,
                             metric: 10,
@@ -295,7 +336,7 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                             metric_error: None,
                             prefix: net4!("10.0.7.0/24"),
                         },
-                        Ipv4Reach {
+                        LegacyIpv4Reach {
                             up_down: false,
                             ie_bit: false,
                             metric: 10,
@@ -304,7 +345,7 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                             metric_error: None,
                             prefix: net4!("10.0.8.0/24"),
                         },
-                        Ipv4Reach {
+                        LegacyIpv4Reach {
                             up_down: false,
                             ie_bit: false,
                             metric: 10,
@@ -315,9 +356,9 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                         },
                     ],
                 }],
-                ipv4_external_reach: vec![Ipv4ReachTlv {
+                ipv4_external_reach: vec![LegacyIpv4ReachTlv {
                     list: vec![
-                        Ipv4Reach {
+                        LegacyIpv4Reach {
                             up_down: false,
                             ie_bit: false,
                             metric: 10,
@@ -326,7 +367,7 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                             metric_error: None,
                             prefix: net4!("172.16.1.0/24"),
                         },
-                        Ipv4Reach {
+                        LegacyIpv4Reach {
                             up_down: false,
                             ie_bit: true,
                             metric: 10,
@@ -384,9 +425,9 @@ static LSP3_HMAC_MD5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 hostname: None,
                 lsp_buf_size: None,
                 is_reach: vec![],
-                ext_is_reach: vec![ExtIsReachTlv {
+                ext_is_reach: vec![IsReachTlv {
                     mt_id: None,
-                    list: vec![ExtIsReach {
+                    list: vec![IsReach {
                         neighbor: LanId::from([
                             0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03,
                         ]),
@@ -400,16 +441,16 @@ static LSP3_HMAC_MD5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 }],
                 ipv4_internal_reach: vec![],
                 ipv4_external_reach: vec![],
-                ext_ipv4_reach: vec![ExtIpv4ReachTlv {
+                ext_ipv4_reach: vec![Ipv4ReachTlv {
                     mt_id: None,
                     list: vec![
-                        ExtIpv4Reach {
+                        Ipv4Reach {
                             metric: 10,
                             up_down: false,
                             prefix: net4!("10.0.1.0/24"),
                             sub_tlvs: Default::default(),
                         },
-                        ExtIpv4Reach {
+                        Ipv4Reach {
                             metric: 10,
                             up_down: false,
                             prefix: net4!("1.1.1.1/32"),
@@ -479,9 +520,9 @@ static LSP4: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 hostname: None,
                 lsp_buf_size: None,
                 is_reach: vec![],
-                ext_is_reach: vec![ExtIsReachTlv {
+                ext_is_reach: vec![IsReachTlv {
                     mt_id: None,
-                    list: vec![ExtIsReach {
+                    list: vec![IsReach {
                         neighbor: LanId::from([
                             0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03,
                         ]),
@@ -489,9 +530,9 @@ static LSP4: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                         sub_tlvs: Default::default(),
                     }],
                 }],
-                mt_is_reach: vec![ExtIsReachTlv {
+                mt_is_reach: vec![IsReachTlv {
                     mt_id: Some(2),
-                    list: vec![ExtIsReach {
+                    list: vec![IsReach {
                         neighbor: LanId::from([
                             0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03,
                         ]),
@@ -504,16 +545,16 @@ static LSP4: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 }],
                 ipv4_internal_reach: vec![],
                 ipv4_external_reach: vec![],
-                ext_ipv4_reach: vec![ExtIpv4ReachTlv {
+                ext_ipv4_reach: vec![Ipv4ReachTlv {
                     mt_id: None,
                     list: vec![
-                        ExtIpv4Reach {
+                        Ipv4Reach {
                             metric: 10,
                             up_down: false,
                             prefix: net4!("10.0.1.0/24"),
                             sub_tlvs: Default::default(),
                         },
-                        ExtIpv4Reach {
+                        Ipv4Reach {
                             metric: 10,
                             up_down: false,
                             prefix: net4!("1.1.1.1/32"),

@@ -35,8 +35,9 @@ use crate::packet::subtlvs::capability::LabelBlockEntry;
 use crate::packet::subtlvs::neighbor::AdjSidStlv;
 use crate::packet::subtlvs::prefix::{PrefixAttrFlags, PrefixSidStlv};
 use crate::packet::tlv::{
-    AuthenticationTlv, ExtIpv4Reach, ExtIsReach, IpReachTlvEntry, Ipv4Reach,
-    Ipv6Reach, IsReach, MultiTopologyEntry, RouterCapTlv, UnknownTlv,
+    AuthenticationTlv, IpReachTlvEntry, Ipv4Reach, Ipv6Reach, IsReach,
+    LegacyIpv4Reach, LegacyIsReach, MultiTopologyEntry, RouterCapTlv,
+    UnknownTlv,
 };
 use crate::packet::{LanId, LevelNumber, LevelType, SystemId};
 use crate::route::{Nexthop, Route};
@@ -60,14 +61,14 @@ pub enum ListEntry<'a> {
     LabelBlockEntry(&'a LabelBlockEntry),
     MultiTopologyEntry(&'a MultiTopologyEntry),
     IsReach(&'a LspEntry, LanId),
-    IsReachInstance(u32, &'a IsReach),
-    ExtIsReach(u32, &'a ExtIsReach),
-    ExtIsReachUnreservedBw(usize, &'a f32),
-    MtIsReach(u16, u32, &'a ExtIsReach),
+    IsReachInstance(u32, &'a LegacyIsReach),
+    ExtIsReach(u32, &'a IsReach),
+    MtIsReach(u16, u32, &'a IsReach),
+    IsReachUnreservedBw(usize, &'a f32),
     AdjSidStlv(&'a AdjSidStlv),
-    Ipv4Reach(&'a Ipv4Reach),
-    ExtIpv4Reach(&'a ExtIpv4Reach),
-    MtIpv4Reach(u16, &'a ExtIpv4Reach),
+    Ipv4Reach(&'a LegacyIpv4Reach),
+    ExtIpv4Reach(&'a Ipv4Reach),
+    MtIpv4Reach(u16, &'a Ipv4Reach),
     Ipv6Reach(&'a Ipv6Reach),
     MtIpv6Reach(u16, &'a Ipv6Reach),
     PrefixSidStlv(&'a PrefixSidStlv),
@@ -532,7 +533,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .get_iterate(|_instance, args| {
             let (_, reach) = args.parent_list_entry.as_ext_is_reach().unwrap();
             if let Some(unreserved_bw) = &reach.sub_tlvs.unreserved_bw {
-                let iter = unreserved_bw.iter().map(|(prio, bw)| ListEntry::ExtIsReachUnreservedBw(prio, bw));
+                let iter = unreserved_bw.iter().map(|(prio, bw)| ListEntry::IsReachUnreservedBw(prio, bw));
                 Some(Box::new(iter))
             } else {
                 None
@@ -540,7 +541,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .get_object(|_instance, args| {
             use isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unreserved_bandwidths::unreserved_bandwidth::UnreservedBandwidth;
-            let (priority, unreserved_bandwidth) = args.list_entry.as_ext_is_reach_unreserved_bw().unwrap();
+            let (priority, unreserved_bandwidth) = args.list_entry.as_is_reach_unreserved_bw().unwrap();
             Box::new(UnreservedBandwidth {
                 priority: Some(*priority as u8),
                 unreserved_bandwidth: Some(unreserved_bandwidth),
@@ -816,7 +817,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .get_iterate(|_instance, args| {
             let (_, _, reach) = args.parent_list_entry.as_mt_is_reach().unwrap();
             if let Some(unreserved_bw) = &reach.sub_tlvs.unreserved_bw {
-                let iter = unreserved_bw.iter().map(|(prio, bw)| ListEntry::ExtIsReachUnreservedBw(prio, bw));
+                let iter = unreserved_bw.iter().map(|(prio, bw)| ListEntry::IsReachUnreservedBw(prio, bw));
                 Some(Box::new(iter))
             } else {
                 None
@@ -824,7 +825,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .get_object(|_instance, args| {
             use isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unreserved_bandwidths::unreserved_bandwidth::UnreservedBandwidth;
-            let (priority, unreserved_bandwidth) = args.list_entry.as_ext_is_reach_unreserved_bw().unwrap();
+            let (priority, unreserved_bandwidth) = args.list_entry.as_is_reach_unreserved_bw().unwrap();
             Box::new(UnreservedBandwidth {
                 priority: Some(*priority as u8),
                 unreserved_bandwidth: Some(unreserved_bandwidth),

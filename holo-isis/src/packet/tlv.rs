@@ -25,8 +25,8 @@ use serde::{Deserialize, Serialize};
 use tracing::debug_span;
 
 use crate::packet::consts::{
-    AuthenticationType, NeighborStlvType, PrefixStlvType, RouterCapStlvType,
-    TlvType,
+    AuthenticationType, NeighborStlvType, Nlpid, PrefixStlvType,
+    RouterCapStlvType, TlvType,
 };
 use crate::packet::error::{TlvDecodeError, TlvDecodeResult};
 #[cfg(feature = "testing")]
@@ -50,12 +50,6 @@ pub const MAX_NARROW_METRIC: u32 = 63;
 pub const MT_FLAGS_MASK: u16 = 0xf000;
 // Multi-Topology ID mask.
 pub const MT_ID_MASK: u16 = 0x0fff;
-
-// Network Layer Protocol IDs.
-pub enum Nlpid {
-    Ipv4 = 0xCC,
-    Ipv6 = 0x8E,
-}
 
 // Trait for all TLVs.
 pub trait Tlv {
@@ -212,8 +206,8 @@ pub struct LspEntry {
 
 #[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
-pub struct IsReachTlv {
-    pub list: Vec<IsReach>,
+pub struct LegacyIsReachTlv {
+    pub list: Vec<LegacyIsReach>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -221,7 +215,7 @@ pub struct IsReachTlv {
     Option => #[serde(default, skip_serializing_if = "Option::is_none")],
 )]
 #[derive(Deserialize, Serialize)]
-pub struct IsReach {
+pub struct LegacyIsReach {
     pub metric: u8,
     pub metric_delay: Option<u8>,
     pub metric_expense: Option<u8>,
@@ -234,17 +228,17 @@ pub struct IsReach {
     Option => #[serde(default, skip_serializing_if = "Option::is_none")],
 )]
 #[derive(Deserialize, Serialize)]
-pub struct ExtIsReachTlv {
+pub struct IsReachTlv {
     pub mt_id: Option<u16>,
-    pub list: Vec<ExtIsReach>,
+    pub list: Vec<IsReach>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
-pub struct ExtIsReach {
+pub struct IsReach {
     pub neighbor: LanId,
     pub metric: u32,
-    pub sub_tlvs: ExtIsReachStlvs,
+    pub sub_tlvs: IsReachStlvs,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -253,7 +247,7 @@ pub struct ExtIsReach {
     Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
 )]
 #[derive(Deserialize, Serialize)]
-pub struct ExtIsReachStlvs {
+pub struct IsReachStlvs {
     pub admin_group: Option<subtlvs::neighbor::AdminGroupStlv>,
     pub ipv4_interface_addr: Vec<subtlvs::neighbor::Ipv4InterfaceAddrStlv>,
     pub ipv4_neighbor_addr: Vec<subtlvs::neighbor::Ipv4NeighborAddrStlv>,
@@ -267,8 +261,8 @@ pub struct ExtIsReachStlvs {
 
 #[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
-pub struct Ipv4ReachTlv {
-    pub list: Vec<Ipv4Reach>,
+pub struct LegacyIpv4ReachTlv {
+    pub list: Vec<LegacyIpv4Reach>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -276,7 +270,7 @@ pub struct Ipv4ReachTlv {
     Option => #[serde(default, skip_serializing_if = "Option::is_none")],
 )]
 #[derive(Deserialize, Serialize)]
-pub struct Ipv4Reach {
+pub struct LegacyIpv4Reach {
     pub up_down: bool,
     pub ie_bit: bool,
     pub metric: u8,
@@ -291,14 +285,14 @@ pub struct Ipv4Reach {
     Option => #[serde(default, skip_serializing_if = "Option::is_none")],
 )]
 #[derive(Deserialize, Serialize)]
-pub struct ExtIpv4ReachTlv {
+pub struct Ipv4ReachTlv {
     pub mt_id: Option<u16>,
-    pub list: Vec<ExtIpv4Reach>,
+    pub list: Vec<Ipv4Reach>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
-pub struct ExtIpv4Reach {
+pub struct Ipv4Reach {
     pub metric: u32,
     pub up_down: bool,
     pub prefix: Ipv4Network,
@@ -978,9 +972,9 @@ where
     }
 }
 
-// ===== impl IsReachTlv =====
+// ===== impl LegacyIsReachTlv =====
 
-impl IsReachTlv {
+impl LegacyIsReachTlv {
     const ENTRY_SIZE: usize = 11;
     const METRIC_S_BIT: u8 = 0x80;
     const METRIC_MASK: u8 = 0x3F;
@@ -1011,7 +1005,7 @@ impl IsReachTlv {
                 .then_some(metric_error & Self::METRIC_MASK);
             let neighbor = LanId::decode(buf)?;
 
-            let entry = IsReach {
+            let entry = LegacyIsReach {
                 metric,
                 metric_delay,
                 metric_expense,
@@ -1021,7 +1015,7 @@ impl IsReachTlv {
             list.push(entry);
         }
 
-        Ok(IsReachTlv { list })
+        Ok(LegacyIsReachTlv { list })
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
@@ -1039,33 +1033,33 @@ impl IsReachTlv {
     }
 }
 
-impl EntryBasedTlv for IsReachTlv {
-    type Entry = IsReach;
+impl EntryBasedTlv for LegacyIsReachTlv {
+    type Entry = LegacyIsReach;
     const FIXED_FIELDS_LEN: usize = 1;
 
-    fn entries(&self) -> impl Iterator<Item = &IsReach> {
+    fn entries(&self) -> impl Iterator<Item = &LegacyIsReach> {
         self.list.iter()
     }
 
-    fn entry_len(_entry: &IsReach) -> usize {
+    fn entry_len(_entry: &LegacyIsReach) -> usize {
         Self::ENTRY_SIZE
     }
 }
 
-impl<I> From<I> for IsReachTlv
+impl<I> From<I> for LegacyIsReachTlv
 where
-    I: IntoIterator<Item = IsReach>,
+    I: IntoIterator<Item = LegacyIsReach>,
 {
-    fn from(iter: I) -> IsReachTlv {
-        IsReachTlv {
+    fn from(iter: I) -> LegacyIsReachTlv {
+        LegacyIsReachTlv {
             list: iter.into_iter().collect(),
         }
     }
 }
 
-// ===== impl ExtIsReachTlv =====
+// ===== impl IsReachTlv =====
 
-impl ExtIsReachTlv {
+impl IsReachTlv {
     const ENTRY_MIN_SIZE: usize = 11;
 
     pub(crate) fn decode(
@@ -1093,7 +1087,7 @@ impl ExtIsReachTlv {
             let metric = buf.try_get_u24()?;
 
             // Parse Sub-TLVs.
-            let mut sub_tlvs = ExtIsReachStlvs::default();
+            let mut sub_tlvs = IsReachStlvs::default();
             let mut sub_tlvs_len = buf.try_get_u8()?;
             while sub_tlvs_len >= TLV_HDR_SIZE as u8 {
                 // Parse TLV type.
@@ -1202,14 +1196,14 @@ impl ExtIsReachTlv {
                 }
             }
 
-            list.push(ExtIsReach {
+            list.push(IsReach {
                 neighbor,
                 metric,
                 sub_tlvs,
             });
         }
 
-        Ok(ExtIsReachTlv { mt_id, list })
+        Ok(IsReachTlv { mt_id, list })
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
@@ -1264,33 +1258,33 @@ impl ExtIsReachTlv {
     }
 }
 
-impl EntryBasedTlv for ExtIsReachTlv {
-    type Entry = ExtIsReach;
+impl EntryBasedTlv for IsReachTlv {
+    type Entry = IsReach;
 
-    fn entries(&self) -> impl Iterator<Item = &ExtIsReach> {
+    fn entries(&self) -> impl Iterator<Item = &IsReach> {
         self.list.iter()
     }
 
-    fn entry_len(_entry: &ExtIsReach) -> usize {
+    fn entry_len(_entry: &IsReach) -> usize {
         Self::ENTRY_MIN_SIZE
     }
 }
 
-impl<I> From<I> for ExtIsReachTlv
+impl<I> From<I> for IsReachTlv
 where
-    I: IntoIterator<Item = ExtIsReach>,
+    I: IntoIterator<Item = IsReach>,
 {
-    fn from(iter: I) -> ExtIsReachTlv {
-        ExtIsReachTlv {
+    fn from(iter: I) -> IsReachTlv {
+        IsReachTlv {
             mt_id: None,
             list: iter.into_iter().collect(),
         }
     }
 }
 
-// ===== impl Ipv4ReachTlv =====
+// ===== impl LegacyIpv4ReachTlv =====
 
-impl Ipv4ReachTlv {
+impl LegacyIpv4ReachTlv {
     const ENTRY_SIZE: usize = 12;
     const METRIC_S_BIT: u8 = 0x80;
     const METRIC_UP_DOWN_BIT: u8 = 0x80;
@@ -1336,7 +1330,7 @@ impl Ipv4ReachTlv {
                 continue;
             };
 
-            let entry = Ipv4Reach {
+            let entry = LegacyIpv4Reach {
                 up_down,
                 ie_bit,
                 metric,
@@ -1348,7 +1342,7 @@ impl Ipv4ReachTlv {
             list.push(entry);
         }
 
-        Ok(Ipv4ReachTlv { list })
+        Ok(LegacyIpv4ReachTlv { list })
     }
 
     pub(crate) fn encode(&self, tlv_type: TlvType, buf: &mut BytesMut) {
@@ -1372,32 +1366,32 @@ impl Ipv4ReachTlv {
     }
 }
 
-impl EntryBasedTlv for Ipv4ReachTlv {
-    type Entry = Ipv4Reach;
+impl EntryBasedTlv for LegacyIpv4ReachTlv {
+    type Entry = LegacyIpv4Reach;
 
-    fn entries(&self) -> impl Iterator<Item = &Ipv4Reach> {
+    fn entries(&self) -> impl Iterator<Item = &LegacyIpv4Reach> {
         self.list.iter()
     }
 
-    fn entry_len(_entry: &Ipv4Reach) -> usize {
+    fn entry_len(_entry: &LegacyIpv4Reach) -> usize {
         Self::ENTRY_SIZE
     }
 }
 
-impl<I> From<I> for Ipv4ReachTlv
+impl<I> From<I> for LegacyIpv4ReachTlv
 where
-    I: IntoIterator<Item = Ipv4Reach>,
+    I: IntoIterator<Item = LegacyIpv4Reach>,
 {
-    fn from(iter: I) -> Ipv4ReachTlv {
-        Ipv4ReachTlv {
+    fn from(iter: I) -> LegacyIpv4ReachTlv {
+        LegacyIpv4ReachTlv {
             list: iter.into_iter().collect(),
         }
     }
 }
 
-// ===== impl Ipv4Reach =====
+// ===== impl LegacyIpv4Reach =====
 
-impl IpReachTlvEntry for Ipv4Reach {
+impl IpReachTlvEntry for LegacyIpv4Reach {
     type IpNetwork = Ipv4Network;
 
     fn prefix(&self) -> Ipv4Network {
@@ -1443,9 +1437,9 @@ impl IpReachTlvEntry for Ipv4Reach {
     }
 }
 
-// ===== impl ExtIpv4ReachTlv =====
+// ===== impl Ipv4ReachTlv =====
 
-impl ExtIpv4ReachTlv {
+impl Ipv4ReachTlv {
     const ENTRY_MIN_SIZE: usize = 5;
     const CONTROL_UPDOWN_BIT: u8 = 0x80;
     const CONTROL_SUBTLVS: u8 = 0x40;
@@ -1569,7 +1563,7 @@ impl ExtIpv4ReachTlv {
                 continue;
             };
 
-            list.push(ExtIpv4Reach {
+            list.push(Ipv4Reach {
                 metric,
                 up_down,
                 prefix,
@@ -1577,7 +1571,7 @@ impl ExtIpv4ReachTlv {
             });
         }
 
-        Ok(ExtIpv4ReachTlv { mt_id, list })
+        Ok(Ipv4ReachTlv { mt_id, list })
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
@@ -1642,34 +1636,34 @@ impl ExtIpv4ReachTlv {
     }
 }
 
-impl EntryBasedTlv for ExtIpv4ReachTlv {
-    type Entry = ExtIpv4Reach;
+impl EntryBasedTlv for Ipv4ReachTlv {
+    type Entry = Ipv4Reach;
 
-    fn entries(&self) -> impl Iterator<Item = &ExtIpv4Reach> {
+    fn entries(&self) -> impl Iterator<Item = &Ipv4Reach> {
         self.list.iter()
     }
 
-    fn entry_len(entry: &ExtIpv4Reach) -> usize {
+    fn entry_len(entry: &Ipv4Reach) -> usize {
         let plen = entry.prefix.prefix();
         Self::ENTRY_MIN_SIZE + prefix_wire_len(plen) + entry.sub_tlvs.len()
     }
 }
 
-impl<I> From<I> for ExtIpv4ReachTlv
+impl<I> From<I> for Ipv4ReachTlv
 where
-    I: IntoIterator<Item = ExtIpv4Reach>,
+    I: IntoIterator<Item = Ipv4Reach>,
 {
-    fn from(iter: I) -> ExtIpv4ReachTlv {
-        ExtIpv4ReachTlv {
+    fn from(iter: I) -> Ipv4ReachTlv {
+        Ipv4ReachTlv {
             mt_id: None,
             list: iter.into_iter().collect(),
         }
     }
 }
 
-// ===== impl ExtIpv4Reach =====
+// ===== impl Ipv4Reach =====
 
-impl IpReachTlvEntry for ExtIpv4Reach {
+impl IpReachTlvEntry for Ipv4Reach {
     type IpNetwork = Ipv4Network;
 
     fn prefix(&self) -> Ipv4Network {

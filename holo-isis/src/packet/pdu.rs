@@ -11,6 +11,7 @@ use std::cell::{RefCell, RefMut};
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::time::Instant;
 
+use bitflags::bitflags;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::TLS_BUF;
 use holo_utils::crypto::CryptoAlgo;
@@ -22,19 +23,20 @@ use tracing::debug_span;
 
 use crate::packet::auth::AuthMethod;
 use crate::packet::consts::{
-    IDRP_DISCRIMINATOR, LspFlags, MtId, PduType, SYSTEM_ID_LEN, TlvType,
-    VERSION, VERSION_PROTO_EXT,
+    IDRP_DISCRIMINATOR, MtId, PduType, SYSTEM_ID_LEN, TlvType, VERSION,
+    VERSION_PROTO_EXT,
 };
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::subtlvs::capability::{SrAlgoStlv, SrCapabilitiesStlv};
 use crate::packet::tlv::{
-    AreaAddressesTlv, AuthenticationTlv, DynamicHostnameTlv, ExtIpv4Reach,
-    ExtIpv4ReachTlv, ExtIsReach, ExtIsReachTlv, Ipv4AddressesTlv, Ipv4Reach,
-    Ipv4ReachTlv, Ipv4RouterIdTlv, Ipv6AddressesTlv, Ipv6Reach, Ipv6ReachTlv,
-    Ipv6RouterIdTlv, IsReach, IsReachTlv, LspBufferSizeTlv, LspEntriesTlv,
-    LspEntry, MultiTopologyEntry, MultiTopologyTlv, NeighborsTlv, PaddingTlv,
-    ProtocolsSupportedTlv, RouterCapTlv, TLV_HDR_SIZE, TLV_MAX_LEN, Tlv,
-    UnknownTlv, tlv_entries_split, tlv_take_max,
+    AreaAddressesTlv, AuthenticationTlv, DynamicHostnameTlv, Ipv4AddressesTlv,
+    Ipv4Reach, Ipv4ReachTlv, Ipv4RouterIdTlv, Ipv6AddressesTlv, Ipv6Reach,
+    Ipv6ReachTlv, Ipv6RouterIdTlv, IsReach, IsReachTlv, LegacyIpv4Reach,
+    LegacyIpv4ReachTlv, LegacyIsReach, LegacyIsReachTlv, LspBufferSizeTlv,
+    LspEntriesTlv, LspEntry, MultiTopologyEntry, MultiTopologyTlv,
+    NeighborsTlv, PaddingTlv, ProtocolsSupportedTlv, RouterCapTlv,
+    TLV_HDR_SIZE, TLV_MAX_LEN, Tlv, UnknownTlv, tlv_entries_split,
+    tlv_take_max,
 };
 use crate::packet::{
     AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId, auth,
@@ -118,6 +120,19 @@ pub struct Lsp {
     pub base_time: Option<Instant>,
 }
 
+// IS-IS LSP flags field.
+bitflags! {
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+    #[derive(Deserialize, Serialize)]
+    #[serde(transparent)]
+    pub struct LspFlags: u8 {
+        const P = 0x80;
+        const ATT = 0x40;
+        const OL = 0x04;
+        const IS_TYPE2 = 0x02;
+        const IS_TYPE1 = 0x01;
+    }
+}
 #[derive(Clone, Debug, Default, PartialEq)]
 #[serde_with::apply(
     Option => #[serde(default, skip_serializing_if = "Option::is_none")],
@@ -132,14 +147,14 @@ pub struct LspTlvs {
     pub multi_topology: Vec<MultiTopologyTlv>,
     pub hostname: Option<DynamicHostnameTlv>,
     pub lsp_buf_size: Option<LspBufferSizeTlv>,
-    pub is_reach: Vec<IsReachTlv>,
-    pub ext_is_reach: Vec<ExtIsReachTlv>,
-    pub mt_is_reach: Vec<ExtIsReachTlv>,
+    pub is_reach: Vec<LegacyIsReachTlv>,
+    pub ext_is_reach: Vec<IsReachTlv>,
+    pub mt_is_reach: Vec<IsReachTlv>,
     pub ipv4_addrs: Vec<Ipv4AddressesTlv>,
-    pub ipv4_internal_reach: Vec<Ipv4ReachTlv>,
-    pub ipv4_external_reach: Vec<Ipv4ReachTlv>,
-    pub ext_ipv4_reach: Vec<ExtIpv4ReachTlv>,
-    pub mt_ipv4_reach: Vec<ExtIpv4ReachTlv>,
+    pub ipv4_internal_reach: Vec<LegacyIpv4ReachTlv>,
+    pub ipv4_external_reach: Vec<LegacyIpv4ReachTlv>,
+    pub ext_ipv4_reach: Vec<Ipv4ReachTlv>,
+    pub mt_ipv4_reach: Vec<Ipv4ReachTlv>,
     pub ipv4_router_id: Option<Ipv4RouterIdTlv>,
     pub ipv6_addrs: Vec<Ipv6AddressesTlv>,
     pub ipv6_reach: Vec<Ipv6ReachTlv>,
@@ -873,25 +888,29 @@ impl Lsp {
                     }
                 }
                 Some(TlvType::IsReach) => {
-                    match IsReachTlv::decode(tlv_len, &mut buf_tlv) {
+                    match LegacyIsReachTlv::decode(tlv_len, &mut buf_tlv) {
                         Ok(tlv) => tlvs.is_reach.push(tlv),
                         Err(error) => error.log(),
                     }
                 }
                 Some(TlvType::ExtIsReach) => {
-                    match ExtIsReachTlv::decode(false, tlv_len, &mut buf_tlv) {
+                    match IsReachTlv::decode(false, tlv_len, &mut buf_tlv) {
                         Ok(tlv) => tlvs.ext_is_reach.push(tlv),
                         Err(error) => error.log(),
                     }
                 }
                 Some(TlvType::MtIsReach) => {
-                    match ExtIsReachTlv::decode(true, tlv_len, &mut buf_tlv) {
+                    match IsReachTlv::decode(true, tlv_len, &mut buf_tlv) {
                         Ok(tlv) => tlvs.mt_is_reach.push(tlv),
                         Err(error) => error.log(),
                     }
                 }
                 Some(TlvType::Ipv4InternalReach) => {
-                    match Ipv4ReachTlv::decode(tlv_len, &mut buf_tlv, false) {
+                    match LegacyIpv4ReachTlv::decode(
+                        tlv_len,
+                        &mut buf_tlv,
+                        false,
+                    ) {
                         Ok(tlv) => tlvs.ipv4_internal_reach.push(tlv),
                         Err(error) => error.log(),
                     }
@@ -906,7 +925,11 @@ impl Lsp {
                     }
                 }
                 Some(TlvType::Ipv4ExternalReach) => {
-                    match Ipv4ReachTlv::decode(tlv_len, &mut buf_tlv, true) {
+                    match LegacyIpv4ReachTlv::decode(
+                        tlv_len,
+                        &mut buf_tlv,
+                        true,
+                    ) {
                         Ok(tlv) => tlvs.ipv4_external_reach.push(tlv),
                         Err(error) => error.log(),
                     }
@@ -918,14 +941,13 @@ impl Lsp {
                     }
                 }
                 Some(TlvType::ExtIpv4Reach) => {
-                    match ExtIpv4ReachTlv::decode(false, tlv_len, &mut buf_tlv)
-                    {
+                    match Ipv4ReachTlv::decode(false, tlv_len, &mut buf_tlv) {
                         Ok(tlv) => tlvs.ext_ipv4_reach.push(tlv),
                         Err(error) => error.log(),
                     }
                 }
                 Some(TlvType::MtIpv4Reach) => {
-                    match ExtIpv4ReachTlv::decode(true, tlv_len, &mut buf_tlv) {
+                    match Ipv4ReachTlv::decode(true, tlv_len, &mut buf_tlv) {
                         Ok(tlv) => tlvs.mt_ipv4_reach.push(tlv),
                         Err(error) => error.log(),
                     }
@@ -1190,14 +1212,14 @@ impl LspTlvs {
         multi_topology: impl IntoIterator<Item = MultiTopologyEntry>,
         hostname: Option<String>,
         lsp_buf_size: Option<u16>,
-        is_reach: impl IntoIterator<Item = IsReach>,
-        ext_is_reach: impl IntoIterator<Item = ExtIsReach>,
-        mt_is_reach: impl IntoIterator<Item = ExtIsReach>,
+        is_reach: impl IntoIterator<Item = LegacyIsReach>,
+        ext_is_reach: impl IntoIterator<Item = IsReach>,
+        mt_is_reach: impl IntoIterator<Item = IsReach>,
         ipv4_addrs: impl IntoIterator<Item = Ipv4Addr>,
-        ipv4_internal_reach: impl IntoIterator<Item = Ipv4Reach>,
-        ipv4_external_reach: impl IntoIterator<Item = Ipv4Reach>,
-        ext_ipv4_reach: impl IntoIterator<Item = ExtIpv4Reach>,
-        mt_ipv4_reach: impl IntoIterator<Item = ExtIpv4Reach>,
+        ipv4_internal_reach: impl IntoIterator<Item = LegacyIpv4Reach>,
+        ipv4_external_reach: impl IntoIterator<Item = LegacyIpv4Reach>,
+        ext_ipv4_reach: impl IntoIterator<Item = Ipv4Reach>,
+        mt_ipv4_reach: impl IntoIterator<Item = Ipv4Reach>,
         ipv4_router_id: Option<Ipv4Addr>,
         ipv6_addrs: impl IntoIterator<Item = Ipv6Addr>,
         ipv6_reach: impl IntoIterator<Item = Ipv6Reach>,
@@ -1338,19 +1360,17 @@ impl LspTlvs {
     }
 
     // Returns an iterator over all IS neighbors from TLVs of type 2.
-    pub(crate) fn is_reach(&self) -> impl Iterator<Item = &IsReach> {
+    pub(crate) fn is_reach(&self) -> impl Iterator<Item = &LegacyIsReach> {
         self.is_reach.iter().flat_map(|tlv| tlv.list.iter())
     }
 
     // Returns an iterator over all IS neighbors from TLVs of type 22.
-    pub(crate) fn ext_is_reach(&self) -> impl Iterator<Item = &ExtIsReach> {
+    pub(crate) fn ext_is_reach(&self) -> impl Iterator<Item = &IsReach> {
         self.ext_is_reach.iter().flat_map(|tlv| tlv.list.iter())
     }
 
     // Returns an iterator over all IS neighbors from TLVs of type 222.
-    pub(crate) fn mt_is_reach(
-        &self,
-    ) -> impl Iterator<Item = (u16, &ExtIsReach)> {
+    pub(crate) fn mt_is_reach(&self) -> impl Iterator<Item = (u16, &IsReach)> {
         self.mt_is_reach.iter().flat_map(|tlv| {
             tlv.list.iter().map(|reach| (tlv.mt_id.unwrap(), reach))
         })
@@ -1365,7 +1385,7 @@ impl LspTlvs {
     // of type 128.
     pub(crate) fn ipv4_internal_reach(
         &self,
-    ) -> impl Iterator<Item = &Ipv4Reach> {
+    ) -> impl Iterator<Item = &LegacyIpv4Reach> {
         self.ipv4_internal_reach
             .iter()
             .flat_map(|tlv| tlv.list.iter())
@@ -1375,7 +1395,7 @@ impl LspTlvs {
     // of type 130.
     pub(crate) fn ipv4_external_reach(
         &self,
-    ) -> impl Iterator<Item = &Ipv4Reach> {
+    ) -> impl Iterator<Item = &LegacyIpv4Reach> {
         self.ipv4_external_reach
             .iter()
             .flat_map(|tlv| tlv.list.iter())
@@ -1383,7 +1403,7 @@ impl LspTlvs {
 
     // Returns an iterator over all IPv4 reachability entries from TLVs of
     // type 135.
-    pub(crate) fn ext_ipv4_reach(&self) -> impl Iterator<Item = &ExtIpv4Reach> {
+    pub(crate) fn ext_ipv4_reach(&self) -> impl Iterator<Item = &Ipv4Reach> {
         self.ext_ipv4_reach.iter().flat_map(|tlv| tlv.list.iter())
     }
 
@@ -1391,7 +1411,7 @@ impl LspTlvs {
     // type 235.
     pub(crate) fn mt_ipv4_reach(
         &self,
-    ) -> impl Iterator<Item = (u16, &ExtIpv4Reach)> {
+    ) -> impl Iterator<Item = (u16, &Ipv4Reach)> {
         self.mt_ipv4_reach.iter().flat_map(|tlv| {
             tlv.list.iter().map(|reach| (tlv.mt_id.unwrap(), reach))
         })

@@ -19,7 +19,7 @@ use crate::lsdb::LspLogReason;
 use crate::northbound::configuration::{
     InstanceTraceOption, InterfaceTraceOption, MetricType,
 };
-use crate::packet::consts::LspFlags;
+use crate::packet::pdu::LspFlags;
 use crate::packet::subtlvs::capability::SrCapabilitiesFlags;
 use crate::packet::subtlvs::neighbor::AdjSidFlags;
 use crate::packet::subtlvs::prefix::PrefixSidFlags;

@@ -7,7 +7,6 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use bitflags::bitflags;
 use num_derive::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
 
@@ -151,6 +150,15 @@ pub enum BierSubStlvType {
     NonMplsEncap = 42,
 }
 
+// Network Layer Protocol Identifiers (NLPIDs).
+//
+// IANA Registry:
+// https://www.iana.org/assignments/nlpids/nlpids.xhtml
+pub enum Nlpid {
+    Ipv4 = 0xCC,
+    Ipv6 = 0x8E,
+}
+
 // IS-IS Multi-Topology ID Values.
 //
 // IANA registry:
@@ -165,18 +173,4 @@ pub enum MtId {
     Ipv4Multicast = 3,
     Ipv6Multicast = 4,
     Ipv6Mgmt = 5,
-}
-
-// IS-IS LSP flags field.
-bitflags! {
-    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-    #[derive(Deserialize, Serialize)]
-    #[serde(transparent)]
-    pub struct LspFlags: u8 {
-        const P = 0x80;
-        const ATT = 0x40;
-        const OL = 0x04;
-        const IS_TYPE2 = 0x02;
-        const IS_TYPE1 = 0x01;
-    }
 }

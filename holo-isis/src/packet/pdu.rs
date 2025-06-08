@@ -901,7 +901,12 @@ impl Lsp {
                 }
                 Some(TlvType::MtIsReach) => {
                     match IsReachTlv::decode(true, tlv_len, &mut buf_tlv) {
-                        Ok(tlv) => tlvs.mt_is_reach.push(tlv),
+                        Ok(tlv) => {
+                            // The TLV MUST be ignored if the ID is zero.
+                            if tlv.mt_id != Some(0) {
+                                tlvs.mt_is_reach.push(tlv);
+                            }
+                        }
                         Err(error) => error.log(),
                     }
                 }
@@ -948,7 +953,12 @@ impl Lsp {
                 }
                 Some(TlvType::MtIpv4Reach) => {
                     match Ipv4ReachTlv::decode(true, tlv_len, &mut buf_tlv) {
-                        Ok(tlv) => tlvs.mt_ipv4_reach.push(tlv),
+                        Ok(tlv) => {
+                            // The TLV MUST be ignored if the ID is zero.
+                            if tlv.mt_id != Some(0) {
+                                tlvs.mt_ipv4_reach.push(tlv);
+                            }
+                        }
                         Err(error) => error.log(),
                     }
                 }
@@ -975,7 +985,12 @@ impl Lsp {
                 }
                 Some(TlvType::MtIpv6Reach) => {
                     match Ipv6ReachTlv::decode(true, tlv_len, &mut buf_tlv) {
-                        Ok(tlv) => tlvs.mt_ipv6_reach.push(tlv),
+                        Ok(tlv) => {
+                            // The TLV MUST be ignored if the ID is zero.
+                            if tlv.mt_id != Some(0) {
+                                tlvs.mt_ipv6_reach.push(tlv);
+                            }
+                        }
                         Err(error) => error.log(),
                     }
                 }

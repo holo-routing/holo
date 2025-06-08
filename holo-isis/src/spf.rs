@@ -408,17 +408,17 @@ fn compute_spf(
     // Get list of new or updated LSPs that triggered the SPF computation.
     let trigger_lsps = std::mem::take(&mut spf_sched.trigger_lsps);
 
-    // Compute shortest-path tree if necessary.
+    // Log SPF computation start.
     let spf_type = std::mem::take(&mut spf_sched.spf_type);
+    if instance.config.trace_opts.spf {
+        Debug::SpfStart(spf_type).log();
+    }
+
+    // Compute shortest-path tree if necessary.
     if spf_type == SpfType::Full {
         let spt =
             compute_spt(level, instance, interfaces, adjacencies, lsp_entries);
         *instance.state.spt.get_mut(level) = spt;
-    }
-
-    // Log SPF computation start.
-    if instance.config.trace_opts.spf {
-        Debug::SpfStart(spf_type).log();
     }
 
     // Compute the new RIB for the current level.

@@ -297,6 +297,7 @@ pub(crate) fn process_pdu_hello_lan(
     adj.priority = Some(priority);
     adj.lan_id = Some(lan_id);
     adj.area_addrs = hello.tlvs.area_addrs().cloned().collect();
+    adj.topologies = hello.tlvs.topologies();
     adj.neighbors = hello.tlvs.neighbors().cloned().collect();
     adj.ipv4_addrs = hello.tlvs.ipv4_addrs().cloned().collect();
     adj.ipv6_addrs = hello.tlvs.ipv6_addrs().cloned().collect();
@@ -372,6 +373,13 @@ pub(crate) fn process_pdu_hello_p2p(
     // Check for duplicate System-ID.
     if hello.source == instance.config.system_id.unwrap() {
         return Err(AdjacencyRejectError::DuplicateSystemId);
+    }
+
+    // Check for common MT.
+    let hello_topologies = hello.tlvs.topologies();
+    let iface_topologies = iface.config.topologies(instance.config);
+    if iface_topologies.is_disjoint(&hello_topologies) {
+        return Err(AdjacencyRejectError::NoCommonMt);
     }
 
     // Check for an area match.
@@ -454,6 +462,7 @@ pub(crate) fn process_pdu_hello_p2p(
 
     // Update adjacency with received PDU values.
     adj.area_addrs = hello.tlvs.area_addrs().cloned().collect();
+    adj.topologies = hello_topologies;
     adj.ipv4_addrs = hello.tlvs.ipv4_addrs().cloned().collect();
     adj.ipv6_addrs = hello.tlvs.ipv6_addrs().cloned().collect();
 

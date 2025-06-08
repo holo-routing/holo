@@ -25,7 +25,7 @@ use holo_utils::ip::AddressFamily;
 use holo_utils::keychain::{Key, Keychains};
 use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
-use holo_yang::TryFromYang;
+use holo_yang::{ToYang, TryFromYang};
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use prefix_trie::map::PrefixMap;
 
@@ -35,7 +35,7 @@ use crate::instance::Instance;
 use crate::interface::InterfaceType;
 use crate::northbound::notification;
 use crate::packet::auth::AuthMethod;
-use crate::packet::consts::PduType;
+use crate::packet::consts::{MtId, PduType};
 use crate::packet::{
     AreaAddr, LevelNumber, LevelType, LevelTypeIterator, SystemId,
 };
@@ -50,9 +50,11 @@ pub enum ListEntry {
     Summary(IpNetwork),
     AddressFamily(AddressFamily),
     Redistribution(AddressFamily, LevelNumber, Protocol),
+    Topology(MtId),
     TraceOption(InstanceTraceOption),
     Interface(InterfaceIndex),
     InterfaceAddressFamily(InterfaceIndex, AddressFamily),
+    InterfaceTopology(InterfaceIndex, MtId),
     InterfaceTraceOption(InterfaceIndex, InterfaceTraceOption),
 }
 
@@ -65,6 +67,7 @@ pub enum Event {
     InstanceUpdate,
     InterfaceUpdate(InterfaceIndex),
     InstanceLevelTypeUpdate,
+    InstanceTopologyUpdate,
     InterfaceDelete(InterfaceIndex),
     InterfaceReset(InterfaceIndex),
     InterfaceRestartNetwork(InterfaceIndex),
@@ -113,12 +116,19 @@ pub struct InstanceCfg {
     pub spf_time_to_learn: u32,
     pub preference: Preference,
     pub overload_status: bool,
+    pub mt: HashMap<MtId, InstanceMtCfg>,
     pub summaries: SummariesCfg,
     pub att_suppress: bool,
     pub att_ignore: bool,
     pub sr: InstanceSrCfg,
     pub bier: InstanceBierCfg,
     pub trace_opts: InstanceTraceOptions,
+}
+
+#[derive(Debug)]
+pub struct InstanceMtCfg {
+    pub enabled: bool,
+    pub default_metric: LevelsCfg<u32>,
 }
 
 #[derive(Debug)]
@@ -205,7 +215,14 @@ pub struct InterfaceCfg {
     pub bfd_enabled: bool,
     pub bfd_params: bfd::ClientCfg,
     pub afs: BTreeSet<AddressFamily>,
+    pub mt: HashMap<MtId, InterfaceMtCfg>,
     pub trace_opts: InterfaceTraceOptions,
+}
+
+#[derive(Debug)]
+pub struct InterfaceMtCfg {
+    pub enabled: bool,
+    pub metric: LevelsCfg<u32>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -720,6 +737,80 @@ fn load_callbacks() -> Callbacks<Instance> {
             event_queue.insert(Event::OverloadChange(overload_status));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .path(isis::topologies::topology::PATH)
+        .create_apply(|instance, args| {
+            let name = args.dnode.get_string_relative("name").unwrap();
+            let mt_id = MtId::try_from_yang(&name).unwrap();
+            instance.config.mt.insert(mt_id, InstanceMtCfg::default());
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceTopologyUpdate);
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .delete_apply(|instance, args| {
+            let mt_id = args.list_entry.into_topology().unwrap();
+            instance.config.mt.remove(&mt_id);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceTopologyUpdate);
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .lookup(|_context, _list_entry, dnode| {
+            let name = dnode.get_string_relative("name").unwrap();
+            let mt_id = MtId::try_from_yang(&name).unwrap();
+            ListEntry::Topology(mt_id)
+        })
+        .path(isis::topologies::topology::enabled::PATH)
+        .modify_apply(|instance, args| {
+            let mt_id = args.list_entry.into_topology().unwrap();
+            let mt_cfg = instance.config.mt.get_mut(&mt_id).unwrap();
+
+            let enabled = args.dnode.get_bool();
+            mt_cfg.enabled = enabled;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceTopologyUpdate);
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .path(isis::topologies::topology::default_metric::value::PATH)
+        .modify_apply(|instance, args| {
+            let mt_id = args.list_entry.into_topology().unwrap();
+            let mt_cfg = instance.config.mt.get_mut(&mt_id).unwrap();
+
+            let metric = args.dnode.get_u32();
+            mt_cfg.default_metric.all = metric;
+        })
+        .path(isis::topologies::topology::default_metric::level_1::value::PATH)
+        .modify_apply(|instance, args| {
+            let mt_id = args.list_entry.into_topology().unwrap();
+            let mt_cfg = instance.config.mt.get_mut(&mt_id).unwrap();
+
+            let metric = args.dnode.get_u32();
+            mt_cfg.default_metric.l1 = Some(metric);
+        })
+        .delete_apply(|instance, args| {
+            let mt_id = args.list_entry.into_topology().unwrap();
+            let mt_cfg = instance.config.mt.get_mut(&mt_id).unwrap();
+
+            mt_cfg.default_metric.l1 = None;
+        })
+        .path(isis::topologies::topology::default_metric::level_2::value::PATH)
+        .modify_apply(|instance, args| {
+            let mt_id = args.list_entry.into_topology().unwrap();
+            let mt_cfg = instance.config.mt.get_mut(&mt_id).unwrap();
+
+            let metric = args.dnode.get_u32();
+            mt_cfg.default_metric.l2 = Some(metric);
+        })
+        .delete_apply(|instance, args| {
+            let mt_id = args.list_entry.into_topology().unwrap();
+            let mt_cfg = instance.config.mt.get_mut(&mt_id).unwrap();
+
+            mt_cfg.default_metric.l2 = None;
         })
         .path(isis::attached_bit::suppress_advertisement::PATH)
         .modify_apply(|instance, args| {
@@ -1466,6 +1557,115 @@ fn load_callbacks() -> Callbacks<Instance> {
             let af = AddressFamily::try_from_yang(&af).unwrap();
             ListEntry::InterfaceAddressFamily(iface_idx, af)
         })
+        .path(isis::interfaces::interface::topologies::topology::PATH)
+        .create_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let name = args.dnode.get_string_relative("name").unwrap();
+            let mt_id = MtId::try_from_yang(&name).unwrap();
+            iface.config.mt.insert(mt_id, InterfaceMtCfg::default());
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateHelloInterval(iface_idx, LevelNumber::L1));
+            event_queue.insert(Event::InterfaceUpdateHelloInterval(iface_idx, LevelNumber::L2));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .delete_apply(|instance, args| {
+            let (iface_idx, mt_id) = args.list_entry.into_interface_topology().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.mt.remove(&mt_id);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateHelloInterval(iface_idx, LevelNumber::L1));
+            event_queue.insert(Event::InterfaceUpdateHelloInterval(iface_idx, LevelNumber::L2));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .lookup(|_context, list_entry, dnode| {
+            let iface_idx = list_entry.into_interface().unwrap();
+            let name = dnode.get_string_relative("name").unwrap();
+            let mt_id = MtId::try_from_yang(&name).unwrap();
+            ListEntry::InterfaceTopology(iface_idx, mt_id)
+        })
+        .path(isis::interfaces::interface::topologies::topology::enabled::PATH)
+        .modify_apply(|instance, args| {
+            let (iface_idx, mt_id) = args.list_entry.into_interface_topology().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+            let iface_mt_cfg = iface.config.mt.get_mut(&mt_id).unwrap();
+
+            let enabled = args.dnode.get_bool();
+            iface_mt_cfg.enabled = enabled;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateHelloInterval(iface_idx, LevelNumber::L1));
+            event_queue.insert(Event::InterfaceUpdateHelloInterval(iface_idx, LevelNumber::L2));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .path(isis::interfaces::interface::topologies::topology::metric::value::PATH)
+        .modify_apply(|instance, args| {
+            let (iface_idx, mt_id) = args.list_entry.into_interface_topology().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+            let iface_mt_cfg = iface.config.mt.get_mut(&mt_id).unwrap();
+
+            let metric = args.dnode.get_u32();
+            iface_mt_cfg.metric.all = metric;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .path(isis::interfaces::interface::topologies::topology::metric::level_1::value::PATH)
+        .modify_apply(|instance, args| {
+            let (iface_idx, mt_id) = args.list_entry.into_interface_topology().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+            let iface_mt_cfg = iface.config.mt.get_mut(&mt_id).unwrap();
+
+            let metric = args.dnode.get_u32();
+            iface_mt_cfg.metric.l1 = Some(metric);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .delete_apply(|instance, args| {
+            let (iface_idx, mt_id) = args.list_entry.into_interface_topology().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+            let iface_mt_cfg = iface.config.mt.get_mut(&mt_id).unwrap();
+
+            iface_mt_cfg.metric.l1 = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .path(isis::interfaces::interface::topologies::topology::metric::level_2::value::PATH)
+        .modify_apply(|instance, args| {
+            let (iface_idx, mt_id) = args.list_entry.into_interface_topology().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+            let iface_mt_cfg = iface.config.mt.get_mut(&mt_id).unwrap();
+
+            let metric = args.dnode.get_u32();
+            iface_mt_cfg.metric.l2 = Some(metric);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .delete_apply(|instance, args| {
+            let (iface_idx, mt_id) = args.list_entry.into_interface_topology().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+            let iface_mt_cfg = iface.config.mt.get_mut(&mt_id).unwrap();
+
+            iface_mt_cfg.metric.l2 = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
         .path(isis::interfaces::interface::trace_options::flag::PATH)
         .create_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -1603,7 +1803,22 @@ fn load_callbacks() -> Callbacks<Instance> {
 }
 
 fn load_validation_callbacks() -> ValidationCallbacks {
-    ValidationCallbacksBuilder::default().build()
+    ValidationCallbacksBuilder::default()
+        .path(isis::topologies::topology::PATH)
+        .validate(|args| {
+            let valid_options = [MtId::Ipv6Unicast.to_yang()];
+
+            let name = args.dnode.get_string_relative("name").unwrap();
+            if !valid_options.iter().any(|option| *option == name) {
+                return Err(format!(
+                    "unsupported topology name (valid options: \"{}\")",
+                    valid_options.join(", "),
+                ));
+            }
+
+            Ok(())
+        })
+        .build()
 }
 
 // ===== impl Instance =====
@@ -1632,6 +1847,15 @@ impl Provider for Instance {
                 for iface in self.arenas.interfaces.iter_mut() {
                     iface.config.level_type.resolved =
                         iface.config.resolved_level_type(&self.config);
+                }
+            }
+            Event::InstanceTopologyUpdate => {
+                if let Some((instance, arenas)) = self.as_up() {
+                    for iface in arenas.interfaces.iter_mut().filter(|iface| {
+                        iface.state.active && !iface.is_passive()
+                    }) {
+                        iface.hello_interval_start(&instance, LevelType::All);
+                    }
                 }
             }
             Event::InterfaceUpdate(iface_idx) => {
@@ -1909,9 +2133,34 @@ impl InstanceCfg {
         true
     }
 
+    // Checks if the specified topology is enabled.
+    pub(crate) fn is_topology_enabled(&self, mt_id: MtId) -> bool {
+        if mt_id == MtId::Standard {
+            return true;
+        }
+
+        if let Some(mt_cfg) = self.mt.get(&mt_id) {
+            return mt_cfg.enabled;
+        }
+
+        false
+    }
+
     // Returns the levels supported by the instance.
     pub(crate) fn levels(&self) -> LevelTypeIterator {
         self.level_type.into_iter()
+    }
+
+    // Returns the set of enabled topology IDs for the instance.
+    pub(crate) fn topologies(&self) -> BTreeSet<MtId> {
+        let mut topologies = BTreeSet::new();
+        topologies.insert(MtId::Standard);
+        topologies.extend(
+            self.mt
+                .iter()
+                .filter_map(|(mt_id, mt_cfg)| mt_cfg.enabled.then_some(*mt_id)),
+        );
+        topologies
     }
 }
 
@@ -1933,9 +2182,39 @@ impl InterfaceCfg {
         true
     }
 
+    // Checks if the specified topology is enabled.
+    pub(crate) fn is_topology_enabled(&self, mt_id: MtId) -> bool {
+        if mt_id == MtId::Standard {
+            return true;
+        }
+
+        if let Some(mt_cfg) = self.mt.get(&mt_id) {
+            return mt_cfg.enabled;
+        }
+
+        true
+    }
+
     // Returns the levels supported by the interface.
     pub(crate) fn levels(&self) -> LevelTypeIterator {
         self.level_type.resolved.into_iter()
+    }
+
+    // Returns the set of enabled topology IDs for the interface.
+    pub(crate) fn topologies<T>(
+        &self,
+        instance_cfg: &InstanceCfg,
+    ) -> BTreeSet<T>
+    where
+        MtId: Into<T>,
+        T: Ord,
+    {
+        instance_cfg
+            .topologies()
+            .into_iter()
+            .filter(|mt_id| self.is_topology_enabled(*mt_id))
+            .map(Into::into)
+            .collect()
     }
 
     // Calculates the hello hold time for a given level by multiplying the
@@ -1950,6 +2229,21 @@ impl InterfaceCfg {
             LevelType::L1 | LevelType::L2 => instance_cfg.level_type,
             LevelType::All => self.level_type.explicit.unwrap(),
         }
+    }
+
+    // Returns the metric for a given topology and level, or the default if no
+    // specific configuration exists.
+    pub(crate) fn topology_metric(
+        &self,
+        mt_id: MtId,
+        level: impl Into<LevelType>,
+    ) -> u32 {
+        const DFLT_METRIC: u32 = isis::interfaces::interface::topologies::topology::metric::value::DFLT;
+        let level = level.into();
+        self.mt
+            .get(&mt_id)
+            .map(|mt_cfg| mt_cfg.metric.get(level))
+            .unwrap_or(DFLT_METRIC)
     }
 }
 
@@ -2129,12 +2423,31 @@ impl Default for InstanceCfg {
             spf_time_to_learn,
             preference: Default::default(),
             overload_status,
+            mt: Default::default(),
             summaries: Default::default(),
             att_suppress,
             att_ignore,
             sr: Default::default(),
             bier: Default::default(),
             trace_opts: Default::default(),
+        }
+    }
+}
+
+impl Default for InstanceMtCfg {
+    fn default() -> Self {
+        let enabled = isis::topologies::topology::enabled::DFLT;
+        let default_metric =
+            isis::topologies::topology::default_metric::value::DFLT;
+        let default_metric = LevelsCfg {
+            all: default_metric,
+            l1: None,
+            l2: None,
+        };
+
+        Self {
+            enabled,
+            default_metric,
         }
     }
 }
@@ -2245,8 +2558,23 @@ impl Default for InterfaceCfg {
             bfd_enabled,
             bfd_params: Default::default(),
             afs: Default::default(),
+            mt: Default::default(),
             trace_opts: Default::default(),
         }
+    }
+}
+
+impl Default for InterfaceMtCfg {
+    fn default() -> InterfaceMtCfg {
+        let enabled =
+            isis::interfaces::interface::topologies::topology::enabled::DFLT;
+        let metric = isis::interfaces::interface::topologies::topology::metric::value::DFLT;
+        let metric = LevelsCfg {
+            all: metric,
+            l1: None,
+            l2: None,
+        };
+        InterfaceMtCfg { enabled, metric }
     }
 }
 

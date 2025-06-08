@@ -28,8 +28,8 @@ use crate::instance::{InstanceArenas, InstanceUpView};
 use crate::interface::InterfaceType;
 use crate::lsdb::{LspEntry, LspLogId};
 use crate::northbound::configuration::MetricType;
-use crate::packet::consts::Nlpid;
-use crate::packet::pdu::{Lsp, LspFlags};
+use crate::packet::consts::{MtId, Nlpid};
+use crate::packet::pdu::Lsp;
 use crate::packet::subtlvs::prefix::{PrefixAttrFlags, PrefixSidStlv};
 use crate::packet::tlv::IpReachTlvEntry;
 use crate::packet::{LanId, LevelNumber, LevelType, LspId, SystemId};
@@ -52,6 +52,16 @@ macro_rules! chain_option_iterators {
         itertools::chain!($($opt.into_iter().flatten(),)*)
     }};
 }
+
+// Container for storing separate values for each topology.
+#[derive(Debug, Default)]
+pub struct Topologies<T> {
+    pub standard: T,
+    pub ipv6_unicast: T,
+}
+
+// Shortest Path Tree.
+pub type Spt = BTreeMap<VertexId, Vertex>;
 
 // Represents a vertex in the IS-IS topology graph.
 //
@@ -168,6 +178,24 @@ pub mod fsm {
         LearnTimer,
         AdjacencyChange,
         ConfigChange,
+    }
+}
+
+// ===== impl Topologies =====
+
+impl<T> Topologies<T> {
+    pub(crate) fn get(&self, mt_id: MtId) -> &T {
+        match mt_id {
+            MtId::Standard => &self.standard,
+            MtId::Ipv6Unicast => &self.ipv6_unicast,
+        }
+    }
+
+    pub(crate) fn get_mut(&mut self, mt_id: MtId) -> &mut T {
+        match mt_id {
+            MtId::Standard => &mut self.standard,
+            MtId::Ipv6Unicast => &mut self.ipv6_unicast,
+        }
     }
 }
 
@@ -414,16 +442,41 @@ fn compute_spf(
         Debug::SpfStart(spf_type).log();
     }
 
-    // Compute shortest-path tree if necessary.
+    // Compute shortest-path tree(s) if necessary.
     if spf_type == SpfType::Full {
-        let spt =
-            compute_spt(level, instance, interfaces, adjacencies, lsp_entries);
-        *instance.state.spt.get_mut(level) = spt;
+        for mt_id in [MtId::Standard, MtId::Ipv6Unicast] {
+            if instance.config.is_topology_enabled(mt_id) {
+                let spt = compute_spt(
+                    level,
+                    mt_id,
+                    instance,
+                    interfaces,
+                    adjacencies,
+                    lsp_entries,
+                );
+                *instance.state.spt.get_mut(mt_id).get_mut(level) = spt;
+            }
+        }
     }
 
     // Compute the new RIB for the current level.
-    let new_rib =
-        compute_routes(level, instance, interfaces, adjacencies, lsp_entries);
+    //
+    // Since multiple topologies per address family aren't currently supported,
+    // a single RIB is sufficient as there's no risk of prefix overlap.
+    let mut new_rib = BTreeMap::new();
+    for mt_id in [MtId::Standard, MtId::Ipv6Unicast] {
+        if instance.config.is_topology_enabled(mt_id) {
+            compute_routes(
+                level,
+                mt_id,
+                instance,
+                interfaces,
+                adjacencies,
+                lsp_entries,
+                &mut new_rib,
+            );
+        }
+    }
 
     // Update the local RIB and global RIB.
     route::update_rib(level, new_rib, instance, interfaces);
@@ -473,11 +526,12 @@ fn compute_spf(
 // TI-LFA feature.
 fn compute_spt(
     level: LevelNumber,
+    mt_id: MtId,
     instance: &InstanceUpView<'_>,
     interfaces: &Interfaces,
     adjacencies: &Arena<Adjacency>,
     lsp_entries: &Arena<LspEntry>,
-) -> BTreeMap<VertexId, Vertex> {
+) -> Spt {
     let lsdb = instance.state.lsdb.get(level);
     let metric_type = instance.config.metric_type.get(level);
     let mut used_adjs = BTreeSet::new();
@@ -506,8 +560,7 @@ fn compute_spt(
         };
 
         // If the overload bit is set, we skip the links from it.
-        if !zeroth_lsp.lsp_id.is_pseudonode()
-            && zeroth_lsp.flags.contains(LspFlags::OL)
+        if !zeroth_lsp.lsp_id.is_pseudonode() && zeroth_lsp.overload_bit(mt_id)
         {
             continue;
         }
@@ -518,10 +571,7 @@ fn compute_spt(
         // the IS supports all configured protocols. We can't check address
         // family information from the links since that information isn't
         // available in the LSPDB.
-        //
-        // NOTE: This check should be revisited and adapted once multi-topology
-        // support is implemented.
-        if !zeroth_lsp.lsp_id.is_pseudonode() {
+        if mt_id == MtId::Standard && !zeroth_lsp.lsp_id.is_pseudonode() {
             let Some(protocols_supported) =
                 &zeroth_lsp.tlvs.protocols_supported
             else {
@@ -543,9 +593,11 @@ fn compute_spt(
         }
 
         // Iterate over all links described by the vertex's LSPs.
-        for link in vertex_edges(&vertex.id, metric_type, lsdb, lsp_entries) {
+        for link in
+            vertex_edges(&vertex.id, mt_id, metric_type, lsdb, lsp_entries)
+        {
             // Check if the LSPs are mutually linked.
-            if !vertex_edges(&link.id, metric_type, lsdb, lsp_entries)
+            if !vertex_edges(&link.id, mt_id, metric_type, lsdb, lsp_entries)
                 .any(|link| link.id == vertex.id)
             {
                 continue;
@@ -605,6 +657,7 @@ fn compute_spt(
                 if !link.id.lan_id.is_pseudonode()
                     && let Some(nexthop) = compute_nexthop(
                         level,
+                        mt_id,
                         vertex,
                         &link,
                         &mut used_adjs,
@@ -627,34 +680,40 @@ fn compute_spt(
 // from the vertices.
 fn compute_routes(
     level: LevelNumber,
+    mt_id: MtId,
     instance: &InstanceUpView<'_>,
     interfaces: &Interfaces,
     adjacencies: &Arena<Adjacency>,
     lsp_entries: &Arena<LspEntry>,
-) -> BTreeMap<IpNetwork, Route> {
+    rib: &mut BTreeMap<IpNetwork, Route>,
+) {
     let lsdb = instance.state.lsdb.get(level);
     let metric_type = instance.config.metric_type.get(level);
 
-    // Initialize routing table.
-    let mut rib = BTreeMap::new();
-
     // Populate RIB.
     let is_l2_attached_to_backbone =
-        instance.is_l2_attached_to_backbone(interfaces, adjacencies);
-    let ipv4_enabled = instance.config.is_af_enabled(AddressFamily::Ipv4);
-    let ipv6_enabled = instance.config.is_af_enabled(AddressFamily::Ipv6);
-    for vertex in instance.state.spt.get(level).values() {
+        instance.is_l2_attached_to_backbone(mt_id, interfaces, adjacencies);
+    let ipv4_enabled = instance.config.is_af_enabled(AddressFamily::Ipv4)
+        && mt_id == MtId::Standard;
+    let ipv6_enabled = instance.config.is_af_enabled(AddressFamily::Ipv6)
+        && match mt_id {
+            MtId::Standard => {
+                !instance.config.is_topology_enabled(MtId::Ipv6Unicast)
+            }
+            MtId::Ipv6Unicast => true,
+        };
+    for vertex in instance.state.spt.get(mt_id).get(level).values() {
         // Skip if the zeroth LSP is missing.
         let Some(zeroth_lsp) = zeroth_lsp(vertex.id.lan_id, lsdb, lsp_entries)
         else {
             continue;
         };
-        let att_bit = !instance.config.att_ignore
-            && zeroth_lsp.flags.contains(LspFlags::ATT);
+        let att_bit = !instance.config.att_ignore && zeroth_lsp.att_bit(mt_id);
 
         for network in vertex_networks(
             instance.config.level_type,
             level,
+            mt_id,
             vertex,
             att_bit,
             is_l2_attached_to_backbone,
@@ -722,13 +781,12 @@ fn compute_routes(
             }
         }
     }
-
-    rib
 }
 
 // Computes the next-hop for reaching a vertex via the specified edge.
 fn compute_nexthop(
     level: LevelNumber,
+    mt_id: MtId,
     vertex: &Vertex,
     link: &VertexEdge,
     used_adjs: &mut BTreeSet<[u8; 6]>,
@@ -742,6 +800,7 @@ fn compute_nexthop(
         InterfaceType::PointToPoint
     };
 
+    let mt_id = mt_id as u16;
     let (iface, adj) = interfaces
         .iter()
         .filter(|iface| iface.config.interface_type == interface_type)
@@ -753,6 +812,7 @@ fn compute_nexthop(
                     .get(level)
                     .get_by_system_id(adjacencies, &link.id.lan_id.system_id)
                     .map(|(_, adj)| adj)
+                    .filter(|adj| adj.topologies.contains(&mt_id))
                     .filter(|adj| adj.state == AdjacencyState::Up),
                 InterfaceType::PointToPoint => {
                     if iface.config.metric.get(level) != link.cost {
@@ -762,6 +822,7 @@ fn compute_nexthop(
                         .state
                         .p2p_adjacency
                         .as_ref()
+                        .filter(|adj| adj.topologies.contains(&mt_id))
                         .filter(|adj| adj.level_usage.intersects(level))
                         .filter(|adj| adj.system_id == link.id.lan_id.system_id)
                         .filter(|adj| adj.state == AdjacencyState::Up)
@@ -783,6 +844,7 @@ fn compute_nexthop(
 // Iterate over all IS reachability entries attached to a vertex.
 fn vertex_edges<'a>(
     vertex_id: &VertexId,
+    mt_id: MtId,
     metric_type: MetricType,
     lsdb: &'a Lsdb,
     lsp_entries: &'a Arena<LspEntry>,
@@ -795,16 +857,18 @@ fn vertex_edges<'a>(
         .flat_map(move |lsp| {
             let mut standard_iter = None;
             let mut wide_iter = None;
+            let mut mt_iter = None;
 
-            if metric_type.is_standard_enabled() {
+            if mt_id == MtId::Standard && metric_type.is_standard_enabled() {
                 let iter = lsp.tlvs.is_reach().map(|reach| VertexEdge {
                     id: VertexId::new(reach.neighbor),
                     cost: reach.metric.into(),
                 });
                 standard_iter = Some(iter);
             }
-
-            if metric_type.is_wide_enabled() {
+            if (mt_id == MtId::Standard || lsp.lsp_id.is_pseudonode())
+                && metric_type.is_wide_enabled()
+            {
                 let iter = lsp
                     .tlvs
                     .ext_is_reach()
@@ -819,8 +883,23 @@ fn vertex_edges<'a>(
                     });
                 wide_iter = Some(iter);
             }
+            if mt_id != MtId::Standard {
+                let iter = lsp
+                    .tlvs
+                    .mt_is_reach_by_id(mt_id)
+                    // RFC 5305 - Section 3:
+                    // "If a link is advertised with the maximum link metric,
+                    // this link MUST NOT be considered during the normal SPF
+                    // computation".
+                    .filter(|reach| reach.metric < MAX_PATH_METRIC_WIDE)
+                    .map(|reach| VertexEdge {
+                        id: VertexId::new(reach.neighbor),
+                        cost: reach.metric,
+                    });
+                mt_iter = Some(iter);
+            }
 
-            chain_option_iterators!(standard_iter, wide_iter)
+            chain_option_iterators!(standard_iter, wide_iter, mt_iter)
         })
 }
 
@@ -828,6 +907,7 @@ fn vertex_edges<'a>(
 fn vertex_networks<'a>(
     level_type: LevelType,
     level: LevelNumber,
+    mt_id: MtId,
     vertex: &Vertex,
     att_bit: bool,
     is_l2_attached_to_backbone: bool,
@@ -877,7 +957,7 @@ fn vertex_networks<'a>(
             }
 
             // Iterate over IPv4 reachability entries.
-            if ipv4_enabled {
+            if mt_id == MtId::Standard && ipv4_enabled {
                 if metric_type.is_standard_enabled() {
                     let internal =
                         lsp.tlvs.ipv4_internal_reach().map(|reach| {
@@ -937,7 +1017,14 @@ fn vertex_networks<'a>(
 
             // Iterate over IPv6 reachability entries.
             if ipv6_enabled {
-                let iter = lsp.tlvs.ipv6_reach().map(|reach| VertexNetwork {
+                let iter: Box<dyn Iterator<Item = &_>> = if mt_id
+                    == MtId::Ipv6Unicast
+                {
+                    Box::new(lsp.tlvs.mt_ipv6_reach_by_id(MtId::Ipv6Unicast))
+                } else {
+                    Box::new(lsp.tlvs.ipv6_reach())
+                };
+                let iter = iter.map(|reach| VertexNetwork {
                     prefix: reach.prefix.into(),
                     metric: reach.metric,
                     external: reach.external,

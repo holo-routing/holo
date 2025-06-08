@@ -34,6 +34,18 @@ module holo-ietf-isis-deviations {
     }
   }
 
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:topologies/isis:topology/isis:enabled" {
+    deviate add {
+      default "true";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:topologies/isis:topology/isis:default-metric/isis:value" {
+    deviate add {
+      default "10";
+    }
+  }
+
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:address-families/isis:address-family-list/isis:enabled" {
     deviate add {
       default "true";
@@ -46,6 +58,12 @@ module holo-ietf-isis-deviations {
     }
   }
 
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:topologies/isis:topology/isis:metric/isis:value" {
+    deviate add {
+      default "10";
+    }
+  }
+
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:lsp-retransmit-interval" {
     deviate add {
       default "5";
@@ -55,6 +73,12 @@ module holo-ietf-isis-deviations {
   /*
    * Type changes
    */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:topologies/isis:topology/isis:name" {
+    deviate replace {
+      type "string";
+    }
+  }
 
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:lsp-refresh" {
     deviate replace {
@@ -103,6 +127,12 @@ module holo-ietf-isis-deviations {
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:time-to-learn" {
     deviate replace {
       type "uint32";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:topologies/isis:topology/isis:name" {
+    deviate replace {
+      type "string";
     }
   }
 

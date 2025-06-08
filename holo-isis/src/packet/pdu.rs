@@ -8,6 +8,7 @@
 //
 
 use std::cell::{RefCell, RefMut};
+use std::collections::BTreeSet;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::time::Instant;
 
@@ -33,7 +34,7 @@ use crate::packet::tlv::{
     Ipv4Reach, Ipv4ReachTlv, Ipv4RouterIdTlv, Ipv6AddressesTlv, Ipv6Reach,
     Ipv6ReachTlv, Ipv6RouterIdTlv, IsReach, IsReachTlv, LegacyIpv4Reach,
     LegacyIpv4ReachTlv, LegacyIsReach, LegacyIsReachTlv, LspBufferSizeTlv,
-    LspEntriesTlv, LspEntry, MultiTopologyEntry, MultiTopologyTlv,
+    LspEntriesTlv, LspEntry, MtFlags, MultiTopologyEntry, MultiTopologyTlv,
     NeighborsTlv, PaddingTlv, ProtocolsSupportedTlv, RouterCapTlv,
     TLV_HDR_SIZE, TLV_MAX_LEN, Tlv, UnknownTlv, tlv_entries_split,
     tlv_take_max,
@@ -746,11 +747,25 @@ impl HelloTlvs {
 
     // Returns an iterator over all multi-topology entries from TLVs of type
     // 229.
-    #[expect(unused)]
     pub(crate) fn multi_topology(
         &self,
     ) -> impl Iterator<Item = &MultiTopologyEntry> {
         self.multi_topology.iter().flat_map(|tlv| tlv.list.iter())
+    }
+
+    // Returns the set of MT IDs from TLVs of type 229.
+    //
+    // If no multi-topology TLVs are present, the default MT ID 0 (Standard)
+    // is returned.
+    pub(crate) fn topologies(&self) -> BTreeSet<u16> {
+        let topologies = self
+            .multi_topology()
+            .map(|mt| mt.mt_id)
+            .collect::<BTreeSet<_>>();
+        if topologies.is_empty() {
+            return [MtId::Standard as u16].into();
+        }
+        topologies
     }
 
     // Returns an iterator over all IS neighbors from TLVs of type 6.
@@ -1217,6 +1232,40 @@ impl Lsp {
             cksum: self.cksum,
         }
     }
+
+    // Checks if the ATTACH bit is set for the given topology ID.
+    pub(crate) fn att_bit(&self, mt_id: MtId) -> bool {
+        if mt_id == MtId::Standard {
+            return self.flags.contains(LspFlags::ATT);
+        }
+
+        if let Some(mt) = self
+            .tlvs
+            .multi_topology()
+            .find(|mt| mt.mt_id == mt_id as u16)
+        {
+            return mt.flags.contains(MtFlags::ATT);
+        }
+
+        false
+    }
+
+    // Checks if the OVERLOAD bit is set for the given topology ID.
+    pub(crate) fn overload_bit(&self, mt_id: MtId) -> bool {
+        if mt_id == MtId::Standard {
+            return self.flags.contains(LspFlags::OL);
+        }
+
+        if let Some(mt) = self
+            .tlvs
+            .multi_topology()
+            .find(|mt| mt.mt_id == mt_id as u16)
+        {
+            return mt.flags.contains(MtFlags::OL);
+        }
+
+        false
+    }
 }
 
 impl LspTlvs {
@@ -1253,7 +1302,13 @@ impl LspTlvs {
             lsp_buf_size: lsp_buf_size.map(|size| LspBufferSizeTlv { size }),
             is_reach: tlv_entries_split(is_reach),
             ext_is_reach: tlv_entries_split(ext_is_reach),
-            mt_is_reach: tlv_entries_split(mt_is_reach),
+            mt_is_reach: tlv_entries_split(mt_is_reach)
+                .into_iter()
+                .map(|mut tlv: IsReachTlv| {
+                    tlv.mt_id = Some(MtId::Ipv6Unicast as u16);
+                    tlv
+                })
+                .collect(),
             ipv4_addrs: tlv_entries_split(ipv4_addrs),
             ipv4_internal_reach: tlv_entries_split(ipv4_internal_reach),
             ipv4_external_reach: tlv_entries_split(ipv4_external_reach),
@@ -1364,6 +1419,16 @@ impl LspTlvs {
         self.multi_topology.iter().flat_map(|tlv| tlv.list.iter())
     }
 
+    // Returns an iterator over mutable references to multi-topology entries
+    // from TLVs of type 229.
+    pub(crate) fn multi_topology_mut(
+        &mut self,
+    ) -> impl Iterator<Item = &mut MultiTopologyEntry> {
+        self.multi_topology
+            .iter_mut()
+            .flat_map(|tlv| tlv.list.iter_mut())
+    }
+
     // Returns the dynamic hostname (TLV type 137).
     pub(crate) fn hostname(&self) -> Option<&str> {
         self.hostname.as_ref().map(|tlv| tlv.hostname.as_str())
@@ -1389,6 +1454,18 @@ impl LspTlvs {
         self.mt_is_reach.iter().flat_map(|tlv| {
             tlv.list.iter().map(|reach| (tlv.mt_id.unwrap(), reach))
         })
+    }
+
+    // Returns an iterator over all IS neighbors from TLVs of type 222 with the
+    // specified MT ID.
+    pub(crate) fn mt_is_reach_by_id(
+        &self,
+        mt_id: MtId,
+    ) -> impl Iterator<Item = &IsReach> {
+        self.mt_is_reach
+            .iter()
+            .filter(move |tlv| tlv.mt_id.unwrap() == mt_id as u16)
+            .flat_map(|tlv| tlv.list.iter())
     }
 
     // Returns an iterator over all IPv4 addresses from TLVs of type 132.
@@ -1451,6 +1528,18 @@ impl LspTlvs {
         self.mt_ipv6_reach.iter().flat_map(|tlv| {
             tlv.list.iter().map(|reach| (tlv.mt_id.unwrap(), reach))
         })
+    }
+
+    // Returns an iterator over all IPv6 reachability entries from TLVs of
+    // type 237 with the specified MT ID.
+    pub(crate) fn mt_ipv6_reach_by_id(
+        &self,
+        mt_id: MtId,
+    ) -> impl Iterator<Item = &Ipv6Reach> {
+        self.mt_ipv6_reach
+            .iter()
+            .filter(move |tlv| tlv.mt_id.unwrap() == mt_id as u16)
+            .flat_map(|tlv| tlv.list.iter())
     }
 
     // Returns the first SR-Capabilities Sub-TLV found within any Router

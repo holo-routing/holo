@@ -28,9 +28,9 @@ use crate::instance::InstanceUpView;
 use crate::network::{LLC_HDR, MulticastAddr};
 use crate::northbound::configuration::InterfaceCfg;
 use crate::northbound::notification;
-use crate::packet::consts::{Nlpid, PduType};
+use crate::packet::consts::{MtId, Nlpid, PduType};
 use crate::packet::pdu::{Hello, HelloTlvs, HelloVariant, Lsp, Pdu};
-use crate::packet::tlv::LspEntry;
+use crate::packet::tlv::{LspEntry, MtFlags, MultiTopologyEntry};
 use crate::packet::{LanId, LevelNumber, LevelType, Levels, LspId, SystemId};
 use crate::tasks::messages::output::NetTxPduMsg;
 use crate::{network, tasks};
@@ -522,6 +522,19 @@ impl Interface {
         // Set area addresses.
         let area_addrs = instance.config.area_addrs.clone();
 
+        // Set topologies.
+        let mut multi_topology = vec![];
+        let topologies = self.config.topologies(instance.config);
+        if topologies != [MtId::Standard].into() {
+            multi_topology = topologies
+                .into_iter()
+                .map(|mt_id| MultiTopologyEntry {
+                    flags: MtFlags::empty(),
+                    mt_id: mt_id as u16,
+                })
+                .collect::<Vec<_>>();
+        }
+
         // Set LAN neighbors.
         let mut neighbors = vec![];
         if self.config.interface_type == InterfaceType::Broadcast {
@@ -565,7 +578,7 @@ impl Interface {
             HelloTlvs::new(
                 protocols_supported,
                 area_addrs,
-                [],
+                multi_topology,
                 neighbors,
                 ipv4_addrs,
                 ipv6_addrs,

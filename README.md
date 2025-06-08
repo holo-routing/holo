@@ -170,6 +170,7 @@ Holo supports the following Internet Standards:
 * RFC 1195 - Use of OSI IS-IS for Routing in TCP/IP and Dual Environments
 * RFC 3719 - Recommendations for Interoperable Networks using Intermediate System to Intermediate System (IS-IS)
 * RFC 3787 - Recommendations for Interoperable IP Networks using Intermediate System to Intermediate System (IS-IS)
+* RFC 5120 - M-ISIS: Multi Topology (MT) Routing in Intermediate System to Intermediate Systems (IS-ISs)
 * RFC 5301 - Dynamic Hostname Exchange Mechanism for IS-IS
 * RFC 5304 - IS-IS Cryptographic Authentication
 * RFC 5305 - IS-IS Extensions for Traffic Engineering
@@ -242,7 +243,7 @@ Holo supports the following Internet Standards:
 | ietf-ipv4-unicast-routing@2018-03-13 | 100.00% | 100.00% | - | - | [100.00%](https://holo-routing.github.io/ietf-yang-coverage/ietf-ipv4-unicast-routing@2018-03-13.html) |
 | ietf-ipv6-unicast-routing@2018-03-13 | 40.62% | 100.00% | - | - | [45.71%](https://holo-routing.github.io/ietf-yang-coverage/ietf-ipv6-unicast-routing@2018-03-13.html) |
 | ietf-isis-sr-mpls@2025-05-06 | 15.38% | 57.27% | - | - | [52.85%](https://holo-routing.github.io/ietf-yang-coverage/ietf-isis-sr-mpls@2025-05-06.html) |
-| ietf-isis@2022-10-19 | 94.74% | 70.16% | 100.00% | 100.00% | [80.52%](https://holo-routing.github.io/ietf-yang-coverage/ietf-isis@2022-10-19.html) |
+| ietf-isis@2022-10-19 | 95.49% | 70.16% | 100.00% | 100.00% | [81.05%](https://holo-routing.github.io/ietf-yang-coverage/ietf-isis@2022-10-19.html) |
 | ietf-key-chain@2017-06-15 | 100.00% | 100.00% | - | - | [100.00%](https://holo-routing.github.io/ietf-yang-coverage/ietf-key-chain@2017-06-15.html) |
 | ietf-mpls-ldp@2022-03-14 | 86.96% | 92.31% | 100.00% | 100.00% | [92.38%](https://holo-routing.github.io/ietf-yang-coverage/ietf-mpls-ldp@2022-03-14.html) |
 | ietf-mpls@2020-12-18 | 0.00% | 57.14% | - | - | [35.29%](https://holo-routing.github.io/ietf-yang-coverage/ietf-mpls@2020-12-18.html) |

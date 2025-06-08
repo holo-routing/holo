@@ -242,6 +242,17 @@ module holo-isis {
     }
   }
 
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis/"
+        + "isis:interfaces/isis:interface/"
+        + "isis:topologies/isis:topology" {
+    leaf enabled {
+      type boolean;
+      default "true";
+      description
+        "Enables or disables the topology.";
+    }
+  }
 
   augment "/rt:routing/rt:control-plane-protocols/"
         + "rt:control-plane-protocol/isis:isis/isis:database/"

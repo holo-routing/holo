@@ -59,6 +59,7 @@ pub enum AdjacencyRejectError {
     AreaMismatch,
     WrongSystem,
     DuplicateSystemId,
+    NoCommonMt,
 }
 
 // ===== impl Error =====
@@ -277,6 +278,9 @@ impl std::fmt::Display for AdjacencyRejectError {
             }
             AdjacencyRejectError::DuplicateSystemId => {
                 write!(f, "duplicate System-ID")
+            }
+            AdjacencyRejectError::NoCommonMt => {
+                write!(f, "no multi-topology ID in common")
             }
         }
     }

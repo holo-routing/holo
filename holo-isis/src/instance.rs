@@ -34,7 +34,7 @@ use crate::lsdb::{LspEntry, LspLogEntry};
 use crate::northbound::configuration::InstanceCfg;
 use crate::packet::{LevelNumber, LevelType, Levels, SystemId};
 use crate::route::{Route, RouteFlags, RouteSys, SummaryRoute};
-use crate::spf::{SpfLogEntry, SpfScheduler, Vertex, VertexId};
+use crate::spf::{SpfLogEntry, SpfScheduler, Spt, Topologies};
 use crate::tasks::messages::input::{
     AdjHoldTimerMsg, DisElectionMsg, LspDeleteMsg, LspOriginateMsg,
     LspPurgeMsg, LspRefreshMsg, NetRxPduMsg, SendCsnpMsg, SendPsnpMsg,
@@ -85,7 +85,7 @@ pub struct InstanceState {
     // SPF scheduler state.
     pub spf_sched: Levels<SpfScheduler>,
     // Shortest-path tree.
-    pub spt: Levels<BTreeMap<VertexId, Vertex>>,
+    pub spt: Topologies<Levels<Spt>>,
     // Routing table (per-level and L1/L2).
     pub rib_single: Levels<BTreeMap<IpNetwork, Route>>,
     pub rib_multi: BTreeMap<IpNetwork, Route>,
@@ -539,12 +539,15 @@ impl InstanceUpView<'_> {
     // Checks if the instance is attached to the Level 2 backbone.
     pub(crate) fn is_l2_attached_to_backbone(
         &self,
+        mt_id: impl Into<u16>,
         interfaces: &Interfaces,
         adjacencies: &Arena<Adjacency>,
     ) -> bool {
+        let mt_id = mt_id.into();
         interfaces
             .iter()
             .flat_map(|iface| iface.adjacencies(adjacencies))
+            .filter(|adj| adj.topologies.contains(&mt_id))
             .filter(|adj| adj.state == AdjacencyState::Up)
             .filter(|adj| adj.level_usage.intersects(LevelNumber::L2))
             .any(|adj| adj.area_addrs.is_disjoint(&self.config.area_addrs))

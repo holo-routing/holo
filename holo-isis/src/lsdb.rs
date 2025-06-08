@@ -32,7 +32,7 @@ use crate::instance::{InstanceArenas, InstanceUpView};
 use crate::interface::{Interface, InterfaceType};
 use crate::northbound::configuration::MetricType;
 use crate::northbound::notification;
-use crate::packet::consts::Nlpid;
+use crate::packet::consts::{MtId, Nlpid};
 use crate::packet::pdu::{Lsp, LspFlags, LspTlvs, Pdu};
 use crate::packet::subtlvs::capability::{
     LabelBlockEntry, SrAlgoStlv, SrCapabilitiesFlags, SrCapabilitiesStlv,
@@ -46,7 +46,7 @@ use crate::packet::subtlvs::prefix::{
 use crate::packet::tlv::{
     IpReachTlvEntry, Ipv4Reach, Ipv4ReachStlvs, Ipv6Reach, Ipv6ReachStlvs,
     IsReach, IsReachStlvs, LegacyIpv4Reach, LegacyIsReach, MAX_NARROW_METRIC,
-    RouterCapFlags, RouterCapTlv,
+    MtFlags, MultiTopologyEntry, RouterCapFlags, RouterCapTlv,
 };
 use crate::packet::{LanId, LevelNumber, LevelType, LspId};
 use crate::spf::{SpfType, VertexId};
@@ -201,8 +201,11 @@ fn lsp_build_flags(
         && level == LevelNumber::L1
         && lsp_id.pseudonode == 0
         && lsp_id.fragment == 0
-        && instance
-            .is_l2_attached_to_backbone(&arenas.interfaces, &arenas.adjacencies)
+        && instance.is_l2_attached_to_backbone(
+            MtId::Standard,
+            &arenas.interfaces,
+            &arenas.adjacencies,
+        )
     {
         lsp_flags.insert(LspFlags::ATT);
     }
@@ -225,12 +228,14 @@ fn lsp_build_tlvs(
     let mut router_cap = vec![];
     let mut is_reach = vec![];
     let mut ext_is_reach = vec![];
+    let mut mt_is_reach = vec![];
     let mut ipv4_addrs = BTreeSet::new();
     let mut ipv4_internal_reach = BTreeMap::new();
     let mut ipv4_external_reach = BTreeMap::new();
     let mut ext_ipv4_reach = BTreeMap::new();
     let mut ipv6_addrs = BTreeSet::new();
     let mut ipv6_reach = BTreeMap::new();
+    let mut mt_ipv6_reach = BTreeMap::new();
 
     // Add supported protocols.
     if instance.config.is_af_enabled(AddressFamily::Ipv4) {
@@ -243,6 +248,20 @@ fn lsp_build_tlvs(
     // Add router capabilities.
     lsp_build_tlvs_router_cap(instance, &mut router_cap);
 
+    // Add topologies.
+    let mut multi_topology = vec![];
+    let topologies = instance.config.topologies();
+    if topologies != [MtId::Standard].into() {
+        multi_topology = topologies
+            .into_iter()
+            .map(|mt_id| MultiTopologyEntry {
+                // Flags will be set later.
+                flags: MtFlags::empty(),
+                mt_id: mt_id as u16,
+            })
+            .collect::<Vec<_>>();
+    }
+
     // Iterate over all active interfaces.
     for iface in arenas.interfaces.iter().filter(|iface| iface.state.active) {
         // Add IS reachability information.
@@ -253,6 +272,7 @@ fn lsp_build_tlvs(
             metric_type,
             &mut is_reach,
             &mut ext_is_reach,
+            &mut mt_is_reach,
             &arenas.adjacencies,
         );
 
@@ -293,16 +313,22 @@ fn lsp_build_tlvs(
         );
     }
 
+    // Swap the IPv6 reachability entries to use MT TLVs if the IPv6 unicast
+    // topology is enabled.
+    if instance.config.is_topology_enabled(MtId::Ipv6Unicast) {
+        std::mem::swap(&mut ipv6_reach, &mut mt_ipv6_reach);
+    }
+
     LspTlvs::new(
         protocols_supported,
         router_cap,
         instance.config.area_addrs.clone(),
-        [],
+        multi_topology,
         instance.shared.hostname.clone(),
         Some(instance.config.lsp_mtu),
         is_reach,
         ext_is_reach,
-        [],
+        mt_is_reach,
         ipv4_addrs,
         ipv4_internal_reach.into_values(),
         ipv4_external_reach.into_values(),
@@ -311,7 +337,7 @@ fn lsp_build_tlvs(
         instance.config.ipv4_router_id,
         ipv6_addrs,
         ipv6_reach.into_values(),
-        [],
+        mt_ipv6_reach.into_values(),
         instance.config.ipv6_router_id,
     )
 }
@@ -431,6 +457,7 @@ fn lsp_build_tlvs_is_reach(
     metric_type: MetricType,
     is_reach: &mut Vec<LegacyIsReach>,
     ext_is_reach: &mut Vec<IsReach>,
+    mt_is_reach: &mut Vec<IsReach>,
     adjacencies: &Arena<Adjacency>,
 ) {
     let metric = iface.config.metric.get(level);
@@ -438,6 +465,7 @@ fn lsp_build_tlvs_is_reach(
     match iface.config.interface_type {
         InterfaceType::Broadcast => {
             if let Some(dis) = iface.state.dis.get(level) {
+                // Add legacy IS reachability.
                 if metric_type.is_standard_enabled() {
                     is_reach.push(LegacyIsReach {
                         metric: std::cmp::min(metric, MAX_NARROW_METRIC) as u8,
@@ -447,16 +475,52 @@ fn lsp_build_tlvs_is_reach(
                         neighbor: dis.lan_id,
                     });
                 }
+
+                // Add extended IS reachability.
                 if metric_type.is_wide_enabled() {
+                    let af = if instance
+                        .config
+                        .is_topology_enabled(MtId::Ipv6Unicast)
+                    {
+                        Some(AddressFamily::Ipv4)
+                    } else {
+                        None
+                    };
                     let sub_tlvs = lsp_build_is_reach_lan_stlvs(
                         instance,
                         iface,
                         level,
+                        af,
                         adjacencies,
                     );
                     ext_is_reach.push(IsReach {
                         neighbor: dis.lan_id,
                         metric,
+                        sub_tlvs,
+                    });
+                }
+
+                // Add IPv6 MT IS reachability.
+                let mt_id = MtId::Ipv6Unicast;
+                if instance.config.is_topology_enabled(mt_id)
+                    && iface.config.is_topology_enabled(mt_id)
+                    && iface
+                        .state
+                        .lan_adjacencies
+                        .get(level)
+                        .iter(adjacencies)
+                        .any(|adj| adj.topologies.contains(&(mt_id as u16)))
+                {
+                    let sub_tlvs = lsp_build_is_reach_lan_stlvs(
+                        instance,
+                        iface,
+                        level,
+                        Some(AddressFamily::Ipv6),
+                        adjacencies,
+                    );
+                    mt_is_reach.push(IsReach {
+                        neighbor: dis.lan_id,
+                        metric: iface.config.topology_metric(mt_id, level),
                         sub_tlvs,
                     });
                 }
@@ -471,6 +535,8 @@ fn lsp_build_tlvs_is_reach(
                 .filter(|adj| adj.state == AdjacencyState::Up)
             {
                 let neighbor = LanId::from((adj.system_id, 0));
+
+                // Add legacy IS reachability.
                 if metric_type.is_standard_enabled() {
                     is_reach.push(LegacyIsReach {
                         metric: std::cmp::min(metric, MAX_NARROW_METRIC) as u8,
@@ -480,11 +546,40 @@ fn lsp_build_tlvs_is_reach(
                         neighbor,
                     });
                 }
+
+                // Add extended IS reachability.
                 if metric_type.is_wide_enabled() {
-                    let sub_tlvs = lsp_build_is_reach_p2p_stlvs(instance, adj);
+                    let af = if instance
+                        .config
+                        .is_topology_enabled(MtId::Ipv6Unicast)
+                    {
+                        Some(AddressFamily::Ipv4)
+                    } else {
+                        None
+                    };
+                    let sub_tlvs =
+                        lsp_build_is_reach_p2p_stlvs(instance, adj, af);
                     ext_is_reach.push(IsReach {
                         neighbor,
                         metric,
+                        sub_tlvs,
+                    });
+                }
+
+                // Add IPv6 MT IS reachability.
+                let mt_id = MtId::Ipv6Unicast;
+                if instance.config.is_topology_enabled(mt_id)
+                    && iface.config.is_topology_enabled(mt_id)
+                    && adj.topologies.contains(&(mt_id as u16))
+                {
+                    let sub_tlvs = lsp_build_is_reach_p2p_stlvs(
+                        instance,
+                        adj,
+                        Some(AddressFamily::Ipv6),
+                    );
+                    mt_is_reach.push(IsReach {
+                        neighbor,
+                        metric: iface.config.topology_metric(mt_id, level),
                         sub_tlvs,
                     });
                 }
@@ -557,6 +652,8 @@ fn lsp_build_tlvs_ip_local(
     if iface
         .config
         .is_af_enabled(AddressFamily::Ipv6, instance.config)
+        && (!instance.config.is_topology_enabled(MtId::Ipv6Unicast)
+            || iface.config.is_topology_enabled(MtId::Ipv6Unicast))
     {
         for addr in iface
             .system
@@ -665,6 +762,7 @@ fn lsp_build_is_reach_lan_stlvs(
     instance: &InstanceUpView<'_>,
     iface: &Interface,
     level: LevelNumber,
+    af: Option<AddressFamily>,
     adjacencies: &Arena<Adjacency>,
 ) -> IsReachStlvs {
     let mut sub_tlvs = IsReachStlvs::default();
@@ -677,6 +775,7 @@ fn lsp_build_is_reach_lan_stlvs(
             .get(level)
             .iter(adjacencies)
             .flat_map(|adj| adj.adj_sids.iter())
+            .filter(|adj_sid| af.is_none_or(|af| af == adj_sid.af))
             .map(|adj_sid| adj_sid.to_stlv())
             .collect();
     }
@@ -687,6 +786,7 @@ fn lsp_build_is_reach_lan_stlvs(
 fn lsp_build_is_reach_p2p_stlvs(
     instance: &InstanceUpView<'_>,
     adj: &Adjacency,
+    af: Option<AddressFamily>,
 ) -> IsReachStlvs {
     let mut sub_tlvs = IsReachStlvs::default();
 
@@ -695,6 +795,7 @@ fn lsp_build_is_reach_p2p_stlvs(
         sub_tlvs.adj_sids = adj
             .adj_sids
             .iter()
+            .filter(|adj_sid| af.is_none_or(|af| af == adj_sid.af))
             .map(|adj_sid| adj_sid.to_stlv())
             .collect();
     }
@@ -862,7 +963,7 @@ fn lsp_build_fragments(
 
     let mut fragments = vec![];
     for frag_id in 0..=255 {
-        let Some(tlvs) = tlvs.next_chunk(max_len) else {
+        let Some(mut tlvs) = tlvs.next_chunk(max_len) else {
             break;
         };
 
@@ -874,7 +975,31 @@ fn lsp_build_fragments(
             .get_by_lspid(&arenas.lsp_entries, &lsp_id)
             .map(|(_, lse)| lse.data.seqno + 1)
             .unwrap_or(LSP_INIT_SEQNO);
+
+        // Initialize LSP flags and MT-specific flags.
         let lsp_flags = lsp_build_flags(instance, arenas, level, lsp_id);
+        if lsp_id.pseudonode == 0 && lsp_id.fragment == 0 {
+            for mt in tlvs
+                .multi_topology_mut()
+                .filter(|mt| mt.mt_id != MtId::Standard as u16)
+            {
+                if !instance.config.att_suppress
+                    && instance.config.level_type == LevelType::All
+                    && level == LevelNumber::L1
+                    && instance.is_l2_attached_to_backbone(
+                        mt.mt_id,
+                        &arenas.interfaces,
+                        &arenas.adjacencies,
+                    )
+                {
+                    mt.flags.insert(MtFlags::ATT);
+                }
+                if instance.config.overload_status {
+                    mt.flags.insert(MtFlags::OL);
+                }
+            }
+        }
+
         let fragment = Lsp::new(
             level,
             instance.config.lsp_lifetime,
@@ -912,17 +1037,6 @@ fn lsp_propagate_l1_to_l2(
         .filter(|lsp| !lsp.lsp_id.is_pseudonode())
         .filter(|lsp| lsp.lsp_id.system_id != system_id)
     {
-        // Get the distance to the corresponding L1 router from the SPT.
-        let Some(l1_lsp_dist) = instance
-            .state
-            .spt
-            .get(LevelNumber::L1)
-            .get(&VertexId::new(LanId::from((l1_lsp.lsp_id.system_id, 0))))
-            .map(|vertex| vertex.distance)
-        else {
-            continue;
-        };
-
         // Propagate the Router Capability TLV.
         for l1_router_cap in l1_lsp
             .tlvs
@@ -934,47 +1048,79 @@ fn lsp_propagate_l1_to_l2(
             l2_router_cap.push(l1_router_cap);
         }
 
-        // Propagate IPv4 reachability information.
-        //
-        // Propagation for both old and new metric types occurs only if the
-        // corresponding metric type is enabled on both levels.
-        if instance.config.is_af_enabled(AddressFamily::Ipv4) {
-            if LevelType::All
-                .into_iter()
-                .all(|level| metric_type.get(level).is_standard_enabled())
-            {
-                propagate_ip_reach(
-                    instance,
-                    l1_lsp_dist,
-                    l1_lsp.tlvs.ipv4_internal_reach(),
-                    l2_ipv4_internal_reach,
-                );
-                propagate_ip_reach(
-                    instance,
-                    l1_lsp_dist,
-                    l1_lsp.tlvs.ipv4_external_reach(),
-                    l2_ipv4_external_reach,
-                );
+        // Standard topology: get the distance to the corresponding L1 router
+        // from the SPT.
+        if let Some(l1_lsp_dist) = instance
+            .state
+            .spt
+            .standard
+            .get(LevelNumber::L1)
+            .get(&VertexId::new(LanId::from((l1_lsp.lsp_id.system_id, 0))))
+            .map(|vertex| vertex.distance)
+        {
+            // Propagate IPv4 reachability information.
+            //
+            // Propagation for both old and new metric types occurs only if the
+            // corresponding metric type is enabled on both levels.
+            if instance.config.is_af_enabled(AddressFamily::Ipv4) {
+                if LevelType::All
+                    .into_iter()
+                    .all(|level| metric_type.get(level).is_standard_enabled())
+                {
+                    propagate_ip_reach(
+                        instance,
+                        l1_lsp_dist,
+                        l1_lsp.tlvs.ipv4_internal_reach(),
+                        l2_ipv4_internal_reach,
+                    );
+                    propagate_ip_reach(
+                        instance,
+                        l1_lsp_dist,
+                        l1_lsp.tlvs.ipv4_external_reach(),
+                        l2_ipv4_external_reach,
+                    );
+                }
+                if LevelType::All
+                    .into_iter()
+                    .all(|level| metric_type.get(level).is_wide_enabled())
+                {
+                    propagate_ip_reach(
+                        instance,
+                        l1_lsp_dist,
+                        l1_lsp.tlvs.ext_ipv4_reach(),
+                        l2_ext_ipv4_reach,
+                    );
+                }
             }
-            if LevelType::All
-                .into_iter()
-                .all(|level| metric_type.get(level).is_wide_enabled())
+
+            // Propagate IPv6 reachability information.
+            if !instance.config.is_topology_enabled(MtId::Ipv6Unicast)
+                && instance.config.is_af_enabled(AddressFamily::Ipv6)
             {
                 propagate_ip_reach(
                     instance,
                     l1_lsp_dist,
-                    l1_lsp.tlvs.ext_ipv4_reach(),
-                    l2_ext_ipv4_reach,
+                    l1_lsp.tlvs.ipv6_reach(),
+                    l2_ipv6_reach,
                 );
             }
         }
 
-        // Propagate IPv6 reachability information.
-        if instance.config.is_af_enabled(AddressFamily::Ipv6) {
+        // IPv6 unicast topology: get the distance to the corresponding L1
+        // router from the SPT.
+        if let Some(l1_lsp_dist) = instance
+            .state
+            .spt
+            .ipv6_unicast
+            .get(LevelNumber::L1)
+            .get(&VertexId::new(LanId::from((l1_lsp.lsp_id.system_id, 0))))
+            .map(|vertex| vertex.distance)
+        {
+            // Propagate MT-IPv6 reachability information.
             propagate_ip_reach(
                 instance,
                 l1_lsp_dist,
-                l1_lsp.tlvs.ipv6_reach(),
+                l1_lsp.tlvs.mt_ipv6_reach_by_id(MtId::Ipv6Unicast),
                 l2_ipv6_reach,
             );
         }

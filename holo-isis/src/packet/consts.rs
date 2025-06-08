@@ -163,14 +163,18 @@ pub enum Nlpid {
 //
 // IANA registry:
 // https://www.iana.org/assignments/isis-mt-parameters/isis-mt-parameters.xhtml
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
 pub enum MtId {
     Standard = 0,
-    Ipv4Mgmt = 1,
     Ipv6Unicast = 2,
-    Ipv4Multicast = 3,
-    Ipv6Multicast = 4,
-    Ipv6Mgmt = 5,
+}
+
+// ===== conversion functions =====
+
+impl From<MtId> for u16 {
+    fn from(id: MtId) -> u16 {
+        id as u16
+    }
 }

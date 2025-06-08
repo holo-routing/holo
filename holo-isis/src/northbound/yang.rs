@@ -19,6 +19,7 @@ use crate::lsdb::LspLogReason;
 use crate::northbound::configuration::{
     InstanceTraceOption, InterfaceTraceOption, MetricType,
 };
+use crate::packet::consts::MtId;
 use crate::packet::pdu::LspFlags;
 use crate::packet::subtlvs::capability::SrCapabilitiesFlags;
 use crate::packet::subtlvs::neighbor::AdjSidFlags;
@@ -132,6 +133,15 @@ impl ToYangBits for RouterCapFlags {
         }
 
         flags
+    }
+}
+
+impl ToYang for MtId {
+    fn to_yang(&self) -> Cow<'static, str> {
+        match self {
+            MtId::Standard => "standard".into(),
+            MtId::Ipv6Unicast => "ipv6-unicast".into(),
+        }
     }
 }
 
@@ -263,6 +273,7 @@ impl ToYang for AdjacencyRejectError {
             AdjacencyRejectError::DuplicateSystemId => {
                 "duplicate-system-id".into()
             }
+            AdjacencyRejectError::NoCommonMt => "no-common-mt".into(),
         }
     }
 }
@@ -379,6 +390,16 @@ impl TryFromYang for MetricType {
             "wide-only" => Some(MetricType::Wide),
             "old-only" => Some(MetricType::Standard),
             "both" => Some(MetricType::Both),
+            _ => None,
+        }
+    }
+}
+
+impl TryFromYang for MtId {
+    fn try_from_yang(value: &str) -> Option<MtId> {
+        match value {
+            "standard" => Some(MtId::Standard),
+            "ipv6-unicast" => Some(MtId::Ipv6Unicast),
             _ => None,
         }
     }

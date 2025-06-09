@@ -218,6 +218,32 @@ fn lsp_build_flags(
     lsp_flags
 }
 
+fn lsp_build_mt_flags(
+    instance: &mut InstanceUpView<'_>,
+    arenas: &InstanceArenas,
+    level: LevelNumber,
+    mt_id: u16,
+) -> MtFlags {
+    let mut mt_flags = MtFlags::default();
+
+    if !instance.config.att_suppress
+        && instance.config.level_type == LevelType::All
+        && level == LevelNumber::L1
+        && instance.is_l2_attached_to_backbone(
+            mt_id,
+            &arenas.interfaces,
+            &arenas.adjacencies,
+        )
+    {
+        mt_flags.insert(MtFlags::ATT);
+    }
+    if instance.config.overload_status {
+        mt_flags.insert(MtFlags::OL);
+    }
+
+    mt_flags
+}
+
 fn lsp_build_tlvs(
     instance: &mut InstanceUpView<'_>,
     arenas: &InstanceArenas,
@@ -983,20 +1009,8 @@ fn lsp_build_fragments(
                 .multi_topology_mut()
                 .filter(|mt| mt.mt_id != MtId::Standard as u16)
             {
-                if !instance.config.att_suppress
-                    && instance.config.level_type == LevelType::All
-                    && level == LevelNumber::L1
-                    && instance.is_l2_attached_to_backbone(
-                        mt.mt_id,
-                        &arenas.interfaces,
-                        &arenas.adjacencies,
-                    )
-                {
-                    mt.flags.insert(MtFlags::ATT);
-                }
-                if instance.config.overload_status {
-                    mt.flags.insert(MtFlags::OL);
-                }
+                mt.flags =
+                    lsp_build_mt_flags(instance, arenas, level, mt.mt_id);
             }
         }
 

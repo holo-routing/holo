@@ -139,8 +139,8 @@ impl ToYangBits for RouterCapFlags {
 impl ToYang for MtId {
     fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            MtId::Standard => "standard".into(),
-            MtId::Ipv6Unicast => "ipv6-unicast".into(),
+            MtId::Standard => "holo-isis:mt-topology-standard".into(),
+            MtId::Ipv6Unicast => "holo-isis:mt-topology-ipv6-unicast".into(),
         }
     }
 }
@@ -398,8 +398,8 @@ impl TryFromYang for MetricType {
 impl TryFromYang for MtId {
     fn try_from_yang(value: &str) -> Option<MtId> {
         match value {
-            "standard" => Some(MtId::Standard),
-            "ipv6-unicast" => Some(MtId::Ipv6Unicast),
+            "holo-isis:mt-topology-standard" => Some(MtId::Standard),
+            "holo-isis:mt-topology-ipv6-unicast" => Some(MtId::Ipv6Unicast),
             _ => None,
         }
     }

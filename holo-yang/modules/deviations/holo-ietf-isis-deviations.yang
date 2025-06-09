@@ -11,6 +11,10 @@ module holo-ietf-isis-deviations {
     prefix isis;
   }
 
+  import holo-isis {
+    prefix holo-isis;
+  }
+
   organization
     "Holo Routing Stack";
 
@@ -88,7 +92,9 @@ module holo-ietf-isis-deviations {
 
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:topologies/isis:topology/isis:name" {
     deviate replace {
-      type "string";
+      type identityref {
+        base holo-isis:mt-topology;
+      }
     }
   }
 
@@ -132,7 +138,9 @@ module holo-ietf-isis-deviations {
 
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:topologies/isis:topology/isis:name" {
     deviate replace {
-      type "string";
+      type identityref {
+        base holo-isis:mt-topology;
+      }
     }
   }
 

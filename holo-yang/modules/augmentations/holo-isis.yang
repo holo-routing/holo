@@ -31,8 +31,30 @@ module holo-isis {
      module.";
 
   /*
+   * Identities.
+   */
+
+  identity mt-topology {
+    description
+      "Base identity for IS-IS Multi-Topology (MT) types.";
+  }
+
+  identity mt-topology-standard {
+    base mt-topology;
+    description
+      "Standard topology (MT-ID 0)";
+  }
+
+  identity mt-topology-ipv6-unicast {
+    base mt-topology;
+    description
+      "IPv6 unicast topology (MT-ID 2)";
+  }
+
+  /*
    * Groupings.
    */
+
   grouping bier-protocol-extensions {
     description
       "Defines protocol extensions.";

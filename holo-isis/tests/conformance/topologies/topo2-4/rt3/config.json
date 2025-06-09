@@ -59,7 +59,7 @@
             "topologies": {
               "topology": [
                 {
-                  "name": "ipv6-unicast"
+                  "name": "holo-isis:mt-topology-ipv6-unicast"
                 }
               ]
             },

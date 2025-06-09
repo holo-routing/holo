@@ -740,6 +740,14 @@ impl HelloTlvs {
         }
     }
 
+    // Returns an iterator over all supported protocols from the TLV of type 129.
+    pub(crate) fn protocols_supported(&self) -> impl Iterator<Item = u8> + '_ {
+        self.protocols_supported
+            .iter()
+            .flat_map(|tlv| tlv.list.iter())
+            .copied()
+    }
+
     // Returns an iterator over all area addresses from TLVs of type 1.
     pub(crate) fn area_addrs(&self) -> impl Iterator<Item = &AreaAddr> {
         self.area_addrs.iter().flat_map(|tlv| tlv.list.iter())

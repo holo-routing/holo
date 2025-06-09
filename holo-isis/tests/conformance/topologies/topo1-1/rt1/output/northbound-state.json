@@ -1067,7 +1067,23 @@
                         "neighbor-sys-type": "level-2",
                         "neighbor-sysid": "0000.0000.0002",
                         "usage": "level-2",
-                        "state": "up"
+                        "state": "up",
+                        "holo-isis:area-addresses": [
+                          "49.0000"
+                        ],
+                        "holo-isis:ipv4-addresses": [
+                          "10.0.1.2"
+                        ],
+                        "holo-isis:ipv6-addresses": [
+                          "fe80::cc80:b7ff:fe6f:f133"
+                        ],
+                        "holo-isis:protocol-supported": [
+                          204,
+                          142
+                        ],
+                        "holo-isis:topologies": [
+                          0
+                        ]
                       }
                     ]
                   },

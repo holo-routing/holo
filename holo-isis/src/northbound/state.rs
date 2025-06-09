@@ -1188,6 +1188,11 @@ fn load_callbacks() -> Callbacks<Instance> {
         .get_object(|_instance, args| {
             use isis::interfaces::interface::adjacencies::adjacency::Adjacency;
             let adj = args.list_entry.as_adjacency().unwrap();
+            let area_addresses = adj.area_addrs.iter().map(|area| area.to_yang());
+            let ipv4_addresses = adj.ipv4_addrs.iter().map(Cow::Borrowed);
+            let ipv6_addresses = adj.ipv6_addrs.iter().map(Cow::Borrowed);
+            let protocol_supported = adj.protocols_supported.iter().copied();
+            let topologies = adj.topologies.iter().copied();
             Box::new(Adjacency {
                 neighbor_sys_type: Some(adj.level_capability.to_yang()),
                 neighbor_sysid: Some(adj.system_id.to_yang()),
@@ -1198,6 +1203,11 @@ fn load_callbacks() -> Callbacks<Instance> {
                 neighbor_priority: adj.priority,
                 lastuptime: adj.last_uptime.as_ref().map(Cow::Borrowed).ignore_in_testing(),
                 state: Some(adj.state.to_yang()),
+                area_addresses: Some(Box::new(area_addresses)),
+                ipv4_addresses: Some(Box::new(ipv4_addresses)),
+                ipv6_addresses: Some(Box::new(ipv6_addresses)),
+                protocol_supported: Some(Box::new(protocol_supported)),
+                topologies: Some(Box::new(topologies)),
             })
         })
         .path(isis::interfaces::interface::adjacencies::adjacency::adjacency_sid::PATH)

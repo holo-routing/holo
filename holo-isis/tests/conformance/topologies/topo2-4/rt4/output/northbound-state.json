@@ -1664,7 +1664,23 @@
                         "neighbor-sys-type": "level-2",
                         "neighbor-sysid": "0000.0000.0002",
                         "usage": "level-2",
-                        "state": "up"
+                        "state": "up",
+                        "holo-isis:area-addresses": [
+                          "49.0000"
+                        ],
+                        "holo-isis:ipv4-addresses": [
+                          "10.0.2.2"
+                        ],
+                        "holo-isis:ipv6-addresses": [
+                          "fe80::48be:dfff:fe2b:8683"
+                        ],
+                        "holo-isis:protocol-supported": [
+                          204,
+                          142
+                        ],
+                        "holo-isis:topologies": [
+                          0
+                        ]
                       }
                     ]
                   },
@@ -1679,7 +1695,23 @@
                         "neighbor-sys-type": "level-2",
                         "neighbor-sysid": "0000.0000.0002",
                         "usage": "level-2",
-                        "state": "up"
+                        "state": "up",
+                        "holo-isis:area-addresses": [
+                          "49.0000"
+                        ],
+                        "holo-isis:ipv4-addresses": [
+                          "10.0.3.2"
+                        ],
+                        "holo-isis:ipv6-addresses": [
+                          "fe80::2486:afff:fe02:b389"
+                        ],
+                        "holo-isis:protocol-supported": [
+                          204,
+                          142
+                        ],
+                        "holo-isis:topologies": [
+                          0
+                        ]
                       }
                     ]
                   },
@@ -1694,7 +1726,24 @@
                         "neighbor-sys-type": "level-all",
                         "neighbor-sysid": "0000.0000.0005",
                         "usage": "level-all",
-                        "state": "up"
+                        "state": "up",
+                        "holo-isis:area-addresses": [
+                          "49.0001"
+                        ],
+                        "holo-isis:ipv4-addresses": [
+                          "10.0.6.5"
+                        ],
+                        "holo-isis:ipv6-addresses": [
+                          "fe80::1004:17ff:fe8d:149a"
+                        ],
+                        "holo-isis:protocol-supported": [
+                          204,
+                          142
+                        ],
+                        "holo-isis:topologies": [
+                          0,
+                          2
+                        ]
                       }
                     ]
                   },
@@ -1709,7 +1758,24 @@
                         "neighbor-sys-type": "level-1",
                         "neighbor-sysid": "0000.0000.0006",
                         "usage": "level-1",
-                        "state": "up"
+                        "state": "up",
+                        "holo-isis:area-addresses": [
+                          "49.0001"
+                        ],
+                        "holo-isis:ipv4-addresses": [
+                          "10.0.7.6"
+                        ],
+                        "holo-isis:ipv6-addresses": [
+                          "fe80::907e:1ff:fe20:e01f"
+                        ],
+                        "holo-isis:protocol-supported": [
+                          204,
+                          142
+                        ],
+                        "holo-isis:topologies": [
+                          0,
+                          2
+                        ]
                       }
                     ]
                   },

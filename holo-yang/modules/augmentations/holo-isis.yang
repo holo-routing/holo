@@ -277,6 +277,45 @@ module holo-isis {
   }
 
   augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis/"
+        + "isis:interfaces/isis:interface/"
+        + "isis:adjacencies/isis:adjacency" {
+    description
+      "IS-IS interface adjacencies augmentations";
+    leaf-list area-addresses {
+      type isis:area-address;
+      description
+        "List of area addresses of the IS-IS node.  The IS-IS
+         reference is TLV 1.";
+    }
+    leaf-list ipv4-addresses {
+      type inet:ipv4-address;
+      description
+        "List of IPv4 addresses of the IS-IS node.  The IS-IS
+         reference is TLV 132.";
+    }
+    leaf-list ipv6-addresses {
+      type inet:ipv6-address;
+      description
+        "List of IPv6 addresses of the IS-IS node.  The IS-IS
+         reference is TLV 232.";
+    }
+    leaf-list protocol-supported {
+      type uint8;
+      description
+        "List of supported protocols of the IS-IS node.
+         The IS-IS reference is TLV 129.";
+    }
+    leaf-list topologies {
+      type uint16 {
+        range "0 .. 4095";
+      }
+      description
+        "List of topologies supported. The IS-IS reference is TLV 229.";
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
         + "rt:control-plane-protocol/isis:isis/isis:database/"
         + "isis:levels/isis:lsp" {
     leaf-list area-addresses {

@@ -296,6 +296,7 @@ pub(crate) fn process_pdu_hello_lan(
     let old_state = adj.state;
     adj.priority = Some(priority);
     adj.lan_id = Some(lan_id);
+    adj.protocols_supported = hello.tlvs.protocols_supported().collect();
     adj.area_addrs = hello.tlvs.area_addrs().cloned().collect();
     adj.topologies = hello.tlvs.topologies();
     adj.neighbors = hello.tlvs.neighbors().cloned().collect();
@@ -461,6 +462,7 @@ pub(crate) fn process_pdu_hello_p2p(
     }
 
     // Update adjacency with received PDU values.
+    adj.protocols_supported = hello.tlvs.protocols_supported().collect();
     adj.area_addrs = hello.tlvs.area_addrs().cloned().collect();
     adj.topologies = hello_topologies;
     adj.ipv4_addrs = hello.tlvs.ipv4_addrs().cloned().collect();

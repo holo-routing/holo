@@ -1297,8 +1297,8 @@ pub(crate) fn process_bfd_state_update(
         let bfd = adj
             .bfd
             .iter_mut()
-            .find_map(|(_, b)| b.as_mut())
-            .filter(|b| b.sess_key == sess_key);
+            .filter_map(|(_, b)| b.as_mut())
+            .find(|b| b.sess_key == sess_key);
         if let Some(bfd) = bfd {
             // Update the status of the BFD session.
             bfd.state = Some(state);

@@ -661,7 +661,7 @@ async fn nb_config_iface_bfd1() {
 //  * Southbound: register IPv4 and IPv6 BFD sessions on eth-rt4
 //
 // Input:
-//  * Southbound: BFD session to 10.0.7.4 on eth-rt4 is down
+//  * Southbound: BFD sessions to rt4 on eth-rt4 are down
 // Output:
 //  * Protocol: send an updated local LSP to the 0000.0000.0005 adjacency
 //  * Northbound:

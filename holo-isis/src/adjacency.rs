@@ -297,16 +297,15 @@ impl Adjacency {
         instance.tx.ibus.bfd_session_unreg(sess_key);
     }
 
-    // Returns whether this adjacency should be operational based on the state
-    // of its associated IPv4 and/or IPv6 BFD sessions.
+    // Returns whether the adjacency should be operational based on BFD state.
     //
-    // In single-topology mode, the adjacency is considered UP only if all
-    // associated BFD sessions are UP.
+    // The adjacency is considered up if any associated IPv4 or IPv6 BFD session
+    // is up.
     pub(crate) fn is_bfd_healthy(&self) -> bool {
         self.bfd
             .iter()
             .filter_map(|(_, bfd)| bfd.as_ref())
-            .all(|bfd| bfd.is_up())
+            .any(|bfd| bfd.is_up())
     }
 }
 
@@ -326,7 +325,7 @@ impl AdjacencyBfd {
         }
     }
 
-    fn is_up(&self) -> bool {
+    pub(crate) fn is_up(&self) -> bool {
         self.state
             .as_ref()
             .map(|state| *state == bfd::State::Up)

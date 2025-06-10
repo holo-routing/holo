@@ -1312,6 +1312,7 @@ pub(crate) fn process_bfd_state_update(
             }
         }
     });
+    instance.schedule_lsp_origination(instance.config.level_type);
 
     Ok(())
 }

@@ -1,1 +1,2 @@
 {"BfdStateUpd":{"sess_key":{"IpSingleHop":{"ifname":"eth-rt4","dst":"10.0.7.4"}},"state":"Down"}}
+{"BfdStateUpd":{"sess_key":{"IpSingleHop":{"ifname":"eth-rt4","dst":"fe80::18c4:f8ff:fe09:3280"}},"state":"Down"}}

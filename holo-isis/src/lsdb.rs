@@ -563,7 +563,10 @@ fn lsp_build_tlvs_is_reach(
                 let neighbor = LanId::from((adj.system_id, 0));
 
                 // Add legacy IS reachability.
-                if metric_type.is_standard_enabled() {
+                if metric_type.is_standard_enabled()
+                    && adj.bfd.ipv4.as_ref().is_none_or(|bfd| bfd.is_up())
+                    && adj.bfd.ipv6.as_ref().is_none_or(|bfd| bfd.is_up())
+                {
                     is_reach.push(LegacyIsReach {
                         metric: std::cmp::min(metric, MAX_NARROW_METRIC) as u8,
                         metric_delay: None,
@@ -574,7 +577,10 @@ fn lsp_build_tlvs_is_reach(
                 }
 
                 // Add extended IS reachability.
-                if metric_type.is_wide_enabled() {
+                if metric_type.is_wide_enabled()
+                    && adj.bfd.ipv4.as_ref().is_none_or(|bfd| bfd.is_up())
+                    && adj.bfd.ipv6.as_ref().is_none_or(|bfd| bfd.is_up())
+                {
                     let af = if instance
                         .config
                         .is_topology_enabled(MtId::Ipv6Unicast)
@@ -597,6 +603,7 @@ fn lsp_build_tlvs_is_reach(
                 if instance.config.is_topology_enabled(mt_id)
                     && iface.config.is_topology_enabled(mt_id)
                     && adj.topologies.contains(&(mt_id as u16))
+                    && adj.bfd.ipv6.as_ref().is_none_or(|bfd| bfd.is_up())
                 {
                     let sub_tlvs = lsp_build_is_reach_p2p_stlvs(
                         instance,

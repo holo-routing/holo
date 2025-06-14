@@ -28,7 +28,7 @@ pub struct NorthboundStub {
 // ===== impl NorthboundStub =====
 
 impl NorthboundStub {
-    pub(crate) fn new(daemon_tx: NbDaemonSender) -> NorthboundStub {
+    pub fn new(daemon_tx: NbDaemonSender) -> NorthboundStub {
         let yang_ctx = YANG_CTX.get().unwrap();
         let running_config = Arc::new(DataTree::new(yang_ctx));
 
@@ -67,7 +67,7 @@ impl NorthboundStub {
         self.commit(candidate, data_diff).await;
     }
 
-    pub(crate) async fn commit_replace(&mut self, data_str: &str) {
+    pub async fn commit_replace(&mut self, data_str: &str) {
         let yang_ctx = YANG_CTX.get().unwrap();
 
         // Parse candidate configuration.

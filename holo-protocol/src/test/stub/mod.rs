@@ -5,7 +5,7 @@
 //
 
 mod collector;
-mod northbound;
+pub mod northbound;
 
 use std::collections::BTreeMap;
 use std::sync::LazyLock as Lazy;
@@ -210,6 +210,7 @@ impl TestOpOutput {
 
 // ===== helper functions =====
 
+#[cfg(feature = "testing")]
 fn topology_dir<P>(topology: &str, router: &str) -> String
 where
     P: ProtocolInstance,
@@ -222,6 +223,7 @@ fn output_path(dir: &str, step: usize, op: TestOpOutput) -> String {
 }
 
 // Loads instance snapshot of the provided topology and router.
+#[cfg(feature = "testing")]
 async fn load_snapshot<P>(topology: &str, router: &str) -> Stub<P>
 where
     P: ProtocolInstance,
@@ -263,6 +265,7 @@ where
 // ===== global functions =====
 
 // Starts test instance.
+#[cfg(feature = "testing")]
 pub async fn start_test_instance<P>(name: &str) -> Stub<P>
 where
     P: ProtocolInstance,
@@ -315,6 +318,7 @@ where
 
 // Starts test instance based on a preset state and runs all tests specified in
 // the corresponding test directory.
+#[cfg(feature = "testing")]
 pub async fn run_test<P>(test: &str, topology: &str, router: &str)
 where
     P: ProtocolInstance,
@@ -428,6 +432,7 @@ where
 
 // Loads topology snapshot and checks if the initial network convergence went as
 // expected.
+#[cfg(feature = "testing")]
 pub async fn run_test_topology<P>(topology: &str, router: &str)
 where
     P: ProtocolInstance,

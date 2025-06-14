@@ -18,6 +18,7 @@ members = [
   "holo-utils",
   "holo-vrrp",
   "holo-yang",
+  "pcwizz",
 ]
 exclude = ["fuzz"]
 default-members = ["holo-daemon"]

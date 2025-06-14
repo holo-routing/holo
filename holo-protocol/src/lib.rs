@@ -4,8 +4,9 @@
 // SPDX-License-Identifier: MIT
 //
 
+#![allow(dead_code, unused_variables, unused_imports)]
+
 pub mod event_recorder;
-#[cfg(feature = "testing")]
 pub mod test;
 
 use std::sync::{Arc, Mutex};

@@ -1,0 +1,23 @@
+[package]
+name = "pcwizz"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+futures.workspace = true
+tokio.workspace = true
+
+holo-bgp = { path = "../holo-bgp" }
+holo-northbound = { path = "../holo-northbound" }
+holo-protocol = { path = "../holo-protocol" }
+holo-utils = { path = "../holo-utils" }
+holo-yang = { path = "../holo-yang" }
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "pcwizz"
+path = "src/main.rs"

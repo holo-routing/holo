@@ -80,6 +80,7 @@ fn init_yang() {
 // ===== global functions =====
 
 // Processes protocol instance test message.
+#[cfg(feature = "testing")]
 pub(crate) fn process_test_msg<P>(
     msg: TestMsg<P::ProtocolOutputMsg>,
     output_channels_rx: &mut Option<OutputChannelsRx<P::ProtocolOutputMsg>>,

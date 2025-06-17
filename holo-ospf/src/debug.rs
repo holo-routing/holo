@@ -63,7 +63,7 @@ pub enum Debug<'a, V: Version> {
         &'a V::NetIpAddr,
         &'a Packet<V>,
     ),
-    PacketTx(u32, &'a V::NetIpAddr, &'a Packet<V>),
+    PacketTx(&'a str, &'a V::NetIpAddr, &'a Packet<V>),
     PacketRxIgnore(Ipv4Addr, &'a nsm::State),
     // Flooding
     QuestionableAck(Ipv4Addr, &'a V::LsaHdr),
@@ -258,10 +258,10 @@ where
                         })
                 })
             }
-            Debug::PacketTx(ifindex, addr, packet) => {
+            Debug::PacketTx(ifname, addr, packet) => {
                 // Parent span(s): ospf-instance:network:output
                 let data = serde_json::to_string(&packet).unwrap();
-                debug!(%ifindex, %addr, %data, "{}", self);
+                debug!(interface = ifname, %addr, %data, "{}", self);
             }
             Debug::PacketRxIgnore(router_id, state) => {
                 // Parent span(s): ospf-instance

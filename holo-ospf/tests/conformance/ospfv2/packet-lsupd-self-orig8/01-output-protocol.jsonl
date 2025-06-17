@@ -1,1 +1,1 @@
-{"NetTxPacket":{"packet":{"LsAck":{"hdr":{"pkt_type":"LsAck","router_id":"2.2.2.2","area_id":"0.0.0.0"},"lsa_hdrs":[{"options":"E","lsa_type":4,"lsa_id":"10.0.255.1","adv_rtr":"2.2.2.2","length":28}]}},"src":"10.0.2.2","dst":{"ifindex":4,"addrs":["224.0.0.5"]}}}
+{"NetTxPacket":{"packet":{"LsAck":{"hdr":{"pkt_type":"LsAck","router_id":"2.2.2.2","area_id":"0.0.0.0"},"lsa_hdrs":[{"options":"E","lsa_type":4,"lsa_id":"10.0.255.1","adv_rtr":"2.2.2.2","length":28}]}},"ifname":"eth-rt3","dst":["224.0.0.5"]}}

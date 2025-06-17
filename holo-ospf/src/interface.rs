@@ -29,7 +29,7 @@ use crate::error::{Error, InterfaceCfgError, IoError};
 use crate::instance::{Instance, InstanceUpView};
 use crate::lsdb::{LsaEntry, LsaOriginateEvent};
 use crate::neighbor::{Neighbor, NeighborNetId, nsm};
-use crate::network::{MulticastAddr, SendDestination};
+use crate::network::MulticastAddr;
 use crate::northbound::configuration::InterfaceCfg;
 use crate::northbound::notification;
 use crate::packet::Packet;
@@ -609,8 +609,7 @@ where
         area: &Area<V>,
         instance: &InstanceUpView<'_, V>,
     ) {
-        let ifindex = self.system.ifindex.unwrap();
-        let addrs = match self.config.if_type {
+        let dst = match self.config.if_type {
             InterfaceType::PointToPoint | InterfaceType::Broadcast => {
                 smallvec![*V::multicast_addr(MulticastAddr::AllSpfRtrs)]
             }
@@ -618,7 +617,6 @@ where
                 self.config.static_nbrs.keys().copied().collect()
             }
         };
-        let dst = SendDestination::new(ifindex, addrs);
         let interval = self.config.hello_interval;
         let task = tasks::hello_interval(self, area, instance, dst, interval);
         self.state.tasks.hello_interval = Some(task);
@@ -631,8 +629,7 @@ where
         addr: V::NetIpAddr,
         poll_interval: u16,
     ) {
-        let ifindex = self.system.ifindex.unwrap();
-        let dst = SendDestination::new(ifindex, smallvec![addr]);
+        let dst = smallvec![addr];
         let task =
             tasks::hello_interval(self, area, instance, dst, poll_interval);
         self.state.tasks.nbma_poll_interval.insert(addr, task);
@@ -1011,9 +1008,8 @@ where
         let (net_tx_packetp, net_tx_packetc) = mpsc::unbounded_channel();
         let mut net_tx_task = tasks::net_tx(
             socket.clone(),
-            iface.state.auth.clone(),
+            iface,
             auth_seqno,
-            iface.config.trace_opts.packets_resolved.clone(),
             net_tx_packetc,
             #[cfg(feature = "testing")]
             &instance_channels_tx.protocol_output,
@@ -1049,9 +1045,8 @@ where
         let (net_tx_packetp, net_tx_packetc) = mpsc::unbounded_channel();
         self._net_tx_task = tasks::net_tx(
             self.socket.clone(),
-            iface.state.auth.clone(),
+            iface,
             auth_seqno,
-            iface.config.trace_opts.packets_resolved.clone(),
             net_tx_packetc,
             #[cfg(feature = "testing")]
             &instance_channels_tx.protocol_output,

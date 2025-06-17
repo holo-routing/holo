@@ -771,9 +771,13 @@ impl Interface {
         self.state.discontinuity_time = Utc::now();
 
         // Enqueue PDU for transmission.
-        let ifindex = self.system.ifindex.unwrap();
         let dst = self.config.interface_type.multicast_addr(level);
-        let msg = NetTxPduMsg { pdu, ifindex, dst };
+        let msg = NetTxPduMsg {
+            pdu,
+            #[cfg(feature = "testing")]
+            ifname: self.name.clone(),
+            dst,
+        };
         let _ = self.state.net.as_ref().unwrap().net_tx_pdup.send(msg);
     }
 }
@@ -833,6 +837,8 @@ impl InterfaceNet {
         let mut net_tx_task = tasks::net_tx(
             socket.clone(),
             broadcast,
+            iface.name.clone(),
+            iface.system.ifindex.unwrap(),
             hello_padding,
             hello_auth.clone(),
             global_auth.clone(),

@@ -12,13 +12,11 @@ use std::sync::atomic::AtomicU64;
 
 use arc_swap::ArcSwap;
 use bytes::Bytes;
-use derive_new::new;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::{Sender, UnboundedReceiver};
 use nix::sys::socket::{self, SockaddrLike};
 use serde::Serialize;
-use smallvec::SmallVec;
 use tokio::sync::mpsc::error::SendError;
 
 use crate::collections::{AreaId, InterfaceId};
@@ -34,12 +32,6 @@ use crate::version::Version;
 
 // OSPF IP protocol number.
 pub const OSPF_IP_PROTO: i32 = 89;
-
-#[derive(Clone, Debug, Eq, PartialEq, new, Serialize)]
-pub struct SendDestination<I: IpAddrKind> {
-    pub ifindex: u32,
-    pub addrs: SmallVec<[I; 4]>,
-}
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize)]
 pub enum MulticastAddr {
@@ -104,9 +96,10 @@ pub trait NetworkVersion<V: Version> {
 #[cfg(not(feature = "testing"))]
 pub(crate) async fn send_packet<V>(
     socket: &AsyncFd<Socket>,
+    ifname: &str,
+    ifindex: u32,
     src: V::NetIpAddr,
-    dst_ifindex: u32,
-    dst_addr: V::NetIpAddr,
+    dst: V::NetIpAddr,
     packet: &Packet<V>,
     auth: Option<AuthEncodeCtx<'_>>,
     trace_opts: &Arc<ArcSwap<TraceOptionPacketResolved>>,
@@ -116,7 +109,7 @@ where
 {
     // Log packet being sent.
     if trace_opts.load().tx(packet.hdr().pkt_type()) {
-        Debug::<V>::PacketTx(dst_ifindex, &dst_addr, packet).log();
+        Debug::<V>::PacketTx(ifname, &dst, packet).log();
     }
 
     // Encode packet.
@@ -124,8 +117,8 @@ where
 
     // Send packet.
     let iov = [IoSlice::new(&buf)];
-    let sockaddr: V::SocketAddr = V::dst_to_sockaddr(dst_ifindex, dst_addr);
-    let pktinfo = V::new_pktinfo(src, dst_ifindex);
+    let sockaddr: V::SocketAddr = V::dst_to_sockaddr(ifindex, dst);
+    let pktinfo = V::new_pktinfo(src, ifindex);
     let cmsg = [V::set_cmsg_data(&pktinfo)];
     socket
         .async_io(tokio::io::Interest::WRITABLE, |socket| {
@@ -145,6 +138,9 @@ where
 #[cfg(not(feature = "testing"))]
 pub(crate) async fn write_loop<V>(
     socket: Arc<AsyncFd<Socket>>,
+    ifname: String,
+    ifindex: u32,
+    src: V::NetIpAddr,
     auth: Option<AuthMethod>,
     auth_seqno: Arc<AtomicU64>,
     trace_opts: Arc<ArcSwap<TraceOptionPacketResolved>>,
@@ -152,8 +148,7 @@ pub(crate) async fn write_loop<V>(
 ) where
     V: Version,
 {
-    while let Some(NetTxPacketMsg { packet, src, dst }) =
-        net_tx_packetc.recv().await
+    while let Some(NetTxPacketMsg { packet, dst }) = net_tx_packetc.recv().await
     {
         // Prepare authentication context.
         let auth = match &auth {
@@ -176,12 +171,13 @@ pub(crate) async fn write_loop<V>(
         };
 
         // Send packet to all requested destinations.
-        for dst_addr in dst.addrs.into_iter() {
+        for dst in dst {
             if let Err(error) = send_packet(
                 &socket,
+                &ifname,
+                ifindex,
                 src,
-                dst.ifindex,
-                dst_addr,
+                dst,
                 &packet,
                 auth,
                 &trace_opts,

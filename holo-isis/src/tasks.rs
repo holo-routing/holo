@@ -186,7 +186,8 @@ pub mod messages {
         #[derive(Serialize)]
         pub struct NetTxPduMsg {
             pub pdu: Pdu,
-            pub ifindex: u32,
+            #[cfg(feature = "testing")]
+            pub ifname: String,
             pub dst: MulticastAddr,
         }
     }
@@ -239,6 +240,8 @@ pub(crate) fn net_rx(
 pub(crate) fn net_tx(
     socket: Arc<AsyncFd<Socket>>,
     broadcast: bool,
+    ifname: String,
+    ifindex: u32,
     hello_padding: Option<u16>,
     hello_auth: Option<AuthMethod>,
     global_auth: Option<AuthMethod>,
@@ -260,6 +263,8 @@ pub(crate) fn net_tx(
                 network::write_loop(
                     socket,
                     broadcast,
+                    ifname,
+                    ifindex,
                     hello_padding,
                     hello_auth,
                     global_auth,
@@ -294,7 +299,6 @@ pub(crate) fn hello_interval(
     {
         let level_type = level_type.into();
         let interval = iface.config.hello_interval.get(level_type);
-        let ifindex = iface.system.ifindex.unwrap();
         let dst = iface.config.interface_type.multicast_addr(level_type);
         let packet_counters = &iface.state.packet_counters;
         let iih_out_counters = Levels {
@@ -317,8 +321,7 @@ pub(crate) fn hello_interval(
                 }
 
                 async move {
-                    let msg =
-                        messages::output::NetTxPduMsg { pdu, ifindex, dst };
+                    let msg = messages::output::NetTxPduMsg { pdu, dst };
                     let _ = net_tx_pdup.send(msg);
                 }
             },
@@ -465,9 +468,6 @@ pub(crate) fn lsp_rxmt_interval(
 ) -> IntervalTask {
     #[cfg(not(feature = "testing"))]
     {
-        // Get interface ifindex.
-        let ifindex = iface.system.ifindex.unwrap();
-
         let pdu = Pdu::Lsp(lsp);
         let net_tx_pdup = iface.state.net.as_ref().unwrap().net_tx_pdup.clone();
         IntervalTask::new(
@@ -478,8 +478,7 @@ pub(crate) fn lsp_rxmt_interval(
                 let net_tx_pdup = net_tx_pdup.clone();
 
                 async move {
-                    let msg =
-                        messages::output::NetTxPduMsg { pdu, ifindex, dst };
+                    let msg = messages::output::NetTxPduMsg { pdu, dst };
                     let _ = net_tx_pdup.send(msg);
                 }
             },

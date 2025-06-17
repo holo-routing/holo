@@ -119,18 +119,15 @@ pub(crate) fn socket(ifindex: u32) -> Result<Socket, std::io::Error> {
 pub(crate) async fn write_loop(
     socket: Arc<AsyncFd<Socket>>,
     broadcast: bool,
+    ifname: String,
+    ifindex: u32,
     hello_padding: Option<u16>,
     hello_auth: Option<AuthMethod>,
     global_auth: Option<AuthMethod>,
     trace_opts: Arc<ArcSwap<TraceOptionPacketResolved>>,
     mut net_tx_packetc: UnboundedReceiver<NetTxPduMsg>,
 ) {
-    while let Some(NetTxPduMsg {
-        mut pdu,
-        ifindex,
-        dst,
-    }) = net_tx_packetc.recv().await
-    {
+    while let Some(NetTxPduMsg { mut pdu, dst }) = net_tx_packetc.recv().await {
         // Get authentication key.
         let auth = match &pdu {
             Pdu::Hello(..) => hello_auth.as_ref(),
@@ -154,9 +151,17 @@ pub(crate) async fn write_loop(
         }
 
         // Send PDU out the interface.
-        if let Err(error) =
-            send_pdu(&socket, broadcast, ifindex, dst, &pdu, auth, &trace_opts)
-                .await
+        if let Err(error) = send_pdu(
+            &socket,
+            broadcast,
+            &ifname,
+            ifindex,
+            dst,
+            &pdu,
+            auth,
+            &trace_opts,
+        )
+        .await
         {
             error.log();
         }
@@ -242,6 +247,7 @@ pub(crate) async fn read_loop(
 async fn send_pdu(
     socket: &AsyncFd<Socket>,
     broadcast: bool,
+    ifname: &str,
     ifindex: u32,
     dst: MulticastAddr,
     pdu: &Pdu,
@@ -250,7 +256,7 @@ async fn send_pdu(
 ) -> Result<usize, IoError> {
     // Log PDU being sent.
     if trace_opts.load().tx(pdu.pdu_type()) {
-        Debug::PduTx(ifindex, dst, pdu).log();
+        Debug::PduTx(ifname, dst, pdu).log();
     }
 
     // Encode PDU.

@@ -46,7 +46,7 @@ pub enum Debug<'a> {
     AdjacencyBfdUnreg(&'a Adjacency, &'a IpAddr),
     // Network
     PduRx(&'a Interface, &'a [u8; 6], &'a Pdu),
-    PduTx(u32, MulticastAddr, &'a Pdu),
+    PduTx(&'a str, MulticastAddr, &'a Pdu),
     // Flooding
     LspDiscard(LevelNumber, &'a Lsp),
     LspTooLarge(&'a Interface, LevelNumber, &'a Lsp),
@@ -173,10 +173,10 @@ impl Debug<'_> {
                         })
                 })
             }
-            Debug::PduTx(ifindex, addr, pdu) => {
+            Debug::PduTx(ifname, addr, pdu) => {
                 // Parent span(s): isis-instance:network:output
                 let data = serde_json::to_string(&pdu).unwrap();
-                debug!(%ifindex, ?addr, %data, "{}", self);
+                debug!(interface = ifname, ?addr, %data, "{}", self);
             }
             Debug::LspDiscard(level, lsp)
             | Debug::LspInstall(level, lsp)

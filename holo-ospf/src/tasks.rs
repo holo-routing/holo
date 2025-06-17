@@ -8,11 +8,11 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use std::time::{Duration, Instant};
 
-use arc_swap::ArcSwap;
 use holo_utils::ip::AddressFamily;
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use holo_utils::{Sender, UnboundedReceiver, UnboundedSender};
+use smallvec::SmallVec;
 use tracing::{Instrument, debug_span};
 
 use crate::area::Area;
@@ -21,12 +21,9 @@ use crate::debug::LsaFlushReason;
 use crate::instance::InstanceUpView;
 use crate::interface::{Interface, ism};
 use crate::neighbor::{Neighbor, nsm};
-use crate::network::{self, SendDestination};
-use crate::northbound::configuration::TraceOptionPacketResolved;
-use crate::packet::auth::AuthMethod;
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::version::Version;
-use crate::{lsdb, spf};
+use crate::{lsdb, network, spf};
 
 //
 // OSPF tasks diagram:
@@ -67,6 +64,7 @@ pub mod messages {
     use std::net::Ipv4Addr;
 
     use serde::{Deserialize, Serialize};
+    use smallvec::SmallVec;
 
     use crate::collections::{
         AreaKey, InterfaceKey, LsaEntryKey, LsdbKey, NeighborKey,
@@ -75,7 +73,6 @@ pub mod messages {
     use crate::interface::ism;
     use crate::lsdb::LsaOriginateEvent;
     use crate::neighbor::{RxmtPacketType, nsm};
-    use crate::network::SendDestination;
     use crate::packet::Packet;
     use crate::packet::error::DecodeError;
     use crate::packet::lsa::LsaKey;
@@ -230,8 +227,9 @@ pub mod messages {
         #[serde(bound = "V: Version")]
         pub struct NetTxPacketMsg<V: Version> {
             pub packet: Packet<V>,
-            pub src: V::NetIpAddr,
-            pub dst: SendDestination<V::NetIpAddr>,
+            #[cfg(feature = "testing")]
+            pub ifname: String,
+            pub dst: SmallVec<[V::NetIpAddr; 4]>,
         }
     }
 }
@@ -286,9 +284,8 @@ where
 #[allow(unused_mut)]
 pub(crate) fn net_tx<V>(
     socket: Arc<AsyncFd<Socket>>,
-    auth: Option<AuthMethod>,
+    iface: &Interface<V>,
     auth_seqno: &Arc<AtomicU64>,
-    trace_opts: Arc<ArcSwap<TraceOptionPacketResolved>>,
     mut net_packet_txc: UnboundedReceiver<messages::output::NetTxPacketMsg<V>>,
     #[cfg(feature = "testing")] proto_output_tx: &Sender<
         messages::ProtocolOutputMsg<V>,
@@ -304,12 +301,20 @@ where
         let span2 = debug_span!("output");
         let _span2_guard = span2.enter();
 
+        let ifname = iface.name.clone();
+        let ifindex = iface.system.ifindex.unwrap();
+        let src = iface.state.src_addr.unwrap();
+        let auth = iface.state.auth.clone();
         let auth_seqno = auth_seqno.clone();
+        let trace_opts = iface.config.trace_opts.packets_resolved.clone();
 
         Task::spawn(
             async move {
                 network::write_loop(
                     socket,
+                    ifname,
+                    ifindex,
+                    src,
                     auth,
                     auth_seqno,
                     trace_opts,
@@ -338,7 +343,7 @@ pub(crate) fn hello_interval<V>(
     iface: &Interface<V>,
     area: &Area<V>,
     instance: &InstanceUpView<'_, V>,
-    dst: SendDestination<V::NetIpAddr>,
+    dst: SmallVec<[V::NetIpAddr; 4]>,
     interval: u16,
 ) -> IntervalTask
 where
@@ -346,9 +351,6 @@ where
 {
     #[cfg(not(feature = "testing"))]
     {
-        // Set source address.
-        let src = iface.state.src_addr.unwrap();
-
         // Generate hello packet.
         let packet = V::generate_hello(iface, area, instance);
 
@@ -363,8 +365,7 @@ where
                 let net_tx_packetp = net_tx_packetp.clone();
 
                 async move {
-                    let msg =
-                        messages::output::NetTxPacketMsg { packet, src, dst };
+                    let msg = messages::output::NetTxPacketMsg { packet, dst };
                     let _ = net_tx_packetp.send(msg);
                 }
             },

@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use smallvec::smallvec;
+use smallvec::{SmallVec, smallvec};
 
 use crate::area::{Area, OptionsLocation};
 use crate::collections::{Arena, NeighborIndex};
@@ -12,7 +12,7 @@ use crate::instance::InstanceUpView;
 use crate::interface::{Interface, InterfaceType, ism};
 use crate::lsdb;
 use crate::neighbor::{Neighbor, nsm};
-use crate::network::{MulticastAddr, SendDestination};
+use crate::network::MulticastAddr;
 use crate::packet::lsa::LsaHdrVersion;
 use crate::packet::{
     DbDescFlags, DbDescVersion, LsAckVersion, LsRequestVersion,
@@ -31,8 +31,7 @@ pub(crate) fn send_dbdesc<V>(
 ) where
     V: Version,
 {
-    // Initialize source and destination address.
-    let src = iface.state.src_addr.unwrap();
+    // Initialize destination address.
     let dst = send_dest_nbr(nbr, iface);
 
     // Calculate maximum packet size.
@@ -86,7 +85,12 @@ pub(crate) fn send_dbdesc<V>(
     );
 
     // Enqueue packet for network transmission.
-    let msg = NetTxPacketMsg { packet, src, dst };
+    let msg = NetTxPacketMsg {
+        packet,
+        #[cfg(feature = "testing")]
+        ifname: iface.name.clone(),
+        dst,
+    };
     nbr.last_sent_dbdesc = Some(msg.clone());
     iface.send_packet(msg);
 
@@ -118,8 +122,7 @@ pub(crate) fn send_lsreq<V>(
 ) where
     V: Version,
 {
-    // Initialize source and destination address.
-    let src = iface.state.src_addr.unwrap();
+    // Initialize destination address.
     let dst = send_dest_nbr(nbr, iface);
 
     // Calculate maximum packet size.
@@ -148,7 +151,12 @@ pub(crate) fn send_lsreq<V>(
     let packet = V::PacketLsRequest::generate(pkt_hdr, entries);
 
     // Enqueue packet for network transmission.
-    let msg = NetTxPacketMsg { packet, src, dst };
+    let msg = NetTxPacketMsg {
+        packet,
+        #[cfg(feature = "testing")]
+        ifname: iface.name.clone(),
+        dst,
+    };
     iface.send_packet(msg);
 
     // Start retransmission interval.
@@ -163,8 +171,7 @@ pub(crate) fn rxmt_lsreq<V>(
 ) where
     V: Version,
 {
-    // Initialize source and destination address.
-    let src = iface.state.src_addr.unwrap();
+    // Initialize destination address.
     let dst = send_dest_nbr(nbr, iface);
 
     // Generate Link State Request packet.
@@ -178,7 +185,12 @@ pub(crate) fn rxmt_lsreq<V>(
     let packet = V::PacketLsRequest::generate(pkt_hdr, entries);
 
     // Enqueue packet for network transmission.
-    let msg = NetTxPacketMsg { packet, src, dst };
+    let msg = NetTxPacketMsg {
+        packet,
+        #[cfg(feature = "testing")]
+        ifname: iface.name.clone(),
+        dst,
+    };
     iface.send_packet(msg);
 }
 
@@ -193,8 +205,7 @@ pub(crate) fn send_lsupd<V>(
 ) where
     V: Version,
 {
-    // Initialize source and destination address(es).
-    let src = iface.state.src_addr.unwrap();
+    // Initialize destination address(es).
     let dst = send_dest_iface(iface, neighbors);
 
     // Calculate maximum packet size.
@@ -251,7 +262,8 @@ pub(crate) fn send_lsupd<V>(
         // Enqueue packet for network transmission.
         let msg = NetTxPacketMsg {
             packet,
-            src,
+            #[cfg(feature = "testing")]
+            ifname: iface.name.clone(),
             dst: dst.clone(),
         };
         iface.send_packet(msg);
@@ -266,8 +278,7 @@ pub(crate) fn rxmt_lsupd<V>(
 ) where
     V: Version,
 {
-    // Initialize source and destination address.
-    let src = iface.state.src_addr.unwrap();
+    // Initialize destination address.
     let dst = send_dest_nbr(nbr, iface);
 
     // Calculate maximum packet size.
@@ -306,7 +317,12 @@ pub(crate) fn rxmt_lsupd<V>(
     let packet = V::PacketLsUpdate::generate(pkt_hdr, lsas);
 
     // Enqueue packet for network transmission.
-    let msg = NetTxPacketMsg { packet, src, dst };
+    let msg = NetTxPacketMsg {
+        packet,
+        #[cfg(feature = "testing")]
+        ifname: iface.name.clone(),
+        dst,
+    };
     iface.send_packet(msg);
 }
 
@@ -322,7 +338,6 @@ pub(crate) fn send_lsack_direct<V>(
     V: Version,
 {
     // Initialize source and destination address.
-    let src = iface.state.src_addr.unwrap();
     let dst = send_dest_nbr(nbr, iface);
 
     // Generate Link State Ack packet.
@@ -336,7 +351,12 @@ pub(crate) fn send_lsack_direct<V>(
     let packet = V::PacketLsAck::generate(pkt_hdr, lsa_hdrs);
 
     // Enqueue packet for network transmission.
-    let msg = NetTxPacketMsg { packet, src, dst };
+    let msg = NetTxPacketMsg {
+        packet,
+        #[cfg(feature = "testing")]
+        ifname: iface.name.clone(),
+        dst,
+    };
     iface.send_packet(msg);
 }
 
@@ -348,8 +368,7 @@ pub(crate) fn send_lsack_delayed<V>(
 ) where
     V: Version,
 {
-    // Initialize source and destination address(es).
-    let src = iface.state.src_addr.unwrap();
+    // Initialize destination address(es).
     let dst = send_dest_iface(iface, neighbors);
 
     // Calculate maximum packet size.
@@ -382,7 +401,8 @@ pub(crate) fn send_lsack_delayed<V>(
         // Enqueue packet for network transmission.
         let msg = NetTxPacketMsg {
             packet,
-            src,
+            #[cfg(feature = "testing")]
+            ifname: iface.name.clone(),
             dst: dst.clone(),
         };
         iface.send_packet(msg);
@@ -395,17 +415,16 @@ pub(crate) fn send_lsack_delayed<V>(
 fn send_dest_nbr<V>(
     nbr: &Neighbor<V>,
     iface: &Interface<V>,
-) -> SendDestination<V::NetIpAddr>
+) -> SmallVec<[V::NetIpAddr; 4]>
 where
     V: Version,
 {
-    let ifindex = iface.system.ifindex.unwrap();
     let addr = if iface.config.if_type == InterfaceType::PointToPoint {
         *V::multicast_addr(MulticastAddr::AllSpfRtrs)
     } else {
         nbr.src
     };
-    SendDestination::new(ifindex, smallvec![addr])
+    smallvec![addr]
 }
 
 // Returns a destination used to send a packet to all adjacent neighbors
@@ -413,12 +432,11 @@ where
 fn send_dest_iface<V>(
     iface: &Interface<V>,
     neighbors: &Arena<Neighbor<V>>,
-) -> SendDestination<V::NetIpAddr>
+) -> SmallVec<[V::NetIpAddr; 4]>
 where
     V: Version,
 {
-    let ifindex = iface.system.ifindex.unwrap();
-    let addrs = match iface.config.if_type {
+    match iface.config.if_type {
         InterfaceType::Broadcast => {
             let addr = if matches!(
                 iface.state.ism_state,
@@ -445,6 +463,5 @@ where
             let addr = MulticastAddr::AllSpfRtrs;
             smallvec![*V::multicast_addr(addr)]
         }
-    };
-    SendDestination::new(ifindex, addrs)
+    }
 }

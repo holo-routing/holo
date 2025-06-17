@@ -357,127 +357,112 @@ impl Attrs {
                 }
             }
 
-            // Parse attribute value.
-            match attr_type {
-                // Known attribute.
-                Some(attr_type) => {
-                    if let Err(error) = match attr_type {
-                        AttrType::Origin => {
-                            origin::decode(&mut buf, &mut origin)
-                        }
-                        AttrType::AsPath => AsPath::decode(
-                            &mut buf,
-                            cxt,
-                            attr_type,
-                            four_byte_asn_cap,
-                            &mut as_path,
-                        ),
-                        AttrType::Nexthop => nexthop::decode(&mut buf, nexthop),
-                        AttrType::Med => med::decode(&mut buf, &mut med),
-                        AttrType::LocalPref => {
-                            local_pref::decode(&mut buf, cxt, &mut local_pref)
-                        }
-                        AttrType::AtomicAggregate => atomic_aggregate::decode(
-                            &mut buf,
-                            &mut atomic_aggregate,
-                        ),
-                        AttrType::Aggregator => Aggregator::decode(
-                            &mut buf,
-                            attr_type,
-                            four_byte_asn_cap,
-                            &mut aggregator,
-                        ),
-                        AttrType::Communities => {
-                            Comms::decode(&mut buf, &mut comm)
-                        }
-                        AttrType::OriginatorId => originator_id::decode(
-                            &mut buf,
-                            cxt,
-                            &mut originator_id,
-                        ),
-                        AttrType::ClusterList => ClusterList::decode(
-                            &mut buf,
-                            cxt,
-                            &mut cluster_list,
-                        ),
-                        AttrType::MpReachNlri => {
-                            MpReachNlri::decode(&mut buf, mp_reach)
-                        }
-                        AttrType::MpUnreachNlri => {
-                            MpUnreachNlri::decode(&mut buf, mp_unreach)
-                        }
-                        AttrType::ExtCommunities => {
-                            ExtComms::decode(&mut buf, &mut ext_comm)
-                        }
-                        AttrType::As4Path => AsPath::decode(
-                            &mut buf,
-                            cxt,
-                            attr_type,
-                            four_byte_asn_cap,
-                            &mut as4_path,
-                        ),
-                        AttrType::As4Aggregator => Aggregator::decode(
-                            &mut buf,
-                            attr_type,
-                            four_byte_asn_cap,
-                            &mut as4_aggregator,
-                        ),
-                        AttrType::Extv6Community => {
-                            Extv6Comms::decode(&mut buf, &mut extv6_comm)
-                        }
-                        AttrType::LargeCommunity => {
-                            LargeComms::decode(&mut buf, &mut large_comm)
-                        }
-                    } {
-                        // Log malformed attribute.
-                        Debug::NbrAttrError(attr_type, error).log();
-
-                        // Process malformed attribute.
-                        match error {
-                            AttrError::Discard => continue,
-                            AttrError::Withdraw => withdraw = true,
-                            AttrError::Reset => {
-                                return Err(
-                                    UpdateMessageError::OptionalAttributeError,
-                                );
-                            }
-                        }
-                    }
+            // Unknown attribute type.
+            let Some(attr_type) = attr_type else {
+                // RFC 4271 - Section 6.3:
+                // "If any of the well-known mandatory attributes are not
+                // recognized, then the Error Subcode MUST be set to
+                // Unrecognized Well-known Attribute.  The Data field MUST
+                // contain the unrecognized attribute (type, length, and
+                // value)".
+                if !attr_flags.contains(AttrFlags::OPTIONAL) {
+                    return Err(
+                        UpdateMessageError::UnrecognizedWellKnownAttribute,
+                    );
                 }
-                // Unknown attribute.
-                None => {
-                    // RFC 4271 - Section 6.3:
-                    // "If any of the well-known mandatory attributes are not
-                    // recognized, then the Error Subcode MUST be set to
-                    // Unrecognized Well-known Attribute.  The Data field MUST
-                    // contain the unrecognized attribute (type, length, and
-                    // value)".
-                    if !attr_flags.contains(AttrFlags::OPTIONAL) {
-                        return Err(
-                            UpdateMessageError::UnrecognizedWellKnownAttribute,
-                        );
-                    }
 
-                    // RFC 4271 - Section 9:
-                    // "If an optional non-transitive attribute is unrecognized,
-                    // it is quietly ignored".
-                    if !attr_flags.contains(AttrFlags::TRANSITIVE) {
-                        continue;
-                    }
+                // RFC 4271 - Section 9:
+                // "If an optional non-transitive attribute is unrecognized,
+                // it is quietly ignored".
+                if !attr_flags.contains(AttrFlags::TRANSITIVE) {
+                    continue;
+                }
 
-                    // RFC 4271 - Section 9:
-                    // "If an optional transitive attribute is unrecognized, the
-                    // Partial bit in the attribute flags octet is set to 1, and
-                    // the attribute is retained for propagation to other BGP
-                    // speakers".
-                    attr_flags.insert(AttrFlags::PARTIAL);
-                    let attr_value = buf.copy_to_bytes(attr_len);
-                    unknown.push(UnknownAttr::new(
-                        attr_type_raw,
-                        attr_flags,
-                        attr_len as u16,
-                        attr_value,
-                    ));
+                // RFC 4271 - Section 9:
+                // "If an optional transitive attribute is unrecognized, the
+                // Partial bit in the attribute flags octet is set to 1, and
+                // the attribute is retained for propagation to other BGP
+                // speakers".
+                attr_flags.insert(AttrFlags::PARTIAL);
+                unknown.push(UnknownAttr::new(
+                    attr_type_raw,
+                    attr_flags,
+                    attr_len as u16,
+                    buf,
+                ));
+                continue;
+            };
+
+            // Parse attribute value.
+            if let Err(error) = match attr_type {
+                AttrType::Origin => origin::decode(&mut buf, &mut origin),
+                AttrType::AsPath => AsPath::decode(
+                    &mut buf,
+                    cxt,
+                    attr_type,
+                    four_byte_asn_cap,
+                    &mut as_path,
+                ),
+                AttrType::Nexthop => nexthop::decode(&mut buf, nexthop),
+                AttrType::Med => med::decode(&mut buf, &mut med),
+                AttrType::LocalPref => {
+                    local_pref::decode(&mut buf, cxt, &mut local_pref)
+                }
+                AttrType::AtomicAggregate => {
+                    atomic_aggregate::decode(&mut buf, &mut atomic_aggregate)
+                }
+                AttrType::Aggregator => Aggregator::decode(
+                    &mut buf,
+                    attr_type,
+                    four_byte_asn_cap,
+                    &mut aggregator,
+                ),
+                AttrType::Communities => Comms::decode(&mut buf, &mut comm),
+                AttrType::OriginatorId => {
+                    originator_id::decode(&mut buf, cxt, &mut originator_id)
+                }
+                AttrType::ClusterList => {
+                    ClusterList::decode(&mut buf, cxt, &mut cluster_list)
+                }
+                AttrType::MpReachNlri => {
+                    MpReachNlri::decode(&mut buf, mp_reach)
+                }
+                AttrType::MpUnreachNlri => {
+                    MpUnreachNlri::decode(&mut buf, mp_unreach)
+                }
+                AttrType::ExtCommunities => {
+                    ExtComms::decode(&mut buf, &mut ext_comm)
+                }
+                AttrType::As4Path => AsPath::decode(
+                    &mut buf,
+                    cxt,
+                    attr_type,
+                    four_byte_asn_cap,
+                    &mut as4_path,
+                ),
+                AttrType::As4Aggregator => Aggregator::decode(
+                    &mut buf,
+                    attr_type,
+                    four_byte_asn_cap,
+                    &mut as4_aggregator,
+                ),
+                AttrType::Extv6Community => {
+                    Extv6Comms::decode(&mut buf, &mut extv6_comm)
+                }
+                AttrType::LargeCommunity => {
+                    LargeComms::decode(&mut buf, &mut large_comm)
+                }
+            } {
+                // Log malformed attribute.
+                Debug::NbrAttrError(attr_type, error).log();
+
+                // Process malformed attribute.
+                match error {
+                    AttrError::Discard => continue,
+                    AttrError::Withdraw => withdraw = true,
+                    AttrError::Reset => {
+                        return Err(UpdateMessageError::OptionalAttributeError);
+                    }
                 }
             }
         }

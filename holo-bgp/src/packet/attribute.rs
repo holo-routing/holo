@@ -101,7 +101,7 @@ pub trait CommType:
     const LENGTH: usize;
 
     fn encode(&self, buf: &mut BytesMut);
-    fn decode(buf: &mut Bytes) -> Self;
+    fn decode(buf: &mut Bytes) -> Result<Self, AttrError>;
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -297,11 +297,11 @@ impl Attrs {
             }
 
             // Parse attribute flags.
-            let attr_flags = buf.get_u8();
+            let attr_flags = buf.try_get_u8()?;
             let mut attr_flags = AttrFlags::from_bits_truncate(attr_flags);
 
             // Parse attribute type.
-            let attr_type_raw = buf.get_u8();
+            let attr_type_raw = buf.try_get_u8()?;
             let attr_type = AttrType::from_u8(attr_type_raw);
 
             // Parse attribute length.
@@ -310,13 +310,13 @@ impl Attrs {
                     withdraw = true;
                     break;
                 }
-                buf.get_u16() as usize
+                buf.try_get_u16()? as usize
             } else {
                 if buf.remaining() < 1 {
                     withdraw = true;
                     break;
                 }
-                buf.get_u8() as usize
+                buf.try_get_u8()? as usize
             };
             if attr_len > buf.remaining() {
                 withdraw = true;
@@ -575,7 +575,7 @@ mod origin {
             return Err(AttrError::Withdraw);
         }
 
-        let value = buf.get_u8();
+        let value = buf.try_get_u8()?;
         match Origin::from_u8(value) {
             Some(value) => {
                 *origin = Some(value);
@@ -744,7 +744,7 @@ impl AsPathSegment {
         four_byte_asns: bool,
     ) -> Result<Self, AttrError> {
         // Decode segment type.
-        let seg_type = buf.get_u8();
+        let seg_type = buf.try_get_u8()?;
         let Some(seg_type) = AsPathSegmentType::from_u8(seg_type) else {
             if attr_type == AttrType::AsPath {
                 return Err(AttrError::Withdraw);
@@ -764,7 +764,7 @@ impl AsPathSegment {
         }
 
         // Decode segment length.
-        let seg_len = buf.get_u8();
+        let seg_len = buf.try_get_u8()?;
         if seg_len == 0 {
             if attr_type == AttrType::AsPath {
                 return Err(AttrError::Withdraw);
@@ -774,9 +774,11 @@ impl AsPathSegment {
         }
 
         // Decode segment members.
-        let members = (0..seg_len as usize)
-            .map(|_| decode_asn(buf, four_byte_asns))
-            .collect();
+        let mut members = VecDeque::with_capacity(seg_len as usize);
+        for _ in 0..seg_len {
+            let asn = decode_asn(buf, four_byte_asns)?;
+            members.push_back(asn);
+        }
         let segment = AsPathSegment { seg_type, members };
 
         // RFC 7607's AS 0 processing.
@@ -822,7 +824,7 @@ pub(crate) mod nexthop {
             return Err(AttrError::Withdraw);
         }
 
-        let value = buf.get_ipv4();
+        let value = buf.try_get_ipv4()?;
         *nexthop = Some(value);
         Ok(())
     }
@@ -853,7 +855,7 @@ mod med {
             return Err(AttrError::Withdraw);
         }
 
-        let value = buf.get_u32();
+        let value = buf.try_get_u32()?;
         *med = Some(value);
         Ok(())
     }
@@ -889,7 +891,7 @@ mod local_pref {
             return Err(AttrError::Withdraw);
         }
 
-        let value = buf.get_u32();
+        let value = buf.try_get_u32()?;
         *local_pref = Some(value);
         Ok(())
     }
@@ -971,8 +973,8 @@ impl Aggregator {
             return Err(AttrError::Discard);
         }
 
-        let asn = decode_asn(buf, four_byte_asns);
-        let identifier = buf.get_ipv4();
+        let asn = decode_asn(buf, four_byte_asns)?;
+        let identifier = buf.try_get_ipv4()?;
 
         // RFC 7607's AS 0 processing.
         if asn == 0 {
@@ -1015,7 +1017,7 @@ mod originator_id {
             return Err(AttrError::Withdraw);
         }
 
-        let value = buf.get_ipv4();
+        let value = buf.try_get_ipv4()?;
         *originator_id = Some(value);
         Ok(())
     }
@@ -1061,7 +1063,7 @@ impl ClusterList {
 
         let mut list = BTreeSet::new();
         while buf.remaining() > 0 {
-            let cluster_id = buf.get_ipv4();
+            let cluster_id = buf.try_get_ipv4()?;
             list.insert(cluster_id);
         }
 
@@ -1135,14 +1137,14 @@ impl MpReachNlri {
         }
 
         // Parse AFI.
-        let afi = buf.get_u16();
+        let afi = buf.try_get_u16()?;
         let Some(afi) = Afi::from_u16(afi) else {
             // Ignore unknown AFI.
             return Err(AttrError::Discard);
         };
 
         // Parse SAFI.
-        let safi = buf.get_u8();
+        let safi = buf.try_get_u8()?;
         if Safi::from_u8(safi) != Some(Safi::Unicast) {
             // Ignore unsupported SAFI.
             return Err(AttrError::Discard);
@@ -1153,16 +1155,16 @@ impl MpReachNlri {
                 let mut prefixes = Vec::new();
 
                 // Parse nexthop.
-                let nexthop_len = buf.get_u8();
+                let nexthop_len = buf.try_get_u8()?;
                 if nexthop_len as usize != Ipv4Addr::LENGTH
                     || nexthop_len as usize > buf.remaining()
                 {
                     return Err(AttrError::Reset);
                 }
-                let nexthop = buf.get_ipv4();
+                let nexthop = buf.try_get_ipv4()?;
 
                 // Parse prefixes.
-                let _reserved = buf.get_u8();
+                let _reserved = buf.try_get_u8()?;
                 while buf.remaining() > 0 {
                     if let Some(prefix) =
                         decode_ipv4_prefix(buf).map_err(|_| AttrError::Reset)?
@@ -1179,20 +1181,20 @@ impl MpReachNlri {
                 let mut ll_nexthop = None;
 
                 // Parse nexthops(s).
-                let nexthop_len = buf.get_u8() as usize;
+                let nexthop_len = buf.try_get_u8()? as usize;
                 if (nexthop_len != Ipv6Addr::LENGTH
                     && nexthop_len != Ipv6Addr::LENGTH * 2)
                     || nexthop_len > buf.remaining()
                 {
                     return Err(AttrError::Reset);
                 }
-                let nexthop = buf.get_ipv6();
+                let nexthop = buf.try_get_ipv6()?;
                 if nexthop_len == Ipv6Addr::LENGTH * 2 {
-                    ll_nexthop = Some(buf.get_ipv6());
+                    ll_nexthop = Some(buf.try_get_ipv6()?);
                 }
 
                 // Parse prefixes.
-                let _reserved = buf.get_u8();
+                let _reserved = buf.try_get_u8()?;
                 while buf.remaining() > 0 {
                     if let Some(prefix) =
                         decode_ipv6_prefix(buf).map_err(|_| AttrError::Reset)?
@@ -1258,14 +1260,14 @@ impl MpUnreachNlri {
         }
 
         // Parse AFI.
-        let afi = buf.get_u16();
+        let afi = buf.try_get_u16()?;
         let Some(afi) = Afi::from_u16(afi) else {
             // Ignore unknown AFI.
             return Err(AttrError::Discard);
         };
 
         // Parse SAFI.
-        let safi = buf.get_u8();
+        let safi = buf.try_get_u8()?;
         if Safi::from_u8(safi) != Some(Safi::Unicast) {
             // Ignore unsupported SAFI.
             return Err(AttrError::Discard);
@@ -1315,9 +1317,9 @@ impl CommType for Comm {
         buf.put_u32(self.0);
     }
 
-    fn decode(buf: &mut Bytes) -> Self {
-        let value = buf.get_u32();
-        Self(value)
+    fn decode(buf: &mut Bytes) -> Result<Self, AttrError> {
+        let value = buf.try_get_u32()?;
+        Ok(Self(value))
     }
 }
 
@@ -1331,10 +1333,10 @@ impl CommType for ExtComm {
         buf.put_slice(&self.0);
     }
 
-    fn decode(buf: &mut Bytes) -> Self {
+    fn decode(buf: &mut Bytes) -> Result<Self, AttrError> {
         let mut value = [0; 8];
-        buf.copy_to_slice(&mut value);
-        Self(value)
+        buf.try_copy_to_slice(&mut value)?;
+        Ok(Self(value))
     }
 }
 
@@ -1349,10 +1351,10 @@ impl CommType for Extv6Comm {
         buf.put_u32(self.1);
     }
 
-    fn decode(buf: &mut Bytes) -> Self {
-        let addr = buf.get_ipv6();
-        let local = buf.get_u32();
-        Self(addr, local)
+    fn decode(buf: &mut Bytes) -> Result<Self, AttrError> {
+        let addr = buf.try_get_ipv6()?;
+        let local = buf.try_get_u32()?;
+        Ok(Self(addr, local))
     }
 }
 
@@ -1366,10 +1368,10 @@ impl CommType for LargeComm {
         buf.put_slice(&self.0);
     }
 
-    fn decode(buf: &mut Bytes) -> Self {
+    fn decode(buf: &mut Bytes) -> Result<Self, AttrError> {
         let mut value = [0; 12];
-        buf.copy_to_slice(&mut value);
-        Self(value)
+        buf.try_copy_to_slice(&mut value)?;
+        Ok(Self(value))
     }
 }
 
@@ -1406,7 +1408,7 @@ impl<T: CommType> CommList<T> {
 
         let mut list = BTreeSet::new();
         while buf.remaining() >= T::LENGTH {
-            let value = T::decode(buf);
+            let value = T::decode(buf)?;
             list.insert(value);
         }
 
@@ -1462,10 +1464,11 @@ fn encode_asn(buf: &mut BytesMut, asn: u32, four_byte_asns: bool) {
     }
 }
 
-fn decode_asn(buf: &mut Bytes, four_byte_asns: bool) -> u32 {
-    if four_byte_asns {
-        buf.get_u32()
+fn decode_asn(buf: &mut Bytes, four_byte_asns: bool) -> Result<u32, AttrError> {
+    let asn = if four_byte_asns {
+        buf.try_get_u32()?
     } else {
-        buf.get_u16() as u32
-    }
+        buf.try_get_u16()? as u32
+    };
+    Ok(asn)
 }

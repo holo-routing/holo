@@ -27,8 +27,7 @@ use crate::packet::consts::{
     OpenParamType, Safi, UpdateMessageErrorSubcode,
 };
 use crate::packet::error::{
-    DecodeError, DecodeResult, MessageHeaderError, OpenMessageError,
-    UpdateMessageError,
+    DecodeError, MessageHeaderError, OpenMessageError, UpdateMessageError,
 };
 
 //
@@ -307,41 +306,10 @@ impl Message {
     }
 
     // Decode buffer into a BGP message.
-    //
-    // This function panics if the provided buffer doesn't contain an entire
-    // message.
-    pub fn decode(data: &[u8], cxt: &DecodeCxt) -> DecodeResult<Self> {
+    pub fn decode(data: &[u8], cxt: &DecodeCxt) -> Result<Self, DecodeError> {
         let mut buf = Bytes::copy_from_slice(data);
 
-        // Parse and validate marker.
-        let marker = buf.get_u128();
-        if marker != u128::MAX {
-            return Err(MessageHeaderError::ConnectionNotSynchronized.into());
-        }
-
-        // Parse and validate message length.
-        let msg_len = buf.get_u16();
-        if msg_len < Self::MIN_LEN || msg_len > Self::MAX_LEN {
-            return Err(MessageHeaderError::BadMessageLength(msg_len).into());
-        }
-
-        // Parse message type.
-        let msg_type = buf.get_u8();
-        let Some(msg_etype) = MessageType::from_u8(msg_type) else {
-            return Err(MessageHeaderError::BadMessageType(msg_type).into());
-        };
-
-        // Parse message body.
-        let min_msg_len = match msg_etype {
-            MessageType::Open => OpenMsg::MIN_LEN,
-            MessageType::Update => UpdateMsg::MIN_LEN,
-            MessageType::Notification => NotificationMsg::MIN_LEN,
-            MessageType::Keepalive => KeepaliveMsg::LEN,
-            MessageType::RouteRefresh => RouteRefreshMsg::LEN,
-        };
-        if msg_len < min_msg_len {
-            return Err(MessageHeaderError::BadMessageLength(msg_len).into());
-        }
+        let msg_etype = Self::decode_header(&mut buf)?;
         match msg_etype {
             MessageType::Open => {
                 let msg = OpenMsg::decode(&mut buf)?;
@@ -364,6 +332,43 @@ impl Message {
                 Ok(Message::RouteRefresh(msg))
             }
         }
+    }
+
+    // Decodes the BGP message header.
+    fn decode_header(
+        buf: &mut Bytes,
+    ) -> Result<MessageType, MessageHeaderError> {
+        // Parse and validate marker.
+        let marker = buf.try_get_u128()?;
+        if marker != u128::MAX {
+            return Err(MessageHeaderError::ConnectionNotSynchronized);
+        }
+
+        // Parse and validate message length.
+        let msg_len = buf.try_get_u16()?;
+        if msg_len < Self::MIN_LEN || msg_len > Self::MAX_LEN {
+            return Err(MessageHeaderError::BadMessageLength(msg_len));
+        }
+
+        // Parse message type.
+        let msg_type = buf.try_get_u8()?;
+        let Some(msg_etype) = MessageType::from_u8(msg_type) else {
+            return Err(MessageHeaderError::BadMessageType(msg_type));
+        };
+
+        // Parse message body.
+        let min_msg_len = match msg_etype {
+            MessageType::Open => OpenMsg::MIN_LEN,
+            MessageType::Update => UpdateMsg::MIN_LEN,
+            MessageType::Notification => NotificationMsg::MIN_LEN,
+            MessageType::Keepalive => KeepaliveMsg::LEN,
+            MessageType::RouteRefresh => RouteRefreshMsg::LEN,
+        };
+        if msg_len < min_msg_len {
+            return Err(MessageHeaderError::BadMessageLength(msg_len));
+        }
+
+        Ok(msg_etype)
     }
 
     // Parses the given buffer to determine if it contains a complete BGP
@@ -424,51 +429,49 @@ impl OpenMsg {
         buf[opt_param_len_pos] = opt_param_len as u8;
     }
 
-    pub fn decode(buf: &mut Bytes) -> DecodeResult<Self> {
+    pub fn decode(buf: &mut Bytes) -> Result<Self, OpenMessageError> {
         // Parse and validate BGP version.
-        let version = buf.get_u8();
+        let version = buf.try_get_u8()?;
         if version != BGP_VERSION {
-            return Err(
-                OpenMessageError::UnsupportedVersion(BGP_VERSION).into()
-            );
+            return Err(OpenMessageError::UnsupportedVersion(BGP_VERSION));
         }
 
         // Parse and validate ASN.
-        let my_as = buf.get_u16();
+        let my_as = buf.try_get_u16()?;
         if my_as == 0 {
-            return Err(OpenMessageError::BadPeerAs.into());
+            return Err(OpenMessageError::BadPeerAs);
         }
 
         // Parse and validate hold time.
-        let holdtime = buf.get_u16();
+        let holdtime = buf.try_get_u16()?;
         if holdtime == 1 || holdtime == 2 {
-            return Err(OpenMessageError::UnacceptableHoldTime.into());
+            return Err(OpenMessageError::UnacceptableHoldTime);
         }
 
         // Parse and validate BGP identifier.
-        let identifier = buf.get_ipv4();
+        let identifier = buf.try_get_ipv4()?;
         if identifier.is_unspecified()
             || identifier.is_multicast()
             || identifier.is_broadcast()
         {
-            return Err(OpenMessageError::BadBgpIdentifier.into());
+            return Err(OpenMessageError::BadBgpIdentifier);
         }
 
         // Parse and validate optional parameters.
         let mut capabilities = BTreeSet::new();
-        let opt_param_len = buf.get_u8();
+        let opt_param_len = buf.try_get_u8()?;
         if opt_param_len as usize > buf.remaining() {
-            return Err(OpenMessageError::MalformedOptParam.into());
+            return Err(OpenMessageError::MalformedOptParam);
         }
         let mut buf_opts = buf.copy_to_bytes(opt_param_len as usize);
         while buf_opts.remaining() > 0 {
             if buf_opts.remaining() < 2 {
-                return Err(OpenMessageError::MalformedOptParam.into());
+                return Err(OpenMessageError::MalformedOptParam);
             }
-            let param_type = buf_opts.get_u8();
-            let param_len = buf_opts.get_u8();
+            let param_type = buf_opts.try_get_u8()?;
+            let param_len = buf_opts.try_get_u8()?;
             if param_len as usize > buf_opts.remaining() {
-                return Err(OpenMessageError::MalformedOptParam.into());
+                return Err(OpenMessageError::MalformedOptParam);
             }
             let mut buf_param_value =
                 buf_opts.copy_to_bytes(param_len as usize);
@@ -485,7 +488,7 @@ impl OpenMsg {
                     }
                 }
                 None => {
-                    return Err(OpenMessageError::UnsupportedOptParam.into());
+                    return Err(OpenMessageError::UnsupportedOptParam);
                 }
             }
         }
@@ -556,30 +559,30 @@ impl Capability {
         buf[start_pos + 1] = cap_len as u8;
     }
 
-    pub fn decode(buf: &mut Bytes) -> DecodeResult<Option<Self>> {
+    pub fn decode(buf: &mut Bytes) -> Result<Option<Self>, OpenMessageError> {
         if buf.remaining() < 2 {
-            return Err(OpenMessageError::MalformedOptParam.into());
+            return Err(OpenMessageError::MalformedOptParam);
         }
-        let cap_type = buf.get_u8();
-        let cap_len = buf.get_u8();
+        let cap_type = buf.try_get_u8()?;
+        let cap_len = buf.try_get_u8()?;
         if cap_len as usize > buf.remaining() {
-            return Err(OpenMessageError::MalformedOptParam.into());
+            return Err(OpenMessageError::MalformedOptParam);
         }
 
         let mut buf_cap = buf.copy_to_bytes(cap_len as usize);
         let cap = match CapabilityCode::from_u8(cap_type) {
             Some(CapabilityCode::MultiProtocol) => {
                 if cap_len != 4 {
-                    return Err(OpenMessageError::MalformedOptParam.into());
+                    return Err(OpenMessageError::MalformedOptParam);
                 }
 
-                let afi = buf_cap.get_u16();
+                let afi = buf_cap.try_get_u16()?;
                 let Some(afi) = Afi::from_u16(afi) else {
                     // Ignore unknown AFI.
                     return Ok(None);
                 };
-                let _reserved = buf_cap.get_u8();
-                let safi = buf_cap.get_u8();
+                let _reserved = buf_cap.try_get_u8()?;
+                let safi = buf_cap.try_get_u8()?;
                 let Some(safi) = Safi::from_u8(safi) else {
                     // Ignore unknown SAFI.
                     return Ok(None);
@@ -589,30 +592,30 @@ impl Capability {
             }
             Some(CapabilityCode::FourOctetAsNumber) => {
                 if cap_len != 4 {
-                    return Err(OpenMessageError::MalformedOptParam.into());
+                    return Err(OpenMessageError::MalformedOptParam);
                 }
 
-                let asn = buf_cap.get_u32();
+                let asn = buf_cap.try_get_u32()?;
                 Capability::FourOctetAsNumber { asn }
             }
             Some(CapabilityCode::AddPath) => {
                 if cap_len % 4 != 0 {
-                    return Err(OpenMessageError::MalformedOptParam.into());
+                    return Err(OpenMessageError::MalformedOptParam);
                 }
 
                 let mut tuples = BTreeSet::new();
                 while buf_cap.remaining() > 0 {
-                    let afi = buf_cap.get_u16();
+                    let afi = buf_cap.try_get_u16()?;
                     let Some(afi) = Afi::from_u16(afi) else {
                         // Ignore unknown AFI.
                         return Ok(None);
                     };
-                    let safi = buf_cap.get_u8();
+                    let safi = buf_cap.try_get_u8()?;
                     let Some(safi) = Safi::from_u8(safi) else {
                         // Ignore unknown SAFI.
                         return Ok(None);
                     };
-                    let mode = buf_cap.get_u8();
+                    let mode = buf_cap.try_get_u8()?;
                     let Some(mode) = AddPathMode::from_u8(mode) else {
                         // Ignore unknown value.
                         return Ok(None);
@@ -623,14 +626,14 @@ impl Capability {
             }
             Some(CapabilityCode::RouteRefresh) => {
                 if cap_len != 0 {
-                    return Err(OpenMessageError::MalformedOptParam.into());
+                    return Err(OpenMessageError::MalformedOptParam);
                 }
 
                 Capability::RouteRefresh
             }
             Some(CapabilityCode::EnhancedRouteRefresh) => {
                 if cap_len != 0 {
-                    return Err(OpenMessageError::MalformedOptParam.into());
+                    return Err(OpenMessageError::MalformedOptParam);
                 }
 
                 Capability::EnhancedRouteRefresh
@@ -748,7 +751,10 @@ impl UpdateMsg {
         }
     }
 
-    pub fn decode(buf: &mut Bytes, cxt: &DecodeCxt) -> DecodeResult<Self> {
+    pub fn decode(
+        buf: &mut Bytes,
+        cxt: &DecodeCxt,
+    ) -> Result<Self, UpdateMessageError> {
         let mut reach = None;
         let mut unreach = None;
         let mut mp_reach = None;
@@ -757,9 +763,9 @@ impl UpdateMsg {
         let mut nexthop = None;
 
         // Withdrawn Routes Length.
-        let wdraw_len = buf.get_u16();
+        let wdraw_len = buf.try_get_u16()?;
         if wdraw_len as usize > buf.remaining() {
-            return Err(UpdateMessageError::MalformedAttributeList.into());
+            return Err(UpdateMessageError::MalformedAttributeList);
         }
 
         // Withdrawn Routes.
@@ -776,11 +782,11 @@ impl UpdateMsg {
 
         // Total Path Attribute Length.
         if buf.remaining() < 2 {
-            return Err(UpdateMessageError::MalformedAttributeList.into());
+            return Err(UpdateMessageError::MalformedAttributeList);
         }
-        let attr_len = buf.get_u16();
+        let attr_len = buf.try_get_u16()?;
         if attr_len as usize > buf.remaining() {
-            return Err(UpdateMessageError::MalformedAttributeList.into());
+            return Err(UpdateMessageError::MalformedAttributeList);
         }
 
         // Path Attributes.
@@ -845,9 +851,9 @@ impl NotificationMsg {
         buf.put_slice(&self.data);
     }
 
-    pub fn decode(buf: &mut Bytes) -> DecodeResult<Self> {
-        let error_code = buf.get_u8();
-        let error_subcode = buf.get_u8();
+    pub fn decode(buf: &mut Bytes) -> Result<Self, DecodeError> {
+        let error_code = buf.try_get_u8()?;
+        let error_subcode = buf.try_get_u8()?;
 
         Ok(NotificationMsg {
             error_code,
@@ -864,9 +870,16 @@ impl From<DecodeError> for NotificationMsg {
         let data = vec![];
 
         match error {
+            DecodeError::ReadOutOfBounds => {
+                error_code = ErrorCode::Cease as u8;
+                error_subcode = 0;
+            }
             DecodeError::MessageHeader(error) => {
                 error_code = ErrorCode::MessageHeaderError as u8;
                 error_subcode = match error {
+                    MessageHeaderError::ReadOutOfBounds => {
+                        MessageHeaderErrorSubcode::Unspecific
+                    }
                     MessageHeaderError::ConnectionNotSynchronized => {
                         MessageHeaderErrorSubcode::ConnectionNotSynchronized
                     }
@@ -881,6 +894,9 @@ impl From<DecodeError> for NotificationMsg {
             DecodeError::OpenMessage(error) => {
                 error_code = ErrorCode::OpenMessageError as u8;
                 error_subcode = match error {
+                    OpenMessageError::ReadOutOfBounds => {
+                        OpenMessageErrorSubcode::Unspecific
+                    }
                     OpenMessageError::UnsupportedVersion(..) => {
                         OpenMessageErrorSubcode::UnsupportedVersionNumber
                     }
@@ -907,6 +923,9 @@ impl From<DecodeError> for NotificationMsg {
             DecodeError::UpdateMessage(error) => {
                 error_code = ErrorCode::UpdateMessageError as u8;
                 error_subcode = match error {
+                    UpdateMessageError::ReadOutOfBounds => {
+                        UpdateMessageErrorSubcode::Unspecific
+                    }
                     UpdateMessageError::MalformedAttributeList => {
                         UpdateMessageErrorSubcode::MalformedAttributeList
                     }
@@ -942,7 +961,7 @@ impl KeepaliveMsg {
         buf.put_u8(MessageType::Keepalive as u8);
     }
 
-    pub fn decode(_buf: &mut Bytes) -> DecodeResult<Self> {
+    pub fn decode(_buf: &mut Bytes) -> Result<Self, DecodeError> {
         // A KEEPALIVE message consists of only the message header.
         Ok(KeepaliveMsg {})
     }
@@ -960,10 +979,10 @@ impl RouteRefreshMsg {
         buf.put_u8(self.safi);
     }
 
-    pub fn decode(buf: &mut Bytes) -> DecodeResult<Self> {
-        let afi = buf.get_u16();
-        let _reserved = buf.get_u8();
-        let safi = buf.get_u8();
+    pub fn decode(buf: &mut Bytes) -> Result<Self, DecodeError> {
+        let afi = buf.try_get_u16()?;
+        let _reserved = buf.try_get_u8()?;
+        let safi = buf.try_get_u8()?;
         Ok(RouteRefreshMsg { afi, safi })
     }
 }
@@ -994,17 +1013,17 @@ pub(crate) fn encode_ipv6_prefix(buf: &mut BytesMut, prefix: &Ipv6Network) {
 
 pub fn decode_ipv4_prefix(
     buf: &mut Bytes,
-) -> DecodeResult<Option<Ipv4Network>> {
+) -> Result<Option<Ipv4Network>, UpdateMessageError> {
     // Parse prefix length.
-    let plen = buf.get_u8();
+    let plen = buf.try_get_u8()?;
     let plen_wire = prefix_wire_len(plen);
     if plen_wire > buf.remaining() || plen > Ipv4Network::MAX_PREFIXLEN {
-        return Err(UpdateMessageError::InvalidNetworkField.into());
+        return Err(UpdateMessageError::InvalidNetworkField);
     }
 
     // Parse prefix address (variable length).
     let mut prefix_bytes = [0; Ipv4Addr::LENGTH];
-    buf.copy_to_slice(&mut prefix_bytes[..plen_wire]);
+    buf.try_copy_to_slice(&mut prefix_bytes[..plen_wire])?;
     let prefix = Ipv4Addr::from(prefix_bytes);
     let prefix = Ipv4Network::new(prefix, plen)
         .map(|prefix| prefix.apply_mask())
@@ -1023,17 +1042,17 @@ pub fn decode_ipv4_prefix(
 
 pub fn decode_ipv6_prefix(
     buf: &mut Bytes,
-) -> DecodeResult<Option<Ipv6Network>> {
+) -> Result<Option<Ipv6Network>, UpdateMessageError> {
     // Parse prefix length.
-    let plen = buf.get_u8();
+    let plen = buf.try_get_u8()?;
     let plen_wire = prefix_wire_len(plen);
     if plen_wire > buf.remaining() || plen > Ipv6Network::MAX_PREFIXLEN {
-        return Err(UpdateMessageError::InvalidNetworkField.into());
+        return Err(UpdateMessageError::InvalidNetworkField);
     }
 
     // Parse prefix address (variable length).
     let mut prefix_bytes = [0; Ipv6Addr::LENGTH];
-    buf.copy_to_slice(&mut prefix_bytes[..plen_wire]);
+    buf.try_copy_to_slice(&mut prefix_bytes[..plen_wire])?;
     let prefix = Ipv6Addr::from(prefix_bytes);
     let prefix = Ipv6Network::new(prefix, plen)
         .map(|prefix| prefix.apply_mask())

@@ -4,15 +4,14 @@
 // SPDX-License-Identifier: MIT
 //
 
+use bytes::TryGetError;
 use serde::{Deserialize, Serialize};
-
-// Type aliases.
-pub type DecodeResult<T> = Result<T, DecodeError>;
 
 // BGP message decoding errors.
 #[derive(Debug)]
 #[derive(Deserialize, Serialize)]
 pub enum DecodeError {
+    ReadOutOfBounds,
     MessageHeader(MessageHeaderError),
     OpenMessage(OpenMessageError),
     UpdateMessage(UpdateMessageError),
@@ -21,6 +20,7 @@ pub enum DecodeError {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub enum MessageHeaderError {
+    ReadOutOfBounds,
     ConnectionNotSynchronized,
     BadMessageLength(u16),
     BadMessageType(u8),
@@ -29,6 +29,7 @@ pub enum MessageHeaderError {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub enum OpenMessageError {
+    ReadOutOfBounds,
     UnsupportedVersion(u8),
     BadPeerAs,
     BadBgpIdentifier,
@@ -45,6 +46,7 @@ pub enum OpenMessageError {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub enum UpdateMessageError {
+    ReadOutOfBounds,
     MalformedAttributeList,
     UnrecognizedWellKnownAttribute,
     OptionalAttributeError,
@@ -65,6 +67,9 @@ pub enum AttrError {
 impl std::fmt::Display for DecodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            DecodeError::ReadOutOfBounds => {
+                write!(f, "attempt to read out of bounds")
+            }
             DecodeError::MessageHeader(error) => error.fmt(f),
             DecodeError::OpenMessage(error) => error.fmt(f),
             DecodeError::UpdateMessage(error) => error.fmt(f),
@@ -73,6 +78,12 @@ impl std::fmt::Display for DecodeError {
 }
 
 impl std::error::Error for DecodeError {}
+
+impl From<TryGetError> for DecodeError {
+    fn from(_error: TryGetError) -> DecodeError {
+        DecodeError::ReadOutOfBounds
+    }
+}
 
 impl From<MessageHeaderError> for DecodeError {
     fn from(error: MessageHeaderError) -> DecodeError {
@@ -97,16 +108,25 @@ impl From<UpdateMessageError> for DecodeError {
 impl std::fmt::Display for MessageHeaderError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            MessageHeaderError::ReadOutOfBounds => {
+                write!(f, "attempt to read out of bounds")
+            }
             MessageHeaderError::ConnectionNotSynchronized => {
-                write!(f, "Connection not synchronized")
+                write!(f, "connection not synchronized")
             }
             MessageHeaderError::BadMessageLength(len) => {
-                write!(f, "Invalid message length: {len}")
+                write!(f, "invalid message length: {len}")
             }
             MessageHeaderError::BadMessageType(msg_type) => {
-                write!(f, "Invalid message type: {msg_type}")
+                write!(f, "invalid message type: {msg_type}")
             }
         }
+    }
+}
+
+impl From<TryGetError> for MessageHeaderError {
+    fn from(_error: TryGetError) -> MessageHeaderError {
+        MessageHeaderError::ReadOutOfBounds
     }
 }
 
@@ -117,6 +137,9 @@ impl std::fmt::Display for OpenMessageError {
         write!(f, "OPEN message error: ")?;
 
         match self {
+            OpenMessageError::ReadOutOfBounds => {
+                write!(f, "attempt to read out of bounds")
+            }
             OpenMessageError::UnsupportedVersion(version) => {
                 write!(f, "unsupported version number: {version}")
             }
@@ -142,6 +165,12 @@ impl std::fmt::Display for OpenMessageError {
     }
 }
 
+impl From<TryGetError> for OpenMessageError {
+    fn from(_error: TryGetError) -> OpenMessageError {
+        OpenMessageError::ReadOutOfBounds
+    }
+}
+
 // ===== impl UpdateMessageError =====
 
 impl std::fmt::Display for UpdateMessageError {
@@ -149,6 +178,9 @@ impl std::fmt::Display for UpdateMessageError {
         write!(f, "UPDATE message error: ")?;
 
         match self {
+            UpdateMessageError::ReadOutOfBounds => {
+                write!(f, "attempt to read out of bounds")
+            }
             UpdateMessageError::MalformedAttributeList => {
                 write!(f, "malformed attribute list")
             }
@@ -162,5 +194,19 @@ impl std::fmt::Display for UpdateMessageError {
                 write!(f, "invalid network field")
             }
         }
+    }
+}
+
+impl From<TryGetError> for UpdateMessageError {
+    fn from(_error: TryGetError) -> UpdateMessageError {
+        UpdateMessageError::ReadOutOfBounds
+    }
+}
+
+// ===== impl AttrError =====
+
+impl From<TryGetError> for AttrError {
+    fn from(_error: TryGetError) -> AttrError {
+        AttrError::Withdraw
     }
 }

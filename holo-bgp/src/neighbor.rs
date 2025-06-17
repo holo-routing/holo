@@ -39,7 +39,7 @@ use crate::packet::message::{
 use crate::rib::{Rib, Route, RouteOrigin};
 #[cfg(feature = "testing")]
 use crate::tasks::messages::ProtocolOutputMsg;
-use crate::tasks::messages::input::{NbrRxMsg, NbrTimerMsg, TcpConnectMsg};
+use crate::tasks::messages::input::{NbrTimerMsg, TcpConnectMsg};
 use crate::tasks::messages::output::NbrTxMsg;
 use crate::{events, rib, tasks};
 
@@ -255,13 +255,7 @@ impl Neighbor {
                 }
                 fsm::Event::Connected(stream, conn_info) => {
                     self.connect_retry_stop();
-                    self.connection_setup(
-                        stream,
-                        conn_info,
-                        &instance.tx.protocol_input.nbr_msg_rx,
-                        #[cfg(feature = "testing")]
-                        &instance.tx.protocol_output,
-                    );
+                    self.connection_setup(stream, conn_info, instance);
                     self.open_send(instance.config, instance.state.router_id);
                     self.holdtime_start(
                         LARGE_HOLDTIME,
@@ -300,13 +294,7 @@ impl Neighbor {
                 }
                 fsm::Event::Connected(stream, conn_info) => {
                     self.connect_retry_stop();
-                    self.connection_setup(
-                        stream,
-                        conn_info,
-                        &instance.tx.protocol_input.nbr_msg_rx,
-                        #[cfg(feature = "testing")]
-                        &instance.tx.protocol_output,
-                    );
+                    self.connection_setup(stream, conn_info, instance);
                     self.open_send(instance.config, instance.state.router_id);
                     self.holdtime_start(
                         LARGE_HOLDTIME,
@@ -528,8 +516,7 @@ impl Neighbor {
         &mut self,
         stream: TcpStream,
         conn_info: TcpConnInfo,
-        nbr_msg_rxp: &Sender<NbrRxMsg>,
-        #[cfg(feature = "testing")] proto_output_tx: &Sender<ProtocolOutputMsg>,
+        instance: &mut InstanceUpView<'_>,
     ) {
         // Store TCP connection information.
         self.conn_info = Some(conn_info);
@@ -548,7 +535,7 @@ impl Neighbor {
             write_half,
             msg_txc,
             #[cfg(feature = "testing")]
-            proto_output_tx,
+            &instance.tx.protocol_output,
         );
         self.msg_txp = Some(msg_txp);
 
@@ -556,9 +543,15 @@ impl Neighbor {
         let cxt = DecodeCxt {
             peer_type: self.peer_type,
             peer_as: self.config.peer_as,
+            reject_as_sets: instance.config.reject_as_sets,
             capabilities: Default::default(),
         };
-        let tcp_rx_task = tasks::nbr_rx(self, cxt, read_half, nbr_msg_rxp);
+        let tcp_rx_task = tasks::nbr_rx(
+            self,
+            cxt,
+            read_half,
+            &instance.tx.protocol_input.nbr_msg_rx,
+        );
         self.tasks.tcp_rx = Some(tcp_rx_task);
 
         // No need to keep track of the Tx task since it gracefully exits as

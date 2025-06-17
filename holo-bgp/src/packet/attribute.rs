@@ -651,7 +651,7 @@ impl AsPath {
         let mut segments = VecDeque::with_capacity(1);
         while buf.remaining() > 0 {
             let segment =
-                AsPathSegment::decode(buf, attr_type, four_byte_asns)?;
+                AsPathSegment::decode(buf, cxt, attr_type, four_byte_asns)?;
             segments.push_back(segment);
         }
         let value = AsPath { segments };
@@ -754,6 +754,7 @@ impl AsPathSegment {
 
     pub fn decode(
         buf: &mut Bytes,
+        cxt: &DecodeCxt,
         attr_type: AttrType,
         four_byte_asns: bool,
     ) -> Result<Self, AttrError> {
@@ -766,6 +767,16 @@ impl AsPathSegment {
                 return Err(AttrError::Discard);
             }
         };
+
+        // Reject AS_SET and AS_CONFED_SET as per RFC 9774
+        if cxt.reject_as_sets
+            && matches!(
+                seg_type,
+                AsPathSegmentType::Set | AsPathSegmentType::ConfedSet
+            )
+        {
+            return Err(AttrError::Withdraw);
+        }
 
         // Decode segment length.
         let seg_len = buf.get_u8();

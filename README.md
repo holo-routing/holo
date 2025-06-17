@@ -163,6 +163,7 @@ Holo supports the following Internet Standards:
 * RFC 8092 - BGP Large Communities Attribute
 * RFC 8212 - Default External BGP (EBGP) Route Propagation Behavior without Policies
 * RFC 8642 - Policy Behavior for Well-Known BGP Communities
+* RFC 9774 - Deprecation of AS_SET and AS_CONFED_SET in BGP
 
 ##### IS-IS
 

@@ -78,6 +78,18 @@ module holo-bgp {
 
   augment "/rt:routing/rt:control-plane-protocols/"
         + "rt:control-plane-protocol/bgp:bgp/bgp:global" {
+    leaf reject-as-sets {
+      type boolean;
+      default "true";
+      description
+        "When set to true, routes containing AS_PATH or AS4_PATH attributes
+         with AS_SET or AS_CONFED_SET segments are rejected and treated
+         as withdrawn, in accordance with the error handling procedures
+         defined in RFC 7606.";
+      reference
+        "RFC 9774: Deprecation of AS_SET and AS_CONFED_SET in BGP";
+    }
+
     container trace-options {
       description "Instance level trace options for BGP.";
 

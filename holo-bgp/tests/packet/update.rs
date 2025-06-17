@@ -159,6 +159,7 @@ fn test_decode_malformed_updates() {
     let cxt: DecodeCxt = DecodeCxt {
         peer_type: PeerType::Internal,
         peer_as: 65550,
+        reject_as_sets: true,
         capabilities: [NegotiatedCapability::FourOctetAsNumber].into(),
     };
     for bytes in &[

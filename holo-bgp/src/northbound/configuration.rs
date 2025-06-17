@@ -75,6 +75,7 @@ pub struct InstanceCfg {
     pub route_selection: RouteSelectionCfg,
     pub apply_policy: ApplyPolicyCfg,
     pub afi_safi: BTreeMap<AfiSafi, InstanceAfiSafiCfg>,
+    pub reject_as_sets: bool,
     pub trace_opts: InstanceTraceOptions,
 }
 
@@ -680,6 +681,11 @@ fn load_callbacks() -> Callbacks<Instance> {
             let default = args.dnode.get_string();
             let default = DefaultPolicyType::try_from_yang(&default).unwrap();
             instance.config.apply_policy.default_export_policy = default;
+        })
+        .path(bgp::global::reject_as_sets::PATH)
+        .modify_apply(|instance, args| {
+            let reject = args.dnode.get_bool();
+            instance.config.reject_as_sets = reject;
         })
         .path(bgp::global::trace_options::flag::PATH)
         .create_apply(|instance, args| {
@@ -1776,6 +1782,8 @@ where
 
 impl Default for InstanceCfg {
     fn default() -> InstanceCfg {
+        let reject_as_sets = bgp::global::reject_as_sets::DFLT;
+
         InstanceCfg {
             asn: 0,
             identifier: None,
@@ -1784,6 +1792,7 @@ impl Default for InstanceCfg {
             route_selection: Default::default(),
             apply_policy: Default::default(),
             afi_safi: Default::default(),
+            reject_as_sets,
             trace_opts: Default::default(),
         }
     }

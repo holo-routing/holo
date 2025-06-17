@@ -267,6 +267,7 @@ pub struct EncodeCxt {
 pub struct DecodeCxt {
     pub peer_type: PeerType,
     pub peer_as: u32,
+    pub reject_as_sets: bool,
     pub capabilities: BTreeSet<NegotiatedCapability>,
 }
 

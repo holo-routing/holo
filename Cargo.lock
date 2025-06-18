@@ -2469,10 +2469,11 @@ dependencies = [
 
 [[package]]
 name = "prefix-trie"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85cf4c7c25f1dd66c76b451e9041a8cfce26e4ca754934fa7aed8d5a59a01d20"
+checksum = "ac603d58e15098b29663114afa83d1d38dee2175bc80b7a3b9892b9e6f4303dc"
 dependencies = [
+ "either",
  "ipnetwork",
  "num-traits",
 ]

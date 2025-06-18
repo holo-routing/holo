@@ -26,8 +26,8 @@ use holo_utils::keychain::{Key, Keychains};
 use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::{ToYang, TryFromYang};
-use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
-use prefix_trie::map::PrefixMap;
+use ipnetwork::IpNetwork;
+use prefix_trie::joint::map::JointPrefixMap;
 
 use crate::collections::InterfaceIndex;
 use crate::debug::InterfaceInactiveReason;
@@ -117,7 +117,7 @@ pub struct InstanceCfg {
     pub preference: Preference,
     pub overload_status: bool,
     pub mt: HashMap<MtId, InstanceMtCfg>,
-    pub summaries: SummariesCfg,
+    pub summaries: JointPrefixMap<IpNetwork, SummaryCfg>,
     pub att_suppress: bool,
     pub att_ignore: bool,
     pub sr: InstanceSrCfg,
@@ -168,12 +168,6 @@ pub struct InstanceTraceOptions {
 pub struct AddressFamilyCfg {
     pub enabled: bool,
     pub redistribution: HashMap<(LevelNumber, Protocol), RedistributionCfg>,
-}
-
-#[derive(Debug, Default)]
-pub struct SummariesCfg {
-    pub ipv4: PrefixMap<Ipv4Network, SummaryCfg>,
-    pub ipv6: PrefixMap<Ipv6Network, SummaryCfg>,
 }
 
 #[derive(Debug)]
@@ -2288,56 +2282,6 @@ impl AuthCfg {
         }
 
         None
-    }
-}
-
-impl SummariesCfg {
-    pub(crate) fn insert(&mut self, prefix: IpNetwork, config: SummaryCfg) {
-        match prefix {
-            IpNetwork::V4(prefix) => {
-                self.ipv4.insert(prefix, config);
-            }
-            IpNetwork::V6(prefix) => {
-                self.ipv6.insert(prefix, config);
-            }
-        }
-    }
-
-    pub(crate) fn remove(&mut self, prefix: &IpNetwork) {
-        match prefix {
-            IpNetwork::V4(prefix) => {
-                self.ipv4.remove(prefix);
-            }
-            IpNetwork::V6(prefix) => {
-                self.ipv6.remove(prefix);
-            }
-        }
-    }
-
-    pub(crate) fn get_mut(
-        &mut self,
-        prefix: &IpNetwork,
-    ) -> Option<&mut SummaryCfg> {
-        match prefix {
-            IpNetwork::V4(prefix) => self.ipv4.get_mut(prefix),
-            IpNetwork::V6(prefix) => self.ipv6.get_mut(prefix),
-        }
-    }
-
-    pub(crate) fn get_spm(
-        &self,
-        prefix: &IpNetwork,
-    ) -> Option<(IpNetwork, &SummaryCfg)> {
-        match prefix {
-            IpNetwork::V4(prefix) => self
-                .ipv4
-                .get_spm(prefix)
-                .map(|(prefix, cfg)| ((*prefix).into(), cfg)),
-            IpNetwork::V6(prefix) => self
-                .ipv6
-                .get_spm(prefix)
-                .map(|(prefix, cfg)| ((*prefix).into(), cfg)),
-        }
     }
 }
 

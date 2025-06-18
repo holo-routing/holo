@@ -374,14 +374,14 @@ impl LsaHdrVersion<Ospfv2> for LsaHdr {
     }
 
     fn decode(buf: &mut Bytes) -> DecodeResult<Self> {
-        let age = buf.get_u16();
-        let options = Options::from_bits_truncate(buf.get_u8());
-        let lsa_type = LsaType(buf.get_u8());
-        let lsa_id = buf.get_ipv4();
-        let adv_rtr = buf.get_ipv4();
-        let seq_no = buf.get_u32();
-        let cksum = buf.get_u16();
-        let length = buf.get_u16();
+        let age = buf.try_get_u16()?;
+        let options = Options::from_bits_truncate(buf.try_get_u8()?);
+        let lsa_type = LsaType(buf.try_get_u8()?);
+        let lsa_id = buf.try_get_ipv4()?;
+        let adv_rtr = buf.try_get_ipv4()?;
+        let seq_no = buf.try_get_u32()?;
+        let cksum = buf.try_get_u16()?;
+        let length = buf.try_get_u16()?;
 
         Ok(LsaHdr {
             age,
@@ -567,23 +567,23 @@ impl LsaRouter {
         if buf.remaining() < Self::BASE_LENGTH as usize {
             return Err(DecodeError::InvalidLsaLength);
         }
-        let flags = LsaRouterFlags::from_bits_truncate(buf.get_u8());
-        let _ = buf.get_u8();
-        let links_cnt = buf.get_u16();
+        let flags = LsaRouterFlags::from_bits_truncate(buf.try_get_u8()?);
+        let _ = buf.try_get_u8()?;
+        let links_cnt = buf.try_get_u16()?;
 
         let mut links = vec![];
         for _ in 0..links_cnt {
-            let link_id = buf.get_ipv4();
-            let link_data = buf.get_ipv4();
-            let link_type = buf.get_u8();
+            let link_id = buf.try_get_ipv4()?;
+            let link_data = buf.try_get_ipv4()?;
+            let link_type = buf.try_get_u8()?;
             let link_type = LsaRouterLinkType::from_u8(link_type)
                 .ok_or(DecodeError::UnknownRouterLinkType(link_type))?;
-            let num_tos = buf.get_u8();
-            let metric = buf.get_u16();
+            let num_tos = buf.try_get_u8()?;
+            let metric = buf.try_get_u16()?;
 
             // Ignore deprecated TOS metrics.
             for _ in 0..num_tos {
-                let _ = buf.get_u32();
+                let _ = buf.try_get_u32()?;
             }
 
             let link =
@@ -639,12 +639,12 @@ impl LsaNetwork {
         if buf.remaining() < Self::BASE_LENGTH as usize {
             return Err(DecodeError::InvalidLsaLength);
         }
-        let mask = buf.get_ipv4();
+        let mask = buf.try_get_ipv4()?;
 
         let mut attached_rtrs = BTreeSet::new();
         let rtrs_cnt = buf.remaining() / 4;
         for _ in 0..rtrs_cnt {
-            let rtr = buf.get_ipv4();
+            let rtr = buf.try_get_ipv4()?;
             attached_rtrs.insert(rtr);
         }
 
@@ -672,9 +672,9 @@ impl LsaSummary {
         if buf.remaining() < Self::BASE_LENGTH as usize {
             return Err(DecodeError::InvalidLsaLength);
         }
-        let mask = buf.get_ipv4();
-        let _ = buf.get_u8();
-        let metric = buf.get_u24();
+        let mask = buf.try_get_ipv4()?;
+        let _ = buf.try_get_u8()?;
+        let metric = buf.try_get_u24()?;
         // Ignore deprecated TOS metrics.
 
         Ok(LsaSummary { mask, metric })
@@ -697,11 +697,11 @@ impl LsaAsExternal {
         if buf.remaining() < Self::BASE_LENGTH as usize {
             return Err(DecodeError::InvalidLsaLength);
         }
-        let mask = buf.get_ipv4();
-        let flags = LsaAsExternalFlags::from_bits_truncate(buf.get_u8());
-        let metric = buf.get_u24();
-        let fwd_addr = buf.get_opt_ipv4();
-        let tag = buf.get_u32();
+        let mask = buf.try_get_ipv4()?;
+        let flags = LsaAsExternalFlags::from_bits_truncate(buf.try_get_u8()?);
+        let metric = buf.try_get_u24()?;
+        let fwd_addr = buf.try_get_opt_ipv4()?;
+        let tag = buf.try_get_u32()?;
         // Ignore deprecated TOS-specific information.
 
         Ok(LsaAsExternal {

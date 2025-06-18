@@ -266,48 +266,48 @@ impl PacketHdrVersion<Ospfv2> for PacketHdr {
 
     fn decode(buf: &mut Bytes) -> DecodeResult<(Self, u16, PacketHdrAuth)> {
         // Parse version.
-        let version = buf.get_u8();
+        let version = buf.try_get_u8()?;
         if version != Self::VERSION {
             return Err(DecodeError::InvalidVersion(version));
         }
 
         // Parse packet type.
-        let pkt_type = buf.get_u8();
+        let pkt_type = buf.try_get_u8()?;
         let pkt_type = match PacketType::from_u8(pkt_type) {
             Some(pkt_type) => pkt_type,
             None => return Err(DecodeError::UnknownPacketType(pkt_type)),
         };
 
         // Parse and validate message length.
-        let pkt_len = buf.get_u16();
+        let pkt_len = buf.try_get_u16()?;
         if pkt_len < Self::LENGTH {
             return Err(DecodeError::InvalidLength(pkt_len));
         }
 
         // Parse Router-ID.
-        let router_id = buf.get_ipv4();
+        let router_id = buf.try_get_ipv4()?;
         if !router_id.is_usable() {
             return Err(DecodeError::InvalidRouterId(router_id));
         }
 
         // Parse Area ID.
-        let area_id = buf.get_ipv4();
+        let area_id = buf.try_get_ipv4()?;
 
         // Parse checksum (already verified).
-        let _cksum = buf.get_u16();
+        let _cksum = buf.try_get_u16()?;
 
         // Parse authentication data.
-        let au_type = buf.get_u16();
+        let au_type = buf.try_get_u16()?;
         let auth = match AuthType::from_u16(au_type) {
             Some(AuthType::Null) => {
-                let _ = buf.get_u64();
+                let _ = buf.try_get_u64()?;
                 PacketHdrAuth::Null
             }
             Some(AuthType::Cryptographic) => {
-                let _ = buf.get_u16();
-                let key_id = buf.get_u8();
-                let auth_len = buf.get_u8();
-                let seqno = buf.get_u32();
+                let _ = buf.try_get_u16()?;
+                let key_id = buf.try_get_u8()?;
+                let auth_len = buf.try_get_u8()?;
+                let seqno = buf.try_get_u32()?;
                 PacketHdrAuth::Cryptographic {
                     key_id,
                     auth_len,
@@ -428,20 +428,20 @@ impl PacketBase<Ospfv2> for Hello {
             return Err(DecodeError::InvalidLength(buf.len() as u16));
         }
 
-        let network_mask = buf.get_ipv4();
-        let hello_interval = buf.get_u16();
+        let network_mask = buf.try_get_ipv4()?;
+        let hello_interval = buf.try_get_u16()?;
         // Ignore unknown options.
-        let options = Options::from_bits_truncate(buf.get_u8());
-        let priority = buf.get_u8();
-        let dead_interval = buf.get_u32();
-        let dr = buf.get_opt_ipv4();
-        let bdr = buf.get_opt_ipv4();
+        let options = Options::from_bits_truncate(buf.try_get_u8()?);
+        let priority = buf.try_get_u8()?;
+        let dead_interval = buf.try_get_u32()?;
+        let dr = buf.try_get_opt_ipv4()?;
+        let bdr = buf.try_get_opt_ipv4()?;
 
         // Parse list of neighbors.
         let mut neighbors = BTreeSet::new();
         let nbrs_cnt = buf.remaining() / 4;
         for _ in 0..nbrs_cnt {
-            let nbr = buf.get_ipv4();
+            let nbr = buf.try_get_ipv4()?;
             neighbors.insert(nbr);
         }
 
@@ -538,10 +538,10 @@ impl PacketBase<Ospfv2> for DbDesc {
             return Err(DecodeError::InvalidLength(buf.len() as u16));
         }
 
-        let mtu = buf.get_u16();
-        let options = Options::from_bits_truncate(buf.get_u8());
-        let dd_flags = DbDescFlags::from_bits_truncate(buf.get_u8());
-        let dd_seq_no = buf.get_u32();
+        let mtu = buf.try_get_u16()?;
+        let options = Options::from_bits_truncate(buf.try_get_u8()?);
+        let dd_flags = DbDescFlags::from_bits_truncate(buf.try_get_u8()?);
+        let dd_seq_no = buf.try_get_u32()?;
 
         // Parse list of LSA headers.
         let mut lsa_hdrs = vec![];
@@ -636,9 +636,9 @@ impl PacketBase<Ospfv2> for LsRequest {
         let mut entries = vec![];
         let entries_cnt = buf.remaining() / LsRequest::ENTRY_LENGTH as usize;
         for _ in 0..entries_cnt {
-            let lsa_type = LsaType(buf.get_u32() as u8);
-            let lsa_id = buf.get_ipv4();
-            let adv_rtr = buf.get_ipv4();
+            let lsa_type = LsaType(buf.try_get_u32()? as u8);
+            let lsa_id = buf.try_get_ipv4()?;
+            let adv_rtr = buf.try_get_ipv4()?;
             let entry = LsaKey {
                 lsa_type,
                 adv_rtr,
@@ -702,7 +702,7 @@ impl PacketBase<Ospfv2> for LsUpdate {
 
         // Parse list of LSAs.
         let mut lsas = vec![];
-        let lsas_cnt = buf.get_u32();
+        let lsas_cnt = buf.try_get_u32()?;
         for _ in 0..lsas_cnt {
             let lsa = Lsa::decode(af, buf)?;
             lsas.push(lsa);

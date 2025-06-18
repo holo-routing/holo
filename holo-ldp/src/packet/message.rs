@@ -277,18 +277,18 @@ impl Message {
         let buf_copy = buf.clone();
 
         // Parse message type.
-        let msg_type = buf.get_u16();
+        let msg_type = buf.try_get_u16()?;
         let msg_etype = MessageType::decode(msg_type);
 
         // Parse and validate message length.
-        let msg_len = buf.get_u16();
+        let msg_len = buf.try_get_u16()?;
         let msg_size = msg_len + Message::HDR_DEAD_LEN;
         if msg_len < Message::HDR_MIN_LEN || msg_size > pdui.pdu_rlen {
             return Err(DecodeError::InvalidMessageLength(msg_len));
         }
 
         // Parse message ID.
-        let msg_id = buf.get_u32();
+        let msg_id = buf.try_get_u32()?;
 
         // Save slice containing the entire message.
         let msg_raw = buf_copy.slice(0..msg_size as usize);

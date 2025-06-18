@@ -6,7 +6,7 @@
 
 use std::net::{IpAddr, Ipv4Addr};
 
-use bytes::Bytes;
+use bytes::{Bytes, TryGetError};
 use serde::{Deserialize, Serialize};
 
 use crate::packet::message::MessageDecodeInfo;
@@ -18,6 +18,7 @@ pub type DecodeResult<T> = Result<T, DecodeError>;
 // LDP decode errors.
 #[derive(Debug, Deserialize, Serialize)]
 pub enum DecodeError {
+    ReadOutOfBounds,
     // PDU header
     IncompletePdu,
     InvalidPduLength(u16),
@@ -48,6 +49,9 @@ pub enum DecodeError {
 impl std::fmt::Display for DecodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            DecodeError::ReadOutOfBounds => {
+                write!(f, "attempt to read out of bounds")
+            }
             DecodeError::IncompletePdu => {
                 write!(f, "Incomplete PDU")
             }
@@ -110,3 +114,9 @@ impl std::fmt::Display for DecodeError {
 }
 
 impl std::error::Error for DecodeError {}
+
+impl From<TryGetError> for DecodeError {
+    fn from(_error: TryGetError) -> DecodeError {
+        DecodeError::ReadOutOfBounds
+    }
+}

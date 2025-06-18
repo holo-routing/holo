@@ -482,12 +482,12 @@ impl FecElem {
                 let prefix = match af {
                     AddressFamily::Ipv4 => {
                         let mut prefix_bytes = [0; Ipv4Addr::LENGTH];
-                        buf.copy_to_slice(&mut prefix_bytes[..plen_wire]);
+                        buf.try_copy_to_slice(&mut prefix_bytes[..plen_wire])?;
                         Ipv4Addr::from(prefix_bytes).into()
                     }
                     AddressFamily::Ipv6 => {
                         let mut prefix_bytes = [0; Ipv6Addr::LENGTH];
-                        buf.copy_to_slice(&mut prefix_bytes[..plen_wire]);
+                        buf.try_copy_to_slice(&mut prefix_bytes[..plen_wire])?;
                         Ipv6Addr::from(prefix_bytes).into()
                     }
                 };

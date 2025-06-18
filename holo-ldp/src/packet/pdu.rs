@@ -140,7 +140,7 @@ impl Pdu {
     }
 
     // Decode buffer into a PDU containing one or more messages.
-    // NOTE: Pdu::get_pdu_size() must be called before this method to ensure the
+    // NOTE: Pdu::get_pdu_size()? must be called before this method to ensure the
     // given buffer doesn't contain an incomplete PDU.
     pub fn decode(data: &[u8], cxt: &DecodeCxt) -> DecodeResult<Self> {
         // Decode LDP PDU header.
@@ -169,15 +169,15 @@ impl Pdu {
         let buf_copy = buf.clone();
 
         // Parse and validate LDP version.
-        let version = buf.get_u16();
+        let version = buf.try_get_u16()?;
         if version != Pdu::VERSION {
             return Err(DecodeError::InvalidVersion(version));
         }
 
         // Parse PDU length, LSR-ID and labelspace.
-        let pdu_len = buf.get_u16();
-        let lsr_id = buf.get_ipv4();
-        let lspace_id = buf.get_u16();
+        let pdu_len = buf.try_get_u16()?;
+        let lsr_id = buf.try_get_ipv4()?;
+        let lspace_id = buf.try_get_u16()?;
 
         // Save slice containing the entire PDU.
         let pdu_size = pdu_len + Pdu::HDR_DEAD_LEN;
@@ -213,8 +213,8 @@ impl Pdu {
 
         // Ensure the buffer is big enough to hold the entire PDU.
         let mut buf = Bytes::copy_from_slice(&data[0..4]);
-        let _version = buf.get_u16();
-        let pdu_len = buf.get_u16();
+        let _version = buf.try_get_u16()?;
+        let pdu_len = buf.try_get_u16()?;
         if pdu_len < (Pdu::HDR_MIN_LEN + Message::HDR_SIZE)
             || pdu_len > cxt.pdu_max_len
             || pdu_len as usize > (buf_size - Pdu::HDR_DEAD_LEN as usize)

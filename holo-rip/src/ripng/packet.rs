@@ -6,7 +6,7 @@
 
 use std::net::Ipv6Addr;
 
-use bytes::{Buf, BufMut, Bytes, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut, TryGetError};
 use derive_new::new;
 use holo_utils::bytes::{BytesExt, BytesMutExt, TLS_BUF};
 use holo_utils::crypto::CryptoAlgo;
@@ -81,6 +81,7 @@ pub struct RteNexthop {
 // RIP decode errors.
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum DecodeError {
+    ReadOutOfBounds,
     InvalidLength(usize),
     InvalidCommand(u8),
     InvalidVersion(u8),
@@ -142,7 +143,7 @@ impl PduVersion<Ipv6Addr, Ipv6Network, DecodeError> for Pdu {
         }
 
         // Parse and validate RIP command.
-        let command = buf.get_u8();
+        let command = buf.try_get_u8()?;
         let command = Command::from_u8(command)
             .ok_or(DecodeError::InvalidCommand(command))?;
 
@@ -150,13 +151,13 @@ impl PduVersion<Ipv6Addr, Ipv6Network, DecodeError> for Pdu {
         //
         // Different from RIPv2, new versions of RIPng aren't expected to be
         // backward compatible.
-        let version = buf.get_u8();
+        let version = buf.try_get_u8()?;
         if version != Self::VERSION {
             return Err(DecodeError::InvalidVersion(version));
         }
 
         // Ignore MBZ.
-        let _ = buf.get_u16();
+        let _ = buf.try_get_u16()?;
 
         // Decode RIP RTEs.
         let mut rtes = vec![];
@@ -262,10 +263,10 @@ impl Rte {
     }
 
     pub(crate) fn decode(buf: &mut Bytes) -> DecodeResult<Self> {
-        let addr = buf.get_ipv6();
-        let tag = buf.get_u16();
-        let plen = buf.get_u8();
-        let metric = buf.get_u8();
+        let addr = buf.try_get_ipv6()?;
+        let tag = buf.try_get_u16()?;
+        let plen = buf.try_get_u8()?;
+        let metric = buf.try_get_u8()?;
 
         // A next hop RTE is identified by a value of 0xFF in the metric field
         // of an RTE. The prefix field specifies the IPv6 address of the next
@@ -397,6 +398,9 @@ impl DecodeErrorVersion for DecodeError {}
 impl std::fmt::Display for DecodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            DecodeError::ReadOutOfBounds => {
+                write!(f, "attempt to read out of bounds")
+            }
             DecodeError::InvalidLength(length) => {
                 write!(f, "Invalid Length: {length}")
             }
@@ -419,6 +423,12 @@ impl std::fmt::Display for DecodeError {
                 write!(f, "Invalid RIP metric: {metric}")
             }
         }
+    }
+}
+
+impl From<TryGetError> for DecodeError {
+    fn from(_error: TryGetError) -> DecodeError {
+        DecodeError::ReadOutOfBounds
     }
 }
 

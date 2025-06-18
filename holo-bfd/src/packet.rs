@@ -5,7 +5,7 @@
 //
 
 use bitflags::bitflags;
-use bytes::{Buf, BufMut, Bytes, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut, TryGetError};
 use derive_new::new;
 use holo_utils::bfd::State;
 use holo_utils::bytes::TLS_BUF;
@@ -89,6 +89,7 @@ pub enum DecodeError {
     IncompletePacket,
     InvalidVersion(u8),
     InvalidPacketLength(u8),
+    ReadOutOfBounds,
 }
 
 // ===== impl Packet =====
@@ -129,8 +130,8 @@ impl Packet {
             return Err(DecodeError::IncompletePacket);
         }
 
-        let first_byte = buf.get_u8();
-        let sec_byte = buf.get_u8();
+        let first_byte = buf.try_get_u8()?;
+        let sec_byte = buf.try_get_u8()?;
         let version = first_byte >> 5;
         if version != Self::VERSION {
             return Err(DecodeError::InvalidVersion(version));
@@ -138,16 +139,16 @@ impl Packet {
         let diag = first_byte & 0x0F;
         let state = State::from_u8(sec_byte >> 6).unwrap();
         let flags = PacketFlags::from_bits_truncate(sec_byte & 0x3F);
-        let detect_mult = buf.get_u8();
-        let length = buf.get_u8();
+        let detect_mult = buf.try_get_u8()?;
+        let length = buf.try_get_u8()?;
         if length != Self::MANDATORY_SECTION_LEN {
             return Err(DecodeError::InvalidPacketLength(length));
         }
-        let my_discr = buf.get_u32();
-        let your_discr = buf.get_u32();
-        let desired_min_tx = buf.get_u32();
-        let req_min_rx = buf.get_u32();
-        let req_min_echo_rx = buf.get_u32();
+        let my_discr = buf.try_get_u32()?;
+        let your_discr = buf.try_get_u32()?;
+        let desired_min_tx = buf.try_get_u32()?;
+        let req_min_rx = buf.try_get_u32()?;
+        let req_min_echo_rx = buf.try_get_u32()?;
 
         let packet = Packet {
             version,
@@ -180,8 +181,17 @@ impl std::fmt::Display for DecodeError {
             DecodeError::InvalidPacketLength(len) => {
                 write!(f, "Invalid packet length: {len}")
             }
+            DecodeError::ReadOutOfBounds => {
+                write!(f, "attempt to read out of bounds")
+            }
         }
     }
 }
 
 impl std::error::Error for DecodeError {}
+
+impl From<TryGetError> for DecodeError {
+    fn from(_error: TryGetError) -> DecodeError {
+        DecodeError::ReadOutOfBounds
+    }
+}

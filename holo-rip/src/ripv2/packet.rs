@@ -7,7 +7,7 @@
 use std::net::Ipv4Addr;
 use std::sync::atomic;
 
-use bytes::{Buf, BufMut, Bytes, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut, TryGetError};
 use derive_new::new;
 use enum_as_inner::EnumAsInner;
 use holo_utils::bytes::{BytesExt, BytesMutExt, TLS_BUF};
@@ -131,6 +131,7 @@ pub struct RteAuthTrailer(pub Bytes);
 // RIP decode errors.
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum DecodeError {
+    ReadOutOfBounds,
     InvalidLength(usize),
     InvalidCommand(u8),
     InvalidVersion(u8),
@@ -310,7 +311,7 @@ impl PduVersion<Ipv4Addr, Ipv4Network, DecodeError> for Pdu {
         let auth_seqno = Self::decode_auth_validate(&buf, auth)?;
 
         // Parse and validate RIP command.
-        let command = buf.get_u8();
+        let command = buf.try_get_u8()?;
         let command = Command::from_u8(command)
             .ok_or(DecodeError::InvalidCommand(command))?;
 
@@ -318,13 +319,13 @@ impl PduVersion<Ipv4Addr, Ipv4Network, DecodeError> for Pdu {
         //
         // RFC 2453 specifies that new versions of RIPv2 should be backward
         // compatible.
-        let version = buf.get_u8();
+        let version = buf.try_get_u8()?;
         if version < Self::VERSION {
             return Err(DecodeError::InvalidVersion(version));
         }
 
         // Ignore MBZ.
-        let _ = buf.get_u16();
+        let _ = buf.try_get_u16()?;
 
         // Decode RIP RTEs.
         let mut rtes = vec![];
@@ -420,7 +421,7 @@ impl Rte {
     }
 
     pub(crate) fn decode(buf: &mut Bytes) -> DecodeResult<Self> {
-        let afi = buf.get_u16();
+        let afi = buf.try_get_u16()?;
         let rte = match afi {
             RteZero::AFI => Rte::Zero(RteZero::decode(buf)?),
             RteIpv4::AFI => Rte::Ipv4(RteIpv4::decode(buf)?),
@@ -483,11 +484,11 @@ impl RteZero {
     }
 
     pub(crate) fn decode(buf: &mut Bytes) -> DecodeResult<Self> {
-        let _tag = buf.get_u16();
-        let _prefix_addr = buf.get_ipv4();
-        let _prefix_mask = buf.get_ipv4();
-        let _nexthop = buf.get_ipv4();
-        let metric = buf.get_u32();
+        let _tag = buf.try_get_u16()?;
+        let _prefix_addr = buf.try_get_ipv4()?;
+        let _prefix_mask = buf.try_get_ipv4()?;
+        let _nexthop = buf.try_get_ipv4()?;
+        let metric = buf.try_get_u32()?;
 
         // Sanity checks.
         let metric = Metric::new(metric)
@@ -516,11 +517,11 @@ impl RteIpv4 {
     }
 
     pub(crate) fn decode(buf: &mut Bytes) -> DecodeResult<Self> {
-        let tag = buf.get_u16();
-        let addr = buf.get_ipv4();
-        let mask = buf.get_ipv4();
-        let nexthop = buf.get_ipv4();
-        let metric = buf.get_u32();
+        let tag = buf.try_get_u16()?;
+        let addr = buf.try_get_ipv4()?;
+        let mask = buf.try_get_ipv4()?;
+        let nexthop = buf.try_get_ipv4()?;
+        let metric = buf.try_get_u32()?;
 
         // Validate addr/mask.
         if addr.is_loopback() || addr.is_broadcast() || addr.is_multicast() {
@@ -589,7 +590,7 @@ impl RteAuth {
     }
 
     pub(crate) fn decode(buf: &mut Bytes) -> DecodeResult<Self> {
-        let auth_type = buf.get_u16();
+        let auth_type = buf.try_get_u16()?;
         let rte = match auth_type {
             Self::AUTH_TYPE_CRYPTO => {
                 RteAuth::Crypto(RteAuthCrypto::decode(buf)?)
@@ -626,14 +627,14 @@ impl RteAuthCrypto {
     }
 
     pub(crate) fn decode(buf: &mut Bytes) -> DecodeResult<Self> {
-        let pkt_len = buf.get_u16();
-        let key_id = buf.get_u8();
-        let auth_data_len = buf.get_u8();
-        let seqno = buf.get_u32();
+        let pkt_len = buf.try_get_u16()?;
+        let key_id = buf.try_get_u8()?;
+        let auth_data_len = buf.try_get_u8()?;
+        let seqno = buf.try_get_u32()?;
         // Reserved bytes.
-        let _ = buf.get_u32();
+        let _ = buf.try_get_u32()?;
         // Reserved bytes.
-        let _ = buf.get_u32();
+        let _ = buf.try_get_u32()?;
 
         Ok(RteAuthCrypto {
             pkt_len,
@@ -651,6 +652,9 @@ impl DecodeErrorVersion for DecodeError {}
 impl std::fmt::Display for DecodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            DecodeError::ReadOutOfBounds => {
+                write!(f, "attempt to read out of bounds")
+            }
             DecodeError::InvalidLength(length) => {
                 write!(f, "Invalid Length: {length}")
             }
@@ -682,6 +686,12 @@ impl std::fmt::Display for DecodeError {
                 write!(f, "Authentication failed")
             }
         }
+    }
+}
+
+impl From<TryGetError> for DecodeError {
+    fn from(_error: TryGetError) -> DecodeError {
+        DecodeError::ReadOutOfBounds
     }
 }
 

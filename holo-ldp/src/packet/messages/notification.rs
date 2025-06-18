@@ -356,7 +356,7 @@ impl TlvKind for TlvReturnedPdu {
         }
 
         let mut pdu = vec![0; tlvi.tlv_len as usize];
-        buf.copy_to_slice(&mut pdu);
+        buf.try_copy_to_slice(&mut pdu)?;
         Ok(Self(pdu.to_vec()))
     }
 }
@@ -382,7 +382,7 @@ impl TlvKind for TlvReturnedMsg {
         }
 
         let mut msg = vec![0; tlvi.tlv_len as usize];
-        buf.copy_to_slice(&mut msg);
+        buf.try_copy_to_slice(&mut msg)?;
         Ok(Self(msg.to_vec()))
     }
 }
@@ -408,7 +408,7 @@ impl TlvKind for TlvReturnedTlvs {
         }
 
         let mut tlvs = vec![0; tlvi.tlv_len as usize];
-        buf.copy_to_slice(&mut tlvs);
+        buf.try_copy_to_slice(&mut tlvs)?;
         Ok(Self(tlvs.to_vec()))
     }
 }

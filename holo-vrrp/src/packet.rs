@@ -225,10 +225,10 @@ impl VrrpHdr {
         }
 
         let mut buf: Bytes = Bytes::copy_from_slice(data);
-        let ver_type = buf.get_u8();
+        let ver_type = buf.try_get_u8()?;
         let ver = ver_type >> 4;
         let hdr_type = ver_type & 0x0F;
-        let vrid = buf.get_u8();
+        let vrid = buf.try_get_u8()?;
 
         let version = match (ver, af) {
             (2, AddressFamily::Ipv4) => Version::V2,
@@ -237,8 +237,8 @@ impl VrrpHdr {
             _ => return Err(DecodeError::VersionError { vrid }),
         };
 
-        let priority = buf.get_u8();
-        let count_ip = buf.get_u8();
+        let priority = buf.try_get_u8()?;
+        let count_ip = buf.try_get_u8()?;
 
         // Check for required Virtual IP count.
         // Size Checks:
@@ -256,25 +256,25 @@ impl VrrpHdr {
 
         match version {
             Version::V2 => {
-                let _auth_type = buf.get_u8();
-                adver_int = buf.get_u8() as u16;
-                checksum = buf.get_u16();
+                let _auth_type = buf.try_get_u8()?;
+                adver_int = buf.try_get_u8()? as u16;
+                checksum = buf.try_get_u16()?;
                 for _ in 0..count_ip {
-                    ip_addresses.push(IpAddr::V4(buf.get_ipv4()));
+                    ip_addresses.push(IpAddr::V4(buf.try_get_ipv4()?));
                 }
-                let _auth_data = buf.get_u32();
-                let _auth_data2 = buf.get_u32();
+                let _auth_data = buf.try_get_u32()?;
+                let _auth_data2 = buf.try_get_u32()?;
             }
             Version::V3(af) => {
-                adver_int = buf.get_u16() & 0x0FFF;
-                checksum = buf.get_u16();
+                adver_int = buf.try_get_u16()? & 0x0FFF;
+                checksum = buf.try_get_u16()?;
                 for _ in 0..count_ip {
                     match af {
                         AddressFamily::Ipv4 => {
-                            ip_addresses.push(IpAddr::V4(buf.get_ipv4()));
+                            ip_addresses.push(IpAddr::V4(buf.try_get_ipv4()?));
                         }
                         AddressFamily::Ipv6 => {
-                            ip_addresses.push(IpAddr::V6(buf.get_ipv6()));
+                            ip_addresses.push(IpAddr::V6(buf.try_get_ipv6()?));
                         }
                     }
                 }

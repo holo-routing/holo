@@ -181,11 +181,11 @@ pub(crate) fn decode_tlv_hdr(
     let buf_copy = buf.clone();
 
     // Parse TLV type.
-    let tlv_type = buf.get_u16();
+    let tlv_type = buf.try_get_u16()?;
     let tlv_etype = TlvType::decode(tlv_type);
 
     // Parse and validate TLV length.
-    let tlv_len = buf.get_u16();
+    let tlv_len = buf.try_get_u16()?;
     let tlv_size = tlv_len + TLV_HDR_SIZE;
     if tlv_size > msgi.msg_rlen {
         return Err(DecodeError::InvalidTlvLength(tlv_len));

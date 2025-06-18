@@ -10,6 +10,7 @@
 use std::fmt::Debug;
 use std::net::IpAddr;
 
+use bytes::TryGetError;
 use tracing::{error, warn};
 
 use crate::packet::DecodeError;
@@ -220,6 +221,14 @@ impl std::fmt::Display for VirtualRouterError {
                 write!(f, "invalid packet length")
             }
         }
+    }
+}
+
+// ===== impl DecodeError ======
+
+impl From<TryGetError> for DecodeError {
+    fn from(_error: TryGetError) -> DecodeError {
+        DecodeError::IncompletePacket
     }
 }
 

@@ -27,6 +27,11 @@ pub(crate) async fn process_router_id_update(
     router_id: Option<Ipv4Addr>,
 ) {
     instance.system.router_id = router_id;
+
+    // Schedule LSP reorigination.
+    if let Some((mut instance, _)) = instance.as_up() {
+        instance.schedule_lsp_origination(LevelType::All);
+    }
 }
 
 pub(crate) fn process_iface_update(

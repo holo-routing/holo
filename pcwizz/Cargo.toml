@@ -8,6 +8,7 @@ edition.workspace = true
 [dependencies]
 futures.workspace = true
 tokio.workspace = true
+yang3.workspace = true
 
 holo-bgp = { path = "../holo-bgp" }
 holo-northbound = { path = "../holo-northbound" }
@@ -21,3 +22,7 @@ workspace = true
 [[bin]]
 name = "pcwizz"
 path = "src/main.rs"
+
+[features]
+default = ["yang3_bundled"]
+yang3_bundled = ["yang3/bundled"]

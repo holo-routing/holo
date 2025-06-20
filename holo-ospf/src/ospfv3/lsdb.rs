@@ -1013,21 +1013,17 @@ fn lsa_orig_intra_area_prefix(
         lsa_id += 1;
     };
     for (ref_lsa, prefixes) in adv_list {
-        if prefixes.is_empty() {
-            originate_fn(ref_lsa, prefixes);
-        } else {
-            for prefixes in prefixes
-                .into_iter()
-                .chunks(
-                    (Lsa::<Ospfv3>::MAX_LENGTH
-                        - LsaHdr::LENGTH as usize
-                        - LsaIntraAreaPrefix::BASE_LENGTH as usize)
-                        / LsaIntraAreaPrefixEntry::max_length(extended_lsa),
-                )
-                .into_iter()
-            {
-                originate_fn(ref_lsa, prefixes.collect());
-            }
+        for prefixes in prefixes
+            .into_iter()
+            .chunks(
+                (Lsa::<Ospfv3>::MAX_LENGTH
+                    - LsaHdr::LENGTH as usize
+                    - LsaIntraAreaPrefix::BASE_LENGTH as usize)
+                    / LsaIntraAreaPrefixEntry::max_length(extended_lsa),
+            )
+            .into_iter()
+        {
+            originate_fn(ref_lsa, prefixes.collect());
         }
     }
 

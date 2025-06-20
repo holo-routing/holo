@@ -16,9 +16,11 @@ use std::net::Ipv4Addr;
 use bitflags::bitflags;
 use bytes::{Bytes, BytesMut};
 use holo_utils::ip::AddressFamily;
+use holo_yang::ToYang;
 use num_derive::FromPrimitive;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use tracing::debug_span;
 
 use crate::neighbor::NeighborNetId;
 use crate::packet::auth::{AuthDecodeCtx, AuthEncodeCtx};
@@ -301,6 +303,8 @@ impl<V: Version> Packet<V> {
         let (mut hdr, pkt_len, hdr_auth) = V::PacketHdr::decode(buf)?;
         let mut buf =
             buf.slice(..pkt_len as usize - V::PacketHdr::LENGTH as usize);
+        let span = debug_span!("packet", r#type = %hdr.pkt_type().to_yang());
+        let _span_guard = span.enter();
 
         // Validate the packet authentication.
         if let Some(auth_seqno) =

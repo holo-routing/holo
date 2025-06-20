@@ -8,6 +8,7 @@ use std::net::Ipv4Addr;
 
 use bytes::TryGetError;
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 
 // Type aliases.
 pub type DecodeResult<T> = Result<T, DecodeError>;
@@ -49,6 +50,12 @@ pub enum LsaValidationError {
 }
 
 // ===== impl DecodeError =====
+
+impl DecodeError {
+    pub(crate) fn log(&self) {
+        warn!("{}", self);
+    }
+}
 
 impl std::fmt::Display for DecodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

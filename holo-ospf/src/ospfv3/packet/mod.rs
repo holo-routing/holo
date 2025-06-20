@@ -680,8 +680,10 @@ impl PacketBase<Ospfv3> for LsUpdate {
         let mut lsas = vec![];
         let lsas_cnt = buf.try_get_u32()?;
         for _ in 0..lsas_cnt {
-            let lsa = Lsa::decode(af, buf)?;
-            lsas.push(lsa);
+            match Lsa::decode(af, buf) {
+                Ok(lsa) => lsas.push(lsa),
+                Err(error) => error.log(),
+            }
         }
 
         Ok(LsUpdate { hdr, lsas })

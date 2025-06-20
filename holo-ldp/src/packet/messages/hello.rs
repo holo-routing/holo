@@ -250,10 +250,10 @@ impl TlvKind for TlvCommonHelloParams {
             return Err(DecodeError::InvalidTlvLength(tlvi.tlv_len));
         }
 
-        let holdtime = buf.get_u16();
+        let holdtime = buf.try_get_u16()?;
 
         // Ignore unknown flags.
-        let flags = HelloFlags::from_bits_truncate(buf.get_u16());
+        let flags = HelloFlags::from_bits_truncate(buf.try_get_u16()?);
 
         // Additional sanity checks.
         if let IpAddr::V6(addr) = cxt.pkt_info.src_addr
@@ -305,7 +305,7 @@ impl TlvKind for TlvIpv4TransAddr {
             return Err(DecodeError::InvalidTlvLength(tlvi.tlv_len));
         }
 
-        let addr = buf.get_ipv4();
+        let addr = buf.try_get_ipv4()?;
         if !addr.is_usable() {
             return Err(DecodeError::InvalidTransportAddr(
                 tlvi.clone(),
@@ -337,7 +337,7 @@ impl TlvKind for TlvIpv6TransAddr {
             return Err(DecodeError::InvalidTlvLength(tlvi.tlv_len));
         }
 
-        let addr = buf.get_ipv6();
+        let addr = buf.try_get_ipv6()?;
         if !addr.is_usable() {
             return Err(DecodeError::InvalidTransportAddr(
                 tlvi.clone(),
@@ -369,7 +369,7 @@ impl TlvKind for TlvConfigSeqNo {
             return Err(DecodeError::InvalidTlvLength(tlvi.tlv_len));
         }
 
-        let seq_no = buf.get_u32();
+        let seq_no = buf.try_get_u32()?;
 
         Ok(Self(seq_no))
     }
@@ -397,10 +397,10 @@ impl TlvKind for TlvDualStack {
         }
 
         // Parse the TR field.
-        let trans_pref = buf.get_u16();
+        let trans_pref = buf.try_get_u16()?;
         if let Some(trans_pref) = TransportPref::from_u16(trans_pref) {
             // Ignore MBZ.
-            let _ = buf.get_u16();
+            let _ = buf.try_get_u16()?;
 
             return Ok(Self(trans_pref));
         }

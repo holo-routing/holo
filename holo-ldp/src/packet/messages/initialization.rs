@@ -227,12 +227,12 @@ impl TlvKind for TlvCommonSessParams {
             return Err(DecodeError::InvalidTlvLength(tlvi.tlv_len));
         }
 
-        let version = buf.get_u16();
+        let version = buf.try_get_u16()?;
         if version != Pdu::VERSION {
             return Err(DecodeError::InvalidVersion(version));
         }
 
-        let keepalive_time = buf.get_u16();
+        let keepalive_time = buf.try_get_u16()?;
         if keepalive_time == 0 {
             return Err(DecodeError::BadKeepaliveTime(
                 tlvi.clone(),
@@ -241,12 +241,12 @@ impl TlvKind for TlvCommonSessParams {
         }
 
         // Ignore unknown flags.
-        let flags = InitFlags::from_bits_truncate(buf.get_u8());
+        let flags = InitFlags::from_bits_truncate(buf.try_get_u8()?);
 
-        let pvlim = buf.get_u8();
-        let max_pdu_len = buf.get_u16();
-        let lsr_id = buf.get_ipv4();
-        let lspace_id = buf.get_u16();
+        let pvlim = buf.try_get_u8()?;
+        let max_pdu_len = buf.try_get_u16()?;
+        let lsr_id = buf.try_get_ipv4()?;
+        let lspace_id = buf.try_get_u16()?;
 
         Ok(Self {
             version,

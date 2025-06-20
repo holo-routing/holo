@@ -165,7 +165,7 @@ impl TlvKind for TlvAddressList {
         }
 
         // Parse address family identifier.
-        let af = buf.get_u16();
+        let af = buf.try_get_u16()?;
         let af = match FromPrimitive::from_u16(af) {
             Some(AddressFamily::Ipv4) => AddressFamily::Ipv4,
             Some(AddressFamily::Ipv6) => AddressFamily::Ipv6,
@@ -183,7 +183,7 @@ impl TlvKind for TlvAddressList {
                             tlvi.tlv_len,
                         ));
                     }
-                    let addr = buf.get_ipv4();
+                    let addr = buf.try_get_ipv4()?;
                     addr_list.insert(addr);
                     tlv_rlen -= 4;
                 }
@@ -197,7 +197,7 @@ impl TlvKind for TlvAddressList {
                             tlvi.tlv_len,
                         ));
                     }
-                    let addr = buf.get_ipv6();
+                    let addr = buf.try_get_ipv6()?;
                     addr_list.insert(addr);
                     tlv_rlen -= 16;
                 }

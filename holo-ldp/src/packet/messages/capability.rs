@@ -225,7 +225,7 @@ impl TlvKind for TlvCapDynamic {
             return Err(DecodeError::InvalidTlvLength(tlvi.tlv_len));
         }
 
-        let flags = buf.get_u8();
+        let flags = buf.try_get_u8()?;
         if flags & TLV_CAP_S_BIT == 0 {
             return Err(DecodeError::InvalidTlvValue(tlvi.clone()));
         }
@@ -259,7 +259,7 @@ impl TlvKind for TlvCapTwcardFec {
             return Err(DecodeError::InvalidTlvLength(tlvi.tlv_len));
         }
 
-        let flags = buf.get_u8();
+        let flags = buf.try_get_u8()?;
         let s_bit = flags & TLV_CAP_S_BIT != 0;
 
         Ok(Self(s_bit))
@@ -291,7 +291,7 @@ impl TlvKind for TlvCapUnrecNotif {
             return Err(DecodeError::InvalidTlvLength(tlvi.tlv_len));
         }
 
-        let flags = buf.get_u8();
+        let flags = buf.try_get_u8()?;
         let s_bit = flags & TLV_CAP_S_BIT != 0;
 
         Ok(Self(s_bit))

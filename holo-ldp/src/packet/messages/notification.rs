@@ -297,9 +297,9 @@ impl TlvKind for TlvStatus {
             return Err(DecodeError::InvalidTlvLength(tlvi.tlv_len));
         }
 
-        let status_code = buf.get_u32();
-        let msg_id = buf.get_u32();
-        let msg_type = buf.get_u16();
+        let status_code = buf.try_get_u32()?;
+        let msg_id = buf.try_get_u32()?;
+        let msg_type = buf.try_get_u16()?;
 
         Ok(Self {
             status_code,
@@ -329,7 +329,7 @@ impl TlvKind for TlvExtStatus {
             return Err(DecodeError::InvalidTlvLength(tlvi.tlv_len));
         }
 
-        let ext_status = buf.get_u32();
+        let ext_status = buf.try_get_u32()?;
 
         Ok(Self(ext_status))
     }

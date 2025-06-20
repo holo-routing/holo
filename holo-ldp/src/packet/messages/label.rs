@@ -439,7 +439,7 @@ impl FecElem {
         tlv_rlen: &mut u16,
     ) -> DecodeResult<Self> {
         // Parse FEC element type.
-        let fec_elem_type = buf.get_u8();
+        let fec_elem_type = buf.try_get_u8()?;
         *tlv_rlen -= 1;
 
         match fec_elem_type {
@@ -452,7 +452,7 @@ impl FecElem {
                 }
 
                 // Parse prefix address family.
-                let af = buf.get_u16();
+                let af = buf.try_get_u16()?;
                 *tlv_rlen -= 2;
                 let af = match FromPrimitive::from_u16(af) {
                     Some(AddressFamily::Ipv4) => AddressFamily::Ipv4,
@@ -466,7 +466,7 @@ impl FecElem {
                 };
 
                 // Parse prefix length.
-                let plen = buf.get_u8();
+                let plen = buf.try_get_u8()?;
                 *tlv_rlen -= 1;
                 let plen_wire = prefix_wire_len(plen);
                 if (*tlv_rlen < plen_wire as u16)
@@ -542,7 +542,7 @@ impl TypedWildcardFecElem {
         }
 
         // Typed Wildcard FEC element type.
-        let typed_wcard = buf.get_u8();
+        let typed_wcard = buf.try_get_u8()?;
         *tlv_rlen -= 1;
 
         match typed_wcard {
@@ -552,14 +552,14 @@ impl TypedWildcardFecElem {
                 }
 
                 // Len FEC Type Info.
-                let len = buf.get_u8();
+                let len = buf.try_get_u8()?;
                 *tlv_rlen -= 1;
                 if len != 2 {
                     return Err(DecodeError::InvalidTlvValue(tlvi.clone()));
                 }
 
                 // Address Family.
-                let af = buf.get_u16();
+                let af = buf.try_get_u16()?;
                 *tlv_rlen -= 2;
                 let af = match FromPrimitive::from_u16(af) {
                     Some(AddressFamily::Ipv4) => AddressFamily::Ipv4,
@@ -599,7 +599,7 @@ impl TlvKind for TlvLabel {
             return Err(DecodeError::InvalidTlvLength(tlvi.tlv_len));
         }
 
-        let label = buf.get_u32();
+        let label = buf.try_get_u32()?;
         if label > *Label::UNRESERVED_RANGE.end()
             || (label < *Label::RESERVED_RANGE.end()
                 && label != Label::IPV4_EXPLICIT_NULL
@@ -633,7 +633,7 @@ impl TlvKind for TlvLabelRequestId {
             return Err(DecodeError::InvalidTlvLength(tlvi.tlv_len));
         }
 
-        let request_id = buf.get_u32();
+        let request_id = buf.try_get_u32()?;
 
         Ok(Self(request_id))
     }

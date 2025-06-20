@@ -140,7 +140,7 @@ impl Pdu {
     }
 
     // Decode buffer into a PDU containing one or more messages.
-    // NOTE: Pdu::get_pdu_size()? must be called before this method to ensure the
+    // NOTE: Pdu::get_pdu_size() must be called before this method to ensure the
     // given buffer doesn't contain an incomplete PDU.
     pub fn decode(data: &[u8], cxt: &DecodeCxt) -> DecodeResult<Self> {
         // Decode LDP PDU header.

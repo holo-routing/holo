@@ -3,6 +3,7 @@ members = [
   "holo-bfd",
   "holo-bgp",
   "holo-daemon",
+  "holo-igmp",
   "holo-interface",
   "holo-isis",
   "holo-keychain",

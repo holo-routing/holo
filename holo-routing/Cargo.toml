@@ -36,6 +36,7 @@ holo-isis = { path = "../holo-isis", optional = true }
 holo-ldp = { path = "../holo-ldp", optional = true }
 holo-ospf = { path = "../holo-ospf", optional = true }
 holo-rip = { path = "../holo-rip", optional = true }
+holo-igmp = { path = "../holo-igmp", optional = true }
 
 [lints]
 workspace = true

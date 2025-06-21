@@ -1,0 +1,25 @@
+[package]
+name = "holo-igmp"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+internet-checksum.workspace = true
+holo-utils = { path = "../holo-utils" }
+holo-protocol = { path = "../holo-protocol" }
+serde.workspace = true
+serde_json.workspace = true
+bytes.workspace = true
+num-derive.workspace = true
+num-traits.workspace = true
+
+[dev-dependencies]
+const-addrs.workspace = true
+criterion.workspace = true
+maplit.workspace = true
+yang3 = { workspace = true, features = ["bundled"] }
+
+holo-protocol = { path = "../holo-protocol", features = ["testing"] }
+holo-utils = { path = "../holo-utils", features = ["testing"] }

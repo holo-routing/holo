@@ -1,0 +1,20 @@
+# Define image sources for the CLI and daemon
+ARG HOLO_CLI_IMAGE=ghcr.io/holo-routing/holo-cli:latest
+ARG HOLOD_IMAGE=ghcr.io/holo-routing/holod:latest
+
+# Use CLI image to extract the holo-cli binary
+FROM ${HOLO_CLI_IMAGE} as holo_cli
+
+# Base image containing holod
+FROM ${HOLOD_IMAGE}
+
+# Install useful networking tools and 'less' for CLI paging
+RUN apt-get update && \
+    apt-get install -y ifupdown \
+    iputils-ping \
+    tcpdump \
+    less \
+  && rm -rf /var/lib/apt/lists/*
+
+# Copy holo-cli binary from the CLI image
+COPY --from=holo_cli /usr/local/sbin/holo-cli /usr/local/sbin/holo-cli

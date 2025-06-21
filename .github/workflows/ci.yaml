@@ -82,5 +82,7 @@ jobs:
           password: ${{secrets.GITHUB_TOKEN}}
       - name: Build and push container image
         run: |
-          docker build . -f docker/Dockerfile --tag ghcr.io/holo-routing/holo:latest
-          docker push ghcr.io/holo-routing/holo:latest
+          docker build . -f docker/Dockerfile.holod --tag ghcr.io/holo-routing/holod:latest
+          docker push ghcr.io/holo-routing/holod:latest
+          docker build . -f docker/Dockerfile.holo-bundle --tag ghcr.io/holo-routing/holo-bundle:latest
+          docker push ghcr.io/holo-routing/holo-bundle:latest

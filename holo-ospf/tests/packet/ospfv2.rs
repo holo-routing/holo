@@ -110,6 +110,7 @@ static HELLO1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
                 dr: None,
                 bdr: None,
                 neighbors: [ip4!("1.1.1.1")].into(),
+                lls: None,
             }),
         )
     });
@@ -145,6 +146,7 @@ static HELLO1_MD5: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
                 dr: Some(ip4!("10.0.1.3").into()),
                 bdr: Some(ip4!("10.0.1.2").into()),
                 neighbors: [ip4!("2.2.2.2"), ip4!("3.3.3.3")].into(),
+                lls: None,
             }),
         )
     });
@@ -181,6 +183,7 @@ static HELLO1_HMAC_SHA1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
                 dr: Some(ip4!("10.0.1.3").into()),
                 bdr: Some(ip4!("10.0.1.2").into()),
                 neighbors: [ip4!("2.2.2.2"), ip4!("3.3.3.3")].into(),
+                lls: None,
             }),
         )
     });
@@ -218,6 +221,7 @@ static HELLO1_HMAC_SHA256: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
                 dr: Some(ip4!("10.0.1.3").into()),
                 bdr: Some(ip4!("10.0.1.2").into()),
                 neighbors: [ip4!("2.2.2.2"), ip4!("3.3.3.3")].into(),
+                lls: None,
             }),
         )
     });
@@ -256,6 +260,7 @@ static HELLO1_HMAC_SHA384: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
                 dr: Some(ip4!("10.0.1.3").into()),
                 bdr: Some(ip4!("10.0.1.2").into()),
                 neighbors: [ip4!("2.2.2.2"), ip4!("3.3.3.3")].into(),
+                lls: None,
             }),
         )
     });
@@ -296,6 +301,7 @@ static HELLO1_HMAC_SHA512: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
                 dr: Some(ip4!("10.0.1.3").into()),
                 bdr: Some(ip4!("10.0.1.2").into()),
                 neighbors: [ip4!("2.2.2.2"), ip4!("3.3.3.3")].into(),
+                lls: None,
             }),
         )
     });
@@ -347,6 +353,7 @@ static DBDESC1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv2>)> =
                         length: 36,
                     },
                 ],
+                lls: None,
             }),
         )
     });

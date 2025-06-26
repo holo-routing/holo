@@ -416,13 +416,9 @@ impl PacketBase<Ospfv3> for Hello {
             let nbr = buf.try_get_ipv4()?;
             neighbors.insert(nbr);
         }
-        let lls = if buf.remaining() > LLS_HDR_SIZE as usize {
-            let block = LlsDataBlock::decode(buf)?;
-            // TODO: Validate LLS checksum
-            Some(block.into())
-        } else {
-            None
-        };
+
+        let lls = LlsDataBlock::try_decode(buf)
+            .map(|block| block.map(|block| block.into()))?;
 
         Ok(Hello {
             hdr,
@@ -533,13 +529,8 @@ impl PacketBase<Ospfv3> for DbDesc {
             lsa_hdrs.push(lsa_hdr);
         }
 
-        let lls = if buf.remaining() > LLS_HDR_SIZE as usize {
-            let block = LlsDataBlock::decode(buf)?;
-            // TODO: Validate LLS checksum
-            Some(block.into())
-        } else {
-            None
-        };
+        let lls = LlsDataBlock::try_decode(buf)
+            .map(|block| block.map(|block| block.into()))?;
 
         Ok(DbDesc {
             hdr,

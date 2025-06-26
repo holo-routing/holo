@@ -24,9 +24,7 @@ use crate::neighbor::NeighborNetId;
 use crate::ospfv2::packet::lsa::{LsaHdr, LsaType};
 use crate::packet::auth::{AuthDecodeCtx, AuthEncodeCtx, AuthMethod};
 use crate::packet::error::{DecodeError, DecodeResult};
-use crate::packet::lls::{
-    LLS_HDR_SIZE, LlsData, LlsDataBlock, LlsDbDescData, LlsHelloData,
-};
+use crate::packet::lls::{LlsData, LlsDataBlock, LlsDbDescData, LlsHelloData};
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::packet::{
     DbDescFlags, DbDescVersion, HelloVersion, LsAckVersion, LsRequestVersion,
@@ -451,13 +449,8 @@ impl PacketBase<Ospfv2> for Hello {
             neighbors.insert(nbr);
         }
 
-        let lls = if buf.remaining() > LLS_HDR_SIZE as usize {
-            let block = LlsDataBlock::decode(buf)?;
-            // TODO: Validate LLS checksum
-            Some(block.into())
-        } else {
-            None
-        };
+        let lls = LlsDataBlock::try_decode(buf)
+            .map(|block| block.map(|block| block.into()))?;
 
         Ok(Hello {
             hdr,
@@ -566,13 +559,8 @@ impl PacketBase<Ospfv2> for DbDesc {
             lsa_hdrs.push(lsa_hdr);
         }
 
-        let lls = if buf.remaining() > LLS_HDR_SIZE as usize {
-            let block = LlsDataBlock::decode(buf)?;
-            // TODO: Validate LLS checksum
-            Some(block.into())
-        } else {
-            None
-        };
+        let lls = LlsDataBlock::try_decode(buf)
+            .map(|block| block.map(|block| block.into()))?;
 
         Ok(DbDesc {
             hdr,

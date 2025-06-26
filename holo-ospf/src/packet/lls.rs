@@ -1,16 +1,56 @@
 use bitflags::bitflags;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
-use derive_new::new;
 use internet_checksum::Checksum;
 use num_derive::{FromPrimitive, ToPrimitive};
-use num_traits::FromPrimitive;
 use serde::{self, Deserialize, Serialize};
 
+use super::auth::AuthEncodeCtx;
 use super::error::{DecodeError, DecodeResult};
-use super::tlv::{UnknownTlv, tlv_encode_end, tlv_encode_start, tlv_wire_len};
+use super::tlv::{tlv_encode_end, tlv_encode_start};
+use crate::version::Version;
 
 // LLS header size.
 pub const LLS_HDR_SIZE: u16 = 4;
+
+pub trait LlsVersion<V: Version> {
+    type LlsDataBlock: From<LlsHelloData> + From<LlsDbDescData>;
+
+    fn encode_lls_block(
+        buf: &mut BytesMut,
+        lls: V::LlsDataBlock,
+        auth: Option<&AuthEncodeCtx<'_>>,
+    );
+
+    fn decode_lls_block(
+        buf: &mut Bytes,
+    ) -> DecodeResult<Option<V::LlsDataBlock>>;
+
+    const CKSUM_RANGE: std::ops::Range<usize> = 0..2;
+    const LENGTH_RANGE: std::ops::Range<usize> = 2..4;
+
+    fn update_len(buf: &mut BytesMut, start_pos: usize, len: u16) {
+        buf[start_pos + Self::LENGTH_RANGE.start
+            ..start_pos + Self::LENGTH_RANGE.end]
+            .copy_from_slice(&len.to_be_bytes());
+    }
+
+    fn update_cksum(buf: &mut BytesMut, start_pos: usize) {
+        let mut cksum = Checksum::new();
+        cksum.add_bytes(buf);
+        buf[start_pos + Self::CKSUM_RANGE.start
+            ..start_pos + Self::CKSUM_RANGE.end]
+            .copy_from_slice(&cksum.checksum());
+    }
+
+    fn verify_cksum(data: &[u8]) -> DecodeResult<()> {
+        let mut cksum = Checksum::new();
+        cksum.add_bytes(&data[Self::CKSUM_RANGE.end..]);
+        if cksum.checksum() != data[Self::CKSUM_RANGE] {
+            return Err(DecodeError::InvalidChecksum);
+        }
+        Ok(())
+    }
+}
 
 // LLS TLV types.
 //
@@ -19,123 +59,7 @@ pub const LLS_HDR_SIZE: u16 = 4;
 #[derive(ToPrimitive, FromPrimitive)]
 pub enum LlsTlvType {
     ExtendedOptionsFlags = 1,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, new)]
-pub struct LlsDataBlock {
-    #[new(default)]
-    pub cksum: u16,
-    #[new(default)]
-    pub length: u16,
-    #[new(default)]
-    pub eof: Option<EofTlv>,
-    #[new(default)]
-    pub unknown_tlvs: Vec<UnknownTlv>,
-}
-
-impl LlsDataBlock {
-    const CKSUM_RANGE: std::ops::Range<usize> = 0..2;
-    const LENGTH_RANGE: std::ops::Range<usize> = 2..4;
-
-    pub(crate) fn try_decode(buf: &mut Bytes) -> DecodeResult<Option<Self>> {
-        Self::decode(buf).map_or_else(
-            |e| {
-                if let DecodeError::ReadOutOfBounds = e {
-                    Ok(None)
-                } else {
-                    Err(e)
-                }
-            },
-            |block| Ok(Some(block)),
-        )
-    }
-
-    pub(crate) fn decode(buf: &mut Bytes) -> DecodeResult<Self> {
-        // Sanity check on buffer length.
-        if buf.remaining() < LLS_HDR_SIZE as usize {
-            return Err(DecodeError::ReadOutOfBounds);
-        }
-
-        let mut lls_block = LlsDataBlock::new();
-
-        lls_block.cksum = buf.try_get_u16()?;
-        lls_block.length = buf.try_get_u16()?;
-
-        // RFC 5613 Section 2.2: " The 16-bit LLS Data Length field contains
-        // the length (in 32-bit words) of the LLS block including the header
-        // and payload."
-        let block_len = lls_block.length * 4;
-
-        // Validate LLS block length
-        if block_len as usize > buf.remaining() {
-            return Err(DecodeError::InvalidLength(block_len));
-        }
-
-        // Validate LLS block checksum
-        Self::verify_cksum(buf)?;
-
-        while buf.remaining() >= LLS_HDR_SIZE as usize {
-            // Parse TLV type.
-            let tlv_type = buf.try_get_u16()?;
-            let tlv_etype = LlsTlvType::from_u16(tlv_type);
-
-            // Parse and validate TLV length.
-            let tlv_len = buf.try_get_u16()?;
-            let tlv_wlen = tlv_wire_len(tlv_len);
-            if tlv_wlen as usize > buf.remaining() {
-                return Err(DecodeError::InvalidTlvLength(tlv_len));
-            }
-
-            // Parse TLV value.
-            let mut buf_tlv = buf.copy_to_bytes(tlv_wlen as usize);
-            match tlv_etype {
-                Some(LlsTlvType::ExtendedOptionsFlags) => {
-                    let opts = EofTlv::decode(tlv_len, &mut buf_tlv)?;
-                    lls_block.eof = Some(opts);
-                }
-                _ => {
-                    // Save unknown TLV.
-                    lls_block
-                        .unknown_tlvs
-                        .push(UnknownTlv::new(tlv_type, tlv_len, buf_tlv));
-                }
-            }
-        }
-        Ok(lls_block)
-    }
-
-    pub(crate) fn encode(&self, buf: &mut BytesMut) {
-        let start_pos = lls_encode_start(buf);
-        buf.put_u16(0);
-        buf.put_u16(self.length);
-        if let Some(eof) = &self.eof {
-            eof.encode(buf);
-        }
-        lls_encode_end(buf, start_pos);
-    }
-
-    pub(crate) fn update_len(buf: &mut BytesMut, start_pos: usize, len: u16) {
-        buf[start_pos + Self::LENGTH_RANGE.start
-            ..start_pos + Self::LENGTH_RANGE.end]
-            .copy_from_slice(&len.to_be_bytes());
-    }
-
-    pub(crate) fn update_cksum(buf: &mut BytesMut, start_pos: usize) {
-        let mut cksum = Checksum::new();
-        cksum.add_bytes(buf);
-        buf[start_pos + Self::CKSUM_RANGE.start
-            ..start_pos + Self::CKSUM_RANGE.end]
-            .copy_from_slice(&cksum.checksum());
-    }
-
-    pub(crate) fn verify_cksum(data: &[u8]) -> DecodeResult<()> {
-        let mut cksum = Checksum::new();
-        cksum.add_bytes(&data[Self::CKSUM_RANGE.end..]);
-        if cksum.checksum() != data[Self::CKSUM_RANGE] {
-            return Err(DecodeError::InvalidChecksum);
-        }
-        Ok(())
-    }
+    CryptoAuth = 2,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
@@ -146,52 +70,30 @@ pub enum LlsData {
 }
 
 impl LlsData {
-    pub(crate) fn encode(&self, buf: &mut BytesMut) {
-        let lls: LlsDataBlock = match self {
+    pub(crate) fn encode<V>(
+        &self,
+        buf: &mut BytesMut,
+        auth: Option<&AuthEncodeCtx<'_>>,
+    ) where
+        V: Version,
+    {
+        let lls: V::LlsDataBlock = match self {
             Self::Hello(hello) => (*hello).into(),
             Self::DbDesc(dbdesc) => (*dbdesc).into(),
         };
-        lls.encode(buf);
+        V::encode_lls_block(buf, lls, auth);
     }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 #[derive(Serialize, Deserialize)]
 pub struct LlsHelloData {
-    eof: Option<ExtendedOptionsFlags>,
-}
-
-impl From<LlsHelloData> for LlsDataBlock {
-    fn from(value: LlsHelloData) -> Self {
-        let mut lls = LlsDataBlock::new();
-        lls.eof = value.eof.map(EofTlv);
-        lls
-    }
-}
-
-impl From<LlsDataBlock> for LlsHelloData {
-    fn from(value: LlsDataBlock) -> Self {
-        LlsHelloData {
-            eof: value.eof.map(|tlv| tlv.0),
-        }
-    }
+    pub eof: Option<ExtendedOptionsFlags>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 #[derive(Serialize, Deserialize)]
 pub struct LlsDbDescData {}
-
-impl From<LlsDbDescData> for LlsDataBlock {
-    fn from(_value: LlsDbDescData) -> Self {
-        LlsDataBlock::new()
-    }
-}
-
-impl From<LlsDataBlock> for LlsDbDescData {
-    fn from(_value: LlsDataBlock) -> Self {
-        LlsDbDescData {}
-    }
-}
 
 // Extended Options and Flags
 //
@@ -218,15 +120,15 @@ bitflags! {
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
-pub struct EofTlv(ExtendedOptionsFlags);
+pub struct ExtendedOptionsFlagsTlv(pub ExtendedOptionsFlags);
 
-impl EofTlv {
+impl ExtendedOptionsFlagsTlv {
     pub(crate) fn decode(tlv_len: u16, buf: &mut Bytes) -> DecodeResult<Self> {
         if tlv_len != 4 {
             return Err(DecodeError::InvalidTlvLength(tlv_len));
         }
         let opts = ExtendedOptionsFlags::from_bits_truncate(buf.try_get_u32()?);
-        Ok(EofTlv(opts))
+        Ok(ExtendedOptionsFlagsTlv(opts))
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
@@ -247,14 +149,22 @@ pub(crate) fn lls_encode_start(buf: &mut BytesMut) -> usize {
     start_pos
 }
 
-pub(crate) fn lls_encode_end(buf: &mut BytesMut, start_pos: usize) {
+pub(crate) fn lls_encode_end<V>(
+    buf: &mut BytesMut,
+    start_pos: usize,
+    skip_cksum: bool,
+) where
+    V: Version,
+{
     // RFC 5613 : "The 16-bit LLS Data Length field contains the length (in
     // 32-bit words) of the LLS block including the header and payload."
     let lls_len = (buf.len() - start_pos) as u16;
 
     // Rewrite LLS length.
-    LlsDataBlock::update_len(buf, start_pos, lls_len);
+    V::update_len(buf, start_pos, lls_len);
 
-    // Rewrite LLS checksum.
-    LlsDataBlock::update_cksum(buf, start_pos);
+    // Rewrite LLS checksum if authentication is disabled.
+    if !skip_cksum {
+        V::update_cksum(buf, start_pos);
+    }
 }

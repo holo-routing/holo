@@ -18,7 +18,7 @@ use bitflags::bitflags;
 use bytes::{Bytes, BytesMut};
 use holo_utils::ip::AddressFamily;
 use holo_yang::ToYang;
-use lls::{LlsDbDescData, LlsHelloData};
+use lls::{LlsData, LlsDbDescData, LlsHelloData};
 use num_derive::FromPrimitive;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -90,7 +90,11 @@ pub trait PacketVersion<V: Version> {
     ) -> DecodeResult<Option<u64>>;
 
     // Encode the authentication trailer.
-    fn encode_auth_trailer(buf: &mut BytesMut, auth: AuthEncodeCtx<'_>);
+    fn encode_auth_trailer(
+        buf: &mut BytesMut,
+        auth: AuthEncodeCtx<'_>,
+        lls: &Option<LlsData>,
+    );
 }
 
 // OSPF version-specific code.
@@ -401,18 +405,41 @@ where
     // Calculate the packet checksum or append the authentication trailer.
     match auth {
         Some(auth) => {
-            V::encode_auth_trailer(&mut buf, auth);
+            V::encode_auth_trailer(&mut buf, auth, &lls);
         }
         None => {
             V::PacketHdr::update_cksum(&mut buf);
         }
     }
 
-    // RFC 5613 Section 2: "The length of the LLS block is not included into
+    // NR: Some comments about LLS data block when OSPF authentication is enabled.
+    //
+    // - About the LLS data block checksum:
+    // RFC 5613 Section 2.2: "Note that if the OSPF packet is cryptographically
+    // authenticated, the LLS data block MUST also be cryptographically
+    // authenticated. In this case, the regular LLS checksum is not calculated,
+    // but is instead set to 0."
+    // RFC 7166 Section 4.2: "For OSPFv3 packets including an LLS data block to
+    // be transmitted, the OSPFv3 LLS data block checksum computation is omitted,
+    // and the OSPFv3 LLS data block checksum SHOULD be set to 0 prior to
+    // computation of the OSPFv3 Authentication Trailer message digest."
+    //
+    // - About the presence of the LLS data block in the OSPF checksum:
+    // RFC 5613 Section 2.2: "The length of the LLS block is not included into
     // the length of the OSPF packet, but is included in the IPv4/IPv6 packet
     // length."
-    if let Some(lls) = lls {
-        lls.encode(&mut buf);
+    // Based on that specification, I guess that the same behavior is expected
+    // for the OSPF checksum.
+    //
+    // Hence, if the authentication is disabled, we append the LLS data block
+    // at the end of the packet and the checksum computation is enabled.
+    // If authenticat is enabled, V::encode_auth_trailer() handles the LLS
+    // data block encoding.
+    //
+    if auth.is_none()
+        && let Some(lls) = lls
+    {
+        lls.encode::<V>(&mut buf, None);
     }
 
     buf.clone().freeze()

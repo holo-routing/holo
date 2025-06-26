@@ -18,6 +18,7 @@ use crate::neighbor::NeighborVersion;
 use crate::network::NetworkVersion;
 use crate::northbound::NorthboundVersion;
 use crate::packet::PacketVersion;
+use crate::packet::lls::LlsVersion;
 use crate::packet::lsa::LsaVersion;
 use crate::southbound::rx::SouthboundRxVersion;
 use crate::spf::SpfVersion;
@@ -43,7 +44,8 @@ where
         + PacketVersion<Self>
         + LsaVersion<Self>
         + SouthboundRxVersion<Self>
-        + SpfVersion<Self>,
+        + SpfVersion<Self>
+        + LlsVersion<Self>,
 {
     const PROTOCOL: Protocol;
 

@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+pub mod lls;
 pub mod lsa;
 
 use std::collections::BTreeSet;
@@ -24,7 +25,7 @@ use crate::ospfv3::packet::lsa::{LsaHdr, LsaType};
 use crate::packet::auth::{AuthDecodeCtx, AuthEncodeCtx, AuthMethod};
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::lls::{
-    LLS_HDR_SIZE, LlsData, LlsDataBlock, LlsDbDescData, LlsHelloData,
+    LLS_HDR_SIZE, LlsData, LlsDbDescData, LlsHelloData, LlsVersion,
 };
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::packet::{
@@ -421,8 +422,12 @@ impl PacketBase<Ospfv3> for Hello {
             neighbors.insert(nbr);
         }
 
-        let lls = LlsDataBlock::try_decode(buf)
-            .map(|block| block.map(|block| block.into()))?;
+        // Even if AT-bit is set, LLS data block is appended before the
+        // authentication trailer, so no need to skip it.
+        let lls = options
+            .l_bit()
+            .then_some(Ospfv3::decode_lls_block(buf)?)
+            .and_then(|block| block.map(|block| block.into()));
 
         Ok(Hello {
             hdr,
@@ -537,8 +542,12 @@ impl PacketBase<Ospfv3> for DbDesc {
             lsa_hdrs.push(lsa_hdr);
         }
 
-        let lls = LlsDataBlock::try_decode(buf)
-            .map(|block| block.map(|block| block.into()))?;
+        // Even if AT-bit is set, LLS data block is appended before the
+        // authentication trailer, so no need to skip it.
+        let lls = options
+            .l_bit()
+            .then_some(Ospfv3::decode_lls_block(buf)?)
+            .and_then(|block| block.map(|block| block.into()));
 
         Ok(DbDesc {
             hdr,
@@ -839,6 +848,12 @@ impl PacketVersion<Self> for Ospfv3 {
         // Get data after the end of the OSPF packet.
         let mut buf = Bytes::copy_from_slice(&data[pkt_len as usize..]);
 
+        // RFC 7166 Section 2 : "The presence of the Link-Local Signaling (LLS)
+        // [RFC5613] block is determined by the L-bit setting in the OSPFv3
+        // Options field in OSPFv3 Hello and Database Description packets.  If
+        // present, the LLS data block is included along with the OSPFv3 packet
+        // in the Cryptographic Authentication computation."
+
         // Ignore optional LLS block (only present in Hello and Database
         // Description packets).
         if let Some(options) = &options
@@ -912,7 +927,27 @@ impl PacketVersion<Self> for Ospfv3 {
         Ok(Some(seqno))
     }
 
-    fn encode_auth_trailer(buf: &mut BytesMut, auth: AuthEncodeCtx<'_>) {
+    fn encode_auth_trailer(
+        buf: &mut BytesMut,
+        auth: AuthEncodeCtx<'_>,
+        lls: &Option<LlsData>,
+    ) {
+        // RFC 7166 Section 2: "If present, the LLS data block is included along
+        // with the OSPFv3 packet in the Cryptographic Authentication
+        // computation."
+        //
+        // RFC 7166 Section 4.2: "For OSPFv3 packets including an LLS data block
+        // to be transmitted, the OSPFv3 LLS data block checksum computation is
+        // omitted, and the OSPFv3 LLS data block checksum SHOULD be set to 0
+        // prior to computation of the OSPFv3 Authentication Trailer message
+        // digest."
+        //
+        // Encode LLS data block before the authentication trailer and disable
+        // LLS checksum computation.
+        if let Some(lls) = lls {
+            lls.encode::<Ospfv3>(buf, Some(&auth));
+        }
+
         // Append authentication trailer fixed header.
         buf.put_u16(AuthType::HmacCryptographic as u16);
         buf.put_u16(AUTH_TRAILER_HDR_SIZE + auth.key.algo.digest_size() as u16);

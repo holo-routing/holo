@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+pub mod lls;
 pub mod lsa;
 pub mod lsa_opaque;
 
@@ -24,7 +25,7 @@ use crate::neighbor::NeighborNetId;
 use crate::ospfv2::packet::lsa::{LsaHdr, LsaType};
 use crate::packet::auth::{AuthDecodeCtx, AuthEncodeCtx, AuthMethod};
 use crate::packet::error::{DecodeError, DecodeResult};
-use crate::packet::lls::{LlsData, LlsDataBlock, LlsDbDescData, LlsHelloData};
+use crate::packet::lls::{LlsData, LlsDbDescData, LlsHelloData, LlsVersion};
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::packet::{
     DbDescFlags, DbDescVersion, HelloVersion, LsAckVersion, LsRequestVersion,
@@ -453,8 +454,13 @@ impl PacketBase<Ospfv2> for Hello {
             neighbors.insert(nbr);
         }
 
-        let lls = LlsDataBlock::try_decode(buf)
-            .map(|block| block.map(|block| block.into()))?;
+        let lls = options
+            .l_bit()
+            .then_some({
+                // TODO: skip authentication trailer
+                Ospfv2::decode_lls_block(buf)?
+            })
+            .and_then(|block| block.map(|block| block.into()));
 
         Ok(Hello {
             hdr,
@@ -567,8 +573,13 @@ impl PacketBase<Ospfv2> for DbDesc {
             lsa_hdrs.push(lsa_hdr);
         }
 
-        let lls = LlsDataBlock::try_decode(buf)
-            .map(|block| block.map(|block| block.into()))?;
+        let lls = options
+            .l_bit()
+            .then_some({
+                // TODO: skip authentication trailer
+                Ospfv2::decode_lls_block(buf)?
+            })
+            .and_then(|block| block.map(|block| block.into()));
 
         Ok(DbDesc {
             hdr,
@@ -901,7 +912,11 @@ impl PacketVersion<Self> for Ospfv2 {
         }
     }
 
-    fn encode_auth_trailer(buf: &mut BytesMut, auth: AuthEncodeCtx<'_>) {
+    fn encode_auth_trailer(
+        buf: &mut BytesMut,
+        auth: AuthEncodeCtx<'_>,
+        lls: &Option<LlsData>,
+    ) {
         let digest = auth::message_digest(
             buf,
             auth.key.algo,
@@ -910,5 +925,35 @@ impl PacketVersion<Self> for Ospfv2 {
             None,
         );
         buf.put_slice(&digest);
+
+        // RFC 5613 Section 2: "To perform link-local signaling (LLS), OSPF
+        // routers add a special data block to the end of OSPF packets or right
+        // after the authentication data block when cryptographic authentication
+        // is used."
+        if let Some(lls) = lls {
+            lls.encode::<Ospfv2>(buf, Some(&auth));
+        }
+    }
+}
+
+// ===== helper functions =====
+
+// Retrieves the Options field from Hello and Database Description packets.
+//
+// Assumes the packet length has been validated beforehand.
+fn packet_options(data: &[u8]) -> Option<Options> {
+    let pkt_type = PacketType::from_u8(data[1]).unwrap();
+    match pkt_type {
+        PacketType::Hello => {
+            let options = &data[PacketHdr::LENGTH as usize + 7..];
+            Some(Options::from_bits_truncate(options[0]))
+        }
+        PacketType::DbDesc => {
+            let options = &data[PacketHdr::LENGTH as usize + 3..];
+            Some(Options::from_bits_truncate(options[0]))
+        }
+        PacketType::LsRequest | PacketType::LsUpdate | PacketType::LsAck => {
+            None
+        }
     }
 }

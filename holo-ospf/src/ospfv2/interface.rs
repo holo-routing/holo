@@ -55,6 +55,13 @@ impl InterfaceVersion<Self> for Ospfv2 {
             auth_seqno: None,
         };
 
+        let lls = if iface.config.lls_enabled {
+            // TODO: Get LLS configuration
+            None
+        } else {
+            None
+        };
+
         Packet::Hello(Hello {
             hdr,
             network_mask: iface.system.primary_addr.unwrap().mask(),
@@ -64,6 +71,7 @@ impl InterfaceVersion<Self> for Ospfv2 {
                 OptionsLocation::new_packet(
                     PacketType::Hello,
                     iface.state.auth.is_some(),
+                    lls.is_some(),
                 ),
             ),
             priority: iface.config.priority,
@@ -71,6 +79,7 @@ impl InterfaceVersion<Self> for Ospfv2 {
             dr: iface.state.dr,
             bdr: iface.state.bdr,
             neighbors: iface.state.neighbors.router_ids().collect(),
+            lls,
         })
     }
 

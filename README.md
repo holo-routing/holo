@@ -194,6 +194,7 @@ Holo supports the following Internet Standards:
 * RFC 5243 - OSPF Database Exchange Summary List Optimization
 * RFC 5250 - The OSPF Opaque LSA Option
 * RFC 5340 - OSPF for IPv6
+* RFC 5613 - OSPF Link-Local Signaling
 * RFC 5642 - Dynamic Hostname Exchange Mechanism for OSPF
 * RFC 5709 - OSPFv2 HMAC-SHA Cryptographic Authentication
 * RFC 5838 - Support of Address Families in OSPFv3

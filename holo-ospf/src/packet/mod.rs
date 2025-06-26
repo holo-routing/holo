@@ -6,6 +6,7 @@
 
 pub mod auth;
 pub mod error;
+pub mod lls;
 pub mod lsa;
 pub mod tlv;
 
@@ -15,8 +16,10 @@ use std::net::Ipv4Addr;
 
 use bitflags::bitflags;
 use bytes::{Bytes, BytesMut};
+use error::DecodeError;
 use holo_utils::ip::AddressFamily;
 use holo_yang::ToYang;
+use lls::{LlsData, LlsDbDescData, LlsHelloData};
 use num_derive::FromPrimitive;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -88,7 +91,11 @@ pub trait PacketVersion<V: Version> {
     ) -> DecodeResult<Option<u64>>;
 
     // Encode the authentication trailer.
-    fn encode_auth_trailer(buf: &mut BytesMut, auth: AuthEncodeCtx<'_>);
+    fn encode_auth_trailer(
+        buf: &mut BytesMut,
+        auth: AuthEncodeCtx<'_>,
+        lls: Option<&LlsData>,
+    );
 
     // Retrieves the Options field from Hello and Database Description packets.
     //
@@ -149,6 +156,7 @@ where
         af: AddressFamily,
         hdr: V::PacketHdr,
         buf: &mut Bytes,
+        lls: Option<V::LlsDataBlock>,
     ) -> DecodeResult<Self>;
 
     // Encode OSPF packet into a bytes buffer.
@@ -178,6 +186,9 @@ where
 {
     // Return whether the E-bit is set.
     fn e_bit(&self) -> bool;
+
+    // Return whether the L-bit is set.
+    fn l_bit(&self) -> bool;
 }
 
 // OSPF version-specific code.
@@ -208,6 +219,9 @@ where
 
     // Return the list of neighbors contained in the Hello packet.
     fn neighbors(&self) -> &BTreeSet<Ipv4Addr>;
+
+    // Return the LLS data block.
+    fn lls(&self) -> Option<&LlsHelloData>;
 }
 
 // OSPF version-specific code.
@@ -233,6 +247,9 @@ where
     // packet.
     fn lsa_hdrs(&self) -> &[V::LsaHdr];
 
+    // Return the LLS data block.
+    fn lls(&self) -> Option<&LlsDbDescData>;
+
     // Create new Database Description packet.
     fn generate(
         hdr: V::PacketHdr,
@@ -241,6 +258,7 @@ where
         dd_flags: DbDescFlags,
         dd_seq_no: u32,
         lsa_hdrs: Vec<V::LsaHdr>,
+        lls: Option<LlsDbDescData>,
     ) -> Packet<V>;
 }
 
@@ -321,22 +339,33 @@ impl<V: Version> Packet<V> {
             hdr.set_auth_seqno(auth_seqno);
         }
 
+        let lls = match V::decode_lls_block(
+            &buf_orig,
+            pkt_len,
+            hdr_auth,
+            auth.as_ref(),
+        ) {
+            Ok(val) => val,
+            Err(DecodeError::InvalidChecksum) => None,
+            Err(error) => return Err(error),
+        };
+
         // Decode the packet body.
         let packet = match hdr.pkt_type() {
             PacketType::Hello => {
-                Packet::Hello(V::PacketHello::decode(af, hdr, &mut buf)?)
+                Packet::Hello(V::PacketHello::decode(af, hdr, &mut buf, lls)?)
             }
             PacketType::DbDesc => {
-                Packet::DbDesc(V::PacketDbDesc::decode(af, hdr, &mut buf)?)
+                Packet::DbDesc(V::PacketDbDesc::decode(af, hdr, &mut buf, lls)?)
             }
             PacketType::LsRequest => Packet::LsRequest(
-                V::PacketLsRequest::decode(af, hdr, &mut buf)?,
+                V::PacketLsRequest::decode(af, hdr, &mut buf, None)?,
             ),
-            PacketType::LsUpdate => {
-                Packet::LsUpdate(V::PacketLsUpdate::decode(af, hdr, &mut buf)?)
-            }
+            PacketType::LsUpdate => Packet::LsUpdate(
+                V::PacketLsUpdate::decode(af, hdr, &mut buf, None)?,
+            ),
             PacketType::LsAck => {
-                Packet::LsAck(V::PacketLsAck::decode(af, hdr, &mut buf)?)
+                Packet::LsAck(V::PacketLsAck::decode(af, hdr, &mut buf, None)?)
             }
         };
 
@@ -385,6 +414,7 @@ where
 pub(crate) fn packet_encode_end<V>(
     mut buf: RefMut<'_, BytesMut>,
     auth: Option<AuthEncodeCtx<'_>>,
+    lls: Option<LlsData>,
 ) -> Bytes
 where
     V: Version,
@@ -396,11 +426,41 @@ where
     // Calculate the packet checksum or append the authentication trailer.
     match auth {
         Some(auth) => {
-            V::encode_auth_trailer(&mut buf, auth);
+            V::encode_auth_trailer(&mut buf, auth, lls.as_ref());
         }
         None => {
             V::PacketHdr::update_cksum(&mut buf);
         }
+    }
+
+    // NR: Some comments about LLS data block when OSPF authentication is enabled.
+    //
+    // - About the LLS data block checksum:
+    // RFC 5613 Section 2.2: "Note that if the OSPF packet is cryptographically
+    // authenticated, the LLS data block MUST also be cryptographically
+    // authenticated. In this case, the regular LLS checksum is not calculated,
+    // but is instead set to 0."
+    // RFC 7166 Section 4.2: "For OSPFv3 packets including an LLS data block to
+    // be transmitted, the OSPFv3 LLS data block checksum computation is omitted,
+    // and the OSPFv3 LLS data block checksum SHOULD be set to 0 prior to
+    // computation of the OSPFv3 Authentication Trailer message digest."
+    //
+    // - About the presence of the LLS data block in the OSPF checksum:
+    // RFC 5613 Section 2.2: "The length of the LLS block is not included into
+    // the length of the OSPF packet, but is included in the IPv4/IPv6 packet
+    // length."
+    // Based on that specification, I guess that the same behavior is expected
+    // for the OSPF checksum.
+    //
+    // Hence, if the authentication is disabled, we append the LLS data block
+    // at the end of the packet and the checksum computation is enabled.
+    // If authenticattion is enabled, V::encode_auth_trailer() handles the LLS
+    // data block encoding.
+    //
+    if auth.is_none()
+        && let Some(lls) = lls
+    {
+        lls.encode::<V>(&mut buf, None);
     }
 
     buf.clone().freeze()

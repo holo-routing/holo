@@ -114,6 +114,7 @@ static HELLO1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
                 dr: None,
                 bdr: None,
                 neighbors: [ip4!("2.2.2.2")].into(),
+                lls: None,
             }),
         )
     });
@@ -151,6 +152,7 @@ static HELLO1_HMAC_SHA1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
                 dr: None,
                 bdr: None,
                 neighbors: [ip4!("2.2.2.2")].into(),
+                lls: None,
             }),
         )
     });
@@ -189,6 +191,7 @@ static HELLO1_HMAC_SHA256: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
                 dr: None,
                 bdr: None,
                 neighbors: [ip4!("2.2.2.2")].into(),
+                lls: None,
             }),
         )
     });
@@ -229,6 +232,7 @@ static HELLO1_HMAC_SHA384: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
                 dr: None,
                 bdr: None,
                 neighbors: [ip4!("2.2.2.2")].into(),
+                lls: None,
             }),
         )
     });
@@ -270,6 +274,7 @@ static HELLO1_HMAC_SHA512: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
                 dr: None,
                 bdr: None,
                 neighbors: [ip4!("2.2.2.2")].into(),
+                lls: None,
             }),
         )
     });
@@ -296,6 +301,7 @@ static DBDESCR1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
                 dd_flags: DbDescFlags::I | DbDescFlags::M | DbDescFlags::MS,
                 dd_seq_no: 93968,
                 lsa_hdrs: vec![],
+                lls: None,
             }),
         )
     });
@@ -356,6 +362,7 @@ static DBDESCR2: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
                         length: 44,
                     },
                 ],
+                lls: None,
             }),
         )
     });

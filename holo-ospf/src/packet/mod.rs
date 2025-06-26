@@ -6,6 +6,7 @@
 
 pub mod auth;
 pub mod error;
+pub mod lls;
 pub mod lsa;
 pub mod tlv;
 
@@ -17,6 +18,7 @@ use bitflags::bitflags;
 use bytes::{Bytes, BytesMut};
 use holo_utils::ip::AddressFamily;
 use holo_yang::ToYang;
+use lls::LlsDbDescData;
 use num_derive::FromPrimitive;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -236,6 +238,7 @@ where
         dd_flags: DbDescFlags,
         dd_seq_no: u32,
         lsa_hdrs: Vec<V::LsaHdr>,
+        lls: Option<LlsDbDescData>,
     ) -> Packet<V>;
 }
 
@@ -377,6 +380,7 @@ where
 pub(crate) fn packet_encode_end<V>(
     mut buf: RefMut<'_, BytesMut>,
     auth: Option<AuthEncodeCtx<'_>>,
+    lls: Option<lls::LlsData>,
 ) -> Bytes
 where
     V: Version,
@@ -393,6 +397,13 @@ where
         None => {
             V::PacketHdr::update_cksum(&mut buf);
         }
+    }
+
+    // RFC 5613 Section 2: "The length of the LLS block is not included into
+    // the length of the OSPF packet, but is included in the IPv4/IPv6 packet
+    // length."
+    if let Some(lls) = lls {
+        lls.encode(&mut buf);
     }
 
     buf.clone().freeze()

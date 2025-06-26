@@ -268,6 +268,9 @@ impl ToYangBits for ospfv2::packet::Options {
         if self.contains(Options::O) {
             options.push("o-bit");
         }
+        if self.contains(Options::L) {
+            options.push("v2-l-bit");
+        }
 
         options
     }

@@ -79,6 +79,8 @@ impl InterfaceVersion<Self> for Ospfv3 {
             dr: iface.state.dr,
             bdr: iface.state.bdr,
             neighbors: iface.state.neighbors.router_ids().collect(),
+            // FIXME: collect LLS data from interface configuration
+            lls: None,
         })
     }
 

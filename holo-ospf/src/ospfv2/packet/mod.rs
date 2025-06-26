@@ -24,6 +24,9 @@ use crate::neighbor::NeighborNetId;
 use crate::ospfv2::packet::lsa::{LsaHdr, LsaType};
 use crate::packet::auth::{AuthDecodeCtx, AuthEncodeCtx, AuthMethod};
 use crate::packet::error::{DecodeError, DecodeResult};
+use crate::packet::lls::{
+    LLS_HDR_SIZE, LlsData, LlsDataBlock, LlsDbDescData, LlsHelloData,
+};
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::packet::{
     DbDescFlags, DbDescVersion, HelloVersion, LsAckVersion, LsRequestVersion,
@@ -44,6 +47,7 @@ bitflags! {
         const E = 0x02;
         const MC = 0x04;
         const NP = 0x08;
+        const L = 0x10;
         const DC = 0x20;
         const O = 0x40;
     }
@@ -135,6 +139,7 @@ pub struct Hello {
     pub dr: Option<NeighborNetId>,
     pub bdr: Option<NeighborNetId>,
     pub neighbors: BTreeSet<Ipv4Addr>,
+    pub lls: Option<LlsHelloData>,
 }
 
 //
@@ -170,6 +175,7 @@ pub struct DbDesc {
     pub dd_flags: DbDescFlags,
     pub dd_seq_no: u32,
     pub lsa_hdrs: Vec<LsaHdr>,
+    pub lls: Option<LlsDbDescData>,
 }
 
 //
@@ -445,6 +451,14 @@ impl PacketBase<Ospfv2> for Hello {
             neighbors.insert(nbr);
         }
 
+        let lls = if buf.remaining() > LLS_HDR_SIZE as usize {
+            let block = LlsDataBlock::decode(buf)?;
+            // TODO: Validate LLS checksum
+            Some(block.into())
+        } else {
+            None
+        };
+
         Ok(Hello {
             hdr,
             network_mask,
@@ -455,6 +469,7 @@ impl PacketBase<Ospfv2> for Hello {
             dr: dr.map(NeighborNetId::from),
             bdr: bdr.map(NeighborNetId::from),
             neighbors,
+            lls,
         })
     }
 
@@ -483,7 +498,7 @@ impl PacketBase<Ospfv2> for Hello {
                 buf.put_ipv4(nbr);
             }
 
-            packet_encode_end::<Ospfv2>(buf, auth)
+            packet_encode_end::<Ospfv2>(buf, auth, self.lls.map(LlsData::Hello))
         })
     }
 
@@ -551,6 +566,14 @@ impl PacketBase<Ospfv2> for DbDesc {
             lsa_hdrs.push(lsa_hdr);
         }
 
+        let lls = if buf.remaining() > LLS_HDR_SIZE as usize {
+            let block = LlsDataBlock::decode(buf)?;
+            // TODO: Validate LLS checksum
+            Some(block.into())
+        } else {
+            None
+        };
+
         Ok(DbDesc {
             hdr,
             mtu,
@@ -558,6 +581,7 @@ impl PacketBase<Ospfv2> for DbDesc {
             dd_flags,
             dd_seq_no,
             lsa_hdrs,
+            lls,
         })
     }
 
@@ -573,7 +597,11 @@ impl PacketBase<Ospfv2> for DbDesc {
                 lsa_hdr.encode(&mut buf);
             }
 
-            packet_encode_end::<Ospfv2>(buf, auth)
+            packet_encode_end::<Ospfv2>(
+                buf,
+                auth,
+                self.lls.map(LlsData::DbDesc),
+            )
         })
     }
 
@@ -612,6 +640,7 @@ impl DbDescVersion<Ospfv2> for DbDesc {
         dd_flags: DbDescFlags,
         dd_seq_no: u32,
         lsa_hdrs: Vec<LsaHdr>,
+        lls: Option<LlsDbDescData>,
     ) -> Packet<Ospfv2> {
         Packet::DbDesc(DbDesc {
             hdr,
@@ -620,6 +649,7 @@ impl DbDescVersion<Ospfv2> for DbDesc {
             dd_flags,
             dd_seq_no,
             lsa_hdrs,
+            lls,
         })
     }
 }
@@ -660,7 +690,7 @@ impl PacketBase<Ospfv2> for LsRequest {
                 buf.put_ipv4(&entry.adv_rtr);
             }
 
-            packet_encode_end::<Ospfv2>(buf, auth)
+            packet_encode_end::<Ospfv2>(buf, auth, None)
         })
     }
 
@@ -722,7 +752,7 @@ impl PacketBase<Ospfv2> for LsUpdate {
                 buf.put_slice(&lsa.raw);
             }
 
-            packet_encode_end::<Ospfv2>(buf, auth)
+            packet_encode_end::<Ospfv2>(buf, auth, None)
         })
     }
 
@@ -770,7 +800,7 @@ impl PacketBase<Ospfv2> for LsAck {
                 lsa_hdr.encode(&mut buf);
             }
 
-            packet_encode_end::<Ospfv2>(buf, auth)
+            packet_encode_end::<Ospfv2>(buf, auth, None)
         })
     }
 

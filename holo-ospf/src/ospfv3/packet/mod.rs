@@ -23,6 +23,9 @@ use crate::neighbor::NeighborNetId;
 use crate::ospfv3::packet::lsa::{LsaHdr, LsaType};
 use crate::packet::auth::{AuthDecodeCtx, AuthEncodeCtx, AuthMethod};
 use crate::packet::error::{DecodeError, DecodeResult};
+use crate::packet::lls::{
+    LLS_HDR_SIZE, LlsData, LlsDataBlock, LlsDbDescData, LlsHelloData,
+};
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::packet::{
     DbDescFlags, DbDescVersion, HelloVersion, LsAckVersion, LsRequestVersion,
@@ -57,9 +60,6 @@ bitflags! {
 pub enum AuthType {
     HmacCryptographic = 0x01,
 }
-
-// Length of LLS Data Block header.
-pub const LLS_HDR_SIZE: u16 = 4;
 
 // Length of the authentication trailer fixed header.
 pub const AUTH_TRAILER_HDR_SIZE: u16 = 16;
@@ -132,6 +132,7 @@ pub struct Hello {
     pub dr: Option<NeighborNetId>,
     pub bdr: Option<NeighborNetId>,
     pub neighbors: BTreeSet<Ipv4Addr>,
+    pub lls: Option<LlsHelloData>,
 }
 
 //
@@ -169,6 +170,7 @@ pub struct DbDesc {
     pub dd_flags: DbDescFlags,
     pub dd_seq_no: u32,
     pub lsa_hdrs: Vec<LsaHdr>,
+    pub lls: Option<LlsDbDescData>,
 }
 
 //
@@ -414,6 +416,13 @@ impl PacketBase<Ospfv3> for Hello {
             let nbr = buf.try_get_ipv4()?;
             neighbors.insert(nbr);
         }
+        let lls = if buf.remaining() > LLS_HDR_SIZE as usize {
+            let block = LlsDataBlock::decode(buf)?;
+            // TODO: Validate LLS checksum
+            Some(block.into())
+        } else {
+            None
+        };
 
         Ok(Hello {
             hdr,
@@ -425,6 +434,7 @@ impl PacketBase<Ospfv3> for Hello {
             dr: dr.map(NeighborNetId::from),
             bdr: bdr.map(NeighborNetId::from),
             neighbors,
+            lls,
         })
     }
 
@@ -453,7 +463,7 @@ impl PacketBase<Ospfv3> for Hello {
                 buf.put_ipv4(nbr);
             }
 
-            packet_encode_end::<Ospfv3>(buf, auth)
+            packet_encode_end::<Ospfv3>(buf, auth, self.lls.map(LlsData::Hello))
         })
     }
 
@@ -523,6 +533,14 @@ impl PacketBase<Ospfv3> for DbDesc {
             lsa_hdrs.push(lsa_hdr);
         }
 
+        let lls = if buf.remaining() > LLS_HDR_SIZE as usize {
+            let block = LlsDataBlock::decode(buf)?;
+            // TODO: Validate LLS checksum
+            Some(block.into())
+        } else {
+            None
+        };
+
         Ok(DbDesc {
             hdr,
             options,
@@ -530,6 +548,7 @@ impl PacketBase<Ospfv3> for DbDesc {
             dd_flags,
             dd_seq_no,
             lsa_hdrs,
+            lls,
         })
     }
 
@@ -547,7 +566,11 @@ impl PacketBase<Ospfv3> for DbDesc {
                 lsa_hdr.encode(&mut buf);
             }
 
-            packet_encode_end::<Ospfv3>(buf, auth)
+            packet_encode_end::<Ospfv3>(
+                buf,
+                auth,
+                self.lls.map(LlsData::DbDesc),
+            )
         })
     }
 
@@ -586,6 +609,7 @@ impl DbDescVersion<Ospfv3> for DbDesc {
         dd_flags: DbDescFlags,
         dd_seq_no: u32,
         lsa_hdrs: Vec<LsaHdr>,
+        lls: Option<LlsDbDescData>,
     ) -> Packet<Ospfv3> {
         Packet::DbDesc(DbDesc {
             hdr,
@@ -594,6 +618,7 @@ impl DbDescVersion<Ospfv3> for DbDesc {
             dd_flags,
             dd_seq_no,
             lsa_hdrs,
+            lls,
         })
     }
 }
@@ -636,7 +661,7 @@ impl PacketBase<Ospfv3> for LsRequest {
                 buf.put_ipv4(&entry.adv_rtr);
             }
 
-            packet_encode_end::<Ospfv3>(buf, auth)
+            packet_encode_end::<Ospfv3>(buf, auth, None)
         })
     }
 
@@ -698,7 +723,7 @@ impl PacketBase<Ospfv3> for LsUpdate {
                 buf.put_slice(&lsa.raw);
             }
 
-            packet_encode_end::<Ospfv3>(buf, auth)
+            packet_encode_end::<Ospfv3>(buf, auth, None)
         })
     }
 
@@ -746,7 +771,7 @@ impl PacketBase<Ospfv3> for LsAck {
                 lsa_hdr.encode(&mut buf);
             }
 
-            packet_encode_end::<Ospfv3>(buf, auth)
+            packet_encode_end::<Ospfv3>(buf, auth, None)
         })
     }
 

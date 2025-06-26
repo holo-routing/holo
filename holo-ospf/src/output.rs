@@ -82,6 +82,8 @@ pub(crate) fn send_dbdesc<V>(
         nbr.dd_flags,
         nbr.dd_seq_no,
         lsa_hdrs,
+        // FIXME: Handle LLS data stored in DbDesc packets
+        None,
     );
 
     // Enqueue packet for network transmission.

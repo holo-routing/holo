@@ -18,7 +18,7 @@ use bitflags::bitflags;
 use bytes::{Bytes, BytesMut};
 use holo_utils::ip::AddressFamily;
 use holo_yang::ToYang;
-use lls::LlsDbDescData;
+use lls::{LlsDbDescData, LlsHelloData};
 use num_derive::FromPrimitive;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -175,6 +175,9 @@ where
 {
     // Return whether the E-bit is set.
     fn e_bit(&self) -> bool;
+
+    // Return whether the L-bit is set.
+    fn l_bit(&self) -> bool;
 }
 
 // OSPF version-specific code.
@@ -205,6 +208,9 @@ where
 
     // Return the list of neighbors contained in the Hello packet.
     fn neighbors(&self) -> &BTreeSet<Ipv4Addr>;
+
+    // Return the LLS data block.
+    fn lls(&self) -> Option<LlsHelloData>;
 }
 
 // OSPF version-specific code.
@@ -229,6 +235,9 @@ where
     // Return the list of LSA headers contained in the Database Description
     // packet.
     fn lsa_hdrs(&self) -> &[V::LsaHdr];
+
+    // Return the LLS data block.
+    fn lls(&self) -> Option<LlsDbDescData>;
 
     // Create new Database Description packet.
     fn generate(

@@ -378,6 +378,14 @@ where
         nbr.bdr = hello.bdr();
     }
 
+    // Examine LLS data block if enabled and present in the packet.
+    if iface.config.lls_enabled
+        && hello.options().l_bit()
+        && let Some(_lls) = hello.lls()
+    {
+        // TODO: Handle LLS data
+    }
+
     Ok(())
 }
 
@@ -640,6 +648,14 @@ where
                 tasks::dbdesc_free_timer(nbr, iface, area, instance);
             nbr.tasks.dbdesc_free_timer = Some(dbdesc_free_timer);
         }
+    }
+
+    // Examine LLS data block if enabled and present the packet.
+    if iface.config.lls_enabled
+        && dbdesc.options().l_bit()
+        && let Some(_lls) = dbdesc.lls()
+    {
+        // TODO: Handle LLS data
     }
 
     // Save last received Database Description packet.

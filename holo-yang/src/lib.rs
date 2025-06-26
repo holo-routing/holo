@@ -293,6 +293,7 @@ pub static YANG_FEATURES: Lazy<HashMap<&'static str, Vec<&'static str>>> =
                 "node-tag",
                 "ospfv3-authentication-trailer",
                 "stub-router",
+                "lls"
             ],
             "ietf-rip" => vec![
                 "explicit-neighbors",

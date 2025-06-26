@@ -264,6 +264,10 @@ impl OptionsVersion<Ospfv3> for Options {
     fn e_bit(&self) -> bool {
         self.contains(Options::E)
     }
+
+    fn l_bit(&self) -> bool {
+        self.contains(Options::L)
+    }
 }
 
 // ===== impl PacketHdr =====
@@ -500,6 +504,10 @@ impl HelloVersion<Ospfv3> for Hello {
     fn neighbors(&self) -> &BTreeSet<Ipv4Addr> {
         &self.neighbors
     }
+
+    fn lls(&self) -> Option<LlsHelloData> {
+        self.lls
+    }
 }
 
 // ===== impl DbDesc =====
@@ -591,6 +599,10 @@ impl DbDescVersion<Ospfv3> for DbDesc {
 
     fn lsa_hdrs(&self) -> &[LsaHdr] {
         &self.lsa_hdrs
+    }
+
+    fn lls(&self) -> Option<LlsDbDescData> {
+        self.lls
     }
 
     fn generate(

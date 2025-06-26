@@ -142,6 +142,12 @@ module holo-ietf-ospf-deviations {
     }
   }
 
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:lls" {
+    deviate add {
+      default "false";
+    }
+  }
+
   /*
    * Not supported nodes
    */

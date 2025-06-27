@@ -103,19 +103,13 @@ separate tasks and abstracted as event messages.
 
 ## Installation
 
-Holo uses unstable Rust features, so building it from the source code requires
-a nightly version of the Rust compiler.
-
 For detailed instructions on installation, please refer to the
 [INSTALL.md](INSTALL.md) file.
 
 #### Supported Platforms
 
 At present, Holo is only compatible with Linux operating systems.
-
-WebAssembly support is planned for the future. This addition will enable
-simulation of large networks from within your browser, making network
-experimentation more convenient and accessible to everyone.
+WebAssembly support is planned for the future.
 
 #### Getting Started
 

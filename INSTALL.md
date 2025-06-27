@@ -1,12 +1,10 @@
 ## Installation
 
-Holo uses unstable Rust features, so building it from the source code requires a nightly version of the Rust compiler.
-
 ### Build from source
 
 1. Install the Rust toolchain
 
-If you don't already have Rust in your system, the best way to install it is via [rustup](https://rustup.rs/) (be sure to choose the nightly toolchain).
+If you don't already have Rust in your system, the best way to install it is via [rustup](https://rustup.rs/).
 
 2. Clone Holo's git repositories
 

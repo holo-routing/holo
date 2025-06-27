@@ -13,6 +13,7 @@ use const_addrs::{ip, ip4, net};
 use holo_ospf::ospfv3::packet::lsa::*;
 use holo_ospf::ospfv3::packet::*;
 use holo_ospf::packet::auth::{AuthDecodeCtx, AuthEncodeCtx, AuthMethod};
+use holo_ospf::packet::lls::ExtendedOptionsFlags;
 use holo_ospf::packet::lsa::{Lsa, LsaKey};
 use holo_ospf::packet::tlv::*;
 use holo_ospf::packet::{DbDescFlags, Packet, PacketType};
@@ -119,6 +120,43 @@ static HELLO1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
         )
     });
 
+static HELLO1_LLS: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
+    Lazy::new(|| {
+        (
+            vec![
+                0x03, 0x01, 0x00, 0x28, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00,
+                0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04,
+                0x01, 0x00, 0x02, 0x13, 0x00, 0x03, 0x00, 0x24, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x02, 0x02, 0x02,
+                0xff, 0xf4, 0x00, 0x03, 0x00, 0x01, 0x00, 0x04, 0x00, 0x00,
+                0x00, 0x03,
+            ],
+            None,
+            Packet::Hello(Hello {
+                hdr: PacketHdr {
+                    pkt_type: PacketType::Hello,
+                    router_id: ip4!("1.1.1.1"),
+                    area_id: ip4!("0.0.0.1"),
+                    instance_id: 0,
+                    auth_seqno: None,
+                },
+                iface_id: 4,
+                priority: 1,
+                options: Options::R | Options::E | Options::V6 | Options::L,
+                hello_interval: 3,
+                dead_interval: 36,
+                dr: None,
+                bdr: None,
+                neighbors: [ip4!("2.2.2.2")].into(),
+                lls: Some(holo_ospf::packet::lls::LlsHelloData {
+                    eof: Some(
+                        ExtendedOptionsFlags::LR | ExtendedOptionsFlags::RS,
+                    ),
+                }),
+            }),
+        )
+    });
+
 static HELLO1_HMAC_SHA1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
     Lazy::new(|| {
         (
@@ -156,6 +194,53 @@ static HELLO1_HMAC_SHA1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
             }),
         )
     });
+
+static HELLO1_HMAC_SHA1_LLS: Lazy<(
+    Vec<u8>,
+    Option<(Key, u64)>,
+    Packet<Ospfv3>,
+)> = Lazy::new(|| {
+    (
+        vec![
+            0x03, 0x01, 0x00, 0x28, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x01, 0x00,
+            0x06, 0x13, 0x00, 0x03, 0x00, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x02, 0x02, 0x02, 0x02, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x01, 0x00, 0x04, 0x00, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00,
+            0x24, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x32, 0x45,
+            0xd0, 0x14, 0xfe, 0xef, 0xc6, 0xce, 0x7d, 0xbe, 0x66, 0x4e, 0xc3,
+            0x92, 0x0c, 0xc9, 0x2f, 0x6d, 0x42, 0x1f, 0x38, 0xb2, 0xd2, 0x3c,
+        ],
+        Some((
+            Key::new(1, CryptoAlgo::HmacSha1, "HOLO".as_bytes().to_vec()),
+            843436052,
+        )),
+        Packet::Hello(Hello {
+            hdr: PacketHdr {
+                pkt_type: PacketType::Hello,
+                router_id: ip4!("1.1.1.1"),
+                area_id: ip4!("0.0.0.1"),
+                instance_id: 0,
+                auth_seqno: Some(843436052),
+            },
+            iface_id: 4,
+            priority: 1,
+            options: Options::R
+                | Options::E
+                | Options::V6
+                | Options::AT
+                | Options::L,
+            hello_interval: 3,
+            dead_interval: 36,
+            dr: None,
+            bdr: None,
+            neighbors: [ip4!("2.2.2.2")].into(),
+            lls: Some(holo_ospf::packet::lls::LlsHelloData {
+                eof: Some(ExtendedOptionsFlags::LR | ExtendedOptionsFlags::RS),
+            }),
+        }),
+    )
+});
 
 static HELLO1_HMAC_SHA256: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
     Lazy::new(|| {
@@ -195,6 +280,55 @@ static HELLO1_HMAC_SHA256: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
             }),
         )
     });
+
+static HELLO1_HMAC_SHA256_LLS: Lazy<(
+    Vec<u8>,
+    Option<(Key, u64)>,
+    Packet<Ospfv3>,
+)> = Lazy::new(|| {
+    (
+        vec![
+            0x03, 0x01, 0x00, 0x28, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x01, 0x00,
+            0x06, 0x13, 0x00, 0x03, 0x00, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x02, 0x02, 0x02, 0x02, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x01, 0x00, 0x04, 0x00, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00,
+            0x30, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x32, 0x45,
+            0xd0, 0x14, 0xdf, 0x4b, 0x87, 0x87, 0xea, 0x1f, 0xaf, 0x92, 0xe9,
+            0xcc, 0x0d, 0x1f, 0xbc, 0x70, 0xf7, 0xbc, 0x58, 0xa7, 0x1e, 0x37,
+            0xc1, 0x4e, 0x6e, 0x8a, 0x22, 0xe3, 0xd1, 0xc7, 0x2d, 0xed, 0xef,
+            0x67,
+        ],
+        Some((
+            Key::new(1, CryptoAlgo::HmacSha256, "HOLO".as_bytes().to_vec()),
+            843436052,
+        )),
+        Packet::Hello(Hello {
+            hdr: PacketHdr {
+                pkt_type: PacketType::Hello,
+                router_id: ip4!("1.1.1.1"),
+                area_id: ip4!("0.0.0.1"),
+                instance_id: 0,
+                auth_seqno: Some(843436052),
+            },
+            iface_id: 4,
+            priority: 1,
+            options: Options::R
+                | Options::E
+                | Options::V6
+                | Options::AT
+                | Options::L,
+            hello_interval: 3,
+            dead_interval: 36,
+            dr: None,
+            bdr: None,
+            neighbors: [ip4!("2.2.2.2")].into(),
+            lls: Some(holo_ospf::packet::lls::LlsHelloData {
+                eof: Some(ExtendedOptionsFlags::LR | ExtendedOptionsFlags::RS),
+            }),
+        }),
+    )
+});
 
 static HELLO1_HMAC_SHA384: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
     Lazy::new(|| {
@@ -236,6 +370,56 @@ static HELLO1_HMAC_SHA384: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
             }),
         )
     });
+
+static HELLO1_HMAC_SHA384_LLS: Lazy<(
+    Vec<u8>,
+    Option<(Key, u64)>,
+    Packet<Ospfv3>,
+)> = Lazy::new(|| {
+    (
+        vec![
+            0x03, 0x01, 0x00, 0x28, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x01, 0x00,
+            0x06, 0x13, 0x00, 0x03, 0x00, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x02, 0x02, 0x02, 0x02, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x01, 0x00, 0x04, 0x00, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00,
+            0x40, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x32, 0x45,
+            0xd0, 0x14, 0xb2, 0xe6, 0x9b, 0x9e, 0x54, 0xd0, 0xad, 0xb9, 0x59,
+            0xad, 0x9c, 0x35, 0x1c, 0x08, 0x96, 0xda, 0x72, 0x77, 0x30, 0x4b,
+            0x15, 0x88, 0xcc, 0x18, 0xf0, 0xc4, 0x02, 0xa9, 0x67, 0x65, 0x82,
+            0x87, 0x68, 0xf5, 0xc0, 0x72, 0x10, 0x2b, 0xa0, 0x4c, 0x1e, 0x44,
+            0x8f, 0xa1, 0xbe, 0x69, 0xac, 0x6e,
+        ],
+        Some((
+            Key::new(1, CryptoAlgo::HmacSha384, "HOLO".as_bytes().to_vec()),
+            843436052,
+        )),
+        Packet::Hello(Hello {
+            hdr: PacketHdr {
+                pkt_type: PacketType::Hello,
+                router_id: ip4!("1.1.1.1"),
+                area_id: ip4!("0.0.0.1"),
+                instance_id: 0,
+                auth_seqno: Some(843436052),
+            },
+            iface_id: 4,
+            priority: 1,
+            options: Options::R
+                | Options::E
+                | Options::V6
+                | Options::AT
+                | Options::L,
+            hello_interval: 3,
+            dead_interval: 36,
+            dr: None,
+            bdr: None,
+            neighbors: [ip4!("2.2.2.2")].into(),
+            lls: Some(holo_ospf::packet::lls::LlsHelloData {
+                eof: Some(ExtendedOptionsFlags::LR | ExtendedOptionsFlags::RS),
+            }),
+        }),
+    )
+});
 
 static HELLO1_HMAC_SHA512: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
     Lazy::new(|| {
@@ -279,6 +463,57 @@ static HELLO1_HMAC_SHA512: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
         )
     });
 
+static HELLO1_HMAC_SHA512_LLS: Lazy<(
+    Vec<u8>,
+    Option<(Key, u64)>,
+    Packet<Ospfv3>,
+)> = Lazy::new(|| {
+    (
+        vec![
+            0x03, 0x01, 0x00, 0x28, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x01, 0x00,
+            0x06, 0x13, 0x00, 0x03, 0x00, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x02, 0x02, 0x02, 0x02, 0x00, 0x00, 0x00, 0x03,
+            0x00, 0x01, 0x00, 0x04, 0x00, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00,
+            0x50, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x32, 0x45,
+            0xd0, 0x14, 0x43, 0x1e, 0x7b, 0xcd, 0x00, 0x46, 0xe5, 0x6c, 0xb6,
+            0x46, 0x63, 0x87, 0x02, 0xeb, 0x5b, 0x10, 0xe0, 0xd0, 0x7e, 0x96,
+            0x20, 0xdb, 0x34, 0x7e, 0x12, 0xd8, 0x8c, 0xf0, 0xaa, 0xfd, 0xd9,
+            0x32, 0xcc, 0x2f, 0x85, 0xef, 0x5f, 0x63, 0xcd, 0x5f, 0x0b, 0x10,
+            0xa8, 0x0a, 0xf7, 0x7a, 0x27, 0x7f, 0x3c, 0xc9, 0x4b, 0xc4, 0xc0,
+            0xf8, 0x92, 0xa5, 0x43, 0xf0, 0xac, 0x73, 0xe1, 0xf5, 0xfe, 0x7a,
+        ],
+        Some((
+            Key::new(1, CryptoAlgo::HmacSha512, "HOLO".as_bytes().to_vec()),
+            843436052,
+        )),
+        Packet::Hello(Hello {
+            hdr: PacketHdr {
+                pkt_type: PacketType::Hello,
+                router_id: ip4!("1.1.1.1"),
+                area_id: ip4!("0.0.0.1"),
+                instance_id: 0,
+                auth_seqno: Some(843436052),
+            },
+            iface_id: 4,
+            priority: 1,
+            options: Options::R
+                | Options::E
+                | Options::V6
+                | Options::AT
+                | Options::L,
+            hello_interval: 3,
+            dead_interval: 36,
+            dr: None,
+            bdr: None,
+            neighbors: [ip4!("2.2.2.2")].into(),
+            lls: Some(holo_ospf::packet::lls::LlsHelloData {
+                eof: Some(ExtendedOptionsFlags::LR | ExtendedOptionsFlags::RS),
+            }),
+        }),
+    )
+});
+
 static DBDESCR1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
     Lazy::new(|| {
         (
@@ -302,6 +537,36 @@ static DBDESCR1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
                 dd_seq_no: 93968,
                 lsa_hdrs: vec![],
                 lls: None,
+            }),
+        )
+    });
+
+static DBDESCR1_LLS: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
+    Lazy::new(|| {
+        (
+            vec![
+                0x03, 0x02, 0x00, 0x1c, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00,
+                0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x13,
+                0x05, 0xdc, 0x00, 0x07, 0x00, 0x01, 0x6f, 0x10, 0xff, 0xf6,
+                0x00, 0x03, 0x00, 0x01, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01,
+            ],
+            None,
+            Packet::DbDesc(DbDesc {
+                hdr: PacketHdr {
+                    pkt_type: PacketType::DbDesc,
+                    router_id: ip4!("1.1.1.1"),
+                    area_id: ip4!("0.0.0.1"),
+                    instance_id: 0,
+                    auth_seqno: None,
+                },
+                options: Options::R | Options::E | Options::V6 | Options::L,
+                mtu: 1500,
+                dd_flags: DbDescFlags::I | DbDescFlags::M | DbDescFlags::MS,
+                dd_seq_no: 93968,
+                lsa_hdrs: vec![],
+                lls: Some(holo_ospf::packet::lls::LlsDbDescData {
+                    eof: Some(ExtendedOptionsFlags::LR),
+                }),
             }),
         )
     });
@@ -363,6 +628,70 @@ static DBDESCR2: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
                     },
                 ],
                 lls: None,
+            }),
+        )
+    });
+
+static DBDESCR2_LLS: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
+    Lazy::new(|| {
+        (
+            vec![
+                0x03, 0x02, 0x00, 0x58, 0x02, 0x02, 0x02, 0x02, 0x00, 0x00,
+                0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x13,
+                0x05, 0xdc, 0x00, 0x01, 0x00, 0x01, 0x6f, 0x11, 0x00, 0x04,
+                0x00, 0x08, 0x00, 0x00, 0x00, 0x03, 0x02, 0x02, 0x02, 0x02,
+                0x80, 0x00, 0x00, 0x01, 0x16, 0x3a, 0x00, 0x2c, 0x00, 0x04,
+                0x20, 0x01, 0x00, 0x00, 0x00, 0x00, 0x02, 0x02, 0x02, 0x02,
+                0x80, 0x00, 0x00, 0x01, 0xf4, 0x34, 0x00, 0x18, 0x00, 0x04,
+                0x20, 0x03, 0x00, 0x00, 0x00, 0x01, 0x02, 0x02, 0x02, 0x02,
+                0x80, 0x00, 0x00, 0x01, 0x97, 0x0b, 0x00, 0x2c, 0xff, 0xf6,
+                0x00, 0x03, 0x00, 0x01, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01,
+            ],
+            None,
+            Packet::DbDesc(DbDesc {
+                hdr: PacketHdr {
+                    pkt_type: PacketType::DbDesc,
+                    router_id: ip4!("2.2.2.2"),
+                    area_id: ip4!("0.0.0.1"),
+                    instance_id: 0,
+                    auth_seqno: None,
+                },
+                options: Options::R | Options::E | Options::V6 | Options::L,
+                mtu: 1500,
+                dd_flags: DbDescFlags::MS,
+                dd_seq_no: 93969,
+                lsa_hdrs: vec![
+                    LsaHdr {
+                        age: 4,
+                        lsa_type: LsaType(0x0008),
+                        lsa_id: ip4!("0.0.0.3"),
+                        adv_rtr: ip4!("2.2.2.2"),
+                        seq_no: 0x80000001,
+                        cksum: 0x163a,
+                        length: 44,
+                    },
+                    LsaHdr {
+                        age: 4,
+                        lsa_type: LsaType(0x2001),
+                        lsa_id: ip4!("0.0.0.0"),
+                        adv_rtr: ip4!("2.2.2.2"),
+                        seq_no: 0x80000001,
+                        cksum: 0xf434,
+                        length: 24,
+                    },
+                    LsaHdr {
+                        age: 4,
+                        lsa_type: LsaType(0x2003),
+                        lsa_id: ip4!("0.0.0.1"),
+                        adv_rtr: ip4!("2.2.2.2"),
+                        seq_no: 0x80000001,
+                        cksum: 0x970b,
+                        length: 44,
+                    },
+                ],
+                lls: Some(holo_ospf::packet::lls::LlsDbDescData {
+                    eof: Some(ExtendedOptionsFlags::LR),
+                }),
             }),
         )
     });
@@ -999,6 +1328,18 @@ fn test_decode_hello1() {
 }
 
 #[test]
+fn test_encode_hello1_lls() {
+    let (ref bytes, ref auth, ref hello) = *HELLO1_LLS;
+    test_encode_packet(bytes, auth, hello);
+}
+
+#[test]
+fn test_decode_hello1_lls() {
+    let (ref bytes, ref auth, ref hello) = *HELLO1_LLS;
+    test_decode_packet(bytes, auth, hello, AddressFamily::Ipv6);
+}
+
+#[test]
 fn test_encode_hello_hmac_sha1() {
     let (ref bytes, ref auth, ref hello) = *HELLO1_HMAC_SHA1;
     test_encode_packet(bytes, auth, hello);
@@ -1007,6 +1348,18 @@ fn test_encode_hello_hmac_sha1() {
 #[test]
 fn test_decode_hello_hmac_sha1() {
     let (ref bytes, ref auth, ref hello) = *HELLO1_HMAC_SHA1;
+    test_decode_packet(bytes, auth, hello, AddressFamily::Ipv6);
+}
+
+#[test]
+fn test_encode_hello_hmac_sha1_lls() {
+    let (ref bytes, ref auth, ref hello) = *HELLO1_HMAC_SHA1_LLS;
+    test_encode_packet(bytes, auth, hello);
+}
+
+#[test]
+fn test_decode_hello_hmac_sha1_lls() {
+    let (ref bytes, ref auth, ref hello) = *HELLO1_HMAC_SHA1_LLS;
     test_decode_packet(bytes, auth, hello, AddressFamily::Ipv6);
 }
 
@@ -1023,6 +1376,18 @@ fn test_decode_hello_hmac_sha256() {
 }
 
 #[test]
+fn test_encode_hello_hmac_sha256_lls() {
+    let (ref bytes, ref auth, ref hello) = *HELLO1_HMAC_SHA256_LLS;
+    test_encode_packet(bytes, auth, hello);
+}
+
+#[test]
+fn test_decode_hello_hmac_sha256_lls() {
+    let (ref bytes, ref auth, ref hello) = *HELLO1_HMAC_SHA256_LLS;
+    test_decode_packet(bytes, auth, hello, AddressFamily::Ipv6);
+}
+
+#[test]
 fn test_encode_hello_hmac_sha384() {
     let (ref bytes, ref auth, ref hello) = *HELLO1_HMAC_SHA384;
     test_encode_packet(bytes, auth, hello);
@@ -1031,6 +1396,18 @@ fn test_encode_hello_hmac_sha384() {
 #[test]
 fn test_decode_hello_hmac_sha384() {
     let (ref bytes, ref auth, ref hello) = *HELLO1_HMAC_SHA384;
+    test_decode_packet(bytes, auth, hello, AddressFamily::Ipv6);
+}
+
+#[test]
+fn test_encode_hello_hmac_sha384_lls() {
+    let (ref bytes, ref auth, ref hello) = *HELLO1_HMAC_SHA384_LLS;
+    test_encode_packet(bytes, auth, hello);
+}
+
+#[test]
+fn test_decode_hello_hmac_sha384_lls() {
+    let (ref bytes, ref auth, ref hello) = *HELLO1_HMAC_SHA384_LLS;
     test_decode_packet(bytes, auth, hello, AddressFamily::Ipv6);
 }
 
@@ -1047,6 +1424,18 @@ fn test_decode_hello_hmac_sha512() {
 }
 
 #[test]
+fn test_encode_hello_hmac_sha512_lls() {
+    let (ref bytes, ref auth, ref hello) = *HELLO1_HMAC_SHA512_LLS;
+    test_encode_packet(bytes, auth, hello);
+}
+
+#[test]
+fn test_decode_hello_hmac_sha512_lls() {
+    let (ref bytes, ref auth, ref hello) = *HELLO1_HMAC_SHA512_LLS;
+    test_decode_packet(bytes, auth, hello, AddressFamily::Ipv6);
+}
+
+#[test]
 fn test_encode_dbdescr1() {
     let (ref bytes, ref auth, ref dbdescr) = *DBDESCR1;
     test_encode_packet(bytes, auth, dbdescr);
@@ -1059,6 +1448,18 @@ fn test_decode_dbdescr1() {
 }
 
 #[test]
+fn test_encode_dbdescr1_lls() {
+    let (ref bytes, ref auth, ref dbdescr) = *DBDESCR1_LLS;
+    test_encode_packet(bytes, auth, dbdescr);
+}
+
+#[test]
+fn test_decode_dbdescr1_lls() {
+    let (ref bytes, ref auth, ref dbdescr) = *DBDESCR1_LLS;
+    test_decode_packet(bytes, auth, dbdescr, AddressFamily::Ipv6);
+}
+
+#[test]
 fn test_encode_dbdescr2() {
     let (ref bytes, ref auth, ref dbdescr) = *DBDESCR2;
     test_encode_packet(bytes, auth, dbdescr);
@@ -1067,6 +1468,18 @@ fn test_encode_dbdescr2() {
 #[test]
 fn test_decode_dbdescr2() {
     let (ref bytes, ref auth, ref dbdescr) = *DBDESCR2;
+    test_decode_packet(bytes, auth, dbdescr, AddressFamily::Ipv6);
+}
+
+#[test]
+fn test_encode_dbdescr2_lls() {
+    let (ref bytes, ref auth, ref dbdescr) = *DBDESCR2_LLS;
+    test_encode_packet(bytes, auth, dbdescr);
+}
+
+#[test]
+fn test_decode_dbdescr2_lls() {
+    let (ref bytes, ref auth, ref dbdescr) = *DBDESCR2_LLS;
     test_decode_packet(bytes, auth, dbdescr, AddressFamily::Ipv6);
 }
 

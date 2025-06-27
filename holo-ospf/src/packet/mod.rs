@@ -16,6 +16,7 @@ use std::net::Ipv4Addr;
 
 use bitflags::bitflags;
 use bytes::{Bytes, BytesMut};
+use error::DecodeError;
 use holo_utils::ip::AddressFamily;
 use holo_yang::ToYang;
 use lls::{LlsData, LlsDbDescData, LlsHelloData};
@@ -334,7 +335,16 @@ impl<V: Version> Packet<V> {
             hdr.set_auth_seqno(auth_seqno);
         }
 
-        let lls = V::decode_lls_block(&buf_orig, pkt_len, hdr_auth, auth)?;
+        // RFC 5613 Section 2.2 : "If the checksum is incorrect, the OSPF
+        // packet MUST be processed, but the LLS block MUST be discarded."
+        let lls = V::decode_lls_block(&buf_orig, pkt_len, hdr_auth, auth)
+            .or_else(|lls| {
+                if let DecodeError::InvalidChecksum = lls {
+                    Ok(None)
+                } else {
+                    Err(lls)
+                }
+            })?;
 
         // Decode the packet body.
         let packet = match hdr.pkt_type() {

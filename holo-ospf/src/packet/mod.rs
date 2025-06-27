@@ -150,6 +150,7 @@ where
         af: AddressFamily,
         hdr: V::PacketHdr,
         buf: &mut Bytes,
+        lls: Option<V::LlsDataBlock>,
     ) -> DecodeResult<Self>;
 
     // Encode OSPF packet into a bytes buffer.
@@ -324,27 +325,29 @@ impl<V: Version> Packet<V> {
 
         // Validate the packet authentication.
         if let Some(auth_seqno) =
-            V::decode_auth_validate(buf_orig.as_ref(), pkt_len, hdr_auth, auth)?
+            V::decode_auth_validate(&buf_orig, pkt_len, hdr_auth, auth)?
         {
             hdr.set_auth_seqno(auth_seqno);
         }
 
+        let lls = V::decode_lls_block(&buf_orig, pkt_len)?;
+
         // Decode the packet body.
         let packet = match hdr.pkt_type() {
             PacketType::Hello => {
-                Packet::Hello(V::PacketHello::decode(af, hdr, &mut buf)?)
+                Packet::Hello(V::PacketHello::decode(af, hdr, &mut buf, lls)?)
             }
             PacketType::DbDesc => {
-                Packet::DbDesc(V::PacketDbDesc::decode(af, hdr, &mut buf)?)
+                Packet::DbDesc(V::PacketDbDesc::decode(af, hdr, &mut buf, lls)?)
             }
             PacketType::LsRequest => Packet::LsRequest(
-                V::PacketLsRequest::decode(af, hdr, &mut buf)?,
+                V::PacketLsRequest::decode(af, hdr, &mut buf, None)?,
             ),
-            PacketType::LsUpdate => {
-                Packet::LsUpdate(V::PacketLsUpdate::decode(af, hdr, &mut buf)?)
-            }
+            PacketType::LsUpdate => Packet::LsUpdate(
+                V::PacketLsUpdate::decode(af, hdr, &mut buf, None)?,
+            ),
             PacketType::LsAck => {
-                Packet::LsAck(V::PacketLsAck::decode(af, hdr, &mut buf)?)
+                Packet::LsAck(V::PacketLsAck::decode(af, hdr, &mut buf, None)?)
             }
         };
 

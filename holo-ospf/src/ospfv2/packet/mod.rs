@@ -22,10 +22,11 @@ use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
 use crate::neighbor::NeighborNetId;
+use crate::ospfv2::packet::lls::LlsDataBlock;
 use crate::ospfv2::packet::lsa::{LsaHdr, LsaType};
 use crate::packet::auth::{AuthDecodeCtx, AuthEncodeCtx, AuthMethod};
 use crate::packet::error::{DecodeError, DecodeResult};
-use crate::packet::lls::{LlsData, LlsDbDescData, LlsHelloData, LlsVersion};
+use crate::packet::lls::{LlsData, LlsDbDescData, LlsHelloData};
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::packet::{
     DbDescFlags, DbDescVersion, HelloVersion, LsAckVersion, LsRequestVersion,
@@ -432,6 +433,7 @@ impl PacketBase<Ospfv2> for Hello {
         _af: AddressFamily,
         hdr: PacketHdr,
         buf: &mut Bytes,
+        lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
         if buf.remaining() < Self::BASE_LENGTH as usize {
             return Err(DecodeError::InvalidLength(buf.len() as u16));
@@ -454,13 +456,7 @@ impl PacketBase<Ospfv2> for Hello {
             neighbors.insert(nbr);
         }
 
-        let lls = options
-            .l_bit()
-            .then_some({
-                // TODO: skip authentication trailer
-                Ospfv2::decode_lls_block(buf)?
-            })
-            .and_then(|block| block.map(|block| block.into()));
+        let lls = lls.map(|block| block.into());
 
         Ok(Hello {
             hdr,
@@ -555,6 +551,7 @@ impl PacketBase<Ospfv2> for DbDesc {
         _af: AddressFamily,
         hdr: PacketHdr,
         buf: &mut Bytes,
+        lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
         if buf.remaining() < Self::BASE_LENGTH as usize {
             return Err(DecodeError::InvalidLength(buf.len() as u16));
@@ -573,13 +570,7 @@ impl PacketBase<Ospfv2> for DbDesc {
             lsa_hdrs.push(lsa_hdr);
         }
 
-        let lls = options
-            .l_bit()
-            .then_some({
-                // TODO: skip authentication trailer
-                Ospfv2::decode_lls_block(buf)?
-            })
-            .and_then(|block| block.map(|block| block.into()));
+        let lls = lls.map(|block| block.into());
 
         Ok(DbDesc {
             hdr,
@@ -672,6 +663,7 @@ impl PacketBase<Ospfv2> for LsRequest {
         _af: AddressFamily,
         hdr: PacketHdr,
         buf: &mut Bytes,
+        _lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
         // Parse list of LSA global IDs.
         let mut entries = vec![];
@@ -736,6 +728,7 @@ impl PacketBase<Ospfv2> for LsUpdate {
         af: AddressFamily,
         hdr: PacketHdr,
         buf: &mut Bytes,
+        _lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
         if buf.remaining() < Self::BASE_LENGTH as usize {
             return Err(DecodeError::InvalidLength(buf.len() as u16));
@@ -791,6 +784,7 @@ impl PacketBase<Ospfv2> for LsAck {
         _af: AddressFamily,
         hdr: PacketHdr,
         buf: &mut Bytes,
+        _lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
         // Parse list of LSA headers.
         let mut lsa_hdrs = vec![];
@@ -941,7 +935,7 @@ impl PacketVersion<Self> for Ospfv2 {
 // Retrieves the Options field from Hello and Database Description packets.
 //
 // Assumes the packet length has been validated beforehand.
-fn packet_options(data: &[u8]) -> Option<Options> {
+pub(crate) fn packet_options(data: &[u8]) -> Option<Options> {
     let pkt_type = PacketType::from_u8(data[1]).unwrap();
     match pkt_type {
         PacketType::Hello => {

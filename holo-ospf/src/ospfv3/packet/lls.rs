@@ -2,6 +2,8 @@ use bytes::{Buf, Bytes, BytesMut};
 use derive_new::new;
 use num_traits::FromPrimitive;
 
+use super::packet_options;
+use crate::packet::OptionsVersion;
 // use serde::{Deserialize, Serialize};
 use crate::packet::auth::AuthEncodeCtx;
 use crate::packet::error::{DecodeError, DecodeResult};
@@ -67,17 +69,25 @@ impl LlsVersion<Self> for Ospfv3 {
         lls_encode_end::<Ospfv3>(buf, start_pos, auth.is_some());
     }
 
-    fn decode_lls_block(buf: &mut Bytes) -> DecodeResult<Option<LlsDataBlock>> {
-        // Sanity check on buffer length.
-
-        let len = buf.remaining();
-        if len < LLS_HDR_SIZE as usize {
+    fn decode_lls_block(
+        buf: &[u8],
+        pkt_len: u16,
+    ) -> DecodeResult<Option<LlsDataBlock>> {
+        // Test the presence of the L-bit indicating a LLS data block.
+        if packet_options(buf).is_none_or(|options| !options.l_bit()) {
             return Ok(None);
+        }
+
+        let mut buf = Bytes::copy_from_slice(&buf[pkt_len as usize..]);
+
+        // Sanity check on buffer length.
+        if buf.remaining() < LLS_HDR_SIZE as usize {
+            return Err(DecodeError::InvalidLength(buf.len() as u16));
         }
 
         let mut lls_block = LlsDataBlock::new();
 
-        // Validate LLS block checksum
+        // TODO: Validate LLS block checksum
         // Self::verify_cksum(buf)?;
 
         let _cksum = buf.try_get_u16()?;
@@ -86,14 +96,15 @@ impl LlsVersion<Self> for Ospfv3 {
         // RFC 5613 Section 2.2: " The 16-bit LLS Data Length field contains
         // the length (in 32-bit words) of the LLS block including the header
         // and payload."
-        let block_len = lls_len * 4;
+        let block_len = ((lls_len * 4) - LLS_HDR_SIZE) as usize;
 
         // Validate LLS block length
-        if block_len as usize > buf.remaining() {
-            return Err(DecodeError::InvalidLength(block_len));
+        if block_len > buf.remaining() {
+            return Err(DecodeError::InvalidLength(block_len as u16));
         }
+        buf = buf.slice(0..block_len);
 
-        while buf.remaining() >= LLS_HDR_SIZE as usize {
+        while buf.remaining() > 0 {
             // Parse TLV type.
             let tlv_type = buf.try_get_u16()?;
             let tlv_etype = LlsTlvType::from_u16(tlv_type);

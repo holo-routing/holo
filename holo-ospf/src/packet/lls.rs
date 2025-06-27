@@ -13,7 +13,9 @@ use crate::version::Version;
 pub const LLS_HDR_SIZE: u16 = 4;
 
 pub trait LlsVersion<V: Version> {
-    type LlsDataBlock: From<LlsHelloData> + From<LlsDbDescData>;
+    type LlsDataBlock: From<LlsHelloData>
+        + From<LlsDbDescData>
+        + std::fmt::Debug;
 
     fn encode_lls_block(
         buf: &mut BytesMut,
@@ -22,7 +24,8 @@ pub trait LlsVersion<V: Version> {
     );
 
     fn decode_lls_block(
-        buf: &mut Bytes,
+        buf: &[u8],
+        pkt_len: u16,
     ) -> DecodeResult<Option<V::LlsDataBlock>>;
 
     const CKSUM_RANGE: std::ops::Range<usize> = 0..2;
@@ -158,7 +161,7 @@ pub(crate) fn lls_encode_end<V>(
 {
     // RFC 5613 : "The 16-bit LLS Data Length field contains the length (in
     // 32-bit words) of the LLS block including the header and payload."
-    let lls_len = (buf.len() - start_pos) as u16;
+    let lls_len = ((buf.len() - start_pos) / 4) as u16;
 
     // Rewrite LLS length.
     V::update_len(buf, start_pos, lls_len);

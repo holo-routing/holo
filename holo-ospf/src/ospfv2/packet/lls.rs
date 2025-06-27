@@ -5,6 +5,8 @@ use derive_new::new;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
+use crate::ospfv2::packet::packet_options;
+use crate::packet::OptionsVersion;
 use crate::packet::auth::{self, AuthEncodeCtx};
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::lls::{
@@ -15,93 +17,6 @@ use crate::packet::tlv::{
     UnknownTlv, tlv_encode_end, tlv_encode_start, tlv_wire_len,
 };
 use crate::version::Ospfv2;
-
-impl LlsVersion<Self> for Ospfv2 {
-    type LlsDataBlock = LlsDataBlock;
-
-    fn encode_lls_block(
-        buf: &mut BytesMut,
-        lls: LlsDataBlock,
-        auth: Option<&AuthEncodeCtx<'_>>,
-    ) {
-        let start_pos = lls_encode_start(buf);
-
-        if let Some(eof) = lls.eof {
-            eof.encode(buf);
-        }
-
-        // RFC 5613 : "The CA-TLV MUST NOT appear more than once in the LLS
-        // block.  Also, when present, this TLV MUST be the last TLV in the LLS
-        // block."
-        if let Some(auth) = auth {
-            let ca =
-                CryptoAuthTlv::new(auth.seqno.load(Ordering::Relaxed) as u32);
-            ca.encode(buf, start_pos, auth);
-        }
-        lls_encode_end::<Ospfv2>(buf, start_pos, auth.is_some());
-    }
-
-    fn decode_lls_block(buf: &mut Bytes) -> DecodeResult<Option<LlsDataBlock>> {
-        // Sanity check on buffer length.
-
-        let len = buf.remaining();
-        if len < LLS_HDR_SIZE as usize {
-            return Ok(None);
-        }
-
-        let mut lls_block = LlsDataBlock::new();
-
-        // Validate LLS block checksum
-        // Self::verify_cksum(buf)?;
-
-        let _cksum = buf.try_get_u16()?;
-        let lls_len = buf.try_get_u16()?;
-
-        // RFC 5613 Section 2.2: " The 16-bit LLS Data Length field contains
-        // the length (in 32-bit words) of the LLS block including the header
-        // and payload."
-        let block_len = lls_len * 4;
-
-        // Validate LLS block length
-        if block_len as usize > buf.remaining() {
-            return Err(DecodeError::InvalidLength(block_len));
-        }
-
-        while buf.remaining() >= LLS_HDR_SIZE as usize {
-            // Parse TLV type.
-            let tlv_type = buf.try_get_u16()?;
-            let tlv_etype = LlsTlvType::from_u16(tlv_type);
-
-            // Parse and validate TLV length.
-            let tlv_len = buf.try_get_u16()?;
-            let tlv_wlen = tlv_wire_len(tlv_len);
-            if tlv_wlen as usize > buf.remaining() {
-                return Err(DecodeError::InvalidTlvLength(tlv_len));
-            }
-
-            // Parse TLV value.
-            let mut buf_tlv = buf.copy_to_bytes(tlv_wlen as usize);
-            match tlv_etype {
-                Some(LlsTlvType::ExtendedOptionsFlags) => {
-                    let opts =
-                        ExtendedOptionsFlagsTlv::decode(tlv_len, &mut buf_tlv)?;
-                    lls_block.eof = Some(opts);
-                }
-                Some(LlsTlvType::CryptoAuth) => {
-                    let ca = CryptoAuthTlv::decode(tlv_len, &mut buf_tlv)?;
-                    lls_block.ca = Some(ca);
-                }
-                _ => {
-                    // Save unknown TLV.
-                    lls_block
-                        .unknown_tlvs
-                        .push(UnknownTlv::new(tlv_type, tlv_len, buf_tlv));
-                }
-            }
-        }
-        Ok(Some(lls_block))
-    }
-}
 
 #[derive(Clone, Debug, Eq, PartialEq, new)]
 pub struct LlsDataBlock {
@@ -196,5 +111,103 @@ impl CryptoAuthTlv {
             auth_data_len -= 4;
         }
         Ok(CryptoAuthTlv { seqno, auth_data })
+    }
+}
+
+impl LlsVersion<Self> for Ospfv2 {
+    type LlsDataBlock = LlsDataBlock;
+
+    fn encode_lls_block(
+        buf: &mut BytesMut,
+        lls: LlsDataBlock,
+        auth: Option<&AuthEncodeCtx<'_>>,
+    ) {
+        let start_pos = lls_encode_start(buf);
+
+        if let Some(eof) = lls.eof {
+            eof.encode(buf);
+        }
+
+        // RFC 5613 : "The CA-TLV MUST NOT appear more than once in the LLS
+        // block.  Also, when present, this TLV MUST be the last TLV in the LLS
+        // block."
+        if let Some(auth) = auth {
+            let ca =
+                CryptoAuthTlv::new(auth.seqno.load(Ordering::Relaxed) as u32);
+            ca.encode(buf, start_pos, auth);
+        }
+        lls_encode_end::<Ospfv2>(buf, start_pos, auth.is_some());
+    }
+
+    fn decode_lls_block(
+        buf: &[u8],
+        pkt_len: u16,
+    ) -> DecodeResult<Option<LlsDataBlock>> {
+        // Test the presence of the L-bit indicating a LLS data block.
+        if packet_options(buf).is_none_or(|options| !options.l_bit()) {
+            return Ok(None);
+        }
+
+        let mut buf = Bytes::copy_from_slice(&buf[pkt_len as usize..]);
+
+        // Sanity check on buffer length.
+        if buf.remaining() < LLS_HDR_SIZE as usize {
+            return Err(DecodeError::InvalidLength(buf.len() as u16));
+        }
+
+        // If authentication trailer is embedded, skip it.
+
+        let mut lls_block = LlsDataBlock::new();
+
+        // TODO: Validate LLS block checksum
+        // Self::verify_cksum(buf)?;
+
+        let _cksum = buf.try_get_u16()?;
+        let lls_len = buf.try_get_u16()?;
+
+        // RFC 5613 Section 2.2: " The 16-bit LLS Data Length field contains
+        // the length (in 32-bit words) of the LLS block including the header
+        // and payload."
+        let block_len = ((lls_len * 4) - LLS_HDR_SIZE) as usize;
+
+        // Validate LLS block length
+        if block_len > buf.remaining() {
+            return Err(DecodeError::InvalidLength(block_len as u16));
+        }
+        buf = buf.slice(0..block_len);
+
+        while buf.remaining() >= LLS_HDR_SIZE as usize {
+            // Parse TLV type.
+            let tlv_type = buf.try_get_u16()?;
+            let tlv_etype = LlsTlvType::from_u16(tlv_type);
+
+            // Parse and validate TLV length.
+            let tlv_len = buf.try_get_u16()?;
+            let tlv_wlen = tlv_wire_len(tlv_len);
+            if tlv_wlen as usize > buf.remaining() {
+                return Err(DecodeError::InvalidTlvLength(tlv_len));
+            }
+
+            // Parse TLV value.
+            let mut buf_tlv = buf.copy_to_bytes(tlv_wlen as usize);
+            match tlv_etype {
+                Some(LlsTlvType::ExtendedOptionsFlags) => {
+                    let opts =
+                        ExtendedOptionsFlagsTlv::decode(tlv_len, &mut buf_tlv)?;
+                    lls_block.eof = Some(opts);
+                }
+                Some(LlsTlvType::CryptoAuth) => {
+                    let ca = CryptoAuthTlv::decode(tlv_len, &mut buf_tlv)?;
+                    lls_block.ca = Some(ca);
+                }
+                _ => {
+                    // Save unknown TLV.
+                    lls_block
+                        .unknown_tlvs
+                        .push(UnknownTlv::new(tlv_type, tlv_len, buf_tlv));
+                }
+            }
+        }
+        Ok(Some(lls_block))
     }
 }

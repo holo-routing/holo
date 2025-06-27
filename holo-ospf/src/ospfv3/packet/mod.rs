@@ -16,6 +16,7 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::{BytesExt, BytesMutExt, TLS_BUF};
 use holo_utils::crypto::CryptoProtocolId;
 use holo_utils::ip::{AddressFamily, Ipv4AddrExt};
+use lls::LlsDataBlock;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
@@ -24,9 +25,7 @@ use crate::neighbor::NeighborNetId;
 use crate::ospfv3::packet::lsa::{LsaHdr, LsaType};
 use crate::packet::auth::{AuthDecodeCtx, AuthEncodeCtx, AuthMethod};
 use crate::packet::error::{DecodeError, DecodeResult};
-use crate::packet::lls::{
-    LLS_HDR_SIZE, LlsData, LlsDbDescData, LlsHelloData, LlsVersion,
-};
+use crate::packet::lls::{LLS_HDR_SIZE, LlsData, LlsDbDescData, LlsHelloData};
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::packet::{
     DbDescFlags, DbDescVersion, HelloVersion, LsAckVersion, LsRequestVersion,
@@ -401,6 +400,7 @@ impl PacketBase<Ospfv3> for Hello {
         _af: AddressFamily,
         hdr: PacketHdr,
         buf: &mut Bytes,
+        lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
         if buf.remaining() < Self::BASE_LENGTH as usize {
             return Err(DecodeError::InvalidLength(buf.len() as u16));
@@ -422,12 +422,7 @@ impl PacketBase<Ospfv3> for Hello {
             neighbors.insert(nbr);
         }
 
-        // Even if AT-bit is set, LLS data block is appended before the
-        // authentication trailer, so no need to skip it.
-        let lls = options
-            .l_bit()
-            .then_some(Ospfv3::decode_lls_block(buf)?)
-            .and_then(|block| block.map(|block| block.into()));
+        let lls = lls.map(|block| block.into());
 
         Ok(Hello {
             hdr,
@@ -522,6 +517,7 @@ impl PacketBase<Ospfv3> for DbDesc {
         _af: AddressFamily,
         hdr: PacketHdr,
         buf: &mut Bytes,
+        lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
         if buf.remaining() < Self::BASE_LENGTH as usize {
             return Err(DecodeError::InvalidLength(buf.len() as u16));
@@ -542,12 +538,7 @@ impl PacketBase<Ospfv3> for DbDesc {
             lsa_hdrs.push(lsa_hdr);
         }
 
-        // Even if AT-bit is set, LLS data block is appended before the
-        // authentication trailer, so no need to skip it.
-        let lls = options
-            .l_bit()
-            .then_some(Ospfv3::decode_lls_block(buf)?)
-            .and_then(|block| block.map(|block| block.into()));
+        let lls = lls.map(|block| block.into());
 
         Ok(DbDesc {
             hdr,
@@ -642,6 +633,7 @@ impl PacketBase<Ospfv3> for LsRequest {
         _af: AddressFamily,
         hdr: PacketHdr,
         buf: &mut Bytes,
+        _lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
         // Parse list of LSA global IDs.
         let mut entries = vec![];
@@ -708,6 +700,7 @@ impl PacketBase<Ospfv3> for LsUpdate {
         af: AddressFamily,
         hdr: PacketHdr,
         buf: &mut Bytes,
+        _lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
         if buf.remaining() < Self::BASE_LENGTH as usize {
             return Err(DecodeError::InvalidLength(buf.len() as u16));
@@ -763,6 +756,7 @@ impl PacketBase<Ospfv3> for LsAck {
         _af: AddressFamily,
         hdr: PacketHdr,
         buf: &mut Bytes,
+        _lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
         // Parse list of LSA headers.
         let mut lsa_hdrs = vec![];
@@ -848,27 +842,25 @@ impl PacketVersion<Self> for Ospfv3 {
         // Get data after the end of the OSPF packet.
         let mut buf = Bytes::copy_from_slice(&data[pkt_len as usize..]);
 
-        // RFC 7166 Section 2 : "The presence of the Link-Local Signaling (LLS)
-        // [RFC5613] block is determined by the L-bit setting in the OSPFv3
-        // Options field in OSPFv3 Hello and Database Description packets.  If
-        // present, the LLS data block is included along with the OSPFv3 packet
-        // in the Cryptographic Authentication computation."
-
         // Ignore optional LLS block (only present in Hello and Database
         // Description packets).
-        if let Some(options) = &options
-            && options.contains(Options::L)
+        let lls_block_len = if let Some(options) = &options
+            && options.l_bit()
         {
             if buf.remaining() < LLS_HDR_SIZE as usize {
                 return Err(DecodeError::InvalidLength(buf.len() as u16));
             }
             let _lls_cksum = buf.try_get_u16()?;
             let lls_block_len = buf.try_get_u16()?;
-            if buf.remaining() < (lls_block_len * 4 - LLS_HDR_SIZE) as usize {
+            let lls_block_len = (lls_block_len * 4 - LLS_HDR_SIZE) as usize;
+            if buf.remaining() < lls_block_len {
                 return Err(DecodeError::InvalidLength(buf.len() as u16));
             }
-            buf.advance(lls_block_len as usize);
-        }
+            buf.advance(lls_block_len);
+            lls_block_len + LLS_HDR_SIZE as usize
+        } else {
+            0
+        };
 
         // Decode authentication trailer fixed header.
         if buf.remaining() < AUTH_TRAILER_HDR_SIZE as usize {
@@ -908,10 +900,18 @@ impl PacketVersion<Self> for Ospfv3 {
             return Err(DecodeError::AuthLenError(auth_len));
         }
 
+        // RFC 7166 Section 2 : "The presence of the Link-Local Signaling (LLS)
+        // [RFC5613] block is determined by the L-bit setting in the OSPFv3
+        // Options field in OSPFv3 Hello and Database Description packets. If
+        // present, the LLS data block is included along with the OSPFv3 packet
+        // in the Cryptographic Authentication computation."
+
         // Compute message digest.
         let rcvd_digest = buf.slice(..auth_key.algo.digest_size() as usize);
         let digest = auth::message_digest(
-            &data[..pkt_len as usize + AUTH_TRAILER_HDR_SIZE as usize],
+            &data[..pkt_len as usize
+                + AUTH_TRAILER_HDR_SIZE as usize
+                + lls_block_len as usize],
             auth_key.algo,
             &auth_key.string,
             Some(CryptoProtocolId::Ospfv3),
@@ -975,7 +975,7 @@ impl PacketVersion<Self> for Ospfv3 {
 // Retrieves the Options field from Hello and Database Description packets.
 //
 // Assumes the packet length has been validated beforehand.
-fn packet_options(data: &[u8]) -> Option<Options> {
+pub(crate) fn packet_options(data: &[u8]) -> Option<Options> {
     let pkt_type = PacketType::from_u8(data[1]).unwrap();
     match pkt_type {
         PacketType::Hello => {

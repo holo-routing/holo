@@ -839,7 +839,7 @@ impl PacketVersion<Self> for Ospfv2 {
     fn decode_auth_validate(
         data: &[u8],
         pkt_len: u16,
-        hdr_auth: PacketHdrAuth,
+        hdr_auth: &PacketHdrAuth,
         auth: Option<AuthDecodeCtx<'_>>,
     ) -> DecodeResult<Option<u64>> {
         // Discard the packet if its authentication type doesn't match the
@@ -864,26 +864,28 @@ impl PacketVersion<Self> for Ospfv2 {
                 let auth_key = match auth.method {
                     AuthMethod::ManualKey(key) => {
                         // Check if the Key ID matches.
-                        if key.id != key_id as u64 {
+                        if key.id != *key_id as u64 {
                             return Err(DecodeError::AuthKeyIdNotFound(
-                                key_id as u32,
+                                *key_id as u32,
                             ));
                         }
                         key
                     }
-                    AuthMethod::Keychain(keychain) => keychain
-                        .key_lookup_accept(key_id as u64)
-                        .ok_or(DecodeError::AuthKeyIdNotFound(key_id as u32))?,
+                    AuthMethod::Keychain(keychain) => {
+                        keychain.key_lookup_accept(*key_id as u64).ok_or(
+                            DecodeError::AuthKeyIdNotFound(*key_id as u32),
+                        )?
+                    }
                 };
 
                 // Sanity check.
-                if auth_key.algo.digest_size() != auth_len {
-                    return Err(DecodeError::AuthLenError(auth_len as u16));
+                if auth_key.algo.digest_size() != *auth_len {
+                    return Err(DecodeError::AuthLenError(*auth_len as u16));
                 }
 
                 // Get the authentication trailer.
                 let auth_trailer = &data
-                    [pkt_len as usize..pkt_len as usize + auth_len as usize];
+                    [pkt_len as usize..pkt_len as usize + *auth_len as usize];
 
                 // Compute message digest.
                 let data = &data[..pkt_len as usize];
@@ -901,7 +903,7 @@ impl PacketVersion<Self> for Ospfv2 {
                 }
 
                 // Authentication succeeded.
-                Ok(Some(seqno.into()))
+                Ok(Some((*seqno).into()))
             }
         }
     }
@@ -939,11 +941,11 @@ pub(crate) fn packet_options(data: &[u8]) -> Option<Options> {
     let pkt_type = PacketType::from_u8(data[1]).unwrap();
     match pkt_type {
         PacketType::Hello => {
-            let options = &data[PacketHdr::LENGTH as usize + 7..];
+            let options = &data[PacketHdr::LENGTH as usize + 6..];
             Some(Options::from_bits_truncate(options[0]))
         }
         PacketType::DbDesc => {
-            let options = &data[PacketHdr::LENGTH as usize + 3..];
+            let options = &data[PacketHdr::LENGTH as usize + 2..];
             Some(Options::from_bits_truncate(options[0]))
         }
         PacketType::LsRequest | PacketType::LsUpdate | PacketType::LsAck => {

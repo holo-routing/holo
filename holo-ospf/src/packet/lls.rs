@@ -7,6 +7,7 @@ use serde::{self, Deserialize, Serialize};
 use super::auth::AuthEncodeCtx;
 use super::error::{DecodeError, DecodeResult};
 use super::tlv::{tlv_encode_end, tlv_encode_start};
+use crate::packet::AuthDecodeCtx;
 use crate::version::Version;
 
 // LLS header size.
@@ -26,6 +27,8 @@ pub trait LlsVersion<V: Version> {
     fn decode_lls_block(
         buf: &[u8],
         pkt_len: u16,
+        hdr_auth: V::PacketHdrAuth,
+        auth: Option<AuthDecodeCtx<'_>>,
     ) -> DecodeResult<Option<V::LlsDataBlock>>;
 
     const CKSUM_RANGE: std::ops::Range<usize> = 0..2;
@@ -39,7 +42,7 @@ pub trait LlsVersion<V: Version> {
 
     fn update_cksum(buf: &mut BytesMut, start_pos: usize) {
         let mut cksum = Checksum::new();
-        cksum.add_bytes(buf);
+        cksum.add_bytes(&buf[start_pos..]);
         buf[start_pos + Self::CKSUM_RANGE.start
             ..start_pos + Self::CKSUM_RANGE.end]
             .copy_from_slice(&cksum.checksum());

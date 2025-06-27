@@ -85,7 +85,7 @@ pub trait PacketVersion<V: Version> {
     fn decode_auth_validate(
         data: &[u8],
         pkt_len: u16,
-        hdr_auth: V::PacketHdrAuth,
+        hdr_auth: &V::PacketHdrAuth,
         auth: Option<AuthDecodeCtx<'_>>,
     ) -> DecodeResult<Option<u64>>;
 
@@ -324,13 +324,17 @@ impl<V: Version> Packet<V> {
         let _span_guard = span.enter();
 
         // Validate the packet authentication.
-        if let Some(auth_seqno) =
-            V::decode_auth_validate(&buf_orig, pkt_len, hdr_auth, auth)?
-        {
+        if let Some(auth_seqno) = V::decode_auth_validate(
+            &buf_orig,
+            pkt_len,
+            &hdr_auth,
+            // TODO : Pass a reference rather than a clone
+            auth.clone(),
+        )? {
             hdr.set_auth_seqno(auth_seqno);
         }
 
-        let lls = V::decode_lls_block(&buf_orig, pkt_len)?;
+        let lls = V::decode_lls_block(&buf_orig, pkt_len, hdr_auth, auth)?;
 
         // Decode the packet body.
         let packet = match hdr.pkt_type() {

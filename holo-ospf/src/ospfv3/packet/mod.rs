@@ -811,7 +811,7 @@ impl PacketVersion<Self> for Ospfv3 {
     fn decode_auth_validate(
         data: &[u8],
         pkt_len: u16,
-        _hdr_auth: PacketHdrAuth,
+        _hdr_auth: &PacketHdrAuth,
         auth: Option<AuthDecodeCtx<'_>>,
     ) -> DecodeResult<Option<u64>> {
         let options = packet_options(data);

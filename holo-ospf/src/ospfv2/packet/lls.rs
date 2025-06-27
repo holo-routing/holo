@@ -5,9 +5,10 @@ use derive_new::new;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
+use super::PacketHdrAuth;
 use crate::ospfv2::packet::packet_options;
 use crate::packet::OptionsVersion;
-use crate::packet::auth::{self, AuthEncodeCtx};
+use crate::packet::auth::{self, AuthDecodeCtx, AuthEncodeCtx, AuthMethod};
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::lls::{
     ExtendedOptionsFlagsTlv, LLS_HDR_SIZE, LlsDbDescData, LlsHelloData,
@@ -76,7 +77,7 @@ impl From<LlsDataBlock> for LlsDbDescData {
 pub struct CryptoAuthTlv {
     pub seqno: u32,
     #[new(default)]
-    pub auth_data: Vec<u32>,
+    pub auth_data: Bytes,
 }
 
 impl CryptoAuthTlv {
@@ -104,12 +105,9 @@ impl CryptoAuthTlv {
             return Err(DecodeError::InvalidTlvLength(tlv_len));
         }
         let seqno = buf.try_get_u32()?;
-        let mut auth_data_len = tlv_len - 4;
-        let mut auth_data = Vec::new();
-        while auth_data_len > 0 {
-            auth_data.push(buf.try_get_u32()?);
-            auth_data_len -= 4;
-        }
+        let auth_data_len = tlv_len - 4;
+        let auth_data = buf.slice(..auth_data_len as usize);
+
         Ok(CryptoAuthTlv { seqno, auth_data })
     }
 }
@@ -132,23 +130,26 @@ impl LlsVersion<Self> for Ospfv2 {
         // block.  Also, when present, this TLV MUST be the last TLV in the LLS
         // block."
         if let Some(auth) = auth {
-            let ca =
-                CryptoAuthTlv::new(auth.seqno.load(Ordering::Relaxed) as u32);
+            let ca = CryptoAuthTlv::new(
+                (auth.seqno.load(Ordering::Relaxed) as u32) - 1,
+            );
             ca.encode(buf, start_pos, auth);
         }
         lls_encode_end::<Ospfv2>(buf, start_pos, auth.is_some());
     }
 
     fn decode_lls_block(
-        buf: &[u8],
+        data: &[u8],
         pkt_len: u16,
+        hdr_auth: PacketHdrAuth,
+        auth: Option<AuthDecodeCtx<'_>>,
     ) -> DecodeResult<Option<LlsDataBlock>> {
         // Test the presence of the L-bit indicating a LLS data block.
-        if packet_options(buf).is_none_or(|options| !options.l_bit()) {
+        if packet_options(data).is_none_or(|options| !options.l_bit()) {
             return Ok(None);
         }
 
-        let mut buf = Bytes::copy_from_slice(&buf[pkt_len as usize..]);
+        let mut buf = Bytes::copy_from_slice(&data[pkt_len as usize..]);
 
         // Sanity check on buffer length.
         if buf.remaining() < LLS_HDR_SIZE as usize {
@@ -156,11 +157,18 @@ impl LlsVersion<Self> for Ospfv2 {
         }
 
         // If authentication trailer is embedded, skip it.
+        // The authentication digest has already been verified earlier, so no
+        // need for a double check here.
+        if let PacketHdrAuth::Cryptographic { auth_len, .. } = hdr_auth {
+            buf.advance(auth_len as usize);
+        } else {
+            // Validate LLS block checksum when authentication is disabled.
+            Self::verify_cksum(&buf)?;
+        };
+
+        let mut data = buf.clone();
 
         let mut lls_block = LlsDataBlock::new();
-
-        // TODO: Validate LLS block checksum
-        // Self::verify_cksum(buf)?;
 
         let _cksum = buf.try_get_u16()?;
         let lls_len = buf.try_get_u16()?;
@@ -175,6 +183,7 @@ impl LlsVersion<Self> for Ospfv2 {
             return Err(DecodeError::InvalidLength(block_len as u16));
         }
         buf = buf.slice(0..block_len);
+        data = data.slice(0..block_len + LLS_HDR_SIZE as usize);
 
         while buf.remaining() >= LLS_HDR_SIZE as usize {
             // Parse TLV type.
@@ -198,7 +207,82 @@ impl LlsVersion<Self> for Ospfv2 {
                 }
                 Some(LlsTlvType::CryptoAuth) => {
                     let ca = CryptoAuthTlv::decode(tlv_len, &mut buf_tlv)?;
-                    lls_block.ca = Some(ca);
+
+                    if let PacketHdrAuth::Cryptographic {
+                        key_id,
+                        auth_len,
+                        seqno,
+                    } = hdr_auth
+                    {
+                        // RFC 5613 Section 2.5 : "The Sequence Number field
+                        // contains the cryptographic sequence number
+                        // that is used to prevent simple replay attacks.  For the
+                        // LLS block to be considered authentic, the Sequence Number
+                        // in the CA-TLV MUST match the Sequence Number in the
+                        // OSPFv2 packet header Authentication field (which MUST be
+                        // present)."
+                        if seqno != ca.seqno {
+                            return Err(DecodeError::AuthError);
+                        }
+
+                        // Get authentication key.
+                        let auth = auth.as_ref().unwrap();
+                        let auth_key = match auth.method {
+                            AuthMethod::ManualKey(key) => {
+                                // Check if the Key ID matches.
+                                if key.id != key_id as u64 {
+                                    return Err(
+                                        DecodeError::AuthKeyIdNotFound(
+                                            key_id as u32,
+                                        ),
+                                    );
+                                }
+                                key
+                            }
+                            AuthMethod::Keychain(keychain) => keychain
+                                .key_lookup_accept(key_id as u64)
+                                .ok_or(DecodeError::AuthKeyIdNotFound(
+                                    key_id as u32,
+                                ))?,
+                        };
+
+                        // Sanity check.
+                        if auth_key.algo.digest_size() != auth_len {
+                            return Err(DecodeError::AuthLenError(
+                                auth_len as u16,
+                            ));
+                        }
+
+                        // Skip the CA TLV digest
+                        let mut digest_data = BytesMut::from(
+                            &data[..data.len() - ca.auth_data.len()],
+                        );
+
+                        // Remove LLS block length at its unknown upon digest
+                        // encoding.
+                        digest_data[3] = 0;
+
+                        // Remove LLS CA TLV length at its unknown upon digest
+                        // encoding. Per RFC 5613, CA TLV MUST be the last in
+                        // the LLS data block.
+                        let offset = digest_data.len() - 5;
+                        digest_data[offset] = 0;
+
+                        let digest = auth::message_digest(
+                            &digest_data,
+                            auth_key.algo,
+                            &auth_key.string,
+                            None,
+                            None,
+                        );
+
+                        // Check if the received message digest is valid.
+                        if ca.auth_data != digest {
+                            return Err(DecodeError::AuthError);
+                        }
+
+                        lls_block.ca = Some(ca);
+                    }
                 }
                 _ => {
                     // Save unknown TLV.

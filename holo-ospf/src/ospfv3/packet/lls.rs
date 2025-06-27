@@ -2,10 +2,10 @@ use bytes::{Buf, Bytes, BytesMut};
 use derive_new::new;
 use num_traits::FromPrimitive;
 
-use super::packet_options;
+use super::{PacketHdrAuth, packet_options};
+use crate::ospfv3::packet::Options;
 use crate::packet::OptionsVersion;
-// use serde::{Deserialize, Serialize};
-use crate::packet::auth::AuthEncodeCtx;
+use crate::packet::auth::{AuthDecodeCtx, AuthEncodeCtx};
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::lls::{
     ExtendedOptionsFlagsTlv, LLS_HDR_SIZE, LlsDbDescData, LlsHelloData,
@@ -72,9 +72,12 @@ impl LlsVersion<Self> for Ospfv3 {
     fn decode_lls_block(
         buf: &[u8],
         pkt_len: u16,
+        _hdr_auth: PacketHdrAuth,
+        _auth: Option<AuthDecodeCtx<'_>>,
     ) -> DecodeResult<Option<LlsDataBlock>> {
         // Test the presence of the L-bit indicating a LLS data block.
-        if packet_options(buf).is_none_or(|options| !options.l_bit()) {
+        let options = packet_options(buf);
+        if options.is_none_or(|options| !options.l_bit()) {
             return Ok(None);
         }
 
@@ -85,10 +88,14 @@ impl LlsVersion<Self> for Ospfv3 {
             return Err(DecodeError::InvalidLength(buf.len() as u16));
         }
 
-        let mut lls_block = LlsDataBlock::new();
+        // Validate LLS block checksum when authentication is disabled.
+        if let Some(options) = options
+            && !options.contains(Options::AT)
+        {
+            Self::verify_cksum(&buf)?;
+        }
 
-        // TODO: Validate LLS block checksum
-        // Self::verify_cksum(buf)?;
+        let mut lls_block = LlsDataBlock::new();
 
         let _cksum = buf.try_get_u16()?;
         let lls_len = buf.try_get_u16()?;

@@ -13,11 +13,11 @@ use std::time::Instant;
 use bitflags::bitflags;
 use chrono::Utc;
 use derive_new::new;
-use holo_utils::UnboundedSender;
 use holo_utils::bier::BierCfgEvent;
 use holo_utils::sr::SrCfgEvent;
 use holo_utils::task::TimeoutTask;
 use serde::{Deserialize, Serialize};
+use tokio::sync::mpsc::UnboundedSender;
 
 use crate::area::{Area, AreaType};
 use crate::collections::{

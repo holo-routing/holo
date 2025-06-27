@@ -11,7 +11,6 @@ use std::sync::atomic::AtomicU64;
 
 use chrono::{DateTime, Utc};
 use holo_protocol::InstanceChannelsTx;
-use holo_utils::UnboundedSender;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
 use holo_utils::keychain::{Key, Keychains};
 use holo_utils::socket::{AsyncFd, Socket};
@@ -21,6 +20,7 @@ use ipnetwork::{Ipv4Network, Ipv6Network};
 use ism::{Event, State};
 use smallvec::smallvec;
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::UnboundedSender;
 
 use crate::area::Area;
 use crate::collections::{Arena, InterfaceId, Lsdb, NeighborIndex, Neighbors};

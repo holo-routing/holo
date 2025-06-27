@@ -18,8 +18,8 @@ use holo_protocol::{
 use holo_utils::ibus::IbusMsg;
 use holo_utils::protocol::Protocol;
 use holo_utils::task::{IntervalTask, TimeoutTask};
-use holo_utils::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 
 use crate::debug::{Debug, InstanceInactiveReason, InterfaceInactiveReason};
 use crate::error::Error;

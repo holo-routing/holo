@@ -18,8 +18,8 @@ use holo_utils::policy::PolicyType;
 use holo_utils::protocol::Protocol;
 use holo_utils::socket::TcpListener;
 use holo_utils::task::{Task, TimeoutTask};
-use holo_utils::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 
 use crate::af::{Ipv4Unicast, Ipv6Unicast};
 use crate::debug::{Debug, InstanceInactiveReason};

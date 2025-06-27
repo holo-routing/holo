@@ -13,7 +13,7 @@ use holo_utils::socket::{
     OwnedReadHalf, OwnedWriteHalf, TcpListener, UdpSocket,
 };
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
-use holo_utils::{Sender, UnboundedReceiver};
+use tokio::sync::mpsc::{Sender, UnboundedReceiver};
 use tokio::time::sleep;
 use tracing::{Instrument, debug_span};
 

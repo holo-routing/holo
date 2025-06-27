@@ -11,13 +11,13 @@ use std::sync::atomic::AtomicU32;
 use chrono::{DateTime, Utc};
 use generational_arena::{Arena, Index};
 use holo_protocol::InstanceChannelsTx;
-use holo_utils::UnboundedSender;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::{IpNetworkKind, SocketAddrKind};
 use holo_utils::socket::UdpSocket;
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::task::Task;
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::UnboundedSender;
 
 use crate::debug::{Debug, InterfaceInactiveReason};
 use crate::error::{Error, IoError};

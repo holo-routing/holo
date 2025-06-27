@@ -11,7 +11,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
+use crate::bfd;
 use crate::bier::{BierCfg, BierCfgEvent};
 use crate::ip::AddressFamily;
 use crate::keychain::Keychain;
@@ -22,7 +24,6 @@ use crate::southbound::{
     LabelInstallMsg, LabelUninstallMsg, RouteKeyMsg, RouteMsg,
 };
 use crate::sr::{SrCfg, SrCfgEvent};
-use crate::{UnboundedReceiver, UnboundedSender, bfd};
 
 // Useful type definition(s).
 pub type IbusReceiver = UnboundedReceiver<IbusMsg>;

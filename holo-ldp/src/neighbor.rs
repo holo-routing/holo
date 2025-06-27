@@ -16,9 +16,9 @@ use holo_utils::ip::AddressFamily;
 use holo_utils::mpls::Label;
 use holo_utils::socket::{TcpConnInfo, TcpStream};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
-use holo_utils::{Sender, UnboundedSender};
 use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::{Sender, UnboundedSender};
 
 use crate::collections::{NeighborId, NeighborIndex};
 use crate::debug::Debug;

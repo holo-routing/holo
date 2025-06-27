@@ -14,13 +14,13 @@ use derive_new::new;
 use generational_arena::{Arena, Index};
 use holo_northbound::yang::control_plane_protocol::bfd;
 use holo_protocol::InstanceChannelsTx;
-use holo_utils::Sender;
 use holo_utils::bfd::{ClientCfg, ClientId, SessionKey, State};
 use holo_utils::ibus::{IbusMsg, IbusSender};
 use holo_utils::ip::{IpAddrExt, IpAddrKind};
 use holo_utils::socket::{TTL_MAX, UdpSocket};
 use holo_utils::task::{IntervalTask, TimeoutTask};
 use rand::RngCore;
+use tokio::sync::mpsc::Sender;
 
 use crate::debug::Debug;
 use crate::error::{Error, IoError};

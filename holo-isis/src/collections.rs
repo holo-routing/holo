@@ -10,8 +10,8 @@
 use std::collections::{BTreeMap, HashMap};
 
 use generational_arena::Index;
-use holo_utils::UnboundedSender;
 use serde::{Deserialize, Serialize};
+use tokio::sync::mpsc::UnboundedSender;
 
 use crate::adjacency::Adjacency;
 use crate::error::Error;

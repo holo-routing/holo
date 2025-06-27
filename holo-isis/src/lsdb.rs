@@ -14,7 +14,6 @@ use std::time::Instant;
 
 use bitflags::bitflags;
 use derive_new::new;
-use holo_utils::UnboundedSender;
 use holo_utils::bier::{
     BierEncapId, BierEncapsulationType, BierInBiftId, BiftId,
     UnderlayProtocolType,
@@ -24,6 +23,7 @@ use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid, SidLastHopBehavior, SrCfgPrefixSid};
 use holo_utils::task::TimeoutTask;
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
+use tokio::sync::mpsc::UnboundedSender;
 
 use crate::adjacency::{Adjacency, AdjacencyState};
 use crate::collections::{Arena, LspEntryId};

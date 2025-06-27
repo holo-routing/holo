@@ -14,10 +14,10 @@ use arc_swap::ArcSwap;
 use bytes::Bytes;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
 use holo_utils::socket::{AsyncFd, Socket};
-use holo_utils::{Sender, UnboundedReceiver};
 use nix::sys::socket::{self, SockaddrLike};
 use serde::Serialize;
 use tokio::sync::mpsc::error::SendError;
+use tokio::sync::mpsc::{Sender, UnboundedReceiver};
 
 use crate::collections::{AreaId, InterfaceId};
 use crate::debug::Debug;

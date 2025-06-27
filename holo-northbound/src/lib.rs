@@ -20,8 +20,8 @@ pub mod state;
 pub mod yang;
 
 use derive_new::new;
-use holo_utils::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 use serde::{Deserialize, Serialize};
+use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 use tracing::Span;
 use yang3::schema::{DataValueType, SchemaNode, SchemaNodeKind};
 

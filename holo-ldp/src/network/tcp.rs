@@ -9,15 +9,16 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 
+use holo_utils::capabilities;
 use holo_utils::socket::{
     OwnedReadHalf, OwnedWriteHalf, SocketExt, TTL_MAX, TcpConnInfo,
     TcpListener, TcpSocket, TcpSocketExt, TcpStream, TcpStreamExt,
 };
 use holo_utils::task::TimeoutTask;
-use holo_utils::{Sender, UnboundedReceiver, capabilities};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::error::SendError;
+use tokio::sync::mpsc::{Sender, UnboundedReceiver};
 
 use crate::collections::NeighborId;
 use crate::error::{Error, IoError};

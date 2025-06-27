@@ -6,9 +6,9 @@
 
 use std::time::SystemTime;
 
-use holo_utils::Sender;
 use holo_yang::YANG_CTX;
 use itertools::join;
+use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::transport::{Server, ServerTlsConfig};

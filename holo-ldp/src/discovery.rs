@@ -10,9 +10,9 @@ use std::sync::atomic::AtomicU32;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use holo_utils::Sender;
 use holo_utils::socket::UdpSocket;
 use holo_utils::task::{IntervalTask, TimeoutTask};
+use tokio::sync::mpsc::Sender;
 
 use crate::collections::{
     AdjacencyId, AdjacencyIndex, Interfaces, Neighbors, TargetedNbrIndex,

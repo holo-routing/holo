@@ -11,8 +11,8 @@ use std::time::{Duration, Instant};
 use holo_utils::ip::AddressFamily;
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
-use holo_utils::{Sender, UnboundedReceiver, UnboundedSender};
 use smallvec::SmallVec;
+use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
 use tracing::{Instrument, debug_span};
 
 use crate::area::Area;

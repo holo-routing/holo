@@ -14,7 +14,6 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use enum_as_inner::EnumAsInner;
-use holo_utils::UnboundedSender;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::southbound::InterfaceFlags;
@@ -22,6 +21,7 @@ use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::UnboundedSender;
 
 use crate::debug::Debug;
 use crate::error::{Error, IoError};

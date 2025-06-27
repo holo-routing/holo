@@ -18,17 +18,18 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, LazyLock as Lazy, atomic};
 
 use bytes::{BufMut, Bytes};
+use holo_utils::capabilities;
 use holo_utils::ip::AddressFamily;
 use holo_utils::socket::{
     AsyncFd, LinkAddrExt, RawSocketExt, Socket, SocketExt,
 };
-use holo_utils::{Sender, UnboundedReceiver, capabilities};
 use internet_checksum::Checksum;
 use ipnetwork::IpNetwork;
 use libc::ETH_P_ARP;
 use nix::sys::socket::{self, LinkAddr, SockaddrIn, SockaddrIn6};
 use socket2::{Domain, Protocol, Type};
 use tokio::sync::mpsc::error::SendError;
+use tokio::sync::mpsc::{Sender, UnboundedReceiver};
 
 use crate::debug::Debug;
 use crate::error::IoError;

@@ -18,9 +18,9 @@ use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::InterfaceFlags;
-use holo_utils::{Receiver, Sender};
 use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::debug::Debug;
 use crate::error::Error;

@@ -8,14 +8,15 @@ use std::collections::BTreeSet;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 
+use holo_utils::capabilities;
 use holo_utils::ip::{AddressFamily, IpAddrExt, IpAddrKind};
 use holo_utils::socket::{
     OwnedReadHalf, OwnedWriteHalf, SocketExt, TTL_MAX, TcpConnInfo,
     TcpListener, TcpSocket, TcpSocketExt, TcpStream, TcpStreamExt,
 };
-use holo_utils::{Sender, UnboundedReceiver, capabilities};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::mpsc::error::SendError;
+use tokio::sync::mpsc::{Sender, UnboundedReceiver};
 
 use crate::error::{Error, IoError, NbrRxError};
 use crate::packet::message::{DecodeCxt, EncodeCxt, Message};

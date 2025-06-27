@@ -17,9 +17,9 @@ use holo_utils::bgp::{AfiSafi, RouteType, WellKnownCommunities};
 use holo_utils::ibus::IbusChannelsTx;
 use holo_utils::socket::{TTL_MAX, TcpConnInfo, TcpStream};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
-use holo_utils::{Sender, UnboundedSender};
 use num_traits::{FromPrimitive, ToPrimitive};
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::{Sender, UnboundedSender};
 
 use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
 use crate::debug::Debug;

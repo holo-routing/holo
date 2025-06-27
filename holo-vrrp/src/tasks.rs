@@ -15,9 +15,9 @@ use std::time::Duration;
 use holo_utils::ip::AddressFamily;
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
-use holo_utils::{Sender, UnboundedReceiver, UnboundedSender};
 use messages::input::MasterDownTimerMsg;
 use messages::output::NetTxPacketMsg;
+use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
 use tracing::{Instrument, debug_span};
 
 use crate::instance::Instance;

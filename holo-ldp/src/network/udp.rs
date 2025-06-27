@@ -8,9 +8,10 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
 use std::sync::{Arc, LazyLock as Lazy};
 
+use holo_utils::capabilities;
 use holo_utils::ip::{AddressFamily, IpAddrExt};
 use holo_utils::socket::{SocketExt, UdpSocket, UdpSocketExt};
-use holo_utils::{Sender, capabilities};
+use tokio::sync::mpsc::Sender;
 use tokio::sync::mpsc::error::SendError;
 
 use crate::error::{Error, IoError};

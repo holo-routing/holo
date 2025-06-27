@@ -14,13 +14,14 @@ use std::sync::Arc;
 
 use arc_swap::ArcSwap;
 use bytes::Bytes;
+use holo_utils::capabilities;
 use holo_utils::keychain::Key;
 use holo_utils::socket::{AsyncFd, LinkAddrExt, Socket};
-use holo_utils::{Sender, UnboundedReceiver, capabilities};
 use nix::sys::socket;
 use nix::sys::socket::LinkAddr;
 use serde::Serialize;
 use tokio::sync::mpsc::error::SendError;
+use tokio::sync::mpsc::{Sender, UnboundedReceiver};
 
 use crate::collections::InterfaceId;
 use crate::debug::Debug;

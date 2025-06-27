@@ -16,6 +16,7 @@ use holo_northbound as northbound;
 use holo_northbound::{
     NbDaemonReceiver, NbDaemonSender, NbProviderSender, process_northbound_msg,
 };
+use holo_utils::Database;
 use holo_utils::bier::BierCfg;
 use holo_utils::ibus::{IbusChannelsTx, IbusMsg, IbusReceiver, IbusSender};
 use holo_utils::keychain::Keychains;
@@ -24,10 +25,10 @@ use holo_utils::policy::{MatchSets, Policies};
 use holo_utils::protocol::Protocol;
 use holo_utils::sr::SrCfg;
 use holo_utils::task::Task;
-use holo_utils::{Database, Receiver, Sender};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::{Receiver, Sender};
 use tracing::Instrument;
 
 use crate::event_recorder::EventRecorder;

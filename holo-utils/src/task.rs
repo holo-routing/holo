@@ -10,11 +10,10 @@ use std::time::Duration;
 
 use derive_new::new;
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::UnboundedSender;
 use tokio::time::Instant;
 use tokio::{task, time};
 use tracing::{Instrument, error};
-
-use crate::UnboundedSender;
 
 /// A handle which can be used to manipulate the task created by the
 /// [`Task::spawn`] and [`Task::spawn_blocking`] functions.

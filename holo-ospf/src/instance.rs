@@ -19,8 +19,8 @@ use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
 use holo_utils::protocol::Protocol;
 use holo_utils::task::TimeoutTask;
-use holo_utils::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 
 use crate::collections::{
     AreaId, Areas, Arena, InterfaceId, LsaEntryId, Lsdb, LsdbId, NeighborId,

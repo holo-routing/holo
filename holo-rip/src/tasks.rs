@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use holo_utils::socket::UdpSocket;
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
-use holo_utils::{Sender, UnboundedReceiver};
+use tokio::sync::mpsc::{Sender, UnboundedReceiver};
 use tracing::{Instrument, debug_span};
 
 use crate::network;

@@ -11,8 +11,10 @@ use std::collections::BTreeMap;
 use std::sync::LazyLock as Lazy;
 
 use derive_new::new;
+use holo_utils::ibus;
 use holo_utils::protocol::Protocol;
-use holo_utils::{Responder, Sender, ibus};
+use tokio::sync::mpsc::Sender;
+use tokio::sync::oneshot::Sender as Responder;
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug_span, info};
 

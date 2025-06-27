@@ -9,9 +9,9 @@ use std::sync::Arc;
 
 use holo_utils::ip::{IpAddrKind, SocketAddrKind};
 use holo_utils::socket::UdpSocket;
-use holo_utils::{Sender, UnboundedReceiver};
 use serde::Serialize;
 use tokio::sync::mpsc::error::SendError;
+use tokio::sync::mpsc::{Sender, UnboundedReceiver};
 
 use crate::error::{Error, IoError};
 use crate::packet::{AuthCtx, PduVersion};

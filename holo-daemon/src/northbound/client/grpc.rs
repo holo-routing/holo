@@ -10,8 +10,8 @@ use std::pin::Pin;
 use std::time::SystemTime;
 
 use futures::Stream;
-use holo_utils::Sender;
 use holo_yang::{YANG_CTX, YANG_FEATURES};
+use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 use tonic::transport::{Server, ServerTlsConfig};
 use tonic::{Request, Response, Status};

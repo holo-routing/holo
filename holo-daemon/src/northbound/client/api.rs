@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use holo_utils::Responder;
+use tokio::sync::oneshot::Sender as Responder;
 use yang3::data::{DataDiff, DataTree};
 
 use crate::northbound::Result;

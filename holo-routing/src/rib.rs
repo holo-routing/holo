@@ -22,10 +22,10 @@ use holo_utils::southbound::{
     LabelInstallMsg, LabelUninstallMsg, Nexthop, RouteKeyMsg, RouteKind,
     RouteMsg, RouteOpaqueAttrs,
 };
-use holo_utils::{UnboundedReceiver, UnboundedSender};
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use prefix_trie::map::PrefixMap;
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tracing::{debug, warn};
 
 use crate::interface::{Interface, Interfaces};

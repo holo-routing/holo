@@ -34,11 +34,5 @@ pub mod sr;
 pub mod task;
 pub mod yang;
 
-pub type Sender<T> = tokio::sync::mpsc::Sender<T>;
-pub type Receiver<T> = tokio::sync::mpsc::Receiver<T>;
-pub type Responder<T> = tokio::sync::oneshot::Sender<T>;
-pub type UnboundedSender<T> = tokio::sync::mpsc::UnboundedSender<T>;
-pub type UnboundedReceiver<T> = tokio::sync::mpsc::UnboundedReceiver<T>;
-
 pub type Database = Arc<Mutex<PickleDb>>;
 pub type DatabaseError = pickledb::error::Error;

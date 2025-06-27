@@ -18,9 +18,9 @@ use holo_utils::ibus::IbusMsg;
 use holo_utils::protocol::Protocol;
 use holo_utils::socket::{TcpListener, UdpSocket};
 use holo_utils::task::Task;
-use holo_utils::{Receiver, Sender};
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::collections::{Adjacencies, Interfaces, Neighbors, TargetedNbrs};
 use crate::debug::{Debug, InstanceInactiveReason, InterfaceInactiveReason};

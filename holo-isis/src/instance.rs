@@ -19,9 +19,9 @@ use holo_protocol::{
 use holo_utils::ibus::IbusMsg;
 use holo_utils::protocol::Protocol;
 use holo_utils::task::TimeoutTask;
-use holo_utils::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 
 use crate::adjacency::{Adjacency, AdjacencyState};
 use crate::collections::{Arena, InterfaceId, Interfaces, Lsdb, LspEntryId};

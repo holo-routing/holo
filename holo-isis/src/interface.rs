@@ -12,13 +12,13 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU32;
 
 use chrono::{DateTime, Utc};
-use holo_utils::UnboundedSender;
 use holo_utils::ip::AddressFamily;
 use holo_utils::socket::{AsyncFd, Socket, SocketExt};
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use ipnetwork::{Ipv4Network, Ipv6Network};
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::UnboundedSender;
 
 use crate::adjacency::{Adjacency, AdjacencyEvent, AdjacencyState};
 use crate::collections::{Adjacencies, Arena, InterfaceId, InterfaceIndex};

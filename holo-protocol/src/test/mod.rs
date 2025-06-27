@@ -9,10 +9,10 @@ pub mod stub;
 use std::sync::{Arc, Once};
 
 use derive_new::new;
-use holo_utils::Receiver;
 use holo_utils::yang::ContextExt;
 use holo_yang as yang;
 use holo_yang::{YANG_CTX, YANG_IMPLEMENTED_MODULES};
+use tokio::sync::mpsc::Receiver;
 use tracing::info;
 
 use crate::ProtocolInstance;

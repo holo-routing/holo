@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use holo_utils::socket::{OwnedReadHalf, OwnedWriteHalf, TcpListener};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
-use holo_utils::{Sender, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
 use tokio::time::sleep;
 use tracing::{Instrument, debug_span};
 

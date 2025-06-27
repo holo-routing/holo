@@ -9,7 +9,6 @@ use std::net::IpAddr;
 use std::sync::Arc;
 
 use derive_new::new;
-use holo_utils::UnboundedSender;
 use holo_utils::bgp::{AfiSafi, RouteType};
 use holo_utils::ip::IpNetworkKind;
 use holo_utils::policy::{
@@ -22,6 +21,7 @@ use holo_utils::southbound::RouteOpaqueAttrs;
 use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
+use tokio::sync::mpsc::UnboundedSender;
 
 use crate::packet::attribute::{Attrs, CommList, CommType};
 use crate::rib::RouteOrigin;

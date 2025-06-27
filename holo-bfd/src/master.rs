@@ -16,8 +16,8 @@ use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
 use holo_utils::protocol::Protocol;
 use holo_utils::task::Task;
-use holo_utils::{Receiver, Sender};
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::error::{Error, IoError};
 use crate::session::Sessions;

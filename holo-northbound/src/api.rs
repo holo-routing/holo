@@ -7,8 +7,8 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use holo_utils::Responder;
 use serde::{Deserialize, Serialize};
+use tokio::sync::oneshot::Sender as Responder;
 use yang3::data::DataTree;
 
 use crate::CallbackKey;

@@ -166,6 +166,9 @@ pub fn start(
         // Run task main loop.
         let span = Master::debug_span("");
         master.run(nb_daemon_rx, ibus_rx).instrument(span).await;
+
+        // Uninstall all routes before exiting.
+        master.rib.route_uninstall_all(&master.netlink_handle).await;
     });
 
     nb_daemon_tx

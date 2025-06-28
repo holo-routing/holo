@@ -663,6 +663,36 @@ impl Rib {
         self.mpls_update_queue.insert(label);
         let _ = self.update_queue_tx.send(());
     }
+
+    // Uninstall all routes.
+    pub(crate) async fn route_uninstall_all(
+        &mut self,
+        netlink_handle: &rtnetlink::Handle,
+    ) {
+        for (prefix, rib_prefix) in &self.ip {
+            if let Some(route) = rib_prefix
+                .values()
+                .find(|route| route.flags.contains(RouteFlags::ACTIVE))
+            {
+                netlink::ip_route_uninstall(
+                    netlink_handle,
+                    &prefix,
+                    route.protocol,
+                )
+                .await;
+            }
+        }
+        for (label, route) in &self.mpls {
+            if route.flags.contains(RouteFlags::ACTIVE) {
+                netlink::mpls_route_uninstall(
+                    netlink_handle,
+                    *label,
+                    route.protocol,
+                )
+                .await;
+            }
+        }
+    }
 }
 
 impl Default for Rib {

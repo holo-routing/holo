@@ -4,8 +4,6 @@
 // SPDX-License-Identifier: MIT
 //
 
-#![warn(rust_2018_idioms)]
-
 mod config;
 mod northbound;
 

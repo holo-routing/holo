@@ -68,6 +68,27 @@ jobs:
       - name: Run tests
         run: cargo test --all-features -p holo-bfd -p holo-bgp -p holo-isis -p holo-ldp -p holo-ospf -p holo-rip -p holo-vrrp
 
+  fuzz-build-check:
+    name: Check fuzz targets build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # cargo-fuzz requires nightly Rust due to LLVM sanitizer support
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz
+      - name: Check fuzz targets
+        run: cargo fuzz check
+
+  bench-build-check:
+    name: Check benchmark builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.88
+      - name: Check benchmark builds
+        run: cargo bench --no-run -p holo-bgp -p holo-ldp -p holo-ospf
+
   push-image:
     name: Docker Image Build
     runs-on: ubuntu-latest

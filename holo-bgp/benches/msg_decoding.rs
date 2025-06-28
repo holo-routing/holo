@@ -8,6 +8,7 @@ fn msg_decode(n: u64) {
     let cxt = DecodeCxt {
         peer_type: PeerType::Internal,
         peer_as: n as u32,
+        reject_as_sets: true,
         capabilities: [NegotiatedCapability::FourOctetAsNumber].into(),
     };
 

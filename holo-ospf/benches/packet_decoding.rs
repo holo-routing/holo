@@ -1,5 +1,4 @@
 use std::hint::black_box;
-use std::net::Ipv4Addr;
 use std::sync::LazyLock as Lazy;
 
 use bytes::Bytes;
@@ -26,14 +25,8 @@ static BYTES: Lazy<Vec<u8>> = Lazy::new(|| {
 fn packet_decode(n: u64) {
     for _ in 0..n {
         let mut buf = Bytes::copy_from_slice(&BYTES);
-        let src = Ipv4Addr::UNSPECIFIED;
-        let _ = Packet::<Ospfv2>::decode(
-            AddressFamily::Ipv4,
-            &mut buf,
-            None,
-            &src.into(),
-        )
-        .unwrap();
+        let _ = Packet::<Ospfv2>::decode(AddressFamily::Ipv4, &mut buf, None)
+            .unwrap();
     }
 }
 

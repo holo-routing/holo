@@ -13,6 +13,8 @@ use arbitrary::Arbitrary;
 use holo_yang::{ToYang, TryFromYang};
 use ipnetwork::{IpNetwork, IpNetworkError, Ipv4Network, Ipv6Network};
 use num_derive::{FromPrimitive, ToPrimitive};
+use prefix_trie::PrefixMap;
+use prefix_trie::joint::map::JointPrefixMap;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -200,6 +202,20 @@ pub trait SocketAddrKind<I: IpAddrKind>:
     fn ip(&self) -> &I;
 
     fn port(&self) -> u16;
+}
+
+pub trait JointPrefixMapExt<T> {
+    // Returns a reference to the IPv4 prefix map.
+    fn ipv4(&self) -> &PrefixMap<Ipv4Network, T>;
+
+    // Returns a mutable reference to the IPv4 prefix map.
+    fn ipv4_mut(&mut self) -> &mut PrefixMap<Ipv4Network, T>;
+
+    // Returns a reference to the IPv6 prefix map.
+    fn ipv6(&self) -> &PrefixMap<Ipv6Network, T>;
+
+    // Returns a mutable reference to the IPv6 prefix map.
+    fn ipv6_mut(&mut self) -> &mut PrefixMap<Ipv6Network, T>;
 }
 
 // ===== impl AddressFamily =====
@@ -661,5 +677,25 @@ impl SocketAddrKind<Ipv6Addr> for SocketAddrV6 {
 
     fn port(&self) -> u16 {
         self.port()
+    }
+}
+
+// ===== impl SocketAddrV6 =====
+
+impl<T> JointPrefixMapExt<T> for JointPrefixMap<IpNetwork, T> {
+    fn ipv4(&self) -> &PrefixMap<Ipv4Network, T> {
+        &self.t1
+    }
+
+    fn ipv4_mut(&mut self) -> &mut PrefixMap<Ipv4Network, T> {
+        &mut self.t1
+    }
+
+    fn ipv6(&self) -> &PrefixMap<Ipv6Network, T> {
+        &self.t2
+    }
+
+    fn ipv6_mut(&mut self) -> &mut PrefixMap<Ipv6Network, T> {
+        &mut self.t2
     }
 }

@@ -15,6 +15,7 @@ use ipnetwork::IpNetwork;
 
 use crate::rib::{NhtEntry, RedistributeSub, Route, RouteFlags};
 use crate::{InstanceId, Master};
+use holo_utils::ip::JointPrefixMapExt;
 
 // ===== global functions =====
 
@@ -173,12 +174,12 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
                     }
                 };
             if af.is_none() || af == Some(AddressFamily::Ipv4) {
-                for (prefix, routes) in &master.rib.ipv4 {
+                for (prefix, routes) in master.rib.ip.ipv4().iter() {
                     redistribute_prefix((*prefix).into(), routes);
                 }
             }
             if af.is_none() || af == Some(AddressFamily::Ipv6) {
-                for (prefix, routes) in &master.rib.ipv6 {
+                for (prefix, routes) in master.rib.ip.ipv6().iter() {
                     redistribute_prefix((*prefix).into(), routes);
                 }
             }

@@ -14,7 +14,8 @@ use holo_utils::bier::{
     self, BfrId, Bift, BirtEntry, Bitstring, Bsl, SubDomainId,
 };
 use holo_utils::ibus::{IbusSender, IbusSubscriber};
-use holo_utils::ip::{AddressFamily, IpNetworkExt, Ipv4AddrExt, Ipv6AddrExt};
+use holo_utils::ip::IpAddrExt;
+use holo_utils::ip::{AddressFamily, IpNetworkExt};
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{
@@ -22,8 +23,8 @@ use holo_utils::southbound::{
     LabelInstallMsg, LabelUninstallMsg, Nexthop, RouteKeyMsg, RouteKind,
     RouteMsg, RouteOpaqueAttrs,
 };
-use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
-use prefix_trie::map::PrefixMap;
+use ipnetwork::IpNetwork;
+use prefix_trie::joint::map::JointPrefixMap;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tracing::{debug, warn};
@@ -33,8 +34,7 @@ use crate::{ibus, netlink};
 
 #[derive(Debug)]
 pub struct Rib {
-    pub ipv4: PrefixMap<Ipv4Network, BTreeMap<u32, Route>>,
-    pub ipv6: PrefixMap<Ipv6Network, BTreeMap<u32, Route>>,
+    pub ip: JointPrefixMap<IpNetwork, BTreeMap<u32, Route>>,
     pub mpls: BTreeMap<Label, Route>,
     pub nht: HashMap<IpAddr, NhtEntry>,
     pub ip_update_queue: BTreeSet<IpNetwork>,
@@ -484,10 +484,7 @@ impl Rib {
     ) {
         // Process IP update queue.
         while let Some(prefix) = self.ip_update_queue.pop_first() {
-            let rib_prefix = match prefix {
-                IpNetwork::V4(prefix) => self.ipv4.entry(prefix).or_default(),
-                IpNetwork::V6(prefix) => self.ipv6.entry(prefix).or_default(),
-            };
+            let rib_prefix = self.ip.entry(prefix).or_default();
 
             // Find the protocol of the old best route, if one exists.
             let old_best_protocol = rib_prefix
@@ -546,14 +543,7 @@ impl Rib {
                 }
 
                 // Remove prefix entry from the RIB.
-                match prefix {
-                    IpNetwork::V4(prefix) => {
-                        self.ipv4.remove(&prefix);
-                    }
-                    IpNetwork::V6(prefix) => {
-                        self.ipv6.remove(&prefix);
-                    }
-                }
+                self.ip.remove(&prefix);
             }
         }
 
@@ -606,26 +596,12 @@ impl Rib {
 
     // Returns RIB entry associated to the given IP prefix.
     fn prefix_entry(&mut self, prefix: IpNetwork) -> &mut BTreeMap<u32, Route> {
-        match prefix {
-            IpNetwork::V4(prefix) => self.ipv4.entry(prefix).or_default(),
-            IpNetwork::V6(prefix) => self.ipv6.entry(prefix).or_default(),
-        }
+        self.ip.entry(prefix).or_default()
     }
 
     // Returns the longest matching route for the given IP address.
     fn prefix_longest_match(&self, addr: &IpAddr) -> Option<&Route> {
-        let lpm = match addr {
-            IpAddr::V4(addr) => {
-                let prefix = addr.to_host_prefix();
-                let (_, lpm) = self.ipv4.get_lpm(&prefix)?;
-                lpm
-            }
-            IpAddr::V6(addr) => {
-                let prefix = addr.to_host_prefix();
-                let (_, lpm) = self.ipv6.get_lpm(&prefix)?;
-                lpm
-            }
-        };
+        let (_, lpm) = self.ip.get_lpm(&addr.to_host_prefix())?;
         lpm.values()
             .next()
             .filter(|route| route.flags.contains(RouteFlags::ACTIVE))
@@ -693,8 +669,7 @@ impl Default for Rib {
     fn default() -> Self {
         let (update_queue_tx, update_queue_rx) = mpsc::unbounded_channel();
         Self {
-            ipv4: Default::default(),
-            ipv6: Default::default(),
+            ip: Default::default(),
             mpls: Default::default(),
             nht: Default::default(),
             ip_update_queue: Default::default(),

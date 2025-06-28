@@ -17,6 +17,7 @@ use holo_northbound::yang::control_plane_protocol;
 use holo_northbound::yang::routing::{birts, ribs};
 use holo_northbound::{CallbackKey, NbDaemonSender};
 use holo_utils::bier::{BfrId, Bsl};
+use holo_utils::ip::JointPrefixMapExt;
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{Nexthop, RouteKind};
@@ -108,7 +109,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let af = args.parent_list_entry.as_rib().unwrap();
             match af {
                 RibAddressFamily::Ipv4 => {
-                    let iter = master.rib.ipv4.iter().flat_map(|(dest, routes)| {
+                    let iter = master.rib.ip.ipv4().iter().flat_map(|(dest, routes)| {
                         routes.values().filter(|route| !route.flags.contains(RouteFlags::REMOVED)).map(|route| {
                             let dest = RouteDestination::new_ipv4(dest);
                             ListEntry::Route(dest, route)
@@ -117,7 +118,7 @@ fn load_callbacks() -> Callbacks<Master> {
                     Some(Box::new(iter))
                 }
                 RibAddressFamily::Ipv6 => {
-                    let iter = master.rib.ipv6.iter().flat_map(|(dest, routes)| {
+                    let iter = master.rib.ip.ipv6().iter().flat_map(|(dest, routes)| {
                         routes.values().filter(|route| !route.flags.contains(RouteFlags::REMOVED)).map(|route| {
                             let dest = RouteDestination::new_ipv6(dest);
                             ListEntry::Route(dest, route)

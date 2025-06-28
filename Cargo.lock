@@ -1480,6 +1480,7 @@ dependencies = [
  "num-derive",
  "num-traits",
  "pickledb",
+ "prefix-trie",
  "regex",
  "reqwest",
  "serde",

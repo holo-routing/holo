@@ -6,6 +6,7 @@
 
 use std::time::SystemTime;
 
+use holo_utils::task::Task;
 use holo_yang::YANG_CTX;
 use itertools::join;
 use tokio::sync::mpsc::Sender;
@@ -474,7 +475,7 @@ fn get_timestamp() -> i64 {
 pub(crate) fn start(
     config: &config::Gnmi,
     request_tx: Sender<api::client::Request>,
-) {
+) -> Task<()> {
     let address = config
         .address
         .parse()
@@ -488,14 +489,14 @@ pub(crate) fn start(
                 Ok(value) => value,
                 Err(error) => {
                     error!(%error, "failed to read TLS certificate");
-                    return;
+                    std::process::exit(1);
                 }
             };
             let key = match std::fs::read(&config.tls.key) {
                 Ok(value) => value,
                 Err(error) => {
                     error!(%error, "failed to read TLS key");
-                    return;
+                    std::process::exit(1);
                 }
             };
 
@@ -507,7 +508,7 @@ pub(crate) fn start(
         false => server,
     };
 
-    tokio::spawn(async move {
+    Task::spawn(async move {
         server
             .add_service(
                 proto::GNmiServer::new(service)
@@ -517,5 +518,5 @@ pub(crate) fn start(
             .serve(address)
             .await
             .expect("Failed to start gNMI service");
-    });
+    })
 }

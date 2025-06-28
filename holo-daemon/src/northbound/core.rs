@@ -16,13 +16,13 @@ use holo_northbound::{
     CallbackKey, CallbackOp, NbDaemonSender, NbProviderReceiver, api as papi,
 };
 use holo_protocol::InstanceShared;
-use holo_utils::task::TimeoutTask;
+use holo_utils::task::{Task, TimeoutTask};
 use holo_utils::yang::SchemaNodeExt;
 use holo_utils::{Database, ibus};
 use holo_yang::YANG_CTX;
 use pickledb::PickleDb;
 use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver};
+use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, WeakSender};
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, info, instrument, trace, warn};
 use yang3::data::{
@@ -37,22 +37,18 @@ use crate::northbound::{Error, Result, db, yang};
 pub struct Northbound {
     // YANG-modeled running configuration.
     running_config: Arc<DataTree<'static>>,
-
     // Non-volatile storage.
     db: Database,
-
     // Callback keys from the data providers.
-    callbacks: BTreeMap<CallbackKey, NbDaemonSender>,
-
+    callbacks: BTreeMap<CallbackKey, WeakSender<papi::daemon::Request>>,
+    // List of management interfaces.
+    clients: Vec<Task<()>>,
     // List of data providers.
     providers: Vec<NbDaemonSender>,
-
     // Channel used to receive messages from the external clients.
     rx_clients: Receiver<capi::client::Request>,
-
     // Channel used to receive messages from the data providers.
     rx_providers: UnboundedReceiver<papi::provider::Notification>,
-
     // Confirmed commit information.
     confirmed_commit: ConfirmedCommit,
 }
@@ -107,7 +103,7 @@ impl Northbound {
         let running_config = Arc::new(DataTree::new(yang_ctx));
 
         // Start client tasks (e.g. gRPC, gNMI).
-        let rx_clients = start_clients(config);
+        let (rx_clients, clients) = start_clients(config);
 
         // Start provider tasks (e.g. interfaces, routing, etc).
         let (rx_providers, providers) = start_providers(config, db.clone());
@@ -121,6 +117,7 @@ impl Northbound {
             running_config,
             db,
             callbacks,
+            clients,
             providers,
             rx_clients,
             rx_providers,
@@ -130,18 +127,27 @@ impl Northbound {
 
     // Main event loop.
     #[instrument(skip_all, "northbound")]
-    pub(crate) async fn run(mut self: Northbound) {
+    pub(crate) async fn run(mut self: Northbound, mut signal_rx: Receiver<()>) {
         loop {
             tokio::select! {
                 Some(request) = self.rx_clients.recv() => {
                     self.process_client_msg(request).await;
                 }
-                Some(request) = self.rx_providers.recv() => {
-                    self.process_provider_msg(request);
-                }
+                request = self.rx_providers.recv() => match request {
+                    Some(request) => {
+                        self.process_provider_msg(request);
+                    }
+                    // All providers have exited. Teardown is complete.
+                    None => return,
+                },
                 Some(_) = self.confirmed_commit.rx.recv() => {
                     self.process_confirmed_commit_timeout().await;
                 }
+                _ = signal_rx.recv() => {
+                    self.rx_clients.close();
+                    self.clients.clear();
+                    self.providers.clear();
+                },
                 else => break,
             }
         }
@@ -480,7 +486,7 @@ impl Northbound {
                 .iter()
                 .filter(|(cb_key, _)| {
                     if let Some(tx) = self.callbacks.get(cb_key) {
-                        tx.same_channel(daemon_tx)
+                        tx.upgrade().unwrap().same_channel(daemon_tx)
                     } else {
                         false
                     }
@@ -716,28 +722,33 @@ fn start_providers(
 }
 
 // Starts external clients.
-fn start_clients(config: &Config) -> Receiver<capi::client::Request> {
+fn start_clients(
+    config: &Config,
+) -> (Receiver<capi::client::Request>, Vec<Task<()>>) {
+    let mut clients = Vec::new();
     let (client_tx, daemon_rx) = mpsc::channel(4);
 
     // Spawn gRPC task.
     let grpc_config = &config.plugins.grpc;
     if grpc_config.enabled {
-        grpc::start(grpc_config, client_tx.clone());
+        let client = grpc::start(grpc_config, client_tx.clone());
+        clients.push(client);
     }
 
     // Spawn gNMI task.
     let gnmi_config = &config.plugins.gnmi;
     if gnmi_config.enabled {
-        gnmi::start(gnmi_config, client_tx);
+        let client = gnmi::start(gnmi_config, client_tx);
+        clients.push(client);
     }
 
-    daemon_rx
+    (daemon_rx, clients)
 }
 
 // Loads all YANG callback keys from the data providers.
 async fn load_callbacks(
     providers: &[NbDaemonSender],
-) -> BTreeMap<CallbackKey, NbDaemonSender> {
+) -> BTreeMap<CallbackKey, WeakSender<papi::daemon::Request>> {
     let mut callbacks = BTreeMap::new();
 
     for provider_tx in providers.iter() {
@@ -756,7 +767,7 @@ async fn load_callbacks(
         // Validate and store callback key.
         for cb_key in provider_response.callbacks {
             validate_callback(&cb_key);
-            callbacks.insert(cb_key, provider_tx.clone());
+            callbacks.insert(cb_key, provider_tx.downgrade());
         }
     }
 
@@ -764,7 +775,9 @@ async fn load_callbacks(
 }
 
 // Checks for missing YANG callbacks.
-fn validate_callbacks(callbacks: &BTreeMap<CallbackKey, NbDaemonSender>) {
+fn validate_callbacks(
+    callbacks: &BTreeMap<CallbackKey, WeakSender<papi::daemon::Request>>,
+) {
     let yang_ctx = YANG_CTX.get().unwrap();
     let mut errors: usize = 0;
 

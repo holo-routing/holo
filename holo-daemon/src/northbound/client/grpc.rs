@@ -10,6 +10,7 @@ use std::pin::Pin;
 use std::time::SystemTime;
 
 use futures::Stream;
+use holo_utils::task::Task;
 use holo_yang::{YANG_CTX, YANG_FEATURES};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
@@ -617,7 +618,7 @@ fn rpc_get(data_tree: &proto::DataTree) -> Result<DataTree<'static>, Status> {
 pub(crate) fn start(
     config: &config::Grpc,
     request_tx: Sender<api::client::Request>,
-) {
+) -> Task<()> {
     let address = config
         .address
         .parse()
@@ -631,14 +632,14 @@ pub(crate) fn start(
                 Ok(value) => value,
                 Err(error) => {
                     error!(%error, "failed to read TLS certificate");
-                    return;
+                    std::process::exit(1);
                 }
             };
             let key = match std::fs::read(&config.tls.key) {
                 Ok(value) => value,
                 Err(error) => {
                     error!(%error, "failed to read TLS key");
-                    return;
+                    std::process::exit(1);
                 }
             };
 
@@ -650,7 +651,7 @@ pub(crate) fn start(
         false => server,
     };
 
-    tokio::spawn(async move {
+    Task::spawn(async move {
         server
             .add_service(
                 proto::NorthboundServer::new(service)
@@ -660,5 +661,5 @@ pub(crate) fn start(
             .serve(address)
             .await
             .expect("Failed to start gRPC service");
-    });
+    })
 }

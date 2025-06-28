@@ -49,14 +49,18 @@ impl Master {
 
         loop {
             tokio::select! {
-                Some(request) = nb_rx.recv() => {
-                    process_northbound_msg(
-                        self,
-                        &mut resources,
-                        request,
-                    )
-                    .await;
-                }
+                request = nb_rx.recv() => match request {
+                    Some(request) => {
+                        process_northbound_msg(
+                            self,
+                            &mut resources,
+                            request
+                        )
+                        .await;
+                    }
+                    // Exit when northbound channel closes.
+                    None => return,
+                },
                 Some(msg) = ibus_rx.recv() => {
                     ibus::process_msg(self, msg).await;
                 }

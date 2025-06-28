@@ -17,6 +17,8 @@ use config::{Config, LoggingFileRotation, LoggingFmtStyle};
 use nix::unistd::{Uid, User};
 use northbound::Northbound;
 use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};
+use tokio::signal::unix::{SignalKind, signal};
+use tokio::sync::mpsc;
 use tracing::level_filters::LevelFilter;
 use tracing::{error, info};
 use tracing_appender::rolling;
@@ -157,6 +159,28 @@ fn privdrop(user: &str, chroot_jail: bool) -> nix::Result<()> {
     Ok(())
 }
 
+fn signal_listener() -> mpsc::Receiver<()> {
+    let (signal_tx, signal_rx) = mpsc::channel(1);
+
+    tokio::task::spawn(async move {
+        let mut sigint = signal(SignalKind::interrupt()).unwrap();
+        let mut sigterm = signal(SignalKind::terminate()).unwrap();
+
+        tokio::select! {
+            _ = sigint.recv() => {
+                info!("received SIGINT");
+                let _ = signal_tx.send(()).await;
+            },
+            _ = sigterm.recv() => {
+                info!("received SIGTERM");
+                let _ = signal_tx.send(()).await;
+            }
+        }
+    });
+
+    signal_rx
+}
+
 // ===== main =====
 
 fn main() {
@@ -211,9 +235,12 @@ fn main() {
 
     // Main loop.
     let main = || async {
+        // Spawn signal listener.
+        let signal_rx = signal_listener();
+
         // Serve northbound clients.
         let nb = Northbound::init(&config, db).await;
-        nb.run().await;
+        nb.run(signal_rx).await;
     };
     #[cfg(not(feature = "io_uring"))]
     {
@@ -231,4 +258,6 @@ fn main() {
             main().await;
         });
     }
+
+    info!("exiting");
 }

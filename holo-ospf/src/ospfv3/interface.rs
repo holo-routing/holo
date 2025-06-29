@@ -63,6 +63,13 @@ impl InterfaceVersion<Self> for Ospfv3 {
             auth_seqno: None,
         };
 
+        let lls = if iface.config.lls_enabled {
+            // TODO: Get LLS configuration.
+            None
+        } else {
+            None
+        };
+
         Packet::Hello(Hello {
             hdr,
             iface_id: iface.system.ifindex.unwrap(),
@@ -72,6 +79,7 @@ impl InterfaceVersion<Self> for Ospfv3 {
                 OptionsLocation::new_packet(
                     PacketType::Hello,
                     iface.state.auth.is_some(),
+                    lls.is_some(),
                 ),
             ),
             hello_interval: iface.config.hello_interval,
@@ -79,6 +87,7 @@ impl InterfaceVersion<Self> for Ospfv3 {
             dr: iface.state.dr,
             bdr: iface.state.bdr,
             neighbors: iface.state.neighbors.router_ids().collect(),
+            lls,
         })
     }
 

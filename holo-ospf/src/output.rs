@@ -62,6 +62,13 @@ pub(crate) fn send_dbdesc<V>(
         nbr.dd_flags.remove(DbDescFlags::M);
     }
 
+    let lls = if iface.config.lls_enabled {
+        // TODO; get LLS configuration
+        None
+    } else {
+        None
+    };
+
     // Generate Database Description packet.
     let pkt_hdr = V::PacketHdr::generate(
         PacketType::DbDesc,
@@ -76,12 +83,14 @@ pub(crate) fn send_dbdesc<V>(
             OptionsLocation::new_packet(
                 PacketType::DbDesc,
                 iface.state.auth.is_some(),
+                lls.is_some(),
             ),
         ),
         iface.system.mtu.unwrap(),
         nbr.dd_flags,
         nbr.dd_seq_no,
         lsa_hdrs,
+        lls,
     );
 
     // Enqueue packet for network transmission.

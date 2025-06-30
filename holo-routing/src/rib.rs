@@ -14,8 +14,7 @@ use holo_utils::bier::{
     self, BfrId, Bift, BirtEntry, Bitstring, Bsl, SubDomainId,
 };
 use holo_utils::ibus::{IbusSender, IbusSubscriber};
-use holo_utils::ip::IpAddrExt;
-use holo_utils::ip::{AddressFamily, IpNetworkExt};
+use holo_utils::ip::{AddressFamily, IpAddrExt, IpNetworkExt};
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{
@@ -683,14 +682,12 @@ impl Rib {
             }
         }
         for (label, route) in &self.mpls {
-            if route.flags.contains(RouteFlags::ACTIVE) {
-                netlink::mpls_route_uninstall(
-                    netlink_handle,
-                    *label,
-                    route.protocol,
-                )
-                .await;
-            }
+            netlink::mpls_route_uninstall(
+                netlink_handle,
+                *label,
+                route.protocol,
+            )
+            .await;
         }
     }
 }

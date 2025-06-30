@@ -288,6 +288,7 @@ pub static YANG_FEATURES: Lazy<HashMap<&'static str, Vec<&'static str>>> =
                 "graceful-restart",
                 "ietf-spf-delay",
                 "key-chain",
+                "lls",
                 "max-ecmp",
                 "mtu-ignore",
                 "node-tag",

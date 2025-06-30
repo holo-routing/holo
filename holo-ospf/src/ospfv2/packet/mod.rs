@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+pub mod lls;
 pub mod lsa;
 pub mod lsa_opaque;
 
@@ -21,9 +22,11 @@ use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
 use crate::neighbor::NeighborNetId;
+use crate::ospfv2::packet::lls::LlsDataBlock;
 use crate::ospfv2::packet::lsa::{LsaHdr, LsaType};
 use crate::packet::auth::{AuthDecodeCtx, AuthEncodeCtx, AuthMethod};
 use crate::packet::error::{DecodeError, DecodeResult};
+use crate::packet::lls::{LlsData, LlsDbDescData, LlsHelloData};
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::packet::{
     DbDescFlags, DbDescVersion, HelloVersion, LsAckVersion, LsRequestVersion,
@@ -44,6 +47,7 @@ bitflags! {
         const E = 0x02;
         const MC = 0x04;
         const NP = 0x08;
+        const L = 0x10;
         const DC = 0x20;
         const O = 0x40;
     }
@@ -135,6 +139,7 @@ pub struct Hello {
     pub dr: Option<NeighborNetId>,
     pub bdr: Option<NeighborNetId>,
     pub neighbors: BTreeSet<Ipv4Addr>,
+    pub lls: Option<LlsHelloData>,
 }
 
 //
@@ -170,6 +175,7 @@ pub struct DbDesc {
     pub dd_flags: DbDescFlags,
     pub dd_seq_no: u32,
     pub lsa_hdrs: Vec<LsaHdr>,
+    pub lls: Option<LlsDbDescData>,
 }
 
 //
@@ -250,6 +256,10 @@ pub struct LsAck {
 impl OptionsVersion<Ospfv2> for Options {
     fn e_bit(&self) -> bool {
         self.contains(Options::E)
+    }
+
+    fn l_bit(&self) -> bool {
+        self.contains(Options::L)
     }
 }
 
@@ -423,6 +433,7 @@ impl PacketBase<Ospfv2> for Hello {
         _af: AddressFamily,
         hdr: PacketHdr,
         buf: &mut Bytes,
+        lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
         if buf.remaining() < Self::BASE_LENGTH as usize {
             return Err(DecodeError::InvalidLength(buf.len() as u16));
@@ -445,6 +456,8 @@ impl PacketBase<Ospfv2> for Hello {
             neighbors.insert(nbr);
         }
 
+        let lls = lls.map(|block| block.into());
+
         Ok(Hello {
             hdr,
             network_mask,
@@ -455,6 +468,7 @@ impl PacketBase<Ospfv2> for Hello {
             dr: dr.map(NeighborNetId::from),
             bdr: bdr.map(NeighborNetId::from),
             neighbors,
+            lls,
         })
     }
 
@@ -483,7 +497,7 @@ impl PacketBase<Ospfv2> for Hello {
                 buf.put_ipv4(nbr);
             }
 
-            packet_encode_end::<Ospfv2>(buf, auth)
+            packet_encode_end::<Ospfv2>(buf, auth, self.lls.map(LlsData::Hello))
         })
     }
 
@@ -524,6 +538,10 @@ impl HelloVersion<Ospfv2> for Hello {
     fn neighbors(&self) -> &BTreeSet<Ipv4Addr> {
         &self.neighbors
     }
+
+    fn lls(&self) -> Option<&LlsHelloData> {
+        self.lls.as_ref()
+    }
 }
 
 // ===== impl DbDesc =====
@@ -533,6 +551,7 @@ impl PacketBase<Ospfv2> for DbDesc {
         _af: AddressFamily,
         hdr: PacketHdr,
         buf: &mut Bytes,
+        lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
         if buf.remaining() < Self::BASE_LENGTH as usize {
             return Err(DecodeError::InvalidLength(buf.len() as u16));
@@ -551,6 +570,8 @@ impl PacketBase<Ospfv2> for DbDesc {
             lsa_hdrs.push(lsa_hdr);
         }
 
+        let lls = lls.map(|block| block.into());
+
         Ok(DbDesc {
             hdr,
             mtu,
@@ -558,6 +579,7 @@ impl PacketBase<Ospfv2> for DbDesc {
             dd_flags,
             dd_seq_no,
             lsa_hdrs,
+            lls,
         })
     }
 
@@ -573,7 +595,11 @@ impl PacketBase<Ospfv2> for DbDesc {
                 lsa_hdr.encode(&mut buf);
             }
 
-            packet_encode_end::<Ospfv2>(buf, auth)
+            packet_encode_end::<Ospfv2>(
+                buf,
+                auth,
+                self.lls.map(LlsData::DbDesc),
+            )
         })
     }
 
@@ -605,6 +631,10 @@ impl DbDescVersion<Ospfv2> for DbDesc {
         &self.lsa_hdrs
     }
 
+    fn lls(&self) -> Option<&LlsDbDescData> {
+        self.lls.as_ref()
+    }
+
     fn generate(
         hdr: PacketHdr,
         options: Options,
@@ -612,6 +642,7 @@ impl DbDescVersion<Ospfv2> for DbDesc {
         dd_flags: DbDescFlags,
         dd_seq_no: u32,
         lsa_hdrs: Vec<LsaHdr>,
+        lls: Option<LlsDbDescData>,
     ) -> Packet<Ospfv2> {
         Packet::DbDesc(DbDesc {
             hdr,
@@ -620,6 +651,7 @@ impl DbDescVersion<Ospfv2> for DbDesc {
             dd_flags,
             dd_seq_no,
             lsa_hdrs,
+            lls,
         })
     }
 }
@@ -631,6 +663,7 @@ impl PacketBase<Ospfv2> for LsRequest {
         _af: AddressFamily,
         hdr: PacketHdr,
         buf: &mut Bytes,
+        _lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
         // Parse list of LSA global IDs.
         let mut entries = vec![];
@@ -660,7 +693,7 @@ impl PacketBase<Ospfv2> for LsRequest {
                 buf.put_ipv4(&entry.adv_rtr);
             }
 
-            packet_encode_end::<Ospfv2>(buf, auth)
+            packet_encode_end::<Ospfv2>(buf, auth, None)
         })
     }
 
@@ -695,6 +728,7 @@ impl PacketBase<Ospfv2> for LsUpdate {
         af: AddressFamily,
         hdr: PacketHdr,
         buf: &mut Bytes,
+        _lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
         if buf.remaining() < Self::BASE_LENGTH as usize {
             return Err(DecodeError::InvalidLength(buf.len() as u16));
@@ -722,7 +756,7 @@ impl PacketBase<Ospfv2> for LsUpdate {
                 buf.put_slice(&lsa.raw);
             }
 
-            packet_encode_end::<Ospfv2>(buf, auth)
+            packet_encode_end::<Ospfv2>(buf, auth, None)
         })
     }
 
@@ -750,6 +784,7 @@ impl PacketBase<Ospfv2> for LsAck {
         _af: AddressFamily,
         hdr: PacketHdr,
         buf: &mut Bytes,
+        _lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
         // Parse list of LSA headers.
         let mut lsa_hdrs = vec![];
@@ -770,7 +805,7 @@ impl PacketBase<Ospfv2> for LsAck {
                 lsa_hdr.encode(&mut buf);
             }
 
-            packet_encode_end::<Ospfv2>(buf, auth)
+            packet_encode_end::<Ospfv2>(buf, auth, None)
         })
     }
 
@@ -804,8 +839,8 @@ impl PacketVersion<Self> for Ospfv2 {
     fn decode_auth_validate(
         data: &[u8],
         pkt_len: u16,
-        hdr_auth: PacketHdrAuth,
-        auth: Option<AuthDecodeCtx<'_>>,
+        hdr_auth: &PacketHdrAuth,
+        auth: Option<&AuthDecodeCtx<'_>>,
     ) -> DecodeResult<Option<u64>> {
         // Discard the packet if its authentication type doesn't match the
         // interface's configured authentication type.
@@ -824,54 +859,26 @@ impl PacketVersion<Self> for Ospfv2 {
                 auth_len,
                 seqno,
             } => {
-                // Get authentication key.
-                let auth = auth.as_ref().unwrap();
-                let auth_key = match auth.method {
-                    AuthMethod::ManualKey(key) => {
-                        // Check if the Key ID matches.
-                        if key.id != key_id as u64 {
-                            return Err(DecodeError::AuthKeyIdNotFound(
-                                key_id as u32,
-                            ));
-                        }
-                        key
-                    }
-                    AuthMethod::Keychain(keychain) => keychain
-                        .key_lookup_accept(key_id as u64)
-                        .ok_or(DecodeError::AuthKeyIdNotFound(key_id as u32))?,
-                };
-
-                // Sanity check.
-                if auth_key.algo.digest_size() != auth_len {
-                    return Err(DecodeError::AuthLenError(auth_len as u16));
-                }
-
                 // Get the authentication trailer.
                 let auth_trailer = &data
-                    [pkt_len as usize..pkt_len as usize + auth_len as usize];
+                    [pkt_len as usize..pkt_len as usize + *auth_len as usize];
 
                 // Compute message digest.
                 let data = &data[..pkt_len as usize];
-                let digest = auth::message_digest(
-                    data,
-                    auth_key.algo,
-                    &auth_key.string,
-                    None,
-                    None,
-                );
 
-                // Check if the received message digest is valid.
-                if *auth_trailer != digest {
-                    return Err(DecodeError::AuthError);
-                }
+                validate_digest(*key_id, *auth_len, auth, auth_trailer, data)?;
 
                 // Authentication succeeded.
-                Ok(Some(seqno.into()))
+                Ok(Some((*seqno).into()))
             }
         }
     }
 
-    fn encode_auth_trailer(buf: &mut BytesMut, auth: AuthEncodeCtx<'_>) {
+    fn encode_auth_trailer(
+        buf: &mut BytesMut,
+        auth: AuthEncodeCtx<'_>,
+        lls: Option<&LlsData>,
+    ) {
         let digest = auth::message_digest(
             buf,
             auth.key.algo,
@@ -880,5 +887,71 @@ impl PacketVersion<Self> for Ospfv2 {
             None,
         );
         buf.put_slice(&digest);
+
+        // RFC 5613 Section 2: "To perform link-local signaling (LLS), OSPF
+        // routers add a special data block to the end of OSPF packets or right
+        // after the authentication data block when cryptographic authentication
+        // is used."
+        if let Some(lls) = lls {
+            lls.encode::<Ospfv2>(buf, Some(&auth));
+        }
     }
+
+    fn packet_options(data: &[u8]) -> Option<Options> {
+        let pkt_type = PacketType::from_u8(data[1]).unwrap();
+        match pkt_type {
+            PacketType::Hello => {
+                let options = &data[PacketHdr::LENGTH as usize + 6..];
+                Some(Options::from_bits_truncate(options[0]))
+            }
+            PacketType::DbDesc => {
+                let options = &data[PacketHdr::LENGTH as usize + 2..];
+                Some(Options::from_bits_truncate(options[0]))
+            }
+            PacketType::LsRequest
+            | PacketType::LsUpdate
+            | PacketType::LsAck => None,
+        }
+    }
+}
+
+// ===== helper functions =====
+
+pub(crate) fn validate_digest(
+    key_id: u8,
+    auth_len: u8,
+    auth: Option<&AuthDecodeCtx<'_>>,
+    digest_rx: &[u8],
+    data: &[u8],
+) -> DecodeResult<()> {
+    // Get authentication key.
+    let auth = auth.as_ref().unwrap();
+    let auth_key = match auth.method {
+        AuthMethod::ManualKey(key) => {
+            // Check if the Key ID matches.
+            if key.id != key_id as u64 {
+                return Err(DecodeError::AuthKeyIdNotFound(key_id as u32));
+            }
+            key
+        }
+        AuthMethod::Keychain(keychain) => keychain
+            .key_lookup_accept(key_id as u64)
+            .ok_or(DecodeError::AuthKeyIdNotFound(key_id as u32))?,
+    };
+
+    // Sanity check.
+    if auth_key.algo.digest_size() != auth_len {
+        return Err(DecodeError::AuthLenError(auth_len as u16));
+    }
+
+    // Compute message digest.
+    let digest =
+        auth::message_digest(data, auth_key.algo, &auth_key.string, None, None);
+
+    // Check if the received message digest is valid.
+    if *digest_rx != digest {
+        return Err(DecodeError::AuthError);
+    }
+
+    Ok(())
 }

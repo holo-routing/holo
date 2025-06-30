@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+pub mod lls;
 pub mod lsa;
 
 use std::collections::BTreeSet;
@@ -15,6 +16,7 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::{BytesExt, BytesMutExt, TLS_BUF};
 use holo_utils::crypto::CryptoProtocolId;
 use holo_utils::ip::{AddressFamily, Ipv4AddrExt};
+use lls::LlsDataBlock;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
@@ -23,6 +25,7 @@ use crate::neighbor::NeighborNetId;
 use crate::ospfv3::packet::lsa::{LsaHdr, LsaType};
 use crate::packet::auth::{AuthDecodeCtx, AuthEncodeCtx, AuthMethod};
 use crate::packet::error::{DecodeError, DecodeResult};
+use crate::packet::lls::{LLS_HDR_SIZE, LlsData, LlsDbDescData, LlsHelloData};
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::packet::{
     DbDescFlags, DbDescVersion, HelloVersion, LsAckVersion, LsRequestVersion,
@@ -57,9 +60,6 @@ bitflags! {
 pub enum AuthType {
     HmacCryptographic = 0x01,
 }
-
-// Length of LLS Data Block header.
-pub const LLS_HDR_SIZE: u16 = 4;
 
 // Length of the authentication trailer fixed header.
 pub const AUTH_TRAILER_HDR_SIZE: u16 = 16;
@@ -132,6 +132,7 @@ pub struct Hello {
     pub dr: Option<NeighborNetId>,
     pub bdr: Option<NeighborNetId>,
     pub neighbors: BTreeSet<Ipv4Addr>,
+    pub lls: Option<LlsHelloData>,
 }
 
 //
@@ -169,6 +170,7 @@ pub struct DbDesc {
     pub dd_flags: DbDescFlags,
     pub dd_seq_no: u32,
     pub lsa_hdrs: Vec<LsaHdr>,
+    pub lls: Option<LlsDbDescData>,
 }
 
 //
@@ -261,6 +263,10 @@ impl Options {
 impl OptionsVersion<Ospfv3> for Options {
     fn e_bit(&self) -> bool {
         self.contains(Options::E)
+    }
+
+    fn l_bit(&self) -> bool {
+        self.contains(Options::L)
     }
 }
 
@@ -394,6 +400,7 @@ impl PacketBase<Ospfv3> for Hello {
         _af: AddressFamily,
         hdr: PacketHdr,
         buf: &mut Bytes,
+        lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
         if buf.remaining() < Self::BASE_LENGTH as usize {
             return Err(DecodeError::InvalidLength(buf.len() as u16));
@@ -415,6 +422,8 @@ impl PacketBase<Ospfv3> for Hello {
             neighbors.insert(nbr);
         }
 
+        let lls = lls.map(|block| block.into());
+
         Ok(Hello {
             hdr,
             iface_id,
@@ -425,6 +434,7 @@ impl PacketBase<Ospfv3> for Hello {
             dr: dr.map(NeighborNetId::from),
             bdr: bdr.map(NeighborNetId::from),
             neighbors,
+            lls,
         })
     }
 
@@ -453,7 +463,7 @@ impl PacketBase<Ospfv3> for Hello {
                 buf.put_ipv4(nbr);
             }
 
-            packet_encode_end::<Ospfv3>(buf, auth)
+            packet_encode_end::<Ospfv3>(buf, auth, self.lls.map(LlsData::Hello))
         })
     }
 
@@ -494,6 +504,10 @@ impl HelloVersion<Ospfv3> for Hello {
     fn neighbors(&self) -> &BTreeSet<Ipv4Addr> {
         &self.neighbors
     }
+
+    fn lls(&self) -> Option<&LlsHelloData> {
+        self.lls.as_ref()
+    }
 }
 
 // ===== impl DbDesc =====
@@ -503,6 +517,7 @@ impl PacketBase<Ospfv3> for DbDesc {
         _af: AddressFamily,
         hdr: PacketHdr,
         buf: &mut Bytes,
+        lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
         if buf.remaining() < Self::BASE_LENGTH as usize {
             return Err(DecodeError::InvalidLength(buf.len() as u16));
@@ -523,6 +538,8 @@ impl PacketBase<Ospfv3> for DbDesc {
             lsa_hdrs.push(lsa_hdr);
         }
 
+        let lls = lls.map(|block| block.into());
+
         Ok(DbDesc {
             hdr,
             options,
@@ -530,6 +547,7 @@ impl PacketBase<Ospfv3> for DbDesc {
             dd_flags,
             dd_seq_no,
             lsa_hdrs,
+            lls,
         })
     }
 
@@ -547,7 +565,11 @@ impl PacketBase<Ospfv3> for DbDesc {
                 lsa_hdr.encode(&mut buf);
             }
 
-            packet_encode_end::<Ospfv3>(buf, auth)
+            packet_encode_end::<Ospfv3>(
+                buf,
+                auth,
+                self.lls.map(LlsData::DbDesc),
+            )
         })
     }
 
@@ -579,6 +601,10 @@ impl DbDescVersion<Ospfv3> for DbDesc {
         &self.lsa_hdrs
     }
 
+    fn lls(&self) -> Option<&LlsDbDescData> {
+        self.lls.as_ref()
+    }
+
     fn generate(
         hdr: PacketHdr,
         options: Options,
@@ -586,6 +612,7 @@ impl DbDescVersion<Ospfv3> for DbDesc {
         dd_flags: DbDescFlags,
         dd_seq_no: u32,
         lsa_hdrs: Vec<LsaHdr>,
+        lls: Option<LlsDbDescData>,
     ) -> Packet<Ospfv3> {
         Packet::DbDesc(DbDesc {
             hdr,
@@ -594,6 +621,7 @@ impl DbDescVersion<Ospfv3> for DbDesc {
             dd_flags,
             dd_seq_no,
             lsa_hdrs,
+            lls,
         })
     }
 }
@@ -605,6 +633,7 @@ impl PacketBase<Ospfv3> for LsRequest {
         _af: AddressFamily,
         hdr: PacketHdr,
         buf: &mut Bytes,
+        _lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
         // Parse list of LSA global IDs.
         let mut entries = vec![];
@@ -636,7 +665,7 @@ impl PacketBase<Ospfv3> for LsRequest {
                 buf.put_ipv4(&entry.adv_rtr);
             }
 
-            packet_encode_end::<Ospfv3>(buf, auth)
+            packet_encode_end::<Ospfv3>(buf, auth, None)
         })
     }
 
@@ -671,6 +700,7 @@ impl PacketBase<Ospfv3> for LsUpdate {
         af: AddressFamily,
         hdr: PacketHdr,
         buf: &mut Bytes,
+        _lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
         if buf.remaining() < Self::BASE_LENGTH as usize {
             return Err(DecodeError::InvalidLength(buf.len() as u16));
@@ -698,7 +728,7 @@ impl PacketBase<Ospfv3> for LsUpdate {
                 buf.put_slice(&lsa.raw);
             }
 
-            packet_encode_end::<Ospfv3>(buf, auth)
+            packet_encode_end::<Ospfv3>(buf, auth, None)
         })
     }
 
@@ -726,6 +756,7 @@ impl PacketBase<Ospfv3> for LsAck {
         _af: AddressFamily,
         hdr: PacketHdr,
         buf: &mut Bytes,
+        _lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
         // Parse list of LSA headers.
         let mut lsa_hdrs = vec![];
@@ -746,7 +777,7 @@ impl PacketBase<Ospfv3> for LsAck {
                 lsa_hdr.encode(&mut buf);
             }
 
-            packet_encode_end::<Ospfv3>(buf, auth)
+            packet_encode_end::<Ospfv3>(buf, auth, None)
         })
     }
 
@@ -780,10 +811,10 @@ impl PacketVersion<Self> for Ospfv3 {
     fn decode_auth_validate(
         data: &[u8],
         pkt_len: u16,
-        _hdr_auth: PacketHdrAuth,
-        auth: Option<AuthDecodeCtx<'_>>,
+        _hdr_auth: &PacketHdrAuth,
+        auth: Option<&AuthDecodeCtx<'_>>,
     ) -> DecodeResult<Option<u64>> {
-        let options = packet_options(data);
+        let options = Self::packet_options(data);
 
         // Check for authentication type mismatch.
         //
@@ -813,19 +844,23 @@ impl PacketVersion<Self> for Ospfv3 {
 
         // Ignore optional LLS block (only present in Hello and Database
         // Description packets).
-        if let Some(options) = &options
-            && options.contains(Options::L)
+        let lls_block_len = if let Some(options) = &options
+            && options.l_bit()
         {
             if buf.remaining() < LLS_HDR_SIZE as usize {
                 return Err(DecodeError::InvalidLength(buf.len() as u16));
             }
             let _lls_cksum = buf.try_get_u16()?;
             let lls_block_len = buf.try_get_u16()?;
-            if buf.remaining() < (lls_block_len * 4 - LLS_HDR_SIZE) as usize {
+            let lls_block_len = (lls_block_len * 4 - LLS_HDR_SIZE) as usize;
+            if buf.remaining() < lls_block_len {
                 return Err(DecodeError::InvalidLength(buf.len() as u16));
             }
-            buf.advance(lls_block_len as usize);
-        }
+            buf.advance(lls_block_len);
+            lls_block_len + LLS_HDR_SIZE as usize
+        } else {
+            0
+        };
 
         // Decode authentication trailer fixed header.
         if buf.remaining() < AUTH_TRAILER_HDR_SIZE as usize {
@@ -865,10 +900,18 @@ impl PacketVersion<Self> for Ospfv3 {
             return Err(DecodeError::AuthLenError(auth_len));
         }
 
+        // RFC 7166 Section 2 : "The presence of the Link-Local Signaling (LLS)
+        // [RFC5613] block is determined by the L-bit setting in the OSPFv3
+        // Options field in OSPFv3 Hello and Database Description packets. If
+        // present, the LLS data block is included along with the OSPFv3 packet
+        // in the Cryptographic Authentication computation."
+
         // Compute message digest.
         let rcvd_digest = buf.slice(..auth_key.algo.digest_size() as usize);
         let digest = auth::message_digest(
-            &data[..pkt_len as usize + AUTH_TRAILER_HDR_SIZE as usize],
+            &data[..pkt_len as usize
+                + AUTH_TRAILER_HDR_SIZE as usize
+                + lls_block_len],
             auth_key.algo,
             &auth_key.string,
             Some(CryptoProtocolId::Ospfv3),
@@ -884,7 +927,27 @@ impl PacketVersion<Self> for Ospfv3 {
         Ok(Some(seqno))
     }
 
-    fn encode_auth_trailer(buf: &mut BytesMut, auth: AuthEncodeCtx<'_>) {
+    fn encode_auth_trailer(
+        buf: &mut BytesMut,
+        auth: AuthEncodeCtx<'_>,
+        lls: Option<&LlsData>,
+    ) {
+        // RFC 7166 Section 2: "If present, the LLS data block is included along
+        // with the OSPFv3 packet in the Cryptographic Authentication
+        // computation."
+        //
+        // RFC 7166 Section 4.2: "For OSPFv3 packets including an LLS data block
+        // to be transmitted, the OSPFv3 LLS data block checksum computation is
+        // omitted, and the OSPFv3 LLS data block checksum SHOULD be set to 0
+        // prior to computation of the OSPFv3 Authentication Trailer message
+        // digest."
+        //
+        // Encode LLS data block before the authentication trailer and disable
+        // LLS checksum computation.
+        if let Some(lls) = lls {
+            lls.encode::<Ospfv3>(buf, Some(&auth));
+        }
+
         // Append authentication trailer fixed header.
         buf.put_u16(AuthType::HmacCryptographic as u16);
         buf.put_u16(AUTH_TRAILER_HDR_SIZE + auth.key.algo.digest_size() as u16);
@@ -905,28 +968,23 @@ impl PacketVersion<Self> for Ospfv3 {
         );
         buf.put_slice(&digest);
     }
-}
 
-// ===== helper functions =====
-
-// Retrieves the Options field from Hello and Database Description packets.
-//
-// Assumes the packet length has been validated beforehand.
-fn packet_options(data: &[u8]) -> Option<Options> {
-    let pkt_type = PacketType::from_u8(data[1]).unwrap();
-    match pkt_type {
-        PacketType::Hello => {
-            let options = &data[PacketHdr::LENGTH as usize + 6..];
-            let options = ((options[0] as u16) << 8) | options[1] as u16;
-            Some(Options::from_bits_truncate(options))
-        }
-        PacketType::DbDesc => {
-            let options = &data[PacketHdr::LENGTH as usize + 2..];
-            let options = ((options[0] as u16) << 8) | options[1] as u16;
-            Some(Options::from_bits_truncate(options))
-        }
-        PacketType::LsRequest | PacketType::LsUpdate | PacketType::LsAck => {
-            None
+    fn packet_options(data: &[u8]) -> Option<Options> {
+        let pkt_type = PacketType::from_u8(data[1]).unwrap();
+        match pkt_type {
+            PacketType::Hello => {
+                let options = &data[PacketHdr::LENGTH as usize + 6..];
+                let options = ((options[0] as u16) << 8) | options[1] as u16;
+                Some(Options::from_bits_truncate(options))
+            }
+            PacketType::DbDesc => {
+                let options = &data[PacketHdr::LENGTH as usize + 2..];
+                let options = ((options[0] as u16) << 8) | options[1] as u16;
+                Some(Options::from_bits_truncate(options))
+            }
+            PacketType::LsRequest
+            | PacketType::LsUpdate
+            | PacketType::LsAck => None,
         }
     }
 }

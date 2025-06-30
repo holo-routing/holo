@@ -42,6 +42,10 @@ impl AreaVersion<Self> for Ospfv2 {
             options.insert(Options::O);
         }
 
+        if let OptionsLocation::Packet { lls: true, .. } = location {
+            options.insert(Options::L);
+        }
+
         options
     }
 }

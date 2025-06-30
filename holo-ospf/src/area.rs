@@ -85,7 +85,11 @@ pub struct Range {
 // Represents the possible locations of the OSPF Options field.
 #[derive(Clone, Copy, Debug, Eq, new, PartialEq)]
 pub enum OptionsLocation {
-    Packet { pkt_type: PacketType, auth: bool },
+    Packet {
+        pkt_type: PacketType,
+        auth: bool,
+        lls: bool,
+    },
     Lsa,
 }
 

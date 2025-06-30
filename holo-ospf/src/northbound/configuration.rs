@@ -197,6 +197,7 @@ pub struct InterfaceCfg<V: Version> {
     pub bfd_enabled: bool,
     pub bfd_params: bfd::ClientCfg,
     pub trace_opts: InterfaceTraceOptions,
+    pub lls_enabled: bool,
 }
 
 #[derive(Debug)]
@@ -853,6 +854,14 @@ where
 
             let transmit_delay = args.dnode.get_u16();
             iface.config.transmit_delay = transmit_delay;
+        })
+        .path(ospf::areas::area::interfaces::interface::lls::PATH)
+        .modify_apply(|instance, args| {
+            let (_area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let enabled = args.dnode.get_bool();
+            iface.config.lls_enabled = enabled;
         })
         .path(ospf::areas::area::interfaces::interface::enabled::PATH)
         .modify_apply(|instance, args| {
@@ -2116,6 +2125,7 @@ where
             ospf::areas::area::interfaces::interface::mtu_ignore::DFLT;
         let bfd_enabled =
             ospf::areas::area::interfaces::interface::bfd::enabled::DFLT;
+        let lls_enabled = ospf::areas::area::interfaces::interface::lls::DFLT;
 
         InterfaceCfg {
             instance_id: InheritableConfig::new(instance_id),
@@ -2137,6 +2147,7 @@ where
             bfd_enabled,
             bfd_params: Default::default(),
             trace_opts: Default::default(),
+            lls_enabled,
         }
     }
 }

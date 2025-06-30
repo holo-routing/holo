@@ -459,7 +459,7 @@ impl PacketBase<Ospfv2> for Hello {
             neighbors.insert(nbr);
         }
 
-        let lls = lls.map(|block| block.into());
+        let lls = lls.map(|block| (&block).into());
 
         Ok(Hello {
             hdr,
@@ -500,7 +500,11 @@ impl PacketBase<Ospfv2> for Hello {
                 buf.put_ipv4(nbr);
             }
 
-            packet_encode_end::<Ospfv2>(buf, auth, self.lls.map(LlsData::Hello))
+            packet_encode_end::<Ospfv2>(
+                buf,
+                auth,
+                self.lls.clone().map(LlsData::Hello),
+            )
         })
     }
 

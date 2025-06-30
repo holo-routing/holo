@@ -780,10 +780,10 @@ impl PacketVersion<Self> for Ospfv3 {
     fn decode_auth_validate(
         data: &[u8],
         pkt_len: u16,
-        _hdr_auth: PacketHdrAuth,
-        auth: Option<AuthDecodeCtx<'_>>,
+        _hdr_auth: &PacketHdrAuth,
+        auth: Option<&AuthDecodeCtx<'_>>,
     ) -> DecodeResult<Option<u64>> {
-        let options = packet_options(data);
+        let options = Self::packet_options(data);
 
         // Check for authentication type mismatch.
         //
@@ -905,28 +905,23 @@ impl PacketVersion<Self> for Ospfv3 {
         );
         buf.put_slice(&digest);
     }
-}
 
-// ===== helper functions =====
-
-// Retrieves the Options field from Hello and Database Description packets.
-//
-// Assumes the packet length has been validated beforehand.
-fn packet_options(data: &[u8]) -> Option<Options> {
-    let pkt_type = PacketType::from_u8(data[1]).unwrap();
-    match pkt_type {
-        PacketType::Hello => {
-            let options = &data[PacketHdr::LENGTH as usize + 6..];
-            let options = ((options[0] as u16) << 8) | options[1] as u16;
-            Some(Options::from_bits_truncate(options))
-        }
-        PacketType::DbDesc => {
-            let options = &data[PacketHdr::LENGTH as usize + 2..];
-            let options = ((options[0] as u16) << 8) | options[1] as u16;
-            Some(Options::from_bits_truncate(options))
-        }
-        PacketType::LsRequest | PacketType::LsUpdate | PacketType::LsAck => {
-            None
+    fn packet_options(data: &[u8]) -> Option<Options> {
+        let pkt_type = PacketType::from_u8(data[1]).unwrap();
+        match pkt_type {
+            PacketType::Hello => {
+                let options = &data[PacketHdr::LENGTH as usize + 6..];
+                let options = ((options[0] as u16) << 8) | options[1] as u16;
+                Some(Options::from_bits_truncate(options))
+            }
+            PacketType::DbDesc => {
+                let options = &data[PacketHdr::LENGTH as usize + 2..];
+                let options = ((options[0] as u16) << 8) | options[1] as u16;
+                Some(Options::from_bits_truncate(options))
+            }
+            PacketType::LsRequest
+            | PacketType::LsUpdate
+            | PacketType::LsAck => None,
         }
     }
 }

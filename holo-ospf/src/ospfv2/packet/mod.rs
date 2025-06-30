@@ -804,8 +804,8 @@ impl PacketVersion<Self> for Ospfv2 {
     fn decode_auth_validate(
         data: &[u8],
         pkt_len: u16,
-        hdr_auth: PacketHdrAuth,
-        auth: Option<AuthDecodeCtx<'_>>,
+        hdr_auth: &PacketHdrAuth,
+        auth: Option<&AuthDecodeCtx<'_>>,
     ) -> DecodeResult<Option<u64>> {
         // Discard the packet if its authentication type doesn't match the
         // interface's configured authentication type.
@@ -824,49 +824,17 @@ impl PacketVersion<Self> for Ospfv2 {
                 auth_len,
                 seqno,
             } => {
-                // Get authentication key.
-                let auth = auth.as_ref().unwrap();
-                let auth_key = match auth.method {
-                    AuthMethod::ManualKey(key) => {
-                        // Check if the Key ID matches.
-                        if key.id != key_id as u64 {
-                            return Err(DecodeError::AuthKeyIdNotFound(
-                                key_id as u32,
-                            ));
-                        }
-                        key
-                    }
-                    AuthMethod::Keychain(keychain) => keychain
-                        .key_lookup_accept(key_id as u64)
-                        .ok_or(DecodeError::AuthKeyIdNotFound(key_id as u32))?,
-                };
-
-                // Sanity check.
-                if auth_key.algo.digest_size() != auth_len {
-                    return Err(DecodeError::AuthLenError(auth_len as u16));
-                }
-
                 // Get the authentication trailer.
                 let auth_trailer = &data
-                    [pkt_len as usize..pkt_len as usize + auth_len as usize];
+                    [pkt_len as usize..pkt_len as usize + *auth_len as usize];
 
                 // Compute message digest.
                 let data = &data[..pkt_len as usize];
-                let digest = auth::message_digest(
-                    data,
-                    auth_key.algo,
-                    &auth_key.string,
-                    None,
-                    None,
-                );
 
-                // Check if the received message digest is valid.
-                if *auth_trailer != digest {
-                    return Err(DecodeError::AuthError);
-                }
+                validate_digest(*key_id, *auth_len, auth, auth_trailer, data)?;
 
                 // Authentication succeeded.
-                Ok(Some(seqno.into()))
+                Ok(Some((*seqno).into()))
             }
         }
     }
@@ -881,4 +849,62 @@ impl PacketVersion<Self> for Ospfv2 {
         );
         buf.put_slice(&digest);
     }
+
+    fn packet_options(data: &[u8]) -> Option<Options> {
+        let pkt_type = PacketType::from_u8(data[1]).unwrap();
+        match pkt_type {
+            PacketType::Hello => {
+                let options = &data[PacketHdr::LENGTH as usize + 6..];
+                Some(Options::from_bits_truncate(options[0]))
+            }
+            PacketType::DbDesc => {
+                let options = &data[PacketHdr::LENGTH as usize + 2..];
+                Some(Options::from_bits_truncate(options[0]))
+            }
+            PacketType::LsRequest
+            | PacketType::LsUpdate
+            | PacketType::LsAck => None,
+        }
+    }
+}
+
+// ===== helper functions =====
+
+pub(crate) fn validate_digest(
+    key_id: u8,
+    auth_len: u8,
+    auth: Option<&AuthDecodeCtx<'_>>,
+    digest_rx: &[u8],
+    data: &[u8],
+) -> DecodeResult<()> {
+    // Get authentication key.
+    let auth = auth.as_ref().unwrap();
+    let auth_key = match auth.method {
+        AuthMethod::ManualKey(key) => {
+            // Check if the Key ID matches.
+            if key.id != key_id as u64 {
+                return Err(DecodeError::AuthKeyIdNotFound(key_id as u32));
+            }
+            key
+        }
+        AuthMethod::Keychain(keychain) => keychain
+            .key_lookup_accept(key_id as u64)
+            .ok_or(DecodeError::AuthKeyIdNotFound(key_id as u32))?,
+    };
+
+    // Sanity check.
+    if auth_key.algo.digest_size() != auth_len {
+        return Err(DecodeError::AuthLenError(auth_len as u16));
+    }
+
+    // Compute message digest.
+    let digest =
+        auth::message_digest(data, auth_key.algo, &auth_key.string, None, None);
+
+    // Check if the received message digest is valid.
+    if *digest_rx != digest {
+        return Err(DecodeError::AuthError);
+    }
+
+    Ok(())
 }

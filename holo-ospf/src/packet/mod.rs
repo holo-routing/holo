@@ -83,12 +83,17 @@ pub trait PacketVersion<V: Version> {
     fn decode_auth_validate(
         data: &[u8],
         pkt_len: u16,
-        hdr_auth: V::PacketHdrAuth,
-        auth: Option<AuthDecodeCtx<'_>>,
+        hdr_auth: &V::PacketHdrAuth,
+        auth: Option<&AuthDecodeCtx<'_>>,
     ) -> DecodeResult<Option<u64>>;
 
     // Encode the authentication trailer.
     fn encode_auth_trailer(buf: &mut BytesMut, auth: AuthEncodeCtx<'_>);
+
+    // Retrieves the Options field from Hello and Database Description packets.
+    //
+    // Assumes the packet length has been validated beforehand.
+    fn packet_options(data: &[u8]) -> Option<Self::PacketOptions>;
 }
 
 // OSPF version-specific code.
@@ -307,9 +312,12 @@ impl<V: Version> Packet<V> {
         let _span_guard = span.enter();
 
         // Validate the packet authentication.
-        if let Some(auth_seqno) =
-            V::decode_auth_validate(buf_orig.as_ref(), pkt_len, hdr_auth, auth)?
-        {
+        if let Some(auth_seqno) = V::decode_auth_validate(
+            buf_orig.as_ref(),
+            pkt_len,
+            &hdr_auth,
+            auth.as_ref(),
+        )? {
             hdr.set_auth_seqno(auth_seqno);
         }
 

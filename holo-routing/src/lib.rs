@@ -9,6 +9,7 @@ mod interface;
 mod netlink;
 mod northbound;
 mod rib;
+mod sysctl;
 
 use std::collections::BTreeMap;
 
@@ -24,7 +25,7 @@ use holo_utils::protocol::Protocol;
 use holo_utils::sr::SrCfg;
 use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
-use tracing::Instrument;
+use tracing::{Instrument, warn};
 
 use crate::interface::Interfaces;
 use crate::northbound::configuration::StaticRoute;
@@ -140,6 +141,19 @@ pub fn start(
 
         // Request information about all interfaces addresses.
         ibus::request_addresses(&master.ibus_tx);
+
+        // Enable IPv4 and IPv6 forwarding in the kernel.
+        if let Err(error) = sysctl::ipv4_forwarding("1") {
+            warn!(%error, "failed to enable IPv4 forwarding");
+        }
+        if let Err(error) = sysctl::ipv6_forwarding("1") {
+            warn!(%error, "failed to enable IPv6 forwarding");
+        }
+
+        // Set the maximum number of MPLS labels available for forwarding.
+        if let Err(error) = sysctl::mpls_platform_labels("1048575") {
+            warn!(%error, "failed to set MPLS platform labels");
+        }
 
         // Start BFD task.
         #[cfg(feature = "bfd")]

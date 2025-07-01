@@ -21,6 +21,7 @@ regex.workspace = true
 rtnetlink.workspace = true
 netlink-packet-core.workspace = true
 netlink-packet-route.workspace = true
+sysctl.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 yang3.workspace = true

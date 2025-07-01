@@ -86,6 +86,12 @@ module holo-ietf-isis-deviations {
     }
   }
 
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:node-flag" {
+    deviate replace {
+      default "true";
+    }
+  }
+
   /*
    * Type changes
    */

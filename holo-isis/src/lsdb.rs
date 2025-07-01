@@ -659,7 +659,10 @@ fn lsp_build_tlvs_ip_local(
             }
             if metric_type.is_wide_enabled() {
                 let mut prefix_attr_flags = PrefixAttrFlags::empty();
-                if iface.is_loopback() && prefix.is_host_prefix() {
+                if iface.config.node_flag
+                    && iface.is_loopback()
+                    && prefix.is_host_prefix()
+                {
                     prefix_attr_flags.insert(PrefixAttrFlags::N);
                 }
                 let sub_tlvs = lsp_build_ipv4_reach_stlvs(
@@ -698,7 +701,10 @@ fn lsp_build_tlvs_ip_local(
 
             let prefix = addr.apply_mask();
             let mut prefix_attr_flags = PrefixAttrFlags::empty();
-            if iface.is_loopback() && prefix.is_host_prefix() {
+            if iface.config.node_flag
+                && iface.is_loopback()
+                && prefix.is_host_prefix()
+            {
                 prefix_attr_flags.insert(PrefixAttrFlags::N);
             }
             let sub_tlvs = lsp_build_ipv6_reach_stlvs(

@@ -201,6 +201,7 @@ pub struct InterfaceCfg {
     pub csnp_interval: u16,
     pub hello_padding: bool,
     pub interface_type: InterfaceType,
+    pub node_flag: bool,
     pub hello_auth: LevelsOptCfg<AuthCfg>,
     pub hello_interval: LevelsCfg<u16>,
     pub hello_multiplier: LevelsCfg<u16>,
@@ -1059,6 +1060,18 @@ fn load_callbacks() -> Callbacks<Instance> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InterfaceReset(iface_idx));
+        })
+        .path(isis::interfaces::interface::node_flag::PATH)
+        .modify_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let enabled = args.dnode.get_bool();
+            iface.config.node_flag = enabled;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
         .path(isis::interfaces::interface::hello_authentication::key_chain::PATH)
         .modify_apply(|instance, args| {
@@ -2458,6 +2471,7 @@ impl Default for InterfaceCfg {
         let interface_type = isis::interfaces::interface::interface_type::DFLT;
         let interface_type =
             InterfaceType::try_from_yang(interface_type).unwrap();
+        let node_flag = isis::interfaces::interface::node_flag::DFLT;
         let hello_interval =
             isis::interfaces::interface::hello_interval::value::DFLT;
         let hello_interval = LevelsCfg {
@@ -2494,6 +2508,7 @@ impl Default for InterfaceCfg {
             csnp_interval,
             hello_padding,
             interface_type,
+            node_flag,
             hello_auth: Default::default(),
             hello_interval,
             hello_multiplier,

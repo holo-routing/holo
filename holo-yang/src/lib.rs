@@ -279,6 +279,7 @@ pub static YANG_FEATURES: Lazy<HashMap<&'static str, Vec<&'static str>>> =
                 "lsp-refresh",
                 "max-ecmp",
                 "multi-topology",
+                "node-flag",
                 "nlpid-control",
                 "te-rid",
             ],

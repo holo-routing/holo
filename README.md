@@ -199,8 +199,8 @@ Holo supports the following Internet Standards:
 * RFC 5709 - OSPFv2 HMAC-SHA Cryptographic Authentication
 * RFC 5838 - Support of Address Families in OSPFv3
 * RFC 6987 - OSPF Stub Router Advertisement
-* RFC 7684 - OSPFv2 Prefix/Link Attribute Advertisement
 * RFC 7166 - Supporting Authentication Trailer for OSPFv3
+* RFC 7684 - OSPFv2 Prefix/Link Attribute Advertisement
 * RFC 7770 - Extensions to OSPF for Advertising Optional Router Capabilities
 * RFC 7777 - Advertising Node Administrative Tags in OSPF
 * RFC 8362 - OSPFv3 Link State Advertisement (LSA) Extensibility

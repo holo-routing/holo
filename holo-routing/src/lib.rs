@@ -155,6 +155,10 @@ pub fn start(
             warn!(%error, "failed to set MPLS platform labels");
         }
 
+        // Purge stale routes potentially left behind by a previous Holo
+        // instance.
+        netlink::purge_stale_routes(&master.netlink_handle).await;
+
         // Start BFD task.
         #[cfg(feature = "bfd")]
         {

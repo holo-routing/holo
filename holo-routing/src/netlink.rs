@@ -8,6 +8,7 @@ use std::net::IpAddr;
 use std::num::NonZeroI32;
 
 use capctl::caps::CapState;
+use futures::TryStreamExt;
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{Nexthop, RouteKind};
@@ -20,7 +21,7 @@ use netlink_packet_route::route::{
 use rtnetlink::{
     Error, Handle, RouteMessageBuilder, RouteNextHopBuilder, new_connection,
 };
-use tracing::error;
+use tracing::{error, warn};
 
 use crate::interface::Interfaces;
 use crate::rib::Route;
@@ -151,6 +152,40 @@ pub(crate) async fn mpls_route_uninstall(
             )
     {
         error!(?label, %error, "failed to uninstall MPLS route");
+    }
+}
+
+// Purge stale routes that may have been left behind by a previous Holo
+// instance.
+//
+// Normally, `holo-routing` removes all installed routes before exiting. In some
+// cases, however, such as a panic or termination by a signal like SIGKILL, the
+// process may exit abruptly, leaving routes in the kernel routing table.
+//
+// This function should be called during startup to clean up any such stale
+// routes. It filters routes by protocol type (e.g., BGP, OSPF), assuming that
+// only Holo installs routes using those protocols.
+pub(crate) async fn purge_stale_routes(handle: &Handle) {
+    let msg = RouteMessageBuilder::<IpAddr>::new().build();
+    let mut routes = handle.route().get(msg).execute();
+    while let Ok(Some(route)) = routes.try_next().await {
+        // Only target routes installed by Holo.
+        let protocol = route.header.protocol;
+        if !matches!(
+            protocol,
+            RouteProtocol::Bgp
+                | RouteProtocol::Isis
+                | RouteProtocol::Ospf
+                | RouteProtocol::Rip
+                | RouteProtocol::Static
+        ) {
+            continue;
+        }
+
+        // Attempt to uninstall the stale route.
+        if let Err(error) = handle.route().del(route).execute().await {
+            warn!(?protocol, ?error, "failed to purge stale route");
+        }
     }
 }
 

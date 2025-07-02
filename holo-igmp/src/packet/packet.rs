@@ -1,7 +1,8 @@
 use std::net::Ipv4Addr;
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
-use holo_utils::bytes::BytesMutExt;
+use holo_utils::bytes::{BytesExt, BytesMutExt};
+use internet_checksum::Checksum;
 use num_traits::FromPrimitive;
 
 use crate::igmp::packet::packet::{
@@ -9,30 +10,21 @@ use crate::igmp::packet::packet::{
 };
 use crate::packet::PacketType;
 
-fn compute_checksum(data: &[u8]) -> u16 {
-    let mut sum = 0u32;
+const CKSUM_RANGE: std::ops::Range<usize> = 2..4;
 
-    let mut chunks = data.chunks_exact(2);
-    for chunk in &mut chunks {
-        let word = u16::from_be_bytes([chunk[0], chunk[1]]) as u32;
-        sum = sum.wrapping_add(word);
-    }
-
-    if let Some(&last_byte) = chunks.remainder().first() {
-        let word = u16::from_be_bytes([last_byte, 0]) as u32;
-        sum = sum.wrapping_add(word);
-    }
-
-    // Fold overflow
-    while (sum >> 16) != 0 {
-        sum = (sum & 0xFFFF) + (sum >> 16);
-    }
-
-    !(sum as u16)
+fn update_cksum(buf: &mut BytesMut) {
+    let mut cksum = Checksum::new();
+    cksum.add_bytes(buf);
+    buf[CKSUM_RANGE].copy_from_slice(&cksum.checksum());
 }
 
-pub fn is_valid_checksum(data: &[u8]) -> bool {
-    compute_checksum(data) == 0
+fn verify_cksum(data: &[u8]) -> DecodeResult<()> {
+    let mut cksum = Checksum::new();
+    cksum.add_bytes(data);
+    if cksum.checksum() != [0, 0] {
+        return Err(DecodeError::InvalidChecksum);
+    }
+    Ok(())
 }
 
 impl MembershipReportV2 {
@@ -58,8 +50,7 @@ impl MembershipReportV2 {
         let max_resp_time = Some(buf.get_u8());
         let checksum = buf.get_u16();
 
-        // Validate checksum
-        if !is_valid_checksum(&buf_orig[0..buf_orig.len()]) {
+        if verify_cksum(buf_orig.as_ref()).is_err() {
             return Err(DecodeError::InvalidChecksum);
         }
 
@@ -87,11 +78,8 @@ impl MembershipReportV2 {
         if let Some(addr) = self.group_address {
             buf.put_ipv4(&addr);
         }
-        let checksum = compute_checksum(&buf[0..buf.len()]);
 
-        // overwrite the checksum
-        buf[2] = (checksum >> 8) as u8;
-        buf[3] = (checksum & 0xFF) as u8;
+        update_cksum(buf);
     }
 }
 
@@ -119,16 +107,12 @@ impl LeaveGroupV2 {
         let _responce_time = buf.get_u8();
 
         let checksum = buf.get_u16();
-        if !is_valid_checksum(&buf_orig[0..buf_orig.len()]) {
+
+        if verify_cksum(buf_orig.as_ref()).is_err() {
             return Err(DecodeError::InvalidChecksum);
         }
 
-        let group_address = Some(Ipv4Addr::new(
-            buf.get_u8(),
-            buf.get_u8(),
-            buf.get_u8(),
-            buf.get_u8(),
-        ));
+        let group_address = Some(buf.get_ipv4());
 
         let msg = IgmpV2Message {
             igmp_type: pkt_type,
@@ -148,10 +132,6 @@ impl LeaveGroupV2 {
             buf.put_ipv4(&addr);
         }
 
-        let checksum = compute_checksum(&buf[0..buf.len()]);
-
-        // overwrite the checksum
-        buf[2] = (checksum >> 8) as u8;
-        buf[3] = (checksum & 0xFF) as u8;
+        update_cksum(buf);
     }
 }

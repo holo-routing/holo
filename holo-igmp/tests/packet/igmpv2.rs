@@ -1,6 +1,7 @@
 use std::sync::LazyLock as Lazy;
 
 use bytes::Bytes;
+use const_addrs::ip4;
 use holo_igmp::igmp::packet::packet::{
     IgmpV2Message, LeaveGroupV2, MembershipReportV2,
 };
@@ -14,7 +15,7 @@ static MEMBERSHIPREQUEST1: Lazy<(Vec<u8>, Packet)> = Lazy::new(|| {
             igmp_type: PacketType::MembershipReportV2Type,
             max_resp_time: Some(0x00),
             checksum: 0x06fb,
-            group_address: Some(std::net::Ipv4Addr::new(225, 1, 2, 3)),
+            group_address: Some(ip4!("225.1.2.3")),
         })),
     )
 });
@@ -27,7 +28,7 @@ static MEMBERSHIPREQUESTBADCHECKSUM1: Lazy<(Vec<u8>, Packet)> =
                 igmp_type: PacketType::MembershipReportV2Type,
                 max_resp_time: Some(0x00),
                 checksum: 0x06fc,
-                group_address: Some(std::net::Ipv4Addr::new(225, 1, 2, 3)),
+                group_address: Some(ip4!("225.1.2.3")),
             })),
         )
     });
@@ -39,7 +40,7 @@ static LEAVEGROUP1: Lazy<(Vec<u8>, Packet)> = Lazy::new(|| {
             igmp_type: PacketType::LeaveGroupV2Type,
             max_resp_time: Some(0x00),
             checksum: 0x05fb,
-            group_address: Some(std::net::Ipv4Addr::new(225, 1, 2, 3)),
+            group_address: Some(ip4!("225.1.2.3")),
         })),
     )
 });

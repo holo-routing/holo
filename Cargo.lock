@@ -1028,7 +1028,7 @@ dependencies = [
 
 [[package]]
 name = "holo-bfd"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "async-trait",
  "bitflags 2.9.1",
@@ -1060,7 +1060,7 @@ dependencies = [
 
 [[package]]
 name = "holo-bgp"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "arbitrary",
  "arc-swap",
@@ -1097,7 +1097,7 @@ dependencies = [
 
 [[package]]
 name = "holo-daemon"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "capctl",
  "chrono",
@@ -1142,7 +1142,7 @@ dependencies = [
 
 [[package]]
 name = "holo-interface"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "async-trait",
  "bitflags 2.9.1",
@@ -1170,7 +1170,7 @@ dependencies = [
 
 [[package]]
 name = "holo-isis"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1211,7 +1211,7 @@ dependencies = [
 
 [[package]]
 name = "holo-keychain"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1227,7 +1227,7 @@ dependencies = [
 
 [[package]]
 name = "holo-ldp"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "async-trait",
  "bitflags 2.9.1",
@@ -1259,7 +1259,7 @@ dependencies = [
 
 [[package]]
 name = "holo-northbound"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -1281,7 +1281,7 @@ dependencies = [
 
 [[package]]
 name = "holo-ospf"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1323,7 +1323,7 @@ dependencies = [
 
 [[package]]
 name = "holo-policy"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "async-trait",
  "derive-new",
@@ -1338,7 +1338,7 @@ dependencies = [
 
 [[package]]
 name = "holo-protocol"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "async-trait",
  "derive-new",
@@ -1355,7 +1355,7 @@ dependencies = [
 
 [[package]]
 name = "holo-rip"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "async-trait",
  "bitflags 2.9.1",
@@ -1386,7 +1386,7 @@ dependencies = [
 
 [[package]]
 name = "holo-routing"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "async-trait",
  "bitflags 2.9.1",
@@ -1421,7 +1421,7 @@ dependencies = [
 
 [[package]]
 name = "holo-system"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "async-trait",
  "capctl",
@@ -1438,7 +1438,7 @@ dependencies = [
 
 [[package]]
 name = "holo-tools"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "check_keyword",
  "clap 2.34.0",
@@ -1463,7 +1463,7 @@ dependencies = [
 
 [[package]]
 name = "holo-utils"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "arbitrary",
  "async-trait",
@@ -1495,7 +1495,7 @@ dependencies = [
 
 [[package]]
 name = "holo-vrrp"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "async-trait",
  "bytes",

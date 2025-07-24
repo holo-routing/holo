@@ -76,6 +76,7 @@ pub enum TlvType {
 #[derive(Deserialize, Serialize)]
 pub enum AuthenticationType {
     ClearText = 1,
+    Cryptographic = 3,
     HmacMd5 = 54,
 }
 

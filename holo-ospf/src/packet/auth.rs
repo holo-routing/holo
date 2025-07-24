@@ -5,8 +5,8 @@
 //
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
-use std::sync::{Arc, LazyLock as Lazy};
 
 use derive_new::new;
 use hmac::Hmac;
@@ -16,25 +16,12 @@ use hmac::digest::core_api::{
 };
 use hmac::digest::typenum::{IsLess, Le, NonZero, U256};
 use hmac::digest::{HashMarker, Mac, OutputSizeUser};
-use holo_utils::crypto::{CryptoAlgo, CryptoProtocolId};
+use holo_utils::crypto::{CryptoAlgo, CryptoProtocolId, HMAC_APAD};
 use holo_utils::ip::{Ipv4AddrExt, Ipv6AddrExt};
 use holo_utils::keychain::{Key, Keychain};
 use md5::{Digest, Md5};
 use sha1::Sha1;
 use sha2::{Sha256, Sha384, Sha512};
-
-// Apad is the hexadecimal value 0x878FE1F3 repeated (L/4) times, where L is the
-// length of the hash, measured in bytes.
-//
-// The read-only Apad defined here is designed to accommodate the largest
-// supported hash length, which is 64 bytes for SHA512.
-pub static HMAC_APAD: Lazy<Vec<u8>> = Lazy::new(|| {
-    [0x87, 0x8F, 0xE1, 0xF3]
-        .into_iter()
-        .cycle()
-        .take(64)
-        .collect()
-});
 
 #[derive(Clone, Debug)]
 pub enum AuthMethod {

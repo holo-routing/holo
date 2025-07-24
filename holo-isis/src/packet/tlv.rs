@@ -151,6 +151,7 @@ pub struct PaddingTlv {
 pub enum AuthenticationTlv {
     ClearText(Vec<u8>),
     HmacMd5([u8; 16]),
+    Cryptographic { key_id: u16, digest: Vec<u8> },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -658,6 +659,11 @@ impl AuthenticationTlv {
                 buf.try_copy_to_slice(&mut digest)?;
                 Ok(AuthenticationTlv::HmacMd5(digest))
             }
+            AuthenticationType::Cryptographic => {
+                let key_id = buf.try_get_u16()?;
+                let digest = buf.to_vec();
+                Ok(AuthenticationTlv::Cryptographic { key_id, digest })
+            }
         }
     }
 
@@ -672,8 +678,25 @@ impl AuthenticationTlv {
                 buf.put_u8(AuthenticationType::HmacMd5 as u8);
                 buf.put_slice(digest);
             }
+            AuthenticationTlv::Cryptographic { key_id, digest } => {
+                buf.put_u8(AuthenticationType::Cryptographic as u8);
+                buf.put_u16(*key_id);
+                buf.put_slice(digest);
+            }
         }
         tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn update_digest(&mut self, new_digest: Vec<u8>) {
+        match self {
+            AuthenticationTlv::HmacMd5(digest) => {
+                *digest = new_digest.try_into().unwrap();
+            }
+            AuthenticationTlv::Cryptographic { digest, .. } => {
+                *digest = new_digest;
+            }
+            _ => (),
+        }
     }
 }
 

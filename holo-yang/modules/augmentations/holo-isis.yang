@@ -207,6 +207,40 @@ module holo-isis {
 
   augment "/rt:routing/rt:control-plane-protocols/"
         + "rt:control-plane-protocol/isis:isis/"
+        + "isis:authentication/"
+        + "isis:authentication-type/isis:password" {
+     leaf key-id {
+      type uint16;
+      description
+        "Key identifier.";
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis/"
+        + "isis:authentication/isis:level-1/"
+        + "isis:authentication-type/isis:password" {
+     leaf key-id {
+      type uint16;
+      description
+        "Key identifier.";
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis/"
+        + "isis:authentication/isis:level-2/"
+        + "isis:authentication-type/isis:password" {
+     leaf key-id {
+      type uint16;
+      description
+        "Key identifier.";
+    }
+  }
+
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis/"
         + "isis:interfaces/isis:interface" {
     description
       "IS-IS interface augmentations";
@@ -261,6 +295,42 @@ module holo-isis {
       type isis:circuit-id;
       description
         "Interface circuit ID.";
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis/"
+        + "isis:interfaces/isis:interface/"
+        + "isis:hello-authentication/"
+        + "isis:authentication-type/isis:password" {
+     leaf key-id {
+      type uint16;
+      description
+        "Key identifier.";
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis/"
+        + "isis:interfaces/isis:interface/"
+        + "isis:hello-authentication/isis:level-1/"
+        + "isis:authentication-type/isis:password" {
+     leaf key-id {
+      type uint16;
+      description
+        "Key identifier.";
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis/"
+        + "isis:interfaces/isis:interface/"
+        + "isis:hello-authentication/isis:level-2/"
+        + "isis:authentication-type/isis:password" {
+     leaf key-id {
+      type uint16;
+      description
+        "Key identifier.";
     }
   }
 

@@ -239,6 +239,7 @@ pub struct InterfaceTraceOptions {
 pub struct AuthCfg {
     pub keychain: Option<String>,
     pub key: Option<String>,
+    pub key_id: Option<u16>,
     pub algo: Option<CryptoAlgo>,
 }
 
@@ -455,6 +456,22 @@ fn load_callbacks() -> Callbacks<Instance> {
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
+        .path(isis::authentication::key_id::PATH)
+        .modify_apply(|instance, args| {
+            let key_id = args.dnode.get_u16();
+            instance.config.auth.all.key_id = Some(key_id);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .delete_apply(|instance, args| {
+            instance.config.auth.all.key_id = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
         .path(isis::authentication::crypto_algorithm::PATH)
         .modify_apply(|instance, args| {
             let algo = args.dnode.get_string();
@@ -500,6 +517,20 @@ fn load_callbacks() -> Callbacks<Instance> {
             let event_queue = args.event_queue;
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
         })
+        .path(isis::authentication::level_1::key_id::PATH)
+        .modify_apply(|instance, args| {
+            let key_id = args.dnode.get_u16();
+            instance.config.auth.l1.key_id = Some(key_id);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+        })
+        .delete_apply(|instance, args| {
+            instance.config.auth.l1.key_id = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+        })
         .path(isis::authentication::level_1::crypto_algorithm::PATH)
         .modify_apply(|instance, args| {
             let algo = args.dnode.get_string();
@@ -539,6 +570,20 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .delete_apply(|instance, args| {
             instance.config.auth.l2.key = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .path(isis::authentication::level_2::key_id::PATH)
+        .modify_apply(|instance, args| {
+            let key_id = args.dnode.get_u16();
+            instance.config.auth.l2.key_id = Some(key_id);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .delete_apply(|instance, args| {
+            instance.config.auth.l2.key_id = None;
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
@@ -1113,6 +1158,26 @@ fn load_callbacks() -> Callbacks<Instance> {
             let event_queue = args.event_queue;
             event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
         })
+        .path(isis::interfaces::interface::hello_authentication::key_id::PATH)
+        .modify_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let key_id = args.dnode.get_u16();
+            iface.config.hello_auth.all.key_id = Some(key_id);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+        })
+        .delete_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.hello_auth.all.key_id = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+        })
         .path(isis::interfaces::interface::hello_authentication::crypto_algorithm::PATH)
         .modify_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -1174,6 +1239,26 @@ fn load_callbacks() -> Callbacks<Instance> {
             let event_queue = args.event_queue;
             event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
         })
+        .path(isis::interfaces::interface::hello_authentication::level_1::key_id::PATH)
+        .modify_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let key_id = args.dnode.get_u16();
+            iface.config.hello_auth.l1.key_id = Some(key_id);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+        })
+        .delete_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.hello_auth.l1.key_id = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+        })
         .path(isis::interfaces::interface::hello_authentication::level_1::crypto_algorithm::PATH)
         .modify_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -1231,6 +1316,26 @@ fn load_callbacks() -> Callbacks<Instance> {
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             iface.config.hello_auth.l2.key = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+        })
+        .path(isis::interfaces::interface::hello_authentication::level_2::key_id::PATH)
+        .modify_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let key_id = args.dnode.get_u16();
+            iface.config.hello_auth.l2.key_id = Some(key_id);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+        })
+        .delete_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.hello_auth.l2.key_id = None;
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
@@ -2284,7 +2389,9 @@ impl MetricType {
 impl AuthCfg {
     pub(crate) fn method(&self, keychains: &Keychains) -> Option<AuthMethod> {
         if let (Some(key), Some(algo)) = (&self.key, self.algo) {
-            let auth_key = Key::new(0, algo, key.as_bytes().to_vec());
+            let key_id = self.key_id.unwrap_or_default() as u64;
+            let key = key.as_bytes().to_vec();
+            let auth_key = Key::new(key_id, algo, key);
             return Some(AuthMethod::ManualKey(auth_key));
         }
 

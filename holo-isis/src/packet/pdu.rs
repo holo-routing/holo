@@ -15,7 +15,7 @@ use std::time::Instant;
 use bitflags::bitflags;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::TLS_BUF;
-use holo_utils::crypto::CryptoAlgo;
+use holo_utils::crypto::{CryptoAlgo, HMAC_APAD};
 use holo_utils::keychain::Key;
 use holo_yang::ToYang;
 use num_traits::FromPrimitive;
@@ -247,26 +247,36 @@ impl Pdu {
             return Err(DecodeError::AuthTypeMismatch);
         };
 
-        // Get authentication key.
-        let auth_key =
-            auth.get_key_accept().ok_or(DecodeError::AuthKeyNotFound)?;
-
-        match (&tlv_auth, auth_key.algo) {
+        match &tlv_auth {
             // Clear-text authentication.
-            (
-                (AuthenticationTlv::ClearText(passwd), _),
-                CryptoAlgo::ClearText,
-            ) => {
+            (AuthenticationTlv::ClearText(passwd), _) => {
+                // Get authentication key.
+                let auth_key = auth
+                    .get_key_accept_any()
+                    .ok_or(DecodeError::AuthKeyNotFound)?;
+
+                // Check for authentication type mismatch.
+                if auth_key.algo != CryptoAlgo::ClearText {
+                    return Err(DecodeError::AuthTypeMismatch);
+                }
+
                 // Validate the received password.
                 if *passwd != auth_key.string {
                     return Err(DecodeError::AuthError);
                 }
             }
             // HMAC-MD5 authentication.
-            (
-                (AuthenticationTlv::HmacMd5(tlv_digest), tlv_offset),
-                CryptoAlgo::HmacMd5,
-            ) => {
+            (AuthenticationTlv::HmacMd5(tlv_digest), tlv_offset) => {
+                // Get authentication key.
+                let auth_key = auth
+                    .get_key_accept_any()
+                    .ok_or(DecodeError::AuthKeyNotFound)?;
+
+                // Check for authentication type mismatch.
+                if auth_key.algo != CryptoAlgo::HmacMd5 {
+                    return Err(DecodeError::AuthTypeMismatch);
+                }
+
                 // If processing an LSP, zero out the Checksum and Remaining
                 // Lifetime fields.
                 if is_lsp {
@@ -275,8 +285,9 @@ impl Pdu {
                 }
 
                 // Zero out the digest field before computing the new digest.
+                let digest_size = auth_key.algo.digest_size() as usize;
                 let digest_offset = tlv_offset + 1;
-                buf_orig[digest_offset..digest_offset + 16].fill(0);
+                buf_orig[digest_offset..digest_offset + digest_size].fill(0);
 
                 // Compute the expected message digest.
                 let digest = auth::message_digest(
@@ -290,9 +301,54 @@ impl Pdu {
                     return Err(DecodeError::AuthError);
                 }
             }
-            // Authentication type mismatch.
-            _ => {
-                return Err(DecodeError::AuthTypeMismatch);
+            // Cryptographic authentication.
+            (
+                AuthenticationTlv::Cryptographic {
+                    key_id,
+                    digest: tlv_digest,
+                },
+                tlv_offset,
+            ) => {
+                // Get authentication key.
+                let auth_key = auth
+                    .get_key_accept(*key_id)
+                    .ok_or(DecodeError::AuthKeyNotFound)?;
+
+                // Check for authentication type mismatch.
+                if !matches!(
+                    auth_key.algo,
+                    CryptoAlgo::HmacSha1
+                        | CryptoAlgo::HmacSha256
+                        | CryptoAlgo::HmacSha384
+                        | CryptoAlgo::HmacSha512
+                ) {
+                    return Err(DecodeError::AuthTypeMismatch);
+                }
+
+                // If processing an LSP, zero out the Checksum and Remaining
+                // Lifetime fields.
+                if is_lsp {
+                    buf_orig[Lsp::REM_LIFETIME_RANGE].fill(0);
+                    buf_orig[Lsp::CKSUM_RANGE].fill(0);
+                }
+
+                // Initialize the digest field with Apad (0x878FE1F3...).
+                let digest_size = auth_key.algo.digest_size() as usize;
+                let digest_offset = tlv_offset + 3;
+                buf_orig[digest_offset..digest_offset + digest_size]
+                    .copy_from_slice(&HMAC_APAD[..digest_size]);
+
+                // Compute the expected message digest.
+                let digest = auth::message_digest(
+                    &buf_orig,
+                    auth_key.algo,
+                    &auth_key.string,
+                );
+
+                // Validate the received digest.
+                if *tlv_digest != *digest {
+                    return Err(DecodeError::AuthError);
+                }
             }
         }
 
@@ -300,16 +356,27 @@ impl Pdu {
     }
 
     // Returns an Authentication TLV for encoding a PDU with the given key.
-    // For HMAC-MD5, the digest is initialized to zero and will be computed
-    // later.
-    fn encode_auth_tlv(auth: &Key) -> Option<AuthenticationTlv> {
-        match auth.algo {
+    fn encode_auth_tlv(auth_key: &Key) -> Option<AuthenticationTlv> {
+        match auth_key.algo {
             CryptoAlgo::ClearText => {
-                let tlv = AuthenticationTlv::ClearText(auth.string.clone());
+                let tlv = AuthenticationTlv::ClearText(auth_key.string.clone());
                 Some(tlv)
             }
             CryptoAlgo::HmacMd5 => {
+                // RFC 5304: HMAC-MD5 digest is initialized to zero.
                 let tlv = AuthenticationTlv::HmacMd5([0; 16]);
+                Some(tlv)
+            }
+            CryptoAlgo::HmacSha1
+            | CryptoAlgo::HmacSha256
+            | CryptoAlgo::HmacSha384
+            | CryptoAlgo::HmacSha512 => {
+                // RFC 5310: Digest is initialized using Apad (0x878FE1F3...).
+                let tlv = AuthenticationTlv::Cryptographic {
+                    key_id: auth_key.id as u16,
+                    digest: HMAC_APAD[..auth_key.algo.digest_size() as usize]
+                        .to_vec(),
+                };
                 Some(tlv)
             }
             _ => None,
@@ -317,14 +384,21 @@ impl Pdu {
     }
 
     // Calculates the length of the Authentication TLV for a given key.
-    pub(crate) fn auth_tlv_len(auth: &Key) -> usize {
+    pub(crate) fn auth_tlv_len(auth_key: &Key) -> usize {
         let mut len = TLV_HDR_SIZE + AuthenticationTlv::MIN_LEN;
-        match auth.algo {
+        match auth_key.algo {
             CryptoAlgo::ClearText => {
-                len += std::cmp::min(auth.string.len(), TLV_MAX_LEN);
+                // Add length of the clear-text key, limited to TLV max.
+                len += std::cmp::min(auth_key.string.len(), TLV_MAX_LEN);
+            }
+            CryptoAlgo::HmacMd5 => {
+                // Add the digest size for HMAC-MD5.
+                len += auth_key.algo.digest_size() as usize;
             }
             _ => {
-                len += auth.algo.digest_size() as usize;
+                // Add 2 bytes for the Key ID, plus the digest size.
+                len += 2;
+                len += auth_key.algo.digest_size() as usize;
             }
         }
         len
@@ -617,7 +691,7 @@ impl Hello {
         })
     }
 
-    fn encode(&self, auth: Option<&Key>) -> Bytes {
+    fn encode(&self, auth_key: Option<&Key>) -> Bytes {
         TLS_BUF.with(|buf| {
             let mut buf = pdu_encode_start(buf, &self.hdr);
 
@@ -644,14 +718,15 @@ impl Hello {
                 }
             }
 
-            // Encode TLVs.
-            let mut auth_tlv_pos = None;
-            if let Some(auth) = auth
-                && let Some(tlv) = Pdu::encode_auth_tlv(auth)
-            {
-                auth_tlv_pos = Some(buf.len());
-                tlv.encode(&mut buf);
-            }
+            // Encode Authentication TLV.
+            let auth = auth_key.and_then(|auth_key| {
+                let auth_tlv = Pdu::encode_auth_tlv(auth_key)?;
+                let auth_tlv_pos = buf.len();
+                auth_tlv.encode(&mut buf);
+                Some((auth_key, auth_tlv_pos))
+            });
+
+            // Encode other TLVs.
             if let Some(tlv) = &self.tlvs.protocols_supported {
                 tlv.encode(&mut buf);
             }
@@ -674,7 +749,7 @@ impl Hello {
                 tlv.encode(&mut buf);
             }
 
-            pdu_encode_end(buf, len_pos, auth, auth_tlv_pos, None)
+            pdu_encode_end(buf, len_pos, auth, None)
         })
     }
 
@@ -1060,7 +1135,7 @@ impl Lsp {
         })
     }
 
-    fn encode(&mut self, auth: Option<&Key>) -> Bytes {
+    fn encode(&mut self, auth_key: Option<&Key>) -> Bytes {
         TLS_BUF.with(|buf| {
             let mut buf = pdu_encode_start(buf, &self.hdr);
 
@@ -1075,15 +1150,16 @@ impl Lsp {
             buf.put_u16(0);
             buf.put_u8(self.flags.bits());
 
-            // Encode TLVs.
-            let mut auth_tlv_pos = None;
-            if let Some(auth) = auth
-                && let Some(tlv) = Pdu::encode_auth_tlv(auth)
-            {
-                auth_tlv_pos = Some(buf.len());
-                tlv.encode(&mut buf);
-                self.tlvs.auth = Some(tlv);
-            }
+            // Encode Authentication TLV.
+            let auth = auth_key.and_then(|auth_key| {
+                let auth_tlv = Pdu::encode_auth_tlv(auth_key)?;
+                let auth_tlv_pos = buf.len();
+                auth_tlv.encode(&mut buf);
+                self.tlvs.auth = Some(auth_tlv);
+                Some((auth_key, auth_tlv_pos))
+            });
+
+            // Encode other TLVs.
             if let Some(tlv) = &self.tlvs.protocols_supported {
                 tlv.encode(&mut buf);
             }
@@ -1143,8 +1219,7 @@ impl Lsp {
             }
 
             // Store LSP raw data.
-            let bytes =
-                pdu_encode_end(buf, len_pos, auth, auth_tlv_pos, Some(self));
+            let bytes = pdu_encode_end(buf, len_pos, auth, Some(self));
             self.raw = bytes.clone();
             bytes
         })
@@ -1680,7 +1755,7 @@ impl Snp {
         })
     }
 
-    fn encode(&self, auth: Option<&Key>) -> Bytes {
+    fn encode(&self, auth_key: Option<&Key>) -> Bytes {
         TLS_BUF.with(|buf| {
             let mut buf = pdu_encode_start(buf, &self.hdr);
 
@@ -1694,19 +1769,20 @@ impl Snp {
                 end_lsp_id.encode(&mut buf);
             }
 
-            // Encode TLVs.
-            let mut auth_tlv_pos = None;
-            if let Some(auth) = auth
-                && let Some(tlv) = Pdu::encode_auth_tlv(auth)
-            {
-                auth_tlv_pos = Some(buf.len());
-                tlv.encode(&mut buf);
-            }
+            // Encode Authentication TLV.
+            let auth = auth_key.and_then(|auth_key| {
+                let auth_tlv = Pdu::encode_auth_tlv(auth_key)?;
+                let auth_tlv_pos = buf.len();
+                auth_tlv.encode(&mut buf);
+                Some((auth_key, auth_tlv_pos))
+            });
+
+            // Encode other TLVs.
             for tlv in &self.tlvs.lsp_entries {
                 tlv.encode(&mut buf);
             }
 
-            pdu_encode_end(buf, len_pos, auth, auth_tlv_pos, None)
+            pdu_encode_end(buf, len_pos, auth, None)
         })
     }
 }
@@ -1785,8 +1861,7 @@ fn pdu_encode_start<'a>(
 fn pdu_encode_end(
     mut buf: RefMut<'_, BytesMut>,
     len_pos: usize,
-    auth: Option<&Key>,
-    auth_tlv_pos: Option<usize>,
+    auth: Option<(&Key, usize)>,
     mut lsp: Option<&mut Lsp>,
 ) -> Bytes {
     // Initialize PDU length.
@@ -1794,17 +1869,21 @@ fn pdu_encode_end(
     buf[len_pos..len_pos + 2].copy_from_slice(&pkt_len.to_be_bytes());
 
     // Compute and update the authentication digest if needed.
-    if let Some(auth) = auth
-        && let Some(auth_tlv_pos) = auth_tlv_pos
-        && auth.algo != CryptoAlgo::ClearText
+    if let Some((auth_key, auth_tlv_pos)) = auth
+        && auth_key.algo != CryptoAlgo::ClearText
     {
-        let digest = auth::message_digest(&buf, auth.algo, &auth.string);
-        let offset = auth_tlv_pos + 3;
-        buf[offset..offset + auth.algo.digest_size() as usize]
+        let digest =
+            auth::message_digest(&buf, auth_key.algo, &auth_key.string);
+        let mut offset = auth_tlv_pos + 3;
+        if auth_key.algo != CryptoAlgo::HmacMd5 {
+            offset += 2;
+        }
+        buf[offset..offset + auth_key.algo.digest_size() as usize]
             .copy_from_slice(&digest);
-        if let Some(lsp) = lsp.as_mut() {
-            lsp.tlvs.auth =
-                Some(AuthenticationTlv::HmacMd5(digest.try_into().unwrap()));
+        if let Some(lsp) = lsp.as_mut()
+            && let Some(auth_tlv) = lsp.tlvs.auth.as_mut()
+        {
+            auth_tlv.update_digest(digest);
         }
     }
 

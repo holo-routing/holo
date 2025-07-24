@@ -49,3 +49,6 @@ static KEY_CLEAR_TEXT: Lazy<Key> = Lazy::new(|| {
 });
 static KEY_HMAC_MD5: Lazy<Key> =
     Lazy::new(|| Key::new(1, CryptoAlgo::HmacMd5, "HOLO".as_bytes().to_vec()));
+static KEY_HMAC_SHA256: Lazy<Key> = Lazy::new(|| {
+    Key::new(1, CryptoAlgo::HmacSha256, "HOLO".as_bytes().to_vec())
+});

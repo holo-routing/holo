@@ -5,6 +5,7 @@
 //
 
 use std::borrow::Cow;
+use std::sync::LazyLock as Lazy;
 
 use holo_yang::{ToYang, TryFromYang};
 use num_derive::FromPrimitive;
@@ -37,6 +38,21 @@ pub enum CryptoProtocolId {
     Ldp = 0x02,
     Ospfv2 = 0x03,
 }
+
+// A precomputed Apad value used in authentication for many routing protocols.
+//
+// Apad is the hexadecimal value 0x878FE1F3 repeated (L/4) times, where L is the
+// length of the hash, measured in bytes.
+//
+// The read-only Apad defined here is designed to accommodate the largest
+// supported hash length, which is 64 bytes for SHA512.
+pub static HMAC_APAD: Lazy<Vec<u8>> = Lazy::new(|| {
+    [0x87, 0x8F, 0xE1, 0xF3]
+        .into_iter()
+        .cycle()
+        .take(64)
+        .collect()
+});
 
 // ===== impl CryptoAlgo =====
 

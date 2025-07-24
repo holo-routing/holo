@@ -39,7 +39,7 @@ use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid};
 use maplit::btreemap;
 
-use super::{KEY_HMAC_MD5, test_decode_pdu, test_encode_pdu};
+use super::{KEY_HMAC_MD5, KEY_HMAC_SHA256, test_decode_pdu, test_encode_pdu};
 
 //
 // Test packets.
@@ -471,6 +471,87 @@ static LSP3_HMAC_MD5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
     )
 });
 
+static LSP3_HMAC_SHA256: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
+    (
+        vec![
+            0x83, 0x1b, 0x01, 0x00, 0x12, 0x01, 0x00, 0x00, 0x00, 0x6f, 0x04,
+            0x92, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x04, 0x77, 0xa6, 0x01, 0x0a, 0x23, 0x03, 0x00, 0x01, 0xc2,
+            0xd4, 0x57, 0xfb, 0xb0, 0x6b, 0xfe, 0x01, 0xec, 0x91, 0x30, 0x27,
+            0xa2, 0x9e, 0xd1, 0xbd, 0xe3, 0x07, 0x74, 0xe5, 0x71, 0x87, 0xeb,
+            0x78, 0x6c, 0x8f, 0xb0, 0x4c, 0xad, 0x46, 0x65, 0xb6, 0x81, 0x01,
+            0xcc, 0x01, 0x04, 0x03, 0x49, 0x00, 0x00, 0x16, 0x0b, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x02, 0x03, 0x00, 0x00, 0x0a, 0x00, 0x84, 0x04,
+            0x01, 0x01, 0x01, 0x01, 0x87, 0x11, 0x00, 0x00, 0x00, 0x0a, 0x18,
+            0x0a, 0x00, 0x01, 0x00, 0x00, 0x00, 0x0a, 0x20, 0x01, 0x01, 0x01,
+            0x01,
+        ],
+        Some(&KEY_HMAC_SHA256),
+        Pdu::Lsp(Lsp::new(
+            LevelNumber::L1,
+            1170,
+            LspId::from([0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00]),
+            0x00000004,
+            LspFlags::IS_TYPE1,
+            LspTlvs {
+                auth: None,
+                protocols_supported: Some(ProtocolsSupportedTlv {
+                    list: vec![0xcc],
+                }),
+                router_cap: vec![],
+                area_addrs: vec![AreaAddressesTlv {
+                    list: vec![AreaAddr::from([0x49, 0, 0].as_slice())],
+                }],
+                multi_topology: vec![],
+                hostname: None,
+                lsp_buf_size: None,
+                is_reach: vec![],
+                ext_is_reach: vec![IsReachTlv {
+                    mt_id: None,
+                    list: vec![IsReach {
+                        neighbor: LanId::from([
+                            0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03,
+                        ]),
+                        metric: 10,
+                        sub_tlvs: Default::default(),
+                    }],
+                }],
+                mt_is_reach: vec![],
+                ipv4_addrs: vec![Ipv4AddressesTlv {
+                    list: vec![ip4!("1.1.1.1")],
+                }],
+                ipv4_internal_reach: vec![],
+                ipv4_external_reach: vec![],
+                ext_ipv4_reach: vec![Ipv4ReachTlv {
+                    mt_id: None,
+                    list: vec![
+                        Ipv4Reach {
+                            metric: 10,
+                            up_down: false,
+                            prefix: net4!("10.0.1.0/24"),
+                            sub_tlvs: Default::default(),
+                        },
+                        Ipv4Reach {
+                            metric: 10,
+                            up_down: false,
+                            prefix: net4!("1.1.1.1/32"),
+                            sub_tlvs: Default::default(),
+                        },
+                    ],
+                }],
+                mt_ipv4_reach: vec![],
+                ipv4_router_id: None,
+                ipv6_addrs: vec![],
+                ipv6_reach: vec![],
+                mt_ipv6_reach: vec![],
+                ipv6_router_id: None,
+                unknown: vec![],
+            },
+            Some(&KEY_HMAC_SHA256),
+        )),
+    )
+});
+
 static LSP4: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
     (
         vec![
@@ -632,6 +713,18 @@ fn test_encode_lsp3_hmac_md5() {
 #[test]
 fn test_decode_lsp3_hmac_md5() {
     let (ref bytes, ref auth, ref lsp) = *LSP3_HMAC_MD5;
+    test_decode_pdu(bytes, lsp, auth);
+}
+
+#[test]
+fn test_encode_lsp3_hmac_sha256() {
+    let (ref bytes, ref auth, ref lsp) = *LSP3_HMAC_SHA256;
+    test_encode_pdu(bytes, lsp, auth);
+}
+
+#[test]
+fn test_decode_lsp3_hmac_sha256() {
+    let (ref bytes, ref auth, ref lsp) = *LSP3_HMAC_SHA256;
     test_decode_pdu(bytes, lsp, auth);
 }
 

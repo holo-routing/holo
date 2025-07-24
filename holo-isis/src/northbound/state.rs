@@ -246,18 +246,26 @@ fn load_callbacks() -> Callbacks<Instance> {
             let lse = args.list_entry.as_lsp_entry().unwrap();
             let lsp = &lse.data;
             let authentication_type =
-                lsp.tlvs.auth.as_ref().map(|auth| match auth {
+                lsp.tlvs.auth.as_ref().and_then(|auth| match auth {
                     AuthenticationTlv::ClearText(..) => {
-                        CryptoAlgo::ClearText.to_yang()
+                        Some(CryptoAlgo::ClearText.to_yang())
                     }
                     AuthenticationTlv::HmacMd5(..) => {
-                        CryptoAlgo::HmacMd5.to_yang()
+                        Some(CryptoAlgo::HmacMd5.to_yang())
+                    }
+                    AuthenticationTlv::Cryptographic {..} => {
+                        // The authentication algorithm is never sent in
+                        // cleartext over the wire.
+                        None
                     }
                 });
             let authentication_key =
                 lsp.tlvs.auth.as_ref().and_then(|auth| match auth {
                     AuthenticationTlv::ClearText(..) => None,
                     AuthenticationTlv::HmacMd5(digest) => {
+                        Some(Cow::Owned(format_hmac_digest(digest)))
+                    }
+                    AuthenticationTlv::Cryptographic { digest, .. } => {
                         Some(Cow::Owned(format_hmac_digest(digest)))
                     }
                 });

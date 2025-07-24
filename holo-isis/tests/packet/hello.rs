@@ -18,7 +18,10 @@ use holo_isis::packet::tlv::{
 use holo_isis::packet::{AreaAddr, LanId, LevelType, SystemId};
 use holo_utils::keychain::Key;
 
-use super::{KEY_CLEAR_TEXT, KEY_HMAC_MD5, test_decode_pdu, test_encode_pdu};
+use super::{
+    KEY_CLEAR_TEXT, KEY_HMAC_MD5, KEY_HMAC_SHA256, test_decode_pdu,
+    test_encode_pdu,
+};
 
 //
 // Test packets.
@@ -478,6 +481,50 @@ static P2P_HELLO2_HMAC_MD5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> =
         )
     });
 
+static P2P_HELLO2_HMAC_SHA256: Lazy<(Vec<u8>, Option<&Key>, Pdu)> =
+    Lazy::new(|| {
+        (
+            vec![
+                0x83, 0x14, 0x01, 0x00, 0x11, 0x01, 0x00, 0x00, 0x01, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x09, 0x00, 0x49, 0x00,
+                0x0a, 0x23, 0x03, 0x00, 0x01, 0x49, 0x45, 0xd8, 0x2d, 0x56,
+                0x2f, 0xe1, 0x5b, 0xc0, 0xd3, 0x15, 0x69, 0x84, 0x5b, 0xe8,
+                0x0e, 0x06, 0xb2, 0xb6, 0x01, 0x3c, 0x8a, 0x63, 0xdb, 0x8f,
+                0x71, 0xe6, 0x8c, 0xb5, 0x25, 0x82, 0x81, 0x81, 0x02, 0xcc,
+                0x8e, 0x01, 0x04, 0x03, 0x49, 0x00, 0x00, 0x84, 0x04, 0x0a,
+                0x00, 0x07, 0x06,
+            ],
+            Some(&KEY_HMAC_SHA256),
+            Pdu::Hello(Hello::new(
+                LevelType::All,
+                LevelType::L1,
+                SystemId::from([0x00, 0x00, 0x00, 0x00, 0x00, 0x06]),
+                9,
+                HelloVariant::P2P {
+                    local_circuit_id: 0,
+                },
+                HelloTlvs {
+                    protocols_supported: Some(ProtocolsSupportedTlv {
+                        list: vec![0xcc, 0x8e],
+                    }),
+                    area_addrs: vec![AreaAddressesTlv {
+                        list: vec![AreaAddr::from(
+                            [0x49, 0x00, 0x00].as_slice(),
+                        )],
+                    }],
+                    multi_topology: vec![],
+                    neighbors: vec![],
+                    ipv4_addrs: vec![Ipv4AddressesTlv {
+                        list: vec![ip4!("10.0.7.6")],
+                    }],
+                    ipv6_addrs: vec![],
+                    padding: vec![],
+                    unknown: vec![],
+                },
+            )),
+        )
+    });
+
 //
 // Tests.
 //
@@ -526,5 +573,17 @@ fn test_encode_p2p_hello2_hmac_md5() {
 #[test]
 fn test_decode_p2p_hello2_hmac_md5() {
     let (ref bytes, ref auth, ref hello) = *P2P_HELLO2_HMAC_MD5;
+    test_decode_pdu(bytes, hello, auth);
+}
+
+#[test]
+fn test_encode_p2p_hello2_hmac_sha256() {
+    let (ref bytes, ref auth, ref hello) = *P2P_HELLO2_HMAC_SHA256;
+    test_encode_pdu(bytes, hello, auth);
+}
+
+#[test]
+fn test_decode_p2p_hello2_hmac_sha256() {
+    let (ref bytes, ref auth, ref hello) = *P2P_HELLO2_HMAC_SHA256;
     test_decode_pdu(bytes, hello, auth);
 }

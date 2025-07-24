@@ -573,8 +573,7 @@ pub(crate) fn process_pdu_lsp(
         return Ok(());
     }
 
-    // Check if the expired LSP contains any TLVs other than the authentication
-    // TLV.
+    // Validate TLVs in the purged LSP.
     if lsp.is_expired() && !lsp.tlvs.valid_purge_tlvs() {
         // Log why the LSP is being discarded.
         Debug::LspDiscard(level, &lsp).log();
@@ -658,6 +657,26 @@ pub(crate) fn process_pdu_lsp(
             if !lsp.is_expired() {
                 lsp.rem_lifetime = instance.config.lsp_lifetime;
             }
+
+            // If we receive a purge without a POI TLV and purge originator
+            // support is enabled, add a POI TLV containing our System ID and
+            // the System ID of the adjacency from which the purge was received.
+            // Then, recompute the Authentication TLV if authentication is
+            // configured.
+            if lsp.is_expired()
+                && lsp.tlvs.purge_originator_id.is_none()
+                && instance.config.purge_originator
+            {
+                lsp.tlvs.add_purge_originator_id(
+                    instance.config.system_id.unwrap(),
+                    Some(adj.system_id),
+                    instance.shared.hostname.clone(),
+                );
+                let auth =
+                    instance.config.auth.all.method(&instance.shared.keychains);
+                let auth = auth.as_ref().and_then(|auth| auth.get_key_send());
+                lsp.encode(auth);
+            };
 
             // Store the new LSP, replacing any existing one.
             let lse =
@@ -1199,9 +1218,19 @@ pub(crate) fn process_lsp_purge(
     // Set remaining lifetime to zero if it's not already.
     lsp.set_rem_lifetime(0);
 
-    // Remove all existing TLVs, retaining only the LSP header, and add a new
-    // authentication TLV if necessary.
+    // Remove all existing TLVs, retaining only the LSP header.
     lsp.tlvs = Default::default();
+
+    // Add the POI TLV if purge originator support is enabled.
+    if instance.config.purge_originator {
+        lsp.tlvs.add_purge_originator_id(
+            instance.config.system_id.unwrap(),
+            None,
+            instance.shared.hostname.clone(),
+        );
+    };
+
+    // Regenerate the LSP data, adding an authentication TLV if necessary.
     let auth = instance.config.auth.all.method(&instance.shared.keychains);
     let auth = auth.as_ref().and_then(|auth| auth.get_key_send());
     lsp.encode(auth);

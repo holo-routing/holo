@@ -38,7 +38,7 @@ use crate::packet::subtlvs::prefix::{
     BierInfoStlv, Ipv4SourceRidStlv, Ipv6SourceRidStlv, PrefixAttrFlags,
     PrefixAttrFlagsStlv, PrefixSidStlv,
 };
-use crate::packet::{AreaAddr, LanId, LspId, subtlvs};
+use crate::packet::{AreaAddr, LanId, LspId, SystemId, subtlvs};
 
 // TLV header size.
 pub const TLV_HDR_SIZE: usize = 2;
@@ -158,6 +158,13 @@ pub enum AuthenticationTlv {
 #[derive(Deserialize, Serialize)]
 pub struct LspBufferSizeTlv {
     pub size: u16,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct PurgeOriginatorIdTlv {
+    pub system_id: SystemId,
+    pub system_id_rcvd: Option<SystemId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -729,6 +736,46 @@ impl LspBufferSizeTlv {
 impl Tlv for LspBufferSizeTlv {
     fn len(&self) -> usize {
         TLV_HDR_SIZE + Self::SIZE
+    }
+}
+
+// ===== impl PurgeOriginatorIdTlv =====
+
+impl PurgeOriginatorIdTlv {
+    pub(crate) fn decode(
+        _tlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
+        let num_system_ids = buf.try_get_u8()?;
+        if num_system_ids < 1 || num_system_ids > 2 {
+            return Err(TlvDecodeError::InvalidNumSystemIds(num_system_ids));
+        }
+
+        let system_id = SystemId::decode(buf)?;
+        let mut system_id_rcvd = None;
+        if num_system_ids > 1 {
+            system_id_rcvd = Some(SystemId::decode(buf)?);
+        }
+
+        Ok(PurgeOriginatorIdTlv {
+            system_id,
+            system_id_rcvd,
+        })
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, TlvType::PurgeOriginatorId);
+        let mut num_system_ids = 1;
+        if self.system_id_rcvd.is_some() {
+            num_system_ids += 1;
+        }
+
+        buf.put_u8(num_system_ids);
+        self.system_id.encode(buf);
+        if let Some(system_id_rcvd) = &self.system_id_rcvd {
+            system_id_rcvd.encode(buf);
+        }
+        tlv_encode_end(buf, start_pos);
     }
 }
 

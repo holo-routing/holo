@@ -1089,6 +1089,16 @@ fn load_callbacks() -> Callbacks<Instance> {
                 flag: Some(Box::new(iter)),
             })
         })
+        .path(isis::database::levels::lsp::purge_originator_identification::PATH)
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::purge_originator_identification::PurgeOriginatorIdentification;
+            let lse = args.list_entry.as_lsp_entry().unwrap();
+            let lsp = &lse.data;
+            Box::new(PurgeOriginatorIdentification {
+                originator: lsp.tlvs.purge_originator_id.as_ref().map(|tlv| tlv.system_id.to_yang()),
+                received_from: lsp.tlvs.purge_originator_id.as_ref().and_then(|tlv| tlv.system_id_rcvd.map(|system_id| system_id.to_yang())),
+            })
+        })
         .path(isis::local_rib::route::PATH)
         .get_iterate(|instance, _args| {
             let Some(instance_state) = &instance.state else { return None };

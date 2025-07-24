@@ -48,6 +48,7 @@ pub enum TlvType {
     Padding = 8,
     LspEntries = 9,
     Authentication = 10,
+    PurgeOriginatorId = 13,
     LspBufferSize = 14,
     ExtIsReach = 22,
     Ipv4InternalReach = 128,

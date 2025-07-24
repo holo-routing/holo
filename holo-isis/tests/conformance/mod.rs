@@ -306,6 +306,46 @@ async fn pdu_lsp_overload1() {
 }
 
 // Input:
+//  * Northbound: enable purge originator for the instance
+// Output: no changes
+//
+// Input:
+//  * Protocol: LSP 0000.0000.0007.00-00 has expired in the database
+// Output:
+//  * Protocol: send the expired LSP to the 0000.0000.0002 adjacency
+//  * Northbound:
+//    - set the remaining lifetime of the expired LSP to zero
+//    - remove all TLVs from the expired LSP, then add POI and Hostname TLVs
+//    - add the expired LSP to the SRM list of the 0000.0000.0002 adjacency
+//    - remove the hostname mapping for 0000.0000.0007
+//    - transition the SPF Delay FSM state from "quiet" to "short-wait"
+#[tokio::test]
+async fn pdu_lsp_purge_originator1() {
+    run_test::<Instance>("pdu-lsp-purge-originator1", "topo1-1", "rt1").await;
+}
+
+// Input:
+//  * Northbound: enable purge originator for the instance
+// Output: no changes
+//
+// Input:
+//  * Protocol: receive an LSP (0000.0000.0007.00-00) with zero remaining
+//    lifetime from eth-rt1, containing no TLVs
+// Output:
+//  * Protocol: send the expired LSP to the 0000.0000.0003 adjacency
+//  * Northbound:
+//    - add POI (with two system IDs) and Hostname TLVs to the expired LSP
+//    - add the expired LSP to the SSN list of the 0000.0000.0001 adjacency
+//    - add the expired LSP to the SRM list of the 0000.0000.0003 adjacency
+//    - remove the hostname mapping for 0000.0000.0007
+//    - transition the SPF Delay FSM state from "quiet" to "short-wait"
+//    - send an "lsp-received" YANG notification
+#[tokio::test]
+async fn pdu_lsp_purge_originator2() {
+    run_test::<Instance>("pdu-lsp-purge-originator2", "topo1-1", "rt2").await;
+}
+
+// Input:
 //  * Protocol: received a self-originated LSP (0000.0000.0006.00-01) from
 //    eth-rt4 that doesn't exist in the database
 // Output:

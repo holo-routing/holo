@@ -171,6 +171,8 @@ Holo supports the following Internet Standards:
 * RFC 5305 - IS-IS Extensions for Traffic Engineering
 * RFC 5308 - Routing IPv6 with IS-IS
 * RFC 5310 - IS-IS Generic Cryptographic Authentication
+* RFC 6232 - Purge Originator Identification TLV for IS-IS
+* RFC 6233 - IS-IS Registry Extension for Purges
 * RFC 7794 - IS-IS Prefix Attributes for Extended IPv4 and IPv6 Reachability
 * RFC 7981 - IS-IS Extensions for Advertising Router Information
 * RFC 7987 - IS-IS Minimum Remaining Lifetime

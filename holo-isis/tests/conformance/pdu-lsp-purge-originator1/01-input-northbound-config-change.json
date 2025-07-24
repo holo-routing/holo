@@ -1,0 +1,23 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-isis:isis",
+          "name": "test",
+          "ietf-isis:isis": {
+            "holo-isis:purge-originator": true,
+            "@holo-isis:purge-originator": {
+              "yang:operation": "replace",
+              "yang:orig-default": true,
+              "yang:orig-value": "false"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

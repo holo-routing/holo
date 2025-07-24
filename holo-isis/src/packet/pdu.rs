@@ -35,9 +35,9 @@ use crate::packet::tlv::{
     Ipv6ReachTlv, Ipv6RouterIdTlv, IsReach, IsReachTlv, LegacyIpv4Reach,
     LegacyIpv4ReachTlv, LegacyIsReach, LegacyIsReachTlv, LspBufferSizeTlv,
     LspEntriesTlv, LspEntry, MtFlags, MultiTopologyEntry, MultiTopologyTlv,
-    NeighborsTlv, PaddingTlv, ProtocolsSupportedTlv, RouterCapTlv,
-    TLV_HDR_SIZE, TLV_MAX_LEN, Tlv, UnknownTlv, tlv_entries_split,
-    tlv_take_max,
+    NeighborsTlv, PaddingTlv, ProtocolsSupportedTlv, PurgeOriginatorIdTlv,
+    RouterCapTlv, TLV_HDR_SIZE, TLV_MAX_LEN, Tlv, UnknownTlv,
+    tlv_entries_split, tlv_take_max,
 };
 use crate::packet::{
     AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId, auth,
@@ -149,6 +149,7 @@ pub struct LspTlvs {
     pub router_cap: Vec<RouterCapTlv>,
     pub area_addrs: Vec<AreaAddressesTlv>,
     pub multi_topology: Vec<MultiTopologyTlv>,
+    pub purge_originator_id: Option<PurgeOriginatorIdTlv>,
     pub hostname: Option<DynamicHostnameTlv>,
     pub lsp_buf_size: Option<LspBufferSizeTlv>,
     pub is_reach: Vec<LegacyIsReachTlv>,
@@ -977,6 +978,15 @@ impl Lsp {
                         Err(error) => error.log(),
                     }
                 }
+                Some(TlvType::PurgeOriginatorId) => {
+                    if tlvs.purge_originator_id.is_some() {
+                        continue;
+                    }
+                    match PurgeOriginatorIdTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.purge_originator_id = Some(tlv),
+                        Err(error) => error.log(),
+                    }
+                }
                 Some(TlvType::DynamicHostname) => {
                     match DynamicHostnameTlv::decode(tlv_len, &mut buf_tlv) {
                         Ok(tlv) => tlvs.hostname = Some(tlv),
@@ -1175,6 +1185,9 @@ impl Lsp {
                 tlv.encode(&mut buf);
             }
             for tlv in &self.tlvs.multi_topology {
+                tlv.encode(&mut buf);
+            }
+            if let Some(tlv) = &self.tlvs.purge_originator_id {
                 tlv.encode(&mut buf);
             }
             if let Some(tlv) = &self.tlvs.hostname {
@@ -1387,6 +1400,7 @@ impl LspTlvs {
             router_cap,
             area_addrs: tlv_entries_split(area_addrs),
             multi_topology: tlv_entries_split(multi_topology),
+            purge_originator_id: None,
             hostname: hostname.map(|hostname| DynamicHostnameTlv { hostname }),
             lsp_buf_size: lsp_buf_size.map(|size| LspBufferSizeTlv { size }),
             is_reach: tlv_entries_split(is_reach),
@@ -1468,6 +1482,7 @@ impl LspTlvs {
             router_cap,
             area_addrs,
             multi_topology,
+            purge_originator_id: None,
             hostname,
             lsp_buf_size,
             is_reach,
@@ -1487,16 +1502,44 @@ impl LspTlvs {
         })
     }
 
+    pub(crate) fn add_purge_originator_id(
+        &mut self,
+        system_id: SystemId,
+        system_id_rcvd: Option<SystemId>,
+        hostname: Option<String>,
+    ) {
+        self.purge_originator_id = Some(PurgeOriginatorIdTlv {
+            system_id,
+            system_id_rcvd,
+        });
+        self.hostname =
+            hostname.map(|hostname| DynamicHostnameTlv { hostname });
+    }
+
     // Returns whether the TLVs are valid in a purged LSP.
     //
     // RFC 5304 specifies that a purged LSP (Remaining Lifetime == 0) MUST NOT
     // contain any TLVs other than the Authentication TLV.
+    //
+    // RFC 6233 generalizes this rule: a purge MUST NOT include any TLV not
+    // explicitly allowed in a purge, as listed in the IANA IS-IS TLV Codepoints
+    // registry. It also introduces an exception: if a purge includes the Purge
+    // Originator Identification TLV and does not include the Authentication
+    // TLV, it is acceptable regardless of which other TLVs are present.
+    //
+    // The stricter rules for the authentication case are necessary to protect
+    // against a hostile system receiving an LSP, setting its Remaining Lifetime
+    // to zero, and flooding it, thereby initiating a purge without knowing the
+    // authentication password.
     pub(crate) fn valid_purge_tlvs(&mut self) -> bool {
+        if self.auth.is_none() && self.purge_originator_id.is_some() {
+            return true;
+        }
+
         self.protocols_supported.is_none()
             && self.router_cap.is_empty()
             && self.area_addrs.is_empty()
             && self.multi_topology.is_empty()
-            && self.hostname.is_none()
             && self.lsp_buf_size.is_none()
             && self.is_reach.is_empty()
             && self.ext_is_reach.is_empty()

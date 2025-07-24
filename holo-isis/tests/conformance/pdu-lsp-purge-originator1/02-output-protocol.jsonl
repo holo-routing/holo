@@ -1,0 +1,1 @@
+{"NetTxPdu":{"pdu":{"Lsp":{"hdr":{"pdu_type":"LspL2","max_area_addrs":0},"rem_lifetime":0,"lsp_id":{"system_id":[0,0,0,0,0,7],"pseudonode":0,"fragment":0},"flags":"IS_TYPE2 | IS_TYPE1","tlvs":{"purge_originator_id":{"system_id":[0,0,0,0,0,1],"system_id_rcvd":null},"hostname":{"hostname":"rt1"}}}},"ifname":"eth-rt2","dst":"AllIss"}}

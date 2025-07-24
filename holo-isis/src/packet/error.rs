@@ -45,6 +45,7 @@ pub enum TlvDecodeError {
     InvalidLength(u8),
     InvalidAreaAddrLen(u8),
     AuthUnsupportedType(u8),
+    InvalidNumSystemIds(u8),
 }
 
 // ===== impl DecodeError =====
@@ -131,6 +132,9 @@ impl std::fmt::Display for TlvDecodeError {
             }
             TlvDecodeError::InvalidAreaAddrLen(area_len) => {
                 write!(f, "invalid area address length: {area_len}")
+            }
+            TlvDecodeError::InvalidNumSystemIds(num) => {
+                write!(f, "invalid number of System IDs: {num}")
             }
         }
     }

@@ -30,8 +30,8 @@ use holo_isis::packet::tlv::{
     Ipv6ReachStlvs, Ipv6ReachTlv, Ipv6RouterIdTlv, IsReach, IsReachStlvs,
     IsReachTlv, LegacyIpv4Reach, LegacyIpv4ReachTlv, LegacyIsReach,
     LegacyIsReachTlv, LspBufferSizeTlv, MtFlags, MultiTopologyEntry,
-    MultiTopologyTlv, ProtocolsSupportedTlv, RouterCapFlags, RouterCapStlvs,
-    RouterCapTlv,
+    MultiTopologyTlv, ProtocolsSupportedTlv, PurgeOriginatorIdTlv,
+    RouterCapFlags, RouterCapStlvs, RouterCapTlv,
 };
 use holo_isis::packet::{AreaAddr, LanId, LevelNumber, LspId, SystemId};
 use holo_utils::keychain::Key;
@@ -119,6 +119,7 @@ static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                     list: vec![AreaAddr::from([0x49, 0, 0].as_slice())],
                 }],
                 multi_topology: vec![],
+                purge_originator_id: None,
                 hostname: None,
                 lsp_buf_size: None,
                 is_reach: vec![],
@@ -294,6 +295,7 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                     list: vec![AreaAddr::from([0x49, 0, 0].as_slice())],
                 }],
                 multi_topology: vec![],
+                purge_originator_id: None,
                 hostname: Some(DynamicHostnameTlv {
                     hostname: "holo".to_owned(),
                 }),
@@ -422,6 +424,7 @@ static LSP3_HMAC_MD5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                     list: vec![AreaAddr::from([0x49, 0, 0].as_slice())],
                 }],
                 multi_topology: vec![],
+                purge_originator_id: None,
                 hostname: None,
                 lsp_buf_size: None,
                 is_reach: vec![],
@@ -503,6 +506,7 @@ static LSP3_HMAC_SHA256: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                     list: vec![AreaAddr::from([0x49, 0, 0].as_slice())],
                 }],
                 multi_topology: vec![],
+                purge_originator_id: None,
                 hostname: None,
                 lsp_buf_size: None,
                 is_reach: vec![],
@@ -598,6 +602,7 @@ static LSP4: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                         },
                     ],
                 }],
+                purge_originator_id: None,
                 hostname: None,
                 lsp_buf_size: None,
                 is_reach: vec![],
@@ -676,6 +681,60 @@ static LSP4: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
     )
 });
 
+static LSP5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
+    (
+        vec![
+            0x83, 0x1b, 0x01, 0x00, 0x14, 0x01, 0x00, 0x00, 0x00, 0x30, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x05, 0xd4, 0xc0, 0x02, 0x0d, 0x0d, 0x02, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x89, 0x04,
+            0x68, 0x6f, 0x6c, 0x6f,
+        ],
+        None,
+        Pdu::Lsp(Lsp::new(
+            LevelNumber::L2,
+            0,
+            LspId::from([0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00]),
+            0x00000005,
+            LspFlags::IS_TYPE2,
+            LspTlvs {
+                auth: None,
+                protocols_supported: None,
+                router_cap: vec![],
+                area_addrs: vec![],
+                multi_topology: vec![],
+                purge_originator_id: Some(PurgeOriginatorIdTlv {
+                    system_id: SystemId::from([
+                        0x00, 0x00, 0x00, 0x00, 0x00, 0x02,
+                    ]),
+                    system_id_rcvd: Some(SystemId::from([
+                        0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+                    ])),
+                }),
+                hostname: Some(DynamicHostnameTlv {
+                    hostname: "holo".to_owned(),
+                }),
+                lsp_buf_size: None,
+                is_reach: vec![],
+                ext_is_reach: vec![],
+                mt_is_reach: vec![],
+                ipv4_addrs: vec![],
+                ipv4_internal_reach: vec![],
+                ipv4_external_reach: vec![],
+                ext_ipv4_reach: vec![],
+                mt_ipv4_reach: vec![],
+                ipv4_router_id: None,
+                ipv6_addrs: vec![],
+                ipv6_reach: vec![],
+                mt_ipv6_reach: vec![],
+                ipv6_router_id: None,
+                unknown: vec![],
+            },
+            None,
+        )),
+    )
+});
+
 //
 // Tests.
 //
@@ -737,5 +796,17 @@ fn test_encode_lsp4() {
 #[test]
 fn test_decode_lsp4() {
     let (ref bytes, ref auth, ref lsp) = *LSP4;
+    test_decode_pdu(bytes, lsp, auth);
+}
+
+#[test]
+fn test_encode_lsp5() {
+    let (ref bytes, ref auth, ref lsp) = *LSP5;
+    test_encode_pdu(bytes, lsp, auth);
+}
+
+#[test]
+fn test_decode_lsp5() {
+    let (ref bytes, ref auth, ref lsp) = *LSP5;
     test_decode_pdu(bytes, lsp, auth);
 }

@@ -95,6 +95,13 @@ module holo-isis {
         + "rt:control-plane-protocol/isis:isis" {
     description
       "IS-IS instance augmentations";
+    leaf purge-originator {
+      type boolean;
+      default false;
+      description
+        "Enable support for purge originator identification as specified
+         in RFC 6232.";
+    }
     container attached-bit {
       description "Configuration related to the ATT bit.";
 
@@ -406,6 +413,19 @@ module holo-isis {
       units "seconds";
       description
         "Remaining lifetime of this LSP at the time it was received.";
+    }
+    container purge-originator-identification {
+      leaf originator {
+        type isis:system-id;
+        description
+          "System ID of the router that generated the purged LSP.";
+      }
+      leaf received-from {
+        type isis:system-id;
+        description
+          "System ID of the neighboring router from which the purged LSP
+           was received.";
+      }
     }
   }
 

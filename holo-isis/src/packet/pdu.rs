@@ -1298,7 +1298,8 @@ impl Lsp {
         #[cfg(not(feature = "testing"))]
         {
             let mut raw = BytesMut::from(self.raw.as_ref());
-            raw[10..12].copy_from_slice(&rem_lifetime.to_be_bytes());
+            raw[Self::REM_LIFETIME_RANGE]
+                .copy_from_slice(&rem_lifetime.to_be_bytes());
             self.raw = raw.freeze();
         }
 

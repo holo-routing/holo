@@ -106,6 +106,9 @@ pub struct Lsp {
         serde(default, skip_serializing_if = "serde_lsp_rem_lifetime_filter")
     )]
     pub rem_lifetime: u16,
+    // Remaining lifetime of this LSP at the time it was received.
+    #[serde(skip)]
+    pub rcvd_rem_lifetime: Option<u16>,
     pub lsp_id: LspId,
     #[cfg_attr(feature = "testing", serde(skip_serializing))]
     pub seqno: u32,
@@ -890,6 +893,7 @@ impl Lsp {
         let mut lsp = Lsp {
             hdr: Header::new(pdu_type),
             rem_lifetime,
+            rcvd_rem_lifetime: None,
             lsp_id,
             seqno,
             cksum: 0,
@@ -1125,6 +1129,7 @@ impl Lsp {
         Ok(Lsp {
             hdr,
             rem_lifetime,
+            rcvd_rem_lifetime: None,
             lsp_id,
             seqno,
             cksum,

@@ -401,6 +401,12 @@ module holo-isis {
         "The maximum sized LSP which may be generated.
          The IS-IS reference is TLV 14.";
     }
+    leaf received-remaining-lifetime {
+      type uint16;
+      units "seconds";
+      description
+        "Remaining lifetime of this LSP at the time it was received.";
+    }
   }
 
   augment "/rt:routing/rt:control-plane-protocols/"

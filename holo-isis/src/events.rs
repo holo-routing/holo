@@ -639,6 +639,16 @@ pub(crate) fn process_pdu_lsp(
     // Compare the LSP in the database (if it exists) to the incoming LSP.
     match lse.map(|lse| lsp_compare(&lse.data, lsp.seqno, lsp.rem_lifetime)) {
         None | Some(Ordering::Less) => {
+            // Record the Remaining Lifetime of the LSP at the time it was
+            // received.
+            lsp.rcvd_rem_lifetime = Some(lsp.rem_lifetime);
+
+            // RFC 7987: If the LSP is not expired, reset its Remaining Lifetime
+            // to the configured maximum to protect against corrupted values.
+            if !lsp.is_expired() {
+                lsp.rem_lifetime = instance.config.lsp_lifetime;
+            }
+
             // Store the new LSP, replacing any existing one.
             let lse =
                 lsdb::install(instance, &mut arenas.lsp_entries, level, lsp);

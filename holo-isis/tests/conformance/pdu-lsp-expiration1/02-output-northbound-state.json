@@ -1141,7 +1141,8 @@
                       "holo-isis:area-addresses": [
                         "49.0000"
                       ],
-                      "holo-isis:lsp-buffer-size": 1492
+                      "holo-isis:lsp-buffer-size": 1492,
+                      "holo-isis:received-remaining-lifetime": 0
                     },
                     {
                       "lsp-id": "0000.0000.0006.00-00",

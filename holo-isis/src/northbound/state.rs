@@ -228,6 +228,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                 dynamic_hostname: lsp.tlvs.hostname().map(Cow::Borrowed),
                 area_addresses: Some(Box::new(area_addresses)),
                 lsp_buffer_size: lsp.tlvs.lsp_buf_size(),
+                received_remaining_lifetime: lsp.rcvd_rem_lifetime.ignore_in_testing_if(lsp.rcvd_rem_lifetime != Some(0)),
             })
         })
         .path(isis::database::levels::lsp::attributes::PATH)

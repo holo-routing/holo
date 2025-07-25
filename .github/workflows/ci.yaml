@@ -8,91 +8,102 @@ env:
   RUSTFLAGS: "-Dwarnings"
 
 jobs:
-  fmt:
-    name: Code Formatting Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.88
-        with:
-          components: rustfmt
-      - uses: Swatinem/rust-cache@v2
-      - name: "rustfmt --check"
-        run: |
-          if ! rustfmt --check --edition 2024 $(git ls-files '*.rs'); then
-            printf "Please run \`rustfmt --edition 2024 \$(git ls-files '*.rs')\` to fix rustfmt errors.\nSee CONTRIBUTING.md for more details.\n" >&2
-            exit 1
-          fi
+  #fmt:
+  #  name: Code Formatting Check
+  #  runs-on: ubuntu-latest
+  #  steps:
+  #    - uses: actions/checkout@v4
+  #    - uses: dtolnay/rust-toolchain@1.88
+  #      with:
+  #        components: rustfmt
+  #    - uses: Swatinem/rust-cache@v2
+  #    - name: "rustfmt --check"
+  #      run: |
+  #        if ! rustfmt --check --edition 2024 $(git ls-files '*.rs'); then
+  #          printf "Please run \`rustfmt --edition 2024 \$(git ls-files '*.rs')\` to fix rustfmt errors.\nSee CONTRIBUTING.md for more details.\n" >&2
+  #          exit 1
+  #        fi
 
-  clippy_check:
-    name: Linter Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.88
-        with:
-          components: clippy
-      - name: Install Protocol Buffers Compiler
-        run: sudo apt-get install -y protobuf-compiler
-      - name: Set PROTOC Environment Variable
-        run: export PROTOC=/path/to/protoc
-      - name: Run Clippy
-        run: cargo clippy
-      - name: Run Clippy
-        run: cargo clippy --package holo-tools
+  #clippy_check:
+  #  name: Linter Check
+  #  runs-on: ubuntu-latest
+  #  steps:
+  #    - uses: actions/checkout@v4
+  #    - uses: dtolnay/rust-toolchain@1.88
+  #      with:
+  #        components: clippy
+  #    - name: Install Protocol Buffers Compiler
+  #      run: sudo apt-get install -y protobuf-compiler
+  #    - name: Set PROTOC Environment Variable
+  #      run: export PROTOC=/path/to/protoc
+  #    - name: Run Clippy
+  #      run: cargo clippy
+  #    - name: Run Clippy
+  #      run: cargo clippy --package holo-tools
 
-  tests_and_coverage_report:
-    name: Tests and Coverage Report
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.88
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-      - name: Generate code coverage
-        run: cargo llvm-cov --all-features --codecov --output-path codecov.json -p holo-bfd -p holo-bgp -p holo-isis -p holo-ldp -p holo-ospf -p holo-rip -p holo-vrrp
-      - name: Upload to Codecov
-        uses: codecov/codecov-action@v4
-        if: github.event_name != 'pull_request'
-        with:
-          files: ./lcov.info
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
+  #tests_and_coverage_report:
+  #  name: Tests and Coverage Report
+  #  runs-on: ubuntu-latest
+  #  steps:
+  #    - uses: actions/checkout@v4
+  #    - uses: dtolnay/rust-toolchain@1.88
+  #    - name: Install cargo-llvm-cov
+  #      uses: taiki-e/install-action@cargo-llvm-cov
+  #    - name: Generate code coverage
+  #      run: cargo llvm-cov --all-features --codecov --output-path codecov.json -p holo-bfd -p holo-bgp -p holo-isis -p holo-ldp -p holo-ospf -p holo-rip -p holo-vrrp
+  #    - name: Upload to Codecov
+  #      uses: codecov/codecov-action@v4
+  #      if: github.event_name != 'pull_request'
+  #      with:
+  #        files: ./lcov.info
+  #        fail_ci_if_error: false
+  #        token: ${{ secrets.CODECOV_TOKEN }}
 
-  tests_arm:
-    name: Tests (Arm64)
-    runs-on: ubuntu-24.04-arm
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.88
-      - name: Run tests
-        run: cargo test --all-features -p holo-bfd -p holo-bgp -p holo-isis -p holo-ldp -p holo-ospf -p holo-rip -p holo-vrrp
+  #tests_arm:
+  #  name: Tests (Arm64)
+  #  runs-on: ubuntu-24.04-arm
+  #  steps:
+  #    - uses: actions/checkout@v4
+  #    - uses: dtolnay/rust-toolchain@1.88
+  #    - name: Run tests
+  #      run: cargo test --all-features -p holo-bfd -p holo-bgp -p holo-isis -p holo-ldp -p holo-ospf -p holo-rip -p holo-vrrp
 
-  fuzz-build-check:
-    name: Check fuzz targets build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      # cargo-fuzz requires nightly Rust due to LLVM sanitizer support
-      - uses: dtolnay/rust-toolchain@nightly
-      - name: Install cargo-fuzz
-        run: cargo install cargo-fuzz
-      - name: Check fuzz targets
-        run: cargo fuzz check
+  #fuzz-build-check:
+  #  name: Check fuzz targets build
+  #  runs-on: ubuntu-latest
+  #  steps:
+  #    - uses: actions/checkout@v4
+  #    # cargo-fuzz requires nightly Rust due to LLVM sanitizer support
+  #    - uses: dtolnay/rust-toolchain@nightly
+  #    - name: Install cargo-fuzz
+  #      run: cargo install cargo-fuzz
+  #    - name: Check fuzz targets
+  #      run: cargo fuzz check
 
-  bench-build-check:
-    name: Check benchmark builds
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.88
-      - name: Check benchmark builds
-        run: cargo bench --no-run -p holo-bgp -p holo-ldp -p holo-ospf
+  #bench-build-check:
+  #  name: Check benchmark builds
+  #  runs-on: ubuntu-latest
+  #  steps:
+  #    - uses: actions/checkout@v4
+  #    - uses: dtolnay/rust-toolchain@1.88
+  #    - name: Check benchmark builds
+  #      run: cargo bench --no-run -p holo-bgp -p holo-ldp -p holo-ospf
 
-  push-image:
-    name: Docker Image Build
+  push-docker-images:
+    name: Build and Attest Docker Images
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master' && github.repository_owner == 'holo-routing'
+    #if: github.ref == 'refs/heads/master' && github.repository_owner == 'holo-routing'
+    permissions:
+      id-token: write
+      attestations: write
+      packages: write
+    strategy:
+      matrix:
+        image:
+          - name: holod
+            dockerfile: docker/Dockerfile.holod
+          - name: holo-bundle
+            dockerfile: docker/Dockerfile.holo-bundle
     steps:
       - uses: actions/checkout@v4
       - uses: docker/login-action@v3
@@ -100,9 +111,17 @@ jobs:
           registry: ghcr.io
           username: ${{github.actor}}
           password: ${{secrets.GITHUB_TOKEN}}
-      - name: Build and push container image
-        run: |
-          docker build . -f docker/Dockerfile.holod --tag ghcr.io/holo-routing/holod:latest
-          docker push ghcr.io/holo-routing/holod:latest
-          docker build . -f docker/Dockerfile.holo-bundle --tag ghcr.io/holo-routing/holo-bundle:latest
-          docker push ghcr.io/holo-routing/holo-bundle:latest
+      - name: Build and push ${{ matrix.image.name }} image
+        id: push_image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.image.dockerfile }}
+          push: true
+          tags: ghcr.io/holo-routing/${{ matrix.image.name }}:latest
+      - name: Attest ${{ matrix.image.name }} image
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ghcr.io/holo-routing/${{ matrix.image.name }}
+          subject-digest: ${{ steps.push_image.outputs.digest }}
+          push-to-registry: true

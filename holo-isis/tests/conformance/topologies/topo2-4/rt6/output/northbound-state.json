@@ -619,7 +619,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::3c49:7aff:fe26:868b",
+                        "next-hop": "fe80::5401:c7ff:fe7c:f22c",
                         "outgoing-interface": "eth-rt5"
                       }
                     ]
@@ -632,7 +632,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::3c49:7aff:fe26:868b",
+                        "next-hop": "fe80::5401:c7ff:fe7c:f22c",
                         "outgoing-interface": "eth-rt5"
                       }
                     ]
@@ -650,7 +650,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::3c49:7aff:fe26:868b",
+                        "next-hop": "fe80::5401:c7ff:fe7c:f22c",
                         "outgoing-interface": "eth-rt5"
                       }
                     ]
@@ -663,7 +663,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::3c49:7aff:fe26:868b",
+                        "next-hop": "fe80::5401:c7ff:fe7c:f22c",
                         "outgoing-interface": "eth-rt5"
                       }
                     ]
@@ -676,7 +676,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::3c49:7aff:fe26:868b",
+                        "next-hop": "fe80::5401:c7ff:fe7c:f22c",
                         "outgoing-interface": "eth-rt5"
                       }
                     ]
@@ -714,7 +714,7 @@
                           "10.0.7.4"
                         ],
                         "holo-isis:ipv6-addresses": [
-                          "fe80::c8a9:88ff:fee8:8650"
+                          "fe80::5056:ffff:fee7:961a"
                         ],
                         "holo-isis:protocol-supported": [
                           204,
@@ -745,7 +745,7 @@
                           "10.0.8.5"
                         ],
                         "holo-isis:ipv6-addresses": [
-                          "fe80::3c49:7aff:fe26:868b"
+                          "fe80::5401:c7ff:fe7c:f22c"
                         ],
                         "holo-isis:protocol-supported": [
                           204,

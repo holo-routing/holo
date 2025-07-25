@@ -1154,7 +1154,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::8c5a:6cff:fed5:e1ce",
+                        "next-hop": "fe80::c809:59ff:fefb:e5a1",
                         "outgoing-interface": "eth-sw1"
                       }
                     ]
@@ -1167,7 +1167,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::8c5a:6cff:fed5:e1ce",
+                        "next-hop": "fe80::c809:59ff:fefb:e5a1",
                         "outgoing-interface": "eth-sw1"
                       }
                     ]
@@ -1180,7 +1180,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::8c5a:6cff:fed5:e1ce",
+                        "next-hop": "fe80::c809:59ff:fefb:e5a1",
                         "outgoing-interface": "eth-sw1"
                       }
                     ]
@@ -1198,7 +1198,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::8c5a:6cff:fed5:e1ce",
+                        "next-hop": "fe80::c809:59ff:fefb:e5a1",
                         "outgoing-interface": "eth-sw1"
                       }
                     ]
@@ -1211,7 +1211,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::8c5a:6cff:fed5:e1ce",
+                        "next-hop": "fe80::c809:59ff:fefb:e5a1",
                         "outgoing-interface": "eth-sw1"
                       }
                     ]
@@ -1224,7 +1224,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::8c5a:6cff:fed5:e1ce",
+                        "next-hop": "fe80::c809:59ff:fefb:e5a1",
                         "outgoing-interface": "eth-sw1"
                       }
                     ]
@@ -1237,7 +1237,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::8c5a:6cff:fed5:e1ce",
+                        "next-hop": "fe80::c809:59ff:fefb:e5a1",
                         "outgoing-interface": "eth-sw1"
                       }
                     ]
@@ -1250,7 +1250,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::8c5a:6cff:fed5:e1ce",
+                        "next-hop": "fe80::c809:59ff:fefb:e5a1",
                         "outgoing-interface": "eth-sw1"
                       }
                     ]
@@ -1279,7 +1279,7 @@
                           "10.0.1.2"
                         ],
                         "holo-isis:ipv6-addresses": [
-                          "fe80::dc32:50ff:fe43:faa5"
+                          "fe80::6c46:baff:fef6:ffec"
                         ],
                         "holo-isis:protocol-supported": [
                           204,
@@ -1302,7 +1302,7 @@
                           "10.0.1.3"
                         ],
                         "holo-isis:ipv6-addresses": [
-                          "fe80::8c5a:6cff:fed5:e1ce"
+                          "fe80::c809:59ff:fefb:e5a1"
                         ],
                         "holo-isis:protocol-supported": [
                           204,

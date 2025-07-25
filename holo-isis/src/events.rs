@@ -573,6 +573,16 @@ pub(crate) fn process_pdu_lsp(
         return Ok(());
     }
 
+    // Check if the expired LSP contains any TLVs other than the authentication
+    // TLV.
+    if lsp.is_expired() && !lsp.tlvs.valid_purge_tlvs() {
+        // Log why the LSP is being discarded.
+        Debug::LspDiscard(level, &lsp).log();
+
+        // Discard LSP.
+        return Ok(());
+    }
+
     // NOTE: Per RFC 3719, LSPs with a Remaining Lifetime greater than MaxAge
     // should not be discarded as originally specified. MaxAge is now variable
     // and no longer a fixed architectural constant.
@@ -1188,6 +1198,13 @@ pub(crate) fn process_lsp_purge(
 
     // Set remaining lifetime to zero if it's not already.
     lsp.set_rem_lifetime(0);
+
+    // Remove all existing TLVs, retaining only the LSP header, and add a new
+    // authentication TLV if necessary.
+    lsp.tlvs = Default::default();
+    let auth = instance.config.auth.all.method(&instance.shared.keychains);
+    let auth = auth.as_ref().and_then(|auth| auth.get_key_send());
+    lsp.encode(auth);
 
     // Reinstall the LSP to trigger a SPF run.
     let lse = lsdb::install(instance, &mut arenas.lsp_entries, level, lsp);

@@ -1140,7 +1140,7 @@ impl Lsp {
         })
     }
 
-    fn encode(&mut self, auth_key: Option<&Key>) -> Bytes {
+    pub(crate) fn encode(&mut self, auth_key: Option<&Key>) -> Bytes {
         TLS_BUF.with(|buf| {
             let mut buf = pdu_encode_start(buf, &self.hdr);
 
@@ -1485,6 +1485,32 @@ impl LspTlvs {
             ipv6_router_id,
             unknown: Default::default(),
         })
+    }
+
+    // Returns whether the TLVs are valid in a purged LSP.
+    //
+    // RFC 5304 specifies that a purged LSP (Remaining Lifetime == 0) MUST NOT
+    // contain any TLVs other than the Authentication TLV.
+    pub(crate) fn valid_purge_tlvs(&mut self) -> bool {
+        self.protocols_supported.is_none()
+            && self.router_cap.is_empty()
+            && self.area_addrs.is_empty()
+            && self.multi_topology.is_empty()
+            && self.hostname.is_none()
+            && self.lsp_buf_size.is_none()
+            && self.is_reach.is_empty()
+            && self.ext_is_reach.is_empty()
+            && self.mt_is_reach.is_empty()
+            && self.ipv4_addrs.is_empty()
+            && self.ipv4_internal_reach.is_empty()
+            && self.ipv4_external_reach.is_empty()
+            && self.ext_ipv4_reach.is_empty()
+            && self.mt_ipv4_reach.is_empty()
+            && self.ipv4_router_id.is_none()
+            && self.ipv6_addrs.is_empty()
+            && self.ipv6_reach.is_empty()
+            && self.mt_ipv6_reach.is_empty()
+            && self.ipv6_router_id.is_none()
     }
 
     // Returns an iterator over all supported protocols from the TLV of type 129.

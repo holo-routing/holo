@@ -89,20 +89,25 @@ jobs:
       - name: Check benchmark builds
         run: cargo bench --no-run -p holo-bgp -p holo-ldp -p holo-ospf
 
-  push-image:
-    name: Docker Image Build
-    runs-on: ubuntu-latest
+  docker-build-holod:
+    uses: ./.github/workflows/docker-build-and-attest.yml
     if: github.ref == 'refs/heads/master' && github.repository_owner == 'holo-routing'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{github.actor}}
-          password: ${{secrets.GITHUB_TOKEN}}
-      - name: Build and push container image
-        run: |
-          docker build . -f docker/Dockerfile.holod --tag ghcr.io/holo-routing/holod:latest
-          docker push ghcr.io/holo-routing/holod:latest
-          docker build . -f docker/Dockerfile.holo-bundle --tag ghcr.io/holo-routing/holo-bundle:latest
-          docker push ghcr.io/holo-routing/holo-bundle:latest
+    with:
+      image-name: holod
+      dockerfile: docker/Dockerfile.holod
+    permissions:
+      id-token: write
+      attestations: write
+      packages: write
+
+  docker-build-holo-bundle:
+    needs: docker-build-holod
+    uses: ./.github/workflows/docker-build-and-attest.yml
+    if: github.ref == 'refs/heads/master' && github.repository_owner == 'holo-routing'
+    with:
+      image-name: holo-bundle
+      dockerfile: docker/Dockerfile.holo-bundle
+    permissions:
+      id-token: write
+      attestations: write
+      packages: write

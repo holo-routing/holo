@@ -9,8 +9,8 @@
           "type": "ietf-isis:isis",
           "name": "test",
           "ietf-isis:isis": {
-            "holo-isis:purge-originator": true,
-            "@holo-isis:purge-originator": {
+            "ietf-isis:poi-tlv": true,
+            "@ietf-isis:poi-tlv": {
               "yang:operation": "replace",
               "yang:orig-default": true,
               "yang:orig-value": "false"

@@ -281,6 +281,7 @@ pub static YANG_FEATURES: Lazy<HashMap<&'static str, Vec<&'static str>>> =
                 "multi-topology",
                 "node-flag",
                 "nlpid-control",
+                "poi-tlv",
                 "te-rid",
             ],
             "ietf-ospf" => vec![

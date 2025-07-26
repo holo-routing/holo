@@ -95,13 +95,6 @@ module holo-isis {
         + "rt:control-plane-protocol/isis:isis" {
     description
       "IS-IS instance augmentations";
-    leaf purge-originator {
-      type boolean;
-      default false;
-      description
-        "Enable support for purge originator identification as specified
-         in RFC 6232.";
-    }
     container attached-bit {
       description "Configuration related to the ATT bit.";
 

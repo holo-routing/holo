@@ -102,6 +102,7 @@ pub struct InstanceCfg {
     pub lsp_mtu: u16,
     pub lsp_lifetime: u16,
     pub lsp_refresh: u16,
+    pub purge_originator: bool,
     pub metric_type: LevelsCfg<MetricType>,
     pub default_metric: LevelsCfg<u32>,
     pub auth: LevelsOptCfg<AuthCfg>,
@@ -118,7 +119,6 @@ pub struct InstanceCfg {
     pub overload_status: bool,
     pub mt: HashMap<MtId, InstanceMtCfg>,
     pub summaries: JointPrefixMap<IpNetwork, SummaryCfg>,
-    pub purge_originator: bool,
     pub att_suppress: bool,
     pub att_ignore: bool,
     pub sr: InstanceSrCfg,
@@ -363,6 +363,11 @@ fn load_callbacks() -> Callbacks<Instance> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::RefreshLsps);
+        })
+        .path(isis::poi_tlv::PATH)
+        .modify_apply(|instance, args| {
+            let enabled = args.dnode.get_bool();
+            instance.config.purge_originator = enabled;
         })
         .path(isis::metric_type::value::PATH)
         .modify_apply(|instance, args| {
@@ -852,11 +857,6 @@ fn load_callbacks() -> Callbacks<Instance> {
             let mt_cfg = instance.config.mt.get_mut(&mt_id).unwrap();
 
             mt_cfg.default_metric.l2 = None;
-        })
-        .path(isis::purge_originator::PATH)
-        .modify_apply(|instance, args| {
-            let enabled = args.dnode.get_bool();
-            instance.config.purge_originator = enabled;
         })
         .path(isis::attached_bit::suppress_advertisement::PATH)
         .modify_apply(|instance, args| {
@@ -2445,6 +2445,7 @@ impl Default for InstanceCfg {
         let lsp_mtu = isis::lsp_mtu::DFLT;
         let lsp_lifetime = isis::lsp_lifetime::DFLT;
         let lsp_refresh = isis::lsp_refresh::DFLT;
+        let purge_originator = isis::poi_tlv::DFLT;
         let metric_type = isis::metric_type::value::DFLT;
         let metric_type = LevelsCfg {
             all: MetricType::try_from_yang(metric_type).unwrap(),
@@ -2468,7 +2469,6 @@ impl Default for InstanceCfg {
         let spf_time_to_learn =
             isis::spf_control::ietf_spf_delay::time_to_learn::DFLT;
         let overload_status = isis::overload::status::DFLT;
-        let purge_originator = isis::purge_originator::DFLT;
         let att_suppress = isis::attached_bit::suppress_advertisement::DFLT;
         let att_ignore = isis::attached_bit::ignore_reception::DFLT;
 
@@ -2480,6 +2480,7 @@ impl Default for InstanceCfg {
             lsp_mtu,
             lsp_lifetime,
             lsp_refresh,
+            purge_originator,
             metric_type,
             default_metric,
             auth: Default::default(),
@@ -2496,7 +2497,6 @@ impl Default for InstanceCfg {
             overload_status,
             mt: Default::default(),
             summaries: Default::default(),
-            purge_originator,
             att_suppress,
             att_ignore,
             sr: Default::default(),

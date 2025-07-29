@@ -175,12 +175,20 @@ fn signal_listener() -> mpsc::Receiver<()> {
     signal_rx
 }
 
+fn build_version() -> String {
+    const VERSION: &str = env!("CARGO_PKG_VERSION");
+    match option_env!("GIT_BUILD_HASH") {
+        Some(hash) => format!("{VERSION} ({hash})"),
+        None => VERSION.to_owned(),
+    }
+}
+
 // ===== main =====
 
 fn main() {
     // Parse command-line parameters.
     let matches = App::new("Holo routing daemon")
-        .version(clap::crate_version!())
+        .version(build_version().as_ref())
         .arg(
             Arg::with_name("config")
                 .short("c")

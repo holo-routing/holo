@@ -123,16 +123,12 @@ fn init_db<P: AsRef<Path>>(
     }
 }
 
-fn privdrop(user: &str, chroot_jail: bool) -> nix::Result<()> {
+fn privdrop(user: &str) -> nix::Result<()> {
     // Preserve set of permitted capabilities upon privdrop.
     capctl::prctl::set_securebits(capctl::prctl::Secbits::KEEP_CAPS).unwrap();
 
     // Drop to unprivileged user and group.
     if let Some(user) = User::from_name(user)? {
-        if chroot_jail {
-            nix::unistd::chroot(&user.dir)?;
-            nix::unistd::chdir("/")?;
-        }
         nix::unistd::setgroups(&[user.gid])?;
         nix::unistd::setresgid(user.gid, user.gid, user.gid)?;
         nix::unistd::setresuid(user.uid, user.uid, user.uid)?;
@@ -212,10 +208,7 @@ fn main() {
         .expect("failed to initialize non-volatile storage");
 
     // Drop privileges.
-    //
-    // If the event recorder is enabled, the chroot jail is disabled to allow
-    // creating files in the filesystem.
-    if let Err(error) = privdrop(&config.user, !config.event_recorder.enabled) {
+    if let Err(error) = privdrop(&config.user) {
         error!(%error, "failed to drop root privileges");
         std::process::exit(1);
     }

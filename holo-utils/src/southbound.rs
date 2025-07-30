@@ -66,6 +66,43 @@ pub enum RouteKind {
     Prohibit,
 }
 
+// Route opaque attributes.
+#[derive(Clone, Copy, Debug, Default)]
+#[derive(Deserialize, Serialize)]
+#[derive(EnumAsInner)]
+pub enum RouteOpaqueAttrs {
+    #[default]
+    None,
+    Ospf {
+        route_type: OspfRouteType,
+    },
+    Isis {
+        route_type: IsisRouteType,
+    },
+}
+
+// OSPF route types in decreasing order of preference.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Deserialize, Serialize)]
+pub enum OspfRouteType {
+    IntraArea,
+    InterArea,
+    Type1External,
+    Type2External,
+}
+
+// IS-IS route types.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Deserialize, Serialize)]
+pub enum IsisRouteType {
+    L2IntraArea,
+    L1IntraArea,
+    L2External,
+    L1External,
+    L1InterArea,
+    L1InterAreaExternal,
+}
+
 // ===== Ibus messages =====
 
 #[derive(Clone, Debug)]
@@ -142,43 +179,6 @@ pub struct LabelUninstallMsg {
     pub label: Label,
     pub nexthops: BTreeSet<Nexthop>,
     pub route: Option<(Protocol, IpNetwork)>,
-}
-
-// Route opaque attributes.
-#[derive(Clone, Copy, Debug, Default)]
-#[derive(Deserialize, Serialize)]
-#[derive(EnumAsInner)]
-pub enum RouteOpaqueAttrs {
-    #[default]
-    None,
-    Ospf {
-        route_type: OspfRouteType,
-    },
-    Isis {
-        route_type: IsisRouteType,
-    },
-}
-
-// OSPF route types in decreasing order of preference.
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-#[derive(Deserialize, Serialize)]
-pub enum OspfRouteType {
-    IntraArea,
-    InterArea,
-    Type1External,
-    Type2External,
-}
-
-// IS-IS route types.
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-#[derive(Deserialize, Serialize)]
-pub enum IsisRouteType {
-    L2IntraArea,
-    L1IntraArea,
-    L2External,
-    L1External,
-    L1InterArea,
-    L1InterAreaExternal,
 }
 
 // ===== impl Nexthop =====

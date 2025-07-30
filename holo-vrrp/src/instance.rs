@@ -32,7 +32,7 @@ use crate::packet::{
     ArpHdr, EthernetHdr, Ipv4Hdr, NeighborAdvertisement, Vrrp4Packet, VrrpHdr,
 };
 use crate::tasks::messages::output::NetTxPacketMsg;
-use crate::{network, southbound, tasks};
+use crate::{ibus, network, tasks};
 
 #[derive(Debug)]
 pub struct Instance {
@@ -299,7 +299,7 @@ impl Instance {
             (_, fsm::State::Backup) => {
                 // Remove virtual IPs from the macvlan interface.
                 for addr in &self.config.virtual_addresses {
-                    southbound::tx::ip_addr_del(
+                    ibus::tx::ip_addr_del(
                         &interface.tx.ibus,
                         &self.mvlan.name,
                         *addr,
@@ -309,7 +309,7 @@ impl Instance {
             (_, fsm::State::Master) => {
                 // Add virtual IPs to the macvlan interface.
                 for addr in &self.config.virtual_addresses {
-                    southbound::tx::ip_addr_add(
+                    ibus::tx::ip_addr_add(
                         &interface.tx.ibus,
                         &self.mvlan.name,
                         *addr,

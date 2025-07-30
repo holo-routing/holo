@@ -41,7 +41,7 @@ use crate::tasks::messages::input::{
     SpfDelayEventMsg,
 };
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
-use crate::{events, lsdb, southbound, spf, tasks};
+use crate::{events, ibus, lsdb, spf, tasks};
 
 #[derive(Debug)]
 pub struct Instance {
@@ -232,7 +232,7 @@ impl Instance {
             .iter()
             .filter(|(_, route)| route.flags.contains(RouteFlags::INSTALLED))
         {
-            southbound::tx::route_uninstall(&instance.tx.ibus, prefix, route);
+            ibus::tx::route_uninstall(&instance.tx.ibus, prefix, route);
         }
 
         // Stop interfaces.
@@ -320,10 +320,10 @@ impl ProtocolInstance for Instance {
 
     async fn init(&mut self) {
         // Request information about the system Router ID.
-        southbound::tx::router_id_sub(&self.tx.ibus);
+        ibus::tx::router_id_sub(&self.tx.ibus);
 
         // Request information about the system hostname.
-        southbound::tx::hostname_sub(&self.tx.ibus);
+        ibus::tx::hostname_sub(&self.tx.ibus);
     }
 
     async fn shutdown(mut self) {
@@ -608,31 +608,31 @@ async fn process_ibus_msg(
     match msg {
         // BFD peer state update event.
         IbusMsg::BfdStateUpd { sess_key, state } => {
-            events::process_bfd_state_update(instance, sess_key, state)?
+            ibus::rx::process_bfd_state_update(instance, sess_key, state)?
         }
         // Router ID update notification.
         IbusMsg::RouterIdUpdate(router_id) => {
-            southbound::rx::process_router_id_update(instance, router_id).await;
+            ibus::rx::process_router_id_update(instance, router_id).await;
         }
         // Interface update notification.
         IbusMsg::InterfaceUpd(msg) => {
-            southbound::rx::process_iface_update(instance, msg)?;
+            ibus::rx::process_iface_update(instance, msg)?;
         }
         // Interface address addition notification.
         IbusMsg::InterfaceAddressAdd(msg) => {
-            southbound::rx::process_addr_add(instance, msg);
+            ibus::rx::process_addr_add(instance, msg);
         }
         // Interface address deletion notification.
         IbusMsg::InterfaceAddressDel(msg) => {
-            southbound::rx::process_addr_del(instance, msg);
+            ibus::rx::process_addr_del(instance, msg);
         }
         // Route redistribute update notification.
         IbusMsg::RouteRedistributeAdd(msg) => {
-            southbound::rx::process_route_add(instance, msg);
+            ibus::rx::process_route_add(instance, msg);
         }
         // Route redistribute delete notification.
         IbusMsg::RouteRedistributeDel(msg) => {
-            southbound::rx::process_route_del(instance, msg);
+            ibus::rx::process_route_del(instance, msg);
         }
         // Keychain update event.
         IbusMsg::KeychainUpd(keychain) => {
@@ -643,7 +643,7 @@ async fn process_ibus_msg(
                 .insert(keychain.name.clone(), keychain.clone());
 
             // Update all interfaces using this keychain.
-            events::process_keychain_update(instance, &keychain.name)?
+            ibus::rx::process_keychain_update(instance, &keychain.name)?
         }
         // Keychain delete event.
         IbusMsg::KeychainDel(keychain_name) => {
@@ -651,15 +651,15 @@ async fn process_ibus_msg(
             instance.shared.keychains.remove(&keychain_name);
 
             // Update all interfaces using this keychain.
-            events::process_keychain_update(instance, &keychain_name)?
+            ibus::rx::process_keychain_update(instance, &keychain_name)?
         }
         // Hostname update notification.
         IbusMsg::HostnameUpdate(hostname) => {
-            events::process_hostname_update(instance, hostname);
+            ibus::rx::process_hostname_update(instance, hostname);
         }
         // SR configuration update.
         IbusMsg::SrCfgUpd(sr_config) => {
-            events::process_sr_cfg_update(instance, sr_config);
+            ibus::rx::process_sr_cfg_update(instance, sr_config);
         }
         // BIER configuration update.
         IbusMsg::BierCfgUpd(bier_config) => {

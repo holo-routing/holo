@@ -21,10 +21,10 @@ use holo_utils::yang::DataNodeRefExt;
 use holo_yang::{ToYang, TryFromYang};
 
 use crate::debug::{Debug, InterfaceInactiveReason};
+use crate::ibus;
 use crate::instance::Instance;
 use crate::interface::{InterfaceIndex, SplitHorizon};
 use crate::route::{Metric, RouteFlags};
-use crate::southbound;
 use crate::version::{Ripng, Ripv2, Version};
 
 #[derive(Debug, EnumAsInner)]
@@ -492,17 +492,14 @@ where
 
                     if !metric.is_infinite() {
                         // Reinstall route.
-                        southbound::tx::route_install(
+                        ibus::tx::route_install(
                             &instance.tx.ibus,
                             route,
                             distance,
                         );
                     } else {
                         // Uninstall route.
-                        southbound::tx::route_uninstall(
-                            &instance.tx.ibus,
-                            route,
-                        );
+                        ibus::tx::route_uninstall(&instance.tx.ibus, route);
                         route.garbage_collection_start(
                             iface.config.flush_interval,
                             &instance.tx.protocol_input.route_gc_timeout,
@@ -550,11 +547,7 @@ where
 
                 for route in instance.state.routes.values() {
                     let distance = instance.config.distance;
-                    southbound::tx::route_install(
-                        &instance.tx.ibus,
-                        route,
-                        distance,
-                    );
+                    ibus::tx::route_install(&instance.tx.ibus, route, distance);
                 }
             }
             Event::ResetUpdateInterval => {

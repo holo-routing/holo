@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
 use crate::debug::Debug;
+use crate::ibus;
 use crate::neighbor::{Neighbor, PeerType};
 use crate::northbound::configuration::{
     DistanceCfg, InstanceTraceOptions, MultipathCfg, RouteSelectionCfg,
@@ -26,7 +27,6 @@ use crate::packet::attribute::{
     Attrs, BaseAttrs, Comms, ExtComms, Extv6Comms, LargeComms, UnknownAttr,
 };
 use crate::policy::RoutePolicyInfo;
-use crate::southbound;
 
 // Default values.
 pub const DFLT_LOCAL_PREF: u32 = 100;
@@ -796,7 +796,7 @@ pub(crate) fn loc_rib_update<A>(
 
         // Install local route in the global RIB.
         if !local_route.origin.is_local() {
-            southbound::tx::route_install(
+            ibus::tx::route_install(
                 ibus_tx,
                 prefix,
                 &local_route,
@@ -821,7 +821,7 @@ pub(crate) fn loc_rib_update<A>(
 
             // Uninstall route from the global RIB.
             if !local_route.origin.is_local() {
-                southbound::tx::route_uninstall(ibus_tx, prefix);
+                ibus::tx::route_uninstall(ibus_tx, prefix);
             }
         }
     }
@@ -868,7 +868,7 @@ pub(crate) fn nexthop_track<A>(
 {
     let addr = A::nexthop_rx_extract(&route.attrs.base.value);
     let nht = nht.entry(addr).or_insert_with(|| {
-        southbound::tx::nexthop_track(ibus_tx, addr);
+        ibus::tx::nexthop_track(ibus_tx, addr);
         Default::default()
     });
     *nht.prefixes.entry(prefix).or_default() += 1;
@@ -898,7 +898,7 @@ pub(crate) fn nexthop_untrack<A>(
     if *count == 0 {
         prefix_e.remove();
         if nht.prefixes.is_empty() {
-            southbound::tx::nexthop_untrack(ibus_tx, addr);
+            ibus::tx::nexthop_untrack(ibus_tx, addr);
             nht_e.remove();
         }
     }

@@ -16,6 +16,7 @@ use holo_utils::sr::{IgpAlgoType, Sid};
 use crate::adjacency::{Adjacency, AdjacencySid};
 use crate::collections::Arena;
 use crate::error::Error;
+use crate::ibus;
 use crate::instance::InstanceUpView;
 use crate::interface::{Interface, InterfaceType};
 use crate::lsdb::LspEntry;
@@ -26,7 +27,6 @@ use crate::packet::subtlvs::capability::{
 use crate::packet::subtlvs::prefix::{PrefixSidFlags, PrefixSidStlv};
 use crate::packet::{LanId, LevelNumber, SystemId};
 use crate::route::Route;
-use crate::southbound;
 
 // ===== global functions =====
 
@@ -128,12 +128,7 @@ pub(crate) fn adj_sids_add(
 
         // Install the Adjacency SID if we have an address.
         if let Some(addr) = addr {
-            southbound::tx::adj_sid_install(
-                &instance.tx.ibus,
-                iface,
-                addr,
-                label,
-            );
+            ibus::tx::adj_sid_install(&instance.tx.ibus, iface, addr, label);
         }
     }
 }
@@ -148,7 +143,7 @@ pub(crate) fn adj_sids_del(instance: &InstanceUpView<'_>, adj: &mut Adjacency) {
 
         // Release and uninstall the Adjacency SID label.
         label_manager.label_release(label);
-        southbound::tx::adj_sid_uninstall(&instance.tx.ibus, label);
+        ibus::tx::adj_sid_uninstall(&instance.tx.ibus, label);
     }
 }
 

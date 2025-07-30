@@ -20,9 +20,9 @@ use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 
+use crate::ibus;
 use crate::instance::{Instance, Version, fsm};
 use crate::interface::Interface;
-use crate::southbound;
 
 #[derive(Debug, Default, EnumAsInner)]
 pub enum ListEntry {
@@ -360,7 +360,7 @@ impl Provider for Interface {
                     AddressFamily::Ipv4 => [0x00, 0x00, 0x5e, 0x00, 0x01, vrid],
                     AddressFamily::Ipv6 => [0x00, 0x00, 0x5e, 0x00, 0x02, vrid],
                 };
-                southbound::tx::mvlan_create(
+                ibus::tx::mvlan_create(
                     &interface.tx.ibus,
                     interface.name.to_owned(),
                     instance.mvlan.name.clone(),
@@ -382,7 +382,7 @@ impl Provider for Interface {
                 instance.shutdown(&interface);
 
                 // Delete macvlan interface.
-                southbound::tx::mvlan_delete(
+                ibus::tx::mvlan_delete(
                     &interface.tx.ibus,
                     &instance.mvlan.name,
                 );
@@ -392,7 +392,7 @@ impl Provider for Interface {
                     self.get_instance(vrid, af).unwrap();
 
                 if instance.state.state == fsm::State::Master {
-                    southbound::tx::ip_addr_add(
+                    ibus::tx::ip_addr_add(
                         &interface.tx.ibus,
                         &instance.mvlan.name,
                         addr,
@@ -405,7 +405,7 @@ impl Provider for Interface {
                     self.get_instance(vrid, af).unwrap();
 
                 if instance.state.state == fsm::State::Master {
-                    southbound::tx::ip_addr_del(
+                    ibus::tx::ip_addr_del(
                         &interface.tx.ibus,
                         &instance.mvlan.name,
                         addr,

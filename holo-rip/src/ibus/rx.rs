@@ -7,10 +7,10 @@
 use holo_utils::ip::IpNetworkKind;
 use holo_utils::southbound::{AddressFlags, AddressMsg, InterfaceUpdateMsg};
 
+use crate::ibus;
 use crate::instance::{Instance, InstanceUpView};
 use crate::interface::Interface;
 use crate::route::{Route, RouteType};
-use crate::southbound;
 use crate::version::Version;
 
 // ===== global functions =====
@@ -136,7 +136,7 @@ fn connected_route_add<V>(
     // Uninstall previously learned route (if any).
     let prefix = addr.apply_mask();
     if let Some(route) = instance.state.routes.get(&prefix) {
-        southbound::tx::route_uninstall(&instance.tx.ibus, route);
+        ibus::tx::route_uninstall(&instance.tx.ibus, route);
     }
 
     // Add new connected route.

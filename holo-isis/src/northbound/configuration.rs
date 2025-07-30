@@ -40,7 +40,7 @@ use crate::packet::{
     AreaAddr, LevelNumber, LevelType, LevelTypeIterator, SystemId,
 };
 use crate::route::RouteFlags;
-use crate::{southbound, spf, sr};
+use crate::{ibus, spf, sr};
 
 #[derive(Debug, Default)]
 #[derive(EnumAsInner)]
@@ -2123,7 +2123,7 @@ impl Provider for Instance {
                         })
                     {
                         let distance = route.distance(instance.config);
-                        southbound::tx::route_install(
+                        ibus::tx::route_install(
                             &instance.tx.ibus,
                             prefix,
                             route,

@@ -152,7 +152,7 @@ async fn gr_helper_exit3() {
 //  * Protocol: SPF_TIMER expiration
 // Output:
 //  * Northbound: remove the route to 1.1.1.1/32 from the local RIB
-//  * Southbound: uninstall the route to 1.1.1.1/32
+//  * Ibus: uninstall the route to 1.1.1.1/32
 #[tokio::test]
 async fn lsa_expiry1() {
     run_test::<Instance<Ospfv2>>("lsa-expiry1", "topo2-1", "rt2").await;
@@ -177,7 +177,7 @@ async fn lsa_expiry1() {
 //    - remove the route to 3.3.3.3/32 from the local RIB
 //    - update the routes to 5.5.5.5/32, 10.0.4.0/24, 10.0.5.0/24 and
 //      10.0.8.0/24 (nexthop through rt3 no longer exists)
-//  * Southbound:
+//  * Ibus:
 //    - uninstall the route to 3.3.3.3/32
 //    - reinstall the routes to 5.5.5.5/32, 10.0.4.0/24, 10.0.5.0/24 and
 //      10.0.8.0/24 using a different set of nexthops
@@ -232,7 +232,7 @@ async fn lsa_refresh2() {
 //    - everything under area 0.0.0.1 was removed
 //    - the retransmission queue length of the 3.3.3.3 adjacency increases to 4
 //    - the SPF Delay FSM state transitions from "quiet" to "short-wait"
-//  * Southbound: uninstall the route to 1.1.1.1/32
+//  * Ibus: uninstall the route to 1.1.1.1/32
 #[tokio::test]
 async fn nb_config_area1() {
     run_test::<Instance<Ospfv2>>("nb-config-area1", "topo1-1", "rt2").await;
@@ -391,7 +391,7 @@ async fn nb_config_area_summary2() {
 //    - all neighbors were killed
 //    - all non-loopback interfaces transitioned to the "down" state
 //    - everything else is cleared, including LSDBs, local RIB and statistics
-//  * Southbound: uninstall all non-connected routes
+//  * Ibus: uninstall all non-connected routes
 #[tokio::test]
 async fn nb_config_enable1() {
     run_test::<Instance<Ospfv2>>("nb-config-enable1", "topo1-1", "rt3").await;
@@ -439,7 +439,7 @@ async fn nb_config_enable2() {
 //    - the summary routes to 1.1.1.1/32 and 10.0.1.0/24 were flushed from the
 //      backbone area
 //    - the retransmission queue length of the 3.3.3.3 adjacency increases to 2
-//  * Southbound: uninstall the route to 1.1.1.1/32
+//  * Ibus: uninstall the route to 1.1.1.1/32
 #[tokio::test]
 async fn nb_config_iface1() {
     run_test::<Instance<Ospfv2>>("nb-config-iface1", "topo1-1", "rt2").await;
@@ -491,7 +491,7 @@ async fn nb_config_node_tags1() {
 //    - the summary routes to 1.1.1.1/32 and 10.0.1.0/24 are updated to account
 //      for the metric change
 //    - the retransmission queue length of the 3.3.3.3 adjacency increases to 2
-//  * Southbound: reinstall the route to 1.1.1.1/32 with the new metric
+//  * Ibus: reinstall the route to 1.1.1.1/32 with the new metric
 #[tokio::test]
 async fn nb_config_iface_cost1() {
     run_test::<Instance<Ospfv2>>("nb-config-iface-cost1", "topo1-1", "rt2")
@@ -503,7 +503,7 @@ async fn nb_config_iface_cost1() {
 // Input:
 //  * Northbound: change the preference of all route types to 50
 // Output:
-//  * Southbound: reinstall all routes using the new preference
+//  * Ibus: reinstall all routes using the new preference
 #[tokio::test]
 async fn nb_config_preference1() {
     run_test::<Instance<Ospfv2>>("nb-config-preference1", "topo1-1", "rt1")
@@ -515,7 +515,7 @@ async fn nb_config_preference1() {
 // Input:
 //  * Northbound: change the preference of intra-area routes to 50
 // Output:
-//  * Southbound: reinstall all intra-area routes using the new preference
+//  * Ibus: reinstall all intra-area routes using the new preference
 #[tokio::test]
 async fn nb_config_preference2() {
     run_test::<Instance<Ospfv2>>("nb-config-preference2", "topo1-1", "rt1")
@@ -527,7 +527,7 @@ async fn nb_config_preference2() {
 // Input:
 //  * Northbound: change the preference of inter-area routes to 50
 // Output:
-//  * Southbound: reinstall all inter-area routes using the new preference
+//  * Ibus: reinstall all inter-area routes using the new preference
 #[tokio::test]
 async fn nb_config_preference3() {
     run_test::<Instance<Ospfv2>>("nb-config-preference3", "topo1-1", "rt1")
@@ -539,7 +539,7 @@ async fn nb_config_preference3() {
 // Input:
 //  * Northbound: change the preference of internal routes to 50
 // Output:
-//  * Southbound: reinstall all internal routes using the new preference
+//  * Ibus: reinstall all internal routes using the new preference
 #[tokio::test]
 async fn nb_config_preference4() {
     run_test::<Instance<Ospfv2>>("nb-config-preference4", "topo1-1", "rt1")
@@ -558,7 +558,7 @@ async fn nb_config_preference4() {
 //    - the SPF Delay FSM state transitions from "quiet" to "short-wait"
 //  * Protocol: send an LS Update to all adjacencies flushing all
 //    self-originated LSAs
-//  * Southbound: uninstall all routes
+//  * Ibus: uninstall all routes
 //
 // Once the instance is reset, it should reconverge using the new Router-ID.
 #[tokio::test]
@@ -612,7 +612,7 @@ async fn nb_rpc_clear_database1() {
 //    - all non-connected routes were removed from the local RIB
 //    - Type-3 Summary LSA (adv-rtr 6.6.6.6, lsa-id 7.7.7.7) was prematurely
 //      aged
-//  * Southbound: uninstall all routes
+//  * Ibus: uninstall all routes
 #[tokio::test]
 async fn nb_rpc_clear_neighbor1() {
     run_test::<Instance<Ospfv2>>("nb-rpc-clear-neighbor1", "topo1-1", "rt6")
@@ -636,7 +636,7 @@ async fn nb_rpc_clear_neighbor1() {
 // Output:
 //  * Northbound: all routes reachable over the eth-rt3 interface were removed
 //    from the local RIB
-//  * Southbound: uninstall all routes reachable over the eth-rt3 interface
+//  * Ibus: uninstall all routes reachable over the eth-rt3 interface
 #[tokio::test]
 async fn nb_rpc_clear_neighbor2() {
     run_test::<Instance<Ospfv2>>("nb-rpc-clear-neighbor2", "topo1-1", "rt6")
@@ -1180,7 +1180,7 @@ async fn rxmt_lsupd1() {
 // New interface address should prompt the local Router-LSA to be reoriginated.
 //
 // Input:
-//  * Southbound: address 172.16.1.1/24 added to eth-rt4
+//  * Ibus: address 172.16.1.1/24 added to eth-rt4
 // Output:
 //  * Protocol: send an LS Update to all adjacencies containing the updated
 //    Router-LSA, which has a new stub network
@@ -1190,8 +1190,8 @@ async fn rxmt_lsupd1() {
 //    - the retransmission queue length of all adjacencies increases to 1
 //    - the SPF Delay FSM state transitions from "quiet" to "short-wait"
 #[tokio::test]
-async fn sb_addr_add1() {
-    run_test::<Instance<Ospfv2>>("sb-addr-add1", "topo2-1", "rt6").await;
+async fn ibus_addr_add1() {
+    run_test::<Instance<Ospfv2>>("ibus-addr-add1", "topo2-1", "rt6").await;
 }
 
 // Test description:
@@ -1200,17 +1200,17 @@ async fn sb_addr_add1() {
 // ignored.
 //
 // Input:
-//  * Southbound: address 10.0.7.6/24 added to eth-rt4
+//  * Ibus: address 10.0.7.6/24 added to eth-rt4
 // Output: no changes
 #[tokio::test]
-async fn sb_addr_add2() {
-    run_test::<Instance<Ospfv2>>("sb-addr-add2", "topo2-1", "rt6").await;
+async fn ibus_addr_add2() {
+    run_test::<Instance<Ospfv2>>("ibus-addr-add2", "topo2-1", "rt6").await;
 }
 
 // Test description:
 //
 // Input:
-//  * Southbound: address 10.0.7.6/24 was removed from eth-rt4
+//  * Ibus: address 10.0.7.6/24 was removed from eth-rt4
 // Output:
 //  * Protocol: send an LS Update to rt5 containing the updated Router-LSA (the
 //    link to rt4 and the 10.0.7.0/24 stub network were removed)
@@ -1226,11 +1226,11 @@ async fn sb_addr_add2() {
 // Output:
 //  * Northbound: all routes affected by the address removal reconverged going
 //    through rt5
-//  * Southbound: all routes affected by the address removal were reinstalled
+//  * Ibus: all routes affected by the address removal were reinstalled
 //    going through rt5
 //
 // Input:
-//  * Southbound: address 10.0.7.6/24 added to eth-rt4
+//  * Ibus: address 10.0.7.6/24 added to eth-rt4
 // Output:
 //  * Protocol: send an LS Update to rt5 containing the updated Router-LSA (the
 //    10.0.7.0/24 stub network was added)
@@ -1244,14 +1244,14 @@ async fn sb_addr_add2() {
 //  * Northbound: the route to 10.0.7.0/24 is now marked as connected with a
 //    metric of 10
 #[tokio::test]
-async fn sb_addr_add3() {
-    run_test::<Instance<Ospfv2>>("sb-addr-add3", "topo2-1", "rt6").await;
+async fn ibus_addr_add3() {
+    run_test::<Instance<Ospfv2>>("ibus-addr-add3", "topo2-1", "rt6").await;
 }
 
 // Test description:
 //
 // Input:
-//  * Southbound: address 10.0.2.2/24 was removed from eth-rt4-1
+//  * Ibus: address 10.0.2.2/24 was removed from eth-rt4-1
 // Output:
 //  * Protocol: send an LS Update to all adjacencies containing the updated
 //    Router-LSA (one link to rt4 and the 10.0.2.0/24 stub network were removed)
@@ -1267,10 +1267,10 @@ async fn sb_addr_add3() {
 // Output:
 //  * Northbound: the 10.0.2.4 nexthop was removed from all affected routes in
 //    the local RIB
-//  * Southbound: all routes affected by the address removal were reinstalled
+//  * Ibus: all routes affected by the address removal were reinstalled
 #[tokio::test]
-async fn sb_addr_del1() {
-    run_test::<Instance<Ospfv2>>("sb-addr-del1", "topo2-1", "rt2").await;
+async fn ibus_addr_del1() {
+    run_test::<Instance<Ospfv2>>("ibus-addr-del1", "topo2-1", "rt2").await;
 }
 
 // Test description:
@@ -1278,17 +1278,17 @@ async fn sb_addr_del1() {
 // Removal of interface address that doesn't exist should be ignored.
 //
 // Input:
-//  * Southbound: address 10.0.2.10/24 was removed from eth-rt4-1
+//  * Ibus: address 10.0.2.10/24 was removed from eth-rt4-1
 // Output: no changes
 #[tokio::test]
-async fn sb_addr_del2() {
-    run_test::<Instance<Ospfv2>>("sb-addr-del2", "topo2-1", "rt2").await;
+async fn ibus_addr_del2() {
+    run_test::<Instance<Ospfv2>>("ibus-addr-del2", "topo2-1", "rt2").await;
 }
 
 // Test description:
 //
 // Input:
-//  * Southbound: address 172.16.1.1/24 added to eth-rt4
+//  * Ibus: address 172.16.1.1/24 added to eth-rt4
 // Output:
 //  * Protocol: send an LS Update to all adjacencies containing the updated
 //    Router-LSA, which has a new stub network
@@ -1299,21 +1299,21 @@ async fn sb_addr_del2() {
 //    - the SPF Delay FSM state transitions from "quiet" to "short-wait"
 //
 // Input:
-//  * Southbound: address 172.16.1.1/24 was removed from eth-rt4
+//  * Ibus: address 172.16.1.1/24 was removed from eth-rt4
 // Output:
 //  * Protocol: send an LS Update to all adjacencies containing the updated
 //    Router-LSA (the new stub network was removed)
 //  * Northbound:
 //    - the self-originated Router-LSA was updated
 #[tokio::test]
-async fn sb_addr_del3() {
-    run_test::<Instance<Ospfv2>>("sb-addr-del3", "topo2-1", "rt2").await;
+async fn ibus_addr_del3() {
+    run_test::<Instance<Ospfv2>>("ibus-addr-del3", "topo2-1", "rt2").await;
 }
 
 // Test description:
 //
 // Input:
-//  * Southbound: hostname update ("earth")
+//  * Ibus: hostname update ("earth")
 // Output:
 //  * Northbound:
 //    - the self-originated RI-LSA now contains the "earth" hostname
@@ -1324,7 +1324,7 @@ async fn sb_addr_del3() {
 //    RI-LSA
 //
 // Input:
-//  * Southbound: hostname update ("mars")
+//  * Ibus: hostname update ("mars")
 // Output:
 //  * Northbound:
 //    - the self-originated RI-LSA now contains the "mars" hostname
@@ -1333,7 +1333,7 @@ async fn sb_addr_del3() {
 //    RI-LSA
 //
 // Input:
-//  * Southbound: hostname update (none)
+//  * Ibus: hostname update (none)
 // Output:
 //  * Northbound:
 //    - the self-originated RI-LSA now has no hostname
@@ -1341,14 +1341,15 @@ async fn sb_addr_del3() {
 //  * Protocol: send an LS Update to all adjacencies containing the updated
 //    RI-LSA
 #[tokio::test]
-async fn sb_hostname_update1() {
-    run_test::<Instance<Ospfv2>>("sb-hostname-update1", "topo2-1", "rt6").await;
+async fn ibus_hostname_update1() {
+    run_test::<Instance<Ospfv2>>("ibus-hostname-update1", "topo2-1", "rt6")
+        .await;
 }
 
 // Test description:
 //
 // Input:
-//  * Southbound: eth-rt4-1 operational status is down
+//  * Ibus: eth-rt4-1 operational status is down
 // Output:
 //  * Protocol: send an LS Update to all adjacencies containing the updated
 //    Router-LSA (one link to rt4 and the 10.0.2.0/24 stub network were removed)
@@ -1364,16 +1365,16 @@ async fn sb_hostname_update1() {
 // Output:
 //  * Northbound: the 10.0.2.4 nexthop was removed from all affected routes in
 //    the local RIB
-//  * Southbound: all routes affected by the interface shutdown were reinstalled
+//  * Ibus: all routes affected by the interface shutdown were reinstalled
 #[tokio::test]
-async fn sb_iface_update1() {
-    run_test::<Instance<Ospfv2>>("sb-iface-update1", "topo2-1", "rt2").await;
+async fn ibus_iface_update1() {
+    run_test::<Instance<Ospfv2>>("ibus-iface-update1", "topo2-1", "rt2").await;
 }
 
 // Test description:
 //
 // Input:
-//  * Southbound: eth-sw1 operational status is down
+//  * Ibus: eth-sw1 operational status is down
 // Output:
 //  * Protocol: send an LS Update to all remaining adjacencies containing the
 //    updated Router-LSA (transit network link 10.0.1.0/24 was removed)
@@ -1390,16 +1391,16 @@ async fn sb_iface_update1() {
 // Output:
 //  * Northbound: all routes going through eth-sw1 reconverged through eth-rt4-1
 //    and eth-rt4-2
-//  * Southbound: all routes affected by the interface shutdown were reinstalled
+//  * Ibus: all routes affected by the interface shutdown were reinstalled
 #[tokio::test]
-async fn sb_iface_update2() {
-    run_test::<Instance<Ospfv2>>("sb-iface-update2", "topo2-1", "rt2").await;
+async fn ibus_iface_update2() {
+    run_test::<Instance<Ospfv2>>("ibus-iface-update2", "topo2-1", "rt2").await;
 }
 
 // Test description:
 //
 // Input:
-//  * Southbound: eth-sw1 operational status is down
+//  * Ibus: eth-sw1 operational status is down
 // Output:
 //  * Protocol: send an LS Update to all remaining adjacencies containing the
 //    updated Router-LSA (transit network link 10.0.1.0/24 was removed) and
@@ -1418,16 +1419,16 @@ async fn sb_iface_update2() {
 // Output:
 //  * Northbound: all routes going through eth-sw1 reconverged through eth-rt5-1
 //    and eth-rt5-2
-//  * Southbound: all routes affected by the interface shutdown were reinstalled
+//  * Ibus: all routes affected by the interface shutdown were reinstalled
 #[tokio::test]
-async fn sb_iface_update3() {
-    run_test::<Instance<Ospfv2>>("sb-iface-update3", "topo2-1", "rt3").await;
+async fn ibus_iface_update3() {
+    run_test::<Instance<Ospfv2>>("ibus-iface-update3", "topo2-1", "rt3").await;
 }
 
 // Test description:
 //
 // Input:
-//  * Southbound: eth-rt4-1 operational status is down
+//  * Ibus: eth-rt4-1 operational status is down
 // Output:
 //  * Protocol: send an LS Update to all adjacencies containing the updated
 //    Router-LSA (one link to rt4 and the 10.0.2.0/24 stub network were removed)
@@ -1443,10 +1444,10 @@ async fn sb_iface_update3() {
 // Output:
 //  * Northbound: the 10.0.2.4 nexthop was removed from all affected routes in
 //    the local RIB
-//  * Southbound: all routes affected by the interface shutdown were reinstalled
+//  * Ibus: all routes affected by the interface shutdown were reinstalled
 //
 // Input:
-//  * Southbound: eth-rt4-1 operational status is up
+//  * Ibus: eth-rt4-1 operational status is up
 // Output:
 //  * Protocol: send an LS Update to all adjacencies containing the updated
 //    Router-LSA (the 10.0.2.0/24 stub network was added back)
@@ -1454,8 +1455,8 @@ async fn sb_iface_update3() {
 //    - the eth-rt4-1 interface transitioned to the "point-to-point" state
 //    - the self-originated Router-LSA was updated
 #[tokio::test]
-async fn sb_iface_update4() {
-    run_test::<Instance<Ospfv2>>("sb-iface-update4", "topo2-1", "rt2").await;
+async fn ibus_iface_update4() {
+    run_test::<Instance<Ospfv2>>("ibus-iface-update4", "topo2-1", "rt2").await;
 }
 
 // Test description:
@@ -1464,11 +1465,11 @@ async fn sb_iface_update4() {
 // should be ignored.
 //
 // Input:
-//  * Southbound: eth-rt4-1 operational status is up
+//  * Ibus: eth-rt4-1 operational status is up
 // Output: no changes
 #[tokio::test]
-async fn sb_iface_update5() {
-    run_test::<Instance<Ospfv2>>("sb-iface-update5", "topo2-1", "rt2").await;
+async fn ibus_iface_update5() {
+    run_test::<Instance<Ospfv2>>("ibus-iface-update5", "topo2-1", "rt2").await;
 }
 
 // Test description:
@@ -1477,7 +1478,7 @@ async fn sb_iface_update5() {
 // should be ignored.
 //
 // Input:
-//  * Southbound: eth-rt4-1 operational status is down
+//  * Ibus: eth-rt4-1 operational status is down
 // Output:
 //  * Protocol: send an LS Update to all adjacencies containing the updated
 //    Router-LSA (one link to rt4 and the 10.0.2.0/24 stub network were removed)
@@ -1493,14 +1494,14 @@ async fn sb_iface_update5() {
 // Output:
 //  * Northbound: the 10.0.2.4 nexthop was removed from all affected routes in
 //    the local RIB
-//  * Southbound: all routes affected by the interface shutdown were reinstalled
+//  * Ibus: all routes affected by the interface shutdown were reinstalled
 //
 // Input:
-//  * Southbound: eth-rt4-1 operational status is down
+//  * Ibus: eth-rt4-1 operational status is down
 // Output: no changes
 #[tokio::test]
-async fn sb_iface_update6() {
-    run_test::<Instance<Ospfv2>>("sb-iface-update6", "topo2-1", "rt2").await;
+async fn ibus_iface_update6() {
+    run_test::<Instance<Ospfv2>>("ibus-iface-update6", "topo2-1", "rt2").await;
 }
 
 // Test description:
@@ -1509,11 +1510,11 @@ async fn sb_iface_update6() {
 // should be ignored.
 //
 // Input:
-//  * Southbound: status message about the eth-rt999 interface
+//  * Ibus: status message about the eth-rt999 interface
 // Output: no changes
 #[tokio::test]
-async fn sb_iface_update7() {
-    run_test::<Instance<Ospfv2>>("sb-iface-update7", "topo2-1", "rt2").await;
+async fn ibus_iface_update7() {
+    run_test::<Instance<Ospfv2>>("ibus-iface-update7", "topo2-1", "rt2").await;
 }
 
 // Test description:
@@ -1522,11 +1523,11 @@ async fn sb_iface_update7() {
 // Router ID configured.
 //
 // Input:
-//  * Southbound: system Router ID initialize to 10.0.255.1
+//  * Ibus: system Router ID initialize to 10.0.255.1
 // Output: no changes
 #[tokio::test]
-async fn sb_router_id_update1() {
-    run_test::<Instance<Ospfv2>>("sb-router-id-update1", "topo1-1", "rt2")
+async fn ibus_router_id_update1() {
+    run_test::<Instance<Ospfv2>>("ibus-router-id-update1", "topo1-1", "rt2")
         .await;
 }
 
@@ -1553,7 +1554,7 @@ async fn sb_router_id_update1() {
 //  * Northbound:
 //    - the routes to 1.1.1.1/32, 2.2.2.2/32 and 10.0.1.0/24 were removed
 //    - the ABR count is now 2
-//  * Southbound: uninstall the routes to 1.1.1.1/32, 2.2.2.2/32 and 10.0.1.0/24
+//  * Ibus: uninstall the routes to 1.1.1.1/32, 2.2.2.2/32 and 10.0.1.0/24
 #[tokio::test]
 async fn timeout_nbr1() {
     run_test::<Instance<Ospfv2>>("timeout-nbr1", "topo1-2", "rt3").await;
@@ -1581,7 +1582,7 @@ async fn timeout_nbr1() {
 //  * Northbound:
 //    - the routes to 4.4.4.4/32, 5.5.5.5/32 and 10.0.5.0/24 were removed
 //    - the ABR count is now 2
-//  * Southbound: uninstall the routes to 4.4.4.4/32, 5.5.5.5/32 and 10.0.5.0/24
+//  * Ibus: uninstall the routes to 4.4.4.4/32, 5.5.5.5/32 and 10.0.5.0/24
 #[tokio::test]
 async fn timeout_nbr2() {
     run_test::<Instance<Ospfv2>>("timeout-nbr2", "topo1-2", "rt3").await;

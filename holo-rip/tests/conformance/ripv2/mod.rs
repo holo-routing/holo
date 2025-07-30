@@ -160,38 +160,38 @@ async fn nb_rpc_clear_route1() {
 
 // Test description:
 #[tokio::test]
-async fn sb_addr_add1() {
-    run_test::<Instance<Ripv2>>("sb-addr-add1", "topo1-1", "rt2").await;
+async fn ibus_addr_add1() {
+    run_test::<Instance<Ripv2>>("ibus-addr-add1", "topo1-1", "rt2").await;
 }
 
 // Test description:
 #[tokio::test]
-async fn sb_addr_add2() {
-    run_test::<Instance<Ripv2>>("sb-addr-add2", "topo1-1", "rt2").await;
+async fn ibus_addr_add2() {
+    run_test::<Instance<Ripv2>>("ibus-addr-add2", "topo1-1", "rt2").await;
 }
 
 // Test description:
 #[tokio::test]
-async fn sb_addr_del1() {
-    run_test::<Instance<Ripv2>>("sb-addr-del1", "topo1-1", "rt2").await;
+async fn ibus_addr_del1() {
+    run_test::<Instance<Ripv2>>("ibus-addr-del1", "topo1-1", "rt2").await;
 }
 
 // Test description:
 #[tokio::test]
-async fn sb_addr_del2() {
-    run_test::<Instance<Ripv2>>("sb-addr-del2", "topo1-1", "rt2").await;
+async fn ibus_addr_del2() {
+    run_test::<Instance<Ripv2>>("ibus-addr-del2", "topo1-1", "rt2").await;
 }
 
 // Test description:
 #[tokio::test]
-async fn sb_iface_update1() {
-    run_test::<Instance<Ripv2>>("sb-iface-update1", "topo1-1", "rt2").await;
+async fn ibus_iface_update1() {
+    run_test::<Instance<Ripv2>>("ibus-iface-update1", "topo1-1", "rt2").await;
 }
 
 // Test description:
 #[tokio::test]
-async fn sb_iface_update2() {
-    run_test::<Instance<Ripv2>>("sb-iface-update2", "topo1-1", "rt2").await;
+async fn ibus_iface_update2() {
+    run_test::<Instance<Ripv2>>("ibus-iface-update2", "topo1-1", "rt2").await;
 }
 
 // Test description:

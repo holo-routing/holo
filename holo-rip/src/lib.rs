@@ -12,6 +12,7 @@
 pub mod debug;
 pub mod error;
 pub mod events;
+pub mod ibus;
 pub mod instance;
 pub mod interface;
 pub mod neighbor;
@@ -22,6 +23,5 @@ pub mod packet;
 pub mod ripng;
 pub mod ripv2;
 pub mod route;
-pub mod southbound;
 pub mod tasks;
 pub mod version;

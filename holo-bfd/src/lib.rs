@@ -12,10 +12,10 @@
 pub mod debug;
 pub mod error;
 pub mod events;
+pub mod ibus;
 pub mod master;
 pub mod network;
 pub mod northbound;
 pub mod packet;
 pub mod session;
-pub mod southbound;
 pub mod tasks;

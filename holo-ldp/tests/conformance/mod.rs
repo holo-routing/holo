@@ -40,7 +40,7 @@ async fn message_addr1() {
 //  * Northbound:
 //    - removed address binding received from 4.4.4.4
 //    - updated statistics
-//  * Southbound: uninstall all labels learned from 4.4.4.4 and mapped to the
+//  * Ibus: uninstall all labels learned from 4.4.4.4 and mapped to the
 //    10.0.3.4 nexthop
 //
 // Input:
@@ -49,7 +49,7 @@ async fn message_addr1() {
 //  * Northbound:
 //    - new address binding received from 4.4.4.4
 //    - updated statistics
-//  * Southbound: install all labels learned from 4.4.4.4 and mapped to the
+//  * Ibus: install all labels learned from 4.4.4.4 and mapped to the
 //    10.0.3.4 nexthop
 #[tokio::test]
 async fn message_addr2() {
@@ -87,7 +87,7 @@ async fn message_addr_withdraw1() {
 //  * Northbound:
 //    - removed address binding received from 4.4.4.4
 //    - updated statistics
-//  * Southbound: uninstall all labels learned from 4.4.4.4 and mapped to the
+//  * Ibus: uninstall all labels learned from 4.4.4.4 and mapped to the
 //    10.0.3.4 nexthop
 #[tokio::test]
 async fn message_addr_withdraw2() {
@@ -107,7 +107,7 @@ async fn message_addr_withdraw2() {
 //    - neighbor 3.3.3.3 transitioned from OPERATIONAL to NON EXISTENT
 //    - removed all address and label bindings learned from 3.3.3.3
 //    - updated statistics
-//  * Southbound: uninstall all labels learned from 3.3.3.3
+//  * Ibus: uninstall all labels learned from 3.3.3.3
 #[tokio::test]
 async fn message_decode_error1() {
     run_test::<Instance>("message-decode-error1", "topo2-1", "rt2").await;
@@ -171,7 +171,7 @@ async fn message_hello2() {
 //    - neighbor 1.1.1.1 transitioned from OPERATIONAL to NON EXISTENT
 //    - removed all address and label bindings learned from 1.1.1.1
 //    - updated statistics
-//  * Southbound: uninstall all labels learned from 1.1.1.1
+//  * Ibus: uninstall all labels learned from 1.1.1.1
 #[tokio::test]
 async fn message_hello3() {
     run_test::<Instance>("message-hello3", "topo2-1", "rt2").await;
@@ -190,7 +190,7 @@ async fn message_hello3() {
 //    - neighbor rt1 transitioned from OPERATIONAL to NON EXISTENT
 //    - removed all address and label bindings learned from rt1
 //    - updated statistics
-//  * Southbound: uninstall all labels learned from rt1
+//  * Ibus: uninstall all labels learned from rt1
 #[tokio::test]
 async fn message_init1() {
     run_test::<Instance>("message-init1", "topo2-1", "rt2").await;
@@ -270,7 +270,7 @@ async fn message_label_mapping2() {
 // of the advertised label.
 //
 // Input:
-//  * Southbound: new route (192.168.1.0/24 nexthops [10.0.1.1])
+//  * Ibus: new route (192.168.1.0/24 nexthops [10.0.1.1])
 // Output:
 //  * Protocol: Label Mapping Message to all peers advertising a non-null label
 //  * Northbound: new advertised label mappings
@@ -281,7 +281,7 @@ async fn message_label_mapping2() {
 //  * Northbound:
 //    - new received label mapping from rt1
 //    - updated statistics
-//  * Southbound: install label for 192.168.1.0/24
+//  * Ibus: install label for 192.168.1.0/24
 //
 #[tokio::test]
 async fn message_label_mapping3() {
@@ -523,7 +523,7 @@ async fn message_label_withdraw3() {
 //  * Northbound:
 //    - remove label mapping from rt4 for 1.1.1.1/32
 //    - updated statistics
-//  * Southbound: uninstall labels received from rt4 for 4.4.4.4/32
+//  * Ibus: uninstall labels received from rt4 for 4.4.4.4/32
 #[tokio::test]
 async fn message_label_withdraw4() {
     run_test::<Instance>("message-label-withdraw4", "topo2-1", "rt2").await;
@@ -541,7 +541,7 @@ async fn message_label_withdraw4() {
 //  * Northbound:
 //    - remove all label bindings learned from rt4
 //    - updated statistics
-//  * Southbound: uninstall all labels learned from rt4
+//  * Ibus: uninstall all labels learned from rt4
 #[tokio::test]
 async fn message_label_withdraw5() {
     run_test::<Instance>("message-label-withdraw5", "topo2-1", "rt2").await;
@@ -558,7 +558,7 @@ async fn message_label_withdraw5() {
 //    - neighbor rt1 transitioned from OPERATIONAL to NON EXISTENT
 //    - remove all address and label bindings learned from rt1
 //    - update statistics
-//  * Southbound: uninstall all labels learned from rt1
+//  * Ibus: uninstall all labels learned from rt1
 #[tokio::test]
 async fn message_notification1() {
     run_test::<Instance>("message-notification1", "topo2-1", "rt2").await;
@@ -632,7 +632,7 @@ async fn nb_config_hello_accept2() {
 //  * Northbound:
 //    - deleted rt1 and rt3 neighbors
 //    - removed all address and label bindings learned from rt1 and rt3
-//  * Southbound: uninstall all labels learned from rt1 and rt3
+//  * Ibus: uninstall all labels learned from rt1 and rt3
 #[tokio::test]
 async fn nb_config_iface1() {
     run_test::<Instance>("nb-config-iface1", "topo2-1", "rt2").await;
@@ -650,12 +650,12 @@ async fn nb_config_iface1() {
 //  * Northbound:
 //    - deleted rt1 and rt3 neighbors
 //    - removed all address and label bindings learned from rt1 and rt3
-//  * Southbound: uninstall all labels learned from rt1 and rt3
+//  * Ibus: uninstall all labels learned from rt1 and rt3
 //
 // Input:
 //  * Northbound: re-add the eth-sw1 interface
 // Output:
-//  * Southbound: request interface information
+//  * Ibus: request interface information
 #[tokio::test]
 async fn nb_config_iface2() {
     run_test::<Instance>("nb-config-iface2", "topo2-1", "rt2").await;
@@ -673,7 +673,7 @@ async fn nb_config_iface2() {
 //  * Northbound:
 //    - deleted rt1 and rt3 adjacencies and neighbors
 //    - removed all address and label bindings learned from rt1 and rt3
-//  * Southbound: uninstall all labels learned from rt1 and rt3
+//  * Ibus: uninstall all labels learned from rt1 and rt3
 #[tokio::test]
 async fn nb_config_iface_ipv4_enabled1() {
     run_test::<Instance>("nb-config-iface-ipv4-enabled1", "topo2-1", "rt2")
@@ -691,7 +691,7 @@ async fn nb_config_iface_ipv4_enabled1() {
 //  * Northbound:
 //    - deleted rt1 and rt3 neighbors
 //    - removed all address and label bindings learned from rt1 and rt3
-//  * Southbound: uninstall all labels learned from rt1 and rt3
+//  * Ibus: uninstall all labels learned from rt1 and rt3
 //
 // Input:
 //  * Northbound: enable LDP-IPv4 operation in the eth-sw1 interface
@@ -716,7 +716,7 @@ async fn nb_config_iface_ipv4_enabled2() {
 //    - remove all adjacencies
 //    - remove all neighbors
 //    - remove all address and label bindings
-//  * Southbound: uninstall all learned labels
+//  * Ibus: uninstall all learned labels
 #[tokio::test]
 async fn nb_config_ipv4_enabled1() {
     run_test::<Instance>("nb-config-ipv4-enabled1", "topo2-1", "rt2").await;
@@ -735,13 +735,13 @@ async fn nb_config_ipv4_enabled1() {
 //    - remove all adjacencies
 //    - remove all neighbors
 //    - remove all address and label bindings
-//  * Southbound: uninstall all learned labels
+//  * Ibus: uninstall all learned labels
 //
 // Input:
 //  * Northbound: enable LDP IPv4 operation
 // Output:
 //  * Northbound: all interfaces are active again
-//  * Southbound: request to receive route information
+//  * Ibus: request to receive route information
 #[tokio::test]
 async fn nb_config_ipv4_enabled2() {
     run_test::<Instance>("nb-config-ipv4-enabled2", "topo2-1", "rt2").await;
@@ -829,7 +829,7 @@ async fn nb_config_tnbr_ipv4_enabled1() {
 //    - delete all adjacencies
 //    - delete all neighbors
 //    - remove all address and label bindings
-//  * Southbound: uninstall all learned labels
+//  * Ibus: uninstall all learned labels
 #[tokio::test]
 async fn nb_rpc_clear_hello_adj1() {
     run_test::<Instance>("nb-rpc-clear-hello-adj1", "topo2-1", "rt2").await;
@@ -849,7 +849,7 @@ async fn nb_rpc_clear_hello_adj1() {
 //    - remove eth-rt1 adjacency
 //    - remove rt1 neighbor
 //    - remove all address and label bindings learned from rt1
-//  * Southbound: uninstall all labels learned from rt1
+//  * Ibus: uninstall all labels learned from rt1
 #[tokio::test]
 async fn nb_rpc_clear_hello_adj2() {
     run_test::<Instance>("nb-rpc-clear-hello-adj2", "topo2-1", "rt2").await;
@@ -867,7 +867,7 @@ async fn nb_rpc_clear_hello_adj2() {
 //  * Northbound:
 //    - all neighbors transitioned from OPERATIONAL to NON EXISTENT
 //    - remove all address and label bindings
-//  * Southbound: uninstall all learned labels
+//  * Ibus: uninstall all learned labels
 #[tokio::test]
 async fn nb_rpc_clear_peer1() {
     run_test::<Instance>("nb-rpc-clear-peer1", "topo2-1", "rt2").await;
@@ -885,7 +885,7 @@ async fn nb_rpc_clear_peer1() {
 //  * Northbound:
 //    - neighbor rt1 transitioned from OPERATIONAL to NON EXISTENT
 //    - remove all address and label bindings learned from rt1
-//  * Southbound: uninstall all labels learned from rt1
+//  * Ibus: uninstall all labels learned from rt1
 #[tokio::test]
 async fn nb_rpc_clear_peer2() {
     run_test::<Instance>("nb-rpc-clear-peer2", "topo2-1", "rt2").await;
@@ -897,13 +897,13 @@ async fn nb_rpc_clear_peer2() {
 // all peers.
 //
 // Input:
-//  * Southbound: address 172.16.1.2/24 added to eth-rt1
+//  * Ibus: address 172.16.1.2/24 added to eth-rt1
 // Output:
 //  * Protocol: Address Message to all peers (address list: [172.16.1.2/24])
 //  * Northbound: new advertised address binding
 #[tokio::test]
-async fn sb_addr_add1() {
-    run_test::<Instance>("sb-addr-add1", "topo1-1", "rt2").await;
+async fn ibus_addr_add1() {
+    run_test::<Instance>("ibus-addr-add1", "topo1-1", "rt2").await;
 }
 
 // Test description:
@@ -912,7 +912,7 @@ async fn sb_addr_add1() {
 // an address.
 //
 // Input:
-//  * Southbound: address 10.0.1.2 removed from eth-rt1
+//  * Ibus: address 10.0.1.2 removed from eth-rt1
 // Output:
 //  * Protocol:
 //    - Address Withdraw message to all peers (address list: [10.0.1.2])
@@ -920,10 +920,10 @@ async fn sb_addr_add1() {
 //  * Northbound:
 //    - neighbor rt1 deleted
 //    - removed all address and label bindings learned from rt1
-//  * Southbound: uninstall all labels learned from rt1
+//  * Ibus: uninstall all labels learned from rt1
 //
 // Input:
-//  * Southbound: address 10.0.1.2 added to eth-rt1
+//  * Ibus: address 10.0.1.2 added to eth-rt1
 // Output:
 //  * Protocol:
 //    - Address message to all peers (address list: [10.0.1.2])
@@ -932,8 +932,8 @@ async fn sb_addr_add1() {
 //    - new advertised address binding
 //    - eth-rt1 is active again
 #[tokio::test]
-async fn sb_addr_add2() {
-    run_test::<Instance>("sb-addr-add2", "topo1-1", "rt2").await;
+async fn ibus_addr_add2() {
+    run_test::<Instance>("ibus-addr-add2", "topo1-1", "rt2").await;
 }
 
 // Test description:
@@ -942,20 +942,20 @@ async fn sb_addr_add2() {
 // Withdraw message to all peers.
 //
 // Input:
-//  * Southbound: address 172.16.1.2/24 added to eth-rt1
+//  * Ibus: address 172.16.1.2/24 added to eth-rt1
 // Output:
 //  * Protocol: Address Message to all peers (address list: [172.16.1.2/24])
 //  * Northbound: new advertised address binding
 //
 // Input:
-//  * Southbound: address 172.16.1.2/24 removed from eth-rt1
+//  * Ibus: address 172.16.1.2/24 removed from eth-rt1
 // Output:
 //  * Protocol: Address Withdraw Message to all peers (address list:
 //    [172.16.1.2/24])
 //  * Northbound: removed advertised address binding
 #[tokio::test]
-async fn sb_addr_del1() {
-    run_test::<Instance>("sb-addr-del1", "topo1-1", "rt2").await;
+async fn ibus_addr_del1() {
+    run_test::<Instance>("ibus-addr-del1", "topo1-1", "rt2").await;
 }
 
 // Test description:
@@ -964,7 +964,7 @@ async fn sb_addr_del1() {
 // deactivated.
 //
 // Input:
-//  * Southbound: address 10.0.1.2 removed from eth-rt1
+//  * Ibus: address 10.0.1.2 removed from eth-rt1
 // Output:
 //  * Protocol:
 //    - Address Withdraw to all peers (address list: [10.0.1.2])
@@ -972,10 +972,10 @@ async fn sb_addr_del1() {
 //  * Northbound:
 //    - neighbor rt1 deleted
 //    - removed all address and label bindings learned from rt1
-//  * Southbound: uninstall all labels learned from rt1
+//  * Ibus: uninstall all labels learned from rt1
 #[tokio::test]
-async fn sb_addr_del2() {
-    run_test::<Instance>("sb-addr-del2", "topo1-1", "rt2").await;
+async fn ibus_addr_del2() {
+    run_test::<Instance>("ibus-addr-del2", "topo1-1", "rt2").await;
 }
 
 // Test description:
@@ -984,16 +984,16 @@ async fn sb_addr_del2() {
 // soon as that interface is disabled.
 //
 // Input:
-//  * Southbound: disable the eth-sw1 interface
+//  * Ibus: disable the eth-sw1 interface
 // Output:
 //  * Protocol: Notification (Shutdown) to rt1 and rt3
 //  * Northbound:
 //    - deleted rt1 and rt3 neighbors
 //    - removed all address and label bindings learned from rt1 and rt3
-//  * Southbound: uninstall all labels learned from rt1 and rt3
+//  * Ibus: uninstall all labels learned from rt1 and rt3
 #[tokio::test]
-async fn sb_iface_update1() {
-    run_test::<Instance>("sb-iface-update1", "topo2-1", "rt2").await;
+async fn ibus_iface_update1() {
+    run_test::<Instance>("ibus-iface-update1", "topo2-1", "rt2").await;
 }
 
 // Test description:
@@ -1002,12 +1002,12 @@ async fn sb_iface_update1() {
 // when one of those interfaces is disabled.
 //
 // Input:
-//  * Southbound: disable the eth-rt4-1 interface
+//  * Ibus: disable the eth-rt4-1 interface
 // Output:
 //  * Northbound: removed the eth-rt4-1 link adjacency
 #[tokio::test]
-async fn sb_iface_update2() {
-    run_test::<Instance>("sb-iface-update2", "topo2-1", "rt2").await;
+async fn ibus_iface_update2() {
+    run_test::<Instance>("ibus-iface-update2", "topo2-1", "rt2").await;
 }
 
 // Test description:
@@ -1016,21 +1016,21 @@ async fn sb_iface_update2() {
 // operational status is up again.
 //
 // Input:
-//  * Southbound: disable the eth-sw1 interface
+//  * Ibus: disable the eth-sw1 interface
 // Output:
 //  * Protocol: Notification (Shutdown) to rt1 and rt3
 //  * Northbound:
 //    - deleted rt1 and rt3 neighbors
 //    - removed all address and label bindings learned from rt1 and rt3
-//  * Southbound: uninstall all labels learned from rt1 and rt3
+//  * Ibus: uninstall all labels learned from rt1 and rt3
 //
 // Input:
-//  * Southbound: enable the eth-sw1 interface
+//  * Ibus: enable the eth-sw1 interface
 // Output:
 //  * Northbound: eth-sw1 is active again
 #[tokio::test]
-async fn sb_iface_update3() {
-    run_test::<Instance>("sb-iface-update3", "topo2-1", "rt2").await;
+async fn ibus_iface_update3() {
+    run_test::<Instance>("ibus-iface-update3", "topo2-1", "rt2").await;
 }
 
 // Test description:
@@ -1038,13 +1038,13 @@ async fn sb_iface_update3() {
 // Route added without any available label binding.
 //
 // Input:
-//  * Southbound: new route (192.168.1.0/24 nexthops [10.0.1.1])
+//  * Ibus: new route (192.168.1.0/24 nexthops [10.0.1.1])
 // Output:
 //  * Protocol: Label Mapping message to all peers advertising a non-null label
 //  * Northbound: new advertised label bindings
 #[tokio::test]
-async fn sb_route_add1() {
-    run_test::<Instance>("sb-route-add1", "topo2-1", "rt2").await;
+async fn ibus_route_add1() {
+    run_test::<Instance>("ibus-route-add1", "topo2-1", "rt2").await;
 }
 
 // Test description:
@@ -1059,7 +1059,7 @@ async fn sb_route_add1() {
 //    - updated statistics
 //
 // Input:
-//  * Southbound: new route (192.168.1.0/24 nexthops [10.0.1.1])
+//  * Ibus: new route (192.168.1.0/24 nexthops [10.0.1.1])
 // Output:
 //  * Protocol: Label Mapping message to all peers advertising a non-null label
 //  * Northbound:
@@ -1067,10 +1067,10 @@ async fn sb_route_add1() {
 //    - received label binding from rt1 for 192.168.1.0/24 is marked as used in
 //      forwarding
 //    - updated statistics
-//  * Southbound: install label for 192.168.1.0/24
+//  * Ibus: install label for 192.168.1.0/24
 #[tokio::test]
-async fn sb_route_add2() {
-    run_test::<Instance>("sb-route-add2", "topo2-1", "rt2").await;
+async fn ibus_route_add2() {
+    run_test::<Instance>("ibus-route-add2", "topo2-1", "rt2").await;
 }
 
 // Test description:
@@ -1078,19 +1078,19 @@ async fn sb_route_add2() {
 // Route updates should trigger labels to be installed or uninstalled.
 //
 // Input:
-//  * Southbound: updated route (6.6.6.6/32 nexthops [10.0.2.4])
+//  * Ibus: updated route (6.6.6.6/32 nexthops [10.0.2.4])
 // Output:
 //  * Protocol: Label Mapping Message to all peers advertising a non-null label
-//  * Southbound: uninstall label for 192.168.1.0/24 via 10.0.3.4
+//  * Ibus: uninstall label for 192.168.1.0/24 via 10.0.3.4
 //
 // Input:
-//  * Southbound: updated route (6.6.6.6/32 nexthops [10.0.2.4, 10.0.3.4])
+//  * Ibus: updated route (6.6.6.6/32 nexthops [10.0.2.4, 10.0.3.4])
 // Output:
 //  * Protocol: Label Mapping Message to all peers advertising a non-null label
-//  * Southbound: reinstall label for 192.168.1.0/24 via 10.0.3.4
+//  * Ibus: reinstall label for 192.168.1.0/24 via 10.0.3.4
 #[tokio::test]
-async fn sb_route_add3() {
-    run_test::<Instance>("sb-route-add3", "topo2-1", "rt2").await;
+async fn ibus_route_add3() {
+    run_test::<Instance>("ibus-route-add3", "topo2-1", "rt2").await;
 }
 
 // Test description:
@@ -1098,17 +1098,17 @@ async fn sb_route_add3() {
 // Route removal should prompt the corresponding labels to be uninstalled.
 //
 // Input:
-//  * Southbound: deleted route (6.6.6.6/32)
+//  * Ibus: deleted route (6.6.6.6/32)
 // Output:
 //  * Protocol: Label Withdraw message to all peers
 //  * Northbound:
 //    - received label binding from rt4 for 6.6.6.6/32 is marked as not used in
 //      forwarding
 //    - updated statistics
-//  * Southbound: uninstall labels for 6.6.6.6/32
+//  * Ibus: uninstall labels for 6.6.6.6/32
 #[tokio::test]
-async fn sb_route_del1() {
-    run_test::<Instance>("sb-route-del1", "topo2-1", "rt2").await;
+async fn ibus_route_del1() {
+    run_test::<Instance>("ibus-route-del1", "topo2-1", "rt2").await;
 }
 
 // Test description:
@@ -1116,18 +1116,18 @@ async fn sb_route_del1() {
 // Removal of route that doesn't have any remote label binding.
 //
 // Input:
-//  * Southbound: new route (192.168.1.0/24 nexthops [10.0.1.1])
+//  * Ibus: new route (192.168.1.0/24 nexthops [10.0.1.1])
 // Output:
 //  * Protocol: Label Mapping message to all peers advertising a non-null label
 //  * Northbound: new advertised label bindings
 //
 // Input:
-//  * Southbound: deleted route (192.168.1.0/24)
+//  * Ibus: deleted route (192.168.1.0/24)
 // Output:
 //  * Protocol: Label Withdraw message to all peers
 #[tokio::test]
-async fn sb_route_del2() {
-    run_test::<Instance>("sb-route-del2", "topo2-1", "rt2").await;
+async fn ibus_route_del2() {
+    run_test::<Instance>("ibus-route-del2", "topo2-1", "rt2").await;
 }
 
 // Test description:
@@ -1182,7 +1182,7 @@ async fn tcp_accept3() {
 //    - neighbor rt4 transitioned from OPERATIONAL to NON EXISTENT
 //    - remove all address and label bindings learned from rt4
 //    - update statistics
-//  * Southbound: uninstall all labels learned from rt4
+//  * Ibus: uninstall all labels learned from rt4
 #[tokio::test]
 async fn tcp_close1() {
     run_test::<Instance>("tcp-close1", "topo2-1", "rt2").await;
@@ -1238,7 +1238,7 @@ async fn timeout_adj1() {
 //    - remove eth-rt4-1 adjacency
 //    - remove rt4 neighbor
 //    - remove all address and label bindings learned from rt4
-//  * Southbound: uninstall all labels learned from rt4
+//  * Ibus: uninstall all labels learned from rt4
 #[tokio::test]
 async fn timeout_adj2() {
     run_test::<Instance>("timeout-adj2", "topo2-1", "rt2").await;
@@ -1256,7 +1256,7 @@ async fn timeout_adj2() {
 //    - neighbor rt4 transitioned from OPERATIONAL to NON EXISTENT
 //    - remove all address and label bindings learned from rt4
 //    - update statistics
-//  * Southbound: uninstall all labels learned from rt4
+//  * Ibus: uninstall all labels learned from rt4
 #[tokio::test]
 async fn timeout_nbr1() {
     run_test::<Instance>("timeout-nbr1", "topo1-1", "rt2").await;
@@ -1275,7 +1275,7 @@ async fn timeout_nbr1() {
 //    - neighbor rt4 transitioned from OPERATIONAL to NON EXISTENT
 //    - remove all address and label bindings learned from rt4
 //    - update statistics
-//  * Southbound: uninstall all labels learned from rt4
+//  * Ibus: uninstall all labels learned from rt4
 //
 // Input:
 //  * Protocol: neighbor rt1 timed out
@@ -1285,7 +1285,7 @@ async fn timeout_nbr1() {
 //    - neighbor rt1 transitioned from OPERATIONAL to NON EXISTENT
 //    - remove all address and label bindings learned from rt1
 //    - update statistics
-//  * Southbound: uninstall all labels learned from rt1
+//  * Ibus: uninstall all labels learned from rt1
 #[tokio::test]
 async fn timeout_nbr2() {
     run_test::<Instance>("timeout-nbr2", "topo1-1", "rt2").await;

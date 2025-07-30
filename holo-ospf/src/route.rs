@@ -26,7 +26,7 @@ use crate::northbound::configuration::InstanceCfg;
 use crate::packet::lsa::{LsaKey, LsaRouterFlagsVersion};
 use crate::spf::{SpfPartialComputation, VertexLsaVersion};
 use crate::version::Version;
-use crate::{bier, southbound, sr};
+use crate::{bier, ibus, sr};
 
 // Network routing table entry.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -746,7 +746,7 @@ fn update_global_rib<V>(
             && !route.nexthops.is_empty()
         {
             let distance = route.distance(instance.config);
-            southbound::tx::route_install(
+            ibus::tx::route_install(
                 &instance.tx.ibus,
                 prefix,
                 route,
@@ -756,7 +756,7 @@ fn update_global_rib<V>(
             );
             route.flags.insert(RouteNetFlags::INSTALLED);
         } else if route.flags.contains(RouteNetFlags::INSTALLED) {
-            southbound::tx::route_uninstall(&instance.tx.ibus, prefix, route);
+            ibus::tx::route_uninstall(&instance.tx.ibus, prefix, route);
             route.flags.remove(RouteNetFlags::INSTALLED);
         }
     }
@@ -766,7 +766,7 @@ fn update_global_rib<V>(
         .into_iter()
         .filter(|(_, route)| route.flags.contains(RouteNetFlags::INSTALLED))
     {
-        southbound::tx::route_uninstall(&instance.tx.ibus, &dest, &route);
+        ibus::tx::route_uninstall(&instance.tx.ibus, &dest, &route);
     }
 }
 

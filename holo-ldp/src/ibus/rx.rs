@@ -21,7 +21,7 @@ use crate::fec::Fec;
 use crate::instance::{Instance, InstanceUpView};
 use crate::northbound::notification;
 use crate::packet::AddressMessageType;
-use crate::{events, southbound};
+use crate::{events, ibus};
 
 // ===== helper functions =====
 
@@ -219,11 +219,7 @@ pub(crate) fn process_route_add(instance: &mut Instance, msg: RouteMsg) {
             }
         }) {
             let nexthop = &fec.nexthops[&nexthop_addr];
-            southbound::tx::label_uninstall(
-                &instance.tx.ibus,
-                &fec.inner,
-                nexthop,
-            );
+            ibus::tx::label_uninstall(&instance.tx.ibus, &fec.inner, nexthop);
             fec.nexthops.remove(&nexthop_addr);
         }
     }
@@ -272,11 +268,7 @@ pub(crate) fn process_route_del(instance: &mut Instance, msg: RouteKeyMsg) {
 
         // Uninstall learned labels.
         for nexthop in fec.nexthops.values() {
-            southbound::tx::label_uninstall(
-                &instance.tx.ibus,
-                &fec.inner,
-                nexthop,
-            );
+            ibus::tx::label_uninstall(&instance.tx.ibus, &fec.inner, nexthop);
         }
 
         // Release FEC's local label.

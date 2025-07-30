@@ -23,7 +23,7 @@ use crate::error::{Error, IoError};
 use crate::session::Sessions;
 use crate::tasks::messages::input::{DetectTimerMsg, UdpRxPacketMsg};
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
-use crate::{events, network, southbound, tasks};
+use crate::{events, ibus, network, tasks};
 
 #[derive(Debug)]
 pub struct Master {
@@ -235,7 +235,7 @@ async fn process_ibus_msg(
             client_id,
             sess_key,
             client_config,
-        } => events::process_client_peer_reg(
+        } => ibus::process_client_peer_reg(
             master,
             subscriber.unwrap(),
             sess_key,
@@ -246,14 +246,14 @@ async fn process_ibus_msg(
         IbusMsg::BfdSessionUnreg {
             subscriber,
             sess_key,
-        } => events::process_client_peer_unreg(
+        } => ibus::process_client_peer_unreg(
             master,
             subscriber.unwrap(),
             sess_key,
         )?,
         // Interface update notification.
         IbusMsg::InterfaceUpd(msg) => {
-            southbound::process_iface_update(master, msg);
+            ibus::process_iface_update(master, msg);
         }
         // Ignore other events.
         _ => {}

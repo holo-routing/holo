@@ -22,7 +22,7 @@ use holo_vrrp::interface::Interface;
 //    - Transition instance state to "master" with "new-master-reason" set to
 //      "no-response"
 //    - Send "vrrp-new-master-event" YANG notification
-//  * Southbound: Install 10.0.1.5/32 address on the mvlan4-vrrp-1 interface
+//  * Ibus: Install 10.0.1.5/32 address on the mvlan4-vrrp-1 interface
 #[tokio::test]
 async fn master_down_timer1() {
     run_test::<Interface>("master-down-timer1", "v2-topo1-1", "rt1").await;
@@ -32,7 +32,7 @@ async fn master_down_timer1() {
 //  * Northbound: Add new VRRP instance with VRID 2
 // Output:
 //  * Northbound: New VRRP instance in "initialize" state
-//  * Southbound: Create "mvlan4-vrrp-2" interface using "eth-sw1" as parent
+//  * Ibus: Create "mvlan4-vrrp-2" interface using "eth-sw1" as parent
 #[tokio::test]
 async fn nb_config_instance1() {
     run_test::<Interface>("nb-config-instance1", "v2-topo1-1", "rt3").await;
@@ -42,7 +42,7 @@ async fn nb_config_instance1() {
 //  * Northbound: Delete existing VRRP instance with VRID 1
 // Output:
 //  * Northbound: Remove VRRP instance with VRID 1
-//  * Southbound: Delete "mvlan4-vrrp-1" interface
+//  * Ibus: Delete "mvlan4-vrrp-1" interface
 #[tokio::test]
 async fn nb_config_instance2() {
     run_test::<Interface>("nb-config-instance2", "v2-topo1-1", "rt3").await;
@@ -52,7 +52,7 @@ async fn nb_config_instance2() {
 //  * Northbound: Add virtual address (10.0.1.6) to VRRP instance in "master"
 //    state
 // Output:
-//  * Southbound: Install 10.0.1.6/32 address on mvlan4-vrrp-1 interface
+//  * Ibus: Install 10.0.1.6/32 address on mvlan4-vrrp-1 interface
 #[tokio::test]
 async fn nb_config_virtual_addr1() {
     run_test::<Interface>("nb-config-virtual-addr1", "v2-topo1-1", "rt3").await;
@@ -62,7 +62,7 @@ async fn nb_config_virtual_addr1() {
 //  * Northbound: Remove virtual address (10.0.1.5) from VRRP instance in
 //    "master" state
 // Output:
-//  * Southbound: Uninstall 10.0.1.5/32 address from mvlan4-vrrp-1 interface
+//  * Ibus: Uninstall 10.0.1.5/32 address from mvlan4-vrrp-1 interface
 #[tokio::test]
 async fn nb_config_virtual_addr2() {
     run_test::<Interface>("nb-config-virtual-addr2", "v2-topo1-1", "rt3").await;
@@ -140,26 +140,26 @@ async fn packet2() {
 //    (higher than configured priority)
 // Output:
 //  * Northbound: Transition instance state to "backup"
-//  * Southbound: Uninstall 10.0.1.5/32 address from mvlan4-vrrp-1 interface
+//  * Ibus: Uninstall 10.0.1.5/32 address from mvlan4-vrrp-1 interface
 #[tokio::test]
 async fn packet3() {
     run_test::<Interface>("packet3", "v2-topo1-1", "rt3").await;
 }
 
 // Input:
-//  * Southbound: "eth-sw1" operational status is down
+//  * Ibus: "eth-sw1" operational status is down
 // Output:
 //  * Northbound: Transition instance state to "initialize"
 #[tokio::test]
-async fn sb_iface_update1() {
-    run_test::<Interface>("sb-iface-update1", "v2-topo1-1", "rt3").await;
+async fn ibus_iface_update1() {
+    run_test::<Interface>("ibus-iface-update1", "v2-topo1-1", "rt3").await;
 }
 
 // Input:
-//  * Southbound: "mvlan4-vrrp-1" operational status is down
+//  * Ibus: "mvlan4-vrrp-1" operational status is down
 // Output:
 //  * Northbound: Transition instance state to "initialize"
 #[tokio::test]
-async fn sb_iface_update2() {
-    run_test::<Interface>("sb-iface-update2", "v2-topo1-1", "rt3").await;
+async fn ibus_iface_update2() {
+    run_test::<Interface>("ibus-iface-update2", "v2-topo1-1", "rt3").await;
 }

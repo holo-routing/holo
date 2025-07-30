@@ -34,7 +34,7 @@ use crate::tasks::messages::input::{
     TcpAcceptMsg, TcpConnectMsg, UdpRxPduMsg,
 };
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
-use crate::{events, southbound, tasks};
+use crate::{events, ibus, tasks};
 
 #[derive(Debug)]
 pub struct Instance {
@@ -293,10 +293,10 @@ impl ProtocolInstance for Instance {
 
     async fn init(&mut self) {
         // Request information about the system Router ID.
-        southbound::tx::router_id_sub(&self.tx.ibus);
+        ibus::tx::router_id_sub(&self.tx.ibus);
 
         // Subscribe for the redistribution of all non-BGP routes.
-        southbound::tx::route_redistribute_sub(&self.tx.ibus);
+        ibus::tx::route_redistribute_sub(&self.tx.ibus);
     }
 
     async fn shutdown(mut self) {
@@ -472,27 +472,27 @@ async fn process_ibus_msg(
     match msg {
         // Interface update notification.
         IbusMsg::InterfaceUpd(msg) => {
-            southbound::rx::process_iface_update(instance, msg);
+            ibus::rx::process_iface_update(instance, msg);
         }
         // Interface address addition notification.
         IbusMsg::InterfaceAddressAdd(msg) => {
-            southbound::rx::process_addr_add(instance, msg);
+            ibus::rx::process_addr_add(instance, msg);
         }
         // Interface address delete notification.
         IbusMsg::InterfaceAddressDel(msg) => {
-            southbound::rx::process_addr_del(instance, msg);
+            ibus::rx::process_addr_del(instance, msg);
         }
         // Router ID update notification.
         IbusMsg::RouterIdUpdate(router_id) => {
-            southbound::rx::process_router_id_update(instance, router_id).await;
+            ibus::rx::process_router_id_update(instance, router_id).await;
         }
         // Route redistribute update notification.
         IbusMsg::RouteRedistributeAdd(msg) => {
-            southbound::rx::process_route_add(instance, msg);
+            ibus::rx::process_route_add(instance, msg);
         }
         // Route redistribute delete notification.
         IbusMsg::RouteRedistributeDel(msg) => {
-            southbound::rx::process_route_del(instance, msg);
+            ibus::rx::process_route_del(instance, msg);
         }
         // Ignore other events.
         _ => {}

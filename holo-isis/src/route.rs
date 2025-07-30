@@ -16,11 +16,11 @@ use holo_utils::southbound::{IsisRouteType, RouteOpaqueAttrs};
 use ipnetwork::IpNetwork;
 
 use crate::collections::{InterfaceIndex, Interfaces};
+use crate::ibus;
 use crate::instance::InstanceUpView;
 use crate::northbound::configuration::{InstanceCfg, SummaryCfg};
 use crate::packet::subtlvs::prefix::PrefixSidStlv;
 use crate::packet::{LevelNumber, LevelType, SystemId};
-use crate::southbound;
 use crate::spf::{Vertex, VertexNetwork};
 
 // Routing table entry.
@@ -287,7 +287,7 @@ fn update_global_rib(
                 || !route.nexthops.is_empty())
         {
             let distance = route.distance(instance.config);
-            southbound::tx::route_install(
+            ibus::tx::route_install(
                 &instance.tx.ibus,
                 prefix,
                 route,
@@ -297,7 +297,7 @@ fn update_global_rib(
             );
             route.flags.insert(RouteFlags::INSTALLED);
         } else if route.flags.contains(RouteFlags::INSTALLED) {
-            southbound::tx::route_uninstall(&instance.tx.ibus, prefix, route);
+            ibus::tx::route_uninstall(&instance.tx.ibus, prefix, route);
             route.flags.remove(RouteFlags::INSTALLED);
         }
     }
@@ -307,6 +307,6 @@ fn update_global_rib(
         .into_iter()
         .filter(|(_, route)| route.flags.contains(RouteFlags::INSTALLED))
     {
-        southbound::tx::route_uninstall(&instance.tx.ibus, &dest, &route);
+        ibus::tx::route_uninstall(&instance.tx.ibus, &dest, &route);
     }
 }

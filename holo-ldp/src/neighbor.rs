@@ -49,7 +49,7 @@ use crate::tasks::messages::input::{
     NbrBackoffTimeoutMsg, NbrKaTimeoutMsg, NbrRxPduMsg, TcpConnectMsg,
 };
 use crate::tasks::messages::output::NbrTxPduMsg;
-use crate::{southbound, tasks};
+use crate::{ibus, tasks};
 
 #[derive(Debug)]
 pub struct Neighbor {
@@ -402,7 +402,7 @@ impl Neighbor {
                         .values_mut()
                         .filter(|nexthop| nbr.addr_list.contains(&nexthop.addr))
                     {
-                        southbound::tx::label_uninstall(
+                        ibus::tx::label_uninstall(
                             &instance.tx.ibus,
                             &fec.inner,
                             nexthop,

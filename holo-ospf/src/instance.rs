@@ -44,7 +44,7 @@ use crate::tasks::messages::input::{
 };
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
 use crate::version::Version;
-use crate::{events, lsdb, output, southbound, spf};
+use crate::{events, ibus, lsdb, output, spf};
 
 pub struct Instance<V: Version> {
     // Instance name.
@@ -276,7 +276,7 @@ where
                 route.flags.contains(RouteNetFlags::INSTALLED)
             })
         {
-            southbound::tx::route_uninstall(&instance.tx.ibus, dest, route);
+            ibus::tx::route_uninstall(&instance.tx.ibus, dest, route);
         }
 
         for area in arenas.areas.iter_mut() {
@@ -429,10 +429,10 @@ where
 
     async fn init(&mut self) {
         // Request information about the system Router ID.
-        southbound::tx::router_id_sub(&self.tx.ibus);
+        ibus::tx::router_id_sub(&self.tx.ibus);
 
         // Request information about the system hostname.
-        southbound::tx::hostname_sub(&self.tx.ibus);
+        ibus::tx::hostname_sub(&self.tx.ibus);
     }
 
     async fn shutdown(mut self) {
@@ -748,19 +748,19 @@ where
     match msg {
         // BFD peer state update event.
         IbusMsg::BfdStateUpd { sess_key, state } => {
-            events::process_bfd_state_update(instance, sess_key, state)?
+            ibus::rx::process_bfd_state_update(instance, sess_key, state)?
         }
         // Interface update notification.
         IbusMsg::InterfaceUpd(msg) => {
-            southbound::rx::process_iface_update(instance, msg);
+            ibus::rx::process_iface_update(instance, msg);
         }
         // Interface address addition notification.
         IbusMsg::InterfaceAddressAdd(msg) => {
-            southbound::rx::process_addr_add(instance, msg);
+            ibus::rx::process_addr_add(instance, msg);
         }
         // Interface address delete notification.
         IbusMsg::InterfaceAddressDel(msg) => {
-            southbound::rx::process_addr_del(instance, msg);
+            ibus::rx::process_addr_del(instance, msg);
         }
         // Keychain update event.
         IbusMsg::KeychainUpd(keychain) => {
@@ -771,7 +771,7 @@ where
                 .insert(keychain.name.clone(), keychain.clone());
 
             // Update all interfaces using this keychain.
-            events::process_keychain_update(instance, &keychain.name)?
+            ibus::rx::process_keychain_update(instance, &keychain.name)?
         }
         // Keychain delete event.
         IbusMsg::KeychainDel(keychain_name) => {
@@ -779,11 +779,11 @@ where
             instance.shared.keychains.remove(&keychain_name);
 
             // Update all interfaces using this keychain.
-            events::process_keychain_update(instance, &keychain_name)?
+            ibus::rx::process_keychain_update(instance, &keychain_name)?
         }
         // Router ID update notification.
         IbusMsg::RouterIdUpdate(router_id) => {
-            southbound::rx::process_router_id_update(instance, router_id);
+            ibus::rx::process_router_id_update(instance, router_id);
         }
         // SR configuration update.
         IbusMsg::SrCfgUpd(sr_config) => {
@@ -795,13 +795,13 @@ where
         }
         // SR configuration event.
         IbusMsg::SrCfgEvent(event) => {
-            events::process_sr_cfg_change(instance, event)?
+            ibus::rx::process_sr_cfg_change(instance, event)?
         }
         IbusMsg::BierCfgEvent(event) => {
-            events::process_bier_cfg_change(instance, event)?
+            ibus::rx::process_bier_cfg_change(instance, event)?
         }
         IbusMsg::HostnameUpdate(hostname) => {
-            events::process_hostname_update(instance, hostname)?;
+            ibus::rx::process_hostname_update(instance, hostname)?;
         }
         // Ignore other events.
         _ => {}

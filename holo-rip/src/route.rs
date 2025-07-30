@@ -18,7 +18,7 @@ use crate::instance::Instance;
 use crate::northbound::configuration::TraceOptions;
 use crate::tasks::messages::input::{RouteGcTimeoutMsg, RouteTimeoutMsg};
 use crate::version::Version;
-use crate::{southbound, tasks};
+use crate::{ibus, tasks};
 
 #[derive(Debug)]
 pub struct Route<V: Version> {
@@ -96,7 +96,7 @@ where
         }
 
         // Uninstall route.
-        southbound::tx::route_uninstall(&instance_channels_tx.ibus, self);
+        ibus::tx::route_uninstall(&instance_channels_tx.ibus, self);
 
         // Set metric to infinite and start GC timeout.
         self.metric.set_infinite();

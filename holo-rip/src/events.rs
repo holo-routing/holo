@@ -17,7 +17,7 @@ use crate::output::{self, ResponseType};
 use crate::packet::{Command, PduVersion, RteRouteVersion, RteVersion};
 use crate::route::{Metric, Route, RouteFlags, RouteType};
 use crate::version::Version;
-use crate::{neighbor, southbound};
+use crate::{ibus, neighbor};
 
 // ===== UDP packet receipt =====
 
@@ -267,17 +267,14 @@ fn process_pdu_response<V>(
 
                     if !metric.is_infinite() {
                         // Install route.
-                        southbound::tx::route_install(
+                        ibus::tx::route_install(
                             &instance.tx.ibus,
                             route,
                             distance,
                         );
                     } else if !old_metric.is_infinite() {
                         // Uninstall route.
-                        southbound::tx::route_uninstall(
-                            &instance.tx.ibus,
-                            route,
-                        );
+                        ibus::tx::route_uninstall(&instance.tx.ibus, route);
 
                         route.garbage_collection_start(
                             flush_interval,
@@ -323,11 +320,7 @@ fn process_pdu_response<V>(
                 instance.tx.protocol_input.trigger_update();
 
                 // Install route.
-                southbound::tx::route_install(
-                    &instance.tx.ibus,
-                    &route,
-                    distance,
-                );
+                ibus::tx::route_install(&instance.tx.ibus, &route, distance);
 
                 // Add route.
                 v.insert(route);

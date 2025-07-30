@@ -34,7 +34,7 @@ use crate::tasks::messages::input::{
 };
 use crate::tasks::messages::output::PolicyApplyMsg;
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
-use crate::{events, network, southbound, tasks};
+use crate::{events, ibus, network, tasks};
 
 #[derive(Debug)]
 pub struct Instance {
@@ -257,7 +257,7 @@ impl ProtocolInstance for Instance {
 
     async fn init(&mut self) {
         // Request information about the system Router ID.
-        southbound::tx::router_id_sub(&self.tx.ibus);
+        ibus::tx::router_id_sub(&self.tx.ibus);
     }
 
     async fn shutdown(mut self) {
@@ -452,11 +452,11 @@ async fn process_ibus_msg(
     match msg {
         IbusMsg::NexthopUpd { addr, metric } => {
             // Nexthop tracking update notification.
-            southbound::rx::process_nht_update(instance, addr, metric);
+            ibus::rx::process_nht_update(instance, addr, metric);
         }
         IbusMsg::RouterIdUpdate(router_id) => {
             // Router ID update notification.
-            southbound::rx::process_router_id_update(instance, router_id).await;
+            ibus::rx::process_router_id_update(instance, router_id).await;
         }
         IbusMsg::PolicyMatchSetsUpd(match_sets) => {
             // Update the local copy of the policy match sets.
@@ -475,11 +475,11 @@ async fn process_ibus_msg(
         }
         IbusMsg::RouteRedistributeAdd(msg) => {
             // Route redistribute update notification.
-            southbound::rx::process_route_add(instance, msg);
+            ibus::rx::process_route_add(instance, msg);
         }
         IbusMsg::RouteRedistributeDel(msg) => {
             // Route redistribute delete notification.
-            southbound::rx::process_route_del(instance, msg);
+            ibus::rx::process_route_del(instance, msg);
         }
         // Ignore other events.
         _ => {}

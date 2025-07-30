@@ -8,13 +8,13 @@ use holo_utils::ip::IpNetworkKind;
 use ipnetwork::Ipv6Network;
 
 use crate::debug::Debug;
+use crate::ibus::rx::IbusRxVersion;
 use crate::interface::Interface;
-use crate::southbound::rx::SouthboundRxVersion;
 use crate::version::Ospfv3;
 
 // ===== impl Ospfv3 =====
 
-impl SouthboundRxVersion<Self> for Ospfv3 {
+impl IbusRxVersion<Self> for Ospfv3 {
     fn process_addr_add(
         iface: &mut Interface<Self>,
         addr: Ipv6Network,

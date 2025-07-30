@@ -34,7 +34,7 @@ use crate::neighbor::nsm;
 use crate::packet::PacketType;
 use crate::route::RouteNetFlags;
 use crate::version::{Ospfv2, Ospfv3, Version};
-use crate::{gr, southbound, spf, sr};
+use crate::{gr, ibus, spf, sr};
 
 #[derive(Debug, EnumAsInner)]
 pub enum ListEntry<V: Version> {
@@ -1869,7 +1869,7 @@ where
                         })
                     {
                         let distance = route.distance(instance.config);
-                        southbound::tx::route_install(
+                        ibus::tx::route_install(
                             &instance.tx.ibus,
                             dest,
                             route,

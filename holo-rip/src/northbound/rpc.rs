@@ -9,9 +9,9 @@ use std::sync::LazyLock as Lazy;
 use holo_northbound::rpc::{Callbacks, CallbacksBuilder, Provider};
 use holo_northbound::yang;
 
+use crate::ibus;
 use crate::instance::{Instance, InstanceUpView};
 use crate::route::RouteType;
-use crate::southbound;
 use crate::version::{Ripng, Ripv2, Version};
 
 pub static CALLBACKS_RIPV2: Lazy<Callbacks<Instance<Ripv2>>> =
@@ -63,7 +63,7 @@ where
         }
 
         // Uninstall and remove route.
-        southbound::tx::route_uninstall(&instance.tx.ibus, route);
+        ibus::tx::route_uninstall(&instance.tx.ibus, route);
         false
     });
 }

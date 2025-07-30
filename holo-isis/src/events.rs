@@ -9,12 +9,9 @@
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
 use bytes::Bytes;
 use chrono::Utc;
-use holo_utils::bfd;
-use holo_utils::sr::SrCfg;
 
 use crate::adjacency::{Adjacency, AdjacencyEvent, AdjacencyState};
 use crate::collections::{
@@ -22,7 +19,7 @@ use crate::collections::{
 };
 use crate::debug::{Debug, LspPurgeReason};
 use crate::error::{AdjacencyRejectError, Error};
-use crate::instance::{Instance, InstanceArenas, InstanceUpView};
+use crate::instance::{InstanceArenas, InstanceUpView};
 use crate::interface::InterfaceType;
 use crate::lsdb::{self, LspEntryFlags, lsp_compare};
 use crate::northbound::notification;
@@ -1321,110 +1318,4 @@ pub(crate) fn process_spf_delay_event(
 ) -> Result<(), Error> {
     // Trigger SPF Delay FSM event.
     spf::fsm(level, event, instance, arenas)
-}
-
-// ===== BFD state update event =====
-
-pub(crate) fn process_bfd_state_update(
-    instance: &mut Instance,
-    sess_key: bfd::SessionKey,
-    state: bfd::State,
-) -> Result<(), Error> {
-    // We're only interested on peer down notifications.
-    if state != bfd::State::Down {
-        return Ok(());
-    }
-
-    // Ignore notification if the IS-IS instance isn't active anymore.
-    let Some((mut instance, arenas)) = instance.as_up() else {
-        return Ok(());
-    };
-
-    // Lookup interface.
-    let bfd::SessionKey::IpSingleHop { ifname, .. } = &sess_key else {
-        return Ok(());
-    };
-    let Some(iface) = arenas.interfaces.get_mut_by_name(ifname) else {
-        return Ok(());
-    };
-
-    // On LAN interfaces, both L1 and L2 adjacencies share the same BFD session.
-    iface.with_adjacencies(&mut arenas.adjacencies, |iface, adj| {
-        let bfd = adj
-            .bfd
-            .iter_mut()
-            .filter_map(|(_, b)| b.as_mut())
-            .find(|b| b.sess_key == sess_key);
-        if let Some(bfd) = bfd {
-            // Update the status of the BFD session.
-            bfd.state = Some(state);
-            if !adj.is_bfd_healthy() {
-                adj.state_change(
-                    iface,
-                    &mut instance,
-                    AdjacencyEvent::BfdDown,
-                    AdjacencyState::Down,
-                );
-            }
-        }
-    });
-    instance.schedule_lsp_origination(instance.config.level_type);
-
-    Ok(())
-}
-
-// ===== Keychain update event =====
-
-pub(crate) fn process_keychain_update(
-    instance: &mut Instance,
-    keychain_name: &str,
-) -> Result<(), Error> {
-    let Some((mut instance, arenas)) = instance.as_up() else {
-        return Ok(());
-    };
-
-    for iface in arenas.interfaces.iter_mut() {
-        if iface.config.hello_auth.all.keychain.as_deref()
-            != Some(keychain_name)
-        {
-            continue;
-        }
-
-        // Restart network Tx/Rx tasks.
-        iface.restart_network_tasks(&mut instance);
-    }
-
-    Ok(())
-}
-
-// ===== Hostname update event =====
-
-pub(crate) fn process_hostname_update(
-    instance: &mut Instance,
-    hostname: Option<String>,
-) {
-    // Update hostname.
-    instance.shared.hostname = hostname;
-
-    // Schedule LSP reorigination.
-    if let Some((mut instance, _)) = instance.as_up() {
-        instance.schedule_lsp_origination(instance.config.level_type);
-    }
-}
-
-// ===== SR configuration change event =====
-
-pub(crate) fn process_sr_cfg_update(
-    instance: &mut Instance,
-    sr_config: Arc<SrCfg>,
-) {
-    // Update SR configuration.
-    instance.shared.sr_config = sr_config;
-
-    // Schedule LSP reorigination.
-    if instance.config.sr.enabled
-        && let Some((mut instance, _)) = instance.as_up()
-    {
-        instance.schedule_lsp_origination(instance.config.level_type);
-    }
 }

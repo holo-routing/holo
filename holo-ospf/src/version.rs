@@ -11,6 +11,7 @@ use holo_utils::protocol::Protocol;
 use ipnetwork::{IpNetwork, Ipv4Network};
 
 use crate::area::AreaVersion;
+use crate::ibus::rx::IbusRxVersion;
 use crate::instance::InstanceVersion;
 use crate::interface::InterfaceVersion;
 use crate::lsdb::LsdbVersion;
@@ -20,7 +21,6 @@ use crate::northbound::NorthboundVersion;
 use crate::packet::PacketVersion;
 use crate::packet::lls::LlsVersion;
 use crate::packet::lsa::LsaVersion;
-use crate::southbound::rx::SouthboundRxVersion;
 use crate::spf::SpfVersion;
 
 // OSPF version-specific code.
@@ -35,17 +35,17 @@ where
         + PartialEq
         + std::fmt::Debug
         + AreaVersion<Self>
-        + LsdbVersion<Self>
+        + IbusRxVersion<Self>
         + InstanceVersion<Self>
         + InterfaceVersion<Self>
+        + LlsVersion<Self>
+        + LsaVersion<Self>
+        + LsdbVersion<Self>
         + NeighborVersion<Self>
         + NetworkVersion<Self>
         + NorthboundVersion<Self>
         + PacketVersion<Self>
-        + LsaVersion<Self>
-        + SouthboundRxVersion<Self>
-        + SpfVersion<Self>
-        + LlsVersion<Self>,
+        + SpfVersion<Self>,
 {
     const PROTOCOL: Protocol;
 

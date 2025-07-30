@@ -34,7 +34,7 @@ use crate::tasks::messages::input::{
 };
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
 use crate::version::Version;
-use crate::{events, southbound, tasks};
+use crate::{events, ibus, tasks};
 
 #[derive(Debug)]
 pub struct Instance<V: Version> {
@@ -447,15 +447,15 @@ where
     match msg {
         // Interface update notification.
         IbusMsg::InterfaceUpd(msg) => {
-            southbound::rx::process_iface_update(instance, msg);
+            ibus::rx::process_iface_update(instance, msg);
         }
         // Interface address addition notification.
         IbusMsg::InterfaceAddressAdd(msg) => {
-            southbound::rx::process_addr_add(instance, msg);
+            ibus::rx::process_addr_add(instance, msg);
         }
         // Interface address delete notification.
         IbusMsg::InterfaceAddressDel(msg) => {
-            southbound::rx::process_addr_del(instance, msg);
+            ibus::rx::process_addr_del(instance, msg);
         }
         // Ignore other events.
         _ => {}

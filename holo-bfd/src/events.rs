@@ -4,18 +4,15 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::net::SocketAddr;
-
-use holo_utils::bfd::{ClientCfg, ClientId, SessionKey, State};
-use holo_utils::ibus::IbusSubscriber;
+use holo_utils::bfd::{SessionKey, State};
 use tracing::trace;
 
 use crate::debug::Debug;
 use crate::error::Error;
 use crate::master::Master;
-use crate::network::{self, PacketInfo};
+use crate::network::PacketInfo;
 use crate::packet::{DiagnosticCode, Packet, PacketFlags};
-use crate::session::{SessionClient, SessionId, SessionRemoteInfo};
+use crate::session::{SessionId, SessionRemoteInfo};
 
 pub(crate) fn process_udp_packet(
     master: &mut Master,
@@ -172,66 +169,6 @@ pub(crate) fn process_detection_timer_expiry(
 
     // Reset remote data since the peer is dead.
     sess.state.remote = None;
-
-    Ok(())
-}
-
-pub(crate) fn process_client_peer_reg(
-    master: &mut Master,
-    subscriber: IbusSubscriber,
-    sess_key: SessionKey,
-    client_id: ClientId,
-    client_config: Option<ClientCfg>,
-) -> Result<(), Error> {
-    Debug::SessionClientReg(&sess_key, &client_id).log();
-
-    let (sess_idx, sess) = master.sessions.insert(sess_key);
-    let client = SessionClient::new(client_id, client_config, subscriber.tx);
-    sess.clients.insert(subscriber.id, client);
-
-    // Start Poll Sequence as the configuration parameters might have changed.
-    sess.poll_sequence_start();
-
-    // Try to initialize session if possible.
-    sess.update_socket_tx();
-    match &sess.key {
-        SessionKey::IpSingleHop { ifname, .. } => {
-            if let Some(iface) = master.interfaces.get(ifname) {
-                master.sessions.update_ifindex(sess_idx, iface.ifindex);
-            }
-        }
-        SessionKey::IpMultihop { dst, .. } => {
-            sess.state.sockaddr =
-                Some(SocketAddr::new(*dst, network::PORT_DST_MULTIHOP));
-            sess.update_tx_interval();
-        }
-    }
-
-    // Start UDP Rx tasks if necessary.
-    master.update_udp_rx_tasks();
-
-    Ok(())
-}
-
-pub(crate) fn process_client_peer_unreg(
-    master: &mut Master,
-    subscriber: IbusSubscriber,
-    sess_key: SessionKey,
-) -> Result<(), Error> {
-    if let Some((sess_idx, sess)) = master.sessions.get_mut_by_key(&sess_key) {
-        // Remove BFD client.
-        let Some(client) = sess.clients.remove(&subscriber.id) else {
-            return Ok(());
-        };
-
-        Debug::SessionClientUnreg(&sess_key, &client.id).log();
-
-        // Check if the BFD session can be deleted.
-        master.sessions.delete_check(sess_idx);
-
-        // Stop UDP Rx tasks if necessary.
-        master.update_udp_rx_tasks();
-    }
 
     Ok(())
 }

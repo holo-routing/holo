@@ -29,7 +29,7 @@ use crate::northbound::configuration::InterfaceCfg;
 use crate::northbound::notification;
 use crate::tasks::messages::input::{MasterDownTimerMsg, VrrpNetRxPacketMsg};
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
-use crate::{events, southbound};
+use crate::{events, ibus};
 
 #[derive(Debug)]
 pub struct Interface {
@@ -275,15 +275,15 @@ async fn process_ibus_msg(
     match msg {
         // Interface update notification.
         IbusMsg::InterfaceUpd(msg) => {
-            southbound::rx::process_iface_update(interface, msg);
+            ibus::rx::process_iface_update(interface, msg);
         }
         // Interface address addition notification.
         IbusMsg::InterfaceAddressAdd(msg) => {
-            southbound::rx::process_addr_add(interface, msg);
+            ibus::rx::process_addr_add(interface, msg);
         }
         // Interface address delete notification.
         IbusMsg::InterfaceAddressDel(msg) => {
-            southbound::rx::process_addr_del(interface, msg);
+            ibus::rx::process_addr_del(interface, msg);
         }
         // Ignore other events.
         _ => {}

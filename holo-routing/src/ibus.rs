@@ -8,14 +8,13 @@ use std::collections::{BTreeMap, hash_map};
 use std::net::IpAddr;
 
 use holo_utils::ibus::{IbusChannelsTx, IbusMsg, IbusSender};
-use holo_utils::ip::{AddressFamily, IpNetworkKind};
+use holo_utils::ip::{AddressFamily, IpNetworkKind, JointPrefixMapExt};
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{RouteKeyMsg, RouteMsg};
 use ipnetwork::IpNetwork;
 
 use crate::rib::{NhtEntry, RedistributeSub, Route, RouteFlags};
 use crate::{InstanceId, Master};
-use holo_utils::ip::JointPrefixMapExt;
 
 // ===== global functions =====
 

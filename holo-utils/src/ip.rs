@@ -13,8 +13,9 @@ use arbitrary::Arbitrary;
 use holo_yang::{ToYang, TryFromYang};
 use ipnetwork::{IpNetwork, IpNetworkError, Ipv4Network, Ipv6Network};
 use num_derive::{FromPrimitive, ToPrimitive};
-use prefix_trie::PrefixMap;
 use prefix_trie::joint::map::JointPrefixMap;
+use prefix_trie::joint::set::JointPrefixSet;
+use prefix_trie::{PrefixMap, PrefixSet};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -216,6 +217,20 @@ pub trait JointPrefixMapExt<T> {
 
     // Returns a mutable reference to the IPv6 prefix map.
     fn ipv6_mut(&mut self) -> &mut PrefixMap<Ipv6Network, T>;
+}
+
+pub trait JointPrefixSetExt {
+    // Returns a reference to the IPv4 prefix set.
+    fn ipv4(&self) -> &PrefixSet<Ipv4Network>;
+
+    // Returns a mutable reference to the IPv4 prefix set.
+    fn ipv4_mut(&mut self) -> &mut PrefixSet<Ipv4Network>;
+
+    // Returns a reference to the IPv6 prefix set.
+    fn ipv6(&self) -> &PrefixSet<Ipv6Network>;
+
+    // Returns a mutable reference to the IPv6 prefix set.
+    fn ipv6_mut(&mut self) -> &mut PrefixSet<Ipv6Network>;
 }
 
 // ===== impl AddressFamily =====
@@ -680,7 +695,7 @@ impl SocketAddrKind<Ipv6Addr> for SocketAddrV6 {
     }
 }
 
-// ===== impl SocketAddrV6 =====
+// ===== impl JointPrefixMap =====
 
 impl<T> JointPrefixMapExt<T> for JointPrefixMap<IpNetwork, T> {
     fn ipv4(&self) -> &PrefixMap<Ipv4Network, T> {
@@ -696,6 +711,26 @@ impl<T> JointPrefixMapExt<T> for JointPrefixMap<IpNetwork, T> {
     }
 
     fn ipv6_mut(&mut self) -> &mut PrefixMap<Ipv6Network, T> {
+        &mut self.t2
+    }
+}
+
+// ===== impl JointPrefixSet =====
+
+impl JointPrefixSetExt for JointPrefixSet<IpNetwork> {
+    fn ipv4(&self) -> &PrefixSet<Ipv4Network> {
+        &self.t1
+    }
+
+    fn ipv4_mut(&mut self) -> &mut PrefixSet<Ipv4Network> {
+        &mut self.t1
+    }
+
+    fn ipv6(&self) -> &PrefixSet<Ipv6Network> {
+        &self.t2
+    }
+
+    fn ipv6_mut(&mut self) -> &mut PrefixSet<Ipv6Network> {
         &mut self.t2
     }
 }

@@ -12,11 +12,12 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU32;
 
 use chrono::{DateTime, Utc};
-use holo_utils::ip::AddressFamily;
+use holo_utils::ip::{AddressFamily, JointPrefixSetExt};
 use holo_utils::socket::{AsyncFd, Socket, SocketExt};
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
-use ipnetwork::{Ipv4Network, Ipv6Network};
+use ipnetwork::IpNetwork;
+use prefix_trie::joint::set::JointPrefixSet;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -51,8 +52,7 @@ pub struct InterfaceSys {
     pub ifindex: Option<u32>,
     pub mtu: Option<u32>,
     pub mac_addr: Option<[u8; 6]>,
-    pub ipv4_addr_list: BTreeSet<Ipv4Network>,
-    pub ipv6_addr_list: BTreeSet<Ipv6Network>,
+    pub addr_list: JointPrefixSet<IpNetwork>,
 }
 
 #[derive(Debug, Default)]
@@ -551,7 +551,7 @@ impl Interface {
         {
             protocols_supported.push(Nlpid::Ipv4 as u8);
             ipv4_addrs.extend(
-                self.system.ipv4_addr_list.iter().map(|addr| addr.ip()),
+                self.system.addr_list.ipv4().iter().map(|addr| addr.ip()),
             );
         }
         if self
@@ -561,7 +561,8 @@ impl Interface {
             protocols_supported.push(Nlpid::Ipv6 as u8);
             ipv6_addrs.extend(
                 self.system
-                    .ipv6_addr_list
+                    .addr_list
+                    .ipv6()
                     .iter()
                     .filter(|addr| addr.ip().is_unicast_link_local())
                     .map(|addr| addr.ip()),

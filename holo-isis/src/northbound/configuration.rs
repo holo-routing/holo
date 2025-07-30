@@ -21,7 +21,7 @@ use holo_northbound::configuration::{
 use holo_northbound::yang::control_plane_protocol::isis;
 use holo_utils::bfd;
 use holo_utils::crypto::CryptoAlgo;
-use holo_utils::ip::AddressFamily;
+use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::keychain::{Key, Keychains};
 use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
@@ -2176,16 +2176,10 @@ impl Provider for Instance {
                 self.tx.ibus.route_redistribute_unsub(protocol, Some(af));
 
                 // Remove redistributed routes.
-                match af {
-                    AddressFamily::Ipv4 => {
-                        let routes = self.system.ipv4_routes.get_mut(level);
-                        routes.retain(|_, route| route.protocol != protocol);
-                    }
-                    AddressFamily::Ipv6 => {
-                        let routes = self.system.ipv6_routes.get_mut(level);
-                        routes.retain(|_, route| route.protocol != protocol);
-                    }
-                }
+                let routes = self.system.routes.get_mut(level);
+                routes.retain(|prefix, route| {
+                    prefix.address_family() != af || route.protocol != protocol
+                });
 
                 // Schedule LSP reorigination.
                 if let Some((mut instance, _)) = self.as_up() {

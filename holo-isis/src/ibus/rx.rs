@@ -16,7 +16,6 @@ use holo_utils::southbound::{
     AddressMsg, InterfaceUpdateMsg, RouteKeyMsg, RouteMsg,
 };
 use holo_utils::sr::SrCfg;
-use ipnetwork::IpNetwork;
 
 use crate::adjacency::{AdjacencyEvent, AdjacencyState};
 use crate::error::Error;
@@ -89,14 +88,7 @@ pub(crate) fn process_addr_add(instance: &mut Instance, msg: AddressMsg) {
     let iface_idx = iface.index;
 
     // Add address to interface.
-    match msg.addr {
-        IpNetwork::V4(addr) => {
-            iface.system.ipv4_addr_list.insert(addr);
-        }
-        IpNetwork::V6(addr) => {
-            iface.system.ipv6_addr_list.insert(addr);
-        }
-    }
+    iface.system.addr_list.insert(msg.addr);
 
     if let Some((mut instance, arenas)) = instance.as_up() {
         let iface = &mut arenas.interfaces[iface_idx];
@@ -122,14 +114,7 @@ pub(crate) fn process_addr_del(instance: &mut Instance, msg: AddressMsg) {
     let iface_idx = iface.index;
 
     // Remove address from interface.
-    match msg.addr {
-        IpNetwork::V4(addr) => {
-            iface.system.ipv4_addr_list.remove(&addr);
-        }
-        IpNetwork::V6(addr) => {
-            iface.system.ipv6_addr_list.remove(&addr);
-        }
-    }
+    iface.system.addr_list.remove(&msg.addr);
 
     if let Some((mut instance, arenas)) = instance.as_up() {
         let iface = &mut arenas.interfaces[iface_idx];
@@ -173,16 +158,8 @@ pub(crate) fn process_route_add(instance: &mut Instance, msg: RouteMsg) {
             tag: msg.tag,
             opaque_attrs: msg.opaque_attrs,
         };
-        match prefix {
-            IpNetwork::V4(prefix) => {
-                let routes = instance.system.ipv4_routes.get_mut(level);
-                routes.insert(prefix, route);
-            }
-            IpNetwork::V6(prefix) => {
-                let routes = instance.system.ipv6_routes.get_mut(level);
-                routes.insert(prefix, route);
-            }
-        }
+        let routes = instance.system.routes.get_mut(level);
+        routes.insert(prefix, route);
 
         // Schedule LSP reorigination.
         if let Some((mut instance, _)) = instance.as_up() {
@@ -212,16 +189,8 @@ pub(crate) fn process_route_del(instance: &mut Instance, msg: RouteKeyMsg) {
         })
         .collect::<Vec<_>>()
     {
-        match prefix {
-            IpNetwork::V4(prefix) => {
-                let routes = instance.system.ipv4_routes.get_mut(level);
-                routes.remove(&prefix);
-            }
-            IpNetwork::V6(prefix) => {
-                let routes = instance.system.ipv6_routes.get_mut(level);
-                routes.remove(&prefix);
-            }
-        }
+        let routes = instance.system.routes.get_mut(level);
+        routes.remove(&prefix);
 
         // Schedule LSP reorigination.
         if let Some((mut instance, _)) = instance.as_up() {

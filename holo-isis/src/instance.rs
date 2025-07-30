@@ -19,7 +19,8 @@ use holo_protocol::{
 use holo_utils::ibus::IbusMsg;
 use holo_utils::protocol::Protocol;
 use holo_utils::task::TimeoutTask;
-use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
+use ipnetwork::IpNetwork;
+use prefix_trie::joint::map::JointPrefixMap;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 
@@ -66,8 +67,7 @@ pub struct InstanceSys {
     // System Router ID.
     pub router_id: Option<Ipv4Addr>,
     // Redistributed routes.
-    pub ipv4_routes: Levels<BTreeMap<Ipv4Network, RouteSys>>,
-    pub ipv6_routes: Levels<BTreeMap<Ipv6Network, RouteSys>>,
+    pub routes: Levels<JointPrefixMap<IpNetwork, RouteSys>>,
 }
 
 #[derive(Debug)]

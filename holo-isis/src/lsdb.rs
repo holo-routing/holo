@@ -18,7 +18,10 @@ use holo_utils::bier::{
     BierEncapId, BierEncapsulationType, BierInBiftId, BiftId,
     UnderlayProtocolType,
 };
-use holo_utils::ip::{AddressFamily, Ipv4NetworkExt, Ipv6NetworkExt};
+use holo_utils::ip::{
+    AddressFamily, Ipv4NetworkExt, Ipv6NetworkExt, JointPrefixMapExt,
+    JointPrefixSetExt,
+};
 use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid, SidLastHopBehavior, SrCfgPrefixSid};
 use holo_utils::task::TimeoutTask;
@@ -639,7 +642,7 @@ fn lsp_build_tlvs_ip_local(
         .is_af_enabled(AddressFamily::Ipv4, instance.config)
     {
         let metric_type = instance.config.metric_type.get(level);
-        for addr in iface.system.ipv4_addr_list.iter() {
+        for addr in iface.system.addr_list.ipv4().iter() {
             ipv4_addrs.insert(addr.ip());
 
             let prefix = addr.apply_mask();
@@ -693,7 +696,8 @@ fn lsp_build_tlvs_ip_local(
     {
         for addr in iface
             .system
-            .ipv6_addr_list
+            .addr_list
+            .ipv6()
             .iter()
             .filter(|addr| !addr.ip().is_unicast_link_local())
         {
@@ -736,7 +740,7 @@ fn lsp_build_tlvs_ip_redistributed(
 ) {
     if instance.config.is_af_enabled(AddressFamily::Ipv4) {
         let metric_type = instance.config.metric_type.get(level);
-        for (prefix, route) in instance.system.ipv4_routes.get(level) {
+        for (prefix, route) in instance.system.routes.get(level).ipv4() {
             let prefix = prefix.apply_mask();
             if metric_type.is_standard_enabled() {
                 ipv4_external_reach.insert(
@@ -774,7 +778,7 @@ fn lsp_build_tlvs_ip_redistributed(
         }
     }
     if instance.config.is_af_enabled(AddressFamily::Ipv6) {
-        for (prefix, route) in instance.system.ipv6_routes.get(level) {
+        for (prefix, route) in instance.system.routes.get(level).ipv6() {
             let prefix = prefix.apply_mask();
             let prefix_attr_flags = PrefixAttrFlags::empty();
             let sub_tlvs = lsp_build_ipv6_reach_stlvs(

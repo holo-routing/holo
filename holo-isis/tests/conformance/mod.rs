@@ -901,6 +901,38 @@ async fn nb_config_metric_type2() {
 }
 
 // Input:
+//  * Northbound: configure node tag 1
+// Output:
+//  * Protocol: send an updated local LSP to the 0000.0000.0002 adjacency
+//  * Northbound:
+//    - add a Router Capability TLV to the local LSP with node tag 1
+//    - add the local LSP to the SRM list of the 0000.0000.0002 adjacency
+//    - transition the SPF Delay FSM state from "quiet" to "short-wait"
+//    - send an "lsp-generation" YANG notification
+//
+// Input:
+//  * Northbound: configure node tag 2
+// Output:
+//  * Protocol: send an updated local LSP to the 0000.0000.0002 adjacency
+//  * Northbound:
+//    - add node tag 2 to the Router Capability TLV in the local LSP
+//    - add the local LSP to the SRM list of the 0000.0000.0002 adjacency
+//    - send an "lsp-generation" YANG notification
+//
+// Input:
+//  * Northbound: remove all configured node tags (1 and 2)
+// Output:
+//  * Protocol: send an updated local LSP to the 0000.0000.0002 adjacency
+//  * Northbound:
+//    - remove the Router Capability TLV from the local LSP
+//    - add the local LSP to the SRM list of the 0000.0000.0002 adjacency
+//    - send an "lsp-generation" YANG notification
+#[tokio::test]
+async fn nb_config_node_tags1() {
+    run_test::<Instance>("nb-config-node-tags1", "topo1-1", "rt1").await;
+}
+
+// Input:
 //  * Northbound: change the overload status from false to true
 // Output:
 //  * Protocol: send an updated local LSP to all adjacencies

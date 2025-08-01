@@ -32,7 +32,7 @@ use crate::packet::error::{TlvDecodeError, TlvDecodeResult};
 #[cfg(feature = "testing")]
 use crate::packet::pdu::serde_lsp_rem_lifetime_filter;
 use crate::packet::subtlvs::capability::{
-    SrAlgoStlv, SrCapabilitiesStlv, SrLocalBlockStlv,
+    NodeAdminTagStlv, SrAlgoStlv, SrCapabilitiesStlv, SrLocalBlockStlv,
 };
 use crate::packet::subtlvs::prefix::{
     BierInfoStlv, Ipv4SourceRidStlv, Ipv6SourceRidStlv, PrefixAttrFlags,
@@ -396,6 +396,7 @@ pub struct RouterCapStlvs {
     pub sr_cap: Option<SrCapabilitiesStlv>,
     pub sr_algo: Option<SrAlgoStlv>,
     pub srlb: Option<SrLocalBlockStlv>,
+    pub node_tags: Vec<NodeAdminTagStlv>,
     pub unknown: Vec<UnknownTlv>,
 }
 
@@ -2260,6 +2261,12 @@ impl RouterCapTlv {
                         Err(error) => error.log(),
                     }
                 }
+                Some(RouterCapStlvType::NodeAdminTag) => {
+                    match NodeAdminTagStlv::decode(stlv_len, &mut buf_stlv) {
+                        Ok(stlv) => sub_tlvs.node_tags.push(stlv),
+                        Err(error) => error.log(),
+                    }
+                }
                 _ => {
                     // Save unknown Sub-TLV.
                     sub_tlvs
@@ -2292,6 +2299,9 @@ impl RouterCapTlv {
         if let Some(stlv) = &self.sub_tlvs.srlb {
             stlv.encode(buf);
         }
+        for stlv in &self.sub_tlvs.node_tags {
+            stlv.encode(buf);
+        }
         tlv_encode_end(buf, start_pos);
     }
 }
@@ -2307,6 +2317,9 @@ impl Tlv for RouterCapTlv {
             len += stlv.len();
         }
         if let Some(stlv) = &self.sub_tlvs.srlb {
+            len += stlv.len();
+        }
+        for stlv in &self.sub_tlvs.node_tags {
             len += stlv.len();
         }
 

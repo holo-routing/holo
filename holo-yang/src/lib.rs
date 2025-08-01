@@ -280,6 +280,7 @@ pub static YANG_FEATURES: Lazy<HashMap<&'static str, Vec<&'static str>>> =
                 "max-ecmp",
                 "multi-topology",
                 "node-flag",
+                "node-tag",
                 "nlpid-control",
                 "poi-tlv",
                 "te-rid",

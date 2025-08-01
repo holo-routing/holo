@@ -125,6 +125,7 @@ pub enum PrefixStlvType {
 pub enum RouterCapStlvType {
     SrCapability = 2,
     SrAlgorithm = 19,
+    NodeAdminTag = 21,
     SrLocalBlock = 22,
 }
 

@@ -26,6 +26,7 @@ use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid, SidLastHopBehavior, SrCfgPrefixSid};
 use holo_utils::task::TimeoutTask;
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
+use itertools::Itertools;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::adjacency::{Adjacency, AdjacencyState};
@@ -38,8 +39,8 @@ use crate::northbound::notification;
 use crate::packet::consts::{MtId, Nlpid};
 use crate::packet::pdu::{Lsp, LspFlags, LspTlvs, Pdu};
 use crate::packet::subtlvs::capability::{
-    LabelBlockEntry, SrAlgoStlv, SrCapabilitiesFlags, SrCapabilitiesStlv,
-    SrLocalBlockStlv,
+    LabelBlockEntry, NodeAdminTagStlv, SrAlgoStlv, SrCapabilitiesFlags,
+    SrCapabilitiesStlv, SrLocalBlockStlv,
 };
 use crate::packet::subtlvs::prefix::{
     BierEncapSubStlv, BierInfoStlv, BierSubStlv, Ipv4SourceRidStlv,
@@ -439,12 +440,13 @@ fn lsp_build_tlvs_router_cap(
     instance: &mut InstanceUpView<'_>,
     router_cap: &mut Vec<RouterCapTlv>,
 ) {
+    let mut cap = RouterCapTlv::default();
+    cap.router_id =
+        instance.config.ipv4_router_id.or(instance.system.router_id);
+
+    // Add SR Sub-TLVs.
     let sr_config = &instance.shared.sr_config;
     if instance.config.sr.enabled && !sr_config.srgb.is_empty() {
-        let mut cap = RouterCapTlv::default();
-        cap.router_id =
-            instance.config.ipv4_router_id.or(instance.system.router_id);
-
         // Add SR-Capabilities Sub-TLV.
         let mut sr_cap_flags = SrCapabilitiesFlags::empty();
         if instance.config.is_af_enabled(AddressFamily::Ipv4) {
@@ -474,7 +476,20 @@ fn lsp_build_tlvs_router_cap(
         if !srlb.is_empty() {
             cap.sub_tlvs.srlb = Some(SrLocalBlockStlv::new(srlb));
         }
+    }
 
+    // Add Node-Admin-Tag Sub-TLVs.
+    if !instance.config.node_tags.is_empty() {
+        let node_tags = instance.config.node_tags.clone();
+        cap.sub_tlvs.node_tags = node_tags
+            .into_iter()
+            .chunks(NodeAdminTagStlv::MAX_ENTRIES)
+            .into_iter()
+            .map(|chunk| NodeAdminTagStlv::new(chunk.collect()))
+            .collect();
+    }
+
+    if cap.sub_tlvs.sr_cap.is_some() || !cap.sub_tlvs.node_tags.is_empty() {
         router_cap.push(cap);
     }
 }

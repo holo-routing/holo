@@ -58,6 +58,7 @@ pub enum ListEntry<'a> {
     Lsdb(LevelNumber, &'a Lsdb),
     LspEntry(&'a LspEntry),
     RouterCap(&'a RouterCapTlv),
+    NodeTag(u32),
     LabelBlockEntry(&'a LabelBlockEntry),
     MultiTopologyEntry(&'a MultiTopologyEntry),
     IsReach(&'a LspEntry, LanId),
@@ -312,6 +313,19 @@ fn load_callbacks() -> Callbacks<Instance> {
             let iter = router_cap.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
             Box::new(Flags {
                 router_capability_flags: Some(Box::new(iter)),
+            })
+        })
+        .path(isis::database::levels::lsp::router_capabilities::router_capability::node_tags::node_tag::PATH)
+        .get_iterate(|_instance, args| {
+            let router_cap = args.parent_list_entry.as_router_cap().unwrap();
+            let iter = router_cap.sub_tlvs.node_tags.iter().flat_map(|stlv| stlv.get().iter().copied()).map(ListEntry::NodeTag);
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::router_capabilities::router_capability::node_tags::node_tag::NodeTag;
+            let node_tag = args.list_entry.as_node_tag().unwrap();
+            Box::new(NodeTag {
+                tag: Some(*node_tag),
             })
         })
         .path(isis::database::levels::lsp::router_capabilities::router_capability::unknown_tlvs::unknown_tlv::PATH)

@@ -51,6 +51,7 @@ pub enum ListEntry {
     AddressFamily(AddressFamily),
     Redistribution(AddressFamily, LevelNumber, Protocol),
     Topology(MtId),
+    NodeTag(u32),
     TraceOption(InstanceTraceOption),
     Interface(InterfaceIndex),
     InterfaceAddressFamily(InterfaceIndex, AddressFamily),
@@ -103,6 +104,7 @@ pub struct InstanceCfg {
     pub lsp_lifetime: u16,
     pub lsp_refresh: u16,
     pub purge_originator: bool,
+    pub node_tags: BTreeSet<u32>,
     pub metric_type: LevelsCfg<MetricType>,
     pub default_metric: LevelsCfg<u32>,
     pub auth: LevelsOptCfg<AuthCfg>,
@@ -368,6 +370,27 @@ fn load_callbacks() -> Callbacks<Instance> {
         .modify_apply(|instance, args| {
             let enabled = args.dnode.get_bool();
             instance.config.purge_originator = enabled;
+        })
+        .path(isis::node_tags::node_tag::PATH)
+        .create_apply(|instance, args| {
+            let node_tag = args.dnode.get_u32_relative("tag").unwrap();
+            instance.config.node_tags.insert(node_tag);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .delete_apply(|instance, args| {
+            let node_tag = args.list_entry.into_node_tag().unwrap();
+            instance.config.node_tags.remove(&node_tag);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .lookup(|_instance, _list_entry, dnode| {
+            let node_tag = dnode.get_u32_relative("tag").unwrap();
+            ListEntry::NodeTag(node_tag)
         })
         .path(isis::metric_type::value::PATH)
         .modify_apply(|instance, args| {
@@ -2475,6 +2498,7 @@ impl Default for InstanceCfg {
             lsp_lifetime,
             lsp_refresh,
             purge_originator,
+            node_tags: Default::default(),
             metric_type,
             default_metric,
             auth: Default::default(),

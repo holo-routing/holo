@@ -20,7 +20,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::packet::consts::{LabelBindingStlvType, RouterCapStlvType};
 use crate::packet::error::{TlvDecodeError, TlvDecodeResult};
-use crate::packet::tlv::{TLV_HDR_SIZE, tlv_encode_end, tlv_encode_start};
+use crate::packet::tlv::{
+    TLV_HDR_SIZE, TLV_MAX_LEN, tlv_encode_end, tlv_encode_start,
+};
 
 #[derive(Clone, Debug, PartialEq)]
 #[derive(new)]
@@ -59,6 +61,11 @@ pub struct LabelBlockEntry {
     pub range: u32,
     pub first: Sid,
 }
+
+#[derive(Clone, Debug, PartialEq)]
+#[derive(new)]
+#[derive(Deserialize, Serialize)]
+pub struct NodeAdminTagStlv(BTreeSet<u32>);
 
 // ===== impl SrCapabilitiesStlv =====
 
@@ -243,5 +250,46 @@ impl LabelBlockEntry {
                 Sid::Index(_) => 4,
                 Sid::Label(_) => 3,
             }
+    }
+}
+
+// ===== impl NodeAdminTagStlv =====
+
+impl NodeAdminTagStlv {
+    pub const TAG_LEN: usize = 4;
+    pub const MAX_ENTRIES: usize = TLV_MAX_LEN / Self::TAG_LEN;
+
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
+        // Validate the TLV length.
+        if (stlv_len as usize) % Self::TAG_LEN != 0 {
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
+        }
+
+        let mut list = BTreeSet::new();
+        while buf.remaining() >= Self::TAG_LEN {
+            let tag = buf.try_get_u32()?;
+            list.insert(tag);
+        }
+
+        Ok(NodeAdminTagStlv(list))
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, RouterCapStlvType::NodeAdminTag);
+        for tag in &self.0 {
+            buf.put_u32(*tag);
+        }
+        tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        TLV_HDR_SIZE + self.0.len() * Self::TAG_LEN
+    }
+
+    pub(crate) fn get(&self) -> &BTreeSet<u32> {
+        &self.0
     }
 }

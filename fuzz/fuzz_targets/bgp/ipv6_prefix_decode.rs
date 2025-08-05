@@ -1,14 +1,15 @@
 #![no_main]
 
+use bytes::Bytes;
 use holo_bgp::packet::message::decode_ipv6_prefix;
-use holo_utils::arbitrary::BytesArbitrary;
-use libfuzzer_sys::arbitrary::{Arbitrary, Unstructured};
+use holo_utils::bytes::BytesExt;
+use libfuzzer_sys::arbitrary::Unstructured;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
     let mut u = Unstructured::new(data);
 
-    if let Ok(mut buf) = BytesArbitrary::arbitrary(&mut u) {
-        let _ = decode_ipv6_prefix(&mut buf.0);
+    if let Ok(mut buf) = Bytes::arbitrary(&mut u) {
+        let _ = decode_ipv6_prefix(&mut buf);
     }
 });

@@ -16,6 +16,11 @@ thread_local!(
 
 // Extension methods for Bytes.
 pub trait BytesExt {
+    /// Generate an arbitrary value of `Bytes` from the given unstructured data.
+    fn arbitrary(
+        u: &mut arbitrary::Unstructured<'_>,
+    ) -> arbitrary::Result<Bytes>;
+
     /// Gets an unsigned 24 bit integer from `self` in the big-endian byte
     /// order.
     ///
@@ -150,6 +155,14 @@ pub trait BytesMutExt {
 // ===== impl Bytes =====
 
 impl BytesExt for Bytes {
+    fn arbitrary(
+        u: &mut arbitrary::Unstructured<'_>,
+    ) -> arbitrary::Result<Bytes> {
+        let len = u.len();
+        let bytes = u.bytes(len)?;
+        Ok(Bytes::copy_from_slice(bytes))
+    }
+
     fn get_u24(&mut self) -> u32 {
         self.try_get_u24().unwrap()
     }

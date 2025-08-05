@@ -8,6 +8,7 @@ edition = "2024"
 cargo-fuzz = true
 
 [dependencies]
+bytes = "1.10"
 libfuzzer-sys = "0.4"
 holo-bfd = { path = "../holo-bfd/" }
 holo-bgp = { path = "../holo-bgp/" }

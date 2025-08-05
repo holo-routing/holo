@@ -13,7 +13,6 @@ use std::sync::{Arc, Mutex};
 
 use pickledb::PickleDb;
 
-pub mod arbitrary;
 pub mod bfd;
 pub mod bgp;
 pub mod bier;

@@ -145,7 +145,7 @@ pub(crate) fn process_pdu(
     }
 }
 
-pub(crate) fn process_pdu_hello(
+fn process_pdu_hello(
     instance: &mut InstanceUpView<'_>,
     arenas: &mut InstanceArenas,
     iface_idx: InterfaceIndex,
@@ -195,7 +195,7 @@ pub(crate) fn process_pdu_hello(
     Ok(())
 }
 
-pub(crate) fn process_pdu_hello_lan(
+fn process_pdu_hello_lan(
     instance: &mut InstanceUpView<'_>,
     arenas: &mut InstanceArenas,
     iface_idx: InterfaceIndex,
@@ -354,7 +354,7 @@ pub(crate) fn process_pdu_hello_lan(
     Ok(())
 }
 
-pub(crate) fn process_pdu_hello_p2p(
+fn process_pdu_hello_p2p(
     instance: &mut InstanceUpView<'_>,
     arenas: &mut InstanceArenas,
     iface_idx: InterfaceIndex,
@@ -486,7 +486,7 @@ pub(crate) fn process_pdu_hello_p2p(
     Ok(())
 }
 
-pub(crate) fn process_pdu_lsp(
+fn process_pdu_lsp(
     instance: &mut InstanceUpView<'_>,
     arenas: &mut InstanceArenas,
     iface_idx: InterfaceIndex,
@@ -745,7 +745,7 @@ pub(crate) fn process_pdu_lsp(
     Ok(())
 }
 
-pub(crate) fn process_pdu_snp(
+fn process_pdu_snp(
     instance: &mut InstanceUpView<'_>,
     arenas: &mut InstanceArenas,
     iface_idx: InterfaceIndex,

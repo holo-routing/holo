@@ -105,9 +105,9 @@ pub struct InstanceCfg {
     pub lsp_refresh: u16,
     pub purge_originator: bool,
     pub node_tags: BTreeSet<u32>,
-    pub metric_type: LevelsCfg<MetricType>,
-    pub default_metric: LevelsCfg<u32>,
-    pub auth: LevelsOptCfg<AuthCfg>,
+    pub metric_type: LevelsCfgWithDefault<MetricType>,
+    pub default_metric: LevelsCfgWithDefault<u32>,
+    pub auth: LevelsCfg<AuthCfg>,
     pub ipv4_router_id: Option<Ipv4Addr>,
     pub ipv6_router_id: Option<Ipv6Addr>,
     pub max_paths: u16,
@@ -131,7 +131,7 @@ pub struct InstanceCfg {
 #[derive(Debug)]
 pub struct InstanceMtCfg {
     pub enabled: bool,
-    pub default_metric: LevelsCfg<u32>,
+    pub default_metric: LevelsCfgWithDefault<u32>,
 }
 
 #[derive(Debug)]
@@ -205,11 +205,11 @@ pub struct InterfaceCfg {
     pub hello_padding: bool,
     pub interface_type: InterfaceType,
     pub node_flag: bool,
-    pub hello_auth: LevelsOptCfg<AuthCfg>,
-    pub hello_interval: LevelsCfg<u16>,
-    pub hello_multiplier: LevelsCfg<u16>,
-    pub priority: LevelsCfg<u8>,
-    pub metric: LevelsCfg<u32>,
+    pub hello_auth: LevelsCfg<AuthCfg>,
+    pub hello_interval: LevelsCfgWithDefault<u16>,
+    pub hello_multiplier: LevelsCfgWithDefault<u16>,
+    pub priority: LevelsCfgWithDefault<u8>,
+    pub metric: LevelsCfgWithDefault<u32>,
     pub bfd_enabled: bool,
     pub bfd_params: bfd::ClientCfg,
     pub afs: BTreeSet<AddressFamily>,
@@ -220,7 +220,7 @@ pub struct InterfaceCfg {
 #[derive(Debug)]
 pub struct InterfaceMtCfg {
     pub enabled: bool,
-    pub metric: LevelsCfg<u32>,
+    pub metric: LevelsCfgWithDefault<u32>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -247,14 +247,14 @@ pub struct AuthCfg {
 }
 
 #[derive(Debug)]
-pub struct LevelsCfg<T> {
+pub struct LevelsCfgWithDefault<T> {
     all: T,
     l1: Option<T>,
     l2: Option<T>,
 }
 
 #[derive(Debug, Default)]
-pub struct LevelsOptCfg<T> {
+pub struct LevelsCfg<T> {
     pub all: T,
     pub l1: T,
     pub l2: T,
@@ -2382,7 +2382,7 @@ impl InterfaceCfg {
     }
 }
 
-impl<T> LevelsCfg<T>
+impl<T> LevelsCfgWithDefault<T>
 where
     T: Copy,
 {
@@ -2464,13 +2464,13 @@ impl Default for InstanceCfg {
         let lsp_refresh = isis::lsp_refresh::DFLT;
         let purge_originator = isis::poi_tlv::DFLT;
         let metric_type = isis::metric_type::value::DFLT;
-        let metric_type = LevelsCfg {
+        let metric_type = LevelsCfgWithDefault {
             all: MetricType::try_from_yang(metric_type).unwrap(),
             l1: None,
             l2: None,
         };
         let default_metric = isis::default_metric::value::DFLT;
-        let default_metric = LevelsCfg {
+        let default_metric = LevelsCfgWithDefault {
             all: default_metric,
             l1: None,
             l2: None,
@@ -2529,7 +2529,7 @@ impl Default for InstanceMtCfg {
         let enabled = isis::topologies::topology::enabled::DFLT;
         let default_metric =
             isis::topologies::topology::default_metric::value::DFLT;
-        let default_metric = LevelsCfg {
+        let default_metric = LevelsCfgWithDefault {
             all: default_metric,
             l1: None,
             l2: None,
@@ -2607,26 +2607,26 @@ impl Default for InterfaceCfg {
         let node_flag = isis::interfaces::interface::node_flag::DFLT;
         let hello_interval =
             isis::interfaces::interface::hello_interval::value::DFLT;
-        let hello_interval = LevelsCfg {
+        let hello_interval = LevelsCfgWithDefault {
             all: hello_interval,
             l1: None,
             l2: None,
         };
         let hello_multiplier =
             isis::interfaces::interface::hello_multiplier::value::DFLT;
-        let hello_multiplier = LevelsCfg {
+        let hello_multiplier = LevelsCfgWithDefault {
             all: hello_multiplier,
             l1: None,
             l2: None,
         };
         let priority = isis::interfaces::interface::priority::value::DFLT;
-        let priority = LevelsCfg {
+        let priority = LevelsCfgWithDefault {
             all: priority,
             l1: None,
             l2: None,
         };
         let metric = isis::interfaces::interface::metric::value::DFLT;
-        let metric = LevelsCfg {
+        let metric = LevelsCfgWithDefault {
             all: metric,
             l1: None,
             l2: None,
@@ -2661,7 +2661,7 @@ impl Default for InterfaceMtCfg {
         let enabled =
             isis::interfaces::interface::topologies::topology::enabled::DFLT;
         let metric = isis::interfaces::interface::topologies::topology::metric::value::DFLT;
-        let metric = LevelsCfg {
+        let metric = LevelsCfgWithDefault {
             all: metric,
             l1: None,
             l2: None,

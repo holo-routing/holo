@@ -7,7 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::time::Instant;
 
@@ -25,7 +25,9 @@ use crate::debug::Debug;
 use crate::instance::InstanceUpView;
 use crate::interface::{Interface, InterfaceType};
 use crate::northbound::notification;
+use crate::packet::consts::PduType;
 use crate::packet::subtlvs::neighbor::{AdjSidFlags, AdjSidStlv};
+use crate::packet::tlv::ExtendedSeqNum;
 use crate::packet::{AreaAddr, LanId, LevelType, SystemId};
 use crate::{sr, tasks};
 
@@ -39,6 +41,7 @@ pub struct Adjacency {
     pub state: AdjacencyState,
     pub priority: Option<u8>,
     pub lan_id: Option<LanId>,
+    pub ext_seqnum: HashMap<PduType, ExtendedSeqNum>,
     pub protocols_supported: Vec<u8>,
     pub area_addrs: BTreeSet<AreaAddr>,
     pub topologies: BTreeSet<u16>,
@@ -102,6 +105,7 @@ impl Adjacency {
             state: AdjacencyState::Down,
             priority: None,
             lan_id: None,
+            ext_seqnum: Default::default(),
             protocols_supported: Default::default(),
             area_addrs: Default::default(),
             topologies: Default::default(),

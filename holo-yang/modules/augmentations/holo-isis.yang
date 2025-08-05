@@ -52,6 +52,28 @@ module holo-isis {
   }
 
   /*
+   * Types.
+   */
+
+  typedef extended-sequence-number-mode {
+    type enumeration {
+      enum "send-only" {
+        description
+          "Enables sending of the Extended Sequence Number TLV on PDUs,
+           but does not enforce verification on received PDUs.";
+      }
+      enum "send-and-verify" {
+        description
+          "Enables sending of the Extended Sequence Number TLV and
+           enforces verification on incoming PDUs. PDUs without this TLV
+           or with invalid values will be discarded.";
+      }
+    }
+    description
+      "Configures the mode of operation for the Extended Sequence Number TLV.";
+  }
+  
+  /*
    * Groupings.
    */
 
@@ -84,6 +106,15 @@ module holo-isis {
       }
       description
         "BIER global config.";
+    }
+  }
+
+  grouping extended-sequence-number-cfg {
+    leaf mode {
+      type extended-sequence-number-mode;
+      description
+        "The operational mode for the Extended Sequence Number TLV on this
+         interface.";
     }
   }
 
@@ -332,6 +363,29 @@ module holo-isis {
       description
         "Key identifier.";
     }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis/"
+        + "isis:interfaces/isis:interface" {
+      container extended-sequence-number {
+        description
+          "Controls the advertisement and processing of the Extended Sequence
+           Number (ESN) TLV.";
+        uses extended-sequence-number-cfg;
+        container level-1 {
+          uses extended-sequence-number-cfg;
+          description
+            "Configuration specific to level 1.";
+        }
+        container level-2 {
+          uses extended-sequence-number-cfg;
+          description
+            "Configuration specific to level 2.";
+        }
+      }
+    reference
+      "RFC 7602: IS-IS Extended Sequence Number TLV";
   }
 
   augment "/rt:routing/rt:control-plane-protocols/"

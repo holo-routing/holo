@@ -31,6 +31,7 @@ pub enum DecodeError {
     AuthTypeMismatch,
     AuthKeyNotFound,
     AuthError,
+    MultipleEsnTlvs,
     // Hello
     InvalidHelloCircuitType(u8),
     InvalidHelloHoldtime(u16),
@@ -46,6 +47,7 @@ pub enum TlvDecodeError {
     InvalidAreaAddrLen(u8),
     AuthUnsupportedType(u8),
     InvalidNumSystemIds(u8),
+    ZeroExtendedSessionSeqNum,
 }
 
 // ===== impl DecodeError =====
@@ -88,6 +90,9 @@ impl std::fmt::Display for DecodeError {
             }
             DecodeError::AuthError => {
                 write!(f, "authentication failed")
+            }
+            DecodeError::MultipleEsnTlvs => {
+                write!(f, "multiple ESN TLVs")
             }
             DecodeError::InvalidHelloCircuitType(circuit_type) => {
                 write!(f, "invalid hello circuit type: {circuit_type}")
@@ -135,6 +140,9 @@ impl std::fmt::Display for TlvDecodeError {
             }
             TlvDecodeError::InvalidNumSystemIds(num) => {
                 write!(f, "invalid number of System IDs: {num}")
+            }
+            TlvDecodeError::ZeroExtendedSessionSeqNum => {
+                write!(f, "extended session sequence number is zero")
             }
         }
     }

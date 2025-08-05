@@ -24,7 +24,7 @@ use crate::interface::{Interface, InterfaceType};
 use crate::network::MulticastAddr;
 use crate::northbound::configuration::TraceOptionPacketResolved;
 use crate::packet::auth::AuthMethod;
-use crate::packet::pdu::{Lsp, Pdu};
+use crate::packet::pdu::{Hello, Lsp, Pdu};
 use crate::packet::{LevelNumber, LevelType, Levels};
 use crate::{lsdb, network, spf};
 
@@ -293,7 +293,7 @@ pub(crate) fn net_tx(
 pub(crate) fn hello_interval(
     iface: &Interface,
     level_type: impl Into<LevelType>,
-    pdu: Pdu,
+    hello: Hello,
 ) -> IntervalTask {
     #[cfg(not(feature = "testing"))]
     {
@@ -305,12 +305,13 @@ pub(crate) fn hello_interval(
             l1: packet_counters.get(LevelNumber::L1).iih_out.clone(),
             l2: packet_counters.get(LevelNumber::L2).iih_out.clone(),
         };
+        let ext_seqnum_next = iface.state.ext_seqnum.1.clone();
         let net_tx_pdup = iface.state.net.as_ref().unwrap().net_tx_pdup.clone();
         IntervalTask::new(
             Duration::from_secs(interval.into()),
             true,
             move || {
-                let pdu = pdu.clone();
+                let mut hello = hello.clone();
                 let net_tx_pdup = net_tx_pdup.clone();
 
                 // Update packet counters.
@@ -320,8 +321,17 @@ pub(crate) fn hello_interval(
                         .fetch_add(1, atomic::Ordering::Relaxed);
                 }
 
+                // Update ESN TLV.
+                if let Some(ext_seqnum) = &mut hello.tlvs.ext_seqnum {
+                    ext_seqnum.get_mut().packet =
+                        ext_seqnum_next.fetch_add(1, atomic::Ordering::Relaxed);
+                }
+
                 async move {
-                    let msg = messages::output::NetTxPduMsg { pdu, dst };
+                    let msg = messages::output::NetTxPduMsg {
+                        pdu: Pdu::Hello(hello),
+                        dst,
+                    };
                     let _ = net_tx_pdup.send(msg);
                 }
             },

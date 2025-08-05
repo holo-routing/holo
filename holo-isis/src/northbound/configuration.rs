@@ -214,6 +214,7 @@ pub struct InterfaceCfg {
     pub bfd_params: bfd::ClientCfg,
     pub afs: BTreeSet<AddressFamily>,
     pub mt: HashMap<MtId, InterfaceMtCfg>,
+    pub ext_seqnum_mode: LevelsCfg<Option<ExtendedSeqNumMode>>,
     pub trace_opts: InterfaceTraceOptions,
 }
 
@@ -244,6 +245,12 @@ pub struct AuthCfg {
     pub key: Option<String>,
     pub key_id: Option<u16>,
     pub algo: Option<CryptoAlgo>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ExtendedSeqNumMode {
+    SendOnly,
+    SendAndVerify,
 }
 
 #[derive(Debug)]
@@ -1807,6 +1814,71 @@ fn load_callbacks() -> Callbacks<Instance> {
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
+        .path(isis::interfaces::interface::extended_sequence_number::mode::PATH)
+        .modify_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let ext_seqnum_mode = args.dnode.get_string();
+            let ext_seqnum_mode = ExtendedSeqNumMode::try_from_yang(&ext_seqnum_mode).unwrap();
+            iface.config.ext_seqnum_mode.all = Some(ext_seqnum_mode);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateHelloInterval(iface_idx, LevelNumber::L1));
+            event_queue.insert(Event::InterfaceUpdateHelloInterval(iface_idx, LevelNumber::L2));
+        })
+        .delete_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.ext_seqnum_mode.all = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateHelloInterval(iface_idx, LevelNumber::L1));
+            event_queue.insert(Event::InterfaceUpdateHelloInterval(iface_idx, LevelNumber::L2));
+        })
+        .path(isis::interfaces::interface::extended_sequence_number::level_1::mode::PATH)
+        .modify_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let ext_seqnum_mode = args.dnode.get_string();
+            let ext_seqnum_mode = ExtendedSeqNumMode::try_from_yang(&ext_seqnum_mode).unwrap();
+            iface.config.ext_seqnum_mode.l1 = Some(ext_seqnum_mode);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateHelloInterval(iface_idx, LevelNumber::L1));
+        })
+        .delete_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.ext_seqnum_mode.l1 = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateHelloInterval(iface_idx, LevelNumber::L1));
+        })
+        .path(isis::interfaces::interface::extended_sequence_number::level_2::mode::PATH)
+        .modify_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let ext_seqnum_mode = args.dnode.get_string();
+            let ext_seqnum_mode = ExtendedSeqNumMode::try_from_yang(&ext_seqnum_mode).unwrap();
+            iface.config.ext_seqnum_mode.l2 = Some(ext_seqnum_mode);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateHelloInterval(iface_idx, LevelNumber::L2));
+        })
+        .delete_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.ext_seqnum_mode.l2 = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateHelloInterval(iface_idx, LevelNumber::L2));
+        })
         .path(isis::interfaces::interface::trace_options::flag::PATH)
         .create_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -2397,6 +2469,21 @@ where
     }
 }
 
+impl<T> LevelsCfg<Option<T>>
+where
+    T: Copy,
+{
+    // Retrieves the configuration value for the specified level.
+    pub(crate) fn get(&self, level: impl Into<LevelType>) -> Option<T> {
+        let level = level.into();
+        match level {
+            LevelType::L1 => self.l1.or(self.all),
+            LevelType::L2 => self.l2.or(self.all),
+            LevelType::All => self.all,
+        }
+    }
+}
+
 impl MetricType {
     // Checks if standard metric support is enabled.
     pub(crate) const fn is_standard_enabled(&self) -> bool {
@@ -2651,6 +2738,7 @@ impl Default for InterfaceCfg {
             bfd_params: Default::default(),
             afs: Default::default(),
             mt: Default::default(),
+            ext_seqnum_mode: Default::default(),
             trace_opts: Default::default(),
         }
     }

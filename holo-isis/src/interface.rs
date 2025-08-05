@@ -9,7 +9,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
-use std::sync::atomic::AtomicU32;
+use std::sync::atomic::{self, AtomicU32};
 
 use chrono::{DateTime, Utc};
 use holo_utils::ip::{AddressFamily, JointPrefixSetExt};
@@ -31,7 +31,9 @@ use crate::northbound::configuration::InterfaceCfg;
 use crate::northbound::notification;
 use crate::packet::consts::{MtId, Nlpid, PduType};
 use crate::packet::pdu::{Hello, HelloTlvs, HelloVariant, Lsp, Pdu};
-use crate::packet::tlv::{LspEntry, MtFlags, MultiTopologyEntry};
+use crate::packet::tlv::{
+    ExtendedSeqNum, LspEntry, MtFlags, MultiTopologyEntry,
+};
 use crate::packet::{LanId, LevelNumber, LevelType, Levels, LspId, SystemId};
 use crate::tasks::messages::output::NetTxPduMsg;
 use crate::{network, tasks};
@@ -65,6 +67,7 @@ pub struct InterfaceState {
     pub dis: Levels<Option<DisCandidate>>,
     pub srm_list: Levels<BTreeMap<LspId, IntervalTask>>,
     pub ssn_list: Levels<BTreeMap<LspId, LspEntry>>,
+    pub ext_seqnum: (u64, Arc<AtomicU32>),
     pub event_counters: InterfaceEventCounters,
     pub packet_counters: Levels<InterfacePacketCounters>,
     pub discontinuity_time: DateTime<Utc>,
@@ -222,6 +225,10 @@ impl Interface {
 
             // Start PSNP interval task(s).
             self.psnp_interval_start(instance);
+
+            // Initialize the extended sequence number used for PDU transmission.
+            self.state.ext_seqnum =
+                (instance.state.boot_count, Arc::new(AtomicU32::new(0)));
         }
 
         // Mark interface as active.
@@ -491,11 +498,25 @@ impl Interface {
         self.csnp_interval_stop();
     }
 
+    pub(crate) fn ext_seqnum_next(
+        &self,
+        level_type: impl Into<LevelType>,
+    ) -> Option<ExtendedSeqNum> {
+        self.config.ext_seqnum_mode.get(level_type)?;
+        Some(ExtendedSeqNum::new(
+            self.state.ext_seqnum.0,
+            self.state
+                .ext_seqnum
+                .1
+                .fetch_add(1, atomic::Ordering::Relaxed),
+        ))
+    }
+
     fn generate_hello(
         &self,
         level: impl Into<LevelType>,
         instance: &InstanceUpView<'_>,
-    ) -> Pdu {
+    ) -> Hello {
         let level = level.into();
 
         // Fixed fields.
@@ -570,7 +591,8 @@ impl Interface {
         }
 
         // Generate Hello PDU.
-        Pdu::Hello(Hello::new(
+        let ext_seqnum = self.ext_seqnum_next(level);
+        Hello::new(
             level,
             circuit_type,
             source,
@@ -583,8 +605,9 @@ impl Interface {
                 neighbors,
                 ipv4_addrs,
                 ipv6_addrs,
+                ext_seqnum,
             ),
-        ))
+        )
     }
 
     pub(crate) fn hello_interval_start(
@@ -602,8 +625,8 @@ impl Interface {
                     .levels()
                     .filter(|level| level_filter.intersects(level))
                 {
-                    let pdu = self.generate_hello(level, instance);
-                    let task = tasks::hello_interval(self, level, pdu);
+                    let hello = self.generate_hello(level, instance);
+                    let task = tasks::hello_interval(self, level, hello);
                     *self.state.tasks.hello_interval_broadcast.get_mut(level) =
                         Some(task);
                 }
@@ -612,8 +635,8 @@ impl Interface {
             // regardless of whether IS-IS is enabled for L1, L2, or both.
             InterfaceType::PointToPoint => {
                 let level = LevelType::All;
-                let pdu = self.generate_hello(level, instance);
-                let task = tasks::hello_interval(self, level, pdu);
+                let hello = self.generate_hello(level, instance);
+                let task = tasks::hello_interval(self, level, hello);
                 self.state.tasks.hello_interval_p2p = Some(task);
             }
         }

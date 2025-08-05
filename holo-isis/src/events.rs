@@ -18,14 +18,18 @@ use crate::collections::{
     AdjacencyKey, InterfaceIndex, InterfaceKey, LspEntryKey,
 };
 use crate::debug::{Debug, LspPurgeReason};
-use crate::error::{AdjacencyRejectError, Error};
+use crate::error::{
+    AdjacencyRejectError, Error, ExtendedSeqNumError, PduInputError,
+};
 use crate::instance::{InstanceArenas, InstanceUpView};
 use crate::interface::InterfaceType;
 use crate::lsdb::{self, LspEntryFlags, lsp_compare};
+use crate::northbound::configuration::ExtendedSeqNumMode;
 use crate::northbound::notification;
 use crate::packet::consts::PduType;
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::pdu::{Hello, HelloVariant, Lsp, Pdu, Snp, SnpTlvs};
+use crate::packet::tlv::{ExtendedSeqNum, ExtendedSeqNumTlv};
 use crate::packet::{LanId, LevelNumber, LevelType, LspId};
 use crate::spf;
 use crate::spf::SpfType;
@@ -89,7 +93,11 @@ pub(crate) fn process_pdu(
                 }
                 _ => (),
             }
-            return Err(Error::PduDecodeError(iface.name.clone(), src, error));
+            return Err(Error::PduInputError(
+                iface.name.clone(),
+                src,
+                PduInputError::DecodeError(error),
+            ));
         }
     };
 
@@ -143,6 +151,10 @@ pub(crate) fn process_pdu(
             process_pdu_snp(instance, arenas, iface_idx, src, bytes, snp)
         }
     }
+    .map_err(|error| {
+        let iface = &arenas.interfaces[iface_idx];
+        Error::PduInputError(iface.name.clone(), src, error)
+    })
 }
 
 fn process_pdu_hello(
@@ -152,7 +164,7 @@ fn process_pdu_hello(
     src: [u8; 6],
     bytes: Bytes,
     hello: Hello,
-) -> Result<(), Error> {
+) -> Result<(), PduInputError> {
     if let Err(error) = match hello.variant {
         // LAN Hello.
         HelloVariant::Lan { priority, lan_id } => process_pdu_hello_lan(
@@ -165,31 +177,35 @@ fn process_pdu_hello(
     } {
         // Error handling.
         let iface = &mut arenas.interfaces[iface_idx];
-        match error {
-            AdjacencyRejectError::MaxAreaAddrsMismatch(pdu_max_area_addrs) => {
-                iface.state.event_counters.max_area_addr_mismatch += 1;
-                iface.state.discontinuity_time = Utc::now();
-                notification::max_area_addresses_mismatch(
-                    instance,
-                    iface,
+        if let PduInputError::AdjacencyReject(error) = &error {
+            match error {
+                AdjacencyRejectError::MaxAreaAddrsMismatch(
                     pdu_max_area_addrs,
-                    &bytes,
-                );
-            }
-            AdjacencyRejectError::AreaMismatch => {
-                iface.state.event_counters.area_mismatch += 1;
-                iface.state.discontinuity_time = Utc::now();
-                notification::area_mismatch(instance, iface, &bytes);
-            }
-            _ => {
-                iface.state.event_counters.adjacency_rejects += 1;
-                iface.state.discontinuity_time = Utc::now();
-                notification::rejected_adjacency(
-                    instance, iface, &bytes, &error,
-                );
+                ) => {
+                    iface.state.event_counters.max_area_addr_mismatch += 1;
+                    iface.state.discontinuity_time = Utc::now();
+                    notification::max_area_addresses_mismatch(
+                        instance,
+                        iface,
+                        *pdu_max_area_addrs,
+                        &bytes,
+                    );
+                }
+                AdjacencyRejectError::AreaMismatch => {
+                    iface.state.event_counters.area_mismatch += 1;
+                    iface.state.discontinuity_time = Utc::now();
+                    notification::area_mismatch(instance, iface, &bytes);
+                }
+                _ => {
+                    iface.state.event_counters.adjacency_rejects += 1;
+                    iface.state.discontinuity_time = Utc::now();
+                    notification::rejected_adjacency(
+                        instance, iface, &bytes, error,
+                    );
+                }
             }
         }
-        return Err(Error::AdjacencyReject(iface.name.clone(), src, error));
+        return Err(error);
     }
 
     Ok(())
@@ -203,18 +219,34 @@ fn process_pdu_hello_lan(
     hello: Hello,
     priority: u8,
     lan_id: LanId,
-) -> Result<(), AdjacencyRejectError> {
+) -> Result<(), PduInputError> {
     let iface = &mut arenas.interfaces[iface_idx];
+    let mut ext_seqnum = None;
     let mut new_adj = false;
 
     // Validate PDU type and determine level usage.
     let level = match (iface.config.interface_type, hello.hdr.pdu_type) {
         (InterfaceType::Broadcast, PduType::HelloLanL1) => LevelNumber::L1,
         (InterfaceType::Broadcast, PduType::HelloLanL2) => LevelNumber::L2,
-        _ => return Err(AdjacencyRejectError::InvalidHelloType),
+        _ => return Err(AdjacencyRejectError::InvalidHelloType.into()),
     };
     if !iface.config.level_type.resolved.intersects(level) {
-        return Err(AdjacencyRejectError::InvalidHelloType);
+        return Err(AdjacencyRejectError::InvalidHelloType.into());
+    }
+
+    // Perform PDU sequence number validation.
+    if iface.config.ext_seqnum_mode.all
+        == Some(ExtendedSeqNumMode::SendAndVerify)
+    {
+        let adjacencies = iface.state.lan_adjacencies.get(level);
+        let adj = adjacencies
+            .get_by_snpa(&arenas.adjacencies, src)
+            .map(|(_, adj)| adj);
+        ext_seqnum = Some(validate_pdu_ext_seqnum(
+            adj,
+            hello.hdr.pdu_type,
+            hello.tlvs.ext_seqnum.as_ref(),
+        )?);
     }
 
     // Validate the "Circuit Type" field.
@@ -224,7 +256,7 @@ fn process_pdu_hello_lan(
         .resolved
         .intersects(hello.circuit_type)
     {
-        return Err(AdjacencyRejectError::CircuitTypeMismatch);
+        return Err(AdjacencyRejectError::CircuitTypeMismatch.into());
     }
 
     if hello.hdr.pdu_type == PduType::HelloLanL1 {
@@ -232,7 +264,8 @@ fn process_pdu_hello_lan(
         if hello.hdr.max_area_addrs != 0 && hello.hdr.max_area_addrs != 3 {
             return Err(AdjacencyRejectError::MaxAreaAddrsMismatch(
                 hello.hdr.max_area_addrs,
-            ));
+            )
+            .into());
         }
 
         // Check for area mismatch.
@@ -241,13 +274,13 @@ fn process_pdu_hello_lan(
             .area_addrs()
             .any(|addr| instance.config.area_addrs.contains(addr))
         {
-            return Err(AdjacencyRejectError::AreaMismatch);
+            return Err(AdjacencyRejectError::AreaMismatch.into());
         }
     }
 
     // Check for duplicate System-ID.
     if hello.source == instance.config.system_id.unwrap() {
-        return Err(AdjacencyRejectError::DuplicateSystemId);
+        return Err(AdjacencyRejectError::DuplicateSystemId.into());
     }
 
     // Look up or create an adjacency using the source MAC address.
@@ -299,6 +332,9 @@ fn process_pdu_hello_lan(
     adj.neighbors = hello.tlvs.neighbors().cloned().collect();
     adj.ipv4_addrs = hello.tlvs.ipv4_addrs().cloned().collect();
     adj.ipv6_addrs = hello.tlvs.ipv6_addrs().cloned().collect();
+    if let Some(ext_seqnum) = ext_seqnum {
+        adj.ext_seqnum.insert(hello.hdr.pdu_type, ext_seqnum);
+    }
 
     // Check if the locally elected DIS has changed its perceived DIS.
     if let Some(dis) = iface.state.dis.get_mut(level)
@@ -360,24 +396,37 @@ fn process_pdu_hello_p2p(
     iface_idx: InterfaceIndex,
     src: [u8; 6],
     hello: Hello,
-) -> Result<(), AdjacencyRejectError> {
+) -> Result<(), PduInputError> {
     let iface = &mut arenas.interfaces[iface_idx];
+    let mut ext_seqnum = None;
 
     // Validate PDU type.
     if iface.config.interface_type != InterfaceType::PointToPoint {
-        return Err(AdjacencyRejectError::InvalidHelloType);
+        return Err(AdjacencyRejectError::InvalidHelloType.into());
+    }
+
+    // Perform PDU sequence number validation.
+    if iface.config.ext_seqnum_mode.all
+        == Some(ExtendedSeqNumMode::SendAndVerify)
+    {
+        let adj = iface.state.p2p_adjacency.as_ref();
+        ext_seqnum = Some(validate_pdu_ext_seqnum(
+            adj,
+            hello.hdr.pdu_type,
+            hello.tlvs.ext_seqnum.as_ref(),
+        )?);
     }
 
     // Check for duplicate System-ID.
     if hello.source == instance.config.system_id.unwrap() {
-        return Err(AdjacencyRejectError::DuplicateSystemId);
+        return Err(AdjacencyRejectError::DuplicateSystemId.into());
     }
 
     // Check for common MT.
     let hello_topologies = hello.tlvs.topologies();
     let iface_topologies = iface.config.topologies(instance.config);
     if iface_topologies.is_disjoint(&hello_topologies) {
-        return Err(AdjacencyRejectError::NoCommonMt);
+        return Err(AdjacencyRejectError::NoCommonMt.into());
     }
 
     // Check for an area match.
@@ -400,12 +449,12 @@ fn process_pdu_hello_p2p(
                 _ => false,
             };
             if !accept {
-                return Err(AdjacencyRejectError::WrongSystem);
+                return Err(AdjacencyRejectError::WrongSystem.into());
             }
 
             // Reject PDU if the System-ID doesn't match (see IS-IS 8.2.5.2.d).
             if adj.system_id != hello.source {
-                return Err(AdjacencyRejectError::WrongSystem);
+                return Err(AdjacencyRejectError::WrongSystem.into());
             }
             adj
         }
@@ -429,7 +478,7 @@ fn process_pdu_hello_p2p(
                     }
                 }
             }) else {
-                return Err(AdjacencyRejectError::WrongSystem);
+                return Err(AdjacencyRejectError::WrongSystem.into());
             };
 
             // Create a new adjacency.
@@ -464,6 +513,9 @@ fn process_pdu_hello_p2p(
     adj.topologies = hello_topologies;
     adj.ipv4_addrs = hello.tlvs.ipv4_addrs().cloned().collect();
     adj.ipv6_addrs = hello.tlvs.ipv6_addrs().cloned().collect();
+    if let Some(ext_seqnum) = ext_seqnum {
+        adj.ext_seqnum.insert(hello.hdr.pdu_type, ext_seqnum);
+    }
 
     // Restart hold timer.
     adj.holdtimer_reset(iface, instance, hello.holdtime);
@@ -493,7 +545,7 @@ fn process_pdu_lsp(
     src: [u8; 6],
     bytes: Bytes,
     mut lsp: Lsp,
-) -> Result<(), Error> {
+) -> Result<(), PduInputError> {
     let iface = &mut arenas.interfaces[iface_idx];
     let system_id = instance.config.system_id.unwrap();
 
@@ -595,11 +647,12 @@ fn process_pdu_lsp(
     if lsp.is_expired() && lse.is_none() {
         if iface.config.interface_type != InterfaceType::Broadcast {
             // Send an acknowledgement.
+            let ext_seqnum = iface.ext_seqnum_next(level);
             let pdu = Pdu::Snp(Snp::new(
                 level,
                 LanId::from((system_id, iface.state.circuit_id)),
                 None,
-                SnpTlvs::new([lsp.as_snp_entry()]),
+                SnpTlvs::new([lsp.as_snp_entry()], ext_seqnum),
             ));
             iface.enqueue_pdu(pdu, level);
         }
@@ -752,7 +805,7 @@ fn process_pdu_snp(
     src: [u8; 6],
     bytes: Bytes,
     snp: Snp,
-) -> Result<(), Error> {
+) -> Result<(), PduInputError> {
     let iface = &mut arenas.interfaces[iface_idx];
 
     // Set the level based on the PDU type, and discard the SNP if the level
@@ -792,22 +845,36 @@ fn process_pdu_snp(
     }
 
     // Lookup adjacency.
-    let Some(_adj) = (match iface.config.interface_type {
+    let Some(adj) = (match iface.config.interface_type {
         InterfaceType::Broadcast => iface
             .state
             .lan_adjacencies
-            .get(level)
-            .get_by_snpa(&arenas.adjacencies, src)
+            .get_mut(level)
+            .get_mut_by_snpa(&mut arenas.adjacencies, src)
             .map(|(_, adj)| adj),
         InterfaceType::PointToPoint => iface
             .state
             .p2p_adjacency
-            .as_ref()
+            .as_mut()
             .filter(|adj| adj.level_usage.intersects(level)),
     }) else {
         // Couldn't find a matching adjacency. Discard the SNP.
         return Ok(());
     };
+
+    // Perform PDU sequence number validation.
+    if iface.config.ext_seqnum_mode.get(level)
+        == Some(ExtendedSeqNumMode::SendAndVerify)
+    {
+        let ext_seqnum = validate_pdu_ext_seqnum(
+            Some(adj),
+            snp.hdr.pdu_type,
+            snp.tlvs.ext_seqnum.as_ref(),
+        )?;
+
+        // Update the last seen ESN value for this adjacency and PDU type.
+        adj.ext_seqnum.insert(snp.hdr.pdu_type, ext_seqnum);
+    }
 
     // Iterate over all LSP entries.
     let lsp_entries = snp
@@ -911,6 +978,30 @@ fn process_pdu_snp(
     }
 
     Ok(())
+}
+
+fn validate_pdu_ext_seqnum(
+    adj: Option<&Adjacency>,
+    pdu_type: PduType,
+    ext_seqnum_tlv: Option<&ExtendedSeqNumTlv>,
+) -> Result<ExtendedSeqNum, ExtendedSeqNumError> {
+    // Discard the PDU if the ESN TLV is missing.
+    let Some(ext_seqnum_tlv) = ext_seqnum_tlv else {
+        return Err(ExtendedSeqNumError::MissingSeqNum(pdu_type));
+    };
+
+    // Discard the PDU if the received ESN is not greater than the previously
+    // recorded value for this adjacency and PDU type.
+    let ext_seqnum = ext_seqnum_tlv.get();
+    if let Some(adj) = adj
+        && let Some(adj_ext_seqnum) = adj.ext_seqnum.get(&pdu_type)
+        && adj_ext_seqnum >= ext_seqnum
+    {
+        return Err(ExtendedSeqNumError::InvalidSeqNum(pdu_type, *ext_seqnum));
+    }
+
+    // Return the valid ESN.
+    Ok(*ext_seqnum)
 }
 
 // ===== Adjacency hold timer expiry =====
@@ -1070,6 +1161,7 @@ pub(crate) fn process_send_psnp(
     }
 
     // Generate PDU.
+    let ext_seqnum = iface.ext_seqnum_next(level);
     let pdu = Pdu::Snp(Snp::new(
         level,
         LanId::from((
@@ -1077,7 +1169,7 @@ pub(crate) fn process_send_psnp(
             iface.state.circuit_id,
         )),
         None,
-        SnpTlvs::new(lsp_entries),
+        SnpTlvs::new(lsp_entries, ext_seqnum),
     ));
 
     // Enqueue PDU for transmission.
@@ -1115,14 +1207,15 @@ pub(crate) fn process_send_csnp(
         instance.config.lsp_mtu as usize - Snp::CSNP_HEADER_LEN as usize,
     );
 
-    // Closure to generate and send CSNP;
+    // Closure to generate and send CSNP.
     let mut send_csnp = |level, source, start, end, lsp_entries: Vec<_>| {
         // Generate PDU.
+        let ext_seqnum = iface.ext_seqnum_next(level);
         let pdu = Pdu::Snp(Snp::new(
             level,
             source,
             Some((start, end)),
-            SnpTlvs::new(lsp_entries),
+            SnpTlvs::new(lsp_entries, ext_seqnum),
         ));
 
         // Enqueue PDU for transmission.

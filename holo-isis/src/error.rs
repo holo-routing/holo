@@ -7,13 +7,16 @@
 // See: https://nlnet.nl/NGI0
 //
 
+use holo_utils::DatabaseError;
 use holo_utils::ip::AddressFamily;
 use holo_yang::ToYang;
 use tracing::{error, warn, warn_span};
 
 use crate::collections::{AdjacencyId, InterfaceId, LspEntryId};
 use crate::network::MulticastAddr;
+use crate::packet::consts::PduType;
 use crate::packet::error::DecodeError;
+use crate::packet::tlv::ExtendedSeqNum;
 use crate::packet::{LevelNumber, SystemId};
 use crate::spf;
 
@@ -26,9 +29,8 @@ pub enum Error {
     InterfaceIdNotFound(InterfaceId),
     AdjacencyIdNotFound(AdjacencyId),
     LspEntryIdNotFound(LspEntryId),
-    // Packet input
-    PduDecodeError(String, [u8; 6], DecodeError),
-    AdjacencyReject(String, [u8; 6], AdjacencyRejectError),
+    // PDU input
+    PduInputError(String, [u8; 6], PduInputError),
     // Segment Routing
     SrCapNotFound(LevelNumber, SystemId),
     SrCapUnsupportedAf(LevelNumber, SystemId, AddressFamily),
@@ -38,6 +40,7 @@ pub enum Error {
     SpfDelayUnexpectedEvent(LevelNumber, spf::fsm::State, spf::fsm::Event),
     InterfaceStartError(String, Box<Error>),
     InstanceStartError(Box<Error>),
+    BootCountNvmUpdate(DatabaseError),
 }
 
 // IS-IS I/O errors.
@@ -52,6 +55,13 @@ pub enum IoError {
 }
 
 #[derive(Debug)]
+pub enum PduInputError {
+    DecodeError(DecodeError),
+    AdjacencyReject(AdjacencyRejectError),
+    ExtendedSeqNumError(ExtendedSeqNumError),
+}
+
+#[derive(Debug)]
 pub enum AdjacencyRejectError {
     InvalidHelloType,
     CircuitTypeMismatch,
@@ -60,6 +70,12 @@ pub enum AdjacencyRejectError {
     WrongSystem,
     DuplicateSystemId,
     NoCommonMt,
+}
+
+#[derive(Debug)]
+pub enum ExtendedSeqNumError {
+    MissingSeqNum(PduType),
+    InvalidSeqNum(PduType, ExtendedSeqNum),
 }
 
 // ===== impl Error =====
@@ -79,14 +95,7 @@ impl Error {
             Error::LspEntryIdNotFound(lse_id) => {
                 warn!(?lse_id, "{}", self);
             }
-            Error::PduDecodeError(ifname, source, error) => {
-                warn_span!("interface", name = %ifname, ?source).in_scope(
-                    || {
-                        warn!(%error, "{}", self);
-                    },
-                )
-            }
-            Error::AdjacencyReject(ifname, source, error) => {
+            Error::PduInputError(ifname, source, error) => {
                 warn_span!("interface", name = %ifname, ?source).in_scope(
                     || {
                         error.log();
@@ -114,6 +123,9 @@ impl Error {
             Error::InstanceStartError(error) => {
                 error!(error = %with_source(error), "{}", self);
             }
+            Error::BootCountNvmUpdate(error) => {
+                error!(%error, "{}", self);
+            }
         }
     }
 }
@@ -131,10 +143,9 @@ impl std::fmt::Display for Error {
             Error::LspEntryIdNotFound(..) => {
                 write!(f, "LSP entry ID not found")
             }
-            Error::PduDecodeError(..) => {
+            Error::PduInputError(..) => {
                 write!(f, "failed to decode packet")
             }
-            Error::AdjacencyReject(_, _, error) => error.fmt(f),
             Error::CircuitIdAllocationFailed => {
                 write!(f, "failed to allocate Circuit ID")
             }
@@ -158,6 +169,12 @@ impl std::fmt::Display for Error {
             }
             Error::InstanceStartError(..) => {
                 write!(f, "failed to start instance")
+            }
+            Error::BootCountNvmUpdate(..) => {
+                write!(
+                    f,
+                    "failed to record updated boot count in non-volatile storage"
+                )
             }
         }
     }
@@ -243,10 +260,40 @@ impl std::error::Error for IoError {
     }
 }
 
+// ===== impl PduInputError =====
+
+impl PduInputError {
+    fn log(&self) {
+        match self {
+            PduInputError::DecodeError(error) => {
+                warn!("{}", error);
+            }
+            PduInputError::AdjacencyReject(error) => {
+                error.log();
+            }
+            PduInputError::ExtendedSeqNumError(error) => {
+                error.log();
+            }
+        }
+    }
+}
+
+impl From<AdjacencyRejectError> for PduInputError {
+    fn from(error: AdjacencyRejectError) -> PduInputError {
+        PduInputError::AdjacencyReject(error)
+    }
+}
+
+impl From<ExtendedSeqNumError> for PduInputError {
+    fn from(error: ExtendedSeqNumError) -> PduInputError {
+        PduInputError::ExtendedSeqNumError(error)
+    }
+}
+
 // ===== impl AdjacencyRejectError =====
 
 impl AdjacencyRejectError {
-    pub(crate) fn log(&self) {
+    fn log(&self) {
         match self {
             AdjacencyRejectError::MaxAreaAddrsMismatch(max_area_addrs) => {
                 warn!(%max_area_addrs, "{}", self);
@@ -287,6 +334,36 @@ impl std::fmt::Display for AdjacencyRejectError {
 }
 
 impl std::error::Error for AdjacencyRejectError {}
+
+// ===== impl ExtendedSeqNumError =====
+
+impl ExtendedSeqNumError {
+    fn log(&self) {
+        match self {
+            ExtendedSeqNumError::MissingSeqNum(pdu_type) => {
+                warn!(?pdu_type, "{}", self);
+            }
+            ExtendedSeqNumError::InvalidSeqNum(pdu_type, ext_seqnum) => {
+                warn!(?pdu_type, ?ext_seqnum, "{}", self);
+            }
+        }
+    }
+}
+
+impl std::fmt::Display for ExtendedSeqNumError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExtendedSeqNumError::MissingSeqNum(..) => {
+                write!(f, "missing extended sequence number")
+            }
+            ExtendedSeqNumError::InvalidSeqNum(..) => {
+                write!(f, "invalid extended sequence number")
+            }
+        }
+    }
+}
+
+impl std::error::Error for ExtendedSeqNumError {}
 
 // ===== helper functions =====
 

@@ -155,6 +155,19 @@ pub enum AuthenticationTlv {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[derive(new)]
+#[derive(Deserialize, Serialize)]
+pub struct ExtendedSeqNumTlv(ExtendedSeqNum);
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(new)]
+#[derive(Deserialize, Serialize)]
+pub struct ExtendedSeqNum {
+    pub session: u64,
+    pub packet: u32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct LspBufferSizeTlv {
     pub size: u16,
@@ -705,6 +718,51 @@ impl AuthenticationTlv {
             }
             _ => (),
         }
+    }
+}
+
+// ===== impl ExtendedSeqNumTlv =====
+
+impl ExtendedSeqNumTlv {
+    const SIZE: usize = 12;
+
+    pub(crate) fn decode(
+        tlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
+        // Validate the TLV length.
+        if tlv_len as usize != Self::SIZE {
+            return Err(TlvDecodeError::InvalidLength(tlv_len));
+        }
+
+        let session = buf.try_get_u64()?;
+        if session == 0 {
+            return Err(TlvDecodeError::ZeroExtendedSessionSeqNum);
+        }
+        let packet = buf.try_get_u32()?;
+
+        Ok(ExtendedSeqNumTlv(ExtendedSeqNum { session, packet }))
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, TlvType::ExtendedSeqNum);
+        buf.put_u64(self.0.session);
+        buf.put_u32(self.0.packet);
+        tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn get(&self) -> &ExtendedSeqNum {
+        &self.0
+    }
+
+    pub(crate) fn get_mut(&mut self) -> &mut ExtendedSeqNum {
+        &mut self.0
+    }
+}
+
+impl Tlv for ExtendedSeqNumTlv {
+    fn len(&self) -> usize {
+        TLV_HDR_SIZE + Self::SIZE
     }
 }
 

@@ -72,6 +72,8 @@ pub struct InstanceSys {
 
 #[derive(Debug)]
 pub struct InstanceState {
+    // Boot count.
+    pub boot_count: u64,
     // Circuit ID allocator.
     pub circuit_id_allocator: CircuitIdAllocator,
     // Hostname database.
@@ -204,7 +206,8 @@ impl Instance {
         Debug::InstanceStart.log();
 
         // Create instance initial state.
-        let state = InstanceState::new(&self.tx);
+        let boot_count = self.boot_count_increment();
+        let state = InstanceState::new(boot_count);
         self.state = Some(state);
         let (mut instance, arenas) = self.as_up().unwrap();
 
@@ -269,6 +272,22 @@ impl Instance {
         }
 
         Ok(())
+    }
+
+    // Increments and stores the boot count for the instance in non-volatile
+    // memory. Returns the updated count.
+    fn boot_count_increment(&mut self) -> u64 {
+        let mut boot_count = 0;
+        if let Some(db) = &self.shared.db {
+            let mut db = db.lock().unwrap();
+
+            let key = format!("{}-{}-boot-count", Protocol::ISIS, self.name);
+            boot_count = db.get::<u64>(&key).unwrap_or(0) + 1;
+            if let Err(error) = db.set(&key, &boot_count) {
+                Error::BootCountNvmUpdate(error).log();
+            }
+        }
+        boot_count
     }
 
     // Returns a view struct for the instance if it's operational.
@@ -399,8 +418,9 @@ impl ProtocolInstance for Instance {
 // ===== impl InstanceState =====
 
 impl InstanceState {
-    fn new(_instance_tx: &InstanceChannelsTx<Instance>) -> InstanceState {
+    fn new(boot_count: u64) -> InstanceState {
         InstanceState {
+            boot_count,
             circuit_id_allocator: Default::default(),
             hostnames: Default::default(),
             lsdb: Default::default(),

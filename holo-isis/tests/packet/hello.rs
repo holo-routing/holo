@@ -12,8 +12,9 @@ use std::sync::LazyLock as Lazy;
 use const_addrs::ip4;
 use holo_isis::packet::pdu::{Hello, HelloTlvs, HelloVariant, Pdu};
 use holo_isis::packet::tlv::{
-    AreaAddressesTlv, Ipv4AddressesTlv, MtFlags, MultiTopologyEntry,
-    MultiTopologyTlv, NeighborsTlv, PaddingTlv, ProtocolsSupportedTlv,
+    AreaAddressesTlv, ExtendedSeqNum, ExtendedSeqNumTlv, Ipv4AddressesTlv,
+    MtFlags, MultiTopologyEntry, MultiTopologyTlv, NeighborsTlv, PaddingTlv,
+    ProtocolsSupportedTlv,
 };
 use holo_isis::packet::{AreaAddr, LanId, LevelType, SystemId};
 use holo_utils::keychain::Key;
@@ -196,6 +197,7 @@ static LAN_HELLO1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                     list: vec![ip4!("10.0.1.1")],
                 }],
                 ipv6_addrs: vec![],
+                ext_seqnum: None,
                 padding: vec![
                     PaddingTlv { length: 255 },
                     PaddingTlv { length: 255 },
@@ -384,6 +386,7 @@ static P2P_HELLO1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                     list: vec![ip4!("10.0.7.6")],
                 }],
                 ipv6_addrs: vec![],
+                ext_seqnum: None,
                 padding: vec![
                     PaddingTlv { length: 255 },
                     PaddingTlv { length: 255 },
@@ -432,6 +435,7 @@ static P2P_HELLO2_CLEAR_TEXT: Lazy<(Vec<u8>, Option<&Key>, Pdu)> =
                         list: vec![ip4!("10.0.7.6")],
                     }],
                     ipv6_addrs: vec![],
+                    ext_seqnum: None,
                     padding: vec![],
                     unknown: vec![],
                 },
@@ -444,11 +448,12 @@ static P2P_HELLO2_HMAC_MD5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> =
         (
             vec![
                 0x83, 0x14, 0x01, 0x00, 0x11, 0x01, 0x00, 0x00, 0x01, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x09, 0x00, 0x37, 0x00,
-                0x0a, 0x11, 0x36, 0x87, 0x8a, 0x0d, 0x2c, 0x3f, 0xd5, 0x3f,
-                0x4d, 0xa2, 0x1e, 0xfc, 0x8a, 0xb3, 0xe2, 0x53, 0x08, 0x81,
+                0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x09, 0x00, 0x45, 0x00,
+                0x0a, 0x11, 0x36, 0xed, 0x74, 0xf7, 0x0b, 0xf6, 0xdc, 0x9a,
+                0x5b, 0xaa, 0xa0, 0xb1, 0x6e, 0x4d, 0x22, 0xcf, 0xc3, 0x81,
                 0x02, 0xcc, 0x8e, 0x01, 0x04, 0x03, 0x49, 0x00, 0x00, 0x84,
-                0x04, 0x0a, 0x00, 0x07, 0x06,
+                0x04, 0x0a, 0x00, 0x07, 0x06, 0x0b, 0x0c, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x12, 0x34,
             ],
             Some(&KEY_HMAC_MD5),
             Pdu::Hello(Hello::new(
@@ -474,6 +479,10 @@ static P2P_HELLO2_HMAC_MD5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> =
                         list: vec![ip4!("10.0.7.6")],
                     }],
                     ipv6_addrs: vec![],
+                    ext_seqnum: Some(ExtendedSeqNumTlv::new(ExtendedSeqNum {
+                        session: 0x00000001,
+                        packet: 0x1234,
+                    })),
                     padding: vec![],
                     unknown: vec![],
                 },
@@ -518,6 +527,7 @@ static P2P_HELLO2_HMAC_SHA256: Lazy<(Vec<u8>, Option<&Key>, Pdu)> =
                         list: vec![ip4!("10.0.7.6")],
                     }],
                     ipv6_addrs: vec![],
+                    ext_seqnum: None,
                     padding: vec![],
                     unknown: vec![],
                 },

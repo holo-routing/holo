@@ -17,7 +17,7 @@ use crate::error::AdjacencyRejectError;
 use crate::interface::InterfaceType;
 use crate::lsdb::LspLogReason;
 use crate::northbound::configuration::{
-    InstanceTraceOption, InterfaceTraceOption, MetricType,
+    ExtendedSeqNumMode, InstanceTraceOption, InterfaceTraceOption, MetricType,
 };
 use crate::packet::consts::MtId;
 use crate::packet::pdu::LspFlags;
@@ -400,6 +400,16 @@ impl TryFromYang for MtId {
         match value {
             "holo-isis:mt-topology-standard" => Some(MtId::Standard),
             "holo-isis:mt-topology-ipv6-unicast" => Some(MtId::Ipv6Unicast),
+            _ => None,
+        }
+    }
+}
+
+impl TryFromYang for ExtendedSeqNumMode {
+    fn try_from_yang(value: &str) -> Option<ExtendedSeqNumMode> {
+        match value {
+            "send-only" => Some(ExtendedSeqNumMode::SendOnly),
+            "send-and-verify" => Some(ExtendedSeqNumMode::SendAndVerify),
             _ => None,
         }
     }

@@ -30,14 +30,14 @@ use crate::packet::consts::{
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::subtlvs::capability::{SrAlgoStlv, SrCapabilitiesStlv};
 use crate::packet::tlv::{
-    AreaAddressesTlv, AuthenticationTlv, DynamicHostnameTlv, Ipv4AddressesTlv,
-    Ipv4Reach, Ipv4ReachTlv, Ipv4RouterIdTlv, Ipv6AddressesTlv, Ipv6Reach,
-    Ipv6ReachTlv, Ipv6RouterIdTlv, IsReach, IsReachTlv, LegacyIpv4Reach,
-    LegacyIpv4ReachTlv, LegacyIsReach, LegacyIsReachTlv, LspBufferSizeTlv,
-    LspEntriesTlv, LspEntry, MtFlags, MultiTopologyEntry, MultiTopologyTlv,
-    NeighborsTlv, PaddingTlv, ProtocolsSupportedTlv, PurgeOriginatorIdTlv,
-    RouterCapTlv, TLV_HDR_SIZE, TLV_MAX_LEN, Tlv, UnknownTlv,
-    tlv_entries_split, tlv_take_max,
+    AreaAddressesTlv, AuthenticationTlv, DynamicHostnameTlv, ExtendedSeqNum,
+    ExtendedSeqNumTlv, Ipv4AddressesTlv, Ipv4Reach, Ipv4ReachTlv,
+    Ipv4RouterIdTlv, Ipv6AddressesTlv, Ipv6Reach, Ipv6ReachTlv,
+    Ipv6RouterIdTlv, IsReach, IsReachTlv, LegacyIpv4Reach, LegacyIpv4ReachTlv,
+    LegacyIsReach, LegacyIsReachTlv, LspBufferSizeTlv, LspEntriesTlv, LspEntry,
+    MtFlags, MultiTopologyEntry, MultiTopologyTlv, NeighborsTlv, PaddingTlv,
+    ProtocolsSupportedTlv, PurgeOriginatorIdTlv, RouterCapTlv, TLV_HDR_SIZE,
+    TLV_MAX_LEN, Tlv, UnknownTlv, tlv_entries_split, tlv_take_max,
 };
 use crate::packet::{
     AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId, auth,
@@ -92,6 +92,7 @@ pub struct HelloTlvs {
     pub neighbors: Vec<NeighborsTlv>,
     pub ipv4_addrs: Vec<Ipv4AddressesTlv>,
     pub ipv6_addrs: Vec<Ipv6AddressesTlv>,
+    pub ext_seqnum: Option<ExtendedSeqNumTlv>,
     pub padding: Vec<PaddingTlv>,
     pub unknown: Vec<UnknownTlv>,
 }
@@ -180,11 +181,13 @@ pub struct Snp {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 #[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
     Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
 )]
 #[derive(Deserialize, Serialize)]
 pub struct SnpTlvs {
     pub lsp_entries: Vec<LspEntriesTlv>,
+    pub ext_seqnum: Option<ExtendedSeqNumTlv>,
     pub unknown: Vec<UnknownTlv>,
 }
 
@@ -651,6 +654,15 @@ impl Hello {
                         Err(error) => error.log(),
                     }
                 }
+                Some(TlvType::ExtendedSeqNum) => {
+                    if tlvs.ext_seqnum.is_some() {
+                        return Err(DecodeError::MultipleEsnTlvs);
+                    }
+                    match ExtendedSeqNumTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.ext_seqnum = Some(tlv),
+                        Err(error) => error.log(),
+                    }
+                }
                 Some(TlvType::ProtocolsSupported) => {
                     if tlvs.protocols_supported.is_some() {
                         continue;
@@ -749,6 +761,9 @@ impl Hello {
             for tlv in &self.tlvs.ipv6_addrs {
                 tlv.encode(&mut buf);
             }
+            if let Some(tlv) = &self.tlvs.ext_seqnum {
+                tlv.encode(&mut buf);
+            }
             for tlv in &self.tlvs.padding {
                 tlv.encode(&mut buf);
             }
@@ -778,6 +793,9 @@ impl Hello {
         for tlv in &self.tlvs.ipv6_addrs {
             total_tlv_len += tlv.len();
         }
+        if let Some(tlv) = &self.tlvs.ext_seqnum {
+            total_tlv_len += tlv.len();
+        }
 
         // Calculate the total padding required.
         let mut rem_padding = max_size as usize
@@ -804,6 +822,7 @@ impl HelloTlvs {
         neighbors: impl IntoIterator<Item = [u8; 6]>,
         ipv4_addrs: impl IntoIterator<Item = Ipv4Addr>,
         ipv6_addrs: impl IntoIterator<Item = Ipv6Addr>,
+        ext_seqnum: Option<ExtendedSeqNum>,
     ) -> Self {
         HelloTlvs {
             protocols_supported: Some(ProtocolsSupportedTlv::from(
@@ -814,6 +833,7 @@ impl HelloTlvs {
             neighbors: tlv_entries_split(neighbors),
             ipv4_addrs: tlv_entries_split(ipv4_addrs),
             ipv6_addrs: tlv_entries_split(ipv6_addrs),
+            ext_seqnum: ext_seqnum.map(ExtendedSeqNumTlv::new),
             padding: Default::default(),
             unknown: Default::default(),
         }
@@ -1809,6 +1829,15 @@ impl Snp {
                         Err(error) => error.log(),
                     }
                 }
+                Some(TlvType::ExtendedSeqNum) => {
+                    if tlvs.ext_seqnum.is_some() {
+                        return Err(DecodeError::MultipleEsnTlvs);
+                    }
+                    match ExtendedSeqNumTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.ext_seqnum = Some(tlv),
+                        Err(error) => error.log(),
+                    }
+                }
                 _ => {
                     // Save unknown top-level TLV.
                     tlvs.unknown
@@ -1856,6 +1885,9 @@ impl Snp {
             for tlv in &self.tlvs.lsp_entries {
                 tlv.encode(&mut buf);
             }
+            if let Some(tlv) = &self.tlvs.ext_seqnum {
+                tlv.encode(&mut buf);
+            }
 
             pdu_encode_end(buf, len_pos, auth, None)
         })
@@ -1863,7 +1895,10 @@ impl Snp {
 }
 
 impl SnpTlvs {
-    pub(crate) fn new(lsp_entries: impl IntoIterator<Item = LspEntry>) -> Self {
+    pub(crate) fn new(
+        lsp_entries: impl IntoIterator<Item = LspEntry>,
+        ext_seqnum: Option<ExtendedSeqNum>,
+    ) -> Self {
         // Fragment TLVs as necessary.
         let lsp_entries = lsp_entries
             .into_iter()
@@ -1876,6 +1911,7 @@ impl SnpTlvs {
 
         SnpTlvs {
             lsp_entries,
+            ext_seqnum: ext_seqnum.map(ExtendedSeqNumTlv::new),
             unknown: Default::default(),
         }
     }

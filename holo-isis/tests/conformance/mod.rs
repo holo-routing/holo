@@ -546,6 +546,38 @@ async fn pdu_decode_error5() {
 }
 
 // Input:
+//  * Northbound: enable the extended-sequence-number feature in
+//    "send-and-verify" mode on the "eth-rt2" interface
+// Output: no changes
+//
+// Input:
+//  * Protocol: received an L2 CSNP with zero LSP entries on eth-rt2
+//    (seqnum = 100)
+// Output:
+//  * Protocol: send all L2 LSPs from the database on eth-rt2
+//  * Northbound: add all L2 LSPs from the database to the SRM list of eth-rt2
+//
+// Input:
+//  * Protocol: received an L2 CSNP with zero LSP entries on eth-rt2
+//    (seqnum = missing)
+// Output: no changes (PDU is discarded)
+//
+// Input:
+//  * Protocol: received an L2 CSNP with zero LSP entries on eth-rt2
+//    (seqnum = 100, replayed packet)
+// Output: no changes (PDU is discarded)
+//
+// Input:
+//  * Protocol: received an L2 CSNP with zero LSP entries on eth-rt2
+//    (seqnum = 101, newer)
+// Output:
+//  * Protocol: send all L2 LSPs from the database on eth-rt2
+#[tokio::test]
+async fn pdu_ext_seqnum1() {
+    run_test::<Instance>("pdu-ext-seqnum1", "topo1-1", "rt1").await;
+}
+
+// Input:
 //  * Northbound: disable the IPv4 address family for the instance
 // Output:
 //  * Protocol: send an updated local LSP to all adjacencies

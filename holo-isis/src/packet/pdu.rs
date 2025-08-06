@@ -1918,8 +1918,24 @@ impl SnpTlvs {
 
     // Calculates the maximum number of LSP entries that can fit within the
     // given size.
-    pub(crate) const fn max_lsp_entries(mut size: usize) -> usize {
+    pub(crate) fn max_lsp_entries(
+        mut size: usize,
+        auth: Option<AuthMethod>,
+        ext_seqnum: bool,
+    ) -> usize {
         let mut lsp_entries = 0;
+
+        // Reserve space for the authentication TLV.
+        if let Some(auth) = auth
+            && let Some(auth_key) = auth.get_key_send()
+        {
+            size -= Pdu::auth_tlv_len(auth_key);
+        }
+
+        // Reserve space for the ESN TLV.
+        if ext_seqnum {
+            size -= TLV_HDR_SIZE + ExtendedSeqNumTlv::SIZE;
+        }
 
         // Calculate how many full TLVs fit in the available size.
         let full_tlvs = size / LspEntriesTlv::MAX_SIZE;

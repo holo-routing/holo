@@ -1150,6 +1150,8 @@ pub(crate) fn process_send_psnp(
     let mut lsp_entries = vec![];
     for _ in 0..SnpTlvs::max_lsp_entries(
         instance.config.lsp_mtu as usize - Snp::PSNP_HEADER_LEN as usize,
+        instance.config.auth.all.method(&instance.shared.keychains),
+        iface.config.ext_seqnum_mode.get(level).is_some(),
     ) {
         if let Some((_, lsp_entry)) =
             iface.state.ssn_list.get_mut(level).pop_first()
@@ -1205,6 +1207,8 @@ pub(crate) fn process_send_csnp(
     // Calculate maximum of LSP entries per PDU.
     let max_lsp_entries = SnpTlvs::max_lsp_entries(
         instance.config.lsp_mtu as usize - Snp::CSNP_HEADER_LEN as usize,
+        instance.config.auth.all.method(&instance.shared.keychains),
+        iface.config.ext_seqnum_mode.get(level).is_some(),
     );
 
     // Closure to generate and send CSNP.

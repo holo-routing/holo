@@ -726,7 +726,7 @@ impl AuthenticationTlv {
 // ===== impl ExtendedSeqNumTlv =====
 
 impl ExtendedSeqNumTlv {
-    const SIZE: usize = 12;
+    pub const SIZE: usize = 12;
 
     pub(crate) fn decode(
         tlv_len: u8,

@@ -303,9 +303,9 @@ impl BierInfoStlv {
                     let id = buf_stlv.try_get_u24()?;
                     let bs_len = ((id >> 20) & 0xf) as u8;
                     let id = match stlv_etype.unwrap() {
-                        BierSubStlvType::MplsEncap => {
-                            BierEncapId::Mpls(Label::new(id))
-                        }
+                        BierSubStlvType::MplsEncap => BierEncapId::Mpls(
+                            Label::new(id & Label::VALUE_MASK),
+                        ),
                         BierSubStlvType::NonMplsEncap => {
                             BierEncapId::NonMpls(BiftId::new(id))
                         }

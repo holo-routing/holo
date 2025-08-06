@@ -46,6 +46,7 @@ pub enum TlvDecodeError {
     InvalidLength(u8),
     InvalidAreaAddrLen(u8),
     AuthUnsupportedType(u8),
+    InvalidPrefixLength(u8),
     InvalidNumSystemIds(u8),
     ZeroExtendedSessionSeqNum,
 }
@@ -134,6 +135,9 @@ impl std::fmt::Display for TlvDecodeError {
             }
             TlvDecodeError::AuthUnsupportedType(auth_type) => {
                 write!(f, "unsupported authentication type: {auth_type}")
+            }
+            TlvDecodeError::InvalidPrefixLength(prefix_len) => {
+                write!(f, "invalid prefix length: {prefix_len}")
             }
             TlvDecodeError::InvalidAreaAddrLen(area_len) => {
                 write!(f, "invalid area address length: {area_len}")

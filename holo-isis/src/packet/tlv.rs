@@ -17,7 +17,9 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use derive_new::new;
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use holo_utils::crypto::CryptoAlgo;
-use holo_utils::ip::{AddressFamily, Ipv4AddrExt, Ipv6AddrExt};
+use holo_utils::ip::{
+    AddressFamily, Ipv4AddrExt, Ipv4NetworkExt, Ipv6AddrExt, Ipv6NetworkExt,
+};
 use holo_utils::sr::IgpAlgoType;
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use num_traits::{FromPrimitive, ToPrimitive};
@@ -1115,7 +1117,7 @@ impl LegacyIsReachTlv {
         let mut list = vec![];
 
         // Validate the TLV length.
-        if (tlv_len - 1) as usize % Self::ENTRY_SIZE != 0 {
+        if tlv_len == 0 || (tlv_len - 1) % Self::ENTRY_SIZE as u8 != 0 {
             return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
@@ -1217,17 +1219,19 @@ impl IsReachTlv {
 
             // Parse Sub-TLVs.
             let mut sub_tlvs = IsReachStlvs::default();
-            let mut sub_tlvs_len = buf.try_get_u8()?;
-            while sub_tlvs_len >= TLV_HDR_SIZE as u8 {
+            let sub_tlvs_len = buf.try_get_u8()?;
+            if sub_tlvs_len as usize > buf.remaining() {
+                return Err(TlvDecodeError::InvalidLength(sub_tlvs_len));
+            }
+            let mut buf_stlvs = buf.copy_to_bytes(sub_tlvs_len as usize);
+            while buf_stlvs.remaining() >= TLV_HDR_SIZE {
                 // Parse TLV type.
-                let stlv_type = buf.try_get_u8()?;
-                sub_tlvs_len -= 1;
+                let stlv_type = buf_stlvs.try_get_u8()?;
                 let stlv_etype = NeighborStlvType::from_u8(stlv_type);
 
                 // Parse and validate TLV length.
-                let stlv_len = buf.try_get_u8()?;
-                sub_tlvs_len -= 1;
-                if stlv_len as usize > buf.remaining() {
+                let stlv_len = buf_stlvs.try_get_u8()?;
+                if stlv_len as usize > buf_stlvs.remaining() {
                     return Err(TlvDecodeError::InvalidLength(stlv_len));
                 }
 
@@ -1238,8 +1242,7 @@ impl IsReachTlv {
                     length = stlv_len
                 );
                 let _span_guard = span.enter();
-                let mut buf_stlv = buf.copy_to_bytes(stlv_len as usize);
-                sub_tlvs_len -= stlv_len;
+                let mut buf_stlv = buf_stlvs.copy_to_bytes(stlv_len as usize);
                 match stlv_etype {
                     Some(NeighborStlvType::AdminGroup) => {
                         match AdminGroupStlv::decode(stlv_len, &mut buf_stlv) {
@@ -1597,6 +1600,9 @@ impl Ipv4ReachTlv {
             let up_down = (control & Self::CONTROL_UPDOWN_BIT) != 0;
             let subtlvs = (control & Self::CONTROL_SUBTLVS) != 0;
             let plen = control & Self::CONTROL_PLEN_MASK;
+            if plen > Ipv4Network::MAX_PREFIXLEN {
+                return Err(TlvDecodeError::InvalidPrefixLength(plen));
+            }
 
             // Parse prefix (variable length).
             let mut prefix_bytes = [0; Ipv4Addr::LENGTH];
@@ -1607,17 +1613,19 @@ impl Ipv4ReachTlv {
             // Parse Sub-TLVs.
             let mut sub_tlvs = Ipv4ReachStlvs::default();
             if subtlvs {
-                let mut sub_tlvs_len = buf.try_get_u8()?;
-                while sub_tlvs_len >= TLV_HDR_SIZE as u8 {
+                let sub_tlvs_len = buf.try_get_u8()?;
+                if sub_tlvs_len as usize > buf.remaining() {
+                    return Err(TlvDecodeError::InvalidLength(sub_tlvs_len));
+                }
+                let mut buf_stlvs = buf.copy_to_bytes(sub_tlvs_len as usize);
+                while buf_stlvs.remaining() >= TLV_HDR_SIZE {
                     // Parse TLV type.
-                    let stlv_type = buf.try_get_u8()?;
-                    sub_tlvs_len -= 1;
+                    let stlv_type = buf_stlvs.try_get_u8()?;
                     let stlv_etype = PrefixStlvType::from_u8(stlv_type);
 
                     // Parse and validate TLV length.
-                    let stlv_len = buf.try_get_u8()?;
-                    sub_tlvs_len -= 1;
-                    if stlv_len as usize > buf.remaining() {
+                    let stlv_len = buf_stlvs.try_get_u8()?;
+                    if stlv_len as usize > buf_stlvs.remaining() {
                         return Err(TlvDecodeError::InvalidLength(stlv_len));
                     }
 
@@ -1628,8 +1636,8 @@ impl Ipv4ReachTlv {
                         length = stlv_len
                     );
                     let _span_guard = span.enter();
-                    let mut buf_stlv = buf.copy_to_bytes(stlv_len as usize);
-                    sub_tlvs_len -= stlv_len;
+                    let mut buf_stlv =
+                        buf_stlvs.copy_to_bytes(stlv_len as usize);
                     match stlv_etype {
                         Some(PrefixStlvType::PrefixAttributeFlags) => {
                             match PrefixAttrFlagsStlv::decode(
@@ -1894,6 +1902,9 @@ impl Ipv6ReachTlv {
 
             // Parse prefix length.
             let plen = buf.try_get_u8()?;
+            if plen > Ipv6Network::MAX_PREFIXLEN {
+                return Err(TlvDecodeError::InvalidPrefixLength(plen));
+            }
 
             // Parse prefix (variable length).
             let mut prefix_bytes = [0; Ipv6Addr::LENGTH];
@@ -1904,17 +1915,19 @@ impl Ipv6ReachTlv {
             // Parse Sub-TLVs.
             let mut sub_tlvs = Ipv6ReachStlvs::default();
             if subtlvs {
-                let mut sub_tlvs_len = buf.try_get_u8()?;
-                while sub_tlvs_len >= TLV_HDR_SIZE as u8 {
+                let sub_tlvs_len = buf.try_get_u8()?;
+                if sub_tlvs_len as usize > buf.remaining() {
+                    return Err(TlvDecodeError::InvalidLength(sub_tlvs_len));
+                }
+                let mut buf_stlvs = buf.copy_to_bytes(sub_tlvs_len as usize);
+                while buf_stlvs.remaining() >= TLV_HDR_SIZE {
                     // Parse TLV type.
-                    let stlv_type = buf.try_get_u8()?;
-                    sub_tlvs_len -= 1;
+                    let stlv_type = buf_stlvs.try_get_u8()?;
                     let stlv_etype = PrefixStlvType::from_u8(stlv_type);
 
                     // Parse and validate TLV length.
-                    let stlv_len = buf.try_get_u8()?;
-                    sub_tlvs_len -= 1;
-                    if stlv_len as usize > buf.remaining() {
+                    let stlv_len = buf_stlvs.try_get_u8()?;
+                    if stlv_len as usize > buf_stlvs.remaining() {
                         return Err(TlvDecodeError::InvalidLength(stlv_len));
                     }
 
@@ -1925,8 +1938,8 @@ impl Ipv6ReachTlv {
                         length = stlv_len
                     );
                     let _span_guard = span.enter();
-                    let mut buf_stlv = buf.copy_to_bytes(stlv_len as usize);
-                    sub_tlvs_len -= stlv_len;
+                    let mut buf_stlv =
+                        buf_stlvs.copy_to_bytes(stlv_len as usize);
                     match stlv_etype {
                         Some(PrefixStlvType::PrefixAttributeFlags) => {
                             match PrefixAttrFlagsStlv::decode(

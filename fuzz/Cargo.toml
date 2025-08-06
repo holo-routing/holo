@@ -9,12 +9,22 @@ cargo-fuzz = true
 
 [dependencies]
 bytes = "1.10"
+const-addrs = { version = "0.1", features = ["ipnet"] }
 libfuzzer-sys = "0.4"
 holo-bfd = { path = "../holo-bfd/" }
 holo-bgp = { path = "../holo-bgp/" }
 holo-isis = { path = "../holo-isis/" }
+holo-ldp = { path = "../holo-ldp/" }
+holo-ospf = { path = "../holo-ospf/" }
+holo-rip = { path = "../holo-rip/" }
 holo-utils = { path = "../holo-utils/" }
 holo-vrrp = { path = "../holo-vrrp/" }
+
+# ===== BFD fuzzers =====
+
+[[bin]]
+name = "bfd_packet_decode"
+path = "fuzz_targets/bfd/bfd_packet_decode.rs"
 
 # ===== BGP fuzzers =====
 
@@ -100,6 +110,47 @@ path = "fuzz_targets/bgp/attribute/mpreachnlri_decode.rs"
 name = "isis_pdu_decode"
 path = "fuzz_targets/isis/isis_pdu_decode.rs"
 
+# ===== LDP fuzzers =====
+
+[[bin]]
+name = "ldp_pdu_decode"
+path = "fuzz_targets/ldp/ldp_pdu_decode.rs"
+
+# ===== OSPF fuzzers =====
+
+[[bin]]
+name = "ospfv2_packet_decode"
+path = "fuzz_targets/ospf/ospfv2_packet_decode.rs"
+
+[[bin]]
+name = "ospfv2_lsa_decode"
+path = "fuzz_targets/ospf/ospfv2_lsa_decode.rs"
+
+[[bin]]
+name = "ospfv3_ipv4_packet_decode"
+path = "fuzz_targets/ospf/ospfv3_ipv4_packet_decode.rs"
+
+[[bin]]
+name = "ospfv3_ipv4_lsa_decode"
+path = "fuzz_targets/ospf/ospfv3_ipv4_lsa_decode.rs"
+
+[[bin]]
+name = "ospfv3_ipv6_packet_decode"
+path = "fuzz_targets/ospf/ospfv3_ipv6_packet_decode.rs"
+
+[[bin]]
+name = "ospfv3_ipv6_lsa_decode"
+path = "fuzz_targets/ospf/ospfv3_ipv6_lsa_decode.rs"
+
+# ===== RIP fuzzers =====
+
+[[bin]]
+name = "ripv2_pdu_decode"
+path = "fuzz_targets/rip/ripv2_pdu_decode.rs"
+
+[[bin]]
+name = "ripng_pdu_decode"
+path = "fuzz_targets/rip/ripng_pdu_decode.rs"
 
 # ===== VRRP fuzzers =====
 

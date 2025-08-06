@@ -22,6 +22,7 @@ $ cargo fuzz list
 Output should be something like:
 
 ```
+bfd_packet_decode
 bgp_attr_aggregator_decode
 bgp_attr_as_path_decode
 bgp_attr_as_path_segment_decode
@@ -40,6 +41,16 @@ bgp_message_open_capability_decode
 bgp_message_open_decode
 bgp_message_routerefresh_decode
 bgp_message_update_decode
+isis_pdu_decode
+ldp_pdu_decode
+ospfv2_lsa_decode
+ospfv2_packet_decode
+ospfv3_ipv4_lsa_decode
+ospfv3_ipv4_packet_decode
+ospfv3_ipv6_lsa_decode
+ospfv3_ipv6_packet_decode
+ripng_pdu_decode
+ripv2_pdu_decode
 vrrp_vrrphdr_ipv4_decode
 vrrp_vrrphdr_ipv6_decode
 ```

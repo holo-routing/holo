@@ -12,6 +12,7 @@ bytes = "1.10"
 libfuzzer-sys = "0.4"
 holo-bfd = { path = "../holo-bfd/" }
 holo-bgp = { path = "../holo-bgp/" }
+holo-isis = { path = "../holo-isis/" }
 holo-utils = { path = "../holo-utils/" }
 holo-vrrp = { path = "../holo-vrrp/" }
 
@@ -92,6 +93,13 @@ path = "fuzz_targets/bgp/attribute/large_comm_decode.rs"
 [[bin]]
 name = "bgp_attr_mpreachnlri_decode"
 path = "fuzz_targets/bgp/attribute/mpreachnlri_decode.rs"
+
+# ===== IS-IS fuzzers =====
+
+[[bin]]
+name = "isis_pdu_decode"
+path = "fuzz_targets/isis/isis_pdu_decode.rs"
+
 
 # ===== VRRP fuzzers =====
 

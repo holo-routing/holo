@@ -290,7 +290,15 @@ impl PacketHdrVersion<Ospfv2> for PacketHdr {
 
         // Parse and validate message length.
         let pkt_len = buf.try_get_u16()?;
-        if pkt_len < Self::LENGTH {
+        let min_pkt_len = Self::LENGTH
+            + match pkt_type {
+                PacketType::Hello => Hello::BASE_LENGTH,
+                PacketType::DbDesc => DbDesc::BASE_LENGTH,
+                PacketType::LsRequest => 0,
+                PacketType::LsUpdate => LsUpdate::BASE_LENGTH,
+                PacketType::LsAck => 0,
+            };
+        if pkt_len < min_pkt_len {
             return Err(DecodeError::InvalidLength(pkt_len));
         }
 
@@ -435,10 +443,6 @@ impl PacketBase<Ospfv2> for Hello {
         buf: &mut Bytes,
         lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
-        if buf.remaining() < Self::BASE_LENGTH as usize {
-            return Err(DecodeError::InvalidLength(buf.len() as u16));
-        }
-
         let network_mask = buf.try_get_ipv4()?;
         let hello_interval = buf.try_get_u16()?;
         // Ignore unknown options.
@@ -553,10 +557,6 @@ impl PacketBase<Ospfv2> for DbDesc {
         buf: &mut Bytes,
         lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
-        if buf.remaining() < Self::BASE_LENGTH as usize {
-            return Err(DecodeError::InvalidLength(buf.len() as u16));
-        }
-
         let mtu = buf.try_get_u16()?;
         let options = Options::from_bits_truncate(buf.try_get_u8()?);
         let dd_flags = DbDescFlags::from_bits_truncate(buf.try_get_u8()?);
@@ -730,10 +730,6 @@ impl PacketBase<Ospfv2> for LsUpdate {
         buf: &mut Bytes,
         _lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
-        if buf.remaining() < Self::BASE_LENGTH as usize {
-            return Err(DecodeError::InvalidLength(buf.len() as u16));
-        }
-
         // Parse list of LSAs.
         let mut lsas = vec![];
         let lsas_cnt = buf.try_get_u32()?;

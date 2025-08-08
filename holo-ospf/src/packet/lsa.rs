@@ -320,6 +320,9 @@ where
         }
         let hdr = V::LsaHdr::decode(buf)?;
         let lsa_len = hdr.length();
+        if lsa_len < V::LsaHdr::LENGTH {
+            return Err(DecodeError::InvalidLsaLength);
+        }
         let lsa_body_len = lsa_len - V::LsaHdr::LENGTH;
 
         // Decode LSA body.

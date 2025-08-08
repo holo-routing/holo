@@ -17,6 +17,7 @@ pub type DecodeResult<T> = Result<T, DecodeError>;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum DecodeError {
     ReadOutOfBounds,
+    IncompletePacket,
     InvalidIpHdrLength(u16),
     InvalidVersion(u8),
     UnknownPacketType(u8),
@@ -28,6 +29,7 @@ pub enum DecodeError {
     UnknownRouterLinkType(u8),
     InvalidTlvLength(u16),
     MissingRequiredTlv(u16),
+    InvalidIpPrefixLength(u8),
     InvalidIpPrefix,
     AuthTypeMismatch,
     AuthKeyIdNotFound(u32),
@@ -63,6 +65,9 @@ impl std::fmt::Display for DecodeError {
             DecodeError::ReadOutOfBounds => {
                 write!(f, "attempt to read out of bounds")
             }
+            DecodeError::IncompletePacket => {
+                write!(f, "incomplete packet")
+            }
             DecodeError::InvalidIpHdrLength(length) => {
                 write!(f, "invalid IP header length: {length}")
             }
@@ -95,6 +100,9 @@ impl std::fmt::Display for DecodeError {
             }
             DecodeError::MissingRequiredTlv(tlv_type) => {
                 write!(f, "missing required TLV: {tlv_type}")
+            }
+            DecodeError::InvalidIpPrefixLength(plen) => {
+                write!(f, "invalid IP prefix length: {plen}")
             }
             DecodeError::InvalidIpPrefix => {
                 write!(f, "invalid IP prefix")

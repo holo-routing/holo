@@ -195,7 +195,11 @@ impl LlsVersion<Self> for Ospfv2 {
         // RFC 5613 Section 2.2: " The 16-bit LLS Data Length field contains
         // the length (in 32-bit words) of the LLS block including the header
         // and payload."
-        let block_len = ((lls_len * 4) - LLS_HDR_SIZE) as usize;
+        let lls_len = lls_len as usize * 4;
+        if lls_len < LLS_HDR_SIZE as usize {
+            return Err(DecodeError::InvalidLength(buf.len() as u16));
+        }
+        let block_len = lls_len - LLS_HDR_SIZE as usize;
 
         // Validate LLS block length
         if block_len > buf.remaining() {

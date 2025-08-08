@@ -437,9 +437,9 @@ impl BierStlv {
                             let bs_len = (buf_stlv.try_get_u8()? & 0xf0) >> 4;
 
                             let id = match stlv_type {
-                                BierStlvType::MplsEncap => {
-                                    BierEncapId::Mpls(Label::new(id))
-                                }
+                                BierStlvType::MplsEncap => BierEncapId::Mpls(
+                                    Label::new(id & Label::VALUE_MASK),
+                                ),
                                 BierStlvType::NonMplsEncap => {
                                     BierEncapId::NonMpls(BiftId::new(id))
                                 }
@@ -601,15 +601,12 @@ impl NodeAdminTagTlv {
 
 impl DynamicHostnameTlv {
     pub(crate) fn decode(tlv_len: u16, buf: &mut Bytes) -> DecodeResult<Self> {
-        if tlv_len == 0 {
+        if tlv_len == 0 || tlv_len > MAX_HOSTNAME_LEN as u16 {
             return Err(DecodeError::InvalidTlvLength(tlv_len));
         }
 
         let mut hostname_bytes = [0; 255];
-        buf.try_copy_to_slice(
-            &mut hostname_bytes
-                [..usize::min(tlv_len as usize, MAX_HOSTNAME_LEN)],
-        )?;
+        buf.try_copy_to_slice(&mut hostname_bytes[..tlv_len as usize])?;
 
         let hostname =
             String::from_utf8_lossy(&hostname_bytes[..tlv_len as usize])
@@ -943,7 +940,7 @@ impl SrmsPrefTlv {
 
 // The TLV length is padded to 4-byte alignment.
 pub(crate) fn tlv_wire_len(tlv_len: u16) -> u16 {
-    (tlv_len + 3) & !0x03
+    tlv_len.saturating_add(3) & !0x03
 }
 
 pub(crate) fn tlv_encode_start(

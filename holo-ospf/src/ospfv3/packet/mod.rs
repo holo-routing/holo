@@ -296,7 +296,15 @@ impl PacketHdrVersion<Ospfv3> for PacketHdr {
 
         // Parse and validate message length.
         let pkt_len = buf.try_get_u16()?;
-        if pkt_len < Self::LENGTH {
+        let min_pkt_len = Self::LENGTH
+            + match pkt_type {
+                PacketType::Hello => Hello::BASE_LENGTH,
+                PacketType::DbDesc => DbDesc::BASE_LENGTH,
+                PacketType::LsRequest => 0,
+                PacketType::LsUpdate => LsUpdate::BASE_LENGTH,
+                PacketType::LsAck => 0,
+            };
+        if pkt_len < min_pkt_len {
             return Err(DecodeError::InvalidLength(pkt_len));
         }
 
@@ -402,10 +410,6 @@ impl PacketBase<Ospfv3> for Hello {
         buf: &mut Bytes,
         lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
-        if buf.remaining() < Self::BASE_LENGTH as usize {
-            return Err(DecodeError::InvalidLength(buf.len() as u16));
-        }
-
         let iface_id = buf.try_get_u32()?;
         let priority = buf.try_get_u8()?;
         let options = Options::decode(buf)?;
@@ -519,10 +523,6 @@ impl PacketBase<Ospfv3> for DbDesc {
         buf: &mut Bytes,
         lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
-        if buf.remaining() < Self::BASE_LENGTH as usize {
-            return Err(DecodeError::InvalidLength(buf.len() as u16));
-        }
-
         let _ = buf.try_get_u8()?;
         let options = Options::decode(buf)?;
         let mtu = buf.try_get_u16()?;
@@ -702,10 +702,6 @@ impl PacketBase<Ospfv3> for LsUpdate {
         buf: &mut Bytes,
         _lls: Option<LlsDataBlock>,
     ) -> DecodeResult<Self> {
-        if buf.remaining() < Self::BASE_LENGTH as usize {
-            return Err(DecodeError::InvalidLength(buf.len() as u16));
-        }
-
         // Parse list of LSAs.
         let mut lsas = vec![];
         let lsas_cnt = buf.try_get_u32()?;
@@ -852,7 +848,8 @@ impl PacketVersion<Self> for Ospfv3 {
             }
             let _lls_cksum = buf.try_get_u16()?;
             let lls_block_len = buf.try_get_u16()?;
-            let lls_block_len = (lls_block_len * 4 - LLS_HDR_SIZE) as usize;
+            let lls_block_len =
+                lls_block_len as usize * 4 - LLS_HDR_SIZE as usize;
             if buf.remaining() < lls_block_len {
                 return Err(DecodeError::InvalidLength(buf.len() as u16));
             }

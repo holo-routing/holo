@@ -314,9 +314,9 @@ impl<V: Version> Packet<V> {
         buf: &mut Bytes,
         auth: Option<AuthDecodeCtx<'_>>,
     ) -> DecodeResult<Self> {
-        // Verify if the packet checksum is correct.
-        if auth.is_none() {
-            V::PacketHdr::verify_cksum(buf.as_ref())?;
+        // Ensure we have at least the fixed header length.
+        if buf.len() < V::PacketHdr::LENGTH as usize {
+            return Err(DecodeError::IncompletePacket);
         }
 
         // Create a zero-copy duplicate of the original packet buffer.
@@ -324,10 +324,21 @@ impl<V: Version> Packet<V> {
 
         // Decode the packet header.
         let (mut hdr, pkt_len, hdr_auth) = V::PacketHdr::decode(buf)?;
-        let mut buf =
-            buf.slice(..pkt_len as usize - V::PacketHdr::LENGTH as usize);
         let span = debug_span!("packet", r#type = %hdr.pkt_type().to_yang());
         let _span_guard = span.enter();
+
+        // Verify the buffer length is at least the packet length specified in
+        // the header. The length doesn't always exactly match the buffer length
+        // because it excludes optional trailing authentication and LLS data
+        // that may be present.
+        if (pkt_len as usize) > buf_orig.len() {
+            return Err(DecodeError::IncompletePacket);
+        }
+
+        // Verify if the packet checksum is correct.
+        if auth.is_none() {
+            V::PacketHdr::verify_cksum(buf_orig.as_ref())?;
+        }
 
         // Validate the packet authentication.
         if let Some(auth_seqno) = V::decode_auth_validate(
@@ -339,6 +350,7 @@ impl<V: Version> Packet<V> {
             hdr.set_auth_seqno(auth_seqno);
         }
 
+        // Decode optional LLS block.
         let lls = match V::decode_lls_block(
             &buf_orig,
             pkt_len,
@@ -351,6 +363,8 @@ impl<V: Version> Packet<V> {
         };
 
         // Decode the packet body.
+        let mut buf =
+            buf.slice(..pkt_len as usize - V::PacketHdr::LENGTH as usize);
         let packet = match hdr.pkt_type() {
             PacketType::Hello => {
                 Packet::Hello(V::PacketHello::decode(af, hdr, &mut buf, lls)?)

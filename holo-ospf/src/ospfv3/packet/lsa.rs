@@ -1679,7 +1679,7 @@ impl LsaInterAreaPrefix {
     fn decode_legacy(af: AddressFamily, buf: &mut Bytes) -> DecodeResult<Self> {
         let _ = buf.try_get_u8()?;
         let metric = buf.try_get_u24()?;
-        let plen = buf.try_get_u8()?;
+        let plen = decode_prefix_length(af, buf)?;
         let prefix_options =
             PrefixOptions::from_bits_truncate(buf.try_get_u8()?);
         let _ = buf.try_get_u16()?;
@@ -1923,7 +1923,7 @@ impl LsaAsExternal {
     fn decode_legacy(af: AddressFamily, buf: &mut Bytes) -> DecodeResult<Self> {
         let flags = LsaAsExternalFlags::from_bits_truncate(buf.try_get_u8()?);
         let metric = buf.try_get_u24()?;
-        let plen = buf.try_get_u8()?;
+        let plen = decode_prefix_length(af, buf)?;
         let prefix_options =
             PrefixOptions::from_bits_truncate(buf.try_get_u8()?);
         let ref_lsa_type = buf.try_get_u16()?;
@@ -1996,7 +1996,7 @@ impl LsaAsExternal {
                         buf_tlv.try_get_u8()?,
                     );
                     let metric = buf_tlv.try_get_u24()?;
-                    let plen = buf_tlv.try_get_u8()?;
+                    let plen = decode_prefix_length(af, &mut buf_tlv)?;
                     let prefix_options = PrefixOptions::from_bits_truncate(
                         buf_tlv.try_get_u8()?,
                     );
@@ -2132,7 +2132,7 @@ impl LsaLink {
         let mut prefixes = vec![];
         let prefixes_cnt = buf.try_get_u32()?;
         for _ in 0..prefixes_cnt {
-            let plen = buf.try_get_u8()?;
+            let plen = decode_prefix_length(af, buf)?;
             let prefix_options =
                 PrefixOptions::from_bits_truncate(buf.try_get_u8()?);
             let _ = buf.try_get_u16()?;
@@ -2174,7 +2174,7 @@ impl LsaLink {
                 Some(ExtLsaTlv::IntraAreaPrefix) => {
                     let _ = buf_tlv.try_get_u16()?;
                     let _metric = buf_tlv.try_get_u16()?;
-                    let plen = buf_tlv.try_get_u8()?;
+                    let plen = decode_prefix_length(af, &mut buf_tlv)?;
                     let prefix_options = PrefixOptions::from_bits_truncate(
                         buf_tlv.try_get_u8()?,
                     );
@@ -2310,7 +2310,7 @@ impl LsaIntraAreaPrefix {
 
         let mut prefixes = vec![];
         for _ in 0..prefixes_cnt {
-            let plen = buf.try_get_u8()?;
+            let plen = decode_prefix_length(af, buf)?;
             let prefix_options =
                 PrefixOptions::from_bits_truncate(buf.try_get_u8()?);
             let metric = buf.try_get_u16()?;
@@ -2365,7 +2365,7 @@ impl LsaIntraAreaPrefix {
                 Some(ExtLsaTlv::IntraAreaPrefix) => {
                     let _ = buf_tlv.try_get_u16()?;
                     let metric = buf_tlv.try_get_u16()?;
-                    let plen = buf_tlv.try_get_u8()?;
+                    let plen = decode_prefix_length(af, &mut buf_tlv)?;
                     let prefix_options = PrefixOptions::from_bits_truncate(
                         buf_tlv.try_get_u8()?,
                     );
@@ -2922,6 +2922,17 @@ fn encode_16bit_addr(addr: &IpAddr, buf: &mut BytesMut) {
             buf.put_ipv6(addr);
         }
     }
+}
+
+fn decode_prefix_length(
+    af: AddressFamily,
+    buf: &mut Bytes,
+) -> DecodeResult<u8> {
+    let plen = buf.try_get_u8()?;
+    if plen > af.max_prefixlen() {
+        return Err(DecodeError::InvalidIpPrefixLength(plen));
+    }
+    Ok(plen)
 }
 
 fn decode_prefix(

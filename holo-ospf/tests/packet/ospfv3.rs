@@ -65,7 +65,7 @@ fn test_decode_packet(
         auth = Some(AuthDecodeCtx::new(&auth_method, SRC_ADDR.into()));
     };
 
-    // Encode the packet.
+    // Decode the packet.
     let mut buf = Bytes::copy_from_slice(bytes);
     let packet_actual = Packet::decode(af, &mut buf, auth).unwrap();
     assert_eq!(*packet_expected, packet_actual);

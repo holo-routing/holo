@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::collections::BTreeMap;
+
 use bytes::{Buf, Bytes, BytesMut};
 use num_traits::FromPrimitive;
 
@@ -13,7 +15,8 @@ use crate::packet::auth::{AuthDecodeCtx, AuthEncodeCtx};
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::lls::{
     ExtendedOptionsFlagsTlv, LLS_HDR_SIZE, LlsDbDescData, LlsHelloData,
-    LlsTlvType, LlsVersion, lls_encode_end, lls_encode_start,
+    LlsTlvType, LlsVersion, ReverseMetricTlv, ReverseTeMetricTlv,
+    lls_encode_end, lls_encode_start,
 };
 use crate::packet::tlv::{UnknownTlv, tlv_wire_len};
 use crate::packet::{OptionsVersion, PacketVersion};
@@ -22,6 +25,8 @@ use crate::version::Ospfv3;
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct LlsDataBlock {
     pub eof: Option<ExtendedOptionsFlagsTlv>,
+    pub reverse_metric: Vec<ReverseMetricTlv>,
+    pub reverse_te_metric: Option<ReverseTeMetricTlv>,
     pub unknown_tlvs: Vec<UnknownTlv>,
 }
 
@@ -29,14 +34,35 @@ impl From<LlsHelloData> for LlsDataBlock {
     fn from(value: LlsHelloData) -> Self {
         let mut lls = LlsDataBlock::default();
         lls.eof = value.eof.map(ExtendedOptionsFlagsTlv);
+
+        lls.reverse_metric =
+            value.reverse_metric.iter().map(|rm| rm.into()).collect();
+
+        lls.reverse_te_metric =
+            value.reverse_te_metric.as_ref().map(|rtem| rtem.into());
+
         lls
     }
 }
 
-impl From<LlsDataBlock> for LlsHelloData {
-    fn from(value: LlsDataBlock) -> Self {
+impl From<&LlsDataBlock> for LlsHelloData {
+    fn from(value: &LlsDataBlock) -> Self {
+        let mut reverse_metrics = BTreeMap::new();
+        value.reverse_metric.iter().for_each(|tlv| {
+            // RFC 9339 Section 6 : "A router MUST NOT include more than one
+            // instance of this TLV per MTID. If more than a single instance of
+            // this TLV per MTID is present, the receiving router MUST only use
+            // the value from the first instance and ignore the others."
+            reverse_metrics
+                .entry(tlv.mtid)
+                .or_insert((tlv.flags, tlv.metric));
+        });
         LlsHelloData {
-            eof: value.eof.map(|tlv| tlv.0),
+            eof: value.eof.as_ref().map(|tlv| tlv.0),
+            reverse_metric: reverse_metrics,
+            reverse_te_metric: value
+                .reverse_te_metric
+                .map(|tlv| (tlv.flags, tlv.metric)),
         }
     }
 }
@@ -69,6 +95,12 @@ impl LlsVersion<Self> for Ospfv3 {
 
         if let Some(eof) = lls.eof {
             eof.encode(buf);
+        }
+
+        lls.reverse_metric.iter().for_each(|tlv| tlv.encode(buf));
+
+        if let Some(rtem) = lls.reverse_te_metric {
+            rtem.encode(buf);
         }
 
         lls_encode_end::<Ospfv3>(buf, start_pos, auth.is_some());
@@ -139,6 +171,15 @@ impl LlsVersion<Self> for Ospfv3 {
                     let opts =
                         ExtendedOptionsFlagsTlv::decode(tlv_len, &mut buf_tlv)?;
                     lls_block.eof = Some(opts);
+                }
+                Some(LlsTlvType::ReverseMetric) => {
+                    let rm = ReverseMetricTlv::decode(tlv_len, &mut buf_tlv)?;
+                    lls_block.reverse_metric.push(rm);
+                }
+                Some(LlsTlvType::ReverseTeMetric) => {
+                    let rtem =
+                        ReverseTeMetricTlv::decode(tlv_len, &mut buf_tlv)?;
+                    lls_block.reverse_te_metric = Some(rtem);
                 }
                 _ => {
                     // Save unknown TLV.

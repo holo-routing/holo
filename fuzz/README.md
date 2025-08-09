@@ -84,3 +84,68 @@ You can therefore run the following(still from the root directory) to fuzz all t
 ```
 
 This will run each of the fuzz targets we have created for 5 minutes.
+
+### Generate code-coverage data
+
+Code coverage data helps identify which code paths are exercised during fuzzing. This information shows which parts of the code remain untested, so you can take steps such as adding fuzz targets with different entry points or expanding the corpus with new seed inputs. You can find more details in the [Rust Fuzz Book](https://rust-fuzz.github.io/book/cargo-fuzz/coverage.html).
+
+The following instructions use the `isis_pdu_decode` fuzz target as an example.
+
+#### 1. Run the fuzz target
+
+Begin by running the fuzz target for a long period to exercise as many code paths as possible. The `-j` option allows multiple fuzzer instances to run in parallel while sharing the same corpus.
+```
+cargo fuzz run -j 8 isis_pdu_decode
+```
+
+#### 2. Generate coverage data
+
+Once the fuzz run has completed, generate coverage information:
+```
+cargo fuzz coverage isis_pdu_decode
+```
+
+#### 3. Generate a coverage report
+
+A text-based coverage report can be generated using `llvm-cov` as follows:
+```
+~/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-cov report \
+  -instr-profile=fuzz/coverage/isis_pdu_decode/coverage.profdata \
+  target/x86_64-unknown-linux-gnu/coverage/x86_64-unknown-linux-gnu/release/isis_pdu_decode \
+  $(find holo-isis/src/packet -name '*.rs')
+```
+
+Example output:
+```
+$ ~/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-cov report \
+  -instr-profile=fuzz/coverage/isis_pdu_decode/coverage.profdata \
+  target/x86_64-unknown-linux-gnu/coverage/x86_64-unknown-linux-gnu/release/isis_pdu_decode \
+  $(find holo-isis/src/packet -name '*.rs')
+Filename                      Regions    Missed Regions     Cover   Functions  Missed Functions  Executed       Lines      Missed Lines     Cover    Branches   Missed Branches     Cover
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+tlv.rs                           1954              1098    43.81%         122               100    18.03%        1311               706    46.15%           0                 0         -
+pdu.rs                           1898              1241    34.62%         114               107     6.14%        1299               934    28.10%           0                 0         -
+error.rs                          100                94     6.00%           5                 3    40.00%          53                47    11.32%           0                 0         -
+mod.rs                            198               150    24.24%          31                24    22.58%         164               126    23.17%           0                 0         -
+consts.rs                           3                 3     0.00%           1                 1     0.00%           3                 3     0.00%           0                 0         -
+subtlvs/capability.rs             222               118    46.85%          19                14    26.32%         151                76    49.67%           0                 0         -
+subtlvs/prefix.rs                 280               158    43.57%          20                15    25.00%         177                90    49.15%           0                 0         -
+subtlvs/neighbor.rs               254               158    37.80%          23                15    34.78%         176                84    52.27%           0                 0         -
+auth.rs                            56                56     0.00%           5                 5     0.00%          46                46     0.00%           0                 0         -                                                     -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+TOTAL                            4965              3076    38.05%         340               284    16.47%        3380              2112    37.51%           0                 0         -
+```
+
+#### 4. Generate an HTML coverage report
+
+Generating an HTML report lets you visually identify which lines were not executed during fuzzing:
+```
+~/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-cov show \
+  -instr-profile=fuzz/coverage/isis_pdu_decode/coverage.profdata \
+  target/x86_64-unknown-linux-gnu/coverage/x86_64-unknown-linux-gnu/release/isis_pdu_decode \
+  -format=html \
+  $(find holo-isis/src/packet -name '*.rs') > cov-isis-pdu-decode.html
+```
+
+In the resulting HTML report, lines highlighted in red indicate code that was not executed, while other lines represent covered code paths.
+
+Since most fuzz targets focus on packet decoding, it's normal for code related to packet encoding and various helper functions to remain uncovered.

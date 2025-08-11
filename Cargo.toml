@@ -79,7 +79,7 @@ similar = "2.7"
 smallvec = { version = "1.15", features = ["serde"] }
 socket2 = { version = "0.5", features = ["all"] }
 sysctl = "0.6"
-tokio = { version = "1.46", features = ["full"] }
+tokio = { version = "1.46", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 tonic = { version = "0.13", features = ["tls-ring"] }
 tonic-build = "0.13"
 tracing = "0.1"

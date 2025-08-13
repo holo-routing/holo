@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+mod decode;
 mod keepalive;
 mod notification;
 mod open;

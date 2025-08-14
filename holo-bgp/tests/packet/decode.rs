@@ -1,5 +1,5 @@
-use bytes::Bytes;
 use arbitrary::{Arbitrary, Unstructured};
+use bytes::Bytes;
 use holo_bgp::packet::attribute::AsPath;
 use holo_bgp::packet::consts::AttrType;
 use holo_bgp::packet::message::DecodeCxt;

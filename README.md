@@ -56,8 +56,8 @@ configuration rollback support.
 
 By virtue of being written in a memory-safe language, Holo is immune to a
 wide variety of memory-related bugs and security vulnerabilities.  Besides the
-safety guarantees provided by Rust, the Holo daemon runs in a chroot jail and
-drops privileges at startup.  For certain operations, like binding sockets,
+safety guarantees provided by Rust, the Holo daemon also drops privileges
+at startup. For certain operations, like binding sockets,
 Linux [capabilities](https://man7.org/linux/man-pages/man7/capabilities.7.html)
 are used to gain the minimum required permission for the least amount of time.
 

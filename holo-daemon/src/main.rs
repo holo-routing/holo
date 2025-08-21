@@ -188,7 +188,7 @@ fn build_version() -> String {
 fn main() {
     // Parse command-line parameters.
     let matches = App::new("Holo routing daemon")
-        .version(build_version().as_ref())
+        .version(build_version().as_str())
         .arg(
             Arg::with_name("config")
                 .short("c")

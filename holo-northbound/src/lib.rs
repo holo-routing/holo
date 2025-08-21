@@ -216,10 +216,9 @@ where
     Provider: configuration::Provider + state::Provider + rpc::Provider,
 {
     let callbacks = [
-        <Provider as configuration::Provider>::callbacks()
-            .map(|cbs| cbs.keys()),
-        <Provider as rpc::Provider>::callbacks().map(|cbs| cbs.keys()),
-        <Provider as state::Provider>::callbacks().map(|cbs| cbs.keys()),
+        Some(<Provider as configuration::Provider>::callbacks().keys()),
+        Some(<Provider as rpc::Provider>::callbacks().keys()),
+        Some(<Provider as state::Provider>::callbacks().keys()),
         <Provider as configuration::Provider>::nested_callbacks(),
         <Provider as rpc::Provider>::nested_callbacks(),
         <Provider as state::Provider>::nested_callbacks(),

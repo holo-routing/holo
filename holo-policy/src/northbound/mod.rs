@@ -5,10 +5,10 @@
 //
 
 pub mod configuration;
+pub mod rpc;
 pub mod state;
 
 use holo_northbound::ProviderBase;
-use holo_northbound::rpc::Provider;
 use tracing::{Span, debug_span};
 
 use crate::Master;
@@ -28,6 +28,3 @@ impl ProviderBase for Master {
         debug_span!("policy")
     }
 }
-
-// No RPC/Actions to implement.
-impl Provider for Master {}

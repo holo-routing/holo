@@ -121,8 +121,8 @@ fn load_callbacks() -> Callbacks<Interface> {
 impl Provider for Interface {
     type ListEntry<'a> = ListEntry<'a>;
 
-    fn callbacks() -> Option<&'static Callbacks<Interface>> {
-        Some(&CALLBACKS)
+    fn callbacks() -> &'static Callbacks<Interface> {
+        &CALLBACKS
     }
 }
 

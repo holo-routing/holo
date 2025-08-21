@@ -2046,8 +2046,8 @@ impl Provider for Instance {
         Some(&VALIDATION_CALLBACKS)
     }
 
-    fn callbacks() -> Option<&'static Callbacks<Instance>> {
-        Some(&CALLBACKS)
+    fn callbacks() -> &'static Callbacks<Instance> {
+        &CALLBACKS
     }
 
     async fn process_event(&mut self, event: Event) {

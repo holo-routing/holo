@@ -6,37 +6,22 @@
 
 use std::sync::LazyLock as Lazy;
 
-use enum_as_inner::EnumAsInner;
-use holo_northbound::state::{
-    Callbacks, CallbacksBuilder, ListEntryKind, Provider,
-};
+use holo_northbound::rpc::{Callbacks, CallbacksBuilder, Provider};
 
-use crate::Master;
+use crate::master::Master;
 
 pub static CALLBACKS: Lazy<Callbacks<Master>> = Lazy::new(load_callbacks);
-
-#[derive(Debug, Default, EnumAsInner)]
-pub enum ListEntry {
-    #[default]
-    None,
-}
 
 // ===== callbacks =====
 
 fn load_callbacks() -> Callbacks<Master> {
-    CallbacksBuilder::default().build()
+    CallbacksBuilder::<Master>::default().build()
 }
 
 // ===== impl Master =====
 
 impl Provider for Master {
-    type ListEntry<'a> = ListEntry;
-
     fn callbacks() -> &'static Callbacks<Master> {
         &CALLBACKS
     }
 }
-
-// ===== impl ListEntry =====
-
-impl ListEntryKind for ListEntry {}

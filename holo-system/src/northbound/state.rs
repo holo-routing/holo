@@ -57,8 +57,8 @@ fn load_callbacks() -> Callbacks<Master> {
 impl Provider for Master {
     type ListEntry<'a> = ListEntry;
 
-    fn callbacks() -> Option<&'static Callbacks<Master>> {
-        Some(&CALLBACKS)
+    fn callbacks() -> &'static Callbacks<Master> {
+        &CALLBACKS
     }
 }
 

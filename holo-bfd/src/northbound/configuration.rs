@@ -386,8 +386,8 @@ impl Provider for Master {
         Some(&VALIDATION_CALLBACKS)
     }
 
-    fn callbacks() -> Option<&'static Callbacks<Master>> {
-        Some(&CALLBACKS)
+    fn callbacks() -> &'static Callbacks<Master> {
+        &CALLBACKS
     }
 
     async fn process_event(&mut self, event: Event) {

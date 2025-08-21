@@ -4,7 +4,9 @@
 // SPDX-License-Identifier: MIT
 //
 
-use holo_northbound::rpc::Provider;
+use std::sync::LazyLock as Lazy;
+
+use holo_northbound::rpc::{Callbacks, CallbacksBuilder, Provider};
 use holo_northbound::yang::control_plane_protocol;
 use holo_northbound::{CallbackKey, NbDaemonSender};
 use holo_utils::protocol::Protocol;
@@ -13,7 +15,21 @@ use yang3::data::DataNodeRef;
 
 use crate::Master;
 
+pub static CALLBACKS: Lazy<Callbacks<Master>> = Lazy::new(load_callbacks);
+
+// ===== callbacks =====
+
+fn load_callbacks() -> Callbacks<Master> {
+    CallbacksBuilder::<Master>::default().build()
+}
+
+// ===== impl Master =====
+
 impl Provider for Master {
+    fn callbacks() -> &'static Callbacks<Master> {
+        &CALLBACKS
+    }
+
     fn nested_callbacks() -> Option<Vec<CallbackKey>> {
         let keys: Vec<Vec<CallbackKey>> = vec![
             #[cfg(feature = "bgp")]

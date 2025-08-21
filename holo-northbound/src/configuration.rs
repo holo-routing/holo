@@ -118,9 +118,7 @@ pub trait Provider: ProviderBase {
         None
     }
 
-    fn callbacks() -> Option<&'static Callbacks<Self>> {
-        None
-    }
+    fn callbacks() -> &'static Callbacks<Self>;
 
     fn nested_callbacks() -> Option<Vec<CallbackKey>> {
         None
@@ -411,7 +409,7 @@ where
         resources.resize_with(changes.len(), Default::default);
     }
 
-    let callbacks = P::callbacks().unwrap();
+    let callbacks = P::callbacks();
     for ((cb_key, data_path), resource) in changes.iter().zip(resources) {
         Debug::ConfigurationCallback(phase, cb_key.operation, &cb_key.path)
             .log();
@@ -440,7 +438,6 @@ where
                 provider,
                 phase,
                 cb_key.operation,
-                callbacks,
                 &args.dnode,
             );
         }
@@ -511,12 +508,12 @@ fn lookup_list_entry<P>(
     provider: &mut P,
     phase: CommitPhase,
     operation: CallbackOp,
-    callbacks: &Callbacks<P>,
     dnode: &DataNodeRef<'_>,
 ) -> P::ListEntry
 where
     P: Provider,
 {
+    let callbacks = P::callbacks();
     let ancestors =
         if phase == CommitPhase::Apply && operation == CallbackOp::Create {
             dnode.ancestors()
@@ -679,7 +676,7 @@ where
     P: Provider,
 {
     // Move to a separate vector the changes that need to be relayed.
-    let callbacks = P::callbacks().unwrap();
+    let callbacks = P::callbacks();
     let relayed_changes = changes
         .extract_if(.., |(cb_key, _)| !callbacks.0.contains_key(cb_key))
         .collect();

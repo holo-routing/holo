@@ -307,8 +307,8 @@ impl Provider for Master {
         Some(&VALIDATION_CALLBACKS)
     }
 
-    fn callbacks() -> Option<&'static Callbacks<Master>> {
-        Some(&CALLBACKS)
+    fn callbacks() -> &'static Callbacks<Master> {
+        &CALLBACKS
     }
 
     fn nested_callbacks() -> Option<Vec<CallbackKey>> {

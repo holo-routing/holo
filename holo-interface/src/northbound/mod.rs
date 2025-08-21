@@ -5,12 +5,12 @@
 //
 
 pub mod configuration;
+pub mod rpc;
 pub mod state;
 
 use std::sync::LazyLock as Lazy;
 
 use holo_northbound::ProviderBase;
-use holo_northbound::rpc::Provider;
 use holo_northbound::yang::interfaces;
 use regex::Regex;
 use tracing::{Span, debug_span};
@@ -37,9 +37,6 @@ impl ProviderBase for Master {
         debug_span!("interface")
     }
 }
-
-// No RPC/Actions to implement.
-impl Provider for Master {}
 
 // ===== regular expressions =====
 

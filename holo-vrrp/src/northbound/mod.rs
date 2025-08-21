@@ -9,6 +9,7 @@
 
 pub mod configuration;
 pub mod notification;
+pub mod rpc;
 pub mod state;
 pub mod yang;
 
@@ -35,6 +36,3 @@ impl ProviderBase for Interface {
         debug_span!("vrrp", %interface)
     }
 }
-
-// No RPC/Actions to implement.
-impl holo_northbound::rpc::Provider for Interface {}

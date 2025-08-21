@@ -422,7 +422,7 @@ where
         V::validation_callbacks()
     }
 
-    fn callbacks() -> Option<&'static Callbacks<Instance<V>>> {
+    fn callbacks() -> &'static Callbacks<Instance<V>> {
         V::configuration_callbacks()
     }
 

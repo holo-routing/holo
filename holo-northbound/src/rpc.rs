@@ -48,9 +48,7 @@ pub type Callback<P> = for<'a> fn(
 
 // RPC protocol trait.
 pub trait Provider: ProviderBase {
-    fn callbacks() -> Option<&'static Callbacks<Self>> {
-        None
-    }
+    fn callbacks() -> &'static Callbacks<Self>;
 
     fn nested_callbacks() -> Option<Vec<CallbackKey>> {
         None
@@ -152,17 +150,16 @@ async fn process_rpc_local<P>(
 where
     P: Provider,
 {
-    if let Some(callbacks) = P::callbacks() {
-        Debug::RpcCallback(&rpc_data_path).log();
+    Debug::RpcCallback(&rpc_data_path).log();
 
-        let key = CallbackKey::new(rpc_schema_path, CallbackOp::Rpc);
-        if let Some(cb) = callbacks.get(&key) {
-            let args = CallbackArgs {
-                data: &mut data,
-                rpc_path: &rpc_data_path,
-            };
-            (*cb)(provider, args).await.map_err(Error::RpcCallback)?;
-        }
+    let callbacks = P::callbacks();
+    let key = CallbackKey::new(rpc_schema_path, CallbackOp::Rpc);
+    if let Some(cb) = callbacks.get(&key) {
+        let args = CallbackArgs {
+            data: &mut data,
+            rpc_path: &rpc_data_path,
+        };
+        (*cb)(provider, args).await.map_err(Error::RpcCallback)?;
     }
 
     let response = api::daemon::RpcResponse { data };

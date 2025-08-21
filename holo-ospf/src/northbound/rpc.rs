@@ -63,7 +63,7 @@ impl<V> Provider for Instance<V>
 where
     V: Version,
 {
-    fn callbacks() -> Option<&'static Callbacks<Instance<V>>> {
+    fn callbacks() -> &'static Callbacks<Instance<V>> {
         V::rpc_callbacks()
     }
 }

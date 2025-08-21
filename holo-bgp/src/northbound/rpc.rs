@@ -66,7 +66,7 @@ fn load_callbacks() -> Callbacks<Instance> {
 // ===== impl Instance =====
 
 impl Provider for Instance {
-    fn callbacks() -> Option<&'static Callbacks<Instance>> {
-        Some(&CALLBACKS)
+    fn callbacks() -> &'static Callbacks<Instance> {
+        &CALLBACKS
     }
 }

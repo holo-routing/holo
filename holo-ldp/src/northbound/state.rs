@@ -442,8 +442,8 @@ fn load_callbacks() -> Callbacks<Instance> {
 impl Provider for Instance {
     type ListEntry<'a> = ListEntry<'a>;
 
-    fn callbacks() -> Option<&'static Callbacks<Instance>> {
-        Some(&CALLBACKS)
+    fn callbacks() -> &'static Callbacks<Instance> {
+        &CALLBACKS
     }
 }
 

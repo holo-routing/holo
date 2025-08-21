@@ -23,11 +23,9 @@ pub trait NorthboundVersion<V: Version> {
     fn validation_callbacks()
     -> Option<&'static northbound::configuration::ValidationCallbacks>;
     fn configuration_callbacks()
-    -> Option<&'static northbound::configuration::Callbacks<Instance<V>>>;
-    fn rpc_callbacks()
-    -> Option<&'static northbound::rpc::Callbacks<Instance<V>>>;
-    fn state_callbacks()
-    -> Option<&'static northbound::state::Callbacks<Instance<V>>>;
+    -> &'static northbound::configuration::Callbacks<Instance<V>>;
+    fn rpc_callbacks() -> &'static northbound::rpc::Callbacks<Instance<V>>;
+    fn state_callbacks() -> &'static northbound::state::Callbacks<Instance<V>>;
 }
 
 // ===== impl Instance =====
@@ -72,19 +70,17 @@ impl NorthboundVersion<Self> for Ospfv2 {
     }
 
     fn configuration_callbacks()
-    -> Option<&'static northbound::configuration::Callbacks<Instance<Self>>>
+    -> &'static northbound::configuration::Callbacks<Instance<Self>> {
+        &configuration::CALLBACKS_OSPFV2
+    }
+
+    fn rpc_callbacks() -> &'static northbound::rpc::Callbacks<Instance<Self>> {
+        &rpc::CALLBACKS_OSPFV2
+    }
+
+    fn state_callbacks() -> &'static northbound::state::Callbacks<Instance<Self>>
     {
-        Some(&configuration::CALLBACKS_OSPFV2)
-    }
-
-    fn rpc_callbacks()
-    -> Option<&'static northbound::rpc::Callbacks<Instance<Self>>> {
-        Some(&rpc::CALLBACKS_OSPFV2)
-    }
-
-    fn state_callbacks()
-    -> Option<&'static northbound::state::Callbacks<Instance<Self>>> {
-        Some(&state::CALLBACKS_OSPFV2)
+        &state::CALLBACKS_OSPFV2
     }
 }
 
@@ -101,18 +97,16 @@ impl NorthboundVersion<Self> for Ospfv3 {
     }
 
     fn configuration_callbacks()
-    -> Option<&'static northbound::configuration::Callbacks<Instance<Self>>>
+    -> &'static northbound::configuration::Callbacks<Instance<Self>> {
+        &configuration::CALLBACKS_OSPFV3
+    }
+
+    fn rpc_callbacks() -> &'static northbound::rpc::Callbacks<Instance<Self>> {
+        &rpc::CALLBACKS_OSPFV3
+    }
+
+    fn state_callbacks() -> &'static northbound::state::Callbacks<Instance<Self>>
     {
-        Some(&configuration::CALLBACKS_OSPFV3)
-    }
-
-    fn rpc_callbacks()
-    -> Option<&'static northbound::rpc::Callbacks<Instance<Self>>> {
-        Some(&rpc::CALLBACKS_OSPFV3)
-    }
-
-    fn state_callbacks()
-    -> Option<&'static northbound::state::Callbacks<Instance<Self>>> {
-        Some(&state::CALLBACKS_OSPFV3)
+        &state::CALLBACKS_OSPFV3
     }
 }

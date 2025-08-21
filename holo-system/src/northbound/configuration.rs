@@ -86,8 +86,8 @@ impl Provider for Master {
     type Event = Event;
     type Resource = Resource;
 
-    fn callbacks() -> Option<&'static Callbacks<Master>> {
-        Some(&CALLBACKS)
+    fn callbacks() -> &'static Callbacks<Master> {
+        &CALLBACKS
     }
 
     async fn process_event(&mut self, event: Event) {

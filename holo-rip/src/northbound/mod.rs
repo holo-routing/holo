@@ -23,11 +23,9 @@ pub trait NorthboundVersion<V: Version> {
     fn validation_callbacks()
     -> Option<&'static northbound::configuration::ValidationCallbacks>;
     fn configuration_callbacks()
-    -> Option<&'static northbound::configuration::Callbacks<Instance<V>>>;
-    fn rpc_callbacks()
-    -> Option<&'static northbound::rpc::Callbacks<Instance<V>>>;
-    fn state_callbacks()
-    -> Option<&'static northbound::state::Callbacks<Instance<V>>>;
+    -> &'static northbound::configuration::Callbacks<Instance<V>>;
+    fn rpc_callbacks() -> &'static northbound::rpc::Callbacks<Instance<V>>;
+    fn state_callbacks() -> &'static northbound::state::Callbacks<Instance<V>>;
 }
 
 // ===== impl Instance =====
@@ -66,19 +64,17 @@ impl NorthboundVersion<Self> for Ripv2 {
     }
 
     fn configuration_callbacks()
-    -> Option<&'static northbound::configuration::Callbacks<Instance<Self>>>
+    -> &'static northbound::configuration::Callbacks<Instance<Self>> {
+        &configuration::CALLBACKS_RIPV2
+    }
+
+    fn rpc_callbacks() -> &'static northbound::rpc::Callbacks<Instance<Self>> {
+        &rpc::CALLBACKS_RIPV2
+    }
+
+    fn state_callbacks() -> &'static northbound::state::Callbacks<Instance<Self>>
     {
-        Some(&configuration::CALLBACKS_RIPV2)
-    }
-
-    fn rpc_callbacks()
-    -> Option<&'static northbound::rpc::Callbacks<Instance<Self>>> {
-        Some(&rpc::CALLBACKS_RIPV2)
-    }
-
-    fn state_callbacks()
-    -> Option<&'static northbound::state::Callbacks<Instance<Self>>> {
-        Some(&state::CALLBACKS_RIPV2)
+        &state::CALLBACKS_RIPV2
     }
 }
 
@@ -95,18 +91,16 @@ impl NorthboundVersion<Self> for Ripng {
     }
 
     fn configuration_callbacks()
-    -> Option<&'static northbound::configuration::Callbacks<Instance<Self>>>
+    -> &'static northbound::configuration::Callbacks<Instance<Self>> {
+        &configuration::CALLBACKS_RIPNG
+    }
+
+    fn rpc_callbacks() -> &'static northbound::rpc::Callbacks<Instance<Self>> {
+        &rpc::CALLBACKS_RIPNG
+    }
+
+    fn state_callbacks() -> &'static northbound::state::Callbacks<Instance<Self>>
     {
-        Some(&configuration::CALLBACKS_RIPNG)
-    }
-
-    fn rpc_callbacks()
-    -> Option<&'static northbound::rpc::Callbacks<Instance<Self>>> {
-        Some(&rpc::CALLBACKS_RIPNG)
-    }
-
-    fn state_callbacks()
-    -> Option<&'static northbound::state::Callbacks<Instance<Self>>> {
-        Some(&state::CALLBACKS_RIPNG)
+        &state::CALLBACKS_RIPNG
     }
 }

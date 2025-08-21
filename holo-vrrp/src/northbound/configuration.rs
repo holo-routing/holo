@@ -346,8 +346,8 @@ impl Provider for Interface {
     type Event = Event;
     type Resource = Resource;
 
-    fn callbacks() -> Option<&'static Callbacks<Interface>> {
-        Some(&CALLBACKS)
+    fn callbacks() -> &'static Callbacks<Interface> {
+        &CALLBACKS
     }
 
     async fn process_event(&mut self, event: Event) {

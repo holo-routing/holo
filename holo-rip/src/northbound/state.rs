@@ -270,7 +270,7 @@ where
 {
     type ListEntry<'a> = ListEntry<'a, V>;
 
-    fn callbacks() -> Option<&'static Callbacks<Instance<V>>> {
+    fn callbacks() -> &'static Callbacks<Instance<V>> {
         V::state_callbacks()
     }
 }

@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+mod birt;
 mod ibus;
 mod interface;
 mod netlink;
@@ -27,9 +28,10 @@ use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 use tracing::{Instrument, warn};
 
+use crate::birt::Birt;
 use crate::interface::Interfaces;
 use crate::northbound::configuration::StaticRoute;
-use crate::rib::{Birt, Rib};
+use crate::rib::Rib;
 
 pub struct Master {
     // Northbound Tx channel.

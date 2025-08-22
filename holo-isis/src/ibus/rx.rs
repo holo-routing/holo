@@ -25,7 +25,7 @@ use crate::route::RouteSys;
 
 // ===== global functions =====
 
-pub(crate) async fn process_router_id_update(
+pub(crate) fn process_router_id_update(
     instance: &mut Instance,
     router_id: Option<Ipv4Addr>,
 ) {

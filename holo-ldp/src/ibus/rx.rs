@@ -78,12 +78,12 @@ fn process_new_fec(instance: &mut InstanceUpView<'_>, prefix: IpNetwork) {
 
 // ===== global functions =====
 
-pub(crate) async fn process_router_id_update(
+pub(crate) fn process_router_id_update(
     instance: &mut Instance,
     router_id: Option<Ipv4Addr>,
 ) {
     instance.system.router_id = router_id;
-    instance.update().await;
+    instance.update();
 }
 
 pub(crate) fn process_iface_update(

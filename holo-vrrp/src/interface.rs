@@ -154,7 +154,6 @@ impl Interface {
     }
 }
 
-#[async_trait]
 impl ProtocolInstance for Interface {
     const PROTOCOL: Protocol = Protocol::VRRP;
 
@@ -163,7 +162,7 @@ impl ProtocolInstance for Interface {
     type ProtocolInputChannelsTx = ProtocolInputChannelsTx;
     type ProtocolInputChannelsRx = ProtocolInputChannelsRx;
 
-    async fn new(
+    fn new(
         name: String,
         shared: InstanceShared,
         tx: InstanceChannelsTx<Interface>,
@@ -180,13 +179,13 @@ impl ProtocolInstance for Interface {
         }
     }
 
-    async fn init(&mut self) {
+    fn init(&mut self) {
         // Request system information about all interfaces.
         self.tx.ibus.interface_sub(None, None);
     }
 
-    async fn process_ibus_msg(&mut self, msg: IbusMsg) {
-        if let Err(error) = process_ibus_msg(self, msg).await {
+    fn process_ibus_msg(&mut self, msg: IbusMsg) {
+        if let Err(error) = process_ibus_msg(self, msg) {
             error.log();
         }
     }
@@ -264,7 +263,7 @@ impl MessageReceiver<ProtocolInputMsg> for ProtocolInputChannelsRx {
 
 // ===== helper functions =====
 
-async fn process_ibus_msg(
+fn process_ibus_msg(
     interface: &mut Interface,
     msg: IbusMsg,
 ) -> Result<(), Error> {

@@ -141,10 +141,10 @@ where
 {
     // Checks if the instance needs to be started or stopped in response to a
     // northbound or southbound event.
-    pub(crate) async fn update(&mut self) {
+    pub(crate) fn update(&mut self) {
         match self.is_ready() {
             Ok(()) if !self.is_active() => {
-                self.start().await;
+                self.start();
             }
             Err(reason) if self.is_active() => {
                 self.stop(reason);
@@ -153,11 +153,11 @@ where
         }
     }
 
-    async fn start(&mut self) {
+    fn start(&mut self) {
         Debug::<V>::InstanceStart.log();
 
         let update_interval = self.config.update_interval;
-        let state = InstanceState::new(update_interval, &self.tx).await;
+        let state = InstanceState::new(update_interval, &self.tx);
         self.state = Some(state);
         let (mut instance, interfaces) = self.as_up().unwrap();
 
@@ -213,7 +213,6 @@ where
     }
 }
 
-#[async_trait]
 impl<V> ProtocolInstance for Instance<V>
 where
     V: Version,
@@ -225,7 +224,7 @@ where
     type ProtocolInputChannelsTx = ProtocolInputChannelsTx<V>;
     type ProtocolInputChannelsRx = ProtocolInputChannelsRx<V>;
 
-    async fn new(
+    fn new(
         name: String,
         _shared: InstanceShared,
         tx: InstanceChannelsTx<Instance<V>>,
@@ -242,18 +241,18 @@ where
         }
     }
 
-    async fn init(&mut self) {
-        self.update().await;
+    fn init(&mut self) {
+        self.update();
     }
 
-    async fn shutdown(mut self) {
+    fn shutdown(mut self) {
         // Ensure instance is disabled before exiting.
         self.stop(InstanceInactiveReason::AdminDown);
         Debug::<V>::InstanceDelete.log();
     }
 
-    async fn process_ibus_msg(&mut self, msg: IbusMsg) {
-        if let Err(error) = process_ibus_msg(self, msg).await {
+    fn process_ibus_msg(&mut self, msg: IbusMsg) {
+        if let Err(error) = process_ibus_msg(self, msg) {
             error.log();
         }
     }
@@ -321,7 +320,7 @@ impl<V> InstanceState<V>
 where
     V: Version,
 {
-    async fn new(
+    fn new(
         update_interval: u16,
         tx: &InstanceChannelsTx<Instance<V>>,
     ) -> InstanceState<V> {
@@ -433,7 +432,7 @@ where
 
 // ===== helper functions =====
 
-async fn process_ibus_msg<V>(
+fn process_ibus_msg<V>(
     instance: &mut Instance<V>,
     msg: IbusMsg,
 ) -> Result<(), Error<V>>

@@ -29,30 +29,26 @@ where
     CallbacksBuilder::<Instance<V>>::default()
         .path(yang::clear_neighbor::PATH)
         .rpc(|instance, args| {
-            Box::pin(async move {
-                let rpc = args.data.find_path(args.rpc_path).unwrap();
+            let rpc = args.data.find_path(args.rpc_path).unwrap();
 
-                // Parse input parameters.
-                let ifname = rpc.get_string_relative("./interface");
+            // Parse input parameters.
+            let ifname = rpc.get_string_relative("./interface");
 
-                // Clear neighbors.
-                if let Some((instance, arenas)) = instance.as_up() {
-                    clear_neighbors(&instance, arenas, ifname);
-                }
+            // Clear neighbors.
+            if let Some((instance, arenas)) = instance.as_up() {
+                clear_neighbors(&instance, arenas, ifname);
+            }
 
-                Ok(())
-            })
+            Ok(())
         })
         .path(yang::clear_database::PATH)
         .rpc(|instance, _args| {
-            Box::pin(async move {
-                // Clear database.
-                if let Some((mut instance, arenas)) = instance.as_up() {
-                    clear_database(&mut instance, arenas);
-                }
+            // Clear database.
+            if let Some((mut instance, arenas)) = instance.as_up() {
+                clear_database(&mut instance, arenas);
+            }
 
-                Ok(())
-            })
+            Ok(())
         })
         .build()
 }

@@ -310,7 +310,6 @@ impl Instance {
     }
 }
 
-#[async_trait]
 impl ProtocolInstance for Instance {
     const PROTOCOL: Protocol = Protocol::ISIS;
 
@@ -319,7 +318,7 @@ impl ProtocolInstance for Instance {
     type ProtocolInputChannelsTx = ProtocolInputChannelsTx;
     type ProtocolInputChannelsRx = ProtocolInputChannelsRx;
 
-    async fn new(
+    fn new(
         name: String,
         shared: InstanceShared,
         tx: InstanceChannelsTx<Instance>,
@@ -337,7 +336,7 @@ impl ProtocolInstance for Instance {
         }
     }
 
-    async fn init(&mut self) {
+    fn init(&mut self) {
         // Request information about the system Router ID.
         ibus::tx::router_id_sub(&self.tx.ibus);
 
@@ -345,14 +344,14 @@ impl ProtocolInstance for Instance {
         ibus::tx::hostname_sub(&self.tx.ibus);
     }
 
-    async fn shutdown(mut self) {
+    fn shutdown(mut self) {
         // Ensure instance is disabled before exiting.
         self.stop(InstanceInactiveReason::AdminDown);
         Debug::InstanceDelete.log();
     }
 
-    async fn process_ibus_msg(&mut self, msg: IbusMsg) {
-        if let Err(error) = process_ibus_msg(self, msg).await {
+    fn process_ibus_msg(&mut self, msg: IbusMsg) {
+        if let Err(error) = process_ibus_msg(self, msg) {
             error.log();
         }
     }
@@ -617,7 +616,7 @@ impl InstanceUpView<'_> {
 
 // ===== helper functions =====
 
-async fn process_ibus_msg(
+fn process_ibus_msg(
     instance: &mut Instance,
     msg: IbusMsg,
 ) -> Result<(), Error> {
@@ -632,7 +631,7 @@ async fn process_ibus_msg(
         }
         // Router ID update notification.
         IbusMsg::RouterIdUpdate(router_id) => {
-            ibus::rx::process_router_id_update(instance, router_id).await;
+            ibus::rx::process_router_id_update(instance, router_id);
         }
         // Interface update notification.
         IbusMsg::InterfaceUpd(msg) => {

@@ -152,12 +152,12 @@ impl Instance {
     // northbound or southbound event.
     //
     // NOTE: Router-ID updates are ignored if the instance is already active.
-    pub(crate) async fn update(&mut self) {
+    pub(crate) fn update(&mut self) {
         let router_id = self.get_router_id();
 
         match self.is_ready(router_id) {
             Ok(()) if !self.is_active() => {
-                self.try_start(router_id.unwrap()).await;
+                self.try_start(router_id.unwrap());
             }
             Err(reason) if self.is_active() => {
                 self.stop(reason);
@@ -166,11 +166,11 @@ impl Instance {
         }
     }
 
-    async fn try_start(&mut self, router_id: Ipv4Addr) {
+    fn try_start(&mut self, router_id: Ipv4Addr) {
         let trans_addr = router_id;
         let proto_input_tx = &self.tx.protocol_input;
 
-        match InstanceState::new(router_id, trans_addr, proto_input_tx).await {
+        match InstanceState::new(router_id, trans_addr, proto_input_tx) {
             Ok(state) => {
                 Debug::InstanceStart.log();
 
@@ -263,7 +263,6 @@ impl Instance {
     }
 }
 
-#[async_trait]
 impl ProtocolInstance for Instance {
     const PROTOCOL: Protocol = Protocol::LDP;
 
@@ -272,7 +271,7 @@ impl ProtocolInstance for Instance {
     type ProtocolInputChannelsTx = ProtocolInputChannelsTx;
     type ProtocolInputChannelsRx = ProtocolInputChannelsRx;
 
-    async fn new(
+    fn new(
         name: String,
         shared: InstanceShared,
         tx: InstanceChannelsTx<Instance>,
@@ -291,7 +290,7 @@ impl ProtocolInstance for Instance {
         }
     }
 
-    async fn init(&mut self) {
+    fn init(&mut self) {
         // Request information about the system Router ID.
         ibus::tx::router_id_sub(&self.tx.ibus);
 
@@ -299,14 +298,14 @@ impl ProtocolInstance for Instance {
         ibus::tx::route_redistribute_sub(&self.tx.ibus);
     }
 
-    async fn shutdown(mut self) {
+    fn shutdown(mut self) {
         // Ensure instance is disabled before exiting.
         self.stop(InstanceInactiveReason::AdminDown);
         Debug::InstanceDelete.log();
     }
 
-    async fn process_ibus_msg(&mut self, msg: IbusMsg) {
-        if let Err(error) = process_ibus_msg(self, msg).await {
+    fn process_ibus_msg(&mut self, msg: IbusMsg) {
+        if let Err(error) = process_ibus_msg(self, msg) {
             error.log();
         }
     }
@@ -382,7 +381,7 @@ impl InstanceCfg {
 // ===== impl InstanceState =====
 
 impl InstanceState {
-    async fn new(
+    fn new(
         router_id: Ipv4Addr,
         trans_addr: Ipv4Addr,
         proto_input_tx: &ProtocolInputChannelsTx,
@@ -395,7 +394,6 @@ impl InstanceState {
             .map(Arc::new)
             .map_err(IoError::UdpSocketError)?;
         let session_socket = tcp::listen_socket(IpAddr::V4(trans_addr))
-            .await
             .map(Arc::new)
             .map_err(IoError::TcpSocketError)?;
 
@@ -465,7 +463,7 @@ impl MessageReceiver<ProtocolInputMsg> for ProtocolInputChannelsRx {
 
 // ===== helper functions =====
 
-async fn process_ibus_msg(
+fn process_ibus_msg(
     instance: &mut Instance,
     msg: IbusMsg,
 ) -> Result<(), Error> {
@@ -484,7 +482,7 @@ async fn process_ibus_msg(
         }
         // Router ID update notification.
         IbusMsg::RouterIdUpdate(router_id) => {
-            ibus::rx::process_router_id_update(instance, router_id).await;
+            ibus::rx::process_router_id_update(instance, router_id);
         }
         // Route redistribute update notification.
         IbusMsg::RouteRedistributeAdd(msg) => {

@@ -449,7 +449,7 @@ impl Provider for Instance {
 
     async fn process_event(&mut self, event: Event) {
         match event {
-            Event::InstanceUpdate => self.update().await,
+            Event::InstanceUpdate => self.update(),
             Event::InterfaceUpdate(iface_idx) => {
                 if let Some((mut instance, interfaces, _)) = self.as_up() {
                     let iface = &mut interfaces[iface_idx];

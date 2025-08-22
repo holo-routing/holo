@@ -30,7 +30,7 @@ use crate::tasks::messages::output::NbrTxPduMsg;
 
 // ===== global functions =====
 
-pub(crate) async fn listen_socket(
+pub(crate) fn listen_socket(
     addr: IpAddr,
 ) -> Result<TcpListener, std::io::Error> {
     #[cfg(not(feature = "testing"))]

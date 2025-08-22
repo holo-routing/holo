@@ -5,8 +5,6 @@
 //
 
 use std::collections::HashMap;
-use std::future::Future;
-use std::pin::Pin;
 
 use holo_utils::yang::SchemaNodeExt;
 use holo_yang::YangPath;
@@ -39,12 +37,8 @@ pub struct CallbackArgs<'a> {
 // Useful type definition(s).
 //
 
-pub type Callback<P> = for<'a> fn(
-    &'a mut P,
-    CallbackArgs<'a>,
-) -> Pin<
-    Box<dyn Future<Output = Result<(), String>> + Send + 'a>,
->;
+pub type Callback<P> =
+    for<'a> fn(&'a mut P, CallbackArgs<'a>) -> Result<(), String>;
 
 // RPC protocol trait.
 pub trait Provider: ProviderBase {
@@ -141,7 +135,7 @@ where
 
 // ===== helper functions =====
 
-async fn process_rpc_local<P>(
+fn process_rpc_local<P>(
     provider: &mut P,
     mut data: DataTree<'static>,
     rpc_data_path: String,
@@ -159,7 +153,7 @@ where
             data: &mut data,
             rpc_path: &rpc_data_path,
         };
-        (*cb)(provider, args).await.map_err(Error::RpcCallback)?;
+        (*cb)(provider, args).map_err(Error::RpcCallback)?;
     }
 
     let response = api::daemon::RpcResponse { data };
@@ -220,6 +214,6 @@ where
     {
         process_rpc_relayed(data, children_nb_tx).await
     } else {
-        process_rpc_local(provider, data, rpc_data_path, rpc_schema_path).await
+        process_rpc_local(provider, data, rpc_data_path, rpc_schema_path)
     }
 }

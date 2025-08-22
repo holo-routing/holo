@@ -36,7 +36,6 @@ use crate::event_recorder::EventRecorder;
 use crate::test::{OutputChannelsRx, process_test_msg, stub::TestMsg};
 
 /// A trait for protocol instances.
-#[async_trait]
 pub trait ProtocolInstance
 where
     Self: 'static
@@ -56,20 +55,20 @@ where
     type ProtocolInputChannelsRx: MessageReceiver<Self::ProtocolInputMsg>;
 
     /// Create protocol instance.
-    async fn new(
+    fn new(
         name: String,
         shared: InstanceShared,
         channels_tx: InstanceChannelsTx<Self>,
     ) -> Self;
 
     /// Optional protocol instance initialization routine.
-    async fn init(&mut self) {}
+    fn init(&mut self) {}
 
     /// Optional protocol instance shutdown routine.
-    async fn shutdown(self) {}
+    fn shutdown(self) {}
 
     /// Process ibus message.
-    async fn process_ibus_msg(&mut self, msg: IbusMsg);
+    fn process_ibus_msg(&mut self, msg: IbusMsg);
 
     /// Process protocol message.
     fn process_protocol_msg(&mut self, msg: Self::ProtocolInputMsg);
@@ -279,7 +278,7 @@ async fn event_loop<P>(
                 return;
             }
             InstanceMsg::Ibus(msg) => {
-                instance.process_ibus_msg(msg).await;
+                instance.process_ibus_msg(msg);
             }
             InstanceMsg::Protocol(msg) => {
                 instance.process_protocol_msg(msg);
@@ -340,8 +339,8 @@ async fn run<P>(
         .and_then(|config| EventRecorder::new(P::PROTOCOL, &name, config));
 
     // Create protocol instance.
-    let mut instance = P::new(name, shared, instance_channels_tx).await;
-    instance.init().await;
+    let mut instance = P::new(name, shared, instance_channels_tx);
+    instance.init();
 
     // Run event loop.
     event_loop(
@@ -358,7 +357,7 @@ async fn run<P>(
     ibus_tx.disconnect();
 
     // Ensure instance is shut down before exiting.
-    instance.shutdown().await;
+    instance.shutdown();
 }
 
 // ===== global functions =====

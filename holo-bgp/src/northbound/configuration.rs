@@ -1564,7 +1564,7 @@ impl Provider for Instance {
 
     async fn process_event(&mut self, event: Event) {
         match event {
-            Event::InstanceUpdate => self.update().await,
+            Event::InstanceUpdate => self.update(),
             Event::NeighborUpdate(nbr_addr) => {
                 let Some((mut instance, neighbors)) = self.as_up() else {
                     return;

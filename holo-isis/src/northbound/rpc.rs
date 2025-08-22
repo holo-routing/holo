@@ -27,40 +27,34 @@ fn load_callbacks() -> Callbacks<Instance> {
     CallbacksBuilder::<Instance>::default()
         .path(yang::clear_adjacency::PATH)
         .rpc(|instance, args| {
-            Box::pin(async move {
-                let rpc = args.data.find_path(args.rpc_path).unwrap();
+            let rpc = args.data.find_path(args.rpc_path).unwrap();
 
-                // Parse input parameters.
-                let ifname = rpc.get_string_relative("./interface");
+            // Parse input parameters.
+            let ifname = rpc.get_string_relative("./interface");
 
-                // Clear adjacencies.
-                if let Some((mut instance, arenas)) = instance.as_up() {
-                    clear_adjacencies(&mut instance, arenas, ifname);
-                }
+            // Clear adjacencies.
+            if let Some((mut instance, arenas)) = instance.as_up() {
+                clear_adjacencies(&mut instance, arenas, ifname);
+            }
 
-                Ok(())
-            })
+            Ok(())
         })
         .path(yang::isis_clear_database::PATH)
         .rpc(|instance, args| {
-            Box::pin(async move {
-                let rpc = args.data.find_path(args.rpc_path).unwrap();
+            let rpc = args.data.find_path(args.rpc_path).unwrap();
 
-                // Parse input parameters.
-                let level_type = rpc
-                    .get_string_relative("./level")
-                    .and_then(|level_type| {
-                        LevelType::try_from_yang(&level_type)
-                    })
-                    .unwrap_or(LevelType::All);
+            // Parse input parameters.
+            let level_type = rpc
+                .get_string_relative("./level")
+                .and_then(|level_type| LevelType::try_from_yang(&level_type))
+                .unwrap_or(LevelType::All);
 
-                // Clear database.
-                if let Some((mut instance, arenas)) = instance.as_up() {
-                    clear_database(&mut instance, arenas, level_type);
-                }
+            // Clear database.
+            if let Some((mut instance, arenas)) = instance.as_up() {
+                clear_database(&mut instance, arenas, level_type);
+            }
 
-                Ok(())
-            })
+            Ok(())
         })
         .build()
 }

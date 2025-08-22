@@ -397,7 +397,6 @@ where
     }
 }
 
-#[async_trait]
 impl<V> ProtocolInstance for Instance<V>
 where
     V: Version,
@@ -409,7 +408,7 @@ where
     type ProtocolInputChannelsTx = ProtocolInputChannelsTx<V>;
     type ProtocolInputChannelsRx = ProtocolInputChannelsRx<V>;
 
-    async fn new(
+    fn new(
         name: String,
         shared: InstanceShared,
         tx: InstanceChannelsTx<Instance<V>>,
@@ -427,7 +426,7 @@ where
         }
     }
 
-    async fn init(&mut self) {
+    fn init(&mut self) {
         // Request information about the system Router ID.
         ibus::tx::router_id_sub(&self.tx.ibus);
 
@@ -435,13 +434,13 @@ where
         ibus::tx::hostname_sub(&self.tx.ibus);
     }
 
-    async fn shutdown(mut self) {
+    fn shutdown(mut self) {
         // Ensure instance is disabled before exiting.
         self.stop(InstanceInactiveReason::AdminDown);
     }
 
-    async fn process_ibus_msg(&mut self, msg: IbusMsg) {
-        if let Err(error) = process_ibus_msg(self, msg).await {
+    fn process_ibus_msg(&mut self, msg: IbusMsg) {
+        if let Err(error) = process_ibus_msg(self, msg) {
             error.log();
         }
     }
@@ -734,7 +733,7 @@ where
 
 // ===== helper functions =====
 
-async fn process_ibus_msg<V>(
+fn process_ibus_msg<V>(
     instance: &mut Instance<V>,
     msg: IbusMsg,
 ) -> Result<(), Error<V>>

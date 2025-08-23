@@ -10,8 +10,7 @@ use holo_utils::bier::{
     self, BfrId, Bift, BirtEntry, Bitstring, Bsl, SubDomainId,
 };
 use holo_utils::southbound::{BierNbrInstallMsg, BierNbrUninstallMsg, Nexthop};
-use tokio::sync::mpsc;
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::UnboundedSender;
 
 use crate::interface::Interfaces;
 
@@ -20,12 +19,19 @@ pub struct Birt {
     pub entries: BTreeMap<(SubDomainId, BfrId, Bsl), BirtEntry>,
     pub bier_update_queue: BTreeSet<BfrId>,
     pub update_queue_tx: UnboundedSender<()>,
-    pub update_queue_rx: UnboundedReceiver<()>,
 }
 
 // ===== impl Birt =====
 
 impl Birt {
+    pub(crate) fn new(update_queue_tx: UnboundedSender<()>) -> Self {
+        Self {
+            entries: Default::default(),
+            bier_update_queue: Default::default(),
+            update_queue_tx,
+        }
+    }
+
     pub(crate) fn bier_nbr_add(&mut self, msg: BierNbrInstallMsg) {
         let bfr_id = msg.bier_info.bfr_id;
         msg.bier_info.bfr_bss.iter().for_each(|bsl| {
@@ -55,7 +61,7 @@ impl Birt {
         let _ = self.entries.remove(&(msg.sd_id, msg.bfr_id, msg.bsl));
     }
 
-    pub(crate) async fn process_birt_update_queue(
+    pub(crate) fn process_birt_update_queue(
         &mut self,
         interfaces: &Interfaces,
     ) {
@@ -107,24 +113,12 @@ impl Birt {
             }
         }
 
-        bier::bift_sync(&bift).await;
+        bier::bift_sync(bift.clone());
     }
 
     // Adds BIER route to the update queue.
     fn bier_update_queue_add(&mut self, bfr_id: BfrId) {
         self.bier_update_queue.insert(bfr_id);
         let _ = self.update_queue_tx.send(());
-    }
-}
-
-impl Default for Birt {
-    fn default() -> Self {
-        let (update_queue_tx, update_queue_rx) = mpsc::unbounded_channel();
-        Self {
-            entries: Default::default(),
-            bier_update_queue: Default::default(),
-            update_queue_tx,
-            update_queue_rx,
-        }
     }
 }

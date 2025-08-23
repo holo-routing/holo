@@ -467,7 +467,7 @@ where
 
 // ===== global functions =====
 
-pub(crate) async fn process_get<P>(
+pub(crate) fn process_get<P>(
     provider: &P,
     path: Option<String>,
 ) -> Result<api::daemon::GetResponse, Error>
@@ -529,12 +529,11 @@ where
         // Send request to child task.
         relayed_req
             .tx
-            .send(api::daemon::Request::Get(relayed_req.request))
-            .await
+            .blocking_send(api::daemon::Request::Get(relayed_req.request))
             .unwrap();
 
         // Receive response.
-        let response = relayed_req.rx.await.unwrap()?;
+        let response = relayed_req.rx.blocking_recv().unwrap()?;
 
         // Merge received data into the current data tree.
         dtree

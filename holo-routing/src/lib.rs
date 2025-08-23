@@ -21,15 +21,18 @@ use holo_northbound::{
 };
 use holo_protocol::InstanceShared;
 use holo_utils::bier::BierCfg;
-use holo_utils::ibus::{IbusChannelsTx, IbusReceiver, IbusSender};
+use holo_utils::ibus::{IbusChannelsTx, IbusMsg, IbusReceiver, IbusSender};
 use holo_utils::protocol::Protocol;
 use holo_utils::sr::SrCfg;
+use holo_utils::task::Task;
 use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
-use tracing::{Instrument, warn};
+use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
+use tracing::warn;
 
 use crate::birt::Birt;
 use crate::interface::Interfaces;
+use crate::netlink::NetlinkRequest;
 use crate::northbound::configuration::StaticRoute;
 use crate::rib::Rib;
 
@@ -38,10 +41,10 @@ pub struct Master {
     pub nb_tx: NbProviderSender,
     // Internal bus Tx channels.
     pub ibus_tx: IbusChannelsTx,
+    // Netlink Tx channel.
+    pub netlink_tx: UnboundedSender<NetlinkRequest>,
     // Shared data among all protocol instances.
     pub shared: InstanceShared,
-    // Netlink socket.
-    pub netlink_handle: rtnetlink::Handle,
     // List of interfaces.
     pub interfaces: Interfaces,
     // RIB.
@@ -72,48 +75,93 @@ pub struct InstanceHandle {
     pub ibus_tx: IbusSender,
 }
 
+#[derive(Debug)]
+pub enum EventMsg {
+    Northbound(Option<holo_northbound::api::daemon::Request>),
+    Ibus(IbusMsg),
+    RibUpdate,
+    BirtUpdate,
+}
+
 // ===== impl Master =====
 
 impl Master {
-    async fn run(
+    fn run(
         &mut self,
-        mut nb_rx: NbDaemonReceiver,
-        mut ibus_rx: IbusReceiver,
+        nb_rx: NbDaemonReceiver,
+        ibus_rx: IbusReceiver,
+        rib_update_queue_rx: UnboundedReceiver<()>,
+        birt_update_queue_rx: UnboundedReceiver<()>,
     ) {
-        let mut resources = vec![];
+        // Spawn event aggregator task.
+        let (agg_tx, mut agg_rx) = mpsc::channel(4);
+        let _event_aggregator = event_aggregator(
+            nb_rx,
+            ibus_rx,
+            rib_update_queue_rx,
+            birt_update_queue_rx,
+            agg_tx,
+        );
 
+        let mut resources = vec![];
         loop {
-            tokio::select! {
-                request = nb_rx.recv() => match request {
-                    Some(request) => {
-                        process_northbound_msg(
-                            self,
-                            &mut resources,
-                            request
-                        )
-                        .await;
-                    }
+            // Receive event message.
+            let msg = agg_rx.blocking_recv().unwrap();
+
+            // Process event message.
+            match msg {
+                EventMsg::Northbound(Some(msg)) => {
+                    process_northbound_msg(self, &mut resources, msg);
+                }
+                EventMsg::Northbound(None) => {
                     // Exit when northbound channel closes.
-                    None => return,
-                },
-                Some(msg) = ibus_rx.recv() => {
+                    return;
+                }
+                EventMsg::Ibus(msg) => {
                     ibus::process_msg(self, msg);
                 }
-                Some(_) = self.rib.update_queue_rx.recv() => {
-                    self.rib
-                        .process_rib_update_queue(
-                            &self.interfaces,
-                            &self.netlink_handle,
-                        )
-                        .await;
+                EventMsg::RibUpdate => {
+                    self.rib.process_rib_update_queue(
+                        &self.interfaces,
+                        &self.netlink_tx,
+                    );
                 }
-                Some(_) = self.birt.update_queue_rx.recv() => {
-                    self.birt
-                        .process_birt_update_queue(&self.interfaces).await;
+                EventMsg::BirtUpdate => {
+                    self.birt.process_birt_update_queue(&self.interfaces);
                 }
             }
         }
     }
+}
+
+// ===== helper functions =====
+
+fn event_aggregator(
+    mut nb_rx: NbDaemonReceiver,
+    mut ibus_rx: IbusReceiver,
+    mut rib_update_queue_rx: UnboundedReceiver<()>,
+    mut birt_update_queue_rx: UnboundedReceiver<()>,
+    agg_tx: Sender<EventMsg>,
+) -> Task<()> {
+    Task::spawn(async move {
+        loop {
+            let msg = tokio::select! {
+                msg = nb_rx.recv() => {
+                    EventMsg::Northbound(msg)
+                }
+                Some(msg) = ibus_rx.recv() => {
+                    EventMsg::Ibus(msg)
+                }
+                Some(_) = rib_update_queue_rx.recv() => {
+                    EventMsg::RibUpdate
+                }
+                Some(_) = birt_update_queue_rx.recv() => {
+                    EventMsg::BirtUpdate
+                }
+            };
+            let _ = agg_tx.send(msg).await;
+        }
+    })
 }
 
 // ===== global functions =====
@@ -125,20 +173,24 @@ pub fn start(
     shared: InstanceShared,
 ) -> NbDaemonSender {
     let (nb_daemon_tx, nb_daemon_rx) = mpsc::channel(4);
+    let (netlink_txp, mut netlink_txc) = mpsc::unbounded_channel();
+    let (rib_update_queue_tx, rib_update_queue_rx) = mpsc::unbounded_channel();
+    let (birt_update_queue_tx, birt_update_queue_rx) =
+        mpsc::unbounded_channel();
 
-    tokio::spawn(async move {
+    tokio::task::spawn(async move {
         let mut master = Master {
             nb_tx,
             ibus_tx,
+            netlink_tx: netlink_txp,
             shared: shared.clone(),
-            netlink_handle: netlink::init(),
             interfaces: Default::default(),
-            rib: Default::default(),
+            rib: Rib::new(rib_update_queue_tx),
             static_routes: Default::default(),
             sr_config: Default::default(),
             bier_config: Default::default(),
             instances: Default::default(),
-            birt: Default::default(),
+            birt: Birt::new(birt_update_queue_tx),
         };
 
         // Request information about all interfaces addresses.
@@ -157,9 +209,19 @@ pub fn start(
             warn!(%error, "failed to set MPLS platform labels");
         }
 
+        // Initialize netlink socket.
+        let netlink_handle = netlink::init();
+
         // Purge stale routes potentially left behind by a previous Holo
         // instance.
-        netlink::purge_stale_routes(&master.netlink_handle).await;
+        netlink::purge_stale_routes(&netlink_handle).await;
+
+        // Start netlink Tx task.
+        let netlink_tx_task = tokio::task::spawn(async move {
+            while let Some(request) = netlink_txc.recv().await {
+                request.execute(&netlink_handle).await;
+            }
+        });
 
         // Start BFD task.
         #[cfg(feature = "bfd")]
@@ -184,11 +246,21 @@ pub fn start(
         }
 
         // Run task main loop.
-        let span = Master::debug_span("");
-        master.run(nb_daemon_rx, ibus_rx).instrument(span).await;
+        tokio::task::spawn_blocking(move || {
+            let span = Master::debug_span("");
+            let _span_guard = span.enter();
+            master.run(
+                nb_daemon_rx,
+                ibus_rx,
+                rib_update_queue_rx,
+                birt_update_queue_rx,
+            );
 
-        // Uninstall all routes before exiting.
-        master.rib.route_uninstall_all(&master.netlink_handle).await;
+            // Uninstall all routes before exiting.
+            master.rib.route_uninstall_all(&master.netlink_tx);
+            drop(master.netlink_tx);
+            let _ = tokio::runtime::Handle::current().block_on(netlink_tx_task);
+        });
     });
 
     nb_daemon_tx

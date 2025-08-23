@@ -30,13 +30,65 @@ use tracing::{error, trace};
 
 use crate::Master;
 use crate::interface::Owner;
+use crate::mpsc::UnboundedSender;
 
 pub type NetlinkMonitor =
     UnboundedReceiver<(NetlinkMessage<RouteNetlinkMessage>, SocketAddr)>;
 
+pub enum NetlinkRequest {
+    LinkAdd(LinkMessage),
+    LinkSet(LinkMessage),
+    LinkDel(u32),
+    AddressAdd(u32, IpNetwork),
+    AddressDel(u32, IpNetwork),
+}
+
+// ===== impl NetlinkRequest =====
+
+impl NetlinkRequest {
+    pub(crate) async fn execute(self, handle: &Handle) {
+        match self {
+            NetlinkRequest::LinkAdd(msg) => {
+                let request = handle.link().add(msg);
+                if let Err(error) = request.execute().await {
+                    error!(%error, "failed to create interface");
+                }
+            }
+            NetlinkRequest::LinkSet(msg) => {
+                let request = handle.link().set(msg);
+                if let Err(error) = request.execute().await {
+                    error!(%error, "failed to update interface");
+                }
+            }
+            NetlinkRequest::LinkDel(ifindex) => {
+                let request = handle.link().del(ifindex);
+                if let Err(error) = request.execute().await {
+                    error!(%error, "failed to delete interface");
+                }
+            }
+            NetlinkRequest::AddressAdd(ifindex, addr) => {
+                let request =
+                    handle.address().add(ifindex, addr.ip(), addr.prefix());
+                if let Err(error) = request.execute().await {
+                    error!(%error, "failed to install interface address");
+                }
+            }
+            NetlinkRequest::AddressDel(ifindex, addr) => {
+                let mut request =
+                    handle.address().add(ifindex, addr.ip(), addr.prefix());
+                let request =
+                    handle.address().del(request.message_mut().clone());
+                if let Err(error) = request.execute().await {
+                    error!(%error, "failed to uninstall interface address");
+                }
+            }
+        }
+    }
+}
+
 // ===== helper functions =====
 
-async fn process_newlink_msg(master: &mut Master, msg: LinkMessage) {
+fn process_newlink_msg(master: &mut Master, msg: LinkMessage) {
     trace!(?msg, "received RTM_NEWLINK message");
 
     // Fetch interface attributes.
@@ -72,20 +124,17 @@ async fn process_newlink_msg(master: &mut Master, msg: LinkMessage) {
     };
 
     // Add or update interface.
-    master
-        .interfaces
-        .update(
-            ifname,
-            ifindex,
-            mtu,
-            flags,
-            mac_address,
-            &master.netlink_handle,
-        )
-        .await;
+    master.interfaces.update(
+        ifname,
+        ifindex,
+        mtu,
+        flags,
+        mac_address,
+        &master.netlink_tx,
+    );
 }
 
-async fn process_dellink_msg(master: &mut Master, msg: LinkMessage) {
+fn process_dellink_msg(master: &mut Master, msg: LinkMessage) {
     trace!(?msg, "received RTM_DELLINK message");
 
     // Fetch interface ifindex.
@@ -96,8 +145,7 @@ async fn process_dellink_msg(master: &mut Master, msg: LinkMessage) {
         let ifname = iface.name.clone();
         master
             .interfaces
-            .remove(&ifname, Owner::SYSTEM, &master.netlink_handle)
-            .await;
+            .remove(&ifname, Owner::SYSTEM, &master.netlink_tx);
     }
 }
 
@@ -191,8 +239,8 @@ fn parse_address(
 
 // ===== global functions =====
 
-pub(crate) async fn admin_status_change(
-    handle: &Handle,
+pub(crate) fn admin_status_change(
+    netlink_tx: &UnboundedSender<NetlinkRequest>,
     ifindex: u32,
     enabled: bool,
 ) {
@@ -201,29 +249,27 @@ pub(crate) async fn admin_status_change(
     msg = if enabled { msg.up() } else { msg.down() };
     let msg = msg.build();
 
-    // Execute netlink request.
-    let request = handle.link().set(msg);
-    if let Err(error) = request.execute().await {
-        error!(%ifindex, %enabled, %error, "failed to change interface's admin status");
-    }
+    // Enqueue netlink request.
+    netlink_tx.send(NetlinkRequest::LinkSet(msg)).unwrap();
 }
 
-pub(crate) async fn mtu_change(handle: &Handle, ifindex: u32, mtu: u32) {
+pub(crate) fn mtu_change(
+    netlink_tx: &UnboundedSender<NetlinkRequest>,
+    ifindex: u32,
+    mtu: u32,
+) {
     // Create netlink message.
     let msg = LinkMessageBuilder::<LinkUnspec>::new()
         .index(ifindex)
         .mtu(mtu)
         .build();
 
-    // Execute netlink request.
-    let request = handle.link().set(msg);
-    if let Err(error) = request.execute().await {
-        error!(%ifindex, %mtu, %error, "failed to change interface's MTU");
-    }
+    // Enqueue netlink request.
+    netlink_tx.send(NetlinkRequest::LinkSet(msg)).unwrap();
 }
 
-pub(crate) async fn vlan_create(
-    handle: &Handle,
+pub(crate) fn vlan_create(
+    netlink_tx: &UnboundedSender<NetlinkRequest>,
     name: String,
     parent_ifindex: u32,
     vlan_id: u16,
@@ -234,15 +280,12 @@ pub(crate) async fn vlan_create(
         .id(vlan_id)
         .build();
 
-    // Execute netlink request.
-    let request = handle.link().add(msg);
-    if let Err(error) = request.execute().await {
-        error!(%parent_ifindex, %vlan_id, %error, "failed to create VLAN interface");
-    }
+    // Enqueue netlink request.
+    netlink_tx.send(NetlinkRequest::LinkAdd(msg)).unwrap();
 }
 
-pub(crate) async fn macvlan_create(
-    handle: &Handle,
+pub(crate) fn macvlan_create(
+    netlink_tx: &UnboundedSender<NetlinkRequest>,
     name: String,
     mac_address: Option<[u8; 6]>,
     parent_ifindex: u32,
@@ -257,60 +300,51 @@ pub(crate) async fn macvlan_create(
     }
     let msg = msg.build();
 
-    // Execute netlink request.
-    let request = handle.link().add(msg);
-    if let Err(error) = request.execute().await {
-        error!(%parent_ifindex, %name, %error, "Failed to create MacVlan interface");
-    }
+    // Enqueue netlink request.
+    netlink_tx.send(NetlinkRequest::LinkAdd(msg)).unwrap();
 }
 
-pub(crate) async fn iface_delete(handle: &Handle, ifindex: u32) {
-    let request = handle.link().del(ifindex);
-    if let Err(err) = request.execute().await {
-        error!(%ifindex, %err, "failed to delete interface.");
-    }
+pub(crate) fn iface_delete(
+    netlink_tx: &UnboundedSender<NetlinkRequest>,
+    ifindex: u32,
+) {
+    // Enqueue netlink request.
+    netlink_tx.send(NetlinkRequest::LinkDel(ifindex)).unwrap();
 }
 
-pub(crate) async fn addr_install(
-    handle: &Handle,
+pub(crate) fn addr_install(
+    netlink_tx: &UnboundedSender<NetlinkRequest>,
     ifindex: u32,
     addr: &IpNetwork,
 ) {
-    // Create netlink request.
-    let request = handle.address().add(ifindex, addr.ip(), addr.prefix());
-
-    // Execute netlink request.
-    if let Err(error) = request.execute().await {
-        error!(%ifindex, %addr, %error, "failed to install interface address");
-    }
+    // Enqueue netlink request.
+    netlink_tx
+        .send(NetlinkRequest::AddressAdd(ifindex, *addr))
+        .unwrap();
 }
 
-pub(crate) async fn addr_uninstall(
-    handle: &Handle,
+pub(crate) fn addr_uninstall(
+    netlink_tx: &UnboundedSender<NetlinkRequest>,
     ifindex: u32,
     addr: &IpNetwork,
 ) {
-    // Create netlink request.
-    let mut request = handle.address().add(ifindex, addr.ip(), addr.prefix());
-
-    // Execute netlink request.
-    let request = handle.address().del(request.message_mut().clone());
-    if let Err(error) = request.execute().await {
-        error!(%ifindex, %addr, %error, "failed to uninstall interface address");
-    }
+    // Enqueue netlink request.
+    netlink_tx
+        .send(NetlinkRequest::AddressDel(ifindex, *addr))
+        .unwrap();
 }
 
-pub(crate) async fn process_msg(
+pub(crate) fn process_msg(
     master: &mut Master,
     msg: NetlinkMessage<RouteNetlinkMessage>,
 ) {
     if let NetlinkPayload::InnerMessage(msg) = msg.payload {
         match msg {
             RouteNetlinkMessage::NewLink(msg) => {
-                process_newlink_msg(master, msg).await
+                process_newlink_msg(master, msg)
             }
             RouteNetlinkMessage::DelLink(msg) => {
-                process_dellink_msg(master, msg).await
+                process_dellink_msg(master, msg)
             }
             RouteNetlinkMessage::NewAddress(msg) => {
                 process_newaddr_msg(master, msg)
@@ -323,19 +357,19 @@ pub(crate) async fn process_msg(
     }
 }
 
-pub(crate) async fn start(master: &mut Master) {
+pub(crate) async fn start(master: &mut Master, handle: &Handle) {
     // Fetch interface information.
-    let mut links = master.netlink_handle.link().get().execute();
+    let mut links = handle.link().get().execute();
     while let Some(msg) = links
         .try_next()
         .await
         .expect("Failed to fetch interface information")
     {
-        process_newlink_msg(master, msg).await;
+        process_newlink_msg(master, msg);
     }
 
     // Fetch address information.
-    let mut addresses = master.netlink_handle.address().get().execute();
+    let mut addresses = handle.address().get().execute();
     while let Some(msg) = addresses
         .try_next()
         .await
@@ -345,7 +379,7 @@ pub(crate) async fn start(master: &mut Master) {
     }
 }
 
-pub(crate) async fn init() -> (Handle, NetlinkMonitor) {
+pub(crate) fn init() -> (Handle, NetlinkMonitor) {
     // Create netlink socket.
     let (conn, handle, _) =
         new_connection().expect("Failed to create netlink socket");

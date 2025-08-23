@@ -29,7 +29,6 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender};
-use tracing::Instrument;
 
 use crate::event_recorder::EventRecorder;
 #[cfg(feature = "testing")]
@@ -195,15 +194,11 @@ where
                     msg = instance_channels_rx.nb.recv() => {
                         InstanceMsg::Northbound(msg)
                     }
-                    msg = instance_channels_rx.ibus.recv() => {
-                        if let Some(msg) = msg {
-                            InstanceMsg::Ibus(msg)
-                        } else {
-                            continue;
-                        }
+                    Some(msg) = instance_channels_rx.ibus.recv() => {
+                        InstanceMsg::Ibus(msg)
                     }
-                    msg = instance_channels_rx.protocol_input.recv() => {
-                        InstanceMsg::Protocol(msg.unwrap())
+                    Some(msg) = instance_channels_rx.protocol_input.recv() => {
+                        InstanceMsg::Protocol(msg)
                     }
                 };
 
@@ -221,17 +216,17 @@ where
                     msg = instance_channels_rx.nb.recv() => {
                         InstanceMsg::Northbound(msg)
                     }
-                    msg = instance_channels_rx.protocol_input.recv() => {
+                    Some(msg) = instance_channels_rx.protocol_input.recv() => {
                         if ignore_protocol_input {
                             continue;
                         }
-                        InstanceMsg::Protocol(msg.unwrap())
+                        InstanceMsg::Protocol(msg)
                     }
-                    msg = instance_channels_rx.test.recv() => {
+                    Some(msg) = instance_channels_rx.test.recv() => {
                         // Stop ignoring internal protocol events as soon as the
                         // unit test starts (after loading the topology).
                         ignore_protocol_input = false;
-                        InstanceMsg::Test(msg.unwrap())
+                        InstanceMsg::Test(msg)
                     }
                 };
 
@@ -271,7 +266,7 @@ async fn event_loop<P>(
         // Process event message.
         match msg {
             InstanceMsg::Northbound(Some(msg)) => {
-                process_northbound_msg(instance, &mut resources, msg).await;
+                process_northbound_msg(instance, &mut resources, msg);
             }
             InstanceMsg::Northbound(None) => {
                 // Instance was unconfigured.
@@ -380,9 +375,9 @@ where
     let (nb_daemon_tx, nb_daemon_rx) = mpsc::channel(4);
     let nb_provider_tx = nb_provider_tx.clone();
     let ibus_tx = IbusChannelsTx::with_subscriber(ibus_tx, ibus_instance_tx);
-
-    tokio::spawn(async move {
+    let fut = async move {
         let span = P::debug_span(&name);
+        let _span_guard = span.enter();
         run::<P>(
             name,
             nb_provider_tx,
@@ -394,9 +389,24 @@ where
             test_rx,
             shared,
         )
-        .instrument(span)
         .await;
+    };
+
+    // In testing, protocol instances are spawned as async tasks so they run
+    // under Tokio's single-threaded cooperative scheduler. This ensures
+    // deterministic ordering of message send/receive operations.
+    //
+    // In production, processing individual events in the main protocol task
+    // may take longer than is appropriate for async tasks. To avoid starving
+    // other tasks on the cooperative scheduler, protocol instances are spawned
+    // as blocking tasks backed by OS threads, relying on the OS for preemptive
+    // scheduling.
+    #[cfg(not(feature = "testing"))]
+    tokio::task::spawn_blocking(|| {
+        tokio::runtime::Handle::current().block_on(fut)
     });
+    #[cfg(feature = "testing")]
+    tokio::spawn(fut);
 
     nb_daemon_tx
 }

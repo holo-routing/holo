@@ -69,9 +69,14 @@ pub async fn bift_sync_fastclick(bift: &Bift) {
     }
 }
 
-pub async fn bift_sync(_bift: &Bift) {
+#[allow(unused_variables)]
+pub fn bift_sync(bift: Bift) {
     #[cfg(feature = "fastclick")]
-    bift_sync_fastclick(_bift).await;
+    {
+        tokio::task::spawn(async move {
+            bift_sync_fastclick(&bift).await;
+        });
+    }
 }
 
 #[derive(Debug)]

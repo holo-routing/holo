@@ -8,7 +8,6 @@ use std::collections::HashSet;
 use std::sync::LazyLock as Lazy;
 use std::time::Duration;
 
-use async_trait::async_trait;
 use enum_as_inner::EnumAsInner;
 use holo_northbound::configuration::{
     Callbacks, CallbacksBuilder, Provider, ValidationCallbacks,
@@ -409,7 +408,6 @@ fn load_validation_callbacks_ripng() -> ValidationCallbacks {
 
 // ===== impl Instance =====
 
-#[async_trait]
 impl<V> Provider for Instance<V>
 where
     V: Version,
@@ -426,7 +424,7 @@ where
         V::configuration_callbacks()
     }
 
-    async fn process_event(&mut self, event: Event) {
+    fn process_event(&mut self, event: Event) {
         match event {
             Event::InterfaceUpdate(iface_idx) => {
                 let Some((mut instance, interfaces)) = self.as_up() else {

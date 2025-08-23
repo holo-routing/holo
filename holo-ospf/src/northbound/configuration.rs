@@ -9,7 +9,6 @@ use std::net::Ipv4Addr;
 use std::sync::{Arc, LazyLock as Lazy};
 
 use arc_swap::ArcSwap;
-use async_trait::async_trait;
 use enum_as_inner::EnumAsInner;
 use holo_northbound::configuration::{
     Callbacks, CallbacksBuilder, InheritableConfig, Provider,
@@ -1512,7 +1511,6 @@ fn load_validation_callbacks_ospfv3() -> ValidationCallbacks {
 
 // ===== impl Instance =====
 
-#[async_trait]
 impl<V> Provider for Instance<V>
 where
     V: Version,
@@ -1529,7 +1527,7 @@ where
         V::configuration_callbacks()
     }
 
-    async fn process_event(&mut self, event: Event) {
+    fn process_event(&mut self, event: Event) {
         match event {
             Event::InstanceReset => self.reset(),
             Event::InstanceUpdate => self.update(),
@@ -1548,7 +1546,7 @@ where
                             .unwrap_or(self.config.instance_id);
                     }
 
-                    self.process_event(Event::AreaSyncHelloTx(area_idx)).await;
+                    self.process_event(Event::AreaSyncHelloTx(area_idx));
                 }
             }
             Event::AreaCreate(area_idx) => {
@@ -1566,8 +1564,7 @@ where
                 for iface_idx in area.interfaces.indexes().collect::<Vec<_>>() {
                     self.process_event(Event::InterfaceDelete(
                         area_idx, iface_idx,
-                    ))
-                    .await;
+                    ));
                 }
 
                 // Delete area.
@@ -1837,7 +1834,7 @@ where
 
                     // Purge BIRT if bier disabled or re-install routes if enabled
                     if bier_enabled {
-                        self.process_event(Event::ReinstallRoutes).await;
+                        self.process_event(Event::ReinstallRoutes);
                     } else {
                         instance.tx.ibus.bier_purge();
                     }

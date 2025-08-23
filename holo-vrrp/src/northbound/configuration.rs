@@ -11,7 +11,6 @@ use std::collections::BTreeSet;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, LazyLock as Lazy, atomic};
 
-use async_trait::async_trait;
 use enum_as_inner::EnumAsInner;
 use holo_northbound::configuration::{Callbacks, CallbacksBuilder, Provider};
 use holo_northbound::yang::interfaces;
@@ -340,7 +339,6 @@ fn load_callbacks() -> Callbacks<Interface> {
 
 // ===== impl Interface =====
 
-#[async_trait]
 impl Provider for Interface {
     type ListEntry = ListEntry;
     type Event = Event;
@@ -350,7 +348,7 @@ impl Provider for Interface {
         &CALLBACKS
     }
 
-    async fn process_event(&mut self, event: Event) {
+    fn process_event(&mut self, event: Event) {
         match event {
             Event::InstanceStart { vrid, af } => {
                 let (interface, instance) =

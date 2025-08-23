@@ -7,7 +7,6 @@
 use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use holo_utils::yang::SchemaNodeExt;
 use holo_yang::YangPath;
 use serde::{Deserialize, Serialize};
@@ -108,7 +107,6 @@ pub type ValidationCallback =
 // Provider northbound.
 //
 
-#[async_trait]
 pub trait Provider: ProviderBase {
     type ListEntry: Send + Default;
     type Event: std::fmt::Debug + Eq + Ord + PartialEq + PartialOrd + Send;
@@ -135,7 +133,7 @@ pub trait Provider: ProviderBase {
         vec![]
     }
 
-    async fn process_event(&mut self, _event: Self::Event) {}
+    fn process_event(&mut self, _event: Self::Event) {}
 }
 
 // ===== impl InheritableConfig =====
@@ -391,7 +389,7 @@ impl ValidationCallbacksBuilder {
 
 // ===== helper functions =====
 
-async fn process_commit_local<P>(
+fn process_commit_local<P>(
     provider: &mut P,
     phase: CommitPhase,
     old_config: &Arc<DataTree<'static>>,
@@ -466,13 +464,13 @@ where
 
     // Process event queue once the running configuration is fully updated.
     for event in event_queue {
-        provider.process_event(event).await;
+        provider.process_event(event);
     }
 
     Ok(())
 }
 
-async fn process_commit_relayed<P>(
+fn process_commit_relayed<P>(
     provider: &P,
     phase: CommitPhase,
     old_config: &Arc<DataTree<'static>>,
@@ -493,12 +491,11 @@ where
             responder: Some(responder_tx),
         };
         nb_tx
-            .send(api::daemon::Request::Commit(relayed_commit))
-            .await
+            .blocking_send(api::daemon::Request::Commit(relayed_commit))
             .unwrap();
 
         // Receive response.
-        let _ = responder_rx.await.unwrap()?;
+        let _ = responder_rx.blocking_recv().unwrap()?;
     }
 
     Ok(())
@@ -537,7 +534,7 @@ where
     list_entry
 }
 
-async fn validate_configuration<P>(
+fn validate_configuration<P>(
     provider: &P,
     config: &Arc<DataTree<'static>>,
 ) -> Result<(), Error>
@@ -634,7 +631,7 @@ pub fn changes_from_diff(diff: &DataDiff<'static>) -> ConfigChanges {
     changes
 }
 
-pub(crate) async fn process_validate<P>(
+pub(crate) fn process_validate<P>(
     provider: &P,
     config: Arc<DataTree<'static>>,
 ) -> Result<api::daemon::ValidateResponse, Error>
@@ -642,7 +639,7 @@ where
     P: Provider,
 {
     // Validate local subtree.
-    validate_configuration::<P>(provider, &config).await?;
+    validate_configuration::<P>(provider, &config)?;
 
     // Validate nested subtrees.
     for nb_tx in provider.relay_validation() {
@@ -653,18 +650,17 @@ where
             responder: Some(responder_tx),
         };
         nb_tx
-            .send(api::daemon::Request::Validate(relayed_req))
-            .await
+            .blocking_send(api::daemon::Request::Validate(relayed_req))
             .unwrap();
 
         // Receive response.
-        let _ = responder_rx.await.unwrap()?;
+        let _ = responder_rx.blocking_recv().unwrap()?;
     }
 
     Ok(api::daemon::ValidateResponse {})
 }
 
-pub(crate) async fn process_commit<P>(
+pub(crate) fn process_commit<P>(
     provider: &mut P,
     phase: CommitPhase,
     old_config: Arc<DataTree<'static>>,
@@ -689,8 +685,7 @@ where
         &new_config,
         &changes,
         resources,
-    )
-    .await?;
+    )?;
 
     // Process relayed changes.
     process_commit_relayed(
@@ -699,8 +694,7 @@ where
         &old_config,
         &new_config,
         relayed_changes,
-    )
-    .await?;
+    )?;
 
     Ok(api::daemon::CommitResponse {})
 }

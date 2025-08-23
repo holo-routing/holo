@@ -16,20 +16,57 @@ use ipnetwork::IpNetwork;
 use netlink_packet_core::ErrorMessage;
 use netlink_packet_route::AddressFamily;
 use netlink_packet_route::route::{
-    MplsLabel, RouteNextHop, RouteProtocol, RouteType,
+    MplsLabel, RouteMessage, RouteNextHop, RouteProtocol, RouteType,
 };
 use rtnetlink::{
     Error, Handle, RouteMessageBuilder, RouteNextHopBuilder, new_connection,
 };
+use tokio::sync::mpsc::UnboundedSender;
 use tracing::{error, warn};
 
 use crate::interface::Interfaces;
 use crate::rib::Route;
 
+pub enum NetlinkRequest {
+    RouteAdd(RouteMessage),
+    RouteDel(RouteMessage),
+}
+
+// ===== impl NetlinkRequest =====
+
+impl NetlinkRequest {
+    pub(crate) async fn execute(self, handle: &Handle) {
+        match self {
+            NetlinkRequest::RouteAdd(msg) => {
+                let request = handle.route().add(msg).replace();
+                if let Err(error) = request.execute().await {
+                    error!(%error, "failed to install route");
+                }
+            }
+            NetlinkRequest::RouteDel(msg) => {
+                let request = handle.route().del(msg);
+                if let Err(error) = request.execute().await
+                    // Ignore "No such process" error (route is already gone).
+                    && !matches!(
+                        error,
+                        Error::NetlinkError(ErrorMessage {
+                            code: Some(code),
+                            ..
+                        })
+                        if code == NonZeroI32::new(-libc::ESRCH).unwrap()
+                    )
+                {
+                    error!(%error, "failed to uninstall route");
+                }
+            }
+        }
+    }
+}
+
 // ===== global functions =====
 
-pub(crate) async fn ip_route_install(
-    handle: &Handle,
+pub(crate) fn ip_route_install(
+    netlink_tx: &UnboundedSender<NetlinkRequest>,
     prefix: &IpNetwork,
     route: &Route,
     interfaces: &Interfaces,
@@ -54,14 +91,12 @@ pub(crate) async fn ip_route_install(
         .multipath(nexthops)
         .build();
 
-    // Execute netlink request.
-    if let Err(error) = handle.route().add(msg).replace().execute().await {
-        error!(%prefix, %error, "failed to install route");
-    }
+    // Enqueue netlink request.
+    netlink_tx.send(NetlinkRequest::RouteAdd(msg)).unwrap();
 }
 
-pub(crate) async fn ip_route_uninstall(
-    handle: &Handle,
+pub(crate) fn ip_route_uninstall(
+    netlink_tx: &UnboundedSender<NetlinkRequest>,
     prefix: &IpNetwork,
     protocol: Protocol,
 ) {
@@ -74,24 +109,12 @@ pub(crate) async fn ip_route_uninstall(
         .kind(RouteType::Unspec)
         .build();
 
-    // Execute netlink request.
-    if let Err(error) = handle.route().del(msg).execute().await
-        // Ignore "No such process" error (route is already gone).
-        && !matches!(
-            error,
-            Error::NetlinkError(ErrorMessage {
-                code: Some(code),
-                ..
-            })
-            if code == NonZeroI32::new(-libc::ESRCH).unwrap()
-        )
-    {
-        error!(%prefix, ?error, "failed to uninstall route");
-    }
+    // Enqueue netlink request.
+    netlink_tx.send(NetlinkRequest::RouteDel(msg)).unwrap();
 }
 
-pub(crate) async fn mpls_route_install(
-    handle: &Handle,
+pub(crate) fn mpls_route_install(
+    netlink_tx: &UnboundedSender<NetlinkRequest>,
     local_label: Label,
     route: &Route,
     interfaces: &Interfaces,
@@ -115,14 +138,12 @@ pub(crate) async fn mpls_route_install(
         .multipath(nexthops)
         .build();
 
-    // Execute netlink request.
-    if let Err(error) = handle.route().add(msg).replace().execute().await {
-        error!(?label, %error, "failed to install MPLS route");
-    }
+    // Enqueue netlink request.
+    netlink_tx.send(NetlinkRequest::RouteAdd(msg)).unwrap();
 }
 
-pub(crate) async fn mpls_route_uninstall(
-    handle: &Handle,
+pub(crate) fn mpls_route_uninstall(
+    netlink_tx: &UnboundedSender<NetlinkRequest>,
     local_label: Label,
     protocol: Protocol,
 ) {
@@ -139,20 +160,8 @@ pub(crate) async fn mpls_route_uninstall(
         .protocol(protocol)
         .build();
 
-    // Execute netlink request.
-    if let Err(error) = handle.route().del(msg).execute().await
-        // Ignore "No such process" error (route is already gone).
-        && !matches!(
-            error,
-            Error::NetlinkError(ErrorMessage {
-                code: Some(code),
-                ..
-            })
-            if code == NonZeroI32::new(-libc::ESRCH).unwrap()
-            )
-    {
-        error!(?label, %error, "failed to uninstall MPLS route");
-    }
+    // Enqueue netlink request.
+    netlink_tx.send(NetlinkRequest::RouteDel(msg)).unwrap();
 }
 
 // Purge stale routes that may have been left behind by a previous Holo

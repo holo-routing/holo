@@ -20,11 +20,11 @@ use holo_utils::southbound::{
 };
 use ipnetwork::IpNetwork;
 use prefix_trie::joint::map::JointPrefixMap;
-use tokio::sync::mpsc;
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::UnboundedSender;
 use tracing::{debug, warn};
 
 use crate::interface::{Interface, Interfaces};
+use crate::netlink::NetlinkRequest;
 use crate::{ibus, netlink};
 
 #[derive(Debug)]
@@ -35,7 +35,6 @@ pub struct Rib {
     pub ip_update_queue: BTreeSet<IpNetwork>,
     pub mpls_update_queue: BTreeSet<Label>,
     pub update_queue_tx: UnboundedSender<()>,
-    pub update_queue_rx: UnboundedReceiver<()>,
     pub subscriptions: HashMap<usize, RedistributeSub>,
 }
 
@@ -76,6 +75,18 @@ pub struct RedistributeSub {
 // ===== impl Rib =====
 
 impl Rib {
+    pub(crate) fn new(update_queue_tx: UnboundedSender<()>) -> Self {
+        Self {
+            ip: Default::default(),
+            mpls: Default::default(),
+            nht: Default::default(),
+            ip_update_queue: Default::default(),
+            mpls_update_queue: Default::default(),
+            update_queue_tx,
+            subscriptions: Default::default(),
+        }
+    }
+
     // Adds connected route to the RIB.
     pub(crate) fn connected_route_add(
         &mut self,
@@ -358,10 +369,10 @@ impl Rib {
     }
 
     // Processes routes present in the update queue.
-    pub(crate) async fn process_rib_update_queue(
+    pub(crate) fn process_rib_update_queue(
         &mut self,
         interfaces: &Interfaces,
-        netlink_handle: &rtnetlink::Handle,
+        netlink_tx: &UnboundedSender<NetlinkRequest>,
     ) {
         // Process IP update queue.
         while let Some(prefix) = self.ip_update_queue.pop_first() {
@@ -386,12 +397,8 @@ impl Rib {
                     // Install the route using the netlink handle.
                     if route.protocol != Protocol::DIRECT {
                         netlink::ip_route_install(
-                            netlink_handle,
-                            &prefix,
-                            route,
-                            interfaces,
-                        )
-                        .await;
+                            netlink_tx, &prefix, route, interfaces,
+                        );
                     }
 
                     // Notify protocol instances about the updated route.
@@ -410,11 +417,8 @@ impl Rib {
                     // Uninstall the old best route using the netlink handle.
                     if protocol != Protocol::DIRECT {
                         netlink::ip_route_uninstall(
-                            netlink_handle,
-                            &prefix,
-                            protocol,
-                        )
-                        .await;
+                            netlink_tx, &prefix, protocol,
+                        );
                     }
 
                     // Notify protocol instances about the deleted route.
@@ -438,11 +442,10 @@ impl Rib {
             if route.flags.contains(RouteFlags::REMOVED) {
                 // Uninstall the MPLS route using the netlink handle.
                 netlink::mpls_route_uninstall(
-                    netlink_handle,
+                    netlink_tx,
                     label,
                     route.protocol,
-                )
-                .await;
+                );
 
                 // Effectively remove the MPLS route.
                 self.mpls.remove(&label);
@@ -450,13 +453,7 @@ impl Rib {
             }
 
             // Install the route using the netlink handle.
-            netlink::mpls_route_install(
-                netlink_handle,
-                label,
-                route,
-                interfaces,
-            )
-            .await;
+            netlink::mpls_route_install(netlink_tx, label, route, interfaces);
         }
 
         // Reevaluate all registered nexthops.
@@ -546,9 +543,9 @@ impl Rib {
     }
 
     // Uninstall all routes.
-    pub(crate) async fn route_uninstall_all(
+    pub(crate) fn route_uninstall_all(
         &mut self,
-        netlink_handle: &rtnetlink::Handle,
+        netlink_tx: &UnboundedSender<NetlinkRequest>,
     ) {
         for (prefix, rib_prefix) in &self.ip {
             if let Some(route) = rib_prefix
@@ -556,36 +553,14 @@ impl Rib {
                 .find(|route| route.flags.contains(RouteFlags::ACTIVE))
             {
                 netlink::ip_route_uninstall(
-                    netlink_handle,
+                    netlink_tx,
                     &prefix,
                     route.protocol,
-                )
-                .await;
+                );
             }
         }
         for (label, route) in &self.mpls {
-            netlink::mpls_route_uninstall(
-                netlink_handle,
-                *label,
-                route.protocol,
-            )
-            .await;
-        }
-    }
-}
-
-impl Default for Rib {
-    fn default() -> Self {
-        let (update_queue_tx, update_queue_rx) = mpsc::unbounded_channel();
-        Self {
-            ip: Default::default(),
-            mpls: Default::default(),
-            nht: Default::default(),
-            ip_update_queue: Default::default(),
-            mpls_update_queue: Default::default(),
-            update_queue_tx,
-            update_queue_rx,
-            subscriptions: Default::default(),
+            netlink::mpls_route_uninstall(netlink_tx, *label, route.protocol);
         }
     }
 }

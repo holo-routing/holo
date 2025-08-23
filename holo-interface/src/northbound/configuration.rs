@@ -8,7 +8,6 @@ use std::collections::{BTreeMap, HashMap};
 use std::net::IpAddr;
 use std::sync::LazyLock as Lazy;
 
-use async_trait::async_trait;
 use enum_as_inner::EnumAsInner;
 use holo_northbound::configuration::{
     self, Callbacks, CallbacksBuilder, ConfigChanges, Provider,
@@ -297,7 +296,6 @@ fn load_validation_callbacks() -> ValidationCallbacks {
 
 // ===== impl Master =====
 
-#[async_trait]
 impl Provider for Master {
     type ListEntry = ListEntry;
     type Event = Event;
@@ -357,40 +355,39 @@ impl Provider for Master {
             .collect()
     }
 
-    async fn process_event(&mut self, event: Event) {
+    fn process_event(&mut self, event: Event) {
         match event {
             Event::InterfaceDelete(ifname) => {
-                self.interfaces
-                    .remove(&ifname, Owner::CONFIG, &self.netlink_handle)
-                    .await;
+                self.interfaces.remove(
+                    &ifname,
+                    Owner::CONFIG,
+                    &self.netlink_tx,
+                );
             }
             Event::AdminStatusChange(ifname, enabled) => {
                 // If the interface is active, change its administrative status
-                // using the netlink handle.
+                // via netlink.
                 if let Some(iface) = self.interfaces.get_by_name(&ifname)
                     && let Some(ifindex) = iface.ifindex
                 {
                     netlink::admin_status_change(
-                        &self.netlink_handle,
+                        &self.netlink_tx,
                         ifindex,
                         enabled,
-                    )
-                    .await;
+                    );
                 }
             }
             Event::MtuChange(ifname, mtu) => {
-                // If the interface is active, change its MTU using the netlink
-                // handle.
+                // If the interface is active, change its MTU via netlink.
                 if let Some(iface) = self.interfaces.get_by_name(&ifname)
                     && let Some(ifindex) = iface.ifindex
                 {
-                    netlink::mtu_change(&self.netlink_handle, ifindex, mtu)
-                        .await;
+                    netlink::mtu_change(&self.netlink_tx, ifindex, mtu);
                 }
             }
             Event::VlanCreate(ifname, vlan_id) => {
                 // If the parent interface is active, create VLAN subinterface
-                // using the netlink handle.
+                // via netlink.
                 if let Some(iface) = self.interfaces.get_by_name(&ifname)
                     && iface.ifindex.is_none()
                     && let Some(parent) = &iface.config.parent
@@ -398,38 +395,30 @@ impl Provider for Master {
                     && let Some(parent_ifindex) = parent.ifindex
                 {
                     netlink::vlan_create(
-                        &self.netlink_handle,
+                        &self.netlink_tx,
                         iface.name.clone(),
                         parent_ifindex,
                         vlan_id,
-                    )
-                    .await;
+                    );
                 }
             }
             Event::AddressInstall(ifname, addr, plen) => {
-                // If the interface is active, install the address using the
-                // netlink handle.
+                // If the interface is active, install the address via netlink.
                 if let Some(iface) = self.interfaces.get_by_name(&ifname)
                     && let Some(ifindex) = iface.ifindex
                 {
                     let addr = IpNetwork::new(addr, plen).unwrap();
-                    netlink::addr_install(&self.netlink_handle, ifindex, &addr)
-                        .await;
+                    netlink::addr_install(&self.netlink_tx, ifindex, &addr);
                 }
             }
             Event::AddressUninstall(ifname, addr, plen) => {
-                // If the interface is active, uninstall the address using the
-                // netlink handle.
+                // If the interface is active, uninstall the address via
+                // netlink.
                 if let Some(iface) = self.interfaces.get_by_name(&ifname)
                     && let Some(ifindex) = iface.ifindex
                 {
                     let addr = IpNetwork::new(addr, plen).unwrap();
-                    netlink::addr_uninstall(
-                        &self.netlink_handle,
-                        ifindex,
-                        &addr,
-                    )
-                    .await;
+                    netlink::addr_uninstall(&self.netlink_tx, ifindex, &addr);
                 }
             }
             Event::VrrpStart(ifname) => {

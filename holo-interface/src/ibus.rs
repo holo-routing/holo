@@ -17,7 +17,7 @@ use crate::{Master, netlink};
 
 // ===== global functions =====
 
-pub(crate) async fn process_msg(master: &mut Master, msg: IbusMsg) {
+pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
     match msg {
         IbusMsg::InterfaceSub {
             subscriber,
@@ -103,35 +103,32 @@ pub(crate) async fn process_msg(master: &mut Master, msg: IbusMsg) {
                 && let Some(ifindex) = iface.ifindex
             {
                 netlink::macvlan_create(
-                    &master.netlink_handle,
+                    &master.netlink_tx,
                     ifname,
                     mac_addr,
                     ifindex,
-                )
-                .await;
+                );
             }
         }
         IbusMsg::MacvlanDel { ifname } => {
             if let Some(iface) = master.interfaces.get_by_name(&ifname)
                 && let Some(ifindex) = iface.ifindex
             {
-                netlink::iface_delete(&master.netlink_handle, ifindex).await;
+                netlink::iface_delete(&master.netlink_tx, ifindex);
             }
         }
         IbusMsg::InterfaceIpAddRequest { ifname, addr } => {
             if let Some(iface) = master.interfaces.get_by_name(&ifname)
                 && let Some(ifindex) = iface.ifindex
             {
-                netlink::addr_install(&master.netlink_handle, ifindex, &addr)
-                    .await;
+                netlink::addr_install(&master.netlink_tx, ifindex, &addr);
             }
         }
         IbusMsg::InterfaceIpDelRequest { ifname, addr } => {
             if let Some(iface) = master.interfaces.get_by_name(&ifname)
                 && let Some(ifindex) = iface.ifindex
             {
-                netlink::addr_uninstall(&master.netlink_handle, ifindex, &addr)
-                    .await;
+                netlink::addr_uninstall(&master.netlink_tx, ifindex, &addr);
             }
         }
         IbusMsg::Disconnect { subscriber } => {

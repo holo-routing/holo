@@ -7,7 +7,6 @@
 use std::net::{IpAddr, SocketAddr};
 use std::sync::LazyLock as Lazy;
 
-use async_trait::async_trait;
 use enum_as_inner::EnumAsInner;
 use holo_northbound::configuration::{
     Callbacks, CallbacksBuilder, Provider, ValidationCallbacks,
@@ -376,7 +375,6 @@ fn load_validation_callbacks() -> ValidationCallbacks {
 
 // ===== impl Master =====
 
-#[async_trait]
 impl Provider for Master {
     type ListEntry = ListEntry;
     type Event = Event;
@@ -390,7 +388,7 @@ impl Provider for Master {
         &CALLBACKS
     }
 
-    async fn process_event(&mut self, event: Event) {
+    fn process_event(&mut self, event: Event) {
         match event {
             Event::SessionDeleteCheck(sess_idx) => {
                 self.sessions.delete_check(sess_idx);

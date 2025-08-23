@@ -11,7 +11,6 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::sync::{Arc, LazyLock as Lazy};
 
 use arc_swap::ArcSwap;
-use async_trait::async_trait;
 use enum_as_inner::EnumAsInner;
 use holo_northbound::configuration::{
     Callbacks, CallbacksBuilder, Provider, ValidationCallbacks,
@@ -1548,7 +1547,6 @@ fn load_validation_callbacks() -> ValidationCallbacks {
 
 // ===== impl Instance =====
 
-#[async_trait]
 impl Provider for Instance {
     type ListEntry = ListEntry;
     type Event = Event;
@@ -1562,7 +1560,7 @@ impl Provider for Instance {
         &CALLBACKS
     }
 
-    async fn process_event(&mut self, event: Event) {
+    fn process_event(&mut self, event: Event) {
         match event {
             Event::InstanceUpdate => self.update(),
             Event::NeighborUpdate(nbr_addr) => {

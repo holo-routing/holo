@@ -6,7 +6,6 @@ license.workspace = true
 edition.workspace = true
 
 [dependencies]
-async-trait.workspace = true
 derive-new.workspace = true
 enum-as-inner.workspace = true
 tokio.workspace = true

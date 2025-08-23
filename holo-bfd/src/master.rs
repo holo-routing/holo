@@ -6,7 +6,6 @@
 
 use std::collections::HashMap;
 
-use async_trait::async_trait;
 use derive_new::new;
 use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
@@ -207,7 +206,6 @@ impl UdpRxTasks {
 
 // ===== impl ProtocolInputChannelsRx =====
 
-#[async_trait]
 impl MessageReceiver<ProtocolInputMsg> for ProtocolInputChannelsRx {
     async fn recv(&mut self) -> Option<ProtocolInputMsg> {
         tokio::select! {

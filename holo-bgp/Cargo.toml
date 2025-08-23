@@ -10,7 +10,6 @@ twox-hash = { version = "2.0", optional = true }
 
 arbitrary.workspace = true
 arc-swap.workspace = true
-async-trait.workspace = true
 bitflags.workspace = true
 bytes.workspace = true
 chrono.workspace = true

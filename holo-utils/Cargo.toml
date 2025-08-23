@@ -9,7 +9,6 @@ edition.workspace = true
 vectorize = "0.2.0"
 
 arbitrary.workspace = true
-async-trait.workspace = true
 bitflags.workspace = true
 bytes.workspace = true
 capctl.workspace = true

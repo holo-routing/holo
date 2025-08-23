@@ -7,7 +7,6 @@
 use std::net::Ipv4Addr;
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
 };
@@ -403,7 +402,6 @@ impl ProtocolInputChannelsTx {
 
 // ===== impl ProtocolInputChannelsRx =====
 
-#[async_trait]
 impl MessageReceiver<ProtocolInputMsg> for ProtocolInputChannelsRx {
     async fn recv(&mut self) -> Option<ProtocolInputMsg> {
         tokio::select! {

@@ -8,7 +8,6 @@ edition.workspace = true
 [dependencies]
 sysinfo = "0.30"
 
-async-trait.workspace = true
 capctl.workspace = true
 chrono.workspace = true
 derive-new.workspace = true

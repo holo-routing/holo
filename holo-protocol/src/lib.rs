@@ -10,7 +10,6 @@ pub mod test;
 
 use std::sync::{Arc, Mutex};
 
-use async_trait::async_trait;
 use derive_new::new;
 use holo_northbound as northbound;
 use holo_northbound::{
@@ -141,12 +140,11 @@ pub struct InstanceAggChannels<P: ProtocolInstance> {
     pub rx: Receiver<InstanceMsg<P>>,
 }
 
-#[async_trait]
 pub trait MessageReceiver<T: Send>
 where
     Self: Send,
 {
-    async fn recv(&mut self) -> Option<T>;
+    fn recv(&mut self) -> impl Future<Output = Option<T>> + Send;
 }
 
 // ===== impl InstanceShared =====

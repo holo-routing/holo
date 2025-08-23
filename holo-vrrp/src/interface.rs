@@ -9,7 +9,6 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
@@ -246,7 +245,6 @@ impl ProtocolInstance for Interface {
 
 // ===== impl ProtocolInputChannelsRx =====
 
-#[async_trait]
 impl MessageReceiver<ProtocolInputMsg> for ProtocolInputChannelsRx {
     async fn recv(&mut self) -> Option<ProtocolInputMsg> {
         tokio::select! {

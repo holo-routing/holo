@@ -10,7 +10,6 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU32;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
@@ -395,7 +394,6 @@ where
 
 // ===== impl ProtocolInputChannelsRx =====
 
-#[async_trait]
 impl<V> MessageReceiver<ProtocolInputMsg<V>> for ProtocolInputChannelsRx<V>
 where
     V: Version,

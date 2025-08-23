@@ -1036,7 +1036,6 @@ dependencies = [
 name = "holo-bfd"
 version = "0.8.0"
 dependencies = [
- "async-trait",
  "bitflags 2.9.1",
  "bytes",
  "chrono",
@@ -1070,7 +1069,6 @@ version = "0.8.0"
 dependencies = [
  "arbitrary",
  "arc-swap",
- "async-trait",
  "bitflags 2.9.1",
  "bytes",
  "chrono",
@@ -1168,7 +1166,6 @@ dependencies = [
 name = "holo-interface"
 version = "0.8.0"
 dependencies = [
- "async-trait",
  "bitflags 2.9.1",
  "capctl",
  "derive-new",
@@ -1197,7 +1194,6 @@ name = "holo-isis"
 version = "0.8.0"
 dependencies = [
  "arc-swap",
- "async-trait",
  "bitflags 2.9.1",
  "bytes",
  "chrono",
@@ -1239,7 +1235,6 @@ dependencies = [
 name = "holo-keychain"
 version = "0.8.0"
 dependencies = [
- "async-trait",
  "chrono",
  "derive-new",
  "enum-as-inner",
@@ -1255,7 +1250,6 @@ dependencies = [
 name = "holo-ldp"
 version = "0.8.0"
 dependencies = [
- "async-trait",
  "bitflags 2.9.1",
  "bytes",
  "chrono",
@@ -1287,7 +1281,6 @@ dependencies = [
 name = "holo-northbound"
 version = "0.8.0"
 dependencies = [
- "async-trait",
  "base64 0.22.1",
  "bitflags 2.9.1",
  "check_keyword",
@@ -1310,7 +1303,6 @@ name = "holo-ospf"
 version = "0.8.0"
 dependencies = [
  "arc-swap",
- "async-trait",
  "bitflags 2.9.1",
  "bytes",
  "chrono",
@@ -1351,7 +1343,6 @@ dependencies = [
 name = "holo-policy"
 version = "0.8.0"
 dependencies = [
- "async-trait",
  "derive-new",
  "enum-as-inner",
  "holo-northbound",
@@ -1366,7 +1357,6 @@ dependencies = [
 name = "holo-protocol"
 version = "0.8.0"
 dependencies = [
- "async-trait",
  "derive-new",
  "holo-northbound",
  "holo-utils",
@@ -1383,7 +1373,6 @@ dependencies = [
 name = "holo-rip"
 version = "0.8.0"
 dependencies = [
- "async-trait",
  "bitflags 2.9.1",
  "bytes",
  "chrono",
@@ -1414,7 +1403,6 @@ dependencies = [
 name = "holo-routing"
 version = "0.8.0"
 dependencies = [
- "async-trait",
  "bitflags 2.9.1",
  "capctl",
  "chrono",
@@ -1450,7 +1438,6 @@ dependencies = [
 name = "holo-system"
 version = "0.8.0"
 dependencies = [
- "async-trait",
  "capctl",
  "chrono",
  "derive-new",
@@ -1493,7 +1480,6 @@ name = "holo-utils"
 version = "0.8.0"
 dependencies = [
  "arbitrary",
- "async-trait",
  "bitflags 2.9.1",
  "bytes",
  "capctl",
@@ -1524,7 +1510,6 @@ dependencies = [
 name = "holo-vrrp"
 version = "0.8.0"
 dependencies = [
- "async-trait",
  "bytes",
  "chrono",
  "const-addrs",

@@ -34,7 +34,6 @@ repository = "https://github.com/holo-routing/holo"
 [workspace.dependencies]
 arbitrary = { version = "1.4.1", features = ["derive"] }
 arc-swap = "1.7"
-async-trait = "0.1"
 base64 = "0.22"
 bitflags = { version = "2.9", features = ["serde"] }
 bytes = { version = "1.10", features = ["serde"] }

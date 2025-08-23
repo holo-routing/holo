@@ -6,7 +6,6 @@ license.workspace = true
 edition.workspace = true
 
 [dependencies]
-async-trait.workspace = true
 base64.workspace = true
 bitflags.workspace = true
 chrono.workspace = true

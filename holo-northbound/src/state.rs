@@ -7,7 +7,6 @@
 use std::collections::HashMap;
 use std::fmt::Write;
 
-use derive_new::new;
 use holo_utils::yang::SchemaNodeExt;
 use holo_yang::{YANG_CTX, YangObject, YangPath};
 use tokio::sync::oneshot;
@@ -62,13 +61,6 @@ pub struct GetObjectArgs<'a, 'b, P: Provider> {
     pub list_entry: &'b P::ListEntry<'a>,
 }
 
-#[derive(Debug, new)]
-struct RelayedRequest {
-    request: api::daemon::GetRequest,
-    tx: NbDaemonSender,
-    rx: oneshot::Receiver<Result<api::daemon::GetResponse, Error>>,
-}
-
 //
 // List entry trait.
 //
@@ -80,6 +72,9 @@ pub trait ListEntryKind: std::fmt::Debug + Default {
         None
     }
 }
+
+// Type aliases.
+type GetReceiver = oneshot::Receiver<Result<api::daemon::GetResponse, Error>>;
 
 //
 // Provider northbound.
@@ -216,7 +211,7 @@ fn iterate_node<'a, P>(
     dnode: &mut DataNodeRef<'_>,
     snode: &SchemaNode<'_>,
     list_entry: &P::ListEntry<'a>,
-    relay_list: &mut Vec<RelayedRequest>,
+    relay_list: &mut Vec<GetReceiver>,
     first: bool,
 ) -> Result<(), Error>
 where
@@ -245,7 +240,7 @@ fn iterate_list<'a, P>(
     dnode: &mut DataNodeRef<'_>,
     snode: &SchemaNode<'_>,
     parent_list_entry: &P::ListEntry<'a>,
-    relay_list: &mut Vec<RelayedRequest>,
+    relay_list: &mut Vec<GetReceiver>,
 ) -> Result<(), Error>
 where
     P: Provider,
@@ -271,7 +266,7 @@ fn iterate_list_entry<'a, P>(
     dnode: &mut DataNodeRef<'_>,
     snode: &SchemaNode<'_>,
     list_entry: P::ListEntry<'a>,
-    relay_list: &mut Vec<RelayedRequest>,
+    relay_list: &mut Vec<GetReceiver>,
 ) -> Result<(), Error>
 where
     P: Provider,
@@ -322,7 +317,7 @@ fn iterate_container<'a, P>(
     dnode: &mut DataNodeRef<'_>,
     snode: &SchemaNode<'_>,
     list_entry: &P::ListEntry<'a>,
-    relay_list: &mut Vec<RelayedRequest>,
+    relay_list: &mut Vec<GetReceiver>,
     first: bool,
 ) -> Result<(), Error>
 where
@@ -367,7 +362,7 @@ fn iterate_children<'a, P>(
     dnode: &mut DataNodeRef<'_>,
     snode: &SchemaNode<'_>,
     list_entry: &P::ListEntry<'a>,
-    relay_list: &mut Vec<RelayedRequest>,
+    relay_list: &mut Vec<GetReceiver>,
 ) -> Result<(), Error>
 where
     P: Provider,
@@ -385,18 +380,10 @@ where
         let module = snode.module();
         if let Some(child_nb_tx) = list_entry.child_task(module.name()) {
             // Prepare request to child task.
-            let (responder_tx, responder_rx) = oneshot::channel();
             let path =
                 format!("{}/{}:{}", dnode.path(), module.name(), snode.name());
-            let request = api::daemon::GetRequest {
-                path: Some(path),
-                responder: Some(responder_tx),
-            };
-            relay_list.push(RelayedRequest::new(
-                request,
-                child_nb_tx,
-                responder_rx,
-            ));
+            let relay_rx = relay_request(child_nb_tx, path);
+            relay_list.push(relay_rx);
             continue;
         }
 
@@ -465,6 +452,21 @@ where
     list_entry
 }
 
+fn relay_request(nb_tx: NbDaemonSender, path: String) -> GetReceiver {
+    let (responder_tx, responder_rx) = oneshot::channel();
+    let request = api::daemon::GetRequest {
+        path: Some(path),
+        responder: Some(responder_tx),
+    };
+    tokio::task::spawn(async move {
+        nb_tx
+            .send(api::daemon::Request::Get(request))
+            .await
+            .unwrap();
+    });
+    responder_rx
+}
+
 // ===== global functions =====
 
 pub(crate) fn process_get<P>(
@@ -492,16 +494,8 @@ where
     let module = snode.module();
     if let Some(child_nb_tx) = list_entry.child_task(module.name()) {
         // Prepare request to child task.
-        let (responder_tx, responder_rx) = oneshot::channel();
-        let request = api::daemon::GetRequest {
-            path: Some(path),
-            responder: Some(responder_tx),
-        };
-        relay_list.push(RelayedRequest::new(
-            request,
-            child_nb_tx,
-            responder_rx,
-        ));
+        let relay_rx = relay_request(child_nb_tx, path);
+        relay_list.push(relay_rx);
     } else {
         // If a list entry was given, iterate over that list entry.
         if snode.kind() == SchemaNodeKind::List {
@@ -524,18 +518,9 @@ where
         }
     }
 
-    // Send relayed requests.
-    for relayed_req in relay_list {
-        // Send request to child task.
-        relayed_req
-            .tx
-            .blocking_send(api::daemon::Request::Get(relayed_req.request))
-            .unwrap();
-
-        // Receive response.
-        let response = relayed_req.rx.blocking_recv().unwrap()?;
-
-        // Merge received data into the current data tree.
+    // Collect responses from all relayed requests.
+    for relay_rx in relay_list {
+        let response = relay_rx.blocking_recv().unwrap()?;
         dtree
             .merge(&response.data)
             .map_err(Error::YangInvalidData)?;

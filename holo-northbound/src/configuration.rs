@@ -108,8 +108,8 @@ pub type ValidationCallback =
 //
 
 pub trait Provider: ProviderBase {
-    type ListEntry: Send + Default;
-    type Event: std::fmt::Debug + Eq + Ord + PartialEq + PartialOrd + Send;
+    type ListEntry: Default;
+    type Event;
     type Resource: Send;
 
     fn validation_callbacks() -> Option<&'static ValidationCallbacks> {

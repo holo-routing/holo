@@ -59,7 +59,7 @@ pub type NbProviderReceiver = UnboundedReceiver<api::provider::Notification>;
 /// Base northbound provider trait.
 pub trait ProviderBase
 where
-    Self: 'static + Sized + Send,
+    Self: 'static + Sized,
 {
     fn yang_modules() -> &'static [&'static str];
 

@@ -81,7 +81,7 @@ type GetReceiver = oneshot::Receiver<Result<api::daemon::GetResponse, Error>>;
 //
 
 pub trait Provider: ProviderBase {
-    type ListEntry<'a>: ListEntryKind + Send;
+    type ListEntry<'a>: ListEntryKind;
 
     fn callbacks() -> &'static Callbacks<Self>;
 

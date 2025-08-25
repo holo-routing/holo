@@ -36,10 +36,7 @@ use crate::test::{OutputChannelsRx, process_test_msg, stub::TestMsg};
 /// A trait for protocol instances.
 pub trait ProtocolInstance
 where
-    Self: 'static
-        + Send
-        + Sync
-        + std::fmt::Debug
+    Self: Send
         + northbound::configuration::Provider
         + northbound::rpc::Provider
         + northbound::state::Provider,
@@ -49,7 +46,7 @@ where
 
     type ProtocolInputMsg: Send + std::fmt::Debug + Serialize + DeserializeOwned;
     type ProtocolOutputMsg: Send + std::fmt::Debug + Serialize;
-    type ProtocolInputChannelsTx: Send;
+    type ProtocolInputChannelsTx;
     type ProtocolInputChannelsRx: MessageReceiver<Self::ProtocolInputMsg>;
 
     /// Create protocol instance.

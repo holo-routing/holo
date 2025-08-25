@@ -181,7 +181,7 @@
                       "extended-is-neighbor": {
                         "neighbor": [
                           {
-                            "neighbor-id": "0000.0000.0004.00",
+                            "neighbor-id": "0000.0000.0003.01",
                             "instances": {
                               "instance": [
                                 {
@@ -196,18 +196,11 @@
                             "instances": {
                               "instance": [
                                 {
-                                  "id": 1,
+                                  "id": 0,
                                   "metric": 10
-                                }
-                              ]
-                            }
-                          },
-                          {
-                            "neighbor-id": "0000.0000.0003.01",
-                            "instances": {
-                              "instance": [
+                                },
                                 {
-                                  "id": 2,
+                                  "id": 1,
                                   "metric": 10
                                 }
                               ]
@@ -323,7 +316,7 @@
                       "extended-is-neighbor": {
                         "neighbor": [
                           {
-                            "neighbor-id": "0000.0000.0005.00",
+                            "neighbor-id": "0000.0000.0003.01",
                             "instances": {
                               "instance": [
                                 {
@@ -338,18 +331,11 @@
                             "instances": {
                               "instance": [
                                 {
-                                  "id": 1,
+                                  "id": 0,
                                   "metric": 10
-                                }
-                              ]
-                            }
-                          },
-                          {
-                            "neighbor-id": "0000.0000.0003.01",
-                            "instances": {
-                              "instance": [
+                                },
                                 {
-                                  "id": 2,
+                                  "id": 1,
                                   "metric": 10
                                 }
                               ]
@@ -392,7 +378,7 @@
                         "neighbor": [
                           {
                             "mt-id": 2,
-                            "neighbor-id": "0000.0000.0005.00",
+                            "neighbor-id": "0000.0000.0003.01",
                             "instances": {
                               "instance": [
                                 {
@@ -408,19 +394,11 @@
                             "instances": {
                               "instance": [
                                 {
-                                  "id": 1,
+                                  "id": 0,
                                   "metric": 10
-                                }
-                              ]
-                            }
-                          },
-                          {
-                            "mt-id": 2,
-                            "neighbor-id": "0000.0000.0003.01",
-                            "instances": {
-                              "instance": [
+                                },
                                 {
-                                  "id": 2,
+                                  "id": 1,
                                   "metric": 10
                                 }
                               ]
@@ -497,7 +475,7 @@
                             "instances": {
                               "instance": [
                                 {
-                                  "id": 1,
+                                  "id": 0,
                                   "metric": 0
                                 }
                               ]
@@ -508,7 +486,7 @@
                             "instances": {
                               "instance": [
                                 {
-                                  "id": 2,
+                                  "id": 0,
                                   "metric": 0
                                 }
                               ]
@@ -553,14 +531,7 @@
                                 {
                                   "id": 0,
                                   "metric": 10
-                                }
-                              ]
-                            }
-                          },
-                          {
-                            "neighbor-id": "0000.0000.0002.00",
-                            "instances": {
-                              "instance": [
+                                },
                                 {
                                   "id": 1,
                                   "metric": 10
@@ -573,7 +544,7 @@
                             "instances": {
                               "instance": [
                                 {
-                                  "id": 2,
+                                  "id": 0,
                                   "metric": 10
                                 }
                               ]
@@ -755,14 +726,7 @@
                                 {
                                   "id": 0,
                                   "metric": 10
-                                }
-                              ]
-                            }
-                          },
-                          {
-                            "neighbor-id": "0000.0000.0003.00",
-                            "instances": {
-                              "instance": [
+                                },
                                 {
                                   "id": 1,
                                   "metric": 10
@@ -775,7 +739,7 @@
                             "instances": {
                               "instance": [
                                 {
-                                  "id": 2,
+                                  "id": 0,
                                   "metric": 10
                                 }
                               ]
@@ -875,15 +839,7 @@
                                 {
                                   "id": 0,
                                   "metric": 10
-                                }
-                              ]
-                            }
-                          },
-                          {
-                            "mt-id": 2,
-                            "neighbor-id": "0000.0000.0003.00",
-                            "instances": {
-                              "instance": [
+                                },
                                 {
                                   "id": 1,
                                   "metric": 10

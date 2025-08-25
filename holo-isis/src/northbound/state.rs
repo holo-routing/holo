@@ -10,7 +10,7 @@
 #![allow(unreachable_code)]
 
 use std::borrow::Cow;
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 use std::fmt::Write;
 use std::sync::{LazyLock as Lazy, atomic};
 use std::time::Instant;
@@ -61,10 +61,12 @@ pub enum ListEntry<'a> {
     NodeTag(u32),
     LabelBlockEntry(&'a LabelBlockEntry),
     MultiTopologyEntry(&'a MultiTopologyEntry),
-    IsReach(&'a LspEntry, LanId),
-    IsReachInstance(u32, &'a LegacyIsReach),
-    ExtIsReach(u32, &'a IsReach),
-    MtIsReach(u16, u32, &'a IsReach),
+    LegacyIsReach(LanId, Vec<&'a LegacyIsReach>),
+    LegacyIsReachInstance(u32, &'a LegacyIsReach),
+    ExtIsReach(LanId, Vec<&'a IsReach>),
+    ExtIsReachInstance(u32, &'a IsReach),
+    MtIsReach(u16, LanId, Vec<&'a IsReach>),
+    MtIsReachInstance(u32, &'a IsReach),
     IsReachUnreservedBw(usize, &'a f32),
     AdjSidStlv(&'a AdjSidStlv),
     Ipv4Reach(&'a LegacyIpv4Reach),
@@ -439,29 +441,34 @@ fn load_callbacks() -> Callbacks<Instance> {
         .get_iterate(|_instance, args| {
             let lse = args.parent_list_entry.as_lsp_entry().unwrap();
             let lsp = &lse.data;
-            let iter = lsp.tlvs.is_reach().map(|reach| reach.neighbor).collect::<BTreeSet<_>>().into_iter().map(|neighbor| ListEntry::IsReach(lse, neighbor));
+            let iter = lsp
+                .tlvs
+                .is_reach()
+                .fold(BTreeMap::<LanId, Vec<_>>::new(), |mut entries, reach| {
+                    let list_key = reach.neighbor;
+                    entries.entry(list_key).or_default().push(reach);
+                    entries
+                })
+                .into_iter()
+                .map(|(neighbor, entries)| ListEntry::LegacyIsReach(neighbor, entries));
             Some(Box::new(iter))
         })
         .get_object(|_instance, args| {
             use isis::database::levels::lsp::is_neighbor::neighbor::Neighbor;
-            let (_, neighbor) = args.list_entry.as_is_reach().unwrap();
+            let (neighbor, _) = args.list_entry.as_legacy_is_reach().unwrap();
             Box::new(Neighbor {
                 neighbor_id: neighbor.to_yang(),
             })
         })
         .path(isis::database::levels::lsp::is_neighbor::neighbor::instances::instance::PATH)
         .get_iterate(|_instance, args| {
-            let (lse, neighbor) = args.parent_list_entry.as_is_reach().unwrap();
-            let lsp = &lse.data;
-            let neighbor = *neighbor;
-            let iter = lsp.tlvs.is_reach()
-                .filter(move |reach| reach.neighbor == neighbor)
-                .enumerate().map(|(id, reach)| ListEntry::IsReachInstance(id as u32, reach));
+            let (_, entries) = args.parent_list_entry.as_legacy_is_reach().unwrap();
+            let iter = entries.iter().enumerate().map(|(id, entry)| ListEntry::LegacyIsReachInstance(id as u32, entry));
             Some(Box::new(iter))
         })
         .get_object(|_instance, args| {
             use isis::database::levels::lsp::is_neighbor::neighbor::instances::instance::Instance;
-            let (id, _) = args.list_entry.as_is_reach_instance().unwrap();
+            let (id, _) = args.list_entry.as_legacy_is_reach_instance().unwrap();
             Box::new(Instance {
                 id: *id,
                 i_e: Some(false),
@@ -470,7 +477,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(isis::database::levels::lsp::is_neighbor::neighbor::instances::instance::default_metric::PATH)
         .get_object(|_instance, args| {
             use isis::database::levels::lsp::is_neighbor::neighbor::instances::instance::default_metric::DefaultMetric;
-            let (_, reach) = args.list_entry.as_is_reach_instance().unwrap();
+            let (_, reach) = args.list_entry.as_legacy_is_reach_instance().unwrap();
             Box::new(DefaultMetric {
                 metric: Some(reach.metric),
             })
@@ -478,7 +485,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(isis::database::levels::lsp::is_neighbor::neighbor::instances::instance::delay_metric::PATH)
         .get_object(|_instance, args| {
             use isis::database::levels::lsp::is_neighbor::neighbor::instances::instance::delay_metric::DelayMetric;
-            let (_, reach) = args.list_entry.as_is_reach_instance().unwrap();
+            let (_, reach) = args.list_entry.as_legacy_is_reach_instance().unwrap();
             Box::new(DelayMetric {
                 metric: reach.metric_delay,
                 supported: Some(reach.metric_delay.is_some()),
@@ -487,7 +494,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(isis::database::levels::lsp::is_neighbor::neighbor::instances::instance::expense_metric::PATH)
         .get_object(|_instance, args| {
             use isis::database::levels::lsp::is_neighbor::neighbor::instances::instance::expense_metric::ExpenseMetric;
-            let (_, reach) = args.list_entry.as_is_reach_instance().unwrap();
+            let (_, reach) = args.list_entry.as_legacy_is_reach_instance().unwrap();
             Box::new(ExpenseMetric {
                 metric: reach.metric_expense,
                 supported: Some(reach.metric_expense.is_some()),
@@ -496,7 +503,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(isis::database::levels::lsp::is_neighbor::neighbor::instances::instance::error_metric::PATH)
         .get_object(|_instance, args| {
             use isis::database::levels::lsp::is_neighbor::neighbor::instances::instance::error_metric::ErrorMetric;
-            let (_, reach) = args.list_entry.as_is_reach_instance().unwrap();
+            let (_, reach) = args.list_entry.as_legacy_is_reach_instance().unwrap();
             Box::new(ErrorMetric {
                 metric: reach.metric_error,
                 supported: Some(reach.metric_error.is_some()),
@@ -506,25 +513,34 @@ fn load_callbacks() -> Callbacks<Instance> {
         .get_iterate(|_instance, args| {
             let lse = args.parent_list_entry.as_lsp_entry().unwrap();
             let lsp = &lse.data;
-            let iter = lsp.tlvs.ext_is_reach().enumerate().map(|(id, reach)| ListEntry::ExtIsReach(id as u32, reach));
+            let iter = lsp
+                .tlvs
+                .ext_is_reach()
+                .fold(BTreeMap::<LanId, Vec<_>>::new(), |mut entries, reach| {
+                    let list_key = reach.neighbor;
+                    entries.entry(list_key).or_default().push(reach);
+                    entries
+                })
+                .into_iter()
+                .map(|(neighbor, entries)| ListEntry::ExtIsReach(neighbor, entries));
             Some(Box::new(iter))
         })
         .get_object(|_instance, args| {
             use isis::database::levels::lsp::extended_is_neighbor::neighbor::Neighbor;
-            let (_, reach) = args.list_entry.as_ext_is_reach().unwrap();
+            let (neighbor, _) = args.list_entry.as_ext_is_reach().unwrap();
             Box::new(Neighbor {
-                neighbor_id: reach.neighbor.to_yang(),
+                neighbor_id: neighbor.to_yang(),
             })
         })
         .path(isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::PATH)
         .get_iterate(|_instance, args| {
-            let (id, reach) = args.parent_list_entry.as_ext_is_reach().unwrap();
-            let iter = std::iter::once(ListEntry::ExtIsReach(*id, reach));
+            let (_, entries) = args.parent_list_entry.as_ext_is_reach().unwrap();
+            let iter = entries.iter().enumerate().map(|(id, entry)| ListEntry::ExtIsReachInstance(id as u32, entry));
             Some(Box::new(iter))
         })
         .get_object(|_instance, args| {
             use isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::Instance;
-            let (id, reach) = args.list_entry.as_ext_is_reach().unwrap();
+            let (id, reach) = args.list_entry.as_ext_is_reach_instance().unwrap();
             Box::new(Instance {
                 id: *id,
                 metric: Some(reach.metric),
@@ -537,7 +553,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::local_if_ipv4_addrs::PATH)
         .get_object(|_instance, args| {
             use isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::local_if_ipv4_addrs::LocalIfIpv4Addrs;
-            let (_, reach) = args.list_entry.as_ext_is_reach().unwrap();
+            let (_, reach) = args.list_entry.as_ext_is_reach_instance().unwrap();
             let iter = reach.sub_tlvs.ipv4_interface_addr.iter().map(|tlv| tlv.get()).map(Cow::Borrowed);
             Box::new(LocalIfIpv4Addrs {
                 local_if_ipv4_addr: Some(Box::new(iter)),
@@ -546,7 +562,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::remote_if_ipv4_addrs::PATH)
         .get_object(|_instance, args| {
             use isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::remote_if_ipv4_addrs::RemoteIfIpv4Addrs;
-            let (_, reach) = args.list_entry.as_ext_is_reach().unwrap();
+            let (_, reach) = args.list_entry.as_ext_is_reach_instance().unwrap();
             let iter = reach.sub_tlvs.ipv4_neighbor_addr.iter().map(|tlv| tlv.get()).map(Cow::Borrowed);
             Box::new(RemoteIfIpv4Addrs {
                 remote_if_ipv4_addr: Some(Box::new(iter)),
@@ -554,7 +570,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .path(isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unreserved_bandwidths::unreserved_bandwidth::PATH)
         .get_iterate(|_instance, args| {
-            let (_, reach) = args.parent_list_entry.as_ext_is_reach().unwrap();
+            let (_, reach) = args.parent_list_entry.as_ext_is_reach_instance().unwrap();
             if let Some(unreserved_bw) = &reach.sub_tlvs.unreserved_bw {
                 let iter = unreserved_bw.iter().map(|(prio, bw)| ListEntry::IsReachUnreservedBw(prio, bw));
                 Some(Box::new(iter))
@@ -572,7 +588,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .path(isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unknown_tlvs::unknown_tlv::PATH)
         .get_iterate(|_instance, args| {
-            let (_, reach) = args.parent_list_entry.as_ext_is_reach().unwrap();
+            let (_, reach) = args.parent_list_entry.as_ext_is_reach_instance().unwrap();
             let iter = reach.sub_tlvs.unknown.iter().map(ListEntry::UnknownTlv);
             Some(Box::new(iter))
         })
@@ -587,7 +603,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .path(isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::adj_sid_sub_tlvs::adj_sid_sub_tlv::PATH)
         .get_iterate(|_instance, args| {
-            let (_, reach) = args.parent_list_entry.as_ext_is_reach().unwrap();
+            let (_, reach) = args.parent_list_entry.as_ext_is_reach_instance().unwrap();
             let iter = reach.sub_tlvs.adj_sids.iter().map(ListEntry::AdjSidStlv);
             Some(Box::new(iter))
         })
@@ -789,26 +805,35 @@ fn load_callbacks() -> Callbacks<Instance> {
         .get_iterate(|_instance, args| {
             let lse = args.parent_list_entry.as_lsp_entry().unwrap();
             let lsp = &lse.data;
-            let iter = lsp.tlvs.mt_is_reach().enumerate().map(|(id, (mt_id, reach))| ListEntry::MtIsReach(mt_id, id as u32, reach));
+            let iter = lsp
+                .tlvs
+                .mt_is_reach()
+                .fold(BTreeMap::<(u16, LanId), Vec<_>>::new(), |mut entries, (mt_id, reach)| {
+                    let list_key = (mt_id, reach.neighbor);
+                    entries.entry(list_key).or_default().push(reach);
+                    entries
+                })
+                .into_iter()
+                .map(|((mt_id, neighbor), entries)| ListEntry::MtIsReach(mt_id, neighbor, entries));
             Some(Box::new(iter))
         })
         .get_object(|_instance, args| {
             use isis::database::levels::lsp::mt_is_neighbor::neighbor::Neighbor;
-            let (mt_id, _, reach) = args.list_entry.as_mt_is_reach().unwrap();
+            let (mt_id, neighbor, _) = args.list_entry.as_mt_is_reach().unwrap();
             Box::new(Neighbor {
                 mt_id: Some(*mt_id),
-                neighbor_id: Some(reach.neighbor.to_yang()),
+                neighbor_id: Some(neighbor.to_yang()),
             })
         })
         .path(isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::PATH)
         .get_iterate(|_instance, args| {
-            let (mt_id, id, reach) = args.parent_list_entry.as_mt_is_reach().unwrap();
-            let iter = std::iter::once(ListEntry::MtIsReach(*mt_id, *id, reach));
+            let (_, _, entries) = args.parent_list_entry.as_mt_is_reach().unwrap();
+            let iter = entries.iter().enumerate().map(|(id, entry)| ListEntry::MtIsReachInstance(id as u32, entry));
             Some(Box::new(iter))
         })
         .get_object(|_instance, args| {
             use isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::Instance;
-            let (_, id, reach) = args.list_entry.as_mt_is_reach().unwrap();
+            let (id, reach) = args.list_entry.as_mt_is_reach_instance().unwrap();
             Box::new(Instance {
                 id: *id,
                 metric: Some(reach.metric),
@@ -821,7 +846,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::local_if_ipv4_addrs::PATH)
         .get_object(|_instance, args| {
             use isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::local_if_ipv4_addrs::LocalIfIpv4Addrs;
-            let (_, _, reach) = args.list_entry.as_mt_is_reach().unwrap();
+            let (_, reach) = args.list_entry.as_mt_is_reach_instance().unwrap();
             let iter = reach.sub_tlvs.ipv4_interface_addr.iter().map(|tlv| tlv.get()).map(Cow::Borrowed);
             Box::new(LocalIfIpv4Addrs {
                 local_if_ipv4_addr: Some(Box::new(iter)),
@@ -830,7 +855,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::remote_if_ipv4_addrs::PATH)
         .get_object(|_instance, args| {
             use isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::remote_if_ipv4_addrs::RemoteIfIpv4Addrs;
-            let (_, _, reach) = args.list_entry.as_mt_is_reach().unwrap();
+            let (_, reach) = args.list_entry.as_mt_is_reach_instance().unwrap();
             let iter = reach.sub_tlvs.ipv4_neighbor_addr.iter().map(|tlv| tlv.get()).map(Cow::Borrowed);
             Box::new(RemoteIfIpv4Addrs {
                 remote_if_ipv4_addr: Some(Box::new(iter)),
@@ -838,7 +863,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .path(isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unreserved_bandwidths::unreserved_bandwidth::PATH)
         .get_iterate(|_instance, args| {
-            let (_, _, reach) = args.parent_list_entry.as_mt_is_reach().unwrap();
+            let (_, reach) = args.parent_list_entry.as_mt_is_reach_instance().unwrap();
             if let Some(unreserved_bw) = &reach.sub_tlvs.unreserved_bw {
                 let iter = unreserved_bw.iter().map(|(prio, bw)| ListEntry::IsReachUnreservedBw(prio, bw));
                 Some(Box::new(iter))
@@ -856,7 +881,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .path(isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unknown_tlvs::unknown_tlv::PATH)
         .get_iterate(|_instance, args| {
-            let (_, _, reach) = args.parent_list_entry.as_mt_is_reach().unwrap();
+            let (_, reach) = args.parent_list_entry.as_mt_is_reach_instance().unwrap();
             let iter = reach.sub_tlvs.unknown.iter().map(ListEntry::UnknownTlv);
             Some(Box::new(iter))
         })
@@ -871,7 +896,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .path(isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::adj_sid_sub_tlvs::adj_sid_sub_tlv::PATH)
         .get_iterate(|_instance, args| {
-            let (_, _, reach) = args.parent_list_entry.as_mt_is_reach().unwrap();
+            let (_, reach) = args.parent_list_entry.as_mt_is_reach_instance().unwrap();
             let iter = reach.sub_tlvs.adj_sids.iter().map(ListEntry::AdjSidStlv);
             Some(Box::new(iter))
         })

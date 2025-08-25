@@ -40,7 +40,7 @@ pub type GetIterateCb<P: Provider> = for<'a, 'b> fn(
     &'a P,
     GetIterateArgs<'a, 'b, P>,
 ) -> Option<
-    Box<dyn Iterator<Item = P::ListEntry<'a>> + 'a>,
+    Box<dyn Iterator<Item = P::ListEntry<'a>> + 'b>,
 >;
 
 #[derive(Debug)]
@@ -436,15 +436,23 @@ where
             });
 
         // Find the list entry associated to the provided path.
-        if let Some(mut list_iter) = (*cb_iterate)(
-            provider,
-            GetIterateArgs {
-                parent_list_entry: &list_entry,
-            },
-        ) && let Some(entry) = list_iter.find(|entry| {
-            let obj = (*cb_get)(provider, GetObjectArgs { list_entry: entry });
-            list_keys == obj.list_keys()
-        }) {
+        if let Some(entry) = {
+            (*cb_iterate)(
+                provider,
+                GetIterateArgs {
+                    parent_list_entry: &list_entry,
+                },
+            )
+            .and_then(|mut list_iter| {
+                list_iter.find(|entry| {
+                    let obj = (*cb_get)(
+                        provider,
+                        GetObjectArgs { list_entry: entry },
+                    );
+                    list_keys == obj.list_keys()
+                })
+            })
+        } {
             list_entry = entry;
         }
     }

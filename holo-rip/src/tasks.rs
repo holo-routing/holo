@@ -148,12 +148,16 @@ where
 
         let socket = socket.clone();
         let udp_pdu_rxp = udp_pdu_rxp.clone();
-        Task::spawn(
+
+        Task::spawn_supervised(move || {
+            let socket = socket.clone();
+            let auth = auth.clone();
+            let udp_pdu_rxp = udp_pdu_rxp.clone();
             async move {
                 let _ = network::read_loop(socket, auth, udp_pdu_rxp).await;
             }
-            .in_current_span(),
-        )
+            .in_current_span()
+        })
     }
     #[cfg(feature = "testing")]
     {

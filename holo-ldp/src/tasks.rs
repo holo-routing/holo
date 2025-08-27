@@ -15,11 +15,12 @@ use holo_utils::socket::{
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use tokio::sync::mpsc::{Sender, UnboundedReceiver};
 use tokio::time::sleep;
-use tracing::{Instrument, debug_span};
+use tracing::{Instrument, debug_span, error};
 
 use crate::collections::AdjacencyId;
 use crate::debug::Debug;
 use crate::discovery::TargetedNbr;
+use crate::error::Error;
 use crate::instance::InstanceState;
 use crate::interface::Interface;
 use crate::neighbor::{Neighbor, NeighborFlags};
@@ -186,13 +187,16 @@ pub(crate) fn basic_discovery_rx(
 
         let disc_socket = disc_socket.clone();
         let udp_pdu_rxp = udp_pdu_rxp.clone();
-        Task::spawn(
+
+        Task::spawn_supervised(move || {
+            let disc_socket = disc_socket.clone();
+            let udp_pdu_rxp = udp_pdu_rxp.clone();
             async move {
                 let _ = network::udp::read_loop(disc_socket, true, udp_pdu_rxp)
                     .await;
             }
-            .in_current_span(),
-        )
+            .in_current_span()
+        })
     }
     #[cfg(feature = "testing")]
     {
@@ -214,14 +218,17 @@ pub(crate) fn extended_discovery_rx(
 
         let edisc_socket = edisc_socket.clone();
         let udp_pdu_rxp = udp_pdu_rxp.clone();
-        Task::spawn(
+
+        Task::spawn_supervised(move || {
+            let edisc_socket = edisc_socket.clone();
+            let udp_pdu_rxp = udp_pdu_rxp.clone();
             async move {
                 let _ =
                     network::udp::read_loop(edisc_socket, false, udp_pdu_rxp)
                         .await;
             }
-            .in_current_span(),
-        )
+            .in_current_span()
+        })
     }
     #[cfg(feature = "testing")]
     {
@@ -432,16 +439,38 @@ pub(crate) fn nbr_rx(
         let nbr_lsr_id = nbr.lsr_id;
         let nbr_raddr = nbr.conn_info.as_ref().unwrap().remote_addr;
         let nbr_pdu_rxp = nbr_pdu_rxp.clone();
+
+        // Spawn a supervised task for this neighbor.
+        //
+        // The TCP read loop runs inside an inner supervised task, which lets us
+        // catch panics (for example, from malformed or malicious input) and
+        // handle them gracefully. Rather than propagating the panic, we treat
+        // it as if the TCP connection was closed, containing the failure.
         Task::spawn(
             async move {
-                let _ = network::tcp::nbr_read_loop(
-                    read_half,
-                    nbr_id,
-                    nbr_lsr_id,
-                    nbr_raddr,
-                    nbr_pdu_rxp,
-                )
-                .await;
+                let join_handle = {
+                    let nbr_pdu_rxp = nbr_pdu_rxp.clone();
+                    tokio::task::spawn(async move {
+                        let _ = network::tcp::nbr_read_loop(
+                            read_half,
+                            nbr_id,
+                            nbr_lsr_id,
+                            nbr_raddr,
+                            nbr_pdu_rxp,
+                        )
+                        .await;
+                    })
+                };
+                if let Err(error) = join_handle.await
+                    && error.is_panic()
+                {
+                    error!(%error, "task panicked");
+                    let msg = messages::input::NbrRxPduMsg {
+                        nbr_id,
+                        pdu: Err(Error::TcpConnClosed(nbr_lsr_id)),
+                    };
+                    let _ = nbr_pdu_rxp.send(msg).await;
+                }
             }
             .in_current_span(),
         )

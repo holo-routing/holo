@@ -80,6 +80,49 @@ impl<T> Task<T> {
         }
     }
 
+    /// Spawns a supervised task that automatically restarts if it panics.
+    /// The task will terminate if it completes successfully or returns an
+    /// error.
+    ///
+    /// This is primarily useful for long-running network receive loops that
+    /// may be exposed to malformed or malicious input. In such cases, it is
+    /// often preferable to discard the offending packet and keep the task
+    /// alive, rather than letting a panic bring down the entire routing
+    /// instance.
+    pub fn spawn_supervised<F, Fut>(spawn_fn: F) -> Task<()>
+    where
+        F: Fn() -> Fut + Send + 'static,
+        Fut: Future<Output = T> + Send + 'static,
+        T: Send + 'static,
+    {
+        let join_handle = tokio::spawn(
+            async move {
+                loop {
+                    let join_handle = tokio::spawn(spawn_fn());
+                    match join_handle.await {
+                        Ok(_) => {
+                            // Finished without panic.
+                            break;
+                        }
+                        Err(error) if error.is_panic() => {
+                            error!("task panicked, restarting...");
+                            continue;
+                        }
+                        Err(error) => {
+                            error!(%error, "task failed");
+                            break;
+                        }
+                    }
+                }
+            }
+            .in_current_span(),
+        );
+        Task {
+            join_handle,
+            detached: false,
+        }
+    }
+
     /// Runs the provided closure on a thread where blocking is acceptable.
     pub fn spawn_blocking<F>(f: F) -> Task<T>
     where

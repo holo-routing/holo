@@ -137,13 +137,15 @@ pub(crate) fn vrrp_net_rx(
 
         let net_packet_rxp = net_packet_rxp.clone();
 
-        Task::spawn(
+        Task::spawn_supervised(move || {
+            let socket_vrrp = socket_vrrp.clone();
+            let net_packet_rxp = net_packet_rxp.clone();
             async move {
                 let _ =
                     network::read_loop(socket_vrrp, net_packet_rxp, af).await;
             }
-            .in_current_span(),
-        )
+            .in_current_span()
+        })
     }
     #[cfg(feature = "testing")]
     {

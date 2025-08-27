@@ -11,9 +11,10 @@ use holo_utils::socket::{OwnedReadHalf, OwnedWriteHalf, TcpListener};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
 use tokio::time::sleep;
-use tracing::{Instrument, debug_span};
+use tracing::{Instrument, debug_span, error};
 
 use crate::debug::Debug;
+use crate::error::NbrRxError;
 use crate::neighbor::{Neighbor, fsm};
 use crate::packet::message::{DecodeCxt, EncodeCxt, KeepaliveMsg, Message};
 use crate::{network, policy};
@@ -304,15 +305,37 @@ pub(crate) fn nbr_rx(
 
         let nbr_addr = nbr.remote_addr;
         let nbr_msg_rxp = nbr_msg_rxp.clone();
+
+        // Spawn a supervised task for this neighbor.
+        //
+        // The TCP read loop runs inside an inner supervised task, which lets us
+        // catch panics (for example, from malformed or malicious input) and
+        // handle them gracefully. Rather than propagating the panic, we treat
+        // it as if the TCP connection was closed, containing the failure.
         Task::spawn(
             async move {
-                let _ = network::nbr_read_loop(
-                    read_half,
-                    nbr_addr,
-                    cxt,
-                    nbr_msg_rxp,
-                )
-                .await;
+                let join_handle = {
+                    let nbr_msg_rxp = nbr_msg_rxp.clone();
+                    tokio::task::spawn(async move {
+                        let _ = network::nbr_read_loop(
+                            read_half,
+                            nbr_addr,
+                            cxt,
+                            nbr_msg_rxp,
+                        )
+                        .await;
+                    })
+                };
+                if let Err(error) = join_handle.await
+                    && error.is_panic()
+                {
+                    error!(%error, "task panicked");
+                    let msg = messages::input::NbrRxMsg {
+                        nbr_addr,
+                        msg: Err(NbrRxError::TcpConnClosed),
+                    };
+                    let _ = nbr_msg_rxp.send(msg).await;
+                }
             }
             .in_current_span(),
         )

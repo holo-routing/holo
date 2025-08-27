@@ -259,7 +259,10 @@ where
         let auth = iface.state.auth.clone();
         let net_packet_rxp = net_packet_rxp.clone();
 
-        Task::spawn(
+        Task::spawn_supervised(move || {
+            let socket = socket.clone();
+            let auth = auth.clone();
+            let net_packet_rxp = net_packet_rxp.clone();
             async move {
                 let _ = network::read_loop(
                     socket,
@@ -271,8 +274,8 @@ where
                 )
                 .await;
             }
-            .in_current_span(),
-        )
+            .in_current_span()
+        })
     }
     #[cfg(feature = "testing")]
     {

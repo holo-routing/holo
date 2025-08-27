@@ -17,7 +17,7 @@
 {"Protocol":{"NbrTimer":{"nbr_addr":"10.0.4.3","timer":"AutoStart"}}}
 {"Protocol":{"TcpConnect":{"conn_info":{"local_addr":"10.0.1.2","local_port":37088,"remote_addr":"10.0.1.1","remote_port":179}}}}
 {"Protocol":{"TcpConnect":{"conn_info":{"local_addr":"10.0.4.2","local_port":51588,"remote_addr":"10.0.4.3","remote_port":179}}}}
-{"Protocol":{"NbrRx":{"nbr_addr":"10.0.4.3","msg":{"Err":{"TcpConnClosed":"10.0.4.3"}}}}}
+{"Protocol":{"NbrRx":{"nbr_addr":"10.0.4.3","msg":{"Err":{"TcpConnClosed":null}}}}}
 {"Protocol":{"TriggerDecisionProcess":null}}
 {"Protocol":{"NbrRx":{"nbr_addr":"10.0.1.1","msg":{"Ok":{"Open":{"version":4,"my_as":65001,"holdtime":90,"identifier":"1.1.1.1","capabilities":[{"MultiProtocol":{"afi":"Ipv4","safi":"Unicast"}},{"FourOctetAsNumber":{"asn":65001}},"RouteRefresh"]}}}}}}
 {"Protocol":{"NbrRx":{"nbr_addr":"10.0.1.1","msg":{"Ok":{"Keepalive":{}}}}}}
@@ -26,7 +26,7 @@
 {"Protocol":{"PolicyResult":{"Neighbor":{"policy_type":"Import","nbr_addr":"10.0.1.1","afi_safi":"Ipv4Unicast","routes":[["1.1.1.1/32",{"Accept":{"origin":{"Neighbor":{"identifier":"1.1.1.1","remote_addr":"10.0.1.1"}},"route_type":"External","attrs":{"base":{"origin":"Incomplete","as_path":{"segments":[{"seg_type":"Sequence","members":[65001]}]},"nexthop":"10.0.1.1"}}}}]]}}}}
 {"Ibus":{"NexthopUpd":{"addr":"10.0.1.1","metric":0}}}
 {"Protocol":{"TcpAccept":{"conn_info":{"local_addr":"10.0.4.2","local_port":179,"remote_addr":"10.0.4.3","remote_port":41756}}}}
-{"Protocol":{"NbrRx":{"nbr_addr":"10.0.4.3","msg":{"Err":{"TcpConnClosed":"10.0.4.3"}}}}}
+{"Protocol":{"NbrRx":{"nbr_addr":"10.0.4.3","msg":{"Err":{"TcpConnClosed":null}}}}}
 {"Protocol":{"TriggerDecisionProcess":null}}
 {"Ibus":{"RouteIpAdd":{"protocol":"bgp","prefix":"1.1.1.1/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"10.0.1.1","labels":[],"resolved":[]}}]}}}
 {"Protocol":{"PolicyResult":{"Neighbor":{"policy_type":"Export","nbr_addr":"10.0.1.1","afi_safi":"Ipv4Unicast","routes":[["2.2.2.2/32",{"Accept":{"origin":{"Protocol":"direct"},"route_type":"Internal","attrs":{"base":{"origin":"Incomplete","as_path":{"segments":[]}}}}}]]}}}}

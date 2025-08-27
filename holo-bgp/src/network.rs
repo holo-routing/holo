@@ -249,7 +249,7 @@ pub(crate) async fn nbr_read_loop(
                 // Notify that the connection was closed by the remote end.
                 let msg = NbrRxMsg {
                     nbr_addr,
-                    msg: Err(NbrRxError::TcpConnClosed(nbr_addr)),
+                    msg: Err(NbrRxError::TcpConnClosed),
                 };
                 nbr_msg_rxp.send(msg).await?;
                 return Ok(());
@@ -264,7 +264,7 @@ pub(crate) async fn nbr_read_loop(
         // Decode message(s).
         while let Some(msg_size) = Message::get_message_len(&data) {
             let msg = Message::decode(&data[0..msg_size], &cxt)
-                .map_err(|error| NbrRxError::MsgDecodeError(nbr_addr, error));
+                .map_err(NbrRxError::MsgDecodeError);
             data.drain(..msg_size);
 
             // Keep track of received capabilities as they influence how some

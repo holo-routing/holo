@@ -137,10 +137,10 @@ pub(crate) fn process_nbr_msg(
             }
         }
         Err(error) => match error {
-            NbrRxError::TcpConnClosed(_) => {
+            NbrRxError::TcpConnClosed => {
                 nbr.fsm_event(instance, fsm::Event::ConnFail);
             }
-            NbrRxError::MsgDecodeError(_, error) => {
+            NbrRxError::MsgDecodeError(error) => {
                 nbr.fsm_event(instance, fsm::Event::RcvdError(error));
             }
         },

@@ -57,34 +57,34 @@ impl Debug<'_> {
                 // Parent span(s): bgp-instance
                 debug!(%reason, "{}", self);
             }
-            Debug::NbrFsmEvent(nbr_addr, event) => {
+            Debug::NbrFsmEvent(addr, event) => {
                 // Parent span(s): bgp-instance
-                debug_span!("neighbor", %nbr_addr).in_scope(|| {
+                debug_span!("neighbor", %addr).in_scope(|| {
                     debug_span!("fsm").in_scope(|| {
                         debug!(?event, "{}", self);
                     })
                 });
             }
-            Debug::NbrFsmTransition(nbr_addr, old_state, new_state) => {
+            Debug::NbrFsmTransition(addr, old_state, new_state) => {
                 // Parent span(s): bgp-instance
-                debug_span!("neighbor", %nbr_addr).in_scope(|| {
+                debug_span!("neighbor", %addr).in_scope(|| {
                     debug_span!("fsm").in_scope(|| {
                         debug!(?old_state, ?new_state, "{}", self);
                     })
                 });
             }
-            Debug::NbrMsgRx(nbr_addr, msg) => {
+            Debug::NbrMsgRx(addr, msg) => {
                 // Parent span(s): bgp-instance
-                debug_span!("neighbor", %nbr_addr).in_scope(|| {
+                debug_span!("neighbor", %addr).in_scope(|| {
                     debug_span!("input").in_scope(|| {
                         let data = serde_json::to_string(&msg).unwrap();
                         debug!(%data, "{}", self);
                     })
                 });
             }
-            Debug::NbrMsgTx(nbr_addr, msg) => {
+            Debug::NbrMsgTx(addr, msg) => {
                 // Parent span(s): bgp-instance
-                debug_span!("neighbor", %nbr_addr).in_scope(|| {
+                debug_span!("neighbor", %addr).in_scope(|| {
                     debug_span!("output").in_scope(|| {
                         let data = serde_json::to_string(&msg).unwrap();
                         debug!(%data, "{}", self);

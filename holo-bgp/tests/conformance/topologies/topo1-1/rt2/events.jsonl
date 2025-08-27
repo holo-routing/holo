@@ -26,7 +26,7 @@
 {"Ibus":{"RouteIpAdd":{"protocol":"bgp","prefix":"1.1.1.1/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"10.0.1.1","labels":[],"resolved":[]}}]}}}
 {"Ibus":{"RouteRedistributeAdd":{"protocol":"bgp","prefix":"1.1.1.1/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"10.0.1.1","labels":[],"resolved":[{"Address":{"ifindex":2,"addr":"10.0.1.1","labels":[]}}]}}]}}}
 {"Protocol":{"TcpAccept":{"conn_info":{"local_addr":"10.0.3.2","local_port":179,"remote_addr":"10.0.3.4","remote_port":45164}}}}
-{"Protocol":{"NbrRx":{"nbr_addr":"10.0.3.4","msg":{"Err":{"TcpConnClosed":"10.0.3.4"}}}}}
+{"Protocol":{"NbrRx":{"nbr_addr":"10.0.3.4","msg":{"Err":{"TcpConnClosed":null}}}}}
 {"Protocol":{"TriggerDecisionProcess":null}}
 {"Protocol":{"PolicyResult":{"Neighbor":{"policy_type":"Export","nbr_addr":"10.0.1.1","afi_safi":"Ipv4Unicast","routes":[["2.2.2.2/32",{"Accept":{"origin":{"Protocol":"direct"},"route_type":"Internal","attrs":{"base":{"origin":"Incomplete","as_path":{"segments":[]}}}}}]]}}}}
 {"Protocol":{"NbrRx":{"nbr_addr":"10.0.1.1","msg":{"Ok":{"Update":{"reach":{"prefixes":["3.3.3.3/32"],"nexthop":"10.0.1.1"},"attrs":{"base":{"origin":"Incomplete","as_path":{"segments":[{"seg_type":"Sequence","members":[65100,65000]}]}}}}}}}}}

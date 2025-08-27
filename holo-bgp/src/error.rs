@@ -17,7 +17,7 @@ pub enum Error {
     // I/O errors
     IoError(IoError),
     // Network input
-    NbrRxError(NbrRxError),
+    NbrRxError(IpAddr, NbrRxError),
     // Message processing
     NbrBadAs(IpAddr, u32, u32),
     NbrBadIdentifier(IpAddr, Ipv4Addr),
@@ -41,8 +41,8 @@ pub enum IoError {
 #[derive(Debug)]
 #[derive(Deserialize, Serialize)]
 pub enum NbrRxError {
-    TcpConnClosed(IpAddr),
-    MsgDecodeError(IpAddr, DecodeError),
+    TcpConnClosed,
+    MsgDecodeError(DecodeError),
 }
 
 // ===== impl Error =====
@@ -53,8 +53,10 @@ impl Error {
             Error::IoError(error) => {
                 error.log();
             }
-            Error::NbrRxError(error) => {
-                error.log();
+            Error::NbrRxError(addr, error) => {
+                warn_span!("neighbor", %addr).in_scope(|| {
+                    error.log();
+                });
             }
             Error::NbrBadAs(addr, received, expected) => {
                 warn_span!("neighbor", %addr).in_scope(|| {
@@ -77,7 +79,7 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::IoError(error) => error.fmt(f),
-            Error::NbrRxError(error) => error.fmt(f),
+            Error::NbrRxError(_, error) => error.fmt(f),
             Error::NbrBadAs(..) => {
                 write!(f, "bad peer AS")
             }
@@ -95,7 +97,7 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Error::IoError(error) => Some(error),
-            Error::NbrRxError(error) => Some(error),
+            Error::NbrRxError(_, error) => Some(error),
             Error::InstanceStartError(error) => Some(error),
             _ => None,
         }
@@ -176,15 +178,11 @@ impl std::error::Error for IoError {
 impl NbrRxError {
     pub(crate) fn log(&self) {
         match self {
-            NbrRxError::TcpConnClosed(addr) => {
-                warn_span!("neighbor", %addr).in_scope(|| {
-                    warn!("{}", self);
-                });
+            NbrRxError::TcpConnClosed => {
+                warn!("{}", self);
             }
-            NbrRxError::MsgDecodeError(addr, error) => {
-                warn_span!("neighbor", %addr).in_scope(|| {
-                    warn!(error = %with_source(error), "{}", self);
-                });
+            NbrRxError::MsgDecodeError(error) => {
+                warn!(error = %with_source(error), "{}", self);
             }
         }
     }
@@ -193,7 +191,7 @@ impl NbrRxError {
 impl std::fmt::Display for NbrRxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            NbrRxError::TcpConnClosed(..) => {
+            NbrRxError::TcpConnClosed => {
                 write!(f, "connection closed by remote end")
             }
             NbrRxError::MsgDecodeError(..) => {
@@ -206,7 +204,7 @@ impl std::fmt::Display for NbrRxError {
 impl std::error::Error for NbrRxError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            NbrRxError::MsgDecodeError(_, error) => Some(error),
+            NbrRxError::MsgDecodeError(error) => Some(error),
             _ => None,
         }
     }

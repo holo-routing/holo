@@ -491,10 +491,12 @@ impl Interface {
     }
 
     pub(crate) fn dis_start(&mut self, instance: &mut InstanceUpView<'_>) {
+        tracing::debug!("XXX dis_start");
         self.csnp_interval_start(instance);
     }
 
     pub(crate) fn dis_stop(&mut self, _instance: &mut InstanceUpView<'_>) {
+        tracing::debug!("XXX dis_stop");
         self.csnp_interval_stop();
     }
 
@@ -673,6 +675,7 @@ impl Interface {
         &mut self,
         instance: &InstanceUpView<'_>,
     ) {
+        tracing::debug!("XXX csnp_interval_start");
         for level in self.config.levels() {
             let task = tasks::csnp_interval(self, level, instance);
             *self.state.tasks.csnp_interval.get_mut(level) = Some(task);
@@ -683,6 +686,7 @@ impl Interface {
         &mut self,
         instance: &InstanceUpView<'_>,
     ) {
+        tracing::debug!("XXX csnp_interval_reset");
         for level in self.config.levels() {
             if self.state.tasks.csnp_interval.get(level).is_none() {
                 continue;
@@ -693,6 +697,7 @@ impl Interface {
     }
 
     pub(crate) fn csnp_interval_stop(&mut self) {
+        tracing::debug!("XXX csnp_interval_stop");
         self.state.tasks.csnp_interval = Default::default();
     }
 

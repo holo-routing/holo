@@ -256,9 +256,9 @@ async fn send_pdu(
     trace_opts: &Arc<ArcSwap<TraceOptionPacketResolved>>,
 ) -> Result<usize, IoError> {
     // Log PDU being sent.
-    if trace_opts.load().tx(pdu.pdu_type()) {
-        Debug::PduTx(ifname, dst, pdu).log();
-    }
+    //if trace_opts.load().tx(pdu.pdu_type()) {
+    Debug::PduTx(ifname, dst, pdu).log();
+    //}
 
     // Encode PDU.
     let buf = pdu.encode(auth);

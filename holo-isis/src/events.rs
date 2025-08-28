@@ -136,9 +136,9 @@ pub(crate) fn process_pdu(
     iface.state.discontinuity_time = Utc::now();
 
     // Log received PDU.
-    if iface.config.trace_opts.packets_resolved.load().rx(pdu_type) {
-        Debug::PduRx(iface, &src, &pdu).log();
-    }
+    //if iface.config.trace_opts.packets_resolved.load().rx(pdu_type) {
+    Debug::PduRx(iface, &src, &pdu).log();
+    //}
 
     match pdu {
         Pdu::Hello(hello) => {
@@ -684,7 +684,7 @@ fn process_pdu_lsp(
                 level,
                 instance.config.lsp_lifetime,
                 lse.data.lsp_id,
-                lsp.seqno + 1,
+                lsp.seqno.wrapping_add(1),
                 lse.data.flags,
                 lse.data.tlvs.clone(),
                 auth.as_ref().and_then(|auth| auth.get_key_send()),

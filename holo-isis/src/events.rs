@@ -676,6 +676,7 @@ fn process_pdu_lsp(
         return Ok(());
     }
 
+    /*
     // Validate TLVs in the purged LSP.
     if lsp.is_expired() && !lsp.tlvs.valid_purge_tlvs() {
         // Log why the LSP is being discarded.
@@ -684,6 +685,7 @@ fn process_pdu_lsp(
         // Discard LSP.
         return Ok(());
     }
+    */
 
     // NOTE: Per RFC 3719, LSPs with a Remaining Lifetime greater than MaxAge
     // should not be discarded as originally specified. MaxAge is now variable
@@ -736,7 +738,7 @@ fn process_pdu_lsp(
                 level,
                 instance.config.lsp_lifetime,
                 lse.data.lsp_id,
-                lsp.seqno + 1,
+                lsp.seqno.wrapping_add(1),
                 lse.data.flags,
                 lse.data.tlvs.clone(),
                 auth.as_ref().and_then(|auth| auth.get_key_send()),
@@ -754,11 +756,13 @@ fn process_pdu_lsp(
             // received.
             lsp.rcvd_rem_lifetime = Some(lsp.rem_lifetime);
 
+            /*
             // RFC 7987: If the LSP is not expired, reset its Remaining Lifetime
             // to the configured maximum to protect against corrupted values.
             if !lsp.is_expired() {
                 lsp.rem_lifetime = instance.config.lsp_lifetime;
             }
+            */
 
             // If we receive a purge without a POI TLV and purge originator
             // support is enabled, add a POI TLV containing our System ID and

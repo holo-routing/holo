@@ -454,7 +454,7 @@ pub(crate) fn csnp_interval(
         let send_csnpp = instance.tx.protocol_input.send_csnp.clone();
         IntervalTask::new(
             Duration::from_secs(interval.into()),
-            true,
+            false,
             move || {
                 let send_csnpp = send_csnpp.clone();
 

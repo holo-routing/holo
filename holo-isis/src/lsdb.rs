@@ -1539,11 +1539,13 @@ pub(crate) fn lsp_originate(
     }
 
     // Schedule LSP refreshing.
-    let refresh_timer = tasks::lsp_refresh_timer(
-        level,
-        lse.id,
-        instance.config.lsp_refresh,
-        &instance.tx.protocol_input.lsp_refresh,
-    );
-    lse.refresh_timer = Some(refresh_timer);
+    if !lse.data.lsp_id.is_pseudonode() {
+        let refresh_timer = tasks::lsp_refresh_timer(
+            level,
+            lse.id,
+            instance.config.lsp_refresh,
+            &instance.tx.protocol_input.lsp_refresh,
+        );
+        lse.refresh_timer = Some(refresh_timer);
+    }
 }

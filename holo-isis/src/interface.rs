@@ -421,6 +421,11 @@ impl Interface {
             InterfaceType::Broadcast => {
                 self.state.lan_adjacencies.l1.clear(arena_adjacencies);
                 self.state.lan_adjacencies.l2.clear(arena_adjacencies);
+
+                // Restart Hello Tx task (updated list of neighbors).
+                if !self.is_passive() {
+                    self.hello_interval_start(instance, LevelType::All);
+                }
             }
             InterfaceType::PointToPoint => {
                 self.state.p2p_adjacency = None;

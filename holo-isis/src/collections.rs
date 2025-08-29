@@ -531,6 +531,14 @@ impl Lsdb {
         arena.0.remove(lse_idx).unwrap()
     }
 
+    pub(crate) fn clear(&mut self, arena: &mut Arena<LspEntry>) {
+        for lse_idx in self.id_tree.values() {
+            arena.0.remove(*lse_idx).unwrap();
+        }
+        self.id_tree.clear();
+        self.lspid_tree.clear();
+    }
+
     // Returns a reference to the LSP entry corresponding to the given ID.
     pub(crate) fn get_by_id<'a>(
         &self,

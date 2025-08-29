@@ -101,6 +101,10 @@ fn clear_database(
 
     // Clear database.
     for level in level_type {
-        *instance.state.lsdb.get_mut(level) = Default::default();
+        instance
+            .state
+            .lsdb
+            .get_mut(level)
+            .clear(&mut arenas.lsp_entries);
     }
 }

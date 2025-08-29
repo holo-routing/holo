@@ -102,17 +102,17 @@ fn clear_database<V>(
     V: Version,
 {
     // Clear AS-scope LSDB.
-    instance.state.lsdb = Default::default();
+    instance.state.lsdb.clear(&mut arenas.lsa_entries);
 
     for area in arenas.areas.iter_mut() {
         // Clear area-scope LSDB.
-        area.state.lsdb = Default::default();
+        area.state.lsdb.clear(&mut arenas.lsa_entries);
 
         for iface_idx in area.interfaces.indexes() {
             let iface = &mut arenas.interfaces[iface_idx];
 
             // Clear interface-scope LSDB.
-            iface.state.lsdb = Default::default();
+            iface.state.lsdb.clear(&mut arenas.lsa_entries);
 
             // Kill neighbors from this interface.
             for nbr in iface.state.neighbors.iter(&arenas.neighbors) {

@@ -836,6 +836,20 @@ where
         arena.0.remove(lse_idx);
     }
 
+    pub(crate) fn clear(&mut self, arena: &mut Arena<LsaEntry<V>>) {
+        for lse_idx in self.id_tree.values() {
+            arena.0.remove(*lse_idx).unwrap();
+        }
+        self.id_tree.clear();
+        self.tree.clear();
+        self.maxage_lsas.clear();
+        self.maxage_sweeper = None;
+        self.delayed_orig.clear();
+        self.seqno_wrapping.clear();
+        self.lsa_count = 0;
+        self.cksum_sum = 0;
+    }
+
     // Returns a reference to the LSA corresponding to the given ID.
     pub(crate) fn get_by_id<'a>(
         &self,

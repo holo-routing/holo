@@ -702,7 +702,10 @@ impl Interface {
         level: LevelNumber,
         mut lsp: Lsp,
     ) {
-        if !self.state.active {
+        // Proceed only if the interface is active and enabled for this level.
+        if !self.state.active
+            || !self.config.level_type.resolved.intersects(level)
+        {
             return;
         }
 

@@ -314,9 +314,9 @@ pub(crate) fn nbr_rx(
         // it as if the TCP connection was closed, containing the failure.
         Task::spawn(
             async move {
-                let join_handle = {
+                let worker_task = {
                     let nbr_msg_rxp = nbr_msg_rxp.clone();
-                    tokio::task::spawn(async move {
+                    Task::spawn(async move {
                         let _ = network::nbr_read_loop(
                             read_half,
                             nbr_addr,
@@ -326,7 +326,7 @@ pub(crate) fn nbr_rx(
                         .await;
                     })
                 };
-                if let Err(error) = join_handle.await
+                if let Err(error) = worker_task.await
                     && error.is_panic()
                 {
                     error!(%error, "task panicked");

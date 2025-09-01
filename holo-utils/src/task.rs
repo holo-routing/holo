@@ -5,6 +5,7 @@
 //
 
 use std::future::Future;
+use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -98,8 +99,8 @@ impl<T> Task<T> {
         let join_handle = tokio::spawn(
             async move {
                 loop {
-                    let join_handle = tokio::spawn(spawn_fn());
-                    match join_handle.await {
+                    let worker_task = Task::spawn(spawn_fn());
+                    match worker_task.await {
                         Ok(_) => {
                             // Finished without panic.
                             break;
@@ -139,6 +140,17 @@ impl<T> Task<T> {
     /// dropped.
     pub fn detach(&mut self) {
         self.detached = true;
+    }
+}
+
+impl<T> Future for Task<T> {
+    type Output = Result<T, task::JoinError>;
+
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        Pin::new(&mut self.join_handle).poll(cx)
     }
 }
 

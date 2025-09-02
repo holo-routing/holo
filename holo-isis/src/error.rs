@@ -297,10 +297,10 @@ impl AdjacencyRejectError {
     fn log(&self) {
         match self {
             AdjacencyRejectError::MaxAreaAddrsMismatch(max_area_addrs) => {
-                warn!(%max_area_addrs, "{}", self);
+                warn!(%max_area_addrs, "adjacency rejected: {}", self);
             }
             _ => {
-                warn!("{}", self);
+                warn!("adjacency rejected: {}", self);
             }
         }
     }

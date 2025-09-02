@@ -283,6 +283,11 @@ fn process_pdu_hello_lan(
         return Err(AdjacencyRejectError::DuplicateSystemId.into());
     }
 
+    // Check if the Protocols Supported TLV is present.
+    if hello.tlvs.protocols_supported.is_none() {
+        return Err(AdjacencyRejectError::MissingProtocolsSupported.into());
+    }
+
     // Look up or create an adjacency using the source MAC address.
     let adjacencies = iface.state.lan_adjacencies.get_mut(level);
     let level_usage = level.into();
@@ -420,6 +425,11 @@ fn process_pdu_hello_p2p(
     // Check for duplicate System-ID.
     if hello.source == instance.config.system_id.unwrap() {
         return Err(AdjacencyRejectError::DuplicateSystemId.into());
+    }
+
+    // Check if the Protocols Supported TLV is present.
+    if hello.tlvs.protocols_supported.is_none() {
+        return Err(AdjacencyRejectError::MissingProtocolsSupported.into());
     }
 
     // Check for common MT.

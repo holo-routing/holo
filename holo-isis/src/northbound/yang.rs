@@ -273,6 +273,9 @@ impl ToYang for AdjacencyRejectError {
             AdjacencyRejectError::DuplicateSystemId => {
                 "duplicate-system-id".into()
             }
+            AdjacencyRejectError::MissingProtocolsSupported => {
+                "missing-protocols-supported-tlv".into()
+            }
             AdjacencyRejectError::NoCommonMt => "no-common-mt".into(),
         }
     }

@@ -69,6 +69,7 @@ pub enum AdjacencyRejectError {
     AreaMismatch,
     WrongSystem,
     DuplicateSystemId,
+    MissingProtocolsSupported,
     NoCommonMt,
 }
 
@@ -325,6 +326,9 @@ impl std::fmt::Display for AdjacencyRejectError {
             }
             AdjacencyRejectError::DuplicateSystemId => {
                 write!(f, "duplicate System-ID")
+            }
+            AdjacencyRejectError::MissingProtocolsSupported => {
+                write!(f, "missing Protocols Supported TLV")
             }
             AdjacencyRejectError::NoCommonMt => {
                 write!(f, "no multi-topology ID in common")

@@ -1424,15 +1424,16 @@ fn static_nexthop_get(
     interfaces: &Interfaces,
     nexthop: &StaticRouteNexthop,
 ) -> Option<Nexthop> {
-    if let (Some(ifname), Some(addr)) = (&nexthop.ifname, nexthop.addr) {
-        interfaces
-            .get_by_name(ifname)
-            .map(|iface| Nexthop::Address {
-                ifindex: iface.ifindex,
-                addr,
-                labels: Default::default(),
-            })
-    } else {
-        None
-    }
+    let ifname = nexthop.ifname.as_ref()?;
+    let iface = interfaces.get_by_name(ifname)?;
+    let ifindex = iface.ifindex;
+    let nexthop = match nexthop.addr {
+        Some(addr) => Nexthop::Address {
+            ifindex,
+            addr,
+            labels: Default::default(),
+        },
+        None => Nexthop::Interface { ifindex },
+    };
+    Some(nexthop)
 }

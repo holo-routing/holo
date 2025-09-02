@@ -367,15 +367,11 @@ impl Northbound {
         // Get list of configuration changes.
         let changes = northbound::configuration::changes_from_diff(&diff);
 
-        debug!(?confirmed_timeout, "configuration transaction");
-        trace!(
-            "configuration changes: {}",
-            diff.print_string(
-                DataFormat::JSON,
-                DataPrinterFlags::WITH_SIBLINGS
-            )
-            .unwrap()
-        );
+        // Log configuration transaction.
+        let changes_json = diff
+            .print_string(DataFormat::JSON, DataPrinterFlags::WITH_SIBLINGS)
+            .unwrap();
+        debug!(%confirmed_timeout, changes = %changes_json, "configuration transaction");
 
         // Phase 1: validate configuration and attempt to prepare resources for
         // the transaction.

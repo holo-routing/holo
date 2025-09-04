@@ -497,6 +497,7 @@ where
                 instance.tx,
             );
             self.state.net = Some(net);
+            self.sync_hello_tx(area, instance);
         }
     }
 

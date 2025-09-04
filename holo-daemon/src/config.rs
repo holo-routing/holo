@@ -138,7 +138,7 @@ impl Default for Config {
         Config {
             user: "holo".to_owned(),
             group: "holo".to_owned(),
-            database_path: "/var/run/holo/holo.db".to_owned(),
+            database_path: "/var/opt/holo/holo.db".to_owned(),
             logging: Default::default(),
             event_recorder: Default::default(),
             plugins: Default::default(),

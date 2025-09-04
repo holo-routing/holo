@@ -23,6 +23,7 @@ itertools.workspace = true
 nix.workspace = true
 pickledb.workspace = true
 prost.workspace = true
+rustc_tools_util.workspace = true
 serde.workspace = true
 tokio.workspace = true
 tonic.workspace = true
@@ -48,6 +49,7 @@ holo-vrrp = { path = "../holo-vrrp", optional = true  }
 holo-yang = { path = "../holo-yang" }
 
 [build-dependencies]
+rustc_tools_util.workspace = true
 tonic-build.workspace = true
 
 [lints]

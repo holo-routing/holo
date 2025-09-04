@@ -177,7 +177,7 @@ fn signal_listener() -> mpsc::Receiver<()> {
 
 fn build_version() -> String {
     const VERSION: &str = env!("CARGO_PKG_VERSION");
-    match option_env!("GIT_BUILD_HASH") {
+    match rustc_tools_util::get_version_info!().commit_hash {
         Some(hash) => format!("{VERSION} ({hash})"),
         None => VERSION.to_owned(),
     }

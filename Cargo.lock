@@ -1128,6 +1128,7 @@ dependencies = [
  "pickledb",
  "prost",
  "prost-types",
+ "rustc_tools_util",
  "serde",
  "tokio",
  "tokio-stream",
@@ -2803,6 +2804,12 @@ name = "rustc-demangle"
 version = "0.1.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "989e6739f80c4ad5b13e0fd7fe89531180375b18520cc8c82080e4dc4035b84f"
+
+[[package]]
+name = "rustc_tools_util"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3b75158011a63889ba12084cf1224baad7bcad50f6ee7c842f772b74aa148ed"
 
 [[package]]
 name = "rustix"

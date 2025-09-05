@@ -75,6 +75,7 @@ pub enum Event {
     InterfaceUpdateHelloInterval(InterfaceIndex, LevelNumber),
     InterfaceUpdateCsnpInterval(InterfaceIndex),
     InterfaceBfdChange(InterfaceIndex),
+    InterfaceUpdateTraceOptions(InterfaceIndex),
     InterfaceIbusSub(InterfaceIndex),
     ReoriginateLsps(LevelNumber),
     RefreshLsps,
@@ -1042,6 +1043,7 @@ fn load_callbacks() -> Callbacks<Instance> {
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InterfaceUpdate(iface.index));
+            event_queue.insert(Event::InterfaceUpdateTraceOptions(iface.index));
             event_queue.insert(Event::InterfaceIbusSub(iface.index));
         })
         .delete_apply(|_instance, args| {
@@ -1905,7 +1907,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             }
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::UpdateTraceOptions);
+            event_queue.insert(Event::InterfaceUpdateTraceOptions(iface_idx));
         })
         .delete_apply(|instance, args| {
             let (iface_idx, trace_opt) = args.list_entry.into_interface_trace_option().unwrap();
@@ -1921,7 +1923,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             }
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::UpdateTraceOptions);
+            event_queue.insert(Event::InterfaceUpdateTraceOptions(iface_idx));
         })
         .lookup(|_instance, list_entry, dnode| {
             let iface_idx = list_entry.into_interface().unwrap();
@@ -1948,7 +1950,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             trace_opt_packet.tx = enable;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::UpdateTraceOptions);
+            event_queue.insert(Event::InterfaceUpdateTraceOptions(iface_idx));
         })
         .path(isis::interfaces::interface::trace_options::flag::receive::PATH)
         .modify_apply(|instance, args| {
@@ -1969,7 +1971,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             trace_opt_packet.rx = enable;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::UpdateTraceOptions);
+            event_queue.insert(Event::InterfaceUpdateTraceOptions(iface_idx));
         })
         .path(isis::bier::mt_id::PATH)
         .modify_apply(|instance, args| {
@@ -2167,6 +2169,10 @@ impl Provider for Instance {
                     },
                 );
             }
+            Event::InterfaceUpdateTraceOptions(iface_idx) => {
+                let iface = &mut self.arenas.interfaces[iface_idx];
+                iface.config.update_trace_options(&self.config);
+            }
             Event::InterfaceIbusSub(iface_idx) => {
                 let iface = &self.arenas.interfaces[iface_idx];
                 self.tx.ibus.interface_sub(Some(iface.name.clone()), None);
@@ -2281,45 +2287,7 @@ impl Provider for Instance {
             }
             Event::UpdateTraceOptions => {
                 for iface in self.arenas.interfaces.iter_mut() {
-                    let iface_trace_opts = &iface.config.trace_opts.packets;
-                    let instance_trace_opts = &self.config.trace_opts.packets;
-
-                    let disabled = TraceOptionPacketType {
-                        tx: false,
-                        rx: false,
-                    };
-                    let hello = iface_trace_opts
-                        .hello
-                        .or(iface_trace_opts.all)
-                        .or(instance_trace_opts.hello)
-                        .or(instance_trace_opts.all)
-                        .unwrap_or(disabled);
-                    let psnp = iface_trace_opts
-                        .psnp
-                        .or(iface_trace_opts.all)
-                        .or(instance_trace_opts.psnp)
-                        .or(instance_trace_opts.all)
-                        .unwrap_or(disabled);
-                    let csnp = iface_trace_opts
-                        .csnp
-                        .or(iface_trace_opts.all)
-                        .or(instance_trace_opts.csnp)
-                        .or(instance_trace_opts.all)
-                        .unwrap_or(disabled);
-                    let lsp = iface_trace_opts
-                        .lsp
-                        .or(iface_trace_opts.all)
-                        .or(instance_trace_opts.lsp)
-                        .or(instance_trace_opts.all)
-                        .unwrap_or(disabled);
-
-                    let resolved = Arc::new(TraceOptionPacketResolved {
-                        hello,
-                        psnp,
-                        csnp,
-                        lsp,
-                    });
-                    iface.config.trace_opts.packets_resolved.store(resolved);
+                    iface.config.update_trace_options(&self.config);
                 }
             }
         }
@@ -2449,6 +2417,51 @@ impl InterfaceCfg {
             .get(&mt_id)
             .map(|mt_cfg| mt_cfg.metric.get(level))
             .unwrap_or(DFLT_METRIC)
+    }
+
+    // Resolves packet trace options by merging interface-specific and
+    // instance-level options. Interface options override instance options,
+    // and per-packet options override "all" options.
+    pub(crate) fn update_trace_options(&mut self, instance_cfg: &InstanceCfg) {
+        let iface_trace_opts = &self.trace_opts.packets;
+        let instance_trace_opts = &instance_cfg.trace_opts.packets;
+
+        let disabled = TraceOptionPacketType {
+            tx: false,
+            rx: false,
+        };
+        let hello = iface_trace_opts
+            .hello
+            .or(iface_trace_opts.all)
+            .or(instance_trace_opts.hello)
+            .or(instance_trace_opts.all)
+            .unwrap_or(disabled);
+        let psnp = iface_trace_opts
+            .psnp
+            .or(iface_trace_opts.all)
+            .or(instance_trace_opts.psnp)
+            .or(instance_trace_opts.all)
+            .unwrap_or(disabled);
+        let csnp = iface_trace_opts
+            .csnp
+            .or(iface_trace_opts.all)
+            .or(instance_trace_opts.csnp)
+            .or(instance_trace_opts.all)
+            .unwrap_or(disabled);
+        let lsp = iface_trace_opts
+            .lsp
+            .or(iface_trace_opts.all)
+            .or(instance_trace_opts.lsp)
+            .or(instance_trace_opts.all)
+            .unwrap_or(disabled);
+
+        let resolved = Arc::new(TraceOptionPacketResolved {
+            hello,
+            psnp,
+            csnp,
+            lsp,
+        });
+        self.trace_opts.packets_resolved.store(resolved);
     }
 }
 

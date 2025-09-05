@@ -69,6 +69,7 @@ pub enum Event {
     InterfaceSyncHelloTx(AreaIndex, InterfaceIndex),
     InterfaceUpdateAuth(AreaIndex, InterfaceIndex),
     InterfaceBfdChange(InterfaceIndex),
+    InterfaceUpdateTraceOptions(InterfaceIndex),
     InterfaceIbusSub(String),
     StubRouterChange,
     GrHelperChange,
@@ -621,6 +622,7 @@ where
             let event_queue = args.event_queue;
             event_queue.insert(Event::InstanceUpdate);
             event_queue.insert(Event::InterfaceUpdate(area_idx, iface_idx));
+            event_queue.insert(Event::InterfaceUpdateTraceOptions(iface_idx));
             event_queue.insert(Event::InterfaceIbusSub(ifname));
         })
         .delete_apply(|_instance, args| {
@@ -924,7 +926,7 @@ where
             }
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::UpdateTraceOptions);
+            event_queue.insert(Event::InterfaceUpdateTraceOptions(iface_idx));
         })
         .delete_apply(|instance, args| {
             let (iface_idx, trace_opt) = args.list_entry.into_interface_trace_option().unwrap();
@@ -941,7 +943,7 @@ where
             }
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::UpdateTraceOptions);
+            event_queue.insert(Event::InterfaceUpdateTraceOptions(iface_idx));
         })
         .lookup(|_instance, list_entry, dnode| {
             let (_, iface_idx) = list_entry.into_interface().unwrap();
@@ -969,7 +971,7 @@ where
             trace_opt_packet.tx = enable;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::UpdateTraceOptions);
+            event_queue.insert(Event::InterfaceUpdateTraceOptions(iface_idx));
         })
         .path(ospf::areas::area::interfaces::interface::trace_options::flag::receive::PATH)
         .modify_apply(|instance, args| {
@@ -991,7 +993,7 @@ where
             trace_opt_packet.rx = enable;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::UpdateTraceOptions);
+            event_queue.insert(Event::InterfaceUpdateTraceOptions(iface_idx));
         })
         .path(ospf::bier::mt_id::PATH)
         .modify_apply(|instance, args| {
@@ -1754,6 +1756,10 @@ where
                     }
                 }
             }
+            Event::InterfaceUpdateTraceOptions(iface_idx) => {
+                let iface = &mut self.arenas.interfaces[iface_idx];
+                iface.config.update_trace_options(&self.config);
+            }
             Event::InterfaceIbusSub(ifname) => {
                 if self.is_active() {
                     let af = match (V::PROTOCOL, V::address_family(self)) {
@@ -1894,57 +1900,7 @@ where
                         area.interfaces.indexes().collect::<Vec<_>>()
                     {
                         let iface = &mut self.arenas.interfaces[iface_idx];
-                        let iface_trace_opts = &iface.config.trace_opts.packets;
-                        let instance_trace_opts =
-                            &self.config.trace_opts.packets;
-
-                        let disabled = TraceOptionPacketType {
-                            tx: false,
-                            rx: false,
-                        };
-                        let hello = iface_trace_opts
-                            .hello
-                            .or(iface_trace_opts.all)
-                            .or(instance_trace_opts.hello)
-                            .or(instance_trace_opts.all)
-                            .unwrap_or(disabled);
-                        let dbdesc = iface_trace_opts
-                            .dbdesc
-                            .or(iface_trace_opts.all)
-                            .or(instance_trace_opts.dbdesc)
-                            .or(instance_trace_opts.all)
-                            .unwrap_or(disabled);
-                        let lsreq = iface_trace_opts
-                            .lsreq
-                            .or(iface_trace_opts.all)
-                            .or(instance_trace_opts.lsreq)
-                            .or(instance_trace_opts.all)
-                            .unwrap_or(disabled);
-                        let lsupd = iface_trace_opts
-                            .lsupd
-                            .or(iface_trace_opts.all)
-                            .or(instance_trace_opts.lsupd)
-                            .or(instance_trace_opts.all)
-                            .unwrap_or(disabled);
-                        let lsack = iface_trace_opts
-                            .lsack
-                            .or(iface_trace_opts.all)
-                            .or(instance_trace_opts.lsack)
-                            .or(instance_trace_opts.all)
-                            .unwrap_or(disabled);
-
-                        let resolved = Arc::new(TraceOptionPacketResolved {
-                            hello,
-                            dbdesc,
-                            lsreq,
-                            lsupd,
-                            lsack,
-                        });
-                        iface
-                            .config
-                            .trace_opts
-                            .packets_resolved
-                            .store(resolved);
+                        iface.config.update_trace_options(&self.config);
                     }
                 }
             }
@@ -1953,6 +1909,63 @@ where
 }
 
 // ===== configuration helpers =====
+
+impl<V> InterfaceCfg<V>
+where
+    V: Version,
+{
+    // Resolves packet trace options by merging interface-specific and
+    // instance-level options. Interface options override instance options,
+    // and per-packet options override "all" options.
+    pub(crate) fn update_trace_options(&mut self, instance_cfg: &InstanceCfg) {
+        let iface_trace_opts = &self.trace_opts.packets;
+        let instance_trace_opts = &instance_cfg.trace_opts.packets;
+
+        let disabled = TraceOptionPacketType {
+            tx: false,
+            rx: false,
+        };
+        let hello = iface_trace_opts
+            .hello
+            .or(iface_trace_opts.all)
+            .or(instance_trace_opts.hello)
+            .or(instance_trace_opts.all)
+            .unwrap_or(disabled);
+        let dbdesc = iface_trace_opts
+            .dbdesc
+            .or(iface_trace_opts.all)
+            .or(instance_trace_opts.dbdesc)
+            .or(instance_trace_opts.all)
+            .unwrap_or(disabled);
+        let lsreq = iface_trace_opts
+            .lsreq
+            .or(iface_trace_opts.all)
+            .or(instance_trace_opts.lsreq)
+            .or(instance_trace_opts.all)
+            .unwrap_or(disabled);
+        let lsupd = iface_trace_opts
+            .lsupd
+            .or(iface_trace_opts.all)
+            .or(instance_trace_opts.lsupd)
+            .or(instance_trace_opts.all)
+            .unwrap_or(disabled);
+        let lsack = iface_trace_opts
+            .lsack
+            .or(iface_trace_opts.all)
+            .or(instance_trace_opts.lsack)
+            .or(instance_trace_opts.all)
+            .unwrap_or(disabled);
+
+        let resolved = Arc::new(TraceOptionPacketResolved {
+            hello,
+            dbdesc,
+            lsreq,
+            lsupd,
+            lsack,
+        });
+        self.trace_opts.packets_resolved.store(resolved);
+    }
+}
 
 impl TraceOptionPacketResolved {
     pub(crate) fn tx(&self, pkt_type: PacketType) -> bool {

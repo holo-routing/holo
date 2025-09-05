@@ -1040,6 +1040,8 @@ fn load_callbacks() -> Callbacks<Instance> {
             let ifname = args.dnode.get_string_relative("name").unwrap();
 
             let iface = instance.arenas.interfaces.insert(&ifname);
+            iface.config.level_type.resolved =
+                iface.config.resolved_level_type(&instance.config);
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InterfaceUpdate(iface.index));

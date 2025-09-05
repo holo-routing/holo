@@ -10,6 +10,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use generational_arena::Index;
+use holo_utils::mac_addr::MacAddr;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -55,9 +56,9 @@ pub struct Interfaces {
 #[derive(Debug, Default)]
 pub struct Adjacencies {
     id_tree: HashMap<AdjacencyId, AdjacencyIndex>,
-    snpa_tree: BTreeMap<[u8; 6], AdjacencyIndex>,
+    snpa_tree: BTreeMap<MacAddr, AdjacencyIndex>,
     system_id_tree: BTreeMap<SystemId, AdjacencyIndex>,
-    active: BTreeSet<[u8; 6]>,
+    active: BTreeSet<MacAddr>,
     next_id: AdjacencyId,
 }
 
@@ -297,7 +298,7 @@ impl Adjacencies {
     pub(crate) fn insert<'a>(
         &mut self,
         arena: &'a mut Arena<Adjacency>,
-        snpa: [u8; 6],
+        snpa: MacAddr,
         system_id: SystemId,
         level_capability: LevelType,
         level_usage: LevelType,
@@ -392,7 +393,7 @@ impl Adjacencies {
     pub(crate) fn get_by_snpa<'a>(
         &self,
         arena: &'a Arena<Adjacency>,
-        snpa: [u8; 6],
+        snpa: MacAddr,
     ) -> Option<(AdjacencyIndex, &'a Adjacency)> {
         self.snpa_tree
             .get(&snpa)
@@ -405,7 +406,7 @@ impl Adjacencies {
     pub(crate) fn get_mut_by_snpa<'a>(
         &mut self,
         arena: &'a mut Arena<Adjacency>,
-        snpa: [u8; 6],
+        snpa: MacAddr,
     ) -> Option<(AdjacencyIndex, &'a mut Adjacency)> {
         self.snpa_tree
             .get(&snpa)
@@ -482,13 +483,13 @@ impl Adjacencies {
 
     // Returns a reference to the set of active adjacencies
     // (those in Init or Up state, but not Down).
-    pub(crate) fn active(&self) -> &BTreeSet<[u8; 6]> {
+    pub(crate) fn active(&self) -> &BTreeSet<MacAddr> {
         &self.active
     }
 
     // Returns a mutable reference to the set of active adjacencies
     // (those in Init or Up state, but not Down).
-    pub(crate) fn active_mut(&mut self) -> &mut BTreeSet<[u8; 6]> {
+    pub(crate) fn active_mut(&mut self) -> &mut BTreeSet<MacAddr> {
         &mut self.active
     }
 

@@ -16,6 +16,7 @@ use arc_swap::ArcSwap;
 use bytes::Bytes;
 use holo_utils::capabilities;
 use holo_utils::keychain::Key;
+use holo_utils::mac_addr::MacAddr;
 use holo_utils::socket::{AsyncFd, LinkAddrExt, Socket};
 use nix::sys::socket;
 use nix::sys::socket::LinkAddr;
@@ -225,7 +226,7 @@ pub(crate) async fn read_loop(
                 );
                 let msg = NetRxPduMsg {
                     iface_key: iface_id.into(),
-                    src,
+                    src: MacAddr::from(src),
                     bytes,
                     pdu,
                 };

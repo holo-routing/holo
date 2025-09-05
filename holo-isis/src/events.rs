@@ -12,6 +12,7 @@ use std::collections::BTreeMap;
 
 use bytes::Bytes;
 use chrono::Utc;
+use holo_utils::mac_addr::MacAddr;
 
 use crate::adjacency::{Adjacency, AdjacencyEvent, AdjacencyState};
 use crate::collections::{
@@ -40,7 +41,7 @@ pub(crate) fn process_pdu(
     instance: &mut InstanceUpView<'_>,
     arenas: &mut InstanceArenas,
     iface_key: InterfaceKey,
-    src: [u8; 6],
+    src: MacAddr,
     bytes: Bytes,
     pdu: DecodeResult<Pdu>,
 ) -> Result<(), Error> {
@@ -161,7 +162,7 @@ fn process_pdu_hello(
     instance: &mut InstanceUpView<'_>,
     arenas: &mut InstanceArenas,
     iface_idx: InterfaceIndex,
-    src: [u8; 6],
+    src: MacAddr,
     bytes: Bytes,
     hello: Hello,
 ) -> Result<(), PduInputError> {
@@ -215,7 +216,7 @@ fn process_pdu_hello_lan(
     instance: &mut InstanceUpView<'_>,
     arenas: &mut InstanceArenas,
     iface_idx: InterfaceIndex,
-    src: [u8; 6],
+    src: MacAddr,
     hello: Hello,
     priority: u8,
     lan_id: LanId,
@@ -388,7 +389,7 @@ fn process_pdu_hello_p2p(
     instance: &mut InstanceUpView<'_>,
     arenas: &mut InstanceArenas,
     iface_idx: InterfaceIndex,
-    src: [u8; 6],
+    src: MacAddr,
     hello: Hello,
 ) -> Result<(), PduInputError> {
     let iface = &mut arenas.interfaces[iface_idx];
@@ -541,7 +542,7 @@ fn process_pdu_lsp(
     instance: &mut InstanceUpView<'_>,
     arenas: &mut InstanceArenas,
     iface_idx: InterfaceIndex,
-    src: [u8; 6],
+    src: MacAddr,
     bytes: Bytes,
     mut lsp: Lsp,
 ) -> Result<(), PduInputError> {
@@ -801,7 +802,7 @@ fn process_pdu_snp(
     instance: &mut InstanceUpView<'_>,
     arenas: &mut InstanceArenas,
     iface_idx: InterfaceIndex,
-    src: [u8; 6],
+    src: MacAddr,
     bytes: Bytes,
     snp: Snp,
 ) -> Result<(), PduInputError> {

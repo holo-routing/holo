@@ -329,8 +329,11 @@ async fn send_packet_arp(
 
     // Send packet.
     let iov = [IoSlice::new(&buf)];
-    let sockaddr =
-        LinkAddr::new(libc::ETH_P_ARP as u16, ifindex, Some(eth_hdr.dst_mac));
+    let sockaddr = LinkAddr::new(
+        libc::ETH_P_ARP as u16,
+        ifindex,
+        Some(eth_hdr.dst_mac.as_bytes()),
+    );
     socket
         .async_io(tokio::io::Interest::WRITABLE, |socket| {
             socket::sendmsg(

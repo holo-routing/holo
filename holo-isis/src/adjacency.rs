@@ -15,6 +15,7 @@ use chrono::Utc;
 use derive_new::new;
 use holo_utils::bfd;
 use holo_utils::ip::{AddressFamilies, AddressFamily};
+use holo_utils::mac_addr::MacAddr;
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::sr::Sid;
@@ -34,7 +35,7 @@ use crate::{sr, tasks};
 #[derive(Debug)]
 pub struct Adjacency {
     pub id: AdjacencyId,
-    pub snpa: [u8; 6],
+    pub snpa: MacAddr,
     pub system_id: SystemId,
     pub level_capability: LevelType,
     pub level_usage: LevelType,
@@ -45,7 +46,7 @@ pub struct Adjacency {
     pub protocols_supported: Vec<u8>,
     pub area_addrs: BTreeSet<AreaAddr>,
     pub topologies: BTreeSet<u16>,
-    pub neighbors: BTreeSet<[u8; 6]>,
+    pub neighbors: BTreeSet<MacAddr>,
     pub ipv4_addrs: BTreeSet<Ipv4Addr>,
     pub ipv6_addrs: BTreeSet<Ipv6Addr>,
     pub bfd: AddressFamilies<Option<AdjacencyBfd>>,
@@ -91,7 +92,7 @@ impl Adjacency {
     // Creates new adjacency.
     pub(crate) fn new(
         id: AdjacencyId,
-        snpa: [u8; 6],
+        snpa: MacAddr,
         system_id: SystemId,
         level_capability: LevelType,
         level_usage: LevelType,

@@ -15,6 +15,7 @@ use std::time::{Duration, Instant};
 use chrono::Utc;
 use derive_new::new;
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
+use holo_utils::mac_addr::MacAddr;
 use holo_utils::sr::IgpAlgoType;
 use holo_utils::task::TimeoutTask;
 use ipnetwork::IpNetwork;
@@ -789,7 +790,7 @@ fn compute_nexthop(
     mt_id: MtId,
     vertex: &Vertex,
     link: &VertexEdge,
-    used_adjs: &mut BTreeSet<[u8; 6]>,
+    used_adjs: &mut BTreeSet<MacAddr>,
     interfaces: &Interfaces,
     adjacencies: &Arena<Adjacency>,
 ) -> Option<VertexNexthop> {

@@ -9,6 +9,8 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use bytes::{Buf, BufMut, Bytes, BytesMut, TryGetError};
 
+use crate::mac_addr::MacAddr;
+
 thread_local!(
     pub static TLS_BUF: RefCell<BytesMut> =
         RefCell::new(BytesMut::with_capacity(65536))
@@ -107,6 +109,23 @@ pub trait BytesExt {
     /// Returns `Err(TryGetError)` when there are not enough remaining bytes to
     /// read the value.
     fn try_get_opt_ipv6(&mut self) -> Result<Option<Ipv6Addr>, TryGetError>;
+
+    /// Gets a MAC addr from `self`.
+    ///
+    /// The current position is advanced by 6.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if there is no more remaining data in `self`.
+    fn get_mac(&mut self) -> MacAddr;
+
+    /// Gets a MAC addr from `self`.
+    ///
+    /// The current position is advanced by 6.
+    ///
+    /// Returns `Err(TryGetError)` when there are not enough remaining bytes to
+    /// read the value.
+    fn try_get_mac(&mut self) -> Result<MacAddr, TryGetError>;
 }
 
 // Extension methods for BytesMut.
@@ -150,6 +169,16 @@ pub trait BytesMutExt {
     /// This function panics if there is not enough remaining capacity in
     /// `self`.
     fn put_ipv6(&mut self, addr: &Ipv6Addr);
+
+    /// Writes a MAC addr to `self`.
+    ///
+    /// The current position is advanced by 6.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if there is not enough remaining capacity in
+    /// `self`.
+    fn put_mac(&mut self, addr: &MacAddr);
 }
 
 // ===== impl Bytes =====
@@ -210,6 +239,16 @@ impl BytesExt for Bytes {
         let addr = Ipv6Addr::from(bytes);
         Ok((!addr.is_unspecified()).then_some(addr))
     }
+
+    fn get_mac(&mut self) -> MacAddr {
+        self.try_get_mac().unwrap()
+    }
+
+    fn try_get_mac(&mut self) -> Result<MacAddr, TryGetError> {
+        let mut bytes: [u8; MacAddr::LENGTH] = [0; MacAddr::LENGTH];
+        self.try_copy_to_slice(&mut bytes)?;
+        Ok(MacAddr::from(bytes))
+    }
 }
 
 // ===== impl BytesMut =====
@@ -233,5 +272,9 @@ impl BytesMutExt for BytesMut {
 
     fn put_ipv6(&mut self, addr: &Ipv6Addr) {
         self.put_slice(&addr.octets())
+    }
+
+    fn put_mac(&mut self, addr: &MacAddr) {
+        self.put_slice(&addr.as_bytes())
     }
 }

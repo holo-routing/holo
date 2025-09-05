@@ -17,6 +17,7 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::TLS_BUF;
 use holo_utils::crypto::{CryptoAlgo, HMAC_APAD};
 use holo_utils::keychain::Key;
+use holo_utils::mac_addr::MacAddr;
 use holo_yang::ToYang;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
@@ -819,7 +820,7 @@ impl HelloTlvs {
         protocols_supported: impl IntoIterator<Item = u8>,
         area_addrs: impl IntoIterator<Item = AreaAddr>,
         multi_topology: impl IntoIterator<Item = MultiTopologyEntry>,
-        neighbors: impl IntoIterator<Item = [u8; 6]>,
+        neighbors: impl IntoIterator<Item = MacAddr>,
         ipv4_addrs: impl IntoIterator<Item = Ipv4Addr>,
         ipv6_addrs: impl IntoIterator<Item = Ipv6Addr>,
         ext_seqnum: Option<ExtendedSeqNum>,
@@ -876,7 +877,7 @@ impl HelloTlvs {
     }
 
     // Returns an iterator over all IS neighbors from TLVs of type 6.
-    pub(crate) fn neighbors(&self) -> impl Iterator<Item = &[u8; 6]> {
+    pub(crate) fn neighbors(&self) -> impl Iterator<Item = &MacAddr> {
         self.neighbors.iter().flat_map(|tlv| tlv.list.iter())
     }
 

@@ -1255,7 +1255,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                 neighbor_sys_type: Some(adj.level_capability.to_yang()),
                 neighbor_sysid: Some(adj.system_id.to_yang()),
                 neighbor_extended_circuit_id: None,
-                neighbor_snpa: Some(Cow::Owned(format_mac(&adj.snpa))).ignore_in_testing(),
+                neighbor_snpa: Some(Cow::Owned(adj.snpa.to_string())).ignore_in_testing(),
                 usage: Some(adj.level_usage.to_yang()),
                 hold_timer: adj.holdtimer.as_ref().map(|task| task.remaining()).map(Cow::Owned).ignore_in_testing(),
                 neighbor_priority: adj.priority,
@@ -1408,13 +1408,6 @@ impl Provider for Instance {
 impl ListEntryKind for ListEntry<'_> {}
 
 // ===== helper functions =====
-
-fn format_mac(mac: &[u8; 6]) -> String {
-    format!(
-        "{:02x}{:02x}.{:02x}{:02x}.{:02x}{:02x}",
-        mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]
-    )
-}
 
 fn format_hmac_digest(digest: &[u8]) -> String {
     digest.iter().fold(

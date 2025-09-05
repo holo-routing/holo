@@ -17,6 +17,7 @@ use crate::bfd;
 use crate::bier::{BierCfg, BierCfgEvent};
 use crate::ip::AddressFamily;
 use crate::keychain::Keychain;
+use crate::mac_addr::MacAddr;
 use crate::policy::{MatchSets, Policy};
 use crate::protocol::Protocol;
 use crate::southbound::{
@@ -125,7 +126,7 @@ pub enum IbusMsg {
     MacvlanAdd {
         parent_ifname: String,
         ifname: String,
-        mac_addr: Option<[u8; 6]>,
+        mac_addr: Option<MacAddr>,
     },
     /// Delete a macvlan interface.
     MacvlanDel { ifname: String },
@@ -294,7 +295,7 @@ impl IbusChannelsTx {
         &self,
         parent_ifname: String,
         ifname: String,
-        mac_addr: Option<[u8; 6]>,
+        mac_addr: Option<MacAddr>,
     ) {
         let msg = IbusMsg::MacvlanAdd {
             parent_ifname,

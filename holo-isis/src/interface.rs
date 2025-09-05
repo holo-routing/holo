@@ -13,6 +13,7 @@ use std::sync::atomic::{self, AtomicU32};
 
 use chrono::{DateTime, Utc};
 use holo_utils::ip::{AddressFamily, JointPrefixSetExt};
+use holo_utils::mac_addr::MacAddr;
 use holo_utils::socket::{AsyncFd, Socket, SocketExt};
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
@@ -53,7 +54,7 @@ pub struct InterfaceSys {
     pub flags: InterfaceFlags,
     pub ifindex: Option<u32>,
     pub mtu: Option<u32>,
-    pub mac_addr: Option<[u8; 6]>,
+    pub mac_addr: Option<MacAddr>,
     pub addr_list: JointPrefixSet<IpNetwork>,
 }
 
@@ -128,7 +129,7 @@ pub enum InterfaceType {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DisCandidate {
     pub priority: u8,
-    pub snpa: [u8; 6],
+    pub snpa: MacAddr,
     pub system_id: SystemId,
     pub lan_id: LanId,
     pub myself: bool,

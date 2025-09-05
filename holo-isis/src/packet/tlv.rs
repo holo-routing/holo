@@ -20,6 +20,7 @@ use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::{
     AddressFamily, Ipv4AddrExt, Ipv4NetworkExt, Ipv6AddrExt, Ipv6NetworkExt,
 };
+use holo_utils::mac_addr::MacAddr;
 use holo_utils::sr::IgpAlgoType;
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use num_traits::{FromPrimitive, ToPrimitive};
@@ -139,7 +140,7 @@ bitflags! {
 #[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct NeighborsTlv {
-    pub list: Vec<[u8; 6]>,
+    pub list: Vec<MacAddr>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -563,8 +564,6 @@ where
 // ===== impl NeighborsTlv =====
 
 impl NeighborsTlv {
-    const MAC_ADDR_LEN: usize = 6;
-
     pub(crate) fn decode(
         tlv_len: u8,
         buf: &mut Bytes,
@@ -572,14 +571,13 @@ impl NeighborsTlv {
         let mut list = vec![];
 
         // Validate the TLV length.
-        if tlv_len as usize % Self::MAC_ADDR_LEN != 0 {
+        if tlv_len as usize % MacAddr::LENGTH != 0 {
             return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
-        while buf.remaining() >= Self::MAC_ADDR_LEN {
+        while buf.remaining() >= MacAddr::LENGTH {
             // Parse MAC address.
-            let mut addr: [u8; Self::MAC_ADDR_LEN] = [0; Self::MAC_ADDR_LEN];
-            buf.try_copy_to_slice(&mut addr)?;
+            let addr = buf.try_get_mac()?;
             list.push(addr);
         }
 
@@ -589,27 +587,27 @@ impl NeighborsTlv {
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
         let start_pos = tlv_encode_start(buf, TlvType::Neighbors);
         for entry in &self.list {
-            buf.put_slice(entry);
+            buf.put_mac(entry);
         }
         tlv_encode_end(buf, start_pos);
     }
 }
 
 impl EntryBasedTlv for NeighborsTlv {
-    type Entry = [u8; 6];
+    type Entry = MacAddr;
 
-    fn entries(&self) -> impl Iterator<Item = &[u8; 6]> {
+    fn entries(&self) -> impl Iterator<Item = &MacAddr> {
         self.list.iter()
     }
 
-    fn entry_len(_entry: &[u8; 6]) -> usize {
-        Self::MAC_ADDR_LEN
+    fn entry_len(_entry: &MacAddr) -> usize {
+        MacAddr::LENGTH
     }
 }
 
 impl<I> From<I> for NeighborsTlv
 where
-    I: IntoIterator<Item = [u8; 6]>,
+    I: IntoIterator<Item = MacAddr>,
 {
     fn from(iter: I) -> NeighborsTlv {
         NeighborsTlv {

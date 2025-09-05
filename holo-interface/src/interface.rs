@@ -13,6 +13,7 @@ use generational_arena::{Arena, Index};
 use holo_northbound::NbDaemonSender;
 use holo_utils::ibus::IbusSender;
 use holo_utils::ip::{AddressFamily, IpAddrKind, Ipv4NetworkExt};
+use holo_utils::mac_addr::MacAddr;
 use holo_utils::southbound::{AddressFlags, InterfaceFlags};
 use ipnetwork::IpNetwork;
 use tokio::sync::mpsc::UnboundedSender;
@@ -45,7 +46,7 @@ pub struct Interface {
     pub mtu: Option<u32>,
     pub flags: InterfaceFlags,
     pub addresses: BTreeMap<IpNetwork, InterfaceAddress>,
-    pub mac_address: [u8; 6],
+    pub mac_address: MacAddr,
     pub owner: Owner,
     pub vrrp: Option<VrrpHandle>,
     pub subscriptions: HashMap<usize, InterfaceSub>,
@@ -157,7 +158,7 @@ impl Interfaces {
         ifindex: u32,
         mtu: u32,
         flags: InterfaceFlags,
-        mac_address: [u8; 6],
+        mac_address: MacAddr,
         netlink_tx: &UnboundedSender<NetlinkRequest>,
     ) {
         match self

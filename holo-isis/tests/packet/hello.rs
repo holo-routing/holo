@@ -18,6 +18,7 @@ use holo_isis::packet::tlv::{
 };
 use holo_isis::packet::{AreaAddr, LanId, LevelType, SystemId};
 use holo_utils::keychain::Key;
+use holo_utils::mac_addr::MacAddr;
 
 use super::{
     KEY_CLEAR_TEXT, KEY_HMAC_MD5, KEY_HMAC_SHA256, test_decode_pdu,
@@ -189,8 +190,8 @@ static LAN_HELLO1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 multi_topology: vec![],
                 neighbors: vec![NeighborsTlv {
                     list: vec![
-                        [0x3e, 0x25, 0x6d, 0x6d, 0x1b, 0x25],
-                        [0x3e, 0xe8, 0x34, 0x2b, 0x1f, 0x96],
+                        MacAddr::from([0x3e, 0x25, 0x6d, 0x6d, 0x1b, 0x25]),
+                        MacAddr::from([0x3e, 0xe8, 0x34, 0x2b, 0x1f, 0x96]),
                     ],
                 }],
                 ipv4_addrs: vec![Ipv4AddressesTlv {

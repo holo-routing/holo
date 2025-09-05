@@ -15,6 +15,7 @@ use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
 
 use crate::bier::{BfrId, BierInfo, Bsl, SubDomainId};
+use crate::mac_addr::MacAddr;
 use crate::mpls::Label;
 use crate::protocol::Protocol;
 
@@ -113,7 +114,7 @@ pub struct InterfaceUpdateMsg {
     pub mtu: u32,
     pub flags: InterfaceFlags,
     #[serde(default)]
-    pub mac_address: [u8; 6],
+    pub mac_address: MacAddr,
 }
 
 #[derive(Clone, Debug)]

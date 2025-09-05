@@ -575,6 +575,12 @@ impl Northbound {
         let yang_ctx = YANG_CTX.get().unwrap();
         let mut dtree = DataTree::new(yang_ctx);
 
+        // Log RPC invocation with full JSON-encoded request data.
+        let data_json = data
+            .print_string(DataFormat::JSON, DataPrinterFlags::WITH_SIBLINGS)
+            .unwrap();
+        debug!(data = %data_json, "RPC invocation received");
+
         for daemon_tx in self.providers.iter() {
             // Prepare request.
             let (responder_tx, responder_rx) = oneshot::channel();

@@ -559,7 +559,8 @@ impl Interface {
         // Set LAN neighbors.
         let mut neighbors = vec![];
         if self.config.interface_type == InterfaceType::Broadcast {
-            neighbors.extend(self.state.lan_adjacencies.get(level).snpas());
+            let adjacencies = self.state.lan_adjacencies.get(level);
+            neighbors.extend(adjacencies.active().clone());
         }
 
         // Set IP information.

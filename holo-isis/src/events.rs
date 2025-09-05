@@ -222,7 +222,6 @@ fn process_pdu_hello_lan(
 ) -> Result<(), PduInputError> {
     let iface = &mut arenas.interfaces[iface_idx];
     let mut ext_seqnum = None;
-    let mut new_adj = false;
 
     // Validate PDU type and determine level usage.
     let level = match (iface.config.interface_type, hello.hdr.pdu_type) {
@@ -301,16 +300,13 @@ fn process_pdu_hello_lan(
                 adj.level_usage = level_usage;
                 (adj_idx, adj)
             }
-            None => {
-                new_adj = true;
-                adjacencies.insert(
-                    &mut arenas.adjacencies,
-                    src,
-                    hello.source,
-                    hello.circuit_type,
-                    level_usage,
-                )
-            }
+            None => adjacencies.insert(
+                &mut arenas.adjacencies,
+                src,
+                hello.source,
+                hello.circuit_type,
+                level_usage,
+            ),
         };
 
     // Trigger an SPF run if the adjacency addresses have changed. These
@@ -379,12 +375,6 @@ fn process_pdu_hello_lan(
     // Reevaluate BFD sessions associated with this adjacency.
     if iface.config.bfd_enabled {
         adj.bfd_update_sessions(iface, instance, false);
-    }
-
-    // Restart Hello Tx task if this is a new adjacency (updated list
-    // of neighbors).
-    if new_adj {
-        iface.hello_interval_start(instance, level_usage);
     }
 
     // Trigger DIS election if priority or state changed.
@@ -1052,9 +1042,6 @@ pub(crate) fn process_lan_adj_holdtimer_expiry(
         .lan_adjacencies
         .get_mut(level)
         .delete(&mut arenas.adjacencies, adj_idx);
-
-    // Restart Hello Tx task (updated list of neighbors).
-    iface.hello_interval_start(instance, level);
 
     Ok(())
 }

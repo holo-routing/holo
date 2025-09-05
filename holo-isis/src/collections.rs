@@ -7,7 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use generational_arena::Index;
 use serde::{Deserialize, Serialize};
@@ -57,6 +57,7 @@ pub struct Adjacencies {
     id_tree: HashMap<AdjacencyId, AdjacencyIndex>,
     snpa_tree: BTreeMap<[u8; 6], AdjacencyIndex>,
     system_id_tree: BTreeMap<SystemId, AdjacencyIndex>,
+    active: BTreeSet<[u8; 6]>,
     next_id: AdjacencyId,
 }
 
@@ -344,6 +345,7 @@ impl Adjacencies {
         self.id_tree.clear();
         self.snpa_tree.clear();
         self.system_id_tree.clear();
+        self.active.clear();
     }
 
     pub(crate) fn update_system_id(
@@ -478,11 +480,16 @@ impl Adjacencies {
         self.system_id_tree.values().map(|adj_idx| &arena[*adj_idx])
     }
 
-    // Returns an iterator over all adjacencies SNPA addresses.
-    //
-    // Neighbors are ordered by their SNPA addresses.
-    pub(crate) fn snpas(&self) -> impl Iterator<Item = [u8; 6]> + '_ {
-        self.snpa_tree.keys().copied()
+    // Returns a reference to the set of active adjacencies
+    // (those in Init or Up state, but not Down).
+    pub(crate) fn active(&self) -> &BTreeSet<[u8; 6]> {
+        &self.active
+    }
+
+    // Returns a mutable reference to the set of active adjacencies
+    // (those in Init or Up state, but not Down).
+    pub(crate) fn active_mut(&mut self) -> &mut BTreeSet<[u8; 6]> {
+        &mut self.active
     }
 
     // Returns an iterator over all adjacency indexes.

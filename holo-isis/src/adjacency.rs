@@ -164,6 +164,21 @@ impl Adjacency {
             }
         }
 
+        // On broadcast interfaces, we maintain a cache of active adjacencies
+        // (Init or Up, but not Down). Any time this set changes, we restart
+        // the Hello Tx task so the neighbors TLV is updated.
+        if iface.config.interface_type == InterfaceType::Broadcast {
+            let level = self.level_usage;
+            let adjacencies = iface.state.lan_adjacencies.get_mut(level);
+            if self.state == AdjacencyState::Down {
+                adjacencies.active_mut().insert(self.snpa);
+                iface.hello_interval_start(instance, level);
+            } else if new_state == AdjacencyState::Down {
+                adjacencies.active_mut().remove(&self.snpa);
+                iface.hello_interval_start(instance, level);
+            }
+        }
+
         // Update Adj-SID(s) associated to this adjacency.
         if instance.config.sr.enabled {
             if new_state == AdjacencyState::Up {

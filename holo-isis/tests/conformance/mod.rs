@@ -1410,10 +1410,38 @@ async fn timeout_adj1() {
 // Input:
 //  * Protocol: LAN adjacency (0000.0000.0001) on eth-sw1 timed out
 // Output:
+//  * Protocol: send an updated local LSP to all other adjacencies
 //  * Northbound:
-//    - remove the 0000.0000.0001 adjacency from eth-rt4
+//    - remove the 0000.0000.0001 adjacency from eth-sw1
 //    - send an "adjacency-state-change" YANG notification
+//    - send an "lsp-generation" YANG notification (lsp-id = 0000.0000.0003.01-00)
 #[tokio::test]
 async fn timeout_adj2() {
     run_test::<Instance>("timeout-adj2", "topo2-1", "rt2").await;
+}
+
+// Input:
+//  * Protocol: LAN adjacency (0000.0000.0001) on eth-sw1 timed out
+// Output:
+//  * Protocol: send an updated local LSP to all other adjacencies
+//  * Northbound:
+//    - remove the 0000.0000.0001 adjacency from eth-sw1
+//    - send an "adjacency-state-change" YANG notification
+//    - send an "lsp-generation" YANG notification (lsp-id = 0000.0000.0003.01-00)
+//
+// Input:
+//  * Protocol: LAN adjacency (0000.0000.0002) on eth-sw1 timed out
+// Output:
+//  * Protocol:
+//    - send an updated local LSP to all other adjacencies
+//    - send the flushed LSP 0000.0000.0003.01-00 to all other adjacencies
+//  * Northbound:
+//    - remove the 0000.0000.0002 adjacency from eth-sw1
+//    - flush the 0000.0000.0003.01-00 pseudonode LSP
+//    - remove 0000.0000.0003.01 IS reachability from the local LSP
+//    - send an "adjacency-state-change" YANG notification
+//    - send an "lsp-generation" YANG notification (lsp-id = 0000.0000.0003.00-00)
+#[tokio::test]
+async fn timeout_adj3() {
+    run_test::<Instance>("timeout-adj3", "topo2-1", "rt3").await;
 }

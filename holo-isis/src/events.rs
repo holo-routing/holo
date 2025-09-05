@@ -324,7 +324,6 @@ fn process_pdu_hello_lan(
 
     // Update adjacency with received PDU values.
     let old_priority = adj.priority;
-    let old_state = adj.state;
     adj.priority = Some(priority);
     adj.lan_id = Some(lan_id);
     adj.protocols_supported = hello.tlvs.protocols_supported().collect();
@@ -377,8 +376,8 @@ fn process_pdu_hello_lan(
         adj.bfd_update_sessions(iface, instance, false);
     }
 
-    // Trigger DIS election if priority or state changed.
-    if adj.priority != old_priority || adj.state != old_state {
+    // Trigger DIS election if priority changed.
+    if adj.priority != old_priority {
         instance.tx.protocol_input.dis_election(iface.id, level);
     }
 

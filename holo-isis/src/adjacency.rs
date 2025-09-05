@@ -164,10 +164,11 @@ impl Adjacency {
             }
         }
 
-        // On broadcast interfaces, we maintain a cache of active adjacencies
-        // (Init or Up, but not Down). Any time this set changes, we restart
-        // the Hello Tx task so the neighbors TLV is updated.
         if iface.config.interface_type == InterfaceType::Broadcast {
+            // On broadcast interfaces, we maintain a cache of active
+            // adjacencies (Init or Up, but not Down). Any time this set
+            // changes, we restart the Hello Tx task so the neighbors TLV
+            // is updated.
             let level = self.level_usage;
             let adjacencies = iface.state.lan_adjacencies.get_mut(level);
             if self.state == AdjacencyState::Down {
@@ -177,6 +178,12 @@ impl Adjacency {
                 adjacencies.active_mut().remove(&self.snpa);
                 iface.hello_interval_start(instance, level);
             }
+
+            // Trigger DIS election.
+            instance
+                .tx
+                .protocol_input
+                .dis_election(iface.id, level.into());
         }
 
         // Update Adj-SID(s) associated to this adjacency.

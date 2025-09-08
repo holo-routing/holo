@@ -636,10 +636,8 @@ fn process_pdu_lsp(
     // and no longer a fixed architectural constant.
 
     // Lookup LSP in the database.
-    let lse = instance
-        .state
-        .lsdb
-        .get(level)
+    let lsdb = instance.state.lsdb.get(level);
+    let lse = lsdb
         .get_by_lspid(&arenas.lsp_entries, &lsp.lsp_id)
         .map(|(_, lse)| lse);
 
@@ -884,10 +882,8 @@ fn process_pdu_snp(
         .collect::<BTreeMap<_, _>>();
     for entry in lsp_entries.values() {
         // Lookup LSP in the database.
-        let lse = instance
-            .state
-            .lsdb
-            .get(level)
+        let lsdb = instance.state.lsdb.get(level);
+        let lse = lsdb
             .get_by_lspid(&arenas.lsp_entries, &entry.lsp_id)
             .map(|(_, lse)| lse);
 
@@ -961,10 +957,8 @@ fn process_pdu_snp(
     //
     // Flood LSPs we have that the neighbor doesn't.
     if let Some((start, end)) = snp.summary {
-        for lsp in instance
-            .state
-            .lsdb
-            .get(level)
+        let lsdb = instance.state.lsdb.get(level);
+        for lsp in lsdb
             .range(&arenas.lsp_entries, start..=end)
             .map(|lse| &lse.data)
             .filter(|lsp| !lsp_entries.contains_key(&lsp.lsp_id))
@@ -1226,10 +1220,8 @@ pub(crate) fn process_send_csnp(
     // Iterate over LSDB and send as many CSNPs as necessary.
     let mut start = LspId::from([0; 8]);
     let mut lsp_entries = vec![];
-    let mut lsdb_iter = instance
-        .state
-        .lsdb
-        .get(level)
+    let lsdb = instance.state.lsdb.get(level);
+    let mut lsdb_iter = lsdb
         .iter(&arenas.lsp_entries)
         .map(|lse| &lse.data)
         .peekable();
@@ -1294,11 +1286,8 @@ pub(crate) fn process_lsp_purge(
     reason: LspPurgeReason,
 ) -> Result<(), Error> {
     // Lookup LSP entry in the LSDB.
-    let (_, lse) = instance
-        .state
-        .lsdb
-        .get_mut(level)
-        .get_mut_by_key(&mut arenas.lsp_entries, &lse_key)?;
+    let lsdb = instance.state.lsdb.get_mut(level);
+    let (_, lse) = lsdb.get_mut_by_key(&mut arenas.lsp_entries, &lse_key)?;
     let mut lsp = lse.data.clone();
 
     // Log LSP purge.
@@ -1374,10 +1363,8 @@ pub(crate) fn process_lsp_refresh(
     lse_key: LspEntryKey,
 ) -> Result<(), Error> {
     // Lookup LSP entry in the LSDB.
-    let lsp = instance
-        .state
-        .lsdb
-        .get(level)
+    let lsdb = instance.state.lsdb.get(level);
+    let lsp = lsdb
         .get_by_key(&arenas.lsp_entries, &lse_key)
         .map(|(_, lse)| &lse.data)?;
 

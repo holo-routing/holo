@@ -1026,10 +1026,8 @@ fn lsp_build_fragments(
         };
 
         let lsp_id = LspId::from((system_id, pseudonode_id, frag_id));
-        let seqno = instance
-            .state
-            .lsdb
-            .get(level)
+        let lsdb = instance.state.lsdb.get(level);
+        let seqno = lsdb
             .get_by_lspid(&arenas.lsp_entries, &lsp_id)
             .map(|(_, lse)| lse.data.seqno + 1)
             .unwrap_or(LSP_INIT_SEQNO);
@@ -1447,10 +1445,8 @@ pub(crate) fn lsp_originate_all(
     level: LevelNumber,
 ) {
     let system_id = instance.config.system_id.unwrap();
-    let before: HashSet<_> = instance
-        .state
-        .lsdb
-        .get(level)
+    let lsdb = instance.state.lsdb.get(level);
+    let before: HashSet<_> = lsdb
         .iter_for_system_id(&arenas.lsp_entries, system_id)
         .map(|lse| lse.data.lsp_id)
         .collect();
@@ -1461,10 +1457,8 @@ pub(crate) fn lsp_originate_all(
         after.insert(lsp.lsp_id);
 
         // Get the current instance of this LSP (if any) from the LSDB.
-        let old_lsp = instance
-            .state
-            .lsdb
-            .get(level)
+        let lsdb = instance.state.lsdb.get(level);
+        let old_lsp = lsdb
             .get_by_lspid(&arenas.lsp_entries, &lsp.lsp_id)
             .map(|(_, lse)| &lse.data);
 
@@ -1490,11 +1484,8 @@ pub(crate) fn lsp_originate_all(
 
     // Purge any LSP fragments that are no longer in use.
     for (_, lse) in before.difference(&after).filter_map(|lsp_id| {
-        instance
-            .state
-            .lsdb
-            .get(level)
-            .get_by_lspid(&arenas.lsp_entries, lsp_id)
+        let lsdb = instance.state.lsdb.get(level);
+        lsdb.get_by_lspid(&arenas.lsp_entries, lsp_id)
     }) {
         let reason = LspPurgeReason::Removed;
         instance.tx.protocol_input.lsp_purge(level, lse.id, reason);

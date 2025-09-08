@@ -28,7 +28,7 @@ use crate::interface::{Interface, InterfaceType};
 use crate::northbound::notification;
 use crate::packet::consts::PduType;
 use crate::packet::subtlvs::neighbor::{AdjSidFlags, AdjSidStlv};
-use crate::packet::tlv::ExtendedSeqNum;
+use crate::packet::tlv::{ExtendedSeqNum, ThreeWayAdjState};
 use crate::packet::{AreaAddr, LanId, LevelType, SystemId};
 use crate::{sr, tasks};
 
@@ -42,6 +42,8 @@ pub struct Adjacency {
     pub state: AdjacencyState,
     pub priority: Option<u8>,
     pub lan_id: Option<LanId>,
+    pub three_way_state: ThreeWayAdjState,
+    pub ext_circuit_id: Option<u32>,
     pub ext_seqnum: HashMap<PduType, ExtendedSeqNum>,
     pub protocols_supported: Vec<u8>,
     pub area_addrs: BTreeSet<AreaAddr>,
@@ -106,6 +108,8 @@ impl Adjacency {
             state: AdjacencyState::Down,
             priority: None,
             lan_id: None,
+            three_way_state: ThreeWayAdjState::Down,
+            ext_circuit_id: None,
             ext_seqnum: Default::default(),
             protocols_supported: Default::default(),
             area_addrs: Default::default(),
@@ -370,5 +374,31 @@ impl AdjacencySid {
         }
         let sid = Sid::Label(self.label);
         AdjSidStlv::new(flags, 0, self.nbr_system_id, sid)
+    }
+}
+
+// ===== global functions =====
+
+// Computes the next three-way adjacency state based on the current adjacency
+// state and the state received in the neighbor's Hello PDU.
+pub(crate) fn three_way_handshake(
+    adj_state: ThreeWayAdjState,
+    hello_state: ThreeWayAdjState,
+) -> Option<ThreeWayAdjState> {
+    use ThreeWayAdjState::{Down, Initializing, Up};
+
+    match hello_state {
+        Down => Some(Initializing),
+
+        Initializing => match adj_state {
+            Down | Initializing => Some(Up),
+            Up => None,
+        },
+
+        Up => match adj_state {
+            Down => Some(Down),
+            Initializing => Some(Up),
+            Up => None,
+        },
     }
 }

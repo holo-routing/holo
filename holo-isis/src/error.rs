@@ -68,6 +68,7 @@ pub enum AdjacencyRejectError {
     CircuitTypeMismatch,
     MaxAreaAddrsMismatch(u8),
     AreaMismatch,
+    NeighborMismatch,
     WrongSystem,
     DuplicateSystemId,
     MissingProtocolsSupported,
@@ -321,6 +322,9 @@ impl std::fmt::Display for AdjacencyRejectError {
             }
             AdjacencyRejectError::AreaMismatch => {
                 write!(f, "area mismatch")
+            }
+            AdjacencyRejectError::NeighborMismatch => {
+                write!(f, "neighbor mismatch")
             }
             AdjacencyRejectError::WrongSystem => {
                 write!(f, "wrong system")

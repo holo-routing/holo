@@ -38,7 +38,8 @@ use crate::packet::tlv::{
     LegacyIsReach, LegacyIsReachTlv, LspBufferSizeTlv, LspEntriesTlv, LspEntry,
     MtFlags, MultiTopologyEntry, MultiTopologyTlv, NeighborsTlv, PaddingTlv,
     ProtocolsSupportedTlv, PurgeOriginatorIdTlv, RouterCapTlv, TLV_HDR_SIZE,
-    TLV_MAX_LEN, Tlv, UnknownTlv, tlv_entries_split, tlv_take_max,
+    TLV_MAX_LEN, ThreeWayAdjTlv, Tlv, UnknownTlv, tlv_entries_split,
+    tlv_take_max,
 };
 use crate::packet::{
     AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId, auth,
@@ -91,6 +92,7 @@ pub struct HelloTlvs {
     pub area_addrs: Vec<AreaAddressesTlv>,
     pub multi_topology: Vec<MultiTopologyTlv>,
     pub neighbors: Vec<NeighborsTlv>,
+    pub three_way_adj: Option<ThreeWayAdjTlv>,
     pub ipv4_addrs: Vec<Ipv4AddressesTlv>,
     pub ipv6_addrs: Vec<Ipv6AddressesTlv>,
     pub ext_seqnum: Option<ExtendedSeqNumTlv>,
@@ -640,6 +642,17 @@ impl Hello {
                         Err(error) => error.log(),
                     }
                 }
+                Some(TlvType::ThreeWayAdj)
+                    if hdr.pdu_type == PduType::HelloP2P =>
+                {
+                    if tlvs.three_way_adj.is_some() {
+                        continue;
+                    }
+                    match ThreeWayAdjTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.three_way_adj = Some(tlv),
+                        Err(error) => error.log(),
+                    }
+                }
                 Some(TlvType::Padding) => {
                     match PaddingTlv::decode(tlv_len, &mut buf_tlv) {
                         Ok(tlv) => tlvs.padding.push(tlv),
@@ -756,6 +769,9 @@ impl Hello {
             for tlv in &self.tlvs.neighbors {
                 tlv.encode(&mut buf);
             }
+            if let Some(tlv) = &self.tlvs.three_way_adj {
+                tlv.encode(&mut buf);
+            }
             for tlv in &self.tlvs.ipv4_addrs {
                 tlv.encode(&mut buf);
             }
@@ -786,6 +802,9 @@ impl Hello {
             total_tlv_len += tlv.len();
         }
         for tlv in &self.tlvs.neighbors {
+            total_tlv_len += tlv.len();
+        }
+        if let Some(tlv) = &self.tlvs.three_way_adj {
             total_tlv_len += tlv.len();
         }
         for tlv in &self.tlvs.ipv4_addrs {
@@ -821,6 +840,7 @@ impl HelloTlvs {
         area_addrs: impl IntoIterator<Item = AreaAddr>,
         multi_topology: impl IntoIterator<Item = MultiTopologyEntry>,
         neighbors: impl IntoIterator<Item = MacAddr>,
+        three_way_adj: Option<ThreeWayAdjTlv>,
         ipv4_addrs: impl IntoIterator<Item = Ipv4Addr>,
         ipv6_addrs: impl IntoIterator<Item = Ipv6Addr>,
         ext_seqnum: Option<ExtendedSeqNum>,
@@ -832,6 +852,7 @@ impl HelloTlvs {
             area_addrs: tlv_entries_split(area_addrs),
             multi_topology: tlv_entries_split(multi_topology),
             neighbors: tlv_entries_split(neighbors),
+            three_way_adj,
             ipv4_addrs: tlv_entries_split(ipv4_addrs),
             ipv6_addrs: tlv_entries_split(ipv6_addrs),
             ext_seqnum: ext_seqnum.map(ExtendedSeqNumTlv::new),

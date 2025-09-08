@@ -23,6 +23,7 @@ use holo_utils::ip::{
 use holo_utils::mac_addr::MacAddr;
 use holo_utils::sr::IgpAlgoType;
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
+use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
 use tracing::debug_span;
@@ -147,6 +148,23 @@ pub struct NeighborsTlv {
 #[derive(Deserialize, Serialize)]
 pub struct PaddingTlv {
     pub length: u8,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct ThreeWayAdjTlv {
+    pub state: ThreeWayAdjState,
+    pub local_circuit_id: Option<u32>,
+    pub neighbor: Option<(SystemId, u32)>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(FromPrimitive)]
+#[derive(Deserialize, Serialize)]
+pub enum ThreeWayAdjState {
+    Up = 0,
+    Initializing = 1,
+    Down = 2,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -633,6 +651,71 @@ impl PaddingTlv {
         let start_pos = tlv_encode_start(buf, TlvType::Padding);
         buf.put_slice(&Self::PADDING[0..self.length as usize]);
         tlv_encode_end(buf, start_pos);
+    }
+}
+
+// ===== impl ThreeWayAdjTlv =====
+
+impl ThreeWayAdjTlv {
+    pub const MIN_LEN: usize = 1;
+
+    pub(crate) fn decode(
+        tlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
+        // Validate the TLV length.
+        if (tlv_len as usize) < Self::MIN_LEN {
+            return Err(TlvDecodeError::InvalidLength(tlv_len));
+        }
+
+        let state = buf.try_get_u8()?;
+        let Some(state) = ThreeWayAdjState::from_u8(state) else {
+            return Err(TlvDecodeError::InvalidThreeWayAdjState(state));
+        };
+
+        let mut local_circuit_id = None;
+        if buf.remaining() >= 4 {
+            local_circuit_id = Some(buf.try_get_u32()?);
+        }
+
+        let mut neighbor = None;
+        if buf.remaining() >= 10 {
+            let nbr_system_id = SystemId::decode(buf)?;
+            let nbr_circuit_id = buf.try_get_u32()?;
+            neighbor = Some((nbr_system_id, nbr_circuit_id));
+        }
+
+        Ok(ThreeWayAdjTlv {
+            state,
+            local_circuit_id,
+            neighbor,
+        })
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, TlvType::ThreeWayAdj);
+        buf.put_u8(self.state as u8);
+        if let Some(local_circuit_id) = self.local_circuit_id {
+            buf.put_u32(local_circuit_id);
+            if let Some((nbr_system_id, nbr_circuit_id)) = &self.neighbor {
+                nbr_system_id.encode(buf);
+                buf.put_u32(*nbr_circuit_id);
+            }
+        }
+        tlv_encode_end(buf, start_pos);
+    }
+}
+
+impl Tlv for ThreeWayAdjTlv {
+    fn len(&self) -> usize {
+        let mut len = TLV_HDR_SIZE + Self::MIN_LEN;
+        if self.local_circuit_id.is_some() {
+            len += 4;
+            if self.neighbor.is_some() {
+                len += 10;
+            }
+        }
+        len
     }
 }
 

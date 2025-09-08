@@ -30,10 +30,10 @@ use crate::northbound::notification;
 use crate::packet::consts::PduType;
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::pdu::{Hello, HelloVariant, Lsp, Pdu, Snp, SnpTlvs};
-use crate::packet::tlv::{ExtendedSeqNum, ExtendedSeqNumTlv};
+use crate::packet::tlv::{ExtendedSeqNum, ExtendedSeqNumTlv, ThreeWayAdjState};
 use crate::packet::{LanId, LevelNumber, LevelType, LspId};
-use crate::spf;
 use crate::spf::SpfType;
+use crate::{adjacency, spf};
 
 // ===== Network PDU receipt =====
 
@@ -394,6 +394,7 @@ fn process_pdu_hello_p2p(
 ) -> Result<(), PduInputError> {
     let iface = &mut arenas.interfaces[iface_idx];
     let mut ext_seqnum = None;
+    let mut restart_hello_tx = false;
 
     // Validate PDU type.
     if iface.config.interface_type != InterfaceType::PointToPoint {
@@ -410,6 +411,15 @@ fn process_pdu_hello_p2p(
             hello.hdr.pdu_type,
             hello.tlvs.ext_seqnum.as_ref(),
         )?);
+    }
+
+    // If the Three-Way Adjacency TLV is present, validate the neighbor fields.
+    if let Some(three_way_adj) = &hello.tlvs.three_way_adj
+        && let Some((nbr_system_id, nbr_circuit_id)) = three_way_adj.neighbor
+        && (nbr_system_id != instance.config.system_id.unwrap()
+            || nbr_circuit_id != iface.system.ifindex.unwrap())
+    {
+        return Err(AdjacencyRejectError::NeighborMismatch.into());
     }
 
     // Check for duplicate System-ID.
@@ -511,6 +521,9 @@ fn process_pdu_hello_p2p(
     adj.protocols_supported = hello.tlvs.protocols_supported().collect();
     adj.area_addrs = hello.tlvs.area_addrs().cloned().collect();
     adj.topologies = hello_topologies;
+    if let Some(three_way_adj) = &hello.tlvs.three_way_adj {
+        adj.ext_circuit_id = three_way_adj.local_circuit_id;
+    }
     adj.ipv4_addrs = hello.tlvs.ipv4_addrs().cloned().collect();
     adj.ipv6_addrs = hello.tlvs.ipv6_addrs().cloned().collect();
     if let Some(ext_seqnum) = ext_seqnum {
@@ -520,13 +533,50 @@ fn process_pdu_hello_p2p(
     // Restart hold timer.
     adj.holdtimer_reset(iface, instance, hello.holdtime);
 
-    // Transition the adjacency to the "Up" state.
-    adj.state_change(
-        iface,
-        instance,
-        AdjacencyEvent::HelloOneWayRcvd,
-        AdjacencyState::Up,
-    );
+    // When the Three-Way Adjacency TLV is present, update the state using
+    // the RFC 5303 handshake. If the TLV is absent, fall back to two-way
+    // adjacency and transition directly to Up.
+    match &hello.tlvs.three_way_adj {
+        Some(three_way_adj) => {
+            let new_state = adjacency::three_way_handshake(
+                adj.three_way_state,
+                three_way_adj.state,
+            );
+            if let Some(new_state) = new_state {
+                adj.three_way_state = new_state;
+                match new_state {
+                    ThreeWayAdjState::Down => {
+                        return Ok(());
+                    }
+                    ThreeWayAdjState::Initializing => {
+                        adj.state_change(
+                            iface,
+                            instance,
+                            AdjacencyEvent::HelloOneWayRcvd,
+                            AdjacencyState::Initializing,
+                        );
+                    }
+                    ThreeWayAdjState::Up => {
+                        adj.state_change(
+                            iface,
+                            instance,
+                            AdjacencyEvent::HelloTwoWayRcvd,
+                            AdjacencyState::Up,
+                        );
+                    }
+                }
+                restart_hello_tx = true;
+            }
+        }
+        None => {
+            adj.state_change(
+                iface,
+                instance,
+                AdjacencyEvent::HelloOneWayRcvd,
+                AdjacencyState::Up,
+            );
+        }
+    }
 
     // Reevaluate BFD sessions associated with this adjacency.
     if iface.config.bfd_enabled {
@@ -534,6 +584,9 @@ fn process_pdu_hello_p2p(
     }
 
     iface.state.p2p_adjacency = Some(adj);
+    if restart_hello_tx {
+        iface.hello_interval_start(instance, LevelType::All);
+    }
 
     Ok(())
 }

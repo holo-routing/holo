@@ -66,6 +66,7 @@ pub enum TlvType {
     MtIpv4Reach = 235,
     Ipv6Reach = 236,
     MtIpv6Reach = 237,
+    ThreeWayAdj = 240,
     RouterCapability = 242,
 }
 

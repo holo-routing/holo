@@ -167,6 +167,7 @@ Holo supports the following Internet Standards:
 * RFC 3787 - Recommendations for Interoperable IP Networks using Intermediate System to Intermediate System (IS-IS)
 * RFC 5120 - M-ISIS: Multi Topology (MT) Routing in Intermediate System to Intermediate Systems (IS-ISs)
 * RFC 5301 - Dynamic Hostname Exchange Mechanism for IS-IS
+* RFC 5303 - Three-Way Handshake for IS-IS Point-to-Point Adjacencies
 * RFC 5304 - IS-IS Cryptographic Authentication
 * RFC 5305 - IS-IS Extensions for Traffic Engineering
 * RFC 5308 - Routing IPv6 with IS-IS

@@ -33,7 +33,8 @@ use crate::northbound::notification;
 use crate::packet::consts::{MtId, Nlpid, PduType};
 use crate::packet::pdu::{Hello, HelloTlvs, HelloVariant, Lsp, Pdu};
 use crate::packet::tlv::{
-    ExtendedSeqNum, LspEntry, MtFlags, MultiTopologyEntry,
+    ExtendedSeqNum, LspEntry, MtFlags, MultiTopologyEntry, ThreeWayAdjState,
+    ThreeWayAdjTlv,
 };
 use crate::packet::{LanId, LevelNumber, LevelType, Levels, LspId, SystemId};
 use crate::tasks::messages::output::NetTxPduMsg;
@@ -564,6 +565,26 @@ impl Interface {
             neighbors.extend(adjacencies.active().clone());
         }
 
+        // Set P2P Adjacency Three-Way State.
+        let mut three_way_adj = None;
+        if self.config.interface_type == InterfaceType::PointToPoint {
+            let mut state = ThreeWayAdjState::Down;
+            let local_circuit_id = self.system.ifindex.unwrap();
+            let mut neighbor = None;
+
+            if let Some(adj) = &self.state.p2p_adjacency {
+                state = adj.three_way_state;
+                if let Some(adj_ext_circuit_id) = adj.ext_circuit_id {
+                    neighbor = Some((adj.system_id, adj_ext_circuit_id));
+                }
+            }
+            three_way_adj = Some(ThreeWayAdjTlv {
+                state,
+                local_circuit_id: Some(local_circuit_id),
+                neighbor,
+            });
+        }
+
         // Set IP information.
         let mut protocols_supported = vec![];
         let mut ipv4_addrs = vec![];
@@ -605,6 +626,7 @@ impl Interface {
                 area_addrs,
                 multi_topology,
                 neighbors,
+                three_way_adj,
                 ipv4_addrs,
                 ipv6_addrs,
                 ext_seqnum,

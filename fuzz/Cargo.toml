@@ -11,6 +11,8 @@ cargo-fuzz = true
 bytes = "1.10"
 const-addrs = { version = "0.1", features = ["ipnet"] }
 libfuzzer-sys = "0.4"
+yang3 = { version = "0.18", features = ["bundled"] }
+
 holo-bfd = { path = "../holo-bfd/" }
 holo-bgp = { path = "../holo-bgp/" }
 holo-isis = { path = "../holo-isis/" }

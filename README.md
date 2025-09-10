@@ -5,7 +5,7 @@
 
 [mit-badge]: https://img.shields.io/badge/license-MIT-blue.svg
 [mit-url]: https://github.com/holo-routing/holo/blob/master/LICENSE
-[actions-badge]: https://github.com/holo-routing/holo/workflows/CI/badge.svg
+[actions-badge]: https://github.com/holo-routing/holo/actions/workflows/ci.yaml/badge.svg?branch=master
 [actions-url]: https://github.com/holo-routing/holo/actions?query=workflow%3ACI+branch%3Amaster
 [codecov-badge]: https://codecov.io/gh/holo-routing/holo/branch/master/graph/badge.svg?token=OMV0RMNVY8
 [codecov-url]: https://codecov.io/gh/holo-routing/holo

@@ -118,9 +118,9 @@ pub enum IbusMsg {
     InterfaceIpAddRequest { ifname: String, addr: IpNetwork },
     /// Request to delete an address to an interface.
     InterfaceIpDelRequest { ifname: String, addr: IpNetwork },
-    /// Keychain update notification.
+    /// Key-chain update notification.
     KeychainUpd(Arc<Keychain>),
-    /// Keychain delete notification.
+    /// Key-chain delete notification.
     KeychainDel(String),
     /// Create a macvlan interface.
     MacvlanAdd {
@@ -170,8 +170,8 @@ pub enum IbusMsg {
     /// Request to uninstall an entry in the BIRT.
     RouteBierDel(BierNbrUninstallMsg),
     /// Purge the BIRT.
-    /// TODO: Add Protocol argument to BierPurge to specify which BIRT has to be
-    /// purged. E.g., One could ask to purge the BIRT populated by a specific
+    /// TODO: Add Protocol argument to `BierPurge` to specify which BIRT has to
+    /// be purged. E.g., One could ask to purge the BIRT populated by a specific
     /// instance of OSPFv3 but not those populated by IS-IS.
     BierPurge,
     /// Requests a subscription to route update notifications for a specific

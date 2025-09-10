@@ -16,18 +16,18 @@ use yang3::schema::{DataValue, SchemaNode, SchemaPathFormat};
 
 use crate::ip::AddressFamily;
 
-/// Extension methods for Context.
+/// Extension methods for `Context`.
 pub trait ContextExt {
     fn cache_data_paths(&self);
 }
 
-/// Extension methods for SchemaNode.
+/// Extension methods for `SchemaNode`.
 pub trait SchemaNodeExt {
     fn cache_data_path(&self);
     fn data_path(&self) -> String;
 }
 
-/// Extension methods for DataNodeRef.
+/// Extension methods for `DataNodeRef`.
 pub trait DataNodeRefExt {
     fn exists(&self, path: &str) -> bool;
     fn get_u8(&self) -> u8;

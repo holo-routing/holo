@@ -86,6 +86,9 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 yang3 = { version = "0.18" }
 
+[workspace.metadata.spellcheck]
+config = "spellcheck.toml"
+
 [workspace.lints.rust]
 rust_2018_idioms = { level = "warn", priority = -1 }
 unsafe_code = "forbid"

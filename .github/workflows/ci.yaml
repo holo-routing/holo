@@ -89,6 +89,19 @@ jobs:
       - name: Check benchmark builds
         run: cargo bench --no-run -p holo-bgp -p holo-ldp -p holo-ospf
 
+  spell-check:
+    name: Spell check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.88
+      - name: Install cargo-spellcheck
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-spellcheck
+      - name: Run cargo-spellcheck
+        run: cargo spellcheck --code 1
+
   docker-build-holod:
     name: "Docker Build: holod"
     uses: ./.github/workflows/docker-build-and-attest.yml

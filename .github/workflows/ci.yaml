@@ -53,7 +53,7 @@ jobs:
         run: cargo llvm-cov --all-features --codecov --output-path codecov.json -p holo-bfd -p holo-bgp -p holo-isis -p holo-ldp -p holo-ospf -p holo-rip -p holo-vrrp
       - name: Upload to Codecov
         uses: codecov/codecov-action@v4
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/master' && github.repository_owner == 'holo-routing'
         with:
           files: ./lcov.info
           fail_ci_if_error: false

@@ -38,6 +38,7 @@ use crate::northbound::configuration::MetricType;
 use crate::northbound::notification;
 use crate::packet::consts::{MtId, Nlpid};
 use crate::packet::pdu::{Lsp, LspFlags, LspTlvs, Pdu};
+use crate::packet::subtlvs::MsdStlv;
 use crate::packet::subtlvs::capability::{
     LabelBlockEntry, NodeAdminTagStlv, SrAlgoStlv, SrCapabilitiesFlags,
     SrCapabilitiesStlv, SrLocalBlockStlv,
@@ -478,6 +479,11 @@ fn lsp_build_tlvs_router_cap(
         }
     }
 
+    // Add Node MSD Sub-TLV.
+    if !instance.system.node_msd.is_empty() {
+        cap.sub_tlvs.node_msd = Some(MsdStlv::from(&instance.system.node_msd));
+    }
+
     // Add Node-Admin-Tag Sub-TLVs.
     if !instance.config.node_tags.is_empty() {
         let node_tags = instance.config.node_tags.clone();
@@ -489,7 +495,10 @@ fn lsp_build_tlvs_router_cap(
             .collect();
     }
 
-    if cap.sub_tlvs.sr_cap.is_some() || !cap.sub_tlvs.node_tags.is_empty() {
+    if cap.sub_tlvs.sr_cap.is_some()
+        || cap.sub_tlvs.node_msd.is_some()
+        || !cap.sub_tlvs.node_tags.is_empty()
+    {
         router_cap.push(cap);
     }
 }
@@ -608,7 +617,7 @@ fn lsp_build_tlvs_is_reach(
                         None
                     };
                     let sub_tlvs =
-                        lsp_build_is_reach_p2p_stlvs(instance, adj, af);
+                        lsp_build_is_reach_p2p_stlvs(instance, iface, adj, af);
                     ext_is_reach.push(IsReach {
                         neighbor,
                         metric,
@@ -625,6 +634,7 @@ fn lsp_build_tlvs_is_reach(
                 {
                     let sub_tlvs = lsp_build_is_reach_p2p_stlvs(
                         instance,
+                        iface,
                         adj,
                         Some(AddressFamily::Ipv6),
                     );
@@ -838,11 +848,17 @@ fn lsp_build_is_reach_lan_stlvs(
             .collect();
     }
 
+    // Add Link MSD Sub-TLV.
+    if !iface.system.msd.is_empty() {
+        sub_tlvs.link_msd = Some(MsdStlv::from(&iface.system.msd));
+    }
+
     sub_tlvs
 }
 
 fn lsp_build_is_reach_p2p_stlvs(
     instance: &InstanceUpView<'_>,
+    iface: &Interface,
     adj: &Adjacency,
     af: Option<AddressFamily>,
 ) -> IsReachStlvs {
@@ -856,6 +872,11 @@ fn lsp_build_is_reach_p2p_stlvs(
             .filter(|adj_sid| af.is_none_or(|af| af == adj_sid.af))
             .map(|adj_sid| adj_sid.to_stlv())
             .collect();
+    }
+
+    // Add Link MSD Sub-TLV.
+    if !iface.system.msd.is_empty() {
+        sub_tlvs.link_msd = Some(MsdStlv::from(&iface.system.msd));
     }
 
     sub_tlvs

@@ -16,6 +16,7 @@ use holo_utils::ip::{AddressFamily, JointPrefixSetExt};
 use holo_utils::mac_addr::MacAddr;
 use holo_utils::socket::{AsyncFd, Socket, SocketExt};
 use holo_utils::southbound::InterfaceFlags;
+use holo_utils::sr::MsdType;
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use ipnetwork::IpNetwork;
 use prefix_trie::joint::set::JointPrefixSet;
@@ -55,6 +56,7 @@ pub struct InterfaceSys {
     pub flags: InterfaceFlags,
     pub ifindex: Option<u32>,
     pub mtu: Option<u32>,
+    pub msd: BTreeMap<MsdType, u8>,
     pub mac_addr: Option<MacAddr>,
     pub addr_list: JointPrefixSet<IpNetwork>,
 }

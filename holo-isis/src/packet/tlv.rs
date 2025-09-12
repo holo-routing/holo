@@ -35,6 +35,7 @@ use crate::packet::consts::{
 use crate::packet::error::{TlvDecodeError, TlvDecodeResult};
 #[cfg(feature = "testing")]
 use crate::packet::pdu::serde_lsp_rem_lifetime_filter;
+use crate::packet::subtlvs::MsdStlv;
 use crate::packet::subtlvs::capability::{
     NodeAdminTagStlv, SrAlgoStlv, SrCapabilitiesStlv, SrLocalBlockStlv,
 };
@@ -298,6 +299,7 @@ pub struct IsReachStlvs {
     pub unreserved_bw: Option<subtlvs::neighbor::UnreservedBwStlv>,
     pub te_default_metric: Option<subtlvs::neighbor::TeDefaultMetricStlv>,
     pub adj_sids: Vec<subtlvs::neighbor::AdjSidStlv>,
+    pub link_msd: Option<MsdStlv>,
     pub unknown: Vec<UnknownTlv>,
 }
 
@@ -430,6 +432,7 @@ pub struct RouterCapStlvs {
     pub sr_cap: Option<SrCapabilitiesStlv>,
     pub sr_algo: Option<SrAlgoStlv>,
     pub srlb: Option<SrLocalBlockStlv>,
+    pub node_msd: Option<MsdStlv>,
     pub node_tags: Vec<NodeAdminTagStlv>,
     pub unknown: Vec<UnknownTlv>,
 }
@@ -1400,6 +1403,15 @@ impl IsReachTlv {
                             Err(error) => error.log(),
                         }
                     }
+                    Some(NeighborStlvType::LinkMsd) => {
+                        if sub_tlvs.link_msd.is_some() {
+                            continue;
+                        }
+                        match MsdStlv::decode(stlv_len, &mut buf_stlv) {
+                            Ok(stlv) => sub_tlvs.link_msd = Some(stlv),
+                            Err(error) => error.log(),
+                        }
+                    }
                     _ => {
                         // Save unknown Sub-TLV.
                         sub_tlvs.unknown.push(UnknownTlv::new(
@@ -1463,6 +1475,9 @@ impl IsReachTlv {
             }
             for stlv in &entry.sub_tlvs.adj_sids {
                 stlv.encode(buf);
+            }
+            if let Some(stlv) = &entry.sub_tlvs.link_msd {
+                stlv.encode(NeighborStlvType::LinkMsd as u8, buf);
             }
             // Rewrite Sub-TLVs length field.
             buf[subtlvs_len_pos] = (buf.len() - 1 - subtlvs_len_pos) as u8;
@@ -2413,6 +2428,15 @@ impl RouterCapTlv {
                         Err(error) => error.log(),
                     }
                 }
+                Some(RouterCapStlvType::NodeMsd) => {
+                    if sub_tlvs.node_msd.is_some() {
+                        continue;
+                    }
+                    match MsdStlv::decode(stlv_len, &mut buf_stlv) {
+                        Ok(stlv) => sub_tlvs.node_msd = Some(stlv),
+                        Err(error) => error.log(),
+                    }
+                }
                 Some(RouterCapStlvType::NodeAdminTag) => {
                     match NodeAdminTagStlv::decode(stlv_len, &mut buf_stlv) {
                         Ok(stlv) => sub_tlvs.node_tags.push(stlv),
@@ -2451,6 +2475,9 @@ impl RouterCapTlv {
         if let Some(stlv) = &self.sub_tlvs.srlb {
             stlv.encode(buf);
         }
+        if let Some(stlv) = &self.sub_tlvs.node_msd {
+            stlv.encode(RouterCapStlvType::NodeMsd as u8, buf);
+        }
         for stlv in &self.sub_tlvs.node_tags {
             stlv.encode(buf);
         }
@@ -2469,6 +2496,9 @@ impl Tlv for RouterCapTlv {
             len += stlv.len();
         }
         if let Some(stlv) = &self.sub_tlvs.srlb {
+            len += stlv.len();
+        }
+        if let Some(stlv) = &self.sub_tlvs.node_msd {
             len += stlv.len();
         }
         for stlv in &self.sub_tlvs.node_tags {

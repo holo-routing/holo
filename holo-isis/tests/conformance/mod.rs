@@ -1353,6 +1353,23 @@ async fn ibus_hostname_update1() {
 }
 
 // Input:
+//  * Ibus:
+//    - Interface eth-rt4 MSD update (16)
+//    - Node MSD update (16)
+// Output:
+//  * Protocol: send an updated local LSP to all adjacencies
+//  * Northbound:
+//    - add Node MSD (16) to the local LSP
+//    - add Link MSD (16) for the eth-rt4 interface to the local LSP
+//    - add the local LSP to the SRM list of all adjacencies
+//    - transition the SPF Delay FSM state from "quiet" to "short-wait"
+//    - send an "lsp-generation" YANG notification
+#[tokio::test]
+async fn ibus_msd_update1() {
+    run_test::<Instance>("ibus-msd-update1", "topo2-3", "rt6").await;
+}
+
+// Input:
 //  * Northbound: configure route redistribution for directly connected routes
 //    (IPv4 and IPv6)
 // Output:

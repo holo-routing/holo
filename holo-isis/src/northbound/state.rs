@@ -85,6 +85,7 @@ pub enum ListEntry<'a> {
     InterfaceSsnList(&'a Interface, LevelNumber),
     Adjacency(&'a Adjacency),
     AdjacencySid(&'a AdjacencySid),
+    Msd(u8, u8),
 }
 
 // ===== callbacks =====
@@ -421,6 +422,24 @@ fn load_callbacks() -> Callbacks<Instance> {
             }
             Box::new(obj)
         })
+        .path(isis::database::levels::lsp::router_capabilities::router_capability::node_msd_tlv::node_msds::PATH)
+        .get_iterate(|_instance, args| {
+            let router_cap = args.parent_list_entry.as_router_cap().unwrap();
+            if let Some(link_msd) = &router_cap.sub_tlvs.node_msd {
+                let iter = link_msd.get().iter().map(|(msd_type, msd_value)| ListEntry::Msd(*msd_type, *msd_value));
+                Some(Box::new(iter))
+            } else {
+                None
+            }
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::router_capabilities::router_capability::node_msd_tlv::node_msds::NodeMsds;
+            let (msd_type, msd_value) = args.list_entry.as_msd().unwrap();
+            Box::new(NodeMsds {
+                msd_type: *msd_type,
+                msd_value: Some(*msd_value),
+            })
+        })
         .path(isis::database::levels::lsp::unknown_tlvs::unknown_tlv::PATH)
         .get_iterate(|_instance, args| {
             let lse = args.parent_list_entry.as_lsp_entry().unwrap();
@@ -630,6 +649,24 @@ fn load_callbacks() -> Callbacks<Instance> {
             let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
             Box::new(AdjSidFlags {
                 flag: Some(Box::new(iter)),
+            })
+        })
+        .path(isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::link_msd_sub_tlv::link_msds::PATH)
+        .get_iterate(|_instance, args| {
+            let (_, reach) = args.parent_list_entry.as_ext_is_reach_instance().unwrap();
+            if let Some(link_msd) = &reach.sub_tlvs.link_msd {
+                let iter = link_msd.get().iter().map(|(msd_type, msd_value)| ListEntry::Msd(*msd_type, *msd_value));
+                Some(Box::new(iter))
+            } else {
+                None
+            }
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::link_msd_sub_tlv::link_msds::LinkMsds;
+            let (msd_type, msd_value) = args.list_entry.as_msd().unwrap();
+            Box::new(LinkMsds {
+                msd_type: *msd_type,
+                msd_value: Some(*msd_value),
             })
         })
         .path(isis::database::levels::lsp::ipv4_internal_reachability::prefixes::PATH)
@@ -923,6 +960,24 @@ fn load_callbacks() -> Callbacks<Instance> {
             let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
             Box::new(AdjSidFlags {
                 flag: Some(Box::new(iter)),
+            })
+        })
+        .path(isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::link_msd_sub_tlv::link_msds::PATH)
+        .get_iterate(|_instance, args| {
+            let (_, reach) = args.parent_list_entry.as_mt_is_reach_instance().unwrap();
+            if let Some(link_msd) = &reach.sub_tlvs.link_msd {
+                let iter = link_msd.get().iter().map(|(msd_type, msd_value)| ListEntry::Msd(*msd_type, *msd_value));
+                Some(Box::new(iter))
+            } else {
+                None
+            }
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::link_msd_sub_tlv::link_msds::LinkMsds;
+            let (msd_type, msd_value) = args.list_entry.as_msd().unwrap();
+            Box::new(LinkMsds {
+                msd_type: *msd_type,
+                msd_value: Some(*msd_value),
             })
         })
         .path(isis::database::levels::lsp::mt_extended_ipv4_reachability::prefixes::PATH)

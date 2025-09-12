@@ -1,0 +1,46 @@
+module holo-ietf-isis-msd-deviations {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/holo-ietf-isis-msd-deviations";
+  prefix holo-ietf-isis-msd-deviations;
+
+  import ietf-isis-msd {
+    prefix isis-msd;
+  }
+
+  import ietf-routing {
+    prefix rt;
+  }
+
+  import ietf-isis {
+    prefix isis;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines deviation statements for the ietf-isis-msd
+     module.";
+
+  /*
+   * Type changes
+   */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:router-capabilities/isis:router-capability/isis-msd:node-msd-tlv/isis-msd:node-msds/isis-msd:msd-type" {
+    deviate replace {
+      type "uint8";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis-msd:link-msd-sub-tlv/isis-msd:link-msds/isis-msd:msd-type" {
+    deviate replace {
+      type "uint8";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis-msd:link-msd-sub-tlv/isis-msd:link-msds/isis-msd:msd-type" {
+    deviate replace {
+      type "uint8";
+    }
+  }
+}

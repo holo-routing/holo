@@ -20,6 +20,7 @@ cargo run --bin yang_coverage --\
   -m ietf-bgp\
   -m ietf-bgp-policy\
   -m ietf-isis\
+  -m ietf-isis-msd\
   -m ietf-isis-sr-mpls\
   -m ietf-mpls-ldp\
   -m ietf-ospf\

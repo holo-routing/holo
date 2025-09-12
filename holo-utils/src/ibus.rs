@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -24,7 +25,7 @@ use crate::southbound::{
     AddressMsg, BierNbrInstallMsg, BierNbrUninstallMsg, InterfaceUpdateMsg,
     LabelInstallMsg, LabelUninstallMsg, RouteKeyMsg, RouteMsg,
 };
-use crate::sr::{SrCfg, SrCfgEvent};
+use crate::sr::{MsdType, SrCfg, SrCfgEvent};
 
 // Useful type definition(s).
 pub type IbusReceiver = UnboundedReceiver<IbusMsg>;
@@ -197,6 +198,8 @@ pub enum IbusMsg {
     SrCfgUpd(Arc<SrCfg>),
     /// Segment Routing configuration event.
     SrCfgEvent(SrCfgEvent),
+    /// Node MSD (Maximum SID Depth) update.
+    NodeMsdUpd(BTreeMap<MsdType, u8>),
     /// BIER configuration update.
     BierCfgUpd(Arc<BierCfg>),
     /// BIER configuration event.

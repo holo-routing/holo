@@ -1,4 +1,4 @@
-27
+28
 async
 BFD
 BGP
@@ -15,6 +15,7 @@ IS-IS
 LDP
 macvlan
 MPLS
+MSD
 Nexthop
 nexthop
 OSPF

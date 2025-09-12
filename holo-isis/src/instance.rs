@@ -17,6 +17,7 @@ use holo_protocol::{
 };
 use holo_utils::ibus::IbusMsg;
 use holo_utils::protocol::Protocol;
+use holo_utils::sr::MsdType;
 use holo_utils::task::TimeoutTask;
 use ipnetwork::IpNetwork;
 use prefix_trie::joint::map::JointPrefixMap;
@@ -65,6 +66,8 @@ pub struct Instance {
 pub struct InstanceSys {
     // System Router ID.
     pub router_id: Option<Ipv4Addr>,
+    // Node MSD,
+    pub node_msd: BTreeMap<MsdType, u8>,
     // Redistributed routes.
     pub routes: Levels<JointPrefixMap<IpNetwork, RouteSys>>,
 }
@@ -677,6 +680,10 @@ fn process_ibus_msg(
         // SR configuration update.
         IbusMsg::SrCfgUpd(sr_config) => {
             ibus::rx::process_sr_cfg_update(instance, sr_config);
+        }
+        // Node MSD update.
+        IbusMsg::NodeMsdUpd(node_msd) => {
+            ibus::rx::process_msd_update(instance, node_msd);
         }
         // BIER configuration update.
         IbusMsg::BierCfgUpd(bier_config) => {

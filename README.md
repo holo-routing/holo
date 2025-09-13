@@ -61,6 +61,15 @@ at startup. For certain operations, like binding sockets,
 Linux [capabilities](https://man7.org/linux/man-pages/man7/capabilities.7.html)
 are used to gain the minimum required permission for the least amount of time.
 
+Holo also provides robust protection against the most common attack vector in
+routing protocol stacks: denial-of-service (DoS) attacks via malicious packet
+input. Incoming packets are decoded in isolated, supervised async tasks,
+allowing the protocol implementations to recover gracefully from panics,
+such as by ignoring malformed packets or closing only the affected TCP stream,
+without compromising the stability of the entire daemon. Additionally, thanks
+to Holo's modular design and built-in support for coverage-guided fuzzing,
+most parsing bugs are expected to be detected and addressed during development.
+
 #### Integrated protocol implementations
 
 Some protocols, such as OSPF and RIP, have different versions that are widely

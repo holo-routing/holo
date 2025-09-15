@@ -12,6 +12,7 @@ use std::collections::BTreeMap;
 
 use bytes::Bytes;
 use chrono::Utc;
+use holo_utils::mac_addr::MacAddr;
 
 use crate::adjacency::{Adjacency, AdjacencyEvent, AdjacencyState};
 use crate::collections::{
@@ -29,10 +30,10 @@ use crate::northbound::notification;
 use crate::packet::consts::PduType;
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::pdu::{Hello, HelloVariant, Lsp, Pdu, Snp, SnpTlvs};
-use crate::packet::tlv::{ExtendedSeqNum, ExtendedSeqNumTlv};
+use crate::packet::tlv::{ExtendedSeqNum, ExtendedSeqNumTlv, ThreeWayAdjState};
 use crate::packet::{LanId, LevelNumber, LevelType, LspId};
-use crate::spf;
 use crate::spf::SpfType;
+use crate::{adjacency, spf};
 
 // ===== Network PDU receipt =====
 
@@ -40,7 +41,7 @@ pub(crate) fn process_pdu(
     instance: &mut InstanceUpView<'_>,
     arenas: &mut InstanceArenas,
     iface_key: InterfaceKey,
-    src: [u8; 6],
+    src: MacAddr,
     bytes: Bytes,
     pdu: DecodeResult<Pdu>,
 ) -> Result<(), Error> {
@@ -161,7 +162,7 @@ fn process_pdu_hello(
     instance: &mut InstanceUpView<'_>,
     arenas: &mut InstanceArenas,
     iface_idx: InterfaceIndex,
-    src: [u8; 6],
+    src: MacAddr,
     bytes: Bytes,
     hello: Hello,
 ) -> Result<(), PduInputError> {
@@ -215,14 +216,13 @@ fn process_pdu_hello_lan(
     instance: &mut InstanceUpView<'_>,
     arenas: &mut InstanceArenas,
     iface_idx: InterfaceIndex,
-    src: [u8; 6],
+    src: MacAddr,
     hello: Hello,
     priority: u8,
     lan_id: LanId,
 ) -> Result<(), PduInputError> {
     let iface = &mut arenas.interfaces[iface_idx];
     let mut ext_seqnum = None;
-    let mut new_adj = false;
 
     // Validate PDU type and determine level usage.
     let level = match (iface.config.interface_type, hello.hdr.pdu_type) {
@@ -301,16 +301,13 @@ fn process_pdu_hello_lan(
                 adj.level_usage = level_usage;
                 (adj_idx, adj)
             }
-            None => {
-                new_adj = true;
-                adjacencies.insert(
-                    &mut arenas.adjacencies,
-                    src,
-                    hello.source,
-                    hello.circuit_type,
-                    level_usage,
-                )
-            }
+            None => adjacencies.insert(
+                &mut arenas.adjacencies,
+                src,
+                hello.source,
+                hello.circuit_type,
+                level_usage,
+            ),
         };
 
     // Trigger an SPF run if the adjacency addresses have changed. These
@@ -328,7 +325,6 @@ fn process_pdu_hello_lan(
 
     // Update adjacency with received PDU values.
     let old_priority = adj.priority;
-    let old_state = adj.state;
     adj.priority = Some(priority);
     adj.lan_id = Some(lan_id);
     adj.protocols_supported = hello.tlvs.protocols_supported().collect();
@@ -381,14 +377,8 @@ fn process_pdu_hello_lan(
         adj.bfd_update_sessions(iface, instance, false);
     }
 
-    // Restart Hello Tx task if this is a new adjacency (updated list
-    // of neighbors).
-    if new_adj {
-        iface.hello_interval_start(instance, level_usage);
-    }
-
-    // Trigger DIS election if priority or state changed.
-    if adj.priority != old_priority || adj.state != old_state {
+    // Trigger DIS election if priority changed.
+    if adj.priority != old_priority {
         instance.tx.protocol_input.dis_election(iface.id, level);
     }
 
@@ -399,11 +389,12 @@ fn process_pdu_hello_p2p(
     instance: &mut InstanceUpView<'_>,
     arenas: &mut InstanceArenas,
     iface_idx: InterfaceIndex,
-    src: [u8; 6],
+    src: MacAddr,
     hello: Hello,
 ) -> Result<(), PduInputError> {
     let iface = &mut arenas.interfaces[iface_idx];
     let mut ext_seqnum = None;
+    let mut restart_hello_tx = false;
 
     // Validate PDU type.
     if iface.config.interface_type != InterfaceType::PointToPoint {
@@ -420,6 +411,15 @@ fn process_pdu_hello_p2p(
             hello.hdr.pdu_type,
             hello.tlvs.ext_seqnum.as_ref(),
         )?);
+    }
+
+    // If the Three-Way Adjacency TLV is present, validate the neighbor fields.
+    if let Some(three_way_adj) = &hello.tlvs.three_way_adj
+        && let Some((nbr_system_id, nbr_circuit_id)) = three_way_adj.neighbor
+        && (nbr_system_id != instance.config.system_id.unwrap()
+            || nbr_circuit_id != iface.system.ifindex.unwrap())
+    {
+        return Err(AdjacencyRejectError::NeighborMismatch.into());
     }
 
     // Check for duplicate System-ID.
@@ -521,6 +521,9 @@ fn process_pdu_hello_p2p(
     adj.protocols_supported = hello.tlvs.protocols_supported().collect();
     adj.area_addrs = hello.tlvs.area_addrs().cloned().collect();
     adj.topologies = hello_topologies;
+    if let Some(three_way_adj) = &hello.tlvs.three_way_adj {
+        adj.ext_circuit_id = three_way_adj.local_circuit_id;
+    }
     adj.ipv4_addrs = hello.tlvs.ipv4_addrs().cloned().collect();
     adj.ipv6_addrs = hello.tlvs.ipv6_addrs().cloned().collect();
     if let Some(ext_seqnum) = ext_seqnum {
@@ -530,13 +533,50 @@ fn process_pdu_hello_p2p(
     // Restart hold timer.
     adj.holdtimer_reset(iface, instance, hello.holdtime);
 
-    // Transition the adjacency to the "Up" state.
-    adj.state_change(
-        iface,
-        instance,
-        AdjacencyEvent::HelloOneWayRcvd,
-        AdjacencyState::Up,
-    );
+    // When the Three-Way Adjacency TLV is present, update the state using
+    // the RFC 5303 handshake. If the TLV is absent, fall back to two-way
+    // adjacency and transition directly to Up.
+    match &hello.tlvs.three_way_adj {
+        Some(three_way_adj) => {
+            let new_state = adjacency::three_way_handshake(
+                adj.three_way_state,
+                three_way_adj.state,
+            );
+            if let Some(new_state) = new_state {
+                adj.three_way_state = new_state;
+                match new_state {
+                    ThreeWayAdjState::Down => {
+                        return Ok(());
+                    }
+                    ThreeWayAdjState::Initializing => {
+                        adj.state_change(
+                            iface,
+                            instance,
+                            AdjacencyEvent::HelloOneWayRcvd,
+                            AdjacencyState::Initializing,
+                        );
+                    }
+                    ThreeWayAdjState::Up => {
+                        adj.state_change(
+                            iface,
+                            instance,
+                            AdjacencyEvent::HelloTwoWayRcvd,
+                            AdjacencyState::Up,
+                        );
+                    }
+                }
+                restart_hello_tx = true;
+            }
+        }
+        None => {
+            adj.state_change(
+                iface,
+                instance,
+                AdjacencyEvent::HelloOneWayRcvd,
+                AdjacencyState::Up,
+            );
+        }
+    }
 
     // Reevaluate BFD sessions associated with this adjacency.
     if iface.config.bfd_enabled {
@@ -544,6 +584,9 @@ fn process_pdu_hello_p2p(
     }
 
     iface.state.p2p_adjacency = Some(adj);
+    if restart_hello_tx {
+        iface.hello_interval_start(instance, LevelType::All);
+    }
 
     Ok(())
 }
@@ -552,7 +595,7 @@ fn process_pdu_lsp(
     instance: &mut InstanceUpView<'_>,
     arenas: &mut InstanceArenas,
     iface_idx: InterfaceIndex,
-    src: [u8; 6],
+    src: MacAddr,
     bytes: Bytes,
     mut lsp: Lsp,
 ) -> Result<(), PduInputError> {
@@ -646,10 +689,8 @@ fn process_pdu_lsp(
     // and no longer a fixed architectural constant.
 
     // Lookup LSP in the database.
-    let lse = instance
-        .state
-        .lsdb
-        .get(level)
+    let lsdb = instance.state.lsdb.get(level);
+    let lse = lsdb
         .get_by_lspid(&arenas.lsp_entries, &lsp.lsp_id)
         .map(|(_, lse)| lse);
 
@@ -812,7 +853,7 @@ fn process_pdu_snp(
     instance: &mut InstanceUpView<'_>,
     arenas: &mut InstanceArenas,
     iface_idx: InterfaceIndex,
-    src: [u8; 6],
+    src: MacAddr,
     bytes: Bytes,
     snp: Snp,
 ) -> Result<(), PduInputError> {
@@ -894,10 +935,8 @@ fn process_pdu_snp(
         .collect::<BTreeMap<_, _>>();
     for entry in lsp_entries.values() {
         // Lookup LSP in the database.
-        let lse = instance
-            .state
-            .lsdb
-            .get(level)
+        let lsdb = instance.state.lsdb.get(level);
+        let lse = lsdb
             .get_by_lspid(&arenas.lsp_entries, &entry.lsp_id)
             .map(|(_, lse)| lse);
 
@@ -971,10 +1010,8 @@ fn process_pdu_snp(
     //
     // Flood LSPs we have that the neighbor doesn't.
     if let Some((start, end)) = snp.summary {
-        for lsp in instance
-            .state
-            .lsdb
-            .get(level)
+        let lsdb = instance.state.lsdb.get(level);
+        for lsp in lsdb
             .range(&arenas.lsp_entries, start..=end)
             .map(|lse| &lse.data)
             .filter(|lsp| !lsp_entries.contains_key(&lsp.lsp_id))
@@ -1052,9 +1089,6 @@ pub(crate) fn process_lan_adj_holdtimer_expiry(
         .lan_adjacencies
         .get_mut(level)
         .delete(&mut arenas.adjacencies, adj_idx);
-
-    // Restart Hello Tx task (updated list of neighbors).
-    iface.hello_interval_start(instance, level);
 
     Ok(())
 }
@@ -1239,10 +1273,8 @@ pub(crate) fn process_send_csnp(
     // Iterate over LSDB and send as many CSNPs as necessary.
     let mut start = LspId::from([0; 8]);
     let mut lsp_entries = vec![];
-    let mut lsdb_iter = instance
-        .state
-        .lsdb
-        .get(level)
+    let lsdb = instance.state.lsdb.get(level);
+    let mut lsdb_iter = lsdb
         .iter(&arenas.lsp_entries)
         .map(|lse| &lse.data)
         .peekable();
@@ -1307,11 +1339,8 @@ pub(crate) fn process_lsp_purge(
     reason: LspPurgeReason,
 ) -> Result<(), Error> {
     // Lookup LSP entry in the LSDB.
-    let (_, lse) = instance
-        .state
-        .lsdb
-        .get_mut(level)
-        .get_mut_by_key(&mut arenas.lsp_entries, &lse_key)?;
+    let lsdb = instance.state.lsdb.get_mut(level);
+    let (_, lse) = lsdb.get_mut_by_key(&mut arenas.lsp_entries, &lse_key)?;
     let mut lsp = lse.data.clone();
 
     // Log LSP purge.
@@ -1387,10 +1416,8 @@ pub(crate) fn process_lsp_refresh(
     lse_key: LspEntryKey,
 ) -> Result<(), Error> {
     // Lookup LSP entry in the LSDB.
-    let lsp = instance
-        .state
-        .lsdb
-        .get(level)
+    let lsdb = instance.state.lsdb.get(level);
+    let lsp = lsdb
         .get_by_key(&arenas.lsp_entries, &lse_key)
         .map(|(_, lse)| &lse.data)?;
 

@@ -43,6 +43,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/iana-crypt-hash@2014-08-06.yang"),
         EmbeddedModuleKey::new("iana-if-type", Some("2017-01-19"), None, None) =>
             include_str!("../modules/ietf/iana-if-type@2017-01-19.yang"),
+        EmbeddedModuleKey::new("iana-msd-types", Some("2025-01-10"), None, None) =>
+            include_str!("../modules/ietf/iana-msd-types@2025-01-10.yang"),
         EmbeddedModuleKey::new("iana-routing-types", Some("2018-10-29"), None, None) =>
             include_str!("../modules/ietf/iana-routing-types@2018-10-29.yang"),
         EmbeddedModuleKey::new("ietf-bfd-ip-mh", Some("2022-09-22"), None, None) =>
@@ -91,12 +93,16 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-ipv6-router-advertisements@2018-03-13.yang"),
         EmbeddedModuleKey::new("ietf-isis", Some("2022-10-19"), None, None) =>
             include_str!("../modules/ietf/ietf-isis@2022-10-19.yang"),
+        EmbeddedModuleKey::new("ietf-isis-msd", Some("2024-09-02"), None, None) =>
+            include_str!("../modules/ietf/ietf-isis-msd@2024-09-02.yang"),
         EmbeddedModuleKey::new("ietf-isis-sr-mpls", Some("2025-05-05"), None, None) =>
             include_str!("../modules/ietf/ietf-isis-sr-mpls@2025-05-05.yang"),
         EmbeddedModuleKey::new("ietf-key-chain", Some("2017-06-15"), None, None) =>
             include_str!("../modules/ietf/ietf-key-chain@2017-06-15.yang"),
         EmbeddedModuleKey::new("ietf-mpls", Some("2020-12-18"), None, None) =>
             include_str!("../modules/ietf/ietf-mpls@2020-12-18.yang"),
+        EmbeddedModuleKey::new("ietf-mpls-msd", Some("2025-01-10"), None, None) =>
+            include_str!("../modules/ietf/ietf-mpls-msd@2025-01-10.yang"),
         EmbeddedModuleKey::new("ietf-mpls-ldp", Some("2022-03-14"), None, None) =>
             include_str!("../modules/ietf/ietf-mpls-ldp@2022-03-14.yang"),
         EmbeddedModuleKey::new("ietf-netconf-acm", Some("2018-02-14"), None, None) =>
@@ -165,6 +171,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/deviations/holo-ietf-ip-deviations.yang"),
         EmbeddedModuleKey::new("holo-ietf-isis-deviations", None, None, None) =>
             include_str!("../modules/deviations/holo-ietf-isis-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-isis-msd-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-isis-msd-deviations.yang"),
         EmbeddedModuleKey::new("holo-ietf-isis-sr-mpls-deviations", None, None, None) =>
             include_str!("../modules/deviations/holo-ietf-isis-sr-mpls-deviations.yang"),
         EmbeddedModuleKey::new("holo-ietf-mpls-deviations", None, None, None) =>
@@ -206,6 +214,7 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
             "iana-bgp-notification",
             "iana-bgp-rib-types",
             "iana-bgp-types",
+            "iana-msd-types",
             "ietf-bfd-ip-mh",
             "ietf-bfd-ip-sh",
             "ietf-bfd-types",
@@ -219,6 +228,7 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
             "ietf-interfaces",
             "ietf-ip",
             "ietf-isis",
+            "ietf-isis-msd",
             "ietf-isis-sr-mpls",
             "ietf-key-chain",
             "ietf-routing",
@@ -229,6 +239,7 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
             "ietf-segment-routing-common",
             "ietf-segment-routing-mpls",
             "ietf-mpls",
+            "ietf-mpls-msd",
             "ietf-mpls-ldp",
             "ietf-ospf",
             "ietf-ospf-sr-mpls",

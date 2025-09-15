@@ -15,6 +15,7 @@ use holo_protocol::{
 };
 use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
+use holo_utils::mac_addr::MacAddr;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::InterfaceFlags;
 use ipnetwork::IpNetwork;
@@ -59,7 +60,7 @@ pub struct InterfaceSys {
     // Interface IP addresses.
     pub addresses: BTreeSet<IpNetwork>,
     // interface MAC Address
-    pub mac_address: [u8; 6],
+    pub mac_address: MacAddr,
 }
 
 #[derive(Debug, Default)]

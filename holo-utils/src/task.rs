@@ -136,7 +136,7 @@ impl<T> Task<T> {
         }
     }
 
-    /// Detach the task, meaning it will no longer be cancelled if its handle is
+    /// Detach the task, meaning it will no longer be canceled if its handle is
     /// dropped.
     pub fn detach(&mut self) {
         self.detached = true;

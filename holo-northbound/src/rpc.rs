@@ -144,11 +144,10 @@ fn process_rpc_local<P>(
 where
     P: Provider,
 {
-    Debug::RpcCallback(&rpc_data_path).log();
-
     let callbacks = P::callbacks();
     let key = CallbackKey::new(rpc_schema_path, CallbackOp::Rpc);
     if let Some(cb) = callbacks.get(&key) {
+        Debug::RpcCallback(&rpc_data_path).log();
         let args = CallbackArgs {
             data: &mut data,
             rpc_path: &rpc_data_path,

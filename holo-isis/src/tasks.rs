@@ -61,6 +61,7 @@ use crate::{lsdb, network, spf};
 // IS-IS inter-task message types.
 pub mod messages {
     use bytes::Bytes;
+    use holo_utils::mac_addr::MacAddr;
     use serde::{Deserialize, Serialize};
 
     use crate::collections::{AdjacencyKey, InterfaceKey, LspEntryKey};
@@ -99,7 +100,7 @@ pub mod messages {
         pub struct NetRxPduMsg {
             pub iface_key: InterfaceKey,
             #[serde(default)]
-            pub src: [u8; 6],
+            pub src: MacAddr,
             #[serde(default)]
             pub bytes: Bytes,
             pub pdu: Result<Pdu, DecodeError>,

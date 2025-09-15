@@ -22,6 +22,7 @@ pub mod crypto;
 pub mod ibus;
 pub mod ip;
 pub mod keychain;
+pub mod mac_addr;
 pub mod mpls;
 pub mod num;
 pub mod option;

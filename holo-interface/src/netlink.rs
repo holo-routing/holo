@@ -10,6 +10,7 @@ use capctl::caps::CapState;
 use futures::TryStreamExt;
 use futures::channel::mpsc::UnboundedReceiver;
 use holo_utils::ip::IpAddrExt;
+use holo_utils::mac_addr::MacAddr;
 use holo_utils::southbound::InterfaceFlags;
 use ipnetwork::IpNetwork;
 use libc::{RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, RTNLGRP_LINK};
@@ -114,7 +115,7 @@ fn process_newlink_msg(master: &mut Master, msg: LinkMessage) {
             LinkAttribute::IfName(nla_ifname) => ifname = Some(nla_ifname),
             LinkAttribute::Mtu(nla_mtu) => mtu = Some(nla_mtu),
             LinkAttribute::Address(addr) => {
-                mac_address = addr.try_into().unwrap_or([0u8; 6]);
+                mac_address = addr.try_into().unwrap_or_default();
             }
             _ => (),
         }
@@ -129,7 +130,7 @@ fn process_newlink_msg(master: &mut Master, msg: LinkMessage) {
         ifindex,
         mtu,
         flags,
-        mac_address,
+        MacAddr::from(mac_address),
         &master.netlink_tx,
     );
 }
@@ -287,7 +288,7 @@ pub(crate) fn vlan_create(
 pub(crate) fn macvlan_create(
     netlink_tx: &UnboundedSender<NetlinkRequest>,
     name: String,
-    mac_address: Option<[u8; 6]>,
+    mac_address: Option<MacAddr>,
     parent_ifindex: u32,
 ) {
     // Create netlink message
@@ -296,7 +297,7 @@ pub(crate) fn macvlan_create(
         .mode(MacVlanMode::Bridge)
         .up();
     if let Some(address) = mac_address {
-        msg = msg.address(address.to_vec());
+        msg = msg.address(address.as_bytes().to_vec());
     }
     let msg = msg.build();
 

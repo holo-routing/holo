@@ -9,6 +9,7 @@
 
 use holo_utils::DatabaseError;
 use holo_utils::ip::AddressFamily;
+use holo_utils::mac_addr::MacAddr;
 use holo_yang::ToYang;
 use tracing::{error, warn, warn_span};
 
@@ -30,7 +31,7 @@ pub enum Error {
     AdjacencyIdNotFound(AdjacencyId),
     LspEntryIdNotFound(LspEntryId),
     // PDU input
-    PduInputError(String, [u8; 6], PduInputError),
+    PduInputError(String, MacAddr, PduInputError),
     // Segment Routing
     SrCapNotFound(LevelNumber, SystemId),
     SrCapUnsupportedAf(LevelNumber, SystemId, AddressFamily),
@@ -67,6 +68,7 @@ pub enum AdjacencyRejectError {
     CircuitTypeMismatch,
     MaxAreaAddrsMismatch(u8),
     AreaMismatch,
+    NeighborMismatch,
     WrongSystem,
     DuplicateSystemId,
     MissingProtocolsSupported,
@@ -97,7 +99,7 @@ impl Error {
                 warn!(?lse_id, "{}", self);
             }
             Error::PduInputError(ifname, source, error) => {
-                warn_span!("interface", name = %ifname, ?source).in_scope(
+                warn_span!("interface", name = %ifname, %source).in_scope(
                     || {
                         error.log();
                     },
@@ -320,6 +322,9 @@ impl std::fmt::Display for AdjacencyRejectError {
             }
             AdjacencyRejectError::AreaMismatch => {
                 write!(f, "area mismatch")
+            }
+            AdjacencyRejectError::NeighborMismatch => {
+                write!(f, "neighbor mismatch")
             }
             AdjacencyRejectError::WrongSystem => {
                 write!(f, "wrong system")

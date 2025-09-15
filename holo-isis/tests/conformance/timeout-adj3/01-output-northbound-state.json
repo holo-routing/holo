@@ -1,0 +1,1788 @@
+{
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-isis:isis",
+          "name": "test",
+          "ietf-isis:isis": {
+            "spf-control": {
+              "ietf-spf-delay": {
+                "holo-isis:level": [
+                  {
+                    "level": 2,
+                    "current-state": "short-wait"
+                  }
+                ]
+              }
+            },
+            "hostnames": {
+              "hostname": [
+                {
+                  "system-id": "0000.0000.0001",
+                  "hostname": "rt1"
+                },
+                {
+                  "system-id": "0000.0000.0002",
+                  "hostname": "rt2"
+                },
+                {
+                  "system-id": "0000.0000.0003",
+                  "hostname": "rt3"
+                },
+                {
+                  "system-id": "0000.0000.0004",
+                  "hostname": "rt4"
+                },
+                {
+                  "system-id": "0000.0000.0005",
+                  "hostname": "rt5"
+                },
+                {
+                  "system-id": "0000.0000.0006",
+                  "hostname": "rt6"
+                }
+              ]
+            },
+            "database": {
+              "levels": [
+                {
+                  "level": 2,
+                  "lsp": [
+                    {
+                      "lsp-id": "0000.0000.0001.00-00",
+                      "attributes": {
+                        "lsp-flags": [
+                          "lsp-l2-system-flag",
+                          "lsp-l1-system-flag"
+                        ]
+                      },
+                      "ipv4-addresses": [
+                        "1.1.1.1",
+                        "10.0.1.1"
+                      ],
+                      "ipv6-addresses": [
+                        "2001:db8:1000::1",
+                        "fc00:0:0:1::1"
+                      ],
+                      "protocol-supported": [
+                        204,
+                        142
+                      ],
+                      "dynamic-hostname": "rt1",
+                      "is-neighbor": {
+                        "neighbor": [
+                          {
+                            "neighbor-id": "0000.0000.0003.01",
+                            "instances": {
+                              "instance": [
+                                {
+                                  "id": 0,
+                                  "i-e": false,
+                                  "default-metric": {
+                                    "metric": 10
+                                  },
+                                  "delay-metric": {
+                                    "supported": false
+                                  },
+                                  "expense-metric": {
+                                    "supported": false
+                                  },
+                                  "error-metric": {
+                                    "supported": false
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      "ipv4-internal-reachability": {
+                        "prefixes": [
+                          {
+                            "ip-prefix": "1.1.1.1",
+                            "prefix-len": 32,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          },
+                          {
+                            "ip-prefix": "10.0.1.0",
+                            "prefix-len": 24,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          }
+                        ]
+                      },
+                      "ipv6-reachability": {
+                        "prefixes": [
+                          {
+                            "up-down": false,
+                            "ip-prefix": "2001:db8:1000::1",
+                            "prefix-len": 128,
+                            "metric": 10,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": false,
+                            "node-flag": true
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "fc00:0:0:1::",
+                            "prefix-len": 64,
+                            "metric": 10,
+                            "external-prefix-flag": false
+                          }
+                        ]
+                      },
+                      "holo-isis:area-addresses": [
+                        "49.0000"
+                      ],
+                      "holo-isis:lsp-buffer-size": 1492
+                    },
+                    {
+                      "lsp-id": "0000.0000.0002.00-00",
+                      "attributes": {
+                        "lsp-flags": [
+                          "lsp-l2-system-flag",
+                          "lsp-l1-system-flag"
+                        ]
+                      },
+                      "ipv4-addresses": [
+                        "2.2.2.2",
+                        "10.0.1.2",
+                        "10.0.2.2",
+                        "10.0.3.2"
+                      ],
+                      "ipv6-addresses": [
+                        "2001:db8:1000::2",
+                        "fc00:0:0:1::2",
+                        "fc00:0:0:2::2",
+                        "fc00:0:0:3::2"
+                      ],
+                      "protocol-supported": [
+                        204,
+                        142
+                      ],
+                      "dynamic-hostname": "rt2",
+                      "is-neighbor": {
+                        "neighbor": [
+                          {
+                            "neighbor-id": "0000.0000.0003.01",
+                            "instances": {
+                              "instance": [
+                                {
+                                  "id": 0,
+                                  "i-e": false,
+                                  "default-metric": {
+                                    "metric": 10
+                                  },
+                                  "delay-metric": {
+                                    "supported": false
+                                  },
+                                  "expense-metric": {
+                                    "supported": false
+                                  },
+                                  "error-metric": {
+                                    "supported": false
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "neighbor-id": "0000.0000.0004.00",
+                            "instances": {
+                              "instance": [
+                                {
+                                  "id": 0,
+                                  "i-e": false,
+                                  "default-metric": {
+                                    "metric": 10
+                                  },
+                                  "delay-metric": {
+                                    "supported": false
+                                  },
+                                  "expense-metric": {
+                                    "supported": false
+                                  },
+                                  "error-metric": {
+                                    "supported": false
+                                  }
+                                },
+                                {
+                                  "id": 1,
+                                  "i-e": false,
+                                  "default-metric": {
+                                    "metric": 10
+                                  },
+                                  "delay-metric": {
+                                    "supported": false
+                                  },
+                                  "expense-metric": {
+                                    "supported": false
+                                  },
+                                  "error-metric": {
+                                    "supported": false
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      "ipv4-internal-reachability": {
+                        "prefixes": [
+                          {
+                            "ip-prefix": "2.2.2.2",
+                            "prefix-len": 32,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          },
+                          {
+                            "ip-prefix": "10.0.1.0",
+                            "prefix-len": 24,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          },
+                          {
+                            "ip-prefix": "10.0.2.0",
+                            "prefix-len": 24,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          },
+                          {
+                            "ip-prefix": "10.0.3.0",
+                            "prefix-len": 24,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          }
+                        ]
+                      },
+                      "ipv6-reachability": {
+                        "prefixes": [
+                          {
+                            "up-down": false,
+                            "ip-prefix": "2001:db8:1000::2",
+                            "prefix-len": 128,
+                            "metric": 10,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": false,
+                            "node-flag": true
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "fc00:0:0:1::",
+                            "prefix-len": 64,
+                            "metric": 10,
+                            "external-prefix-flag": false
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "fc00:0:0:2::",
+                            "prefix-len": 64,
+                            "metric": 10,
+                            "external-prefix-flag": false
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "fc00:0:0:3::",
+                            "prefix-len": 64,
+                            "metric": 10,
+                            "external-prefix-flag": false
+                          }
+                        ]
+                      },
+                      "holo-isis:area-addresses": [
+                        "49.0000"
+                      ],
+                      "holo-isis:lsp-buffer-size": 1492
+                    },
+                    {
+                      "lsp-id": "0000.0000.0003.00-00",
+                      "attributes": {
+                        "lsp-flags": [
+                          "lsp-l2-system-flag",
+                          "lsp-l1-system-flag"
+                        ]
+                      },
+                      "ipv4-addresses": [
+                        "3.3.3.3",
+                        "10.0.1.3",
+                        "10.0.4.3",
+                        "10.0.5.3"
+                      ],
+                      "ipv6-addresses": [
+                        "2001:db8:1000::3",
+                        "fc00:0:0:1::3",
+                        "fc00:0:0:4::3",
+                        "fc00:0:0:5::3"
+                      ],
+                      "protocol-supported": [
+                        204,
+                        142
+                      ],
+                      "dynamic-hostname": "rt3",
+                      "is-neighbor": {
+                        "neighbor": [
+                          {
+                            "neighbor-id": "0000.0000.0003.01",
+                            "instances": {
+                              "instance": [
+                                {
+                                  "id": 0,
+                                  "i-e": false,
+                                  "default-metric": {
+                                    "metric": 10
+                                  },
+                                  "delay-metric": {
+                                    "supported": false
+                                  },
+                                  "expense-metric": {
+                                    "supported": false
+                                  },
+                                  "error-metric": {
+                                    "supported": false
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "neighbor-id": "0000.0000.0005.00",
+                            "instances": {
+                              "instance": [
+                                {
+                                  "id": 0,
+                                  "i-e": false,
+                                  "default-metric": {
+                                    "metric": 10
+                                  },
+                                  "delay-metric": {
+                                    "supported": false
+                                  },
+                                  "expense-metric": {
+                                    "supported": false
+                                  },
+                                  "error-metric": {
+                                    "supported": false
+                                  }
+                                },
+                                {
+                                  "id": 1,
+                                  "i-e": false,
+                                  "default-metric": {
+                                    "metric": 10
+                                  },
+                                  "delay-metric": {
+                                    "supported": false
+                                  },
+                                  "expense-metric": {
+                                    "supported": false
+                                  },
+                                  "error-metric": {
+                                    "supported": false
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      "ipv4-internal-reachability": {
+                        "prefixes": [
+                          {
+                            "ip-prefix": "3.3.3.3",
+                            "prefix-len": 32,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          },
+                          {
+                            "ip-prefix": "10.0.1.0",
+                            "prefix-len": 24,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          },
+                          {
+                            "ip-prefix": "10.0.4.0",
+                            "prefix-len": 24,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          },
+                          {
+                            "ip-prefix": "10.0.5.0",
+                            "prefix-len": 24,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          }
+                        ]
+                      },
+                      "ipv6-reachability": {
+                        "prefixes": [
+                          {
+                            "up-down": false,
+                            "ip-prefix": "2001:db8:1000::3",
+                            "prefix-len": 128,
+                            "metric": 10,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": false,
+                            "node-flag": true
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "fc00:0:0:1::",
+                            "prefix-len": 64,
+                            "metric": 10,
+                            "external-prefix-flag": false
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "fc00:0:0:4::",
+                            "prefix-len": 64,
+                            "metric": 10,
+                            "external-prefix-flag": false
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "fc00:0:0:5::",
+                            "prefix-len": 64,
+                            "metric": 10,
+                            "external-prefix-flag": false
+                          }
+                        ]
+                      },
+                      "holo-isis:area-addresses": [
+                        "49.0000"
+                      ],
+                      "holo-isis:lsp-buffer-size": 1492
+                    },
+                    {
+                      "lsp-id": "0000.0000.0003.01-00",
+                      "attributes": {
+                        "lsp-flags": [
+                          "lsp-l2-system-flag",
+                          "lsp-l1-system-flag"
+                        ]
+                      },
+                      "is-neighbor": {
+                        "neighbor": [
+                          {
+                            "neighbor-id": "0000.0000.0002.00",
+                            "instances": {
+                              "instance": [
+                                {
+                                  "id": 0,
+                                  "i-e": false,
+                                  "default-metric": {
+                                    "metric": 0
+                                  },
+                                  "delay-metric": {
+                                    "supported": false
+                                  },
+                                  "expense-metric": {
+                                    "supported": false
+                                  },
+                                  "error-metric": {
+                                    "supported": false
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "neighbor-id": "0000.0000.0003.00",
+                            "instances": {
+                              "instance": [
+                                {
+                                  "id": 0,
+                                  "i-e": false,
+                                  "default-metric": {
+                                    "metric": 0
+                                  },
+                                  "delay-metric": {
+                                    "supported": false
+                                  },
+                                  "expense-metric": {
+                                    "supported": false
+                                  },
+                                  "error-metric": {
+                                    "supported": false
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "lsp-id": "0000.0000.0004.00-00",
+                      "attributes": {
+                        "lsp-flags": [
+                          "lsp-l2-system-flag",
+                          "lsp-l1-system-flag"
+                        ]
+                      },
+                      "ipv4-addresses": [
+                        "4.4.4.4",
+                        "10.0.2.4",
+                        "10.0.3.4",
+                        "10.0.6.4",
+                        "10.0.7.4"
+                      ],
+                      "ipv6-addresses": [
+                        "2001:db8:1000::4",
+                        "fc00:0:0:2::4",
+                        "fc00:0:0:3::4",
+                        "fc00:0:0:6::4",
+                        "fc00:0:0:7::4"
+                      ],
+                      "protocol-supported": [
+                        204,
+                        142
+                      ],
+                      "dynamic-hostname": "rt4",
+                      "is-neighbor": {
+                        "neighbor": [
+                          {
+                            "neighbor-id": "0000.0000.0002.00",
+                            "instances": {
+                              "instance": [
+                                {
+                                  "id": 0,
+                                  "i-e": false,
+                                  "default-metric": {
+                                    "metric": 10
+                                  },
+                                  "delay-metric": {
+                                    "supported": false
+                                  },
+                                  "expense-metric": {
+                                    "supported": false
+                                  },
+                                  "error-metric": {
+                                    "supported": false
+                                  }
+                                },
+                                {
+                                  "id": 1,
+                                  "i-e": false,
+                                  "default-metric": {
+                                    "metric": 10
+                                  },
+                                  "delay-metric": {
+                                    "supported": false
+                                  },
+                                  "expense-metric": {
+                                    "supported": false
+                                  },
+                                  "error-metric": {
+                                    "supported": false
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "neighbor-id": "0000.0000.0005.00",
+                            "instances": {
+                              "instance": [
+                                {
+                                  "id": 0,
+                                  "i-e": false,
+                                  "default-metric": {
+                                    "metric": 10
+                                  },
+                                  "delay-metric": {
+                                    "supported": false
+                                  },
+                                  "expense-metric": {
+                                    "supported": false
+                                  },
+                                  "error-metric": {
+                                    "supported": false
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "neighbor-id": "0000.0000.0006.00",
+                            "instances": {
+                              "instance": [
+                                {
+                                  "id": 0,
+                                  "i-e": false,
+                                  "default-metric": {
+                                    "metric": 10
+                                  },
+                                  "delay-metric": {
+                                    "supported": false
+                                  },
+                                  "expense-metric": {
+                                    "supported": false
+                                  },
+                                  "error-metric": {
+                                    "supported": false
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      "ipv4-internal-reachability": {
+                        "prefixes": [
+                          {
+                            "ip-prefix": "4.4.4.4",
+                            "prefix-len": 32,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          },
+                          {
+                            "ip-prefix": "10.0.2.0",
+                            "prefix-len": 24,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          },
+                          {
+                            "ip-prefix": "10.0.3.0",
+                            "prefix-len": 24,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          },
+                          {
+                            "ip-prefix": "10.0.6.0",
+                            "prefix-len": 24,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          },
+                          {
+                            "ip-prefix": "10.0.7.0",
+                            "prefix-len": 24,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          }
+                        ]
+                      },
+                      "ipv6-reachability": {
+                        "prefixes": [
+                          {
+                            "up-down": false,
+                            "ip-prefix": "2001:db8:1000::4",
+                            "prefix-len": 128,
+                            "metric": 10,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": false,
+                            "node-flag": true
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "fc00:0:0:2::",
+                            "prefix-len": 64,
+                            "metric": 10,
+                            "external-prefix-flag": false
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "fc00:0:0:3::",
+                            "prefix-len": 64,
+                            "metric": 10,
+                            "external-prefix-flag": false
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "fc00:0:0:6::",
+                            "prefix-len": 64,
+                            "metric": 10,
+                            "external-prefix-flag": false
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "fc00:0:0:7::",
+                            "prefix-len": 64,
+                            "metric": 10,
+                            "external-prefix-flag": false
+                          }
+                        ]
+                      },
+                      "holo-isis:area-addresses": [
+                        "49.0000"
+                      ],
+                      "holo-isis:lsp-buffer-size": 1492
+                    },
+                    {
+                      "lsp-id": "0000.0000.0005.00-00",
+                      "attributes": {
+                        "lsp-flags": [
+                          "lsp-l2-system-flag",
+                          "lsp-l1-system-flag"
+                        ]
+                      },
+                      "ipv4-addresses": [
+                        "5.5.5.5",
+                        "10.0.4.5",
+                        "10.0.5.5",
+                        "10.0.6.5",
+                        "10.0.8.5"
+                      ],
+                      "ipv6-addresses": [
+                        "2001:db8:1000::5",
+                        "fc00:0:0:4::5",
+                        "fc00:0:0:5::5",
+                        "fc00:0:0:6::5",
+                        "fc00:0:0:8::5"
+                      ],
+                      "protocol-supported": [
+                        204,
+                        142
+                      ],
+                      "dynamic-hostname": "rt5",
+                      "is-neighbor": {
+                        "neighbor": [
+                          {
+                            "neighbor-id": "0000.0000.0003.00",
+                            "instances": {
+                              "instance": [
+                                {
+                                  "id": 0,
+                                  "i-e": false,
+                                  "default-metric": {
+                                    "metric": 10
+                                  },
+                                  "delay-metric": {
+                                    "supported": false
+                                  },
+                                  "expense-metric": {
+                                    "supported": false
+                                  },
+                                  "error-metric": {
+                                    "supported": false
+                                  }
+                                },
+                                {
+                                  "id": 1,
+                                  "i-e": false,
+                                  "default-metric": {
+                                    "metric": 10
+                                  },
+                                  "delay-metric": {
+                                    "supported": false
+                                  },
+                                  "expense-metric": {
+                                    "supported": false
+                                  },
+                                  "error-metric": {
+                                    "supported": false
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "neighbor-id": "0000.0000.0004.00",
+                            "instances": {
+                              "instance": [
+                                {
+                                  "id": 0,
+                                  "i-e": false,
+                                  "default-metric": {
+                                    "metric": 10
+                                  },
+                                  "delay-metric": {
+                                    "supported": false
+                                  },
+                                  "expense-metric": {
+                                    "supported": false
+                                  },
+                                  "error-metric": {
+                                    "supported": false
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "neighbor-id": "0000.0000.0006.00",
+                            "instances": {
+                              "instance": [
+                                {
+                                  "id": 0,
+                                  "i-e": false,
+                                  "default-metric": {
+                                    "metric": 10
+                                  },
+                                  "delay-metric": {
+                                    "supported": false
+                                  },
+                                  "expense-metric": {
+                                    "supported": false
+                                  },
+                                  "error-metric": {
+                                    "supported": false
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      "ipv4-internal-reachability": {
+                        "prefixes": [
+                          {
+                            "ip-prefix": "5.5.5.5",
+                            "prefix-len": 32,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          },
+                          {
+                            "ip-prefix": "10.0.4.0",
+                            "prefix-len": 24,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          },
+                          {
+                            "ip-prefix": "10.0.5.0",
+                            "prefix-len": 24,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          },
+                          {
+                            "ip-prefix": "10.0.6.0",
+                            "prefix-len": 24,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          },
+                          {
+                            "ip-prefix": "10.0.8.0",
+                            "prefix-len": 24,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          }
+                        ]
+                      },
+                      "ipv6-reachability": {
+                        "prefixes": [
+                          {
+                            "up-down": false,
+                            "ip-prefix": "2001:db8:1000::5",
+                            "prefix-len": 128,
+                            "metric": 10,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": false,
+                            "node-flag": true
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "fc00:0:0:4::",
+                            "prefix-len": 64,
+                            "metric": 10,
+                            "external-prefix-flag": false
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "fc00:0:0:5::",
+                            "prefix-len": 64,
+                            "metric": 10,
+                            "external-prefix-flag": false
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "fc00:0:0:6::",
+                            "prefix-len": 64,
+                            "metric": 10,
+                            "external-prefix-flag": false
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "fc00:0:0:8::",
+                            "prefix-len": 64,
+                            "metric": 10,
+                            "external-prefix-flag": false
+                          }
+                        ]
+                      },
+                      "holo-isis:area-addresses": [
+                        "49.0000"
+                      ],
+                      "holo-isis:lsp-buffer-size": 1492
+                    },
+                    {
+                      "lsp-id": "0000.0000.0006.00-00",
+                      "attributes": {
+                        "lsp-flags": [
+                          "lsp-l2-system-flag",
+                          "lsp-l1-system-flag"
+                        ]
+                      },
+                      "ipv4-addresses": [
+                        "6.6.6.6",
+                        "10.0.7.6",
+                        "10.0.8.6"
+                      ],
+                      "ipv6-addresses": [
+                        "2001:db8:1000::6",
+                        "fc00:0:0:7::6",
+                        "fc00:0:0:8::6"
+                      ],
+                      "protocol-supported": [
+                        204,
+                        142
+                      ],
+                      "dynamic-hostname": "rt6",
+                      "is-neighbor": {
+                        "neighbor": [
+                          {
+                            "neighbor-id": "0000.0000.0004.00",
+                            "instances": {
+                              "instance": [
+                                {
+                                  "id": 0,
+                                  "i-e": false,
+                                  "default-metric": {
+                                    "metric": 10
+                                  },
+                                  "delay-metric": {
+                                    "supported": false
+                                  },
+                                  "expense-metric": {
+                                    "supported": false
+                                  },
+                                  "error-metric": {
+                                    "supported": false
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "neighbor-id": "0000.0000.0005.00",
+                            "instances": {
+                              "instance": [
+                                {
+                                  "id": 0,
+                                  "i-e": false,
+                                  "default-metric": {
+                                    "metric": 10
+                                  },
+                                  "delay-metric": {
+                                    "supported": false
+                                  },
+                                  "expense-metric": {
+                                    "supported": false
+                                  },
+                                  "error-metric": {
+                                    "supported": false
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      "ipv4-internal-reachability": {
+                        "prefixes": [
+                          {
+                            "ip-prefix": "6.6.6.6",
+                            "prefix-len": 32,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          },
+                          {
+                            "ip-prefix": "10.0.7.0",
+                            "prefix-len": 24,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          },
+                          {
+                            "ip-prefix": "10.0.8.0",
+                            "prefix-len": 24,
+                            "i-e": false,
+                            "default-metric": {
+                              "metric": 10
+                            },
+                            "delay-metric": {
+                              "supported": false
+                            },
+                            "expense-metric": {
+                              "supported": false
+                            },
+                            "error-metric": {
+                              "supported": false
+                            }
+                          }
+                        ]
+                      },
+                      "ipv6-reachability": {
+                        "prefixes": [
+                          {
+                            "up-down": false,
+                            "ip-prefix": "2001:db8:1000::6",
+                            "prefix-len": 128,
+                            "metric": 10,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": false,
+                            "node-flag": true
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "fc00:0:0:7::",
+                            "prefix-len": 64,
+                            "metric": 10,
+                            "external-prefix-flag": false
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "fc00:0:0:8::",
+                            "prefix-len": 64,
+                            "metric": 10,
+                            "external-prefix-flag": false
+                          }
+                        ]
+                      },
+                      "holo-isis:area-addresses": [
+                        "49.0000"
+                      ],
+                      "holo-isis:lsp-buffer-size": 1492
+                    }
+                  ]
+                }
+              ]
+            },
+            "local-rib": {
+              "route": [
+                {
+                  "prefix": "1.1.1.1/32",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.1.1",
+                        "outgoing-interface": "eth-sw1"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "level": 2
+                },
+                {
+                  "prefix": "2.2.2.2/32",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.1.2",
+                        "outgoing-interface": "eth-sw1"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "level": 2
+                },
+                {
+                  "prefix": "3.3.3.3/32",
+                  "metric": 10,
+                  "level": 2
+                },
+                {
+                  "prefix": "4.4.4.4/32",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.1.2",
+                        "outgoing-interface": "eth-sw1"
+                      },
+                      {
+                        "next-hop": "10.0.4.5",
+                        "outgoing-interface": "eth-rt5-1"
+                      },
+                      {
+                        "next-hop": "10.0.5.5",
+                        "outgoing-interface": "eth-rt5-2"
+                      }
+                    ]
+                  },
+                  "metric": 30,
+                  "level": 2
+                },
+                {
+                  "prefix": "5.5.5.5/32",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.4.5",
+                        "outgoing-interface": "eth-rt5-1"
+                      },
+                      {
+                        "next-hop": "10.0.5.5",
+                        "outgoing-interface": "eth-rt5-2"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "level": 2
+                },
+                {
+                  "prefix": "6.6.6.6/32",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.4.5",
+                        "outgoing-interface": "eth-rt5-1"
+                      },
+                      {
+                        "next-hop": "10.0.5.5",
+                        "outgoing-interface": "eth-rt5-2"
+                      }
+                    ]
+                  },
+                  "metric": 30,
+                  "level": 2
+                },
+                {
+                  "prefix": "10.0.1.0/24",
+                  "metric": 10,
+                  "level": 2
+                },
+                {
+                  "prefix": "10.0.2.0/24",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.1.2",
+                        "outgoing-interface": "eth-sw1"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "level": 2
+                },
+                {
+                  "prefix": "10.0.3.0/24",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.1.2",
+                        "outgoing-interface": "eth-sw1"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "level": 2
+                },
+                {
+                  "prefix": "10.0.4.0/24",
+                  "metric": 10,
+                  "level": 2
+                },
+                {
+                  "prefix": "10.0.5.0/24",
+                  "metric": 10,
+                  "level": 2
+                },
+                {
+                  "prefix": "10.0.6.0/24",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.4.5",
+                        "outgoing-interface": "eth-rt5-1"
+                      },
+                      {
+                        "next-hop": "10.0.5.5",
+                        "outgoing-interface": "eth-rt5-2"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "level": 2
+                },
+                {
+                  "prefix": "10.0.7.0/24",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.1.2",
+                        "outgoing-interface": "eth-sw1"
+                      },
+                      {
+                        "next-hop": "10.0.4.5",
+                        "outgoing-interface": "eth-rt5-1"
+                      },
+                      {
+                        "next-hop": "10.0.5.5",
+                        "outgoing-interface": "eth-rt5-2"
+                      }
+                    ]
+                  },
+                  "metric": 30,
+                  "level": 2
+                },
+                {
+                  "prefix": "10.0.8.0/24",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "10.0.4.5",
+                        "outgoing-interface": "eth-rt5-1"
+                      },
+                      {
+                        "next-hop": "10.0.5.5",
+                        "outgoing-interface": "eth-rt5-2"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "level": 2
+                },
+                {
+                  "prefix": "2001:db8:1000::1/128",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "fe80::4875:fbff:fefb:6598",
+                        "outgoing-interface": "eth-sw1"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "level": 2
+                },
+                {
+                  "prefix": "2001:db8:1000::2/128",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "fe80::848:3dff:febb:3fbe",
+                        "outgoing-interface": "eth-sw1"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "level": 2
+                },
+                {
+                  "prefix": "2001:db8:1000::3/128",
+                  "metric": 10,
+                  "level": 2
+                },
+                {
+                  "prefix": "2001:db8:1000::4/128",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "fe80::848:3dff:febb:3fbe",
+                        "outgoing-interface": "eth-sw1"
+                      },
+                      {
+                        "next-hop": "fe80::4479:baff:fe0d:fbef",
+                        "outgoing-interface": "eth-rt5-1"
+                      },
+                      {
+                        "next-hop": "fe80::f8e3:2dff:fefd:5e02",
+                        "outgoing-interface": "eth-rt5-2"
+                      }
+                    ]
+                  },
+                  "metric": 30,
+                  "level": 2
+                },
+                {
+                  "prefix": "2001:db8:1000::5/128",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "fe80::4479:baff:fe0d:fbef",
+                        "outgoing-interface": "eth-rt5-1"
+                      },
+                      {
+                        "next-hop": "fe80::f8e3:2dff:fefd:5e02",
+                        "outgoing-interface": "eth-rt5-2"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "level": 2
+                },
+                {
+                  "prefix": "2001:db8:1000::6/128",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "fe80::4479:baff:fe0d:fbef",
+                        "outgoing-interface": "eth-rt5-1"
+                      },
+                      {
+                        "next-hop": "fe80::f8e3:2dff:fefd:5e02",
+                        "outgoing-interface": "eth-rt5-2"
+                      }
+                    ]
+                  },
+                  "metric": 30,
+                  "level": 2
+                },
+                {
+                  "prefix": "fc00:0:0:1::/64",
+                  "metric": 10,
+                  "level": 2
+                },
+                {
+                  "prefix": "fc00:0:0:2::/64",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "fe80::848:3dff:febb:3fbe",
+                        "outgoing-interface": "eth-sw1"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "level": 2
+                },
+                {
+                  "prefix": "fc00:0:0:3::/64",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "fe80::848:3dff:febb:3fbe",
+                        "outgoing-interface": "eth-sw1"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "level": 2
+                },
+                {
+                  "prefix": "fc00:0:0:4::/64",
+                  "metric": 10,
+                  "level": 2
+                },
+                {
+                  "prefix": "fc00:0:0:5::/64",
+                  "metric": 10,
+                  "level": 2
+                },
+                {
+                  "prefix": "fc00:0:0:6::/64",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "fe80::4479:baff:fe0d:fbef",
+                        "outgoing-interface": "eth-rt5-1"
+                      },
+                      {
+                        "next-hop": "fe80::f8e3:2dff:fefd:5e02",
+                        "outgoing-interface": "eth-rt5-2"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "level": 2
+                },
+                {
+                  "prefix": "fc00:0:0:7::/64",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "fe80::848:3dff:febb:3fbe",
+                        "outgoing-interface": "eth-sw1"
+                      },
+                      {
+                        "next-hop": "fe80::4479:baff:fe0d:fbef",
+                        "outgoing-interface": "eth-rt5-1"
+                      },
+                      {
+                        "next-hop": "fe80::f8e3:2dff:fefd:5e02",
+                        "outgoing-interface": "eth-rt5-2"
+                      }
+                    ]
+                  },
+                  "metric": 30,
+                  "level": 2
+                },
+                {
+                  "prefix": "fc00:0:0:8::/64",
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "next-hop": "fe80::4479:baff:fe0d:fbef",
+                        "outgoing-interface": "eth-rt5-1"
+                      },
+                      {
+                        "next-hop": "fe80::f8e3:2dff:fefd:5e02",
+                        "outgoing-interface": "eth-rt5-2"
+                      }
+                    ]
+                  },
+                  "metric": 20,
+                  "level": 2
+                }
+              ]
+            },
+            "interfaces": {
+              "interface": [
+                {
+                  "name": "eth-rt5-1",
+                  "adjacencies": {
+                    "adjacency": [
+                      {
+                        "neighbor-sys-type": "level-2",
+                        "neighbor-sysid": "0000.0000.0005",
+                        "usage": "level-2",
+                        "state": "up",
+                        "holo-isis:area-addresses": [
+                          "49.0000"
+                        ],
+                        "holo-isis:ipv4-addresses": [
+                          "10.0.4.5"
+                        ],
+                        "holo-isis:ipv6-addresses": [
+                          "fe80::4479:baff:fe0d:fbef"
+                        ],
+                        "holo-isis:protocol-supported": [
+                          204,
+                          142
+                        ],
+                        "holo-isis:topologies": [
+                          0
+                        ]
+                      }
+                    ]
+                  },
+                  "holo-isis:state": "up",
+                  "holo-isis:circuit-id": 0,
+                  "holo-isis-dev:srm": {
+                    "level": [
+                      {
+                        "level": 2,
+                        "lsp-id": [
+                          "0000.0000.0003.01-00"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "eth-rt5-2",
+                  "adjacencies": {
+                    "adjacency": [
+                      {
+                        "neighbor-sys-type": "level-2",
+                        "neighbor-sysid": "0000.0000.0005",
+                        "usage": "level-2",
+                        "state": "up",
+                        "holo-isis:area-addresses": [
+                          "49.0000"
+                        ],
+                        "holo-isis:ipv4-addresses": [
+                          "10.0.5.5"
+                        ],
+                        "holo-isis:ipv6-addresses": [
+                          "fe80::f8e3:2dff:fefd:5e02"
+                        ],
+                        "holo-isis:protocol-supported": [
+                          204,
+                          142
+                        ],
+                        "holo-isis:topologies": [
+                          0
+                        ]
+                      }
+                    ]
+                  },
+                  "holo-isis:state": "up",
+                  "holo-isis:circuit-id": 0,
+                  "holo-isis-dev:srm": {
+                    "level": [
+                      {
+                        "level": 2,
+                        "lsp-id": [
+                          "0000.0000.0003.01-00"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "eth-sw1",
+                  "adjacencies": {
+                    "adjacency": [
+                      {
+                        "neighbor-sys-type": "level-2",
+                        "neighbor-sysid": "0000.0000.0002",
+                        "usage": "level-2",
+                        "neighbor-priority": 2,
+                        "state": "up",
+                        "holo-isis:area-addresses": [
+                          "49.0000"
+                        ],
+                        "holo-isis:ipv4-addresses": [
+                          "10.0.1.2"
+                        ],
+                        "holo-isis:ipv6-addresses": [
+                          "fe80::848:3dff:febb:3fbe"
+                        ],
+                        "holo-isis:protocol-supported": [
+                          204,
+                          142
+                        ],
+                        "holo-isis:topologies": [
+                          0
+                        ]
+                      }
+                    ]
+                  },
+                  "holo-isis:state": "up",
+                  "holo-isis:circuit-id": 1
+                },
+                {
+                  "name": "lo",
+                  "holo-isis:state": "up",
+                  "holo-isis:circuit-id": 0
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

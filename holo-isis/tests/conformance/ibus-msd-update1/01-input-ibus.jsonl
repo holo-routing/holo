@@ -1,0 +1,2 @@
+{"InterfaceUpd":{"ifname":"eth-rt4","ifindex":2,"mtu":1500,"msd":{"BaseMplsImposition":16},"flags":"OPERATIVE | BROADCAST"}}
+{"NodeMsdUpd":{"BaseMplsImposition":16}}

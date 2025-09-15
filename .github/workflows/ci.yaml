@@ -19,8 +19,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: "rustfmt --check"
         run: |
-          if ! rustfmt --check --edition 2024 $(git ls-files '*.rs'); then
-            printf "Please run \`rustfmt --edition 2024 \$(git ls-files '*.rs')\` to fix rustfmt errors.\nSee CONTRIBUTING.md for more details.\n" >&2
+          if ! cargo fmt --all --check; then
+            printf "Please run \`cargo fmt --all\` locally to fix formatting errors.\nSee CONTRIBUTING.md for more details.\n" >&2
             exit 1
           fi
 
@@ -53,7 +53,7 @@ jobs:
         run: cargo llvm-cov --all-features --codecov --output-path codecov.json -p holo-bfd -p holo-bgp -p holo-isis -p holo-ldp -p holo-ospf -p holo-rip -p holo-vrrp
       - name: Upload to Codecov
         uses: codecov/codecov-action@v4
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/master' && github.repository_owner == 'holo-routing'
         with:
           files: ./lcov.info
           fail_ci_if_error: false
@@ -88,6 +88,19 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.88
       - name: Check benchmark builds
         run: cargo bench --no-run -p holo-bgp -p holo-ldp -p holo-ospf
+
+  spell-check:
+    name: Spell check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.88
+      - name: Install cargo-spellcheck
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-spellcheck
+      - name: Run cargo-spellcheck
+        run: cargo spellcheck --code 1
 
   docker-build-holod:
     name: "Docker Build: holod"

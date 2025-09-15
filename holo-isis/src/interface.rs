@@ -13,8 +13,10 @@ use std::sync::atomic::{self, AtomicU32};
 
 use chrono::{DateTime, Utc};
 use holo_utils::ip::{AddressFamily, JointPrefixSetExt};
+use holo_utils::mac_addr::MacAddr;
 use holo_utils::socket::{AsyncFd, Socket, SocketExt};
 use holo_utils::southbound::InterfaceFlags;
+use holo_utils::sr::MsdType;
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use ipnetwork::IpNetwork;
 use prefix_trie::joint::set::JointPrefixSet;
@@ -32,7 +34,8 @@ use crate::northbound::notification;
 use crate::packet::consts::{MtId, Nlpid, PduType};
 use crate::packet::pdu::{Hello, HelloTlvs, HelloVariant, Lsp, Pdu};
 use crate::packet::tlv::{
-    ExtendedSeqNum, LspEntry, MtFlags, MultiTopologyEntry,
+    ExtendedSeqNum, LspEntry, MtFlags, MultiTopologyEntry, ThreeWayAdjState,
+    ThreeWayAdjTlv,
 };
 use crate::packet::{LanId, LevelNumber, LevelType, Levels, LspId, SystemId};
 use crate::tasks::messages::output::NetTxPduMsg;
@@ -53,7 +56,8 @@ pub struct InterfaceSys {
     pub flags: InterfaceFlags,
     pub ifindex: Option<u32>,
     pub mtu: Option<u32>,
-    pub mac_addr: Option<[u8; 6]>,
+    pub msd: BTreeMap<MsdType, u8>,
+    pub mac_addr: Option<MacAddr>,
     pub addr_list: JointPrefixSet<IpNetwork>,
 }
 
@@ -128,7 +132,7 @@ pub enum InterfaceType {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DisCandidate {
     pub priority: u8,
-    pub snpa: [u8; 6],
+    pub snpa: MacAddr,
     pub system_id: SystemId,
     pub lan_id: LanId,
     pub myself: bool,
@@ -559,7 +563,28 @@ impl Interface {
         // Set LAN neighbors.
         let mut neighbors = vec![];
         if self.config.interface_type == InterfaceType::Broadcast {
-            neighbors.extend(self.state.lan_adjacencies.get(level).snpas());
+            let adjacencies = self.state.lan_adjacencies.get(level);
+            neighbors.extend(adjacencies.active().clone());
+        }
+
+        // Set P2P Adjacency Three-Way State.
+        let mut three_way_adj = None;
+        if self.config.interface_type == InterfaceType::PointToPoint {
+            let mut state = ThreeWayAdjState::Down;
+            let local_circuit_id = self.system.ifindex.unwrap();
+            let mut neighbor = None;
+
+            if let Some(adj) = &self.state.p2p_adjacency {
+                state = adj.three_way_state;
+                if let Some(adj_ext_circuit_id) = adj.ext_circuit_id {
+                    neighbor = Some((adj.system_id, adj_ext_circuit_id));
+                }
+            }
+            three_way_adj = Some(ThreeWayAdjTlv {
+                state,
+                local_circuit_id: Some(local_circuit_id),
+                neighbor,
+            });
         }
 
         // Set IP information.
@@ -603,6 +628,7 @@ impl Interface {
                 area_addrs,
                 multi_topology,
                 neighbors,
+                three_way_adj,
                 ipv4_addrs,
                 ipv6_addrs,
                 ext_seqnum,

@@ -5,7 +5,7 @@
 //
 
 use std::borrow::Cow;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::IpAddr;
 
 use bitflags::bitflags;
@@ -15,8 +15,10 @@ use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
 
 use crate::bier::{BfrId, BierInfo, Bsl, SubDomainId};
+use crate::mac_addr::MacAddr;
 use crate::mpls::Label;
 use crate::protocol::Protocol;
+use crate::sr::MsdType;
 
 bitflags! {
     #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -113,7 +115,9 @@ pub struct InterfaceUpdateMsg {
     pub mtu: u32,
     pub flags: InterfaceFlags,
     #[serde(default)]
-    pub mac_address: [u8; 6],
+    pub mac_address: MacAddr,
+    #[serde(default)]
+    pub msd: BTreeMap<MsdType, u8>,
 }
 
 #[derive(Clone, Debug)]

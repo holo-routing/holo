@@ -66,6 +66,7 @@ pub enum TlvType {
     MtIpv4Reach = 235,
     Ipv6Reach = 236,
     MtIpv6Reach = 237,
+    ThreeWayAdj = 240,
     RouterCapability = 242,
 }
 
@@ -96,6 +97,7 @@ pub enum NeighborStlvType {
     MaxLinkBandwidth = 9,
     MaxResvLinkBandwidth = 10,
     UnreservedBandwidth = 11,
+    LinkMsd = 15,
     TeDefaultMetric = 18,
     AdjacencySid = 31,
     LanAdjacencySid = 32,
@@ -128,6 +130,7 @@ pub enum RouterCapStlvType {
     SrAlgorithm = 19,
     NodeAdminTag = 21,
     SrLocalBlock = 22,
+    NodeMsd = 23,
 }
 
 // IS-IS Sub-TLVs for Segment Identifier/Label Binding TLVs.

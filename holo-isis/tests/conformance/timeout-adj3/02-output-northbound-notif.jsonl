@@ -1,0 +1,2 @@
+{"ietf-isis:adjacency-state-change":{"routing-protocol-name":"test","isis-level":"level-2","interface-name":"eth-sw1","interface-level":"level-2","neighbor-system-id":"0000.0000.0002","state":"down"}}
+{"ietf-isis:lsp-generation":{"routing-protocol-name":"test","isis-level":"level-2","lsp-id":"0000.0000.0003.00-00"}}

@@ -26,6 +26,7 @@ impl ProviderBase for Instance {
     fn yang_modules() -> &'static [&'static str] {
         &[
             "ietf-isis",
+            "ietf-isis-msd",
             "ietf-isis-sr-mpls",
             "holo-isis",
             "holo-isis-dev",

@@ -7,6 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
+use std::collections::BTreeMap;
 use std::net::Ipv4Addr;
 use std::sync::Arc;
 
@@ -15,7 +16,7 @@ use holo_utils::ip::IpNetworkKind;
 use holo_utils::southbound::{
     AddressMsg, InterfaceUpdateMsg, RouteKeyMsg, RouteMsg,
 };
-use holo_utils::sr::SrCfg;
+use holo_utils::sr::{MsdType, SrCfg};
 
 use crate::adjacency::{AdjacencyEvent, AdjacencyState};
 use crate::error::Error;
@@ -52,6 +53,7 @@ pub(crate) fn process_iface_update(
     let old_mtu = iface.system.mtu;
     iface.system.flags = msg.flags;
     iface.system.mtu = Some(msg.mtu);
+    iface.system.msd = msg.msd;
     iface.system.mac_addr = Some(msg.mac_address);
     if iface.system.ifindex != Some(msg.ifindex) {
         instance
@@ -293,6 +295,19 @@ pub(crate) fn process_sr_cfg_update(
     if instance.config.sr.enabled
         && let Some((mut instance, _)) = instance.as_up()
     {
+        instance.schedule_lsp_origination(instance.config.level_type);
+    }
+}
+
+pub(crate) fn process_msd_update(
+    instance: &mut Instance,
+    node_msd: BTreeMap<MsdType, u8>,
+) {
+    // Update node MSD.
+    instance.system.node_msd = node_msd;
+
+    // Schedule LSP reorigination.
+    if let Some((mut instance, _)) = instance.as_up() {
         instance.schedule_lsp_origination(instance.config.level_type);
     }
 }

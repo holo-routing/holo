@@ -8,13 +8,14 @@
 //
 
 use holo_utils::ibus::IbusChannelsTx;
+use holo_utils::mac_addr::MacAddr;
 use ipnetwork::IpNetwork;
 
 pub(crate) fn mvlan_create(
     ibus_tx: &IbusChannelsTx,
     parent_ifname: String,
     ifname: String,
-    mac_addr: [u8; 6],
+    mac_addr: MacAddr,
 ) {
     ibus_tx.macvlan_add(parent_ifname, ifname, Some(mac_addr));
 }

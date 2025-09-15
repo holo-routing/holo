@@ -12,6 +12,7 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use holo_utils::ip::AddressFamily;
+use holo_utils::mac_addr::MacAddr;
 use holo_utils::socket::TTL_MAX;
 use internet_checksum::Checksum;
 use rand::prelude::SliceRandom;
@@ -110,15 +111,15 @@ pub struct Ipv4Hdr {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct EthernetHdr {
-    pub dst_mac: [u8; 6],
-    pub src_mac: [u8; 6],
+    pub dst_mac: MacAddr,
+    pub src_mac: MacAddr,
     pub ethertype: u16,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct ArpHdr {
-    pub sender_hw_address: [u8; 6],
+    pub sender_hw_address: MacAddr,
     pub sender_proto_address: Ipv4Addr,
     pub target_proto_address: Ipv4Addr,
 }
@@ -373,8 +374,8 @@ impl Ipv4Hdr {
 impl EthernetHdr {
     pub fn encode(&self) -> BytesMut {
         let mut buf = BytesMut::new();
-        self.dst_mac.iter().for_each(|i| buf.put_u8(*i));
-        self.src_mac.iter().for_each(|i| buf.put_u8(*i));
+        self.dst_mac.as_bytes().iter().for_each(|i| buf.put_u8(*i));
+        self.src_mac.as_bytes().iter().for_each(|i| buf.put_u8(*i));
         buf.put_u16(self.ethertype);
         buf
     }
@@ -437,7 +438,7 @@ impl ArpHdr {
         buf.put_u8(6_u8); // Harware(Mac Addr) Length = 6.
         buf.put_u8(4_u8); // Proto(Ip) length = 4.
         buf.put_u16(1_u16); // Operation = 1.
-        buf.put_slice(&self.sender_hw_address);
+        buf.put_mac(&self.sender_hw_address);
         buf.put_ipv4(&self.sender_proto_address);
         buf.put_slice(&[0xff; 6]); // Target hw address (Broadcast address).
         buf.put_ipv4(&self.target_proto_address);

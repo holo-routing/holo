@@ -15,6 +15,7 @@ use enum_as_inner::EnumAsInner;
 use holo_northbound::configuration::{Callbacks, CallbacksBuilder, Provider};
 use holo_northbound::yang::interfaces;
 use holo_utils::ip::AddressFamily;
+use holo_utils::mac_addr::MacAddr;
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
@@ -354,9 +355,13 @@ impl Provider for Interface {
                 let (interface, instance) =
                     self.get_instance(vrid, af).unwrap();
 
-                let virtual_mac_addr: [u8; 6] = match af {
-                    AddressFamily::Ipv4 => [0x00, 0x00, 0x5e, 0x00, 0x01, vrid],
-                    AddressFamily::Ipv6 => [0x00, 0x00, 0x5e, 0x00, 0x02, vrid],
+                let virtual_mac_addr = match af {
+                    AddressFamily::Ipv4 => {
+                        MacAddr::from([0x00, 0x00, 0x5e, 0x00, 0x01, vrid])
+                    }
+                    AddressFamily::Ipv6 => {
+                        MacAddr::from([0x00, 0x00, 0x5e, 0x00, 0x02, vrid])
+                    }
                 };
                 ibus::tx::mvlan_create(
                     &interface.tx.ibus,

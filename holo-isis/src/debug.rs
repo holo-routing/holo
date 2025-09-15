@@ -12,6 +12,7 @@ use std::time::Duration;
 
 use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::AddressFamily;
+use holo_utils::mac_addr::MacAddr;
 use holo_yang::ToYang;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, debug_span};
@@ -45,7 +46,7 @@ pub enum Debug<'a> {
     AdjacencyBfdReg(&'a Adjacency, &'a IpAddr),
     AdjacencyBfdUnreg(&'a Adjacency, &'a IpAddr),
     // Network
-    PduRx(&'a Interface, &'a [u8; 6], &'a Pdu),
+    PduRx(&'a Interface, &'a MacAddr, &'a Pdu),
     PduTx(&'a str, MulticastAddr, &'a Pdu),
     // Flooding
     LspDiscard(LevelNumber, &'a Lsp),
@@ -159,14 +160,14 @@ impl Debug<'_> {
                         debug!("{}", self);
                     })
             }
-            Debug::PduRx(iface, src, pdu) => {
+            Debug::PduRx(iface, source, pdu) => {
                 // Parent span(s): isis-instance
                 debug_span!("network").in_scope(|| {
                     debug_span!("input")
                         .in_scope(|| {
                             let data = serde_json::to_string(&pdu).unwrap();
                             if iface.config.interface_type == InterfaceType::Broadcast {
-                                debug!(interface = %iface.name, ?src, %data, "{}", self);
+                                debug!(interface = %iface.name, %source, %data, "{}", self);
                             } else {
                                 debug!(interface = %iface.name, %data, "{}", self);
                             }

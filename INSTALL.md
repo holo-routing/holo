@@ -37,6 +37,7 @@ $ cargo build --release
 # groupadd -r holo
 # mkdir /var/opt/holo
 # useradd --system --shell /sbin/nologin --home-dir /var/opt/holo/ -g holo holo
+# chown holo:holo /var/opt/holo
 ```
 
 6. Installation

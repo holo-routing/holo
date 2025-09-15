@@ -15,6 +15,7 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use enum_as_inner::EnumAsInner;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
+use holo_utils::mac_addr::MacAddr;
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
@@ -511,7 +512,7 @@ impl Instance {
         // Send a gratuitous for each of the virtual IP addresses.
         let eth_hdr = EthernetHdr {
             ethertype: libc::ETH_P_ARP as _,
-            dst_mac: [0xff; 6],
+            dst_mac: MacAddr::BROADCAST,
             src_mac: self.mvlan.system.mac_address,
         };
         for addr in &self.config.virtual_addresses {

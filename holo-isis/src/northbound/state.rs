@@ -85,6 +85,7 @@ pub enum ListEntry<'a> {
     InterfaceSsnList(&'a Interface, LevelNumber),
     Adjacency(&'a Adjacency),
     AdjacencySid(&'a AdjacencySid),
+    Msd(u8, u8),
 }
 
 // ===== callbacks =====
@@ -421,6 +422,24 @@ fn load_callbacks() -> Callbacks<Instance> {
             }
             Box::new(obj)
         })
+        .path(isis::database::levels::lsp::router_capabilities::router_capability::node_msd_tlv::node_msds::PATH)
+        .get_iterate(|_instance, args| {
+            let router_cap = args.parent_list_entry.as_router_cap().unwrap();
+            if let Some(link_msd) = &router_cap.sub_tlvs.node_msd {
+                let iter = link_msd.get().iter().map(|(msd_type, msd_value)| ListEntry::Msd(*msd_type, *msd_value));
+                Some(Box::new(iter))
+            } else {
+                None
+            }
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::router_capabilities::router_capability::node_msd_tlv::node_msds::NodeMsds;
+            let (msd_type, msd_value) = args.list_entry.as_msd().unwrap();
+            Box::new(NodeMsds {
+                msd_type: *msd_type,
+                msd_value: Some(*msd_value),
+            })
+        })
         .path(isis::database::levels::lsp::unknown_tlvs::unknown_tlv::PATH)
         .get_iterate(|_instance, args| {
             let lse = args.parent_list_entry.as_lsp_entry().unwrap();
@@ -630,6 +649,24 @@ fn load_callbacks() -> Callbacks<Instance> {
             let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
             Box::new(AdjSidFlags {
                 flag: Some(Box::new(iter)),
+            })
+        })
+        .path(isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::link_msd_sub_tlv::link_msds::PATH)
+        .get_iterate(|_instance, args| {
+            let (_, reach) = args.parent_list_entry.as_ext_is_reach_instance().unwrap();
+            if let Some(link_msd) = &reach.sub_tlvs.link_msd {
+                let iter = link_msd.get().iter().map(|(msd_type, msd_value)| ListEntry::Msd(*msd_type, *msd_value));
+                Some(Box::new(iter))
+            } else {
+                None
+            }
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::link_msd_sub_tlv::link_msds::LinkMsds;
+            let (msd_type, msd_value) = args.list_entry.as_msd().unwrap();
+            Box::new(LinkMsds {
+                msd_type: *msd_type,
+                msd_value: Some(*msd_value),
             })
         })
         .path(isis::database::levels::lsp::ipv4_internal_reachability::prefixes::PATH)
@@ -923,6 +960,24 @@ fn load_callbacks() -> Callbacks<Instance> {
             let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
             Box::new(AdjSidFlags {
                 flag: Some(Box::new(iter)),
+            })
+        })
+        .path(isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::link_msd_sub_tlv::link_msds::PATH)
+        .get_iterate(|_instance, args| {
+            let (_, reach) = args.parent_list_entry.as_mt_is_reach_instance().unwrap();
+            if let Some(link_msd) = &reach.sub_tlvs.link_msd {
+                let iter = link_msd.get().iter().map(|(msd_type, msd_value)| ListEntry::Msd(*msd_type, *msd_value));
+                Some(Box::new(iter))
+            } else {
+                None
+            }
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::link_msd_sub_tlv::link_msds::LinkMsds;
+            let (msd_type, msd_value) = args.list_entry.as_msd().unwrap();
+            Box::new(LinkMsds {
+                msd_type: *msd_type,
+                msd_value: Some(*msd_value),
             })
         })
         .path(isis::database::levels::lsp::mt_extended_ipv4_reachability::prefixes::PATH)
@@ -1255,7 +1310,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                 neighbor_sys_type: Some(adj.level_capability.to_yang()),
                 neighbor_sysid: Some(adj.system_id.to_yang()),
                 neighbor_extended_circuit_id: None,
-                neighbor_snpa: Some(Cow::Owned(format_mac(&adj.snpa))).ignore_in_testing(),
+                neighbor_snpa: Some(Cow::Owned(adj.snpa.to_string())).ignore_in_testing(),
                 usage: Some(adj.level_usage.to_yang()),
                 hold_timer: adj.holdtimer.as_ref().map(|task| task.remaining()).map(Cow::Owned).ignore_in_testing(),
                 neighbor_priority: adj.priority,
@@ -1408,13 +1463,6 @@ impl Provider for Instance {
 impl ListEntryKind for ListEntry<'_> {}
 
 // ===== helper functions =====
-
-fn format_mac(mac: &[u8; 6]) -> String {
-    format!(
-        "{:02x}{:02x}.{:02x}{:02x}.{:02x}{:02x}",
-        mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]
-    )
-}
 
 fn format_hmac_digest(digest: &[u8]) -> String {
     digest.iter().fold(

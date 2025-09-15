@@ -162,6 +162,7 @@ pub(crate) fn notify_interface_update(ibus_tx: &IbusSender, iface: &Interface) {
         mtu: iface.mtu.unwrap_or(0),
         flags: iface.flags,
         mac_address: iface.mac_address,
+        msd: Default::default(),
     });
     notify(ibus_tx, msg);
 }

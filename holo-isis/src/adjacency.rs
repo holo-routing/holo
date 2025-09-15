@@ -15,6 +15,7 @@ use chrono::Utc;
 use derive_new::new;
 use holo_utils::bfd;
 use holo_utils::ip::{AddressFamilies, AddressFamily};
+use holo_utils::mac_addr::MacAddr;
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::sr::Sid;
@@ -27,25 +28,27 @@ use crate::interface::{Interface, InterfaceType};
 use crate::northbound::notification;
 use crate::packet::consts::PduType;
 use crate::packet::subtlvs::neighbor::{AdjSidFlags, AdjSidStlv};
-use crate::packet::tlv::ExtendedSeqNum;
+use crate::packet::tlv::{ExtendedSeqNum, ThreeWayAdjState};
 use crate::packet::{AreaAddr, LanId, LevelType, SystemId};
 use crate::{sr, tasks};
 
 #[derive(Debug)]
 pub struct Adjacency {
     pub id: AdjacencyId,
-    pub snpa: [u8; 6],
+    pub snpa: MacAddr,
     pub system_id: SystemId,
     pub level_capability: LevelType,
     pub level_usage: LevelType,
     pub state: AdjacencyState,
     pub priority: Option<u8>,
     pub lan_id: Option<LanId>,
+    pub three_way_state: ThreeWayAdjState,
+    pub ext_circuit_id: Option<u32>,
     pub ext_seqnum: HashMap<PduType, ExtendedSeqNum>,
     pub protocols_supported: Vec<u8>,
     pub area_addrs: BTreeSet<AreaAddr>,
     pub topologies: BTreeSet<u16>,
-    pub neighbors: BTreeSet<[u8; 6]>,
+    pub neighbors: BTreeSet<MacAddr>,
     pub ipv4_addrs: BTreeSet<Ipv4Addr>,
     pub ipv6_addrs: BTreeSet<Ipv6Addr>,
     pub bfd: AddressFamilies<Option<AdjacencyBfd>>,
@@ -91,7 +94,7 @@ impl Adjacency {
     // Creates new adjacency.
     pub(crate) fn new(
         id: AdjacencyId,
-        snpa: [u8; 6],
+        snpa: MacAddr,
         system_id: SystemId,
         level_capability: LevelType,
         level_usage: LevelType,
@@ -105,6 +108,8 @@ impl Adjacency {
             state: AdjacencyState::Down,
             priority: None,
             lan_id: None,
+            three_way_state: ThreeWayAdjState::Down,
+            ext_circuit_id: None,
             ext_seqnum: Default::default(),
             protocols_supported: Default::default(),
             area_addrs: Default::default(),
@@ -162,6 +167,28 @@ impl Adjacency {
                 // Stop CSNP interval task(s).
                 iface.csnp_interval_stop();
             }
+        }
+
+        if iface.config.interface_type == InterfaceType::Broadcast {
+            // On broadcast interfaces, we maintain a cache of active
+            // adjacencies (Init or Up, but not Down). Any time this set
+            // changes, we restart the Hello Tx task so the neighbors TLV
+            // is updated.
+            let level = self.level_usage;
+            let adjacencies = iface.state.lan_adjacencies.get_mut(level);
+            if self.state == AdjacencyState::Down {
+                adjacencies.active_mut().insert(self.snpa);
+                iface.hello_interval_start(instance, level);
+            } else if new_state == AdjacencyState::Down {
+                adjacencies.active_mut().remove(&self.snpa);
+                iface.hello_interval_start(instance, level);
+            }
+
+            // Trigger DIS election.
+            instance
+                .tx
+                .protocol_input
+                .dis_election(iface.id, level.into());
         }
 
         // Update Adj-SID(s) associated to this adjacency.
@@ -347,5 +374,31 @@ impl AdjacencySid {
         }
         let sid = Sid::Label(self.label);
         AdjSidStlv::new(flags, 0, self.nbr_system_id, sid)
+    }
+}
+
+// ===== global functions =====
+
+// Computes the next three-way adjacency state based on the current adjacency
+// state and the state received in the neighbor's Hello PDU.
+pub(crate) fn three_way_handshake(
+    adj_state: ThreeWayAdjState,
+    hello_state: ThreeWayAdjState,
+) -> Option<ThreeWayAdjState> {
+    use ThreeWayAdjState::{Down, Initializing, Up};
+
+    match hello_state {
+        Down => Some(Initializing),
+
+        Initializing => match adj_state {
+            Down | Initializing => Some(Up),
+            Up => None,
+        },
+
+        Up => match adj_state {
+            Down => Some(Down),
+            Initializing => Some(Up),
+            Up => None,
+        },
     }
 }

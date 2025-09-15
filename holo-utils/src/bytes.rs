@@ -9,6 +9,8 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use bytes::{Buf, BufMut, Bytes, BytesMut, TryGetError};
 
+use crate::mac_addr::MacAddr;
+
 thread_local!(
     pub static TLS_BUF: RefCell<BytesMut> =
         RefCell::new(BytesMut::with_capacity(65536))
@@ -40,7 +42,7 @@ pub trait BytesExt {
     /// read the value.
     fn try_get_u24(&mut self) -> Result<u32, TryGetError>;
 
-    /// Gets an IPv4 addr from `self` in big-endian byte order.
+    /// Gets an IPv4 address from `self` in big-endian byte order.
     ///
     /// The current position is advanced by 4.
     ///
@@ -49,7 +51,7 @@ pub trait BytesExt {
     /// This function panics if there is no more remaining data in `self`.
     fn get_ipv4(&mut self) -> Ipv4Addr;
 
-    /// Gets an IPv4 addr from `self` in big-endian byte order.
+    /// Gets an IPv4 address from `self` in big-endian byte order.
     ///
     /// The current position is advanced by 4.
     ///
@@ -57,7 +59,7 @@ pub trait BytesExt {
     /// read the value.
     fn try_get_ipv4(&mut self) -> Result<Ipv4Addr, TryGetError>;
 
-    /// Gets an optional IPv4 addr from `self` in big-endian byte order.
+    /// Gets an optional IPv4 address from `self` in big-endian byte order.
     ///
     /// The current position is advanced by 4.
     ///
@@ -66,7 +68,7 @@ pub trait BytesExt {
     /// This function panics if there is no more remaining data in `self`.
     fn get_opt_ipv4(&mut self) -> Option<Ipv4Addr>;
 
-    /// Gets an optional IPv4 addr from `self` in big-endian byte order.
+    /// Gets an optional IPv4 address from `self` in big-endian byte order.
     ///
     /// The current position is advanced by 4.
     ///
@@ -74,7 +76,7 @@ pub trait BytesExt {
     /// read the value.
     fn try_get_opt_ipv4(&mut self) -> Result<Option<Ipv4Addr>, TryGetError>;
 
-    /// Gets an IPv6 addr from `self` in big-endian byte order.
+    /// Gets an IPv6 address from `self` in big-endian byte order.
     ///
     /// The current position is advanced by 16.
     ///
@@ -83,7 +85,7 @@ pub trait BytesExt {
     /// This function panics if there is no more remaining data in `self`.
     fn get_ipv6(&mut self) -> Ipv6Addr;
 
-    /// Gets an IPv6 addr from `self` in big-endian byte order.
+    /// Gets an IPv6 address from `self` in big-endian byte order.
     ///
     /// The current position is advanced by 16.
     ///
@@ -91,7 +93,7 @@ pub trait BytesExt {
     /// read the value.
     fn try_get_ipv6(&mut self) -> Result<Ipv6Addr, TryGetError>;
 
-    /// Gets an optional IPv6 addr from `self` in big-endian byte order.
+    /// Gets an optional IPv6 address from `self` in big-endian byte order.
     ///
     /// The current position is advanced by 16.
     ///
@@ -100,13 +102,30 @@ pub trait BytesExt {
     /// This function panics if there is no more remaining data in `self`.
     fn get_opt_ipv6(&mut self) -> Option<Ipv6Addr>;
 
-    /// Gets an optional IPv6 addr from `self` in big-endian byte order.
+    /// Gets an optional IPv6 address from `self` in big-endian byte order.
     ///
     /// The current position is advanced by 16.
     ///
     /// Returns `Err(TryGetError)` when there are not enough remaining bytes to
     /// read the value.
     fn try_get_opt_ipv6(&mut self) -> Result<Option<Ipv6Addr>, TryGetError>;
+
+    /// Gets a MAC address from `self`.
+    ///
+    /// The current position is advanced by 6.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if there is no more remaining data in `self`.
+    fn get_mac(&mut self) -> MacAddr;
+
+    /// Gets a MAC address from `self`.
+    ///
+    /// The current position is advanced by 6.
+    ///
+    /// Returns `Err(TryGetError)` when there are not enough remaining bytes to
+    /// read the value.
+    fn try_get_mac(&mut self) -> Result<MacAddr, TryGetError>;
 }
 
 // Extension methods for BytesMut.
@@ -121,7 +140,7 @@ pub trait BytesMutExt {
     /// `self`.
     fn put_u24(&mut self, n: u32);
 
-    /// Writes an IP addr to `self` in big-endian byte order.
+    /// Writes an IP address to `self` in big-endian byte order.
     ///
     /// The current position is advanced by 4 or 16.
     ///
@@ -131,7 +150,7 @@ pub trait BytesMutExt {
     /// `self`.
     fn put_ip(&mut self, addr: &IpAddr);
 
-    /// Writes an IPv4 addr to `self` in big-endian byte order.
+    /// Writes an IPv4 address to `self` in big-endian byte order.
     ///
     /// The current position is advanced by 4.
     ///
@@ -141,7 +160,7 @@ pub trait BytesMutExt {
     /// `self`.
     fn put_ipv4(&mut self, addr: &Ipv4Addr);
 
-    /// Writes an IPv6 addr to `self` in big-endian byte order.
+    /// Writes an IPv6 address to `self` in big-endian byte order.
     ///
     /// The current position is advanced by 16.
     ///
@@ -150,6 +169,16 @@ pub trait BytesMutExt {
     /// This function panics if there is not enough remaining capacity in
     /// `self`.
     fn put_ipv6(&mut self, addr: &Ipv6Addr);
+
+    /// Writes a MAC address to `self`.
+    ///
+    /// The current position is advanced by 6.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if there is not enough remaining capacity in
+    /// `self`.
+    fn put_mac(&mut self, addr: &MacAddr);
 }
 
 // ===== impl Bytes =====
@@ -210,6 +239,16 @@ impl BytesExt for Bytes {
         let addr = Ipv6Addr::from(bytes);
         Ok((!addr.is_unspecified()).then_some(addr))
     }
+
+    fn get_mac(&mut self) -> MacAddr {
+        self.try_get_mac().unwrap()
+    }
+
+    fn try_get_mac(&mut self) -> Result<MacAddr, TryGetError> {
+        let mut bytes: [u8; MacAddr::LENGTH] = [0; MacAddr::LENGTH];
+        self.try_copy_to_slice(&mut bytes)?;
+        Ok(MacAddr::from(bytes))
+    }
 }
 
 // ===== impl BytesMut =====
@@ -233,5 +272,9 @@ impl BytesMutExt for BytesMut {
 
     fn put_ipv6(&mut self, addr: &Ipv6Addr) {
         self.put_slice(&addr.octets())
+    }
+
+    fn put_mac(&mut self, addr: &MacAddr) {
+        self.put_slice(&addr.as_bytes())
     }
 }

@@ -6,7 +6,7 @@ group = "holo"
 # graceful-restart information, authentication sequence numbers, and more.
 #
 # Needs to be writable by @user or @group.
-database_path = "/var/run/holo/holo.db"
+database_path = "/var/opt/holo/holo.db"
 
 # Logging configuration
 [logging]
@@ -52,7 +52,7 @@ database_path = "/var/run/holo/holo.db"
   # Enable or disable the event recorder
   enabled = false
   # Directory where to save the files (needs to be writable by @user or @group)
-  dir = "/var/run/holo"
+  dir = "/var/opt/holo"
 
 # Daemon plugins
 [plugins]

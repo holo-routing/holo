@@ -5,7 +5,7 @@
 
 [mit-badge]: https://img.shields.io/badge/license-MIT-blue.svg
 [mit-url]: https://github.com/holo-routing/holo/blob/master/LICENSE
-[actions-badge]: https://github.com/holo-routing/holo/workflows/CI/badge.svg
+[actions-badge]: https://github.com/holo-routing/holo/actions/workflows/ci.yaml/badge.svg?branch=master
 [actions-url]: https://github.com/holo-routing/holo/actions?query=workflow%3ACI+branch%3Amaster
 [codecov-badge]: https://codecov.io/gh/holo-routing/holo/branch/master/graph/badge.svg?token=OMV0RMNVY8
 [codecov-url]: https://codecov.io/gh/holo-routing/holo
@@ -60,6 +60,15 @@ safety guarantees provided by Rust, the Holo daemon also drops privileges
 at startup. For certain operations, like binding sockets,
 Linux [capabilities](https://man7.org/linux/man-pages/man7/capabilities.7.html)
 are used to gain the minimum required permission for the least amount of time.
+
+Holo also provides robust protection against the most common attack vector in
+routing protocol stacks: denial-of-service (DoS) attacks via malicious packet
+input. Incoming packets are decoded in isolated, supervised async tasks,
+allowing the protocol implementations to recover gracefully from panics,
+such as by ignoring malformed packets or closing only the affected TCP stream,
+without compromising the stability of the entire daemon. Additionally, thanks
+to Holo's modular design and built-in support for coverage-guided fuzzing,
+most parsing bugs are expected to be detected and addressed during development.
 
 #### Integrated protocol implementations
 
@@ -167,6 +176,7 @@ Holo supports the following Internet Standards:
 * RFC 3787 - Recommendations for Interoperable IP Networks using Intermediate System to Intermediate System (IS-IS)
 * RFC 5120 - M-ISIS: Multi Topology (MT) Routing in Intermediate System to Intermediate Systems (IS-ISs)
 * RFC 5301 - Dynamic Hostname Exchange Mechanism for IS-IS
+* RFC 5303 - Three-Way Handshake for IS-IS Point-to-Point Adjacencies
 * RFC 5304 - IS-IS Cryptographic Authentication
 * RFC 5305 - IS-IS Extensions for Traffic Engineering
 * RFC 5308 - Routing IPv6 with IS-IS
@@ -180,6 +190,7 @@ Holo supports the following Internet Standards:
 * RFC 7987 - IS-IS Minimum Remaining Lifetime
 * RFC 8401 - Bit Index Explicit Replication (BIER) Support via IS-IS
 * RFC 8405 - Shortest Path First (SPF) Back-Off Delay Algorithm for Link-State IGPs
+* RFC 8491 - Signaling Maximum SID Depth (MSD) Using IS-IS
 * RFC 8667 - IS-IS Extensions for Segment Routing
 * RFC 8918 - Invalid TLV Handling in IS-IS
 * draft-ietf-bier-lsr-non-mpls-extensions-03 - LSR Extensions for BIER non-MPLS Encapsulation
@@ -244,6 +255,7 @@ Holo supports the following Internet Standards:
 | ietf-ip@2018-02-22 | 52.17% | 0.00% | - | - | [40.00%](https://holo-routing.github.io/ietf-yang-coverage/ietf-ip@2018-02-22.html) |
 | ietf-ipv4-unicast-routing@2018-03-13 | 100.00% | 100.00% | - | - | [100.00%](https://holo-routing.github.io/ietf-yang-coverage/ietf-ipv4-unicast-routing@2018-03-13.html) |
 | ietf-ipv6-unicast-routing@2018-03-13 | 40.62% | 100.00% | - | - | [45.71%](https://holo-routing.github.io/ietf-yang-coverage/ietf-ipv6-unicast-routing@2018-03-13.html) |
+| ietf-isis-msd@2024-09-02 | - | 100.00% | - | - | [100.00%](https://holo-routing.github.io/ietf-yang-coverage/ietf-isis-msd@2024-09-02.html) |
 | ietf-isis-sr-mpls@2025-05-06 | 15.38% | 57.27% | - | - | [52.85%](https://holo-routing.github.io/ietf-yang-coverage/ietf-isis-sr-mpls@2025-05-06.html) |
 | ietf-isis@2022-10-19 | 93.62% | 70.37% | 100.00% | 100.00% | [80.92%](https://holo-routing.github.io/ietf-yang-coverage/ietf-isis@2022-10-19.html) |
 | ietf-key-chain@2017-06-15 | 100.00% | 100.00% | - | - | [100.00%](https://holo-routing.github.io/ietf-yang-coverage/ietf-key-chain@2017-06-15.html) |

@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -17,13 +18,14 @@ use crate::bfd;
 use crate::bier::{BierCfg, BierCfgEvent};
 use crate::ip::AddressFamily;
 use crate::keychain::Keychain;
+use crate::mac_addr::MacAddr;
 use crate::policy::{MatchSets, Policy};
 use crate::protocol::Protocol;
 use crate::southbound::{
     AddressMsg, BierNbrInstallMsg, BierNbrUninstallMsg, InterfaceUpdateMsg,
     LabelInstallMsg, LabelUninstallMsg, RouteKeyMsg, RouteMsg,
 };
-use crate::sr::{SrCfg, SrCfgEvent};
+use crate::sr::{MsdType, SrCfg, SrCfgEvent};
 
 // Useful type definition(s).
 pub type IbusReceiver = UnboundedReceiver<IbusMsg>;
@@ -117,15 +119,15 @@ pub enum IbusMsg {
     InterfaceIpAddRequest { ifname: String, addr: IpNetwork },
     /// Request to delete an address to an interface.
     InterfaceIpDelRequest { ifname: String, addr: IpNetwork },
-    /// Keychain update notification.
+    /// Key-chain update notification.
     KeychainUpd(Arc<Keychain>),
-    /// Keychain delete notification.
+    /// Key-chain delete notification.
     KeychainDel(String),
     /// Create a macvlan interface.
     MacvlanAdd {
         parent_ifname: String,
         ifname: String,
-        mac_addr: Option<[u8; 6]>,
+        mac_addr: Option<MacAddr>,
     },
     /// Delete a macvlan interface.
     MacvlanDel { ifname: String },
@@ -169,8 +171,8 @@ pub enum IbusMsg {
     /// Request to uninstall an entry in the BIRT.
     RouteBierDel(BierNbrUninstallMsg),
     /// Purge the BIRT.
-    /// TODO: Add Protocol argument to BierPurge to specify which BIRT has to be
-    /// purged. E.g., One could ask to purge the BIRT populated by a specific
+    /// TODO: Add Protocol argument to `BierPurge` to specify which BIRT has to
+    /// be purged. E.g., One could ask to purge the BIRT populated by a specific
     /// instance of OSPFv3 but not those populated by IS-IS.
     BierPurge,
     /// Requests a subscription to route update notifications for a specific
@@ -196,6 +198,8 @@ pub enum IbusMsg {
     SrCfgUpd(Arc<SrCfg>),
     /// Segment Routing configuration event.
     SrCfgEvent(SrCfgEvent),
+    /// Node MSD (Maximum SID Depth) update.
+    NodeMsdUpd(BTreeMap<MsdType, u8>),
     /// BIER configuration update.
     BierCfgUpd(Arc<BierCfg>),
     /// BIER configuration event.
@@ -294,7 +298,7 @@ impl IbusChannelsTx {
         &self,
         parent_ifname: String,
         ifname: String,
-        mac_addr: Option<[u8; 6]>,
+        mac_addr: Option<MacAddr>,
     ) {
         let msg = IbusMsg::MacvlanAdd {
             parent_ifname,

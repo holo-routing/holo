@@ -1353,6 +1353,23 @@ async fn ibus_hostname_update1() {
 }
 
 // Input:
+//  * Ibus:
+//    - Interface eth-rt4 MSD update (16)
+//    - Node MSD update (16)
+// Output:
+//  * Protocol: send an updated local LSP to all adjacencies
+//  * Northbound:
+//    - add Node MSD (16) to the local LSP
+//    - add Link MSD (16) for the eth-rt4 interface to the local LSP
+//    - add the local LSP to the SRM list of all adjacencies
+//    - transition the SPF Delay FSM state from "quiet" to "short-wait"
+//    - send an "lsp-generation" YANG notification
+#[tokio::test]
+async fn ibus_msd_update1() {
+    run_test::<Instance>("ibus-msd-update1", "topo2-3", "rt6").await;
+}
+
+// Input:
 //  * Northbound: configure route redistribution for directly connected routes
 //    (IPv4 and IPv6)
 // Output:
@@ -1410,10 +1427,38 @@ async fn timeout_adj1() {
 // Input:
 //  * Protocol: LAN adjacency (0000.0000.0001) on eth-sw1 timed out
 // Output:
+//  * Protocol: send an updated local LSP to all other adjacencies
 //  * Northbound:
-//    - remove the 0000.0000.0001 adjacency from eth-rt4
+//    - remove the 0000.0000.0001 adjacency from eth-sw1
 //    - send an "adjacency-state-change" YANG notification
+//    - send an "lsp-generation" YANG notification (lsp-id = 0000.0000.0003.01-00)
 #[tokio::test]
 async fn timeout_adj2() {
     run_test::<Instance>("timeout-adj2", "topo2-1", "rt2").await;
+}
+
+// Input:
+//  * Protocol: LAN adjacency (0000.0000.0001) on eth-sw1 timed out
+// Output:
+//  * Protocol: send an updated local LSP to all other adjacencies
+//  * Northbound:
+//    - remove the 0000.0000.0001 adjacency from eth-sw1
+//    - send an "adjacency-state-change" YANG notification
+//    - send an "lsp-generation" YANG notification (lsp-id = 0000.0000.0003.01-00)
+//
+// Input:
+//  * Protocol: LAN adjacency (0000.0000.0002) on eth-sw1 timed out
+// Output:
+//  * Protocol:
+//    - send an updated local LSP to all other adjacencies
+//    - send the flushed LSP 0000.0000.0003.01-00 to all other adjacencies
+//  * Northbound:
+//    - remove the 0000.0000.0002 adjacency from eth-sw1
+//    - flush the 0000.0000.0003.01-00 pseudonode LSP
+//    - remove 0000.0000.0003.01 IS reachability from the local LSP
+//    - send an "adjacency-state-change" YANG notification
+//    - send an "lsp-generation" YANG notification (lsp-id = 0000.0000.0003.00-00)
+#[tokio::test]
+async fn timeout_adj3() {
+    run_test::<Instance>("timeout-adj3", "topo2-1", "rt3").await;
 }

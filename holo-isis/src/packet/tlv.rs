@@ -20,8 +20,10 @@ use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::{
     AddressFamily, Ipv4AddrExt, Ipv4NetworkExt, Ipv6AddrExt, Ipv6NetworkExt,
 };
+use holo_utils::mac_addr::MacAddr;
 use holo_utils::sr::IgpAlgoType;
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
+use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
 use tracing::debug_span;
@@ -33,6 +35,7 @@ use crate::packet::consts::{
 use crate::packet::error::{TlvDecodeError, TlvDecodeResult};
 #[cfg(feature = "testing")]
 use crate::packet::pdu::serde_lsp_rem_lifetime_filter;
+use crate::packet::subtlvs::MsdStlv;
 use crate::packet::subtlvs::capability::{
     NodeAdminTagStlv, SrAlgoStlv, SrCapabilitiesStlv, SrLocalBlockStlv,
 };
@@ -139,13 +142,30 @@ bitflags! {
 #[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct NeighborsTlv {
-    pub list: Vec<[u8; 6]>,
+    pub list: Vec<MacAddr>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct PaddingTlv {
     pub length: u8,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct ThreeWayAdjTlv {
+    pub state: ThreeWayAdjState,
+    pub local_circuit_id: Option<u32>,
+    pub neighbor: Option<(SystemId, u32)>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(FromPrimitive)]
+#[derive(Deserialize, Serialize)]
+pub enum ThreeWayAdjState {
+    Up = 0,
+    Initializing = 1,
+    Down = 2,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -279,6 +299,7 @@ pub struct IsReachStlvs {
     pub unreserved_bw: Option<subtlvs::neighbor::UnreservedBwStlv>,
     pub te_default_metric: Option<subtlvs::neighbor::TeDefaultMetricStlv>,
     pub adj_sids: Vec<subtlvs::neighbor::AdjSidStlv>,
+    pub link_msd: Option<MsdStlv>,
     pub unknown: Vec<UnknownTlv>,
 }
 
@@ -411,6 +432,7 @@ pub struct RouterCapStlvs {
     pub sr_cap: Option<SrCapabilitiesStlv>,
     pub sr_algo: Option<SrAlgoStlv>,
     pub srlb: Option<SrLocalBlockStlv>,
+    pub node_msd: Option<MsdStlv>,
     pub node_tags: Vec<NodeAdminTagStlv>,
     pub unknown: Vec<UnknownTlv>,
 }
@@ -563,8 +585,6 @@ where
 // ===== impl NeighborsTlv =====
 
 impl NeighborsTlv {
-    const MAC_ADDR_LEN: usize = 6;
-
     pub(crate) fn decode(
         tlv_len: u8,
         buf: &mut Bytes,
@@ -572,14 +592,13 @@ impl NeighborsTlv {
         let mut list = vec![];
 
         // Validate the TLV length.
-        if tlv_len as usize % Self::MAC_ADDR_LEN != 0 {
+        if tlv_len as usize % MacAddr::LENGTH != 0 {
             return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
-        while buf.remaining() >= Self::MAC_ADDR_LEN {
+        while buf.remaining() >= MacAddr::LENGTH {
             // Parse MAC address.
-            let mut addr: [u8; Self::MAC_ADDR_LEN] = [0; Self::MAC_ADDR_LEN];
-            buf.try_copy_to_slice(&mut addr)?;
+            let addr = buf.try_get_mac()?;
             list.push(addr);
         }
 
@@ -589,27 +608,27 @@ impl NeighborsTlv {
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
         let start_pos = tlv_encode_start(buf, TlvType::Neighbors);
         for entry in &self.list {
-            buf.put_slice(entry);
+            buf.put_mac(entry);
         }
         tlv_encode_end(buf, start_pos);
     }
 }
 
 impl EntryBasedTlv for NeighborsTlv {
-    type Entry = [u8; 6];
+    type Entry = MacAddr;
 
-    fn entries(&self) -> impl Iterator<Item = &[u8; 6]> {
+    fn entries(&self) -> impl Iterator<Item = &MacAddr> {
         self.list.iter()
     }
 
-    fn entry_len(_entry: &[u8; 6]) -> usize {
-        Self::MAC_ADDR_LEN
+    fn entry_len(_entry: &MacAddr) -> usize {
+        MacAddr::LENGTH
     }
 }
 
 impl<I> From<I> for NeighborsTlv
 where
-    I: IntoIterator<Item = [u8; 6]>,
+    I: IntoIterator<Item = MacAddr>,
 {
     fn from(iter: I) -> NeighborsTlv {
         NeighborsTlv {
@@ -635,6 +654,71 @@ impl PaddingTlv {
         let start_pos = tlv_encode_start(buf, TlvType::Padding);
         buf.put_slice(&Self::PADDING[0..self.length as usize]);
         tlv_encode_end(buf, start_pos);
+    }
+}
+
+// ===== impl ThreeWayAdjTlv =====
+
+impl ThreeWayAdjTlv {
+    pub const MIN_LEN: usize = 1;
+
+    pub(crate) fn decode(
+        tlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
+        // Validate the TLV length.
+        if (tlv_len as usize) < Self::MIN_LEN {
+            return Err(TlvDecodeError::InvalidLength(tlv_len));
+        }
+
+        let state = buf.try_get_u8()?;
+        let Some(state) = ThreeWayAdjState::from_u8(state) else {
+            return Err(TlvDecodeError::InvalidThreeWayAdjState(state));
+        };
+
+        let mut local_circuit_id = None;
+        if buf.remaining() >= 4 {
+            local_circuit_id = Some(buf.try_get_u32()?);
+        }
+
+        let mut neighbor = None;
+        if buf.remaining() >= 10 {
+            let nbr_system_id = SystemId::decode(buf)?;
+            let nbr_circuit_id = buf.try_get_u32()?;
+            neighbor = Some((nbr_system_id, nbr_circuit_id));
+        }
+
+        Ok(ThreeWayAdjTlv {
+            state,
+            local_circuit_id,
+            neighbor,
+        })
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, TlvType::ThreeWayAdj);
+        buf.put_u8(self.state as u8);
+        if let Some(local_circuit_id) = self.local_circuit_id {
+            buf.put_u32(local_circuit_id);
+            if let Some((nbr_system_id, nbr_circuit_id)) = &self.neighbor {
+                nbr_system_id.encode(buf);
+                buf.put_u32(*nbr_circuit_id);
+            }
+        }
+        tlv_encode_end(buf, start_pos);
+    }
+}
+
+impl Tlv for ThreeWayAdjTlv {
+    fn len(&self) -> usize {
+        let mut len = TLV_HDR_SIZE + Self::MIN_LEN;
+        if self.local_circuit_id.is_some() {
+            len += 4;
+            if self.neighbor.is_some() {
+                len += 10;
+            }
+        }
+        len
     }
 }
 
@@ -1319,6 +1403,15 @@ impl IsReachTlv {
                             Err(error) => error.log(),
                         }
                     }
+                    Some(NeighborStlvType::LinkMsd) => {
+                        if sub_tlvs.link_msd.is_some() {
+                            continue;
+                        }
+                        match MsdStlv::decode(stlv_len, &mut buf_stlv) {
+                            Ok(stlv) => sub_tlvs.link_msd = Some(stlv),
+                            Err(error) => error.log(),
+                        }
+                    }
                     _ => {
                         // Save unknown Sub-TLV.
                         sub_tlvs.unknown.push(UnknownTlv::new(
@@ -1382,6 +1475,9 @@ impl IsReachTlv {
             }
             for stlv in &entry.sub_tlvs.adj_sids {
                 stlv.encode(buf);
+            }
+            if let Some(stlv) = &entry.sub_tlvs.link_msd {
+                stlv.encode(NeighborStlvType::LinkMsd as u8, buf);
             }
             // Rewrite Sub-TLVs length field.
             buf[subtlvs_len_pos] = (buf.len() - 1 - subtlvs_len_pos) as u8;
@@ -2332,6 +2428,15 @@ impl RouterCapTlv {
                         Err(error) => error.log(),
                     }
                 }
+                Some(RouterCapStlvType::NodeMsd) => {
+                    if sub_tlvs.node_msd.is_some() {
+                        continue;
+                    }
+                    match MsdStlv::decode(stlv_len, &mut buf_stlv) {
+                        Ok(stlv) => sub_tlvs.node_msd = Some(stlv),
+                        Err(error) => error.log(),
+                    }
+                }
                 Some(RouterCapStlvType::NodeAdminTag) => {
                     match NodeAdminTagStlv::decode(stlv_len, &mut buf_stlv) {
                         Ok(stlv) => sub_tlvs.node_tags.push(stlv),
@@ -2370,6 +2475,9 @@ impl RouterCapTlv {
         if let Some(stlv) = &self.sub_tlvs.srlb {
             stlv.encode(buf);
         }
+        if let Some(stlv) = &self.sub_tlvs.node_msd {
+            stlv.encode(RouterCapStlvType::NodeMsd as u8, buf);
+        }
         for stlv in &self.sub_tlvs.node_tags {
             stlv.encode(buf);
         }
@@ -2388,6 +2496,9 @@ impl Tlv for RouterCapTlv {
             len += stlv.len();
         }
         if let Some(stlv) = &self.sub_tlvs.srlb {
+            len += stlv.len();
+        }
+        if let Some(stlv) = &self.sub_tlvs.node_msd {
             len += stlv.len();
         }
         for stlv in &self.sub_tlvs.node_tags {

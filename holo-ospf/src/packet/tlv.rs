@@ -573,7 +573,7 @@ impl From<RouterFuncCaps> for RouterFuncCapsTlv {
 impl NodeAdminTagTlv {
     pub(crate) fn decode(tlv_len: u16, buf: &mut Bytes) -> DecodeResult<Self> {
         // Validate the TLV length.
-        if tlv_len % 4 != 0 {
+        if !tlv_len.is_multiple_of(4) {
             return Err(DecodeError::InvalidTlvLength(tlv_len));
         }
 
@@ -808,7 +808,7 @@ impl SrLocalBlockTlv {
 impl MsdTlv {
     pub(crate) fn decode(tlv_len: u16, buf: &mut Bytes) -> DecodeResult<Self> {
         // Validate the TLV length.
-        if tlv_len % 2 != 0 {
+        if !tlv_len.is_multiple_of(2) {
             return Err(DecodeError::InvalidTlvLength(tlv_len));
         }
 

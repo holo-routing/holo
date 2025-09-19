@@ -1057,7 +1057,7 @@ impl ClusterList {
             return Err(AttrError::Discard);
         }
 
-        if buf.remaining() == 0 || buf.remaining() % 4 != 0 {
+        if buf.remaining() == 0 || !buf.remaining().is_multiple_of(4) {
             return Err(AttrError::Withdraw);
         }
 
@@ -1402,7 +1402,7 @@ impl<T: CommType> CommList<T> {
         buf: &mut Bytes,
         comm: &mut Option<Self>,
     ) -> Result<(), AttrError> {
-        if buf.remaining() == 0 || buf.remaining() % T::LENGTH != 0 {
+        if buf.remaining() == 0 || !buf.remaining().is_multiple_of(T::LENGTH) {
             return Err(AttrError::Withdraw);
         }
 

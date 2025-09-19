@@ -264,7 +264,7 @@ impl NodeAdminTagStlv {
         buf: &mut Bytes,
     ) -> TlvDecodeResult<Self> {
         // Validate the TLV length.
-        if (stlv_len as usize) % Self::TAG_LEN != 0 {
+        if !(stlv_len as usize).is_multiple_of(Self::TAG_LEN) {
             return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 

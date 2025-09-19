@@ -34,7 +34,7 @@ impl MsdStlv {
         buf: &mut Bytes,
     ) -> TlvDecodeResult<Self> {
         // Validate the TLV length.
-        if stlv_len % 2 != 0 {
+        if !stlv_len.is_multiple_of(2) {
             return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 

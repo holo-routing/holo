@@ -531,7 +531,7 @@ impl MultiTopologyTlv {
         let mut list = vec![];
 
         // Validate the TLV length.
-        if tlv_len as usize % Self::ENTRY_SIZE != 0 {
+        if !(tlv_len as usize).is_multiple_of(Self::ENTRY_SIZE) {
             return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
@@ -592,7 +592,7 @@ impl NeighborsTlv {
         let mut list = vec![];
 
         // Validate the TLV length.
-        if tlv_len as usize % MacAddr::LENGTH != 0 {
+        if !(tlv_len as usize).is_multiple_of(MacAddr::LENGTH) {
             return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
@@ -1015,7 +1015,7 @@ impl Ipv4AddressesTlv {
         let mut list = vec![];
 
         // Validate the TLV length.
-        if tlv_len as usize % Ipv4Addr::LENGTH != 0 {
+        if !(tlv_len as usize).is_multiple_of(Ipv4Addr::LENGTH) {
             return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
@@ -1070,7 +1070,7 @@ impl Ipv6AddressesTlv {
         let mut list = vec![];
 
         // Validate the TLV length.
-        if tlv_len as usize % Ipv6Addr::LENGTH != 0 {
+        if !(tlv_len as usize).is_multiple_of(Ipv6Addr::LENGTH) {
             return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
@@ -1130,7 +1130,7 @@ impl LspEntriesTlv {
         let mut list = vec![];
 
         // Validate the TLV length.
-        if tlv_len as usize % Self::ENTRY_SIZE != 0 {
+        if !(tlv_len as usize).is_multiple_of(Self::ENTRY_SIZE) {
             return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
@@ -1201,7 +1201,8 @@ impl LegacyIsReachTlv {
         let mut list = vec![];
 
         // Validate the TLV length.
-        if tlv_len == 0 || (tlv_len - 1) % Self::ENTRY_SIZE as u8 != 0 {
+        if tlv_len == 0 || !(tlv_len - 1).is_multiple_of(Self::ENTRY_SIZE as u8)
+        {
             return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 
@@ -1527,7 +1528,7 @@ impl LegacyIpv4ReachTlv {
         let mut list = vec![];
 
         // Validate the TLV length.
-        if tlv_len as usize % Self::ENTRY_SIZE != 0 {
+        if !(tlv_len as usize).is_multiple_of(Self::ENTRY_SIZE) {
             return Err(TlvDecodeError::InvalidLength(tlv_len));
         }
 

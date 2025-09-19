@@ -50,7 +50,7 @@ jobs:
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: Generate code coverage
-        run: cargo llvm-cov --all-features --codecov --output-path codecov.json -p holo-bfd -p holo-bgp -p holo-isis -p holo-ldp -p holo-ospf -p holo-rip -p holo-vrrp
+        run: cargo llvm-cov --all-features --codecov --output-path codecov.json -p holo-bfd -p holo-bgp -p holo-isis -p holo-ldp -p holo-ospf -p holo-rip -p holo-utils -p holo-vrrp
       - name: Upload to Codecov
         uses: codecov/codecov-action@v4
         if: github.ref == 'refs/heads/master' && github.repository_owner == 'holo-routing'
@@ -66,7 +66,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.88
       - name: Run tests
-        run: cargo test --all-features -p holo-bfd -p holo-bgp -p holo-isis -p holo-ldp -p holo-ospf -p holo-rip -p holo-vrrp
+        run: cargo test --all-features -p holo-bfd -p holo-bgp -p holo-isis -p holo-ldp -p holo-ospf -p holo-rip -p holo-utils -p holo-vrrp
 
   fuzz-build-check:
     name: Fuzz Targets Build Check

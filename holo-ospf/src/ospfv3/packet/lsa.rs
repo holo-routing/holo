@@ -1479,6 +1479,10 @@ impl LsaRouterFlagsVersion for LsaRouterFlags {
     fn is_asbr(&self) -> bool {
         self.contains(LsaRouterFlags::E)
     }
+
+    fn is_vlink_endpoint(&self) -> bool {
+        self.contains(LsaRouterFlags::V)
+    }
 }
 
 // ===== impl LsaRouterLink =====

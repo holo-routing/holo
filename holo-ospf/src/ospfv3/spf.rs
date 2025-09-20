@@ -61,12 +61,6 @@ impl VertexLsaVersion<Ospfv3> for VertexLsa {
         matches!(self, VertexLsa::Router(_))
     }
 
-    fn router_v_bit(&self) -> bool {
-        let lsa = self.as_router().unwrap().iter().next().unwrap();
-        let lsa_body = lsa.body.as_router().unwrap();
-        lsa_body.flags.contains(LsaRouterFlags::V)
-    }
-
     fn router_id(&self) -> Ipv4Addr {
         let lsa = self.as_router().unwrap().iter().next().unwrap();
         lsa.hdr.adv_rtr

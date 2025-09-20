@@ -24,7 +24,7 @@ use crate::instance::{InstanceArenas, InstanceUpView};
 use crate::interface::Interface;
 use crate::lsdb::{LsaEntry, LsaLogId};
 use crate::neighbor::Neighbor;
-use crate::packet::lsa::{Lsa, LsaKey};
+use crate::packet::lsa::{Lsa, LsaKey, LsaRouterFlagsVersion};
 use crate::packet::tlv::{BierStlv, SidLabelRangeTlv, SrAlgoTlv};
 use crate::route::{Nexthops, PathType, RouteRtr};
 use crate::version::Version;
@@ -252,9 +252,6 @@ where
 {
     // Return whether this is a router vertex.
     fn is_router(&self) -> bool;
-
-    // Return whether the V-bit of this router vertex is set.
-    fn router_v_bit(&self) -> bool;
 
     // Return the Router-ID of this router vertex.
     fn router_id(&self) -> Ipv4Addr;
@@ -640,7 +637,7 @@ fn run_area<V>(
             area.state.routers.insert(vertex.lsa.router_id(), route);
 
             // Set TransitCapability.
-            if vertex.lsa.router_v_bit() {
+            if vertex.lsa.router_flags().is_vlink_endpoint() {
                 area.state.transit_capability = true;
             }
         }

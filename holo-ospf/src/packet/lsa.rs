@@ -194,6 +194,7 @@ where
 {
     fn is_abr(&self) -> bool;
     fn is_asbr(&self) -> bool;
+    fn is_vlink_endpoint(&self) -> bool;
 }
 
 // OSPF version-specific code.

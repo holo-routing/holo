@@ -28,6 +28,9 @@ use crate::route::{
 use crate::spf::Vertex;
 use crate::version::Version;
 
+// Backbone area ID.
+pub const BACKBONE_AREA_ID: Ipv4Addr = Ipv4Addr::UNSPECIFIED;
+
 // OSPF area.
 #[derive(Debug)]
 pub struct Area<V: Version> {
@@ -138,7 +141,7 @@ where
 
     // Returns whether this is the backbone area.
     pub(crate) fn is_backbone(&self) -> bool {
-        self.area_id == Ipv4Addr::UNSPECIFIED
+        self.area_id == BACKBONE_AREA_ID
     }
 
     // Returns the number of ABR routers in this area.
@@ -446,7 +449,7 @@ where
         .filter(|(_, route)| {
             // The backbone's configured ranges should be ignored when
             // originating summary-LSAs into transit areas.
-            if route.area_id == Some(Ipv4Addr::UNSPECIFIED)
+            if route.area_id == Some(BACKBONE_AREA_ID)
                 && area.state.transit_capability
             {
                 true

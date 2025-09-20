@@ -23,7 +23,7 @@ use holo_utils::yang::DataNodeRefExt;
 use holo_yang::{ToYang, TryFromYang};
 use yang3::data::Data;
 
-use crate::area::{self, AreaType};
+use crate::area::{self, AreaType, BACKBONE_AREA_ID};
 use crate::collections::{AreaIndex, InterfaceIndex};
 use crate::debug::InterfaceInactiveReason;
 use crate::instance::Instance;
@@ -1388,8 +1388,7 @@ fn load_validation_callbacks() -> ValidationCallbacks {
             }
 
             let area_id = args.dnode.get_ipv4_relative("../area-id").unwrap();
-            if area_type != AreaType::Normal && area_id == Ipv4Addr::UNSPECIFIED
-            {
+            if area_type != AreaType::Normal && area_id == BACKBONE_AREA_ID {
                 return Err(
                     "can't change type of the backbone area".to_string()
                 );

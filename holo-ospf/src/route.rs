@@ -16,7 +16,7 @@ use holo_utils::mpls::Label;
 use holo_utils::southbound::OspfRouteType;
 use holo_utils::sr::IgpAlgoType;
 
-use crate::area::Area;
+use crate::area::{Area, BACKBONE_AREA_ID};
 use crate::collections::{Areas, Arena, InterfaceIndex};
 use crate::debug::Debug;
 use crate::instance::InstanceUpView;
@@ -634,7 +634,7 @@ fn update_rib_external<V>(
             .cloned()
             .filter(|route| {
                 route.path_type == PathType::IntraArea
-                    && route.area_id != Ipv4Addr::UNSPECIFIED
+                    && route.area_id != BACKBONE_AREA_ID
             })
             .collect::<Vec<_>>();
         if !asbr_routes_pruned.is_empty() {

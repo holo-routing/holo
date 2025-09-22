@@ -21,9 +21,9 @@ RUN cargo build --profile $BUILD_PROFILE
 FROM debian:bookworm-slim
 
 RUN groupadd -r holo
-RUN useradd --system --shell /sbin/nologin --home-dir /var/run/holo/ -g holo holo
-RUN mkdir -p /var/run/holo
-RUN chown holo:holo /var/run/holo
+RUN useradd --system --shell /sbin/nologin --home-dir /var/opt/holo/ -g holo holo
+RUN mkdir -p /var/opt/holo
+RUN chown holo:holo /var/opt/holo
 
 ARG BUILD_PROFILE=release
 COPY --from=build /usr/src/holo/holo-daemon/holod.toml /etc/holod.toml

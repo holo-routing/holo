@@ -6,7 +6,7 @@
 
 use std::net::{Ipv4Addr, Ipv6Addr};
 
-use holo_utils::ip::AddressFamily;
+use holo_utils::ip::{AddressFamily, Ipv6AddrExt};
 use holo_utils::southbound::InterfaceFlags;
 
 use crate::area::{Area, AreaVersion, OptionsLocation};
@@ -16,6 +16,7 @@ use crate::error::{Error, InterfaceCfgError};
 use crate::instance::InstanceUpView;
 use crate::interface::{self, Interface, InterfaceSys, InterfaceVersion};
 use crate::neighbor::Neighbor;
+use crate::network::{MulticastAddr, NetworkVersion};
 use crate::ospfv3;
 use crate::ospfv3::packet::{Hello, Options, PacketHdr};
 use crate::packet::auth::AuthMethod;
@@ -95,21 +96,46 @@ impl InterfaceVersion<Self> for Ospfv3 {
         iface: &Interface<Self>,
         dst: Ipv6Addr,
     ) -> Result<(), Error<Self>> {
+        // Accept only unicast packets on virtual links.
+        if iface.is_virtual_link() {
+            if dst.is_multicast() {
+                return Err(Error::InvalidDstAddr(dst));
+            } else {
+                return Ok(());
+            }
+        }
+
         // Check if the destination matches one of the interface unicast
         // addresses.
         if iface.system.addr_list.iter().any(|addr| addr.ip() == dst) {
             return Ok(());
         }
 
-        interface::validate_packet_dst_common(iface, dst)
+        // Check if the destination matches AllSPFRouters.
+        if dst == *Self::multicast_addr(MulticastAddr::AllSpfRtrs) {
+            return Ok(());
+        }
+
+        // Packets whose IP destination is AllDRouters should only be accepted
+        // if the state of the receiving interface is DR or Backup.
+        if dst == *Self::multicast_addr(MulticastAddr::AllDrRtrs)
+            && iface.is_dr_or_backup()
+        {
+            return Ok(());
+        }
+
+        Err(Error::InvalidDstAddr(dst))
     }
 
     fn validate_packet_src(
-        iface: &Interface<Self>,
+        _iface: &Interface<Self>,
         src: Ipv6Addr,
     ) -> Result<(), Error<Self>> {
-        // No OSPFv3-specific validation required.
-        interface::validate_packet_src_common(iface, src)
+        if !src.is_usable() {
+            return Err(Error::InvalidSrcAddr(src));
+        }
+
+        Ok(())
     }
 
     fn packet_instance_id_match(
@@ -133,9 +159,16 @@ impl InterfaceVersion<Self> for Ospfv3 {
     }
 
     fn max_packet_size(iface: &Interface<Self>) -> u16 {
+        const VIRTUAL_LINK_MTU: u16 = 1280;
         const IPV6_HDR_SIZE: u16 = 40;
 
-        let mut max = iface.system.mtu.unwrap() - IPV6_HDR_SIZE;
+        let mtu = if iface.is_virtual_link() {
+            VIRTUAL_LINK_MTU
+        } else {
+            iface.system.mtu.unwrap()
+        };
+
+        let mut max = mtu - IPV6_HDR_SIZE;
 
         // Reserve space for the authentication trailer when authentication is
         // enabled.

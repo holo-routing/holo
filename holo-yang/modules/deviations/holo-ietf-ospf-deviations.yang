@@ -70,6 +70,36 @@ module holo-ietf-ospf-deviations {
     }
   }
 
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:hello-interval" {
+    deviate add {
+      default "10";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:dead-interval" {
+    deviate add {
+      default "40";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:retransmit-interval" {
+    deviate add {
+      default "5";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:transmit-delay" {
+    deviate add {
+      default "1";
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:lls" {
+    deviate add {
+      default "false";
+    }
+  }
+
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:instance-id" {
     deviate delete {
       default "0";
@@ -149,7 +179,7 @@ module holo-ietf-ospf-deviations {
   }
 
   /*
-   * Not supported nodes
+   * Not supported nodes (invalid LSA type and scope combinations)
    */
 
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:database/ospf:as-scope-lsa-type/ospf:as-scope-lsas/ospf:as-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:router" {
@@ -264,15 +294,67 @@ module holo-ietf-ospf-deviations {
     deviate not-supported;
   }
 
-  deviation "/ospf:if-state-change/ospf:if-link-type-selection/ospf:virtual-link" {
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:router" {
     deviate not-supported;
   }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:network" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:summary" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:external" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-prefix-opaque" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:extended-link-opaque" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv3/ospf:ospfv3/ospf:body/ospf:router" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv3/ospf:ospfv3/ospf:body/ospf:network" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv3/ospf:ospfv3/ospf:body/ospf:inter-area-prefix" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv3/ospf:ospfv3/ospf:body/ospf:inter-area-router" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv3/ospf:ospfv3/ospf:body/ospf:as-external" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv3/ospf:ospfv3/ospf:body/ospf:nssa" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv3/ospf:ospfv3/ospf:body/ospf:intra-area-prefix" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv3/ospf:ospfv3/ospf:body/ospf:link" {
+    deviate not-supported;
+  }
+
+  /*
+   * Not supported nodes
+   */
 
   deviation "/ospf:if-state-change/ospf:if-link-type-selection/ospf:sham-link" {
-    deviate not-supported;
-  }
-
-  deviation "/ospf:if-config-error/ospf:if-link-type-selection/ospf:virtual-link" {
     deviate not-supported;
   }
 
@@ -280,23 +362,11 @@ module holo-ietf-ospf-deviations {
     deviate not-supported;
   }
 
-  deviation "/ospf:nbr-state-change/ospf:if-link-type-selection/ospf:virtual-link" {
-    deviate not-supported;
-  }
-
   deviation "/ospf:nbr-state-change/ospf:if-link-type-selection/ospf:sham-link" {
     deviate not-supported;
   }
 
-  deviation "/ospf:nbr-restart-helper-status-change/ospf:if-link-type-selection/ospf:virtual-link" {
-    deviate not-supported;
-  }
-
   deviation "/ospf:nbr-restart-helper-status-change/ospf:if-link-type-selection/ospf:sham-link" {
-    deviate not-supported;
-  }
-
-  deviation "/ospf:if-rx-bad-packet/ospf:if-link-type-selection/ospf:virtual-link" {
     deviate not-supported;
   }
 
@@ -372,15 +442,27 @@ module holo-ietf-ospf-deviations {
     deviate not-supported;
   }
 
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links" {
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf:node-tag-tlvs" {
     deviate not-supported;
   }
 
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:header/ospf:opaque-type" {
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf:dynamic-hostname-tlv" {
     deviate not-supported;
   }
 
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:header/ospf:opaque-id" {
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:ri-opaque/ospf:sbfd-discriminator-tlv" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:body/ospf:opaque/ospf:te-opaque" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv3/ospf:ospfv3/ospf:body/ospf:router-information/ospf:node-tag-tlvs" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv3/ospf:ospfv3/ospf:body/ospf:router-information/ospf:dynamic-hostname-tlv" {
     deviate not-supported;
   }
 

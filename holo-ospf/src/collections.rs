@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use crate::area::Area;
 use crate::error::Error;
 use crate::instance::ProtocolInputChannelsTx;
-use crate::interface::Interface;
+use crate::interface::{Interface, VirtualLinkKey};
 use crate::lsdb::{LsaDelayedOrig, LsaEntry};
 use crate::neighbor::{Neighbor, NeighborNetId};
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
@@ -56,12 +56,14 @@ pub struct Areas<V: Version> {
     next_id: AreaId,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Interfaces<V: Version> {
     id_tree: HashMap<InterfaceId, InterfaceIndex>,
     name_tree: BTreeMap<String, InterfaceIndex>,
     ifindex_tree: HashMap<u32, InterfaceIndex>,
+    vlink_tree: HashMap<VirtualLinkKey, InterfaceIndex>,
     next_id: InterfaceId,
+    next_vlink_ifindex: u32,
     _marker: std::marker::PhantomData<V>,
 }
 
@@ -349,11 +351,12 @@ where
     pub(crate) fn insert<'a>(
         &mut self,
         arena: &'a mut Arena<Interface<V>>,
-        ifname: &str,
+        ifname: String,
+        vlink_key: Option<VirtualLinkKey>,
     ) -> (InterfaceIndex, &'a mut Interface<V>) {
         // Create and insert interface into the arena.
         self.next_id += 1;
-        let iface = Interface::new(self.next_id, ifname.to_owned());
+        let iface = Interface::new(self.next_id, ifname, vlink_key);
         let iface_idx = arena.0.insert(iface);
 
         // Link interface to different collections.
@@ -365,6 +368,19 @@ where
             .is_some()
         {
             panic!("interface name={} already exists", iface.name);
+        }
+        if let Some(vlink_key) = vlink_key {
+            self.vlink_tree.insert(vlink_key, iface_idx);
+
+            // Assign a fake ifindex for this virtual link.
+            //
+            // This is necessary because OSPFv3 requires each interface within
+            // a router to have a unique Interface ID, and we derive the
+            // Interface ID from the ifindex.
+            self.next_vlink_ifindex += 1;
+            let vlink_ifindex = self.next_vlink_ifindex;
+            iface.system.ifindex = Some(vlink_ifindex);
+            self.ifindex_tree.insert(vlink_ifindex, iface_idx);
         }
 
         (iface_idx, iface)
@@ -382,6 +398,9 @@ where
         self.name_tree.remove(&iface.name);
         if let Some(ifindex) = iface.system.ifindex {
             self.ifindex_tree.remove(&ifindex);
+        }
+        if let Some(vlink_key) = iface.vlink_key {
+            self.vlink_tree.remove(&vlink_key);
         }
 
         // Remove interface from the arena.
@@ -484,6 +503,33 @@ where
             .map(move |iface_idx| (iface_idx, &mut arena[iface_idx]))
     }
 
+    // Returns a reference to the interface corresponding to the given virtual
+    // link endpoint.
+    pub(crate) fn get_by_vlink_key<'a>(
+        &self,
+        arena: &'a Arena<Interface<V>>,
+        vlink_key: &VirtualLinkKey,
+    ) -> Option<(InterfaceIndex, &'a Interface<V>)> {
+        self.vlink_tree
+            .get(vlink_key)
+            .copied()
+            .map(|iface_idx| (iface_idx, &arena[iface_idx]))
+    }
+
+    // Returns a mutable reference to the interface corresponding to the given
+    // virtual link endpoint.
+    #[expect(unused)]
+    pub(crate) fn get_mut_by_vlink_key<'a>(
+        &mut self,
+        arena: &'a mut Arena<Interface<V>>,
+        vlink_key: &VirtualLinkKey,
+    ) -> Option<(InterfaceIndex, &'a mut Interface<V>)> {
+        self.vlink_tree
+            .get(vlink_key)
+            .copied()
+            .map(move |iface_idx| (iface_idx, &mut arena[iface_idx]))
+    }
+
     // Returns a mutable reference to the interface corresponding to the given
     // IP address.
     pub(crate) fn get_mut_by_addr<'a>(
@@ -545,6 +591,23 @@ where
     // Interfaces are ordered by their names.
     pub(crate) fn indexes(&self) -> impl Iterator<Item = InterfaceIndex> + '_ {
         self.name_tree.values().copied()
+    }
+}
+
+impl<V> Default for Interfaces<V>
+where
+    V: Version,
+{
+    fn default() -> Interfaces<V> {
+        Interfaces {
+            id_tree: Default::default(),
+            name_tree: BTreeMap::new(),
+            ifindex_tree: Default::default(),
+            vlink_tree: Default::default(),
+            next_id: 0,
+            next_vlink_ifindex: 0x80000000,
+            _marker: Default::default(),
+        }
     }
 }
 

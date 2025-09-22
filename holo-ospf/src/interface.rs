@@ -11,7 +11,7 @@ use std::sync::atomic::AtomicU64;
 
 use chrono::{DateTime, Utc};
 use holo_protocol::InstanceChannelsTx;
-use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
+use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::keychain::{Key, Keychains};
 use holo_utils::socket::{AsyncFd, Socket};
 use holo_utils::southbound::InterfaceFlags;
@@ -46,6 +46,7 @@ pub struct Interface<V: Version> {
     pub system: InterfaceSys<V>,
     pub config: InterfaceCfg<V>,
     pub state: InterfaceState<V>,
+    pub vlink_key: Option<VirtualLinkKey>,
 }
 
 #[derive(Debug)]
@@ -78,6 +79,8 @@ pub struct InterfaceState<V: Version> {
     // The network DR/BDR.
     pub dr: Option<NeighborNetId>,
     pub bdr: Option<NeighborNetId>,
+    // Virtual link data.
+    pub vlink: Option<VirtualLinkState<V>>,
     // List of neighbors attached to this interface.
     pub neighbors: Neighbors<V>,
     // List of LSAs enqueued for transmission.
@@ -100,9 +103,10 @@ pub struct InterfaceState<V: Version> {
 pub struct InterfaceNet<V: Version> {
     // Raw socket.
     pub socket: Arc<AsyncFd<Socket>>,
-    // Network Tx/Rx tasks.
+    // Network Tx task.
     _net_tx_task: Task<()>,
-    _net_rx_task: Task<()>,
+    // Network Rx task. Absent for virtual links.
+    _net_rx_task: Option<Task<()>>,
     // Network Tx output channel.
     pub net_tx_packetp: UnboundedSender<NetTxPacketMsg<V>>,
 }
@@ -127,6 +131,7 @@ pub enum InterfaceType {
     NonBroadcast,
     PointToMultipoint,
     PointToPoint,
+    VirtualLink,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -136,6 +141,18 @@ struct DrCandidate {
     dr: Option<NeighborNetId>,
     bdr: Option<NeighborNetId>,
     priority: u8,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct VirtualLinkKey {
+    pub transit_area_id: Ipv4Addr,
+    pub router_id: Ipv4Addr,
+}
+
+#[derive(Debug)]
+pub struct VirtualLinkState<V: Version> {
+    pub nbr_addr: V::NetIpAddr,
+    pub cost: u32,
 }
 
 // Interface state machine.
@@ -231,7 +248,11 @@ impl<V> Interface<V>
 where
     V: Version,
 {
-    pub(crate) fn new(id: InterfaceId, name: String) -> Interface<V> {
+    pub(crate) fn new(
+        id: InterfaceId,
+        name: String,
+        vlink_key: Option<VirtualLinkKey>,
+    ) -> Interface<V> {
         Debug::<V>::InterfaceCreate(&name).log();
 
         Interface {
@@ -240,6 +261,7 @@ where
             system: InterfaceSys::default(),
             config: InterfaceCfg::default(),
             state: InterfaceState::default(),
+            vlink_key,
         }
     }
 
@@ -285,8 +307,11 @@ where
     ) -> State {
         Debug::<V>::InterfaceStart(&self.name).log();
 
-        // Initialize source address.
-        self.state.src_addr = Some(V::src_addr(&self.system));
+        // Initialize source address. For virtual links, the source address is
+        // set dynamically during SPF before the virtual link starts.
+        if !self.is_virtual_link() {
+            self.state.src_addr = Some(V::src_addr(&self.system));
+        }
 
         if !self.is_passive() {
             self.state.auth = self.auth(&instance.shared.keychains);
@@ -313,9 +338,9 @@ where
 
         // Get new ISM state.
         let new_ism_state = match self.config.if_type {
-            InterfaceType::PointToPoint | InterfaceType::PointToMultipoint => {
-                State::PointToPoint
-            }
+            InterfaceType::PointToPoint
+            | InterfaceType::PointToMultipoint
+            | InterfaceType::VirtualLink => State::PointToPoint,
             InterfaceType::Broadcast | InterfaceType::NonBroadcast => {
                 if self.config.priority == 0 {
                     State::DrOther
@@ -397,6 +422,9 @@ where
         self.state.mcast_groups = Default::default();
         self.state.dr = None;
         self.state.bdr = None;
+        if self.is_virtual_link() {
+            self.state.vlink = None;
+        }
         self.state.neighbors = Default::default();
         self.state.ls_update_list = Default::default();
         self.state.ls_ack_list = Default::default();
@@ -449,6 +477,10 @@ where
             self.config.if_type,
             InterfaceType::Broadcast | InterfaceType::NonBroadcast
         )
+    }
+
+    pub(crate) fn is_virtual_link(&self) -> bool {
+        self.config.if_type == InterfaceType::VirtualLink
     }
 
     fn auth(&self, keychains: &Keychains) -> Option<AuthMethod> {
@@ -598,7 +630,9 @@ where
         notification::if_state_change(instance, self);
 
         // Join or leave OSPF multicast groups as necessary.
-        self.update_mcast_groups();
+        if !self.is_virtual_link() {
+            self.update_mcast_groups();
+        }
 
         // Update statistics.
         self.state.event_count += 1;
@@ -616,6 +650,9 @@ where
             }
             InterfaceType::NonBroadcast | InterfaceType::PointToMultipoint => {
                 self.config.static_nbrs.keys().copied().collect()
+            }
+            InterfaceType::VirtualLink => {
+                smallvec![self.state.vlink.as_ref().unwrap().nbr_addr]
             }
         };
         let interval = self.config.hello_interval;
@@ -842,10 +879,14 @@ where
 
     pub(crate) fn need_adjacency(&self, nbr: &Neighbor<V>) -> bool {
         match self.config.if_type {
-            InterfaceType::PointToPoint | InterfaceType::PointToMultipoint => {
+            InterfaceType::PointToPoint
+            | InterfaceType::PointToMultipoint
+            | InterfaceType::VirtualLink => {
+                // Always form an adjacency.
                 true
             }
             InterfaceType::Broadcast | InterfaceType::NonBroadcast => {
+                // Form an adjacency if we or the neighbor is the DR or BDR.
                 let nbr_net_id = nbr.network_id();
                 self.state.ism_state == State::Dr
                     || self.state.ism_state == State::Backup
@@ -965,6 +1006,7 @@ where
             mcast_groups: Default::default(),
             dr: None,
             bdr: None,
+            vlink: None,
             neighbors: Default::default(),
             ls_update_list: Default::default(),
             ls_ack_list: Default::default(),
@@ -992,7 +1034,12 @@ where
         instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
     ) -> Result<Self, IoError> {
         // Create raw socket.
-        let socket = V::socket(&iface.name)
+        let ifname = if iface.is_virtual_link() {
+            None
+        } else {
+            Some(iface.name.as_ref())
+        };
+        let socket = V::socket(ifname)
             .map_err(IoError::SocketError)
             .and_then(|socket| {
                 AsyncFd::new(socket).map_err(IoError::SocketError)
@@ -1015,13 +1062,16 @@ where
             #[cfg(feature = "testing")]
             &instance_channels_tx.protocol_output,
         );
-        let net_rx_task = tasks::net_rx(
-            socket.clone(),
-            iface,
-            area,
-            af,
-            &instance_channels_tx.protocol_input.net_packet_rx,
-        );
+        let mut net_rx_task = None;
+        if !iface.is_virtual_link() {
+            net_rx_task = Some(tasks::net_rx(
+                socket.clone(),
+                iface,
+                area,
+                af,
+                &instance_channels_tx.protocol_input.net_packet_rx,
+            ));
+        }
 
         // The network Tx task needs to be detached to ensure flushed
         // self-originated LSAs will be sent once the instance terminates.
@@ -1052,13 +1102,15 @@ where
             #[cfg(feature = "testing")]
             &instance_channels_tx.protocol_output,
         );
-        self._net_rx_task = tasks::net_rx(
-            self.socket.clone(),
-            iface,
-            area,
-            af,
-            &instance_channels_tx.protocol_input.net_packet_rx,
-        );
+        if !iface.is_virtual_link() {
+            self._net_rx_task = Some(tasks::net_rx(
+                self.socket.clone(),
+                iface,
+                area,
+                af,
+                &instance_channels_tx.protocol_input.net_packet_rx,
+            ));
+        }
         // The network Tx task needs to be detached to ensure flushed
         // self-originated LSAs will be sent once the instance terminates.
         self._net_tx_task.detach();
@@ -1107,43 +1159,6 @@ where
 
     if iface.system.mtu.is_none() {
         return Err(InterfaceInactiveReason::MissingMtu);
-    }
-
-    Ok(())
-}
-
-pub(crate) fn validate_packet_dst_common<V>(
-    iface: &Interface<V>,
-    dst: V::NetIpAddr,
-) -> Result<(), Error<V>>
-where
-    V: Version,
-{
-    // Check if the destination matches AllSPFRouters.
-    if dst == *V::multicast_addr(MulticastAddr::AllSpfRtrs) {
-        return Ok(());
-    }
-
-    // Packets whose IP destination is AllDRouters should only be accepted
-    // if the state of the receiving interface is DR or Backup.
-    if dst == *V::multicast_addr(MulticastAddr::AllDrRtrs)
-        && iface.is_dr_or_backup()
-    {
-        return Ok(());
-    }
-
-    Err(Error::InvalidDstAddr(dst))
-}
-
-pub(crate) fn validate_packet_src_common<V>(
-    _iface: &Interface<V>,
-    src: V::NetIpAddr,
-) -> Result<(), Error<V>>
-where
-    V: Version,
-{
-    if !src.is_usable() {
-        return Err(Error::InvalidSrcAddr(src));
     }
 
     Ok(())

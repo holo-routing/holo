@@ -76,6 +76,11 @@ pub(crate) fn send_dbdesc<V>(
         area.area_id,
         iface.config.instance_id.resolved,
     );
+    let mtu = if iface.is_virtual_link() {
+        0
+    } else {
+        iface.system.mtu.unwrap()
+    };
     let packet = V::PacketDbDesc::generate(
         pkt_hdr,
         V::area_options(
@@ -86,7 +91,7 @@ pub(crate) fn send_dbdesc<V>(
                 lls.is_some(),
             ),
         ),
-        iface.system.mtu.unwrap(),
+        mtu,
         nbr.dd_flags,
         nbr.dd_seq_no,
         lsa_hdrs,
@@ -471,6 +476,9 @@ where
         InterfaceType::PointToPoint => {
             let addr = MulticastAddr::AllSpfRtrs;
             smallvec![*V::multicast_addr(addr)]
+        }
+        InterfaceType::VirtualLink => {
+            smallvec![iface.state.vlink.as_ref().unwrap().nbr_addr]
         }
     }
 }

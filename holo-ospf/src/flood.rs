@@ -87,7 +87,12 @@ where
         }
 
         // Check if the LSA type is valid for this neighbor.
-        if !V::lsa_type_is_valid(None, nbr.options, lsa.hdr.lsa_type()) {
+        if !V::lsa_type_is_valid(
+            None,
+            Some(iface.config.if_type),
+            nbr.options,
+            lsa.hdr.lsa_type(),
+        ) {
             continue;
         }
 
@@ -216,6 +221,7 @@ where
         .filter(|area| {
             V::lsa_type_is_valid(
                 Some(area.config.area_type),
+                None,
                 None,
                 lsa.hdr.lsa_type(),
             )

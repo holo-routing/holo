@@ -365,10 +365,121 @@ where
                 raw_data: Some(lsa.raw.as_ref()).ignore_in_testing(),
             })
         })
+        .path(ospf::areas::area::virtual_links::virtual_link::PATH)
+        .get_iterate(|instance, args| {
+            let area = args.parent_list_entry.as_area().unwrap();
+            let iter = area.interfaces.iter(&instance.arenas.interfaces).filter(|iface| iface.is_virtual_link()).map(ListEntry::Interface);
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use ospf::areas::area::virtual_links::virtual_link::VirtualLink;
+            let iface = args.list_entry.as_interface().unwrap();
+            let vlink_key = iface.vlink_key.unwrap();
+            Box::new(VirtualLink {
+                transit_area_id: Cow::Owned(vlink_key.transit_area_id),
+                router_id: Cow::Owned(vlink_key.router_id),
+                cost: iface.state.vlink.as_ref().map(|vlink| vlink.cost as u16),
+                state: Some(iface.state.ism_state.to_yang()),
+                hello_timer: iface.state.tasks.hello_interval.as_ref().map(|task| task.remaining()).map(Cow::Owned).ignore_in_testing(),
+                wait_timer: iface.state.tasks.wait_timer.as_ref().map(|task| task.remaining()).map(Cow::Owned).ignore_in_testing(),
+                dr_router_id: None,
+                dr_ip_addr: None,
+                bdr_router_id: None,
+                bdr_ip_addr: None,
+            })
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::statistics::PATH)
+        .get_object(|_instance, args| {
+            use ospf::areas::area::virtual_links::virtual_link::statistics::Statistics;
+            let iface = args.list_entry.as_interface().unwrap();
+            Box::new(Statistics {
+                discontinuity_time: Some(Cow::Borrowed(&iface.state.discontinuity_time)).ignore_in_testing(),
+                if_event_count: Some(iface.state.event_count).ignore_in_testing(),
+                link_scope_lsa_count: Some(iface.state.lsdb.lsa_count()),
+                link_scope_lsa_cksum_sum: Some(iface.state.lsdb.cksum_sum()).ignore_in_testing(),
+            })
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::statistics::database::link_scope_lsa_type::PATH)
+        .get_iterate(|_instance, args| {
+            let iface = args.parent_list_entry.as_interface().unwrap();
+            let iter = iface.state.lsdb.iter_types().map(ListEntry::InterfaceStatsLsaType);
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use ospf::areas::area::virtual_links::virtual_link::statistics::database::link_scope_lsa_type::LinkScopeLsaType;
+            let lsdb_type = args.list_entry.as_interface_stats_lsa_type().unwrap();
+            Box::new(LinkScopeLsaType {
+                lsa_type: Some(lsdb_type.lsa_type().into()),
+                lsa_count: Some(lsdb_type.lsa_count()),
+                lsa_cksum_sum: Some(lsdb_type.cksum_sum()).ignore_in_testing(),
+            })
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::neighbors::neighbor::PATH)
+        .get_iterate(|instance, args| {
+            let iface = args.parent_list_entry.as_interface().unwrap();
+            let iter = iface.state.neighbors.iter(&instance.arenas.neighbors).map(|nbr| ListEntry::Neighbor(iface, nbr));
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use ospf::areas::area::virtual_links::virtual_link::neighbors::neighbor::Neighbor;
+            let (_iface, nbr) = args.list_entry.as_neighbor().unwrap();
+            Box::new(Neighbor {
+                neighbor_router_id: Cow::Owned(nbr.router_id),
+                address: Some(Cow::Owned(nbr.src.into())),
+                dr_router_id: None,
+                dr_ip_addr: None,
+                bdr_router_id: None,
+                bdr_ip_addr: None,
+                state: Some(nbr.state.to_yang()),
+                cost: None,
+                dead_timer: nbr.tasks.inactivity_timer.as_ref().map(|task| task.remaining()).map(Cow::Owned).ignore_in_testing(),
+            })
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::neighbors::neighbor::statistics::PATH)
+        .get_object(|_instance, args| {
+            use ospf::areas::area::virtual_links::virtual_link::neighbors::neighbor::statistics::Statistics;
+            let (_, nbr) = args.list_entry.as_neighbor().unwrap();
+            Box::new(Statistics {
+                discontinuity_time: Some(Cow::Borrowed(&nbr.discontinuity_time)).ignore_in_testing(),
+                nbr_event_count: Some(nbr.event_count).ignore_in_testing(),
+                nbr_retrans_qlen: Some(nbr.lists.ls_rxmt.len() as u32),
+            })
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::PATH)
+        .get_iterate(|_instance, args| {
+            let iface = args.parent_list_entry.as_interface().unwrap();
+            let iter = iface.state.lsdb.iter_types().map(ListEntry::InterfaceLsaType);
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::LinkScopeLsaType;
+            let lsdb_type = args.list_entry.as_interface_lsa_type().unwrap();
+            Box::new(LinkScopeLsaType {
+                lsa_type: lsdb_type.lsa_type().into(),
+            })
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::PATH)
+        .get_iterate(|instance, args| {
+            let Some(_instance_state) = &instance.state else { return None };
+            let lsdb_type = args.parent_list_entry.as_interface_lsa_type().unwrap();
+            let iter = lsdb_type.iter(&instance.arenas.lsa_entries).map(|(_, lse)| ListEntry::InterfaceLsa(lse));
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::LinkScopeLsa;
+            let lse = args.list_entry.as_interface_lsa().unwrap();
+            let lsa = &lse.data;
+            Box::new(LinkScopeLsa {
+                lsa_id: lsa.hdr.lsa_id().to_string().into(),
+                adv_router: Cow::Owned(lsa.hdr.adv_rtr()),
+                decode_completed: Some(!lsa.body.is_unknown()),
+                raw_data: Some(lsa.raw.as_ref()).ignore_in_testing(),
+            })
+        })
         .path(ospf::areas::area::interfaces::interface::PATH)
         .get_iterate(|instance, args| {
             let area = args.parent_list_entry.as_area().unwrap();
-            let iter = area.interfaces.iter(&instance.arenas.interfaces).map(ListEntry::Interface);
+            let iter = area.interfaces.iter(&instance.arenas.interfaces).filter(|iface| !iface.is_virtual_link()).map(ListEntry::Interface);
             Some(Box::new(iter))
         })
         .get_object(|instance, args| {
@@ -1504,6 +1615,140 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             let iter = adj_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
             Box::new(LanAdjSidFlags {
                 flag: Some(Box::new(iter)),
+            })
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::header::PATH)
+        .get_object(|_instance, args| {
+            use ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::header::Header;
+            let lse: &LsaEntry<Ospfv2> = args.list_entry.as_interface_lsa().unwrap();
+            let lsa = &lse.data;
+            let (opaque_type, opaque_id) = lsa_hdr_opaque_data(&lsa.hdr);
+            Box::new(Header {
+                lsa_id: Some(Cow::Owned(lsa.hdr.lsa_id)),
+                opaque_type,
+                opaque_id,
+                age: Some(lsa.age()).ignore_in_testing(),
+                r#type: Some(lsa.hdr.lsa_type.to_yang()),
+                adv_router: Some(Cow::Owned(lsa.hdr.adv_rtr)),
+                seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
+                checksum: Some(lsa.hdr.cksum).ignore_in_testing(),
+                length: Some(lsa.hdr.length),
+                maxage: lsa.hdr.is_maxage().then_some(()).only_in_testing(),
+            })
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::header::lsa_options::PATH)
+        .get_object(|_instance, args| {
+            use ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::header::lsa_options::LsaOptions;
+            let lse: &LsaEntry<Ospfv2> = args.list_entry.as_interface_lsa().unwrap();
+            let lsa = &lse.data;
+            let iter = lsa.hdr.options.to_yang_bits().into_iter().map(Cow::Borrowed);
+            Box::new(LsaOptions {
+                lsa_options: Some(Box::new(iter)),
+            })
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::router_capabilities_tlv::router_informational_capabilities::PATH)
+        .get_object(|_instance, args| {
+            use ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::router_capabilities_tlv::router_informational_capabilities::RouterInformationalCapabilities;
+            let lse: &LsaEntry<Ospfv2> = args.list_entry.as_interface_lsa().unwrap();
+            let mut informational_capabilities = None;
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_opaque_as()
+                && let Some(lsa_body) = lsa_body.as_router_info()
+                && let Some(info_caps) = &lsa_body.info_caps
+            {
+                let iter = info_caps.get().to_yang_bits().into_iter().map(Cow::Borrowed);
+                informational_capabilities = Some(Box::new(iter) as _);
+            }
+            Box::new(RouterInformationalCapabilities {
+                informational_capabilities,
+            })
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::router_capabilities_tlv::informational_capabilities_flags::PATH)
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv2> = args.parent_list_entry.as_interface_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_opaque_area()
+                && let Some(lsa_body) = lsa_body.as_router_info()
+                && let Some(info_caps) = &lsa_body.info_caps
+            {
+                let info_caps = info_caps.get().bits();
+                let iter = (0..31).map(|flag| 1 << flag).filter(move |flag| info_caps & flag != 0).map(ListEntry::FlagU32);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
+        })
+        .get_object(|_instance, args| {
+            use ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::router_capabilities_tlv::informational_capabilities_flags::InformationalCapabilitiesFlags;
+            let flag = args.list_entry.as_flag_u32().unwrap();
+            Box::new(InformationalCapabilitiesFlags {
+                informational_flag: Some(*flag),
+            })
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::router_capabilities_tlv::functional_capabilities::PATH)
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv2> = args.parent_list_entry.as_interface_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_opaque_area()
+                && let Some(lsa_body) = lsa_body.as_router_info()
+                && let Some(func_caps) = &lsa_body.func_caps
+            {
+                let func_caps = func_caps.get().bits();
+                let iter = (0..31).map(|flag| 1 << flag).filter(move |flag| func_caps & flag != 0).map(ListEntry::FlagU32);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
+        })
+        .get_object(|_instance, args| {
+            use ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::router_capabilities_tlv::functional_capabilities::FunctionalCapabilities;
+            let flag = args.list_entry.as_flag_u32().unwrap();
+            Box::new(FunctionalCapabilities {
+                functional_flag: Some(*flag),
+            })
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::maximum_sid_depth_tlv::msd_type::PATH)
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv2> = args.parent_list_entry.as_interface_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_opaque_area()
+                && let Some(lsa_body) = lsa_body.as_router_info()
+                && let Some(msds) = &lsa_body.msds
+            {
+                let iter = msds.get().iter().map(|(msd_type, msd_value)| ListEntry::Msd(*msd_type, *msd_value));
+                Some(Box::new(iter))
+            } else {
+                None
+            }
+        })
+        .get_object(|_instance, args| {
+            use ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::maximum_sid_depth_tlv::msd_type::MsdType;
+            let (msd_type, msd_value) = args.list_entry.as_msd().unwrap();
+            Box::new(MsdType {
+                msd_type: Some(*msd_type),
+                msd_value: Some(*msd_value),
+            })
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::unknown_tlvs::unknown_tlv::PATH)
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv2> = args.parent_list_entry.as_interface_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_opaque_area()
+                && let Some(lsa_body) = lsa_body.as_router_info()
+            {
+                let iter = lsa_body.unknown_tlvs.iter().map(ListEntry::UnknownTlv);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
+        })
+        .get_object(|_instance, args| {
+            use ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::ri_opaque::unknown_tlvs::unknown_tlv::UnknownTlv;
+            let tlv = args.list_entry.as_unknown_tlv().unwrap();
+            Box::new(UnknownTlv {
+                r#type: Some(tlv.tlv_type),
+                length: Some(tlv.length),
+                value: Some(tlv.value.as_ref()),
             })
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::header::PATH)
@@ -2915,6 +3160,80 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             let iter = prefix_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
             Box::new(Ospfv3PrefixSidFlags {
                 flag: Some(Box::new(iter)),
+            })
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::header::PATH)
+        .get_object(|_instance, args| {
+            use ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::header::Header;
+            let lse: &LsaEntry<Ospfv3> = args.list_entry.as_interface_lsa().unwrap();
+            let lsa = &lse.data;
+            Box::new(Header {
+                lsa_id: Some(lsa.hdr.lsa_id.into()),
+                age: Some(lsa.age()).ignore_in_testing(),
+                r#type: Some(lsa.hdr.lsa_type.to_yang()),
+                adv_router: Some(Cow::Owned(lsa.hdr.adv_rtr)),
+                seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
+                checksum: Some(lsa.hdr.cksum).ignore_in_testing(),
+                length: Some(lsa.hdr.length),
+                maxage: lsa.hdr.is_maxage().then_some(()).only_in_testing(),
+            })
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::router_information::router_capabilities_tlv::router_informational_capabilities::PATH)
+        .get_object(|_instance, args| {
+            use ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::router_information::router_capabilities_tlv::router_informational_capabilities::RouterInformationalCapabilities;
+            let lse: &LsaEntry<Ospfv3> = args.list_entry.as_interface_lsa().unwrap();
+            let mut informational_capabilities = None;
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_router_info()
+                && let Some(info_caps) = &lsa_body.info_caps
+            {
+                let iter = info_caps.get().to_yang_bits().into_iter().map(Cow::Borrowed);
+                informational_capabilities = Some(Box::new(iter) as _);
+            }
+            Box::new(RouterInformationalCapabilities {
+                informational_capabilities,
+            })
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::router_information::router_capabilities_tlv::informational_capabilities_flags::PATH)
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> = args.parent_list_entry.as_interface_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_router_info()
+                && let Some(info_caps) = &lsa_body.info_caps
+            {
+                let info_caps = info_caps.get().bits();
+                let iter = (0..31).map(|flag| 1 << flag).filter(move |flag| info_caps & flag != 0).map(ListEntry::FlagU32);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
+        })
+        .get_object(|_instance, args| {
+            use ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::router_information::router_capabilities_tlv::informational_capabilities_flags::InformationalCapabilitiesFlags;
+            let flag = args.list_entry.as_flag_u32().unwrap();
+            Box::new(InformationalCapabilitiesFlags {
+                informational_flag: Some(*flag),
+            })
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::router_information::router_capabilities_tlv::functional_capabilities::PATH)
+        .get_iterate(|_instance, args| {
+            let lse: &LsaEntry<Ospfv3> = args.parent_list_entry.as_interface_lsa().unwrap();
+            let lsa = &lse.data;
+            if let Some(lsa_body) = lsa.body.as_router_info()
+                && let Some(func_caps) = &lsa_body.func_caps
+            {
+                let func_caps = func_caps.get().bits();
+                let iter = (0..31).map(|flag| 1 << flag).filter(move |flag| func_caps & flag != 0).map(ListEntry::FlagU32);
+                Some(Box::new(iter))
+            } else {
+                None
+            }
+        })
+        .get_object(|_instance, args| {
+            use ospf::areas::area::virtual_links::virtual_link::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::router_information::router_capabilities_tlv::functional_capabilities::FunctionalCapabilities;
+            let flag = args.list_entry.as_flag_u32().unwrap();
+            Box::new(FunctionalCapabilities {
+                functional_flag: Some(*flag),
             })
         })
         .path(ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::header::PATH)

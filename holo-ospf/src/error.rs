@@ -10,7 +10,7 @@ use holo_utils::DatabaseError;
 use tracing::{error, warn, warn_span};
 
 use crate::collections::{AreaId, InterfaceId, LsaEntryId, NeighborId};
-use crate::interface::ism;
+use crate::interface::{VirtualLinkKey, ism};
 use crate::neighbor::nsm;
 use crate::network::MulticastAddr;
 use crate::packet::PacketType;
@@ -42,6 +42,10 @@ pub enum Error<V: Version> {
     // SPF
     SpfRootNotFound(Ipv4Addr),
     SpfNexthopCalcError(V::VertexId),
+    // Virtual Links
+    VirtualLinkNoRoute(VirtualLinkKey),
+    VirtualLinkSrcAddr(VirtualLinkKey),
+    VirtualLinkNbrAddr(VirtualLinkKey),
     // Segment Routing
     SrgbNotFound(Ipv4Addr, Ipv4Addr),
     InvalidSidIndex(u32),
@@ -140,6 +144,11 @@ where
             Error::SpfNexthopCalcError(vertex_id) => {
                 warn!(?vertex_id, "{}", self);
             }
+            Error::VirtualLinkNoRoute(vlink_key)
+            | Error::VirtualLinkSrcAddr(vlink_key)
+            | Error::VirtualLinkNbrAddr(vlink_key) => {
+                warn!(router_id = %vlink_key.router_id, transit_area = %vlink_key.transit_area_id, "{}", self);
+            }
             Error::SrgbNotFound(area_id, router_id) => {
                 warn!(%area_id, %router_id, "{}", self);
             }
@@ -225,6 +234,15 @@ where
             }
             Error::SpfNexthopCalcError(..) => {
                 write!(f, "failed to calculate nexthop address")
+            }
+            Error::VirtualLinkNoRoute(..) => {
+                write!(f, "no route found to virtual link endpoint")
+            }
+            Error::VirtualLinkSrcAddr(..) => {
+                write!(f, "failed to compute virtual link source address")
+            }
+            Error::VirtualLinkNbrAddr(..) => {
+                write!(f, "failed to compute virtual link neighbor address")
             }
             Error::SrgbNotFound(..) => {
                 write!(f, "failed to find nexthop's neighbor SRGB")

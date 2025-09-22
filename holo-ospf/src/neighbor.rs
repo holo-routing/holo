@@ -268,6 +268,7 @@ where
                     .filter(|lse| {
                         V::lsa_type_is_valid(
                             Some(area.config.area_type),
+                            Some(iface.config.if_type),
                             options,
                             lse.data.hdr.lsa_type(),
                         )
@@ -453,7 +454,7 @@ where
                 sr::adj_sid_add(self, iface, instance);
             } else if new_state < State::TwoWay && self.state >= State::TwoWay {
                 two_way_or_higher_change = true;
-                sr::adj_sid_del_all(self, instance);
+                sr::adj_sid_del_all(self, iface, instance);
             }
 
             if two_way_or_higher_change {

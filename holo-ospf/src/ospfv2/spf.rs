@@ -200,11 +200,19 @@ impl SpfVersion<Self> for Ospfv2 {
                     .nth(parent_link_pos)
                     .ok_or(Error::SpfNexthopCalcError(dest_id))?;
 
+                // If the interface is a virtual link, do not resolve the
+                // nexthop here. Virtual link nexthops are handled later,
+                // as specified in RFC 2328 section 16.3.
+                if iface.is_virtual_link() {
+                    return Ok(nexthops);
+                }
+
                 match dest_lsa {
                     VertexLsa::Router(dest_lsa) => {
                         // Add nexthop(s).
                         match iface.config.if_type {
-                            InterfaceType::PointToPoint => {
+                            InterfaceType::PointToPoint
+                            | InterfaceType::VirtualLink => {
                                 // RFC 2328 assumes that routes using
                                 // point-to-point interfaces don't need a
                                 // nexthop address. In practice, however, it's
@@ -414,7 +422,8 @@ impl SpfVersion<Self> for Ospfv2 {
                     .links
                     .iter()
                     .filter_map(|link| match link.link_type {
-                        LsaRouterLinkType::PointToPoint => {
+                        LsaRouterLinkType::PointToPoint
+                        | LsaRouterLinkType::VirtualLink => {
                             let link_vid = VertexId::Router {
                                 router_id: link.link_id,
                             };
@@ -427,10 +436,6 @@ impl SpfVersion<Self> for Ospfv2 {
                             Some((link, link_vid, link.metric))
                         }
                         LsaRouterLinkType::StubNetwork => None,
-                        LsaRouterLinkType::VirtualLink => {
-                            // TODO: not supported yet.
-                            None
-                        }
                     })
                     .enumerate()
                     .filter_map(move |(link_pos, (link, link_vid, cost))| {

@@ -27,7 +27,7 @@ use crate::area::{self, AreaType, BACKBONE_AREA_ID};
 use crate::collections::{AreaIndex, InterfaceIndex};
 use crate::debug::InterfaceInactiveReason;
 use crate::instance::Instance;
-use crate::interface::{InterfaceType, ism};
+use crate::interface::{InterfaceType, VirtualLinkKey, ism};
 use crate::lsdb::LsaOriginateEvent;
 use crate::neighbor::nsm;
 use crate::packet::PacketType;
@@ -75,6 +75,7 @@ pub enum Event {
     GrHelperChange,
     SrEnableChange(bool),
     RerunSpf,
+    UpdateVirtualLinks,
     UpdateSummaries,
     ReinstallRoutes,
     BierEnableChange(bool),
@@ -609,6 +610,110 @@ where
             let event_queue = args.event_queue;
             event_queue.insert(Event::UpdateSummaries);
         })
+        .path(ospf::areas::area::virtual_links::virtual_link::PATH)
+        .create_apply(|instance, args| {
+            let area_idx = args.list_entry.into_area().unwrap();
+            let area = &mut instance.arenas.areas[area_idx];
+
+            let transit_area_id = args.dnode.get_ipv4_relative("transit-area-id").unwrap();
+            let router_id = args.dnode.get_ipv4_relative("router-id").unwrap();
+            let ifname = format!("vlink-{transit_area_id}-{router_id}");
+            let vlink_key = VirtualLinkKey { transit_area_id, router_id };
+            let (iface_idx, iface) = area
+                .interfaces
+                .insert(&mut instance.arenas.interfaces, ifname, Some(vlink_key));
+            iface.config.if_type = InterfaceType::VirtualLink;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::UpdateVirtualLinks);
+            event_queue.insert(Event::InterfaceUpdateTraceOptions(iface_idx));
+        })
+        .delete_apply(|_instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceDelete(area_idx, iface_idx));
+        })
+        .lookup(|instance, list_entry, dnode| {
+            let area_idx = list_entry.into_area().unwrap();
+            let area = &mut instance.arenas.areas[area_idx];
+
+            let transit_area_id = dnode.get_ipv4_relative("transit-area-id").unwrap();
+            let router_id = dnode.get_ipv4_relative("router-id").unwrap();
+            let ifname = format!("vlink-{transit_area_id}-{router_id}");
+            area.interfaces
+                .get_mut_by_name(&mut instance.arenas.interfaces, &ifname)
+                .map(|(iface_idx, _)| ListEntry::Interface(area_idx, iface_idx))
+                .expect("could not find OSPF virtual link")
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::hello_interval::PATH)
+        .modify_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let hello_interval = args.dnode.get_u16();
+            iface.config.hello_interval = hello_interval;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceResetHelloInterval(
+                area_idx, iface_idx,
+            ));
+            event_queue
+                .insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::dead_interval::PATH)
+        .modify_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let dead_interval = args.dnode.get_u16();
+            iface.config.dead_interval = dead_interval;
+
+            let event_queue = args.event_queue;
+            event_queue
+                .insert(Event::InterfaceResetDeadInterval(area_idx, iface_idx));
+            event_queue
+                .insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::retransmit_interval::PATH)
+        .modify_apply(|instance, args| {
+            let (_, iface_idx) = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let retransmit_interval = args.dnode.get_u16();
+            iface.config.retransmit_interval = retransmit_interval;
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::transmit_delay::PATH)
+        .modify_apply(|instance, args| {
+            let (_, iface_idx) = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let transmit_delay = args.dnode.get_u16();
+            iface.config.transmit_delay = transmit_delay;
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::lls::PATH)
+        .modify_apply(|instance, args| {
+            let (_area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let enabled = args.dnode.get_bool();
+            iface.config.lls_enabled = enabled;
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::enabled::PATH)
+        .modify_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let enabled = args.dnode.get_bool();
+            iface.config.enabled = enabled;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdate(area_idx, iface_idx));
+        })
         .path(ospf::areas::area::interfaces::interface::PATH)
         .create_apply(|instance, args| {
             let area_idx = args.list_entry.into_area().unwrap();
@@ -617,7 +722,7 @@ where
             let ifname = args.dnode.get_string_relative("name").unwrap();
             let (iface_idx, _) = area
                 .interfaces
-                .insert(&mut instance.arenas.interfaces, &ifname);
+                .insert(&mut instance.arenas.interfaces, ifname.clone(), None);
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InstanceUpdate);
@@ -1134,6 +1239,95 @@ where
 fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
     let core_cbs = load_callbacks();
     CallbacksBuilder::<Instance<Ospfv2>>::new(core_cbs)
+        .path(ospf::areas::area::virtual_links::virtual_link::authentication::ospfv2_key_chain::PATH)
+        .modify_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let auth_keychain = args.dnode.get_string();
+            iface.config.auth_keychain = Some(auth_keychain);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
+        .delete_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.auth_keychain = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::authentication::ospfv2_key_id::PATH)
+        .modify_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let auth_keyid = args.dnode.get_u32();
+            iface.config.auth_keyid = Some(auth_keyid);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
+        .delete_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.auth_keyid = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::authentication::ospfv2_key::PATH)
+        .modify_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let auth_key = args.dnode.get_string();
+            iface.config.auth_key = Some(auth_key);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
+        .delete_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.auth_key = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::authentication::ospfv2_crypto_algorithm::PATH)
+        .modify_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let auth_algo = args.dnode.get_string();
+            let auth_algo = CryptoAlgo::try_from_yang(&auth_algo).unwrap();
+            iface.config.auth_algo = Some(auth_algo);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
+        .delete_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.auth_algo = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
         .path(ospf::areas::area::interfaces::interface::authentication::ospfv2_key_chain::PATH)
         .modify_apply(|instance, args| {
             let (area_idx, iface_idx) =
@@ -1239,6 +1433,95 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         })
         .delete_apply(|_instance, _args| {
             // Nothing to do.
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::authentication::ospfv3_key_chain::PATH)
+        .modify_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let auth_keychain = args.dnode.get_string();
+            iface.config.auth_keychain = Some(auth_keychain);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
+        .delete_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.auth_keychain = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::authentication::ospfv3_sa_id::PATH)
+        .modify_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let auth_keyid = args.dnode.get_u16();
+            iface.config.auth_keyid = Some(auth_keyid as u32);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
+        .delete_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.auth_keyid = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::authentication::ospfv3_key::PATH)
+        .modify_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let auth_key = args.dnode.get_string();
+            iface.config.auth_key = Some(auth_key);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
+        .delete_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.auth_key = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
+        .path(ospf::areas::area::virtual_links::virtual_link::authentication::ospfv3_crypto_algorithm::PATH)
+        .modify_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let auth_algo = args.dnode.get_string();
+            let auth_algo = CryptoAlgo::try_from_yang(&auth_algo).unwrap();
+            iface.config.auth_algo = Some(auth_algo);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
+        })
+        .delete_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.auth_algo = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .path(ospf::areas::area::interfaces::interface::instance_id::PATH)
         .modify_apply(|instance, args| {
@@ -1630,7 +1913,12 @@ where
                     let iface = &mut arenas.interfaces[iface_idx];
 
                     // Cancel ibus subscription.
-                    instance.tx.ibus.interface_unsub(Some(iface.name.clone()));
+                    if !iface.is_virtual_link() {
+                        instance
+                            .tx
+                            .ibus
+                            .interface_unsub(Some(iface.name.clone()));
+                    }
 
                     // Stop interface if it's active.
                     let reason = InterfaceInactiveReason::AdminDown;
@@ -1822,7 +2110,7 @@ where
                                     sr::adj_sid_add(nbr, iface, &instance);
                                 } else {
                                     // Delete SR Adj-SIDs.
-                                    sr::adj_sid_del_all(nbr, &instance);
+                                    sr::adj_sid_del_all(nbr, iface, &instance);
                                 }
                             }
                         }
@@ -1851,6 +2139,16 @@ where
                         .tx
                         .protocol_input
                         .spf_delay_event(spf::fsm::Event::ConfigChange);
+                }
+            }
+            Event::UpdateVirtualLinks => {
+                if let Some((instance, arenas)) = self.as_up() {
+                    area::update_virtual_links(
+                        &instance,
+                        &mut arenas.areas,
+                        &mut arenas.interfaces,
+                        &arenas.lsa_entries,
+                    );
                 }
             }
             Event::UpdateSummaries => {

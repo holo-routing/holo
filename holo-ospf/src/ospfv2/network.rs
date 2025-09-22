@@ -33,7 +33,7 @@ impl NetworkVersion<Self> for Ospfv2 {
     type SocketAddr = SockaddrIn;
     type Pktinfo = libc::in_pktinfo;
 
-    fn socket(ifname: &str) -> Result<Socket, std::io::Error> {
+    fn socket(ifname: Option<&str>) -> Result<Socket, std::io::Error> {
         #[cfg(not(feature = "testing"))]
         {
             use socket2::{Domain, Protocol, Type};
@@ -45,9 +45,11 @@ impl NetworkVersion<Self> for Ospfv2 {
                     Some(Protocol::from(OSPF_IP_PROTO)),
                 )
             })?;
-            capabilities::raise(|| {
-                socket.bind_device(Some(ifname.as_bytes()))
-            })?;
+            if let Some(ifname) = ifname {
+                capabilities::raise(|| {
+                    socket.bind_device(Some(ifname.as_bytes()))
+                })?;
+            }
 
             socket.set_nonblocking(true)?;
             socket.set_multicast_loop_v4(false)?;

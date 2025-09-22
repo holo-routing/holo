@@ -13,7 +13,9 @@ use holo_utils::sr::{IgpAlgoType, Sid, SidLastHopBehavior, SrCfgEvent};
 use ipnetwork::{IpNetwork, Ipv4Network};
 use itertools::Itertools;
 
-use crate::area::{Area, AreaType, AreaVersion, OptionsLocation};
+use crate::area::{
+    Area, AreaType, AreaVersion, BACKBONE_AREA_ID, OptionsLocation,
+};
 use crate::collections::{
     AreaIndex, Arena, InterfaceIndex, LsaEntryId, LsdbId, LsdbIndex, lsdb_get,
 };
@@ -21,7 +23,9 @@ use crate::debug::LsaFlushReason;
 use crate::error::Error;
 use crate::instance::{InstanceArenas, InstanceUpView};
 use crate::interface::{Interface, InterfaceType, ism};
-use crate::lsdb::{LsaEntry, LsaOriginateEvent, LsdbVersion, MAX_LINK_METRIC};
+use crate::lsdb::{
+    self, LsaEntry, LsaOriginateEvent, LsdbVersion, MAX_LINK_METRIC,
+};
 use crate::neighbor::nsm;
 use crate::ospfv2::packet::Options;
 use crate::ospfv2::packet::lsa::{
@@ -48,6 +52,7 @@ use crate::version::Ospfv2;
 impl LsdbVersion<Self> for Ospfv2 {
     fn lsa_type_is_valid(
         area_type: Option<AreaType>,
+        if_type: Option<InterfaceType>,
         nbr_options: Option<Options>,
         lsa_type: LsaType,
     ) -> bool {
@@ -60,6 +65,17 @@ impl LsdbVersion<Self> for Ospfv2 {
         if let Some(nbr_options) = nbr_options
             && lsa_type.is_opaque()
             && !nbr_options.contains(Options::O)
+        {
+            return false;
+        }
+
+        // Reject AS-external LSAs over virtual links.
+        if let Some(if_type) = if_type
+            && if_type == InterfaceType::VirtualLink
+            && matches!(
+                lsa_type.type_code(),
+                Some(LsaTypeCode::AsExternal | LsaTypeCode::OpaqueAs)
+            )
         {
             return false;
         }
@@ -182,6 +198,15 @@ impl LsdbVersion<Self> for Ospfv2 {
                 } else {
                     lsa_flush_network(iface, area, instance, arenas);
                 }
+
+                // For virtual links, reoriginate the Router-LSA in the
+                // associated transit area.
+                if let Some(vlink_key) = &iface.vlink_key
+                    && let Some((_, transit_area)) =
+                        arenas.areas.get_by_area_id(vlink_key.transit_area_id)
+                {
+                    lsa_orig_router(transit_area, instance, arenas);
+                }
             }
             LsaOriginateEvent::NeighborTwoWayOrHigherChange {
                 area_id, ..
@@ -193,6 +218,14 @@ impl LsdbVersion<Self> for Ospfv2 {
 
                 // (Re)originate Extended Link Opaque LSA(s).
                 lsa_orig_ext_link(area, instance, arenas);
+            }
+            LsaOriginateEvent::VirtualLinkChange => {
+                // (Re)originate Router-LSA in the backbone area.
+                if let Some((_, backbone)) =
+                    arenas.areas.get_by_area_id(BACKBONE_AREA_ID)
+                {
+                    lsa_orig_router(backbone, instance, arenas);
+                }
             }
             LsaOriginateEvent::SelfOriginatedLsaRcvd { lsdb_id, lse_id } => {
                 // Check if the received self-originated LSA needs to be
@@ -388,6 +421,9 @@ fn lsa_orig_router(
     if arenas.areas.is_abr(&arenas.interfaces) {
         flags.insert(LsaRouterFlags::B);
     }
+    if lsdb::router_lsa_v_bit(area, arenas) {
+        flags.insert(LsaRouterFlags::V);
+    }
 
     // Router-LSA's links.
     let mut links = vec![];
@@ -397,8 +433,6 @@ fn lsa_orig_router(
         // Skip interfaces in the "Down" state.
         .filter(|iface| !iface.is_down())
     {
-        let primary_addr = iface.system.primary_addr.unwrap();
-
         // Add Type-3 (stub) links to interfaces in Loopback state.
         if iface.state.ism_state == ism::State::Loopback {
             links.extend(iface.system.addr_list.iter().map(|addr| {
@@ -424,6 +458,7 @@ fn lsa_orig_router(
         match iface.config.if_type {
             InterfaceType::PointToPoint | InterfaceType::PointToMultipoint => {
                 // Add a Type-1 link (p2p) for each fully adjacent neighbor.
+                let primary_addr = iface.system.primary_addr.unwrap();
                 for nbr in iface
                     .state
                     .neighbors
@@ -450,6 +485,7 @@ fn lsa_orig_router(
                 }
             }
             InterfaceType::Broadcast | InterfaceType::NonBroadcast => {
+                let primary_addr = iface.system.primary_addr.unwrap();
                 if iface.state.ism_state == ism::State::Waiting {
                     // Add Type-3 (stub) links.
                     add_stub_links = true;
@@ -484,6 +520,21 @@ fn lsa_orig_router(
                 } else {
                     // Add Type-3 (stub) links.
                     add_stub_links = true;
+                }
+            }
+            InterfaceType::VirtualLink => {
+                if let Some(nbr) =
+                    iface.state.neighbors.iter(&arenas.neighbors).next()
+                    && nbr.state == nsm::State::Full
+                {
+                    let vlink_state = iface.state.vlink.as_ref().unwrap();
+                    let link = LsaRouterLink::new(
+                        LsaRouterLinkType::VirtualLink,
+                        nbr.router_id,
+                        iface.state.src_addr.unwrap(),
+                        vlink_state.cost as u16,
+                    );
+                    links.push(link);
                 }
             }
         }
@@ -847,6 +898,9 @@ fn lsa_orig_ext_link(
                         );
                         originate_fn(link_tlv);
                     };
+                }
+                InterfaceType::VirtualLink => {
+                    // Ignore virtual links.
                 }
             }
         }

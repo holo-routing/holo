@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use chrono::Utc;
 
-use crate::area::{Area, AreaType};
+use crate::area::{Area, AreaType, BACKBONE_AREA_ID};
 use crate::collections::{
     AreaIndex, AreaKey, Arena, InterfaceIndex, InterfaceKey, LsaEntryKey,
     LsdbIndex, LsdbKey, NeighborIndex, NeighborKey, lsdb_get, lsdb_get_mut,
@@ -22,7 +22,7 @@ use crate::error::{Error, InterfaceCfgError};
 use crate::flood::flood;
 use crate::gr::GrExitReason;
 use crate::instance::{InstanceArenas, InstanceUpView};
-use crate::interface::{Interface, ism};
+use crate::interface::{Interface, VirtualLinkKey, ism};
 use crate::lsdb::{
     self, LsaEntry, LsaEntryFlags, LsaOriginateEvent, lsa_compare,
 };
@@ -121,10 +121,9 @@ where
     V: Version,
 {
     // Lookup area and interface.
-    let (area_idx, area) = arenas.areas.get_mut_by_key(&area_key)?;
-    let (iface_idx, iface) = area
-        .interfaces
-        .get_mut_by_key(&mut arenas.interfaces, &iface_key)?;
+    let (area_idx, area) = arenas.areas.get_by_key(&area_key)?;
+    let (iface_idx, iface) =
+        area.interfaces.get_by_key(&arenas.interfaces, &iface_key)?;
 
     // Check if the packet was decoded successfully.
     let packet = match packet {
@@ -134,9 +133,30 @@ where
             return Err(Error::PacketDecodeError(error));
         }
     };
+    let pkt_type = packet.hdr().pkt_type();
 
     // Ignore packets received on inoperational or passive interfaces.
     if iface.is_down() || iface.is_passive() {
+        return Ok(());
+    }
+
+    // Check the packet's Area ID and determine the interface it should be
+    // processed on. If the Area ID matches, the packet stays on the current
+    // interface. Otherwise, if it is destined for the backbone, an attempt is
+    // made to map it to a virtual link interface.
+    let (area_idx, iface_idx) = process_packet_resolve_interface(
+        area_idx,
+        iface_idx,
+        packet.hdr(),
+        arenas,
+    )
+    .map_err(|error| {
+        let iface = &mut arenas.interfaces[iface_idx];
+        Error::InterfaceCfgError(iface.name.clone(), src, pkt_type, error)
+    })?;
+    let area = &mut arenas.areas[area_idx];
+    let iface = &mut arenas.interfaces[iface_idx];
+    if iface.is_virtual_link() && iface.is_down() {
         return Ok(());
     }
 
@@ -145,20 +165,6 @@ where
 
     // Validate IP source address.
     V::validate_packet_src(iface, src)?;
-
-    // Check for Area ID mismatch.
-    let pkt_type = packet.hdr().pkt_type();
-    if packet.hdr().area_id() != area.area_id {
-        return Err(Error::InterfaceCfgError(
-            iface.name.clone(),
-            src,
-            pkt_type,
-            InterfaceCfgError::AreaIdMismatch(
-                packet.hdr().area_id(),
-                area.area_id,
-            ),
-        ));
-    }
 
     // OSPFv3: check for Instance ID mismatch.
     if !V::packet_instance_id_match(iface, packet.hdr()) {
@@ -241,6 +247,53 @@ where
             Packet::LsAck(pkt) => process_packet_lsack(nbr, instance, pkt),
         }
     }
+}
+
+pub(crate) fn process_packet_resolve_interface<V>(
+    area_idx: AreaIndex,
+    iface_idx: InterfaceIndex,
+    packet_hdr: &V::PacketHdr,
+    arenas: &mut InstanceArenas<V>,
+) -> Result<(AreaIndex, InterfaceIndex), InterfaceCfgError>
+where
+    V: Version,
+{
+    let is_abr = arenas.areas.is_abr(&arenas.interfaces);
+    let area = &arenas.areas[area_idx];
+
+    // Case 1 (RFC 2328 8.2): The Area ID in the packet header matches the
+    // receiving interface's Area ID.
+    if packet_hdr.area_id() == area.area_id {
+        return Ok((area_idx, iface_idx));
+    }
+
+    // Case 2 (RFC 2328 8.2): The Area ID in the packet header is the backbone.
+    // In this case, the packet may have come over a virtual link. The router
+    // must be an ABR, the Router ID in the packet header must be the other end
+    // of a configured virtual link, and the receiving interface must belong to
+    // the virtual link's transit area.
+    if packet_hdr.area_id() == BACKBONE_AREA_ID
+        && is_abr
+        && let Some((backbone_idx, backbone)) =
+            arenas.areas.get_by_area_id(BACKBONE_AREA_ID)
+    {
+        let vlink_key = VirtualLinkKey {
+            transit_area_id: area.area_id,
+            router_id: packet_hdr.router_id(),
+        };
+        if let Some((vlink_idx, _)) = backbone
+            .interfaces
+            .get_by_vlink_key(&arenas.interfaces, &vlink_key)
+        {
+            return Ok((backbone_idx, vlink_idx));
+        }
+    }
+
+    // Otherwise: Area ID mismatch.
+    Err(InterfaceCfgError::AreaIdMismatch(
+        packet_hdr.area_id(),
+        area.area_id,
+    ))
 }
 
 fn process_packet_hello<V>(
@@ -444,7 +497,10 @@ where
     V: Version,
 {
     // MTU mismatch check.
-    if !iface.config.mtu_ignore && dbdesc.mtu() > iface.system.mtu.unwrap() {
+    if !iface.is_virtual_link()
+        && !iface.config.mtu_ignore
+        && dbdesc.mtu() > iface.system.mtu.unwrap()
+    {
         return Err(Error::InterfaceCfgError(
             iface.name.clone(),
             src,
@@ -563,6 +619,7 @@ where
         // Check if the LSA is valid for this area and neighbor.
         if !V::lsa_type_is_valid(
             Some(area.config.area_type),
+            Some(iface.config.if_type),
             nbr.options,
             lsa_hdr.lsa_type(),
         ) {
@@ -791,6 +848,7 @@ where
     // (2-3) Check if the LSA type is valid for this area and neighbor.
     if !V::lsa_type_is_valid(
         Some(area.config.area_type),
+        Some(iface.config.if_type),
         nbr.options,
         lsa.hdr.lsa_type(),
     ) {

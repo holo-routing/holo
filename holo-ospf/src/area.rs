@@ -12,12 +12,13 @@ use derive_new::new;
 use holo_utils::ip::IpNetworkKind;
 
 use crate::collections::{
-    AreaId, AreaIndex, Areas, Arena, Interfaces, Lsdb, LsdbId,
+    AreaId, AreaIndex, Areas, Arena, InterfaceIndex, Interfaces, Lsdb, LsdbId,
 };
-use crate::debug::LsaFlushReason;
+use crate::debug::{Debug, InterfaceInactiveReason, LsaFlushReason};
+use crate::error::Error;
 use crate::instance::InstanceUpView;
-use crate::interface::Interface;
-use crate::lsdb::{LSA_INFINITY, LsaEntry, LsaEntryFlags};
+use crate::interface::{Interface, VirtualLinkState, ism};
+use crate::lsdb::{LSA_INFINITY, LsaEntry, LsaEntryFlags, LsaOriginateEvent};
 use crate::northbound::configuration::{AreaCfg, RangeCfg};
 use crate::packet::PacketType;
 use crate::packet::lsa::{LsaKey, LsaRouterFlagsVersion};
@@ -109,6 +110,21 @@ pub trait AreaVersion<V: Version> {
         area: &Area<V>,
         location: OptionsLocation,
     ) -> V::PacketOptions;
+
+    // Get virtual link source address.
+    fn vlink_source_addr(
+        area: &Area<V>,
+        route_br: &RouteRtr<V>,
+        interfaces: &Arena<Interface<V>>,
+    ) -> Option<V::NetIpAddr>;
+
+    // Get virtual link neighbor address.
+    fn vlink_neighbor_addr(
+        area: &Area<V>,
+        router_id: Ipv4Addr,
+        extended_lsa: bool,
+        lsa_entries: &Arena<LsaEntry<V>>,
+    ) -> Option<V::NetIpAddr>;
 }
 
 // ===== impl Area =====
@@ -188,6 +204,53 @@ where
 
 // ===== global functions =====
 
+pub(crate) fn update_virtual_links<V>(
+    instance: &InstanceUpView<'_, V>,
+    areas: &mut Areas<V>,
+    interfaces: &mut Arena<Interface<V>>,
+    lsa_entries: &Arena<LsaEntry<V>>,
+) where
+    V: Version,
+{
+    // Lookup backbone area.
+    let Some((_, backbone)) = areas.get_by_area_id(BACKBONE_AREA_ID) else {
+        return;
+    };
+
+    // Iterate over all interfaces assigned to the backbone area.
+    for iface_idx in backbone.interfaces.indexes() {
+        let iface = &interfaces[iface_idx];
+
+        // Skip non-virtual link interfaces.
+        if !iface.is_virtual_link() {
+            continue;
+        }
+
+        // Update virtual link.
+        if let Err(error) = update_virtual_link(
+            iface_idx,
+            instance,
+            backbone,
+            areas,
+            interfaces,
+            lsa_entries,
+        ) {
+            error.log();
+
+            // If the virtual link was previously operational, bring it down.
+            let vlink = &interfaces[iface_idx];
+            if !vlink.is_down() {
+                let reason = InterfaceInactiveReason::OperationalDown;
+                instance.tx.protocol_input.ism_event(
+                    backbone.id,
+                    vlink.id,
+                    ism::Event::InterfaceDown(reason),
+                );
+            }
+        }
+    }
+}
+
 pub(crate) fn update_summary_lsas<V>(
     instance: &mut InstanceUpView<'_, V>,
     areas: &mut Areas<V>,
@@ -214,6 +277,117 @@ pub(crate) fn update_summary_lsas<V>(
         update_net_summary_lsas(area_idx, is_abr, instance, areas, lsa_entries);
         update_rtr_summary_lsas(area_idx, is_abr, instance, areas, lsa_entries);
     }
+}
+
+// ===== helper functions =====
+
+fn update_virtual_link<V>(
+    vlink_idx: InterfaceIndex,
+    instance: &InstanceUpView<'_, V>,
+    backbone: &Area<V>,
+    areas: &Areas<V>,
+    interfaces: &mut Arena<Interface<V>>,
+    lsa_entries: &Arena<LsaEntry<V>>,
+) -> Result<(), Error<V>>
+where
+    V: Version,
+{
+    let vlink = &interfaces[vlink_idx];
+    let vlink_key = vlink.vlink_key.unwrap();
+
+    // Check if there's a route to the virtual link endpoint.
+    let (_, area) = areas
+        .get_by_area_id(vlink_key.transit_area_id)
+        .ok_or(Error::VirtualLinkNoRoute(vlink_key))?;
+    let route_br = area
+        .state
+        .routers
+        .get(&vlink_key.router_id)
+        .filter(|route_br| route_br.flags.is_abr())
+        .ok_or(Error::VirtualLinkNoRoute(vlink_key))?;
+
+    // Compute virtual link source address.
+    let Some(src_addr) = V::vlink_source_addr(area, route_br, interfaces)
+    else {
+        return Err(Error::VirtualLinkSrcAddr(vlink_key));
+    };
+
+    // Compute virtual link neighbor address.
+    let Some(nbr_addr) = V::vlink_neighbor_addr(
+        area,
+        vlink_key.router_id,
+        instance.config.extended_lsa,
+        lsa_entries,
+    ) else {
+        return Err(Error::VirtualLinkNbrAddr(vlink_key));
+    };
+
+    // Get cost to the endpoint.
+    let cost = route_br.metric;
+
+    // Check for dynamic parameter changes.
+    let vlink = &mut interfaces[vlink_idx];
+    let mut update_hello_interval = false;
+    let mut update_router_lsa = false;
+    if !vlink.is_down()
+        && let Some(vlink_state) = &vlink.state.vlink
+    {
+        if vlink_state.nbr_addr != nbr_addr {
+            Debug::<V>::VirtualLinkNbrAddrChange(
+                &vlink_key,
+                vlink_state.nbr_addr,
+                nbr_addr,
+            )
+            .log();
+            update_hello_interval = true;
+        }
+        if vlink.state.src_addr != Some(src_addr) {
+            Debug::<V>::VirtualLinkSrcAddrChange(
+                &vlink_key,
+                vlink.state.src_addr.unwrap(),
+                src_addr,
+            )
+            .log();
+            update_router_lsa = true;
+        }
+        if vlink_state.cost != cost {
+            Debug::<V>::VirtualLinkCostChange(
+                &vlink_key,
+                vlink_state.cost,
+                cost,
+            )
+            .log();
+            update_router_lsa = true;
+        }
+    }
+
+    // Update virtual link dynamic parameters.
+    vlink.state.src_addr = Some(src_addr);
+    vlink.state.vlink = Some(VirtualLinkState { nbr_addr, cost });
+
+    if vlink.is_down() {
+        // Bring the virtual link up.
+        instance.tx.protocol_input.ism_event(
+            backbone.id,
+            vlink.id,
+            ism::Event::InterfaceUp,
+        );
+    } else {
+        // Restart virtual-link's Hello Tx task if necessary.
+        if update_hello_interval {
+            vlink.hello_interval_start(backbone, instance);
+        }
+
+        // Reoriginate backbone Router LSA if necessary.
+        if update_router_lsa {
+            instance
+                .tx
+                .protocol_input
+                .lsa_orig_event(LsaOriginateEvent::VirtualLinkChange);
+        }
+    }
+
+    Ok(())
 }
 
 fn update_net_ranges<V>(

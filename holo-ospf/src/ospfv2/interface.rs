@@ -6,7 +6,7 @@
 
 use std::net::Ipv4Addr;
 
-use holo_utils::ip::AddressFamily;
+use holo_utils::ip::{AddressFamily, Ipv4AddrExt};
 
 use crate::area::{Area, AreaVersion, OptionsLocation};
 use crate::collections::{Arena, NeighborIndex};
@@ -17,6 +17,7 @@ use crate::interface::{
     self, Interface, InterfaceSys, InterfaceType, InterfaceVersion,
 };
 use crate::neighbor::{Neighbor, NeighborVersion};
+use crate::network::{MulticastAddr, NetworkVersion};
 use crate::ospfv2;
 use crate::ospfv2::packet::{Hello, PacketHdr};
 use crate::packet::auth::AuthMethod;
@@ -55,6 +56,12 @@ impl InterfaceVersion<Self> for Ospfv2 {
             auth_seqno: None,
         };
 
+        let network_mask = if iface.is_virtual_link() {
+            Ipv4Addr::UNSPECIFIED
+        } else {
+            iface.system.primary_addr.unwrap().mask()
+        };
+
         let lls = if iface.config.lls_enabled {
             // TODO: Get LLS configuration
             None
@@ -64,7 +71,7 @@ impl InterfaceVersion<Self> for Ospfv2 {
 
         Packet::Hello(Hello {
             hdr,
-            network_mask: iface.system.primary_addr.unwrap().mask(),
+            network_mask,
             hello_interval: iface.config.hello_interval,
             options: Self::area_options(
                 area,
@@ -87,23 +94,48 @@ impl InterfaceVersion<Self> for Ospfv2 {
         iface: &Interface<Self>,
         dst: Ipv4Addr,
     ) -> Result<(), Error<Self>> {
+        // Accept only unicast packets on virtual links.
+        if iface.is_virtual_link() {
+            if dst.is_multicast() {
+                return Err(Error::InvalidDstAddr(dst));
+            } else {
+                return Ok(());
+            }
+        }
+
         // Check if the destination matches the interface primary address.
         if dst == iface.system.primary_addr.unwrap().ip() {
             return Ok(());
         }
 
-        interface::validate_packet_dst_common(iface, dst)
+        // Check if the destination matches AllSPFRouters.
+        if dst == *Self::multicast_addr(MulticastAddr::AllSpfRtrs) {
+            return Ok(());
+        }
+
+        // Packets whose IP destination is AllDRouters should only be accepted
+        // if the state of the receiving interface is DR or Backup.
+        if dst == *Self::multicast_addr(MulticastAddr::AllDrRtrs)
+            && iface.is_dr_or_backup()
+        {
+            return Ok(());
+        }
+
+        Err(Error::InvalidDstAddr(dst))
     }
 
     fn validate_packet_src(
         iface: &Interface<Self>,
         src: Ipv4Addr,
     ) -> Result<(), Error<Self>> {
-        interface::validate_packet_src_common(iface, src)?;
+        if !src.is_usable() {
+            return Err(Error::InvalidSrcAddr(src));
+        }
 
         // The packet's IP source address is required to be on the same
         // network as the receiving interface.
         if iface.config.if_type != InterfaceType::PointToPoint
+            && iface.config.if_type != InterfaceType::VirtualLink
             && !iface.system.primary_addr.unwrap().contains(src)
         {
             return Err(Error::InvalidSrcAddr(src));
@@ -124,14 +156,21 @@ impl InterfaceVersion<Self> for Ospfv2 {
         iface: &Interface<Self>,
         hello: &ospfv2::packet::Hello,
     ) -> Result<(), InterfaceCfgError> {
-        if iface.config.if_type != InterfaceType::PointToPoint {
-            // Validate the Hello Network mask field.
-            let iface_addrmask = iface.system.primary_addr.unwrap().mask();
-            if hello.network_mask != iface_addrmask {
-                return Err(InterfaceCfgError::HelloMaskMismatch(
-                    hello.network_mask,
-                    iface_addrmask,
-                ));
+        match iface.config.if_type {
+            InterfaceType::PointToPoint | InterfaceType::VirtualLink => {
+                // Nothing to validate.
+            }
+            InterfaceType::PointToMultipoint
+            | InterfaceType::Broadcast
+            | InterfaceType::NonBroadcast => {
+                // Validate the Hello Network mask field.
+                let iface_addrmask = iface.system.primary_addr.unwrap().mask();
+                if hello.network_mask != iface_addrmask {
+                    return Err(InterfaceCfgError::HelloMaskMismatch(
+                        hello.network_mask,
+                        iface_addrmask,
+                    ));
+                }
             }
         }
 
@@ -139,9 +178,16 @@ impl InterfaceVersion<Self> for Ospfv2 {
     }
 
     fn max_packet_size(iface: &Interface<Self>) -> u16 {
+        const VIRTUAL_LINK_MTU: u16 = 576;
         const IPV4_HDR_SIZE: u16 = 20;
 
-        let mut max = iface.system.mtu.unwrap() - IPV4_HDR_SIZE;
+        let mtu = if iface.is_virtual_link() {
+            VIRTUAL_LINK_MTU
+        } else {
+            iface.system.mtu.unwrap()
+        };
+
+        let mut max = mtu - IPV4_HDR_SIZE;
 
         // Reserve space for the message digest when authentication is enabled.
         if let Some(auth) = &iface.state.auth {
@@ -165,7 +211,7 @@ impl InterfaceVersion<Self> for Ospfv2 {
         neighbors: &'a mut Arena<Neighbor<Self>>,
     ) -> Option<(NeighborIndex, &'a mut Neighbor<Self>)> {
         match iface.config.if_type {
-            InterfaceType::PointToPoint => {
+            InterfaceType::PointToPoint | InterfaceType::VirtualLink => {
                 // If the receiving interface connects to a point-to-point
                 // network or a virtual link, the sender is identified by the
                 // Router ID (source router) found in the packet's OSPF header.

@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{debug, debug_span};
 
 use crate::gr::GrExitReason;
-use crate::interface::{Interface, ism};
+use crate::interface::{Interface, VirtualLinkKey, ism};
 use crate::neighbor::{NeighborNetId, nsm};
 use crate::packet::Packet;
 use crate::packet::error::LsaValidationError;
@@ -49,6 +49,10 @@ pub enum Debug<'a, V: Version> {
         Option<NeighborNetId>,
         Option<NeighborNetId>,
     ),
+    // Virtual links
+    VirtualLinkSrcAddrChange(&'a VirtualLinkKey, V::NetIpAddr, V::NetIpAddr),
+    VirtualLinkNbrAddrChange(&'a VirtualLinkKey, V::NetIpAddr, V::NetIpAddr),
+    VirtualLinkCostChange(&'a VirtualLinkKey, u32, u32),
     // Neighbors
     NeighborCreate(Ipv4Addr),
     NeighborDelete(Ipv4Addr),
@@ -221,6 +225,19 @@ where
                 // Parent span(s): ospf-instance
                 debug_span!("interface", %name).in_scope(|| {
                     debug!(?old_dr, ?new_dr, ?old_bdr, ?new_bdr, "{}", self);
+                })
+            }
+            Debug::VirtualLinkSrcAddrChange(vlink_key, old, new)
+            | Debug::VirtualLinkNbrAddrChange(vlink_key, old, new) => {
+                // Parent span(s): ospf-instance
+                debug_span!("virtual-link", router_id = %vlink_key.router_id, transit_area = %vlink_key.transit_area_id).in_scope(|| {
+                    debug!(%old, %new, "{}", self);
+                })
+            }
+            Debug::VirtualLinkCostChange(vlink_key, old, new) => {
+                // Parent span(s): ospf-instance
+                debug_span!("virtual-link", router_id = %vlink_key.router_id, transit_area = %vlink_key.transit_area_id).in_scope(|| {
+                    debug!(%old, %new, "{}", self);
                 })
             }
             Debug::NeighborCreate(router_id)
@@ -404,6 +421,15 @@ where
             }
             Debug::IsmDrElection(..) => {
                 write!(f, "DR election")
+            }
+            Debug::VirtualLinkSrcAddrChange(..) => {
+                write!(f, "virtual link source address changed")
+            }
+            Debug::VirtualLinkNbrAddrChange(..) => {
+                write!(f, "virtual link neighbor address changed")
+            }
+            Debug::VirtualLinkCostChange(..) => {
+                write!(f, "virtual link cost changed")
             }
             Debug::NeighborCreate(..) => {
                 write!(f, "neighbor created")

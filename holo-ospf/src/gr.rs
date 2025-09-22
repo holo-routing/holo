@@ -140,7 +140,12 @@ pub(crate) fn helper_process_topology_change<V>(
 
                 // Check if the LSA was flooded to the neighbor.
                 if let Some(lsa_type) = lsa_type
-                    && !V::lsa_type_is_valid(Some(area_type), None, lsa_type)
+                    && !V::lsa_type_is_valid(
+                        Some(area_type),
+                        Some(iface.config.if_type),
+                        None,
+                        lsa_type,
+                    )
                 {
                     continue;
                 }

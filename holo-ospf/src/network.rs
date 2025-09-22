@@ -47,7 +47,10 @@ pub trait NetworkVersion<V: Version> {
     type Pktinfo: Send + Sync;
 
     // Create OSPF socket.
-    fn socket(ifname: &str) -> Result<Socket, std::io::Error>;
+    //
+    // The socket may be bound to a specific network interface if `ifname` is
+    // provided. Binding to an interface must not occur for virtual links.
+    fn socket(ifname: Option<&str>) -> Result<Socket, std::io::Error>;
 
     // Enable or disable checksum offloading.
     fn set_cksum_offloading(

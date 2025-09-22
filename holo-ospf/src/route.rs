@@ -178,6 +178,14 @@ pub(crate) fn update_rib_full<V>(
         update_rib_inter_area_routers(None, area, instance, lsa_entries);
     }
 
+    // Check transit areas for potentially shorter paths.
+    for area in areas
+        .iter_mut()
+        .filter(|area| area.state.transit_capability)
+    {
+        update_rib_transit_area(&mut rib, area, instance, lsa_entries);
+    }
+
     // Compute external routes.
     update_rib_external(&mut rib, None, instance, areas, lsa_entries);
 
@@ -281,6 +289,14 @@ pub(crate) fn update_rib_partial<V>(
                 lsa_entries,
             );
         }
+    }
+
+    // Check transit areas for potentially shorter paths.
+    for area in areas
+        .iter_mut()
+        .filter(|area| area.state.transit_capability)
+    {
+        update_rib_transit_area(&mut rib, area, instance, lsa_entries);
     }
 
     // Check for external changes.
@@ -517,6 +533,131 @@ fn update_rib_inter_area_networks<V>(
 
         // Try to add or update summary route in the RIB.
         route_update(rib, lsa.prefix, new_route, instance.config.max_paths);
+    }
+}
+
+// Checks the transit area for potentially shorter paths than previously
+// computed ones, and resolves next-hop addresses for virtual links.
+fn update_rib_transit_area<V>(
+    rib: &mut BTreeMap<V::IpNetwork, RouteNet<V>>,
+    area: &Area<V>,
+    instance: &InstanceUpView<'_, V>,
+    lsa_entries: &Arena<LsaEntry<V>>,
+) where
+    V: Version,
+{
+    // Examine all Type-3 Summary/Inter-Area-Network LSAs.
+    let extended_lsa = instance.config.extended_lsa;
+    let router_id = instance.state.router_id;
+    for lsa in V::inter_area_networks(area, extended_lsa, lsa_entries)
+        // Filter out unreachable LSAs.
+        .filter(|lsa| lsa.metric < LSA_INFINITY)
+        // Filter out LSAs originated by the calculating router itself.
+        .filter(|lsa| lsa.adv_rtr != router_id)
+    {
+        // We update only existing intra-area or inter-area routes.
+        let Some(curr_route) = rib.get_mut(&lsa.prefix) else {
+            continue;
+        };
+        if !matches!(
+            curr_route.path_type,
+            PathType::IntraArea | PathType::InterArea,
+        ) || curr_route.area_id != Some(BACKBONE_AREA_ID)
+        {
+            continue;
+        }
+
+        // Look up the routing table entry for BR having Area A as its
+        // associated area.
+        let route_br = match area
+            .state
+            .routers
+            .get(&lsa.adv_rtr)
+            .filter(|route| route.flags.is_abr())
+        {
+            Some(route_br) => route_br,
+            None => {
+                // If no such entry exists for router BR, do nothing with this
+                // LSA and consider the next in the list.
+                if instance.config.trace_opts.spf {
+                    Debug::<V>::SpfNetworkUnreachableAbr(
+                        &lsa.prefix,
+                        lsa.adv_rtr,
+                    )
+                    .log();
+                }
+                continue;
+            }
+        };
+
+        // The inter-area path cost is the distance to BR plus the cost
+        // specified in the LSA.
+        let metric = route_br.metric + lsa.metric;
+
+        // Create new inter-area route.
+        let mut new_route = RouteNet {
+            prefix_options: lsa.prefix_options,
+            area_id: Some(area.area_id),
+            path_type: PathType::InterArea,
+            origin: None,
+            metric,
+            type2_metric: None,
+            tag: None,
+            prefix_sid: None,
+            sr_label: None,
+            nexthops: route_br.nexthops.clone(),
+            flags: RouteNetFlags::empty(),
+            bier_info: None,
+        };
+
+        // Update route's Prefix-SID (if any).
+        if instance.config.sr_enabled
+            && let Some(prefix_sid) = lsa.prefix_sids.get(&IgpAlgoType::Spf)
+        {
+            sr::prefix_sid_update(
+                area,
+                instance,
+                lsa.adv_rtr,
+                &mut new_route,
+                prefix_sid,
+                false,
+                false,
+                lsa_entries,
+            );
+        }
+
+        // Update route in the RIB.
+        match &new_route.metric.cmp(&curr_route.metric) {
+            Ordering::Less => {
+                // Overwrite the current routing table entry, but preserve
+                // the flag indicating whether the route is installed or
+                // not.
+                let installed =
+                    curr_route.flags.contains(RouteNetFlags::INSTALLED);
+                *curr_route = new_route;
+                if installed {
+                    curr_route.flags.insert(RouteNetFlags::INSTALLED);
+                }
+            }
+            Ordering::Equal => {
+                // Merge nexthops.
+                curr_route.nexthops.extend(new_route.nexthops);
+            }
+            Ordering::Greater => {
+                // Ignore less preferred route.
+            }
+        }
+
+        // Honor configured maximum number of ECMP paths.
+        let max_paths = instance.config.max_paths;
+        if curr_route.nexthops.len() > max_paths as usize {
+            curr_route.nexthops = curr_route
+                .nexthops
+                .iter()
+                .map(|(k, v)| (*k, *v))
+                .take(max_paths as usize)
+                .collect();
+        }
     }
 }
 

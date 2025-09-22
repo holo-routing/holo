@@ -84,6 +84,11 @@ pub(crate) fn adj_sid_add<V>(
 ) where
     V: Version,
 {
+    // Ignore virtual links.
+    if iface.is_virtual_link() {
+        return;
+    }
+
     let mut label_manager = instance.shared.label_manager.lock().unwrap();
     let label = label_manager.label_request().unwrap();
     let nbr_router_id = iface.is_broadcast_or_nbma().then_some(nbr.router_id);
@@ -95,10 +100,16 @@ pub(crate) fn adj_sid_add<V>(
 // Deletes all Adj-SIDs associated to the provided neighbor.
 pub(crate) fn adj_sid_del_all<V>(
     nbr: &mut Neighbor<V>,
+    iface: &Interface<V>,
     instance: &InstanceUpView<'_, V>,
 ) where
     V: Version,
 {
+    // Ignore virtual links.
+    if iface.is_virtual_link() {
+        return;
+    }
+
     let adj_sids = std::mem::take(&mut nbr.adj_sids);
     for label in adj_sids
         .into_iter()

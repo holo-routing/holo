@@ -189,6 +189,13 @@ impl SpfVersion<Self> for Ospfv3 {
                     .get_by_ifindex(interfaces, parent_link.iface_id as _)
                     .ok_or(Error::SpfNexthopCalcError(dest_id))?;
 
+                // If the interface is a virtual link, do not resolve the
+                // nexthop here. Virtual link nexthops are handled later,
+                // as specified in RFC 2328 section 16.3.
+                if iface.is_virtual_link() {
+                    return Ok(nexthops);
+                }
+
                 match dest_lsa {
                     VertexLsa::Router(dest_lsa) => {
                         let nexthop_addr = calc_nexthop_lladdr(
@@ -371,23 +378,20 @@ impl SpfVersion<Self> for Ospfv3 {
                     .iter()
                     .map(|lsa| lsa.body.as_router().unwrap())
                     .flat_map(|lsa| lsa.links.iter())
-                    .filter_map(|link| match link.link_type {
-                        LsaRouterLinkType::PointToPoint => {
+                    .map(|link| match link.link_type {
+                        LsaRouterLinkType::PointToPoint
+                        | LsaRouterLinkType::VirtualLink => {
                             let link_vid = VertexId::Router {
                                 router_id: link.nbr_router_id,
                             };
-                            Some((link, link_vid, link.metric))
+                            (link, link_vid, link.metric)
                         }
                         LsaRouterLinkType::TransitNetwork => {
                             let link_vid = VertexId::Network {
                                 router_id: link.nbr_router_id,
                                 iface_id: link.nbr_iface_id,
                             };
-                            Some((link, link_vid, link.metric))
-                        }
-                        LsaRouterLinkType::VirtualLink => {
-                            // TODO: not supported yet.
-                            None
+                            (link, link_vid, link.metric)
                         }
                     })
                     .enumerate()

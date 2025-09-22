@@ -19,7 +19,7 @@ use holo_utils::task::TimeoutTask;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::area::{Area, AreaType};
+use crate::area::{Area, AreaType, BACKBONE_AREA_ID};
 use crate::collections::{
     AreaId, AreaIndex, Areas, Arena, InterfaceId, InterfaceIndex, LsaEntryId,
     LsaEntryIndex, LsdbId, LsdbIndex, lsdb_index_mut,
@@ -28,7 +28,8 @@ use crate::debug::{Debug, LsaFlushReason};
 use crate::error::Error;
 use crate::flood::flood;
 use crate::instance::{InstanceArenas, InstanceUpView};
-use crate::interface::Interface;
+use crate::interface::{Interface, InterfaceType};
+use crate::neighbor::nsm;
 use crate::packet::lsa::{
     Lsa, LsaBodyVersion, LsaHdrVersion, LsaKey, LsaTypeVersion,
 };
@@ -107,6 +108,7 @@ pub enum LsaOriginateEvent {
         area_id: AreaId,
         iface_id: InterfaceId,
     },
+    VirtualLinkChange,
     LinkLsaRcvd {
         area_id: AreaId,
         iface_id: InterfaceId,
@@ -168,6 +170,7 @@ pub trait LsdbVersion<V: Version> {
     // Check if the provided area and/or neighbor can accept the given LSA type.
     fn lsa_type_is_valid(
         area_type: Option<AreaType>,
+        if_type: Option<InterfaceType>,
         nbr_options: Option<V::PacketOptions>,
         lsa_type: V::LsaType,
     ) -> bool;
@@ -849,4 +852,39 @@ fn log_lsa<V>(
 
     // Remove old entries if necessary.
     instance.state.lsa_log.truncate(LSA_LOG_MAX_SIZE);
+}
+
+// Determines whether the Router-LSA V-bit should be set for the given area.
+pub(crate) fn router_lsa_v_bit<V>(
+    area: &Area<V>,
+    arenas: &InstanceArenas<V>,
+) -> bool
+where
+    V: Version,
+{
+    // V-bit cannot be set for the backbone itself.
+    if area.is_backbone() {
+        return false;
+    }
+
+    // Look up the backbone area, which contains the virtual links.
+    let Some((_, backbone)) = arenas.areas.get_by_area_id(BACKBONE_AREA_ID)
+    else {
+        return false;
+    };
+
+    // The V-bit is set if this area is the transit area for a virtual link
+    // and that virtual link has a neighbor in the Full state.
+    backbone.interfaces.iter(&arenas.interfaces).any(|iface| {
+        iface
+            .vlink_key
+            .as_ref()
+            .is_some_and(|vlink_key| vlink_key.transit_area_id == area.area_id)
+            && iface
+                .state
+                .neighbors
+                .iter(&arenas.neighbors)
+                .next()
+                .is_some_and(|nbr| nbr.state == nsm::State::Full)
+    })
 }

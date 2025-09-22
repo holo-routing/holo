@@ -428,7 +428,7 @@ where
             compute_spf(
                 instance,
                 &mut arenas.areas,
-                &arenas.interfaces,
+                &mut arenas.interfaces,
                 &arenas.neighbors,
                 &arenas.lsa_entries,
                 false,
@@ -449,7 +449,7 @@ where
             compute_spf(
                 instance,
                 &mut arenas.areas,
-                &arenas.interfaces,
+                &mut arenas.interfaces,
                 &arenas.neighbors,
                 &arenas.lsa_entries,
                 true,
@@ -489,7 +489,7 @@ where
 fn compute_spf<V>(
     instance: &mut InstanceUpView<'_, V>,
     areas: &mut Areas<V>,
-    interfaces: &Arena<Interface<V>>,
+    interfaces: &mut Arena<Interface<V>>,
     neighbors: &Arena<Neighbor<V>>,
     lsa_entries: &Arena<LsaEntry<V>>,
     force_full_run: bool,
@@ -555,6 +555,9 @@ fn compute_spf<V>(
             );
         }
     }
+
+    // Update virtual links.
+    area::update_virtual_links(instance, areas, interfaces, lsa_entries);
 
     // Update summary LSAs.
     area::update_summary_lsas(instance, areas, interfaces, lsa_entries);

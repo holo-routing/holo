@@ -305,7 +305,13 @@ where
         let _span2_guard = span2.enter();
 
         let ifname = iface.name.clone();
-        let ifindex = iface.system.ifindex.unwrap();
+        // For virtual links, use 0 as the ifindex so the kernel selects the
+        // outgoing interface automatically from the routing table.
+        let ifindex = if iface.is_virtual_link() {
+            0
+        } else {
+            iface.system.ifindex.unwrap()
+        };
         let src = iface.state.src_addr.unwrap();
         let auth = iface.state.auth.clone();
         let auth_seqno = auth_seqno.clone();

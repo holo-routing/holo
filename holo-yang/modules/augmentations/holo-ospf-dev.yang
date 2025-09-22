@@ -50,6 +50,20 @@ module holo-ospf-dev {
     }
   }
 
+  augment "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:header" {
+    leaf maxage {
+      type empty;
+      description "LSA has reached MaxAge.";
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:virtual-links/ospf:virtual-link/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv3/ospf:ospfv3/ospf:header" {
+    leaf maxage {
+      type empty;
+      description "LSA has reached MaxAge.";
+    }
+  }
+
   augment "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:database/ospf:link-scope-lsa-type/ospf:link-scope-lsas/ospf:link-scope-lsa/ospf:version/ospf:ospfv2/ospf:ospfv2/ospf:header" {
     leaf maxage {
       type empty;

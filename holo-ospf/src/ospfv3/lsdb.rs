@@ -5,18 +5,20 @@
 //
 
 use std::collections::{BTreeMap, HashMap, hash_map};
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use holo_utils::bier::{
     BierCfgEvent, BierEncapId, BierEncapsulationType, BierInBiftId, BiftId,
 };
-use holo_utils::ip::{AddressFamily, IpNetworkKind};
+use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
 use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid, SidLastHopBehavior, SrCfgEvent};
 use ipnetwork::IpNetwork;
 use itertools::Itertools;
 
-use crate::area::{Area, AreaType, AreaVersion, OptionsLocation};
+use crate::area::{
+    Area, AreaType, AreaVersion, BACKBONE_AREA_ID, OptionsLocation,
+};
 use crate::collections::{
     AreaIndex, Arena, InterfaceIndex, LsaEntryId, LsdbId, LsdbIndex, lsdb_get,
 };
@@ -24,7 +26,7 @@ use crate::debug::LsaFlushReason;
 use crate::error::Error;
 use crate::instance::{InstanceArenas, InstanceUpView};
 use crate::interface::{Interface, InterfaceType, ism};
-use crate::lsdb::{LsaOriginateEvent, LsdbVersion, MAX_LINK_METRIC};
+use crate::lsdb::{self, LsaOriginateEvent, LsdbVersion, MAX_LINK_METRIC};
 use crate::neighbor::nsm;
 use crate::ospfv3::packet::Options;
 use crate::ospfv3::packet::lsa::{
@@ -49,11 +51,20 @@ use crate::version::Ospfv3;
 impl LsdbVersion<Self> for Ospfv3 {
     fn lsa_type_is_valid(
         area_type: Option<AreaType>,
+        if_type: Option<InterfaceType>,
         _nbr_options: Option<Options>,
         lsa_type: LsaType,
     ) -> bool {
         // Reject LSAs of unknown (reserved) scope.
         if lsa_type.scope() == LsaScope::Unknown {
+            return false;
+        }
+
+        // Reject AS-scoped LSAs over virtual links.
+        if let Some(if_type) = if_type
+            && if_type == InterfaceType::VirtualLink
+            && lsa_type.scope() == LsaScope::As
+        {
             return false;
         }
 
@@ -200,6 +211,15 @@ impl LsdbVersion<Self> for Ospfv3 {
 
                 // (Re)originate Intra-area-prefix-LSA(s).
                 lsa_orig_intra_area_prefix(area, instance, arenas);
+
+                // For virtual links, reoriginate the Router-LSA in the
+                // associated transit area.
+                if let Some(vlink_key) = &iface.vlink_key
+                    && let Some((_, transit_area)) =
+                        arenas.areas.get_by_area_id(vlink_key.transit_area_id)
+                {
+                    lsa_orig_router(transit_area, instance, arenas);
+                }
             }
             LsaOriginateEvent::NeighborTwoWayOrHigherChange {
                 area_id, ..
@@ -215,6 +235,14 @@ impl LsdbVersion<Self> for Ospfv3 {
                 // (Re)originate Router-LSA(s).
                 let (_, area) = arenas.areas.get_by_id(area_id)?;
                 lsa_orig_router(area, instance, arenas);
+            }
+            LsaOriginateEvent::VirtualLinkChange => {
+                // (Re)originate Router-LSA in the backbone area.
+                if let Some((_, backbone)) =
+                    arenas.areas.get_by_area_id(BACKBONE_AREA_ID)
+                {
+                    lsa_orig_router(backbone, instance, arenas);
+                }
             }
             LsaOriginateEvent::LinkLsaRcvd { area_id, iface_id } => {
                 let (_, area) = arenas.areas.get_by_id(area_id)?;
@@ -476,6 +504,9 @@ fn lsa_orig_router(
     if arenas.areas.is_abr(&arenas.interfaces) {
         flags.insert(LsaRouterFlags::B);
     }
+    if lsdb::router_lsa_v_bit(area, arenas) {
+        flags.insert(LsaRouterFlags::V);
+    }
 
     // Router-LSA's links.
     let mut links = vec![];
@@ -567,6 +598,23 @@ fn lsa_orig_router(
                     adj_sids,
                 );
                 links.push(link);
+            }
+            InterfaceType::VirtualLink => {
+                if let Some(nbr) =
+                    iface.state.neighbors.iter(&arenas.neighbors).next()
+                    && nbr.state == nsm::State::Full
+                {
+                    let vlink_state = iface.state.vlink.as_ref().unwrap();
+                    let link = LsaRouterLink::new(
+                        LsaRouterLinkType::VirtualLink,
+                        vlink_state.cost as u16,
+                        ifindex,
+                        nbr.iface_id.unwrap(),
+                        nbr.router_id,
+                        Default::default(),
+                    );
+                    links.push(link);
+                }
             }
         }
     }
@@ -682,6 +730,11 @@ fn lsa_orig_link(
     area: &Area<Ospfv3>,
     instance: &InstanceUpView<'_, Ospfv3>,
 ) {
+    // Link-LSAs SHOULD NOT be originated for virtual links.
+    if iface.is_virtual_link() {
+        return;
+    }
+
     let lsdb_id = LsdbId::Link(area.id, iface.id);
     let extended_lsa = instance.config.extended_lsa;
 
@@ -739,6 +792,11 @@ fn lsa_flush_link(
     instance: &InstanceUpView<'_, Ospfv3>,
     arenas: &InstanceArenas<Ospfv3>,
 ) {
+    // Link-LSAs SHOULD NOT be originated for virtual links.
+    if iface.is_virtual_link() {
+        return;
+    }
+
     let lsdb_id = LsdbId::Link(area.id, iface.id);
     let extended_lsa = instance.config.extended_lsa;
 
@@ -909,6 +967,39 @@ fn lsa_orig_intra_area_prefix(
         }
 
         prefixes.push(entry);
+    }
+    // If RTX has one or more virtual links configured through the area, it
+    // includes one of its global scope IPv6 interface addresses in the LSA
+    // (if it hasn't already), setting the LA-bit in the PrefixOptions field,
+    // the PrefixLength to 128, and the Metric to 0.
+    if !area.is_backbone()
+        && let Some((_, backbone)) =
+            arenas.areas.get_by_area_id(BACKBONE_AREA_ID)
+        && backbone.interfaces.iter(&arenas.interfaces).any(|iface| {
+            iface.vlink_key.as_ref().is_some_and(|vlink_key| {
+                vlink_key.transit_area_id == area.area_id
+            })
+        })
+        && !prefixes
+            .iter()
+            .any(|entry| entry.options.contains(PrefixOptions::LA))
+    {
+        // Select a global IPv6 address, preferring one from an interface
+        // in the transit area and falling back to any other global address.
+        if let Some(addr) = area
+            .interfaces
+            .iter(&arenas.interfaces)
+            .chain(arenas.interfaces.iter().map(|(_, iface)| iface))
+            .flat_map(|iface| iface.system.addr_list.iter())
+            .filter_map(|addr| Ipv6Addr::get(addr.ip()))
+            .find(|addr| !addr.is_unicast_link_local())
+        {
+            let plen = instance.state.af.max_prefixlen();
+            let prefix = IpNetwork::new(addr.into(), plen).unwrap();
+            let prefix_options = PrefixOptions::LA;
+            let entry = LsaIntraAreaPrefixEntry::new(prefix_options, prefix, 0);
+            prefixes.push(entry);
+        }
     }
     let ref_lsa = LsaKey::new(
         LsaRouter::lsa_type(extended_lsa),

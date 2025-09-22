@@ -29,14 +29,21 @@ pub(crate) fn if_state_change<V>(
     V: Version,
 {
     use yang::if_state_change::interface::Interface;
+    use yang::if_state_change::virtual_link::VirtualLink;
     use yang::if_state_change::{self, IfStateChange};
 
     let data = IfStateChange {
         routing_protocol_name: Some(instance.name.into()),
         address_family: Some(instance.state.af.to_yang()),
-        interface: Some(Box::new(Interface {
+        interface: (!iface.is_virtual_link()).then_some(Box::new(Interface {
             interface: Some(iface.name.as_str().into()),
         })),
+        virtual_link: iface.vlink_key.map(|vlink_key| {
+            Box::new(VirtualLink {
+                transit_area_id: Some(Cow::Owned(vlink_key.transit_area_id)),
+                neighbor_router_id: Some(Cow::Owned(vlink_key.router_id)),
+            })
+        }),
         state: Some(iface.state.ism_state.to_yang()),
     };
     notification::send(&instance.tx.nb, if_state_change::PATH, data);
@@ -60,6 +67,7 @@ pub(crate) fn if_config_error<V>(
         interface: Some(Box::new(Interface {
             interface: Some(ifname.into()),
         })),
+        virtual_link: None,
         packet_source: Some(Cow::Owned((*src).into())),
         packet_type: Some(pkt_type.to_yang()),
         error: Some(error.to_yang()),
@@ -75,14 +83,21 @@ pub(crate) fn nbr_state_change<V>(
     V: Version,
 {
     use yang::nbr_state_change::interface::Interface;
+    use yang::nbr_state_change::virtual_link::VirtualLink;
     use yang::nbr_state_change::{self, NbrStateChange};
 
     let data = NbrStateChange {
         routing_protocol_name: Some(instance.name.into()),
         address_family: Some(instance.state.af.to_yang()),
-        interface: Some(Box::new(Interface {
+        interface: (!iface.is_virtual_link()).then_some(Box::new(Interface {
             interface: Some(iface.name.as_str().into()),
         })),
+        virtual_link: iface.vlink_key.map(|vlink_key| {
+            Box::new(VirtualLink {
+                transit_area_id: Some(Cow::Owned(vlink_key.transit_area_id)),
+                neighbor_router_id: Some(Cow::Owned(vlink_key.router_id)),
+            })
+        }),
         neighbor_router_id: Some(Cow::Borrowed(&nbr.router_id)),
         neighbor_ip_addr: Some(Cow::Owned(nbr.src.into())),
         state: Some(nbr.state.to_yang()),
@@ -99,6 +114,7 @@ pub(crate) fn nbr_restart_helper_enter<V>(
     V: Version,
 {
     use yang::nbr_restart_helper_status_change::interface::Interface;
+    use yang::nbr_restart_helper_status_change::virtual_link::VirtualLink;
     use yang::nbr_restart_helper_status_change::{
         self, NbrRestartHelperStatusChange,
     };
@@ -106,9 +122,15 @@ pub(crate) fn nbr_restart_helper_enter<V>(
     let data = NbrRestartHelperStatusChange {
         routing_protocol_name: Some(instance.name.into()),
         address_family: Some(instance.state.af.to_yang()),
-        interface: Some(Box::new(Interface {
+        interface: (!iface.is_virtual_link()).then_some(Box::new(Interface {
             interface: Some(iface.name.as_str().into()),
         })),
+        virtual_link: iface.vlink_key.map(|vlink_key| {
+            Box::new(VirtualLink {
+                transit_area_id: Some(Cow::Owned(vlink_key.transit_area_id)),
+                neighbor_router_id: Some(Cow::Owned(vlink_key.router_id)),
+            })
+        }),
         neighbor_router_id: Some(Cow::Borrowed(&nbr.router_id)),
         neighbor_ip_addr: Some(Cow::Owned(nbr.src.into())),
         status: Some("helping".into()),
@@ -131,6 +153,7 @@ pub(crate) fn nbr_restart_helper_exit<V>(
     V: Version,
 {
     use yang::nbr_restart_helper_status_change::interface::Interface;
+    use yang::nbr_restart_helper_status_change::virtual_link::VirtualLink;
     use yang::nbr_restart_helper_status_change::{
         self, NbrRestartHelperStatusChange,
     };
@@ -138,9 +161,15 @@ pub(crate) fn nbr_restart_helper_exit<V>(
     let data = NbrRestartHelperStatusChange {
         routing_protocol_name: Some(instance.name.into()),
         address_family: Some(instance.state.af.to_yang()),
-        interface: Some(Box::new(Interface {
+        interface: (!iface.is_virtual_link()).then_some(Box::new(Interface {
             interface: Some(iface.name.as_str().into()),
         })),
+        virtual_link: iface.vlink_key.map(|vlink_key| {
+            Box::new(VirtualLink {
+                transit_area_id: Some(Cow::Owned(vlink_key.transit_area_id)),
+                neighbor_router_id: Some(Cow::Owned(vlink_key.router_id)),
+            })
+        }),
         neighbor_router_id: Some(Cow::Borrowed(&nbr.router_id)),
         neighbor_ip_addr: Some(Cow::Owned(nbr.src.into())),
         status: Some("not-helping".into()),
@@ -162,14 +191,21 @@ pub(crate) fn if_rx_bad_packet<V>(
     V: Version,
 {
     use yang::if_rx_bad_packet::interface::Interface;
+    use yang::if_rx_bad_packet::virtual_link::VirtualLink;
     use yang::if_rx_bad_packet::{self, IfRxBadPacket};
 
     let data = IfRxBadPacket {
         routing_protocol_name: Some(instance.name.into()),
         address_family: Some(instance.state.af.to_yang()),
-        interface: Some(Box::new(Interface {
+        interface: (!iface.is_virtual_link()).then_some(Box::new(Interface {
             interface: Some(iface.name.as_str().into()),
         })),
+        virtual_link: iface.vlink_key.map(|vlink_key| {
+            Box::new(VirtualLink {
+                transit_area_id: Some(Cow::Owned(vlink_key.transit_area_id)),
+                neighbor_router_id: Some(Cow::Owned(vlink_key.router_id)),
+            })
+        }),
         packet_source: Some(Cow::Owned(src.into())),
         // TODO: set the packet-type whenever possible.
         packet_type: None,

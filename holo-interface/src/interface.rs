@@ -179,11 +179,6 @@ impl Interfaces {
                     return;
                 }
 
-                // Check if the interface operational status has changed.
-                let status_change =
-                    iface.flags.contains(InterfaceFlags::OPERATIVE)
-                        != flags.contains(InterfaceFlags::OPERATIVE);
-
                 // Update the existing interface with the new information.
                 if iface.name != ifname {
                     self.name_tree.remove(&iface.name);
@@ -196,32 +191,12 @@ impl Interfaces {
                 iface.mac_address = mac_address;
 
                 // Notify subscribers about the interface update.
-                //
-                // Additionally, if the operational status of the interface has
-                // changed, either readvertise or withdraw its addresses.
                 for sub in self
                     .subscriptions
                     .values()
                     .chain(iface.subscriptions.values())
                 {
                     ibus::notify_interface_update(&sub.tx, iface);
-
-                    if status_change {
-                        for addr in iface.addresses.values().filter(|addr| {
-                            sub.afs.contains(&addr.addr.ip().address_family())
-                        }) {
-                            let ifname = iface.name.clone();
-                            if iface.flags.contains(InterfaceFlags::OPERATIVE) {
-                                ibus::notify_addr_add(
-                                    &sub.tx, ifname, addr.addr, addr.flags,
-                                );
-                            } else {
-                                ibus::notify_addr_del(
-                                    &sub.tx, ifname, addr.addr, addr.flags,
-                                );
-                            }
-                        }
-                    }
                 }
 
                 // In case the interface exists only in the configuration,

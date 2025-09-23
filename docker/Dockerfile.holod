@@ -1,7 +1,7 @@
 # Build image
 # ==============================================================================
 
-FROM rust:1.88-bookworm AS build
+FROM rust:trixie AS build
 
 RUN apt-get update && \
     apt-get install -y build-essential \
@@ -18,7 +18,7 @@ RUN cargo build --profile $BUILD_PROFILE
 # Final base
 # ==============================================================================
 
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 
 RUN groupadd -r holo
 RUN useradd --system --shell /sbin/nologin --home-dir /var/opt/holo/ -g holo holo

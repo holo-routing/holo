@@ -1,0 +1,94 @@
+{
+  "ietf-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "eth-rt3",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv6": {}
+      },
+      {
+        "name": "eth-rt4",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv6": {}
+      },
+      {
+        "name": "eth-rt6",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv6": {}
+      },
+      {
+        "name": "lo",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv6": {
+          "address": [
+            {
+              "ip": "2001:db8:1000::5",
+              "prefix-length": 128
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-ospf:ospfv3",
+          "name": "test",
+          "ietf-ospf:ospf": {
+            "explicit-router-id": "5.5.5.5",
+            "areas": {
+              "area": [
+                {
+                  "area-id": "0.0.0.0",
+                  "virtual-links": {
+                    "virtual-link": [
+                      {
+                        "transit-area-id": "0.0.0.1",
+                        "router-id": "2.2.2.2"
+                      }
+                    ]
+                  },
+                  "interfaces": {
+                    "interface": [
+                      {
+                        "name": "eth-rt6",
+                        "interface-type": "point-to-point",
+                        "hello-interval": 3,
+                        "dead-interval": 12
+                      },
+                      {
+                        "name": "lo"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "area-id": "0.0.0.1",
+                  "interfaces": {
+                    "interface": [
+                      {
+                        "name": "eth-rt3",
+                        "interface-type": "point-to-point",
+                        "hello-interval": 3,
+                        "dead-interval": 12
+                      },
+                      {
+                        "name": "eth-rt4",
+                        "interface-type": "point-to-point",
+                        "hello-interval": 3,
+                        "dead-interval": 12
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+

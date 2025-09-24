@@ -1,0 +1,57 @@
+{
+  "ietf-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "eth-rt5",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv6": {}
+      },
+      {
+        "name": "lo",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv6": {
+          "address": [
+            {
+              "ip": "2001:db8:1000::6",
+              "prefix-length": 128
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-ospf:ospfv3",
+          "name": "test",
+          "ietf-ospf:ospf": {
+            "explicit-router-id": "6.6.6.6",
+            "areas": {
+              "area": [
+                {
+                  "area-id": "0.0.0.0",
+                  "interfaces": {
+                    "interface": [
+                      {
+                        "name": "eth-rt5",
+                        "interface-type": "point-to-point",
+                        "hello-interval": 3,
+                        "dead-interval": 12
+                      },
+                      {
+                        "name": "lo"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+

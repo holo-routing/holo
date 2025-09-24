@@ -1,0 +1,15 @@
+{"RouterIdSub":{}}
+{"HostnameSub":{}}
+{"InterfaceSub":{"ifname":"eth-rt1","af":"Ipv6"}}
+{"InterfaceSub":{"ifname":"eth-rt3","af":"Ipv6"}}
+{"InterfaceSub":{"ifname":"eth-rt4","af":"Ipv6"}}
+{"InterfaceSub":{"ifname":"lo","af":"Ipv6"}}
+{"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::1/128","distance":110,"metric":10,"tag":null,"nexthops":[{"Address":{"ifindex":2,"addr":"fe80::8090:f8ff:fe10:866c","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::3/128","distance":110,"metric":10,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::4442:dff:fe0b:a382","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::4/128","distance":110,"metric":10,"tag":null,"nexthops":[{"Address":{"ifindex":4,"addr":"fe80::f094:dcff:fefb:e372","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv3","prefix":"fc00:0:0:4::/64","distance":110,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::4442:dff:fe0b:a382","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv3","prefix":"fc00:0:0:4::5/128","distance":110,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::4442:dff:fe0b:a382","labels":[]}},{"Address":{"ifindex":4,"addr":"fe80::f094:dcff:fefb:e372","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv3","prefix":"fc00:0:0:5::/64","distance":110,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":4,"addr":"fe80::f094:dcff:fefb:e372","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::5/128","distance":110,"metric":20,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::4442:dff:fe0b:a382","labels":[]}},{"Address":{"ifindex":4,"addr":"fe80::f094:dcff:fefb:e372","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv3","prefix":"2001:db8:1000::6/128","distance":110,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::4442:dff:fe0b:a382","labels":[]}},{"Address":{"ifindex":4,"addr":"fe80::f094:dcff:fefb:e372","labels":[]}}]}}
+{"RouteIpAdd":{"protocol":"ospfv3","prefix":"fc00:0:0:6::/64","distance":110,"metric":30,"tag":null,"nexthops":[{"Address":{"ifindex":3,"addr":"fe80::4442:dff:fe0b:a382","labels":[]}},{"Address":{"ifindex":4,"addr":"fe80::f094:dcff:fefb:e372","labels":[]}}]}}

@@ -7,6 +7,7 @@
 use std::str::FromStr;
 
 use clap::{App, Arg};
+use holo_mld::version::{Mldv1, Mldv2};
 use holo_ospf::version::{Ospfv2, Ospfv3};
 use holo_protocol::ProtocolInstance;
 use holo_protocol::test::setup;
@@ -84,6 +85,12 @@ async fn main() {
         }
         Protocol::VRRP => {
             replay::<holo_vrrp::interface::Interface>(filename).await
+        }
+        Protocol::MLDV1 => {
+            replay::<holo_mld::instance::Instance<Mldv1>>(filename).await
+        }
+        Protocol::MLDV2 => {
+            replay::<holo_mld::instance::Instance<Mldv2>>(filename).await
         }
     }
 }

@@ -8,6 +8,7 @@ members = [
   "holo-isis",
   "holo-keychain",
   "holo-ldp",
+  "holo-mld",
   "holo-northbound",
   "holo-ospf",
   "holo-policy",

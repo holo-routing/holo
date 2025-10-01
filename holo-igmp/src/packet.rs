@@ -6,7 +6,7 @@
 use std::net::Ipv4Addr;
 use std::ops::Deref;
 
-use bytes::{Buf, BufMut, Bytes, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut, TryGetError};
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use internet_checksum::Checksum;
 use num_derive::FromPrimitive;
@@ -19,6 +19,7 @@ pub type DecodeResult<T> = Result<T, DecodeError>;
 // Decode errors.
 #[derive(Debug, Deserialize, Serialize)]
 pub enum DecodeError {
+    ReadOutOfBounds,
     InsufficientData,
     InvalidChecksum,
     InvalidVersion(u8),
@@ -109,7 +110,7 @@ impl Packet {
         }
 
         let mut buf_orig = buf.clone();
-        let pkt_type = buf_orig.get_u8();
+        let pkt_type = buf_orig.try_get_u8()?;
 
         let pkt_type = match PacketType::from_u8(pkt_type) {
             Some(pkt_type) => pkt_type,
@@ -142,7 +143,7 @@ impl Packet {
             }
         }
 
-        return buf.freeze();
+        buf.freeze()
     }
 }
 
@@ -175,7 +176,7 @@ impl MembershipReportV2 {
             return Err(DecodeError::InsufficientData);
         }
 
-        let pkt_type = buf.get_u8();
+        let pkt_type = buf.try_get_u8()?;
         let pkt_type = match PacketType::from_u8(pkt_type) {
             Some(pkt_type) => pkt_type,
             None => return Err(DecodeError::InvalidVersion(pkt_type)),
@@ -185,19 +186,14 @@ impl MembershipReportV2 {
             return Err(DecodeError::UnknownPacketType(pkt_type as u8));
         }
 
-        let max_resp_time = Some(buf.get_u8());
-        let checksum = buf.get_u16();
+        let max_resp_time = Some(buf.try_get_u8()?);
+        let checksum = buf.try_get_u16()?;
 
         if verify_cksum(buf_orig.as_ref()).is_err() {
             return Err(DecodeError::InvalidChecksum);
         }
 
-        let group_address = Some(Ipv4Addr::new(
-            buf.get_u8(),
-            buf.get_u8(),
-            buf.get_u8(),
-            buf.get_u8(),
-        ));
+        let group_address = Some(buf.try_get_ipv4()?);
 
         let msg = IgmpV2Message {
             igmp_type: pkt_type,
@@ -234,7 +230,7 @@ impl LeaveGroupV2 {
             return Err(DecodeError::InsufficientData);
         }
 
-        let pkt_type = buf.get_u8();
+        let pkt_type = buf.try_get_u8()?;
         let pkt_type = match PacketType::from_u8(pkt_type) {
             Some(pkt_type) => pkt_type,
             None => return Err(DecodeError::InvalidVersion(pkt_type)),
@@ -244,15 +240,15 @@ impl LeaveGroupV2 {
             return Err(DecodeError::UnknownPacketType(pkt_type as u8));
         }
 
-        let _responce_time = buf.get_u8();
+        let _responce_time = buf.try_get_u8()?;
 
-        let checksum = buf.get_u16();
+        let checksum = buf.try_get_u16()?;
 
         if verify_cksum(buf_orig.as_ref()).is_err() {
             return Err(DecodeError::InvalidChecksum);
         }
 
-        let group_address = Some(buf.get_ipv4());
+        let group_address = Some(buf.try_get_ipv4()?);
 
         let msg = IgmpV2Message {
             igmp_type: pkt_type,
@@ -273,5 +269,13 @@ impl LeaveGroupV2 {
         }
 
         update_cksum(buf);
+    }
+}
+
+// ===== impl DecodeError =====
+
+impl From<TryGetError> for DecodeError {
+    fn from(_error: TryGetError) -> DecodeError {
+        DecodeError::ReadOutOfBounds
     }
 }

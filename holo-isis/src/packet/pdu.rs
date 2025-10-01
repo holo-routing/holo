@@ -459,9 +459,8 @@ impl Header {
 
         // Parse PDU type.
         let pdu_type = buf.try_get_u8()?;
-        let pdu_type = match PduType::from_u8(pdu_type) {
-            Some(pdu_type) => pdu_type,
-            None => return Err(DecodeError::UnknownPduType(pdu_type)),
+        let Some(pdu_type) = PduType::from_u8(pdu_type) else {
+            return Err(DecodeError::UnknownPduType(pdu_type));
         };
 
         // Additional sanity checks.

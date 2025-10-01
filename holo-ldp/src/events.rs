@@ -61,9 +61,8 @@ fn process_udp_pdu_multicast(
     pdu: Result<Pdu, DecodeError>,
 ) {
     // Lookup interface.
-    let (_, iface) = match interfaces.get_by_addr(&src_addr) {
-        Some(value) => value,
-        None => return,
+    let Some((_, iface)) = interfaces.get_by_addr(&src_addr) else {
+        return;
     };
 
     let source = AdjacencySource::new(Some(iface.name.clone()), src_addr);
@@ -353,14 +352,12 @@ pub(crate) fn process_tcp_accept(
 ) {
     // Lookup neighbor.
     let source = conn_info.remote_addr;
-    let (nbr_idx, nbr) =
-        match instance.state.neighbors.get_mut_by_trans_addr(&source) {
-            Some(value) => value,
-            None => {
-                Debug::NoMatchingHelloAdjacency(&source).log();
-                return;
-            }
-        };
+    let Some((nbr_idx, nbr)) =
+        instance.state.neighbors.get_mut_by_trans_addr(&source)
+    else {
+        Debug::NoMatchingHelloAdjacency(&source).log();
+        return;
+    };
 
     // Sanity checks.
     if nbr.is_session_active_role(instance.state.ipv4.trans_addr) {
@@ -1156,9 +1153,8 @@ fn process_nbr_msg_label_release(
     };
 
     // LRl.1: does FEC match a known FEC?
-    let fec = match instance.state.fecs.get_mut(&prefix) {
-        Some(fec) => fec,
-        None => return,
+    let Some(fec) = instance.state.fecs.get_mut(&prefix) else {
+        return;
     };
 
     // LRl.6: check sent map list and remove it if available.
@@ -1297,9 +1293,9 @@ pub(crate) fn process_nbr_backoff_timeout(
     lsr_id: Ipv4Addr,
 ) {
     // Lookup neighbor.
-    let (_, nbr) = match instance.state.neighbors.get_mut_by_lsr_id(&lsr_id) {
-        Some(value) => value,
-        None => return,
+    let Some((_, nbr)) = instance.state.neighbors.get_mut_by_lsr_id(&lsr_id)
+    else {
+        return;
     };
 
     Debug::NbrInitBackoffTimeout(&nbr.lsr_id).log();

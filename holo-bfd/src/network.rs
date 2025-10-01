@@ -230,19 +230,13 @@ pub(crate) async fn read_loop(
             .await
         {
             Ok((src, dst, bytes)) => {
-                let src = match src {
-                    Some(addr) => addr,
-                    None => {
-                        IoError::UdpRecvMissingSourceAddr.log();
-                        return Ok(());
-                    }
+                let Some(src) = src else {
+                    IoError::UdpRecvMissingSourceAddr.log();
+                    return Ok(());
                 };
-                let dst = match dst {
-                    Some(addr) => addr,
-                    None => {
-                        IoError::UdpRecvMissingAncillaryData.log();
-                        return Ok(());
-                    }
+                let Some(dst) = dst else {
+                    IoError::UdpRecvMissingAncillaryData.log();
+                    return Ok(());
                 };
 
                 // Validate packet's source address.

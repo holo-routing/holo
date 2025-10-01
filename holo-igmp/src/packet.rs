@@ -112,9 +112,8 @@ impl Packet {
         let mut buf_orig = buf.clone();
         let pkt_type = buf_orig.try_get_u8()?;
 
-        let pkt_type = match PacketType::from_u8(pkt_type) {
-            Some(pkt_type) => pkt_type,
-            None => return Err(DecodeError::InvalidVersion(pkt_type)),
+        let Some(pkt_type) = PacketType::from_u8(pkt_type) else {
+            return Err(DecodeError::InvalidVersion(pkt_type));
         };
 
         let packet = match pkt_type {
@@ -177,9 +176,8 @@ impl MembershipReportV2 {
         }
 
         let pkt_type = buf.try_get_u8()?;
-        let pkt_type = match PacketType::from_u8(pkt_type) {
-            Some(pkt_type) => pkt_type,
-            None => return Err(DecodeError::InvalidVersion(pkt_type)),
+        let Some(pkt_type) = PacketType::from_u8(pkt_type) else {
+            return Err(DecodeError::InvalidVersion(pkt_type));
         };
 
         if pkt_type != PacketType::MembershipReportV2Type {
@@ -231,9 +229,8 @@ impl LeaveGroupV2 {
         }
 
         let pkt_type = buf.try_get_u8()?;
-        let pkt_type = match PacketType::from_u8(pkt_type) {
-            Some(pkt_type) => pkt_type,
-            None => return Err(DecodeError::InvalidVersion(pkt_type)),
+        let Some(pkt_type) = PacketType::from_u8(pkt_type) else {
+            return Err(DecodeError::InvalidVersion(pkt_type));
         };
 
         if pkt_type != PacketType::LeaveGroupV2Type {

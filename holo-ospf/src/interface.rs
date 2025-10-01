@@ -678,10 +678,10 @@ where
     }
 
     fn update_mcast_groups(&mut self) {
-        let socket = match &self.state.net {
-            Some(net) => net.socket.get_ref(),
-            None => return,
+        let Some(net) = &self.state.net else {
+            return;
         };
+        let socket = net.socket.get_ref();
 
         // AllSPFRouters.
         if self.state.ism_state >= State::Waiting

@@ -30,16 +30,14 @@ pub(crate) fn label_install(
     fec: &FecInner,
     nexthop: &Nexthop,
 ) {
-    let local_label = match fec.local_label {
-        Some(label) => label,
-        None => return,
+    let Some(local_label) = fec.local_label else {
+        return;
     };
     if local_label.is_reserved() {
         return;
     }
-    let remote_label = match nexthop.get_label() {
-        Some(label) => label,
-        None => return,
+    let Some(remote_label) = nexthop.get_label() else {
+        return;
     };
     let protocol = fec.protocol.unwrap();
 
@@ -66,16 +64,14 @@ pub(crate) fn label_uninstall(
     fec: &FecInner,
     nexthop: &Nexthop,
 ) {
-    let local_label = match fec.local_label {
-        Some(label) => label,
-        None => return,
+    let Some(local_label) = fec.local_label else {
+        return;
     };
     if local_label.is_reserved() {
         return;
     }
-    let remote_label = match nexthop.get_label() {
-        Some(label) => label,
-        None => return,
+    let Some(remote_label) = nexthop.get_label() else {
+        return;
     };
     let protocol = fec.protocol.unwrap();
 

@@ -773,12 +773,9 @@ impl ExtPrefixTlv {
                         continue;
                     }
                     let algo = buf_stlv.try_get_u8()?;
-                    let algo = match IgpAlgoType::from_u8(algo) {
-                        Some(algo) => algo,
-                        None => {
-                            // Unsupported algorithm - ignore.
-                            continue;
-                        }
+                    let Some(algo) = IgpAlgoType::from_u8(algo) else {
+                        // Unsupported algorithm - ignore.
+                        continue;
                     };
 
                     // Parse SID (variable length).

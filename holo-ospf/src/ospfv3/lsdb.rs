@@ -349,13 +349,10 @@ impl LsdbVersion<Self> for Ospfv3 {
         let extended_lsa = instance.config.extended_lsa;
 
         // Get LSA-ID.
-        let lsa_id = match lsa_id {
-            Some(lsa_id) => lsa_id,
-            None => {
-                area.state.version.next_type3_lsa_id += 1;
-                area.state.version.next_type3_lsa_id
-            }
-        };
+        let lsa_id = lsa_id.unwrap_or_else(|| {
+            area.state.version.next_type3_lsa_id += 1;
+            area.state.version.next_type3_lsa_id
+        });
 
         // Get SR Prefix-SIDs.
         let mut prefix_sids = BTreeMap::new();
@@ -400,13 +397,10 @@ impl LsdbVersion<Self> for Ospfv3 {
         let extended_lsa = instance.config.extended_lsa;
 
         // Get LSA-ID.
-        let lsa_id = match lsa_id {
-            Some(lsa_id) => lsa_id,
-            None => {
-                area.state.version.next_type4_lsa_id += 1;
-                area.state.version.next_type4_lsa_id
-            }
-        };
+        let lsa_id = lsa_id.unwrap_or_else(|| {
+            area.state.version.next_type4_lsa_id += 1;
+            area.state.version.next_type4_lsa_id
+        });
 
         // (Re)originate Inter-Area-Router-LSA.
         let lsa_body = LsaBody::InterAreaRouter(LsaInterAreaRouter::new(

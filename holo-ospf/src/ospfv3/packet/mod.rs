@@ -289,9 +289,8 @@ impl PacketHdrVersion<Ospfv3> for PacketHdr {
 
         // Parse packet type.
         let pkt_type = buf.try_get_u8()?;
-        let pkt_type = match PacketType::from_u8(pkt_type) {
-            Some(pkt_type) => pkt_type,
-            None => return Err(DecodeError::UnknownPacketType(pkt_type)),
+        let Some(pkt_type) = PacketType::from_u8(pkt_type) else {
+            return Err(DecodeError::UnknownPacketType(pkt_type));
         };
 
         // Parse and validate message length.

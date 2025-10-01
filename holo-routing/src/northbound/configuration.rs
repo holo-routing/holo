@@ -1059,11 +1059,8 @@ fn load_validation_callbacks() -> ValidationCallbacks {
             let name = args.dnode.get_string_relative("./name").unwrap();
 
             // Parse protocol name.
-            let protocol = match Protocol::try_from_yang(&ptype) {
-                Some(value) => value,
-                None => {
-                    return Err("unknown protocol name".to_owned());
-                }
+            let Some(protocol) = Protocol::try_from_yang(&ptype) else {
+                return Err("unknown protocol name".to_owned());
             };
 
             // Validate BFD protocol instance name.

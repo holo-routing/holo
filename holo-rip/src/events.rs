@@ -202,9 +202,8 @@ fn process_pdu_response<V>(
         }
 
         // Proceed to process normal route RTEs.
-        let rte = match rte.as_route() {
-            Some(rte) => rte,
-            None => continue,
+        let Some(rte) = rte.as_route() else {
+            continue;
         };
 
         // Update the metric by adding the cost of the network on which the
@@ -418,9 +417,8 @@ pub(crate) fn process_route_timeout<V>(
 ) where
     V: Version,
 {
-    let route = match instance.state.routes.get_mut(&prefix) {
-        Some(route) => route,
-        None => return,
+    let Some(route) = instance.state.routes.get_mut(&prefix) else {
+        return;
     };
 
     if let Some((_, iface)) = interfaces.get_by_ifindex(route.ifindex) {
@@ -444,9 +442,8 @@ pub(crate) fn process_route_gc_timeout<V>(
 ) where
     V: Version,
 {
-    let route = match instance.state.routes.get_mut(&prefix) {
-        Some(route) => route,
-        None => return,
+    let Some(route) = instance.state.routes.get_mut(&prefix) else {
+        return;
     };
     if route.garbage_collect_task.is_none() {
         return;

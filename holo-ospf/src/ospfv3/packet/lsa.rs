@@ -1493,9 +1493,8 @@ impl LsaRouterLink {
 
     fn decode(buf: &mut Bytes, extended: bool) -> DecodeResult<Self> {
         let link_type = buf.try_get_u8()?;
-        let link_type = match LsaRouterLinkType::from_u8(link_type) {
-            Some(link_type) => link_type,
-            None => return Err(DecodeError::UnknownRouterLinkType(link_type)),
+        let Some(link_type) = LsaRouterLinkType::from_u8(link_type) else {
+            return Err(DecodeError::UnknownRouterLinkType(link_type));
         };
         let _ = buf.try_get_u8()?;
         let metric = buf.try_get_u16()?;
@@ -2705,12 +2704,9 @@ impl ExtLsaStlvs {
                     let flags = buf_stlv.try_get_u8()?;
                     let flags = PrefixSidFlags::from_bits_truncate(flags);
                     let algo = buf_stlv.try_get_u8()?;
-                    let algo = match IgpAlgoType::from_u8(algo) {
-                        Some(algo) => algo,
-                        None => {
-                            // Unsupported algorithm - ignore.
-                            continue;
-                        }
+                    let Some(algo) = IgpAlgoType::from_u8(algo) else {
+                        // Unsupported algorithm - ignore.
+                        continue;
                     };
 
                     let _reserved = buf_stlv.try_get_u16()?;

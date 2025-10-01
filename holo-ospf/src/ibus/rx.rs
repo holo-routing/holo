@@ -234,13 +234,12 @@ where
 
     if let bfd::SessionKey::IpSingleHop { ifname, dst } = sess_key {
         // Lookup area and interface.
-        let (iface, area) = match arenas.areas.iter().find_map(|area| {
+        let Some((iface, area)) = arenas.areas.iter().find_map(|area| {
             area.interfaces
                 .get_by_name(&arenas.interfaces, &ifname)
                 .map(|(_, iface)| (iface, area))
-        }) {
-            Some(value) => value,
-            None => return Ok(()),
+        }) else {
+            return Ok(());
         };
 
         // Lookup neighbor.

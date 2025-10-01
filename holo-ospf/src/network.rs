@@ -234,19 +234,13 @@ where
             .await
         {
             Ok((src, dst, bytes)) => {
-                let src = match src {
-                    Some(addr) => addr,
-                    None => {
-                        IoError::RecvMissingSourceAddr.log();
-                        return Ok(());
-                    }
+                let Some(src) = src else {
+                    IoError::RecvMissingSourceAddr.log();
+                    return Ok(());
                 };
-                let dst = match dst {
-                    Some(addr) => addr,
-                    None => {
-                        IoError::RecvMissingAncillaryData.log();
-                        return Ok(());
-                    }
+                let Some(dst) = dst else {
+                    IoError::RecvMissingAncillaryData.log();
+                    return Ok(());
                 };
 
                 // Decode packet.

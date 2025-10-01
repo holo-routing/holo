@@ -220,12 +220,9 @@ impl PrefixSidStlv {
         let flags = buf.try_get_u8()?;
         let flags = PrefixSidFlags::from_bits_truncate(flags);
         let algo = buf.try_get_u8()?;
-        let algo = match IgpAlgoType::from_u8(algo) {
-            Some(algo) => algo,
-            None => {
-                // Unsupported algorithm - ignore.
-                return Ok(None);
-            }
+        let Some(algo) = IgpAlgoType::from_u8(algo) else {
+            // Unsupported algorithm - ignore.
+            return Ok(None);
         };
 
         // Parse SID (variable length).

@@ -127,12 +127,9 @@ impl SrAlgoStlv {
         let mut list = BTreeSet::new();
         for _ in 0..stlv_len {
             let algo = buf.try_get_u8()?;
-            let algo = match IgpAlgoType::from_u8(algo) {
-                Some(algo) => algo,
-                None => {
-                    // Unsupported algorithm - ignore.
-                    continue;
-                }
+            let Some(algo) = IgpAlgoType::from_u8(algo) else {
+                // Unsupported algorithm - ignore.
+                continue;
             };
             list.insert(algo);
         }

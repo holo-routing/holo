@@ -602,15 +602,12 @@ fn run_area<V>(
 
     // Get root vertex.
     let root_vid = V::VertexId::new_root(instance.state.router_id);
-    let root_vlsa =
-        match V::vertex_lsa_find(af, root_vid, area, extended_lsa, lsa_entries)
-        {
-            Some(vertex) => vertex,
-            None => {
-                Error::<V>::SpfRootNotFound(area.area_id).log();
-                return;
-            }
-        };
+    let Some(root_vlsa) =
+        V::vertex_lsa_find(af, root_vid, area, extended_lsa, lsa_entries)
+    else {
+        Error::<V>::SpfRootNotFound(area.area_id).log();
+        return;
+    };
     let root_v = Vertex::<V>::new(root_vid, root_vlsa, 0, 0);
 
     // Initialize SPT and candidate list.

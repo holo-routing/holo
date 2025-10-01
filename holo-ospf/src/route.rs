@@ -474,25 +474,19 @@ fn update_rib_inter_area_networks<V>(
     {
         // Look up the routing table entry for BR having Area A as its
         // associated area.
-        let route_br = match area
+        let Some(route_br) = area
             .state
             .routers
             .get(&lsa.adv_rtr)
             .filter(|route| route.flags.is_abr())
-        {
-            Some(route_br) => route_br,
-            None => {
-                // If no such entry exists for router BR, do nothing with this
-                // LSA and consider the next in the list.
-                if instance.config.trace_opts.spf {
-                    Debug::<V>::SpfNetworkUnreachableAbr(
-                        &lsa.prefix,
-                        lsa.adv_rtr,
-                    )
+        else {
+            // If no such entry exists for router BR, do nothing with this
+            // LSA and consider the next in the list.
+            if instance.config.trace_opts.spf {
+                Debug::<V>::SpfNetworkUnreachableAbr(&lsa.prefix, lsa.adv_rtr)
                     .log();
-                }
-                continue;
             }
+            continue;
         };
 
         // The inter-area path cost is the distance to BR plus the cost
@@ -569,25 +563,19 @@ fn update_rib_transit_area<V>(
 
         // Look up the routing table entry for BR having Area A as its
         // associated area.
-        let route_br = match area
+        let Some(route_br) = area
             .state
             .routers
             .get(&lsa.adv_rtr)
             .filter(|route| route.flags.is_abr())
-        {
-            Some(route_br) => route_br,
-            None => {
-                // If no such entry exists for router BR, do nothing with this
-                // LSA and consider the next in the list.
-                if instance.config.trace_opts.spf {
-                    Debug::<V>::SpfNetworkUnreachableAbr(
-                        &lsa.prefix,
-                        lsa.adv_rtr,
-                    )
+        else {
+            // If no such entry exists for router BR, do nothing with this
+            // LSA and consider the next in the list.
+            if instance.config.trace_opts.spf {
+                Debug::<V>::SpfNetworkUnreachableAbr(&lsa.prefix, lsa.adv_rtr)
                     .log();
-                }
-                continue;
             }
+            continue;
         };
 
         // The inter-area path cost is the distance to BR plus the cost
@@ -690,25 +678,22 @@ fn update_rib_inter_area_routers<V>(
     {
         // Look up the routing table entry for BR having Area A as its
         // associated area.
-        let route_br = match area
+        let Some(route_br) = area
             .state
             .routers
             .get(&lsa.adv_rtr)
             .filter(|route| route.flags.is_abr())
-        {
-            Some(route_br) => route_br,
-            None => {
-                // If no such entry exists for router BR, do nothing with this
-                // LSA and consider the next in the list.
-                if instance.config.trace_opts.spf {
-                    Debug::<V>::SpfRouterUnreachableAbr(
-                        &lsa.router_id,
-                        lsa.adv_rtr,
-                    )
-                    .log();
-                }
-                continue;
+        else {
+            // If no such entry exists for router BR, do nothing with this
+            // LSA and consider the next in the list.
+            if instance.config.trace_opts.spf {
+                Debug::<V>::SpfRouterUnreachableAbr(
+                    &lsa.router_id,
+                    lsa.adv_rtr,
+                )
+                .log();
             }
+            continue;
         };
 
         // The inter-area path cost is the distance to BR plus the cost
@@ -785,7 +770,7 @@ fn update_rib_external<V>(
         // Select the routing table entry with the least cost; when there are
         // multiple least cost routing table entries the entry whose associated
         // area has the largest OSPF Area ID is chosen.
-        let route_asbr = match asbr_routes.iter().reduce(|best, route| {
+        let Some(route_asbr) = asbr_routes.iter().reduce(|best, route| {
             match route.metric.cmp(&best.metric) {
                 Ordering::Less => route,
                 Ordering::Equal => {
@@ -797,17 +782,13 @@ fn update_rib_external<V>(
                 }
                 Ordering::Greater => best,
             }
-        }) {
-            Some(route_asbr) => route_asbr,
-            None => {
-                // If no entries exist for router ASBR, do nothing with this
-                // LSA and consider the next in the list.
-                if instance.config.trace_opts.spf {
-                    Debug::<V>::SpfUnreachableAsbr(&lsa.prefix, lsa.adv_rtr)
-                        .log();
-                }
-                continue;
+        }) else {
+            // If no entries exist for router ASBR, do nothing with this
+            // LSA and consider the next in the list.
+            if instance.config.trace_opts.spf {
+                Debug::<V>::SpfUnreachableAsbr(&lsa.prefix, lsa.adv_rtr).log();
             }
+            continue;
         };
 
         // TODO: examine the forwarding address.

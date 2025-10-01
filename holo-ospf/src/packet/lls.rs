@@ -104,7 +104,7 @@ impl LlsData {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Default)]
 #[derive(Serialize, Deserialize)]
 pub struct LlsHelloData {
     pub eof: Option<ExtendedOptionsFlags>,

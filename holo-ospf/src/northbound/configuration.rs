@@ -178,6 +178,21 @@ pub struct RangeCfg {
 }
 
 #[derive(Debug)]
+pub struct ReverseMetricMtCfg {
+    pub metric: u16,
+    pub higher: bool,
+    pub offset: bool,
+}
+
+#[derive(Debug)]
+pub struct ReverseMetricCfg {
+    pub advertise: bool,
+    pub receive: bool,
+    pub rm_tx: BTreeMap<u8, ReverseMetricMtCfg>,
+    pub rm_rx: BTreeMap<u8, ReverseMetricMtCfg>,
+}
+
+#[derive(Debug)]
 pub struct InterfaceCfg<V: Version> {
     pub instance_id: InheritableConfig<u8>,
     pub if_type: InterfaceType,
@@ -199,6 +214,7 @@ pub struct InterfaceCfg<V: Version> {
     pub bfd_params: bfd::ClientCfg,
     pub trace_opts: InterfaceTraceOptions,
     pub lls_enabled: bool,
+    pub reverse_metric: ReverseMetricCfg,
 }
 
 #[derive(Debug)]
@@ -989,6 +1005,7 @@ where
 
             let cost = args.dnode.get_u16();
             iface.config.cost = cost;
+            iface.state.cost = cost;
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InterfaceCostChange(area_idx));
@@ -1232,7 +1249,100 @@ where
             let event_queue = args.event_queue;
             event_queue.insert(Event::UpdateTraceOptions);
         })
+        .path(ospf::areas::area::interfaces::interface::reverse_metric::enable_receive::PATH)
+        .modify_apply(|instance, args| {
+            let (_, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
 
+            let receive = args.dnode.get_bool();
+            iface.config.reverse_metric.receive = receive;
+        })
+        .path(ospf::areas::area::interfaces::interface::reverse_metric::enable_advertise::PATH)
+        .modify_apply(|instance, args| {
+            let (_, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let advertise = args.dnode.get_bool();
+            iface.config.reverse_metric.advertise = advertise;
+        })
+        .path(ospf::areas::area::interfaces::interface::reverse_metric::config::PATH)
+        .create_apply(|instance, args| {
+            let (_, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+            let mtid = args.dnode.get_u8_relative("mtid").unwrap();
+            iface.config.reverse_metric.rm_tx.insert(mtid, ReverseMetricMtCfg::default());
+        })
+        .delete_apply(|instance, args| {
+            let (_, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+            let mtid = args.dnode.get_u8_relative("mtid").unwrap();
+            iface.config.reverse_metric.rm_tx.remove(&mtid);
+        })
+        .lookup(|_context, _list_entry, _dnode| {
+            // TODO: implement me!
+            todo!();
+        })
+        .path(ospf::areas::area::interfaces::interface::reverse_metric::config::metric::PATH)
+        .modify_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let metric = args.dnode.get_u16();
+            let mtid = args.dnode.get_u8_relative("mtid").unwrap();
+            iface.config.reverse_metric.rm_tx.entry(mtid)
+                .and_modify(|entry| entry.metric = metric);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
+        })
+       .path(ospf::areas::area::interfaces::interface::reverse_metric::config::flags::higher::PATH)
+        .modify_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let higher = args.dnode.get_bool();
+            let mtid = args.dnode.get_u8_relative("mtid").unwrap();
+            iface.config.reverse_metric.rm_tx.entry(mtid)
+                .and_modify(|entry| entry.higher = higher);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
+        })
+        .path(ospf::areas::area::interfaces::interface::reverse_metric::config::flags::offset::PATH)
+        .modify_apply(|instance, args| {
+            let (area_idx, iface_idx) =
+                args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let offset = args.dnode.get_bool();
+            let mtid = args.dnode.get_u8_relative("mtid").unwrap();
+            iface.config.reverse_metric.rm_tx.entry(mtid)
+                .and_modify(|entry| entry.offset = offset);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
+        })
+        .path(ospf::areas::area::reverse_metric::enable_receive::PATH)
+        .modify_apply(|instance, args| {
+            let area_idx = args.list_entry.into_area().unwrap();
+            let receive = args.dnode.get_bool();
+            instance.arenas.interfaces.iter_mut().filter(|(area, _)| area == &area_idx).for_each(|(_, iface)| {
+                iface.config.reverse_metric.receive = receive;
+            });
+        })
+        .path(ospf::reverse_metric::enable_receive::PATH)
+        .modify_apply(|instance, args| {
+            let receive = args.dnode.get_bool();
+            instance.arenas.interfaces.iter_mut().for_each(|(_, iface)| {
+                iface.config.reverse_metric.receive = receive;
+            });
+        })
         .build()
 }
 
@@ -2407,6 +2517,32 @@ impl Default for RangeCfg {
     }
 }
 
+impl Default for ReverseMetricMtCfg {
+    fn default() -> Self {
+        let metric = ospf::areas::area::interfaces::interface::reverse_metric::config::metric::DFLT;
+        let higher = ospf::areas::area::interfaces::interface::reverse_metric::config::flags::higher::DFLT;
+        let offset = ospf::areas::area::interfaces::interface::reverse_metric::config::flags::offset::DFLT;
+        Self {
+            metric,
+            higher,
+            offset,
+        }
+    }
+}
+
+impl Default for ReverseMetricCfg {
+    fn default() -> Self {
+        let receive = ospf::areas::area::interfaces::interface::reverse_metric::enable_receive::DFLT;
+        let advertise = ospf::areas::area::interfaces::interface::reverse_metric::enable_advertise::DFLT;
+        Self {
+            receive,
+            advertise,
+            rm_tx: Default::default(),
+            rm_rx: Default::default(),
+        }
+    }
+}
+
 impl<V> Default for InterfaceCfg<V>
 where
     V: Version,
@@ -2455,6 +2591,7 @@ where
             bfd_params: Default::default(),
             trace_opts: Default::default(),
             lls_enabled,
+            reverse_metric: Default::default(),
         }
     }
 }

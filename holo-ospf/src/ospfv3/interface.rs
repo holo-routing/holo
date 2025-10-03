@@ -65,30 +65,25 @@ impl InterfaceVersion<Self> for Ospfv3 {
             auth_seqno: None,
         };
 
-        let lls = (iface.config.lls_enabled
-            & iface.config.reverse_metric.advertise)
-            .then(|| {
-                let mut lls_data: LlsHelloData = Default::default();
+        let advertise_rm = iface.config.reverse_metric.metric.is_some();
+        let lls = (iface.config.lls_enabled & advertise_rm).then(|| {
+            let mut lls_data: LlsHelloData = Default::default();
 
-                // Handle Reverse Metric (RFC 9339).
-                if iface.config.reverse_metric.advertise {
-                    for (mtid, cfg) in iface.config.reverse_metric.rm_tx.iter()
-                    {
-                        let mut flags = ReverseMetricFlags::empty();
-                        if cfg.higher {
-                            flags |= ReverseMetricFlags::H;
-                        }
-                        if cfg.offset {
-                            flags |= ReverseMetricFlags::O;
-                        }
-                        lls_data
-                            .reverse_metric
-                            .insert(*mtid, (flags, cfg.metric));
-                    }
+            // Handle Reverse Metric (RFC 9339).
+            if let Some(metric) = iface.config.reverse_metric.metric {
+                let cfg = &iface.config.reverse_metric;
+                let mut flags = ReverseMetricFlags::empty();
+                if cfg.higher {
+                    flags |= ReverseMetricFlags::H;
                 }
+                if cfg.offset {
+                    flags |= ReverseMetricFlags::O;
+                }
+                lls_data.reverse_metric.insert(cfg.mtid, (flags, metric));
+            }
 
-                lls_data
-            });
+            lls_data
+        });
 
         Packet::Hello(Hello {
             hdr,

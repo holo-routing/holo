@@ -27,7 +27,6 @@ use crate::lsdb::{
     self, LsaEntry, LsaEntryFlags, LsaOriginateEvent, lsa_compare,
 };
 use crate::neighbor::{LastDbDesc, Neighbor, RxmtPacketType, nsm};
-use crate::northbound::configuration::ReverseMetricMtCfg;
 use crate::northbound::notification;
 use crate::packet::error::DecodeResult;
 use crate::packet::lls::ReverseMetricFlags;
@@ -443,40 +442,34 @@ where
             // If the Reverse Metric from the neighbor has been updated since
             // the last one we received, then we propagate the information.
             for (mtid, (flags, metric)) in lls.reverse_metric.iter() {
-                let entry = iface.config.reverse_metric.rm_rx.entry(*mtid);
-                let higher = flags.contains(ReverseMetricFlags::H);
-                let offset = flags.contains(ReverseMetricFlags::O);
-                if let Some(cfg) = match entry {
+                let entry = iface.state.rms.entry(*mtid);
+                if let Some((flags, metric)) = match entry {
                     Entry::Occupied(entry) => {
                         // Has the RM changed?
-                        let old = entry.into_mut();
-                        (&old.metric != metric
-                            || old.higher != higher
-                            || old.offset != offset)
-                            .then(|| {
-                                old.metric = *metric;
-                                old.higher = higher;
-                                old.offset = offset;
-                                old
-                            })
+                        let (old_flags, old_metric) = entry.into_mut();
+                        (old_metric != metric || old_flags != flags).then(
+                            || {
+                                *old_metric = *metric;
+                                *old_flags = *flags;
+                                (*old_flags, *old_metric)
+                            },
+                        )
                     }
                     Entry::Vacant(entry) => {
                         // This is the first time we see the RM.
-                        Some(entry.insert(ReverseMetricMtCfg {
-                            metric: *metric,
-                            higher,
-                            offset,
-                        }))
+                        Some(*entry.insert((*flags, *metric)))
                     }
                 } {
                     // Update metric.
                     // RFC 9339 Section 6 : "The H and O flags are mutually
                     // exclusive; the H flag is ignored when the O flag is set."
-                    if cfg.offset {
+                    let higher = flags.contains(ReverseMetricFlags::H);
+                    let offset = flags.contains(ReverseMetricFlags::O);
+                    if offset {
                         iface.state.cost =
-                            iface.state.cost.saturating_add(cfg.metric);
-                    } else if !cfg.higher || iface.state.cost < cfg.metric {
-                        iface.state.cost = cfg.metric;
+                            iface.state.cost.saturating_add(metric);
+                    } else if !higher || iface.state.cost < metric {
+                        iface.state.cost = metric;
                     }
 
                     // Trigger Router LSA origination.

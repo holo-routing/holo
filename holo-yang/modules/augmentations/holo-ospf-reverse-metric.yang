@@ -24,8 +24,9 @@ module holo-ospf-reverse-metric {
        <mailto:nicolas.rybowski@uclouvain.be>";
 
     description
-      "This module defines the configuration and operational state for managing OSPF reverse metric functionality (RFC 9339).
-       It is strongly inspired from RFC 9194: A YANG Module for IS-IS Reverse Metric.";
+      "This module defines the configuration and operational state for managing
+       OSPF reverse metric functionality (RFC 9339). It is strongly inspired
+       from RFC 9194: A YANG Module for IS-IS Reverse Metric.";
 
     reference
       "RFC 9339: OSPF Reverse Metric";
@@ -40,7 +41,6 @@ module holo-ospf-reverse-metric {
           "OSPF reverse metric data.";
         leaf metric {
             type ospf:ospf-link-metric;
-            default 0;
             description
               "The reverse metric value.";
             reference
@@ -53,7 +53,9 @@ module holo-ospf-reverse-metric {
                 type boolean;
                 default "false";
                 description
-                  "The 'Higher' bit (H bit) (RFC9339). If true, the neighbor receiving the reverse metric should only apply it if it is higher than the provisioned metric value for the link.";
+                  "The 'Higher' bit (H bit) (RFC9339). If true, the neighbor
+                   receiving the reverse metric should only apply it if it is
+                    higher than the provisioned metric value for the link.";
                 reference
                   "RFC 9339: OSPF Reverse Metric, Section 4.";
             }
@@ -61,15 +63,19 @@ module holo-ospf-reverse-metric {
                 type boolean;
                 default "false";
                 description
-                  "The 'Offset' bit (O bit) (RFC9339). If true, the provided reverse metric should be added to the provisioned metric.";
+                  "The 'Offset' bit (O bit) (RFC9339). If true, the provided
+                   reverse metric should be added to the provisioned metric.";
                 reference
                   "RFC 9339: OSPF Reverse Metric, Section 4.";
             }
         }
         leaf mtid {
             type uint8;
+            default 0;
             description
               "The MT-ID for the topology enabled on the link.";
+            reference
+              "RFC 9339: OSPF Reverse Metric, Section 4.";
         }
     }
 
@@ -145,7 +151,8 @@ module holo-ospf-reverse-metric {
           "The reverse metric configuration for an OSPF link.";
         container reverse-metric {
             description
-              "Interface specific reverse metric configuration.";
+              "Interface specific reverse metric configuration. This interface
+               belongs to the default topology so mtid MUST be 0.";
             leaf enable-receive {
                 type boolean;
                 default "false";
@@ -157,26 +164,23 @@ module holo-ospf-reverse-metric {
                 reference
                   "RFC 9339: OSPF Reverse Metric, Section 7.";
             }
-            leaf enable-advertise {
-                type boolean;
-                default "false";
-                description
-                  "Enables sending reverse metric announcements to
-                   neighbors. By default, reverse metric advertisment is
-                   disabled and must be explicitly enabled through this
-                   configuration";
-                reference
-                  "RFC 9339: OSPF Reverse Metric, Section 7.";
-            }
-            list config {
-                key "mtid";
-                uses reverse-metric-data;
-                description
-                  "A router may send at most one Reverse Metric
-                   per topology.";
-                reference
-                  "RFC 9339: OSPF Reverse Metric, Section 7.";
-            }
+            uses reverse-metric-data;
+            must './mtid = 0';
         }
+    }
+
+    augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/ospf:ospf/"
+        + "ospf:areas/ospf:area/ospf:interfaces/ospf:interface/"
+        + "ospf:topologies/ospf:topology" {
+        when "derived-from-or-self(../../../../../../../rt:type, 'ospfv2')" {
+            description
+              "This augmentation is only valid for OSPFv2.";
+        }
+        if-feature "ospf:multi-topology";
+        description
+          "Reverse metric configuration for the topology enabled on this
+           interface.";
+        uses reverse-metric-data;
     }
 }

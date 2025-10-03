@@ -41,6 +41,7 @@ where
             "ietf-ospfv3-extended-lsa",
             "holo-ospf",
             "holo-ospf-dev",
+            "holo-ospf-reverse-metric",
         ]
     }
 

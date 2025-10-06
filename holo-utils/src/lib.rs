@@ -32,6 +32,7 @@ pub mod socket;
 pub mod southbound;
 pub mod sr;
 pub mod task;
+pub mod vifctl;
 pub mod yang;
 
 pub type Database = Arc<Mutex<PickleDb>>;

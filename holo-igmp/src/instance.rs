@@ -6,22 +6,27 @@
 
 use std::collections::BTreeMap;
 
-use chrono::{DateTime, Utc};
-use holo_protocol::{
-    InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
-};
-use holo_utils::ibus::IbusMsg;
-use holo_utils::protocol::Protocol;
-use tokio::sync::mpsc;
-use tokio::sync::mpsc::{Receiver, Sender};
-
 use crate::debug::Debug;
 use crate::error::Error;
 use crate::interface::Interface;
+use crate::network::IGMP_IP_PROTO;
 use crate::northbound::configuration::InstanceCfg;
 use crate::tasks::messages::input::NetRxPacketMsg;
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
 use crate::{events, ibus};
+use chrono::{DateTime, Utc};
+use holo_protocol::{
+    InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
+};
+use holo_utils::capabilities;
+use holo_utils::ibus::IbusMsg;
+use holo_utils::protocol::Protocol;
+use holo_utils::socket::{AsyncFd, RawSocketExt, Socket};
+use std::io;
+use std::mem::MaybeUninit;
+use std::sync::Arc;
+use tokio::sync::mpsc;
+use tokio::sync::mpsc::{Receiver, Sender};
 
 #[derive(Debug)]
 pub struct Instance {
@@ -39,6 +44,8 @@ pub struct Instance {
     pub tx: InstanceChannelsTx<Instance>,
     // Shared data.
     pub shared: InstanceShared,
+    // kernel mcast socket
+    pub mcast_sock: Arc<AsyncFd<Socket>>,
 }
 
 #[derive(Debug, Default)]
@@ -94,6 +101,25 @@ pub struct InstanceView<'a> {
     pub state: &'a mut InstanceState,
     pub tx: &'a InstanceChannelsTx<Instance>,
     pub shared: &'a InstanceShared,
+    pub mcast_sock: &'a Arc<AsyncFd<Socket>>,
+}
+
+// ===== kernel multicast helpers =====
+pub async fn recv_task_plain(
+    async_sock: Arc<AsyncFd<Socket>>,
+) -> io::Result<()> {
+    loop {
+        let mut guard = async_sock.readable().await?;
+
+        let result = guard.try_io(|inner| {
+            let mut buf: [MaybeUninit<u8>; 1024] =
+                [MaybeUninit::uninit(); 1024];
+            match inner.get_ref().recv(&mut buf) {
+                Ok(n) => Ok("lets decode it"),
+                Err(e) => Err(e),
+            }
+        });
+    }
 }
 
 // ===== impl Instance =====
@@ -111,6 +137,7 @@ impl Instance {
             state: &mut self.state,
             tx: &self.tx,
             shared: &self.shared,
+            mcast_sock: &self.mcast_sock,
         };
         Some((instance, iface))
     }
@@ -129,6 +156,28 @@ impl ProtocolInstance for Instance {
         shared: InstanceShared,
         tx: InstanceChannelsTx<Instance>,
     ) -> Instance {
+        use socket2::{Domain, Protocol, Type};
+        // Create raw socket.
+        let socket = capabilities::raise(|| {
+            Socket::new(
+                Domain::IPV4,
+                Type::RAW,
+                Some(Protocol::from(IGMP_IP_PROTO)),
+            )
+        })
+        .expect("failed to create IGMP raw socket");
+        socket
+            .set_nonblocking(true)
+            .expect("failed to set IGMP socket non-blocking");
+        socket
+            .set_ipv4_pktinfo(true)
+            .expect("failed to set IGMP socket IPv4 packet info");
+        socket
+            .set_mrt_init(true)
+            .expect("failed to set IGMP socket MRT_INIT");
+
+        let mcast_sock = Arc::new(AsyncFd::new(socket).unwrap());
+
         Instance {
             name,
             system: Default::default(),
@@ -137,15 +186,26 @@ impl ProtocolInstance for Instance {
             interfaces: Default::default(),
             tx,
             shared,
+            mcast_sock,
         }
     }
 
     fn init(&mut self) {
         // TODO: anything to do here?
+
+        // fire up a task to listen on the mcast socket
+        let recv_handle = {
+            let sock_clone = Arc::clone(&self.mcast_sock);
+            tokio::spawn(async move {
+                if let Err(e) = recv_task_plain(sock_clone).await {}
+            })
+        };
     }
 
     fn shutdown(self) {
         // TODO: stop IGMP on all interfaces.
+
+        // TODO: cleanup the running mcast handle task.
     }
 
     fn process_ibus_msg(&mut self, msg: IbusMsg) {

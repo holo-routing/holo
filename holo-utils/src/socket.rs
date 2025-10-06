@@ -8,6 +8,10 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::os::raw::{c_int, c_ushort, c_void};
 use std::os::unix::io::AsRawFd;
 
+use crate::vifctl::vifctl;
+use std::ffi::CString;
+use std::{io, mem};
+
 use libc::{ip_mreqn, packet_mreq};
 use nix::sys::socket::{LinkAddr, SockaddrLike};
 use serde::{Deserialize, Serialize};
@@ -54,6 +58,12 @@ pub use crate::socket::mock::{
 
 // Maximum TTL for IPv4 or Hop Limit for IPv6.
 pub const TTL_MAX: u8 = 255;
+
+// MRT Options
+pub const MRT_INIT: c_int = 200;
+pub const MRT_ADD_VID: c_int = MRT_INIT + 2;
+// Flag for vifc to use ifindex
+pub const VIFF_USE_IFINDEX: u8 = 8;
 
 // Useful type definition.
 type Result<T> = std::io::Result<T>;
@@ -384,6 +394,12 @@ pub trait RawSocketExt: SocketExt {
 
     // Sets the value of the IPV6_RECVPKTINFO option for this socket.
     fn set_ipv6_pktinfo(&self, value: bool) -> Result<()>;
+
+    // Sets the value of the MRT_INIT option for this socket.
+    fn set_mrt_init(&self, value: bool) -> Result<()>;
+
+    // Tell the kernel to create a vif for this ifindex.
+    fn start_vif(&self, ifindex: u32, vifid: u16) -> Result<()>;
 }
 
 // Extension methods for LinkAddr.
@@ -534,6 +550,34 @@ impl RawSocketExt for Socket {
             std::mem::size_of::<i32>() as libc::socklen_t,
         )
     }
+
+    fn set_mrt_init(&self, value: bool) -> Result<()> {
+        let optval = value as c_int;
+        setsockopt(
+            self,
+            libc::IPPROTO_IP,
+            MRT_INIT,
+            &optval as *const _ as *const libc::c_void,
+            std::mem::size_of::<i32>() as libc::socklen_t,
+        )
+    }
+
+    fn start_vif(&self, ifindex: u32, vifid: u16) -> Result<()> {
+        unsafe {
+            let mut vif: vifctl = mem::zeroed();
+            vif.vifc_vifi = vifid;
+            vif.vifc_flags = VIFF_USE_IFINDEX;
+            vif.addr_index_union.vifc_lcl_ifindex = ifindex as i32;
+
+            setsockopt(
+                self,
+                libc::IPPROTO_IP,
+                MRT_ADD_VID,
+                &vif as *const _ as *const libc::c_void,
+                std::mem::size_of_val(&vif) as libc::socklen_t,
+            )
+        }
+    }
 }
 
 // ===== Mock sockets for unit testing =====
@@ -597,4 +641,21 @@ fn setsockopt<F: AsRawFd>(
     }
 
     Ok(())
+}
+
+pub fn get_ifindex_by_name(ifname: &str) -> io::Result<u32> {
+    let c_ifname = CString::new(ifname).map_err(|_| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Interface name contains null byte",
+        )
+    })?;
+
+    let idx = unsafe { libc::if_nametoindex(c_ifname.as_ptr()) };
+
+    if idx == 0 {
+        Err(io::Error::last_os_error())
+    } else {
+        Ok(idx)
+    }
 }

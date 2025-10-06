@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use holo_utils::socket::{AsyncFd, Socket};
+use holo_utils::socket::{AsyncFd, RawSocketExt, Socket, get_ifindex_by_name};
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::task::Task;
 use tokio::sync::mpsc;
@@ -82,6 +82,14 @@ impl Interface {
 
     fn start(&mut self, instance: &mut InstanceView<'_>) -> Result<(), Error> {
         //Debug::InterfaceStart(&self.name).log();
+
+        let mut ifindex = get_ifindex_by_name(&self.name).unwrap();
+
+        instance
+            .mcast_sock
+            .get_ref()
+            .start_vif(ifindex, ifindex as u16)
+            .expect("TODO: panic message");
 
         // Create raw socket.
         let socket =

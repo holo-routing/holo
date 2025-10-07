@@ -5,6 +5,7 @@
 //
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use holo_protocol::{
@@ -12,16 +13,20 @@ use holo_protocol::{
 };
 use holo_utils::ibus::IbusMsg;
 use holo_utils::protocol::Protocol;
+use holo_utils::socket::{AsyncFd, Socket};
+use holo_utils::task::Task;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::debug::Debug;
-use crate::error::Error;
+use crate::error::{Error, IoError};
 use crate::interface::Interface;
 use crate::northbound::configuration::InstanceCfg;
 use crate::tasks::messages::input::NetRxPacketMsg;
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
-use crate::{events, ibus};
+use crate::{events, ibus, network, tasks};
+
+pub type Interfaces = BTreeMap<String, Interface>;
 
 #[derive(Debug)]
 pub struct Instance {
@@ -32,9 +37,9 @@ pub struct Instance {
     // Instance configuration data.
     pub config: InstanceCfg,
     // Instance state data.
-    pub state: InstanceState,
+    pub state: Option<InstanceState>,
     // Instance interfaces.
-    pub interfaces: BTreeMap<String, Interface>,
+    pub interfaces: Interfaces,
     // Instance Tx channels.
     pub tx: InstanceChannelsTx<Instance>,
     // Shared data.
@@ -44,9 +49,16 @@ pub struct Instance {
 #[derive(Debug, Default)]
 pub struct InstanceSys {}
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct InstanceState {
+    pub net: InstanceNet,
     pub statistics: Statistics,
+}
+
+#[derive(Debug)]
+pub struct InstanceNet {
+    pub socket_rx: Arc<AsyncFd<Socket>>,
+    _net_rx_task: Task<()>,
 }
 
 #[derive(Debug, Default)]
@@ -87,7 +99,7 @@ pub struct ProtocolInputChannelsRx {
     pub net_packet_rx: Receiver<NetRxPacketMsg>,
 }
 
-pub struct InstanceView<'a> {
+pub struct InstanceUpView<'a> {
     pub name: &'a str,
     pub system: &'a InstanceSys,
     pub config: &'a InstanceCfg,
@@ -99,20 +111,19 @@ pub struct InstanceView<'a> {
 // ===== impl Instance =====
 
 impl Instance {
-    pub(crate) fn get_interface(
+    pub(crate) fn as_up(
         &mut self,
-        ifname: &str,
-    ) -> Option<(InstanceView<'_>, &mut Interface)> {
-        let iface = self.interfaces.get_mut(ifname)?;
-        let instance = InstanceView {
+    ) -> Option<(InstanceUpView<'_>, &mut Interfaces)> {
+        let state = self.state.as_mut()?;
+        let instance = InstanceUpView {
             name: &self.name,
             system: &self.system,
             config: &self.config,
-            state: &mut self.state,
+            state,
             tx: &self.tx,
             shared: &self.shared,
         };
-        Some((instance, iface))
+        Some((instance, &mut self.interfaces))
     }
 }
 
@@ -141,11 +152,29 @@ impl ProtocolInstance for Instance {
     }
 
     fn init(&mut self) {
-        // TODO: anything to do here?
+        // Create Rx socket.
+        let socket_rx = network::socket_rx()
+            .map_err(IoError::SocketError)
+            .and_then(|socket| {
+                AsyncFd::new(socket).map_err(IoError::SocketError)
+            })
+            .map(Arc::new)
+            .expect("failed to create Rx socket");
+
+        // Start network Rx task.
+        let net = InstanceNet::new(socket_rx, self);
+
+        // Store instance initial state.
+        self.state = Some(InstanceState {
+            net,
+            statistics: Default::default(),
+        });
     }
 
     fn shutdown(self) {
         // TODO: stop IGMP on all interfaces.
+
+        // TODO: cleanup the running mcast handle task.
     }
 
     fn process_ibus_msg(&mut self, msg: IbusMsg) {
@@ -177,6 +206,25 @@ impl ProtocolInstance for Instance {
     #[cfg(feature = "testing")]
     fn test_dir() -> String {
         format!("{}/tests/conformance", env!("CARGO_MANIFEST_DIR"),)
+    }
+}
+
+// ===== impl InstanceNet =====
+
+impl InstanceNet {
+    pub(crate) fn new(
+        socket_rx: Arc<AsyncFd<Socket>>,
+        instance: &Instance,
+    ) -> Self {
+        let net_rx_task = tasks::net_rx(
+            socket_rx.clone(),
+            &instance.tx.protocol_input.net_packet_rx,
+        );
+
+        InstanceNet {
+            socket_rx,
+            _net_rx_task: net_rx_task,
+        }
     }
 }
 
@@ -220,7 +268,7 @@ fn process_protocol_msg(
     match msg {
         // Received network packet.
         ProtocolInputMsg::NetRxPacket(msg) => {
-            events::process_packet(instance, msg.ifname, msg.src, msg.packet)?;
+            events::process_packet(instance, msg.ifindex, msg.src, msg.packet)?;
         }
     }
 

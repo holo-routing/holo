@@ -34,7 +34,7 @@ pub static ALL_ROUTERS: Lazy<Ipv4Addr> =
 
 // ===== global functions =====
 
-pub(crate) fn socket(ifname: &str) -> Result<Socket, std::io::Error> {
+pub(crate) fn socket_tx(ifname: &str) -> Result<Socket, std::io::Error> {
     #[cfg(not(feature = "testing"))]
     {
         use socket2::{Domain, Protocol, Type};
@@ -63,6 +63,32 @@ pub(crate) fn socket(ifname: &str) -> Result<Socket, std::io::Error> {
     }
 }
 
+pub(crate) fn socket_rx() -> Result<Socket, std::io::Error> {
+    #[cfg(not(feature = "testing"))]
+    {
+        use socket2::{Domain, Protocol, Type};
+
+        // Create raw socket.
+        let socket = capabilities::raise(|| {
+            Socket::new(
+                Domain::IPV4,
+                Type::RAW,
+                Some(Protocol::from(IGMP_IP_PROTO)),
+            )
+        })?;
+        socket.set_nonblocking(true)?;
+        socket.set_ipv4_pktinfo(true)?;
+        socket.set_mrt_init(true)?;
+
+        Ok(socket)
+    }
+
+    #[cfg(feature = "testing")]
+    {
+        Ok(Socket {})
+    }
+}
+
 #[cfg(not(feature = "testing"))]
 pub(crate) async fn write_loop(
     socket: Arc<AsyncFd<Socket>>,
@@ -81,11 +107,11 @@ pub(crate) async fn write_loop(
 #[cfg(not(feature = "testing"))]
 pub(crate) async fn read_loop(
     socket: Arc<AsyncFd<Socket>>,
-    ifname: String,
     net_packet_rxp: Sender<NetRxPacketMsg>,
 ) -> Result<(), SendError<NetRxPacketMsg>> {
     let mut buf = [0; 16384];
     let mut iov = [IoSliceMut::new(&mut buf)];
+    let mut cmsgspace = nix::cmsg_space!(libc::in_pktinfo);
 
     loop {
         // Receive data packet.
@@ -94,19 +120,39 @@ pub(crate) async fn read_loop(
                 match socket::recvmsg::<SockaddrIn>(
                     socket.as_raw_fd(),
                     &mut iov,
-                    None,
+                    Some(&mut cmsgspace),
                     socket::MsgFlags::empty(),
                 ) {
-                    Ok(msg) => Ok((msg.address.unwrap(), msg.bytes)),
+                    Ok(msg) => {
+                        let ifindex = msg.cmsgs().unwrap().find_map(|cmsg| {
+                            if let socket::ControlMessageOwned::Ipv4PacketInfo(
+                                pktinfo,
+                            ) = cmsg
+                            {
+                                Some(pktinfo.ipi_ifindex as u32)
+                            } else {
+                                None
+                            }
+                        });
+                        Ok((ifindex, msg.address, msg.bytes))
+                    }
                     Err(errno) => Err(errno.into()),
                 }
             })
             .await
         {
-            Ok((src, bytes)) => {
-                let mut buf = Bytes::copy_from_slice(&iov[0].deref()[0..bytes]);
+            Ok((ifindex, src, bytes)) => {
+                let Some(ifindex) = ifindex else {
+                    IoError::RecvMissingAncillaryData.log();
+                    return Ok(());
+                };
+                let Some(src) = src else {
+                    IoError::RecvMissingSourceAddr.log();
+                    return Ok(());
+                };
 
                 // Move past the IPv4 header.
+                let mut buf = Bytes::copy_from_slice(&iov[0].deref()[0..bytes]);
                 let hdr_len = buf.get_u8() & 0x0F;
                 let _tos = buf.get_u8();
                 let _total_len = buf.get_u16();
@@ -115,7 +161,7 @@ pub(crate) async fn read_loop(
                 // Decode IGMP packet.
                 let packet = Packet::decode(&mut buf);
                 let msg = NetRxPacketMsg {
-                    ifname: ifname.clone(),
+                    ifindex,
                     src: src.ip(),
                     packet,
                 };

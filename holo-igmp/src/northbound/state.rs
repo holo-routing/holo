@@ -43,57 +43,80 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(igmp::global::statistics::PATH)
         .get_object(|instance, _args| {
             use igmp::global::statistics::Statistics;
+            let mut discontinuity_time = None;
+            if let Some(state) = &instance.state {
+                discontinuity_time =
+                    Some(Cow::Borrowed(&state.statistics.discontinuity_time));
+            }
+
             Box::new(Statistics {
-                discontinuity_time: Some(Cow::Borrowed(
-                    &instance.state.statistics.discontinuity_time,
-                ))
-                .ignore_in_testing(),
+                discontinuity_time: discontinuity_time.ignore_in_testing(),
             })
         })
         .path(igmp::global::statistics::error::PATH)
         .get_object(|instance, _args| {
             use igmp::global::statistics::error::Error;
+            let mut total = None;
+            let mut query = None;
+            let mut report = None;
+            let mut leave = None;
+            let mut checksum = None;
+            let mut too_short = None;
+            if let Some(state) = &instance.state {
+                total = Some(state.statistics.errors.total);
+                query = Some(state.statistics.errors.query);
+                report = Some(state.statistics.errors.report);
+                leave = Some(state.statistics.errors.leave);
+                checksum = Some(state.statistics.errors.checksum);
+                too_short = Some(state.statistics.errors.too_short);
+            }
             Box::new(Error {
-                total: Some(instance.state.statistics.errors.total)
-                    .ignore_in_testing(),
-                query: Some(instance.state.statistics.errors.query)
-                    .ignore_in_testing(),
-                report: Some(instance.state.statistics.errors.report)
-                    .ignore_in_testing(),
-                leave: Some(instance.state.statistics.errors.leave)
-                    .ignore_in_testing(),
-                checksum: Some(instance.state.statistics.errors.checksum)
-                    .ignore_in_testing(),
-                too_short: Some(instance.state.statistics.errors.too_short)
-                    .ignore_in_testing(),
+                total: total.ignore_in_testing(),
+                query: query.ignore_in_testing(),
+                report: report.ignore_in_testing(),
+                leave: leave.ignore_in_testing(),
+                checksum: checksum.ignore_in_testing(),
+                too_short: too_short.ignore_in_testing(),
             })
         })
         .path(igmp::global::statistics::received::PATH)
         .get_object(|instance, _args| {
             use igmp::global::statistics::received::Received;
+            let mut total = None;
+            let mut query = None;
+            let mut report = None;
+            let mut leave = None;
+            if let Some(state) = &instance.state {
+                total = Some(state.statistics.msgs_rcvd.total);
+                query = Some(state.statistics.msgs_rcvd.query);
+                report = Some(state.statistics.msgs_rcvd.report);
+                leave = Some(state.statistics.msgs_rcvd.leave);
+            }
             Box::new(Received {
-                total: Some(instance.state.statistics.msgs_rcvd.total)
-                    .ignore_in_testing(),
-                query: Some(instance.state.statistics.msgs_rcvd.query)
-                    .ignore_in_testing(),
-                report: Some(instance.state.statistics.msgs_rcvd.report)
-                    .ignore_in_testing(),
-                leave: Some(instance.state.statistics.msgs_rcvd.leave)
-                    .ignore_in_testing(),
+                total: total.ignore_in_testing(),
+                query: query.ignore_in_testing(),
+                report: report.ignore_in_testing(),
+                leave: leave.ignore_in_testing(),
             })
         })
         .path(igmp::global::statistics::sent::PATH)
         .get_object(|instance, _args| {
             use igmp::global::statistics::sent::Sent;
+            let mut total = None;
+            let mut query = None;
+            let mut report = None;
+            let mut leave = None;
+            if let Some(state) = &instance.state {
+                total = Some(state.statistics.msgs_sent.total);
+                query = Some(state.statistics.msgs_sent.query);
+                report = Some(state.statistics.msgs_sent.report);
+                leave = Some(state.statistics.msgs_sent.leave);
+            }
             Box::new(Sent {
-                total: Some(instance.state.statistics.msgs_sent.total)
-                    .ignore_in_testing(),
-                query: Some(instance.state.statistics.msgs_sent.query)
-                    .ignore_in_testing(),
-                report: Some(instance.state.statistics.msgs_sent.report)
-                    .ignore_in_testing(),
-                leave: Some(instance.state.statistics.msgs_sent.leave)
-                    .ignore_in_testing(),
+                total: total.ignore_in_testing(),
+                query: query.ignore_in_testing(),
+                report: report.ignore_in_testing(),
+                leave: leave.ignore_in_testing(),
             })
         })
         .path(igmp::interfaces::interface::PATH)

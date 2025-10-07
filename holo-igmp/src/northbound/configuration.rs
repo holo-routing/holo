@@ -160,16 +160,15 @@ impl Provider for Instance {
     fn process_event(&mut self, event: Event) {
         match event {
             Event::InterfaceUpdate(ifname) => {
-                let (mut instance, iface) =
-                    self.get_interface(&ifname).unwrap();
+                let Some((mut instance, interfaces)) = self.as_up() else {
+                    return;
+                };
+                let iface = interfaces.get_mut(&ifname).unwrap();
                 iface.update(&mut instance);
             }
             Event::InterfaceIbusSub(ifname) => {
-                let (instance, iface) = self.get_interface(&ifname).unwrap();
-                instance
-                    .tx
-                    .ibus
-                    .interface_sub(Some(iface.name.clone()), None);
+                let iface = self.interfaces.get(&ifname).unwrap();
+                self.tx.ibus.interface_sub(Some(iface.name.clone()), None);
             }
         }
     }

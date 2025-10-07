@@ -59,7 +59,7 @@ pub mod messages {
 
         #[derive(Debug, Deserialize, Serialize)]
         pub struct NetRxPacketMsg {
-            pub ifname: String,
+            pub ifindex: u32,
             pub src: Ipv4Addr,
             pub packet: DecodeResult<Packet>,
         }
@@ -89,7 +89,6 @@ pub mod messages {
 // Network Rx task.
 pub(crate) fn net_rx(
     socket: Arc<AsyncFd<Socket>>,
-    ifname: String,
     net_packet_rxp: &Sender<messages::input::NetRxPacketMsg>,
 ) -> Task<()> {
     #[cfg(not(feature = "testing"))]
@@ -103,8 +102,7 @@ pub(crate) fn net_rx(
 
         Task::spawn(
             async move {
-                let _ =
-                    network::read_loop(socket, ifname, net_packet_rxp).await;
+                let _ = network::read_loop(socket, net_packet_rxp).await;
             }
             .in_current_span(),
         )

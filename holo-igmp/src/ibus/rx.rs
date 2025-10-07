@@ -16,8 +16,10 @@ pub(crate) fn process_iface_update(
     msg: InterfaceUpdateMsg,
 ) -> Result<(), Error> {
     // Lookup interface.
-    let Some((mut instance, iface)) = instance.get_interface(&msg.ifname)
-    else {
+    let Some((mut instance, interfaces)) = instance.as_up() else {
+        return Ok(());
+    };
+    let Some(iface) = interfaces.get_mut(&msg.ifname) else {
         return Ok(());
     };
 

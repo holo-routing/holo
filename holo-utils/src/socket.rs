@@ -8,7 +8,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::os::raw::{c_int, c_ushort, c_void};
 use std::os::unix::io::AsRawFd;
 
-use libc::{ip_mreqn, packet_mreq};
+use libc::{in_addr, ip_mreqn, packet_mreq};
 use nix::sys::socket::{LinkAddr, SockaddrLike};
 use serde::{Deserialize, Serialize};
 // Normal build: re-export standard socket types.
@@ -44,6 +44,23 @@ pub struct tcp_md5sig {
     pub tcpm_key: [u8; 108],
 }
 
+// vifctl struct used for adding vifs
+#[repr(C)]
+pub union __vif_union {
+    pub vifc_lcl_addr: in_addr,
+    pub vifc_lcl_ifindex: std::os::raw::c_int,
+}
+
+#[repr(C)]
+pub struct vifctl {
+    pub vifc_vifi: std::os::raw::c_ushort,
+    pub vifc_flags: std::os::raw::c_uchar,
+    pub vifc_threshold: std::os::raw::c_uchar,
+    pub vifc_rate_limit: std::os::raw::c_uint,
+    pub addr_index_union: __vif_union,
+    pub vifc_rmt_addr: in_addr,
+}
+
 use crate::ip::{AddressFamily, IpAddrKind};
 // Test build: export mock sockets.
 #[cfg(feature = "testing")]
@@ -54,6 +71,12 @@ pub use crate::socket::mock::{
 
 // Maximum TTL for IPv4 or Hop Limit for IPv6.
 pub const TTL_MAX: u8 = 255;
+
+// MRT Options
+pub const MRT_INIT: c_int = 200;
+pub const MRT_ADD_VIF: c_int = MRT_INIT + 2;
+// Flag for vifc to use ifindex
+pub const VIFF_USE_IFINDEX: u8 = 8;
 
 // Useful type definition.
 type Result<T> = std::io::Result<T>;
@@ -384,6 +407,12 @@ pub trait RawSocketExt: SocketExt {
 
     // Sets the value of the IPV6_RECVPKTINFO option for this socket.
     fn set_ipv6_pktinfo(&self, value: bool) -> Result<()>;
+
+    // Sets the value of the MRT_INIT option for this socket.
+    fn set_mrt_init(&self, value: bool) -> Result<()>;
+
+    // Tell the kernel to create a vif for this ifindex.
+    fn start_vif(&self, ifindex: u32, vifid: u16) -> Result<()>;
 }
 
 // Extension methods for LinkAddr.
@@ -532,6 +561,38 @@ impl RawSocketExt for Socket {
             libc::IPV6_RECVPKTINFO,
             &optval as *const _ as *const libc::c_void,
             std::mem::size_of::<i32>() as libc::socklen_t,
+        )
+    }
+
+    fn set_mrt_init(&self, value: bool) -> Result<()> {
+        let optval = value as c_int;
+        setsockopt(
+            self,
+            libc::IPPROTO_IP,
+            MRT_INIT,
+            &optval as *const _ as *const libc::c_void,
+            std::mem::size_of::<i32>() as libc::socklen_t,
+        )
+    }
+
+    fn start_vif(&self, ifindex: u32, vifid: u16) -> Result<()> {
+        let vif = vifctl {
+            vifc_vifi: vifid,
+            vifc_flags: VIFF_USE_IFINDEX,
+            vifc_threshold: 0,
+            vifc_rate_limit: 0,
+            addr_index_union: __vif_union {
+                vifc_lcl_ifindex: ifindex as i32,
+            },
+            vifc_rmt_addr: libc::in_addr { s_addr: 0 },
+        };
+
+        setsockopt(
+            self,
+            libc::IPPROTO_IP,
+            MRT_ADD_VIF,
+            &vif as *const _ as *const libc::c_void,
+            std::mem::size_of_val(&vif) as libc::socklen_t,
         )
     }
 }

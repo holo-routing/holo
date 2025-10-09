@@ -5,6 +5,7 @@
 //
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use holo_protocol::{
@@ -12,13 +13,16 @@ use holo_protocol::{
 };
 use holo_utils::ibus::IbusMsg;
 use holo_utils::protocol::Protocol;
+use holo_utils::socket::{AsyncFd, Socket};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::debug::Debug;
 use crate::error::Error;
 use crate::interface::Interface;
+use crate::network::kernel_socket;
 use crate::northbound::configuration::InstanceCfg;
+use crate::tasks::instance_rx;
 use crate::tasks::messages::input::NetRxPacketMsg;
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
 use crate::{events, ibus};
@@ -39,6 +43,8 @@ pub struct Instance {
     pub tx: InstanceChannelsTx<Instance>,
     // Shared data.
     pub shared: InstanceShared,
+    // kernel mcast socket
+    pub mcast_sock: Arc<AsyncFd<Socket>>,
 }
 
 #[derive(Debug, Default)]
@@ -94,7 +100,9 @@ pub struct InstanceView<'a> {
     pub state: &'a mut InstanceState,
     pub tx: &'a InstanceChannelsTx<Instance>,
     pub shared: &'a InstanceShared,
+    pub mcast_sock: &'a Arc<AsyncFd<Socket>>,
 }
+
 
 // ===== impl Instance =====
 
@@ -111,6 +119,7 @@ impl Instance {
             state: &mut self.state,
             tx: &self.tx,
             shared: &self.shared,
+            mcast_sock: &self.mcast_sock,
         };
         Some((instance, iface))
     }
@@ -129,6 +138,13 @@ impl ProtocolInstance for Instance {
         shared: InstanceShared,
         tx: InstanceChannelsTx<Instance>,
     ) -> Instance {
+        let mcast_sock = Arc::new(
+            AsyncFd::new(
+                kernel_socket().expect("failed to create kernel mcast socket"),
+            )
+            .unwrap(),
+        );
+
         Instance {
             name,
             system: Default::default(),
@@ -137,15 +153,26 @@ impl ProtocolInstance for Instance {
             interfaces: Default::default(),
             tx,
             shared,
+            mcast_sock,
         }
     }
 
     fn init(&mut self) {
         // TODO: anything to do here?
+
+        // fire up a task to listen on the mcast socket
+        let _recv_handle = {
+            let sock_clone = Arc::clone(&self.mcast_sock);
+            tokio::spawn(async move {
+                if let Err(_e) = instance_rx(sock_clone).await {}
+            })
+        };
     }
 
     fn shutdown(self) {
         // TODO: stop IGMP on all interfaces.
+
+        // TODO: cleanup the running mcast handle task.
     }
 
     fn process_ibus_msg(&mut self, msg: IbusMsg) {

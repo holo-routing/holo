@@ -63,6 +63,32 @@ pub(crate) fn socket(ifname: &str) -> Result<Socket, std::io::Error> {
     }
 }
 
+pub(crate) fn kernel_socket() -> Result<Socket, std::io::Error> {
+    #[cfg(not(feature = "testing"))]
+    {
+        use socket2::{Domain, Protocol, Type};
+
+        // Create raw socket.
+        let socket = capabilities::raise(|| {
+            Socket::new(
+                Domain::IPV4,
+                Type::RAW,
+                Some(Protocol::from(IGMP_IP_PROTO)),
+            )
+        })?;
+        socket.set_nonblocking(true)?;
+        socket.set_ipv4_pktinfo(true)?;
+        socket.set_mrt_init(true)?;
+
+        Ok(socket)
+    }
+
+    #[cfg(feature = "testing")]
+    {
+        Ok(Socket {})
+    }
+}
+
 #[cfg(not(feature = "testing"))]
 pub(crate) async fn write_loop(
     socket: Arc<AsyncFd<Socket>>,

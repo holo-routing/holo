@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::io;
+use std::mem::MaybeUninit;
 use std::sync::Arc;
 
 use holo_utils::socket::{AsyncFd, Socket};
@@ -148,5 +150,31 @@ pub(crate) fn net_tx(
                 let _ = proto_output_tx.send(msg).await;
             }
         })
+    }
+}
+
+pub(crate) async fn instance_rx(
+    async_sock: Arc<AsyncFd<Socket>>,
+) -> io::Result<()> {
+    #[cfg(not(feature = "testing"))]
+    {
+        loop {
+            let mut guard = async_sock.readable().await?;
+
+            let _result = guard.try_io(|inner| {
+                let mut buf: [MaybeUninit<u8>; 1024] =
+                    [MaybeUninit::uninit(); 1024];
+                match inner.get_ref().recv(&mut buf) {
+                    Ok(n) => {
+                        Ok("lets decode it")
+                    }
+                    Err(e) => Err(e),
+                }
+            });
+        }
+    }
+    #[cfg(feature = "testing")]
+    {
+        Ok(())
     }
 }

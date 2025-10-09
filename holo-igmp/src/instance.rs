@@ -5,26 +5,24 @@
 //
 
 use std::collections::BTreeMap;
-use std::io;
-use std::mem::MaybeUninit;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use holo_protocol::{
     InstanceChannelsTx, InstanceShared, MessageReceiver, ProtocolInstance,
 };
-use holo_utils::capabilities;
 use holo_utils::ibus::IbusMsg;
 use holo_utils::protocol::Protocol;
-use holo_utils::socket::{AsyncFd, RawSocketExt, Socket};
+use holo_utils::socket::{AsyncFd, Socket};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::debug::Debug;
 use crate::error::Error;
 use crate::interface::Interface;
-use crate::network::IGMP_IP_PROTO;
+use crate::network::kernel_socket;
 use crate::northbound::configuration::InstanceCfg;
+use crate::tasks::instance_rx;
 use crate::tasks::messages::input::NetRxPacketMsg;
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
 use crate::{events, ibus};
@@ -105,27 +103,6 @@ pub struct InstanceView<'a> {
     pub mcast_sock: &'a Arc<AsyncFd<Socket>>,
 }
 
-// ===== kernel multicast helpers =====
-pub async fn recv_task_plain(
-    async_sock: Arc<AsyncFd<Socket>>,
-) -> io::Result<()> {
-    use tracing::info;
-    loop {
-        let mut guard = async_sock.readable().await?;
-
-        let _result = guard.try_io(|inner| {
-            let mut buf: [MaybeUninit<u8>; 1024] =
-                [MaybeUninit::uninit(); 1024];
-            match inner.get_ref().recv(&mut buf) {
-                Ok(n) => {
-                    info!("received {} bytes", n);
-                    Ok("lets decode it")
-                }
-                Err(e) => Err(e),
-            }
-        });
-    }
-}
 
 // ===== impl Instance =====
 
@@ -161,27 +138,12 @@ impl ProtocolInstance for Instance {
         shared: InstanceShared,
         tx: InstanceChannelsTx<Instance>,
     ) -> Instance {
-        use socket2::{Domain, Protocol, Type};
-        // Create raw socket.
-        let socket = capabilities::raise(|| {
-            Socket::new(
-                Domain::IPV4,
-                Type::RAW,
-                Some(Protocol::from(IGMP_IP_PROTO)),
+        let mcast_sock = Arc::new(
+            AsyncFd::new(
+                kernel_socket().expect("failed to create kernel mcast socket"),
             )
-        })
-        .expect("failed to create IGMP raw socket");
-        socket
-            .set_nonblocking(true)
-            .expect("failed to set IGMP socket non-blocking");
-        socket
-            .set_ipv4_pktinfo(true)
-            .expect("failed to set IGMP socket IPv4 packet info");
-        socket
-            .set_mrt_init(true)
-            .expect("failed to set IGMP socket MRT_INIT");
-
-        let mcast_sock = Arc::new(AsyncFd::new(socket).unwrap());
+            .unwrap(),
+        );
 
         Instance {
             name,
@@ -202,7 +164,7 @@ impl ProtocolInstance for Instance {
         let _recv_handle = {
             let sock_clone = Arc::clone(&self.mcast_sock);
             tokio::spawn(async move {
-                if let Err(_e) = recv_task_plain(sock_clone).await {}
+                if let Err(_e) = instance_rx(sock_clone).await {}
             })
         };
     }

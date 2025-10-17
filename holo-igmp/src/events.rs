@@ -14,17 +14,23 @@ use crate::packet::{DecodeResult, Packet};
 
 pub(crate) fn process_packet(
     instance: &mut Instance,
-    ifname: String,
+    ifindex: u32,
     src: Ipv4Addr,
     packet: DecodeResult<Packet>,
 ) -> Result<(), Error> {
     // Lookup interface.
-    let Some((_instance, _iface)) = instance.get_interface(&ifname) else {
+    let Some((_instance, interfaces)) = instance.as_up() else {
+        return Ok(());
+    };
+    let Some(iface) = interfaces
+        .values_mut()
+        .find(|iface| iface.system.ifindex == Some(ifindex))
+    else {
         return Ok(());
     };
 
     // TODO
-    tracing::debug!(%ifname, %src, "received packet: {:?}", packet);
+    tracing::debug!(ifname = %iface.name, %src, data = ?packet, "received packet");
 
     Ok(())
 }

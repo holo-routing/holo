@@ -20,6 +20,8 @@ pub enum Error {
 pub enum IoError {
     SocketError(std::io::Error),
     RecvError(std::io::Error),
+    RecvMissingSourceAddr,
+    RecvMissingAncillaryData,
     SendError(std::io::Error),
 }
 
@@ -76,6 +78,10 @@ impl IoError {
             IoError::RecvError(error) | IoError::SendError(error) => {
                 warn!(error = %with_source(error), "{}", self);
             }
+            IoError::RecvMissingSourceAddr
+            | IoError::RecvMissingAncillaryData => {
+                warn!("{}", self);
+            }
         }
     }
 }
@@ -88,6 +94,18 @@ impl std::fmt::Display for IoError {
             }
             IoError::RecvError(..) => {
                 write!(f, "failed to receive IP packet")
+            }
+            IoError::RecvMissingSourceAddr => {
+                write!(
+                    f,
+                    "failed to retrieve source address from received packet"
+                )
+            }
+            IoError::RecvMissingAncillaryData => {
+                write!(
+                    f,
+                    "failed to retrieve ancillary data from received packet"
+                )
             }
             IoError::SendError(..) => {
                 write!(f, "failed to send IP packet")

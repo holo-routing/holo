@@ -75,6 +75,8 @@ jobs:
       - uses: actions/checkout@v4
       # cargo-fuzz requires nightly Rust due to LLVM sanitizer support
       - uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: nightly-2025-10-10
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz
       - name: Check fuzz targets

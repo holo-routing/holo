@@ -10,14 +10,14 @@ pub mod northbound;
 use std::collections::HashMap;
 
 use holo_northbound::{
-    NbDaemonReceiver, NbDaemonSender, NbProviderSender, ProviderBase,
-    process_northbound_msg,
+    NbDaemonReceiver, NbDaemonSender, NbProviderSender, process_northbound_msg,
 };
 use holo_utils::ibus::{IbusChannelsTx, IbusMsg, IbusReceiver, IbusSender};
 use holo_utils::task::Task;
 use northbound::configuration::SystemCfg;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
+use tracing::debug_span;
 
 #[derive(Debug)]
 pub struct Master {
@@ -107,7 +107,7 @@ pub fn start(
         };
 
         // Run task main loop.
-        let span = Master::debug_span("");
+        let span = debug_span!("system");
         let _span_guard = span.enter();
         master.run(nb_daemon_rx, ibus_rx);
     });

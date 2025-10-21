@@ -22,7 +22,6 @@ pub mod yang;
 use derive_new::new;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
-use tracing::Span;
 use yang3::schema::{DataValueType, SchemaNode, SchemaNodeKind};
 
 use crate::debug::Debug;
@@ -64,8 +63,6 @@ where
     fn yang_modules() -> &'static [&'static str];
 
     fn top_level_node(&self) -> String;
-
-    fn debug_span(name: &str) -> Span;
 }
 
 // ===== impl CallbackOp =====

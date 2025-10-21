@@ -10,14 +10,14 @@ use std::collections::BTreeMap;
 
 use derive_new::new;
 use holo_northbound::{
-    NbDaemonReceiver, NbDaemonSender, NbProviderSender, ProviderBase,
-    process_northbound_msg,
+    NbDaemonReceiver, NbDaemonSender, NbProviderSender, process_northbound_msg,
 };
 use holo_utils::ibus::{IbusChannelsTx, IbusMsg, IbusReceiver};
 use holo_utils::keychain::Keychain;
 use holo_utils::task::Task;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
+use tracing::debug_span;
 
 #[derive(Debug, new)]
 pub struct Master {
@@ -101,7 +101,7 @@ pub fn start(
         let mut master = Master::new(nb_provider_tx, ibus_tx);
 
         // Run task main loop.
-        let span = Master::debug_span("");
+        let span = debug_span!("key-chain");
         let _span_guard = span.enter();
         master.run(nb_daemon_rx, ibus_rx);
     });

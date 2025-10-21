@@ -12,14 +12,12 @@ pub mod yang;
 use holo_northbound as northbound;
 use holo_northbound::ProviderBase;
 use holo_yang::ToYang;
-use tracing::{Span, debug_span};
 
 use crate::instance::Instance;
 use crate::version::{Ripng, Ripv2, Version};
 
 // RIP version-specific code.
 pub trait NorthboundVersion<V: Version> {
-    fn debug_span(name: &str) -> Span;
     fn validation_callbacks()
     -> Option<&'static northbound::configuration::ValidationCallbacks>;
     fn configuration_callbacks()
@@ -45,19 +43,11 @@ where
             self.name
         )
     }
-
-    fn debug_span(name: &str) -> Span {
-        V::debug_span(name)
-    }
 }
 
 // ===== impl Ripv2 =====
 
 impl NorthboundVersion<Self> for Ripv2 {
-    fn debug_span(name: &str) -> Span {
-        debug_span!("ripv2-instance", %name)
-    }
-
     fn validation_callbacks()
     -> Option<&'static northbound::configuration::ValidationCallbacks> {
         Some(&configuration::VALIDATION_CALLBACKS_RIPV2)
@@ -81,10 +71,6 @@ impl NorthboundVersion<Self> for Ripv2 {
 // ===== impl Ripng =====
 
 impl NorthboundVersion<Self> for Ripng {
-    fn debug_span(name: &str) -> Span {
-        debug_span!("ripng-instance", %name)
-    }
-
     fn validation_callbacks()
     -> Option<&'static northbound::configuration::ValidationCallbacks> {
         Some(&configuration::VALIDATION_CALLBACKS_RIPNG)

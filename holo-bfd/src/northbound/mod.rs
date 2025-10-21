@@ -13,7 +13,6 @@ pub mod yang;
 use holo_northbound::ProviderBase;
 use holo_utils::protocol::Protocol;
 use holo_yang::ToYang;
-use tracing::{Span, debug_span};
 
 use crate::master::Master;
 
@@ -27,9 +26,5 @@ impl ProviderBase for Master {
             "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='main']/ietf-bfd:bfd",
             Protocol::BFD.to_yang(),
         )
-    }
-
-    fn debug_span(_name: &str) -> Span {
-        debug_span!("bfd")
     }
 }

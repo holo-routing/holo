@@ -12,7 +12,6 @@ pub mod yang;
 use holo_northbound::ProviderBase;
 use holo_utils::protocol::Protocol;
 use holo_yang::ToYang;
-use tracing::{Span, debug_span};
 
 use crate::instance::Instance;
 
@@ -29,9 +28,5 @@ impl ProviderBase for Instance {
             Protocol::IGMP.to_yang(),
             self.name
         )
-    }
-
-    fn debug_span(name: &str) -> Span {
-        debug_span!("igmp-instance", %name)
     }
 }

@@ -11,8 +11,7 @@ mod northbound;
 
 use futures::stream::StreamExt;
 use holo_northbound::{
-    NbDaemonReceiver, NbDaemonSender, NbProviderSender, ProviderBase,
-    process_northbound_msg,
+    NbDaemonReceiver, NbDaemonSender, NbProviderSender, process_northbound_msg,
 };
 use holo_protocol::InstanceShared;
 use holo_utils::ibus::{IbusChannelsTx, IbusMsg, IbusReceiver};
@@ -21,6 +20,7 @@ use netlink_packet_core::NetlinkMessage;
 use netlink_packet_route::RouteNetlinkMessage;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
+use tracing::debug_span;
 
 use crate::interface::Interfaces;
 use crate::mpsc::UnboundedSender;
@@ -147,7 +147,7 @@ pub fn start(
 
         tokio::task::spawn_blocking(move || {
             // Run task main loop.
-            let span = Master::debug_span("");
+            let span = debug_span!("interface");
             let _span_guard = span.enter();
             master.run(nb_daemon_rx, ibus_rx, netlink_rx);
         });

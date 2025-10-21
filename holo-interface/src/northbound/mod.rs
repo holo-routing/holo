@@ -13,7 +13,6 @@ use std::sync::LazyLock as Lazy;
 use holo_northbound::ProviderBase;
 use holo_northbound::yang::interfaces;
 use regex::Regex;
-use tracing::{Span, debug_span};
 
 use crate::Master;
 
@@ -31,10 +30,6 @@ impl ProviderBase for Master {
 
     fn top_level_node(&self) -> String {
         "/ietf-interfaces:interfaces".to_owned()
-    }
-
-    fn debug_span(_name: &str) -> Span {
-        debug_span!("interface")
     }
 }
 

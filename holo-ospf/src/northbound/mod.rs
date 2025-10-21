@@ -13,13 +13,11 @@ pub mod yang;
 use holo_northbound as northbound;
 use holo_northbound::ProviderBase;
 use holo_yang::ToYang;
-use tracing::{Span, debug_span};
 
 use crate::instance::Instance;
 use crate::version::{Ospfv2, Ospfv3, Version};
 
 pub trait NorthboundVersion<V: Version> {
-    fn debug_span(name: &str) -> Span;
     fn validation_callbacks()
     -> Option<&'static northbound::configuration::ValidationCallbacks>;
     fn configuration_callbacks()
@@ -51,19 +49,11 @@ where
             self.name
         )
     }
-
-    fn debug_span(name: &str) -> Span {
-        V::debug_span(name)
-    }
 }
 
 // ===== impl Ospfv2 =====
 
 impl NorthboundVersion<Self> for Ospfv2 {
-    fn debug_span(name: &str) -> Span {
-        debug_span!("ospfv2-instance", %name)
-    }
-
     fn validation_callbacks()
     -> Option<&'static northbound::configuration::ValidationCallbacks> {
         Some(&configuration::VALIDATION_CALLBACKS_OSPFV2)
@@ -87,10 +77,6 @@ impl NorthboundVersion<Self> for Ospfv2 {
 // ===== impl Ospfv3 =====
 
 impl NorthboundVersion<Self> for Ospfv3 {
-    fn debug_span(name: &str) -> Span {
-        debug_span!("ospfv3-instance", %name)
-    }
-
     fn validation_callbacks()
     -> Option<&'static northbound::configuration::ValidationCallbacks> {
         Some(&configuration::VALIDATION_CALLBACKS_OSPFV3)

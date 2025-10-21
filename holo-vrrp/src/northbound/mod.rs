@@ -14,7 +14,6 @@ pub mod state;
 pub mod yang;
 
 use holo_northbound::ProviderBase;
-use tracing::{Span, debug_span};
 
 use crate::interface::Interface;
 
@@ -30,9 +29,5 @@ impl ProviderBase for Interface {
             "/ietf-interfaces:interfaces/interface[name='{}']",
             self.name
         )
-    }
-
-    fn debug_span(interface: &str) -> Span {
-        debug_span!("vrrp", %interface)
     }
 }

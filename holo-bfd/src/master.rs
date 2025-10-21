@@ -17,6 +17,7 @@ use holo_utils::protocol::Protocol;
 use holo_utils::task::Task;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender};
+use tracing::{Span, debug_span};
 
 use crate::error::{Error, IoError};
 use crate::session::Sessions;
@@ -172,6 +173,10 @@ impl ProtocolInstance for Master {
         };
 
         (tx, rx)
+    }
+
+    fn debug_span(_instance: &str) -> Span {
+        debug_span!("protocol", r#type = %Self::PROTOCOL)
     }
 
     #[cfg(feature = "testing")]

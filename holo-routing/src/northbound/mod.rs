@@ -14,7 +14,6 @@ use std::sync::LazyLock as Lazy;
 use holo_northbound::ProviderBase;
 use holo_northbound::yang::control_plane_protocol;
 use regex::Regex;
-use tracing::{Span, debug_span};
 
 use crate::Master;
 
@@ -37,10 +36,6 @@ impl ProviderBase for Master {
 
     fn top_level_node(&self) -> String {
         "/ietf-routing:routing".to_owned()
-    }
-
-    fn debug_span(_name: &str) -> Span {
-        debug_span!("routing")
     }
 }
 

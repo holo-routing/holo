@@ -28,6 +28,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender};
+use tracing::{Span, debug_span};
 
 use crate::event_recorder::EventRecorder;
 #[cfg(feature = "testing")]
@@ -71,6 +72,11 @@ where
     /// Create channels for all protocol input events.
     fn protocol_input_channels()
     -> (Self::ProtocolInputChannelsTx, Self::ProtocolInputChannelsRx);
+
+    /// Return the tracing span for this protocol instance.
+    fn debug_span(instance: &str) -> Span {
+        debug_span!("protocol", r#type = %Self::PROTOCOL, %instance)
+    }
 
     /// Return test directory used for unit testing.
     #[cfg(feature = "testing")]

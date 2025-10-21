@@ -21,6 +21,7 @@ use holo_utils::southbound::InterfaceFlags;
 use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender};
+use tracing::{Span, debug_span};
 
 use crate::debug::Debug;
 use crate::error::Error;
@@ -236,6 +237,10 @@ impl ProtocolInstance for Interface {
         };
 
         (tx, rx)
+    }
+
+    fn debug_span(interface: &str) -> Span {
+        debug_span!("protocol", r#type = %Self::PROTOCOL, %interface)
     }
 
     #[cfg(feature = "testing")]

@@ -16,8 +16,7 @@ use std::collections::BTreeMap;
 
 use derive_new::new;
 use holo_northbound::{
-    NbDaemonReceiver, NbDaemonSender, NbProviderSender, ProviderBase,
-    process_northbound_msg,
+    NbDaemonReceiver, NbDaemonSender, NbProviderSender, process_northbound_msg,
 };
 use holo_protocol::InstanceShared;
 use holo_utils::bier::BierCfg;
@@ -28,7 +27,7 @@ use holo_utils::task::Task;
 use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
-use tracing::warn;
+use tracing::{debug_span, warn};
 
 use crate::birt::Birt;
 use crate::interface::Interfaces;
@@ -247,7 +246,7 @@ pub fn start(
 
         // Run task main loop.
         tokio::task::spawn_blocking(move || {
-            let span = Master::debug_span("");
+            let span = debug_span!("routing");
             let _span_guard = span.enter();
             master.run(
                 nb_daemon_rx,

@@ -23,7 +23,7 @@ static RIPV2_MCAST_SOCKADDR: Lazy<SocketAddr> = Lazy::new(|| {
 
 // ===== impl Ripv2 =====
 
-impl NetworkVersion for Ripv2 {
+impl NetworkVersion<Self> for Ripv2 {
     const UDP_PORT: u16 = 520;
 
     fn socket(ifname: &str) -> Result<UdpSocket, std::io::Error> {
@@ -68,20 +68,6 @@ impl NetworkVersion for Ripv2 {
         #[cfg(not(feature = "testing"))]
         {
             socket.leave_multicast_ifindex_v4(&RIPV2_MCAST_ADDR, ifindex)
-        }
-        #[cfg(feature = "testing")]
-        {
-            Ok(())
-        }
-    }
-
-    fn set_multicast_if(
-        socket: &UdpSocket,
-        ifindex: u32,
-    ) -> std::io::Result<()> {
-        #[cfg(not(feature = "testing"))]
-        {
-            socket.set_multicast_ifindex_v4(ifindex)
         }
         #[cfg(feature = "testing")]
         {

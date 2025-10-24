@@ -23,7 +23,7 @@ static RIPNG_MCAST_SOCKADDR: Lazy<SocketAddr> = Lazy::new(|| {
 
 // ===== impl Ripng =====
 
-impl NetworkVersion for Ripng {
+impl NetworkVersion<Self> for Ripng {
     const UDP_PORT: u16 = 521;
 
     fn socket(ifname: &str) -> Result<UdpSocket, std::io::Error> {
@@ -76,20 +76,6 @@ impl NetworkVersion for Ripng {
         #[cfg(not(feature = "testing"))]
         {
             socket.leave_multicast_v6(&RIPNG_MCAST_ADDR, ifindex)
-        }
-        #[cfg(feature = "testing")]
-        {
-            Ok(())
-        }
-    }
-
-    fn set_multicast_if(
-        socket: &UdpSocket,
-        ifindex: u32,
-    ) -> std::io::Result<()> {
-        #[cfg(not(feature = "testing"))]
-        {
-            socket.set_multicast_ifindex_v6(ifindex)
         }
         #[cfg(feature = "testing")]
         {

@@ -26,7 +26,7 @@ where
         + Default
         + std::fmt::Debug
         + InterfaceVersion<Self>
-        + NetworkVersion
+        + NetworkVersion<Self>
         + NorthboundVersion<Self>,
 {
     const PROTOCOL: Protocol;

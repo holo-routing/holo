@@ -26,7 +26,7 @@ pub enum SendDestination<S: Into<SocketAddr>> {
 }
 
 // RIP version-specific code.
-pub trait NetworkVersion {
+pub trait NetworkVersion<V: Version> {
     const UDP_PORT: u16;
 
     // Create a RIP socket.
@@ -43,12 +43,6 @@ pub trait NetworkVersion {
         socket: &UdpSocket,
         ifindex: u32,
     ) -> Result<(), std::io::Error>;
-
-    // Set the interface for sending outbound multicast packets.
-    fn set_multicast_if(
-        socket: &UdpSocket,
-        ifindex: u32,
-    ) -> std::io::Result<()>;
 
     // Return RIP multicast address.
     fn multicast_sockaddr() -> &'static SocketAddr;
@@ -71,10 +65,7 @@ where
 
     // Send packet.
     match dst {
-        SendDestination::Multicast(ifindex) => {
-            // Set outgoing interface.
-            V::set_multicast_if(socket, ifindex).unwrap();
-
+        SendDestination::Multicast(_) => {
             socket.send_to(&buf, V::multicast_sockaddr()).await?;
         }
         SendDestination::Unicast(sockaddr) => {

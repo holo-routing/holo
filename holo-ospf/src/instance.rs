@@ -531,15 +531,6 @@ where
     }
 }
 
-impl<V> std::fmt::Debug for Instance<V>
-where
-    V: Version,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Action").field("name", &self.name).finish()
-    }
-}
-
 impl<V> Drop for Instance<V>
 where
     V: Version,

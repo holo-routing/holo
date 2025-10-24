@@ -117,15 +117,6 @@ where
     }
 }
 
-impl<P> std::fmt::Debug for Callbacks<P>
-where
-    P: Provider,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Callbacks({:?})", self.0.keys())
-    }
-}
-
 impl<P> Default for Callbacks<P>
 where
     P: Provider,

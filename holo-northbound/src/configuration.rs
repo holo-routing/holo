@@ -175,15 +175,6 @@ where
     }
 }
 
-impl<P> std::fmt::Debug for Callbacks<P>
-where
-    P: Provider,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Callbacks({:?})", self.0.keys())
-    }
-}
-
 impl<P> Default for Callbacks<P>
 where
     P: Provider,
@@ -349,12 +340,6 @@ impl ValidationCallbacks {
 
     pub fn keys(&self) -> Vec<String> {
         self.0.keys().cloned().collect()
-    }
-}
-
-impl std::fmt::Debug for ValidationCallbacks {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ValidationCallbacks({:?})", self.0.keys())
     }
 }
 

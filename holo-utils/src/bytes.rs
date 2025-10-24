@@ -278,3 +278,122 @@ impl BytesMutExt for BytesMut {
         self.put_slice(&addr.as_bytes())
     }
 }
+#[cfg(test)]
+mod tests {
+    use bytes::Bytes;
+
+    use super::*;
+    use crate::mpls::Label;
+
+    #[test]
+    fn test_try_get_u24() {
+        // Test successful parsing
+        let mut bytes = Bytes::from(vec![0x01, 0x02, 0x03]);
+        assert_eq!(bytes.try_get_u24().unwrap(), 0x010203);
+
+        // Test insufficient bytes
+        let mut bytes = Bytes::from(vec![0x01, 0x02]);
+        assert!(bytes.try_get_u24().is_err());
+    }
+
+    #[test]
+    fn test_try_get_u24_valid_values() {
+        // Test valid 24-bit values
+        let test_cases = vec![
+            (vec![0x00, 0x00, 0x00], 0x000000), // Minimum value
+            (vec![0x00, 0x00, 0x01], 0x000001), // Minimum non-zero
+            (vec![0x00, 0x01, 0x00], 0x000100), // Single byte in middle position
+            (vec![0x01, 0x00, 0x00], 0x010000), // Single byte in high position
+            (vec![0xFF, 0xFF, 0xFF], 0xFFFFFF), // Maximum 24-bit value
+            (vec![0x12, 0x34, 0x56], 0x123456), // Random value
+            (vec![0x0F, 0xFF, 0xFF], 0x0FFFFF), // Maximum valid MPLS label
+        ];
+
+        for (input_bytes, expected) in test_cases {
+            let mut buf = Bytes::from(input_bytes.clone());
+            let result = buf.try_get_u24().unwrap();
+            assert_eq!(
+                result, expected,
+                "Failed for input: {:02X?}",
+                input_bytes
+            );
+            assert_eq!(buf.remaining(), 0, "Buffer should be fully consumed");
+        }
+    }
+
+    #[test]
+    fn test_try_get_u24_insufficient_data() {
+        // Test cases with insufficient data
+        let test_cases = vec![
+            vec![],           // Empty buffer
+            vec![0x12],       // 1 byte
+            vec![0x12, 0x34], // 2 bytes
+        ];
+
+        for input_bytes in test_cases {
+            let mut buf = Bytes::from(input_bytes.clone());
+            let result = buf.try_get_u24();
+            assert!(
+                result.is_err(),
+                "Should fail for input: {:02X?}",
+                input_bytes
+            );
+            assert!(
+                matches!(result, Err(_try_get_error)),
+                "Should return TryGetError"
+            );
+        }
+    }
+
+    #[test]
+    fn test_try_get_u24_with_extra_data() {
+        // Test that try_get_u24 only consumes 3 bytes and leaves the rest
+        let input = vec![0x12, 0x34, 0x56, 0x78, 0x9A];
+        let mut buf = Bytes::from(input);
+
+        let result = buf.try_get_u24().unwrap();
+        assert_eq!(result, 0x123456);
+        assert_eq!(buf.remaining(), 2, "Should have 2 bytes remaining");
+
+        // Verify remaining bytes are correct
+        assert_eq!(buf.get_u8(), 0x78);
+        assert_eq!(buf.get_u8(), 0x9A);
+    }
+
+    #[test]
+    fn test_try_get_u24_multiple_calls() {
+        // Test multiple consecutive calls to try_get_u24
+        let input = vec![0x12, 0x34, 0x56, 0xAB, 0xCD, 0xEF];
+        let mut buf = Bytes::from(input);
+
+        let first = buf.try_get_u24().unwrap();
+        assert_eq!(first, 0x123456);
+
+        let second = buf.try_get_u24().unwrap();
+        assert_eq!(second, 0xABCDEF);
+
+        assert_eq!(buf.remaining(), 0);
+    }
+
+    #[test]
+    fn test_put_u24_large_values() {
+        // Test that put_u24 properly truncates large values to 24 bits
+        let test_cases = vec![
+            (0x01000000, vec![0x00, 0x00, 0x00]), // Truncated to 0
+            (0x01123456, vec![0x12, 0x34, 0x56]), // High byte dropped
+            (0xFF123456, vec![0x12, 0x34, 0x56]), // High byte dropped
+        ];
+
+        for (input_value, expected_bytes) in test_cases {
+            let mut buf = BytesMut::new();
+            buf.put_u24(input_value);
+
+            let result_bytes: Vec<u8> = buf.to_vec();
+            assert_eq!(
+                result_bytes, expected_bytes,
+                "put_u24 failed for input: 0x{:08X}",
+                input_value
+            );
+        }
+    }
+}

@@ -451,7 +451,7 @@ fn lsa_orig_router(
         let non_stub_cost = if instance.config.stub_router {
             MAX_LINK_METRIC
         } else {
-            iface.config.cost
+            iface.state.cost
         };
 
         let mut add_stub_links = false;
@@ -551,7 +551,7 @@ fn lsa_orig_router(
                             LsaRouterLinkType::StubNetwork,
                             addr.ip(),
                             addr.mask(),
-                            iface.config.cost,
+                            iface.state.cost,
                         )
                     }),
             );

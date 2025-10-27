@@ -156,6 +156,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/augmentations/holo-ospf.yang"),
         EmbeddedModuleKey::new("holo-ospf-dev", None, None, None) =>
             include_str!("../modules/augmentations/holo-ospf-dev.yang"),
+        EmbeddedModuleKey::new("holo-ospf-reverse-metric", None, None, None) =>
+            include_str!("../modules/augmentations/holo-ospf-reverse-metric.yang"),
         EmbeddedModuleKey::new("holo-rip", None, None, None) =>
             include_str!("../modules/augmentations/holo-rip.yang"),
         EmbeddedModuleKey::new("holo-routing", None, None, None) =>
@@ -268,6 +270,7 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
             "holo-key-chain",
             "holo-ospf",
             "holo-ospf-dev",
+            "holo-ospf-reverse-metric",
             "holo-rip",
             "holo-routing",
             "holo-vrrp",

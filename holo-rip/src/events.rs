@@ -12,7 +12,6 @@ use crate::debug::Debug;
 use crate::error::Error;
 use crate::instance::InstanceUpView;
 use crate::interface::{Interface, Interfaces};
-use crate::network::SendDestination;
 use crate::output::{self, ResponseType};
 use crate::packet::{Command, PduVersion, RteRouteVersion, RteVersion};
 use crate::route::{Metric, Route, RouteFlags, RouteType};
@@ -132,7 +131,7 @@ fn process_pdu_request<V>(
     }
 
     // The response should be sent to the requester's address and port.
-    let dst = SendDestination::Unicast(src);
+    let dst = src;
 
     // Check if it's a request to send the entire routing table.
     if pdu.is_dump_request() {

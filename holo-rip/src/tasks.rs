@@ -47,7 +47,6 @@ use crate::version::Version;
 pub mod messages {
     use serde::{Deserialize, Serialize};
 
-    use crate::network::SendDestination;
     use crate::version::Version;
 
     // Type aliases.
@@ -122,7 +121,9 @@ pub mod messages {
         #[derive(Debug, Serialize)]
         #[serde(bound = "V: Version")]
         pub struct UdpTxPduMsg<V: Version> {
-            pub dst: SendDestination<V::SocketAddr>,
+            #[cfg(feature = "testing")]
+            pub ifname: String,
+            pub dst: V::SocketAddr,
             pub pdu: V::Pdu,
         }
     }

@@ -12,7 +12,6 @@ use rand::Rng;
 use crate::debug::Debug;
 use crate::instance::InstanceUpView;
 use crate::interface::{Interface, Interfaces, SplitHorizon};
-use crate::network::SendDestination;
 use crate::packet::{Command, PduVersion, RteVersion};
 use crate::route::{RouteFlags, RouteType};
 use crate::tasks;
@@ -30,7 +29,7 @@ pub enum ResponseType {
 pub(crate) fn send_pdu<V>(
     instance: &mut InstanceUpView<'_, V>,
     iface: &mut Interface<V>,
-    dst: SendDestination<V::SocketAddr>,
+    dst: V::SocketAddr,
     pdu: V::Pdu,
 ) where
     V: Version,
@@ -51,14 +50,19 @@ pub(crate) fn send_pdu<V>(
 
     // Send packet.
     if let Some(net) = &iface.state.net {
-        let _ = net.udp_tx_pdup.send(UdpTxPduMsg { dst, pdu });
+        let _ = net.udp_tx_pdup.send(UdpTxPduMsg {
+            #[cfg(feature = "testing")]
+            ifname: iface.name.clone(),
+            dst,
+            pdu,
+        });
     }
 }
 
 pub(crate) fn send_request<V>(
     instance: &mut InstanceUpView<'_, V>,
     iface: &mut Interface<V>,
-    dst: SendDestination<V::SocketAddr>,
+    dst: V::SocketAddr,
 ) where
     V: Version,
 {
@@ -75,7 +79,7 @@ pub(crate) fn send_request<V>(
 pub(crate) fn send_response<V>(
     instance: &mut InstanceUpView<'_, V>,
     iface: &mut Interface<V>,
-    dst: SendDestination<V::SocketAddr>,
+    dst: V::SocketAddr,
     response_type: ResponseType,
 ) where
     V: Version,

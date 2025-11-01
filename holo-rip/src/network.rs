@@ -4,12 +4,10 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::net::SocketAddr;
 use std::sync::Arc;
 
 use holo_utils::ip::{IpAddrKind, SocketAddrKind};
 use holo_utils::socket::UdpSocket;
-use serde::Serialize;
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::mpsc::{Sender, UnboundedReceiver};
 
@@ -18,12 +16,6 @@ use crate::packet::{AuthCtx, PduVersion};
 use crate::tasks::messages::input::UdpRxPduMsg;
 use crate::tasks::messages::output::UdpTxPduMsg;
 use crate::version::Version;
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
-pub enum SendDestination<S: Into<SocketAddr>> {
-    Multicast(u32),
-    Unicast(S),
-}
 
 // RIP version-specific code.
 pub trait NetworkVersion<V: Version> {
@@ -45,7 +37,7 @@ pub trait NetworkVersion<V: Version> {
     ) -> Result<(), std::io::Error>;
 
     // Return RIP multicast address.
-    fn multicast_sockaddr() -> &'static SocketAddr;
+    fn multicast_sockaddr() -> &'static V::SocketAddr;
 }
 
 // ===== global functions =====
@@ -54,7 +46,7 @@ pub trait NetworkVersion<V: Version> {
 pub(crate) async fn send_packet<V>(
     socket: &UdpSocket,
     pdu: V::Pdu,
-    dst: SendDestination<V::SocketAddr>,
+    dst: V::SocketAddr,
     auth: Option<&AuthCtx>,
 ) -> Result<(), std::io::Error>
 where
@@ -64,14 +56,7 @@ where
     let buf = pdu.encode(auth);
 
     // Send packet.
-    match dst {
-        SendDestination::Multicast(_) => {
-            socket.send_to(&buf, V::multicast_sockaddr()).await?;
-        }
-        SendDestination::Unicast(sockaddr) => {
-            socket.send_to(&buf, sockaddr).await?;
-        }
-    }
+    socket.send_to(&buf, dst).await?;
 
     Ok(())
 }

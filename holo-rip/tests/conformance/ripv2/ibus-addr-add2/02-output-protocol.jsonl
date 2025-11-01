@@ -1,1 +1,1 @@
-{"UdpTxPdu":{"dst":{"Multicast":2},"pdu":{"command":"Request","version":2,"rtes":[{"Zero":{"metric":16}}]}}}
+{"UdpTxPdu":{"ifname":"eth-rt1","dst":"224.0.0.9:520","pdu":{"command":"Request","version":2,"rtes":[{"Zero":{"metric":16}}]}}}

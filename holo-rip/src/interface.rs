@@ -22,7 +22,6 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::debug::{Debug, InterfaceInactiveReason};
 use crate::error::{Error, IoError};
 use crate::instance::{Instance, InstanceUpView};
-use crate::network::SendDestination;
 use crate::northbound::configuration::InterfaceCfg;
 use crate::packet::AuthCtx;
 use crate::tasks::messages::output::UdpTxPduMsg;
@@ -234,19 +233,18 @@ where
     // destinations (multicast and unicast).
     pub(crate) fn with_destinations<F>(&mut self, mut f: F)
     where
-        F: FnMut(&mut Interface<V>, SendDestination<V::SocketAddr>),
+        F: FnMut(&mut Interface<V>, V::SocketAddr),
     {
         // Multicast dst.
-        let dst = SendDestination::Multicast(self.system.ifindex.unwrap());
-        f(self, dst);
+        let dst = V::multicast_sockaddr();
+        f(self, *dst);
 
         // Unicast destinations (explicit neighbors).
         let explicit_neighbors =
             std::mem::take(&mut self.config.explicit_neighbors);
         for nbr_addr in &explicit_neighbors {
             if self.system.contains_addr(nbr_addr) {
-                let sockaddr = V::SocketAddr::new(*nbr_addr, V::UDP_PORT);
-                let dst = SendDestination::Unicast(sockaddr);
+                let dst = V::SocketAddr::new(*nbr_addr, V::UDP_PORT);
                 f(self, dst);
             }
         }

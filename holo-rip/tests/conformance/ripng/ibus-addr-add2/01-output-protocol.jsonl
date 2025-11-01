@@ -1,1 +1,1 @@
-{"UdpTxPdu":{"dst":{"Multicast":4},"pdu":{"command":"Response","version":1,"rtes":[{"Ipv6":{"prefix":"2001:db8:1000::1/128","tag":0,"metric":16}},{"Ipv6":{"prefix":"2001:db8:1000::3/128","tag":0,"metric":16}}]}}}
+{"UdpTxPdu":{"ifname":"eth-rt4","dst":"[ff02::9]:521","pdu":{"command":"Response","version":1,"rtes":[{"Ipv6":{"prefix":"2001:db8:1000::1/128","tag":0,"metric":16}},{"Ipv6":{"prefix":"2001:db8:1000::3/128","tag":0,"metric":16}}]}}}

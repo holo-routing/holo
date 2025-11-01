@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::net::{IpAddr, Ipv6Addr, SocketAddr};
+use std::net::{Ipv6Addr, SocketAddr, SocketAddrV6};
 use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
@@ -17,9 +17,8 @@ use crate::version::Ripng;
 // RIPng multicast address.
 static RIPNG_MCAST_ADDR: Lazy<Ipv6Addr> =
     Lazy::new(|| Ipv6Addr::from_str("FF02::9").unwrap());
-static RIPNG_MCAST_SOCKADDR: Lazy<SocketAddr> = Lazy::new(|| {
-    SocketAddr::new(IpAddr::V6(*RIPNG_MCAST_ADDR), Ripng::UDP_PORT)
-});
+static RIPNG_MCAST_SOCKADDR: Lazy<SocketAddrV6> =
+    Lazy::new(|| SocketAddrV6::new(*RIPNG_MCAST_ADDR, Ripng::UDP_PORT, 0, 0));
 
 // ===== impl Ripng =====
 
@@ -83,7 +82,7 @@ impl NetworkVersion<Self> for Ripng {
         }
     }
 
-    fn multicast_sockaddr() -> &'static SocketAddr {
+    fn multicast_sockaddr() -> &'static SocketAddrV6 {
         &RIPNG_MCAST_SOCKADDR
     }
 }

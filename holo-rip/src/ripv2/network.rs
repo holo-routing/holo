@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
@@ -17,9 +17,8 @@ use crate::version::Ripv2;
 // RIPv2 multicast address.
 static RIPV2_MCAST_ADDR: Lazy<Ipv4Addr> =
     Lazy::new(|| Ipv4Addr::from_str("224.0.0.9").unwrap());
-static RIPV2_MCAST_SOCKADDR: Lazy<SocketAddr> = Lazy::new(|| {
-    SocketAddr::new(IpAddr::V4(*RIPV2_MCAST_ADDR), Ripv2::UDP_PORT)
-});
+static RIPV2_MCAST_SOCKADDR: Lazy<SocketAddrV4> =
+    Lazy::new(|| SocketAddrV4::new(*RIPV2_MCAST_ADDR, Ripv2::UDP_PORT));
 
 // ===== impl Ripv2 =====
 
@@ -75,7 +74,7 @@ impl NetworkVersion<Self> for Ripv2 {
         }
     }
 
-    fn multicast_sockaddr() -> &'static SocketAddr {
+    fn multicast_sockaddr() -> &'static SocketAddrV4 {
         &RIPV2_MCAST_SOCKADDR
     }
 }

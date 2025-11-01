@@ -213,7 +213,7 @@ pub(crate) fn update_rib_partial<V>(
     // Check for intra-area changes.
     if !partial.intra.is_empty() {
         // Remove affected intra-area routes from the RIB.
-        old_rib.extend(extract_if(&mut rib, |prefix, route| {
+        old_rib.extend(rib.extract_if(.., |prefix, route| {
             partial.intra.contains(prefix)
                 && route.path_type == PathType::IntraArea
         }));
@@ -239,7 +239,7 @@ pub(crate) fn update_rib_partial<V>(
     // Check for inter-area changes.
     if !partial.inter_network.is_empty() {
         // Remove affected inter-area routes from the RIB.
-        old_rib.extend(extract_if(&mut rib, |prefix, route| {
+        old_rib.extend(rib.extract_if(.., |prefix, route| {
             partial.inter_network.contains(prefix)
                 && route.path_type == PathType::InterArea
         }));
@@ -306,7 +306,7 @@ pub(crate) fn update_rib_partial<V>(
         let reevaluate_all = !partial.inter_router.is_empty();
 
         // Remove affected external routes from the RIB.
-        old_rib.extend(extract_if(&mut rib, |prefix, route| {
+        old_rib.extend(rib.extract_if(.., |prefix, route| {
             (reevaluate_all || partial.external.contains(prefix))
                 && matches!(
                     route.path_type,
@@ -968,35 +968,4 @@ where
             a.metric.cmp(&b.metric)
         }
     }
-}
-
-// Removes entries from a `BTreeMap` that match a predicate, returning them as
-// a new map.
-//
-// This is a temporary replacement for the unstable `BTreeMap::extract_if`.
-//
-// Slightly less efficient than `extract_if`, but suitable for most use cases.
-fn extract_if<K, V, F>(map: &mut BTreeMap<K, V>, mut pred: F) -> BTreeMap<K, V>
-where
-    K: Ord + Clone,
-    F: FnMut(&K, &V) -> bool,
-{
-    let mut extracted = BTreeMap::new();
-    let mut to_remove = Vec::new();
-
-    // Collect matching keys.
-    for (k, v) in map.iter() {
-        if pred(k, v) {
-            to_remove.push(k.clone());
-        }
-    }
-
-    // Remove and move entries.
-    for k in to_remove {
-        if let Some(v) = map.remove(&k) {
-            extracted.insert(k, v);
-        }
-    }
-
-    extracted
 }

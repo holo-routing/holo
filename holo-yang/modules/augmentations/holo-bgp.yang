@@ -72,6 +72,14 @@ module holo-bgp {
       "RFC 7313: Enhanced Route Refresh Capability for BGP-4";
   }
 
+  identity role {
+    base bt:bgp-capability;
+    description
+      "The BGP enhanced roles functionality";
+    reference
+      "RFC 9234: Route Leak Prevention and Detection Using Roles in UPDATE";
+  }
+
   /*
    * Augmentations.
    */
@@ -198,7 +206,13 @@ module holo-bgp {
           description
             "The local and remote ASes have a lateral peering relationship.";
         }
+
+        enum no-role {
+          description
+            "There is no role that has been set for this neighbor.";
+        }
       }
+      default no-role;
     }
   }
 

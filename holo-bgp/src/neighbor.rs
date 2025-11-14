@@ -30,7 +30,8 @@ use crate::northbound::notification;
 use crate::northbound::rpc::ClearType;
 use crate::packet::attribute::Attrs;
 use crate::packet::consts::{
-    AS_TRANS, Afi, BGP_VERSION, CeaseSubcode, ErrorCode, FsmErrorSubcode, Safi,
+    AS_TRANS, Afi, BGP_VERSION, CeaseSubcode, ErrorCode, FsmErrorSubcode,
+    RoleName, Safi,
 };
 use crate::packet::message::{
     Capability, DecodeCxt, EncodeCxt, KeepaliveMsg, Message,
@@ -694,6 +695,10 @@ impl Neighbor {
                 afi: Afi::Ipv6,
                 safi: Safi::Unicast,
             });
+        }
+        // TODO: Make sure the config is enabled boolean field is added.
+        if let Some(role) = self.config.role {
+            capabilities.insert(Capability::Role { role });
         }
 
         // Keep track of the advertised capabilities.

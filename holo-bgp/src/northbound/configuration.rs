@@ -28,7 +28,7 @@ use crate::instance::{Instance, InstanceUpView};
 use crate::neighbor::{Neighbor, PeerType, fsm};
 use crate::network;
 use crate::northbound::yang_gen::bgp;
-use crate::packet::consts::{CeaseSubcode, ErrorCode};
+use crate::packet::consts::{CeaseSubcode, ErrorCode, RoleName};
 use crate::packet::message::{Message, NotificationMsg};
 use crate::rib::RouteOrigin;
 
@@ -140,6 +140,7 @@ pub struct NeighborCfg {
     pub prefix_limit: PrefixLimitCfg,
     pub afi_safi: BTreeMap<AfiSafi, NeighborAfiSafiCfg>,
     pub trace_opts: NeighborTraceOptions,
+    pub role: Option<RoleName>,
 }
 
 #[derive(Debug)]
@@ -257,6 +258,21 @@ fn load_callbacks() -> Callbacks<Instance> {
         .create_apply(|_instance, _args| {
         })
         .delete_apply(|_instance, _args| {
+        })
+        .path(bgp::neighbors::neighbor::role::PATH)
+        .modify_apply(|instance, args| {
+            let nbr_addr = args.list_entry.into_neighbor().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+
+            let role = args.dnode.get_string();
+            nbr.config.role = match role.as_str() {
+                "provider" => Some(RoleName::Provider),
+                "customer" => Some(RoleName::Customer),
+                "peer" => Some(RoleName::Peer),
+                "rs-client" => Some(RoleName::RsClient),
+                "rs" => Some(RoleName::Rs),
+                _ => None,
+            };
         })
         .path(bgp::global::r#as::PATH)
         .modify_apply(|instance, args| {
@@ -1854,6 +1870,7 @@ impl Default for NeighborCfg {
             prefix_limit: Default::default(),
             afi_safi: Default::default(),
             trace_opts: Default::default(),
+            role: Default::default(),
         }
     }
 }

@@ -25,7 +25,7 @@ use crate::instance::{Instance, InstanceUpView};
 use crate::neighbor::{Neighbor, PeerType, fsm};
 use crate::network;
 use crate::northbound::yang_gen::bgp;
-use crate::packet::consts::{CeaseSubcode, ErrorCode};
+use crate::packet::consts::{CeaseSubcode, ErrorCode, RoleName};
 use crate::packet::message::{Message, NotificationMsg};
 use crate::rib::RouteOrigin;
 
@@ -136,6 +136,7 @@ pub struct NeighborCfg {
     pub prefix_limit: PrefixLimitCfg,
     pub afi_safi: BTreeMap<AfiSafi, NeighborAfiSafiCfg>,
     pub trace_opts: NeighborTraceOptions,
+    pub role: Option<RoleName>,
 }
 
 #[derive(Debug)]
@@ -252,6 +253,21 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::global::PATH)
         .create_apply(|_instance, _args| {})
         .delete_apply(|_instance, _args| {})
+        .path(bgp::neighbors::neighbor::role::PATH)
+        .modify_apply(|instance, args| {
+            let nbr_addr = args.list_entry.into_neighbor().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+
+            let role = args.dnode.get_string();
+            nbr.config.role = match role.as_str() {
+                "provider" => Some(RoleName::Provider),
+                "customer" => Some(RoleName::Customer),
+                "peer" => Some(RoleName::Peer),
+                "rs-client" => Some(RoleName::RsClient),
+                "rs" => Some(RoleName::Rs),
+                _ => None,
+            };
+        })
         .path(bgp::global::r#as::PATH)
         .modify_apply(|instance, args| {
             let asn = args.dnode.get_u32();
@@ -1598,10 +1614,7 @@ impl Provider for Instance {
                     let nbr_trace_opts = &nbr.config.trace_opts;
                     let instance_trace_opts = &self.config.trace_opts;
 
-                    let disabled = TraceOptionPacketType {
-                        tx: false,
-                        rx: false,
-                    };
+                    let disabled = TraceOptionPacketType { tx: false, rx: false };
                     let open = nbr_trace_opts
                         .packets
                         .open
@@ -1727,10 +1740,7 @@ impl Default for DistanceCfg {
         let external = bgp::global::distance::external::DFLT;
         let internal = bgp::global::distance::internal::DFLT;
 
-        DistanceCfg {
-            external,
-            internal,
-        }
+        DistanceCfg { external, internal }
     }
 }
 
@@ -1783,6 +1793,7 @@ impl Default for NeighborCfg {
             prefix_limit: Default::default(),
             afi_safi: Default::default(),
             trace_opts: Default::default(),
+            role: Default::default(),
         }
     }
 }
@@ -1872,10 +1883,7 @@ impl Default for AsPathOptions {
 
 impl Default for TraceOptionPacketResolved {
     fn default() -> TraceOptionPacketResolved {
-        let disabled = TraceOptionPacketType {
-            tx: false,
-            rx: false,
-        };
+        let disabled = TraceOptionPacketType { tx: false, rx: false };
         TraceOptionPacketResolved {
             open: disabled,
             update: disabled,
@@ -1891,9 +1899,6 @@ impl Default for TraceOptionPacketType {
         let tx = bgp::global::trace_options::flag::send::DFLT;
         let rx = bgp::global::trace_options::flag::receive::DFLT;
 
-        TraceOptionPacketType {
-            tx,
-            rx,
-        }
+        TraceOptionPacketType { tx, rx }
     }
 }

@@ -11,7 +11,9 @@ use num_traits::FromPrimitive;
 
 use crate::neighbor::{PeerType, fsm};
 use crate::northbound::configuration::{InstanceTraceOption, NeighborTraceOption, PrivateAsRemove};
-use crate::packet::consts::{AddPathMode, AsPathSegmentType, CapabilityCode, CeaseSubcode, ErrorCode, FsmErrorSubcode, MessageHeaderErrorSubcode, OpenMessageErrorSubcode, RouteRefreshErrorSubcode, Safi, UpdateMessageErrorSubcode};
+use crate::packet::consts::{
+    AddPathMode, AsPathSegmentType, CapabilityCode, CeaseSubcode, ErrorCode, FsmErrorSubcode, MessageHeaderErrorSubcode, OpenMessageErrorSubcode, RoleName, RouteRefreshErrorSubcode, Safi, UpdateMessageErrorSubcode,
+};
 use crate::packet::message::NotificationMsg;
 use crate::rib::{RouteIneligibleReason, RouteOrigin, RouteRejectReason};
 
@@ -66,6 +68,7 @@ impl ToYang for CapabilityCode {
             CapabilityCode::AddPath => "holo-bgp:add-paths".into(),
             CapabilityCode::RouteRefresh => "iana-bgp-types:route-refresh".into(),
             CapabilityCode::EnhancedRouteRefresh => "holo-bgp:enhanced-route-refresh".into(),
+            CapabilityCode::Role => "holo-bgp:role".into(),
         }
     }
 }
@@ -191,9 +194,7 @@ impl ToYang for AsPathSegmentType {
 impl ToYang for RouteOrigin {
     fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            RouteOrigin::Neighbor {
-                remote_addr, ..
-            } => remote_addr.to_string().into(),
+            RouteOrigin::Neighbor { remote_addr, .. } => remote_addr.to_string().into(),
             RouteOrigin::Protocol(protocol) => protocol.to_yang(),
         }
     }
@@ -228,6 +229,19 @@ impl ToYang for RouteRejectReason {
 }
 
 // ===== TryFromYang implementations =====
+
+impl TryFromYang for RoleName {
+    fn try_from_yang(value: &str) -> Option<RoleName> {
+        match value {
+            "provider" => Some(RoleName::Provider),
+            "customer" => Some(RoleName::Customer),
+            "peer" => Some(RoleName::Peer),
+            "rs-client" => Some(RoleName::RsClient),
+            "rs" => Some(RoleName::Rs),
+            _ => None,
+        }
+    }
+}
 
 impl TryFromYang for PrivateAsRemove {
     fn try_from_yang(value: &str) -> Option<PrivateAsRemove> {

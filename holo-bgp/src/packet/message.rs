@@ -24,7 +24,7 @@ use crate::packet::attribute::Attrs;
 use crate::packet::consts::{
     AddPathMode, Afi, BGP_VERSION, CapabilityCode, ErrorCode,
     MessageHeaderErrorSubcode, MessageType, OpenMessageErrorSubcode,
-    OpenParamType, Safi, UpdateMessageErrorSubcode,
+    OpenParamType, RoleName, Safi, UpdateMessageErrorSubcode,
 };
 use crate::packet::error::{
     DecodeError, MessageHeaderError, OpenMessageError, UpdateMessageError,
@@ -123,6 +123,7 @@ pub enum Capability {
     AddPath(BTreeSet<AddPathTuple>),
     RouteRefresh,
     EnhancedRouteRefresh,
+    Role { role: RoleName },
 }
 
 // This is a stripped down version of `Capability`, containing only data that
@@ -137,6 +138,7 @@ pub enum NegotiatedCapability {
     AddPath,
     RouteRefresh,
     EnhancedRouteRefresh,
+    Role,
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -552,6 +554,11 @@ impl Capability {
                 buf.put_u8(CapabilityCode::EnhancedRouteRefresh as u8);
                 buf.put_u8(0);
             }
+            Capability::Role { role } => {
+                buf.put_u8(CapabilityCode::Role as u8);
+                buf.put_u8(1);
+                buf.put_u8(*role as u8);
+            }
         }
 
         // Rewrite the "Capability Length" field.
@@ -658,6 +665,7 @@ impl Capability {
             Capability::EnhancedRouteRefresh => {
                 CapabilityCode::EnhancedRouteRefresh
             }
+            Capability::Role { .. } => CapabilityCode::Role,
         }
     }
 
@@ -674,6 +682,7 @@ impl Capability {
             Capability::EnhancedRouteRefresh => {
                 NegotiatedCapability::EnhancedRouteRefresh
             }
+            Capability::Role { .. } => NegotiatedCapability::Role,
         }
     }
 }
@@ -694,6 +703,7 @@ impl NegotiatedCapability {
             NegotiatedCapability::EnhancedRouteRefresh => {
                 CapabilityCode::EnhancedRouteRefresh
             }
+            NegotiatedCapability::Role => CapabilityCode::Role,
         }
     }
 }

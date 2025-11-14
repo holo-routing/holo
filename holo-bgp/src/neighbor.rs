@@ -695,6 +695,10 @@ impl Neighbor {
                 safi: Safi::Unicast,
             });
         }
+        // TODO: Make sure the config is enabled boolean field is added.
+        if let Some(role) = self.config.role {
+            capabilities.insert(Capability::Role { role });
+        }
 
         // Keep track of the advertised capabilities.
         self.capabilities_adv.clone_from(&capabilities);

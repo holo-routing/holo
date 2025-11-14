@@ -69,6 +69,8 @@ pub enum CapabilityCode {
     AddPath = 69,
     // RFC7313
     EnhancedRouteRefresh = 70,
+    // RFC9234
+    Role = 9,
 }
 
 // BGP Error (Notification) Codes.
@@ -285,6 +287,18 @@ pub enum AttrType {
     //BgpPrefixSid = 40,
     // RFC6 368
     //AttrSet = 128,
+}
+
+// Roles as defined in RFC 9234.
+#[derive(Clone, Copy, Ord, Debug, Eq, PartialEq, PartialOrd)]
+#[derive(FromPrimitive, ToPrimitive)]
+#[derive(Deserialize, Serialize)]
+pub enum RoleName {
+    Provider = 0,
+    Rs = 1,
+    RsClient = 2,
+    Customer = 3,
+    Peer = 4, // i.e Lateral Peer.
 }
 
 // BGP Origin.

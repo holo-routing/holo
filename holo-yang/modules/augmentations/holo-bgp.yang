@@ -181,6 +181,8 @@ module holo-bgp {
 
     // Neighbor roles as described in RFC 9234.
     leaf role {
+      description "Characterizes the relationship between eBGP speakers
+        forming a session.";
       type enumeration {
         enum provider {
           description
@@ -206,15 +208,10 @@ module holo-bgp {
           description
             "The local and remote ASes have a lateral peering relationship.";
         }
-
-        enum no-role {
-          description
-            "There is no role that has been set for this neighbor.";
-        }
       }
-      default no-role;
     }
   }
+
 
   augment "/rt:routing/rt:control-plane-protocols/"
         + "rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:neighbor/"

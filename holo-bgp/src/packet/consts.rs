@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::collections::HashMap;
+
 use arbitrary::Arbitrary;
 use bitflags::bitflags;
 use holo_utils::ip::AddressFamily;
@@ -317,7 +319,7 @@ pub enum AttrType {
 }
 
 // Roles as defined in RFC 9234.
-#[derive(Clone, Copy, Ord, Debug, Eq, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Ord, Debug, Eq, Hash, PartialEq, PartialOrd)]
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
 pub enum RoleName {
@@ -326,6 +328,34 @@ pub enum RoleName {
     RsClient = 2,
     Customer = 3,
     Peer = 4, // i.e Lateral Peer.
+}
+
+impl RoleName {
+    fn allowed_role() -> HashMap<Self, Self> {
+        HashMap::from([
+            (RoleName::Provider, RoleName::Customer),
+            (RoleName::Customer, RoleName::Provider),
+            (RoleName::Rs, RoleName::RsClient),
+            (RoleName::RsClient, RoleName::Rs),
+            (RoleName::Peer, RoleName::Peer),
+        ])
+    }
+
+    // Maps the Local AS Role and the Remote AS Role.
+    // If the Roles do not match, there will be a NotificationMsg that will be
+    // sent back.
+    // RFC 9234 section 4.2 Table 2.
+    pub fn validate_role_correctness(
+        local_role: &RoleName,
+        nbr_role: &RoleName,
+    ) -> bool {
+        if let Some(approved_role) = Self::allowed_role().get(local_role)
+            && approved_role == nbr_role
+        {
+            return true;
+        }
+        return false;
+    }
 }
 
 // BGP Origin.

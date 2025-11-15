@@ -557,7 +557,7 @@ impl Capability {
             Capability::Role { role } => {
                 buf.put_u8(CapabilityCode::Role as u8);
                 buf.put_u8(1);
-                buf.put_u8(*role as u8);
+                buf.put_u8(RoleName::to_u8(&role).unwrap());
             }
         }
 
@@ -577,6 +577,7 @@ impl Capability {
         }
 
         let mut buf_cap = buf.copy_to_bytes(cap_len as usize);
+
         let cap = match CapabilityCode::from_u8(cap_type) {
             Some(CapabilityCode::MultiProtocol) => {
                 if cap_len != 4 {
@@ -644,6 +645,20 @@ impl Capability {
                 }
 
                 Capability::EnhancedRouteRefresh
+            }
+            Some(CapabilityCode::Role) => {
+                if cap_len != 1 {
+                    return Err(OpenMessageError::MalformedOptParam);
+                }
+
+                let role = buf_cap.try_get_u8()?;
+                match RoleName::from_u8(role) {
+                    Some(role) => Capability::Role { role },
+                    None => {
+                        // TODO: Send Notification Message to the neighbor.
+                        return Ok(None);
+                    }
+                }
             }
             _ => {
                 // Ignore unknown capability.

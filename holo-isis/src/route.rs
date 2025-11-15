@@ -129,7 +129,7 @@ impl Route {
                     addr,
                     Nexthop {
                         system_id: nexthop.system_id,
-                        iface_idx: nexthop.iface_idx,
+                        iface_idx: nexthop.iface_idx.unwrap(),
                         addr,
                         sr_label: None,
                     },

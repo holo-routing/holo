@@ -98,7 +98,7 @@ pub struct VertexId {
 #[derive(new)]
 pub struct VertexNexthop {
     pub system_id: SystemId,
-    pub iface_idx: InterfaceIndex,
+    pub iface_idx: Option<InterfaceIndex>,
     pub ipv4: Option<Ipv4Addr>,
     pub ipv6: Option<Ipv6Addr>,
 }
@@ -430,6 +430,8 @@ pub(crate) fn fsm(
 // such as distributed flooding reduction and TI-LFA.
 pub(crate) fn compute_spt(
     level: LevelNumber,
+    root_system_id: SystemId,
+    local: bool,
     mt_id: MtId,
     instance: &InstanceUpView<'_>,
     interfaces: &Interfaces,
@@ -441,7 +443,7 @@ pub(crate) fn compute_spt(
     let mut used_adjs = BTreeSet::new();
 
     // Get root vertex.
-    let root_vid = VertexId::from(instance.config.system_id.unwrap());
+    let root_vid = VertexId::from(root_system_id);
     let root_v = Vertex::new(root_vid, 0, 0);
 
     // Initialize SPT and candidate list.
@@ -557,17 +559,25 @@ pub(crate) fn compute_spt(
 
             // Update vertex's nexthops.
             if vertex.hops == 0 {
-                if !link.id.lan_id.is_pseudonode()
-                    && let Some(nexthop) = compute_nexthop(
-                        level,
-                        mt_id,
-                        vertex,
-                        &link,
-                        &mut used_adjs,
-                        interfaces,
-                        adjacencies,
-                    )
-                {
+                if !link.id.lan_id.is_pseudonode() {
+                    let mut nexthop = VertexNexthop {
+                        system_id: link.id.lan_id.system_id,
+                        iface_idx: None,
+                        ipv4: None,
+                        ipv6: None,
+                    };
+                    if local {
+                        resolve_nexthop(
+                            &mut nexthop,
+                            level,
+                            mt_id,
+                            vertex,
+                            &link,
+                            &mut used_adjs,
+                            interfaces,
+                            adjacencies,
+                        );
+                    }
                     cand_v.nexthops.push(nexthop);
                 }
             } else {
@@ -613,10 +623,13 @@ fn compute_spf(
 
     // Compute shortest-path tree(s) if necessary.
     if spf_type == SpfType::Full {
+        let root_system_id = instance.config.system_id.unwrap();
         for mt_id in [MtId::Standard, MtId::Ipv6Unicast] {
             if instance.config.is_topology_enabled(mt_id) {
                 let spt = compute_spt(
                     level,
+                    root_system_id,
+                    true,
                     mt_id,
                     instance,
                     interfaces,
@@ -792,8 +805,13 @@ fn compute_routes(
     }
 }
 
-// Computes the next-hop for reaching a vertex via the specified edge.
-fn compute_nexthop(
+// Resolves the outgoing interface and IP addresses of the next-hop used to
+// reach a vertex via the specified edge.
+//
+// In IS-IS, next-hop addresses are derived from Hello PDUs received from
+// adjacencies, so address resolution applies only to local SPF computations.
+fn resolve_nexthop(
+    nexthop: &mut VertexNexthop,
     level: LevelNumber,
     mt_id: MtId,
     vertex: &Vertex,
@@ -801,7 +819,7 @@ fn compute_nexthop(
     used_adjs: &mut BTreeSet<MacAddr>,
     interfaces: &Interfaces,
     adjacencies: &Arena<Adjacency>,
-) -> Option<VertexNexthop> {
+) {
     // Check expected interface type.
     let interface_type = if vertex.id.lan_id.is_pseudonode() {
         InterfaceType::Broadcast
@@ -810,7 +828,7 @@ fn compute_nexthop(
     };
 
     let mt_id = mt_id as u16;
-    let (iface, adj) = interfaces
+    if let Some((iface, adj)) = interfaces
         .iter()
         .filter(|iface| iface.config.interface_type == interface_type)
         .filter_map(|iface| {
@@ -840,14 +858,12 @@ fn compute_nexthop(
             Some((iface, adj))
         })
         // The same adjacency shouldn't be used more than once.
-        .find(|(_, adj)| used_adjs.insert(adj.snpa))?;
-
-    Some(VertexNexthop {
-        system_id: adj.system_id,
-        iface_idx: iface.index,
-        ipv4: adj.ipv4_addrs.first().copied(),
-        ipv6: adj.ipv6_addrs.first().copied(),
-    })
+        .find(|(_, adj)| used_adjs.insert(adj.snpa))
+    {
+        nexthop.iface_idx = Some(iface.index);
+        nexthop.ipv4 = adj.ipv4_addrs.first().copied();
+        nexthop.ipv6 = adj.ipv6_addrs.first().copied();
+    }
 }
 
 // Iterate over all IS reachability entries attached to a vertex.

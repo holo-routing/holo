@@ -420,121 +420,15 @@ pub(crate) fn fsm(
     Ok(())
 }
 
-// ===== helper functions =====
-
-// Main function for SPF computation.
-//
-// Based on the LSDB changes that triggered SPF, either a full or partial run is
-// performed. A full run is necessary when topological changes are detected, and
-// involves recomputing the shortest-path tree (SPT). Otherwise, a partial run
-// is sufficient, and the SPT recalculation is skipped.
-fn compute_spf(
-    level: LevelNumber,
-    instance: &mut InstanceUpView<'_>,
-    interfaces: &Interfaces,
-    adjacencies: &Arena<Adjacency>,
-    lsp_entries: &Arena<LspEntry>,
-) {
-    let spf_sched = instance.state.spf_sched.get_mut(level);
-
-    // Get time the SPF was scheduled.
-    let schedule_time = spf_sched.schedule_time.take();
-
-    // Record time the SPF computation was started.
-    let start_time = Instant::now();
-
-    // Get list of new or updated LSPs that triggered the SPF computation.
-    let trigger_lsps = std::mem::take(&mut spf_sched.trigger_lsps);
-
-    // Log SPF computation start.
-    let spf_type = std::mem::take(&mut spf_sched.spf_type);
-    if instance.config.trace_opts.spf {
-        Debug::SpfStart(spf_type).log();
-    }
-
-    // Compute shortest-path tree(s) if necessary.
-    if spf_type == SpfType::Full {
-        for mt_id in [MtId::Standard, MtId::Ipv6Unicast] {
-            if instance.config.is_topology_enabled(mt_id) {
-                let spt = compute_spt(
-                    level,
-                    mt_id,
-                    instance,
-                    interfaces,
-                    adjacencies,
-                    lsp_entries,
-                );
-                *instance.state.spt.get_mut(mt_id).get_mut(level) = spt;
-            }
-        }
-    }
-
-    // Compute the new RIB for the current level.
-    //
-    // Since multiple topologies per address family aren't currently supported,
-    // a single RIB is sufficient as there's no risk of prefix overlap.
-    let mut new_rib = BTreeMap::new();
-    for mt_id in [MtId::Standard, MtId::Ipv6Unicast] {
-        if instance.config.is_topology_enabled(mt_id) {
-            compute_routes(
-                level,
-                mt_id,
-                instance,
-                interfaces,
-                adjacencies,
-                lsp_entries,
-                &mut new_rib,
-            );
-        }
-    }
-
-    // Update the local RIB and global RIB.
-    route::update_rib(level, new_rib, instance, interfaces);
-
-    // If this is an L1 LSP in an L1/L2 router, schedule LSP reorigination at L2
-    // to propagate updates. This happens only after SPF, as the SPT tree is
-    // needed to compute distances to L1 routers.
-    if level == LevelNumber::L1 && instance.config.level_type == LevelType::All
-    {
-        instance.schedule_lsp_origination(LevelType::L2);
-    }
-
-    // Update statistics.
-    instance.state.counters.get_mut(level).spf_runs += 1;
-    instance.state.discontinuity_time = Utc::now();
-
-    // Update time of last SPF computation.
-    let end_time = Instant::now();
-    let spf_sched = instance.state.spf_sched.get_mut(level);
-    spf_sched.last_time = Some(end_time);
-
-    // Log SPF completion and duration.
-    if instance.config.trace_opts.spf {
-        let run_duration = end_time - start_time;
-        Debug::SpfFinish(run_duration).log();
-    }
-
-    // Add entry to SPF log.
-    log_spf_run(
-        level,
-        instance,
-        spf_type,
-        schedule_time,
-        start_time,
-        end_time,
-        trigger_lsps.into_values().collect(),
-    );
-}
-
 // Computes the shortest-path tree.
 //
 // According to the ISO specification, the algorithm should begin by pre-loading
 // the candidate list (TENT) with the local adjacency database. However, in this
 // implementation, the local adjacency information is fetched directly from the
 // local LSP instead. This is done to ensure that the algorithm can be run with
-// any node as the root, which will be required later for implementing the
-// TI-LFA feature.
-fn compute_spt(
+// any node as the root, which is required for the implementation of features
+// such as distributed flooding reduction and TI-LFA.
+pub(crate) fn compute_spt(
     level: LevelNumber,
     mt_id: MtId,
     instance: &InstanceUpView<'_>,
@@ -683,6 +577,112 @@ fn compute_spt(
     }
 
     spt
+}
+
+// ===== helper functions =====
+
+// Main function for SPF computation.
+//
+// Based on the LSDB changes that triggered SPF, either a full or partial run is
+// performed. A full run is necessary when topological changes are detected, and
+// involves recomputing the shortest-path tree (SPT). Otherwise, a partial run
+// is sufficient, and the SPT recalculation is skipped.
+fn compute_spf(
+    level: LevelNumber,
+    instance: &mut InstanceUpView<'_>,
+    interfaces: &Interfaces,
+    adjacencies: &Arena<Adjacency>,
+    lsp_entries: &Arena<LspEntry>,
+) {
+    let spf_sched = instance.state.spf_sched.get_mut(level);
+
+    // Get time the SPF was scheduled.
+    let schedule_time = spf_sched.schedule_time.take();
+
+    // Record time the SPF computation was started.
+    let start_time = Instant::now();
+
+    // Get list of new or updated LSPs that triggered the SPF computation.
+    let trigger_lsps = std::mem::take(&mut spf_sched.trigger_lsps);
+
+    // Log SPF computation start.
+    let spf_type = std::mem::take(&mut spf_sched.spf_type);
+    if instance.config.trace_opts.spf {
+        Debug::SpfStart(spf_type).log();
+    }
+
+    // Compute shortest-path tree(s) if necessary.
+    if spf_type == SpfType::Full {
+        for mt_id in [MtId::Standard, MtId::Ipv6Unicast] {
+            if instance.config.is_topology_enabled(mt_id) {
+                let spt = compute_spt(
+                    level,
+                    mt_id,
+                    instance,
+                    interfaces,
+                    adjacencies,
+                    lsp_entries,
+                );
+                *instance.state.spt.get_mut(mt_id).get_mut(level) = spt;
+            }
+        }
+    }
+
+    // Compute the new RIB for the current level.
+    //
+    // Since multiple topologies per address family aren't currently supported,
+    // a single RIB is sufficient as there's no risk of prefix overlap.
+    let mut new_rib = BTreeMap::new();
+    for mt_id in [MtId::Standard, MtId::Ipv6Unicast] {
+        if instance.config.is_topology_enabled(mt_id) {
+            compute_routes(
+                level,
+                mt_id,
+                instance,
+                interfaces,
+                adjacencies,
+                lsp_entries,
+                &mut new_rib,
+            );
+        }
+    }
+
+    // Update the local RIB and global RIB.
+    route::update_rib(level, new_rib, instance, interfaces);
+
+    // If this is an L1 LSP in an L1/L2 router, schedule LSP reorigination at L2
+    // to propagate updates. This happens only after SPF, as the SPT tree is
+    // needed to compute distances to L1 routers.
+    if level == LevelNumber::L1 && instance.config.level_type == LevelType::All
+    {
+        instance.schedule_lsp_origination(LevelType::L2);
+    }
+
+    // Update statistics.
+    instance.state.counters.get_mut(level).spf_runs += 1;
+    instance.state.discontinuity_time = Utc::now();
+
+    // Update time of last SPF computation.
+    let end_time = Instant::now();
+    let spf_sched = instance.state.spf_sched.get_mut(level);
+    spf_sched.last_time = Some(end_time);
+
+    // Log SPF completion and duration.
+    if instance.config.trace_opts.spf {
+        let run_duration = end_time - start_time;
+        Debug::SpfFinish(run_duration).log();
+    }
+
+    // Add entry to SPF log.
+    log_spf_run(
+        level,
+        instance,
+        spf_type,
+        schedule_time,
+        start_time,
+        end_time,
+        trigger_lsps.into_values().collect(),
+    );
 }
 
 // Computes routing table based on the SPT and IP prefix information extracted

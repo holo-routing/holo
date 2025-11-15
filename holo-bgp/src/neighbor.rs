@@ -68,6 +68,7 @@ pub struct Neighbor {
     pub tasks: NeighborTasks,
     pub update_queues: NeighborUpdateQueues,
     pub msg_txp: Option<UnboundedSender<NbrTxMsg>>,
+    pub remote_role: Option<RoleName>,
 }
 
 // BGP peer type.
@@ -215,6 +216,7 @@ impl Neighbor {
             tasks: Default::default(),
             update_queues: Default::default(),
             msg_txp: None,
+            remote_role: None,
         }
     }
 
@@ -741,6 +743,12 @@ impl Neighbor {
                     let msg = NotificationMsg::new(error_code, error_subcode);
                     Some(msg)
                 }
+                Error::NbrRoleMismatch(..) => {
+                    let error_code = ErrorCode::OpenMessageError;
+                    let error_subcode = ErrorSubcode::RoleMismatch;
+                    let msg = NotificationMsg::new(error_code, error_subcode);
+                    Some(msg)
+                }
                 _ => None,
             };
             self.session_close(&mut instance.state.rib, instance.tx, msg);
@@ -784,7 +792,7 @@ impl Neighbor {
     // Performs semantic validation of the received BGP OPEN message.
     // Syntactic errors are detected during the decoding phase.
     fn open_validate(
-        &self,
+        &mut self,
         instance: &InstanceUpView<'_>,
         msg: &OpenMsg,
     ) -> Result<(), Error> {
@@ -807,23 +815,40 @@ impl Neighbor {
             ));
         }
 
-        // Validate the incoming BGP Role.
-        // Finds if:
-        //  1. Role has been locally configured.
-        //  2. role exists on the incoming message.
-        //  3. If local role and remote role correctly match the RFC 9234.
         if let Some(local_role) = self.config.role
-            && let Some(Capability::Role { role: nbr_role }) = msg
+            && let Some(Capability::Role { role: remote_role }) = msg
                 .capabilities
                 .iter()
                 .find(|cap| matches!(cap, Capability::Role { .. }))
-            && !RoleName::validate_role_correctness(&local_role, &nbr_role)
         {
-            return Err(Error::NbrRoleMismatch(
+            let err = Err(Error::NbrRoleMismatch(
                 self.remote_addr,
                 local_role.to_u8().unwrap(),
-                nbr_role.to_u8().unwrap(),
+                remote_role.to_u8().unwrap(),
             ));
+
+            // Validate the incoming BGP Role.
+            // ---
+            // Validation 1:
+            // Check if the neighbor had already sent a Role capability,
+            // and if the role capability is same as incoming.
+            if self.remote_role.is_some()
+                && self.remote_role != Some(*remote_role)
+            {
+                return err;
+            }
+
+            // Validation 2:
+            // Finds if:
+            //  1. Role has been locally configured.
+            //  2. role exists on the incoming message.
+            //  3. If local role and remote role correctly match the RFC 9234.
+            if !RoleName::validate_role_correctness(&local_role, remote_role) {
+                return err;
+            }
+
+            // If everything is okay, then we can set the remote role correctly.
+            self.remote_role = Some(*remote_role);
         }
 
         Ok(())

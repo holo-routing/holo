@@ -68,7 +68,7 @@ impl ToYang for CapabilityCode {
             CapabilityCode::AddPath => "holo-bgp:add-paths".into(),
             CapabilityCode::RouteRefresh => "iana-bgp-types:route-refresh".into(),
             CapabilityCode::EnhancedRouteRefresh => "holo-bgp:enhanced-route-refresh".into(),
-            CapabilityCode::Role => "holo-bgp:role".into(),
+            CapabilityCode::BgpRole => "holo-bgp:role".into(),
         }
     }
 }
@@ -86,6 +86,7 @@ impl ToYang for NotificationMsg {
                     Some(ErrorSubcode::ConnectionNotSynchronized) => "message-header-connection-not-synchronized",
                     Some(ErrorSubcode::BadMessageLength) => "message-header-bad-message-length",
                     Some(ErrorSubcode::BadMessageType) => "message-header-bad-message-type",
+                    Some(ErrorSubcode::RoleMismatch) => "message-header-role-mismatch",
                     None => "message-header-error",
                 }
             }

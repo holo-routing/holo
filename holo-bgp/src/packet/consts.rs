@@ -66,7 +66,7 @@ pub enum CapabilityCode {
     // RFC 8277
     //MultipleLabels = 8,
     // RFC 9234
-    //BgpRole = 9,
+    BgpRole = 9,
     // RFC 4724
     //GracefulRestart = 64,
     // RFC 6793
@@ -75,8 +75,6 @@ pub enum CapabilityCode {
     AddPath = 69,
     // RFC7313
     EnhancedRouteRefresh = 70,
-    // RFC9234
-    Role = 9,
 }
 
 // Send/Receive value for a per-AFI/SAFI instance of the ADD-PATH Capability.
@@ -119,6 +117,8 @@ pub enum MessageHeaderErrorSubcode {
     ConnectionNotSynchronized = 1,
     BadMessageLength = 2,
     BadMessageType = 3,
+    // RFC 9234.
+    RoleMismatch = 11,
 }
 
 // OPEN Message Error subcodes.
@@ -307,7 +307,7 @@ pub enum AttrType {
     // RFC 8205
     //BgpSecPath = 33,
     // RFC 9234
-    //Otc = 35,
+    Otc = 35,
     // RFC 9015
     //Sfp = 37,
     // RFC 9026
@@ -347,14 +347,14 @@ impl RoleName {
     // RFC 9234 section 4.2 Table 2.
     pub fn validate_role_correctness(
         local_role: &RoleName,
-        nbr_role: &RoleName,
+        remote_role: &RoleName,
     ) -> bool {
         if let Some(approved_role) = Self::allowed_role().get(local_role)
-            && approved_role == nbr_role
+            && approved_role == remote_role
         {
             return true;
         }
-        return false;
+        false
     }
 }
 

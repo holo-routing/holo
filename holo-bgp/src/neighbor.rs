@@ -30,7 +30,7 @@ use crate::northbound::notification;
 use crate::northbound::rpc::ClearType;
 use crate::packet::attribute::{AS_TRANS, Attrs};
 use crate::packet::iana::{
-    Afi, CeaseSubcode, ErrorCode, FsmErrorSubcode, Safi,
+    Afi, CeaseSubcode, ErrorCode, FsmErrorSubcode, RoleName, Safi,
 };
 use crate::packet::message::{
     Capability, DecodeCxt, EncodeCxt, KeepaliveMsg, Message,
@@ -695,7 +695,7 @@ impl Neighbor {
                 safi: Safi::Unicast,
             });
         }
-        // TODO: Make sure the config is enabled boolean field is added.
+
         if let Some(role) = self.config.role {
             capabilities.insert(Capability::Role { role });
         }
@@ -803,6 +803,25 @@ impl Neighbor {
             return Err(Error::NbrBadIdentifier(
                 self.remote_addr,
                 msg.identifier,
+            ));
+        }
+
+        // Validate the incoming BGP Role.
+        // Finds if:
+        //  1. Role has been locally configured.
+        //  2. role exists on the incoming message.
+        //  3. If local role and remote role correctly match the RFC 9234.
+        if let Some(local_role) = self.config.role
+            && let Some(Capability::Role { role: nbr_role }) = msg
+                .capabilities
+                .iter()
+                .find(|cap| matches!(cap, Capability::Role { .. }))
+            && !RoleName::validate_role_correctness(&local_role, &nbr_role)
+        {
+            return Err(Error::NbrRoleMismatch(
+                self.remote_addr,
+                local_role.to_u8().unwrap(),
+                nbr_role.to_u8().unwrap(),
             ));
         }
 

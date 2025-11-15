@@ -567,9 +567,9 @@ impl Capability {
                 buf.put_u8(0);
             }
             Capability::Role { role } => {
-                buf.put_u8(CapabilityCode::Role as u8);
+                buf.put_u8(CapabilityCode::BgpRole as u8);
                 buf.put_u8(1);
-                buf.put_u8(RoleName::to_u8(&role).unwrap());
+                buf.put_u8(RoleName::to_u8(role).unwrap());
             }
         }
 
@@ -658,16 +658,16 @@ impl Capability {
 
                 Capability::EnhancedRouteRefresh
             }
-            Some(CapabilityCode::Role) => {
+            // RFC 9234.
+            Some(CapabilityCode::BgpRole) => {
                 if cap_len != 1 {
                     return Err(OpenMessageError::MalformedOptParam);
                 }
 
-                let role = buf_cap.try_get_u8()?;
-                match RoleName::from_u8(role) {
+                let role_value = buf_cap.try_get_u8()?;
+                match RoleName::from_u8(role_value) {
                     Some(role) => Capability::Role { role },
                     None => {
-                        // TODO: Send Notification Message to the neighbor.
                         return Ok(None);
                     }
                 }
@@ -692,7 +692,7 @@ impl Capability {
             Capability::EnhancedRouteRefresh => {
                 CapabilityCode::EnhancedRouteRefresh
             }
-            Capability::Role { .. } => CapabilityCode::Role,
+            Capability::Role { .. } => CapabilityCode::BgpRole,
         }
     }
 
@@ -730,7 +730,7 @@ impl NegotiatedCapability {
             NegotiatedCapability::EnhancedRouteRefresh => {
                 CapabilityCode::EnhancedRouteRefresh
             }
-            NegotiatedCapability::Role => CapabilityCode::Role,
+            NegotiatedCapability::Role => CapabilityCode::BgpRole,
         }
     }
 }
@@ -954,6 +954,9 @@ impl From<DecodeError> for NotificationMsg {
                     }
                     OpenMessageError::MalformedOptParam => {
                         OpenMessageErrorSubcode::Unspecific
+                    }
+                    OpenMessageError::RoleMismatch => {
+                        OpenMessageErrorSubcode::RoleMismatch
                     }
                 } as u8;
             }

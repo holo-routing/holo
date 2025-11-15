@@ -37,6 +37,7 @@ pub enum OpenMessageError {
     UnacceptableHoldTime,
     UnsupportedCapability,
     MalformedOptParam,
+    RoleMismatch,
 }
 
 // UPDATE message errors.
@@ -160,6 +161,9 @@ impl std::fmt::Display for OpenMessageError {
             }
             OpenMessageError::MalformedOptParam => {
                 write!(f, "malformed optional parameter")
+            }
+            OpenMessageError::RoleMismatch => {
+                write!(f, "BGP role mismatched")
             }
         }
     }

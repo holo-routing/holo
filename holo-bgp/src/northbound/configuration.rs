@@ -274,6 +274,11 @@ fn load_callbacks() -> Callbacks<Instance> {
                 _ => None,
             };
         })
+        .delete_apply(|instance, args| {
+            let nbr_addr = args.list_entry.into_neighbor().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+            nbr.config.role = None;
+        })
         .path(bgp::global::r#as::PATH)
         .modify_apply(|instance, args| {
             let asn = args.dnode.get_u32();

@@ -202,8 +202,17 @@ impl<T> Topologies<T> {
 
 // ===== impl VertexId =====
 
-impl VertexId {
-    pub(crate) fn new(lan_id: LanId) -> VertexId {
+impl From<SystemId> for VertexId {
+    fn from(system_id: SystemId) -> VertexId {
+        VertexId {
+            non_pseudonode: true,
+            lan_id: LanId::from((system_id, 0)),
+        }
+    }
+}
+
+impl From<LanId> for VertexId {
+    fn from(lan_id: LanId) -> VertexId {
         VertexId {
             non_pseudonode: !lan_id.is_pseudonode(),
             lan_id,
@@ -538,8 +547,7 @@ fn compute_spt(
     let mut used_adjs = BTreeSet::new();
 
     // Get root vertex.
-    let root_lan_id = LanId::from((instance.config.system_id.unwrap(), 0));
-    let root_vid = VertexId::new(root_lan_id);
+    let root_vid = VertexId::from(instance.config.system_id.unwrap());
     let root_v = Vertex::new(root_vid, 0, 0);
 
     // Initialize SPT and candidate list.
@@ -862,7 +870,7 @@ fn vertex_edges<'a>(
 
             if mt_id == MtId::Standard && metric_type.is_standard_enabled() {
                 let iter = lsp.tlvs.is_reach().map(|reach| VertexEdge {
-                    id: VertexId::new(reach.neighbor),
+                    id: VertexId::from(reach.neighbor),
                     cost: reach.metric.into(),
                 });
                 standard_iter = Some(iter);
@@ -879,7 +887,7 @@ fn vertex_edges<'a>(
                     // computation".
                     .filter(|reach| reach.metric < MAX_PATH_METRIC_WIDE)
                     .map(|reach| VertexEdge {
-                        id: VertexId::new(reach.neighbor),
+                        id: VertexId::from(reach.neighbor),
                         cost: reach.metric,
                     });
                 wide_iter = Some(iter);
@@ -894,7 +902,7 @@ fn vertex_edges<'a>(
                     // computation".
                     .filter(|reach| reach.metric < MAX_PATH_METRIC_WIDE)
                     .map(|reach| VertexEdge {
-                        id: VertexId::new(reach.neighbor),
+                        id: VertexId::from(reach.neighbor),
                         cost: reach.metric,
                     });
                 mt_iter = Some(iter);

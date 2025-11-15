@@ -1120,7 +1120,7 @@ fn lsp_propagate_l1_to_l2(
             .spt
             .standard
             .get(LevelNumber::L1)
-            .get(&VertexId::new(LanId::from((l1_lsp.lsp_id.system_id, 0))))
+            .get(&VertexId::from(l1_lsp.lsp_id.system_id))
             .map(|vertex| vertex.distance)
         {
             // Propagate IPv4 reachability information.
@@ -1178,7 +1178,7 @@ fn lsp_propagate_l1_to_l2(
             .spt
             .ipv6_unicast
             .get(LevelNumber::L1)
-            .get(&VertexId::new(LanId::from((l1_lsp.lsp_id.system_id, 0))))
+            .get(&VertexId::from(l1_lsp.lsp_id.system_id))
             .map(|vertex| vertex.distance)
         {
             // Propagate MT-IPv6 reachability information.

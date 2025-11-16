@@ -62,7 +62,11 @@ pub struct Topologies<T> {
 }
 
 // Shortest Path Tree.
-pub type Spt = BTreeMap<VertexId, Vertex>;
+#[derive(Debug, Default)]
+pub struct Spt {
+    arena: generational_arena::Arena<Vertex>,
+    id_tree: BTreeMap<VertexId, generational_arena::Index>,
+}
 
 // Represents a vertex in the IS-IS topology graph.
 //
@@ -73,6 +77,8 @@ pub struct Vertex {
     pub id: VertexId,
     pub distance: u32,
     pub hops: u16,
+    #[new(default)]
+    pub parents: Vec<generational_arena::Index>,
     #[new(default)]
     pub nexthops: Vec<VertexNexthop>,
 }
@@ -197,6 +203,36 @@ impl<T> Topologies<T> {
             MtId::Standard => &mut self.standard,
             MtId::Ipv6Unicast => &mut self.ipv6_unicast,
         }
+    }
+}
+
+// ===== impl Spt =====
+
+impl Spt {
+    // Inserts a vertex into the SPT.
+    pub(crate) fn insert(
+        &mut self,
+        vertex: Vertex,
+    ) -> generational_arena::Index {
+        let index = self.arena.insert(vertex);
+        let vertex = &mut self.arena[index];
+        self.id_tree.insert(vertex.id, index);
+        index
+    }
+
+    // Returns true if a vertex with the given ID exists in the SPT.
+    pub(crate) fn contains(&self, vertex_id: &VertexId) -> bool {
+        self.id_tree.contains_key(vertex_id)
+    }
+
+    // Returns a reference to the vertex with the given ID, if present.
+    pub(crate) fn get(&self, vertex_id: &VertexId) -> Option<&Vertex> {
+        self.id_tree.get(vertex_id).map(|index| &self.arena[*index])
+    }
+
+    // Returns an iterator over all vertices in the SPT.
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &Vertex> {
+        self.id_tree.values().map(|index| &self.arena[*index])
     }
 }
 
@@ -447,16 +483,15 @@ pub(crate) fn compute_spt(
     let root_v = Vertex::new(root_vid, 0, 0);
 
     // Initialize SPT and candidate list.
-    let mut spt = BTreeMap::new();
+    let mut spt = Spt::default();
     let mut cand_list = BTreeMap::new();
     cand_list.insert((root_v.distance, root_v.id), root_v);
 
     // Main SPF loop.
-    'spf_loop: while let Some(((_, vertex_id), vertex)) = cand_list.pop_first()
-    {
+    'spf_loop: while let Some((_, cand_v)) = cand_list.pop_first() {
         // Add vertex to SPT.
-        spt.insert(vertex.id, vertex);
-        let vertex = spt.get(&vertex_id).unwrap();
+        let vertex_idx = spt.insert(cand_v);
+        let vertex = &spt.arena[vertex_idx];
 
         // Skip if the zeroth LSP is missing.
         let Some(zeroth_lsp) = zeroth_lsp(vertex.id.lan_id, lsdb, lsp_entries)
@@ -509,7 +544,7 @@ pub(crate) fn compute_spt(
             }
 
             // Check if the link's vertex is already on the shortest-path tree.
-            if spt.contains_key(&link.id) {
+            if spt.contains(&link.id) {
                 continue;
             }
 
@@ -556,6 +591,7 @@ pub(crate) fn compute_spt(
             let cand_v = cand_list
                 .entry((distance, link.id))
                 .or_insert_with(|| Vertex::new(link.id, distance, hops));
+            cand_v.parents.push(vertex_idx);
 
             // Update vertex's nexthops.
             if vertex.hops == 0 {
@@ -724,7 +760,7 @@ fn compute_routes(
             }
             MtId::Ipv6Unicast => true,
         };
-    for vertex in instance.state.spt.get(mt_id).get(level).values() {
+    for vertex in instance.state.spt.get(mt_id).get(level).iter() {
         // Skip if the zeroth LSP is missing.
         let Some(zeroth_lsp) = zeroth_lsp(vertex.id.lan_id, lsdb, lsp_entries)
         else {

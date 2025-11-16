@@ -29,7 +29,9 @@ use crate::packet::consts::{
     VERSION_PROTO_EXT,
 };
 use crate::packet::error::{DecodeError, DecodeResult};
-use crate::packet::subtlvs::capability::{SrAlgoStlv, SrCapabilitiesStlv};
+use crate::packet::subtlvs::capability::{
+    FloodingAlgoStlv, SrAlgoStlv, SrCapabilitiesStlv,
+};
 use crate::packet::tlv::{
     AreaAddressesTlv, AuthenticationTlv, DynamicHostnameTlv, ExtendedSeqNum,
     ExtendedSeqNumTlv, Ipv4AddressesTlv, Ipv4Reach, Ipv4ReachTlv,
@@ -1755,6 +1757,14 @@ impl LspTlvs {
         self.router_cap
             .iter()
             .find_map(|router_cap| router_cap.sub_tlvs.sr_algo.as_ref())
+    }
+
+    // Returns the first Flooding Algorithm Sub-TLV found within any Router
+    // Capabilities TLV.
+    pub(crate) fn flooding_algo(&self) -> Option<&FloodingAlgoStlv> {
+        self.router_cap
+            .iter()
+            .find_map(|router_cap| router_cap.sub_tlvs.flooding_algo.as_ref())
     }
 }
 

@@ -67,6 +67,11 @@ pub struct LabelBlockEntry {
 #[derive(Deserialize, Serialize)]
 pub struct NodeAdminTagStlv(BTreeSet<u32>);
 
+#[derive(Clone, Debug, PartialEq)]
+#[derive(new)]
+#[derive(Deserialize, Serialize)]
+pub struct FloodingAlgoStlv(u8);
+
 // ===== impl SrCapabilitiesStlv =====
 
 impl SrCapabilitiesStlv {
@@ -288,5 +293,38 @@ impl NodeAdminTagStlv {
 
     pub(crate) fn get(&self) -> &BTreeSet<u32> {
         &self.0
+    }
+}
+
+// ===== impl FloodingAlgoStlv =====
+
+impl FloodingAlgoStlv {
+    pub const SIZE: usize = 1;
+
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
+        // Validate the TLV length.
+        if stlv_len as usize != Self::SIZE {
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
+        }
+
+        let algo = buf.try_get_u8()?;
+        Ok(FloodingAlgoStlv(algo))
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, RouterCapStlvType::FloodingAlgo);
+        buf.put_u8(self.0);
+        tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        TLV_HDR_SIZE + Self::SIZE
+    }
+
+    pub(crate) fn get(&self) -> u8 {
+        self.0
     }
 }

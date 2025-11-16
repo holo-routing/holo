@@ -30,6 +30,7 @@ use crate::debug::{
     Debug, InstanceInactiveReason, InterfaceInactiveReason, LspPurgeReason,
 };
 use crate::error::Error;
+use crate::flooding::FloodingReduction;
 use crate::interface::CircuitIdAllocator;
 use crate::lsdb::{LspEntry, LspLogEntry};
 use crate::northbound::configuration::InstanceCfg;
@@ -90,6 +91,8 @@ pub struct InstanceState {
     pub spf_sched: Levels<SpfScheduler>,
     // Shortest-path tree.
     pub spt: Topologies<Levels<Spt>>,
+    // Flooding reduction data.
+    pub flooding_reduction: Levels<FloodingReduction>,
     // Routing table (per-level and L1/L2).
     pub rib_single: Levels<BTreeMap<IpNetwork, Route>>,
     pub rib_multi: BTreeMap<IpNetwork, Route>,
@@ -430,6 +433,7 @@ impl InstanceState {
             lsp_orig_pending: None,
             spf_sched: Default::default(),
             spt: Default::default(),
+            flooding_reduction: Default::default(),
             rib_single: Default::default(),
             rib_multi: Default::default(),
             summaries: Default::default(),

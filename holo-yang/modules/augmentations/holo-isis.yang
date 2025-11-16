@@ -51,6 +51,33 @@ module holo-isis {
       "IPv6 unicast topology (MT-ID 2)";
   }
 
+  identity flooding-algorithm {
+    description
+      "Base identity for algorithms used to compute the flooding topology.";
+    reference
+      "draft-prz-lsr-interop-flood-reduction-architecture:
+       Flooding Reduction Algorithms Framework";
+  }
+
+  identity flooding-algorithm-zero-pruner {
+    base flooding-algorithm;
+    description
+      "Zero-pruner algorithm that uses the full flooding topology without
+       pruning.";
+    reference
+      "draft-prz-lsr-interop-flood-reduction-architecture:
+       Flooding Reduction Algorithms Framework";
+  }
+
+  identity flooding-algorithm-modified-manet {
+    base flooding-algorithm;
+    description
+      "Modified MANET flooding reduction algorithm.";
+    reference
+      "draft-ietf-lsr-distoptflood:
+       IS-IS Distributed Flooding Reduction";
+  }
+
   /*
    * Types.
    */
@@ -174,6 +201,19 @@ module holo-isis {
                routes is used.";
           }
         }
+      }
+    }
+
+    container flooding-reduction {
+      description
+        "Configuration for IS-IS flooding reduction extensions";
+      leaf algorithm {
+        type identityref {
+          base flooding-algorithm;
+        }
+        default holo-isis:flooding-algorithm-zero-pruner;
+        description
+          "Specifies the flooding reduction algorithm in use.";
       }
     }
 
@@ -473,6 +513,17 @@ module holo-isis {
           "System ID of the neighboring router from which the purged LSP
            was received.";
       }
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis/isis:database/"
+        + "isis:levels/isis:lsp/"
+        + "isis:router-capabilities/isis:router-capability" {
+    leaf flooding-algorithm {
+      type uint8;
+      description
+        "Flooding reduction algorithm in use by the IS-IS node.";
     }
   }
 

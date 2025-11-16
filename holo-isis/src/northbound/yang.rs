@@ -19,7 +19,7 @@ use crate::lsdb::LspLogReason;
 use crate::northbound::configuration::{
     ExtendedSeqNumMode, InstanceTraceOption, InterfaceTraceOption, MetricType,
 };
-use crate::packet::consts::MtId;
+use crate::packet::consts::{FloodingAlgo, MtId};
 use crate::packet::pdu::LspFlags;
 use crate::packet::subtlvs::capability::SrCapabilitiesFlags;
 use crate::packet::subtlvs::neighbor::AdjSidFlags;
@@ -43,7 +43,7 @@ impl ToYang for LevelType {
 
 impl ToYang for SystemId {
     fn to_yang(&self) -> Cow<'static, str> {
-        let bytes = self.as_ref();
+        let bytes: &[u8; 6] = self.as_ref();
         Cow::Owned(format!(
             "{:02X}{:02X}.{:02X}{:02X}.{:02X}{:02X}",
             bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5]
@@ -406,6 +406,20 @@ impl TryFromYang for MtId {
         match value {
             "holo-isis:mt-topology-standard" => Some(MtId::Standard),
             "holo-isis:mt-topology-ipv6-unicast" => Some(MtId::Ipv6Unicast),
+            _ => None,
+        }
+    }
+}
+
+impl TryFromYang for FloodingAlgo {
+    fn try_from_yang(value: &str) -> Option<FloodingAlgo> {
+        match value {
+            "holo-isis:flooding-algorithm-zero-pruner" => {
+                Some(FloodingAlgo::ZeroPruner)
+            }
+            "holo-isis:flooding-algorithm-modified-manet" => {
+                Some(FloodingAlgo::ModifiedManet)
+            }
             _ => None,
         }
     }

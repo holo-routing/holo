@@ -36,12 +36,12 @@ use crate::instance::{InstanceArenas, InstanceUpView};
 use crate::interface::{Interface, InterfaceType};
 use crate::northbound::configuration::MetricType;
 use crate::northbound::notification;
-use crate::packet::consts::{MtId, Nlpid};
+use crate::packet::consts::{FloodingAlgo, MtId, Nlpid};
 use crate::packet::pdu::{Lsp, LspFlags, LspTlvs, Pdu};
 use crate::packet::subtlvs::MsdStlv;
 use crate::packet::subtlvs::capability::{
-    LabelBlockEntry, NodeAdminTagStlv, SrAlgoStlv, SrCapabilitiesFlags,
-    SrCapabilitiesStlv, SrLocalBlockStlv,
+    FloodingAlgoStlv, LabelBlockEntry, NodeAdminTagStlv, SrAlgoStlv,
+    SrCapabilitiesFlags, SrCapabilitiesStlv, SrLocalBlockStlv,
 };
 use crate::packet::subtlvs::prefix::{
     BierEncapSubStlv, BierInfoStlv, BierSubStlv, Ipv4SourceRidStlv,
@@ -495,9 +495,17 @@ fn lsp_build_tlvs_router_cap(
             .collect();
     }
 
+    // Add Flooding Algorithm Sub-TLV.
+    if instance.config.flooding_reduction.algo != FloodingAlgo::ZeroPruner {
+        cap.sub_tlvs.flooding_algo = Some(FloodingAlgoStlv::new(
+            instance.config.flooding_reduction.algo as u8,
+        ));
+    }
+
     if cap.sub_tlvs.sr_cap.is_some()
         || cap.sub_tlvs.node_msd.is_some()
         || !cap.sub_tlvs.node_tags.is_empty()
+        || cap.sub_tlvs.flooding_algo.is_some()
     {
         router_cap.push(cap);
     }

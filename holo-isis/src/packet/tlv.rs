@@ -37,7 +37,8 @@ use crate::packet::error::{TlvDecodeError, TlvDecodeResult};
 use crate::packet::pdu::serde_lsp_rem_lifetime_filter;
 use crate::packet::subtlvs::MsdStlv;
 use crate::packet::subtlvs::capability::{
-    NodeAdminTagStlv, SrAlgoStlv, SrCapabilitiesStlv, SrLocalBlockStlv,
+    FloodingAlgoStlv, NodeAdminTagStlv, SrAlgoStlv, SrCapabilitiesStlv,
+    SrLocalBlockStlv,
 };
 use crate::packet::subtlvs::prefix::{
     BierInfoStlv, Ipv4SourceRidStlv, Ipv6SourceRidStlv, PrefixAttrFlags,
@@ -434,6 +435,7 @@ pub struct RouterCapStlvs {
     pub srlb: Option<SrLocalBlockStlv>,
     pub node_msd: Option<MsdStlv>,
     pub node_tags: Vec<NodeAdminTagStlv>,
+    pub flooding_algo: Option<FloodingAlgoStlv>,
     pub unknown: Vec<UnknownTlv>,
 }
 
@@ -2444,6 +2446,15 @@ impl RouterCapTlv {
                         Err(error) => error.log(),
                     }
                 }
+                Some(RouterCapStlvType::FloodingAlgo) => {
+                    if sub_tlvs.flooding_algo.is_some() {
+                        continue;
+                    }
+                    match FloodingAlgoStlv::decode(stlv_len, &mut buf_stlv) {
+                        Ok(stlv) => sub_tlvs.flooding_algo = Some(stlv),
+                        Err(error) => error.log(),
+                    }
+                }
                 _ => {
                     // Save unknown Sub-TLV.
                     sub_tlvs
@@ -2482,6 +2493,9 @@ impl RouterCapTlv {
         for stlv in &self.sub_tlvs.node_tags {
             stlv.encode(buf);
         }
+        if let Some(stlv) = &self.sub_tlvs.flooding_algo {
+            stlv.encode(buf);
+        }
         tlv_encode_end(buf, start_pos);
     }
 }
@@ -2503,6 +2517,9 @@ impl Tlv for RouterCapTlv {
             len += stlv.len();
         }
         for stlv in &self.sub_tlvs.node_tags {
+            len += stlv.len();
+        }
+        if let Some(stlv) = &self.sub_tlvs.flooding_algo {
             len += stlv.len();
         }
 

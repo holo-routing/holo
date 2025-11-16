@@ -34,7 +34,7 @@ use crate::instance::Instance;
 use crate::interface::InterfaceType;
 use crate::northbound::notification;
 use crate::packet::auth::AuthMethod;
-use crate::packet::consts::{MtId, PduType};
+use crate::packet::consts::{FloodingAlgo, MtId, PduType};
 use crate::packet::{
     AreaAddr, LevelNumber, LevelType, LevelTypeIterator, SystemId,
 };
@@ -121,6 +121,7 @@ pub struct InstanceCfg {
     pub overload_status: bool,
     pub mt: HashMap<MtId, InstanceMtCfg>,
     pub summaries: JointPrefixMap<IpNetwork, SummaryCfg>,
+    pub flooding_reduction: InstanceFloodingReductionCfg,
     pub att_suppress: bool,
     pub att_ignore: bool,
     pub sr: InstanceSrCfg,
@@ -132,6 +133,11 @@ pub struct InstanceCfg {
 pub struct InstanceMtCfg {
     pub enabled: bool,
     pub default_metric: LevelsCfgWithDefault<u32>,
+}
+
+#[derive(Debug)]
+pub struct InstanceFloodingReductionCfg {
+    pub algo: FloodingAlgo,
 }
 
 #[derive(Debug)]
@@ -940,6 +946,15 @@ fn load_callbacks() -> Callbacks<Instance> {
             let summary_cfg = instance.config.summaries.get_mut(&prefix).unwrap();
 
             summary_cfg.metric = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::RerunSpf);
+        })
+        .path(isis::flooding_reduction::algorithm::PATH)
+        .modify_apply(|instance, args| {
+            let algo = args.dnode.get_string();
+            let algo = FloodingAlgo::try_from_yang(&algo).unwrap();
+            instance.config.flooding_reduction.algo = algo;
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::RerunSpf);
@@ -2615,6 +2630,7 @@ impl Default for InstanceCfg {
             overload_status,
             mt: Default::default(),
             summaries: Default::default(),
+            flooding_reduction: Default::default(),
             att_suppress,
             att_ignore,
             sr: Default::default(),
@@ -2639,6 +2655,14 @@ impl Default for InstanceMtCfg {
             enabled,
             default_metric,
         }
+    }
+}
+
+impl Default for InstanceFloodingReductionCfg {
+    fn default() -> Self {
+        let algo = isis::flooding_reduction::algorithm::DFLT;
+        let algo = FloodingAlgo::try_from_yang(algo).unwrap();
+        Self { algo }
     }
 }
 

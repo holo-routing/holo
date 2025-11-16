@@ -27,13 +27,13 @@ use crate::interface::InterfaceType;
 use crate::lsdb::{self, LspEntryFlags, lsp_compare};
 use crate::northbound::configuration::ExtendedSeqNumMode;
 use crate::northbound::notification;
-use crate::packet::consts::PduType;
+use crate::packet::consts::{FloodingAlgo, PduType};
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::pdu::{Hello, HelloVariant, Lsp, Pdu, Snp, SnpTlvs};
 use crate::packet::tlv::{ExtendedSeqNum, ExtendedSeqNumTlv, ThreeWayAdjState};
 use crate::packet::{LanId, LevelNumber, LevelType, LspId};
 use crate::spf::SpfType;
-use crate::{adjacency, spf};
+use crate::{adjacency, flooding, spf};
 
 // ===== Network PDU receipt =====
 
@@ -601,6 +601,7 @@ fn process_pdu_lsp(
 ) -> Result<(), PduInputError> {
     let iface = &mut arenas.interfaces[iface_idx];
     let system_id = instance.config.system_id.unwrap();
+    let mut reflood_list = Default::default();
 
     // Set the level based on the PDU type, and discard the LSP if the level
     // is incompatible with the interface.
@@ -779,6 +780,18 @@ fn process_pdu_lsp(
                 lsp.encode(auth);
             };
 
+            if instance.config.flooding_reduction.algo
+                == FloodingAlgo::ModifiedManet
+            {
+                // Build the Modified MANET reflood list for the LSP.
+                reflood_list = flooding::manet::reflood_list(
+                    instance,
+                    level,
+                    &adj.system_id,
+                    &lsp.lsp_id,
+                );
+            }
+
             // Store the new LSP, replacing any existing one.
             let lse =
                 lsdb::install(instance, &mut arenas.lsp_entries, level, lsp);
@@ -798,7 +811,22 @@ fn process_pdu_lsp(
                 .iter_mut()
                 .filter(|other_iface| other_iface.id != iface_id)
             {
-                other_iface.srm_list_add(instance, level, lsp.clone());
+                // Determine whether the LSP should be flooded out this
+                // interface.
+                let allow_flood = match instance.config.flooding_reduction.algo
+                {
+                    FloodingAlgo::ZeroPruner => true,
+                    FloodingAlgo::ModifiedManet => {
+                        flooding::manet::should_flood(
+                            other_iface,
+                            &reflood_list,
+                            &arenas.adjacencies,
+                        )
+                    }
+                };
+                if allow_flood {
+                    other_iface.srm_list_add(instance, level, lsp.clone());
+                }
                 other_iface.ssn_list_del(level, &lsp.lsp_id);
             }
         }
@@ -839,10 +867,34 @@ fn process_pdu_lsp(
         Some(Ordering::Greater) => {
             let lse = lse.unwrap();
 
+            if instance.config.flooding_reduction.algo
+                == FloodingAlgo::ModifiedManet
+            {
+                // Build the Modified MANET reflood list for the LSP.
+                reflood_list = flooding::manet::reflood_list(
+                    instance,
+                    level,
+                    &adj.system_id,
+                    &lsp.lsp_id,
+                );
+            }
+
+            // Determine whether the database LSP should be flooded back over
+            // the incoming interface.
+            let allow_flood = match instance.config.flooding_reduction.algo {
+                FloodingAlgo::ZeroPruner => true,
+                FloodingAlgo::ModifiedManet => flooding::manet::should_flood(
+                    iface,
+                    &reflood_list,
+                    &arenas.adjacencies,
+                ),
+            };
+
             // Update LSP flooding flags for the incoming interface.
-            let lsp_id = lsp.lsp_id;
-            iface.srm_list_add(instance, level, lse.data.clone());
-            iface.ssn_list_del(level, &lsp_id);
+            if allow_flood {
+                iface.srm_list_add(instance, level, lse.data.clone());
+            }
+            iface.ssn_list_del(level, &lsp.lsp_id);
         }
     }
 

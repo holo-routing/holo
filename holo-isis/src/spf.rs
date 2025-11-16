@@ -29,13 +29,13 @@ use crate::instance::{InstanceArenas, InstanceUpView};
 use crate::interface::InterfaceType;
 use crate::lsdb::{LspEntry, LspLogId};
 use crate::northbound::configuration::MetricType;
-use crate::packet::consts::{MtId, Nlpid};
+use crate::packet::consts::{FloodingAlgo, MtId, Nlpid};
 use crate::packet::pdu::Lsp;
 use crate::packet::subtlvs::prefix::{PrefixAttrFlags, PrefixSidStlv};
 use crate::packet::tlv::IpReachTlvEntry;
 use crate::packet::{LanId, LevelNumber, LevelType, LspId, SystemId};
 use crate::route::Route;
-use crate::{route, sr, tasks};
+use crate::{flooding, route, sr, tasks};
 
 // Maximum size of the SPF log record.
 const SPF_LOG_MAX_SIZE: usize = 32;
@@ -66,6 +66,8 @@ pub struct Topologies<T> {
 pub struct Spt {
     arena: generational_arena::Arena<Vertex>,
     id_tree: BTreeMap<VertexId, generational_arena::Index>,
+    first_hops: Vec<generational_arena::Index>,
+    second_hops: Vec<generational_arena::Index>,
 }
 
 // Represents a vertex in the IS-IS topology graph.
@@ -151,6 +153,15 @@ pub enum SpfType {
     RouteOnly,
 }
 
+// Defines how link metrics are interpreted during SPT computation.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum MetricMode {
+    // Use standard IS-IS metrics.
+    Normal,
+    // Use cost 1 per non pseudonode hop, for flooding topology computation.
+    HopCount,
+}
+
 // SPF log entry.
 #[derive(Debug, new)]
 pub struct SpfLogEntry {
@@ -217,6 +228,14 @@ impl Spt {
         let index = self.arena.insert(vertex);
         let vertex = &mut self.arena[index];
         self.id_tree.insert(vertex.id, index);
+        if !vertex.id.lan_id.is_pseudonode() {
+            if vertex.hops == 1 {
+                self.first_hops.push(index);
+            }
+            if vertex.hops == 2 {
+                self.second_hops.push(index);
+            }
+        }
         index
     }
 
@@ -233,6 +252,45 @@ impl Spt {
     // Returns an iterator over all vertices in the SPT.
     pub(crate) fn iter(&self) -> impl Iterator<Item = &Vertex> {
         self.id_tree.values().map(|index| &self.arena[*index])
+    }
+
+    // Returns true if `ancestor` appears on any shortest path from `descendant`
+    // toward the root. The search walks all parent links stored in the SPT.
+    pub(crate) fn is_on_path(
+        &self,
+        ancestor: SystemId,
+        descendant: SystemId,
+    ) -> bool {
+        let Some(anc) = self.id_tree.get(&VertexId::from(ancestor)) else {
+            return false;
+        };
+        let Some(start) = self.id_tree.get(&VertexId::from(descendant)) else {
+            return false;
+        };
+
+        // Stack-based DFS over all parent chains.
+        let mut stack = vec![*start];
+        while let Some(cur) = stack.pop() {
+            if cur == *anc {
+                return true;
+            }
+            let v = &self.arena[cur];
+            for p in &v.parents {
+                stack.push(*p);
+            }
+        }
+
+        false
+    }
+
+    // Returns an iterator over first-hop vertices, excluding pseudonodes.
+    pub(crate) fn first_hops(&self) -> impl Iterator<Item = &Vertex> {
+        self.first_hops.iter().map(|index| &self.arena[*index])
+    }
+
+    // Returns an iterator over second-hop vertices, excluding pseudonodes.
+    pub(crate) fn second_hops(&self) -> impl Iterator<Item = &Vertex> {
+        self.second_hops.iter().map(|index| &self.arena[*index])
     }
 }
 
@@ -468,7 +526,8 @@ pub(crate) fn compute_spt(
     level: LevelNumber,
     root_system_id: SystemId,
     local: bool,
-    mt_id: MtId,
+    mt_id: Option<MtId>,
+    metric_mode: MetricMode,
     instance: &InstanceUpView<'_>,
     interfaces: &Interfaces,
     adjacencies: &Arena<Adjacency>,
@@ -500,7 +559,12 @@ pub(crate) fn compute_spt(
         };
 
         // If the overload bit is set, we skip the links from it.
-        if !zeroth_lsp.lsp_id.is_pseudonode() && zeroth_lsp.overload_bit(mt_id)
+        //
+        // When computing a flooding topology (no MT ID), the overload check
+        // is not applied.
+        if !zeroth_lsp.lsp_id.is_pseudonode()
+            && let Some(mt_id) = mt_id
+            && zeroth_lsp.overload_bit(mt_id)
         {
             continue;
         }
@@ -511,7 +575,10 @@ pub(crate) fn compute_spt(
         // the IS supports all configured protocols. We can't check address
         // family information from the links since that information isn't
         // available in the LSPDB.
-        if mt_id == MtId::Standard && !zeroth_lsp.lsp_id.is_pseudonode() {
+        if let Some(mt_id) = mt_id
+            && mt_id == MtId::Standard
+            && !zeroth_lsp.lsp_id.is_pseudonode()
+        {
             let Some(protocols_supported) =
                 &zeroth_lsp.tlvs.protocols_supported
             else {
@@ -533,12 +600,24 @@ pub(crate) fn compute_spt(
         }
 
         // Iterate over all links described by the vertex's LSPs.
-        for link in
-            vertex_edges(&vertex.id, mt_id, metric_type, lsdb, lsp_entries)
-        {
+        for link in vertex_edges(
+            &vertex.id,
+            mt_id,
+            metric_mode,
+            metric_type,
+            lsdb,
+            lsp_entries,
+        ) {
             // Check if the LSPs are mutually linked.
-            if !vertex_edges(&link.id, mt_id, metric_type, lsdb, lsp_entries)
-                .any(|link| link.id == vertex.id)
+            if !vertex_edges(
+                &link.id,
+                mt_id,
+                metric_mode,
+                metric_type,
+                lsdb,
+                lsp_entries,
+            )
+            .any(|link| link.id == vertex.id)
             {
                 continue;
             }
@@ -602,7 +681,7 @@ pub(crate) fn compute_spt(
                         ipv4: None,
                         ipv6: None,
                     };
-                    if local {
+                    if local && let Some(mt_id) = mt_id {
                         resolve_nexthop(
                             &mut nexthop,
                             level,
@@ -666,13 +745,31 @@ fn compute_spf(
                     level,
                     root_system_id,
                     true,
-                    mt_id,
+                    Some(mt_id),
+                    MetricMode::Normal,
                     instance,
                     interfaces,
                     adjacencies,
                     lsp_entries,
                 );
                 *instance.state.spt.get_mut(mt_id).get_mut(level) = spt;
+            }
+        }
+
+        // Initialize the flooding reduction cache.
+        *instance.state.flooding_reduction.get_mut(level) = Default::default();
+        match instance.config.flooding_reduction.algo {
+            FloodingAlgo::ZeroPruner => {
+                // Nothing to do.
+            }
+            FloodingAlgo::ModifiedManet => {
+                flooding::manet::init_cache(
+                    level,
+                    instance,
+                    interfaces,
+                    adjacencies,
+                    lsp_entries,
+                );
             }
         }
     }
@@ -905,7 +1002,8 @@ fn resolve_nexthop(
 // Iterate over all IS reachability entries attached to a vertex.
 fn vertex_edges<'a>(
     vertex_id: &VertexId,
-    mt_id: MtId,
+    mt_id: Option<MtId>,
+    metric_mode: MetricMode,
     metric_type: MetricType,
     lsdb: &'a Lsdb,
     lsp_entries: &'a Arena<LspEntry>,
@@ -919,15 +1017,26 @@ fn vertex_edges<'a>(
             let mut standard_iter = None;
             let mut wide_iter = None;
             let mut mt_iter = None;
+            let mut mt_all_iter = None;
 
-            if mt_id == MtId::Standard && metric_type.is_standard_enabled() {
-                let iter = lsp.tlvs.is_reach().map(|reach| VertexEdge {
-                    id: VertexId::from(reach.neighbor),
-                    cost: reach.metric.into(),
+            if mt_id.is_none_or(|mt_id| mt_id == MtId::Standard)
+                && metric_type.is_standard_enabled()
+            {
+                let iter = lsp.tlvs.is_reach().map(move |reach| {
+                    let cost = vertex_edge_cost(
+                        &reach.neighbor,
+                        reach.metric,
+                        metric_mode,
+                    );
+                    VertexEdge {
+                        id: VertexId::from(reach.neighbor),
+                        cost,
+                    }
                 });
                 standard_iter = Some(iter);
             }
-            if (mt_id == MtId::Standard || lsp.lsp_id.is_pseudonode())
+            if (mt_id.is_none_or(|mt_id| mt_id == MtId::Standard)
+                || lsp.lsp_id.is_pseudonode())
                 && metric_type.is_wide_enabled()
             {
                 let iter = lsp
@@ -938,13 +1047,22 @@ fn vertex_edges<'a>(
                     // this link MUST NOT be considered during the normal SPF
                     // computation".
                     .filter(|reach| reach.metric < MAX_PATH_METRIC_WIDE)
-                    .map(|reach| VertexEdge {
-                        id: VertexId::from(reach.neighbor),
-                        cost: reach.metric,
+                    .map(move |reach| {
+                        let cost = vertex_edge_cost(
+                            &reach.neighbor,
+                            reach.metric,
+                            metric_mode,
+                        );
+                        VertexEdge {
+                            id: VertexId::from(reach.neighbor),
+                            cost,
+                        }
                     });
                 wide_iter = Some(iter);
             }
-            if mt_id != MtId::Standard {
+            if let Some(mt_id) = mt_id
+                && mt_id != MtId::Standard
+            {
                 let iter = lsp
                     .tlvs
                     .mt_is_reach_by_id(mt_id)
@@ -953,15 +1071,68 @@ fn vertex_edges<'a>(
                     // this link MUST NOT be considered during the normal SPF
                     // computation".
                     .filter(|reach| reach.metric < MAX_PATH_METRIC_WIDE)
-                    .map(|reach| VertexEdge {
-                        id: VertexId::from(reach.neighbor),
-                        cost: reach.metric,
+                    .map(move |reach| {
+                        let cost = vertex_edge_cost(
+                            &reach.neighbor,
+                            reach.metric,
+                            metric_mode,
+                        );
+                        VertexEdge {
+                            id: VertexId::from(reach.neighbor),
+                            cost,
+                        }
                     });
                 mt_iter = Some(iter);
             }
+            if mt_id.is_none() {
+                let iter = lsp
+                    .tlvs
+                    .mt_is_reach()
+                    .map(|(_, reach)| reach)
+                    // RFC 5305 - Section 3:
+                    // "If a link is advertised with the maximum link metric,
+                    // this link MUST NOT be considered during the normal SPF
+                    // computation".
+                    .filter(|reach| reach.metric < MAX_PATH_METRIC_WIDE)
+                    .map(move |reach| {
+                        let cost = vertex_edge_cost(
+                            &reach.neighbor,
+                            reach.metric,
+                            metric_mode,
+                        );
+                        VertexEdge {
+                            id: VertexId::from(reach.neighbor),
+                            cost,
+                        }
+                    });
+                mt_all_iter = Some(iter);
+            }
 
-            chain_option_iterators!(standard_iter, wide_iter, mt_iter)
+            chain_option_iterators!(
+                standard_iter,
+                wide_iter,
+                mt_iter,
+                mt_all_iter
+            )
         })
+}
+
+// Compute cost to the IS reachability entry.
+fn vertex_edge_cost(
+    neighbor: &LanId,
+    metric: impl Into<u32>,
+    metric_mode: MetricMode,
+) -> u32 {
+    match metric_mode {
+        MetricMode::Normal => metric.into(),
+        MetricMode::HopCount => {
+            if neighbor.is_pseudonode() {
+                0
+            } else {
+                1
+            }
+        }
+    }
 }
 
 // Iterate over all IP reachability entries attached to a vertex.

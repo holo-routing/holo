@@ -131,6 +131,8 @@ pub enum RouterCapStlvType {
     NodeAdminTag = 21,
     SrLocalBlock = 22,
     NodeMsd = 23,
+    // FIXME: TBD1 in https://datatracker.ietf.org/doc/html/draft-prz-lsr-interop-flood-reduction-architecture-01#section-2.4
+    FloodingAlgo = 40,
 }
 
 // IS-IS Sub-TLVs for Segment Identifier/Label Binding TLVs.
@@ -176,6 +178,18 @@ pub enum Nlpid {
 pub enum MtId {
     Standard = 0,
     Ipv6Unicast = 2,
+}
+
+// IGP Algorithm Type For Computing Flooding Topology.
+//
+// IANA registry not yet created (see draft-prz-lsr-interop-flood-reduction-architecture-01).
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(FromPrimitive, ToPrimitive)]
+#[derive(Deserialize, Serialize)]
+pub enum FloodingAlgo {
+    ZeroPruner = 1,
+    // FIXME: TBD1 in https://datatracker.ietf.org/doc/html/draft-ietf-lsr-distoptflood-11#section-4
+    ModifiedManet = 2,
 }
 
 // ===== conversion functions =====

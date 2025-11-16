@@ -309,6 +309,13 @@ fn load_callbacks() -> Callbacks<Instance> {
             let iter = lsp.tlvs.router_cap.iter().map(ListEntry::RouterCap);
             Some(Box::new(iter))
         })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::router_capabilities::router_capability::RouterCapability;
+            let router_cap = args.list_entry.as_router_cap().unwrap();
+            Box::new(RouterCapability {
+                flooding_algorithm: router_cap.sub_tlvs.flooding_algo.as_ref().map(|stlv| stlv.get()),
+            })
+        })
         .path(isis::database::levels::lsp::router_capabilities::router_capability::flags::PATH)
         .get_object(|_instance, args| {
             use isis::database::levels::lsp::router_capabilities::router_capability::flags::Flags;

@@ -17,6 +17,7 @@ pub mod collections;
 pub mod debug;
 pub mod error;
 pub mod events;
+pub mod flooding;
 pub mod ibus;
 pub mod instance;
 pub mod interface;

@@ -257,6 +257,12 @@ impl AsRef<[u8]> for SystemId {
     }
 }
 
+impl AsRef<[u8; 6]> for SystemId {
+    fn as_ref(&self) -> &[u8; 6] {
+        &self.0
+    }
+}
+
 impl From<[u8; 6]> for SystemId {
     fn from(bytes: [u8; 6]) -> SystemId {
         SystemId(bytes)

@@ -166,6 +166,7 @@ impl Pdu {
         buf: &mut Bytes,
         cxt: &DecodeCxt,
     ) -> DecodeResult<PduDecodeInfo> {
+        let buf_size = buf.len();
         let buf_copy = buf.clone();
 
         // Parse and validate LDP version.
@@ -176,6 +177,12 @@ impl Pdu {
 
         // Parse PDU length, LSR-ID and labelspace.
         let pdu_len = buf.try_get_u16()?;
+        if pdu_len < (Self::HDR_MIN_LEN + Message::HDR_SIZE)
+            || pdu_len > cxt.pdu_max_len
+            || pdu_len as usize > (buf_size - Pdu::HDR_DEAD_LEN as usize)
+        {
+            return Err(DecodeError::IncompletePdu);
+        }
         let lsr_id = buf.try_get_ipv4()?;
         let lspace_id = buf.try_get_u16()?;
 

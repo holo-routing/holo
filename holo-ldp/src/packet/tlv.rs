@@ -186,7 +186,9 @@ pub(crate) fn decode_tlv_hdr(
 
     // Parse and validate TLV length.
     let tlv_len = buf.try_get_u16()?;
-    let tlv_size = tlv_len + TLV_HDR_SIZE;
+    let Some(tlv_size) = tlv_len.checked_add(TLV_HDR_SIZE) else {
+        return Err(DecodeError::InvalidTlvLength(tlv_len));
+    };
     if tlv_size > msgi.msg_rlen {
         return Err(DecodeError::InvalidTlvLength(tlv_len));
     }

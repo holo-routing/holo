@@ -282,7 +282,9 @@ impl Message {
 
         // Parse and validate message length.
         let msg_len = buf.try_get_u16()?;
-        let msg_size = msg_len + Message::HDR_DEAD_LEN;
+        let Some(msg_size) = msg_len.checked_add(Self::HDR_DEAD_LEN) else {
+            return Err(DecodeError::InvalidMessageLength(msg_len));
+        };
         if msg_len < Message::HDR_MIN_LEN || msg_size > pdui.pdu_rlen {
             return Err(DecodeError::InvalidMessageLength(msg_len));
         }
@@ -363,7 +365,7 @@ impl Message {
             return Err(DecodeError::UnknownMessage(msgi, msg_type));
         }
 
-        buf.advance(msgi.msg_len as usize);
+        buf.advance(msgi.msg_rlen as usize);
         Ok(())
     }
 }

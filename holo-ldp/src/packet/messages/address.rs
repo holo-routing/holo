@@ -119,7 +119,10 @@ impl MessageKind for AddressMsg {
 
         // Create new message.
         let mut msg = AddressMsg {
-            msg_type: AddressMessageType::from_u16(msgi.msg_type).unwrap(),
+            msg_type: AddressMessageType::from_u16(
+                msgi.msg_type & Message::TYPE_MASK,
+            )
+            .unwrap(),
             msg_id: msgi.msg_id,
             addr_list,
         };

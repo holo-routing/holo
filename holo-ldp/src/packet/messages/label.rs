@@ -241,7 +241,10 @@ impl MessageKind for LabelMsg {
 
         // Create new message.
         let mut msg = LabelMsg {
-            msg_type: LabelMessageType::from_u16(msgi.msg_type).unwrap(),
+            msg_type: LabelMessageType::from_u16(
+                msgi.msg_type & Message::TYPE_MASK,
+            )
+            .unwrap(),
             msg_id: msgi.msg_id,
             fec,
             label: None,

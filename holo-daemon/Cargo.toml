@@ -6,8 +6,8 @@ license.workspace = true
 edition.workspace = true
 
 [dependencies]
-console-subscriber = { version = "0.4", optional = true }
-prost-types = "0.13"
+console-subscriber = { version = "0.5", optional = true }
+prost-types = "0.14"
 toml = "0.9"
 tokio-uring = { version = "0.5", optional = true }
 tokio-stream = "0.1"
@@ -27,6 +27,7 @@ rustc_tools_util.workspace = true
 serde.workspace = true
 tokio.workspace = true
 tonic.workspace = true
+tonic-prost.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 yang3.workspace = true
@@ -52,6 +53,7 @@ holo-yang = { path = "../holo-yang" }
 [build-dependencies]
 rustc_tools_util.workspace = true
 tonic-build.workspace = true
+tonic-prost-build.workspace = true
 
 [lints]
 workspace = true

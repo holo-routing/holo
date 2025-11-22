@@ -10,7 +10,7 @@ use std::sync::LazyLock as Lazy;
 
 use bytes::Bytes;
 use holo_utils::capabilities;
-use holo_utils::socket::{RawSocketExt, Socket, SocketExt};
+use holo_utils::socket::{RawSocketExt, Socket};
 use ipnetwork::Ipv6Network;
 use nix::sys::socket::{self, SockaddrIn6};
 
@@ -55,7 +55,7 @@ impl NetworkVersion<Self> for Ospfv3 {
             socket.set_multicast_loop_v6(false)?;
             // NOTE: IPV6_MULTICAST_HOPS is 1 by default.
             socket.set_ipv6_pktinfo(true)?;
-            socket.set_ipv6_tclass(libc::IPTOS_PREC_INTERNETCONTROL)?;
+            socket.set_tclass_v6(libc::IPTOS_PREC_INTERNETCONTROL.into())?;
 
             Ok(socket)
         }

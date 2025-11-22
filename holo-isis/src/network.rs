@@ -21,6 +21,7 @@ use holo_utils::socket::{AsyncFd, LinkAddrExt, Socket};
 use nix::sys::socket;
 use nix::sys::socket::LinkAddr;
 use serde::Serialize;
+use socket2::SockFilter;
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::mpsc::{Sender, UnboundedReceiver};
 
@@ -50,27 +51,27 @@ pub enum MulticastAddr {
 
 // BPF filter that accepts IS-IS over LLC and IS-IS over ethertype 0x00FE
 // (e.g. GRE tunnels). Shamelessly copied from FRR!
-const ISIS_BPF_FILTER: [libc::sock_filter; 10] = [
+const ISIS_BPF_FILTER: [SockFilter; 10] = [
     // l0: ldh [0]
-    bpf_filter_block(0x28, 0, 0, 0x00000000),
+    SockFilter::new(0x28, 0, 0, 0x00000000),
     // l1: jeq #0xfefe, l2, l4
-    bpf_filter_block(0x15, 0, 2, 0x0000fefe),
+    SockFilter::new(0x15, 0, 2, 0x0000fefe),
     // l2: ldb [3]
-    bpf_filter_block(0x30, 0, 0, 0x00000003),
+    SockFilter::new(0x30, 0, 0, 0x00000003),
     // l3: jmp l7
-    bpf_filter_block(0x05, 0, 0, 0x00000003),
+    SockFilter::new(0x05, 0, 0, 0x00000003),
     // l4: ldh proto
-    bpf_filter_block(0x28, 0, 0, 0xfffff000),
+    SockFilter::new(0x28, 0, 0, 0xfffff000),
     // l5: jeq #0x00fe, l6, l9
-    bpf_filter_block(0x15, 0, 3, 0x000000fe),
+    SockFilter::new(0x15, 0, 3, 0x000000fe),
     // l6: ldb [0]
-    bpf_filter_block(0x30, 0, 0, 0x00000000),
+    SockFilter::new(0x30, 0, 0, 0x00000000),
     // l7: jeq #0x83, l8, l9
-    bpf_filter_block(0x15, 0, 1, 0x00000083),
+    SockFilter::new(0x15, 0, 1, 0x00000083),
     // l8: ret #0x40000
-    bpf_filter_block(0x06, 0, 0, 0x00040000),
+    SockFilter::new(0x06, 0, 0, 0x00040000),
     // l9: ret #0
-    bpf_filter_block(0x06, 0, 0, 0x00000000),
+    SockFilter::new(0x06, 0, 0, 0x00000000),
 ];
 
 // ===== impl MulticastAddr =====
@@ -300,13 +301,4 @@ async fn send_pdu(
         })
         .await
         .map_err(IoError::SendError)
-}
-
-const fn bpf_filter_block(
-    code: u16,
-    jt: u8,
-    jf: u8,
-    k: u32,
-) -> libc::sock_filter {
-    libc::sock_filter { code, jt, jf, k }
 }

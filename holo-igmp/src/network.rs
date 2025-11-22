@@ -52,7 +52,7 @@ pub(crate) fn socket_tx(ifname: &str) -> Result<Socket, std::io::Error> {
         socket.set_multicast_loop_v4(true)?;
         socket.set_multicast_ttl_v4(1)?;
         socket.set_ipv4_pktinfo(true)?;
-        socket.set_tos(libc::IPTOS_PREC_INTERNETCONTROL as u32)?;
+        socket.set_tos_v4(libc::IPTOS_PREC_INTERNETCONTROL.into())?;
         // TODO: set router alert
 
         Ok(socket)

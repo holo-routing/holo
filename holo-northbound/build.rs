@@ -395,7 +395,7 @@ fn snode_normalized_name(snode: &SchemaNode<'_>, case: Case<'_>) -> String {
     // Case conversion.
     name = name
         .from_case(Case::Kebab)
-        .without_boundaries(&[Boundary::UPPER_DIGIT, Boundary::LOWER_DIGIT])
+        .without_boundaries(&[Boundary::UpperDigit, Boundary::LowerDigit])
         .to_case(case);
 
     // Handle Rust reserved keywords.

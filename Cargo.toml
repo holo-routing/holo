@@ -35,15 +35,15 @@ repository = "https://github.com/holo-routing/holo"
 arbitrary = { version = "1.4.1", features = ["derive"] }
 arc-swap = "1.7"
 base64 = "0.22"
-bitflags = { version = "2.9", features = ["serde"] }
-bytes = { version = "1.10", features = ["serde"] }
+bitflags = { version = "2.10", features = ["serde"] }
+bytes = { version = "1.11", features = ["serde"] }
 capctl = "0.2"
 check_keyword = "0.4"
 clap = "2.33"
 chrono = { version = "0.4", features = ["serde"] }
 const-addrs = { version = "0.1", features = ["ipnet"] }
-convert_case = "0.8"
-criterion = "0.4"
+convert_case = "0.9"
+criterion = "0.7"
 crossbeam-channel = "0.5"
 derive-new = "0.7"
 enum-as-inner = "0.6"
@@ -58,30 +58,32 @@ libc = "0.2"
 maplit = "1.0"
 md-5 = "0.10"
 nix = { version = "0.30", features = ["fs", "net", "socket", "uio", "user"] }
-netlink-packet-core = "0.7"
-netlink-packet-route = "0.24"
+netlink-packet-core = "0.8"
+netlink-packet-route = "0.25"
 netlink-sys = "0.8"
 num-derive = "0.4"
 num-traits = "0.2"
 pickledb = "0.5"
 prefix-trie = { version = "0.8", default-features = false, features = ["ipnetwork"]  }
-prost = "0.13"
+prost = "0.14"
 rand = { version = "0.9", features = ["thread_rng"] }
-regex = "1.11"
-rtnetlink = "0.17"
+regex = "1.12"
+rtnetlink = "0.18"
 rustc_tools_util = "0.4.2"
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0"
-serde_with = "3.14"
+serde_with = "3.16"
 sha1 = "0.10"
 sha2 = "0.10"
 similar = "2.7"
 smallvec = { version = "1.15", features = ["serde"] }
-socket2 = { version = "0.5", features = ["all"] }
-sysctl = "0.6"
-tokio = { version = "1.46", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
-tonic = { version = "0.13", features = ["tls-ring"] }
-tonic-build = "0.13"
+socket2 = { version = "0.6", features = ["all"] }
+sysctl = "0.7"
+tokio = { version = "1.48", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+tonic = { version = "0.14", features = ["tls-ring"] }
+tonic-build = "0.14"
+tonic-prost = "0.14"
+tonic-prost-build = "0.14"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 yang3 = { version = "0.18" }

@@ -72,7 +72,7 @@ pub(crate) fn socket_vrrp_tx4(
         socket.set_multicast_ifindex_v4(mvlan.system.ifindex.unwrap())?;
         socket.set_header_included_v4(true)?;
         socket.set_multicast_ttl_v4(255)?;
-        socket.set_tos(libc::IPTOS_PREC_INTERNETCONTROL as u32)?;
+        socket.set_tos_v4(libc::IPTOS_PREC_INTERNETCONTROL.into())?;
         capabilities::raise(|| {
             socket.bind_device(Some(mvlan.name.as_bytes()))
         })?;
@@ -101,7 +101,7 @@ pub(crate) fn socket_vrrp_tx6(
         socket.set_reuse_address(true)?;
         socket.set_ipv6_checksum(VrrpHdr::CHECKSUM_OFFSET)?;
         socket.set_multicast_ifindex_v6(mvlan.system.ifindex.unwrap())?;
-        socket.set_ipv6_tclass(libc::IPTOS_PREC_INTERNETCONTROL)?;
+        socket.set_tclass_v6(libc::IPTOS_PREC_INTERNETCONTROL.into())?;
         capabilities::raise(|| {
             socket.bind_device(Some(mvlan.name.as_bytes()))
         })?;
@@ -209,7 +209,7 @@ pub(crate) fn socket_nadv(
         socket.set_nonblocking(true)?;
         socket.set_reuse_address(true)?;
         socket.set_multicast_ifindex_v6(mvlan.system.ifindex.unwrap())?;
-        socket.set_ipv6_tclass(libc::IPTOS_PREC_INTERNETCONTROL)?;
+        socket.set_tclass_v6(libc::IPTOS_PREC_INTERNETCONTROL.into())?;
 
         // Compute and join the Solicited-Node multicast address [RFC4291] for
         // solicitated-node multicast address.

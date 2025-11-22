@@ -55,7 +55,7 @@ impl NetworkVersion<Self> for Ospfv2 {
             socket.set_multicast_loop_v4(false)?;
             socket.set_multicast_ttl_v4(1)?;
             socket.set_ipv4_pktinfo(true)?;
-            socket.set_tos(libc::IPTOS_PREC_INTERNETCONTROL as u32)?;
+            socket.set_tos_v4(libc::IPTOS_PREC_INTERNETCONTROL.into())?;
 
             Ok(socket)
         }

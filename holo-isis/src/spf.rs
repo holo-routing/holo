@@ -558,11 +558,13 @@ pub(crate) fn compute_spt(
             continue;
         };
 
-        // If the overload bit is set, we skip the links from it.
+        // If the overload bit is set, we skip the links from it unless this
+        // is the local LSP.
         //
         // When computing a flooding topology (no MT ID), the overload check
         // is not applied.
-        if !zeroth_lsp.lsp_id.is_pseudonode()
+        if vertex.hops != 0
+            && !zeroth_lsp.lsp_id.is_pseudonode()
             && let Some(mt_id) = mt_id
             && zeroth_lsp.overload_bit(mt_id)
         {

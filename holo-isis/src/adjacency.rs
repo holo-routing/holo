@@ -200,8 +200,14 @@ impl Adjacency {
             }
         }
 
-        // Removes BFD peers if the adjacency transitions to Down.
         if new_state == AdjacencyState::Down {
+            // Reset three-way state and restart the Hello Tx task.
+            if iface.config.interface_type == InterfaceType::PointToPoint {
+                self.three_way_state = ThreeWayAdjState::Down;
+                iface.hello_interval_start(instance, self.level_usage);
+            }
+
+            // Removes BFD peers if the adjacency transitions to Down.
             self.bfd_clear_sessions(instance);
         }
 

@@ -89,6 +89,10 @@ pub enum DecodeError {
     IncompletePacket,
     InvalidVersion(u8),
     InvalidPacketLength(u8),
+    InvalidDetectMult(u8),
+    InvalidMyDiscriminator(u32),
+    InvalidYourDiscriminator(u32),
+    InvalidFlags(PacketFlags),
     ReadOutOfBounds,
 }
 
@@ -141,11 +145,42 @@ impl Packet {
         let flags = PacketFlags::from_bits_truncate(sec_byte & 0x3F);
         let detect_mult = buf.try_get_u8()?;
         let length = buf.try_get_u8()?;
-        if length != Self::MANDATORY_SECTION_LEN {
-            return Err(DecodeError::InvalidPacketLength(length));
+        if flags.contains(PacketFlags::A) {
+            if length < Self::MANDATORY_SECTION_LEN + 2 {
+                return Err(DecodeError::InvalidPacketLength(length));
+            }
+            if length as usize > data.len() {
+                return Err(DecodeError::InvalidPacketLength(length));
+            }
+        } else {
+            if length < Self::MANDATORY_SECTION_LEN {
+                return Err(DecodeError::InvalidPacketLength(length));
+            }
+            if length as usize > data.len() {
+                return Err(DecodeError::InvalidPacketLength(length));
+            }
         }
+
+        if detect_mult == 0 {
+            return Err(DecodeError::InvalidDetectMult(detect_mult));
+        }
+
+        if flags.contains(PacketFlags::M) {
+            return Err(DecodeError::InvalidFlags(flags));
+        }
+
         let my_discr = buf.try_get_u32()?;
+
+        if my_discr == 0 {
+            return Err(DecodeError::InvalidVersion(my_discr as u8));
+        }
+
         let your_discr = buf.try_get_u32()?;
+
+        if your_discr == 0 && !matches!(state, State::Down | State::AdminDown) {
+            return Err(DecodeError::InvalidYourDiscriminator(your_discr));
+        }
+
         let desired_min_tx = buf.try_get_u32()?;
         let req_min_rx = buf.try_get_u32()?;
         let req_min_echo_rx = buf.try_get_u32()?;
@@ -183,6 +218,18 @@ impl std::fmt::Display for DecodeError {
             }
             DecodeError::ReadOutOfBounds => {
                 write!(f, "attempt to read out of bounds")
+            }
+            DecodeError::InvalidDetectMult(detect_mult) => {
+                write!(f, "Invalid Detect Mult: {detect_mult}")
+            }
+            DecodeError::InvalidMyDiscriminator(my_discr) => {
+                write!(f, "Invalid My Discriminator: {my_discr}")
+            }
+            DecodeError::InvalidYourDiscriminator(your_discr) => {
+                write!(f, "Invalid Your Discriminator: {your_discr}")
+            }
+            DecodeError::InvalidFlags(flags) => {
+                write!(f, "Invalid Flags: {flags:?}")
             }
         }
     }

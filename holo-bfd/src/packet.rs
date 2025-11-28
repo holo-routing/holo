@@ -168,7 +168,30 @@ impl Packet {
 
         if flags.contains(PacketFlags::M) {
             return Err(DecodeError::InvalidFlags(flags));
+        if flags.contains(PacketFlags::A) {
+            if length < Self::MANDATORY_SECTION_LEN + 2 {
+                return Err(DecodeError::InvalidPacketLength(length));
+            }
+            if length as usize > data.len() {
+                return Err(DecodeError::InvalidPacketLength(length));
+            }
+        } else {
+            if length < Self::MANDATORY_SECTION_LEN {
+                return Err(DecodeError::InvalidPacketLength(length));
+            }
+            if length as usize > data.len() {
+                return Err(DecodeError::InvalidPacketLength(length));
+            }
         }
+
+        if detect_mult == 0 {
+            return Err(DecodeError::InvalidDetectMult(detect_mult));
+        }
+
+        if flags.contains(PacketFlags::M) {
+            return Err(DecodeError::InvalidFlags(flags));
+        }
+
 
         let my_discr = buf.try_get_u32()?;
 
@@ -178,7 +201,17 @@ impl Packet {
 
         // Checks that do not require session informations end here.
 
+
+        if my_discr == 0 {
+            return Err(DecodeError::InvalidVersion(my_discr as u8));
+        }
+
         let your_discr = buf.try_get_u32()?;
+
+        if your_discr == 0 && !matches!(state, State::Down | State::AdminDown) {
+            return Err(DecodeError::InvalidYourDiscriminator(your_discr));
+        }
+
         let desired_min_tx = buf.try_get_u32()?;
         let req_min_rx = buf.try_get_u32()?;
         let req_min_echo_rx = buf.try_get_u32()?;

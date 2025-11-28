@@ -413,6 +413,12 @@ pub trait RawSocketExt: SocketExt {
 
     // Tell the kernel to create a vif for this ifindex.
     fn start_vif(&self, ifindex: u32, vifid: u16) -> Result<()>;
+
+    fn join_multicast_ifindex_v4_raw(
+        &self,
+        multiaddr: &Ipv4Addr,
+        ifindex: u32,
+    ) -> Result<()>;
 }
 
 // Extension methods for LinkAddr.
@@ -593,6 +599,30 @@ impl RawSocketExt for Socket {
             MRT_ADD_VIF,
             &vif as *const _ as *const libc::c_void,
             std::mem::size_of_val(&vif) as libc::socklen_t,
+        )
+    }
+
+    fn join_multicast_ifindex_v4_raw(
+        &self,
+        multiaddr: &Ipv4Addr,
+        ifindex: u32,
+    ) -> Result<()> {
+        let multiaddr: u32 = (*multiaddr).into();
+
+        let optval = ip_mreqn {
+            imr_multiaddr: libc::in_addr {
+                s_addr: multiaddr.to_be(),
+            },
+            imr_address: libc::in_addr { s_addr: 0 },
+            imr_ifindex: ifindex as c_int,
+        };
+
+        setsockopt(
+            self,
+            libc::IPPROTO_IP,
+            libc::IP_ADD_MEMBERSHIP,
+            &optval as *const _ as *const c_void,
+            std::mem::size_of::<ip_mreqn>() as libc::socklen_t,
         )
     }
 }

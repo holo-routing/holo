@@ -105,6 +105,14 @@ impl Interface {
             .start_vif(ifindex, ifindex as u16)
             .expect("TODO: panic message");
 
+        #[cfg(not(feature = "testing"))]
+        instance
+            .state
+            .net
+            .socket_rx
+            .get_ref()
+            .join_multicast_ifindex_v4_raw(&network::ALL_ROUTERS, ifindex)
+            .map_err(IoError::SocketError)?;
         // Create raw socket.
         let socket =
             network::socket_tx(&self.name).map_err(IoError::SocketError)?;

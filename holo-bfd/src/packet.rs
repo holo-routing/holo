@@ -89,10 +89,11 @@ pub enum DecodeError {
     IncompletePacket,
     InvalidVersion(u8),
     InvalidPacketLength(u8),
+    InvalidAuthenticationLength(u8),
     InvalidDetectMult(u8),
     InvalidMyDiscriminator(u32),
-    InvalidYourDiscriminator(u32),
     InvalidFlags(PacketFlags),
+    InvalidAuthenticationType(u8),
     ReadOutOfBounds,
 }
 
@@ -175,16 +176,54 @@ impl Packet {
             return Err(DecodeError::InvalidVersion(my_discr as u8));
         }
 
+        // Checks that do not require session informations end here.
+
         let your_discr = buf.try_get_u32()?;
-
-        if your_discr == 0 && !matches!(state, State::Down | State::AdminDown) {
-            return Err(DecodeError::InvalidYourDiscriminator(your_discr));
-        }
-
         let desired_min_tx = buf.try_get_u32()?;
         let req_min_rx = buf.try_get_u32()?;
         let req_min_echo_rx = buf.try_get_u32()?;
 
+        // Also checks if AuthLen matches the packet length. It should have been done in process_udp_packet according to the order specified in RFC 5880 Section 6.8.6. But since Auth is not implemented yet and decode discards auth section, we do it here.
+
+        if flags.contains(PacketFlags::A) {
+            // Auth is present.
+            let auth_type = buf.try_get_u8()?;
+            let auth_len = buf.try_get_u8()?;
+            if auth_len + Self::MANDATORY_SECTION_LEN > length {
+                return Err(DecodeError::InvalidAuthenticationLength(auth_len));
+            }
+            match auth_type {
+                1 => {
+                    // Simple Password
+                    if auth_len < 4 || auth_len > 19 {
+                        return Err(DecodeError::InvalidAuthenticationLength(
+                            auth_len,
+                        ));
+                    }
+                }
+                2 | 3 => {
+                    // Keyed MD5 or Meticulous Keyed MD5
+                    if auth_len != 24 {
+                        return Err(DecodeError::InvalidAuthenticationLength(
+                            auth_len,
+                        ));
+                    }
+                }
+                4 | 5 => {
+                    // Keyed SHA1 or Meticulous Keyed SHA1
+                    if auth_len != 28 {
+                        return Err(DecodeError::InvalidAuthenticationLength(
+                            auth_len,
+                        ));
+                    }
+                }
+                _ => {
+                    return Err(DecodeError::InvalidAuthenticationType(
+                        auth_type,
+                    ));
+                }
+            }
+        }
         let packet = Packet {
             version,
             diag,
@@ -225,11 +264,14 @@ impl std::fmt::Display for DecodeError {
             DecodeError::InvalidMyDiscriminator(my_discr) => {
                 write!(f, "Invalid My Discriminator: {my_discr}")
             }
-            DecodeError::InvalidYourDiscriminator(your_discr) => {
-                write!(f, "Invalid Your Discriminator: {your_discr}")
-            }
             DecodeError::InvalidFlags(flags) => {
                 write!(f, "Invalid Flags: {flags:?}")
+            }
+            DecodeError::InvalidAuthenticationType(auth_type) => {
+                write!(f, "Invalid Authentication Type: {auth_type}")
+            }
+            DecodeError::InvalidAuthenticationLength(auth_len) => {
+                write!(f, "Invalid Authentication Length: {auth_len}")
             }
         }
     }

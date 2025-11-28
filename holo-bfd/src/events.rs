@@ -25,18 +25,23 @@ pub(crate) fn process_udp_packet(
     // is zero or not.
     let Some((_, sess)) = (match packet.your_discr {
         0 => {
-            match packet_info {
-                PacketInfo::IpSingleHop { src } => {
-                    master.sessions.get_mut_by_sockaddr(src)
+            if !matches!(packet.state, State::Down | State::AdminDown) {
+                // If the Your Discriminator field is zero and the State field is notDown or AdminDown, the packet MUST be discarded.
+                return Err(Error::InvalidYourDiscriminator(packet.your_discr));
+            } else {
+                match packet_info {
+                    PacketInfo::IpSingleHop { src } => {
+                        master.sessions.get_mut_by_sockaddr(src)
+                    }
+                    PacketInfo::IpMultihop { src, dst, ttl } => master
+                        .sessions
+                        .get_mut_by_key(&SessionKey::IpMultihop {
+                            src: dst,
+                            dst: src,
+                        })
+                        // Multihop requires TTL validation in the userspace.
+                        .filter(|(_, sess)| sess.config.rx_ttl.unwrap() <= ttl),
                 }
-                PacketInfo::IpMultihop { src, dst, ttl } => master
-                    .sessions
-                    .get_mut_by_key(&SessionKey::IpMultihop {
-                        src: dst,
-                        dst: src,
-                    })
-                    // Multihop requires TTL validation in the userspace.
-                    .filter(|(_, sess)| sess.config.rx_ttl.unwrap() <= ttl),
             }
         }
         _ => master.sessions.get_mut_by_discr(packet.your_discr),
@@ -129,26 +134,11 @@ pub(crate) fn process_udp_packet(
 
 // Checks whether the BFD packet is valid.
 fn validate_bfd_packet(packet: &Packet) -> Result<(), Error> {
-    if packet.version != Packet::VERSION {
-        return Err(Error::VersionMismatch(packet.version));
-    }
-    if packet.detect_mult == 0 {
-        return Err(Error::InvalidDetectMult(packet.detect_mult));
-    }
-    if packet.flags.contains(PacketFlags::M)
-        || packet.flags.contains(PacketFlags::P | PacketFlags::F)
-    {
+    if packet.flags.contains(PacketFlags::P | PacketFlags::F) {
         return Err(Error::InvalidFlags(packet.flags));
     }
-    if packet.my_discr == 0 {
-        return Err(Error::InvalidMyDiscriminator(packet.my_discr));
-    }
-    if packet.your_discr == 0
-        && !matches!(packet.state, State::Down | State::AdminDown)
-    {
-        return Err(Error::InvalidYourDiscriminator(packet.your_discr));
-    }
     // BFD authentication isn't supported yet.
+    // If the A bit is set and no authentication is in use (bfd.AuthType is zero), the packet MUST be discarded.
     if packet.flags.contains(PacketFlags::A) {
         return Err(Error::AuthError);
     }

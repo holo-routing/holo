@@ -161,30 +161,23 @@ impl Packet {
                 return Err(DecodeError::InvalidPacketLength(length));
             }
         }
-
         if detect_mult == 0 {
             return Err(DecodeError::InvalidDetectMult(detect_mult));
         }
-
         if flags.contains(PacketFlags::M) {
             return Err(DecodeError::InvalidFlags(flags));
         }
-
         let my_discr = buf.try_get_u32()?;
-
         if my_discr == 0 {
             return Err(DecodeError::InvalidVersion(my_discr as u8));
         }
-
         // Checks that do not require session informations end here.
-
         let your_discr = buf.try_get_u32()?;
         let desired_min_tx = buf.try_get_u32()?;
         let req_min_rx = buf.try_get_u32()?;
         let req_min_echo_rx = buf.try_get_u32()?;
 
-        // Also checks if AuthLen matches the packet length. It should have been done in process_udp_packet according to the order specified in RFC 5880 Section 6.8.6. But since Auth is not implemented yet and decode discards auth section, we do it here.
-
+        // Also check if AuthLen matches the packet length. It should have been done in process_udp_packet according to the order specified in RFC 5880 Section 6.8.6. But since Auth is not implemented yet and decode discards auth section, we do it here.
         if flags.contains(PacketFlags::A) {
             // Auth is present.
             let auth_type = buf.try_get_u8()?;

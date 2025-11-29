@@ -1044,7 +1044,6 @@ dependencies = [
  "tokio-uring",
  "toml",
  "tonic",
- "tonic-build",
  "tonic-prost",
  "tonic-prost-build",
  "tracing",

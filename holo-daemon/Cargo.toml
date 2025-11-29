@@ -52,7 +52,6 @@ holo-yang = { path = "../holo-yang" }
 
 [build-dependencies]
 rustc_tools_util.workspace = true
-tonic-build.workspace = true
 tonic-prost-build.workspace = true
 
 [lints]

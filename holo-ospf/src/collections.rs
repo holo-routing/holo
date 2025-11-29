@@ -860,9 +860,12 @@ where
 
         // Update statistics.
         lsdb_type.lsa_count += 1;
-        lsdb_type.cksum_sum += lse.data.hdr.cksum() as u32;
+        lsdb_type.cksum_sum = lsdb_type
+            .cksum_sum
+            .wrapping_add(lse.data.hdr.cksum() as u32);
         self.lsa_count += 1;
-        self.cksum_sum += lse.data.hdr.cksum() as u32;
+        self.cksum_sum =
+            self.cksum_sum.wrapping_add(lse.data.hdr.cksum() as u32);
 
         (lse_idx, lse)
     }
@@ -878,9 +881,12 @@ where
 
         // Update statistics.
         lsdb_type.lsa_count -= 1;
-        lsdb_type.cksum_sum -= lse.data.hdr.cksum() as u32;
+        lsdb_type.cksum_sum = lsdb_type
+            .cksum_sum
+            .wrapping_sub(lse.data.hdr.cksum() as u32);
         self.lsa_count -= 1;
-        self.cksum_sum -= lse.data.hdr.cksum() as u32;
+        self.cksum_sum =
+            self.cksum_sum.wrapping_sub(lse.data.hdr.cksum() as u32);
 
         // Unlink LSA from different collections.
         self.id_tree.remove(&lse.id);

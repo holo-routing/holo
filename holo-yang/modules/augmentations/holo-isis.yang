@@ -481,6 +481,27 @@ module holo-isis {
 
   augment "/rt:routing/rt:control-plane-protocols/"
         + "rt:control-plane-protocol/isis:isis/isis:database/"
+        + "isis:levels" {
+    leaf lsp-count {
+      type yang:gauge32;
+      description
+        "The number of LSPs at this level.";
+    }
+    leaf lsp-cksum-sum {
+      type uint32;
+      description
+        "The modulo 2^32 sum of the LSP checksums at this level.
+	 The value should be treated as unsigned when comparing two
+	 sums of checksums.  While differing checksums indicate a
+         different combination of LSPs, equivalent checksums
+         don't guarantee that the LSPs are the same, given that
+         multiple combinations of LSPs can result in the same
+         checksum.";
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis/isis:database/"
         + "isis:levels/isis:lsp" {
     leaf-list area-addresses {
       type isis:area-address;

@@ -197,9 +197,11 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .get_object(|_instance, args| {
             use isis::database::levels::Levels;
-            let (level, _) = args.list_entry.as_lsdb().unwrap();
+            let (level, lsdb) = args.list_entry.as_lsdb().unwrap();
             Box::new(Levels {
                 level: *level as u8,
+                lsp_count: Some(lsdb.lsp_count()).ignore_in_testing(),
+                lsp_cksum_sum: Some(lsdb.cksum_sum()).ignore_in_testing(),
             })
         })
         .path(isis::database::levels::lsp::PATH)

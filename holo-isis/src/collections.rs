@@ -67,6 +67,8 @@ pub struct Lsdb {
     id_tree: HashMap<ObjectId, LspEntryIndex>,
     lspid_tree: BTreeMap<LspId, LspEntryIndex>,
     next_id: ObjectId,
+    lsp_count: u32,
+    cksum_sum: u32,
 }
 
 // ===== impl ObjectKey =====
@@ -521,6 +523,10 @@ impl Lsdb {
         self.id_tree.insert(lse.id, lse_idx);
         self.lspid_tree.insert(lse.data.lsp_id, lse_idx);
 
+        // Update statistics.
+        self.lsp_count += 1;
+        self.cksum_sum = self.cksum_sum.wrapping_add(lse.data.cksum as u32);
+
         (lse_idx, lse)
     }
 
@@ -535,6 +541,10 @@ impl Lsdb {
         self.id_tree.remove(&lse.id);
         self.lspid_tree.remove(&lse.data.lsp_id);
 
+        // Update statistics.
+        self.lsp_count -= 1;
+        self.cksum_sum = self.cksum_sum.wrapping_sub(lse.data.cksum as u32);
+
         // Remove LSP entry from the arena.
         arena.0.remove(lse_idx).unwrap()
     }
@@ -545,6 +555,8 @@ impl Lsdb {
         }
         self.id_tree.clear();
         self.lspid_tree.clear();
+        self.lsp_count = 0;
+        self.cksum_sum = 0;
     }
 
     // Returns a reference to the LSP entry corresponding to the given ID.
@@ -686,5 +698,15 @@ impl Lsdb {
     #[expect(unused)]
     pub(crate) fn indexes(&self) -> impl Iterator<Item = LspEntryIndex> + '_ {
         self.lspid_tree.values().copied()
+    }
+
+    // Returns the number of LSPs in the database.
+    pub(crate) fn lsp_count(&self) -> u32 {
+        self.lsp_count
+    }
+
+    // Returns the modulo 2^32 sum of all LSP checksums.
+    pub(crate) fn cksum_sum(&self) -> u32 {
+        self.cksum_sum
     }
 }

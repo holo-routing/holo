@@ -89,6 +89,11 @@ pub enum DecodeError {
     IncompletePacket,
     InvalidVersion(u8),
     InvalidPacketLength(u8),
+    InvalidAuthenticationLength(u8),
+    InvalidDetectMult(u8),
+    InvalidMyDiscriminator(u32),
+    InvalidFlags(PacketFlags),
+    InvalidAuthenticationType(u8),
     ReadOutOfBounds,
 }
 
@@ -141,15 +146,77 @@ impl Packet {
         let flags = PacketFlags::from_bits_truncate(sec_byte & 0x3F);
         let detect_mult = buf.try_get_u8()?;
         let length = buf.try_get_u8()?;
-        if length != Self::MANDATORY_SECTION_LEN {
-            return Err(DecodeError::InvalidPacketLength(length));
+        if flags.contains(PacketFlags::A) {
+            if length < Self::MANDATORY_SECTION_LEN + 2 {
+                return Err(DecodeError::InvalidPacketLength(length));
+            }
+            if length as usize > data.len() {
+                return Err(DecodeError::InvalidPacketLength(length));
+            }
+        } else {
+            if length < Self::MANDATORY_SECTION_LEN {
+                return Err(DecodeError::InvalidPacketLength(length));
+            }
+            if length as usize > data.len() {
+                return Err(DecodeError::InvalidPacketLength(length));
+            }
+        }
+        if detect_mult == 0 {
+            return Err(DecodeError::InvalidDetectMult(detect_mult));
+        }
+        if flags.contains(PacketFlags::M) {
+            return Err(DecodeError::InvalidFlags(flags));
         }
         let my_discr = buf.try_get_u32()?;
+        if my_discr == 0 {
+            return Err(DecodeError::InvalidVersion(my_discr as u8));
+        }
+        // Checks that do not require session informations end here.
         let your_discr = buf.try_get_u32()?;
         let desired_min_tx = buf.try_get_u32()?;
         let req_min_rx = buf.try_get_u32()?;
         let req_min_echo_rx = buf.try_get_u32()?;
 
+        // Also check if AuthLen matches the packet length. It should have been done in process_udp_packet according to the order specified in RFC 5880 Section 6.8.6. But since Auth is not implemented yet and decode discards auth section, we do it here.
+        if flags.contains(PacketFlags::A) {
+            // Auth is present.
+            let auth_type = buf.try_get_u8()?;
+            let auth_len = buf.try_get_u8()?;
+            if auth_len + Self::MANDATORY_SECTION_LEN > length {
+                return Err(DecodeError::InvalidAuthenticationLength(auth_len));
+            }
+            match auth_type {
+                1 => {
+                    // Simple Password
+                    if auth_len < 4 || auth_len > 19 {
+                        return Err(DecodeError::InvalidAuthenticationLength(
+                            auth_len,
+                        ));
+                    }
+                }
+                2 | 3 => {
+                    // Keyed MD5 or Meticulous Keyed MD5
+                    if auth_len != 24 {
+                        return Err(DecodeError::InvalidAuthenticationLength(
+                            auth_len,
+                        ));
+                    }
+                }
+                4 | 5 => {
+                    // Keyed SHA1 or Meticulous Keyed SHA1
+                    if auth_len != 28 {
+                        return Err(DecodeError::InvalidAuthenticationLength(
+                            auth_len,
+                        ));
+                    }
+                }
+                _ => {
+                    return Err(DecodeError::InvalidAuthenticationType(
+                        auth_type,
+                    ));
+                }
+            }
+        }
         let packet = Packet {
             version,
             diag,
@@ -183,6 +250,21 @@ impl std::fmt::Display for DecodeError {
             }
             DecodeError::ReadOutOfBounds => {
                 write!(f, "attempt to read out of bounds")
+            }
+            DecodeError::InvalidDetectMult(detect_mult) => {
+                write!(f, "Invalid Detect Mult: {detect_mult}")
+            }
+            DecodeError::InvalidMyDiscriminator(my_discr) => {
+                write!(f, "Invalid My Discriminator: {my_discr}")
+            }
+            DecodeError::InvalidFlags(flags) => {
+                write!(f, "Invalid Flags: {flags:?}")
+            }
+            DecodeError::InvalidAuthenticationType(auth_type) => {
+                write!(f, "Invalid Authentication Type: {auth_type}")
+            }
+            DecodeError::InvalidAuthenticationLength(auth_len) => {
+                write!(f, "Invalid Authentication Length: {auth_len}")
             }
         }
     }

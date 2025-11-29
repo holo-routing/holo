@@ -23,10 +23,7 @@ pub enum Error {
     UdpInvalidSourceAddr(IpAddr),
     UdpPacketDecodeError(DecodeError),
     SessionNoMatch(PacketInfo, u32),
-    VersionMismatch(u8),
-    InvalidDetectMult(u8),
     InvalidFlags(PacketFlags),
-    InvalidMyDiscriminator(u32),
     InvalidYourDiscriminator(u32),
     AuthError,
 }
@@ -58,20 +55,11 @@ impl Error {
             Error::UdpPacketDecodeError(error) => {
                 warn!(error = %with_source(error), "{}", self);
             }
-            Error::VersionMismatch(version) => {
-                warn!(%version, "{}", self);
-            }
             Error::SessionNoMatch(packet_info, your_discr) => {
                 warn!(?packet_info, %your_discr, "{}", self);
             }
-            Error::InvalidDetectMult(detect_mult) => {
-                warn!(%detect_mult, "{}", self);
-            }
             Error::InvalidFlags(flags) => {
                 warn!(?flags, "{}", self);
-            }
-            Error::InvalidMyDiscriminator(discr) => {
-                warn!(%discr, "{}", self);
             }
             Error::InvalidYourDiscriminator(discr) => {
                 warn!(%discr, "{}", self);
@@ -99,17 +87,8 @@ impl std::fmt::Display for Error {
             Error::SessionNoMatch(..) => {
                 write!(f, "failed to find session")
             }
-            Error::VersionMismatch(..) => {
-                write!(f, "packet version mismatch")
-            }
-            Error::InvalidDetectMult(..) => {
-                write!(f, "received invalid detection multiplier")
-            }
             Error::InvalidFlags(..) => {
                 write!(f, "received invalid flags")
-            }
-            Error::InvalidMyDiscriminator(..) => {
-                write!(f, "received invalid My Discriminator")
             }
             Error::InvalidYourDiscriminator(..) => {
                 write!(f, "received invalid Your Discriminator")

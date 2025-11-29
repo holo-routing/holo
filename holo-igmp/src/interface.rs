@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::collections::BTreeMap;
+use std::net::Ipv4Addr;
 use std::sync::Arc;
 
 use holo_utils::socket::{AsyncFd, RawSocketExt, Socket};
@@ -14,11 +16,15 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::debug::InterfaceInactiveReason;
 use crate::error::{Error, IoError};
+use crate::group::Group;
 use crate::instance::InstanceUpView;
 use crate::northbound::configuration::InterfaceCfg;
 use crate::packet::{IgmpV2Message, MembershipReportV2, Packet, PacketType};
 use crate::tasks::messages::output::NetTxPacketMsg;
 use crate::{network, tasks};
+
+/// Collection of multicast groups on this interface
+pub type Groups = BTreeMap<Ipv4Addr, Group>;
 
 #[derive(Debug)]
 pub struct Interface {
@@ -26,6 +32,8 @@ pub struct Interface {
     pub system: InterfaceSys,
     pub config: InterfaceCfg,
     pub state: InterfaceState,
+    /// Multicast groups with local members on this interface
+    pub groups: Groups,
 }
 
 #[derive(Debug, Default)]
@@ -60,6 +68,7 @@ impl Interface {
             system: InterfaceSys::default(),
             config: InterfaceCfg::default(),
             state: InterfaceState::default(),
+            groups: BTreeMap::new(),
         }
     }
 
@@ -165,6 +174,43 @@ impl Interface {
             packet,
         };
         let _ = self.state.net.as_ref().unwrap().net_tx_packetp.send(msg);
+    }
+
+    /// Get or create a multicast group.
+    ///
+    /// Returns a mutable reference to the group, creating it if it doesn't exist.
+    pub(crate) fn get_or_create_group(
+        &mut self,
+        group_addr: Ipv4Addr,
+    ) -> &mut Group {
+        self.groups
+            .entry(group_addr)
+            .or_insert_with(|| Group::new(group_addr))
+    }
+
+    /// Get a multicast group if it exists.
+    pub(crate) fn get_group(&self, group_addr: &Ipv4Addr) -> Option<&Group> {
+        self.groups.get(group_addr)
+    }
+
+    /// Get a mutable reference to a multicast group if it exists.
+    pub(crate) fn get_group_mut(
+        &mut self,
+        group_addr: &Ipv4Addr,
+    ) -> Option<&mut Group> {
+        self.groups.get_mut(group_addr)
+    }
+
+    /// Remove a multicast group.
+    ///
+    /// Returns true if the group was present and removed.
+    pub(crate) fn remove_group(&mut self, group_addr: &Ipv4Addr) -> bool {
+        self.groups.remove(group_addr).is_some()
+    }
+
+    /// Check if the interface has any active multicast groups.
+    pub(crate) fn has_groups(&self) -> bool {
+        !self.groups.is_empty()
     }
 }
 

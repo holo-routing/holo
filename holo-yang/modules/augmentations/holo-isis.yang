@@ -99,7 +99,7 @@ module holo-isis {
     description
       "Configures the mode of operation for the Extended Sequence Number TLV.";
   }
-  
+
   /*
    * Groupings.
    */
@@ -156,7 +156,7 @@ module holo-isis {
     container attached-bit {
       description "Configuration related to the ATT bit.";
 
-      leaf suppress-advertisement {             
+      leaf suppress-advertisement {
         type boolean;
         default false;
         description
@@ -167,7 +167,7 @@ module holo-isis {
       }
 
       leaf ignore-reception {
-        type boolean;           
+        type boolean;
         default false;
         description
           "When enabled, this level 1 router ignores the ATT bit in level
@@ -491,8 +491,8 @@ module holo-isis {
       type uint32;
       description
         "The modulo 2^32 sum of the LSP checksums at this level.
-	 The value should be treated as unsigned when comparing two
-	 sums of checksums.  While differing checksums indicate a
+         The value should be treated as unsigned when comparing two
+         sums of checksums.  While differing checksums indicate a
          different combination of LSPs, equivalent checksums
          don't guarantee that the LSPs are the same, given that
          multiple combinations of LSPs can result in the same

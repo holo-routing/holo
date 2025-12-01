@@ -49,7 +49,7 @@ pub(crate) fn lsp_too_large(
         isis_level: Some(instance.config.level_type.to_yang()),
         interface_name: Some(Cow::Borrowed(&iface.name)),
         interface_level: Some(iface.config.level_type.resolved.to_yang()),
-        extended_circuit_id: None,
+        extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
         pdu_size: Some(lsp.raw.len() as u32),
         lsp_id: Some(lsp.lsp_id.to_yang()),
     };
@@ -70,7 +70,7 @@ pub(crate) fn if_state_change(
         isis_level: Some(instance.config.level_type.to_yang()),
         interface_name: Some(Cow::Borrowed(&iface.name)),
         interface_level: Some(iface.config.level_type.resolved.to_yang()),
-        extended_circuit_id: None,
+        extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
         state: Some(state.into()),
     };
     notification::send(&instance.tx.nb, path, data);
@@ -121,7 +121,7 @@ pub(crate) fn id_len_mismatch(
         isis_level: Some(instance.config.level_type.to_yang()),
         interface_name: Some(Cow::Borrowed(&iface.name)),
         interface_level: Some(iface.config.level_type.resolved.to_yang()),
-        extended_circuit_id: None,
+        extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
         pdu_field_len: Some(pdu_id_len),
         raw_pdu: Some(raw_pdu.as_ref()),
     };
@@ -142,7 +142,7 @@ pub(crate) fn max_area_addresses_mismatch(
         isis_level: Some(instance.config.level_type.to_yang()),
         interface_name: Some(Cow::Borrowed(&iface.name)),
         interface_level: Some(iface.config.level_type.resolved.to_yang()),
-        extended_circuit_id: None,
+        extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
         max_area_addresses: Some(pdu_max_area_addrs),
         raw_pdu: Some(raw_pdu.as_ref()),
     };
@@ -162,7 +162,7 @@ pub(crate) fn own_lsp_purge(
         isis_level: Some(instance.config.level_type.to_yang()),
         interface_name: Some(Cow::Borrowed(&iface.name)),
         interface_level: Some(iface.config.level_type.resolved.to_yang()),
-        extended_circuit_id: None,
+        extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
         lsp_id: Some(lsp.lsp_id.to_yang()),
     };
     notification::send(&instance.tx.nb, path, data);
@@ -181,7 +181,7 @@ pub(crate) fn sequence_number_skipped(
         isis_level: Some(instance.config.level_type.to_yang()),
         interface_name: Some(Cow::Borrowed(&iface.name)),
         interface_level: Some(iface.config.level_type.resolved.to_yang()),
-        extended_circuit_id: None,
+        extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
         lsp_id: Some(lsp.lsp_id.to_yang()),
     };
     notification::send(&instance.tx.nb, path, data);
@@ -200,7 +200,7 @@ pub(crate) fn authentication_type_failure(
         isis_level: Some(instance.config.level_type.to_yang()),
         interface_name: Some(Cow::Borrowed(&iface.name)),
         interface_level: Some(iface.config.level_type.resolved.to_yang()),
-        extended_circuit_id: None,
+        extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
         raw_pdu: Some(raw_pdu.as_ref()),
     };
     notification::send(&instance.tx.nb, path, data);
@@ -219,7 +219,7 @@ pub(crate) fn authentication_failure(
         isis_level: Some(instance.config.level_type.to_yang()),
         interface_name: Some(Cow::Borrowed(&iface.name)),
         interface_level: Some(iface.config.level_type.resolved.to_yang()),
-        extended_circuit_id: None,
+        extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
         raw_pdu: Some(raw_pdu.as_ref()),
     };
     notification::send(&instance.tx.nb, path, data);
@@ -239,7 +239,7 @@ pub(crate) fn version_skew(
         isis_level: Some(instance.config.level_type.to_yang()),
         interface_name: Some(Cow::Borrowed(&iface.name)),
         interface_level: Some(iface.config.level_type.resolved.to_yang()),
-        extended_circuit_id: None,
+        extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
         protocol_version: Some(version),
         raw_pdu: Some(raw_pdu.as_ref()),
     };
@@ -259,7 +259,7 @@ pub(crate) fn area_mismatch(
         isis_level: Some(instance.config.level_type.to_yang()),
         interface_name: Some(Cow::Borrowed(&iface.name)),
         interface_level: Some(iface.config.level_type.resolved.to_yang()),
-        extended_circuit_id: None,
+        extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
         raw_pdu: Some(raw_pdu.as_ref()),
     };
     notification::send(&instance.tx.nb, path, data);
@@ -279,7 +279,7 @@ pub(crate) fn rejected_adjacency(
         isis_level: Some(instance.config.level_type.to_yang()),
         interface_name: Some(Cow::Borrowed(&iface.name)),
         interface_level: Some(iface.config.level_type.resolved.to_yang()),
-        extended_circuit_id: None,
+        extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
         raw_pdu: Some(raw_pdu.as_ref()),
         reason: Some(reason.to_yang()),
     };
@@ -302,7 +302,7 @@ pub(crate) fn protocols_supported_mismatch(
         isis_level: Some(instance.config.level_type.to_yang()),
         interface_name: Some(Cow::Borrowed(&iface.name)),
         interface_level: Some(iface.config.level_type.resolved.to_yang()),
-        extended_circuit_id: None,
+        extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
         raw_pdu: Some(raw_pdu.as_ref()),
         protocols: None,
     };
@@ -322,7 +322,7 @@ pub(crate) fn lsp_error_detected(
         isis_level: Some(instance.config.level_type.to_yang()),
         interface_name: Some(Cow::Borrowed(&iface.name)),
         interface_level: Some(iface.config.level_type.resolved.to_yang()),
-        extended_circuit_id: None,
+        extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
         lsp_id: Some(lsp.lsp_id.to_yang()),
         raw_pdu: Some(lsp.raw.as_ref()),
         error_offset: None,
@@ -346,7 +346,7 @@ pub(crate) fn adjacency_state_change(
         isis_level: Some(instance.config.level_type.to_yang()),
         interface_name: Some(Cow::Borrowed(&iface.name)),
         interface_level: Some(iface.config.level_type.resolved.to_yang()),
-        extended_circuit_id: None,
+        extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
         neighbor: None,
         neighbor_system_id: Some(adj.system_id.to_yang()),
         state: Some(state.to_yang()),
@@ -369,7 +369,7 @@ pub(crate) fn lsp_received(
         isis_level: Some(instance.config.level_type.to_yang()),
         interface_name: Some(Cow::Borrowed(&iface.name)),
         interface_level: Some(iface.config.level_type.resolved.to_yang()),
-        extended_circuit_id: None,
+        extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
         lsp_id: Some(lsp.lsp_id.to_yang()),
         sequence: Some(lsp.seqno).ignore_in_testing(),
         received_timestamp: lsp

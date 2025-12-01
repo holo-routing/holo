@@ -1299,6 +1299,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                 discontinuity_time: Some(Cow::Borrowed(&iface.state.discontinuity_time)).ignore_in_testing(),
                 state: Some(state.into()),
                 circuit_id: Some(iface.state.circuit_id),
+                extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
             })
         })
         .path(isis::interfaces::interface::adjacencies::adjacency::PATH)
@@ -1318,7 +1319,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             Box::new(Adjacency {
                 neighbor_sys_type: Some(adj.level_capability.to_yang()),
                 neighbor_sysid: Some(adj.system_id.to_yang()),
-                neighbor_extended_circuit_id: None,
+                neighbor_extended_circuit_id: adj.ext_circuit_id.ignore_in_testing(),
                 neighbor_snpa: Some(Cow::Owned(adj.snpa.to_string())).ignore_in_testing(),
                 usage: Some(adj.level_usage.to_yang()),
                 hold_timer: adj.holdtimer.as_ref().map(|task| task.remaining()).map(Cow::Owned).ignore_in_testing(),

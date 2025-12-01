@@ -367,6 +367,12 @@ module holo-isis {
       description
         "Interface circuit ID.";
     }
+    leaf extended-circuit-id {
+      config false;
+      type isis:extended-circuit-id;
+      description
+        "Extended circuit ID of the interface.";
+    }
   }
 
   augment "/rt:routing/rt:control-plane-protocols/"

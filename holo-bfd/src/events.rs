@@ -25,6 +25,9 @@ pub(crate) fn process_udp_packet(
     // is zero or not.
     let Some((_, sess)) = (match packet.your_discr {
         0 => {
+            if !matches!(packet.state, State::Down | State::AdminDown) {
+                return Err(Error::InvalidYourDiscriminator(packet.your_discr));
+            }
             match packet_info {
                 PacketInfo::IpSingleHop { src } => {
                     master.sessions.get_mut_by_sockaddr(src)
@@ -129,24 +132,8 @@ pub(crate) fn process_udp_packet(
 
 // Checks whether the BFD packet is valid.
 fn validate_bfd_packet(packet: &Packet) -> Result<(), Error> {
-    if packet.version != Packet::VERSION {
-        return Err(Error::VersionMismatch(packet.version));
-    }
-    if packet.detect_mult == 0 {
-        return Err(Error::InvalidDetectMult(packet.detect_mult));
-    }
-    if packet.flags.contains(PacketFlags::M)
-        || packet.flags.contains(PacketFlags::P | PacketFlags::F)
-    {
+    if packet.flags.contains(PacketFlags::P | PacketFlags::F) {
         return Err(Error::InvalidFlags(packet.flags));
-    }
-    if packet.my_discr == 0 {
-        return Err(Error::InvalidMyDiscriminator(packet.my_discr));
-    }
-    if packet.your_discr == 0
-        && !matches!(packet.state, State::Down | State::AdminDown)
-    {
-        return Err(Error::InvalidYourDiscriminator(packet.your_discr));
     }
     // BFD authentication isn't supported yet.
     if packet.flags.contains(PacketFlags::A) {

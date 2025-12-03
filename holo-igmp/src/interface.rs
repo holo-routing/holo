@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use std::net::Ipv4Addr;
 use std::sync::Arc;
 
-use holo_utils::socket::{AsyncFd, RawSocketExt, Socket};
+use holo_utils::socket::{AsyncFd, RawSocketExt, Socket, SocketExt};
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::task::Task;
 use tokio::sync::mpsc;
@@ -105,6 +105,14 @@ impl Interface {
             .start_vif(ifindex, ifindex as u16)
             .expect("TODO: panic message");
 
+        #[cfg(not(feature = "testing"))]
+        instance
+            .state
+            .net
+            .socket_rx
+            .get_ref()
+            .join_multicast_ifindex_v4(&network::ALL_ROUTERS, ifindex)
+            .map_err(IoError::SocketError)?;
         // Create raw socket.
         let socket =
             network::socket_tx(&self.name).map_err(IoError::SocketError)?;

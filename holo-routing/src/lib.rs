@@ -8,7 +8,7 @@ mod birt;
 mod ibus;
 mod interface;
 mod netlink;
-mod northbound;
+pub mod northbound;
 mod rib;
 mod sysctl;
 

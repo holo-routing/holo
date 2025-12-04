@@ -7,7 +7,7 @@
 mod ibus;
 mod interface;
 mod netlink;
-mod northbound;
+pub mod northbound;
 
 use futures::stream::StreamExt;
 use holo_northbound::{

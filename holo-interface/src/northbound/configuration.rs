@@ -24,7 +24,7 @@ use crate::interface::{Owner, VrrpHandle};
 use crate::northbound::REGEX_VRRP;
 use crate::{Master, netlink};
 
-static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
+pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
     Lazy::new(load_validation_callbacks);
 static CALLBACKS: Lazy<configuration::Callbacks<Master>> =
     Lazy::new(load_callbacks);
@@ -301,10 +301,6 @@ impl Provider for Master {
     type Event = Event;
     type Resource = Resource;
 
-    fn validation_callbacks() -> Option<&'static ValidationCallbacks> {
-        Some(&VALIDATION_CALLBACKS)
-    }
-
     fn callbacks() -> &'static Callbacks<Master> {
         &CALLBACKS
     }
@@ -344,15 +340,6 @@ impl Provider for Master {
                     .map(|nb_tx| (changes, nb_tx))
             })
             .collect::<Vec<_>>()
-    }
-
-    fn relay_validation(&self) -> Vec<NbDaemonSender> {
-        self.interfaces
-            .iter()
-            .filter_map(|iface| {
-                iface.vrrp.as_ref().map(|vrrp| vrrp.nb_tx.clone())
-            })
-            .collect()
     }
 
     fn process_event(&mut self, event: Event) {

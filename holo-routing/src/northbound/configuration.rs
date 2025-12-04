@@ -41,7 +41,7 @@ use crate::interface::Interfaces;
 use crate::northbound::REGEX_PROTOCOLS;
 use crate::{InstanceHandle, InstanceId, Master};
 
-static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
+pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
     Lazy::new(load_validation_callbacks);
 static CALLBACKS: Lazy<configuration::Callbacks<Master>> =
     Lazy::new(load_callbacks);
@@ -1102,10 +1102,6 @@ impl Provider for Master {
     type Event = Event;
     type Resource = Resource;
 
-    fn validation_callbacks() -> Option<&'static ValidationCallbacks> {
-        Some(&VALIDATION_CALLBACKS)
-    }
-
     fn callbacks() -> &'static Callbacks<Master> {
         &CALLBACKS
     }
@@ -1162,13 +1158,6 @@ impl Provider for Master {
                     .map(|instance| (changes, instance.nb_tx.clone()))
             })
             .collect::<Vec<_>>()
-    }
-
-    fn relay_validation(&self) -> Vec<NbDaemonSender> {
-        self.instances
-            .values()
-            .map(|instance| instance.nb_tx.clone())
-            .collect()
     }
 
     fn process_event(&mut self, event: Event) {

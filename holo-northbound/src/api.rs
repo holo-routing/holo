@@ -23,8 +23,6 @@ pub mod daemon {
     pub enum Request {
         // Request to get all loaded YANG callbacks.
         GetCallbacks(GetCallbacksRequest),
-        // Request to validate a candidate configuration.
-        Validate(ValidateRequest),
         // Request to change the running configuration.
         Commit(CommitRequest),
         // Request to get state data.
@@ -43,17 +41,6 @@ pub mod daemon {
     pub struct GetCallbacksResponse {
         pub callbacks: HashSet<CallbackKey>,
     }
-
-    #[derive(Debug, Deserialize, Serialize)]
-    pub struct ValidateRequest {
-        #[serde(with = "holo_yang::serde::data_tree::arc")]
-        pub config: Arc<DataTree<'static>>,
-        #[serde(skip)]
-        pub responder: Option<Responder<Result<ValidateResponse, Error>>>,
-    }
-
-    #[derive(Debug)]
-    pub struct ValidateResponse {}
 
     #[derive(Debug, Deserialize, Serialize)]
     pub struct CommitRequest {

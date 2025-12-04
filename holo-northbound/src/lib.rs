@@ -247,13 +247,6 @@ pub fn process_northbound_msg<Provider>(
                 responder.send(response).unwrap();
             }
         }
-        api::daemon::Request::Validate(request) => {
-            let response =
-                configuration::process_validate(provider, request.config);
-            if let Some(responder) = request.responder {
-                responder.send(response).unwrap();
-            }
-        }
         api::daemon::Request::Commit(request) => {
             let response = configuration::process_commit(
                 provider,

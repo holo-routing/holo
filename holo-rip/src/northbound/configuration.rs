@@ -416,10 +416,6 @@ where
     type Event = Event;
     type Resource = Resource;
 
-    fn validation_callbacks() -> Option<&'static ValidationCallbacks> {
-        V::validation_callbacks()
-    }
-
     fn callbacks() -> &'static Callbacks<Instance<V>> {
         V::configuration_callbacks()
     }

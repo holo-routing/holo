@@ -11,7 +11,9 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use derive_new::new;
 use holo_northbound as northbound;
-use holo_northbound::configuration::{CommitPhase, ConfigChange};
+use holo_northbound::configuration::{
+    CommitPhase, ConfigChange, ValidationCallbacks,
+};
 use holo_northbound::{
     CallbackKey, CallbackOp, NbDaemonSender, NbProviderReceiver, api as papi,
 };
@@ -39,6 +41,8 @@ pub struct Northbound {
     running_config: Arc<DataTree<'static>>,
     // Non-volatile storage.
     db: Database,
+    // Validation callbacks.
+    validation_callbacks: Vec<&'static ValidationCallbacks>,
     // Callback keys from the data providers.
     callbacks: BTreeMap<CallbackKey, WeakSender<papi::daemon::Request>>,
     // List of management interfaces.
@@ -108,6 +112,9 @@ impl Northbound {
         // Start provider tasks (e.g. interfaces, routing, etc).
         let (rx_providers, providers) = start_providers(config, db.clone());
 
+        // Load validation callbacks.
+        let validation_callbacks = validation_callbacks();
+
         // Load callbacks keys from data providers and check for missing
         // callbacks.
         let callbacks = load_callbacks(&providers).await;
@@ -116,6 +123,7 @@ impl Northbound {
         Northbound {
             running_config,
             db,
+            validation_callbacks,
             callbacks,
             clients,
             providers,
@@ -236,9 +244,11 @@ impl Northbound {
         let candidate = Arc::new(candidate);
 
         // Validate the candidate configuration.
-        self.validate_notify(&candidate)
-            .await
-            .map_err(Error::TransactionValidation)?;
+        northbound::configuration::validate(
+            &self.validation_callbacks,
+            &candidate,
+        )
+        .map_err(Error::TransactionValidation)?;
 
         Ok(capi::client::ValidateResponse {})
     }
@@ -344,9 +354,11 @@ impl Northbound {
         let candidate = Arc::new(candidate);
 
         // Validate the candidate configuration.
-        self.validate_notify(&candidate)
-            .await
-            .map_err(Error::TransactionValidation)?;
+        northbound::configuration::validate(
+            &self.validation_callbacks,
+            &candidate,
+        )
+        .map_err(Error::TransactionValidation)?;
 
         // Compute diff between the running config and the candidate config.
         let diff = self
@@ -431,40 +443,6 @@ impl Northbound {
                 Err(Error::TransactionPreparation(error))
             }
         }
-    }
-
-    // Request all data providers to validate the candidate configuration.
-    async fn validate_notify(
-        &mut self,
-        candidate: &Arc<DataTree<'static>>,
-    ) -> std::result::Result<(), northbound::error::Error> {
-        let mut handles = Vec::new();
-
-        // Spawn one task per data provider.
-        for daemon_tx in self.providers.iter() {
-            // Prepare request.
-            let (responder_tx, responder_rx) = oneshot::channel();
-            let request = papi::daemon::Request::Validate(
-                papi::daemon::ValidateRequest {
-                    config: candidate.clone(),
-                    responder: Some(responder_tx),
-                },
-            );
-
-            // Spawn task to send the request and receive the response.
-            let daemon_tx = daemon_tx.clone();
-            let handle = tokio::spawn(async move {
-                daemon_tx.send(request).await.unwrap();
-                responder_rx.await.unwrap()
-            });
-            handles.push(handle);
-        }
-        // Wait for all tasks to complete.
-        for handle in handles {
-            handle.await.unwrap()?;
-        }
-
-        Ok(())
     }
 
     // Notifies all data providers of the configuration changes associated to an
@@ -745,6 +723,34 @@ fn start_clients(
     }
 
     (daemon_rx, clients)
+}
+
+// Loads all validation callbacks from all data providers.
+fn validation_callbacks() -> Vec<&'static ValidationCallbacks> {
+    vec![
+        #[cfg(feature = "interface")]
+        &holo_interface::northbound::configuration::VALIDATION_CALLBACKS,
+        #[cfg(feature = "routing")]
+        &holo_routing::northbound::configuration::VALIDATION_CALLBACKS,
+        #[cfg(feature = "bfd")]
+        &holo_bfd::northbound::configuration::VALIDATION_CALLBACKS,
+        #[cfg(feature = "bgp")]
+        &holo_bgp::northbound::configuration::VALIDATION_CALLBACKS,
+        #[cfg(feature = "igmp")]
+        &holo_igmp::northbound::configuration::VALIDATION_CALLBACKS,
+        #[cfg(feature = "isis")]
+        &holo_isis::northbound::configuration::VALIDATION_CALLBACKS,
+        #[cfg(feature = "ldp")]
+        &holo_ldp::northbound::configuration::VALIDATION_CALLBACKS,
+        #[cfg(feature = "ospf")]
+        &holo_ospf::northbound::configuration::VALIDATION_CALLBACKS_OSPFV2,
+        #[cfg(feature = "ospf")]
+        &holo_ospf::northbound::configuration::VALIDATION_CALLBACKS_OSPFV3,
+        #[cfg(feature = "rip")]
+        &holo_rip::northbound::configuration::VALIDATION_CALLBACKS_RIPV2,
+        #[cfg(feature = "rip")]
+        &holo_rip::northbound::configuration::VALIDATION_CALLBACKS_RIPNG,
+    ]
 }
 
 // Loads all YANG callback keys from the data providers.

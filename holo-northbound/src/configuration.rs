@@ -112,18 +112,10 @@ pub trait Provider: ProviderBase {
     type Event;
     type Resource: Send;
 
-    fn validation_callbacks() -> Option<&'static ValidationCallbacks> {
-        None
-    }
-
     fn callbacks() -> &'static Callbacks<Self>;
 
     fn nested_callbacks() -> Option<Vec<CallbackKey>> {
         None
-    }
-
-    fn relay_validation(&self) -> Vec<NbDaemonSender> {
-        vec![]
     }
 
     fn relay_changes(
@@ -334,10 +326,6 @@ impl ValidationCallbacks {
         self.0.insert(path, cb);
     }
 
-    fn get(&self, key: &str) -> Option<&ValidationCallback> {
-        self.0.get(key)
-    }
-
     pub fn keys(&self) -> Vec<String> {
         self.0.keys().cloned().collect()
     }
@@ -519,33 +507,6 @@ where
     list_entry
 }
 
-fn validate_configuration<P>(
-    provider: &P,
-    config: &Arc<DataTree<'static>>,
-) -> Result<(), Error>
-where
-    P: Provider,
-{
-    if let Some(callbacks) = P::validation_callbacks() {
-        for dnode in config
-            .find_path(&provider.top_level_node())
-            .iter()
-            .flat_map(|dnode| dnode.traverse())
-        {
-            if let Some(cb) = callbacks.get(&dnode.schema().data_path()) {
-                let path = dnode.path();
-                Debug::ValidationCallback(&path).log();
-
-                // Invoke validation callback.
-                let args = ValidationCallbackArgs { dnode };
-                (*cb)(args).map_err(Error::ValidationCallback)?;
-            }
-        }
-    }
-
-    Ok(())
-}
-
 // ===== global functions =====
 
 pub fn changes_from_diff(diff: &DataDiff<'static>) -> ConfigChanges {
@@ -616,33 +577,22 @@ pub fn changes_from_diff(diff: &DataDiff<'static>) -> ConfigChanges {
     changes
 }
 
-pub(crate) fn process_validate<P>(
-    provider: &P,
-    config: Arc<DataTree<'static>>,
-) -> Result<api::daemon::ValidateResponse, Error>
-where
-    P: Provider,
-{
-    // Validate local subtree.
-    validate_configuration::<P>(provider, &config)?;
+pub fn validate(
+    cbs: &[&ValidationCallbacks],
+    config: &Arc<DataTree<'static>>,
+) -> Result<(), Error> {
+    for (path, cb) in cbs.iter().flat_map(|cbs| cbs.0.iter()) {
+        for dnode in config.find_xpath(path).map_err(Error::YangInvalidPath)? {
+            let path = dnode.path();
+            Debug::ValidationCallback(&path).log();
 
-    // Validate nested subtrees.
-    for nb_tx in provider.relay_validation() {
-        // Send request to child task.
-        let (responder_tx, responder_rx) = oneshot::channel();
-        let relayed_req = api::daemon::ValidateRequest {
-            config: config.clone(),
-            responder: Some(responder_tx),
-        };
-        nb_tx
-            .blocking_send(api::daemon::Request::Validate(relayed_req))
-            .unwrap();
-
-        // Receive response.
-        let _ = responder_rx.blocking_recv().unwrap()?;
+            // Invoke validation callback.
+            let args = ValidationCallbackArgs { dnode };
+            cb(args).map_err(Error::ValidationCallback)?;
+        }
     }
 
-    Ok(api::daemon::ValidateResponse {})
+    Ok(())
 }
 
 pub(crate) fn process_commit<P>(

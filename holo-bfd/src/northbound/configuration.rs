@@ -380,10 +380,6 @@ impl Provider for Master {
     type Event = Event;
     type Resource = Resource;
 
-    fn validation_callbacks() -> Option<&'static ValidationCallbacks> {
-        Some(&VALIDATION_CALLBACKS)
-    }
-
     fn callbacks() -> &'static Callbacks<Master> {
         &CALLBACKS
     }

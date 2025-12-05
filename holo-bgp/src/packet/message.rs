@@ -10,6 +10,7 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 use arbitrary::Arbitrary;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use enum_as_inner::EnumAsInner;
+use holo_utils::bgp::RoleName;
 use holo_utils::bytes::{BytesExt, BytesMutExt, TLS_BUF};
 use holo_utils::ip::{
     Ipv4AddrExt, Ipv4NetworkExt, Ipv6AddrExt, Ipv6NetworkExt,
@@ -24,7 +25,7 @@ use crate::packet::attribute::Attrs;
 use crate::packet::consts::{
     AddPathMode, Afi, BGP_VERSION, CapabilityCode, ErrorCode,
     MessageHeaderErrorSubcode, MessageType, OpenMessageErrorSubcode,
-    OpenParamType, RoleName, Safi, UpdateMessageErrorSubcode,
+    OpenParamType, Safi, UpdateMessageErrorSubcode,
 };
 use crate::packet::error::{
     DecodeError, MessageHeaderError, OpenMessageError, UpdateMessageError,

@@ -75,7 +75,7 @@ pub(crate) fn process_packet(
     Ok(())
 }
 
-/// Process an IGMP Membership Report 
+/// Process an IGMP Membership Report
 ///
 /// When a router receives a Membership Report for a group, it creates
 /// or updates the group state and transitions to Members Present state.
@@ -172,7 +172,6 @@ fn process_leave_group(
     };
 
     // TODO Only process Leave if we're the querier.
-
 
     // Trigger state machine event.
     group.fsm_with_leave_config(

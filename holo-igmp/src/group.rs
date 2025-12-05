@@ -75,7 +75,7 @@ pub enum State {
     CheckingMembership,
 }
 
-/// Filter mode for group (from IGMPv3, dumbed down for v2).
+/// Filter mode for group (from IGMPv3, simple for v2).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub enum FilterMode {

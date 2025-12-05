@@ -67,26 +67,18 @@ pub enum DiagnosticCode {
     MisConnectivity = 9,
 }
 
+// BFD Authentication Types.
+//
+// IANA registry:
+// https://www.iana.org/assignments/bfd-parameters/bfd-parameters.xhtml#bfd-parameters-2
+#[derive(Clone, Copy, Debug, Eq, FromPrimitive, PartialEq)]
+#[derive(Deserialize, Serialize)]
 pub enum AuthenticationType {
     SimplePassword = 1,
-    KeyedMD5 = 2,
-    MeticulousKeyedMD5 = 3,
-    KeyedSHA1 = 4,
-    MeticulousKeyedSHA1 = 5,
-    None = 0,
-}
-
-impl AuthenticationType {
-    pub fn from_u8(value: u8) -> Self {
-        match value {
-            1 => AuthenticationType::SimplePassword,
-            2 => AuthenticationType::KeyedMD5,
-            3 => AuthenticationType::MeticulousKeyedMD5,
-            4 => AuthenticationType::KeyedSHA1,
-            5 => AuthenticationType::MeticulousKeyedSHA1,
-            _ => AuthenticationType::None,
-        }
-    }
+    KeyedMd5 = 2,
+    MeticulousKeyedMd5 = 3,
+    KeyedSha1 = 4,
+    MeticulousKeyedSha1 = 5,
 }
 
 // BFD packet flags.
@@ -188,51 +180,44 @@ impl Packet {
         if my_discr == 0 {
             return Err(DecodeError::InvalidVersion(my_discr as u8));
         }
-        // Checks that do not require session informations end here.
         let your_discr = buf.try_get_u32()?;
         let desired_min_tx = buf.try_get_u32()?;
         let req_min_rx = buf.try_get_u32()?;
         let req_min_echo_rx = buf.try_get_u32()?;
 
-        // Also check if AuthLen matches the packet length. It should have been done in process_udp_packet according to the order specified in RFC 5880 Section 6.8.6. But since Auth is not implemented yet and decode discards auth section, we do it here.
+        // Optional authentication section.
         if flags.contains(PacketFlags::A) {
-            // Auth is present.
             let auth_type = buf.try_get_u8()?;
             let auth_len = buf.try_get_u8()?;
             if auth_len + Self::MANDATORY_SECTION_LEN > length {
                 return Err(DecodeError::InvalidAuthenticationLength(auth_len));
             }
-            match AuthenticationType::from_u8(auth_type) {
+            let Some(auth_type) = AuthenticationType::from_u8(auth_type) else {
+                return Err(DecodeError::InvalidAuthenticationType(auth_type));
+            };
+            match auth_type {
                 AuthenticationType::SimplePassword => {
-                    // Simple Password
                     if auth_len < 4 || auth_len > 19 {
                         return Err(DecodeError::InvalidAuthenticationLength(
                             auth_len,
                         ));
                     }
                 }
-                AuthenticationType::KeyedMD5
-                | AuthenticationType::MeticulousKeyedMD5 => {
-                    // Keyed MD5 or Meticulous Keyed MD5
+                AuthenticationType::KeyedMd5
+                | AuthenticationType::MeticulousKeyedMd5 => {
                     if auth_len != 24 {
                         return Err(DecodeError::InvalidAuthenticationLength(
                             auth_len,
                         ));
                     }
                 }
-                AuthenticationType::KeyedSHA1
-                | AuthenticationType::MeticulousKeyedSHA1 => {
-                    // Keyed SHA1 or Meticulous Keyed SHA1
+                AuthenticationType::KeyedSha1
+                | AuthenticationType::MeticulousKeyedSha1 => {
                     if auth_len != 28 {
                         return Err(DecodeError::InvalidAuthenticationLength(
                             auth_len,
                         ));
                     }
-                }
-                _ => {
-                    return Err(DecodeError::InvalidAuthenticationType(
-                        auth_type,
-                    ));
                 }
             }
         }

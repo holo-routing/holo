@@ -16,7 +16,7 @@ use holo_northbound::configuration::{
     Callbacks, CallbacksBuilder, Provider, ValidationCallbacks,
     ValidationCallbacksBuilder,
 };
-use holo_utils::bgp::AfiSafi;
+use holo_utils::bgp::{AfiSafi, RoleName};
 use holo_utils::ip::{AddressFamily, IpAddrKind};
 use holo_utils::policy::{ApplyPolicyCfg, DefaultPolicyType};
 use holo_utils::protocol::Protocol;
@@ -28,7 +28,7 @@ use crate::instance::{Instance, InstanceUpView};
 use crate::neighbor::{Neighbor, PeerType, fsm};
 use crate::network;
 use crate::northbound::yang_gen::bgp;
-use crate::packet::consts::{CeaseSubcode, ErrorCode, RoleName};
+use crate::packet::consts::{CeaseSubcode, ErrorCode};
 use crate::packet::message::{Message, NotificationMsg};
 use crate::rib::RouteOrigin;
 

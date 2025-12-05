@@ -16,7 +16,7 @@ use crate::northbound::configuration::{
 use crate::packet::consts::{
     AddPathMode, AsPathSegmentType, CapabilityCode, CeaseSubcode, ErrorCode,
     FsmErrorSubcode, MessageHeaderErrorSubcode, OpenMessageErrorSubcode,
-    RoleName, RouteRefreshErrorSubcode, Safi, UpdateMessageErrorSubcode,
+    RouteRefreshErrorSubcode, Safi, UpdateMessageErrorSubcode,
 };
 use crate::packet::message::NotificationMsg;
 use crate::rib::{RouteIneligibleReason, RouteOrigin, RouteRejectReason};
@@ -334,19 +334,6 @@ impl ToYang for RouteRejectReason {
 }
 
 // ===== TryFromYang implementations =====
-
-impl TryFromYang for RoleName {
-    fn try_from_yang(value: &str) -> Option<RoleName> {
-        match value {
-            "provider" => Some(RoleName::Provider),
-            "customer" => Some(RoleName::Customer),
-            "peer" => Some(RoleName::Peer),
-            "rs-client" => Some(RoleName::RsClient),
-            "rs" => Some(RoleName::Rs),
-            _ => None,
-        }
-    }
-}
 
 impl TryFromYang for PrivateAsRemove {
     fn try_from_yang(value: &str) -> Option<PrivateAsRemove> {

@@ -12,7 +12,7 @@ use num_traits::FromPrimitive;
 use crate::neighbor::{PeerType, fsm};
 use crate::northbound::configuration::{InstanceTraceOption, NeighborTraceOption, PrivateAsRemove};
 use crate::packet::attribute::AsPathSegmentType;
-use crate::packet::iana::{CapabilityCode, CeaseSubcode, ErrorCode, FsmErrorSubcode, MessageHeaderErrorSubcode, OpenMessageErrorSubcode, RoleName, RouteRefreshErrorSubcode, Safi, UpdateMessageErrorSubcode};
+use crate::packet::iana::{CapabilityCode, CeaseSubcode, ErrorCode, FsmErrorSubcode, MessageHeaderErrorSubcode, OpenMessageErrorSubcode, RouteRefreshErrorSubcode, Safi, UpdateMessageErrorSubcode};
 use crate::packet::message::{AddPathMode, NotificationMsg};
 use crate::rib::{RouteIneligibleReason, RouteOrigin, RouteRejectReason};
 
@@ -229,19 +229,6 @@ impl ToYang for RouteRejectReason {
 }
 
 // ===== TryFromYang implementations =====
-
-impl TryFromYang for RoleName {
-    fn try_from_yang(value: &str) -> Option<RoleName> {
-        match value {
-            "provider" => Some(RoleName::Provider),
-            "customer" => Some(RoleName::Customer),
-            "peer" => Some(RoleName::Peer),
-            "rs-client" => Some(RoleName::RsClient),
-            "rs" => Some(RoleName::Rs),
-            _ => None,
-        }
-    }
-}
 
 impl TryFromYang for PrivateAsRemove {
     fn try_from_yang(value: &str) -> Option<PrivateAsRemove> {

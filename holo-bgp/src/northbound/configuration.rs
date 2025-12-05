@@ -13,7 +13,7 @@ use std::sync::{Arc, LazyLock as Lazy};
 use arc_swap::ArcSwap;
 use enum_as_inner::EnumAsInner;
 use holo_northbound::configuration::{Callbacks, CallbacksBuilder, Provider, ValidationCallbacks, ValidationCallbacksBuilder};
-use holo_utils::bgp::AfiSafi;
+use holo_utils::bgp::{AfiSafi, RoleName};
 use holo_utils::ip::{AddressFamily, IpAddrKind};
 use holo_utils::policy::{ApplyPolicyCfg, DefaultPolicyType};
 use holo_utils::protocol::Protocol;
@@ -25,7 +25,7 @@ use crate::instance::{Instance, InstanceUpView};
 use crate::neighbor::{Neighbor, PeerType, fsm};
 use crate::network;
 use crate::northbound::yang_gen::bgp;
-use crate::packet::iana::{CeaseSubcode, ErrorCode, RoleName};
+use crate::packet::iana::{CeaseSubcode, ErrorCode};
 use crate::packet::message::{Message, NotificationMsg};
 use crate::rib::RouteOrigin;
 

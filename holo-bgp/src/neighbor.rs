@@ -13,7 +13,7 @@ use std::time::Duration;
 use arbitrary::Arbitrary;
 use chrono::{DateTime, Utc};
 use holo_protocol::InstanceChannelsTx;
-use holo_utils::bgp::{AfiSafi, RouteType, WellKnownCommunities};
+use holo_utils::bgp::{AfiSafi, RoleName, RouteType, WellKnownCommunities};
 use holo_utils::ibus::IbusChannelsTx;
 use holo_utils::socket::{TTL_MAX, TcpConnInfo, TcpStream};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
@@ -30,7 +30,7 @@ use crate::northbound::notification;
 use crate::northbound::rpc::ClearType;
 use crate::packet::attribute::{AS_TRANS, Attrs};
 use crate::packet::iana::{
-    Afi, CeaseSubcode, ErrorCode, FsmErrorSubcode, RoleName, Safi,
+    Afi, CeaseSubcode, ErrorCode, FsmErrorSubcode, Safi,
 };
 use crate::packet::message::{
     Capability, DecodeCxt, EncodeCxt, KeepaliveMsg, Message,

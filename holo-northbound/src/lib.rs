@@ -15,7 +15,7 @@ pub mod notification;
 pub mod rpc;
 pub mod state;
 
-#[allow(unused_variables)]
+#[allow(dead_code, unused_imports, unused_variables)]
 #[allow(clippy::module_inception, clippy::needless_borrow)]
 pub mod yang;
 
@@ -60,8 +60,6 @@ pub trait ProviderBase
 where
     Self: 'static + Sized,
 {
-    fn yang_modules() -> &'static [&'static str];
-
     fn top_level_node(&self) -> String;
 }
 

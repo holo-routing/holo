@@ -20,10 +20,6 @@ use crate::interface::Interface;
 // ===== impl Interface =====
 
 impl ProviderBase for Interface {
-    fn yang_modules() -> &'static [&'static str] {
-        &["ietf-vrrp", "holo-vrrp"]
-    }
-
     fn top_level_node(&self) -> String {
         format!(
             "/ietf-interfaces:interfaces/interface[name='{}']",

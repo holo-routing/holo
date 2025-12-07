@@ -11,7 +11,6 @@ use std::path::PathBuf;
 use check_keyword::CheckKeyword;
 use convert_case::{Boundary, Case, Casing};
 use holo_yang as yang;
-use holo_yang::YANG_IMPLEMENTED_MODULES;
 use yang4::schema::{
     DataValueType, SchemaLeafType, SchemaNode, SchemaNodeKind, SchemaPathFormat,
 };
@@ -45,7 +44,6 @@ fn timer_secs16_to_yang(timer: Cow<'_, Duration>) -> String {
     remaining.to_string()
 }
 
-#[expect(unused)]
 fn timer_secs32_to_yang(timer: Cow<'_, Duration>) -> String {
     let remaining = timer.as_secs();
     // Round up the remaining time to 1 in case it's less than one second.
@@ -676,12 +674,7 @@ fn main() {
 
     // Create YANG context and load all implemented modules.
     let mut yang_ctx = yang::new_context();
-    for module_name in YANG_IMPLEMENTED_MODULES.iter() {
-        yang::load_module(&mut yang_ctx, module_name);
-    }
-    for module_name in YANG_IMPLEMENTED_MODULES.iter().rev() {
-        yang::load_deviations(&mut yang_ctx, module_name);
-    }
+    yang::load_modules(&mut yang_ctx, &yang::implemented_modules::ALL);
 
     // Generate file header.
     let mut output = String::new();

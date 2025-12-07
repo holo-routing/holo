@@ -32,10 +32,6 @@ impl<V> ProviderBase for Instance<V>
 where
     V: Version,
 {
-    fn yang_modules() -> &'static [&'static str] {
-        &["ietf-rip", "holo-rip"]
-    }
-
     fn top_level_node(&self) -> String {
         format!(
             "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='{}']/ietf-rip:rip",

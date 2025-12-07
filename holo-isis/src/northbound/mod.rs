@@ -22,16 +22,6 @@ use crate::instance::Instance;
 // ===== impl Instance =====
 
 impl ProviderBase for Instance {
-    fn yang_modules() -> &'static [&'static str] {
-        &[
-            "ietf-isis",
-            "ietf-isis-msd",
-            "ietf-isis-sr-mpls",
-            "holo-isis",
-            "holo-isis-dev",
-        ]
-    }
-
     fn top_level_node(&self) -> String {
         format!(
             "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='{}']/ietf-isis:isis",

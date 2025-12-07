@@ -15,10 +15,6 @@ use crate::Master;
 // ===== impl Master =====
 
 impl ProviderBase for Master {
-    fn yang_modules() -> &'static [&'static str] {
-        &["ietf-system"]
-    }
-
     fn top_level_node(&self) -> String {
         "/ietf-system:system".to_owned()
     }

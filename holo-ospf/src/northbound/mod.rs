@@ -32,16 +32,6 @@ impl<V> ProviderBase for Instance<V>
 where
     V: Version,
 {
-    fn yang_modules() -> &'static [&'static str] {
-        &[
-            "ietf-ospf",
-            "ietf-ospf-sr-mpls",
-            "ietf-ospfv3-extended-lsa",
-            "holo-ospf",
-            "holo-ospf-dev",
-        ]
-    }
-
     fn top_level_node(&self) -> String {
         format!(
             "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='{}']/ietf-ospf:ospf",

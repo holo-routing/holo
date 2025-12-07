@@ -8,7 +8,6 @@ mod client;
 mod core;
 mod db;
 mod error;
-pub mod yang;
 
 pub use self::core::Northbound;
 pub use self::error::{Error, Result};

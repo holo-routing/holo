@@ -19,15 +19,6 @@ use crate::Master;
 // ===== impl Master =====
 
 impl ProviderBase for Master {
-    fn yang_modules() -> &'static [&'static str] {
-        &[
-            "ietf-if-extensions",
-            "ietf-if-vlan-encapsulation",
-            "ietf-interfaces",
-            "ietf-ip",
-        ]
-    }
-
     fn top_level_node(&self) -> String {
         "/ietf-interfaces:interfaces".to_owned()
     }

@@ -15,3 +15,18 @@ yang4.workspace = true
 
 [lints]
 workspace = true
+
+[features]
+interface = []
+keychain = []
+policy = []
+routing = []
+system = []
+bfd = []
+bgp = []
+igmp = []
+isis = []
+ldp = []
+ospf = []
+rip = []
+vrrp = []

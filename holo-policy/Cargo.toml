@@ -12,7 +12,7 @@ tokio.workspace = true
 tracing.workspace = true
 yang4.workspace = true
 
-holo-northbound = { path = "../holo-northbound" }
+holo-northbound = { path = "../holo-northbound", features = ["policy"] }
 holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
 

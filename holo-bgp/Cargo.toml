@@ -31,7 +31,7 @@ tokio.workspace = true
 tracing.workspace = true
 yang4.workspace = true
 
-holo-northbound = { path = "../holo-northbound" }
+holo-northbound = { path = "../holo-northbound", features = ["bgp"] }
 holo-protocol = { path = "../holo-protocol" }
 holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
@@ -42,6 +42,7 @@ criterion.workspace = true
 yang4 = { workspace = true, features = ["bundled"] }
 
 holo-bgp = { path = ".", features = ["testing", "deterministic"] }
+holo-northbound = { path = "../holo-northbound", features = ["testing"] }
 holo-protocol = { path = "../holo-protocol", features = ["testing"] }
 holo-utils = { path = "../holo-utils", features = ["testing"] }
 

@@ -19,16 +19,6 @@ use crate::instance::Instance;
 // ===== impl Instance =====
 
 impl ProviderBase for Instance {
-    fn yang_modules() -> &'static [&'static str] {
-        &[
-            "iana-bgp-notification",
-            "iana-bgp-rib-types",
-            "iana-bgp-types",
-            "ietf-bgp",
-            "holo-bgp",
-        ]
-    }
-
     fn top_level_node(&self) -> String {
         format!(
             "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='{}']/ietf-bgp:bgp",

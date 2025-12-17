@@ -1665,7 +1665,9 @@ fn load_validation_callbacks() -> ValidationCallbacks {
         .path(ospf::areas::area::area_type::PATH)
         .validate(|args| {
             let area_type = args.dnode.get_string();
-            let area_type = AreaType::try_from_yang(&area_type).unwrap();
+            let Some(area_type) = AreaType::try_from_yang(&area_type) else {
+                return Err("unsupported area type".to_string());
+            };
             if area_type == AreaType::Nssa {
                 return Err("unsupported area type".to_string());
             }

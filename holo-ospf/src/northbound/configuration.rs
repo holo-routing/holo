@@ -1757,13 +1757,18 @@ fn load_validation_callbacks_ospfv3() -> ValidationCallbacks {
         })
         .path(ospf::segment_routing::enabled::PATH)
         .validate(|args| {
+            let ptype = args.dnode.get_string_relative("../../../type").unwrap();
+            let ptype = Protocol::try_from_yang(&ptype).unwrap();
+            if ptype != Protocol::OSPFV3 {
+                return Ok(());
+            }
+
             let sr_enabled = args.dnode.get_bool();
             let extended_lsa = args
                 .dnode
-                .get_bool_relative("../../extended-lsa-support")
-                .unwrap();
+                .get_bool_relative("../../extended-lsa-support");
 
-            if sr_enabled && !extended_lsa {
+            if sr_enabled && extended_lsa != Some(true) {
                 return Err(
                     "Segment Routing for OSPFv3 requires extended LSA support enabled".to_string()
                 );

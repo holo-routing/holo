@@ -13,7 +13,7 @@ chrono.workspace = true
 derive-new.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-yang3.workspace = true
+yang4.workspace = true
 
 holo-northbound = { path = "../holo-northbound" }
 holo-utils = { path = "../holo-utils" }

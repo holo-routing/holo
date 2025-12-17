@@ -20,7 +20,7 @@ regex.workspace = true
 rtnetlink.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-yang3.workspace = true
+yang4.workspace = true
 libc.workspace = true
 
 holo-northbound = { path = "../holo-northbound" }

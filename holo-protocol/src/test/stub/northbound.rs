@@ -10,7 +10,7 @@ use holo_northbound::configuration::{self, CommitPhase, ConfigChanges};
 use holo_northbound::{NbDaemonSender, api};
 use holo_yang::YANG_CTX;
 use tokio::sync::oneshot;
-use yang3::data::{
+use yang4::data::{
     Data, DataDiff, DataDiffFlags, DataFormat, DataOperation, DataParserFlags,
     DataPrinterFlags, DataTree, DataValidationFlags,
 };
@@ -97,6 +97,7 @@ impl NorthboundStub {
             yang_ctx,
             data,
             DataFormat::JSON,
+            DataParserFlags::empty(),
             DataOperation::RpcYang,
         )
         .expect("Failed to parse RPC data");

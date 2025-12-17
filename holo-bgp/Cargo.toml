@@ -29,7 +29,7 @@ serde_json.workspace = true
 serde_with.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-yang3.workspace = true
+yang4.workspace = true
 
 holo-northbound = { path = "../holo-northbound" }
 holo-protocol = { path = "../holo-protocol" }
@@ -39,7 +39,7 @@ holo-yang = { path = "../holo-yang" }
 [dev-dependencies]
 const-addrs.workspace = true
 criterion.workspace = true
-yang3 = { workspace = true, features = ["bundled"] }
+yang4 = { workspace = true, features = ["bundled"] }
 
 holo-bgp = { path = ".", features = ["testing", "deterministic"] }
 holo-protocol = { path = "../holo-protocol", features = ["testing"] }

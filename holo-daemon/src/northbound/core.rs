@@ -27,7 +27,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, WeakSender};
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, info, instrument, trace, warn};
-use yang3::data::{
+use yang4::data::{
     Data, DataDiffFlags, DataFormat, DataPrinterFlags, DataTree,
     DataValidationFlags,
 };

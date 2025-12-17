@@ -10,9 +10,9 @@ use std::str::FromStr;
 
 use holo_yang::TryFromYang;
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
-use yang3::context::Context;
-use yang3::data::{Data, DataNodeRef};
-use yang3::schema::{DataValue, SchemaNode, SchemaPathFormat};
+use yang4::context::Context;
+use yang4::data::{Data, DataNodeRef};
+use yang4::schema::{DataValue, SchemaNode, SchemaPathFormat};
 
 use crate::ip::AddressFamily;
 

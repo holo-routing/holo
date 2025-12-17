@@ -17,11 +17,11 @@ use tokio::sync::oneshot;
 use tonic::transport::{Server, ServerTlsConfig};
 use tonic::{Request, Response, Status};
 use tracing::{error, trace, trace_span};
-use yang3::data::{
+use yang4::data::{
     Data, DataDiff, DataFormat, DataOperation, DataParserFlags,
     DataPrinterFlags, DataTree, DataValidationFlags,
 };
-use yang3::schema::{SchemaOutputFormat, SchemaPrinterFlags};
+use yang4::schema::{SchemaOutputFormat, SchemaPrinterFlags};
 
 use crate::northbound::client::api;
 use crate::{config, northbound};
@@ -601,12 +601,14 @@ fn rpc_get(data_tree: &proto::DataTree) -> Result<DataTree<'static>, Status> {
             yang_ctx,
             data,
             data_format,
+            DataParserFlags::empty(),
             DataOperation::RpcYang,
         ),
         proto::data_tree::Data::DataBytes(data) => DataTree::parse_op_string(
             yang_ctx,
             data,
             data_format,
+            DataParserFlags::empty(),
             DataOperation::RpcYang,
         ),
     }

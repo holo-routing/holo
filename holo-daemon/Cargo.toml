@@ -30,7 +30,7 @@ tonic.workspace = true
 tonic-prost.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-yang3.workspace = true
+yang4.workspace = true
 
 holo-interface = { path = "../holo-interface", optional = true  }
 holo-bfd = { path = "../holo-bfd", optional = true }
@@ -62,7 +62,7 @@ name = "holod"
 path = "src/main.rs"
 
 [features]
-default = ["base", "protocols", "yang3_bundled"]
+default = ["base", "protocols", "yang4_bundled"]
 
 base = [
   "interface",
@@ -104,5 +104,5 @@ vrrp = ["dep:holo-vrrp", "holo-interface/vrrp"]
 # Other features
 io_uring = ["dep:tokio-uring"]
 tokio_console = ["dep:console-subscriber"]
-yang3_bundled = ["yang3/bundled"]
+yang4_bundled = ["yang4/bundled"]
 fastclick = ["holo-utils/fastclick"]

@@ -11,10 +11,10 @@ use std::collections::HashMap;
 use std::sync::{Arc, LazyLock as Lazy, OnceLock};
 
 use maplit::hashmap;
-use yang3::context::{
+use yang4::context::{
     Context, ContextFlags, EmbeddedModuleKey, EmbeddedModules,
 };
-use yang3::data::DataNodeRef;
+use yang4::data::DataNodeRef;
 
 // Global YANG context.
 pub static YANG_CTX: OnceLock<Arc<Context>> = OnceLock::new();

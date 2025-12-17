@@ -9,8 +9,8 @@ use std::collections::HashMap;
 use holo_utils::yang::SchemaNodeExt;
 use holo_yang::YangPath;
 use tokio::sync::oneshot;
-use yang3::data::{DataNodeRef, DataTree};
-use yang3::schema::SchemaNodeKind;
+use yang4::data::{DataNodeRef, DataTree};
+use yang4::schema::SchemaNodeKind;
 
 use crate::debug::Debug;
 use crate::error::Error;

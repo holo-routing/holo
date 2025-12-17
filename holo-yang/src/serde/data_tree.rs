@@ -7,7 +7,7 @@
 use std::sync::Arc;
 
 use serde::{Deserialize, Serializer};
-use yang3::data::{
+use yang4::data::{
     Data, DataFormat, DataParserFlags, DataPrinterFlags, DataTree,
     DataValidationFlags,
 };

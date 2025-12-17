@@ -9,8 +9,8 @@ use std::collections::BTreeMap;
 use clap::{App, Arg};
 use holo_yang as yang;
 use num_traits::cast::AsPrimitive;
-use yang3::context::Context;
-use yang3::schema::{SchemaNodeKind, SchemaOutputFormat, SchemaPrinterFlags};
+use yang4::context::Context;
+use yang4::schema::{SchemaNodeKind, SchemaOutputFormat, SchemaPrinterFlags};
 
 #[derive(Debug, Default)]
 struct NodeCounters<T> {

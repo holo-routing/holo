@@ -23,7 +23,7 @@ netlink-packet-route.workspace = true
 sysctl.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-yang3.workspace = true
+yang4.workspace = true
 
 holo-northbound = { path = "../holo-northbound" }
 holo-protocol = { path = "../holo-protocol" }

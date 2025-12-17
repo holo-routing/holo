@@ -12,9 +12,8 @@ use check_keyword::CheckKeyword;
 use convert_case::{Boundary, Case, Casing};
 use holo_yang as yang;
 use holo_yang::YANG_IMPLEMENTED_MODULES;
-use yang3::schema::{
-    DataValue, DataValueType, SchemaLeafType, SchemaNode, SchemaNodeKind,
-    SchemaPathFormat,
+use yang4::schema::{
+    DataValueType, SchemaLeafType, SchemaNode, SchemaNodeKind, SchemaPathFormat,
 };
 
 const HEADER: &str = r#"
@@ -26,8 +25,8 @@ use chrono::{DateTime, Utc};
 use holo_yang::{YangObject, YangPath, YANG_CTX};
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use itertools::Itertools;
-use yang3::data::DataNodeRef;
-use yang3::schema::SchemaModule;
+use yang4::data::DataNodeRef;
+use yang4::schema::SchemaModule;
 
 fn binary_to_yang(value: &[u8]) -> String {
     use base64::Engine;
@@ -567,8 +566,13 @@ fn generate_module(output: &mut String, snode: &SchemaNode<'_>, level: usize) {
         generate_paths(output, snode, level);
 
         // Generate default value (if any).
-        if let Some(default) = snode.default_value() {
-            generate_default_value(output, snode, default, level);
+        if snode.is_config()
+            && let Ok(Some(dflt_value)) = snode.default_value_canonical()
+            && let Some(leaf_type) = snode.leaf_type()
+        {
+            let dflt_type = leaf_type.base_type();
+            let dflt_value = dflt_value.to_owned();
+            generate_default_value(output, dflt_type, dflt_value, level);
         }
 
         // Generate object struct.
@@ -634,28 +638,26 @@ fn generate_paths(output: &mut String, snode: &SchemaNode<'_>, level: usize) {
 
 fn generate_default_value(
     output: &mut String,
-    snode: &SchemaNode<'_>,
-    default: DataValue,
+    dflt_type: DataValueType,
+    mut dflt_value: String,
     level: usize,
 ) {
     let indent = " ".repeat(level * 2);
 
-    let dflt_type = match default {
-        DataValue::Uint8(_) => "u8",
-        DataValue::Uint16(_) => "u16",
-        DataValue::Uint32(_) => "u32",
-        DataValue::Uint64(_) => "u64",
-        DataValue::Bool(_) => "bool",
-        DataValue::Empty => unreachable!(),
-        DataValue::Int8(_) => "i8",
-        DataValue::Int16(_) => "i16",
-        DataValue::Int32(_) => "i32",
-        DataValue::Int64(_) => "i64",
+    let dflt_type = match dflt_type {
+        DataValueType::Uint8 => "u8",
+        DataValueType::Uint16 => "u16",
+        DataValueType::Uint32 => "u32",
+        DataValueType::Uint64 => "u64",
+        DataValueType::Bool => "bool",
+        DataValueType::Int8 => "i8",
+        DataValueType::Int16 => "i16",
+        DataValueType::Int32 => "i32",
+        DataValueType::Int64 => "i64",
         // TODO: handle derived types.
-        DataValue::Other(_) => "&str",
+        _ => "&str",
     };
-    let mut dflt_value = snode.default_value_canonical().unwrap().to_owned();
-    if matches!(default, DataValue::Other(_)) {
+    if dflt_type == "&str" {
         dflt_value = format!("\"{dflt_value}\"");
     }
 

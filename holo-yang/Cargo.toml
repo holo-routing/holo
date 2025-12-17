@@ -11,7 +11,7 @@ description = "YANG module of Holo Routing, including embedded YANG models and u
 maplit.workspace = true
 serde.workspace = true
 tracing.workspace = true
-yang3.workspace = true
+yang4.workspace = true
 
 [lints]
 workspace = true

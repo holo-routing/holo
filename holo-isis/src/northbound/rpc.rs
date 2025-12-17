@@ -13,7 +13,7 @@ use holo_northbound::rpc::{Callbacks, CallbacksBuilder, Provider};
 use holo_northbound::yang;
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
-use yang3::data::Data;
+use yang4::data::Data;
 
 use crate::adjacency::AdjacencyEvent;
 use crate::instance::{Instance, InstanceArenas, InstanceUpView};

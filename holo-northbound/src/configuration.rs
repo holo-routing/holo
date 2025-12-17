@@ -11,8 +11,8 @@ use holo_utils::yang::SchemaNodeExt;
 use holo_yang::YangPath;
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
-use yang3::data::{Data, DataDiff, DataDiffOp, DataNodeRef, DataTree};
-use yang3::schema::SchemaNodeKind;
+use yang4::data::{Data, DataDiff, DataDiffOp, DataNodeRef, DataTree};
+use yang4::schema::SchemaNodeKind;
 
 use crate::debug::Debug;
 use crate::error::Error;

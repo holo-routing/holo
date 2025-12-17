@@ -10,8 +10,8 @@ use std::fmt::Write;
 use holo_utils::yang::SchemaNodeExt;
 use holo_yang::{YANG_CTX, YangObject, YangPath};
 use tokio::sync::oneshot;
-use yang3::data::{DataNodeRef, DataTree};
-use yang3::schema::{SchemaNode, SchemaNodeKind};
+use yang4::data::{DataNodeRef, DataTree};
+use yang4::schema::{SchemaNode, SchemaNodeKind};
 
 use crate::error::Error;
 use crate::{CallbackKey, CallbackOp, NbDaemonSender, ProviderBase, api};

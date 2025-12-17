@@ -22,7 +22,7 @@ pub mod yang;
 use derive_new::new;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
-use yang3::schema::{DataValueType, SchemaNode, SchemaNodeKind};
+use yang4::schema::{DataValueType, SchemaNode, SchemaNodeKind};
 
 use crate::debug::Debug;
 

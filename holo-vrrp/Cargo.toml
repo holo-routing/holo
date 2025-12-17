@@ -27,7 +27,7 @@ holo-yang = { path = "../holo-yang" }
 
 [dev-dependencies]
 const-addrs.workspace = true
-yang3 = { workspace = true, features = ["bundled"] }
+yang4 = { workspace = true, features = ["bundled"] }
 
 holo-vrrp = { path = ".", features = ["testing"] }
 holo-protocol = { path = "../holo-protocol", features = ["testing"] }

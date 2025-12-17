@@ -11,7 +11,7 @@ use holo_northbound::yang::control_plane_protocol;
 use holo_northbound::{CallbackKey, NbDaemonSender};
 use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
-use yang3::data::DataNodeRef;
+use yang4::data::DataNodeRef;
 
 use crate::Master;
 

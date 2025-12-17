@@ -966,7 +966,7 @@ dependencies = [
  "socket2 0.6.1",
  "tokio",
  "tracing",
- "yang3",
+ "yang4",
 ]
 
 [[package]]
@@ -1002,7 +1002,7 @@ dependencies = [
  "tokio",
  "tracing",
  "twox-hash",
- "yang3",
+ "yang4",
 ]
 
 [[package]]
@@ -1050,7 +1050,7 @@ dependencies = [
  "tracing-appender",
  "tracing-journald",
  "tracing-subscriber",
- "yang3",
+ "yang4",
 ]
 
 [[package]]
@@ -1083,7 +1083,7 @@ dependencies = [
  "socket2 0.6.1",
  "tokio",
  "tracing",
- "yang3",
+ "yang4",
 ]
 
 [[package]]
@@ -1110,7 +1110,7 @@ dependencies = [
  "rtnetlink",
  "tokio",
  "tracing",
- "yang3",
+ "yang4",
 ]
 
 [[package]]
@@ -1152,7 +1152,7 @@ dependencies = [
  "socket2 0.6.1",
  "tokio",
  "tracing",
- "yang3",
+ "yang4",
 ]
 
 [[package]]
@@ -1167,7 +1167,7 @@ dependencies = [
  "holo-yang",
  "tokio",
  "tracing",
- "yang3",
+ "yang4",
 ]
 
 [[package]]
@@ -1198,7 +1198,7 @@ dependencies = [
  "socket2 0.6.1",
  "tokio",
  "tracing",
- "yang3",
+ "yang4",
 ]
 
 [[package]]
@@ -1219,7 +1219,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
- "yang3",
+ "yang4",
 ]
 
 [[package]]
@@ -1260,7 +1260,7 @@ dependencies = [
  "socket2 0.6.1",
  "tokio",
  "tracing",
- "yang3",
+ "yang4",
 ]
 
 [[package]]
@@ -1274,7 +1274,7 @@ dependencies = [
  "holo-yang",
  "tokio",
  "tracing",
- "yang3",
+ "yang4",
 ]
 
 [[package]]
@@ -1290,7 +1290,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "yang3",
+ "yang4",
 ]
 
 [[package]]
@@ -1320,7 +1320,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
- "yang3",
+ "yang4",
 ]
 
 [[package]]
@@ -1355,7 +1355,7 @@ dependencies = [
  "sysctl",
  "tokio",
  "tracing",
- "yang3",
+ "yang4",
 ]
 
 [[package]]
@@ -1371,7 +1371,7 @@ dependencies = [
  "sysinfo",
  "tokio",
  "tracing",
- "yang3",
+ "yang4",
 ]
 
 [[package]]
@@ -1397,7 +1397,7 @@ dependencies = [
  "serde_json",
  "similar",
  "tokio",
- "yang3",
+ "yang4",
 ]
 
 [[package]]
@@ -1428,7 +1428,7 @@ dependencies = [
  "tokio",
  "tracing",
  "vectorize",
- "yang3",
+ "yang4",
 ]
 
 [[package]]
@@ -1454,7 +1454,7 @@ dependencies = [
  "socket2 0.6.1",
  "tokio",
  "tracing",
- "yang3",
+ "yang4",
 ]
 
 [[package]]
@@ -1464,7 +1464,7 @@ dependencies = [
  "maplit",
  "serde",
  "tracing",
- "yang3",
+ "yang4",
 ]
 
 [[package]]
@@ -1856,10 +1856,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2874a2af47a2325c2001a6e6fad9b16a53b802102b528163885171cf92b15976"
 
 [[package]]
-name = "libyang3-sys"
-version = "0.7.0"
+name = "libyang4-sys"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8613de4ae5b2f22b8796887a29d65d0d797568e515e379317c5fbdf33348680a"
+checksum = "a21e9b33465f2c872155d44f318b72efac73dd4063690a98e73a31d09552f0f2"
 dependencies = [
  "cmake",
  "pkg-config",
@@ -4060,14 +4060,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9edde0db4769d2dc68579893f2306b26c6ecfbe0ef499b013d731b7b9247e0b9"
 
 [[package]]
-name = "yang3"
-version = "0.18.0"
+name = "yang4"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb92c5363150857078d6d8e91c6a074fdae9fb795e84707a9d6a5a6fe78be06e"
+checksum = "42f331187c087be4b9e5c823bd48ceec13b3628192278b19ea86b662764fd2d7"
 dependencies = [
  "bitflags 2.10.0",
  "libc",
- "libyang3-sys",
+ "libyang4-sys",
+ "log",
  "num-derive",
  "num-traits",
 ]

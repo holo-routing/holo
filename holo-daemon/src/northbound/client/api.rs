@@ -5,7 +5,7 @@
 //
 
 use tokio::sync::oneshot::Sender as Responder;
-use yang3::data::{DataDiff, DataTree};
+use yang4::data::{DataDiff, DataTree};
 
 use crate::northbound::Result;
 use crate::northbound::core::Transaction;

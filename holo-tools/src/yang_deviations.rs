@@ -6,7 +6,7 @@
 
 use clap::{App, Arg};
 use holo_yang as yang;
-use yang3::schema::SchemaNode;
+use yang4::schema::SchemaNode;
 
 // Generate fully-prefixed schema path.
 fn gen_fully_prefixed_path(snode: &SchemaNode<'_>) -> String {

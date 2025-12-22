@@ -210,6 +210,7 @@ pub struct InterfaceCfg {
     pub lsp_rxmt_interval: u16,
     pub passive: bool,
     pub csnp_interval: u16,
+    pub csnp_disable: bool,
     pub hello_padding: bool,
     pub interface_type: InterfaceType,
     pub node_flag: bool,
@@ -1901,6 +1902,20 @@ fn load_callbacks() -> Callbacks<Instance> {
             let event_queue = args.event_queue;
             event_queue.insert(Event::InterfaceUpdateHelloInterval(iface_idx, LevelNumber::L2));
         })
+        .path(isis::interfaces::interface::csnp_disable::PATH)
+        .modify_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let csnp_disable = args.dnode.get_bool();
+            iface.config.csnp_disable = csnp_disable;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateCsnpInterval(iface_idx));
+        })
+        .delete_apply(|_instance, _args| {
+            // Nothing to do.
+        })
         .path(isis::interfaces::interface::trace_options::flag::PATH)
         .create_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -2168,7 +2183,11 @@ impl Provider for Instance {
                     return;
                 };
                 let iface = &mut arenas.interfaces[iface_idx];
-                iface.csnp_interval_reset(&instance);
+                if iface.config.csnp_disable {
+                    iface.csnp_interval_stop();
+                } else {
+                    iface.csnp_interval_start(&instance);
+                }
             }
             Event::InterfaceBfdChange(iface_idx) => {
                 let Some((instance, arenas)) = self.as_up() else {
@@ -2723,6 +2742,7 @@ impl Default for InterfaceCfg {
             isis::interfaces::interface::lsp_retransmit_interval::DFLT;
         let passive = isis::interfaces::interface::passive::DFLT;
         let csnp_interval = isis::interfaces::interface::csnp_interval::DFLT;
+        let csnp_disable = isis::interfaces::interface::csnp_disable::DFLT;
         let hello_padding =
             isis::interfaces::interface::hello_padding::enabled::DFLT;
         let interface_type = isis::interfaces::interface::interface_type::DFLT;
@@ -2763,6 +2783,7 @@ impl Default for InterfaceCfg {
             lsp_rxmt_interval,
             passive,
             csnp_interval,
+            csnp_disable,
             hello_padding,
             interface_type,
             node_flag,

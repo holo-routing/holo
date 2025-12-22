@@ -317,6 +317,18 @@ module holo-isis {
     description
       "IS-IS interface augmentations";
 
+    leaf csnp-disable {
+      when "../isis:interface-type = 'point-to-point'";
+      type boolean;
+      default "false";
+      description
+        "If set to true, periodic CSNP PDUs are not transmitted on this
+	 interface. A single CSNP is still transmitted when the IS-IS
+         adjacency is brought to the 'up' state.
+
+	 This leaf is only applicable to point-to-point interfaces.";
+    }
+
     container trace-options {
       description "Interface level trace options for IS-IS.";
 

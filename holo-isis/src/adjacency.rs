@@ -161,10 +161,12 @@ impl Adjacency {
         // synchronization issues, especially in mesh-group setups.
         if iface.config.interface_type == InterfaceType::PointToPoint {
             if new_state == AdjacencyState::Up {
-                // Start CSNP interval task(s).
-                iface.csnp_interval_start(instance);
+                if iface.config.csnp_disable {
+                    iface.csnp_send_single(instance);
+                } else {
+                    iface.csnp_interval_start(instance);
+                }
             } else if self.state == AdjacencyState::Up {
-                // Stop CSNP interval task(s).
                 iface.csnp_interval_stop();
             }
         }

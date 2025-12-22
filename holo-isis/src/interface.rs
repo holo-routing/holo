@@ -705,21 +705,18 @@ impl Interface {
         }
     }
 
-    pub(crate) fn csnp_interval_reset(
-        &mut self,
-        instance: &InstanceUpView<'_>,
-    ) {
-        for level in self.config.levels() {
-            if self.state.tasks.csnp_interval.get(level).is_none() {
-                continue;
-            }
-            let task = tasks::csnp_interval(self, level, instance);
-            *self.state.tasks.csnp_interval.get_mut(level) = Some(task);
-        }
-    }
-
     pub(crate) fn csnp_interval_stop(&mut self) {
         self.state.tasks.csnp_interval = Default::default();
+    }
+
+    pub(crate) fn csnp_send_single(&mut self, instance: &InstanceUpView<'_>) {
+        for level in self.config.levels() {
+            let msg = tasks::messages::input::SendCsnpMsg {
+                iface_key: self.id.into(),
+                level,
+            };
+            let _ = instance.tx.protocol_input.send_csnp.send(msg);
+        }
     }
 
     pub(crate) fn srm_list_add(

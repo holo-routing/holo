@@ -194,7 +194,7 @@ Holo supports the following Internet Standards:
 * RFC 8667 - IS-IS Extensions for Segment Routing
 * RFC 8918 - Invalid TLV Handling in IS-IS
 * draft-ietf-bier-lsr-non-mpls-extensions-03 - LSR Extensions for BIER non-MPLS Encapsulation
-* draft-ietf-lsr-distoptflood-11 - IS-IS Distributed Flooding Reduction
+* draft-ietf-lsr-distoptflood-12 - IS-IS Distributed Flooding Reduction
 
 ##### MPLS LDP
 

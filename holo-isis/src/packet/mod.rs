@@ -326,6 +326,16 @@ impl LspId {
     pub(crate) const fn is_pseudonode(&self) -> bool {
         self.pseudonode != 0
     }
+
+    pub(crate) fn to_bytes(self) -> [u8; 8] {
+        let mut bytes = [0u8; 8];
+
+        bytes[..6].copy_from_slice(&self.system_id.0);
+        bytes[6] = self.pseudonode;
+        bytes[7] = self.fragment;
+
+        bytes
+    }
 }
 
 impl From<[u8; 8]> for LspId {

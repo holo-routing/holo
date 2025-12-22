@@ -131,13 +131,12 @@ pub(crate) fn reflood_list(
         .map(|vertex| vertex.id.lan_id.system_id)
         .collect::<BTreeSet<_>>();
 
-    // Use the double hashing algorithm.
-    let hash =
-        flood_reduction_hash(*lsp_id.system_id.as_ref(), lsp_id.fragment);
+    // Calculate the flood reduction hash for the LSP ID.
+    let h = flood_reduction_hash(lsp_id);
 
     // Set N to the H MOD of RNum (N=H MOD RNum)
     let rnum = cache.remote_nbr_list.len();
-    let n = hash as usize % rnum;
+    let n = h as usize % rnum;
 
     // Iterate over the RNL in circular order beginning at index N.
     let mut reflood_list = BTreeSet::default();
@@ -187,42 +186,10 @@ pub(crate) fn should_flood(
 
 // ===== helper functions =====
 
-// Unmodified hash algorithm from draft-ietf-lsr-cache-11 section 1.2.4.
-fn flood_reduction_hash(systemid: [u8; 6], fragment_nr: u8) -> u32 {
-    fn log2(v: u8) -> u8 {
-        let r = v.trailing_zeros() as _;
-        assert_eq!(v, 1u8 << r);
-        r
-    }
-
-    // reduce fragment number to ignore lowest bits
-    let fragment_downshift = [fragment_nr >> log2(8)];
-
-    // two iterators basically reversing order of hashing values in
-    let hashiters: Vec<Box<dyn Iterator<Item = (usize, &u8)>>> = vec![
-        Box::new(
-            (0..)
-                .step_by(2)
-                .zip(fragment_downshift.iter().chain(systemid.iter())),
-        ),
-        Box::new(
-            (0..)
-                .step_by(5)
-                .zip(systemid.iter().rev().chain(fragment_downshift.iter())),
-        ),
-    ];
-
-    // compute same type of hash over all iterators, fold the hash value on itself
-    // and then XOR all the hashes together again
-    hashiters
-        .into_iter()
-        .map(move |iter| {
-            iter.fold(0u32, |previous, (offset, value)| {
-                (previous << 4) ^ (offset as u32 + (*value as u32))
-            })
-        })
-        .map(move |hash| hash ^ (hash >> 14))
-        .fold(0, |previous, hash| previous ^ hash)
+fn flood_reduction_hash(lsp_id: &LspId) -> u16 {
+    let mut shifted_lsp_id = *lsp_id;
+    shifted_lsp_id.fragment >>= 3;
+    fletcher::calc_fletcher16(&shifted_lsp_id.to_bytes())
 }
 
 // ===== unit tests =====
@@ -231,32 +198,32 @@ fn flood_reduction_hash(systemid: [u8; 6], fragment_nr: u8) -> u32 {
 mod tests {
     use super::*;
 
-    // Tests the hash algorithm against reference values from
-    // draft-ietf-lsr-cache-11 section 1.2.4.
+    // Tests the flood reduction hash against reference values from
+    // draft-ietf-lsr-distoptflood-12 section 1.2.3.
     #[test]
     fn test_flood_reduction_hash() {
         let cases = [
-            ([0x01, 0x02, 0x03, 0x04, 0x05, 0x06], 0x00, 0x0699B13A),
-            ([0x01, 0x02, 0x03, 0x04, 0x05, 0x06], 0x07, 0x0699B13A),
-            ([0x01, 0x02, 0x03, 0x04, 0x05, 0x06], 0x08, 0x0799B53B),
-            ([0x00, 0x01, 0x02, 0x03, 0x04, 0x05], 0x07, 0x05B99999),
-            ([0x01, 0x02, 0x03, 0x04, 0x05, 0x07], 0x08, 0x0699B13A),
-            ([0xFF, 0x05, 0x04, 0x03, 0x02, 0x01], 0x00, 0x1165D6C5),
-            ([0xFF, 0x05, 0x04, 0x03, 0x02, 0x01], 0xFE, 0x0E65AAE6),
-            ([0xFF, 0x05, 0x04, 0x03, 0x02, 0x01], 0xFD, 0x0E65AAE6),
-            ([0x1F, 0x48, 0x00, 0x00, 0x00, 0x07], 0x00, 0x0506D336),
-            ([0x1F, 0x48, 0x00, 0x00, 0x00, 0x07], 0x0F, 0x0406D737),
-            ([0x01, 0x00, 0x00, 0x00, 0x00, 0x00], 0x00, 0x006E8CA8),
-            ([0x01, 0x00, 0x00, 0x00, 0x00, 0x00], 0x08, 0x016E88A9),
+            (
+                LspId::from([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x00, 0x00]),
+                0x6215,
+            ),
+            (
+                LspId::from([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x00, 0x07]),
+                0x6215,
+            ),
+            (
+                LspId::from([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x00, 0x0F]),
+                0x6316,
+            ),
+            (
+                LspId::from([0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x00, 0x01]),
+                0x410F,
+            ),
         ];
 
-        for (systemid, fragment, expected) in cases {
-            let result = flood_reduction_hash(systemid, fragment);
-            assert_eq!(
-                result, expected,
-                "Failed for system ID {:?} fragment {}",
-                systemid, fragment
-            );
+        for (lsp_id, expected) in cases {
+            let result = flood_reduction_hash(&lsp_id);
+            assert_eq!(result, expected, "Failed for LSP ID {:?}", lsp_id);
         }
     }
 }

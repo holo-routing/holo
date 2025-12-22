@@ -102,11 +102,45 @@ manual_range_contains = "allow"
 single_match = "allow"
 too_many_arguments = "allow"
 
+# Build profile descriptions:
+#
+# release:
+#   Intended for maximum runtime performance.
+#   Enables link-time optimization and uses a single codegen unit to allow
+#   the compiler to perform more aggressive cross-crate and whole-program
+#   optimizations at the cost of longer build times.
+#
+# small:
+#   Intended for minimal binary size.
+#   Builds on the release profile while optimizing for size.
+#
+# dev:
+#   Intended for fast iteration during development.
+#   Uses minimal debug information that preserves line tables for basic
+#   backtraces while keeping compile times low.
+#   Disables debug information for dependencies to further improve build
+#   performance.
+#
+# debugging:
+#   Intended for interactive debugging sessions.
+#   Inherits dev settings but enables full debug symbols to allow detailed
+#   stack traces and variable inspection.
+
 [profile.release]
-lto = true		# Enable link-time optimization for improved runtime performance
-codegen-units = 1	# Set the number of codegen units to 1 to increase optimization opportunities
+lto = true
+codegen-units = 1
 
 [profile.small]
-inherits = "release"	# Inherit settings from the release profile
-opt-level = "z"		# Optimize for small binary size
-strip = true		# Strip symbols to further reduce binary size
+inherits = "release"
+opt-level = "z"
+strip = true
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.debugging]
+inherits = "dev"
+debug = true

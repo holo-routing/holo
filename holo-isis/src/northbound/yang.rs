@@ -438,6 +438,7 @@ impl TryFromYang for ExtendedSeqNumMode {
 impl TryFromYang for InstanceTraceOption {
     fn try_from_yang(value: &str) -> Option<InstanceTraceOption> {
         match value {
+            "flood-reduction" => Some(InstanceTraceOption::FloodReduction),
             "internal-bus" => Some(InstanceTraceOption::InternalBus),
             "lsdb" => Some(InstanceTraceOption::Lsdb),
             "packets-all" => Some(InstanceTraceOption::PacketsAll),

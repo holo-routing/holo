@@ -824,6 +824,10 @@ fn process_pdu_lsp(
                         )
                     }
                 };
+                if instance.config.trace_opts.flood_reduction {
+                    Debug::FloodDecision(level, lsp, other_iface, !allow_flood)
+                        .log();
+                }
                 if allow_flood {
                     other_iface.srm_list_add(instance, level, lsp.clone());
                 }
@@ -889,6 +893,9 @@ fn process_pdu_lsp(
                     &arenas.adjacencies,
                 ),
             };
+            if instance.config.trace_opts.flood_reduction {
+                Debug::FloodDecision(level, &lsp, iface, !allow_flood).log();
+            }
 
             // Update LSP flooding flags for the incoming interface.
             if allow_flood {

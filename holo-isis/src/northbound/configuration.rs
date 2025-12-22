@@ -155,6 +155,7 @@ pub struct InstanceBierCfg {
 
 #[derive(Clone, Copy, Debug)]
 pub enum InstanceTraceOption {
+    FloodReduction,
     InternalBus,
     Lsdb,
     PacketsAll,
@@ -167,6 +168,7 @@ pub enum InstanceTraceOption {
 
 #[derive(Debug, Default)]
 pub struct InstanceTraceOptions {
+    pub flood_reduction: bool,
     pub ibus: bool,
     pub lsdb: bool,
     pub packets: TraceOptionPacket,
@@ -965,6 +967,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             let trace_opt = InstanceTraceOption::try_from_yang(&trace_opt).unwrap();
             let trace_opts = &mut instance.config.trace_opts;
             match trace_opt {
+                InstanceTraceOption::FloodReduction => trace_opts.flood_reduction = true,
                 InstanceTraceOption::InternalBus => trace_opts.ibus = true,
                 InstanceTraceOption::PacketsAll => {
                     trace_opts.packets.all.get_or_insert_default();
@@ -992,6 +995,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             let trace_opt = args.list_entry.into_trace_option().unwrap();
             let trace_opts = &mut instance.config.trace_opts;
             match trace_opt {
+                InstanceTraceOption::FloodReduction => trace_opts.flood_reduction = false,
                 InstanceTraceOption::InternalBus => trace_opts.ibus = false,
                 InstanceTraceOption::PacketsAll => trace_opts.packets.all = None,
                 InstanceTraceOption::PacketsHello => trace_opts.packets.hello = None,

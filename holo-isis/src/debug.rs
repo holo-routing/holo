@@ -51,6 +51,7 @@ pub enum Debug<'a> {
     // Flooding
     LspDiscard(LevelNumber, &'a Lsp),
     LspTooLarge(&'a Interface, LevelNumber, &'a Lsp),
+    FloodDecision(LevelNumber, &'a Lsp, &'a Interface, bool),
     // LSDB maintenance
     LspInstall(LevelNumber, &'a Lsp),
     LspOriginate(LevelNumber, &'a Lsp),
@@ -191,6 +192,10 @@ impl Debug<'_> {
                 // Parent span(s): isis-instance
                 debug!(interface = %iface.name, %level, lsp_id = %lsp.lsp_id.to_yang(), len = %lsp.raw.len(), "{}", self);
             }
+            Debug::FloodDecision(level, lsp, iface, suppress) => {
+                // Parent span(s): isis-instance
+                debug!(%level, lsp_id = %lsp.lsp_id.to_yang(), interface = %iface.name, %suppress, "{}", self);
+            }
             Debug::LspPurge(level, lsp, reason) => {
                 // Parent span(s): isis-instance
                 debug!(%level, lsp_id = %lsp.lsp_id.to_yang(), seqno = %lsp.seqno, len = %lsp.raw.len(), %reason, "{}", self);
@@ -289,6 +294,9 @@ impl std::fmt::Display for Debug<'_> {
             }
             Debug::LspTooLarge(..) => {
                 write!(f, "LSP larger than interface MTU")
+            }
+            Debug::FloodDecision(..) => {
+                write!(f, "flood reduction decision")
             }
             Debug::LspInstall(..) => {
                 write!(f, "installing LSP")

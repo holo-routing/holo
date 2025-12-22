@@ -227,6 +227,7 @@ module holo-isis {
           description
             "List of tracing options";
           type enumeration {
+            enum flood-reduction;
             enum internal-bus;
             enum lsdb;
             enum packets-all;

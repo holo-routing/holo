@@ -830,8 +830,10 @@ fn process_pdu_lsp(
                 }
                 if allow_flood {
                     other_iface.srm_list_add(instance, level, lsp.clone());
+                    other_iface.ssn_list_del(level, &lsp.lsp_id);
+                } else {
+                    other_iface.ssn_list_add(level, lsp.as_snp_entry());
                 }
-                other_iface.ssn_list_del(level, &lsp.lsp_id);
             }
         }
         Some(Ordering::Equal) => {
@@ -900,8 +902,10 @@ fn process_pdu_lsp(
             // Update LSP flooding flags for the incoming interface.
             if allow_flood {
                 iface.srm_list_add(instance, level, lse.data.clone());
+                iface.ssn_list_del(level, &lsp.lsp_id);
+            } else {
+                iface.ssn_list_add(level, lsp.as_snp_entry());
             }
-            iface.ssn_list_del(level, &lsp.lsp_id);
         }
     }
 

@@ -68,7 +68,7 @@ pub struct Lsdb {
     lspid_tree: BTreeMap<LspId, LspEntryIndex>,
     next_id: ObjectId,
     lsp_count: u32,
-    cksum_sum: u32,
+    fingerprint: u32,
 }
 
 // ===== impl ObjectKey =====
@@ -524,8 +524,11 @@ impl Lsdb {
         self.lspid_tree.insert(lse.data.lsp_id, lse_idx);
 
         // Update statistics.
-        self.lsp_count += 1;
-        self.cksum_sum = self.cksum_sum.wrapping_add(lse.data.cksum as u32);
+        let lsp = &lse.data;
+        if !lsp.is_expired() {
+            self.lsp_count += 1;
+            self.fingerprint ^= (lsp.cksum as u32) << 16 | lsp.seqno;
+        }
 
         (lse_idx, lse)
     }
@@ -542,8 +545,11 @@ impl Lsdb {
         self.lspid_tree.remove(&lse.data.lsp_id);
 
         // Update statistics.
-        self.lsp_count -= 1;
-        self.cksum_sum = self.cksum_sum.wrapping_sub(lse.data.cksum as u32);
+        let lsp = &lse.data;
+        if !lsp.is_expired() {
+            self.lsp_count -= 1;
+            self.fingerprint ^= (lsp.cksum as u32) << 16 | lsp.seqno;
+        }
 
         // Remove LSP entry from the arena.
         arena.0.remove(lse_idx).unwrap()
@@ -556,7 +562,7 @@ impl Lsdb {
         self.id_tree.clear();
         self.lspid_tree.clear();
         self.lsp_count = 0;
-        self.cksum_sum = 0;
+        self.fingerprint = 0;
     }
 
     // Returns a reference to the LSP entry corresponding to the given ID.
@@ -705,8 +711,8 @@ impl Lsdb {
         self.lsp_count
     }
 
-    // Returns the modulo 2^32 sum of all LSP checksums.
-    pub(crate) fn cksum_sum(&self) -> u32 {
-        self.cksum_sum
+    // Returns the database fingerprint.
+    pub(crate) fn fingerprint(&self) -> u32 {
+        self.fingerprint
     }
 }

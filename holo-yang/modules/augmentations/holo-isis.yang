@@ -504,18 +504,23 @@ module holo-isis {
     leaf lsp-count {
       type yang:gauge32;
       description
-        "The number of LSPs at this level.";
+        "The number of LSPs at this level with non-zero remaining lifetime.";
     }
-    leaf lsp-cksum-sum {
+    leaf fingerprint {
       type uint32;
       description
-        "The modulo 2^32 sum of the LSP checksums at this level.
-         The value should be treated as unsigned when comparing two
-         sums of checksums.  While differing checksums indicate a
-         different combination of LSPs, equivalent checksums
-         don't guarantee that the LSPs are the same, given that
-         multiple combinations of LSPs can result in the same
-         checksum.";
+        "A 32-bit fingerprint derived from the set of LSPs at this level.
+
+         The fingerprint is computed by XOR-combining a per-LSP value
+         for each LSP whose remaining lifetime is non-zero. The per-LSP
+         value is formed by placing the 16-bit LSP checksum in the
+         upper 16 bits and the 16-bit LSP sequence number in the lower
+         16 bits.
+
+         The fingerprint is intended for detecting potential LSDB
+         synchronization differences. Different values indicate
+         different LSDB contents; identical values do not guarantee
+         equivalence due to possible collisions.";
     }
   }
 

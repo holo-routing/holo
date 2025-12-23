@@ -201,7 +201,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             Box::new(Levels {
                 level: *level as u8,
                 lsp_count: Some(lsdb.lsp_count()).ignore_in_testing(),
-                lsp_cksum_sum: Some(lsdb.cksum_sum()).ignore_in_testing(),
+                fingerprint: Some(lsdb.fingerprint()).ignore_in_testing(),
             })
         })
         .path(isis::database::levels::lsp::PATH)

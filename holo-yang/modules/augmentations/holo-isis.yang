@@ -647,4 +647,28 @@ module holo-isis {
            "Control of bier advertisement and reception.";
        }
     }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis" {
+    description
+      "This augments IS-IS protocol configuration with SPB
+       (Shortest Path Bridging) extensions.";
+    container spb {
+      description
+        "Shortest Path Bridging (SPB) configuration for IS-IS.";
+      reference
+        "RFC 6329: IS-IS Extensions Supporting IEEE 802.1aq
+         Shortest Path Bridging";
+      leaf enable {
+        type boolean;
+        default "false";
+        description
+          "Enables SPB extensions for IS-IS. When enabled, the router
+           will advertise NLPID 0xC1 (SPB) in the Protocols Supported
+           TLV (TLV 129) of IIH (Hello) PDUs.";
+        reference
+          "RFC 6329, Section 13: Shortest Path Bridging NLPID";
+      }
+    }
+  }
 }

@@ -126,6 +126,7 @@ pub struct InstanceCfg {
     pub att_ignore: bool,
     pub sr: InstanceSrCfg,
     pub bier: InstanceBierCfg,
+    pub spb: InstanceSpbCfg,
     pub trace_opts: InstanceTraceOptions,
 }
 
@@ -151,6 +152,11 @@ pub struct InstanceBierCfg {
     pub enabled: bool,
     pub advertise: bool,
     pub receive: bool,
+}
+
+#[derive(Debug)]
+pub struct InstanceSpbCfg {
+    pub enabled: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -2038,7 +2044,12 @@ fn load_callbacks() -> Callbacks<Instance> {
         .modify_apply(|instance, args| {
             let receive = args.dnode.get_bool();
             instance.config.bier.receive = receive;
-       })
+        })
+        .path(isis::spb::enable::PATH)
+        .modify_apply(|instance, args| {
+            let enable = args.dnode.get_bool();
+            instance.config.spb.enabled = enable;
+        })
         .path(isis::segment_routing::enabled::PATH)
         .modify_apply(|instance, args| {
             let enabled = args.dnode.get_bool();
@@ -2654,6 +2665,7 @@ impl Default for InstanceCfg {
             att_ignore,
             sr: Default::default(),
             bier: Default::default(),
+            spb: Default::default(),
             trace_opts: Default::default(),
         }
     }
@@ -2703,6 +2715,13 @@ impl Default for InstanceBierCfg {
             advertise,
             receive,
         }
+    }
+}
+
+impl Default for InstanceSpbCfg {
+    fn default() -> Self {
+        let enabled = isis::spb::enable::DFLT;
+        Self { enabled }
     }
 }
 

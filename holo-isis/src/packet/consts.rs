@@ -166,6 +166,7 @@ pub enum BierSubStlvType {
 pub enum Nlpid {
     Ipv4 = 0xCC,
     Ipv6 = 0x8E,
+    Spb = 0xC1,
 }
 
 // IS-IS Multi-Topology ID Values.

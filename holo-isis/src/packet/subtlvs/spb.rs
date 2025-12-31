@@ -13,7 +13,6 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use derive_new::new;
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use serde::{Deserialize, Serialize};
-use tracing::info;
 
 use crate::packet::consts::MtCapStlvType;
 use crate::packet::error::{TlvDecodeError, TlvDecodeResult};
@@ -121,11 +120,6 @@ impl SpbmSiStlv {
             isid_entries.push(entry);
         }
 
-        info!(
-            "Decoded SpbmSiStlv with B-MAC: {:?}, Base VID: {}",
-            bmac, base_vid
-        );
-
         Ok(SpbmSiStlv {
             bmac,
             base_vid,
@@ -146,11 +140,6 @@ impl SpbmSiStlv {
         for entry in &self.isid_entries {
             entry.encode(buf);
         }
-
-        info!(
-            "Encoded SpbmSiStlv with B-MAC: {:?}, Base VID: {}",
-            self.bmac, self.base_vid
-        );
 
         tlv_encode_end(buf, start_pos);
     }

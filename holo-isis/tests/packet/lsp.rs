@@ -97,6 +97,7 @@ static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 protocols_supported: Some(ProtocolsSupportedTlv {
                     list: vec![0xcc],
                 }),
+                mt_cap: vec![],
                 router_cap: vec![RouterCapTlv {
                     router_id: Some(ip4!("1.1.1.1")),
                     flags: RouterCapFlags::empty(),
@@ -303,6 +304,7 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 protocols_supported: Some(ProtocolsSupportedTlv {
                     list: vec![0xcc],
                 }),
+                mt_cap: vec![],
                 router_cap: vec![],
                 area_addrs: vec![AreaAddressesTlv {
                     list: vec![AreaAddr::from([0x49, 0, 0].as_slice())],
@@ -432,6 +434,7 @@ static LSP3_HMAC_MD5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 protocols_supported: Some(ProtocolsSupportedTlv {
                     list: vec![0xcc],
                 }),
+                mt_cap: vec![],
                 router_cap: vec![],
                 area_addrs: vec![AreaAddressesTlv {
                     list: vec![AreaAddr::from([0x49, 0, 0].as_slice())],
@@ -514,6 +517,7 @@ static LSP3_HMAC_SHA256: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 protocols_supported: Some(ProtocolsSupportedTlv {
                     list: vec![0xcc],
                 }),
+                mt_cap: vec![],
                 router_cap: vec![],
                 area_addrs: vec![AreaAddressesTlv {
                     list: vec![AreaAddr::from([0x49, 0, 0].as_slice())],
@@ -599,6 +603,7 @@ static LSP4: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 protocols_supported: Some(ProtocolsSupportedTlv {
                     list: vec![0xcc, 0x8e],
                 }),
+                mt_cap: vec![],
                 router_cap: vec![],
                 area_addrs: vec![AreaAddressesTlv {
                     list: vec![AreaAddr::from([0x49, 0, 0].as_slice())],
@@ -713,6 +718,7 @@ static LSP5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
             LspTlvs {
                 auth: None,
                 protocols_supported: None,
+                mt_cap: vec![],
                 router_cap: vec![],
                 area_addrs: vec![],
                 multi_topology: vec![],

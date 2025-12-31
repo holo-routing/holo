@@ -614,6 +614,9 @@ impl Interface {
                     .map(|addr| addr.ip()),
             );
         }
+        if instance.config.spb.enabled {
+            protocols_supported.push(Nlpid::Spb as u8);
+        }
 
         // Generate Hello PDU.
         let ext_seqnum = self.ext_seqnum_next(level);

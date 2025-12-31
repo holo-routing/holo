@@ -26,7 +26,7 @@ use crate::debug::Debug;
 use crate::instance::InstanceUpView;
 use crate::interface::{Interface, InterfaceType};
 use crate::northbound::notification;
-use crate::packet::consts::PduType;
+use crate::packet::consts::{Nlpid, PduType};
 use crate::packet::subtlvs::neighbor::{AdjSidFlags, AdjSidStlv};
 use crate::packet::tlv::{ExtendedSeqNum, ThreeWayAdjState};
 use crate::packet::{AreaAddr, LanId, LevelType, SystemId};
@@ -345,6 +345,27 @@ impl Adjacency {
             .iter()
             .filter_map(|(_, bfd)| bfd.as_ref())
             .any(|bfd| bfd.is_up())
+    }
+
+    // Returns whether the neighbor supports SPB (advertised NLPID 0xC1 in Hello).
+    #[allow(dead_code)]
+    pub(crate) fn is_spb_capable(&self) -> bool {
+        self.protocols_supported.contains(&(Nlpid::Spb as u8))
+    }
+
+    // Returns whether the adjacency has bidirectional SPB capability.
+    //
+    // Per RFC 6329, SPB adjacency formation requires both sides to advertise
+    // NLPID 0xC1 in the Protocols Supported TLV (TLV 129) of Hello PDUs.
+    // This method returns true only when:
+    // 1. Local SPB is enabled (we advertise NLPID 0xC1)
+    // 2. The neighbor also advertises NLPID 0xC1
+    #[allow(dead_code)]
+    pub(crate) fn is_spb_bidirectional(
+        &self,
+        instance: &InstanceUpView<'_>,
+    ) -> bool {
+        instance.config.spb.enabled && self.is_spb_capable()
     }
 }
 

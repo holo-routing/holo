@@ -647,4 +647,153 @@ module holo-isis {
            "Control of bier advertisement and reception.";
        }
     }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis" {
+    description
+      "This augments IS-IS protocol configuration with SPB
+       (Shortest Path Bridging) extensions.";
+    container spb {
+      description
+        "Shortest Path Bridging (SPB) configuration for IS-IS.";
+      reference
+        "RFC 6329: IS-IS Extensions Supporting IEEE 802.1aq
+         Shortest Path Bridging";
+      leaf enable {
+        type boolean;
+        default "false";
+        description
+          "Enables SPB extensions for IS-IS. When enabled, the router
+           will advertise NLPID 0xC1 (SPB) in the Protocols Supported
+           TLV (TLV 129) of IIH (Hello) PDUs.";
+        reference
+          "RFC 6329, Section 13: Shortest Path Bridging NLPID";
+      }
+      list service {
+        key "bmac base-vid";
+        description
+          "List of SPBM services to advertise via SPBM-SI Sub-TLV.
+           Each entry represents a B-MAC address with associated
+           service identifiers (I-SIDs).";
+        reference
+          "RFC 6329, Section 16.1: SPBM Service Identifier and
+           Unicast Address Sub-TLV";
+        leaf bmac {
+          type yang:mac-address;
+          description
+            "B-MAC (Backbone MAC) address. This is the unicast MAC
+             address used for SPBM forwarding. It can be the nodal
+             B-MAC or a per-service B-MAC.";
+        }
+        leaf base-vid {
+          type uint16 {
+            range "0..4095";
+          }
+          description
+            "Base VID (12 bits) that links this B-MAC to the
+             corresponding ECT-ALGORITHM and SPT Set defined in
+             the SPB-Inst Sub-TLV.";
+        }
+        list isid {
+          key "value";
+          description
+            "List of I-SID (Service Identifier) entries associated
+             with this B-MAC and Base VID combination.";
+          leaf value {
+            type uint32 {
+              range "0..16777215";
+            }
+            description
+              "24-bit I-SID (Service Identifier) value. This identifies
+               a specific service instance in the SPBM network.";
+          }
+          leaf transmit {
+            type boolean;
+            default "true";
+            description
+              "T bit: When true, indicates transmit membership for
+               this I-SID. The node will transmit frames for this
+               service.";
+          }
+          leaf receive {
+            type boolean;
+            default "true";
+            description
+              "R bit: When true, indicates receive membership for
+               this I-SID. The node will receive frames for this
+               service.";
+          }
+        }
+      }
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis/isis:database/"
+        + "isis:levels/isis:lsp" {
+    description
+      "Augments LSP state with MT-Capability TLV information for SPB.";
+    list mt-capability {
+      config false;
+      description
+        "MT-Capability TLV (type 144) entries from this LSP.
+         Contains SPB service information.";
+      reference
+        "RFC 6329, Section 16: MT-Capability TLV";
+      leaf mt-id {
+        type uint16 {
+          range "0..4095";
+        }
+        description
+          "Multi-Topology ID.";
+      }
+      leaf overload {
+        type boolean;
+        description
+          "O-bit: When set, indicates the originating node is in
+           overload state for this topology.";
+      }
+      list spbm-service {
+        description
+          "SPBM-SI Sub-TLV entries (type 3) containing service
+           identifier and unicast address information.";
+        reference
+          "RFC 6329, Section 16.1: SPBM Service Identifier and
+           Unicast Address Sub-TLV";
+        leaf bmac {
+          type yang:mac-address;
+          description
+            "B-MAC (Backbone MAC) address for SPBM forwarding.";
+        }
+        leaf base-vid {
+          type uint16 {
+            range "0..4095";
+          }
+          description
+            "Base VID linking to ECT-ALGORITHM and SPT Set.";
+        }
+        list isid {
+          description
+            "I-SID (Service Identifier) entries.";
+          leaf value {
+            type uint32 {
+              range "0..16777215";
+            }
+            description
+              "24-bit I-SID value.";
+          }
+          leaf transmit {
+            type boolean;
+            description
+              "T bit: Transmit membership for this I-SID.";
+          }
+          leaf receive {
+            type boolean;
+            description
+              "R bit: Receive membership for this I-SID.";
+          }
+        }
+      }
+    }
+  }
 }

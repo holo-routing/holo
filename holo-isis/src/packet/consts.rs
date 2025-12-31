@@ -66,6 +66,7 @@ pub enum TlvType {
     MtIpv4Reach = 235,
     Ipv6Reach = 236,
     MtIpv6Reach = 237,
+    MtCapability = 144,
     ThreeWayAdj = 240,
     RouterCapability = 242,
 }
@@ -133,6 +134,19 @@ pub enum RouterCapStlvType {
     NodeMsd = 23,
     // FIXME: TBD1 in https://datatracker.ietf.org/doc/html/draft-prz-lsr-interop-flood-reduction-architecture-01#section-2.4
     FloodingAlgo = 40,
+}
+
+// IS-IS Sub-TLVs for the MT-Capability TLV (TLV 144).
+//
+// IANA registry:
+// https://www.iana.org/assignments/isis-tlv-codepoints/isis-tlv-codepoints.xhtml#isis-tlv-codepoints-144
+// RFC 6329: IS-IS Extensions Supporting IEEE 802.1aq Shortest Path Bridging
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(FromPrimitive, ToPrimitive)]
+#[derive(Deserialize, Serialize)]
+pub enum MtCapStlvType {
+    SpbInstance = 1,
+    SpbmSi = 3,
 }
 
 // IS-IS Sub-TLVs for Segment Identifier/Label Binding TLVs.

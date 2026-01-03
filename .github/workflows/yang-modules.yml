@@ -1,0 +1,37 @@
+name: YANG Formatting Check
+
+on: [push, pull_request]
+
+jobs:
+  whitespace-check:
+    name: YANG Formatting Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Fail on tabs or trailing whitespace
+        run: |
+          failed=0
+
+          echo "Checking for TAB characters..."
+          if grep -R -n $'\t' \
+            holo-yang/modules/augmentations \
+            holo-yang/modules/deviations \
+            --include='*.yang'
+          then
+            echo "ERROR: TAB characters found"
+            failed=1
+          fi
+
+          echo "Checking for trailing whitespace..."
+          if grep -R -n '[[:space:]]$' \
+            holo-yang/modules/augmentations \
+            holo-yang/modules/deviations \
+            --include='*.yang'
+          then
+            echo "ERROR: Trailing whitespace found"
+            failed=1
+          fi
+
+          exit $failed

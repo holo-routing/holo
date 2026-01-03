@@ -102,6 +102,10 @@ manual_range_contains = "allow"
 single_match = "allow"
 too_many_arguments = "allow"
 
+# Temporary workaround until the upstream enum-as-inner fix is merged and released
+[patch.crates-io]
+enum-as-inner = { git = "https://github.com/rwestphal/enum-as-inner", rev="092b051" }
+
 # Build profile descriptions:
 #
 # release:

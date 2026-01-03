@@ -47,12 +47,16 @@ fn load_callbacks() -> Callbacks<Instance> {
             let Some((mut instance, neighbors)) = instance.as_up() else {
                 return Ok(());
             };
-            if let Some(remote_addr) = remote_addr {
-                let nbr = neighbors.get_mut(&remote_addr).unwrap();
-                nbr.clear_session(&mut instance, clear_type);
-            } else {
-                for nbr in neighbors.values_mut() {
-                    nbr.clear_session(&mut instance, clear_type);
+            match remote_addr {
+                Some(remote_addr) => {
+                    if let Some(nbr) = neighbors.get_mut(&remote_addr) {
+                        nbr.clear_session(&mut instance, clear_type);
+                    }
+                }
+                None => {
+                    for nbr in neighbors.values_mut() {
+                        nbr.clear_session(&mut instance, clear_type);
+                    }
                 }
             }
 

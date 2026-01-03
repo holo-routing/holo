@@ -615,7 +615,6 @@ impl Neighbor {
         self.clear_routes::<Ipv6Unicast>(rib, &instance_tx.ibus);
         self.tasks = Default::default();
         self.msg_txp = None;
-        self.statistics = Default::default();
 
         // Trigger the BGP Decision Process.
         instance_tx.protocol_input.trigger_decision_process();

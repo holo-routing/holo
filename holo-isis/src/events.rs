@@ -904,7 +904,7 @@ fn process_pdu_lsp(
                 iface.srm_list_add(instance, level, lse.data.clone());
                 iface.ssn_list_del(level, &lsp.lsp_id);
             } else {
-                iface.ssn_list_add(level, lsp.as_snp_entry());
+                iface.ssn_list_add(level, lse.data.as_snp_entry());
             }
         }
     }
@@ -1040,7 +1040,7 @@ fn process_pdu_snp(
                     iface.srm_list_add(instance, level, lse.data.clone());
                 }
                 Ordering::Less => {
-                    iface.ssn_list_add(level, *entry);
+                    iface.ssn_list_add(level, lse.data.as_snp_entry());
                     iface.srm_list_del(level, &entry.lsp_id);
                 }
             }

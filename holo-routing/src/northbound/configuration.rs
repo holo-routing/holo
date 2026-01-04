@@ -1126,6 +1126,10 @@ impl Provider for Master {
             holo_rip::northbound::configuration::CALLBACKS_RIPV2.keys(),
             #[cfg(feature = "rip")]
             holo_rip::northbound::configuration::CALLBACKS_RIPNG.keys(),
+            // #[cfg(feature = "mld")]
+            // holo_mld::nortbound::configuration::CALLBACKS_MLDV1.keys(),
+            #[cfg(feature = "mld")]
+            holo_mld::nortbound::configuration::CALLBACKS_MLDV2.keys(),
         ];
 
         Some(keys.concat())
@@ -1401,6 +1405,20 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
             use holo_rip::version::Ripng;
 
             spawn_protocol_task::<Instance<Ripng>>(
+                name,
+                &master.nb_tx,
+                &master.ibus_tx,
+                ibus_instance_tx.clone(),
+                ibus_instance_rx,
+                Default::default(),
+                master.shared.clone(),
+            )
+        }
+        #[cfg(feature = "mld")]
+        Protocol::MLDV2 => {
+            use holo_mld::{instance::Instance, version::Mldv2};
+
+            spawn_protocol_task::<Instance<Mldv2>>(
                 name,
                 &master.nb_tx,
                 &master.ibus_tx,

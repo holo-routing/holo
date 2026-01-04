@@ -39,6 +39,7 @@ holo-igmp = { path = "../holo-igmp", optional = true }
 holo-isis = { path = "../holo-isis", optional = true }
 holo-keychain = { path = "../holo-keychain", optional = true }
 holo-ldp = { path = "../holo-ldp", optional = true }
+holo-mld = { path = "../holo-mld", optional = true}
 holo-northbound = { path = "../holo-northbound" }
 holo-ospf = { path = "../holo-ospf", optional = true }
 holo-policy = { path = "../holo-policy", optional = true }
@@ -79,6 +80,7 @@ protocols = [
   #"igmp",
   "isis",
   "ldp",
+  "mld",
   "ospf",
   "rip",
   "vrrp",
@@ -97,6 +99,7 @@ bgp = ["dep:holo-bgp", "holo-routing/bgp"]
 igmp = ["dep:holo-igmp", "holo-routing/igmp"]
 isis = ["dep:holo-isis", "holo-routing/isis"]
 ldp = ["dep:holo-ldp", "holo-routing/ldp"]
+mld = ["dep:holo-mld"]
 ospf = ["dep:holo-ospf", "holo-routing/ospf"]
 rip = ["dep:holo-rip", "holo-routing/rip"]
 vrrp = ["dep:holo-vrrp", "holo-interface/vrrp"]

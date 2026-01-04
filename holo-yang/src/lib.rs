@@ -143,6 +143,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-tcp-common@2023-04-17.yang"),
         EmbeddedModuleKey::new("ietf-vrrp", Some("2018-03-13"), None, None) =>
             include_str!("../modules/ietf/ietf-vrrp@2018-03-13.yang"),
+        EmbeddedModuleKey::new("ietf-igmp-mld", Some("2019-11-01"), None, None) =>
+            include_str!("../modules/ietf/ietf-igmp-mld@2019-11-01.yang"),
         // IETF Holo augmentations
         EmbeddedModuleKey::new("holo-bgp", None, None, None) =>
             include_str!("../modules/augmentations/holo-bgp.yang"),
@@ -261,6 +263,7 @@ pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
             "ietf-system",
             "ietf-tcp",
             "ietf-vrrp",
+            "ietf-igmp-mld",
             // IETF Holo augmentations
             "holo-bgp",
             "holo-isis",

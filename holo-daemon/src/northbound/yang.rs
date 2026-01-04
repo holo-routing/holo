@@ -66,6 +66,15 @@ pub(crate) fn create_context() {
         use holo_ldp::instance::Instance;
         modules_add::<Instance>(&mut modules);
     }
+    #[cfg(feature = "mld")]
+    {
+        use holo_mld::{
+            instance::Instance,
+            version::{Mldv1, Mldv2},
+        };
+        modules_add::<Instance<Mldv1>>(&mut modules);
+        modules_add::<Instance<Mldv2>>(&mut modules);
+    }
     #[cfg(feature = "ospf")]
     {
         use holo_ospf::instance::Instance;

@@ -244,7 +244,11 @@ Holo supports the following Internet Standards:
 * RFC 3768 - Virtual Router Redundancy Protocol (VRRP)
 * RFC 5798 - Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6
 
-##### IETF YANG implementation coverage
+#### Conformance Testing
+
+Results from conformance testing performed with the Ixia IxANVL RFC Compliance Tester are available [here](https://holo-routing.github.io/anvl/).
+
+#### IETF YANG implementation coverage
 
 | Module | Configuration | State | RPCs | Notifications | Total |
 | -- | -- | -- | -- | -- | -- |

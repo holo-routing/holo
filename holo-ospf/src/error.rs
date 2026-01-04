@@ -43,6 +43,7 @@ pub enum Error<V: Version> {
     SpfRootNotFound(Ipv4Addr),
     SpfNexthopCalcError(V::VertexId),
     // Virtual Links
+    VirtualLinkNonAbr(VirtualLinkKey),
     VirtualLinkNoRoute(VirtualLinkKey),
     VirtualLinkSrcAddr(VirtualLinkKey),
     VirtualLinkNbrAddr(VirtualLinkKey),
@@ -144,7 +145,8 @@ where
             Error::SpfNexthopCalcError(vertex_id) => {
                 warn!(?vertex_id, "{}", self);
             }
-            Error::VirtualLinkNoRoute(vlink_key)
+            Error::VirtualLinkNonAbr(vlink_key)
+            | Error::VirtualLinkNoRoute(vlink_key)
             | Error::VirtualLinkSrcAddr(vlink_key)
             | Error::VirtualLinkNbrAddr(vlink_key) => {
                 warn!(router_id = %vlink_key.router_id, transit_area = %vlink_key.transit_area_id, "{}", self);
@@ -234,6 +236,12 @@ where
             }
             Error::SpfNexthopCalcError(..) => {
                 write!(f, "failed to calculate nexthop address")
+            }
+            Error::VirtualLinkNonAbr(..) => {
+                write!(
+                    f,
+                    "failed to activate virtual link: local router is not an ABR"
+                )
             }
             Error::VirtualLinkNoRoute(..) => {
                 write!(f, "no route found to virtual link endpoint")

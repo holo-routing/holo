@@ -12,6 +12,7 @@
 pub mod debug;
 pub mod error;
 pub mod events;
+pub mod group;
 pub mod ibus;
 pub mod instance;
 pub mod interface;

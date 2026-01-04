@@ -4,13 +4,23 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::net::Ipv4Addr;
+
 use holo_utils::ibus::IbusMsg;
 use tracing::{debug, debug_span};
+
+use crate::group::{Event, State};
 
 // IGMP debug messages.
 #[derive(Debug)]
 pub enum Debug<'a> {
     IbusRx(&'a IbusMsg),
+    GroupCreate(Ipv4Addr),
+    GroupEvent(Ipv4Addr, &'a State, &'a Event),
+    GroupStateChange(Ipv4Addr, &'a State, &'a State),
+    GroupTimerStart(Ipv4Addr, u32),
+    GroupTimerCancel(Ipv4Addr),
+    GroupLastMemberQuery(Ipv4Addr, u32, u32),
 }
 
 // Reason why IGMP is inactive on an interface.
@@ -36,6 +46,33 @@ impl Debug<'_> {
                     })
                 })
             }
+            Debug::GroupCreate(group_addr) => {
+                debug_span!("group").in_scope(|| {
+                    debug!(%group_addr, "{}", self);
+                })
+            }
+            Debug::GroupEvent(group_addr, state, event) => debug_span!("group")
+                .in_scope(|| {
+                    debug!(%group_addr, ?state, ?event, "{}", self);
+                }),
+            Debug::GroupStateChange(group_addr, old_state, new_state) => {
+                debug_span!("group").in_scope(|| {
+                    debug!(%group_addr, ?old_state, ?new_state, "{}", self);
+                })
+            }
+            Debug::GroupTimerStart(group_addr, timeout) => debug_span!("group")
+                .in_scope(|| {
+                    debug!(%group_addr, timeout, "{}", self);
+                }),
+            Debug::GroupTimerCancel(group_addr) => debug_span!("group")
+                .in_scope(|| {
+                    debug!(%group_addr, "{}", self);
+                }),
+            Debug::GroupLastMemberQuery(group_addr, count, interval) => {
+                debug_span!("group").in_scope(|| {
+                    debug!(%group_addr, count, interval, "{}", self);
+                })
+            }
         }
     }
 }
@@ -45,6 +82,24 @@ impl std::fmt::Display for Debug<'_> {
         match self {
             Debug::IbusRx(..) => {
                 write!(f, "message")
+            }
+            Debug::GroupCreate(..) => {
+                write!(f, "group created")
+            }
+            Debug::GroupEvent(..) => {
+                write!(f, "group event")
+            }
+            Debug::GroupStateChange(..) => {
+                write!(f, "group state changed")
+            }
+            Debug::GroupTimerStart(..) => {
+                write!(f, "group timer started")
+            }
+            Debug::GroupTimerCancel(..) => {
+                write!(f, "group timer cancelled")
+            }
+            Debug::GroupLastMemberQuery(..) => {
+                write!(f, "sending last member queries")
             }
         }
     }

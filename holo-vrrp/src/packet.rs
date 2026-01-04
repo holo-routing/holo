@@ -435,7 +435,7 @@ impl ArpHdr {
         let mut buf = BytesMut::with_capacity(28);
         buf.put_u16(1_u16); // Hardware type = 1.
         buf.put_u16(libc::ETH_P_IP as _); // Proto Type.
-        buf.put_u8(6_u8); // Harware(Mac Addr) Length = 6.
+        buf.put_u8(6_u8); // Hardware(Mac Addr) Length = 6.
         buf.put_u8(4_u8); // Proto(Ip) length = 4.
         buf.put_u16(1_u16); // Operation = 1.
         buf.put_mac(&self.sender_hw_address);

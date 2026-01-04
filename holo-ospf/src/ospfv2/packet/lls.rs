@@ -102,7 +102,7 @@ impl CryptoAuthTlv {
         // Encode TLV length. It will be rewritten later with the same value.
         tlv_encode_end(buf, start_pos);
 
-        // Write LLS data block length as CA TLV MUST be the last chunck of the
+        // Write LLS data block length as CA TLV MUST be the last chunk of the
         // block per RFC 5613. It will be rewritten later with the same value.
         lls_encode_end::<Ospfv2>(buf, lls_start_pos, true);
 

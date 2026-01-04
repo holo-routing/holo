@@ -45,7 +45,7 @@ use crate::tasks::messages::output::NetTxPacketMsg;
 pub const VRRP_PROTO_NUMBER: i32 = 112;
 pub const ICMP_PROTO_NUMBER: i32 = 58;
 
-// VRRP multicast addressess.
+// VRRP multicast addresses.
 pub static VRRP_MULTICAST_ADDR_IPV4: Lazy<Ipv4Addr> =
     Lazy::new(|| Ipv4Addr::from_str("224.0.0.18").unwrap());
 pub static VRRP_MULTICAST_ADDR_IPV6: Lazy<Ipv6Addr> =

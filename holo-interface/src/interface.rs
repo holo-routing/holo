@@ -81,48 +81,6 @@ pub struct InterfaceSub {
 
 // ===== impl Interface =====
 
-impl Interface {
-    // Applies the interface configuration.
-    //
-    // This method should only be called after the interface has been created
-    // at the OS-level.
-    fn apply_config(
-        &self,
-        ifindex: u32,
-        netlink_tx: &UnboundedSender<NetlinkRequest>,
-        interfaces: &Interfaces,
-    ) {
-        // Set administrative status.
-        netlink::admin_status_change(netlink_tx, ifindex, self.config.enabled);
-
-        // Create VLAN subinterface.
-        if let Some(vlan_id) = self.config.vlan_id
-            && self.ifindex.is_none()
-            && let Some(parent) = &self.config.parent
-            && let Some(parent) = interfaces.get_by_name(parent)
-            && let Some(parent_ifindex) = parent.ifindex
-        {
-            netlink::vlan_create(
-                netlink_tx,
-                self.name.clone(),
-                parent_ifindex,
-                vlan_id,
-            );
-        }
-
-        // Set MTU.
-        if let Some(mtu) = self.config.mtu {
-            netlink::mtu_change(netlink_tx, ifindex, mtu);
-        }
-
-        // Install interface addresses.
-        for (addr, plen) in &self.config.addr_list {
-            let addr = IpNetwork::new(*addr, *plen).unwrap();
-            netlink::addr_install(netlink_tx, ifindex, &addr);
-        }
-    }
-}
-
 // ===== impl Interfaces =====
 
 impl Interfaces {
@@ -170,8 +128,22 @@ impl Interfaces {
             Some(iface_idx) => {
                 let iface = &mut self.arena[iface_idx];
 
+                // Always reinstall configured addresses if any are missing.
+                // This must happen BEFORE the early return check because
+                // addresses can be removed by the kernel (e.g., link down)
+                // without triggering any interface attribute changes.
+                if iface.owner.contains(Owner::CONFIG) {
+                    for (addr, plen) in &iface.config.addr_list {
+                        let net = IpNetwork::new(*addr, *plen).unwrap();
+                        if !iface.addresses.contains_key(&net) {
+                            netlink::addr_install(netlink_tx, ifindex, &net);
+                        }
+                    }
+                }
+
                 // If nothing of interest has changed, return early.
                 if iface.name == ifname
+                    && iface.ifindex == Some(ifindex)
                     && iface.mtu == Some(mtu)
                     && iface.flags == flags
                     && iface.mac_address == mac_address
@@ -199,14 +171,14 @@ impl Interfaces {
                     ibus::notify_interface_update(&sub.tx, iface);
                 }
 
-                // In case the interface exists only in the configuration,
-                // initialize its ifindex and apply any pre-existing
-                // configuration options.
-                if iface.ifindex.is_none() {
+                // Update ifindex and ifindex_tree if needed.
+                if iface.ifindex != Some(ifindex) {
+                    // Remove old ifindex from tree if present
+                    if let Some(old_ifindex) = iface.ifindex {
+                        self.ifindex_tree.remove(&old_ifindex);
+                    }
                     iface.ifindex = Some(ifindex);
-
-                    let iface = &self.arena[iface_idx];
-                    iface.apply_config(ifindex, netlink_tx, self);
+                    self.ifindex_tree.insert(ifindex, iface_idx);
                 }
             }
             None => {
@@ -266,6 +238,15 @@ impl Interfaces {
         // Remove interface only when it's both not present in the configuration
         // and not available in the kernel.
         iface.owner.remove(owner);
+
+        // When SYSTEM owner is removed, clear the ifindex so that apply_config
+        // will be called if the interface reappears.
+        if owner == Owner::SYSTEM
+            && let Some(ifindex) = iface.ifindex.take()
+        {
+            self.ifindex_tree.remove(&ifindex);
+        }
+
         if !iface.owner.is_empty() {
             return;
         }

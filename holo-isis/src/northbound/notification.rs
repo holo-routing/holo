@@ -10,7 +10,7 @@
 use std::borrow::Cow;
 
 use bytes::Bytes;
-use holo_northbound::{notification, yang};
+use holo_northbound::notification;
 use holo_utils::option::OptionExt;
 use holo_yang::ToYang;
 
@@ -18,6 +18,7 @@ use crate::adjacency::{Adjacency, AdjacencyEvent, AdjacencyState};
 use crate::error::AdjacencyRejectError;
 use crate::instance::InstanceUpView;
 use crate::interface::Interface;
+use crate::northbound::yang_gen as yang;
 use crate::packet::SystemId;
 use crate::packet::pdu::Lsp;
 
@@ -61,11 +62,11 @@ pub(crate) fn if_state_change(
     iface: &Interface,
     up: bool,
 ) {
-    use yang::isis_if_state_change::{self, IsisIfStateChange};
+    use yang::if_state_change::{self, IfStateChange};
 
-    let path = isis_if_state_change::PATH;
+    let path = if_state_change::PATH;
     let state = if up { "up" } else { "down" };
-    let data = IsisIfStateChange {
+    let data = IfStateChange {
         routing_protocol_name: Some(Cow::Borrowed(instance.name)),
         isis_level: Some(instance.config.level_type.to_yang()),
         interface_name: Some(Cow::Borrowed(&iface.name)),

@@ -7,10 +7,11 @@
 use std::borrow::Cow;
 use std::net::IpAddr;
 
-use holo_northbound::{NbProviderSender, notification, yang};
+use holo_northbound::{NbProviderSender, notification};
 
 use crate::fec::Fec;
 use crate::neighbor::Neighbor;
+use crate::northbound::yang_gen as yang;
 
 // ===== global functions =====
 

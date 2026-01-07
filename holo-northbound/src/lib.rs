@@ -14,10 +14,7 @@ pub mod error;
 pub mod notification;
 pub mod rpc;
 pub mod state;
-
-#[allow(dead_code, unused_imports, unused_variables)]
-#[allow(clippy::module_inception, clippy::needless_borrow)]
-pub mod yang;
+pub mod yang_codegen;
 
 use derive_new::new;
 use serde::{Deserialize, Serialize};

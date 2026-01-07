@@ -19,7 +19,6 @@ use enum_as_inner::EnumAsInner;
 use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, Provider,
 };
-use holo_northbound::yang::control_plane_protocol::isis;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::mac_addr::MacAddr;
 use holo_utils::option::OptionExt;
@@ -32,6 +31,7 @@ use crate::collections::Lsdb;
 use crate::instance::Instance;
 use crate::interface::Interface;
 use crate::lsdb::{LspEntry, LspLogEntry, LspLogId};
+use crate::northbound::yang_gen::isis;
 use crate::packet::subtlvs::capability::LabelBlockEntry;
 use crate::packet::subtlvs::neighbor::AdjSidStlv;
 use crate::packet::subtlvs::prefix::{PrefixAttrFlags, PrefixSidStlv};

@@ -13,11 +13,11 @@ use holo_northbound::configuration::{
     Callbacks, CallbacksBuilder, Provider, ValidationCallbacks,
     ValidationCallbacksBuilder,
 };
-use holo_northbound::yang::control_plane_protocol::igmp;
 use holo_utils::yang::DataNodeRefExt;
 
 use crate::instance::Instance;
 use crate::interface::Interface;
+use crate::northbound::yang_gen::igmp;
 
 #[derive(Debug, Default, EnumAsInner)]
 pub enum ListEntry {

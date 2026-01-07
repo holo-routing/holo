@@ -17,7 +17,6 @@ use holo_northbound::configuration::{
     Callbacks, CallbacksBuilder, InheritableConfig, Provider,
     ValidationCallbacks, ValidationCallbacksBuilder,
 };
-use holo_northbound::yang::control_plane_protocol::isis;
 use holo_utils::bfd;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
@@ -34,6 +33,7 @@ use crate::debug::InterfaceInactiveReason;
 use crate::instance::Instance;
 use crate::interface::InterfaceType;
 use crate::northbound::notification;
+use crate::northbound::yang_gen::isis;
 use crate::packet::auth::AuthMethod;
 use crate::packet::consts::{FloodingAlgo, MtId, PduType};
 use crate::packet::{

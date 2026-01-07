@@ -11,10 +11,10 @@ use chrono::{DateTime, Utc};
 use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, Provider,
 };
-use holo_northbound::yang::system_state;
 use sysinfo::System;
 
 use crate::Master;
+use crate::northbound::yang_gen::system_state;
 
 pub static CALLBACKS: Lazy<Callbacks<Master>> = Lazy::new(load_callbacks);
 

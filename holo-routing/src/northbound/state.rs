@@ -13,8 +13,6 @@ use enum_as_inner::EnumAsInner;
 use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, Provider,
 };
-use holo_northbound::yang::control_plane_protocol;
-use holo_northbound::yang::routing::{birts, ribs};
 use holo_northbound::{CallbackKey, NbDaemonSender};
 use holo_utils::bier::{BfrId, Bsl};
 use holo_utils::ip::JointPrefixMapExt;
@@ -25,6 +23,8 @@ use holo_yang::ToYang;
 use ipnetwork::{Ipv4Network, Ipv6Network};
 
 use crate::northbound::configuration::NexthopSpecial;
+use crate::northbound::yang_gen::control_plane_protocol;
+use crate::northbound::yang_gen::routing::{birts, ribs};
 use crate::rib::{Route, RouteFlags};
 use crate::{InstanceId, Master};
 

@@ -11,11 +11,11 @@ use enum_as_inner::EnumAsInner;
 use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, Provider,
 };
-use holo_northbound::yang::interfaces;
 use holo_northbound::{CallbackKey, NbDaemonSender};
 
 use crate::Master;
 use crate::interface::Interface;
+use crate::northbound::yang_gen::interfaces;
 
 pub static CALLBACKS: Lazy<Callbacks<Master>> = Lazy::new(load_callbacks);
 

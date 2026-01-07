@@ -8,13 +8,13 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::sync::LazyLock as Lazy;
 
 use holo_northbound::rpc::{Callbacks, CallbacksBuilder, Provider};
-use holo_northbound::yang;
 use holo_utils::yang::DataNodeRefExt;
 use yang4::data::Data;
 
 use crate::discovery;
 use crate::instance::{Instance, InstanceUpView};
 use crate::neighbor::{self, Neighbor};
+use crate::northbound::yang_gen as yang;
 use crate::packet::messages::notification::StatusCode;
 
 pub static CALLBACKS: Lazy<Callbacks<Instance>> = Lazy::new(load_callbacks);

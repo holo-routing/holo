@@ -7,10 +7,10 @@
 use std::sync::LazyLock as Lazy;
 
 use holo_northbound::rpc::{Callbacks, CallbacksBuilder, Provider};
-use holo_northbound::yang;
 
 use crate::ibus;
 use crate::instance::{Instance, InstanceUpView};
+use crate::northbound::yang_gen as yang;
 use crate::route::RouteType;
 use crate::version::{Ripng, Ripv2, Version};
 

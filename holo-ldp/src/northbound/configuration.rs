@@ -13,7 +13,6 @@ use holo_northbound::configuration::{
     Callbacks, CallbacksBuilder, Provider, ValidationCallbacks,
     ValidationCallbacksBuilder,
 };
-use holo_northbound::yang::control_plane_protocol::mpls_ldp;
 use holo_utils::ip::AddressFamily;
 use holo_utils::yang::DataNodeRefExt;
 
@@ -21,6 +20,7 @@ use crate::collections::{InterfaceIndex, TargetedNbrIndex};
 use crate::debug::InterfaceInactiveReason;
 use crate::discovery::TargetedNbr;
 use crate::instance::Instance;
+use crate::northbound::yang_gen::mpls_ldp;
 use crate::{neighbor, network};
 
 #[derive(Debug, Default, EnumAsInner)]

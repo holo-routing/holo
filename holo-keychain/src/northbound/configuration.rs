@@ -12,13 +12,13 @@ use enum_as_inner::EnumAsInner;
 use holo_northbound::configuration::{
     self, Callbacks, CallbacksBuilder, Provider,
 };
-use holo_northbound::yang::key_chains;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::keychain::{Key, Keychain, KeychainKey};
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
 
 use crate::Master;
+use crate::northbound::yang_gen::key_chains;
 
 static CALLBACKS: Lazy<configuration::Callbacks<Master>> =
     Lazy::new(load_callbacks);

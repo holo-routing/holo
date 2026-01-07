@@ -10,13 +10,13 @@
 use std::sync::LazyLock as Lazy;
 
 use holo_northbound::rpc::{Callbacks, CallbacksBuilder, Provider};
-use holo_northbound::yang;
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
 use yang4::data::Data;
 
 use crate::adjacency::AdjacencyEvent;
 use crate::instance::{Instance, InstanceArenas, InstanceUpView};
+use crate::northbound::yang_gen as yang;
 use crate::packet::LevelType;
 
 pub static CALLBACKS: Lazy<Callbacks<Instance>> = Lazy::new(load_callbacks);
@@ -39,7 +39,7 @@ fn load_callbacks() -> Callbacks<Instance> {
 
             Ok(())
         })
-        .path(yang::isis_clear_database::PATH)
+        .path(yang::clear_database::PATH)
         .rpc(|instance, args| {
             let rpc = args.data.find_path(args.rpc_path).unwrap();
 

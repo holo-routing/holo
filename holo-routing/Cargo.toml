@@ -38,6 +38,11 @@ holo-ldp = { path = "../holo-ldp", optional = true }
 holo-ospf = { path = "../holo-ospf", optional = true }
 holo-rip = { path = "../holo-rip", optional = true }
 
+[build-dependencies]
+yang4 = { workspace = true, features = ["bundled"] }
+holo-northbound = { path = "../holo-northbound", features = ["routing"] }
+holo-yang = { path = "../holo-yang" }
+
 [lints]
 workspace = true
 

@@ -10,11 +10,12 @@
 use std::borrow::Cow;
 use std::net::IpAddr;
 
-use holo_northbound::{NbProviderSender, notification, yang};
+use holo_northbound::{NbProviderSender, notification};
 use holo_yang::ToYang;
 
 use crate::error::{GlobalError, VirtualRouterError};
 use crate::instance::MasterReason;
+use crate::northbound::yang_gen as yang;
 
 // ===== global functions =====
 

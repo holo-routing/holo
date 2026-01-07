@@ -7,11 +7,11 @@
 use std::sync::LazyLock as Lazy;
 
 use holo_northbound::rpc::{Callbacks, CallbacksBuilder, Provider};
-use holo_northbound::yang::control_plane_protocol::bgp;
 use holo_utils::yang::DataNodeRefExt;
 use yang4::data::Data;
 
 use crate::instance::Instance;
+use crate::northbound::yang_gen::bgp;
 
 pub static CALLBACKS: Lazy<Callbacks<Instance>> = Lazy::new(load_callbacks);
 

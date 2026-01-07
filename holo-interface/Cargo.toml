@@ -30,6 +30,11 @@ holo-yang = { path = "../holo-yang" }
 
 holo-vrrp = { path = "../holo-vrrp", optional = true }
 
+[build-dependencies]
+yang4 = { workspace = true, features = ["bundled"] }
+holo-northbound = { path = "../holo-northbound", features = ["interface"] }
+holo-yang = { path = "../holo-yang" }
+
 [lints]
 workspace = true
 

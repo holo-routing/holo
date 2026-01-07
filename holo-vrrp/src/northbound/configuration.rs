@@ -13,7 +13,6 @@ use std::sync::{Arc, LazyLock as Lazy, atomic};
 
 use enum_as_inner::EnumAsInner;
 use holo_northbound::configuration::{Callbacks, CallbacksBuilder, Provider};
-use holo_northbound::yang::interfaces;
 use holo_utils::ip::AddressFamily;
 use holo_utils::mac_addr::MacAddr;
 use holo_utils::yang::DataNodeRefExt;
@@ -23,6 +22,7 @@ use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use crate::ibus;
 use crate::instance::{Instance, Version, fsm};
 use crate::interface::Interface;
+use crate::northbound::yang_gen::interfaces;
 
 #[derive(Debug, Default, EnumAsInner)]
 pub enum ListEntry {

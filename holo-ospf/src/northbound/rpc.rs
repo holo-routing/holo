@@ -7,12 +7,12 @@
 use std::sync::LazyLock as Lazy;
 
 use holo_northbound::rpc::{Callbacks, CallbacksBuilder, Provider};
-use holo_northbound::yang;
 use holo_utils::yang::DataNodeRefExt;
 use yang4::data::Data;
 
 use crate::instance::{Instance, InstanceArenas, InstanceUpView};
 use crate::neighbor::nsm;
+use crate::northbound::yang_gen as yang;
 use crate::version::{Ospfv2, Ospfv3, Version};
 
 pub static CALLBACKS_OSPFV2: Lazy<Callbacks<Instance<Ospfv2>>> =

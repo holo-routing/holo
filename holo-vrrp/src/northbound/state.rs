@@ -15,12 +15,12 @@ use enum_as_inner::EnumAsInner;
 use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, Provider,
 };
-use holo_northbound::yang::interfaces;
 use holo_utils::option::OptionExt;
 use holo_yang::ToYang;
 
 use crate::instance::Instance;
 use crate::interface::Interface;
+use crate::northbound::yang_gen::interfaces;
 
 pub static CALLBACKS: Lazy<Callbacks<Interface>> = Lazy::new(load_callbacks);
 

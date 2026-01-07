@@ -14,7 +14,6 @@ use holo_northbound::configuration::{
     Callbacks, CallbacksBuilder, InheritableConfig, Provider,
     ValidationCallbacks, ValidationCallbacksBuilder,
 };
-use holo_northbound::yang::control_plane_protocol::ospf;
 use holo_utils::bfd;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
@@ -30,6 +29,7 @@ use crate::instance::Instance;
 use crate::interface::{InterfaceType, VirtualLinkKey, ism};
 use crate::lsdb::LsaOriginateEvent;
 use crate::neighbor::nsm;
+use crate::northbound::yang_gen::ospf;
 use crate::packet::PacketType;
 use crate::route::RouteNetFlags;
 use crate::version::{Ospfv2, Ospfv3, Version};

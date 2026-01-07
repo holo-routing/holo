@@ -40,6 +40,11 @@ holo-northbound = { path = "../holo-northbound", features = ["testing"] }
 holo-protocol = { path = "../holo-protocol", features = ["testing"] }
 holo-utils = { path = "../holo-utils", features = ["testing"] }
 
+[build-dependencies]
+yang4 = { workspace = true, features = ["bundled"] }
+holo-northbound = { path = "../holo-northbound", features = ["bfd"] }
+holo-yang = { path = "../holo-yang" }
+
 [lints]
 workspace = true
 

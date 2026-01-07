@@ -11,7 +11,6 @@ use enum_as_inner::EnumAsInner;
 use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, Provider,
 };
-use holo_northbound::yang::control_plane_protocol::bgp;
 use holo_utils::bgp::AfiSafi;
 use holo_utils::option::OptionExt;
 use holo_yang::ToYang;
@@ -19,6 +18,7 @@ use ipnetwork::{Ipv4Network, Ipv6Network};
 
 use crate::instance::Instance;
 use crate::neighbor::{Neighbor, fsm};
+use crate::northbound::yang_gen::bgp;
 use crate::packet::attribute::{
     AsPathSegment, BaseAttrs, Comms, ExtComms, Extv6Comms, LargeComms,
     UnknownAttr,

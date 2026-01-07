@@ -9,9 +9,9 @@ use std::sync::LazyLock as Lazy;
 use holo_northbound::configuration::{
     self, Callbacks, CallbacksBuilder, Provider,
 };
-use holo_northbound::yang::system;
 use holo_utils::yang::DataNodeRefExt;
 
+use crate::northbound::yang_gen::system;
 use crate::{Master, ibus};
 
 static CALLBACKS: Lazy<configuration::Callbacks<Master>> =

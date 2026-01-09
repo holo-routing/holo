@@ -20,6 +20,7 @@ use crate::network::{MulticastAddr, NetworkVersion};
 use crate::ospfv3;
 use crate::ospfv3::packet::{Hello, Options, PacketHdr};
 use crate::packet::auth::AuthMethod;
+use crate::packet::lls::{LlsHelloData, ReverseMetricFlags};
 use crate::packet::{Packet, PacketType};
 use crate::version::Ospfv3;
 
@@ -64,12 +65,25 @@ impl InterfaceVersion<Self> for Ospfv3 {
             auth_seqno: None,
         };
 
-        let lls = if iface.config.lls_enabled {
-            // TODO: Get LLS configuration.
-            None
-        } else {
-            None
-        };
+        let advertise_rm = iface.config.reverse_metric.metric.is_some();
+        let lls = (iface.config.lls_enabled & advertise_rm).then(|| {
+            let mut lls_data: LlsHelloData = Default::default();
+
+            // Handle Reverse Metric (RFC 9339).
+            if let Some(metric) = iface.config.reverse_metric.metric {
+                let cfg = &iface.config.reverse_metric;
+                let mut flags = ReverseMetricFlags::empty();
+                if cfg.higher {
+                    flags |= ReverseMetricFlags::H;
+                }
+                if cfg.offset {
+                    flags |= ReverseMetricFlags::O;
+                }
+                lls_data.reverse_metric.insert(cfg.mtid, (flags, metric));
+            }
+
+            lls_data
+        });
 
         Packet::Hello(Hello {
             hdr,

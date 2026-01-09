@@ -34,6 +34,7 @@ use crate::northbound::configuration::InterfaceCfg;
 use crate::northbound::notification;
 use crate::packet::Packet;
 use crate::packet::auth::AuthMethod;
+use crate::packet::lls::ReverseMetricFlags;
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::tasks;
 use crate::tasks::messages::output::NetTxPacketMsg;
@@ -97,6 +98,10 @@ pub struct InterfaceState<V: Version> {
     pub auth: Option<AuthMethod>,
     // Tasks.
     pub tasks: InterfaceTasks<V>,
+    // Dynamic value of the interface cost.
+    pub cost: u16,
+    // History of known Reverse Metric received on this interface.
+    pub rms: BTreeMap<u8, (ReverseMetricFlags, u16)>,
 }
 
 #[derive(Debug)]
@@ -255,12 +260,16 @@ where
     ) -> Interface<V> {
         Debug::<V>::InterfaceCreate(&name).log();
 
+        let config = InterfaceCfg::default();
+        let mut state = InterfaceState::default();
+        state.cost = config.cost;
+
         Interface {
             id,
             name,
             system: InterfaceSys::default(),
-            config: InterfaceCfg::default(),
-            state: InterfaceState::default(),
+            config,
+            state,
             vlink_key,
         }
     }
@@ -1016,6 +1025,8 @@ where
             network_lsa_self: None,
             auth: None,
             tasks: Default::default(),
+            cost: 0,
+            rms: Default::default(),
         }
     }
 }

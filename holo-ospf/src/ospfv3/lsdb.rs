@@ -530,7 +530,7 @@ fn lsa_orig_router(
         let cost = if instance.config.stub_router {
             MAX_LINK_METRIC
         } else {
-            iface.config.cost
+            iface.state.cost
         };
 
         match iface.config.if_type {
@@ -882,7 +882,7 @@ fn lsa_orig_intra_area_prefix(
             LsaIntraAreaPrefixEntry::new(
                 PrefixOptions::empty(),
                 prefix,
-                iface.config.cost,
+                iface.state.cost,
             )
         };
 

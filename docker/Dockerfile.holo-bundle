@@ -8,11 +8,16 @@ FROM ${HOLO_CLI_IMAGE} as holo_cli
 # Base image containing holod
 FROM ${HOLOD_IMAGE}
 
-# Install useful networking tools and 'less' for CLI paging
+# Install useful system tools and 'less' for CLI paging
 RUN apt-get update && \
     apt-get install -y ifupdown \
     iputils-ping \
+    net-tools \
     tcpdump \
+    procps \
+    htop \
+    curl \
+    nano \
     less \
   && rm -rf /var/lib/apt/lists/*
 

@@ -506,18 +506,32 @@ module holo-isis {
       description
         "The number of LSPs at this level with non-zero remaining lifetime.";
     }
-    leaf fingerprint {
-      type uint64;
+
+    container fingerprint {
       description
-        "A 64-bit fingerprint derived from the set of LSPs at this level.
+        "Information about the LSDB fingerprint for this level.";
 
-         The fingerprint is computed by XOR-combining a per-LSP value
-         for each LSP whose remaining lifetime is non-zero.
+      leaf value {
+        type uint64;
+        description
+          "A 64-bit fingerprint derived from the set of LSPs at this level.
 
-         The fingerprint is intended for detecting potential LSDB
-         synchronization differences. Different values indicate
-         different LSDB contents; identical values do not guarantee
-         equivalence due to possible collisions.";
+           The fingerprint is computed by XOR-combining a per-LSP value
+           for each LSP whose remaining lifetime is non-zero.
+
+           The fingerprint is intended for detecting potential LSDB
+           synchronization differences. Different values indicate
+           different LSDB contents; identical values do not guarantee
+           equivalence due to possible collisions.";
+      }
+
+      leaf last-update {
+        type uint32;
+        units "seconds";
+        description
+          "Time elapsed since the fingerprint for this level's LSDB was
+           last updated.";
+      }
     }
   }
 

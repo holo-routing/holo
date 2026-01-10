@@ -206,7 +206,15 @@ fn load_callbacks() -> Callbacks<Instance> {
             Box::new(Levels {
                 level: *level as u8,
                 lsp_count: Some(lsdb.lsp_count()).ignore_in_testing(),
-                fingerprint: Some(lsdb.fingerprint()).ignore_in_testing(),
+            })
+        })
+        .path(isis::database::levels::fingerprint::PATH)
+        .get_object(|_instance, args| {
+            use isis::database::levels::fingerprint::Fingerprint;
+            let (_, lsdb) = args.list_entry.as_lsdb().unwrap();
+            Box::new(Fingerprint {
+                value: Some(lsdb.fingerprint()).ignore_in_testing(),
+                last_update: lsdb.fingerprint_last_update().map(|time| time.elapsed().as_secs() as u32).ignore_in_testing(),
             })
         })
         .path(isis::database::levels::lsp::PATH)

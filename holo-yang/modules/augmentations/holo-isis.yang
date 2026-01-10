@@ -507,15 +507,12 @@ module holo-isis {
         "The number of LSPs at this level with non-zero remaining lifetime.";
     }
     leaf fingerprint {
-      type uint32;
+      type uint64;
       description
-        "A 32-bit fingerprint derived from the set of LSPs at this level.
+        "A 64-bit fingerprint derived from the set of LSPs at this level.
 
          The fingerprint is computed by XOR-combining a per-LSP value
-         for each LSP whose remaining lifetime is non-zero. The per-LSP
-         value is formed by placing the 16-bit LSP checksum in the
-         upper 16 bits and the 16-bit LSP sequence number in the lower
-         16 bits.
+         for each LSP whose remaining lifetime is non-zero.
 
          The fingerprint is intended for detecting potential LSDB
          synchronization differences. Different values indicate

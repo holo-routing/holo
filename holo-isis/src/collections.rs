@@ -68,7 +68,7 @@ pub struct Lsdb {
     lspid_tree: BTreeMap<LspId, LspEntryIndex>,
     next_id: ObjectId,
     lsp_count: u32,
-    fingerprint: u32,
+    fingerprint: u64,
 }
 
 // ===== impl ObjectKey =====
@@ -527,7 +527,7 @@ impl Lsdb {
         let lsp = &lse.data;
         if !lsp.is_expired() {
             self.lsp_count += 1;
-            self.fingerprint ^= (lsp.cksum as u32) << 16 | lsp.seqno;
+            self.fingerprint ^= lsp.lsdb_fingerprint_component();
         }
 
         (lse_idx, lse)
@@ -548,7 +548,7 @@ impl Lsdb {
         let lsp = &lse.data;
         if !lsp.is_expired() {
             self.lsp_count -= 1;
-            self.fingerprint ^= (lsp.cksum as u32) << 16 | lsp.seqno;
+            self.fingerprint ^= lsp.lsdb_fingerprint_component();
         }
 
         // Remove LSP entry from the arena.
@@ -712,7 +712,7 @@ impl Lsdb {
     }
 
     // Returns the database fingerprint.
-    pub(crate) fn fingerprint(&self) -> u32 {
+    pub(crate) fn fingerprint(&self) -> u64 {
         self.fingerprint
     }
 }

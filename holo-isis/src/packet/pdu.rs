@@ -1338,6 +1338,22 @@ impl Lsp {
         fletcher::calc_fletcher16(&self.raw[12..]) == 0
     }
 
+    // Returns the per-LSP contribution to the LSDB fingerprint.
+    //
+    // The value is computed from selected LSP fields and is intended to be
+    // XOR-combined with other LSP values to form a level-wide LSDB fingerprint.
+    pub(crate) fn lsdb_fingerprint_component(&self) -> u64 {
+        let mut result: u64 = 0;
+        let system_id: &[u8] = self.lsp_id.system_id.as_ref();
+        for i in system_id.iter().chain(&[self.lsp_id.pseudonode]) {
+            result <<= 8;
+            result ^= *i as u64;
+        }
+        result ^= (self.cksum as u64) << 48;
+        result ^= (self.raw.len() as u64) << 32;
+        result
+    }
+
     // Returns whether the LSP has expired (i.e., its remaining lifetime has
     // reached zero).
     pub(crate) fn is_expired(&self) -> bool {

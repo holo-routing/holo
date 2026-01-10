@@ -1292,6 +1292,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "holo-replay"
+version = "0.8.0"
+dependencies = [
+ "clap 2.34.0",
+ "holo-bfd",
+ "holo-bgp",
+ "holo-igmp",
+ "holo-isis",
+ "holo-ldp",
+ "holo-ospf",
+ "holo-protocol",
+ "holo-rip",
+ "holo-utils",
+ "holo-vrrp",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "holo-rip"
 version = "0.8.0"
 dependencies = [
@@ -1379,17 +1398,7 @@ dependencies = [
  "check_keyword",
  "clap 2.34.0",
  "convert_case",
- "holo-bfd",
- "holo-bgp",
- "holo-igmp",
- "holo-isis",
- "holo-ldp",
  "holo-northbound",
- "holo-ospf",
- "holo-protocol",
- "holo-rip",
- "holo-utils",
- "holo-vrrp",
  "holo-yang",
  "num-traits",
  "serde_json",

@@ -39,7 +39,7 @@ jobs:
       - name: Run Clippy
         run: cargo clippy
       - name: Run Clippy
-        run: cargo clippy --package holo-tools
+        run: cargo clippy -p holo-tools -p holo-replay
 
   tests_and_coverage_report:
     name: Tests and Coverage Report

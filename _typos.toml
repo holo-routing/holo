@@ -12,3 +12,4 @@ extend-exclude = [
 mis = "mis"
 parm = "parm"
 parms = "parms"
+ECT = "ECT"

@@ -22,6 +22,7 @@ use holo_utils::bfd;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::keychain::{Key, Keychains};
+use holo_utils::mac_addr::MacAddr;
 use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::{ToYang, TryFromYang};
@@ -56,6 +57,8 @@ pub enum ListEntry {
     InterfaceAddressFamily(InterfaceIndex, AddressFamily),
     InterfaceTopology(InterfaceIndex, MtId),
     InterfaceTraceOption(InterfaceIndex, InterfaceTraceOption),
+    SpbService(SpbServiceKey),
+    SpbIsid(SpbServiceKey, u32),
 }
 
 #[derive(Debug)]
@@ -126,6 +129,7 @@ pub struct InstanceCfg {
     pub att_ignore: bool,
     pub sr: InstanceSrCfg,
     pub bier: InstanceBierCfg,
+    pub spb: InstanceSpbCfg,
     pub trace_opts: InstanceTraceOptions,
 }
 
@@ -150,6 +154,32 @@ pub struct InstanceBierCfg {
     pub mt_id: u8,
     pub enabled: bool,
     pub advertise: bool,
+    pub receive: bool,
+}
+
+#[derive(Debug, Default)]
+pub struct InstanceSpbCfg {
+    pub enabled: bool,
+    pub services: BTreeMap<SpbServiceKey, SpbServiceCfg>,
+}
+
+/// Key for SPB service entries (B-MAC + Base VID).
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct SpbServiceKey {
+    pub bmac: MacAddr,
+    pub base_vid: u16,
+}
+
+/// Configuration for an SPB service entry.
+#[derive(Clone, Debug, Default)]
+pub struct SpbServiceCfg {
+    pub isids: BTreeMap<u32, SpbIsidCfg>,
+}
+
+/// Configuration for an I-SID entry.
+#[derive(Clone, Copy, Debug)]
+pub struct SpbIsidCfg {
+    pub transmit: bool,
     pub receive: bool,
 }
 
@@ -2038,7 +2068,83 @@ fn load_callbacks() -> Callbacks<Instance> {
         .modify_apply(|instance, args| {
             let receive = args.dnode.get_bool();
             instance.config.bier.receive = receive;
-       })
+        })
+        .path(isis::spb::enable::PATH)
+        .modify_apply(|instance, args| {
+            let enable = args.dnode.get_bool();
+            instance.config.spb.enabled = enable;
+        })
+        .path(isis::spb::service::PATH)
+        .create_apply(|instance, args| {
+            let bmac = args.dnode.get_mac_relative("bmac").unwrap();
+            let base_vid = args.dnode.get_u16_relative("base-vid").unwrap();
+            let key = SpbServiceKey { bmac, base_vid };
+            instance
+                .config
+                .spb
+                .services
+                .insert(key, SpbServiceCfg::default());
+        })
+        .delete_apply(|instance, args| {
+            let svc_key = args.list_entry.into_spb_service().unwrap();
+            instance.config.spb.services.remove(&svc_key);
+        })
+        .lookup(|_instance, _list_entry, dnode| {
+            let bmac = dnode.get_mac_relative("bmac").unwrap();
+            let base_vid = dnode.get_u16_relative("base-vid").unwrap();
+            let key = SpbServiceKey { bmac, base_vid };
+            ListEntry::SpbService(key)
+        })
+        .path(isis::spb::service::isid::PATH)
+        .create_apply(|instance, args| {
+            let svc_key = args.list_entry.as_spb_service().unwrap().clone();
+            let isid = args.dnode.get_u32_relative("value").unwrap();
+            if let Some(service) = instance.config.spb.services.get_mut(&svc_key)
+            {
+                service.isids.insert(isid, SpbIsidCfg::default());
+            }
+        })
+        .delete_apply(|instance, args| {
+            let (svc_key, isid) = args.list_entry.as_spb_isid().unwrap();
+            if let Some(service) =
+                instance.config.spb.services.get_mut(svc_key)
+            {
+                service.isids.remove(isid);
+            }
+        })
+        .lookup(|_instance, list_entry, dnode| {
+            let svc_key = list_entry.as_spb_service().unwrap().clone();
+            let isid = dnode.get_u32_relative("value").unwrap();
+            ListEntry::SpbIsid(svc_key, isid)
+        })
+        .path(isis::spb::service::isid::transmit::PATH)
+        .modify_apply(|instance, args| {
+            let (svc_key, isid) = args.list_entry.as_spb_isid().unwrap();
+            let transmit = args.dnode.get_bool();
+            if let Some(isid_cfg) = instance
+                .config
+                .spb
+                .services
+                .get_mut(svc_key)
+                .and_then(|service| service.isids.get_mut(isid))
+            {
+                isid_cfg.transmit = transmit;
+            }
+        })
+        .path(isis::spb::service::isid::receive::PATH)
+        .modify_apply(|instance, args| {
+            let (svc_key, isid) = args.list_entry.as_spb_isid().unwrap();
+            let receive = args.dnode.get_bool();
+            if let Some(isid_cfg) = instance
+                .config
+                .spb
+                .services
+                .get_mut(svc_key)
+                .and_then(|service| service.isids.get_mut(isid))
+            {
+                isid_cfg.receive = receive;
+            }
+        })
         .path(isis::segment_routing::enabled::PATH)
         .modify_apply(|instance, args| {
             let enabled = args.dnode.get_bool();
@@ -2654,6 +2760,7 @@ impl Default for InstanceCfg {
             att_ignore,
             sr: Default::default(),
             bier: Default::default(),
+            spb: Default::default(),
             trace_opts: Default::default(),
         }
     }
@@ -2703,6 +2810,14 @@ impl Default for InstanceBierCfg {
             advertise,
             receive,
         }
+    }
+}
+
+impl Default for SpbIsidCfg {
+    fn default() -> Self {
+        let transmit = isis::spb::service::isid::transmit::DFLT;
+        let receive = isis::spb::service::isid::receive::DFLT;
+        Self { transmit, receive }
     }
 }
 

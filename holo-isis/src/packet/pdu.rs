@@ -38,10 +38,10 @@ use crate::packet::tlv::{
     Ipv4RouterIdTlv, Ipv6AddressesTlv, Ipv6Reach, Ipv6ReachTlv,
     Ipv6RouterIdTlv, IsReach, IsReachTlv, LegacyIpv4Reach, LegacyIpv4ReachTlv,
     LegacyIsReach, LegacyIsReachTlv, LspBufferSizeTlv, LspEntriesTlv, LspEntry,
-    MtFlags, MultiTopologyEntry, MultiTopologyTlv, NeighborsTlv, PaddingTlv,
-    ProtocolsSupportedTlv, PurgeOriginatorIdTlv, RouterCapTlv, TLV_HDR_SIZE,
-    TLV_MAX_LEN, ThreeWayAdjTlv, Tlv, UnknownTlv, tlv_entries_split,
-    tlv_take_max,
+    MtCapabilityTlv, MtFlags, MultiTopologyEntry, MultiTopologyTlv,
+    NeighborsTlv, PaddingTlv, ProtocolsSupportedTlv, PurgeOriginatorIdTlv,
+    RouterCapTlv, TLV_HDR_SIZE, TLV_MAX_LEN, ThreeWayAdjTlv, Tlv, UnknownTlv,
+    tlv_entries_split, tlv_take_max,
 };
 use crate::packet::{
     AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId, auth,
@@ -153,6 +153,7 @@ pub struct LspTlvs {
     pub auth: Option<AuthenticationTlv>,
     pub protocols_supported: Option<ProtocolsSupportedTlv>,
     pub router_cap: Vec<RouterCapTlv>,
+    pub mt_cap: Vec<MtCapabilityTlv>,
     pub area_addrs: Vec<AreaAddressesTlv>,
     pub multi_topology: Vec<MultiTopologyTlv>,
     pub purge_originator_id: Option<PurgeOriginatorIdTlv>,
@@ -1164,6 +1165,12 @@ impl Lsp {
                         Err(error) => error.log(),
                     }
                 }
+                Some(TlvType::MtCapability) => {
+                    match MtCapabilityTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.mt_cap.push(tlv),
+                        Err(error) => error.log(),
+                    }
+                }
                 _ => {
                     // Save unknown top-level TLV.
                     tlvs.unknown
@@ -1222,6 +1229,9 @@ impl Lsp {
                 tlv.encode(&mut buf);
             }
             for tlv in &self.tlvs.router_cap {
+                tlv.encode(&mut buf);
+            }
+            for tlv in &self.tlvs.mt_cap {
                 tlv.encode(&mut buf);
             }
             for tlv in &self.tlvs.area_addrs {
@@ -1417,6 +1427,7 @@ impl LspTlvs {
     pub(crate) fn new(
         protocols_supported: impl IntoIterator<Item = u8>,
         router_cap: Vec<RouterCapTlv>,
+        mt_cap: Vec<MtCapabilityTlv>,
         area_addrs: impl IntoIterator<Item = AreaAddr>,
         multi_topology: impl IntoIterator<Item = MultiTopologyEntry>,
         hostname: Option<String>,
@@ -1441,6 +1452,7 @@ impl LspTlvs {
                 protocols_supported,
             )),
             router_cap,
+            mt_cap,
             area_addrs: tlv_entries_split(area_addrs),
             multi_topology: tlv_entries_split(multi_topology),
             purge_originator_id: None,
@@ -1482,6 +1494,7 @@ impl LspTlvs {
             rem_len -= protocols_supported.len();
         }
         let router_cap = tlv_take_max(&mut self.router_cap, &mut rem_len);
+        let mt_cap = tlv_take_max(&mut self.mt_cap, &mut rem_len);
         let area_addrs = tlv_take_max(&mut self.area_addrs, &mut rem_len);
         let multi_topology =
             tlv_take_max(&mut self.multi_topology, &mut rem_len);
@@ -1523,6 +1536,7 @@ impl LspTlvs {
             auth: None,
             protocols_supported,
             router_cap,
+            mt_cap,
             area_addrs,
             multi_topology,
             purge_originator_id: None,

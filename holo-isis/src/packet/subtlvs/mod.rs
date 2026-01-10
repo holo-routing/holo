@@ -10,6 +10,7 @@
 pub mod capability;
 pub mod neighbor;
 pub mod prefix;
+pub mod spb;
 
 use std::collections::BTreeMap;
 

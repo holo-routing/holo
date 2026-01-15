@@ -583,7 +583,7 @@ impl Hello {
 
         // Parse PDU length.
         let pdu_len = buf.try_get_u16()?;
-        if pdu_len != buf_orig.len() as u16 {
+        if pdu_len > buf_orig.len() as u16 {
             return Err(DecodeError::InvalidPduLength(pdu_len));
         }
 
@@ -959,7 +959,7 @@ impl Lsp {
     ) -> DecodeResult<Self> {
         // Parse PDU length.
         let pdu_len = buf.try_get_u16()?;
-        if pdu_len != buf_orig.len() as u16 {
+        if pdu_len > buf_orig.len() as u16 {
             return Err(DecodeError::InvalidPduLength(pdu_len));
         }
 
@@ -1839,7 +1839,7 @@ impl Snp {
     ) -> DecodeResult<Self> {
         // Parse PDU length.
         let pdu_len = buf.try_get_u16()?;
-        if pdu_len != buf_orig.len() as u16 {
+        if pdu_len > buf_orig.len() as u16 {
             return Err(DecodeError::InvalidPduLength(pdu_len));
         }
 

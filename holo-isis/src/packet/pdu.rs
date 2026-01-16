@@ -1611,6 +1611,7 @@ impl LspTlvs {
 
         self.protocols_supported.is_none()
             && self.router_cap.is_empty()
+            && self.mt_cap.is_empty()
             && self.area_addrs.is_empty()
             && self.multi_topology.is_empty()
             && self.lsp_buf_size.is_none()

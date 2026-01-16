@@ -3,7 +3,7 @@ ARG HOLO_CLI_IMAGE=ghcr.io/holo-routing/holo-cli:latest
 ARG HOLOD_IMAGE=ghcr.io/holo-routing/holod:latest
 
 # Use CLI image to extract the holo-cli binary
-FROM ${HOLO_CLI_IMAGE} as holo_cli
+FROM ${HOLO_CLI_IMAGE} AS holo_cli
 
 # Base image containing holod
 FROM ${HOLOD_IMAGE}

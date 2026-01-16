@@ -1479,12 +1479,24 @@ pub(crate) fn install<'a>(
         if let Some(hostname) = lsp.tlvs.hostname()
             && lsp.rem_lifetime != 0
         {
-            instance
-                .state
-                .hostnames
-                .insert(system_id, hostname.to_owned());
-        } else {
-            instance.state.hostnames.remove(&system_id);
+            let mut update = false;
+            match instance.state.hostnames.entry(system_id) {
+                btree_map::Entry::Vacant(entry) => {
+                    entry.insert(hostname.to_owned());
+                    update = true;
+                }
+                btree_map::Entry::Occupied(mut entry) => {
+                    if entry.get() != hostname {
+                        entry.insert(hostname.to_owned());
+                        update = true;
+                    }
+                }
+            }
+            if update {
+                Debug::HostnameUpdate(system_id, hostname).log();
+            }
+        } else if instance.state.hostnames.remove(&system_id).is_some() {
+            Debug::HostnameRemove(system_id).log();
         }
     }
 

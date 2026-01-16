@@ -20,8 +20,8 @@ use tracing::{debug, debug_span};
 use crate::adjacency::{Adjacency, AdjacencyEvent, AdjacencyState};
 use crate::interface::{DisCandidate, Interface, InterfaceType};
 use crate::network::MulticastAddr;
-use crate::packet::LevelNumber;
 use crate::packet::pdu::{Lsp, Pdu};
+use crate::packet::{LevelNumber, SystemId};
 use crate::spf;
 use crate::spf::{SpfType, Vertex, VertexEdge};
 
@@ -58,6 +58,9 @@ pub enum Debug<'a> {
     LspPurge(LevelNumber, &'a Lsp, LspPurgeReason),
     LspDelete(LevelNumber, &'a Lsp),
     LspRefresh(LevelNumber, &'a Lsp),
+    // Hostnames
+    HostnameUpdate(SystemId, &'a str),
+    HostnameRemove(SystemId),
     // SPF
     SpfDelayFsmEvent(spf::fsm::State, spf::fsm::Event),
     SpfDelayFsmTransition(spf::fsm::State, spf::fsm::State),
@@ -192,6 +195,14 @@ impl Debug<'_> {
                 // Parent span(s): isis-instance
                 debug!(interface = %iface.name, %level, lsp_id = %lsp.lsp_id.to_yang(), len = %lsp.raw.len(), "{}", self);
             }
+            Debug::HostnameUpdate(system_id, hostname) => {
+                // Parent span(s): isis-instance
+                debug!(system_id = %system_id.to_yang(), %hostname, "{}", self);
+            }
+            Debug::HostnameRemove(system_id) => {
+                // Parent span(s): isis-instance
+                debug!(system_id = %system_id.to_yang(), "{}", self);
+            }
             Debug::FloodDecision(level, lsp, iface, suppress) => {
                 // Parent span(s): isis-instance
                 debug!(%level, lsp_id = %lsp.lsp_id.to_yang(), interface = %iface.name, %suppress, "{}", self);
@@ -312,6 +323,12 @@ impl std::fmt::Display for Debug<'_> {
             }
             Debug::LspRefresh(..) => {
                 write!(f, "refreshing LSP")
+            }
+            Debug::HostnameUpdate(..) => {
+                write!(f, "updating hostname mapping")
+            }
+            Debug::HostnameRemove(..) => {
+                write!(f, "removing hostname mapping")
             }
             Debug::SpfDelayFsmEvent(..) => {
                 write!(f, "delay FSM event")

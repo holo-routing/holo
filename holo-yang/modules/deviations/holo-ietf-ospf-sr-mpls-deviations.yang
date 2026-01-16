@@ -58,10 +58,6 @@ module holo-ietf-ospf-sr-mpls-deviations {
     deviate not-supported;
   }
 
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf-sr-mpls:segment-routing/ospf-sr-mpls:enabled" {
-    deviate not-supported;
-  }
-
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:neighbors/ospf:neighbor/ospf-sr-mpls:adjacency-sid" {
     deviate not-supported;
   }

@@ -101,8 +101,8 @@ static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-isis@2022-10-19.yang"),
         EmbeddedModuleKey::new("ietf-isis-msd", Some("2024-09-02"), None, None) =>
             include_str!("../modules/ietf/ietf-isis-msd@2024-09-02.yang"),
-        EmbeddedModuleKey::new("ietf-isis-sr-mpls", Some("2025-05-05"), None, None) =>
-            include_str!("../modules/ietf/ietf-isis-sr-mpls@2025-05-05.yang"),
+        EmbeddedModuleKey::new("ietf-isis-sr-mpls", Some("2025-12-09"), None, None) =>
+            include_str!("../modules/ietf/ietf-isis-sr-mpls@2025-12-09.yang"),
         EmbeddedModuleKey::new("ietf-key-chain", Some("2017-06-15"), None, None) =>
             include_str!("../modules/ietf/ietf-key-chain@2017-06-15.yang"),
         EmbeddedModuleKey::new("ietf-mpls", Some("2020-12-18"), None, None) =>
@@ -115,8 +115,8 @@ static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-netconf-acm@2018-02-14.yang"),
         EmbeddedModuleKey::new("ietf-ospf", Some("2022-10-19"), None, None) =>
             include_str!("../modules/ietf/ietf-ospf@2022-10-19.yang"),
-        EmbeddedModuleKey::new("ietf-ospf-sr-mpls", Some("2025-05-05"), None, None) =>
-            include_str!("../modules/ietf/ietf-ospf-sr-mpls@2025-05-05.yang"),
+        EmbeddedModuleKey::new("ietf-ospf-sr-mpls", Some("2025-12-09"), None, None) =>
+            include_str!("../modules/ietf/ietf-ospf-sr-mpls@2025-12-09.yang"),
         EmbeddedModuleKey::new("ietf-ospfv3-extended-lsa", Some("2024-06-07"), None, None) =>
             include_str!("../modules/ietf/ietf-ospfv3-extended-lsa@2024-06-07.yang"),
         EmbeddedModuleKey::new("ietf-packet-fields", Some("2019-03-04"), None, None) =>

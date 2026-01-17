@@ -582,10 +582,7 @@ impl Hello {
         }
 
         // Parse PDU length.
-        let pdu_len = buf.try_get_u16()?;
-        if pdu_len > buf_orig.len() as u16 {
-            return Err(DecodeError::InvalidPduLength(hdr.pdu_type, pdu_len));
-        }
+        let _pdu_len = decode_pdu_length(&hdr, buf, &buf_orig)?;
 
         // Parse custom fields.
         let variant = if hdr.pdu_type == PduType::HelloP2P {
@@ -963,10 +960,7 @@ impl Lsp {
         auth: Option<&AuthMethod>,
     ) -> DecodeResult<Self> {
         // Parse PDU length.
-        let pdu_len = buf.try_get_u16()?;
-        if pdu_len > buf_orig.len() as u16 {
-            return Err(DecodeError::InvalidPduLength(hdr.pdu_type, pdu_len));
-        }
+        let pdu_len = decode_pdu_length(&hdr, buf, &buf_orig)?;
 
         // Parse remaining lifetime.
         let rem_lifetime = buf.try_get_u16()?;
@@ -1849,10 +1843,7 @@ impl Snp {
         auth: Option<&AuthMethod>,
     ) -> DecodeResult<Self> {
         // Parse PDU length.
-        let pdu_len = buf.try_get_u16()?;
-        if pdu_len > buf_orig.len() as u16 {
-            return Err(DecodeError::InvalidPduLength(hdr.pdu_type, pdu_len));
-        }
+        let _pdu_len = decode_pdu_length(&hdr, buf, &buf_orig)?;
 
         // Parse source ID.
         let source = LanId::decode(buf)?;
@@ -2051,6 +2042,27 @@ fn lsp_base_time() -> Option<Instant> {
     {
         None
     }
+}
+
+fn decode_pdu_length(
+    hdr: &Header,
+    buf: &mut Bytes,
+    buf_orig: &BytesMut,
+) -> DecodeResult<u16> {
+    let pdu_len = buf.try_get_u16()?;
+
+    // Reject PDUs that extend beyond the input buffer.
+    if pdu_len > buf_orig.len() as u16 {
+        return Err(DecodeError::InvalidPduLength(hdr.pdu_type, pdu_len));
+    }
+
+    // Trim any trailing bytes beyond the PDU length (e.g. Ethernet padding).
+    if pdu_len < buf_orig.len() as u16 {
+        let eth_padding = buf_orig.len() - pdu_len as usize;
+        buf.truncate(buf.len() - eth_padding);
+    }
+
+    Ok(pdu_len)
 }
 
 fn pdu_encode_start<'a>(

@@ -9,7 +9,9 @@
 
 use bytes::TryGetError;
 use serde::{Deserialize, Serialize};
-use tracing::warn;
+use tracing::{Span, warn};
+
+use crate::packet::consts::PduType;
 
 // Type aliases.
 pub type DecodeResult<T> = Result<T, DecodeError>;
@@ -26,8 +28,14 @@ pub enum DecodeError {
     InvalidVersion(u8),
     InvalidIdLength(u8),
     UnknownPduType(u8),
-    InvalidPduLength(u16),
-    InvalidTlvLength(u8),
+    InvalidPduLength(PduType, u16),
+    InvalidTlvLength {
+        #[serde(skip)]
+        span: Option<Span>,
+        tlv_type: u8,
+        tlv_len: u8,
+        remaining: usize,
+    },
     AuthTypeMismatch,
     AuthKeyNotFound,
     AuthError,
@@ -54,6 +62,64 @@ pub enum TlvDecodeError {
 
 // ===== impl DecodeError =====
 
+impl DecodeError {
+    pub(crate) fn log(&self) {
+        match self {
+            DecodeError::ReadOutOfBounds => {
+                warn!("{}", self);
+            }
+            DecodeError::IncompletePdu => {
+                warn!("{}", self);
+            }
+            DecodeError::InvalidHeaderLength(hdr_len) => {
+                warn!(%hdr_len, "{}", self);
+            }
+            DecodeError::InvalidIrdpDiscriminator(discriminator) => {
+                warn!(%discriminator, "{}", self);
+            }
+            DecodeError::InvalidVersion(version) => {
+                warn!(%version, "{}", self);
+            }
+            DecodeError::InvalidIdLength(id_len) => {
+                warn!(%id_len, "{}", self);
+            }
+            DecodeError::UnknownPduType(pdu_type) => {
+                warn!(%pdu_type, "{}", self);
+            }
+            DecodeError::InvalidPduLength(pdu_type, pdu_len) => {
+                warn!(?pdu_type, %pdu_len, "{}", self);
+            }
+            DecodeError::InvalidTlvLength {
+                span,
+                tlv_type,
+                tlv_len,
+                remaining,
+            } => {
+                let _span_guard = span.as_ref().map(|span| span.enter());
+                warn!(tlv_type, tlv_len, remaining, "{}", self);
+            }
+            DecodeError::AuthTypeMismatch => {
+                warn!("{}", self);
+            }
+            DecodeError::AuthKeyNotFound => {
+                warn!("{}", self);
+            }
+            DecodeError::AuthError => {
+                warn!("{}", self);
+            }
+            DecodeError::MultipleEsnTlvs => {
+                warn!("{}", self);
+            }
+            DecodeError::InvalidHelloCircuitType(circuit_type) => {
+                warn!(%circuit_type, "{}", self);
+            }
+            DecodeError::InvalidHelloHoldtime(holdtime) => {
+                warn!(%holdtime, "{}", self);
+            }
+        }
+    }
+}
+
 impl std::fmt::Display for DecodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -63,26 +129,26 @@ impl std::fmt::Display for DecodeError {
             DecodeError::IncompletePdu => {
                 write!(f, "incomplete PDU")
             }
-            DecodeError::InvalidHeaderLength(hdr_len) => {
-                write!(f, "invalid header length: {hdr_len}")
+            DecodeError::InvalidHeaderLength(..) => {
+                write!(f, "invalid header length")
             }
-            DecodeError::InvalidIrdpDiscriminator(discriminator) => {
-                write!(f, "invalid IDRP discriminator: {discriminator}")
+            DecodeError::InvalidIrdpDiscriminator(..) => {
+                write!(f, "invalid IDRP discriminator")
             }
-            DecodeError::InvalidVersion(version) => {
-                write!(f, "invalid version: {version}")
+            DecodeError::InvalidVersion(..) => {
+                write!(f, "invalid version")
             }
-            DecodeError::InvalidIdLength(id_len) => {
-                write!(f, "invalid ID length: {id_len}")
+            DecodeError::InvalidIdLength(..) => {
+                write!(f, "invalid ID length")
             }
-            DecodeError::UnknownPduType(pdu_type) => {
-                write!(f, "unknown PDU type: {pdu_type}")
+            DecodeError::UnknownPduType(..) => {
+                write!(f, "unknown PDU type")
             }
-            DecodeError::InvalidPduLength(pdu_len) => {
-                write!(f, "invalid PDU length: {pdu_len}")
+            DecodeError::InvalidPduLength(..) => {
+                write!(f, "invalid PDU length")
             }
-            DecodeError::InvalidTlvLength(tlv_len) => {
-                write!(f, "invalid TLV length: {tlv_len}")
+            DecodeError::InvalidTlvLength { .. } => {
+                write!(f, "invalid TLV length")
             }
             DecodeError::AuthTypeMismatch => {
                 write!(f, "authentication type mismatch")
@@ -96,11 +162,11 @@ impl std::fmt::Display for DecodeError {
             DecodeError::MultipleEsnTlvs => {
                 write!(f, "multiple ESN TLVs")
             }
-            DecodeError::InvalidHelloCircuitType(circuit_type) => {
-                write!(f, "invalid hello circuit type: {circuit_type}")
+            DecodeError::InvalidHelloCircuitType(..) => {
+                write!(f, "invalid hello circuit type")
             }
-            DecodeError::InvalidHelloHoldtime(holdtime) => {
-                write!(f, "invalid hello holdtime: {holdtime}")
+            DecodeError::InvalidHelloHoldtime(..) => {
+                write!(f, "invalid hello holdtime")
             }
         }
     }

@@ -21,7 +21,7 @@ use holo_utils::mac_addr::MacAddr;
 use holo_yang::ToYang;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
-use tracing::debug_span;
+use tracing::{Span, warn_span};
 
 use crate::packet::auth::AuthMethod;
 use crate::packet::consts::{
@@ -584,7 +584,7 @@ impl Hello {
         // Parse PDU length.
         let pdu_len = buf.try_get_u16()?;
         if pdu_len > buf_orig.len() as u16 {
-            return Err(DecodeError::InvalidPduLength(pdu_len));
+            return Err(DecodeError::InvalidPduLength(hdr.pdu_type, pdu_len));
         }
 
         // Parse custom fields.
@@ -603,7 +603,7 @@ impl Hello {
         };
 
         // Parse top-level TLVs.
-        let span = debug_span!("Hello", source = %source.to_yang());
+        let span = warn_span!("Hello", source = %source.to_yang());
         let _span_guard = span.enter();
         let mut tlvs = HelloTlvs::default();
         let mut tlv_auth = None;
@@ -615,11 +615,16 @@ impl Hello {
             // Parse and validate TLV length.
             let tlv_len = buf.try_get_u8()?;
             if tlv_len as usize > buf.remaining() {
-                return Err(DecodeError::InvalidTlvLength(tlv_len));
+                return Err(DecodeError::InvalidTlvLength {
+                    span: Some(Span::current()),
+                    tlv_type,
+                    tlv_len,
+                    remaining: buf.remaining(),
+                });
             }
 
             // Parse TLV value.
-            let span = debug_span!("TLV", r#type = tlv_type, length = tlv_len);
+            let span = warn_span!("TLV", r#type = tlv_type, length = tlv_len);
             let _span_guard = span.enter();
             let tlv_offset = buf_orig.len() - buf.remaining();
             let mut buf_tlv = buf.copy_to_bytes(tlv_len as usize);
@@ -960,7 +965,7 @@ impl Lsp {
         // Parse PDU length.
         let pdu_len = buf.try_get_u16()?;
         if pdu_len > buf_orig.len() as u16 {
-            return Err(DecodeError::InvalidPduLength(pdu_len));
+            return Err(DecodeError::InvalidPduLength(hdr.pdu_type, pdu_len));
         }
 
         // Parse remaining lifetime.
@@ -980,7 +985,8 @@ impl Lsp {
         let flags = LspFlags::from_bits_truncate(flags);
 
         // Parse top-level TLVs.
-        let span = debug_span!("LSP", lsp_id = %lsp_id.to_yang(), seqno);
+        let span =
+            warn_span!("LSP", lsp_id = %lsp_id.to_yang(), seqno, pdu_len);
         let _span_guard = span.enter();
         let mut tlvs = LspTlvs::default();
         let mut tlv_auth = None;
@@ -992,11 +998,16 @@ impl Lsp {
             // Parse and validate TLV length.
             let tlv_len = buf.try_get_u8()?;
             if tlv_len as usize > buf.remaining() {
-                return Err(DecodeError::InvalidTlvLength(tlv_len));
+                return Err(DecodeError::InvalidTlvLength {
+                    span: Some(Span::current()),
+                    tlv_type,
+                    tlv_len,
+                    remaining: buf.remaining(),
+                });
             }
 
             // Parse TLV value.
-            let span = debug_span!("TLV", r#type = tlv_type, length = tlv_len);
+            let span = warn_span!("TLV", r#type = tlv_type, length = tlv_len);
             let _span_guard = span.enter();
             let tlv_offset = buf_orig.len() - buf.remaining();
             let mut buf_tlv = buf.copy_to_bytes(tlv_len as usize);
@@ -1840,7 +1851,7 @@ impl Snp {
         // Parse PDU length.
         let pdu_len = buf.try_get_u16()?;
         if pdu_len > buf_orig.len() as u16 {
-            return Err(DecodeError::InvalidPduLength(pdu_len));
+            return Err(DecodeError::InvalidPduLength(hdr.pdu_type, pdu_len));
         }
 
         // Parse source ID.
@@ -1855,7 +1866,7 @@ impl Snp {
         }
 
         // Parse top-level TLVs.
-        let span = debug_span!("SNP", source = %source.to_yang());
+        let span = warn_span!("SNP", source = %source.to_yang());
         let _span_guard = span.enter();
         let mut tlvs = SnpTlvs::default();
         let mut tlv_auth = None;
@@ -1867,11 +1878,16 @@ impl Snp {
             // Parse and validate TLV length.
             let tlv_len = buf.try_get_u8()?;
             if tlv_len as usize > buf.remaining() {
-                return Err(DecodeError::InvalidTlvLength(tlv_len));
+                return Err(DecodeError::InvalidTlvLength {
+                    span: Some(Span::current()),
+                    tlv_type,
+                    tlv_len,
+                    remaining: buf.remaining(),
+                });
             }
 
             // Parse TLV value.
-            let span = debug_span!("TLV", r#type = tlv_type, length = tlv_len);
+            let span = warn_span!("TLV", r#type = tlv_type, length = tlv_len);
             let _span_guard = span.enter();
             let tlv_offset = buf_orig.len() - buf.remaining();
             let mut buf_tlv = buf.copy_to_bytes(tlv_len as usize);

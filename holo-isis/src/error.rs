@@ -269,7 +269,7 @@ impl PduInputError {
     fn log(&self) {
         match self {
             PduInputError::DecodeError(error) => {
-                warn!("{}", error);
+                error.log();
             }
             PduInputError::AdjacencyReject(error) => {
                 error.log();

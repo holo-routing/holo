@@ -11,11 +11,9 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use derive_new::new;
 use holo_northbound::configuration::{
-    CommitPhase, ConfigChange, ValidationCallbacks,
+    CallbackKey, CallbackOp, CommitPhase, ConfigChange, ValidationCallbacks,
 };
-use holo_northbound::{
-    CallbackKey, CallbackOp, NbDaemonSender, NbProviderReceiver, api as papi,
-};
+use holo_northbound::{NbDaemonSender, NbProviderReceiver, api as papi};
 use holo_protocol::InstanceShared;
 use holo_utils::task::{Task, TimeoutTask};
 use holo_utils::yang::{ContextExt, SchemaNodeExt};
@@ -798,16 +796,13 @@ fn validate_callbacks(
         .filter(|snode| snode.module().name() != "ietf-yang-schema-mount")
         .filter(|snode| snode.is_status_current())
     {
+        let path = snode.data_path();
         for operation in [
             CallbackOp::Create,
             CallbackOp::Modify,
             CallbackOp::Delete,
             CallbackOp::Lookup,
-            CallbackOp::Rpc,
-            CallbackOp::GetIterate,
-            CallbackOp::GetObject,
         ] {
-            let path = snode.data_path();
             if operation.is_valid(&snode) {
                 let cb_key = CallbackKey::new(path.clone(), operation);
                 if callbacks.get(&cb_key).is_none() {

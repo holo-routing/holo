@@ -9,14 +9,12 @@ use std::net::IpAddr;
 use std::sync::LazyLock as Lazy;
 
 use enum_as_inner::EnumAsInner;
-use holo_northbound::configuration::{self, Callbacks, CallbacksBuilder, ConfigChanges, Provider, ValidationCallbacks, ValidationCallbacksBuilder};
-use holo_northbound::{CallbackKey, NbDaemonSender};
-use holo_protocol::spawn_protocol_task;
+use holo_northbound::NbDaemonSender;
+use holo_northbound::configuration::{self, CallbackKey, Callbacks, CallbacksBuilder, ConfigChanges, Provider, ValidationCallbacks, ValidationCallbacksBuilder};
 use holo_utils::yang::DataNodeRefExt;
 use ipnetwork::IpNetwork;
-use tokio::sync::mpsc;
 
-use crate::interface::{Owner, VrrpHandle};
+use crate::interface::Owner;
 use crate::northbound::REGEX_VRRP;
 use crate::northbound::yang_gen::interfaces;
 use crate::{Master, netlink};
@@ -43,6 +41,7 @@ pub enum Event {
     VlanCreate(String, u16),
     AddressInstall(String, IpAddr, u8),
     AddressUninstall(String, IpAddr, u8),
+    #[cfg(feature = "vrrp")]
     VrrpStart(String),
 }
 
@@ -66,8 +65,11 @@ fn load_callbacks() -> Callbacks<Master> {
             let ifname = args.dnode.get_string_relative("./name").unwrap();
             master.interfaces.add(ifname.clone());
 
-            let event_queue = args.event_queue;
-            event_queue.insert(Event::VrrpStart(ifname));
+            #[cfg(feature = "vrrp")]
+            {
+                let event_queue = args.event_queue;
+                event_queue.insert(Event::VrrpStart(ifname));
+            }
 
             Ok(())
         })
@@ -380,15 +382,18 @@ impl Provider for Master {
                     netlink::addr_uninstall(&self.netlink_tx, ifindex, &addr);
                 }
             }
+            #[cfg(feature = "vrrp")]
             Event::VrrpStart(ifname) => {
-                #[cfg(feature = "vrrp")]
-                {
-                    if let Some(iface) = self.interfaces.get_mut_by_name(&ifname) {
-                        let (ibus_instance_tx, ibus_instance_rx) = mpsc::unbounded_channel();
-                        let nb_daemon_tx = spawn_protocol_task::<holo_vrrp::interface::Interface>(ifname, &self.nb_tx, &self.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), self.shared.clone());
-                        let vrrp = VrrpHandle::new(nb_daemon_tx, ibus_instance_tx);
-                        iface.vrrp = Some(vrrp);
-                    }
+                use holo_protocol::spawn_protocol_task;
+                use tokio::sync::mpsc;
+
+                use crate::interface::VrrpHandle;
+
+                if let Some(iface) = self.interfaces.get_mut_by_name(&ifname) {
+                    let (ibus_instance_tx, ibus_instance_rx) = mpsc::unbounded_channel();
+                    let nb_daemon_tx = spawn_protocol_task::<holo_vrrp::interface::Interface>(ifname, &self.nb_tx, &self.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), self.shared.clone());
+                    let vrrp = VrrpHandle::new(nb_daemon_tx, ibus_instance_tx);
+                    iface.vrrp = Some(vrrp);
                 }
             }
         }

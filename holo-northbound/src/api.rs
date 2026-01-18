@@ -11,8 +11,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot::Sender as Responder;
 use yang4::data::DataTree;
 
-use crate::CallbackKey;
-use crate::configuration::{CommitPhase, ConfigChanges};
+use crate::configuration::{CallbackKey, CommitPhase, ConfigChanges};
 use crate::error::Error;
 
 // Daemon -> Provider requests.

@@ -4,54 +4,20 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::sync::LazyLock as Lazy;
-
-use holo_northbound::rpc::{Callbacks, CallbacksBuilder, Provider};
-use holo_northbound::{CallbackKey, NbDaemonSender};
+use holo_northbound::NbDaemonSender;
+use holo_northbound::rpc::{Provider, YangOps};
 use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
 use yang4::data::DataNodeRef;
 
 use crate::Master;
+use crate::northbound::yang_gen;
 use crate::northbound::yang_gen::control_plane_protocol;
 
-pub static CALLBACKS: Lazy<Callbacks<Master>> = Lazy::new(load_callbacks);
-
-// ===== callbacks =====
-
-fn load_callbacks() -> Callbacks<Master> {
-    CallbacksBuilder::<Master>::default().build()
-}
-
-// ===== impl Master =====
-
 impl Provider for Master {
-    fn callbacks() -> &'static Callbacks<Master> {
-        &CALLBACKS
-    }
+    const YANG_OPS: YangOps<Self> = yang_gen::ops::YANG_OPS_RPC;
 
-    fn nested_callbacks() -> Option<Vec<CallbackKey>> {
-        let keys: Vec<Vec<CallbackKey>> = vec![
-            #[cfg(feature = "bgp")]
-            holo_bgp::northbound::rpc::CALLBACKS.keys(),
-            #[cfg(feature = "isis")]
-            holo_isis::northbound::rpc::CALLBACKS.keys(),
-            #[cfg(feature = "ldp")]
-            holo_ldp::northbound::rpc::CALLBACKS.keys(),
-            #[cfg(feature = "ospf")]
-            holo_ospf::northbound::rpc::CALLBACKS_OSPFV2.keys(),
-            #[cfg(feature = "ospf")]
-            holo_ospf::northbound::rpc::CALLBACKS_OSPFV3.keys(),
-            #[cfg(feature = "rip")]
-            holo_rip::northbound::rpc::CALLBACKS_RIPV2.keys(),
-            #[cfg(feature = "rip")]
-            holo_rip::northbound::rpc::CALLBACKS_RIPNG.keys(),
-        ];
-
-        Some(keys.concat())
-    }
-
-    fn relay_rpc(&self, rpc: DataNodeRef<'_>) -> Result<Option<Vec<NbDaemonSender>>, String> {
+    fn relay_rpc(&self, rpc: &DataNodeRef<'_>) -> Result<Option<Vec<NbDaemonSender>>, String> {
         let (protocol, name) = find_instance(rpc)?;
 
         let mut child_tasks = vec![];
@@ -80,7 +46,7 @@ impl Provider for Master {
 // Using top-level RPCs in the IETF IGP modules was a mistake, since there's no
 // easy way to identify the protocol type and name. YANG actions would greatly
 // simplify this.
-fn find_instance(rpc: DataNodeRef<'_>) -> Result<(Protocol, Option<String>), String> {
+fn find_instance(rpc: &DataNodeRef<'_>) -> Result<(Protocol, Option<String>), String> {
     let (protocol, name) = match rpc.schema().module().name() {
         "ietf-bgp" => {
             let protocol = Protocol::BGP;

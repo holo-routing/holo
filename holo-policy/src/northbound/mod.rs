@@ -16,7 +16,12 @@ use crate::Master;
 #[allow(unused_imports, unused_variables)]
 #[allow(clippy::module_inception)]
 pub mod yang_gen {
-    include!(concat!(env!("OUT_DIR"), "/yang_gen.rs"));
+    include!(concat!(env!("OUT_DIR"), "/yang_objects.rs"));
+    pub mod ops {
+        use crate::Master;
+        type Provider = Master;
+        include!(concat!(env!("OUT_DIR"), "/yang_ops.rs"));
+    }
 }
 
 // ===== impl Master =====

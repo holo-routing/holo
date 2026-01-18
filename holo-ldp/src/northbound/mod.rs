@@ -20,8 +20,14 @@ use crate::instance::Instance;
 #[allow(unused_imports, unused_variables)]
 #[allow(clippy::module_inception)]
 pub mod yang_gen {
-    pub use crate::northbound::yang_gen::routing::control_plane_protocols::control_plane_protocol::mpls_ldp;
-    include!(concat!(env!("OUT_DIR"), "/yang_gen.rs"));
+    pub use routing::control_plane_protocols::control_plane_protocol::mpls_ldp;
+
+    include!(concat!(env!("OUT_DIR"), "/yang_objects.rs"));
+    pub mod ops {
+        use crate::instance::Instance;
+        type Provider = Instance;
+        include!(concat!(env!("OUT_DIR"), "/yang_ops.rs"));
+    }
 }
 
 // ===== impl Instance =====

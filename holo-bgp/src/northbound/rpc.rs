@@ -4,16 +4,16 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::sync::LazyLock as Lazy;
-
-use holo_northbound::rpc::{Callbacks, CallbacksBuilder, Provider};
+use holo_northbound::rpc::{Provider, YangOps, YangRpc};
 use holo_utils::yang::DataNodeRefExt;
-use yang4::data::Data;
+use yang4::data::{Data, DataTree};
 
 use crate::instance::Instance;
-use crate::northbound::yang_gen::bgp;
+use crate::northbound::yang_gen::{self, bgp};
 
-pub static CALLBACKS: Lazy<Callbacks<Instance>> = Lazy::new(load_callbacks);
+impl Provider for Instance {
+    const YANG_OPS: YangOps<Self> = yang_gen::ops::YANG_OPS_RPC;
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ClearType {
@@ -23,52 +23,41 @@ pub enum ClearType {
     SoftInbound,
 }
 
-// ===== callbacks =====
+// ===== YANG impls =====
 
-fn load_callbacks() -> Callbacks<Instance> {
-    CallbacksBuilder::<Instance>::default()
-        .path(bgp::neighbors::clear::PATH)
-        .rpc(|instance, args| {
-            let rpc = args.data.find_path(args.rpc_path).unwrap();
+impl YangRpc<Instance> for bgp::neighbors::clear::Clear {
+    fn invoke(instance: &mut Instance, data: &mut DataTree<'static>, rpc_path: &str) -> Result<(), String> {
+        let Some((mut instance, neighbors)) = instance.as_up() else {
+            return Ok(());
+        };
 
-            // Parse input parameters.
-            let remote_addr = rpc.get_ip_relative("./remote-addr");
-            let clear_type = if rpc.exists("./hard") {
-                ClearType::Hard
-            } else if rpc.exists("./soft") {
-                ClearType::Soft
-            } else if rpc.exists("./soft-inbound") {
-                ClearType::SoftInbound
-            } else {
-                ClearType::Admin
-            };
+        // Parse input parameters.
+        let rpc = data.find_path(rpc_path).unwrap();
+        let remote_addr = rpc.get_ip_relative("./remote-addr");
+        let clear_type = if rpc.exists("./hard") {
+            ClearType::Hard
+        } else if rpc.exists("./soft") {
+            ClearType::Soft
+        } else if rpc.exists("./soft-inbound") {
+            ClearType::SoftInbound
+        } else {
+            ClearType::Admin
+        };
 
-            // Clear peers.
-            let Some((mut instance, neighbors)) = instance.as_up() else {
-                return Ok(());
-            };
-            match remote_addr {
-                Some(remote_addr) => {
-                    if let Some(nbr) = neighbors.get_mut(&remote_addr) {
-                        nbr.clear_session(&mut instance, clear_type);
-                    }
-                }
-                None => {
-                    for nbr in neighbors.values_mut() {
-                        nbr.clear_session(&mut instance, clear_type);
-                    }
+        // Clear peers.
+        match remote_addr {
+            Some(remote_addr) => {
+                if let Some(nbr) = neighbors.get_mut(&remote_addr) {
+                    nbr.clear_session(&mut instance, clear_type);
                 }
             }
+            None => {
+                for nbr in neighbors.values_mut() {
+                    nbr.clear_session(&mut instance, clear_type);
+                }
+            }
+        }
 
-            Ok(())
-        })
-        .build()
-}
-
-// ===== impl Instance =====
-
-impl Provider for Instance {
-    fn callbacks() -> &'static Callbacks<Instance> {
-        &CALLBACKS
+        Ok(())
     }
 }

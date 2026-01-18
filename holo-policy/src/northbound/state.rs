@@ -4,37 +4,24 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::sync::LazyLock as Lazy;
-
 use enum_as_inner::EnumAsInner;
-use holo_northbound::state::{Callbacks, CallbacksBuilder, ListEntryKind, Provider};
+use holo_northbound::state::{ListEntryKind, Provider, YangOps};
 
 use crate::Master;
+use crate::northbound::yang_gen;
 
-pub static CALLBACKS: Lazy<Callbacks<Master>> = Lazy::new(load_callbacks);
+impl Provider for Master {
+    type ListEntry<'a> = ListEntry;
+    const YANG_OPS: YangOps<Self> = yang_gen::ops::YANG_OPS_STATE;
+}
 
-#[derive(Debug, Default, EnumAsInner)]
+#[derive(Debug, Default)]
+#[derive(EnumAsInner)]
 pub enum ListEntry {
     #[default]
     None,
 }
 
-// ===== callbacks =====
-
-fn load_callbacks() -> Callbacks<Master> {
-    CallbacksBuilder::default().build()
-}
-
-// ===== impl Master =====
-
-impl Provider for Master {
-    type ListEntry<'a> = ListEntry;
-
-    fn callbacks() -> &'static Callbacks<Master> {
-        &CALLBACKS
-    }
-}
-
-// ===== impl ListEntry =====
+pub type ListIterator<'a> = Box<dyn Iterator<Item = ListEntry> + 'a>;
 
 impl ListEntryKind for ListEntry {}

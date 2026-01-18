@@ -16,33 +16,9 @@ pub mod rpc;
 pub mod state;
 pub mod yang_codegen;
 
-use derive_new::new;
-use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
-use yang4::schema::{DataValueType, SchemaNode, SchemaNodeKind};
 
 use crate::debug::Debug;
-
-/// YANG callback operation.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[derive(Deserialize, Serialize)]
-pub enum CallbackOp {
-    Create,
-    Modify,
-    Delete,
-    Lookup,
-    Rpc,
-    GetIterate,
-    GetObject,
-}
-
-/// YANG callback key.
-#[derive(Clone, Debug, Eq, Hash, new, Ord, PartialEq, PartialOrd)]
-#[derive(Deserialize, Serialize)]
-pub struct CallbackKey {
-    pub path: String,
-    pub operation: CallbackOp,
-}
 
 //
 // Useful type definitions.
@@ -60,148 +36,7 @@ where
     fn top_level_node(&self) -> String;
 }
 
-// ===== impl CallbackOp =====
-
-impl CallbackOp {
-    pub fn is_valid(&self, snode: &SchemaNode<'_>) -> bool {
-        match self {
-            CallbackOp::Create => CallbackOp::create_is_valid(snode),
-            CallbackOp::Modify => CallbackOp::modify_is_valid(snode),
-            CallbackOp::Delete => CallbackOp::delete_is_valid(snode),
-            CallbackOp::Lookup => CallbackOp::lookup_is_valid(snode),
-            CallbackOp::Rpc => CallbackOp::rpc_is_valid(snode),
-            CallbackOp::GetIterate => CallbackOp::get_iterate_is_valid(snode),
-            CallbackOp::GetObject => CallbackOp::get_object_is_valid(snode),
-        }
-    }
-
-    fn create_is_valid(snode: &SchemaNode<'_>) -> bool {
-        if !snode.is_config() {
-            return false;
-        }
-
-        match snode.kind() {
-            SchemaNodeKind::Leaf => {
-                snode.leaf_type().unwrap().base_type() == DataValueType::Empty
-            }
-            SchemaNodeKind::Container => !snode.is_np_container(),
-            SchemaNodeKind::LeafList | SchemaNodeKind::List => true,
-            _ => false,
-        }
-    }
-
-    fn modify_is_valid(snode: &SchemaNode<'_>) -> bool {
-        if !snode.is_config() {
-            return false;
-        }
-
-        match snode.kind() {
-            SchemaNodeKind::Leaf => {
-                // List keys can't be modified.
-                !(snode.leaf_type().unwrap().base_type()
-                    == DataValueType::Empty
-                    || snode.is_list_key())
-            }
-            _ => false,
-        }
-    }
-
-    fn delete_is_valid(snode: &SchemaNode<'_>) -> bool {
-        if !snode.is_config() {
-            return false;
-        }
-
-        match snode.kind() {
-            SchemaNodeKind::Leaf => {
-                // List keys can't be deleted.
-                if snode.is_list_key() {
-                    return false;
-                }
-
-                // Only optional leaves can be deleted, or leaves whose
-                // parent is a case statement.
-                if let Some(parent) = snode.ancestors().next()
-                    && parent.kind() == SchemaNodeKind::Case
-                {
-                    return true;
-                }
-                if snode.whens().next().is_some() {
-                    return true;
-                }
-                if snode.is_mandatory() || snode.has_default() {
-                    return false;
-                }
-
-                true
-            }
-            SchemaNodeKind::Container => !snode.is_np_container(),
-            SchemaNodeKind::LeafList | SchemaNodeKind::List => true,
-            _ => false,
-        }
-    }
-
-    fn lookup_is_valid(snode: &SchemaNode<'_>) -> bool {
-        if !snode.is_config() {
-            return false;
-        }
-
-        snode.kind() == SchemaNodeKind::List
-    }
-
-    fn rpc_is_valid(snode: &SchemaNode<'_>) -> bool {
-        matches!(snode.kind(), SchemaNodeKind::Rpc | SchemaNodeKind::Action)
-    }
-
-    fn get_iterate_is_valid(snode: &SchemaNode<'_>) -> bool {
-        if !snode.is_config() && !snode.is_state() {
-            return false;
-        }
-
-        if snode.kind() != SchemaNodeKind::List {
-            return false;
-        }
-
-        snode.traverse().any(|snode| snode.is_state())
-    }
-
-    fn get_object_is_valid(snode: &SchemaNode<'_>) -> bool {
-        if !matches!(
-            snode.kind(),
-            SchemaNodeKind::List | SchemaNodeKind::Container
-        ) {
-            return false;
-        }
-
-        if !snode.traverse().any(|snode| snode.is_state()) {
-            return false;
-        }
-
-        snode.children().any(|snode| {
-            if snode.is_list_key() {
-                return true;
-            }
-
-            if !snode.is_state() {
-                return false;
-            }
-
-            contains_leaf_or_leaflist(&snode)
-        })
-    }
-}
-
 // ===== helper functions =====
-
-fn contains_leaf_or_leaflist(snode: &SchemaNode<'_>) -> bool {
-    match snode.kind() {
-        SchemaNodeKind::Leaf | SchemaNodeKind::LeafList => true,
-        SchemaNodeKind::Choice => snode
-            .children()
-            .flat_map(|snode| snode.children())
-            .any(|snode| contains_leaf_or_leaflist(&snode)),
-        _ => false,
-    }
-}
 
 fn process_get_callbacks<Provider>() -> api::daemon::GetCallbacksResponse
 where
@@ -209,11 +44,7 @@ where
 {
     let callbacks = [
         Some(<Provider as configuration::Provider>::callbacks().keys()),
-        Some(<Provider as rpc::Provider>::callbacks().keys()),
-        Some(<Provider as state::Provider>::callbacks().keys()),
         <Provider as configuration::Provider>::nested_callbacks(),
-        <Provider as rpc::Provider>::nested_callbacks(),
-        <Provider as state::Provider>::nested_callbacks(),
     ]
     .into_iter()
     .flatten()

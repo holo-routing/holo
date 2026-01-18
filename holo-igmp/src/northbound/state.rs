@@ -5,174 +5,138 @@
 //
 
 use std::borrow::Cow;
-use std::sync::LazyLock as Lazy;
 
 use enum_as_inner::EnumAsInner;
-use holo_northbound::state::{Callbacks, CallbacksBuilder, ListEntryKind, Provider};
+use holo_northbound::state::{ListEntryKind, Provider, YangContainer, YangList, YangOps};
 use holo_utils::option::OptionExt;
 
 //use holo_yang::ToYang;
 use crate::instance::Instance;
 use crate::interface::Interface;
-use crate::northbound::yang_gen::igmp;
+use crate::northbound::yang_gen::{self, igmp};
 
-pub static CALLBACKS: Lazy<Callbacks<Instance>> = Lazy::new(load_callbacks);
+impl Provider for Instance {
+    type ListEntry<'a> = ListEntry<'a>;
+    const YANG_OPS: YangOps<Self> = yang_gen::ops::YANG_OPS_STATE;
+}
 
-#[derive(Debug, Default, EnumAsInner)]
+#[derive(Debug, Default)]
+#[derive(EnumAsInner)]
 pub enum ListEntry<'a> {
     #[default]
     None,
     Interface(&'a Interface),
 }
 
-// ===== callbacks =====
+pub type ListIterator<'a> = Box<dyn Iterator<Item = ListEntry<'a>> + 'a>;
 
-#[allow(unreachable_code)]
-fn load_callbacks() -> Callbacks<Instance> {
-    CallbacksBuilder::<Instance>::default()
-        .path(igmp::global::PATH)
-        .get_object(|_instance, _args| {
-            use igmp::global::Global;
-            Box::new(Global {
-                entries_count: todo!(),
-                groups_count: todo!(),
-            })
-        })
-        .path(igmp::global::statistics::PATH)
-        .get_object(|instance, _args| {
-            use igmp::global::statistics::Statistics;
-            let mut discontinuity_time = None;
-            if let Some(state) = &instance.state {
-                discontinuity_time = Some(Cow::Borrowed(&state.statistics.discontinuity_time));
-            }
+impl ListEntryKind for ListEntry<'_> {}
 
-            Box::new(Statistics {
-                discontinuity_time: discontinuity_time.ignore_in_testing(),
-            })
-        })
-        .path(igmp::global::statistics::error::PATH)
-        .get_object(|instance, _args| {
-            use igmp::global::statistics::error::Error;
-            let mut total = None;
-            let mut query = None;
-            let mut report = None;
-            let mut leave = None;
-            let mut checksum = None;
-            let mut too_short = None;
-            if let Some(state) = &instance.state {
-                total = Some(state.statistics.errors.total);
-                query = Some(state.statistics.errors.query);
-                report = Some(state.statistics.errors.report);
-                leave = Some(state.statistics.errors.leave);
-                checksum = Some(state.statistics.errors.checksum);
-                too_short = Some(state.statistics.errors.too_short);
-            }
-            Box::new(Error {
-                total: total.ignore_in_testing(),
-                query: query.ignore_in_testing(),
-                report: report.ignore_in_testing(),
-                leave: leave.ignore_in_testing(),
-                checksum: checksum.ignore_in_testing(),
-                too_short: too_short.ignore_in_testing(),
-            })
-        })
-        .path(igmp::global::statistics::received::PATH)
-        .get_object(|instance, _args| {
-            use igmp::global::statistics::received::Received;
-            let mut total = None;
-            let mut query = None;
-            let mut report = None;
-            let mut leave = None;
-            if let Some(state) = &instance.state {
-                total = Some(state.statistics.msgs_rcvd.total);
-                query = Some(state.statistics.msgs_rcvd.query);
-                report = Some(state.statistics.msgs_rcvd.report);
-                leave = Some(state.statistics.msgs_rcvd.leave);
-            }
-            Box::new(Received {
-                total: total.ignore_in_testing(),
-                query: query.ignore_in_testing(),
-                report: report.ignore_in_testing(),
-                leave: leave.ignore_in_testing(),
-            })
-        })
-        .path(igmp::global::statistics::sent::PATH)
-        .get_object(|instance, _args| {
-            use igmp::global::statistics::sent::Sent;
-            let mut total = None;
-            let mut query = None;
-            let mut report = None;
-            let mut leave = None;
-            if let Some(state) = &instance.state {
-                total = Some(state.statistics.msgs_sent.total);
-                query = Some(state.statistics.msgs_sent.query);
-                report = Some(state.statistics.msgs_sent.report);
-                leave = Some(state.statistics.msgs_sent.leave);
-            }
-            Box::new(Sent {
-                total: total.ignore_in_testing(),
-                query: query.ignore_in_testing(),
-                report: report.ignore_in_testing(),
-                leave: leave.ignore_in_testing(),
-            })
-        })
-        .path(igmp::interfaces::interface::PATH)
-        .get_iterate(|instance, _args| {
-            let iter = instance.interfaces.values().map(ListEntry::Interface);
-            Some(Box::new(iter))
-        })
-        .get_object(|_instance, args| {
-            use igmp::interfaces::interface::Interface;
-            let iface = args.list_entry.as_interface().unwrap();
-            Box::new(Interface {
-                interface_name: Cow::Borrowed(&iface.name),
-                oper_status: todo!(),
-                querier: todo!(),
-                joined_group: todo!(),
-            })
-        })
-        .path(igmp::interfaces::interface::group::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
-        .get_object(|_instance, _args| {
-            use igmp::interfaces::interface::group::Group;
-            Box::new(Group {
-                group_address: todo!(),
-                expire: todo!(),
-                filter_mode: todo!(),
-                up_time: todo!(),
-                last_reporter: todo!(),
-            })
-        })
-        .path(igmp::interfaces::interface::group::source::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO: implement me!
-            None
-        })
-        .get_object(|_instance, _args| {
-            use igmp::interfaces::interface::group::source::Source;
-            Box::new(Source {
-                source_address: todo!(),
-                expire: todo!(),
-                up_time: todo!(),
-                last_reporter: todo!(),
-            })
-        })
-        .build()
-}
+// ===== YANG impls =====
 
-// ===== impl Instance =====
-
-impl Provider for Instance {
-    type ListEntry<'a> = ListEntry<'a>;
-
-    fn callbacks() -> &'static Callbacks<Instance> {
-        &CALLBACKS
+impl<'a> YangContainer<'a, Instance> for igmp::global::Global {
+    fn new(_instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<Self> {
+        Some(Self {
+            entries_count: todo!(),
+            groups_count: todo!(),
+        })
     }
 }
 
-// ===== impl ListEntry =====
+impl<'a> YangContainer<'a, Instance> for igmp::global::statistics::Statistics<'a> {
+    fn new(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<Self> {
+        let statistics = &instance.state.as_ref()?.statistics;
+        Some(Self {
+            discontinuity_time: Some(Cow::Borrowed(&statistics.discontinuity_time)).ignore_in_testing(),
+        })
+    }
+}
 
-impl ListEntryKind for ListEntry<'_> {}
+impl<'a> YangContainer<'a, Instance> for igmp::global::statistics::error::Error {
+    fn new(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<Self> {
+        let errors = &instance.state.as_ref()?.statistics.errors;
+        Some(Self {
+            total: Some(errors.total),
+            query: Some(errors.query),
+            report: Some(errors.report),
+            leave: Some(errors.leave),
+            checksum: Some(errors.checksum),
+            too_short: Some(errors.too_short),
+        })
+        .ignore_in_testing()
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for igmp::global::statistics::received::Received {
+    fn new(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<Self> {
+        let msgs_rcvd = &instance.state.as_ref()?.statistics.msgs_rcvd;
+        Some(Self {
+            total: Some(msgs_rcvd.total),
+            query: Some(msgs_rcvd.query),
+            report: Some(msgs_rcvd.report),
+            leave: Some(msgs_rcvd.leave),
+        })
+        .ignore_in_testing()
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for igmp::global::statistics::sent::Sent {
+    fn new(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<Self> {
+        let msgs_sent = &instance.state.as_ref()?.statistics.msgs_sent;
+        Some(Self {
+            total: Some(msgs_sent.total),
+            query: Some(msgs_sent.query),
+            report: Some(msgs_sent.report),
+            leave: Some(msgs_sent.leave),
+        })
+        .ignore_in_testing()
+    }
+}
+
+impl<'a> YangList<'a, Instance> for igmp::interfaces::interface::Interface<'a> {
+    fn iter(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
+        let iter = instance.interfaces.values().map(ListEntry::Interface);
+        Some(Box::new(iter))
+    }
+
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
+        let iface = list_entry.as_interface().unwrap();
+        Self {
+            interface_name: Cow::Borrowed(&iface.name),
+            oper_status: todo!(),
+            querier: todo!(),
+            joined_group: todo!(),
+        }
+    }
+}
+
+impl<'a> YangList<'a, Instance> for igmp::interfaces::interface::group::Group<'a> {
+    fn iter(_instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
+        todo!()
+    }
+
+    fn new(_instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Self {
+        Self {
+            group_address: todo!(),
+            expire: todo!(),
+            filter_mode: todo!(),
+            up_time: todo!(),
+            last_reporter: todo!(),
+        }
+    }
+}
+
+impl<'a> YangList<'a, Instance> for igmp::interfaces::interface::group::source::Source<'a> {
+    fn iter(_instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
+        todo!()
+    }
+
+    fn new(_instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Self {
+        Self {
+            source_address: todo!(),
+            expire: todo!(),
+            up_time: todo!(),
+            last_reporter: todo!(),
+        }
+    }
+}

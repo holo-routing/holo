@@ -4,67 +4,24 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::HashMap;
 use std::fmt::Write;
 
 use holo_utils::yang::SchemaNodeExt;
-use holo_yang::{YANG_CTX, YangObject, YangPath};
+use holo_yang::{YANG_CTX, YangObject};
 use tokio::sync::oneshot;
 use yang4::data::{DataNodeRef, DataTree};
 use yang4::schema::{SchemaNode, SchemaNodeKind};
 
 use crate::error::Error;
-use crate::{CallbackKey, CallbackOp, NbDaemonSender, ProviderBase, api};
+use crate::{NbDaemonSender, ProviderBase, api};
 
-//
-// State callbacks.
-//
-
-pub struct Callbacks<P: Provider>(HashMap<CallbackKey, CallbacksNode<P>>);
-
-pub struct CallbacksNode<P: Provider> {
-    get_iterate: Option<GetIterateCb<P>>,
-    get_object: Option<GetObjectCb<P>>,
+// Northbound data provider.
+pub trait Provider: ProviderBase {
+    type ListEntry<'a>: ListEntryKind;
+    const YANG_OPS: YangOps<Self>;
 }
 
-pub struct CallbacksBuilder<P: Provider> {
-    path: Option<YangPath>,
-    callbacks: Callbacks<P>,
-}
-
-//
-// GetIterate callback.
-//
-
-pub type GetIterateCb<P: Provider> = for<'a, 'b> fn(
-    &'a P,
-    GetIterateArgs<'a, 'b, P>,
-) -> Option<
-    Box<dyn Iterator<Item = P::ListEntry<'a>> + 'b>,
->;
-
-#[derive(Debug)]
-pub struct GetIterateArgs<'a, 'b, P: Provider> {
-    pub parent_list_entry: &'b P::ListEntry<'a>,
-    // TODO: starting point
-}
-
-//
-// GetObject callback.
-//
-
-pub type GetObjectCb<P: Provider> =
-    for<'a, 'b> fn(&'a P, GetObjectArgs<'a, 'b, P>) -> Box<dyn YangObject + 'a>;
-
-#[derive(Debug)]
-pub struct GetObjectArgs<'a, 'b, P: Provider> {
-    pub list_entry: &'b P::ListEntry<'a>,
-}
-
-//
-// List entry trait.
-//
-
+// Common behavior for all list entries.
 pub trait ListEntryKind: std::fmt::Debug + Default {
     // Return the task associated with the child node of this list entry,
     // identified by its corresponding module name.
@@ -73,127 +30,51 @@ pub trait ListEntryKind: std::fmt::Debug + Default {
     }
 }
 
+// Implemented by all auto-generated YANG container structs that hold state
+// data.
+pub trait YangContainer<'a, P: Provider> {
+    fn new(provider: &'a P, list_entry: &P::ListEntry<'a>) -> Option<Self>
+    where
+        Self: Sized + 'a;
+}
+
+// Implemented by all auto-generated YANG list structs that hold state data.
+pub trait YangList<'a, P: Provider> {
+    fn iter(
+        provider: &'a P,
+        list_entry: &P::ListEntry<'a>,
+    ) -> Option<ListIterator<'a, P>>;
+
+    fn new(provider: &'a P, list_entry: &P::ListEntry<'a>) -> Self
+    where
+        Self: Sized + 'a;
+}
+
+// Static dispatch tables generated from YANG models.
+pub struct YangOps<P: Provider> {
+    pub list: phf::Map<&'static str, YangListOps<P>>,
+    pub container: phf::Map<&'static str, YangContainerOps<P>>,
+}
+
+pub struct YangListOps<P: Provider> {
+    pub iter: YangListIterFn<P>,
+    pub new: YangListNewFn<P>,
+}
+
+pub struct YangContainerOps<P: Provider> {
+    pub new: YangContainerNewFn<P>,
+}
+
 // Type aliases.
+type YangListIterFn<P: Provider> =
+    for<'a> fn(&'a P, &P::ListEntry<'a>) -> Option<ListIterator<'a, P>>;
+type YangListNewFn<P: Provider> =
+    for<'a> fn(&'a P, &P::ListEntry<'a>) -> Box<dyn YangObject + 'a>;
+type YangContainerNewFn<P: Provider> =
+    for<'a> fn(&'a P, &P::ListEntry<'a>) -> Option<Box<dyn YangObject + 'a>>;
+type ListIterator<'a, P: Provider> =
+    Box<dyn Iterator<Item = P::ListEntry<'a>> + 'a>;
 type GetReceiver = oneshot::Receiver<Result<api::daemon::GetResponse, Error>>;
-
-//
-// Provider northbound.
-//
-
-pub trait Provider: ProviderBase {
-    type ListEntry<'a>: ListEntryKind;
-
-    fn callbacks() -> &'static Callbacks<Self>;
-
-    fn nested_callbacks() -> Option<Vec<CallbackKey>> {
-        None
-    }
-}
-
-// ===== impl Callbacks =====
-
-impl<P> Callbacks<P>
-where
-    P: Provider,
-{
-    fn get_iterate(&self, key: &CallbackKey) -> Option<&GetIterateCb<P>> {
-        let node = self.0.get(key)?;
-
-        node.get_iterate.as_ref()
-    }
-
-    fn get_object(&self, key: &CallbackKey) -> Option<&GetObjectCb<P>> {
-        let node = self.0.get(key)?;
-
-        node.get_object.as_ref()
-    }
-
-    pub fn keys(&self) -> Vec<CallbackKey> {
-        self.0.keys().cloned().collect()
-    }
-
-    pub fn extend(&mut self, callbacks: Callbacks<P>) {
-        self.0.extend(callbacks.0);
-    }
-}
-
-impl<P> Default for Callbacks<P>
-where
-    P: Provider,
-{
-    fn default() -> Self {
-        Callbacks(HashMap::new())
-    }
-}
-
-// ===== impl CallbacksNode =====
-
-impl<P> Default for CallbacksNode<P>
-where
-    P: Provider,
-{
-    fn default() -> Self {
-        CallbacksNode {
-            get_iterate: None,
-            get_object: None,
-        }
-    }
-}
-
-// ===== impl CallbacksBuilder =====
-
-impl<P> CallbacksBuilder<P>
-where
-    P: Provider,
-{
-    pub fn new(callbacks: Callbacks<P>) -> Self {
-        CallbacksBuilder {
-            path: None,
-            callbacks,
-        }
-    }
-
-    #[must_use]
-    pub fn path(mut self, path: YangPath) -> Self {
-        self.path = Some(path);
-        self
-    }
-
-    #[must_use]
-    pub fn get_iterate(mut self, cb: GetIterateCb<P>) -> Self {
-        let path = self.path.unwrap().to_string();
-        let key = CallbackKey::new(path, CallbackOp::GetIterate);
-        let node = self.callbacks.0.entry(key).or_default();
-        node.get_iterate = Some(cb);
-        self
-    }
-
-    #[must_use]
-    pub fn get_object(mut self, cb: GetObjectCb<P>) -> Self {
-        let path = self.path.unwrap().to_string();
-        let key = CallbackKey::new(path, CallbackOp::GetObject);
-        let node = self.callbacks.0.entry(key).or_default();
-        node.get_object = Some(cb);
-        self
-    }
-
-    #[must_use]
-    pub fn build(self) -> Callbacks<P> {
-        self.callbacks
-    }
-}
-
-impl<P> Default for CallbacksBuilder<P>
-where
-    P: Provider,
-{
-    fn default() -> Self {
-        CallbacksBuilder {
-            path: None,
-            callbacks: Callbacks::default(),
-        }
-    }
-}
 
 // ===== helper functions =====
 
@@ -236,47 +117,13 @@ fn iterate_list<'a, P>(
 where
     P: Provider,
 {
-    let cbs = P::callbacks();
-    let snode_path = snode.data_path();
-    let cb_key = CallbackKey::new(snode_path, CallbackOp::GetIterate);
-
-    if let Some(cb) = cbs.get_iterate(&cb_key)
-        && let Some(list_iter) =
-            (*cb)(provider, GetIterateArgs { parent_list_entry })
-    {
-        for list_entry in list_iter {
-            iterate_list_entry(provider, dnode, snode, list_entry, relay_list)?;
-        }
-    }
-
-    Ok(())
-}
-
-fn iterate_list_entry<'a, P>(
-    provider: &'a P,
-    dnode: &mut DataNodeRef<'_>,
-    snode: &SchemaNode<'_>,
-    list_entry: P::ListEntry<'a>,
-    relay_list: &mut Vec<GetReceiver>,
-) -> Result<(), Error>
-where
-    P: Provider,
-{
-    let cbs = P::callbacks();
     let module = snode.module();
     let snode_path = snode.data_path();
-    let cb_key = CallbackKey::new(snode_path, CallbackOp::GetObject);
-
-    let mut dnode = match cbs.get_object(&cb_key) {
-        // Keyed list.
-        Some(cb) => {
-            // Get YANG object from callback.
-            let obj = (*cb)(
-                provider,
-                GetObjectArgs {
-                    list_entry: &list_entry,
-                },
-            );
+    if let Some(list_ops) = P::YANG_OPS.list.get(&snode_path)
+        && let Some(list_iter) = (list_ops.iter)(provider, parent_list_entry)
+    {
+        for list_entry in list_iter {
+            let obj = (list_ops.new)(provider, &list_entry);
 
             // Get list keys.
             let keys = obj.list_keys();
@@ -287,18 +134,17 @@ where
 
             // Initialize list entry.
             obj.into_data_node(&mut dnode);
-            dnode
-        }
-        // Keyless list.
-        None => {
-            // Add list entry node.
-            let keys = String::new();
-            dnode.new_list(Some(&module), snode.name(), &keys).unwrap()
-        }
-    };
 
-    // Iterate over child nodes.
-    iterate_children(provider, &mut dnode, snode, &list_entry, relay_list)?;
+            // Iterate over child nodes.
+            iterate_children(
+                provider,
+                &mut dnode,
+                snode,
+                &list_entry,
+                relay_list,
+            )?;
+        }
+    }
 
     Ok(())
 }
@@ -314,7 +160,6 @@ fn iterate_container<'a, P>(
 where
     P: Provider,
 {
-    let cbs = P::callbacks();
     let mut dnode = dnode.clone();
     let mut dnode_container;
 
@@ -327,13 +172,10 @@ where
         &mut dnode_container
     };
 
-    // Find GetObject callback.
     let snode_path = snode.data_path();
-    let cb_key = CallbackKey::new(snode_path, CallbackOp::GetObject);
-    if let Some(cb) = cbs.get_object(&cb_key) {
-        // Invoke the callback and return an optional string.
-        let obj = (*cb)(provider, GetObjectArgs { list_entry });
-
+    if let Some(container_ops) = P::YANG_OPS.container.get(&snode_path)
+        && let Some(obj) = (container_ops.new)(provider, list_entry)
+    {
         // Initialize container node.
         obj.into_data_node(dnode);
     }
@@ -391,7 +233,6 @@ fn lookup_list_entry<'a, P>(
 where
     P: Provider,
 {
-    let cbs = P::callbacks();
     let mut list_entry = Default::default();
 
     // Iterate over parent list entries starting from the root.
@@ -402,15 +243,8 @@ where
         .iter()
         .rev()
     {
-        // Get list callbacks.
         let snode_path = dnode.schema().data_path();
-        let cb_key =
-            CallbackKey::new(snode_path.clone(), CallbackOp::GetIterate);
-        let Some(cb_iterate) = cbs.get_iterate(&cb_key) else {
-            continue;
-        };
-        let cb_key = CallbackKey::new(snode_path, CallbackOp::GetObject);
-        let Some(cb_get) = cbs.get_object(&cb_key) else {
+        let Some(list_ops) = P::YANG_OPS.list.get(&snode_path) else {
             continue;
         };
 
@@ -428,18 +262,9 @@ where
 
         // Find the list entry associated to the provided path.
         if let Some(entry) = {
-            (*cb_iterate)(
-                provider,
-                GetIterateArgs {
-                    parent_list_entry: &list_entry,
-                },
-            )
-            .and_then(|mut list_iter| {
+            (list_ops.iter)(provider, &list_entry).and_then(|mut list_iter| {
                 list_iter.find(|entry| {
-                    let obj = (*cb_get)(
-                        provider,
-                        GetObjectArgs { list_entry: entry },
-                    );
+                    let obj = (list_ops.new)(provider, entry);
                     list_keys == obj.list_keys()
                 })
             })

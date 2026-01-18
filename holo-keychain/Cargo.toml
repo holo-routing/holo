@@ -9,6 +9,7 @@ edition.workspace = true
 chrono.workspace = true
 derive-new.workspace = true
 enum-as-inner.workspace = true
+phf.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 yang4.workspace = true

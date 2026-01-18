@@ -32,3 +32,7 @@ path = "src/yang_coverage.rs"
 [[bin]]
 name = "yang_deviations"
 path = "src/yang_deviations.rs"
+
+[[bin]]
+name = "yang_impls"
+path = "src/yang_impls.rs"

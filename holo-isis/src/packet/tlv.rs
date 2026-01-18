@@ -7,7 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
-#![allow(clippy::len_without_is_empty, clippy::match_single_binding)]
+#![allow(clippy::len_without_is_empty)]
 
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, Ipv6Addr};

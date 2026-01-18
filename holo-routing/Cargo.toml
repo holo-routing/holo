@@ -15,6 +15,7 @@ futures.workspace = true
 generational-arena.workspace = true
 ipnetwork.workspace = true
 libc.workspace = true
+phf.workspace = true
 prefix-trie.workspace = true
 regex.workspace = true
 rtnetlink.workspace = true

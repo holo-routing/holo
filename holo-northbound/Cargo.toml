@@ -12,6 +12,7 @@ check_keyword.workspace = true
 convert_case.workspace = true
 derive-new.workspace = true
 itertools.workspace = true
+phf.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

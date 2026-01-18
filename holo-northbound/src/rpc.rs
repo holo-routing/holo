@@ -4,125 +4,47 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::HashMap;
-
 use holo_utils::yang::SchemaNodeExt;
-use holo_yang::YangPath;
 use tokio::sync::oneshot;
 use yang4::data::{DataNodeRef, DataTree};
 use yang4::schema::SchemaNodeKind;
 
-use crate::debug::Debug;
 use crate::error::Error;
-use crate::{CallbackKey, CallbackOp, NbDaemonSender, ProviderBase, api};
+use crate::{NbDaemonSender, ProviderBase, api};
 
-//
-// RPC callbacks.
-//
-
-pub struct Callbacks<P: Provider>(pub HashMap<CallbackKey, Callback<P>>);
-
-pub struct CallbacksBuilder<P: Provider> {
-    path: Option<YangPath>,
-    callbacks: Callbacks<P>,
-}
-
-#[derive(Debug)]
-pub struct CallbackArgs<'a> {
-    pub data: &'a mut DataTree<'static>,
-    pub rpc_path: &'a str,
-}
-
-//
-// Useful type definition(s).
-//
-
-pub type Callback<P> =
-    for<'a> fn(&'a mut P, CallbackArgs<'a>) -> Result<(), String>;
-
-// RPC protocol trait.
+// Northbound RPC provider.
 pub trait Provider: ProviderBase {
-    fn callbacks() -> &'static Callbacks<Self>;
-
-    fn nested_callbacks() -> Option<Vec<CallbackKey>> {
-        None
-    }
+    const YANG_OPS: YangOps<Self>;
 
     fn relay_rpc(
         &self,
-        _rpc: DataNodeRef<'_>,
+        _rpc: &DataNodeRef<'_>,
     ) -> Result<Option<Vec<NbDaemonSender>>, String> {
         Ok(None)
     }
 }
 
-// ===== impl Callbacks =====
-
-impl<P> Callbacks<P>
-where
-    P: Provider,
-{
-    pub fn load(&mut self, path: &'static str, cb: Callback<P>) {
-        let path = path.to_string();
-        let key = CallbackKey::new(path, CallbackOp::Rpc);
-        self.0.insert(key, cb);
-    }
-
-    fn get(&self, key: &CallbackKey) -> Option<&Callback<P>> {
-        self.0.get(key)
-    }
-
-    pub fn keys(&self) -> Vec<CallbackKey> {
-        self.0.keys().cloned().collect()
-    }
+// Implemented by all auto-generated YANG RPC/Action structs.
+pub trait YangRpc<P: Provider> {
+    fn invoke(
+        provider: &mut P,
+        data: &mut DataTree<'static>,
+        rpc_path: &str,
+    ) -> Result<(), String>;
 }
 
-impl<P> Default for Callbacks<P>
-where
-    P: Provider,
-{
-    fn default() -> Self {
-        Callbacks(HashMap::new())
-    }
+// Static dispatch tables generated from YANG models.
+pub struct YangOps<P: Provider> {
+    pub rpc: phf::Map<&'static str, YangRpcOps<P>>,
 }
 
-// ===== impl CallbacksBuilder =====
-
-impl<P> CallbacksBuilder<P>
-where
-    P: Provider,
-{
-    #[must_use]
-    pub fn path(mut self, path: YangPath) -> Self {
-        self.path = Some(path);
-        self
-    }
-
-    #[must_use]
-    pub fn rpc(mut self, cb: Callback<P>) -> Self {
-        let path = self.path.unwrap().to_string();
-        let key = CallbackKey::new(path, CallbackOp::Rpc);
-        self.callbacks.0.insert(key, cb);
-        self
-    }
-
-    #[must_use]
-    pub fn build(self) -> Callbacks<P> {
-        self.callbacks
-    }
+pub struct YangRpcOps<P: Provider> {
+    pub invoke: YangInvokeFn<P>,
 }
 
-impl<P> Default for CallbacksBuilder<P>
-where
-    P: Provider,
-{
-    fn default() -> Self {
-        CallbacksBuilder {
-            path: None,
-            callbacks: Callbacks::default(),
-        }
-    }
-}
+// Type aliases.
+type YangInvokeFn<P> =
+    fn(&mut P, &mut DataTree<'static>, &str) -> Result<(), String>;
 
 // ===== helper functions =====
 
@@ -135,15 +57,9 @@ fn process_rpc_local<P>(
 where
     P: Provider,
 {
-    let callbacks = P::callbacks();
-    let key = CallbackKey::new(rpc_schema_path, CallbackOp::Rpc);
-    if let Some(cb) = callbacks.get(&key) {
-        Debug::RpcCallback(&rpc_data_path).log();
-        let args = CallbackArgs {
-            data: &mut data,
-            rpc_path: &rpc_data_path,
-        };
-        (*cb)(provider, args).map_err(Error::RpcCallback)?;
+    if let Some(rpc_ops) = P::YANG_OPS.rpc.get(&rpc_schema_path) {
+        (rpc_ops.invoke)(provider, &mut data, &rpc_data_path)
+            .map_err(Error::RpcCallback)?;
     }
 
     let response = api::daemon::RpcResponse { data };
@@ -195,14 +111,13 @@ where
     P: Provider,
 {
     let rpc = find_rpc(&data)?;
-    let rpc_data_path = rpc.path().to_owned();
-    let rpc_schema_path = rpc.schema().data_path();
-
     if let Some(children_nb_tx) =
-        provider.relay_rpc(rpc).map_err(Error::RpcRelay)?
+        provider.relay_rpc(&rpc).map_err(Error::RpcRelay)?
     {
         process_rpc_relayed(data, children_nb_tx)
     } else {
+        let rpc_data_path = rpc.path().to_owned();
+        let rpc_schema_path = rpc.schema().data_path();
         process_rpc_local(provider, data, rpc_data_path, rpc_schema_path)
     }
 }

@@ -21,8 +21,14 @@ use crate::northbound::yang_gen::control_plane_protocol;
 #[allow(unused_imports, unused_variables)]
 #[allow(clippy::module_inception)]
 pub mod yang_gen {
-    pub use crate::northbound::yang_gen::routing::control_plane_protocols::control_plane_protocol;
-    include!(concat!(env!("OUT_DIR"), "/yang_gen.rs"));
+    pub use routing::control_plane_protocols::control_plane_protocol;
+
+    include!(concat!(env!("OUT_DIR"), "/yang_objects.rs"));
+    pub mod ops {
+        use crate::Master;
+        type Provider = Master;
+        include!(concat!(env!("OUT_DIR"), "/yang_ops.rs"));
+    }
 }
 
 // ===== impl Master =====

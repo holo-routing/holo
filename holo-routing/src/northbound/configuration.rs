@@ -9,8 +9,8 @@ use std::net::IpAddr;
 use std::sync::{Arc, LazyLock as Lazy};
 
 use enum_as_inner::EnumAsInner;
-use holo_northbound::configuration::{self, Callbacks, CallbacksBuilder, ConfigChanges, Provider, ValidationCallbacks, ValidationCallbacksBuilder};
-use holo_northbound::{CallbackKey, NbDaemonSender};
+use holo_northbound::NbDaemonSender;
+use holo_northbound::configuration::{self, CallbackKey, Callbacks, CallbacksBuilder, ConfigChanges, Provider, ValidationCallbacks, ValidationCallbacksBuilder};
 use holo_utils::bier::{BfrId, BierBift, BierBiftCfg, BierCfgEvent, BierEncapsulation, BierEncapsulationType, BierInBiftId, BierOutBiftId, BierSubDomainCfg, BiftNbr, Bsl, SubDomainId, UnderlayProtocolType};
 use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::{AddressFamily, IpNetworkKind};

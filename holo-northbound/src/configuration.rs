@@ -7,16 +7,17 @@
 use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 
+use derive_new::new;
 use holo_utils::yang::SchemaNodeExt;
 use holo_yang::YangPath;
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
 use yang4::data::{Data, DataDiff, DataDiffOp, DataNodeRef, DataTree};
-use yang4::schema::SchemaNodeKind;
+use yang4::schema::{DataValueType, SchemaNode, SchemaNodeKind};
 
 use crate::debug::Debug;
 use crate::error::Error;
-use crate::{CallbackKey, CallbackOp, NbDaemonSender, ProviderBase, api};
+use crate::{NbDaemonSender, ProviderBase, api};
 
 // A generic struct representing an inheritable configuration value.
 //
@@ -39,6 +40,24 @@ pub enum CommitPhase {
 //
 // Commit callbacks.
 //
+
+/// YANG callback operation.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Deserialize, Serialize)]
+pub enum CallbackOp {
+    Create,
+    Modify,
+    Delete,
+    Lookup,
+}
+
+/// YANG callback key.
+#[derive(Clone, Debug, Eq, Hash, new, Ord, PartialEq, PartialOrd)]
+#[derive(Deserialize, Serialize)]
+pub struct CallbackKey {
+    pub path: String,
+    pub operation: CallbackOp,
+}
 
 pub struct Callbacks<P: Provider>(pub HashMap<CallbackKey, CallbacksNode<P>>);
 
@@ -136,6 +155,92 @@ impl<T> InheritableConfig<T> {
             explicit: None,
             resolved,
         }
+    }
+}
+
+// ===== impl CallbackOp =====
+
+impl CallbackOp {
+    pub fn is_valid(&self, snode: &SchemaNode<'_>) -> bool {
+        match self {
+            CallbackOp::Create => CallbackOp::create_is_valid(snode),
+            CallbackOp::Modify => CallbackOp::modify_is_valid(snode),
+            CallbackOp::Delete => CallbackOp::delete_is_valid(snode),
+            CallbackOp::Lookup => CallbackOp::lookup_is_valid(snode),
+        }
+    }
+
+    fn create_is_valid(snode: &SchemaNode<'_>) -> bool {
+        if !snode.is_config() {
+            return false;
+        }
+
+        match snode.kind() {
+            SchemaNodeKind::Leaf => {
+                snode.leaf_type().unwrap().base_type() == DataValueType::Empty
+            }
+            SchemaNodeKind::Container => !snode.is_np_container(),
+            SchemaNodeKind::LeafList | SchemaNodeKind::List => true,
+            _ => false,
+        }
+    }
+
+    fn modify_is_valid(snode: &SchemaNode<'_>) -> bool {
+        if !snode.is_config() {
+            return false;
+        }
+
+        match snode.kind() {
+            SchemaNodeKind::Leaf => {
+                // List keys can't be modified.
+                !(snode.leaf_type().unwrap().base_type()
+                    == DataValueType::Empty
+                    || snode.is_list_key())
+            }
+            _ => false,
+        }
+    }
+
+    fn delete_is_valid(snode: &SchemaNode<'_>) -> bool {
+        if !snode.is_config() {
+            return false;
+        }
+
+        match snode.kind() {
+            SchemaNodeKind::Leaf => {
+                // List keys can't be deleted.
+                if snode.is_list_key() {
+                    return false;
+                }
+
+                // Only optional leaves can be deleted, or leaves whose
+                // parent is a case statement.
+                if let Some(parent) = snode.ancestors().next()
+                    && parent.kind() == SchemaNodeKind::Case
+                {
+                    return true;
+                }
+                if snode.whens().next().is_some() {
+                    return true;
+                }
+                if snode.is_mandatory() || snode.has_default() {
+                    return false;
+                }
+
+                true
+            }
+            SchemaNodeKind::Container => !snode.is_np_container(),
+            SchemaNodeKind::LeafList | SchemaNodeKind::List => true,
+            _ => false,
+        }
+    }
+
+    fn lookup_is_valid(snode: &SchemaNode<'_>) -> bool {
+        if !snode.is_config() {
+            return false;
+        }
+
+        snode.kind() == SchemaNodeKind::List
     }
 }
 

@@ -64,6 +64,7 @@ netlink-packet-route = "0.28"
 netlink-sys = "0.8"
 num-derive = "0.4"
 num-traits = "0.2"
+phf = { version = "0.13", features = ["macros"] }
 pickledb = "0.5"
 prefix-trie = { version = "0.8", default-features = false, features = ["ipnetwork"]  }
 prost = "0.14"
@@ -97,6 +98,7 @@ borrowed_box = "allow"
 field_reassign_with_default = "allow"
 large_enum_variant = "allow"
 manual_range_contains = "allow"
+match_single_binding = "allow"
 single_match = "allow"
 too_many_arguments = "allow"
 

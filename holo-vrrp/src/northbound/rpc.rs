@@ -4,24 +4,11 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::sync::LazyLock as Lazy;
-
-use holo_northbound::rpc::{Callbacks, CallbacksBuilder, Provider};
+use holo_northbound::rpc::{Provider, YangOps};
 
 use crate::interface::Interface;
-
-pub static CALLBACKS: Lazy<Callbacks<Interface>> = Lazy::new(load_callbacks);
-
-// ===== callbacks =====
-
-fn load_callbacks() -> Callbacks<Interface> {
-    CallbacksBuilder::<Interface>::default().build()
-}
-
-// ===== impl Interface =====
+use crate::northbound::yang_gen;
 
 impl Provider for Interface {
-    fn callbacks() -> &'static Callbacks<Interface> {
-        &CALLBACKS
-    }
+    const YANG_OPS: YangOps<Self> = yang_gen::ops::YANG_OPS_RPC;
 }

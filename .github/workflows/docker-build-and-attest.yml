@@ -35,6 +35,8 @@ jobs:
           file: ${{ inputs.dockerfile }}
           push: true
           tags: ghcr.io/holo-routing/${{ inputs.image-name }}:latest
+          build-args: |
+            GIT_HASH=${{ github.sha }}
 
       - name: Attest image
         uses: actions/attest-build-provenance@v2

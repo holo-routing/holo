@@ -177,7 +177,18 @@ fn signal_listener() -> mpsc::Receiver<()> {
 
 fn build_version() -> String {
     const VERSION: &str = env!("CARGO_PKG_VERSION");
-    match rustc_tools_util::get_version_info!().commit_hash {
+
+    // Resolve the commit SHA at compile time.
+    //
+    // Docker and CI builds do not include the .git directory, so git metadata
+    // is unavailable. In those cases, the commit SHA is injected via the
+    // GIT_HASH environment variable. For local builds with access to .git,
+    // fall back to querying the repository directly.
+    let git_hash = option_env!("GIT_HASH")
+        .map(String::from)
+        .or_else(|| rustc_tools_util::get_version_info!().commit_hash);
+
+    match git_hash {
         Some(hash) => format!("{VERSION} ({hash})"),
         None => VERSION.to_owned(),
     }

@@ -10,6 +10,8 @@ RUN apt-get update && \
     protobuf-compiler
 
 ARG BUILD_PROFILE=release
+ARG GIT_HASH
+ENV GIT_HASH=${GIT_HASH}
 
 WORKDIR /usr/src/holo
 COPY . .

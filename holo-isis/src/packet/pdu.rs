@@ -1402,7 +1402,7 @@ impl Lsp {
     // Converts the LSP into an LSP Entry for use in an SNP.
     pub(crate) fn as_snp_entry(&self) -> LspEntry {
         LspEntry {
-            rem_lifetime: self.rem_lifetime,
+            rem_lifetime: self.rem_lifetime(),
             lsp_id: self.lsp_id,
             seqno: self.seqno,
             cksum: self.cksum,

@@ -1606,7 +1606,7 @@ pub(crate) fn lsp_originate(
 
     // Flood LSP over all interfaces.
     for iface in arenas.interfaces.iter_mut() {
-        iface.srm_list_add(instance, level, lse.data.clone());
+        iface.srm_list_add(instance, level, &lse.data, false);
     }
 
     // Schedule LSP refreshing.

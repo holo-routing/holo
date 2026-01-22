@@ -38,9 +38,9 @@ use crate::packet::{LevelNumber, LevelType, Levels, SystemId};
 use crate::route::{Route, RouteFlags, RouteSys, SummaryRoute};
 use crate::spf::{SpfLogEntry, SpfScheduler, Spt, Topologies};
 use crate::tasks::messages::input::{
-    AdjHoldTimerMsg, DisElectionMsg, LspDeleteMsg, LspOriginateMsg,
-    LspPurgeMsg, LspRefreshMsg, NetRxPduMsg, SendCsnpMsg, SendPsnpMsg,
-    SpfDelayEventMsg,
+    AdjHoldTimerMsg, AdjInitLsdbSyncMsg, DisElectionMsg, LspDeleteMsg,
+    LspOriginateMsg, LspPurgeMsg, LspRefreshMsg, NetRxPduMsg, SendCsnpMsg,
+    SendPsnpMsg, SpfDelayEventMsg,
 };
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
 use crate::{events, ibus, lsdb, spf, tasks};
@@ -136,6 +136,8 @@ pub struct InstanceArenas {
 pub struct ProtocolInputChannelsTx {
     // PDU Rx event.
     pub net_pdu_rx: Sender<NetRxPduMsg>,
+    // Adjacency initial LSDB synchronization.
+    pub adj_init_lsdb_sync: UnboundedSender<AdjInitLsdbSyncMsg>,
     // Adjacency hold timer event.
     pub adj_holdtimer: Sender<AdjHoldTimerMsg>,
     // Request to run DIS election.
@@ -160,6 +162,8 @@ pub struct ProtocolInputChannelsTx {
 pub struct ProtocolInputChannelsRx {
     // PDU Rx event.
     pub net_pdu_rx: Receiver<NetRxPduMsg>,
+    // Adjacency initial LSDB synchronization.
+    pub adj_init_lsdb_sync: UnboundedReceiver<AdjInitLsdbSyncMsg>,
     // Adjacency hold timer event.
     pub adj_holdtimer: Receiver<AdjHoldTimerMsg>,
     // Request to run DIS election.
@@ -375,6 +379,8 @@ impl ProtocolInstance for Instance {
     fn protocol_input_channels()
     -> (ProtocolInputChannelsTx, ProtocolInputChannelsRx) {
         let (net_pdu_rxp, net_pdu_rxc) = mpsc::channel(4);
+        let (adj_init_lsdb_syncp, adj_init_lsdb_syncc) =
+            mpsc::unbounded_channel();
         let (adj_holdtimerp, adj_holdtimerc) = mpsc::channel(4);
         let (dis_electionp, dis_electionc) = mpsc::unbounded_channel();
         let (send_psnpp, send_psnpc) = mpsc::unbounded_channel();
@@ -387,6 +393,7 @@ impl ProtocolInstance for Instance {
 
         let tx = ProtocolInputChannelsTx {
             net_pdu_rx: net_pdu_rxp,
+            adj_init_lsdb_sync: adj_init_lsdb_syncp,
             adj_holdtimer: adj_holdtimerp,
             dis_election: dis_electionp,
             send_psnp: send_psnpp,
@@ -399,6 +406,7 @@ impl ProtocolInstance for Instance {
         };
         let rx = ProtocolInputChannelsRx {
             net_pdu_rx: net_pdu_rxc,
+            adj_init_lsdb_sync: adj_init_lsdb_syncc,
             adj_holdtimer: adj_holdtimerc,
             dis_election: dis_electionc,
             send_psnp: send_psnpc,
@@ -523,6 +531,9 @@ impl MessageReceiver<ProtocolInputMsg> for ProtocolInputChannelsRx {
     async fn recv(&mut self) -> Option<ProtocolInputMsg> {
         tokio::select! {
             biased;
+            msg = self.adj_init_lsdb_sync.recv() => {
+                msg.map(ProtocolInputMsg::AdjInitLsdbSync)
+            }
             msg = self.net_pdu_rx.recv() => {
                 msg.map(ProtocolInputMsg::NetRxPdu)
             }
@@ -715,6 +726,14 @@ fn process_protocol_msg(
                 msg.src,
                 msg.bytes,
                 msg.pdu,
+            )?;
+        }
+        // Adjacency initial LSDB synchronization.
+        ProtocolInputMsg::AdjInitLsdbSync(msg) => {
+            events::process_adj_init_lsdb_sync(
+                instance,
+                arenas,
+                msg.iface_key,
             )?;
         }
         // Adjacency hold timer event.

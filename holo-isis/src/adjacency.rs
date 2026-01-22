@@ -166,6 +166,12 @@ impl Adjacency {
                 } else {
                     iface.csnp_interval_start(instance);
                 }
+
+                // Add all LSPs to the interface RXMT list.
+                let msg = tasks::messages::input::AdjInitLsdbSyncMsg {
+                    iface_key: iface.id.into(),
+                };
+                let _ = instance.tx.protocol_input.adj_init_lsdb_sync.send(msg);
             } else if self.state == AdjacencyState::Up {
                 iface.csnp_interval_stop();
             }

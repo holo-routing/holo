@@ -84,6 +84,7 @@ pub mod messages {
         #[derive(Deserialize, Serialize)]
         pub enum ProtocolMsg {
             NetRxPdu(NetRxPduMsg),
+            AdjInitLsdbSync(AdjInitLsdbSyncMsg),
             AdjHoldTimer(AdjHoldTimerMsg),
             DisElection(DisElectionMsg),
             SendPsnp(SendPsnpMsg),
@@ -104,6 +105,12 @@ pub mod messages {
             #[serde(default)]
             pub bytes: Bytes,
             pub pdu: Result<Pdu, DecodeError>,
+        }
+
+        #[derive(Debug)]
+        #[derive(Deserialize, Serialize)]
+        pub struct AdjInitLsdbSyncMsg {
+            pub iface_key: InterfaceKey,
         }
 
         #[derive(Debug)]

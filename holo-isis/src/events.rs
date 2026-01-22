@@ -1187,6 +1187,9 @@ pub(crate) fn process_dis_election(
 ) -> Result<(), Error> {
     // Lookup interface.
     let iface = arenas.interfaces.get_mut_by_key(&iface_key)?;
+    if !iface.state.active {
+        return Ok(());
+    }
 
     // Run DIS election.
     let dis = iface.dis_election(instance, &arenas.adjacencies, level);
@@ -1240,6 +1243,9 @@ pub(crate) fn process_send_psnp(
 ) -> Result<(), Error> {
     // Lookup interface.
     let iface = arenas.interfaces.get_mut_by_key(&iface_key)?;
+    if !iface.state.active {
+        return Ok(());
+    }
 
     // Do not send PSNP if we're the DIS.
     if iface.config.interface_type == InterfaceType::Broadcast
@@ -1297,6 +1303,9 @@ pub(crate) fn process_send_csnp(
 ) -> Result<(), Error> {
     // Lookup interface.
     let iface = arenas.interfaces.get_mut_by_key(&iface_key)?;
+    if !iface.state.active {
+        return Ok(());
+    }
 
     // Do not send CSNP if we aren't the DIS.
     if iface.config.interface_type == InterfaceType::Broadcast

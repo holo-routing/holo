@@ -261,7 +261,7 @@ impl Spt {
         ancestor: SystemId,
         descendant: SystemId,
     ) -> bool {
-        let Some(anc) = self.id_tree.get(&VertexId::from(ancestor)) else {
+        let Some(ancestor) = self.id_tree.get(&VertexId::from(ancestor)) else {
             return false;
         };
         let Some(start) = self.id_tree.get(&VertexId::from(descendant)) else {
@@ -271,7 +271,7 @@ impl Spt {
         // Stack-based DFS over all parent chains.
         let mut stack = vec![*start];
         while let Some(cur) = stack.pop() {
-            if cur == *anc {
+            if cur == *ancestor {
                 return true;
             }
             let v = &self.arena[cur];

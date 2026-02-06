@@ -4,14 +4,16 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::borrow::Cow;
 use std::env;
 use std::fmt::Write;
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
 
 use check_keyword::CheckKeyword;
 use convert_case::{Boundary, Case, Casing};
 use holo_yang as yang;
-use holo_yang::YANG_IMPLEMENTED_MODULES;
+use itertools::Itertools;
 use yang4::schema::{
     DataValueType, SchemaLeafType, SchemaNode, SchemaNodeKind, SchemaPathFormat,
 };
@@ -21,90 +23,11 @@ use std::borrow::Cow;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::time::{Duration, Instant};
 
-use chrono::{DateTime, Utc};
+use holo_northbound::yang_codegen::*;
 use holo_yang::{YangObject, YangPath, YANG_CTX};
-use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
-use itertools::Itertools;
 use yang4::data::DataNodeRef;
 use yang4::schema::SchemaModule;
 
-fn binary_to_yang(value: &[u8]) -> String {
-    use base64::Engine;
-    base64::engine::general_purpose::STANDARD.encode(value)
-}
-
-fn hex_string_to_yang(value: &[u8]) -> String {
-    value.iter().map(|byte| format!("{byte:02x}")).join(":")
-}
-
-fn timer_secs16_to_yang(timer: Cow<'_, Duration>) -> String {
-    let remaining = timer.as_secs();
-    // Round up the remaining time to 1 in case it's less than one second.
-    let remaining = if remaining == 0 { 1 } else { remaining };
-    let remaining = u16::try_from(remaining).unwrap_or(u16::MAX);
-    remaining.to_string()
-}
-
-#[expect(unused)]
-fn timer_secs32_to_yang(timer: Cow<'_, Duration>) -> String {
-    let remaining = timer.as_secs();
-    // Round up the remaining time to 1 in case it's less than one second.
-    let remaining = if remaining == 0 { 1 } else { remaining };
-    let remaining = u32::try_from(remaining).unwrap_or(u32::MAX);
-    remaining.to_string()
-}
-
-fn timer_millis_to_yang(timer: Cow<'_, Duration>) -> String {
-    let remaining = timer.as_millis();
-    // Round up the remaining time to 1 in case it's less than one millisecond.
-    let remaining = if remaining == 0 { 1 } else { remaining };
-    let remaining = u32::try_from(remaining).unwrap_or(u32::MAX);
-    remaining.to_string()
-}
-
-fn timeticks_to_yang(timeticks: Cow<'_, Instant>) -> String {
-    let uptime = Instant::now() - *timeticks;
-    let uptime = u32::try_from(uptime.as_millis() / 10).unwrap_or(u32::MAX);
-    uptime.to_string()
-}
-
-fn timeticks64_to_yang(timeticks: Cow<'_, Instant>) -> String {
-    let uptime = Instant::now() - *timeticks;
-    let uptime = u64::try_from(uptime.as_millis() / 10).unwrap_or(u64::MAX);
-    uptime.to_string()
-}
-
-fn bandwidth_ieee_float32_to_yang(value: &f32) -> String {
-    // Get the binary representation of the float value.
-    let bits = value.to_bits();
-
-    // Extract the sign bit, exponent, and fraction.
-    let sign = (bits >> 31) & 0x1;
-    let exponent = ((bits >> 23) & 0xFF) as i32 - 127;
-    let fraction = bits & 0x7FFFFF;
-
-    // Normalize the fraction by adding the leading 1.
-    let mut fraction_hex = format!("{fraction:x}");
-
-    // Ensure 6 digits in hexadecimal.
-    while fraction_hex.len() < 6 {
-        fraction_hex = format!("0{fraction_hex}");
-    }
-
-    // Format the exponent as a signed decimal.
-    let exponent_str = if exponent >= 0 {
-        format!("p+{exponent}")
-    } else {
-        format!("p{exponent}")
-    };
-
-    // Build the final string.
-    format!("0x1.{fraction_hex}{exponent_str}")
-}
-
-fn fletcher_checksum16_to_yang(cksum: u16) -> String {
-    format!("{cksum:#06x}")
-}
 "#;
 
 struct StructBuilder<'a> {
@@ -164,7 +87,7 @@ impl<'a> StructBuilder<'a> {
         }
     }
 
-    fn generate(self, output: &mut String) {
+    fn generate(self, output: &mut String) -> std::fmt::Result {
         let indent1 = " ".repeat((self.level + 1) * 2);
         let indent2 = " ".repeat((self.level + 2) * 2);
         let indent3 = " ".repeat((self.level + 3) * 2);
@@ -187,9 +110,9 @@ impl<'a> StructBuilder<'a> {
         if self.snode.kind() != SchemaNodeKind::List
             || self.snode.is_keyless_list()
         {
-            writeln!(output, "{indent1}#[derive(Default)]").unwrap();
+            writeln!(output, "{indent1}#[derive(Default)]")?;
         }
-        writeln!(output, "{indent1}pub struct {name}{lifetime} {{").unwrap();
+        writeln!(output, "{indent1}pub struct {name}{lifetime} {{")?;
         for snode in &self.fields {
             let field_name = snode_normalized_name(snode, Case::Snake);
             let field_type = match snode.kind() {
@@ -219,8 +142,7 @@ impl<'a> StructBuilder<'a> {
                 _ => unreachable!(),
             };
 
-            writeln!(output, "{indent2}pub {field_name}: {field_type},",)
-                .unwrap();
+            writeln!(output, "{indent2}pub {field_name}: {field_type},",)?;
         }
         if self.snode.is_within_notification()
             && self.fields.iter().all(|snode| {
@@ -232,30 +154,26 @@ impl<'a> StructBuilder<'a> {
             writeln!(
                 output,
                 "{indent2}_marker: std::marker::PhantomData<&'a str>,"
-            )
-            .unwrap();
+            )?;
         }
-        writeln!(output, "{indent1}}}").unwrap();
+        writeln!(output, "{indent1}}}")?;
 
         // YangObject trait implementation.
-        writeln!(output).unwrap();
+        writeln!(output)?;
         writeln!(
             output,
             "{indent1}impl YangObject for {name}{anon_lifetime} {{"
-        )
-        .unwrap();
+        )?;
 
         // into_data_node() function implementation.
         writeln!(
             output,
             "{indent2}fn into_data_node(self: Box<Self>, dnode: &mut DataNodeRef<'_>) {{"
-        )
-        .unwrap();
+        )?;
         writeln!(
             output,
             "{indent3}let module: Option<&SchemaModule<'_>> = None;"
-        )
-        .unwrap();
+        )?;
         for snode in self.fields.iter().filter(|snode| !snode.is_list_key()) {
             let field_name = snode_normalized_name(snode, Case::Snake);
             let module = snode.module();
@@ -263,25 +181,32 @@ impl<'a> StructBuilder<'a> {
             writeln!(
                 output,
                 "{indent3}if let Some({field_name}) = self.{field_name} {{"
-            )
-            .unwrap();
+            )?;
 
             if let Some(parent_snode) = snode.ancestors().next()
                 && snode.module() != parent_snode.module()
             {
-                writeln!(output, "{}let module = YANG_CTX.get().unwrap().get_module_latest(\"{}\").unwrap();", indent4, module.name()).unwrap();
-                writeln!(output, "{indent4}let module = Some(&module);")
-                    .unwrap();
+                writeln!(
+                    output,
+                    "{}let module = YANG_CTX.get().unwrap().get_module_latest(\"{}\").unwrap();",
+                    indent4,
+                    module.name()
+                )?;
+                writeln!(output, "{indent4}let module = Some(&module);")?;
             }
 
             match snode.kind() {
                 SchemaNodeKind::Container => {
-                    writeln!(output, "{}let mut dnode = dnode.new_inner(module, \"{}\").unwrap();", indent4, snode.name()).unwrap();
+                    writeln!(
+                        output,
+                        "{}let mut dnode = dnode.new_inner(module, \"{}\").unwrap();",
+                        indent4,
+                        snode.name()
+                    )?;
                     writeln!(
                         output,
                         "{indent4}{field_name}.into_data_node(&mut dnode);"
-                    )
-                    .unwrap();
+                    )?;
                 }
                 SchemaNodeKind::Leaf => {
                     let leaf_type = snode.leaf_type().unwrap();
@@ -292,13 +217,14 @@ impl<'a> StructBuilder<'a> {
                         indent4,
                         snode.name(),
                         value
-                    )
-                    .unwrap();
+                    )?;
                 }
                 SchemaNodeKind::LeafList => {
                     let leaf_type = snode.leaf_type().unwrap();
-                    writeln!(output, "{indent4}for element in {field_name} {{")
-                        .unwrap();
+                    writeln!(
+                        output,
+                        "{indent4}for element in {field_name} {{"
+                    )?;
                     let value = leaf_type_value(&leaf_type, "element");
                     writeln!(
                         output,
@@ -306,22 +232,20 @@ impl<'a> StructBuilder<'a> {
                         indent5,
                         snode.name(),
                         value
-                    )
-                    .unwrap();
-                    writeln!(output, "{indent4}}}").unwrap();
+                    )?;
+                    writeln!(output, "{indent4}}}")?;
                 }
                 _ => unreachable!(),
             }
-            writeln!(output, "{indent3}}}").unwrap();
+            writeln!(output, "{indent3}}}")?;
         }
-        writeln!(output, "{indent2}}}").unwrap();
+        writeln!(output, "{indent2}}}")?;
 
         // list_keys() function implementation.
         if self.snode.kind() == SchemaNodeKind::List
             && !self.snode.is_keyless_list()
         {
-            writeln!(output, "{indent2}fn list_keys(&self) -> String {{")
-                .unwrap();
+            writeln!(output, "{indent2}fn list_keys(&self) -> String {{")?;
 
             let fmt_string = self
                 .snode
@@ -339,12 +263,13 @@ impl<'a> StructBuilder<'a> {
                 .collect::<Vec<_>>()
                 .join(", ");
 
-            writeln!(output, "{indent3}format!(\"{fmt_string}\", {fmt_args})")
-                .unwrap();
-            writeln!(output, "{indent2}}}").unwrap();
+            writeln!(output, "{indent3}format!(\"{fmt_string}\", {fmt_args})")?;
+            writeln!(output, "{indent2}}}")?;
         }
 
-        writeln!(output, "{indent1}}}").unwrap();
+        writeln!(output, "{indent1}}}")?;
+
+        Ok(())
     }
 }
 
@@ -360,8 +285,6 @@ fn snode_normalized_name(snode: &SchemaNode<'_>, case: Case<'_>) -> String {
             | "destination-prefix"
             | "address"
             | "next-hop-address"
-            | "clear-database"
-            | "if-state-change"
     ) {
         if snode.module().name() == "ietf-ipv4-unicast-routing" {
             name.insert_str(0, "ipv4-");
@@ -371,9 +294,6 @@ fn snode_normalized_name(snode: &SchemaNode<'_>, case: Case<'_>) -> String {
         }
         if snode.module().name() == "ietf-mpls" {
             name.insert_str(0, "mpls-");
-        }
-        if snode.module().name() == "ietf-isis" {
-            name.insert_str(0, "isis-");
         }
     }
     if let Some(snode_parent) = snode.ancestors().next()
@@ -394,7 +314,7 @@ fn snode_normalized_name(snode: &SchemaNode<'_>, case: Case<'_>) -> String {
     // Case conversion.
     name = name
         .from_case(Case::Kebab)
-        .without_boundaries(&[Boundary::UpperDigit, Boundary::LowerDigit])
+        .remove_boundaries(&[Boundary::UpperDigit, Boundary::LowerDigit])
         .to_case(case);
 
     // Handle Rust reserved keywords.
@@ -426,10 +346,10 @@ fn leaf_typedef_map(leaf_type: &SchemaLeafType<'_>) -> Option<&'static str> {
             Some("Cow<'a, Ipv4Addr>")
         }
         Some("ipv6-address") => Some("Cow<'a, Ipv6Addr>"),
-        Some("ip-prefix") => Some("Cow<'a, IpNetwork>"),
-        Some("ipv4-prefix") => Some("Cow<'a, Ipv4Network>"),
-        Some("ipv6-prefix") => Some("Cow<'a, Ipv6Network>"),
-        Some("date-and-time") => Some("Cow<'a, DateTime<Utc>>"),
+        Some("ip-prefix") => Some("Cow<'a, ipnetwork::IpNetwork>"),
+        Some("ipv4-prefix") => Some("Cow<'a, ipnetwork::Ipv4Network>"),
+        Some("ipv6-prefix") => Some("Cow<'a, ipnetwork::Ipv6Network>"),
+        Some("date-and-time") => Some("Cow<'a, chrono::DateTime<chrono::Utc>>"),
         Some("timer-value-seconds16") => Some("Cow<'a, Duration>"),
         Some("timer-value-seconds32") => Some("Cow<'a, Duration>"),
         Some("timer-value-milliseconds") => Some("Cow<'a, Duration>"),
@@ -552,18 +472,37 @@ fn leaf_type_value(leaf_type: &SchemaLeafType<'_>, field_name: &str) -> String {
     }
 }
 
-fn generate_module(output: &mut String, snode: &SchemaNode<'_>, level: usize) {
+fn generate_module(
+    output: &mut String,
+    modules: &[&str],
+    snode: &SchemaNode<'_>,
+    level: usize,
+) -> std::fmt::Result {
     let indent = " ".repeat(level * 2);
+    let gen_module = !snode.is_schema_only()
+        && (modules
+            .iter()
+            .any(|module| *module == snode.module().name())
+            || matches!(
+                snode.path(SchemaPathFormat::DATA).as_ref(),
+                "/ietf-routing:routing"
+                    | "/ietf-routing:routing/control-plane-protocols"
+                    | "/ietf-routing:routing/control-plane-protocols/control-plane-protocol"
+                    | "/ietf-interfaces:interfaces"
+                    | "/ietf-interfaces:interfaces/interface"
+                    | "/ietf-interfaces:interfaces/interface/ietf-ip:ipv4"
+                    | "/ietf-interfaces:interfaces/interface/ietf-ip:ipv6"
+            ));
 
-    if !snode.is_schema_only() {
+    if gen_module {
         let name = snode_normalized_name(snode, Case::Snake);
 
         // Generate module.
-        writeln!(output, "{indent}pub mod {name} {{").unwrap();
-        writeln!(output, "{indent}  use super::*;").unwrap();
+        writeln!(output, "{indent}pub mod {name} {{")?;
+        writeln!(output, "{indent}  use super::*;")?;
 
         // Generate paths.
-        generate_paths(output, snode, level);
+        generate_paths(output, snode, level)?;
 
         // Generate default value (if any).
         if snode.is_config()
@@ -572,7 +511,7 @@ fn generate_module(output: &mut String, snode: &SchemaNode<'_>, level: usize) {
         {
             let dflt_type = leaf_type.base_type();
             let dflt_value = dflt_value.to_owned();
-            generate_default_value(output, dflt_type, dflt_value, level);
+            generate_default_value(output, dflt_type, dflt_value, level)?;
         }
 
         // Generate object struct.
@@ -584,30 +523,35 @@ fn generate_module(output: &mut String, snode: &SchemaNode<'_>, level: usize) {
         ) {
             let builder = StructBuilder::new(level, snode.clone());
             if !builder.fields.is_empty() {
-                builder.generate(output);
+                builder.generate(output)?;
             }
         }
     }
 
     // Iterate over child nodes.
     for snode in snode.actions() {
-        generate_module(output, &snode, level + 1);
+        generate_module(output, modules, &snode, level + 1)?;
     }
     for snode in snode.notifications() {
-        generate_module(output, &snode, level + 1);
+        generate_module(output, modules, &snode, level + 1)?;
     }
     for snode in snode.children().filter(|snode| snode.is_status_current()) {
-        writeln!(output).unwrap();
-        generate_module(output, &snode, level + 1);
+        generate_module(output, modules, &snode, level + 1)?;
     }
 
-    if !snode.is_schema_only() {
+    if gen_module {
         // Close generated module.
-        writeln!(output, "{indent}}}").unwrap();
+        writeln!(output, "{indent}}}")?;
     }
+
+    Ok(())
 }
 
-fn generate_paths(output: &mut String, snode: &SchemaNode<'_>, level: usize) {
+fn generate_paths(
+    output: &mut String,
+    snode: &SchemaNode<'_>,
+    level: usize,
+) -> std::fmt::Result {
     let indent = " ".repeat(level * 2);
 
     // Generate data path.
@@ -615,8 +559,7 @@ fn generate_paths(output: &mut String, snode: &SchemaNode<'_>, level: usize) {
     writeln!(
         output,
         "{indent}  pub const PATH: YangPath = YangPath::new(\"{path}\");"
-    )
-    .unwrap();
+    )?;
 
     // For notifications, generate data path relative to the nearest parent
     // list.
@@ -631,9 +574,10 @@ fn generate_paths(output: &mut String, snode: &SchemaNode<'_>, level: usize) {
         writeln!(
             output,
             "{indent}  pub const RELATIVE_PATH: &str = \"{relative_path}\";"
-        )
-        .unwrap();
+        )?;
     }
+
+    Ok(())
 }
 
 fn generate_default_value(
@@ -641,7 +585,7 @@ fn generate_default_value(
     dflt_type: DataValueType,
     mut dflt_value: String,
     level: usize,
-) {
+) -> std::fmt::Result {
     let indent = " ".repeat(level * 2);
 
     let dflt_type = match dflt_type {
@@ -664,42 +608,115 @@ fn generate_default_value(
     writeln!(
         output,
         "{indent}  pub const DFLT: {dflt_type} = {dflt_value};",
-    )
-    .unwrap();
+    )?;
+
+    Ok(())
 }
 
-// ===== main =====
+// ===== global functions =====
 
-fn main() {
+pub fn binary_to_yang(value: &[u8]) -> String {
+    use base64::Engine;
+    base64::engine::general_purpose::STANDARD.encode(value)
+}
+
+pub fn hex_string_to_yang(value: &[u8]) -> String {
+    value.iter().map(|byte| format!("{byte:02x}")).join(":")
+}
+
+pub fn timer_secs16_to_yang(timer: Cow<'_, Duration>) -> String {
+    let remaining = timer.as_secs();
+    // Round up the remaining time to 1 in case it's less than one second.
+    let remaining = if remaining == 0 { 1 } else { remaining };
+    let remaining = u16::try_from(remaining).unwrap_or(u16::MAX);
+    remaining.to_string()
+}
+
+pub fn timer_secs32_to_yang(timer: Cow<'_, Duration>) -> String {
+    let remaining = timer.as_secs();
+    // Round up the remaining time to 1 in case it's less than one second.
+    let remaining = if remaining == 0 { 1 } else { remaining };
+    let remaining = u32::try_from(remaining).unwrap_or(u32::MAX);
+    remaining.to_string()
+}
+
+pub fn timer_millis_to_yang(timer: Cow<'_, Duration>) -> String {
+    let remaining = timer.as_millis();
+    // Round up the remaining time to 1 in case it's less than one millisecond.
+    let remaining = if remaining == 0 { 1 } else { remaining };
+    let remaining = u32::try_from(remaining).unwrap_or(u32::MAX);
+    remaining.to_string()
+}
+
+pub fn timeticks_to_yang(timeticks: Cow<'_, Instant>) -> String {
+    let uptime = Instant::now() - *timeticks;
+    let uptime = u32::try_from(uptime.as_millis() / 10).unwrap_or(u32::MAX);
+    uptime.to_string()
+}
+
+pub fn timeticks64_to_yang(timeticks: Cow<'_, Instant>) -> String {
+    let uptime = Instant::now() - *timeticks;
+    let uptime = u64::try_from(uptime.as_millis() / 10).unwrap_or(u64::MAX);
+    uptime.to_string()
+}
+
+pub fn bandwidth_ieee_float32_to_yang(value: &f32) -> String {
+    // Get the binary representation of the float value.
+    let bits = value.to_bits();
+
+    // Extract the sign bit, exponent, and fraction.
+    let _sign = (bits >> 31) & 0x1;
+    let exponent = ((bits >> 23) & 0xFF) as i32 - 127;
+    let fraction = bits & 0x7FFFFF;
+
+    // Normalize the fraction by adding the leading 1.
+    let mut fraction_hex = format!("{fraction:x}");
+
+    // Ensure 6 digits in hexadecimal.
+    while fraction_hex.len() < 6 {
+        fraction_hex = format!("0{fraction_hex}");
+    }
+
+    // Format the exponent as a signed decimal.
+    let exponent_str = if exponent >= 0 {
+        format!("p+{exponent}")
+    } else {
+        format!("p{exponent}")
+    };
+
+    // Build the final string.
+    format!("0x1.{fraction_hex}{exponent_str}")
+}
+
+pub fn fletcher_checksum16_to_yang(cksum: u16) -> String {
+    format!("{cksum:#06x}")
+}
+
+pub fn build(modules: &[&str]) {
     let dst = PathBuf::from(env::var("OUT_DIR").unwrap());
-    let out_file = dst.join("yang.rs");
+    let out_file = dst.join("yang_gen.rs");
 
     // Create YANG context and load all implemented modules.
     let mut yang_ctx = yang::new_context();
-    for module_name in YANG_IMPLEMENTED_MODULES.iter() {
-        yang::load_module(&mut yang_ctx, module_name);
-    }
-    for module_name in YANG_IMPLEMENTED_MODULES.iter().rev() {
-        yang::load_deviations(&mut yang_ctx, module_name);
-    }
+    yang::load_modules(&mut yang_ctx, &yang::implemented_modules::ALL);
 
     // Generate file header.
-    let mut output = String::new();
-    writeln!(output, "{HEADER}").unwrap();
+    let mut output = HEADER.to_owned();
 
     // Generate modules.
     for snode in yang_ctx
         .modules(true)
         .flat_map(|module| {
-            let data = module.data();
-            let rpcs = module.rpcs();
-            let notifications = module.notifications();
-            data.chain(rpcs).chain(notifications)
+            module
+                .data()
+                .chain(module.rpcs())
+                .chain(module.notifications())
         })
         .filter(|snode| !snode.is_schema_only())
         .filter(|snode| snode.is_status_current())
     {
-        generate_module(&mut output, &snode, 0);
+        generate_module(&mut output, modules, &snode, 0)
+            .expect("Failed to write to stdout");
     }
 
     // Write path modules to file.

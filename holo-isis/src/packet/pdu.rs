@@ -21,7 +21,7 @@ use holo_utils::mac_addr::MacAddr;
 use holo_yang::ToYang;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
-use tracing::debug_span;
+use tracing::{Span, warn_span};
 
 use crate::packet::auth::AuthMethod;
 use crate::packet::consts::{
@@ -38,10 +38,10 @@ use crate::packet::tlv::{
     Ipv4RouterIdTlv, Ipv6AddressesTlv, Ipv6Reach, Ipv6ReachTlv,
     Ipv6RouterIdTlv, IsReach, IsReachTlv, LegacyIpv4Reach, LegacyIpv4ReachTlv,
     LegacyIsReach, LegacyIsReachTlv, LspBufferSizeTlv, LspEntriesTlv, LspEntry,
-    MtFlags, MultiTopologyEntry, MultiTopologyTlv, NeighborsTlv, PaddingTlv,
-    ProtocolsSupportedTlv, PurgeOriginatorIdTlv, RouterCapTlv, TLV_HDR_SIZE,
-    TLV_MAX_LEN, ThreeWayAdjTlv, Tlv, UnknownTlv, tlv_entries_split,
-    tlv_take_max,
+    MtCapabilityTlv, MtFlags, MultiTopologyEntry, MultiTopologyTlv,
+    NeighborsTlv, PaddingTlv, ProtocolsSupportedTlv, PurgeOriginatorIdTlv,
+    RouterCapTlv, TLV_HDR_SIZE, TLV_MAX_LEN, ThreeWayAdjTlv, Tlv, UnknownTlv,
+    tlv_entries_split, tlv_take_max,
 };
 use crate::packet::{
     AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId, auth,
@@ -153,6 +153,7 @@ pub struct LspTlvs {
     pub auth: Option<AuthenticationTlv>,
     pub protocols_supported: Option<ProtocolsSupportedTlv>,
     pub router_cap: Vec<RouterCapTlv>,
+    pub mt_cap: Vec<MtCapabilityTlv>,
     pub area_addrs: Vec<AreaAddressesTlv>,
     pub multi_topology: Vec<MultiTopologyTlv>,
     pub purge_originator_id: Option<PurgeOriginatorIdTlv>,
@@ -581,10 +582,7 @@ impl Hello {
         }
 
         // Parse PDU length.
-        let pdu_len = buf.try_get_u16()?;
-        if pdu_len != buf_orig.len() as u16 {
-            return Err(DecodeError::InvalidPduLength(pdu_len));
-        }
+        let _pdu_len = decode_pdu_length(&hdr, buf, &buf_orig)?;
 
         // Parse custom fields.
         let variant = if hdr.pdu_type == PduType::HelloP2P {
@@ -602,7 +600,7 @@ impl Hello {
         };
 
         // Parse top-level TLVs.
-        let span = debug_span!("Hello", source = %source.to_yang());
+        let span = warn_span!("Hello", source = %source.to_yang());
         let _span_guard = span.enter();
         let mut tlvs = HelloTlvs::default();
         let mut tlv_auth = None;
@@ -614,11 +612,16 @@ impl Hello {
             // Parse and validate TLV length.
             let tlv_len = buf.try_get_u8()?;
             if tlv_len as usize > buf.remaining() {
-                return Err(DecodeError::InvalidTlvLength(tlv_len));
+                return Err(DecodeError::InvalidTlvLength {
+                    span: Some(Span::current()),
+                    tlv_type,
+                    tlv_len,
+                    remaining: buf.remaining(),
+                });
             }
 
             // Parse TLV value.
-            let span = debug_span!("TLV", r#type = tlv_type, length = tlv_len);
+            let span = warn_span!("TLV", r#type = tlv_type, length = tlv_len);
             let _span_guard = span.enter();
             let tlv_offset = buf_orig.len() - buf.remaining();
             let mut buf_tlv = buf.copy_to_bytes(tlv_len as usize);
@@ -957,10 +960,7 @@ impl Lsp {
         auth: Option<&AuthMethod>,
     ) -> DecodeResult<Self> {
         // Parse PDU length.
-        let pdu_len = buf.try_get_u16()?;
-        if pdu_len != buf_orig.len() as u16 {
-            return Err(DecodeError::InvalidPduLength(pdu_len));
-        }
+        let pdu_len = decode_pdu_length(&hdr, buf, &buf_orig)?;
 
         // Parse remaining lifetime.
         let rem_lifetime = buf.try_get_u16()?;
@@ -979,7 +979,8 @@ impl Lsp {
         let flags = LspFlags::from_bits_truncate(flags);
 
         // Parse top-level TLVs.
-        let span = debug_span!("LSP", lsp_id = %lsp_id.to_yang(), seqno);
+        let span =
+            warn_span!("LSP", lsp_id = %lsp_id.to_yang(), seqno, pdu_len);
         let _span_guard = span.enter();
         let mut tlvs = LspTlvs::default();
         let mut tlv_auth = None;
@@ -991,11 +992,16 @@ impl Lsp {
             // Parse and validate TLV length.
             let tlv_len = buf.try_get_u8()?;
             if tlv_len as usize > buf.remaining() {
-                return Err(DecodeError::InvalidTlvLength(tlv_len));
+                return Err(DecodeError::InvalidTlvLength {
+                    span: Some(Span::current()),
+                    tlv_type,
+                    tlv_len,
+                    remaining: buf.remaining(),
+                });
             }
 
             // Parse TLV value.
-            let span = debug_span!("TLV", r#type = tlv_type, length = tlv_len);
+            let span = warn_span!("TLV", r#type = tlv_type, length = tlv_len);
             let _span_guard = span.enter();
             let tlv_offset = buf_orig.len() - buf.remaining();
             let mut buf_tlv = buf.copy_to_bytes(tlv_len as usize);
@@ -1164,6 +1170,12 @@ impl Lsp {
                         Err(error) => error.log(),
                     }
                 }
+                Some(TlvType::MtCapability) => {
+                    match MtCapabilityTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.mt_cap.push(tlv),
+                        Err(error) => error.log(),
+                    }
+                }
                 _ => {
                     // Save unknown top-level TLV.
                     tlvs.unknown
@@ -1222,6 +1234,9 @@ impl Lsp {
                 tlv.encode(&mut buf);
             }
             for tlv in &self.tlvs.router_cap {
+                tlv.encode(&mut buf);
+            }
+            for tlv in &self.tlvs.mt_cap {
                 tlv.encode(&mut buf);
             }
             for tlv in &self.tlvs.area_addrs {
@@ -1328,6 +1343,22 @@ impl Lsp {
         fletcher::calc_fletcher16(&self.raw[12..]) == 0
     }
 
+    // Returns the per-LSP contribution to the LSDB fingerprint.
+    //
+    // The value is computed from selected LSP fields and is intended to be
+    // XOR-combined with other LSP values to form a level-wide LSDB fingerprint.
+    pub(crate) fn lsdb_fingerprint_component(&self) -> u64 {
+        let mut result: u64 = 0;
+        let system_id: &[u8] = self.lsp_id.system_id.as_ref();
+        for i in system_id.iter().chain(&[self.lsp_id.pseudonode]) {
+            result <<= 8;
+            result ^= *i as u64;
+        }
+        result ^= (self.cksum as u64) << 48;
+        result ^= (self.raw.len() as u64) << 32;
+        result
+    }
+
     // Returns whether the LSP has expired (i.e., its remaining lifetime has
     // reached zero).
     pub(crate) fn is_expired(&self) -> bool {
@@ -1371,7 +1402,7 @@ impl Lsp {
     // Converts the LSP into an LSP Entry for use in an SNP.
     pub(crate) fn as_snp_entry(&self) -> LspEntry {
         LspEntry {
-            rem_lifetime: self.rem_lifetime,
+            rem_lifetime: self.rem_lifetime(),
             lsp_id: self.lsp_id,
             seqno: self.seqno,
             cksum: self.cksum,
@@ -1417,6 +1448,7 @@ impl LspTlvs {
     pub(crate) fn new(
         protocols_supported: impl IntoIterator<Item = u8>,
         router_cap: Vec<RouterCapTlv>,
+        mt_cap: Vec<MtCapabilityTlv>,
         area_addrs: impl IntoIterator<Item = AreaAddr>,
         multi_topology: impl IntoIterator<Item = MultiTopologyEntry>,
         hostname: Option<String>,
@@ -1441,6 +1473,7 @@ impl LspTlvs {
                 protocols_supported,
             )),
             router_cap,
+            mt_cap,
             area_addrs: tlv_entries_split(area_addrs),
             multi_topology: tlv_entries_split(multi_topology),
             purge_originator_id: None,
@@ -1482,6 +1515,7 @@ impl LspTlvs {
             rem_len -= protocols_supported.len();
         }
         let router_cap = tlv_take_max(&mut self.router_cap, &mut rem_len);
+        let mt_cap = tlv_take_max(&mut self.mt_cap, &mut rem_len);
         let area_addrs = tlv_take_max(&mut self.area_addrs, &mut rem_len);
         let multi_topology =
             tlv_take_max(&mut self.multi_topology, &mut rem_len);
@@ -1523,6 +1557,7 @@ impl LspTlvs {
             auth: None,
             protocols_supported,
             router_cap,
+            mt_cap,
             area_addrs,
             multi_topology,
             purge_originator_id: None,
@@ -1581,6 +1616,7 @@ impl LspTlvs {
 
         self.protocols_supported.is_none()
             && self.router_cap.is_empty()
+            && self.mt_cap.is_empty()
             && self.area_addrs.is_empty()
             && self.multi_topology.is_empty()
             && self.lsp_buf_size.is_none()
@@ -1807,10 +1843,7 @@ impl Snp {
         auth: Option<&AuthMethod>,
     ) -> DecodeResult<Self> {
         // Parse PDU length.
-        let pdu_len = buf.try_get_u16()?;
-        if pdu_len != buf_orig.len() as u16 {
-            return Err(DecodeError::InvalidPduLength(pdu_len));
-        }
+        let _pdu_len = decode_pdu_length(&hdr, buf, &buf_orig)?;
 
         // Parse source ID.
         let source = LanId::decode(buf)?;
@@ -1824,7 +1857,7 @@ impl Snp {
         }
 
         // Parse top-level TLVs.
-        let span = debug_span!("SNP", source = %source.to_yang());
+        let span = warn_span!("SNP", source = %source.to_yang());
         let _span_guard = span.enter();
         let mut tlvs = SnpTlvs::default();
         let mut tlv_auth = None;
@@ -1836,11 +1869,16 @@ impl Snp {
             // Parse and validate TLV length.
             let tlv_len = buf.try_get_u8()?;
             if tlv_len as usize > buf.remaining() {
-                return Err(DecodeError::InvalidTlvLength(tlv_len));
+                return Err(DecodeError::InvalidTlvLength {
+                    span: Some(Span::current()),
+                    tlv_type,
+                    tlv_len,
+                    remaining: buf.remaining(),
+                });
             }
 
             // Parse TLV value.
-            let span = debug_span!("TLV", r#type = tlv_type, length = tlv_len);
+            let span = warn_span!("TLV", r#type = tlv_type, length = tlv_len);
             let _span_guard = span.enter();
             let tlv_offset = buf_orig.len() - buf.remaining();
             let mut buf_tlv = buf.copy_to_bytes(tlv_len as usize);
@@ -2004,6 +2042,27 @@ fn lsp_base_time() -> Option<Instant> {
     {
         None
     }
+}
+
+fn decode_pdu_length(
+    hdr: &Header,
+    buf: &mut Bytes,
+    buf_orig: &BytesMut,
+) -> DecodeResult<u16> {
+    let pdu_len = buf.try_get_u16()?;
+
+    // Reject PDUs that extend beyond the input buffer.
+    if pdu_len > buf_orig.len() as u16 {
+        return Err(DecodeError::InvalidPduLength(hdr.pdu_type, pdu_len));
+    }
+
+    // Trim any trailing bytes beyond the PDU length (e.g. Ethernet padding).
+    if pdu_len < buf_orig.len() as u16 {
+        let eth_padding = buf_orig.len() - pdu_len as usize;
+        buf.truncate(buf.len() - eth_padding);
+    }
+
+    Ok(pdu_len)
 }
 
 fn pdu_encode_start<'a>(

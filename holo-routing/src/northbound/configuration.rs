@@ -13,9 +13,6 @@ use holo_northbound::configuration::{
     self, Callbacks, CallbacksBuilder, ConfigChanges, Provider,
     ValidationCallbacks, ValidationCallbacksBuilder,
 };
-use holo_northbound::yang::control_plane_protocol;
-use holo_northbound::yang::routing::segment_routing::sr_mpls;
-use holo_northbound::yang::routing::{bier, ribs};
 use holo_northbound::{CallbackKey, NbDaemonSender};
 use holo_utils::bier::{
     BfrId, BierBift, BierBiftCfg, BierCfgEvent, BierEncapsulation,
@@ -39,6 +36,9 @@ use tokio::sync::mpsc;
 
 use crate::interface::Interfaces;
 use crate::northbound::REGEX_PROTOCOLS;
+use crate::northbound::yang_gen::control_plane_protocol;
+use crate::northbound::yang_gen::routing::segment_routing::sr_mpls;
+use crate::northbound::yang_gen::routing::{bier, ribs};
 use crate::{InstanceHandle, InstanceId, Master};
 
 pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =

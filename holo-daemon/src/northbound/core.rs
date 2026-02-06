@@ -10,7 +10,6 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use derive_new::new;
-use holo_northbound as northbound;
 use holo_northbound::configuration::{
     CommitPhase, ConfigChange, ValidationCallbacks,
 };
@@ -19,7 +18,7 @@ use holo_northbound::{
 };
 use holo_protocol::InstanceShared;
 use holo_utils::task::{Task, TimeoutTask};
-use holo_utils::yang::SchemaNodeExt;
+use holo_utils::yang::{ContextExt, SchemaNodeExt};
 use holo_utils::{Database, ibus};
 use holo_yang::YANG_CTX;
 use pickledb::PickleDb;
@@ -31,10 +30,11 @@ use yang4::data::{
     Data, DataDiffFlags, DataFormat, DataPrinterFlags, DataTree,
     DataValidationFlags,
 };
+use {holo_northbound as northbound, holo_yang as yang};
 
 use crate::config::Config;
 use crate::northbound::client::{api as capi, gnmi, grpc};
-use crate::northbound::{Error, Result, db, yang};
+use crate::northbound::{Error, Result, db};
 
 pub struct Northbound {
     // YANG-modeled running configuration.
@@ -100,10 +100,13 @@ impl Northbound {
         let db = Arc::new(Mutex::new(db));
 
         // Create global YANG context.
-        yang::create_context();
-        let yang_ctx = YANG_CTX.get().unwrap();
+        let mut yang_ctx = yang::new_context();
+        yang::load_modules(&mut yang_ctx, &yang::implemented_modules::ALL);
+        yang_ctx.cache_data_paths();
+        YANG_CTX.set(Arc::new(yang_ctx)).unwrap();
 
         // Create empty running configuration.
+        let yang_ctx = YANG_CTX.get().unwrap();
         let running_config = Arc::new(DataTree::new(yang_ctx));
 
         // Start client tasks (e.g. gRPC, gNMI).

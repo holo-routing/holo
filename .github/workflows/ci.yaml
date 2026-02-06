@@ -12,7 +12,7 @@ jobs:
     name: Code Formatting Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@1.91
         with:
           components: rustfmt
@@ -28,7 +28,7 @@ jobs:
     name: Lint Check (Clippy)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@1.91
         with:
           components: clippy
@@ -39,13 +39,13 @@ jobs:
       - name: Run Clippy
         run: cargo clippy
       - name: Run Clippy
-        run: cargo clippy --package holo-tools
+        run: cargo clippy -p holo-tools -p holo-replay
 
   tests_and_coverage_report:
     name: Tests and Coverage Report
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@1.91
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
@@ -63,7 +63,7 @@ jobs:
     name: Tests (Arm64)
     runs-on: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@1.91
       - name: Run tests
         run: cargo test --all-features -p holo-bfd -p holo-bgp -p holo-isis -p holo-ldp -p holo-ospf -p holo-rip -p holo-utils -p holo-vrrp 
@@ -72,7 +72,7 @@ jobs:
     name: Fuzz Targets Build Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       # cargo-fuzz requires nightly Rust due to LLVM sanitizer support
       - uses: dtolnay/rust-toolchain@nightly
         with:
@@ -86,23 +86,10 @@ jobs:
     name: Benchmark Build Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@1.91
       - name: Check benchmark builds
         run: cargo bench --no-run -p holo-bgp -p holo-ldp -p holo-ospf
-
-  spell-check:
-    name: Spell check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.91
-      - name: Install cargo-spellcheck
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-spellcheck
-      - name: Run cargo-spellcheck
-        run: cargo spellcheck --code 1
 
   docker-build-holod:
     name: "Docker Build: holod"

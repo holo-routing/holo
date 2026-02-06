@@ -23,7 +23,7 @@ pub static YANG_CTX: OnceLock<Arc<Context>> = OnceLock::new();
 //
 // All implemented or imported modules need to be specified here. Holo by
 // default doesn't support loading YANG modules from the filesystem.
-pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
+static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
     hashmap! {
         // IEEE modules
         EmbeddedModuleKey::new("ieee802-dot1q-types", Some("2022-01-19"), None, None) =>
@@ -101,8 +101,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-isis@2022-10-19.yang"),
         EmbeddedModuleKey::new("ietf-isis-msd", Some("2024-09-02"), None, None) =>
             include_str!("../modules/ietf/ietf-isis-msd@2024-09-02.yang"),
-        EmbeddedModuleKey::new("ietf-isis-sr-mpls", Some("2025-05-05"), None, None) =>
-            include_str!("../modules/ietf/ietf-isis-sr-mpls@2025-05-05.yang"),
+        EmbeddedModuleKey::new("ietf-isis-sr-mpls", Some("2025-12-09"), None, None) =>
+            include_str!("../modules/ietf/ietf-isis-sr-mpls@2025-12-09.yang"),
         EmbeddedModuleKey::new("ietf-key-chain", Some("2017-06-15"), None, None) =>
             include_str!("../modules/ietf/ietf-key-chain@2017-06-15.yang"),
         EmbeddedModuleKey::new("ietf-mpls", Some("2020-12-18"), None, None) =>
@@ -115,8 +115,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-netconf-acm@2018-02-14.yang"),
         EmbeddedModuleKey::new("ietf-ospf", Some("2022-10-19"), None, None) =>
             include_str!("../modules/ietf/ietf-ospf@2022-10-19.yang"),
-        EmbeddedModuleKey::new("ietf-ospf-sr-mpls", Some("2025-05-05"), None, None) =>
-            include_str!("../modules/ietf/ietf-ospf-sr-mpls@2025-05-05.yang"),
+        EmbeddedModuleKey::new("ietf-ospf-sr-mpls", Some("2025-12-09"), None, None) =>
+            include_str!("../modules/ietf/ietf-ospf-sr-mpls@2025-12-09.yang"),
         EmbeddedModuleKey::new("ietf-ospfv3-extended-lsa", Some("2024-06-07"), None, None) =>
             include_str!("../modules/ietf/ietf-ospfv3-extended-lsa@2024-06-07.yang"),
         EmbeddedModuleKey::new("ietf-packet-fields", Some("2019-03-04"), None, None) =>
@@ -216,63 +216,140 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
 //
 // The list includes modules that define YANG identities that can be
 // instantiated.
-pub static YANG_IMPLEMENTED_MODULES: Lazy<Vec<&'static str>> =
-    Lazy::new(|| {
-        vec![
-            // IEEE modules
-            "ieee802-dot1q-types",
-            // IETF modules
-            "iana-if-type",
-            "iana-bgp-notification",
-            "iana-bgp-rib-types",
-            "iana-bgp-types",
-            "iana-msd-types",
-            "ietf-bfd-ip-mh",
-            "ietf-bfd-ip-sh",
-            "ietf-bfd-types",
-            "ietf-bfd",
-            "ietf-bgp",
-            "ietf-bgp-policy",
-            "ietf-bier",
-            "ietf-routing-types",
-            "ietf-if-extensions",
-            "ietf-if-vlan-encapsulation",
-            "ietf-interfaces",
-            "ietf-igmp-mld",
-            "ietf-ip",
-            "ietf-isis",
-            "ietf-isis-msd",
-            "ietf-isis-sr-mpls",
-            "ietf-key-chain",
-            "ietf-routing",
-            "ietf-routing-policy",
-            "ietf-ipv4-unicast-routing",
-            "ietf-ipv6-unicast-routing",
-            "ietf-segment-routing",
-            "ietf-segment-routing-common",
-            "ietf-segment-routing-mpls",
-            "ietf-mpls",
-            "ietf-mpls-msd",
-            "ietf-mpls-ldp",
-            "ietf-ospf",
-            "ietf-ospf-sr-mpls",
-            "ietf-ospfv3-extended-lsa",
-            "ietf-rip",
-            "ietf-system",
-            "ietf-tcp",
-            "ietf-vrrp",
-            // IETF Holo augmentations
-            "holo-bgp",
-            "holo-isis",
-            "holo-isis-dev",
-            "holo-key-chain",
-            "holo-ospf",
-            "holo-ospf-dev",
-            "holo-rip",
-            "holo-routing",
-            "holo-vrrp",
-        ]
+#[allow(dead_code)]
+pub mod implemented_modules {
+    use super::Lazy;
+
+    pub const BFD: &[&str] = &[
+        // IETF modules
+        "ietf-bfd-ip-mh",
+        "ietf-bfd-ip-sh",
+        "ietf-bfd-types",
+        "ietf-bfd",
+    ];
+    pub const BGP: &[&str] = &[
+        // IETF modules
+        "iana-bgp-notification",
+        "iana-bgp-rib-types",
+        "iana-bgp-types",
+        "ietf-bgp",
+        // IETF Holo augmentations
+        "holo-bgp",
+    ];
+    pub const IGMP: &[&str] = &[
+        // IETF modules
+        "ietf-igmp-mld",
+    ];
+    pub const INTERFACE: &[&str] = &[
+        // IEEE modules
+        "ieee802-dot1q-types",
+        // IETF modules
+        "iana-if-type",
+        "ietf-if-extensions",
+        "ietf-if-vlan-encapsulation",
+        "ietf-interfaces",
+        "ietf-ip",
+    ];
+    pub const ISIS: &[&str] = &[
+        // IETF modules
+        "ietf-bfd-types",
+        "ietf-isis",
+        "ietf-isis-msd",
+        "ietf-isis-sr-mpls",
+        "ietf-segment-routing-mpls",
+        // IETF Holo augmentations
+        "holo-isis",
+        "holo-isis-dev",
+    ];
+    pub const KEYCHAIN: &[&str] = &[
+        // IETF modules
+        "ietf-key-chain",
+        // IETF Holo augmentations
+        "holo-key-chain",
+    ];
+    pub const LDP: &[&str] = &[
+        // IETF modules
+        "ietf-mpls-ldp",
+    ];
+    pub const OSPF: &[&str] = &[
+        // IETF modules
+        "ietf-bfd-types",
+        "ietf-ospf",
+        "ietf-ospf-sr-mpls",
+        "ietf-ospfv3-extended-lsa",
+        "ietf-segment-routing-mpls",
+        // IETF Holo augmentations
+        "holo-ospf",
+        "holo-ospf-dev",
+    ];
+    pub const POLICY: &[&str] = &[
+        // IETF modules
+        "ietf-routing-policy",
+        "ietf-bgp-policy",
+    ];
+    pub const RIP: &[&str] = &[
+        // IETF modules
+        "ietf-rip", // IETF Holo augmentations
+        "holo-rip",
+    ];
+    pub const ROUTING: &[&str] = &[
+        // IETF modules
+        "iana-msd-types",
+        "ietf-bier",
+        "ietf-routing-types",
+        "ietf-routing",
+        "ietf-ipv4-unicast-routing",
+        "ietf-ipv6-unicast-routing",
+        "ietf-segment-routing",
+        "ietf-segment-routing-common",
+        "ietf-segment-routing-mpls",
+        "ietf-mpls",
+        "ietf-mpls-msd",
+        // IETF Holo augmentations
+        "holo-routing",
+    ];
+    pub const SYSTEM: &[&str] = &[
+        // IETF modules
+        "ietf-system",
+    ];
+    pub const VRRP: &[&str] = &[
+        // IETF modules
+        "ietf-vrrp",
+        // IETF Holo augmentations
+        "holo-vrrp",
+    ];
+    pub static ALL: Lazy<Vec<&str>> = Lazy::new(|| {
+        let modules: [&[_]; _] = [
+            #[cfg(feature = "interface")]
+            INTERFACE,
+            #[cfg(feature = "keychain")]
+            KEYCHAIN,
+            #[cfg(feature = "policy")]
+            POLICY,
+            #[cfg(feature = "routing")]
+            ROUTING,
+            #[cfg(feature = "system")]
+            SYSTEM,
+            #[cfg(feature = "bfd")]
+            BFD,
+            #[cfg(feature = "bgp")]
+            BGP,
+            #[cfg(feature = "igmp")]
+            IGMP,
+            #[cfg(feature = "isis")]
+            ISIS,
+            #[cfg(feature = "ldp")]
+            LDP,
+            #[cfg(feature = "ospf")]
+            OSPF,
+            #[cfg(feature = "rip")]
+            RIP,
+            #[cfg(feature = "vrrp")]
+            VRRP,
+        ];
+        modules.into_iter().flatten().copied().collect()
     });
+}
 
 // All features currently supported.
 pub static YANG_FEATURES: Lazy<HashMap<&'static str, Vec<&'static str>>> =
@@ -420,6 +497,16 @@ pub fn new_context() -> Context {
     .expect("Failed to create YANG context");
     ctx.set_embedded_modules(&YANG_EMBEDDED_MODULES);
     ctx
+}
+
+// Loads the given YANG modules and their associated deviations.
+pub fn load_modules(ctx: &mut Context, modules: &[&str]) {
+    for module_name in modules.iter() {
+        load_module(ctx, module_name);
+    }
+    for module_name in modules.iter() {
+        load_deviations(ctx, module_name);
+    }
 }
 
 // Loads a YANG module.

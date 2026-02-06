@@ -26,14 +26,15 @@ use holo_isis::packet::subtlvs::prefix::{
     Ipv4SourceRidStlv, Ipv6SourceRidStlv, PrefixAttrFlags, PrefixAttrFlagsStlv,
     PrefixSidFlags, PrefixSidStlv,
 };
+use holo_isis::packet::subtlvs::spb::{IsidEntry, IsidFlags, SpbmSiStlv};
 use holo_isis::packet::tlv::{
     AreaAddressesTlv, DynamicHostnameTlv, Ipv4AddressesTlv, Ipv4Reach,
     Ipv4ReachStlvs, Ipv4ReachTlv, Ipv4RouterIdTlv, Ipv6AddressesTlv, Ipv6Reach,
     Ipv6ReachStlvs, Ipv6ReachTlv, Ipv6RouterIdTlv, IsReach, IsReachStlvs,
     IsReachTlv, LegacyIpv4Reach, LegacyIpv4ReachTlv, LegacyIsReach,
-    LegacyIsReachTlv, LspBufferSizeTlv, MtFlags, MultiTopologyEntry,
-    MultiTopologyTlv, ProtocolsSupportedTlv, PurgeOriginatorIdTlv,
-    RouterCapFlags, RouterCapStlvs, RouterCapTlv,
+    LegacyIsReachTlv, LspBufferSizeTlv, MtCapStlvs, MtCapabilityTlv, MtFlags,
+    MultiTopologyEntry, MultiTopologyTlv, ProtocolsSupportedTlv,
+    PurgeOriginatorIdTlv, RouterCapFlags, RouterCapStlvs, RouterCapTlv,
 };
 use holo_isis::packet::{AreaAddr, LanId, LevelNumber, LspId, SystemId};
 use holo_utils::keychain::Key;
@@ -97,6 +98,7 @@ static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 protocols_supported: Some(ProtocolsSupportedTlv {
                     list: vec![0xcc],
                 }),
+                mt_cap: vec![],
                 router_cap: vec![RouterCapTlv {
                     router_id: Some(ip4!("1.1.1.1")),
                     flags: RouterCapFlags::empty(),
@@ -303,6 +305,7 @@ static LSP2: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 protocols_supported: Some(ProtocolsSupportedTlv {
                     list: vec![0xcc],
                 }),
+                mt_cap: vec![],
                 router_cap: vec![],
                 area_addrs: vec![AreaAddressesTlv {
                     list: vec![AreaAddr::from([0x49, 0, 0].as_slice())],
@@ -432,6 +435,7 @@ static LSP3_HMAC_MD5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 protocols_supported: Some(ProtocolsSupportedTlv {
                     list: vec![0xcc],
                 }),
+                mt_cap: vec![],
                 router_cap: vec![],
                 area_addrs: vec![AreaAddressesTlv {
                     list: vec![AreaAddr::from([0x49, 0, 0].as_slice())],
@@ -514,6 +518,7 @@ static LSP3_HMAC_SHA256: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 protocols_supported: Some(ProtocolsSupportedTlv {
                     list: vec![0xcc],
                 }),
+                mt_cap: vec![],
                 router_cap: vec![],
                 area_addrs: vec![AreaAddressesTlv {
                     list: vec![AreaAddr::from([0x49, 0, 0].as_slice())],
@@ -599,6 +604,7 @@ static LSP4: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 protocols_supported: Some(ProtocolsSupportedTlv {
                     list: vec![0xcc, 0x8e],
                 }),
+                mt_cap: vec![],
                 router_cap: vec![],
                 area_addrs: vec![AreaAddressesTlv {
                     list: vec![AreaAddr::from([0x49, 0, 0].as_slice())],
@@ -713,6 +719,7 @@ static LSP5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
             LspTlvs {
                 auth: None,
                 protocols_supported: None,
+                mt_cap: vec![],
                 router_cap: vec![],
                 area_addrs: vec![],
                 multi_topology: vec![],
@@ -727,6 +734,101 @@ static LSP5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 hostname: Some(DynamicHostnameTlv {
                     hostname: "holo".to_owned(),
                 }),
+                lsp_buf_size: None,
+                is_reach: vec![],
+                ext_is_reach: vec![],
+                mt_is_reach: vec![],
+                ipv4_addrs: vec![],
+                ipv4_internal_reach: vec![],
+                ipv4_external_reach: vec![],
+                ext_ipv4_reach: vec![],
+                mt_ipv4_reach: vec![],
+                ipv4_router_id: None,
+                ipv6_addrs: vec![],
+                ipv6_reach: vec![],
+                mt_ipv6_reach: vec![],
+                ipv6_router_id: None,
+                unknown: vec![],
+            },
+            None,
+        )),
+    )
+});
+
+// LSP with MT-Capability TLV containing SPBM-SI Sub-TLV.
+static LSP6_MT_CAP: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
+    (
+        vec![
+            // PDU header
+            0x83, 0x1b, 0x01, 0x00, 0x12, 0x01, 0x00, 0x00,
+            // PDU length (2 bytes): 66 bytes
+            0x00, 0x42, // Remaining lifetime: 1170
+            0x04, 0x92, // LSP ID: 0000.0000.0001.00-00
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+            // Sequence number: 0x00000006
+            0x00, 0x00, 0x00, 0x06, // Checksum
+            0xa1, 0xf9, // Flags: IS_TYPE1
+            0x01, // Protocols Supported TLV (Type 129)
+            0x81, 0x01, 0xcc,
+            // MT-Capability TLV (Type 144)
+            // Type: 144 (0x90), Length: 28 (0x1c)
+            0x90, 0x1c, // O=0, Reserved=0, MT-ID=0 (2 bytes)
+            0x00, 0x00,
+            // SPBM-SI Sub-TLV (Type 3)
+            // Type: 3, Length: 24 (0x18)
+            0x03, 0x18, // B-MAC: 00:11:22:33:44:55 (6 bytes)
+            0x00, 0x11, 0x22, 0x33, 0x44, 0x55,
+            // Reserved (4 bits) + Base VID (12 bits): VID=100 (0x0064)
+            0x00, 0x64,
+            // I-SID Entry 1: T=1, R=1, I-SID=0x010001 (65537)
+            0xc0, 0x01, 0x00, 0x01,
+            // I-SID Entry 2: T=1, R=0, I-SID=0x010002 (65538)
+            0x80, 0x01, 0x00, 0x02,
+            // I-SID Entry 3: T=0, R=1, I-SID=0x010003 (65539)
+            0x40, 0x01, 0x00, 0x03,
+            // I-SID Entry 4: T=0, R=0, I-SID=0x010004 (65540)
+            0x00, 0x01, 0x00, 0x04, // Area Addresses TLV (Type 1)
+            0x01, 0x04, 0x03, 0x49, 0x00, 0x00,
+        ],
+        None,
+        Pdu::Lsp(Lsp::new(
+            LevelNumber::L1,
+            1170,
+            LspId::from([0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00]),
+            0x00000006,
+            LspFlags::IS_TYPE1,
+            LspTlvs {
+                auth: None,
+                protocols_supported: Some(ProtocolsSupportedTlv {
+                    list: vec![0xcc],
+                }),
+                mt_cap: vec![MtCapabilityTlv {
+                    overload: false,
+                    mt_id: 0,
+                    sub_tlvs: MtCapStlvs {
+                        spbm_si: vec![SpbmSiStlv {
+                            bmac: [0x00, 0x11, 0x22, 0x33, 0x44, 0x55],
+                            base_vid: 100,
+                            isid_entries: vec![
+                                IsidEntry::new(
+                                    IsidFlags::T | IsidFlags::R,
+                                    0x010001,
+                                ),
+                                IsidEntry::new(IsidFlags::T, 0x010002),
+                                IsidEntry::new(IsidFlags::R, 0x010003),
+                                IsidEntry::new(IsidFlags::empty(), 0x010004),
+                            ],
+                        }],
+                        unknown: vec![],
+                    },
+                }],
+                router_cap: vec![],
+                area_addrs: vec![AreaAddressesTlv {
+                    list: vec![AreaAddr::from([0x49, 0, 0].as_slice())],
+                }],
+                multi_topology: vec![],
+                purge_originator_id: None,
+                hostname: None,
                 lsp_buf_size: None,
                 is_reach: vec![],
                 ext_is_reach: vec![],
@@ -821,5 +923,17 @@ fn test_encode_lsp5() {
 #[test]
 fn test_decode_lsp5() {
     let (ref bytes, ref auth, ref lsp) = *LSP5;
+    test_decode_pdu(bytes, lsp, auth);
+}
+
+#[test]
+fn test_encode_lsp6_mt_cap() {
+    let (ref bytes, ref auth, ref lsp) = *LSP6_MT_CAP;
+    test_encode_pdu(bytes, lsp, auth);
+}
+
+#[test]
+fn test_decode_lsp6_mt_cap() {
+    let (ref bytes, ref auth, ref lsp) = *LSP6_MT_CAP;
     test_decode_pdu(bytes, lsp, auth);
 }

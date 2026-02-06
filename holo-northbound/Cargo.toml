@@ -8,9 +8,9 @@ edition.workspace = true
 [dependencies]
 base64.workspace = true
 bitflags.workspace = true
-chrono.workspace = true
+check_keyword.workspace = true
+convert_case.workspace = true
 derive-new.workspace = true
-ipnetwork.workspace = true
 itertools.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -24,11 +24,35 @@ holo-yang = { path = "../holo-yang" }
 [dev-dependencies]
 holo-utils = { path = "../holo-utils" }
 
-[build-dependencies]
-check_keyword.workspace = true
-convert_case.workspace = true
-yang4 = { workspace = true, features = ["bundled"] }
-holo-yang = { path = "../holo-yang" }
-
 [lints]
 workspace = true
+
+[features]
+interface = ["holo-yang/interface"]
+keychain = ["holo-yang/keychain"]
+policy = ["holo-yang/policy"]
+routing = ["holo-yang/routing"]
+system = ["holo-yang/system"]
+bfd = ["holo-yang/bfd"]
+bgp = ["holo-yang/bgp"]
+igmp = ["holo-yang/igmp"]
+isis = ["holo-yang/isis"]
+ldp = ["holo-yang/ldp"]
+ospf = ["holo-yang/ospf"]
+rip = ["holo-yang/rip"]
+vrrp = ["holo-yang/vrrp"]
+testing = [
+  "interface",
+  "keychain",
+  "policy",
+  "routing",
+  "system",
+  "bfd",
+  "bgp",
+  "igmp",
+  "isis",
+  "ldp",
+  "ospf",
+  "rip",
+  "vrrp",
+]

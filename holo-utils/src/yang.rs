@@ -15,6 +15,7 @@ use yang4::data::{Data, DataNodeRef};
 use yang4::schema::{DataValue, SchemaNode, SchemaPathFormat};
 
 use crate::ip::AddressFamily;
+use crate::mac_addr::MacAddr;
 
 /// Extension methods for `Context`.
 pub trait ContextExt {
@@ -64,6 +65,8 @@ pub trait DataNodeRefExt {
     fn get_prefix6_relative(&self, path: &str) -> Option<Ipv6Network>;
     fn get_af(&self) -> AddressFamily;
     fn get_af_relative(&self, path: &str) -> Option<AddressFamily>;
+    fn get_mac(&self) -> MacAddr;
+    fn get_mac_relative(&self, path: &str) -> Option<MacAddr>;
 }
 
 // ===== impl Context =====
@@ -351,6 +354,17 @@ impl DataNodeRefExt for DataNodeRef<'_> {
             .unwrap()
             .next()
             .map(|dnode| dnode.get_af())
+    }
+
+    fn get_mac(&self) -> MacAddr {
+        MacAddr::from_str(&self.get_string()).unwrap()
+    }
+
+    fn get_mac_relative(&self, path: &str) -> Option<MacAddr> {
+        self.find_xpath(path)
+            .unwrap()
+            .next()
+            .map(|dnode| dnode.get_mac())
     }
 }
 

@@ -13,8 +13,6 @@ use enum_as_inner::EnumAsInner;
 use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, Provider,
 };
-use holo_northbound::yang::control_plane_protocol;
-use holo_northbound::yang::routing::{birts, ribs};
 use holo_northbound::{CallbackKey, NbDaemonSender};
 use holo_utils::bier::{BfrId, Bsl};
 use holo_utils::ip::JointPrefixMapExt;
@@ -25,6 +23,8 @@ use holo_yang::ToYang;
 use ipnetwork::{Ipv4Network, Ipv6Network};
 
 use crate::northbound::configuration::NexthopSpecial;
+use crate::northbound::yang_gen::control_plane_protocol;
+use crate::northbound::yang_gen::routing::{birts, ribs};
 use crate::rib::{Route, RouteFlags};
 use crate::{InstanceId, Master};
 
@@ -150,11 +150,17 @@ fn load_callbacks() -> Callbacks<Master> {
                 mpls_local_label: None,
                 mpls_destination_prefix: dest.as_label().map(|label| label.to_yang()),
                 route_context: None,
+                #[cfg(feature = "ospf")]
                 ospf_metric: matches!(route.protocol, Protocol::OSPFV2 | Protocol::OSPFV3).then_some(route.metric),
+                #[cfg(feature = "ospf")]
                 ospf_tag: if matches!(route.protocol, Protocol::OSPFV2 | Protocol::OSPFV3) { route.tag } else { None },
+                #[cfg(feature = "ospf")]
                 ospf_route_type: route.opaque_attrs.as_ospf().map(|route_type| route_type.to_yang()),
+                #[cfg(feature = "isis")]
                 isis_metric: (route.protocol == Protocol::ISIS).then_some(route.metric),
+                #[cfg(feature = "isis")]
                 isis_tag: None,
+                #[cfg(feature = "isis")]
                 isis_route_type: route.opaque_attrs.as_isis().map(|route_type| route_type.to_yang()),
             })
         })

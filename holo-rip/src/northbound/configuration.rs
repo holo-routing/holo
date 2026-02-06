@@ -13,7 +13,6 @@ use holo_northbound::configuration::{
     Callbacks, CallbacksBuilder, Provider, ValidationCallbacks,
     ValidationCallbacksBuilder,
 };
-use holo_northbound::yang::control_plane_protocol::rip;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::IpAddrKind;
 use holo_utils::yang::DataNodeRefExt;
@@ -23,6 +22,7 @@ use crate::debug::{Debug, InterfaceInactiveReason};
 use crate::ibus;
 use crate::instance::Instance;
 use crate::interface::{InterfaceIndex, SplitHorizon};
+use crate::northbound::yang_gen::rip;
 use crate::route::{Metric, RouteFlags};
 use crate::version::{Ripng, Ripv2, Version};
 

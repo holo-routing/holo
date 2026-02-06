@@ -48,10 +48,12 @@ use crate::packet::subtlvs::prefix::{
     Ipv6SourceRidStlv, PrefixAttrFlags, PrefixAttrFlagsStlv, PrefixSidFlags,
     PrefixSidStlv,
 };
+use crate::packet::subtlvs::spb::{IsidEntry, IsidFlags, SpbmSiStlv};
 use crate::packet::tlv::{
     IpReachTlvEntry, Ipv4Reach, Ipv4ReachStlvs, Ipv6Reach, Ipv6ReachStlvs,
     IsReach, IsReachStlvs, LegacyIpv4Reach, LegacyIsReach, MAX_NARROW_METRIC,
-    MtFlags, MultiTopologyEntry, RouterCapFlags, RouterCapTlv,
+    MtCapStlvs, MtCapabilityTlv, MtFlags, MultiTopologyEntry, RouterCapFlags,
+    RouterCapTlv,
 };
 use crate::packet::{LanId, LevelNumber, LevelType, LspId};
 use crate::spf::{SpfType, VertexId};
@@ -257,6 +259,7 @@ fn lsp_build_tlvs(
     let metric_type = instance.config.metric_type.get(level);
     let mut protocols_supported = vec![];
     let mut router_cap = vec![];
+    let mut mt_cap = vec![];
     let mut is_reach = vec![];
     let mut ext_is_reach = vec![];
     let mut mt_is_reach = vec![];
@@ -278,6 +281,9 @@ fn lsp_build_tlvs(
 
     // Add router capabilities.
     lsp_build_tlvs_router_cap(instance, &mut router_cap);
+
+    // Add MT capabilities (SPB services).
+    lsp_build_tlvs_mt_cap(instance, &mut mt_cap);
 
     // Add topologies.
     let mut multi_topology = vec![];
@@ -353,6 +359,7 @@ fn lsp_build_tlvs(
     LspTlvs::new(
         protocols_supported,
         router_cap,
+        mt_cap,
         instance.config.area_addrs.clone(),
         multi_topology,
         instance.shared.hostname.clone(),
@@ -416,6 +423,7 @@ fn lsp_build_tlvs_pseudo(
 
     LspTlvs::new(
         [],
+        [].into(),
         [].into(),
         [],
         [],
@@ -509,6 +517,57 @@ fn lsp_build_tlvs_router_cap(
     {
         router_cap.push(cap);
     }
+}
+
+fn lsp_build_tlvs_mt_cap(
+    instance: &InstanceUpView<'_>,
+    mt_cap: &mut Vec<MtCapabilityTlv>,
+) {
+    // Only build MT-Capability TLVs if SPB is enabled and services are
+    // configured.
+    if !instance.config.spb.enabled || instance.config.spb.services.is_empty() {
+        return;
+    }
+
+    // Build SPBM-SI Sub-TLVs from configured services.
+    let mut spbm_si_stlvs = vec![];
+    for (svc_key, svc_cfg) in &instance.config.spb.services {
+        // Build I-SID entries.
+        let isid_entries: Vec<IsidEntry> = svc_cfg
+            .isids
+            .iter()
+            .map(|(&isid, isid_cfg)| {
+                let mut flags = IsidFlags::empty();
+                if isid_cfg.transmit {
+                    flags.insert(IsidFlags::T);
+                }
+                if isid_cfg.receive {
+                    flags.insert(IsidFlags::R);
+                }
+                IsidEntry { flags, isid }
+            })
+            .collect();
+
+        // Build SPBM-SI Sub-TLV.
+        let spbm_si = SpbmSiStlv {
+            bmac: svc_key.bmac.as_bytes(),
+            base_vid: svc_key.base_vid,
+            isid_entries,
+        };
+        spbm_si_stlvs.push(spbm_si);
+    }
+
+    // Create MT-Capability TLV with standard topology and no overload.
+    let mt_cap_tlv = MtCapabilityTlv {
+        overload: false,
+        mt_id: MtId::Standard as u16,
+        sub_tlvs: MtCapStlvs {
+            spbm_si: spbm_si_stlvs,
+            unknown: vec![],
+        },
+    };
+
+    mt_cap.push(mt_cap_tlv);
 }
 
 fn lsp_build_tlvs_is_reach(
@@ -1420,12 +1479,24 @@ pub(crate) fn install<'a>(
         if let Some(hostname) = lsp.tlvs.hostname()
             && lsp.rem_lifetime != 0
         {
-            instance
-                .state
-                .hostnames
-                .insert(system_id, hostname.to_owned());
-        } else {
-            instance.state.hostnames.remove(&system_id);
+            let mut update = false;
+            match instance.state.hostnames.entry(system_id) {
+                btree_map::Entry::Vacant(entry) => {
+                    entry.insert(hostname.to_owned());
+                    update = true;
+                }
+                btree_map::Entry::Occupied(mut entry) => {
+                    if entry.get() != hostname {
+                        entry.insert(hostname.to_owned());
+                        update = true;
+                    }
+                }
+            }
+            if update {
+                Debug::HostnameUpdate(system_id, hostname).log();
+            }
+        } else if instance.state.hostnames.remove(&system_id).is_some() {
+            Debug::HostnameRemove(system_id).log();
         }
     }
 
@@ -1535,7 +1606,7 @@ pub(crate) fn lsp_originate(
 
     // Flood LSP over all interfaces.
     for iface in arenas.interfaces.iter_mut() {
-        iface.srm_list_add(instance, level, lse.data.clone());
+        iface.srm_list_add(instance, level, &lse.data, false);
     }
 
     // Schedule LSP refreshing.

@@ -15,8 +15,13 @@ tokio.workspace = true
 tracing.workspace = true
 yang4.workspace = true
 
-holo-northbound = { path = "../holo-northbound" }
+holo-northbound = { path = "../holo-northbound", features = ["system"] }
 holo-utils = { path = "../holo-utils" }
+holo-yang = { path = "../holo-yang" }
+
+[build-dependencies]
+yang4 = { workspace = true, features = ["bundled"] }
+holo-northbound = { path = "../holo-northbound", features = ["system"] }
 holo-yang = { path = "../holo-yang" }
 
 [lints]

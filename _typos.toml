@@ -1,0 +1,15 @@
+[files]
+extend-exclude = [
+    "holo-yang/modules/ieee/*",
+    "holo-yang/modules/ietf/*",
+    "holo-yang/modules/iana/*",
+    "holo-*/tests",
+]
+
+[default.extend-words]
+# word = "corrected_word"
+# To ignore a word, set it to itself:
+mis = "mis"
+parm = "parm"
+parms = "parms"
+ECT = "ECT"

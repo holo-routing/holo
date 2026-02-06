@@ -3,16 +3,21 @@ ARG HOLO_CLI_IMAGE=ghcr.io/holo-routing/holo-cli:latest
 ARG HOLOD_IMAGE=ghcr.io/holo-routing/holod:latest
 
 # Use CLI image to extract the holo-cli binary
-FROM ${HOLO_CLI_IMAGE} as holo_cli
+FROM ${HOLO_CLI_IMAGE} AS holo_cli
 
 # Base image containing holod
 FROM ${HOLOD_IMAGE}
 
-# Install useful networking tools and 'less' for CLI paging
+# Install useful system tools and 'less' for CLI paging
 RUN apt-get update && \
     apt-get install -y ifupdown \
     iputils-ping \
+    net-tools \
     tcpdump \
+    procps \
+    htop \
+    curl \
+    nano \
     less \
   && rm -rf /var/lib/apt/lists/*
 

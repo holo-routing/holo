@@ -614,6 +614,9 @@ impl Interface {
                     .map(|addr| addr.ip()),
             );
         }
+        if instance.config.spb.enabled {
+            protocols_supported.push(Nlpid::Spb as u8);
+        }
 
         // Generate Hello PDU.
         let ext_seqnum = self.ext_seqnum_next(level);
@@ -723,7 +726,8 @@ impl Interface {
         &mut self,
         instance: &InstanceUpView<'_>,
         level: LevelNumber,
-        mut lsp: Lsp,
+        lsp: &Lsp,
+        rxmt_only: bool,
     ) {
         // Proceed only if the interface is active and enabled for this level.
         if !self.state.active
@@ -740,14 +744,15 @@ impl Interface {
 
         // Check if the LSP is too large to be sent on this interface.
         if lsp.raw.len() as u32 > self.iso_mtu() {
-            Debug::LspTooLarge(self, level, &lsp).log();
-            notification::lsp_too_large(instance, self, &lsp);
+            Debug::LspTooLarge(self, level, lsp).log();
+            notification::lsp_too_large(instance, self, lsp);
             return;
         }
 
         // ISO 10589 - Section 7.3.16.3:
         // "A system shall decrement the Remaining Lifetime in the PDU being
         // transmitted by at least one".
+        let mut lsp = lsp.clone();
         lsp.set_rem_lifetime(lsp.rem_lifetime().saturating_sub(1));
 
         // For point-to-point interfaces, all LSPs require acknowledgment.
@@ -773,7 +778,9 @@ impl Interface {
         // Enqueue LSP for transmission.
         //
         // TODO: Implement LSP pacing.
-        self.enqueue_pdu(Pdu::Lsp(lsp), level);
+        if !rxmt_only {
+            self.enqueue_pdu(Pdu::Lsp(lsp), level);
+        }
     }
 
     pub(crate) fn srm_list_del(&mut self, level: LevelNumber, lsp_id: &LspId) {

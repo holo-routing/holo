@@ -13,7 +13,6 @@ use enum_as_inner::EnumAsInner;
 use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, Provider,
 };
-use holo_northbound::yang::control_plane_protocol::mpls_ldp;
 use holo_utils::ip::{IpAddrKind, IpNetworkKind};
 use holo_utils::mpls::Label;
 use holo_utils::num::SaturatingInto;
@@ -26,6 +25,7 @@ use crate::fec::Fec;
 use crate::instance::Instance;
 use crate::interface::Interface;
 use crate::neighbor::{LabelAdvMode, LabelDistMode, Neighbor, NeighborFlags};
+use crate::northbound::yang_gen::mpls_ldp;
 
 pub static CALLBACKS: Lazy<Callbacks<Instance>> = Lazy::new(load_callbacks);
 

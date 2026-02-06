@@ -718,7 +718,7 @@ fn process_pdu_lsp(
             // from the network.
             lsp.set_rem_lifetime(0);
             for iface in arenas.interfaces.iter_mut() {
-                iface.srm_list_add(instance, level, lsp.clone());
+                iface.srm_list_add(instance, level, &lsp, false);
             }
             return Ok(());
         }
@@ -829,7 +829,7 @@ fn process_pdu_lsp(
                         .log();
                 }
                 if allow_flood {
-                    other_iface.srm_list_add(instance, level, lsp.clone());
+                    other_iface.srm_list_add(instance, level, lsp, false);
                     other_iface.ssn_list_del(level, &lsp.lsp_id);
                 } else {
                     other_iface.ssn_list_add(level, lsp.as_snp_entry());
@@ -901,10 +901,10 @@ fn process_pdu_lsp(
 
             // Update LSP flooding flags for the incoming interface.
             if allow_flood {
-                iface.srm_list_add(instance, level, lse.data.clone());
+                iface.srm_list_add(instance, level, &lse.data, false);
                 iface.ssn_list_del(level, &lsp.lsp_id);
             } else {
-                iface.ssn_list_add(level, lsp.as_snp_entry());
+                iface.ssn_list_add(level, lse.data.as_snp_entry());
             }
         }
     }
@@ -1037,10 +1037,10 @@ fn process_pdu_snp(
                 }
                 Ordering::Greater => {
                     iface.ssn_list_del(level, &entry.lsp_id);
-                    iface.srm_list_add(instance, level, lse.data.clone());
+                    iface.srm_list_add(instance, level, &lse.data, false);
                 }
                 Ordering::Less => {
-                    iface.ssn_list_add(level, *entry);
+                    iface.ssn_list_add(level, lse.data.as_snp_entry());
                     iface.srm_list_del(level, &entry.lsp_id);
                 }
             }
@@ -1083,7 +1083,7 @@ fn process_pdu_snp(
             // Exclude LSPs with zero sequence number.
             .filter(|lsp| lsp.seqno != 0)
         {
-            iface.srm_list_add(instance, level, lsp.clone());
+            iface.srm_list_add(instance, level, lsp, false);
         }
     }
 
@@ -1112,6 +1112,47 @@ fn validate_pdu_ext_seqnum(
 
     // Return the valid ESN.
     Ok(*ext_seqnum)
+}
+
+// ===== Adjacency initial LSDB sync =====
+
+pub(crate) fn process_adj_init_lsdb_sync(
+    instance: &mut InstanceUpView<'_>,
+    arenas: &mut InstanceArenas,
+    iface_key: InterfaceKey,
+) -> Result<(), Error> {
+    // Lookup interface.
+    let iface = arenas.interfaces.get_mut_by_key(&iface_key)?;
+
+    // Lookup adjacency.
+    let Some(adj) = iface.state.p2p_adjacency.as_ref() else {
+        return Ok(());
+    };
+
+    // Per ISO 10589 section 7.3.17, when a point-to-point adjacency comes up,
+    // the SRMflag must be set for all LSPs on the corresponding interface
+    // in addition to sending a CSNP. This ensures LSDB synchronization even
+    // if the CSNP is lost.
+    //
+    // As an optimization, this implementation adds all LSPs to the interface
+    // RXMT list without enqueuing them for immediate transmission. In the
+    // normal case, a CSNP is received from the peer and the RXMT list is
+    // cleared, avoiding unnecessary LSP transmissions. If no CSNP is received,
+    // all LSPs are transmitted a few seconds later, guaranteeing proper LSDB
+    // synchronization.
+    for level in adj.level_usage {
+        let lsdb = instance.state.lsdb.get(level);
+        for lsp in lsdb
+            .iter(&arenas.lsp_entries)
+            .map(|lse| &lse.data)
+            .filter(|lsp| lsp.rem_lifetime != 0)
+            .filter(|lsp| lsp.seqno != 0)
+        {
+            iface.srm_list_add(instance, level, lsp, true);
+        }
+    }
+
+    Ok(())
 }
 
 // ===== Adjacency hold timer expiry =====
@@ -1187,6 +1228,9 @@ pub(crate) fn process_dis_election(
 ) -> Result<(), Error> {
     // Lookup interface.
     let iface = arenas.interfaces.get_mut_by_key(&iface_key)?;
+    if !iface.state.active {
+        return Ok(());
+    }
 
     // Run DIS election.
     let dis = iface.dis_election(instance, &arenas.adjacencies, level);
@@ -1240,6 +1284,9 @@ pub(crate) fn process_send_psnp(
 ) -> Result<(), Error> {
     // Lookup interface.
     let iface = arenas.interfaces.get_mut_by_key(&iface_key)?;
+    if !iface.state.active {
+        return Ok(());
+    }
 
     // Do not send PSNP if we're the DIS.
     if iface.config.interface_type == InterfaceType::Broadcast
@@ -1297,6 +1344,9 @@ pub(crate) fn process_send_csnp(
 ) -> Result<(), Error> {
     // Lookup interface.
     let iface = arenas.interfaces.get_mut_by_key(&iface_key)?;
+    if !iface.state.active {
+        return Ok(());
+    }
 
     // Do not send CSNP if we aren't the DIS.
     if iface.config.interface_type == InterfaceType::Broadcast
@@ -1440,7 +1490,7 @@ pub(crate) fn process_lsp_purge(
 
     // Send purged LSP to all interfaces.
     for iface in arenas.interfaces.iter_mut() {
-        iface.srm_list_add(instance, level, lsp.clone());
+        iface.srm_list_add(instance, level, lsp, false);
     }
 
     Ok(())

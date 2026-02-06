@@ -237,7 +237,7 @@ impl LeaveGroupV2 {
             return Err(DecodeError::UnknownPacketType(pkt_type as u8));
         }
 
-        let _responce_time = buf.try_get_u8()?;
+        let _response_time = buf.try_get_u8()?;
 
         let checksum = buf.try_get_u16()?;
 

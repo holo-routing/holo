@@ -11,12 +11,12 @@ use enum_as_inner::EnumAsInner;
 use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, Provider,
 };
-use holo_northbound::yang::control_plane_protocol::igmp;
 use holo_utils::option::OptionExt;
 
 //use holo_yang::ToYang;
 use crate::instance::Instance;
 use crate::interface::Interface;
+use crate::northbound::yang_gen::igmp;
 
 pub static CALLBACKS: Lazy<Callbacks<Instance>> = Lazy::new(load_callbacks);
 

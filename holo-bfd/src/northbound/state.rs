@@ -11,7 +11,6 @@ use enum_as_inner::EnumAsInner;
 use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, Provider,
 };
-use holo_northbound::yang::control_plane_protocol::bfd;
 use holo_utils::bfd::{PathType, State};
 use holo_utils::num::SaturatingInto;
 use holo_utils::option::OptionExt;
@@ -20,6 +19,7 @@ use num_traits::FromPrimitive;
 
 use crate::master::Master;
 use crate::network;
+use crate::northbound::yang_gen::bfd;
 use crate::packet::DiagnosticCode;
 use crate::session::Session;
 

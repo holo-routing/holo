@@ -14,7 +14,6 @@ use enum_as_inner::EnumAsInner;
 use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, Provider,
 };
-use holo_northbound::yang::control_plane_protocol::ospf;
 use holo_utils::ip::IpAddrKind;
 use holo_utils::num::SaturatingInto;
 use holo_utils::option::OptionExt;
@@ -29,6 +28,7 @@ use crate::instance::Instance;
 use crate::interface::{Interface, ism};
 use crate::lsdb::{LsaEntry, LsaLogEntry, LsaLogId};
 use crate::neighbor::Neighbor;
+use crate::northbound::yang_gen::ospf;
 use crate::packet::lsa::{LsaBodyVersion, LsaHdrVersion};
 use crate::packet::tlv::{
     BierEncapSubStlv, BierStlv, GrReason, NodeAdminTagTlv, SidLabelRangeTlv,

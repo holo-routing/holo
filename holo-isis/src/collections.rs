@@ -8,6 +8,7 @@
 //
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::time::Instant;
 
 use generational_arena::Index;
 use holo_utils::mac_addr::MacAddr;
@@ -68,7 +69,8 @@ pub struct Lsdb {
     lspid_tree: BTreeMap<LspId, LspEntryIndex>,
     next_id: ObjectId,
     lsp_count: u32,
-    fingerprint: u32,
+    fingerprint: u64,
+    fingerprint_last_update: Option<Instant>,
 }
 
 // ===== impl ObjectKey =====
@@ -527,7 +529,8 @@ impl Lsdb {
         let lsp = &lse.data;
         if !lsp.is_expired() {
             self.lsp_count += 1;
-            self.fingerprint ^= (lsp.cksum as u32) << 16 | lsp.seqno;
+            self.fingerprint ^= lsp.lsdb_fingerprint_component();
+            self.fingerprint_last_update = Some(Instant::now());
         }
 
         (lse_idx, lse)
@@ -548,7 +551,8 @@ impl Lsdb {
         let lsp = &lse.data;
         if !lsp.is_expired() {
             self.lsp_count -= 1;
-            self.fingerprint ^= (lsp.cksum as u32) << 16 | lsp.seqno;
+            self.fingerprint ^= lsp.lsdb_fingerprint_component();
+            self.fingerprint_last_update = Some(Instant::now());
         }
 
         // Remove LSP entry from the arena.
@@ -563,6 +567,7 @@ impl Lsdb {
         self.lspid_tree.clear();
         self.lsp_count = 0;
         self.fingerprint = 0;
+        self.fingerprint_last_update = Some(Instant::now());
     }
 
     // Returns a reference to the LSP entry corresponding to the given ID.
@@ -712,7 +717,12 @@ impl Lsdb {
     }
 
     // Returns the database fingerprint.
-    pub(crate) fn fingerprint(&self) -> u32 {
+    pub(crate) fn fingerprint(&self) -> u64 {
         self.fingerprint
+    }
+
+    // Returns the instant when the database fingerprint was last updated.
+    pub(crate) fn fingerprint_last_update(&self) -> Option<Instant> {
+        self.fingerprint_last_update
     }
 }

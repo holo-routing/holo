@@ -217,6 +217,9 @@ pub(crate) fn update_virtual_links<V>(
         return;
     };
 
+    // Check ABR status.
+    let is_abr = areas.is_abr(interfaces);
+
     // Iterate over all interfaces assigned to the backbone area.
     for iface_idx in backbone.interfaces.indexes() {
         let iface = &interfaces[iface_idx];
@@ -229,6 +232,7 @@ pub(crate) fn update_virtual_links<V>(
         // Update virtual link.
         if let Err(error) = update_virtual_link(
             iface_idx,
+            is_abr,
             instance,
             backbone,
             areas,
@@ -283,6 +287,7 @@ pub(crate) fn update_summary_lsas<V>(
 
 fn update_virtual_link<V>(
     vlink_idx: InterfaceIndex,
+    is_abr: bool,
     instance: &InstanceUpView<'_, V>,
     backbone: &Area<V>,
     areas: &Areas<V>,
@@ -294,6 +299,11 @@ where
 {
     let vlink = &interfaces[vlink_idx];
     let vlink_key = vlink.vlink_key.unwrap();
+
+    // Virtual links can only be activated on an ABR.
+    if !is_abr {
+        return Err(Error::VirtualLinkNonAbr(vlink_key));
+    }
 
     // Check if there's a route to the virtual link endpoint.
     let (_, area) = areas

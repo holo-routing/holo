@@ -11,10 +11,10 @@ use enum_as_inner::EnumAsInner;
 use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, Provider,
 };
-use holo_northbound::yang::key_chains;
 use holo_utils::keychain::{Keychain, KeychainKey};
 
 use crate::Master;
+use crate::northbound::yang_gen::key_chains;
 
 pub static CALLBACKS: Lazy<Callbacks<Master>> = Lazy::new(load_callbacks);
 

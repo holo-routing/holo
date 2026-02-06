@@ -7,13 +7,13 @@
 use std::borrow::Cow;
 
 use holo_northbound::notification;
-use holo_northbound::yang::control_plane_protocol;
-use holo_northbound::yang::control_plane_protocol::bgp;
 use holo_utils::protocol::Protocol;
 use holo_yang::{ToYang, YangObject};
 
 use crate::instance::InstanceUpView;
 use crate::neighbor::Neighbor;
+use crate::northbound::yang_gen::bgp;
+use crate::northbound::yang_gen::routing::control_plane_protocols::control_plane_protocol;
 
 // ===== global functions =====
 

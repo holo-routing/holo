@@ -14,7 +14,6 @@ use holo_northbound::configuration::{
     Callbacks, CallbacksBuilder, InheritableConfig, Provider,
     ValidationCallbacks, ValidationCallbacksBuilder,
 };
-use holo_northbound::yang::control_plane_protocol::ospf;
 use holo_utils::bfd;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
@@ -30,10 +29,11 @@ use crate::instance::Instance;
 use crate::interface::{InterfaceType, VirtualLinkKey, ism};
 use crate::lsdb::LsaOriginateEvent;
 use crate::neighbor::nsm;
+use crate::northbound::yang_gen::ospf;
 use crate::packet::PacketType;
 use crate::route::RouteNetFlags;
 use crate::version::{Ospfv2, Ospfv3, Version};
-use crate::{gr, ibus, spf, sr};
+use crate::{gr, ibus, spf, sr, tasks};
 
 #[derive(Debug, EnumAsInner)]
 pub enum ListEntry<V: Version> {
@@ -1976,12 +1976,20 @@ where
                     let area = &arenas.areas[area_idx];
                     let iface = &mut arenas.interfaces[iface_idx];
 
+                    // Reset neighbor inactivity timers
                     for nbr_idx in iface.state.neighbors.indexes() {
                         let nbr = &mut arenas.neighbors[nbr_idx];
 
                         if nbr.tasks.inactivity_timer.is_some() {
                             nbr.inactivity_timer_start(iface, area, &instance);
                         }
+                    }
+
+                    // Also reset the interface wait timer if it exists
+                    if iface.state.tasks.wait_timer.is_some() {
+                        let task =
+                            tasks::ism_wait_timer(iface, area, &instance);
+                        iface.state.tasks.wait_timer = Some(task);
                     }
                 }
             }

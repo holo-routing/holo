@@ -8,7 +8,7 @@ use std::borrow::Cow;
 use std::net::Ipv4Addr;
 use std::time::Duration;
 
-use holo_northbound::{notification, yang};
+use holo_northbound::notification;
 use holo_yang::ToYang;
 
 use crate::error::InterfaceCfgError;
@@ -16,6 +16,7 @@ use crate::gr::GrExitReason;
 use crate::instance::InstanceUpView;
 use crate::interface::Interface;
 use crate::neighbor::Neighbor;
+use crate::northbound::yang_gen as yang;
 use crate::packet::PacketType;
 use crate::packet::error::LsaValidationError;
 use crate::version::Version;

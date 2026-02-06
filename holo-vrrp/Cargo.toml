@@ -19,8 +19,9 @@ serde_json.workspace = true
 socket2.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+yang4.workspace = true
 
-holo-northbound = { path = "../holo-northbound" }
+holo-northbound = { path = "../holo-northbound", features = ["vrrp"] }
 holo-protocol = { path = "../holo-protocol" }
 holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
@@ -30,8 +31,14 @@ const-addrs.workspace = true
 yang4 = { workspace = true, features = ["bundled"] }
 
 holo-vrrp = { path = ".", features = ["testing"] }
+holo-northbound = { path = "../holo-northbound", features = ["testing"] }
 holo-protocol = { path = "../holo-protocol", features = ["testing"] }
 holo-utils = { path = "../holo-utils", features = ["testing"] }
+
+[build-dependencies]
+yang4 = { workspace = true, features = ["bundled"] }
+holo-northbound = { path = "../holo-northbound", features = ["vrrp"] }
+holo-yang = { path = "../holo-yang" }
 
 [lints]
 workspace = true

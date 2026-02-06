@@ -34,7 +34,7 @@ tokio.workspace = true
 tracing.workspace = true
 yang4.workspace = true
 
-holo-northbound = { path = "../holo-northbound" }
+holo-northbound = { path = "../holo-northbound", features = ["ospf"] }
 holo-protocol = { path = "../holo-protocol" }
 holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
@@ -46,8 +46,14 @@ maplit.workspace = true
 yang4 = { workspace = true, features = ["bundled"] }
 
 holo-ospf = { path = ".", features = ["testing", "deterministic"] }
+holo-northbound = { path = "../holo-northbound", features = ["testing"] }
 holo-protocol = { path = "../holo-protocol", features = ["testing"] }
 holo-utils = { path = "../holo-utils", features = ["testing"] }
+
+[build-dependencies]
+yang4 = { workspace = true, features = ["bundled"] }
+holo-northbound = { path = "../holo-northbound", features = ["ospf"] }
+holo-yang = { path = "../holo-yang" }
 
 [lints]
 workspace = true

@@ -312,7 +312,7 @@ impl BierInfoStlv {
                     ));
                 }
                 _ => {
-                    // Igore unknown Sub-TLV
+                    // Ignore unknown Sub-TLV.
                     continue;
                 }
             }

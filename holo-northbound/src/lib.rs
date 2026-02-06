@@ -14,10 +14,7 @@ pub mod error;
 pub mod notification;
 pub mod rpc;
 pub mod state;
-
-#[allow(unused_variables)]
-#[allow(clippy::module_inception, clippy::needless_borrow)]
-pub mod yang;
+pub mod yang_codegen;
 
 use derive_new::new;
 use serde::{Deserialize, Serialize};
@@ -60,8 +57,6 @@ pub trait ProviderBase
 where
     Self: 'static + Sized,
 {
-    fn yang_modules() -> &'static [&'static str];
-
     fn top_level_node(&self) -> String;
 }
 

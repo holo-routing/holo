@@ -15,25 +15,11 @@ similar.workspace = true
 tokio.workspace = true
 yang4 = { workspace = true, features = ["bundled"] }
 
-holo-bfd = { path = "../holo-bfd", features = ["testing"] }
-holo-bgp = { path = "../holo-bgp", features = ["testing"] }
-holo-ldp = { path = "../holo-ldp", features = ["testing"] }
-holo-igmp = { path = "../holo-igmp", features = ["testing"] }
-holo-isis = { path = "../holo-isis", features = ["testing"] }
-holo-rip = { path = "../holo-rip", features = ["testing"] }
 holo-northbound = { path = "../holo-northbound" }
-holo-ospf = { path = "../holo-ospf", features = ["testing"] }
-holo-protocol = { path = "../holo-protocol", features = ["testing"] }
-holo-utils = { path = "../holo-utils", features = ["testing"] }
-holo-vrrp = { path = "../holo-vrrp", features = ["testing"] }
 holo-yang = { path = "../holo-yang" }
 
 [lints]
 workspace = true
-
-[[bin]]
-name = "replay"
-path = "src/replay.rs"
 
 [[bin]]
 name = "yang_callbacks"

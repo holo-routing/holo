@@ -13,7 +13,6 @@ use holo_northbound::configuration::{
     self, Callbacks, CallbacksBuilder, ConfigChanges, Provider,
     ValidationCallbacks, ValidationCallbacksBuilder,
 };
-use holo_northbound::yang::interfaces;
 use holo_northbound::{CallbackKey, NbDaemonSender};
 use holo_protocol::spawn_protocol_task;
 use holo_utils::yang::DataNodeRefExt;
@@ -22,6 +21,7 @@ use tokio::sync::mpsc;
 
 use crate::interface::{Owner, VrrpHandle};
 use crate::northbound::REGEX_VRRP;
+use crate::northbound::yang_gen::interfaces;
 use crate::{Master, netlink};
 
 pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =

@@ -11,7 +11,6 @@ use enum_as_inner::EnumAsInner;
 use holo_northbound::configuration::{
     self, Callbacks, CallbacksBuilder, Provider,
 };
-use holo_northbound::yang::routing_policy;
 use holo_utils::ip::AddressFamily;
 use holo_utils::policy::{
     IpPrefixRange, MatchSetRestrictedType, MatchSetType, MetricType,
@@ -23,6 +22,7 @@ use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
 
 use crate::Master;
+use crate::northbound::yang_gen::routing_policy;
 
 static CALLBACKS: Lazy<configuration::Callbacks<Master>> =
     Lazy::new(load_callbacks);

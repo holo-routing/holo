@@ -19,8 +19,8 @@ use enum_as_inner::EnumAsInner;
 use holo_northbound::state::{
     Callbacks, CallbacksBuilder, ListEntryKind, Provider,
 };
-use holo_northbound::yang::control_plane_protocol::isis;
 use holo_utils::crypto::CryptoAlgo;
+use holo_utils::mac_addr::MacAddr;
 use holo_utils::option::OptionExt;
 use holo_utils::sr::Sid;
 use holo_yang::{ToYang, ToYangBits};
@@ -31,13 +31,15 @@ use crate::collections::Lsdb;
 use crate::instance::Instance;
 use crate::interface::Interface;
 use crate::lsdb::{LspEntry, LspLogEntry, LspLogId};
+use crate::northbound::yang_gen::isis;
 use crate::packet::subtlvs::capability::LabelBlockEntry;
 use crate::packet::subtlvs::neighbor::AdjSidStlv;
 use crate::packet::subtlvs::prefix::{PrefixAttrFlags, PrefixSidStlv};
+use crate::packet::subtlvs::spb::{IsidEntry, SpbmSiStlv};
 use crate::packet::tlv::{
     AuthenticationTlv, IpReachTlvEntry, Ipv4Reach, Ipv6Reach, IsReach,
-    LegacyIpv4Reach, LegacyIsReach, MultiTopologyEntry, RouterCapTlv,
-    UnknownTlv,
+    LegacyIpv4Reach, LegacyIsReach, MtCapabilityTlv, MultiTopologyEntry,
+    RouterCapTlv, UnknownTlv,
 };
 use crate::packet::{LanId, LevelNumber, LevelType, SystemId};
 use crate::route::{Nexthop, Route};
@@ -86,6 +88,9 @@ pub enum ListEntry<'a> {
     Adjacency(&'a Adjacency),
     AdjacencySid(&'a AdjacencySid),
     Msd(u8, u8),
+    MtCap(&'a MtCapabilityTlv),
+    SpbmService(&'a SpbmSiStlv),
+    SpbmIsid(&'a IsidEntry),
 }
 
 // ===== callbacks =====
@@ -201,7 +206,15 @@ fn load_callbacks() -> Callbacks<Instance> {
             Box::new(Levels {
                 level: *level as u8,
                 lsp_count: Some(lsdb.lsp_count()).ignore_in_testing(),
-                fingerprint: Some(lsdb.fingerprint()).ignore_in_testing(),
+            })
+        })
+        .path(isis::database::levels::fingerprint::PATH)
+        .get_object(|_instance, args| {
+            use isis::database::levels::fingerprint::Fingerprint;
+            let (_, lsdb) = args.list_entry.as_lsdb().unwrap();
+            Box::new(Fingerprint {
+                value: Some(lsdb.fingerprint()).ignore_in_testing(),
+                last_update: lsdb.fingerprint_last_update().map(|time| time.elapsed().as_secs() as u32).ignore_in_testing(),
             })
         })
         .path(isis::database::levels::lsp::PATH)
@@ -447,6 +460,52 @@ fn load_callbacks() -> Callbacks<Instance> {
             Box::new(NodeMsds {
                 msd_type: *msd_type,
                 msd_value: Some(*msd_value),
+            })
+        })
+        // MT-Capability TLV (SPB services)
+        .path(isis::database::levels::lsp::mt_capability::PATH)
+        .get_iterate(|_instance, args| {
+            let lse = args.parent_list_entry.as_lsp_entry().unwrap();
+            let lsp = &lse.data;
+            let iter = lsp.tlvs.mt_cap.iter().map(ListEntry::MtCap);
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::mt_capability::MtCapability;
+            let mt_cap = args.list_entry.as_mt_cap().unwrap();
+            Box::new(MtCapability {
+                mt_id: Some(mt_cap.mt_id),
+                overload: Some(mt_cap.overload),
+            })
+        })
+        .path(isis::database::levels::lsp::mt_capability::spbm_service::PATH)
+        .get_iterate(|_instance, args| {
+            let mt_cap = args.parent_list_entry.as_mt_cap().unwrap();
+            let iter = mt_cap.sub_tlvs.spbm_si.iter().map(ListEntry::SpbmService);
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::mt_capability::spbm_service::SpbmService;
+            let spbm_si = args.list_entry.as_spbm_service().unwrap();
+            Box::new(SpbmService {
+                bmac: Some(Cow::Owned(MacAddr::from(spbm_si.bmac).to_string())),
+                base_vid: Some(spbm_si.base_vid),
+            })
+        })
+        .path(isis::database::levels::lsp::mt_capability::spbm_service::isid::PATH)
+        .get_iterate(|_instance, args| {
+            let spbm_si = args.parent_list_entry.as_spbm_service().unwrap();
+            let iter = spbm_si.isid_entries.iter().map(ListEntry::SpbmIsid);
+            Some(Box::new(iter))
+        })
+        .get_object(|_instance, args| {
+            use isis::database::levels::lsp::mt_capability::spbm_service::isid::Isid;
+            use crate::packet::subtlvs::spb::IsidFlags;
+            let isid = args.list_entry.as_spbm_isid().unwrap();
+            Box::new(Isid {
+                value: Some(isid.isid),
+                transmit: Some(isid.flags.contains(IsidFlags::T)),
+                receive: Some(isid.flags.contains(IsidFlags::R)),
             })
         })
         .path(isis::database::levels::lsp::unknown_tlvs::unknown_tlv::PATH)

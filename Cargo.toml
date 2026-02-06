@@ -33,8 +33,8 @@ edition = "2024"
 repository = "https://github.com/holo-routing/holo"
 
 [workspace.dependencies]
-arbitrary = { version = "1.4.1", features = ["derive"] }
-arc-swap = "1.7"
+arbitrary = { version = "1.4", features = ["derive"] }
+arc-swap = "1.8"
 base64 = "0.22"
 bitflags = { version = "2.10", features = ["serde"] }
 bytes = { version = "1.11", features = ["serde"] }
@@ -43,11 +43,11 @@ check_keyword = "0.4"
 clap = "2.33"
 chrono = { version = "0.4", features = ["serde"] }
 const-addrs = { version = "0.1", features = ["ipnet"] }
-convert_case = "0.9"
-criterion = "0.7"
+convert_case = "0.11"
+criterion = "0.8"
 crossbeam-channel = "0.5"
 derive-new = "0.7"
-enum-as-inner = "0.6"
+enum-as-inner = "0.7"
 fletcher = "1.0"
 futures = "0.3"
 generational-arena = "0.2"
@@ -58,9 +58,9 @@ itertools = "0.14"
 libc = "0.2"
 maplit = "1.0"
 md-5 = "0.10"
-nix = { version = "0.30", features = ["fs", "net", "socket", "uio", "user"] }
+nix = { version = "0.31", features = ["fs", "net", "socket", "uio", "user"] }
 netlink-packet-core = "0.8"
-netlink-packet-route = "0.25"
+netlink-packet-route = "0.28"
 netlink-sys = "0.8"
 num-derive = "0.4"
 num-traits = "0.2"
@@ -69,7 +69,7 @@ prefix-trie = { version = "0.8", default-features = false, features = ["ipnetwor
 prost = "0.14"
 rand = { version = "0.9", features = ["thread_rng"] }
 regex = { version = "1.12", default-features = false, features = ["std", "perf"] }
-rtnetlink = "0.18"
+rtnetlink = "0.20"
 rustc_tools_util = "0.4.2"
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0"
@@ -80,7 +80,7 @@ similar = "2.7"
 smallvec = { version = "1.15", features = ["serde"] }
 socket2 = { version = "0.6", features = ["all"] }
 sysctl = "0.7"
-tokio = { version = "1.48", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+tokio = { version = "1.49", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 tonic = { version = "0.14", features = ["tls-ring"] }
 tonic-prost = "0.14"
 tonic-prost-build = "0.14"
@@ -99,10 +99,6 @@ large_enum_variant = "allow"
 manual_range_contains = "allow"
 single_match = "allow"
 too_many_arguments = "allow"
-
-# Temporary workaround until the upstream enum-as-inner fix is merged and released
-[patch.crates-io]
-enum-as-inner = { git = "https://github.com/rwestphal/enum-as-inner", rev="092b051" }
 
 # Build profile descriptions:
 #

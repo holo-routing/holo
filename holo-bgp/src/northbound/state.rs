@@ -4,7 +4,9 @@
 // SPDX-License-Identifier: MIT
 //
 
+use prefix_trie::PrefixMap;
 use std::borrow::Cow;
+use std::net::IpAddr;
 use std::sync::{Arc, LazyLock as Lazy, atomic};
 
 use enum_as_inner::EnumAsInner;
@@ -24,8 +26,8 @@ use crate::packet::attribute::{
     UnknownAttr,
 };
 use crate::packet::consts::{Afi, AttrFlags, Safi};
-use crate::packet::message::{AddPathTuple, Capability};
-use crate::rib::{AttrSet, LocalRoute, Route};
+use crate::packet::message::{AddPathTuple, Capability, NegotiatedCapability};
+use crate::rib::{AttrSet, Destination, LocalRoute, Route};
 
 pub static CALLBACKS: Lazy<Callbacks<Instance>> = Lazy::new(load_callbacks);
 pub static AFI_SAFIS: [AfiSafi; 2] =
@@ -139,9 +141,24 @@ fn load_callbacks() -> Callbacks<Instance> {
             })
         })
         .path(bgp::neighbors::neighbor::afi_safis::afi_safi::PATH)
-        .get_iterate(|_instance, _args| {
-            // TODO
-            None
+        .get_iterate(|_instance, args| {
+            let nbr = args.parent_list_entry.as_neighbor().unwrap();
+
+            // If the peer doesn't support BGP capabilities, the IPv4 unicast
+            // address-family is enabled by default.
+            if nbr.capabilities_nego.is_empty() {
+                let iter = vec![ListEntry::NeighborAfiSafi(nbr, AfiSafi::Ipv4Unicast)].into_iter();
+                return Some(Box::new(iter));
+            }
+
+            let iter = nbr.capabilities_nego.iter().filter_map(|cap| {
+                match cap {
+                    NegotiatedCapability::MultiProtocol { afi, safi } =>
+                        afi_safi_tuple(*afi, *safi).map(|afi_safi| ListEntry::NeighborAfiSafi(nbr, afi_safi)),
+                    _ => None,
+                }
+            });
+            Some(Box::new(iter))
         })
         .get_object(|_instance, args| {
             use bgp::neighbors::neighbor::afi_safis::afi_safi::AfiSafi;
@@ -152,13 +169,35 @@ fn load_callbacks() -> Callbacks<Instance> {
             })
         })
         .path(bgp::neighbors::neighbor::afi_safis::afi_safi::prefixes::PATH)
-        .get_object(|_instance, _args| {
+        .get_object(|instance, args| {
             use bgp::neighbors::neighbor::afi_safis::afi_safi::prefixes::Prefixes;
-            // TODO
+            let (nbr, afi_safi) = args.list_entry.as_neighbor_afi_safi().unwrap();
+            let mut received= None;
+            let mut sent = None;
+            let mut installed = None;
+            if let Some(state) = &instance.state {
+                fn count_stats<K>(prefixes: &PrefixMap<K, Destination>, addr: &IpAddr) -> (u32, u32, u32) {
+                        prefixes.values()
+                            .filter_map(|dest| dest.adj_rib.get(addr))
+                            .fold((0, 0, 0), |(r, s, i), adj| (
+                                r + adj.in_pre().is_some() as u32,
+                                s + adj.out_post().is_some() as u32,
+                                i + adj.in_post().is_some() as u32,
+                            ))
+                    }
+                let (r, s, i) = match afi_safi {
+                    AfiSafi::Ipv4Unicast => count_stats(&state.rib.tables.ipv4_unicast.prefixes, &nbr.remote_addr),
+                    AfiSafi::Ipv6Unicast => count_stats(&state.rib.tables.ipv6_unicast.prefixes, &nbr.remote_addr),
+                };
+
+                received = Some(r);
+                sent = Some(s);
+                installed = Some(i);
+            }
             Box::new(Prefixes {
-                received: None,
-                sent: None,
-                installed: None,
+                received,
+                sent,
+                installed,
             })
         })
         .path(bgp::neighbors::neighbor::capabilities::PATH)

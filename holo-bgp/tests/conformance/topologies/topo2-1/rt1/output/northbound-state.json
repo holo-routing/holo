@@ -31,6 +31,18 @@
                   "timers": {
                     "negotiated-hold-time": 90
                   },
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "name": "iana-bgp-types:ipv4-unicast",
+                        "prefixes": {
+                          "received": 3,
+                          "sent": 4,
+                          "installed": 3
+                        }
+                      }
+                    ]
+                  },
                   "session-state": "established",
                   "capabilities": {
                     "advertised-capabilities": [
@@ -106,6 +118,18 @@
                   "timers": {
                     "negotiated-hold-time": 90
                   },
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "name": "iana-bgp-types:ipv4-unicast",
+                        "prefixes": {
+                            "received": 3,
+                            "sent": 4,
+                            "installed": 3
+                        }
+                      }
+                    ]
+                  },
                   "session-state": "established",
                   "capabilities": {
                     "advertised-capabilities": [
@@ -180,6 +204,18 @@
                   "identifier": "5.5.5.5",
                   "timers": {
                     "negotiated-hold-time": 90
+                  },
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "name": "iana-bgp-types:ipv4-unicast",
+                        "prefixes": {
+                          "received": 3,
+                          "sent": 5,
+                          "installed": 3
+                        }
+                      }
+                    ]
                   },
                   "session-state": "established",
                   "capabilities": {

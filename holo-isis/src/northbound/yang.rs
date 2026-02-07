@@ -16,9 +16,7 @@ use crate::adjacency::{AdjacencyEvent, AdjacencyState};
 use crate::error::AdjacencyRejectError;
 use crate::interface::InterfaceType;
 use crate::lsdb::LspLogReason;
-use crate::northbound::configuration::{
-    ExtendedSeqNumMode, InstanceTraceOption, InterfaceTraceOption, MetricType,
-};
+use crate::northbound::configuration::{ExtendedSeqNumMode, InstanceTraceOption, InterfaceTraceOption, MetricType};
 use crate::packet::consts::{FloodingAlgo, MtId};
 use crate::packet::pdu::LspFlags;
 use crate::packet::subtlvs::capability::SrCapabilitiesFlags;
@@ -44,53 +42,31 @@ impl ToYang for LevelType {
 impl ToYang for SystemId {
     fn to_yang(&self) -> Cow<'static, str> {
         let bytes: &[u8; 6] = self.as_ref();
-        Cow::Owned(format!(
-            "{:02X}{:02X}.{:02X}{:02X}.{:02X}{:02X}",
-            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5]
-        ))
+        Cow::Owned(format!("{:02X}{:02X}.{:02X}{:02X}.{:02X}{:02X}", bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5]))
     }
 }
 
 impl ToYang for LanId {
     fn to_yang(&self) -> Cow<'static, str> {
-        Cow::Owned(format!(
-            "{}.{:02}",
-            self.system_id.to_yang(),
-            self.pseudonode,
-        ))
+        Cow::Owned(format!("{}.{:02}", self.system_id.to_yang(), self.pseudonode,))
     }
 }
 
 impl ToYang for LspId {
     fn to_yang(&self) -> Cow<'static, str> {
-        Cow::Owned(format!(
-            "{}.{:02}-{:02}",
-            self.system_id.to_yang(),
-            self.pseudonode,
-            self.fragment,
-        ))
+        Cow::Owned(format!("{}.{:02}-{:02}", self.system_id.to_yang(), self.pseudonode, self.fragment,))
     }
 }
 
 impl ToYang for AreaAddr {
     fn to_yang(&self) -> Cow<'static, str> {
         // Convert the bytes to a hex string.
-        let hex_string: String = self
-            .as_ref()
-            .iter()
-            .map(|byte| format!("{byte:02X}"))
-            .collect();
+        let hex_string: String = self.as_ref().iter().map(|byte| format!("{byte:02X}")).collect();
 
         // Split the hex string into groups of 4, starting with the first two
         // characters.
         let mut groups = vec![hex_string[0..2].to_string()];
-        groups.extend(
-            hex_string[2..]
-                .chars()
-                .collect::<Vec<char>>()
-                .chunks(4)
-                .map(|chunk| chunk.iter().collect::<String>()),
-        );
+        groups.extend(hex_string[2..].chars().collect::<Vec<char>>().chunks(4).map(|chunk| chunk.iter().collect::<String>()));
 
         // Join the groups with periods.
         groups.join(".").into()
@@ -259,26 +235,14 @@ impl ToYang for AdjacencyRejectError {
     // primitive "string" type, allowing us to define error reasons freely.
     fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            AdjacencyRejectError::InvalidHelloType => {
-                "invalid-hello-type".into()
-            }
-            AdjacencyRejectError::CircuitTypeMismatch => {
-                "circuit-type-mismatch".into()
-            }
-            AdjacencyRejectError::MaxAreaAddrsMismatch(..) => {
-                "max-area-addresses-mismatch".into()
-            }
+            AdjacencyRejectError::InvalidHelloType => "invalid-hello-type".into(),
+            AdjacencyRejectError::CircuitTypeMismatch => "circuit-type-mismatch".into(),
+            AdjacencyRejectError::MaxAreaAddrsMismatch(..) => "max-area-addresses-mismatch".into(),
             AdjacencyRejectError::AreaMismatch => "area-mismatch".into(),
-            AdjacencyRejectError::NeighborMismatch => {
-                "neighbor-mismatch".into()
-            }
+            AdjacencyRejectError::NeighborMismatch => "neighbor-mismatch".into(),
             AdjacencyRejectError::WrongSystem => "wrong-system".into(),
-            AdjacencyRejectError::DuplicateSystemId => {
-                "duplicate-system-id".into()
-            }
-            AdjacencyRejectError::MissingProtocolsSupported => {
-                "missing-protocols-supported-tlv".into()
-            }
+            AdjacencyRejectError::DuplicateSystemId => "duplicate-system-id".into(),
+            AdjacencyRejectError::MissingProtocolsSupported => "missing-protocols-supported-tlv".into(),
             AdjacencyRejectError::NoCommonMt => "no-common-mt".into(),
         }
     }
@@ -338,18 +302,14 @@ impl TryFromYang for LevelType {
 impl TryFromYang for AreaAddr {
     fn try_from_yang(value: &str) -> Option<AreaAddr> {
         // Define the regex pattern to match an area address.
-        let re = regex::Regex::new(r"^[0-9A-Fa-f]{2}(\.[0-9A-Fa-f]{4}){0,6}$")
-            .ok()?;
+        let re = regex::Regex::new(r"^[0-9A-Fa-f]{2}(\.[0-9A-Fa-f]{4}){0,6}$").ok()?;
         if !re.is_match(value) {
             return None;
         }
 
         // Remove the dots and convert the hex string into a vector of bytes.
         let area_addr = value.replace('.', "");
-        let bytes = (0..area_addr.len())
-            .step_by(2)
-            .map(|i| u8::from_str_radix(&area_addr[i..i + 2], 16).unwrap())
-            .collect();
+        let bytes = (0..area_addr.len()).step_by(2).map(|i| u8::from_str_radix(&area_addr[i..i + 2], 16).unwrap()).collect();
 
         Some(AreaAddr::new(bytes))
     }
@@ -361,10 +321,7 @@ impl TryFromYang for SystemId {
         let mut bytes = [0u8; 6];
 
         // Define the regex pattern to match a System ID.
-        let re = Regex::new(
-            r"^([0-9A-Fa-f]{4})\.([0-9A-Fa-f]{4})\.([0-9A-Fa-f]{4})$",
-        )
-        .ok()?;
+        let re = Regex::new(r"^([0-9A-Fa-f]{4})\.([0-9A-Fa-f]{4})\.([0-9A-Fa-f]{4})$").ok()?;
 
         // Apply the regex to the input string.
         let caps = re.captures(value)?;
@@ -414,12 +371,8 @@ impl TryFromYang for MtId {
 impl TryFromYang for FloodingAlgo {
     fn try_from_yang(value: &str) -> Option<FloodingAlgo> {
         match value {
-            "holo-isis:flooding-algorithm-zero-pruner" => {
-                Some(FloodingAlgo::ZeroPruner)
-            }
-            "holo-isis:flooding-algorithm-modified-manet" => {
-                Some(FloodingAlgo::ModifiedManet)
-            }
+            "holo-isis:flooding-algorithm-zero-pruner" => Some(FloodingAlgo::ZeroPruner),
+            "holo-isis:flooding-algorithm-modified-manet" => Some(FloodingAlgo::ModifiedManet),
             _ => None,
         }
     }

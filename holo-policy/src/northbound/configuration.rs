@@ -8,15 +8,9 @@ use std::collections::{BTreeSet, btree_map};
 use std::sync::{Arc, LazyLock as Lazy};
 
 use enum_as_inner::EnumAsInner;
-use holo_northbound::configuration::{
-    self, Callbacks, CallbacksBuilder, Provider,
-};
+use holo_northbound::configuration::{self, Callbacks, CallbacksBuilder, Provider};
 use holo_utils::ip::AddressFamily;
-use holo_utils::policy::{
-    IpPrefixRange, MatchSetRestrictedType, MatchSetType, MetricType,
-    NeighborSet, Policy, PolicyAction, PolicyActionType, PolicyCondition,
-    PolicyConditionType, PolicyStmt, PrefixSet, RouteLevel, RouteType, TagSet,
-};
+use holo_utils::policy::{IpPrefixRange, MatchSetRestrictedType, MatchSetType, MetricType, NeighborSet, Policy, PolicyAction, PolicyActionType, PolicyCondition, PolicyConditionType, PolicyStmt, PrefixSet, RouteLevel, RouteType, TagSet};
 use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
@@ -24,8 +18,7 @@ use holo_yang::TryFromYang;
 use crate::Master;
 use crate::northbound::yang_gen::routing_policy;
 
-static CALLBACKS: Lazy<configuration::Callbacks<Master>> =
-    Lazy::new(load_callbacks);
+static CALLBACKS: Lazy<configuration::Callbacks<Master>> = Lazy::new(load_callbacks);
 
 #[derive(Debug, Default, EnumAsInner)]
 pub enum ListEntry {
@@ -120,9 +113,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let event_queue = args.event_queue;
             event_queue.insert(Event::MatchSetsUpdate);
         })
-        .lookup(|_master, _list_entry, _dnode| {
-            ListEntry::None
-        })
+        .lookup(|_master, _list_entry, _dnode| ListEntry::None)
         .path(routing_policy::defined_sets::neighbor_sets::neighbor_set::PATH)
         .create_apply(|master, args| {
             let name = args.dnode.get_string_relative("./name").unwrap();
@@ -546,11 +537,8 @@ fn load_callbacks() -> Callbacks<Master> {
 
             let route_type = args.dnode.get_string();
             let route_type = RouteType::try_from_yang(&route_type).unwrap();
-            if let btree_map::Entry::Occupied(mut entry) =
-                stmt.conditions.entry(PolicyConditionType::MatchRouteType)
-            {
-                let route_types =
-                    entry.get_mut().as_match_route_type_mut().unwrap();
+            if let btree_map::Entry::Occupied(mut entry) = stmt.conditions.entry(PolicyConditionType::MatchRouteType) {
+                let route_types = entry.get_mut().as_match_route_type_mut().unwrap();
                 route_types.remove(&route_type);
                 if route_types.is_empty() {
                     entry.remove();

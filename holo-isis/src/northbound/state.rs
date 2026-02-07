@@ -16,9 +16,7 @@ use std::sync::{LazyLock as Lazy, atomic};
 use std::time::Instant;
 
 use enum_as_inner::EnumAsInner;
-use holo_northbound::state::{
-    Callbacks, CallbacksBuilder, ListEntryKind, Provider,
-};
+use holo_northbound::state::{Callbacks, CallbacksBuilder, ListEntryKind, Provider};
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::mac_addr::MacAddr;
 use holo_utils::option::OptionExt;
@@ -36,11 +34,7 @@ use crate::packet::subtlvs::capability::LabelBlockEntry;
 use crate::packet::subtlvs::neighbor::AdjSidStlv;
 use crate::packet::subtlvs::prefix::{PrefixAttrFlags, PrefixSidStlv};
 use crate::packet::subtlvs::spb::{IsidEntry, SpbmSiStlv};
-use crate::packet::tlv::{
-    AuthenticationTlv, IpReachTlvEntry, Ipv4Reach, Ipv6Reach, IsReach,
-    LegacyIpv4Reach, LegacyIsReach, MtCapabilityTlv, MultiTopologyEntry,
-    RouterCapTlv, UnknownTlv,
-};
+use crate::packet::tlv::{AuthenticationTlv, IpReachTlvEntry, Ipv4Reach, Ipv6Reach, IsReach, LegacyIpv4Reach, LegacyIsReach, MtCapabilityTlv, MultiTopologyEntry, RouterCapTlv, UnknownTlv};
 use crate::packet::{LanId, LevelNumber, LevelType, SystemId};
 use crate::route::{Nexthop, Route};
 use crate::spf::{SpfLogEntry, SpfScheduler};
@@ -265,30 +259,24 @@ fn load_callbacks() -> Callbacks<Instance> {
             use isis::database::levels::lsp::authentication::Authentication;
             let lse = args.list_entry.as_lsp_entry().unwrap();
             let lsp = &lse.data;
-            let authentication_type =
-                lsp.tlvs.auth.as_ref().and_then(|auth| match auth {
-                    AuthenticationTlv::ClearText(..) => {
-                        Some(CryptoAlgo::ClearText.to_yang())
-                    }
-                    AuthenticationTlv::HmacMd5(..) => {
-                        Some(CryptoAlgo::HmacMd5.to_yang())
-                    }
-                    AuthenticationTlv::Cryptographic {..} => {
-                        // The authentication algorithm is never sent in
-                        // cleartext over the wire.
-                        None
-                    }
-                });
-            let authentication_key =
-                lsp.tlvs.auth.as_ref().and_then(|auth| match auth {
-                    AuthenticationTlv::ClearText(..) => None,
-                    AuthenticationTlv::HmacMd5(digest) => {
-                        Some(Cow::Owned(format_hmac_digest(digest)))
-                    }
-                    AuthenticationTlv::Cryptographic { digest, .. } => {
-                        Some(Cow::Owned(format_hmac_digest(digest)))
-                    }
-                });
+            let authentication_type = lsp.tlvs.auth.as_ref().and_then(|auth| match auth {
+                AuthenticationTlv::ClearText(..) => Some(CryptoAlgo::ClearText.to_yang()),
+                AuthenticationTlv::HmacMd5(..) => Some(CryptoAlgo::HmacMd5.to_yang()),
+                AuthenticationTlv::Cryptographic {
+                    ..
+                } => {
+                    // The authentication algorithm is never sent in
+                    // cleartext over the wire.
+                    None
+                }
+            });
+            let authentication_key = lsp.tlvs.auth.as_ref().and_then(|auth| match auth {
+                AuthenticationTlv::ClearText(..) => None,
+                AuthenticationTlv::HmacMd5(digest) => Some(Cow::Owned(format_hmac_digest(digest))),
+                AuthenticationTlv::Cryptographic {
+                    digest, ..
+                } => Some(Cow::Owned(format_hmac_digest(digest))),
+            });
             Box::new(Authentication {
                 authentication_type,
                 authentication_key,
@@ -399,10 +387,10 @@ fn load_callbacks() -> Callbacks<Instance> {
             match entry.first {
                 Sid::Index(index) => {
                     obj.index_value = Some(index);
-                },
+                }
                 Sid::Label(label) => {
                     obj.label_value = Some(label.get());
-                },
+                }
             }
             Box::new(obj)
         })
@@ -437,10 +425,10 @@ fn load_callbacks() -> Callbacks<Instance> {
             match entry.first {
                 Sid::Index(index) => {
                     obj.index_value = Some(index);
-                },
+                }
                 Sid::Label(label) => {
                     obj.label_value = Some(label.get());
-                },
+                }
             }
             Box::new(obj)
         })
@@ -500,6 +488,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .get_object(|_instance, args| {
             use isis::database::levels::lsp::mt_capability::spbm_service::isid::Isid;
+
             use crate::packet::subtlvs::spb::IsidFlags;
             let isid = args.list_entry.as_spbm_isid().unwrap();
             Box::new(Isid {
@@ -703,10 +692,10 @@ fn load_callbacks() -> Callbacks<Instance> {
             match stlv.sid {
                 Sid::Index(index) => {
                     obj.index_value = Some(index);
-                },
+                }
                 Sid::Label(label) => {
                     obj.label_value = Some(label.get());
-                },
+                }
             };
             Box::new(obj)
         })
@@ -890,10 +879,10 @@ fn load_callbacks() -> Callbacks<Instance> {
             match stlv.sid {
                 Sid::Index(index) => {
                     obj.index_value = Some(index);
-                },
+                }
                 Sid::Label(label) => {
                     obj.label_value = Some(label.get());
-                },
+                }
             };
             Box::new(obj)
         })
@@ -1014,10 +1003,10 @@ fn load_callbacks() -> Callbacks<Instance> {
             match stlv.sid {
                 Sid::Index(index) => {
                     obj.index_value = Some(index);
-                },
+                }
                 Sid::Label(label) => {
                     obj.label_value = Some(label.get());
-                },
+                }
             };
             Box::new(obj)
         })
@@ -1100,10 +1089,10 @@ fn load_callbacks() -> Callbacks<Instance> {
             match stlv.sid {
                 Sid::Index(index) => {
                     obj.index_value = Some(index);
-                },
+                }
                 Sid::Label(label) => {
                     obj.label_value = Some(label.get());
-                },
+                }
             };
             Box::new(obj)
         })
@@ -1168,10 +1157,10 @@ fn load_callbacks() -> Callbacks<Instance> {
             match stlv.sid {
                 Sid::Index(index) => {
                     obj.index_value = Some(index);
-                },
+                }
                 Sid::Label(label) => {
                     obj.label_value = Some(label.get());
-                },
+                }
             };
             Box::new(obj)
         })
@@ -1235,10 +1224,10 @@ fn load_callbacks() -> Callbacks<Instance> {
             match stlv.sid {
                 Sid::Index(index) => {
                     obj.index_value = Some(index);
-                },
+                }
                 Sid::Label(label) => {
                     obj.label_value = Some(label.get());
-                },
+                }
             };
             Box::new(obj)
         })
@@ -1534,11 +1523,8 @@ impl ListEntryKind for ListEntry<'_> {}
 // ===== helper functions =====
 
 fn format_hmac_digest(digest: &[u8]) -> String {
-    digest.iter().fold(
-        String::with_capacity(digest.len() * 2),
-        |mut output, &byte| {
-            write!(&mut output, "{byte:02x}").unwrap();
-            output
-        },
-    )
+    digest.iter().fold(String::with_capacity(digest.len() * 2), |mut output, &byte| {
+        write!(&mut output, "{byte:02x}").unwrap();
+        output
+    })
 }

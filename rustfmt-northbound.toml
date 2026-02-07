@@ -2,12 +2,7 @@ edition = "2024"
 format_code_in_doc_comments = true
 group_imports = "StdExternalCrate"
 imports_granularity = "Module"
-max_width = 80
+max_width = 240
 merge_derives = false
+struct_lit_single_line = false
 wrap_comments = false
-
-# Northbound modules are excluded to allow their local rustfmt.toml
-# configurations to take precedence.
-ignore = [
-  "holo-*/src/northbound/",
-]

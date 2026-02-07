@@ -12,10 +12,7 @@ use std::sync::{Arc, LazyLock as Lazy};
 
 use arc_swap::ArcSwap;
 use enum_as_inner::EnumAsInner;
-use holo_northbound::configuration::{
-    Callbacks, CallbacksBuilder, Provider, ValidationCallbacks,
-    ValidationCallbacksBuilder,
-};
+use holo_northbound::configuration::{Callbacks, CallbacksBuilder, Provider, ValidationCallbacks, ValidationCallbacksBuilder};
 use holo_utils::bgp::AfiSafi;
 use holo_utils::ip::{AddressFamily, IpAddrKind};
 use holo_utils::policy::{ApplyPolicyCfg, DefaultPolicyType};
@@ -59,8 +56,7 @@ pub enum Event {
     UpdateTraceOptions,
 }
 
-pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
-    Lazy::new(load_validation_callbacks);
+pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> = Lazy::new(load_validation_callbacks);
 pub static CALLBACKS: Lazy<Callbacks<Instance>> = Lazy::new(load_callbacks);
 
 // ===== configuration structs =====
@@ -254,10 +250,8 @@ pub struct TraceOptionPacketType {
 fn load_callbacks() -> Callbacks<Instance> {
     CallbacksBuilder::<Instance>::default()
         .path(bgp::global::PATH)
-        .create_apply(|_instance, _args| {
-        })
-        .delete_apply(|_instance, _args| {
-        })
+        .create_apply(|_instance, _args| {})
+        .delete_apply(|_instance, _args| {})
         .path(bgp::global::r#as::PATH)
         .modify_apply(|instance, args| {
             let asn = args.dnode.get_u32();
@@ -790,11 +784,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             let nbr_addr = args.dnode.get_ip_relative("./remote-address").unwrap();
             let peer_as = args.dnode.get_u32_relative("./peer-as").unwrap();
 
-            let peer_type = if instance.config.asn == peer_as {
-                PeerType::Internal
-            } else {
-                PeerType::External
-            };
+            let peer_type = if instance.config.asn == peer_as { PeerType::Internal } else { PeerType::External };
             let nbr = Neighbor::new(nbr_addr, peer_type);
             instance.neighbors.insert(nbr_addr, nbr);
 
@@ -826,17 +816,10 @@ fn load_callbacks() -> Callbacks<Instance> {
 
             let asn = args.dnode.get_u32();
             nbr.config.peer_as = asn;
-            nbr.peer_type = if instance.config.asn == nbr.config.peer_as {
-                PeerType::Internal
-            } else {
-                PeerType::External
-            };
+            nbr.peer_type = if instance.config.asn == nbr.config.peer_as { PeerType::Internal } else { PeerType::External };
 
             let event_queue = args.event_queue;
-            let msg = NotificationMsg::new(
-                ErrorCode::Cease,
-                CeaseSubcode::OtherConfigurationChange,
-            );
+            let msg = NotificationMsg::new(ErrorCode::Cease, CeaseSubcode::OtherConfigurationChange);
             event_queue.insert(Event::NeighborReset(nbr.remote_addr, msg));
         })
         .path(bgp::neighbors::neighbor::local_as::PATH)
@@ -942,10 +925,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             nbr.config.transport.local_addr = Some(addr);
 
             let event_queue = args.event_queue;
-            let msg = NotificationMsg::new(
-                ErrorCode::Cease,
-                CeaseSubcode::OtherConfigurationChange,
-            );
+            let msg = NotificationMsg::new(ErrorCode::Cease, CeaseSubcode::OtherConfigurationChange);
             event_queue.insert(Event::NeighborReset(nbr.remote_addr, msg));
         })
         .delete_apply(|instance, args| {
@@ -955,10 +935,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             nbr.config.transport.local_addr = None;
 
             let event_queue = args.event_queue;
-            let msg = NotificationMsg::new(
-                ErrorCode::Cease,
-                CeaseSubcode::OtherConfigurationChange,
-            );
+            let msg = NotificationMsg::new(ErrorCode::Cease, CeaseSubcode::OtherConfigurationChange);
             event_queue.insert(Event::NeighborReset(nbr.remote_addr, msg));
         })
         .path(bgp::neighbors::neighbor::transport::tcp_mss::PATH)
@@ -984,10 +961,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             nbr.config.transport.ebgp_multihop_enabled = enabled;
 
             let event_queue = args.event_queue;
-            let msg = NotificationMsg::new(
-                ErrorCode::Cease,
-                CeaseSubcode::OtherConfigurationChange,
-            );
+            let msg = NotificationMsg::new(ErrorCode::Cease, CeaseSubcode::OtherConfigurationChange);
             event_queue.insert(Event::NeighborReset(nbr.remote_addr, msg));
         })
         .path(bgp::neighbors::neighbor::transport::ebgp_multihop::multihop_ttl::PATH)
@@ -999,10 +973,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             nbr.config.transport.ebgp_multihop_ttl = Some(ttl);
 
             let event_queue = args.event_queue;
-            let msg = NotificationMsg::new(
-                ErrorCode::Cease,
-                CeaseSubcode::OtherConfigurationChange,
-            );
+            let msg = NotificationMsg::new(ErrorCode::Cease, CeaseSubcode::OtherConfigurationChange);
             event_queue.insert(Event::NeighborReset(nbr.remote_addr, msg));
         })
         .delete_apply(|instance, args| {
@@ -1012,10 +983,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             nbr.config.transport.ebgp_multihop_ttl = None;
 
             let event_queue = args.event_queue;
-            let msg = NotificationMsg::new(
-                ErrorCode::Cease,
-                CeaseSubcode::OtherConfigurationChange,
-            );
+            let msg = NotificationMsg::new(ErrorCode::Cease, CeaseSubcode::OtherConfigurationChange);
             event_queue.insert(Event::NeighborReset(nbr.remote_addr, msg));
         })
         .path(bgp::neighbors::neighbor::transport::passive_mode::PATH)
@@ -1035,10 +1003,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             nbr.config.transport.ttl_security = Some(ttl_security);
 
             let event_queue = args.event_queue;
-            let msg = NotificationMsg::new(
-                ErrorCode::Cease,
-                CeaseSubcode::OtherConfigurationChange,
-            );
+            let msg = NotificationMsg::new(ErrorCode::Cease, CeaseSubcode::OtherConfigurationChange);
             event_queue.insert(Event::NeighborReset(nbr.remote_addr, msg));
         })
         .path(bgp::neighbors::neighbor::transport::secure_session::enabled::PATH)
@@ -1050,10 +1015,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             nbr.config.transport.secure_session_enabled = enabled;
 
             let event_queue = args.event_queue;
-            let msg = NotificationMsg::new(
-                ErrorCode::Cease,
-                CeaseSubcode::OtherConfigurationChange,
-            );
+            let msg = NotificationMsg::new(ErrorCode::Cease, CeaseSubcode::OtherConfigurationChange);
             event_queue.insert(Event::NeighborReset(nbr.remote_addr, msg));
             event_queue.insert(Event::NeighborUpdateAuth(nbr.remote_addr));
         })
@@ -1066,10 +1028,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             nbr.config.transport.md5_key = Some(keychain);
 
             let event_queue = args.event_queue;
-            let msg = NotificationMsg::new(
-                ErrorCode::Cease,
-                CeaseSubcode::OtherConfigurationChange,
-            );
+            let msg = NotificationMsg::new(ErrorCode::Cease, CeaseSubcode::OtherConfigurationChange);
             event_queue.insert(Event::NeighborReset(nbr.remote_addr, msg));
             event_queue.insert(Event::NeighborUpdateAuth(nbr.remote_addr));
         })
@@ -1080,10 +1039,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             nbr.config.transport.md5_key = None;
 
             let event_queue = args.event_queue;
-            let msg = NotificationMsg::new(
-                ErrorCode::Cease,
-                CeaseSubcode::OtherConfigurationChange,
-            );
+            let msg = NotificationMsg::new(ErrorCode::Cease, CeaseSubcode::OtherConfigurationChange);
             event_queue.insert(Event::NeighborReset(nbr.remote_addr, msg));
             event_queue.insert(Event::NeighborUpdateAuth(nbr.remote_addr));
         })
@@ -1581,16 +1537,8 @@ impl Provider for Instance {
                 let nbr = neighbors.get_mut(&nbr_addr).unwrap();
 
                 // Unset neighbor's password in the listening sockets.
-                for listener in
-                    instance.state.listening_sockets.iter().filter(|listener| {
-                        listener.af == nbr_addr.address_family()
-                    })
-                {
-                    network::listen_socket_md5sig_update(
-                        &listener.socket,
-                        &nbr_addr,
-                        None,
-                    );
+                for listener in instance.state.listening_sockets.iter().filter(|listener| listener.af == nbr_addr.address_family()) {
+                    network::listen_socket_md5sig_update(&listener.socket, &nbr_addr, None);
                 }
 
                 // Delete neighbor.
@@ -1624,16 +1572,8 @@ impl Provider for Instance {
                 };
 
                 // Set/unset password in the listening sockets.
-                for listener in
-                    instance.state.listening_sockets.iter().filter(|listener| {
-                        listener.af == nbr_addr.address_family()
-                    })
-                {
-                    network::listen_socket_md5sig_update(
-                        &listener.socket,
-                        &nbr_addr,
-                        key.as_deref(),
-                    );
+                for listener in instance.state.listening_sockets.iter().filter(|listener| listener.af == nbr_addr.address_family()) {
+                    network::listen_socket_md5sig_update(&listener.socket, &nbr_addr, key.as_deref());
                 }
             }
             Event::RedistributeIbusSub(protocol, af) => {
@@ -1645,16 +1585,10 @@ impl Provider for Instance {
                 if let Some((mut instance, _)) = self.as_up() {
                     match afi_safi {
                         AfiSafi::Ipv4Unicast => {
-                            redistribute_delete::<Ipv4Unicast>(
-                                &mut instance,
-                                protocol,
-                            );
+                            redistribute_delete::<Ipv4Unicast>(&mut instance, protocol);
                         }
                         AfiSafi::Ipv6Unicast => {
-                            redistribute_delete::<Ipv6Unicast>(
-                                &mut instance,
-                                protocol,
-                            );
+                            redistribute_delete::<Ipv6Unicast>(&mut instance, protocol);
                         }
                     }
                 }
@@ -1704,18 +1638,14 @@ impl Provider for Instance {
                         .or(instance_trace_opts.packets.all)
                         .unwrap_or(disabled);
 
-                    nbr.config.trace_opts.events_resolved = nbr_trace_opts
-                        .events
-                        .unwrap_or(instance_trace_opts.events);
-                    nbr.config.trace_opts.packets_resolved.store(Arc::new(
-                        TraceOptionPacketResolved {
-                            open,
-                            update,
-                            notification,
-                            keepalive,
-                            refresh,
-                        },
-                    ));
+                    nbr.config.trace_opts.events_resolved = nbr_trace_opts.events.unwrap_or(instance_trace_opts.events);
+                    nbr.config.trace_opts.packets_resolved.store(Arc::new(TraceOptionPacketResolved {
+                        open,
+                        update,
+                        notification,
+                        keepalive,
+                        refresh,
+                    }));
                 }
             }
         }
@@ -1797,19 +1727,19 @@ impl Default for DistanceCfg {
         let external = bgp::global::distance::external::DFLT;
         let internal = bgp::global::distance::internal::DFLT;
 
-        DistanceCfg { external, internal }
+        DistanceCfg {
+            external,
+            internal,
+        }
     }
 }
 
 impl Default for MultipathCfg {
     fn default() -> MultipathCfg {
         let enabled = bgp::global::use_multiple_paths::enabled::DFLT;
-        let ebgp_allow_multiple_as =
-            bgp::global::use_multiple_paths::ebgp::allow_multiple_as::DFLT;
-        let ebgp_max_paths =
-            bgp::global::use_multiple_paths::ebgp::maximum_paths::DFLT;
-        let ibgp_max_paths =
-            bgp::global::use_multiple_paths::ibgp::maximum_paths::DFLT;
+        let ebgp_allow_multiple_as = bgp::global::use_multiple_paths::ebgp::allow_multiple_as::DFLT;
+        let ebgp_max_paths = bgp::global::use_multiple_paths::ebgp::maximum_paths::DFLT;
+        let ibgp_max_paths = bgp::global::use_multiple_paths::ibgp::maximum_paths::DFLT;
 
         MultipathCfg {
             enabled,
@@ -1838,8 +1768,7 @@ impl Default for InstanceAfiSafiCfg {
 impl Default for NeighborCfg {
     fn default() -> NeighborCfg {
         let enabled = bgp::neighbors::neighbor::enabled::DFLT;
-        let log_neighbor_state_changes =
-            bgp::neighbors::neighbor::logging_options::log_neighbor_state_changes::DFLT;
+        let log_neighbor_state_changes = bgp::neighbors::neighbor::logging_options::log_neighbor_state_changes::DFLT;
 
         NeighborCfg {
             enabled,
@@ -1860,8 +1789,7 @@ impl Default for NeighborCfg {
 
 impl Default for NeighborTimersCfg {
     fn default() -> NeighborTimersCfg {
-        let connect_retry_interval =
-            bgp::neighbors::neighbor::timers::connect_retry_interval::DFLT;
+        let connect_retry_interval = bgp::neighbors::neighbor::timers::connect_retry_interval::DFLT;
         let holdtime = bgp::neighbors::neighbor::timers::hold_time::DFLT;
 
         NeighborTimersCfg {
@@ -1876,12 +1804,9 @@ impl Default for NeighborTimersCfg {
 
 impl Default for NeighborTransportCfg {
     fn default() -> NeighborTransportCfg {
-        let ebgp_multihop_enabled =
-            bgp::neighbors::neighbor::transport::ebgp_multihop::enabled::DFLT;
-        let passive_mode =
-            bgp::neighbors::neighbor::transport::passive_mode::DFLT;
-        let secure_session_enabled =
-            bgp::neighbors::neighbor::transport::secure_session::enabled::DFLT;
+        let ebgp_multihop_enabled = bgp::neighbors::neighbor::transport::ebgp_multihop::enabled::DFLT;
+        let passive_mode = bgp::neighbors::neighbor::transport::passive_mode::DFLT;
+        let secure_session_enabled = bgp::neighbors::neighbor::transport::secure_session::enabled::DFLT;
 
         NeighborTransportCfg {
             local_addr: None,
@@ -1898,8 +1823,7 @@ impl Default for NeighborTransportCfg {
 
 impl Default for NeighborAfiSafiCfg {
     fn default() -> NeighborAfiSafiCfg {
-        let enabled =
-            bgp::neighbors::neighbor::afi_safis::afi_safi::enabled::DFLT;
+        let enabled = bgp::neighbors::neighbor::afi_safis::afi_safi::enabled::DFLT;
 
         NeighborAfiSafiCfg {
             enabled,
@@ -1967,6 +1891,9 @@ impl Default for TraceOptionPacketType {
         let tx = bgp::global::trace_options::flag::send::DFLT;
         let rx = bgp::global::trace_options::flag::receive::DFLT;
 
-        TraceOptionPacketType { tx, rx }
+        TraceOptionPacketType {
+            tx,
+            rx,
+        }
     }
 }

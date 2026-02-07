@@ -9,10 +9,7 @@ use std::sync::LazyLock as Lazy;
 use std::time::Duration;
 
 use enum_as_inner::EnumAsInner;
-use holo_northbound::configuration::{
-    Callbacks, CallbacksBuilder, Provider, ValidationCallbacks,
-    ValidationCallbacksBuilder,
-};
+use holo_northbound::configuration::{Callbacks, CallbacksBuilder, Provider, ValidationCallbacks, ValidationCallbacksBuilder};
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::IpAddrKind;
 use holo_utils::yang::DataNodeRefExt;
@@ -50,14 +47,10 @@ pub enum Event {
     ResetUpdateInterval,
 }
 
-pub static VALIDATION_CALLBACKS_RIPV2: Lazy<ValidationCallbacks> =
-    Lazy::new(load_validation_callbacks_ripv2);
-pub static VALIDATION_CALLBACKS_RIPNG: Lazy<ValidationCallbacks> =
-    Lazy::new(load_validation_callbacks_ripng);
-pub static CALLBACKS_RIPV2: Lazy<Callbacks<Instance<Ripv2>>> =
-    Lazy::new(load_callbacks_ripv2);
-pub static CALLBACKS_RIPNG: Lazy<Callbacks<Instance<Ripng>>> =
-    Lazy::new(load_callbacks_ripng);
+pub static VALIDATION_CALLBACKS_RIPV2: Lazy<ValidationCallbacks> = Lazy::new(load_validation_callbacks_ripv2);
+pub static VALIDATION_CALLBACKS_RIPNG: Lazy<ValidationCallbacks> = Lazy::new(load_validation_callbacks_ripng);
+pub static CALLBACKS_RIPV2: Lazy<Callbacks<Instance<Ripv2>>> = Lazy::new(load_callbacks_ripv2);
+pub static CALLBACKS_RIPNG: Lazy<Callbacks<Instance<Ripng>>> = Lazy::new(load_callbacks_ripng);
 
 // ===== configuration structs =====
 
@@ -214,11 +207,7 @@ where
         })
         .lookup(|instance, _list_entry, dnode| {
             let ifname = dnode.get_string_relative("./interface").unwrap();
-            instance
-                .interfaces
-                .get_mut_by_name(&ifname)
-                .map(|(iface_idx, _)| ListEntry::Interface(iface_idx))
-                .expect("could not find RIP interface")
+            instance.interfaces.get_mut_by_name(&ifname).map(|(iface_idx, _)| ListEntry::Interface(iface_idx)).expect("could not find RIP interface")
         })
         .path(rip::interfaces::interface::cost::PATH)
         .modify_apply(|instance, args| {
@@ -292,8 +281,7 @@ where
             let iface = &mut instance.interfaces[iface_idx];
 
             let split_horizon = args.dnode.get_string();
-            let split_horizon =
-                SplitHorizon::try_from_yang(&split_horizon).unwrap();
+            let split_horizon = SplitHorizon::try_from_yang(&split_horizon).unwrap();
             iface.config.split_horizon = split_horizon;
         })
         .path(rip::interfaces::interface::timers::invalid_interval::PATH)
@@ -338,9 +326,7 @@ fn load_callbacks_ripv2() -> Callbacks<Instance<Ripv2>> {
             let event_queue = args.event_queue;
             event_queue.insert(Event::InterfaceRestartNetTasks(iface_idx));
         })
-        .path(
-            rip::interfaces::interface::authentication::crypto_algorithm::PATH,
-        )
+        .path(rip::interfaces::interface::authentication::crypto_algorithm::PATH)
         .modify_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.interfaces[iface_idx];
@@ -378,16 +364,11 @@ fn load_validation_callbacks_ripv2() -> ValidationCallbacks {
             }
             Ok(())
         })
-        .path(
-            rip::interfaces::interface::authentication::crypto_algorithm::PATH,
-        )
+        .path(rip::interfaces::interface::authentication::crypto_algorithm::PATH)
         .validate(|args| {
             let algo = args.dnode.get_string();
             if algo != CryptoAlgo::Md5.to_yang() {
-                return Err(format!(
-                    "unsupported cryptographic algorithm (valid options: \"{}\")",
-                    CryptoAlgo::Md5.to_yang()
-                ));
+                return Err(format!("unsupported cryptographic algorithm (valid options: \"{}\")", CryptoAlgo::Md5.to_yang()));
             }
             Ok(())
         })
@@ -456,12 +437,7 @@ where
                 }
 
                 let distance = instance.config.distance;
-                for route in instance
-                    .state
-                    .routes
-                    .values_mut()
-                    .filter(|route| !route.metric.is_infinite())
-                {
+                for route in instance.state.routes.values_mut().filter(|route| !route.metric.is_infinite()) {
                     // Calculate new route metric.
                     let mut metric = iface.config.cost;
                     if let Some(rcvd_metric) = route.rcvd_metric {
@@ -469,12 +445,7 @@ where
                     }
 
                     if instance.config.trace_opts.route {
-                        Debug::<V>::RouteUpdate(
-                            &route.prefix,
-                            &route.source,
-                            &metric,
-                        )
-                        .log();
+                        Debug::<V>::RouteUpdate(&route.prefix, &route.source, &metric).log();
                     }
 
                     // Update route.
@@ -486,18 +457,11 @@ where
 
                     if !metric.is_infinite() {
                         // Reinstall route.
-                        ibus::tx::route_install(
-                            &instance.tx.ibus,
-                            route,
-                            distance,
-                        );
+                        ibus::tx::route_install(&instance.tx.ibus, route, distance);
                     } else {
                         // Uninstall route.
                         ibus::tx::route_uninstall(&instance.tx.ibus, route);
-                        route.garbage_collection_start(
-                            iface.config.flush_interval,
-                            &instance.tx.protocol_input.route_gc_timeout,
-                        );
+                        route.garbage_collection_start(iface.config.flush_interval, &instance.tx.protocol_input.route_gc_timeout);
                     }
                 }
             }
@@ -518,9 +482,7 @@ where
                 }
             }
             Event::InterfaceIbusSub(ifname) => {
-                self.tx
-                    .ibus
-                    .interface_sub(Some(ifname), Some(V::ADDRESS_FAMILY));
+                self.tx.ibus.interface_sub(Some(ifname), Some(V::ADDRESS_FAMILY));
             }
             Event::JoinMulticast(iface_idx) => {
                 let iface = &mut self.interfaces[iface_idx];
@@ -549,8 +511,7 @@ where
                     return;
                 };
 
-                let interval =
-                    Duration::from_secs(instance.config.update_interval.into());
+                let interval = Duration::from_secs(instance.config.update_interval.into());
                 instance.state.update_interval_task.reset(Some(interval));
             }
         }
@@ -600,10 +561,8 @@ where
         let cost = Metric::from(rip::interfaces::interface::cost::DFLT);
         let split_horizon = rip::interfaces::interface::split_horizon::DFLT;
         let split_horizon = SplitHorizon::try_from_yang(split_horizon).unwrap();
-        let invalid_interval =
-            rip::interfaces::interface::timers::invalid_interval::DFLT;
-        let flush_interval =
-            rip::interfaces::interface::timers::flush_interval::DFLT;
+        let invalid_interval = rip::interfaces::interface::timers::invalid_interval::DFLT;
+        let flush_interval = rip::interfaces::interface::timers::flush_interval::DFLT;
 
         InterfaceCfg {
             cost,

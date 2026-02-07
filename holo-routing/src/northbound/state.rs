@@ -10,9 +10,7 @@ use std::sync::LazyLock as Lazy;
 
 use derive_new::new;
 use enum_as_inner::EnumAsInner;
-use holo_northbound::state::{
-    Callbacks, CallbacksBuilder, ListEntryKind, Provider,
-};
+use holo_northbound::state::{Callbacks, CallbacksBuilder, ListEntryKind, Provider};
 use holo_northbound::{CallbackKey, NbDaemonSender};
 use holo_utils::bier::{BfrId, Bsl};
 use holo_utils::ip::JointPrefixMapExt;
@@ -177,55 +175,38 @@ fn load_callbacks() -> Callbacks<Master> {
                 RouteKind::Unicast if route.nexthops.len() == 1 => {
                     let nexthop = route.nexthops.first().unwrap();
                     match nexthop {
-                        Nexthop::Address { ifindex, addr, .. } => {
-                            if let Some(iface) =
-                                master.interfaces.get_by_ifindex(*ifindex)
-                            {
-                                outgoing_interface =
-                                    Some(Cow::Borrowed(iface.name.as_str()));
+                        Nexthop::Address {
+                            ifindex,
+                            addr,
+                            ..
+                        } => {
+                            if let Some(iface) = master.interfaces.get_by_ifindex(*ifindex) {
+                                outgoing_interface = Some(Cow::Borrowed(iface.name.as_str()));
                             }
                             match addr {
-                                IpAddr::V4(addr) => {
-                                    ipv4_next_hop_address =
-                                        Some(Cow::Borrowed(addr))
-                                }
-                                IpAddr::V6(addr) => {
-                                    ipv6_next_hop_address =
-                                        Some(Cow::Borrowed(addr))
-                                }
+                                IpAddr::V4(addr) => ipv4_next_hop_address = Some(Cow::Borrowed(addr)),
+                                IpAddr::V6(addr) => ipv6_next_hop_address = Some(Cow::Borrowed(addr)),
                             }
                         }
-                        Nexthop::Interface { ifindex } => {
-                            if let Some(iface) =
-                                master.interfaces.get_by_ifindex(*ifindex)
-                            {
-                                outgoing_interface =
-                                    Some(Cow::Borrowed(iface.name.as_str()));
+                        Nexthop::Interface {
+                            ifindex,
+                        } => {
+                            if let Some(iface) = master.interfaces.get_by_ifindex(*ifindex) {
+                                outgoing_interface = Some(Cow::Borrowed(iface.name.as_str()));
                             }
                         }
-                        Nexthop::Recursive { addr, .. } => match addr {
-                            IpAddr::V4(addr) => {
-                                ipv4_next_hop_address =
-                                    Some(Cow::Borrowed(addr))
-                            }
-                            IpAddr::V6(addr) => {
-                                ipv6_next_hop_address =
-                                    Some(Cow::Borrowed(addr))
-                            }
+                        Nexthop::Recursive {
+                            addr, ..
+                        } => match addr {
+                            IpAddr::V4(addr) => ipv4_next_hop_address = Some(Cow::Borrowed(addr)),
+                            IpAddr::V6(addr) => ipv6_next_hop_address = Some(Cow::Borrowed(addr)),
                         },
                     }
                 }
-                RouteKind::Blackhole => {
-                    special_next_hop = Some(NexthopSpecial::Blackhole.to_yang())
-                }
-                RouteKind::Unreachable => {
-                    special_next_hop =
-                        Some(NexthopSpecial::Unreachable.to_yang())
-                }
-                RouteKind::Prohibit => {
-                    special_next_hop = Some(NexthopSpecial::Prohibit.to_yang())
-                }
-		_ => (),
+                RouteKind::Blackhole => special_next_hop = Some(NexthopSpecial::Blackhole.to_yang()),
+                RouteKind::Unreachable => special_next_hop = Some(NexthopSpecial::Unreachable.to_yang()),
+                RouteKind::Prohibit => special_next_hop = Some(NexthopSpecial::Prohibit.to_yang()),
+                _ => (),
             }
 
             Box::new(NextHop {
@@ -274,17 +255,17 @@ fn load_callbacks() -> Callbacks<Master> {
         .get_object(|master, args| {
             use ribs::rib::routes::route::next_hop::next_hop_list::next_hop::NextHop;
             let nexthop = args.list_entry.as_nexthop().unwrap();
-            let outgoing_interface =
-                if let Nexthop::Address { ifindex, .. }
-                | Nexthop::Interface { ifindex } = nexthop
-                {
-                    master
-                        .interfaces
-                        .get_by_ifindex(*ifindex)
-                        .map(|iface| Cow::Borrowed(iface.name.as_str()))
-                } else {
-                    None
-                };
+            let outgoing_interface = if let Nexthop::Address {
+                ifindex, ..
+            }
+            | Nexthop::Interface {
+                ifindex,
+            } = nexthop
+            {
+                master.interfaces.get_by_ifindex(*ifindex).map(|iface| Cow::Borrowed(iface.name.as_str()))
+            } else {
+                None
+            };
             let (ipv4_address, ipv6_address) = match nexthop {
                 Nexthop::Address {
                     addr, ..
@@ -332,35 +313,31 @@ fn load_callbacks() -> Callbacks<Master> {
         .get_object(|_master, args| {
             use birts::birt::Birt;
             let sub_domain_id = args.list_entry.as_sub_domain_id().unwrap();
-            Box::new(Birt{sub_domain_id: *sub_domain_id})
+            Box::new(Birt {
+                sub_domain_id: *sub_domain_id,
+            })
         })
         .path(birts::birt::bfr_id::PATH)
         .get_iterate(|master, args| {
             let sd_id_arg = *args.parent_list_entry.as_sub_domain_id().unwrap();
-            let iter = master.birt.entries.keys().filter_map(move |(sd_id, bfr_id, _bsl)| {
-                if *sd_id == sd_id_arg {
-                    Some(ListEntry::BfrId(*bfr_id))
-                } else {
-                    None
-                }
-            });
+            let iter = master.birt.entries.keys().filter_map(move |(sd_id, bfr_id, _bsl)| if *sd_id == sd_id_arg { Some(ListEntry::BfrId(*bfr_id)) } else { None });
             Some(Box::new(iter))
         })
         .get_object(|_master, args| {
             use birts::birt::bfr_id::BfrId;
             let bfr_id = args.list_entry.as_bfr_id().unwrap();
-            Box::new(BfrId{bfr_id: *bfr_id})
+            Box::new(BfrId {
+                bfr_id: *bfr_id,
+            })
         })
         .path(birts::birt::bfr_id::birt_entry::PATH)
         .get_iterate(|master, args| {
             let bfr_id_arg = *args.parent_list_entry.as_bfr_id().unwrap();
-            let iter = master.birt.entries.keys().filter_map(move |(sd_id, bfr_id, bsl)| {
-                if *bfr_id == bfr_id_arg {
-                    Some(ListEntry::BirtKey((*sd_id, *bfr_id, *bsl)))
-                } else {
-                    None
-                }
-            });
+            let iter = master
+                .birt
+                .entries
+                .keys()
+                .filter_map(move |(sd_id, bfr_id, bsl)| if *bfr_id == bfr_id_arg { Some(ListEntry::BirtKey((*sd_id, *bfr_id, *bsl))) } else { None });
             Some(Box::new(iter))
         })
         .get_object(|master, args| {
@@ -370,7 +347,11 @@ fn load_callbacks() -> Callbacks<Master> {
             let bsl = birt_key.2;
             let bfr_prefix = Some(Cow::Borrowed(&birt_entry.bfr_prefix));
             let bfr_nbr = Some(Cow::Borrowed(&birt_entry.bfr_nbr));
-            Box::new(BirtEntry{bsl: bsl.into(), bfr_prefix, bfr_nbr})
+            Box::new(BirtEntry {
+                bsl: bsl.into(),
+                bfr_prefix,
+                bfr_nbr,
+            })
         })
         .build()
 }
@@ -415,20 +396,16 @@ impl Provider for Master {
 impl ListEntryKind for ListEntry<'_> {
     fn child_task(&self, module_name: &str) -> Option<NbDaemonSender> {
         match self {
-            ListEntry::ProtocolInstance(instance) => {
-                match (module_name, instance.id.protocol) {
-                    ("ietf-bfd", Protocol::BFD)
-                    | ("ietf-bgp", Protocol::BGP)
-                    | ("ietf-igmp-mld", Protocol::IGMP)
-                    | ("ietf-isis", Protocol::ISIS)
-                    | ("ietf-mpls-ldp", Protocol::LDP)
-                    | ("ietf-ospf", Protocol::OSPFV2 | Protocol::OSPFV3)
-                    | ("ietf-rip", Protocol::RIPV2 | Protocol::RIPNG) => {
-                        Some(instance.nb_tx.clone())
-                    }
-                    _ => None,
-                }
-            }
+            ListEntry::ProtocolInstance(instance) => match (module_name, instance.id.protocol) {
+                ("ietf-bfd", Protocol::BFD)
+                | ("ietf-bgp", Protocol::BGP)
+                | ("ietf-igmp-mld", Protocol::IGMP)
+                | ("ietf-isis", Protocol::ISIS)
+                | ("ietf-mpls-ldp", Protocol::LDP)
+                | ("ietf-ospf", Protocol::OSPFV2 | Protocol::OSPFV3)
+                | ("ietf-rip", Protocol::RIPV2 | Protocol::RIPNG) => Some(instance.nb_tx.clone()),
+                _ => None,
+            },
             _ => None,
         }
     }

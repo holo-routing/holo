@@ -13,14 +13,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@1.91
+      - uses: dtolnay/rust-toolchain@nightly
         with:
+          toolchain: nightly-2026-01-01
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
       - name: "rustfmt --check"
         run: |
-          if ! cargo fmt --all --check; then
-            printf "Please run \`cargo fmt --all\` locally to fix formatting errors.\nSee CONTRIBUTING.md for more details.\n" >&2
+          if ! rustfmt --check $(git ls-files '*.rs'); then
+            printf "Please run \`rustfmt \$(git ls-files '*.rs')\` locally to fix formatting errors.\nSee CONTRIBUTING.md for more details.\n" >&2
             exit 1
           fi
 
@@ -76,7 +77,7 @@ jobs:
       # cargo-fuzz requires nightly Rust due to LLVM sanitizer support
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2025-10-10
+          toolchain: nightly-2026-01-01
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz
       - name: Check fuzz targets

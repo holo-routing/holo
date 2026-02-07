@@ -13,10 +13,7 @@ use std::sync::{Arc, LazyLock as Lazy};
 
 use arc_swap::ArcSwap;
 use enum_as_inner::EnumAsInner;
-use holo_northbound::configuration::{
-    Callbacks, CallbacksBuilder, InheritableConfig, Provider,
-    ValidationCallbacks, ValidationCallbacksBuilder,
-};
+use holo_northbound::configuration::{Callbacks, CallbacksBuilder, InheritableConfig, Provider, ValidationCallbacks, ValidationCallbacksBuilder};
 use holo_utils::bfd;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
@@ -36,9 +33,7 @@ use crate::northbound::notification;
 use crate::northbound::yang_gen::isis;
 use crate::packet::auth::AuthMethod;
 use crate::packet::consts::{FloodingAlgo, MtId, PduType};
-use crate::packet::{
-    AreaAddr, LevelNumber, LevelType, LevelTypeIterator, SystemId,
-};
+use crate::packet::{AreaAddr, LevelNumber, LevelType, LevelTypeIterator, SystemId};
 use crate::route::RouteFlags;
 use crate::{ibus, spf, sr};
 
@@ -91,8 +86,7 @@ pub enum Event {
     UpdateTraceOptions,
 }
 
-pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
-    Lazy::new(load_validation_callbacks);
+pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> = Lazy::new(load_validation_callbacks);
 pub static CALLBACKS: Lazy<Callbacks<Instance>> = Lazy::new(load_callbacks);
 
 // ===== configuration structs =====
@@ -1090,8 +1084,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             let ifname = args.dnode.get_string_relative("name").unwrap();
 
             let iface = instance.arenas.interfaces.insert(&ifname);
-            iface.config.level_type.resolved =
-                iface.config.resolved_level_type(&instance.config);
+            iface.config.level_type.resolved = iface.config.resolved_level_type(&instance.config);
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InterfaceUpdate(iface.index));
@@ -1127,8 +1120,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             let level_type = args.dnode.get_string();
             let level_type = LevelType::try_from_yang(&level_type).unwrap();
             iface.config.level_type.explicit = Some(level_type);
-            iface.config.level_type.resolved =
-                iface.config.resolved_level_type(&instance.config);
+            iface.config.level_type.resolved = iface.config.resolved_level_type(&instance.config);
 
             let event_queue = args.event_queue;
             // TODO: We can do better than a full reset.
@@ -2078,12 +2070,11 @@ fn load_callbacks() -> Callbacks<Instance> {
         .create_apply(|instance, args| {
             let bmac = args.dnode.get_mac_relative("bmac").unwrap();
             let base_vid = args.dnode.get_u16_relative("base-vid").unwrap();
-            let key = SpbServiceKey { bmac, base_vid };
-            instance
-                .config
-                .spb
-                .services
-                .insert(key, SpbServiceCfg::default());
+            let key = SpbServiceKey {
+                bmac,
+                base_vid,
+            };
+            instance.config.spb.services.insert(key, SpbServiceCfg::default());
         })
         .delete_apply(|instance, args| {
             let svc_key = args.list_entry.into_spb_service().unwrap();
@@ -2092,23 +2083,23 @@ fn load_callbacks() -> Callbacks<Instance> {
         .lookup(|_instance, _list_entry, dnode| {
             let bmac = dnode.get_mac_relative("bmac").unwrap();
             let base_vid = dnode.get_u16_relative("base-vid").unwrap();
-            let key = SpbServiceKey { bmac, base_vid };
+            let key = SpbServiceKey {
+                bmac,
+                base_vid,
+            };
             ListEntry::SpbService(key)
         })
         .path(isis::spb::service::isid::PATH)
         .create_apply(|instance, args| {
             let svc_key = args.list_entry.as_spb_service().unwrap().clone();
             let isid = args.dnode.get_u32_relative("value").unwrap();
-            if let Some(service) = instance.config.spb.services.get_mut(&svc_key)
-            {
+            if let Some(service) = instance.config.spb.services.get_mut(&svc_key) {
                 service.isids.insert(isid, SpbIsidCfg::default());
             }
         })
         .delete_apply(|instance, args| {
             let (svc_key, isid) = args.list_entry.as_spb_isid().unwrap();
-            if let Some(service) =
-                instance.config.spb.services.get_mut(svc_key)
-            {
+            if let Some(service) = instance.config.spb.services.get_mut(svc_key) {
                 service.isids.remove(isid);
             }
         })
@@ -2121,13 +2112,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .modify_apply(|instance, args| {
             let (svc_key, isid) = args.list_entry.as_spb_isid().unwrap();
             let transmit = args.dnode.get_bool();
-            if let Some(isid_cfg) = instance
-                .config
-                .spb
-                .services
-                .get_mut(svc_key)
-                .and_then(|service| service.isids.get_mut(isid))
-            {
+            if let Some(isid_cfg) = instance.config.spb.services.get_mut(svc_key).and_then(|service| service.isids.get_mut(isid)) {
                 isid_cfg.transmit = transmit;
             }
         })
@@ -2135,13 +2120,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .modify_apply(|instance, args| {
             let (svc_key, isid) = args.list_entry.as_spb_isid().unwrap();
             let receive = args.dnode.get_bool();
-            if let Some(isid_cfg) = instance
-                .config
-                .spb
-                .services
-                .get_mut(svc_key)
-                .and_then(|service| service.isids.get_mut(isid))
-            {
+            if let Some(isid_cfg) = instance.config.spb.services.get_mut(svc_key).and_then(|service| service.isids.get_mut(isid)) {
                 isid_cfg.receive = receive;
             }
         })
@@ -2166,10 +2145,7 @@ fn load_validation_callbacks() -> ValidationCallbacks {
 
             let name = args.dnode.get_string_relative("name").unwrap();
             if !valid_options.iter().any(|option| *option == name) {
-                return Err(format!(
-                    "unsupported topology name (valid options: \"{}\")",
-                    valid_options.join(", "),
-                ));
+                return Err(format!("unsupported topology name (valid options: \"{}\")", valid_options.join(", "),));
             }
 
             Ok(())
@@ -2196,15 +2172,12 @@ impl Provider for Instance {
             }
             Event::InstanceLevelTypeUpdate => {
                 for iface in self.arenas.interfaces.iter_mut() {
-                    iface.config.level_type.resolved =
-                        iface.config.resolved_level_type(&self.config);
+                    iface.config.level_type.resolved = iface.config.resolved_level_type(&self.config);
                 }
             }
             Event::InstanceTopologyUpdate => {
                 if let Some((instance, arenas)) = self.as_up() {
-                    for iface in arenas.interfaces.iter_mut().filter(|iface| {
-                        iface.state.active && !iface.is_passive()
-                    }) {
+                    for iface in arenas.interfaces.iter_mut().filter(|iface| iface.state.active && !iface.is_passive()) {
                         iface.hello_interval_start(&instance, LevelType::All);
                     }
                 }
@@ -2212,9 +2185,7 @@ impl Provider for Instance {
             Event::InterfaceUpdate(iface_idx) => {
                 if let Some((mut instance, arenas)) = self.as_up() {
                     let iface = &mut arenas.interfaces[iface_idx];
-                    if let Err(error) =
-                        iface.update(&mut instance, &mut arenas.adjacencies)
-                    {
+                    if let Err(error) = iface.update(&mut instance, &mut arenas.adjacencies) {
                         error.log();
                     }
                 }
@@ -2232,14 +2203,8 @@ impl Provider for Instance {
 
                     // Update the routing table to remove nexthops that are no
                     // longer reachable.
-                    for route in instance
-                        .state
-                        .rib_mut(instance.config.level_type)
-                        .values_mut()
-                    {
-                        route.nexthops.retain(|_, nexthop| {
-                            nexthop.iface_idx != iface_idx
-                        });
+                    for route in instance.state.rib_mut(instance.config.level_type).values_mut() {
+                        route.nexthops.retain(|_, nexthop| nexthop.iface_idx != iface_idx);
                     }
                 }
 
@@ -2248,9 +2213,7 @@ impl Provider for Instance {
             Event::InterfaceReset(iface_idx) => {
                 if let Some((mut instance, arenas)) = self.as_up() {
                     let iface = &mut arenas.interfaces[iface_idx];
-                    if let Err(error) =
-                        iface.reset(&mut instance, &mut arenas.adjacencies)
-                    {
+                    if let Err(error) = iface.reset(&mut instance, &mut arenas.adjacencies) {
                         error.log();
                     }
                 }
@@ -2268,10 +2231,7 @@ impl Provider for Instance {
                 let iface = &mut arenas.interfaces[iface_idx];
 
                 // Schedule new DIS election.
-                if iface.state.active
-                    && !iface.is_passive()
-                    && iface.config.interface_type == InterfaceType::Broadcast
-                {
+                if iface.state.active && !iface.is_passive() && iface.config.interface_type == InterfaceType::Broadcast {
                     instance.tx.protocol_input.dis_election(iface.id, level);
                 }
             }
@@ -2300,16 +2260,13 @@ impl Provider for Instance {
                     return;
                 };
                 let iface = &mut arenas.interfaces[iface_idx];
-                iface.with_adjacencies(
-                    &mut arenas.adjacencies,
-                    |iface, adj| {
-                        if iface.config.bfd_enabled {
-                            adj.bfd_update_sessions(iface, &instance, true);
-                        } else {
-                            adj.bfd_clear_sessions(&instance);
-                        }
-                    },
-                );
+                iface.with_adjacencies(&mut arenas.adjacencies, |iface, adj| {
+                    if iface.config.bfd_enabled {
+                        adj.bfd_update_sessions(iface, &instance, true);
+                    } else {
+                        adj.bfd_clear_sessions(&instance);
+                    }
+                });
             }
             Event::InterfaceUpdateTraceOptions(iface_idx) => {
                 let iface = &mut self.arenas.interfaces[iface_idx];
@@ -2328,17 +2285,8 @@ impl Provider for Instance {
                 if let Some((instance, arenas)) = self.as_up() {
                     let system_id = instance.config.system_id.unwrap();
                     for level in [LevelNumber::L1, LevelNumber::L2] {
-                        for lse in instance
-                            .state
-                            .lsdb
-                            .get(level)
-                            .iter_for_system_id(&arenas.lsp_entries, system_id)
-                            .filter(|lse| lse.data.rem_lifetime != 0)
-                        {
-                            instance
-                                .tx
-                                .protocol_input
-                                .lsp_refresh(level, lse.id);
+                        for lse in instance.state.lsdb.get(level).iter_for_system_id(&arenas.lsp_entries, system_id).filter(|lse| lse.data.rem_lifetime != 0) {
+                            instance.tx.protocol_input.lsp_refresh(level, lse.id);
                         }
                     }
                 }
@@ -2346,32 +2294,15 @@ impl Provider for Instance {
             Event::RerunSpf => {
                 if let Some((instance, _)) = self.as_up() {
                     for level in instance.config.levels() {
-                        instance.tx.protocol_input.spf_delay_event(
-                            level,
-                            spf::fsm::Event::ConfigChange,
-                        );
+                        instance.tx.protocol_input.spf_delay_event(level, spf::fsm::Event::ConfigChange);
                     }
                 }
             }
             Event::ReinstallRoutes => {
                 if let Some((instance, arenas)) = self.as_up() {
-                    for (prefix, route) in instance
-                        .state
-                        .rib(instance.config.level_type)
-                        .iter()
-                        .filter(|(_, route)| {
-                            route.flags.contains(RouteFlags::INSTALLED)
-                        })
-                    {
+                    for (prefix, route) in instance.state.rib(instance.config.level_type).iter().filter(|(_, route)| route.flags.contains(RouteFlags::INSTALLED)) {
                         let distance = route.distance(instance.config);
-                        ibus::tx::route_install(
-                            &instance.tx.ibus,
-                            prefix,
-                            route,
-                            None,
-                            distance,
-                            &arenas.interfaces,
-                        );
+                        ibus::tx::route_install(&instance.tx.ibus, prefix, route, None, distance, &arenas.interfaces);
                     }
                 }
             }
@@ -2394,16 +2325,13 @@ impl Provider for Instance {
 
                 // Iterate over all existing adjacencies.
                 for iface in arenas.interfaces.iter_mut() {
-                    iface.with_adjacencies(
-                        &mut arenas.adjacencies,
-                        |iface, adj| {
-                            if enabled {
-                                sr::adj_sids_add(&instance, iface, adj);
-                            } else {
-                                sr::adj_sids_del(&instance, adj);
-                            }
-                        },
-                    );
+                    iface.with_adjacencies(&mut arenas.adjacencies, |iface, adj| {
+                        if enabled {
+                            sr::adj_sids_add(&instance, iface, adj);
+                        } else {
+                            sr::adj_sids_del(&instance, adj);
+                        }
+                    });
                 }
             }
             Event::RedistributeAdd(af, protocol) => {
@@ -2418,9 +2346,7 @@ impl Provider for Instance {
 
                 // Remove redistributed routes.
                 let routes = self.system.routes.get_mut(level);
-                routes.retain(|prefix, route| {
-                    prefix.address_family() != af || route.protocol != protocol
-                });
+                routes.retain(|prefix, route| prefix.address_family() != af || route.protocol != protocol);
 
                 // Schedule LSP reorigination.
                 if let Some((mut instance, _)) = self.as_up() {
@@ -2470,22 +2396,14 @@ impl InstanceCfg {
     pub(crate) fn topologies(&self) -> BTreeSet<MtId> {
         let mut topologies = BTreeSet::new();
         topologies.insert(MtId::Standard);
-        topologies.extend(
-            self.mt
-                .iter()
-                .filter_map(|(mt_id, mt_cfg)| mt_cfg.enabled.then_some(*mt_id)),
-        );
+        topologies.extend(self.mt.iter().filter_map(|(mt_id, mt_cfg)| mt_cfg.enabled.then_some(*mt_id)));
         topologies
     }
 }
 
 impl InterfaceCfg {
     // Checks if the specified address family is enabled.
-    pub(crate) fn is_af_enabled(
-        &self,
-        af: AddressFamily,
-        instance_cfg: &InstanceCfg,
-    ) -> bool {
+    pub(crate) fn is_af_enabled(&self, af: AddressFamily, instance_cfg: &InstanceCfg) -> bool {
         if !self.afs.contains(&af) {
             return false;
         }
@@ -2516,20 +2434,12 @@ impl InterfaceCfg {
     }
 
     // Returns the set of enabled topology IDs for the interface.
-    pub(crate) fn topologies<T>(
-        &self,
-        instance_cfg: &InstanceCfg,
-    ) -> BTreeSet<T>
+    pub(crate) fn topologies<T>(&self, instance_cfg: &InstanceCfg) -> BTreeSet<T>
     where
         MtId: Into<T>,
         T: Ord,
     {
-        instance_cfg
-            .topologies()
-            .into_iter()
-            .filter(|mt_id| self.is_topology_enabled(*mt_id))
-            .map(Into::into)
-            .collect()
+        instance_cfg.topologies().into_iter().filter(|mt_id| self.is_topology_enabled(*mt_id)).map(Into::into).collect()
     }
 
     // Calculates the hello hold time for a given level by multiplying the
@@ -2548,17 +2458,10 @@ impl InterfaceCfg {
 
     // Returns the metric for a given topology and level, or the default if no
     // specific configuration exists.
-    pub(crate) fn topology_metric(
-        &self,
-        mt_id: MtId,
-        level: impl Into<LevelType>,
-    ) -> u32 {
+    pub(crate) fn topology_metric(&self, mt_id: MtId, level: impl Into<LevelType>) -> u32 {
         const DFLT_METRIC: u32 = isis::interfaces::interface::topologies::topology::metric::value::DFLT;
         let level = level.into();
-        self.mt
-            .get(&mt_id)
-            .map(|mt_cfg| mt_cfg.metric.get(level))
-            .unwrap_or(DFLT_METRIC)
+        self.mt.get(&mt_id).map(|mt_cfg| mt_cfg.metric.get(level)).unwrap_or(DFLT_METRIC)
     }
 
     // Resolves packet trace options by merging interface-specific and
@@ -2572,30 +2475,10 @@ impl InterfaceCfg {
             tx: false,
             rx: false,
         };
-        let hello = iface_trace_opts
-            .hello
-            .or(iface_trace_opts.all)
-            .or(instance_trace_opts.hello)
-            .or(instance_trace_opts.all)
-            .unwrap_or(disabled);
-        let psnp = iface_trace_opts
-            .psnp
-            .or(iface_trace_opts.all)
-            .or(instance_trace_opts.psnp)
-            .or(instance_trace_opts.all)
-            .unwrap_or(disabled);
-        let csnp = iface_trace_opts
-            .csnp
-            .or(iface_trace_opts.all)
-            .or(instance_trace_opts.csnp)
-            .or(instance_trace_opts.all)
-            .unwrap_or(disabled);
-        let lsp = iface_trace_opts
-            .lsp
-            .or(iface_trace_opts.all)
-            .or(instance_trace_opts.lsp)
-            .or(instance_trace_opts.all)
-            .unwrap_or(disabled);
+        let hello = iface_trace_opts.hello.or(iface_trace_opts.all).or(instance_trace_opts.hello).or(instance_trace_opts.all).unwrap_or(disabled);
+        let psnp = iface_trace_opts.psnp.or(iface_trace_opts.all).or(instance_trace_opts.psnp).or(instance_trace_opts.all).unwrap_or(disabled);
+        let csnp = iface_trace_opts.csnp.or(iface_trace_opts.all).or(instance_trace_opts.csnp).or(instance_trace_opts.all).unwrap_or(disabled);
+        let lsp = iface_trace_opts.lsp.or(iface_trace_opts.all).or(instance_trace_opts.lsp).or(instance_trace_opts.all).unwrap_or(disabled);
 
         let resolved = Arc::new(TraceOptionPacketResolved {
             hello,
@@ -2671,9 +2554,7 @@ impl AuthCfg {
 impl TraceOptionPacketResolved {
     pub(crate) fn tx(&self, pdu_type: PduType) -> bool {
         match pdu_type {
-            PduType::HelloP2P | PduType::HelloLanL1 | PduType::HelloLanL2 => {
-                self.hello.tx
-            }
+            PduType::HelloP2P | PduType::HelloLanL1 | PduType::HelloLanL2 => self.hello.tx,
             PduType::LspL1 | PduType::LspL2 => self.lsp.tx,
             PduType::CsnpL1 | PduType::CsnpL2 => self.csnp.tx,
             PduType::PsnpL1 | PduType::PsnpL2 => self.psnp.tx,
@@ -2682,9 +2563,7 @@ impl TraceOptionPacketResolved {
 
     pub(crate) fn rx(&self, pdu_type: PduType) -> bool {
         match pdu_type {
-            PduType::HelloP2P | PduType::HelloLanL1 | PduType::HelloLanL2 => {
-                self.hello.rx
-            }
+            PduType::HelloP2P | PduType::HelloLanL1 | PduType::HelloLanL2 => self.hello.rx,
             PduType::LspL1 | PduType::LspL2 => self.lsp.rx,
             PduType::CsnpL1 | PduType::CsnpL2 => self.csnp.rx,
             PduType::PsnpL1 | PduType::PsnpL2 => self.psnp.rx,
@@ -2716,15 +2595,11 @@ impl Default for InstanceCfg {
             l2: None,
         };
         let max_paths = isis::spf_control::paths::DFLT;
-        let spf_initial_delay =
-            isis::spf_control::ietf_spf_delay::initial_delay::DFLT;
-        let spf_short_delay =
-            isis::spf_control::ietf_spf_delay::short_delay::DFLT;
-        let spf_long_delay =
-            isis::spf_control::ietf_spf_delay::long_delay::DFLT;
+        let spf_initial_delay = isis::spf_control::ietf_spf_delay::initial_delay::DFLT;
+        let spf_short_delay = isis::spf_control::ietf_spf_delay::short_delay::DFLT;
+        let spf_long_delay = isis::spf_control::ietf_spf_delay::long_delay::DFLT;
         let spf_hold_down = isis::spf_control::ietf_spf_delay::hold_down::DFLT;
-        let spf_time_to_learn =
-            isis::spf_control::ietf_spf_delay::time_to_learn::DFLT;
+        let spf_time_to_learn = isis::spf_control::ietf_spf_delay::time_to_learn::DFLT;
         let overload_status = isis::overload::status::DFLT;
         let att_suppress = isis::attached_bit::suppress_advertisement::DFLT;
         let att_ignore = isis::attached_bit::ignore_reception::DFLT;
@@ -2769,8 +2644,7 @@ impl Default for InstanceCfg {
 impl Default for InstanceMtCfg {
     fn default() -> Self {
         let enabled = isis::topologies::topology::enabled::DFLT;
-        let default_metric =
-            isis::topologies::topology::default_metric::value::DFLT;
+        let default_metric = isis::topologies::topology::default_metric::value::DFLT;
         let default_metric = LevelsCfgWithDefault {
             all: default_metric,
             l1: None,
@@ -2788,14 +2662,18 @@ impl Default for InstanceFloodingReductionCfg {
     fn default() -> Self {
         let algo = isis::flooding_reduction::algorithm::DFLT;
         let algo = FloodingAlgo::try_from_yang(algo).unwrap();
-        Self { algo }
+        Self {
+            algo,
+        }
     }
 }
 
 impl Default for InstanceSrCfg {
     fn default() -> Self {
         let enabled = isis::segment_routing::enabled::DFLT;
-        Self { enabled }
+        Self {
+            enabled,
+        }
     }
 }
 
@@ -2817,14 +2695,16 @@ impl Default for SpbIsidCfg {
     fn default() -> Self {
         let transmit = isis::spb::service::isid::transmit::DFLT;
         let receive = isis::spb::service::isid::receive::DFLT;
-        Self { transmit, receive }
+        Self {
+            transmit,
+            receive,
+        }
     }
 }
 
 impl Default for AddressFamilyCfg {
     fn default() -> AddressFamilyCfg {
-        let enabled =
-            isis::address_families::address_family_list::enabled::DFLT;
+        let enabled = isis::address_families::address_family_list::enabled::DFLT;
 
         AddressFamilyCfg {
             enabled,
@@ -2838,7 +2718,10 @@ impl Default for Preference {
         let internal = isis::preference::default::DFLT;
         let external = isis::preference::default::DFLT;
 
-        Preference { internal, external }
+        Preference {
+            internal,
+            external,
+        }
     }
 }
 
@@ -2851,28 +2734,22 @@ impl Default for InterfaceCfg {
             explicit: Some(level_type),
             resolved: level_type,
         };
-        let lsp_pacing_interval =
-            isis::interfaces::interface::lsp_pacing_interval::DFLT;
-        let lsp_rxmt_interval =
-            isis::interfaces::interface::lsp_retransmit_interval::DFLT;
+        let lsp_pacing_interval = isis::interfaces::interface::lsp_pacing_interval::DFLT;
+        let lsp_rxmt_interval = isis::interfaces::interface::lsp_retransmit_interval::DFLT;
         let passive = isis::interfaces::interface::passive::DFLT;
         let csnp_interval = isis::interfaces::interface::csnp_interval::DFLT;
         let csnp_disable = isis::interfaces::interface::csnp_disable::DFLT;
-        let hello_padding =
-            isis::interfaces::interface::hello_padding::enabled::DFLT;
+        let hello_padding = isis::interfaces::interface::hello_padding::enabled::DFLT;
         let interface_type = isis::interfaces::interface::interface_type::DFLT;
-        let interface_type =
-            InterfaceType::try_from_yang(interface_type).unwrap();
+        let interface_type = InterfaceType::try_from_yang(interface_type).unwrap();
         let node_flag = isis::interfaces::interface::node_flag::DFLT;
-        let hello_interval =
-            isis::interfaces::interface::hello_interval::value::DFLT;
+        let hello_interval = isis::interfaces::interface::hello_interval::value::DFLT;
         let hello_interval = LevelsCfgWithDefault {
             all: hello_interval,
             l1: None,
             l2: None,
         };
-        let hello_multiplier =
-            isis::interfaces::interface::hello_multiplier::value::DFLT;
+        let hello_multiplier = isis::interfaces::interface::hello_multiplier::value::DFLT;
         let hello_multiplier = LevelsCfgWithDefault {
             all: hello_multiplier,
             l1: None,
@@ -2919,15 +2796,17 @@ impl Default for InterfaceCfg {
 
 impl Default for InterfaceMtCfg {
     fn default() -> InterfaceMtCfg {
-        let enabled =
-            isis::interfaces::interface::topologies::topology::enabled::DFLT;
+        let enabled = isis::interfaces::interface::topologies::topology::enabled::DFLT;
         let metric = isis::interfaces::interface::topologies::topology::metric::value::DFLT;
         let metric = LevelsCfgWithDefault {
             all: metric,
             l1: None,
             l2: None,
         };
-        InterfaceMtCfg { enabled, metric }
+        InterfaceMtCfg {
+            enabled,
+            metric,
+        }
     }
 }
 
@@ -2951,6 +2830,9 @@ impl Default for TraceOptionPacketType {
         let tx = isis::trace_options::flag::send::DFLT;
         let rx = isis::trace_options::flag::receive::DFLT;
 
-        TraceOptionPacketType { tx, rx }
+        TraceOptionPacketType {
+            tx,
+            rx,
+        }
     }
 }

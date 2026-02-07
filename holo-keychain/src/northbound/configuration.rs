@@ -9,9 +9,7 @@ use std::time::Duration;
 
 use chrono::{DateTime, FixedOffset, Utc};
 use enum_as_inner::EnumAsInner;
-use holo_northbound::configuration::{
-    self, Callbacks, CallbacksBuilder, Provider,
-};
+use holo_northbound::configuration::{self, Callbacks, CallbacksBuilder, Provider};
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::keychain::{Key, Keychain, KeychainKey};
 use holo_utils::yang::DataNodeRefExt;
@@ -20,8 +18,7 @@ use holo_yang::TryFromYang;
 use crate::Master;
 use crate::northbound::yang_gen::key_chains;
 
-static CALLBACKS: Lazy<configuration::Callbacks<Master>> =
-    Lazy::new(load_callbacks);
+static CALLBACKS: Lazy<configuration::Callbacks<Master>> = Lazy::new(load_callbacks);
 
 #[derive(Debug, Default, EnumAsInner)]
 pub enum ListEntry {
@@ -152,7 +149,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let keychain = master.keychains.get_mut(&keychain_name).unwrap();
             let key = keychain.keys.get_mut(&key_id).unwrap();
 
-            let seconds  = args.dnode.get_u32();
+            let seconds = args.dnode.get_u32();
             let duration = Duration::from_secs(seconds as u64);
             let duration = chrono::Duration::from_std(duration).unwrap();
             if let Some(start) = key.send_lifetime.start {
@@ -236,7 +233,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let keychain = master.keychains.get_mut(&keychain_name).unwrap();
             let key = keychain.keys.get_mut(&key_id).unwrap();
 
-            let seconds  = args.dnode.get_u32();
+            let seconds = args.dnode.get_u32();
             let duration = Duration::from_secs(seconds as u64);
             let duration = chrono::Duration::from_std(duration).unwrap();
             if let Some(start) = key.send_lifetime.start {
@@ -316,7 +313,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let keychain = master.keychains.get_mut(&keychain_name).unwrap();
             let key = keychain.keys.get_mut(&key_id).unwrap();
 
-            let seconds  = args.dnode.get_u32();
+            let seconds = args.dnode.get_u32();
             let duration = Duration::from_secs(seconds as u64);
             let duration = chrono::Duration::from_std(duration).unwrap();
             if let Some(start) = key.accept_lifetime.start {
@@ -387,10 +384,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let key = keychain.keys.get_mut(&key_id).unwrap();
 
             let string = args.dnode.get_string();
-            key.data.string = string
-               .split(':')
-               .map(|hex_byte| u8::from_str_radix(hex_byte, 16).unwrap())
-               .collect();
+            key.data.string = string.split(':').map(|hex_byte| u8::from_str_radix(hex_byte, 16).unwrap()).collect();
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::KeychainChange(keychain.name.clone()));
@@ -428,12 +422,7 @@ impl Provider for Master {
                 keychain.last_modified = Some(Utc::now());
 
                 // Update maximum digest size.
-                keychain.max_digest_size = keychain
-                    .keys
-                    .values()
-                    .map(|key| key.data.algo.digest_size())
-                    .max()
-                    .unwrap_or(0);
+                keychain.max_digest_size = keychain.keys.values().map(|key| key.data.algo.digest_size()).max().unwrap_or(0);
 
                 // Create a reference-counted copy of the keychain to be shared among all
                 // protocol instances.

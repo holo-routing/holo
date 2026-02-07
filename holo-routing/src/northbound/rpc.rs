@@ -51,10 +51,7 @@ impl Provider for Master {
         Some(keys.concat())
     }
 
-    fn relay_rpc(
-        &self,
-        rpc: DataNodeRef<'_>,
-    ) -> Result<Option<Vec<NbDaemonSender>>, String> {
+    fn relay_rpc(&self, rpc: DataNodeRef<'_>) -> Result<Option<Vec<NbDaemonSender>>, String> {
         let (protocol, name) = find_instance(rpc)?;
 
         let mut child_tasks = vec![];
@@ -83,33 +80,23 @@ impl Provider for Master {
 // Using top-level RPCs in the IETF IGP modules was a mistake, since there's no
 // easy way to identify the protocol type and name. YANG actions would greatly
 // simplify this.
-fn find_instance(
-    rpc: DataNodeRef<'_>,
-) -> Result<(Protocol, Option<String>), String> {
+fn find_instance(rpc: DataNodeRef<'_>) -> Result<(Protocol, Option<String>), String> {
     let (protocol, name) = match rpc.schema().module().name() {
         "ietf-bgp" => {
             let protocol = Protocol::BGP;
-            let name = rpc.get_string_relative(
-                control_plane_protocol::name::PATH.as_ref(),
-            );
+            let name = rpc.get_string_relative(control_plane_protocol::name::PATH.as_ref());
             (protocol, name)
         }
         "ietf-isis" => {
             let protocol = Protocol::ISIS;
-            let name =
-                rpc.get_string_relative("./routing-protocol-instance-name");
+            let name = rpc.get_string_relative("./routing-protocol-instance-name");
             (protocol, name)
         }
         "ietf-mpls-ldp" => {
             let protocol = Protocol::LDP;
             let name = match rpc.path().as_ref() {
-                "/ietf-mpls-ldp:mpls-ldp-clear-peer"
-                | "/ietf-mpls-ldp:mpls-ldp-clear-peer-statistics" => {
-                    rpc.get_string_relative("./protocol-name")
-                }
-                "/ietf-mpls-ldp:mpls-ldp-clear-hello-adjacency" => {
-                    rpc.get_string_relative("./hello-adjacency/protocol-name")
-                }
+                "/ietf-mpls-ldp:mpls-ldp-clear-peer" | "/ietf-mpls-ldp:mpls-ldp-clear-peer-statistics" => rpc.get_string_relative("./protocol-name"),
+                "/ietf-mpls-ldp:mpls-ldp-clear-hello-adjacency" => rpc.get_string_relative("./hello-adjacency/protocol-name"),
                 _ => None,
             };
             (protocol, name)

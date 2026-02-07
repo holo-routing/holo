@@ -27,9 +27,6 @@ pub mod yang_gen {
 
 impl ProviderBase for Master {
     fn top_level_node(&self) -> String {
-        format!(
-            "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='main']/ietf-bfd:bfd",
-            Protocol::BFD.to_yang(),
-        )
+        format!("/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='main']/ietf-bfd:bfd", Protocol::BFD.to_yang(),)
     }
 }

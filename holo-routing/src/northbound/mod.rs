@@ -36,11 +36,5 @@ impl ProviderBase for Master {
 // ===== regular expressions =====
 
 // Matches on the protocol type and instance name of a YANG path.
-static REGEX_PROTOCOLS_STR: Lazy<String> = Lazy::new(|| {
-    format!(
-        r"{}\[type='(.+?)'\]\[name='(.+?)'\]*",
-        control_plane_protocol::PATH
-    )
-});
-pub static REGEX_PROTOCOLS: Lazy<Regex> =
-    Lazy::new(|| Regex::new(&REGEX_PROTOCOLS_STR).unwrap());
+static REGEX_PROTOCOLS_STR: Lazy<String> = Lazy::new(|| format!(r"{}\[type='(.+?)'\]\[name='(.+?)'\]*", control_plane_protocol::PATH));
+pub static REGEX_PROTOCOLS: Lazy<Regex> = Lazy::new(|| Regex::new(&REGEX_PROTOCOLS_STR).unwrap());

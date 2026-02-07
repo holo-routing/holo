@@ -9,10 +9,7 @@ use std::net::IpAddr;
 use std::sync::LazyLock as Lazy;
 
 use enum_as_inner::EnumAsInner;
-use holo_northbound::configuration::{
-    self, Callbacks, CallbacksBuilder, ConfigChanges, Provider,
-    ValidationCallbacks, ValidationCallbacksBuilder,
-};
+use holo_northbound::configuration::{self, Callbacks, CallbacksBuilder, ConfigChanges, Provider, ValidationCallbacks, ValidationCallbacksBuilder};
 use holo_northbound::{CallbackKey, NbDaemonSender};
 use holo_protocol::spawn_protocol_task;
 use holo_utils::yang::DataNodeRefExt;
@@ -24,10 +21,8 @@ use crate::northbound::REGEX_VRRP;
 use crate::northbound::yang_gen::interfaces;
 use crate::{Master, netlink};
 
-pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
-    Lazy::new(load_validation_callbacks);
-static CALLBACKS: Lazy<configuration::Callbacks<Master>> =
-    Lazy::new(load_callbacks);
+pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> = Lazy::new(load_validation_callbacks);
+static CALLBACKS: Lazy<configuration::Callbacks<Master>> = Lazy::new(load_callbacks);
 
 #[derive(Debug, Default, EnumAsInner)]
 pub enum ListEntry {
@@ -314,10 +309,7 @@ impl Provider for Master {
         Some(keys.concat())
     }
 
-    fn relay_changes(
-        &self,
-        changes: ConfigChanges,
-    ) -> Vec<(ConfigChanges, NbDaemonSender)> {
+    fn relay_changes(&self, changes: ConfigChanges) -> Vec<(ConfigChanges, NbDaemonSender)> {
         // Create hash table that maps changes to the appropriate child
         // instances.
         let mut changes_map: HashMap<String, ConfigChanges> = HashMap::new();
@@ -331,25 +323,14 @@ impl Provider for Master {
         }
         changes_map
             .into_iter()
-            .filter_map(|(ifname, changes)| {
-                self.interfaces
-                    .get_by_name(&ifname)
-                    .and_then(|iface| {
-                        iface.vrrp.as_ref().map(|vrrp| vrrp.nb_tx.clone())
-                    })
-                    .map(|nb_tx| (changes, nb_tx))
-            })
+            .filter_map(|(ifname, changes)| self.interfaces.get_by_name(&ifname).and_then(|iface| iface.vrrp.as_ref().map(|vrrp| vrrp.nb_tx.clone())).map(|nb_tx| (changes, nb_tx)))
             .collect::<Vec<_>>()
     }
 
     fn process_event(&mut self, event: Event) {
         match event {
             Event::InterfaceDelete(ifname) => {
-                self.interfaces.remove(
-                    &ifname,
-                    Owner::CONFIG,
-                    &self.netlink_tx,
-                );
+                self.interfaces.remove(&ifname, Owner::CONFIG, &self.netlink_tx);
             }
             Event::AdminStatusChange(ifname, enabled) => {
                 // If the interface is active, change its administrative status
@@ -357,11 +338,7 @@ impl Provider for Master {
                 if let Some(iface) = self.interfaces.get_by_name(&ifname)
                     && let Some(ifindex) = iface.ifindex
                 {
-                    netlink::admin_status_change(
-                        &self.netlink_tx,
-                        ifindex,
-                        enabled,
-                    );
+                    netlink::admin_status_change(&self.netlink_tx, ifindex, enabled);
                 }
             }
             Event::MtuChange(ifname, mtu) => {
@@ -381,12 +358,7 @@ impl Provider for Master {
                     && let Some(parent) = self.interfaces.get_by_name(parent)
                     && let Some(parent_ifindex) = parent.ifindex
                 {
-                    netlink::vlan_create(
-                        &self.netlink_tx,
-                        iface.name.clone(),
-                        parent_ifindex,
-                        vlan_id,
-                    );
+                    netlink::vlan_create(&self.netlink_tx, iface.name.clone(), parent_ifindex, vlan_id);
                 }
             }
             Event::AddressInstall(ifname, addr, plen) => {
@@ -411,24 +383,10 @@ impl Provider for Master {
             Event::VrrpStart(ifname) => {
                 #[cfg(feature = "vrrp")]
                 {
-                    if let Some(iface) =
-                        self.interfaces.get_mut_by_name(&ifname)
-                    {
-                        let (ibus_instance_tx, ibus_instance_rx) =
-                            mpsc::unbounded_channel();
-                        let nb_daemon_tx = spawn_protocol_task::<
-                            holo_vrrp::interface::Interface,
-                        >(
-                            ifname,
-                            &self.nb_tx,
-                            &self.ibus_tx,
-                            ibus_instance_tx.clone(),
-                            ibus_instance_rx,
-                            Default::default(),
-                            self.shared.clone(),
-                        );
-                        let vrrp =
-                            VrrpHandle::new(nb_daemon_tx, ibus_instance_tx);
+                    if let Some(iface) = self.interfaces.get_mut_by_name(&ifname) {
+                        let (ibus_instance_tx, ibus_instance_rx) = mpsc::unbounded_channel();
+                        let nb_daemon_tx = spawn_protocol_task::<holo_vrrp::interface::Interface>(ifname, &self.nb_tx, &self.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), self.shared.clone());
+                        let vrrp = VrrpHandle::new(nb_daemon_tx, ibus_instance_tx);
                         iface.vrrp = Some(vrrp);
                     }
                 }

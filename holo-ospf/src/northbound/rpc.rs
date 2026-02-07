@@ -15,10 +15,8 @@ use crate::neighbor::nsm;
 use crate::northbound::yang_gen as yang;
 use crate::version::{Ospfv2, Ospfv3, Version};
 
-pub static CALLBACKS_OSPFV2: Lazy<Callbacks<Instance<Ospfv2>>> =
-    Lazy::new(load_callbacks);
-pub static CALLBACKS_OSPFV3: Lazy<Callbacks<Instance<Ospfv3>>> =
-    Lazy::new(load_callbacks);
+pub static CALLBACKS_OSPFV2: Lazy<Callbacks<Instance<Ospfv2>>> = Lazy::new(load_callbacks);
+pub static CALLBACKS_OSPFV3: Lazy<Callbacks<Instance<Ospfv3>>> = Lazy::new(load_callbacks);
 
 // ===== callbacks =====
 
@@ -66,11 +64,8 @@ where
 
 // ===== helper functions =====
 
-fn clear_neighbors<V>(
-    instance: &InstanceUpView<'_, V>,
-    arenas: &InstanceArenas<V>,
-    ifname: Option<String>,
-) where
+fn clear_neighbors<V>(instance: &InstanceUpView<'_, V>, arenas: &InstanceArenas<V>, ifname: Option<String>)
+where
     V: Version,
 {
     for area in arenas.areas.iter() {
@@ -78,27 +73,18 @@ fn clear_neighbors<V>(
             .interfaces
             .iter(&arenas.interfaces)
             // Filter by interface name.
-            .filter(|iface| {
-                ifname.is_none() || *ifname.as_ref().unwrap() == iface.name
-            })
+            .filter(|iface| ifname.is_none() || *ifname.as_ref().unwrap() == iface.name)
         {
             // Kill neighbors from this interface.
             for nbr in iface.state.neighbors.iter(&arenas.neighbors) {
-                instance.tx.protocol_input.nsm_event(
-                    area.id,
-                    iface.id,
-                    nbr.id,
-                    nsm::Event::Kill,
-                );
+                instance.tx.protocol_input.nsm_event(area.id, iface.id, nbr.id, nsm::Event::Kill);
             }
         }
     }
 }
 
-fn clear_database<V>(
-    instance: &mut InstanceUpView<'_, V>,
-    arenas: &mut InstanceArenas<V>,
-) where
+fn clear_database<V>(instance: &mut InstanceUpView<'_, V>, arenas: &mut InstanceArenas<V>)
+where
     V: Version,
 {
     // Clear AS-scope LSDB.
@@ -116,12 +102,7 @@ fn clear_database<V>(
 
             // Kill neighbors from this interface.
             for nbr in iface.state.neighbors.iter(&arenas.neighbors) {
-                instance.tx.protocol_input.nsm_event(
-                    area.id,
-                    iface.id,
-                    nbr.id,
-                    nsm::Event::Kill,
-                );
+                instance.tx.protocol_input.nsm_event(area.id, iface.id, nbr.id, nsm::Event::Kill);
             }
         }
     }

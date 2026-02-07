@@ -37,11 +37,7 @@ pub(crate) fn database_overload(instance: &InstanceUpView<'_>, overload: bool) {
     notification::send(&instance.tx.nb, path, data);
 }
 
-pub(crate) fn lsp_too_large(
-    instance: &InstanceUpView<'_>,
-    iface: &Interface,
-    lsp: &Lsp,
-) {
+pub(crate) fn lsp_too_large(instance: &InstanceUpView<'_>, iface: &Interface, lsp: &Lsp) {
     use yang::lsp_too_large::{self, LspTooLarge};
 
     let path = lsp_too_large::PATH;
@@ -57,11 +53,7 @@ pub(crate) fn lsp_too_large(
     notification::send(&instance.tx.nb, path, data);
 }
 
-pub(crate) fn if_state_change(
-    instance: &InstanceUpView<'_>,
-    iface: &Interface,
-    up: bool,
-) {
+pub(crate) fn if_state_change(instance: &InstanceUpView<'_>, iface: &Interface, up: bool) {
     use yang::if_state_change::{self, IfStateChange};
 
     let path = if_state_change::PATH;
@@ -91,13 +83,8 @@ pub(crate) fn corrupted_lsp_detected(instance: &InstanceUpView<'_>, lsp: &Lsp) {
 }
 
 #[expect(unused)]
-pub(crate) fn attempt_to_exceed_max_sequence(
-    instance: &InstanceUpView<'_>,
-    lsp: &Lsp,
-) {
-    use yang::attempt_to_exceed_max_sequence::{
-        self, AttemptToExceedMaxSequence,
-    };
+pub(crate) fn attempt_to_exceed_max_sequence(instance: &InstanceUpView<'_>, lsp: &Lsp) {
+    use yang::attempt_to_exceed_max_sequence::{self, AttemptToExceedMaxSequence};
 
     let path = attempt_to_exceed_max_sequence::PATH;
     let data = AttemptToExceedMaxSequence {
@@ -108,12 +95,7 @@ pub(crate) fn attempt_to_exceed_max_sequence(
     notification::send(&instance.tx.nb, path, data);
 }
 
-pub(crate) fn id_len_mismatch(
-    instance: &InstanceUpView<'_>,
-    iface: &Interface,
-    pdu_id_len: u8,
-    raw_pdu: &Bytes,
-) {
+pub(crate) fn id_len_mismatch(instance: &InstanceUpView<'_>, iface: &Interface, pdu_id_len: u8, raw_pdu: &Bytes) {
     use yang::id_len_mismatch::{self, IdLenMismatch};
 
     let path = id_len_mismatch::PATH;
@@ -129,12 +111,7 @@ pub(crate) fn id_len_mismatch(
     notification::send(&instance.tx.nb, path, data);
 }
 
-pub(crate) fn max_area_addresses_mismatch(
-    instance: &InstanceUpView<'_>,
-    iface: &Interface,
-    pdu_max_area_addrs: u8,
-    raw_pdu: &Bytes,
-) {
+pub(crate) fn max_area_addresses_mismatch(instance: &InstanceUpView<'_>, iface: &Interface, pdu_max_area_addrs: u8, raw_pdu: &Bytes) {
     use yang::max_area_addresses_mismatch::{self, MaxAreaAddressesMismatch};
 
     let path = max_area_addresses_mismatch::PATH;
@@ -150,11 +127,7 @@ pub(crate) fn max_area_addresses_mismatch(
     notification::send(&instance.tx.nb, path, data);
 }
 
-pub(crate) fn own_lsp_purge(
-    instance: &InstanceUpView<'_>,
-    iface: &Interface,
-    lsp: &Lsp,
-) {
+pub(crate) fn own_lsp_purge(instance: &InstanceUpView<'_>, iface: &Interface, lsp: &Lsp) {
     use yang::own_lsp_purge::{self, OwnLspPurge};
 
     let path = own_lsp_purge::PATH;
@@ -169,11 +142,7 @@ pub(crate) fn own_lsp_purge(
     notification::send(&instance.tx.nb, path, data);
 }
 
-pub(crate) fn sequence_number_skipped(
-    instance: &InstanceUpView<'_>,
-    iface: &Interface,
-    lsp: &Lsp,
-) {
+pub(crate) fn sequence_number_skipped(instance: &InstanceUpView<'_>, iface: &Interface, lsp: &Lsp) {
     use yang::sequence_number_skipped::{self, SequenceNumberSkipped};
 
     let path = sequence_number_skipped::PATH;
@@ -188,11 +157,7 @@ pub(crate) fn sequence_number_skipped(
     notification::send(&instance.tx.nb, path, data);
 }
 
-pub(crate) fn authentication_type_failure(
-    instance: &InstanceUpView<'_>,
-    iface: &Interface,
-    raw_pdu: &Bytes,
-) {
+pub(crate) fn authentication_type_failure(instance: &InstanceUpView<'_>, iface: &Interface, raw_pdu: &Bytes) {
     use yang::authentication_type_failure::{self, AuthenticationTypeFailure};
 
     let path = authentication_type_failure::PATH;
@@ -207,11 +172,7 @@ pub(crate) fn authentication_type_failure(
     notification::send(&instance.tx.nb, path, data);
 }
 
-pub(crate) fn authentication_failure(
-    instance: &InstanceUpView<'_>,
-    iface: &Interface,
-    raw_pdu: &Bytes,
-) {
+pub(crate) fn authentication_failure(instance: &InstanceUpView<'_>, iface: &Interface, raw_pdu: &Bytes) {
     use yang::authentication_failure::{self, AuthenticationFailure};
 
     let path = authentication_failure::PATH;
@@ -226,12 +187,7 @@ pub(crate) fn authentication_failure(
     notification::send(&instance.tx.nb, path, data);
 }
 
-pub(crate) fn version_skew(
-    instance: &InstanceUpView<'_>,
-    iface: &Interface,
-    version: u8,
-    raw_pdu: &Bytes,
-) {
+pub(crate) fn version_skew(instance: &InstanceUpView<'_>, iface: &Interface, version: u8, raw_pdu: &Bytes) {
     use yang::version_skew::{self, VersionSkew};
 
     let path = version_skew::PATH;
@@ -247,11 +203,7 @@ pub(crate) fn version_skew(
     notification::send(&instance.tx.nb, path, data);
 }
 
-pub(crate) fn area_mismatch(
-    instance: &InstanceUpView<'_>,
-    iface: &Interface,
-    raw_pdu: &Bytes,
-) {
+pub(crate) fn area_mismatch(instance: &InstanceUpView<'_>, iface: &Interface, raw_pdu: &Bytes) {
     use yang::area_mismatch::{self, AreaMismatch};
 
     let path = area_mismatch::PATH;
@@ -266,12 +218,7 @@ pub(crate) fn area_mismatch(
     notification::send(&instance.tx.nb, path, data);
 }
 
-pub(crate) fn rejected_adjacency(
-    instance: &InstanceUpView<'_>,
-    iface: &Interface,
-    raw_pdu: &Bytes,
-    reason: &AdjacencyRejectError,
-) {
+pub(crate) fn rejected_adjacency(instance: &InstanceUpView<'_>, iface: &Interface, raw_pdu: &Bytes, reason: &AdjacencyRejectError) {
     use yang::rejected_adjacency::{self, RejectedAdjacency};
 
     let path = rejected_adjacency::PATH;
@@ -288,14 +235,8 @@ pub(crate) fn rejected_adjacency(
 }
 
 #[expect(unused)]
-pub(crate) fn protocols_supported_mismatch(
-    instance: &InstanceUpView<'_>,
-    iface: &Interface,
-    raw_pdu: &Bytes,
-) {
-    use yang::protocols_supported_mismatch::{
-        self, ProtocolsSupportedMismatch,
-    };
+pub(crate) fn protocols_supported_mismatch(instance: &InstanceUpView<'_>, iface: &Interface, raw_pdu: &Bytes) {
+    use yang::protocols_supported_mismatch::{self, ProtocolsSupportedMismatch};
 
     let path = protocols_supported_mismatch::PATH;
     let data = ProtocolsSupportedMismatch {
@@ -310,11 +251,7 @@ pub(crate) fn protocols_supported_mismatch(
     notification::send(&instance.tx.nb, path, data);
 }
 
-pub(crate) fn lsp_error_detected(
-    instance: &InstanceUpView<'_>,
-    iface: &Interface,
-    lsp: &Lsp,
-) {
+pub(crate) fn lsp_error_detected(instance: &InstanceUpView<'_>, iface: &Interface, lsp: &Lsp) {
     use yang::lsp_error_detected::{self, LspErrorDetected};
 
     let path = lsp_error_detected::PATH;
@@ -332,13 +269,7 @@ pub(crate) fn lsp_error_detected(
     notification::send(&instance.tx.nb, path, data);
 }
 
-pub(crate) fn adjacency_state_change(
-    instance: &InstanceUpView<'_>,
-    iface: &Interface,
-    adj: &Adjacency,
-    state: AdjacencyState,
-    event: AdjacencyEvent,
-) {
+pub(crate) fn adjacency_state_change(instance: &InstanceUpView<'_>, iface: &Interface, adj: &Adjacency, state: AdjacencyState, event: AdjacencyEvent) {
     use yang::adjacency_state_change::{self, AdjacencyStateChange};
 
     let path = adjacency_state_change::PATH;
@@ -356,12 +287,7 @@ pub(crate) fn adjacency_state_change(
     notification::send(&instance.tx.nb, path, data);
 }
 
-pub(crate) fn lsp_received(
-    instance: &InstanceUpView<'_>,
-    iface: &Interface,
-    lsp: &Lsp,
-    system_id: &SystemId,
-) {
+pub(crate) fn lsp_received(instance: &InstanceUpView<'_>, iface: &Interface, lsp: &Lsp, system_id: &SystemId) {
     use yang::lsp_received::{self, LspReceived};
 
     let path = lsp_received::PATH;
@@ -373,11 +299,7 @@ pub(crate) fn lsp_received(
         extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
         lsp_id: Some(lsp.lsp_id.to_yang()),
         sequence: Some(lsp.seqno).ignore_in_testing(),
-        received_timestamp: lsp
-            .base_time
-            .as_ref()
-            .map(Cow::Borrowed)
-            .ignore_in_testing(),
+        received_timestamp: lsp.base_time.as_ref().map(Cow::Borrowed).ignore_in_testing(),
         neighbor_system_id: Some(system_id.to_yang()),
     };
     notification::send(&instance.tx.nb, path, data);
@@ -397,23 +319,13 @@ pub(crate) fn lsp_generation(instance: &InstanceUpView<'_>, lsp: &Lsp) {
     notification::send(&instance.tx.nb, path, data);
 }
 
-pub(crate) fn sr_index_out_of_range(
-    instance: &InstanceUpView<'_>,
-    system_id: SystemId,
-    index: u32,
-) {
-    use yang::segment_routing_index_out_of_range::{
-        self, SegmentRoutingIndexOutOfRange,
-    };
+pub(crate) fn sr_index_out_of_range(instance: &InstanceUpView<'_>, system_id: SystemId, index: u32) {
+    use yang::segment_routing_index_out_of_range::{self, SegmentRoutingIndexOutOfRange};
 
     let data = SegmentRoutingIndexOutOfRange {
         received_target: Some(system_id.to_yang()),
         received_index: Some(index),
         routing_protocol: Some(instance.name.into()),
     };
-    notification::send(
-        &instance.tx.nb,
-        segment_routing_index_out_of_range::PATH,
-        data,
-    );
+    notification::send(&instance.tx.nb, segment_routing_index_out_of_range::PATH, data);
 }

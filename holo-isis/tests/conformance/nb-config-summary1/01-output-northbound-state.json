@@ -248,7 +248,8 @@
                       ],
                       "holo-isis:lsp-buffer-size": 1492
                     }
-                  ]
+                  ],
+                  "holo-isis:lsp-count": 2
                 },
                 {
                   "level": 2,
@@ -793,7 +794,8 @@
                       ],
                       "holo-isis:lsp-buffer-size": 1492
                     }
-                  ]
+                  ],
+                  "holo-isis:lsp-count": 4
                 }
               ]
             },
@@ -1126,8 +1128,7 @@
                       }
                     ]
                   },
-                  "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0
+                  "holo-isis:state": "up"
                 },
                 {
                   "name": "eth-rt3",
@@ -1158,7 +1159,6 @@
                     ]
                   },
                   "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0,
                   "holo-isis-dev:srm": {
                     "level": [
                       {
@@ -1172,8 +1172,7 @@
                 },
                 {
                   "name": "lo",
-                  "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0
+                  "holo-isis:state": "up"
                 }
               ]
             }

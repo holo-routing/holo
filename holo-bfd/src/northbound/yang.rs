@@ -23,9 +23,7 @@ impl ToYang for DiagnosticCode {
             DiagnosticCode::PathDown => "path-down".into(),
             DiagnosticCode::ConcatPathDown => "concatenated-path-down".into(),
             DiagnosticCode::AdminDown => "admin-down".into(),
-            DiagnosticCode::RevConcatPathDown => {
-                "reverse-concatenated-path-down".into()
-            }
+            DiagnosticCode::RevConcatPathDown => "reverse-concatenated-path-down".into(),
             DiagnosticCode::MisConnectivity => "mis-connectivity-defect".into(),
         }
     }

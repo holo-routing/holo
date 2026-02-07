@@ -44,10 +44,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             let rpc = args.data.find_path(args.rpc_path).unwrap();
 
             // Parse input parameters.
-            let level_type = rpc
-                .get_string_relative("./level")
-                .and_then(|level_type| LevelType::try_from_yang(&level_type))
-                .unwrap_or(LevelType::All);
+            let level_type = rpc.get_string_relative("./level").and_then(|level_type| LevelType::try_from_yang(&level_type)).unwrap_or(LevelType::All);
 
             // Clear database.
             if let Some((mut instance, arenas)) = instance.as_up() {
@@ -69,30 +66,20 @@ impl Provider for Instance {
 
 // ===== helper functions =====
 
-fn clear_adjacencies(
-    instance: &mut InstanceUpView<'_>,
-    arenas: &mut InstanceArenas,
-    ifname: Option<String>,
-) {
+fn clear_adjacencies(instance: &mut InstanceUpView<'_>, arenas: &mut InstanceArenas, ifname: Option<String>) {
     // Kill adjacencies.
     for iface in arenas
         .interfaces
         .iter_mut()
         // Filter by interface name.
-        .filter(|iface| {
-            ifname.is_none() || *ifname.as_ref().unwrap() == iface.name
-        })
+        .filter(|iface| ifname.is_none() || *ifname.as_ref().unwrap() == iface.name)
     {
         let event = AdjacencyEvent::Kill;
         iface.clear_adjacencies(instance, &mut arenas.adjacencies, event);
     }
 }
 
-fn clear_database(
-    instance: &mut InstanceUpView<'_>,
-    arenas: &mut InstanceArenas,
-    level_type: LevelType,
-) {
+fn clear_database(instance: &mut InstanceUpView<'_>, arenas: &mut InstanceArenas, level_type: LevelType) {
     // Kill all adjacencies.
     for iface in arenas.interfaces.iter_mut() {
         let event = AdjacencyEvent::Kill;

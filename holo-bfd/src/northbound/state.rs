@@ -8,9 +8,7 @@ use std::borrow::Cow;
 use std::sync::{LazyLock as Lazy, atomic};
 
 use enum_as_inner::EnumAsInner;
-use holo_northbound::state::{
-    Callbacks, CallbacksBuilder, ListEntryKind, Provider,
-};
+use holo_northbound::state::{Callbacks, CallbacksBuilder, ListEntryKind, Provider};
 use holo_utils::bfd::{PathType, State};
 use holo_utils::num::SaturatingInto;
 use holo_utils::option::OptionExt;

@@ -9,26 +9,15 @@ use std::net::IpAddr;
 use std::sync::{Arc, LazyLock as Lazy};
 
 use enum_as_inner::EnumAsInner;
-use holo_northbound::configuration::{
-    self, Callbacks, CallbacksBuilder, ConfigChanges, Provider,
-    ValidationCallbacks, ValidationCallbacksBuilder,
-};
+use holo_northbound::configuration::{self, Callbacks, CallbacksBuilder, ConfigChanges, Provider, ValidationCallbacks, ValidationCallbacksBuilder};
 use holo_northbound::{CallbackKey, NbDaemonSender};
-use holo_utils::bier::{
-    BfrId, BierBift, BierBiftCfg, BierCfgEvent, BierEncapsulation,
-    BierEncapsulationType, BierInBiftId, BierOutBiftId, BierSubDomainCfg,
-    BiftNbr, Bsl, SubDomainId, UnderlayProtocolType,
-};
+use holo_utils::bier::{BfrId, BierBift, BierBiftCfg, BierCfgEvent, BierEncapsulation, BierEncapsulationType, BierInBiftId, BierOutBiftId, BierSubDomainCfg, BiftNbr, Bsl, SubDomainId, UnderlayProtocolType};
 use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::mpls::LabelRange;
 use holo_utils::protocol::Protocol;
-use holo_utils::southbound::{
-    Nexthop, RouteKeyMsg, RouteKind, RouteMsg, RouteOpaqueAttrs,
-};
-use holo_utils::sr::{
-    IgpAlgoType, SidLastHopBehavior, SrCfgEvent, SrCfgPrefixSid,
-};
+use holo_utils::southbound::{Nexthop, RouteKeyMsg, RouteKind, RouteMsg, RouteOpaqueAttrs};
+use holo_utils::sr::{IgpAlgoType, SidLastHopBehavior, SrCfgEvent, SrCfgPrefixSid};
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
 use ipnetwork::IpNetwork;
@@ -41,10 +30,8 @@ use crate::northbound::yang_gen::routing::segment_routing::sr_mpls;
 use crate::northbound::yang_gen::routing::{bier, ribs};
 use crate::{InstanceHandle, InstanceId, Master};
 
-pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
-    Lazy::new(load_validation_callbacks);
-static CALLBACKS: Lazy<configuration::Callbacks<Master>> =
-    Lazy::new(load_callbacks);
+pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> = Lazy::new(load_validation_callbacks);
+static CALLBACKS: Lazy<configuration::Callbacks<Master>> = Lazy::new(load_callbacks);
 
 #[derive(Debug, Default, EnumAsInner)]
 pub enum ListEntry {
@@ -55,12 +42,7 @@ pub enum ListEntry {
     StaticRouteNexthop(IpNetwork, String),
     SrCfgPrefixSid(IpNetwork, IgpAlgoType),
     BierCfgSubDomain(SubDomainId, AddressFamily),
-    BierCfgEncapsulation(
-        SubDomainId,
-        AddressFamily,
-        Bsl,
-        BierEncapsulationType,
-    ),
+    BierCfgEncapsulation(SubDomainId, AddressFamily, Bsl, BierEncapsulationType),
     BierCfgBift(BfrId),
     BierCfgBiftBsl(BfrId, Bsl),
     BierCfgBiftNbr(BfrId, Bsl, IpAddr),
@@ -133,7 +115,10 @@ fn load_callbacks() -> Callbacks<Master> {
             }
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InstanceStart { protocol, name });
+            event_queue.insert(Event::InstanceStart {
+                protocol,
+                name,
+            });
 
             Ok(())
         })
@@ -548,9 +533,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let range = LabelRange::new(lower_bound, upper_bound);
 
             let mut label_manager = master.shared.label_manager.lock().unwrap();
-            label_manager
-                .range_reserve(range)
-                .map_err(|error| error.to_string())?;
+            label_manager.range_reserve(range).map_err(|error| error.to_string())?;
             *args.resource = Some(Resource::SrLabelRange(range));
 
             Ok(())
@@ -584,9 +567,7 @@ fn load_callbacks() -> Callbacks<Master> {
             event_queue.insert(Event::SrCfgUpdate);
             event_queue.insert(Event::SrCfgLabelRangeUpdate);
         })
-        .lookup(|_master, _list_entry, _dnode| {
-            ListEntry::None
-        })
+        .lookup(|_master, _list_entry, _dnode| ListEntry::None)
         .path(sr_mpls::srlb::srlb::PATH)
         .create_prepare(|master, args| {
             let lower_bound = args.dnode.get_u32_relative("./lower-bound").unwrap();
@@ -594,9 +575,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let range = LabelRange::new(lower_bound, upper_bound);
 
             let mut label_manager = master.shared.label_manager.lock().unwrap();
-            label_manager
-                .range_reserve(range)
-                .map_err(|error| error.to_string())?;
+            label_manager.range_reserve(range).map_err(|error| error.to_string())?;
             *args.resource = Some(Resource::SrLabelRange(range));
 
             Ok(())
@@ -630,9 +609,7 @@ fn load_callbacks() -> Callbacks<Master> {
             event_queue.insert(Event::SrCfgUpdate);
             event_queue.insert(Event::SrCfgLabelRangeUpdate);
         })
-        .lookup(|_master, _list_entry, _dnode| {
-            ListEntry::None
-        })
+        .lookup(|_master, _list_entry, _dnode| ListEntry::None)
         .path(ribs::rib::PATH)
         .create_apply(|_master, _args| {
             // Nothing to do.
@@ -640,9 +617,7 @@ fn load_callbacks() -> Callbacks<Master> {
         .delete_apply(|_master, _args| {
             // Nothing to do.
         })
-        .lookup(|_master, _list_entry, _dnode| {
-            ListEntry::None
-        })
+        .lookup(|_master, _list_entry, _dnode| ListEntry::None)
         .path(ribs::rib::address_family::PATH)
         .modify_apply(|_master, _args| {
             // Nothing to do.
@@ -807,11 +782,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let max_si = args.dnode.get_u8_relative("./max-si").unwrap();
             let in_bift_id_base = args.dnode.get_u32_relative("./in-bift-id/in-bift-id-base");
             let in_bift_id_encoding = args.dnode.get_bool_relative("./in-bift-id/in-bift-id-encoding");
-            let in_bift_id = in_bift_id_base
-                .map_or(in_bift_id_encoding.map(BierInBiftId::Encoding), |v| {
-                    Some(BierInBiftId::Base(v))
-                })
-                .unwrap();
+            let in_bift_id = in_bift_id_base.map_or(in_bift_id_encoding.map(BierInBiftId::Encoding), |v| Some(BierInBiftId::Base(v))).unwrap();
             let encap_cfg = BierEncapsulation::new(bsl, encap_type, max_si, in_bift_id);
             sd_cfg.encap.insert((bsl, encap_type), encap_cfg);
 
@@ -891,7 +862,7 @@ fn load_callbacks() -> Callbacks<Master> {
 
             let bift_cfg = BierBiftCfg {
                 bfr_id,
-                birt: Default::default()
+                birt: Default::default(),
             };
 
             master.bier_config.bift_cfg.insert(bfr_id, bift_cfg);
@@ -921,7 +892,7 @@ fn load_callbacks() -> Callbacks<Master> {
 
             let bift = BierBift {
                 bsl,
-                nbr: Default::default()
+                nbr: Default::default(),
             };
 
             bift_cfg.birt.insert(bsl, bift);
@@ -966,7 +937,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let nbr = BiftNbr {
                 bfr_nbr,
                 encap_type,
-                out_bift_id
+                out_bift_id,
             };
 
             birt.nbr.insert(bfr_nbr, nbr);
@@ -1065,9 +1036,7 @@ fn load_validation_callbacks() -> ValidationCallbacks {
 
             // Validate BFD protocol instance name.
             if protocol == Protocol::BFD && name != "main" {
-                return Err(
-                    "BFD protocol instance should be named \"main\"".to_owned()
-                );
+                return Err("BFD protocol instance should be named \"main\"".to_owned());
             }
 
             Ok(())
@@ -1078,15 +1047,16 @@ fn load_validation_callbacks() -> ValidationCallbacks {
             let mt_id = args.dnode.get_u8_relative("./mt-id");
 
             // Enforce configured address family.
-            if let Some(bfr_prefix) =
-                args.dnode.get_prefix_relative("./bfr-prefix")
+            if let Some(bfr_prefix) = args.dnode.get_prefix_relative("./bfr-prefix")
                 && bfr_prefix.address_family() != af
             {
                 return Err("Configured address family differs from BFR prefix address family.".to_owned());
             }
 
             // Enforce MT-ID value per RFC4915.
-            if let Some(mt_id) = mt_id && mt_id > 128 {
+            if let Some(mt_id) = mt_id
+                && mt_id > 128
+            {
                 return Err("Invalid MT-ID per RFC4915".to_owned());
             }
 
@@ -1131,14 +1101,10 @@ impl Provider for Master {
         Some(keys.concat())
     }
 
-    fn relay_changes(
-        &self,
-        changes: ConfigChanges,
-    ) -> Vec<(ConfigChanges, NbDaemonSender)> {
+    fn relay_changes(&self, changes: ConfigChanges) -> Vec<(ConfigChanges, NbDaemonSender)> {
         // Create hash table that maps changes to the appropriate child
         // instances.
-        let mut changes_map: HashMap<InstanceId, ConfigChanges> =
-            HashMap::new();
+        let mut changes_map: HashMap<InstanceId, ConfigChanges> = HashMap::new();
         for change in changes {
             // HACK: parse protocol type and instance name.
             let caps = REGEX_PROTOCOLS.captures(&change.1).unwrap();
@@ -1152,17 +1118,16 @@ impl Provider for Master {
         }
         changes_map
             .into_iter()
-            .filter_map(|(instance_id, changes)| {
-                self.instances
-                    .get(&instance_id)
-                    .map(|instance| (changes, instance.nb_tx.clone()))
-            })
+            .filter_map(|(instance_id, changes)| self.instances.get(&instance_id).map(|instance| (changes, instance.nb_tx.clone())))
             .collect::<Vec<_>>()
     }
 
     fn process_event(&mut self, event: Event) {
         match event {
-            Event::InstanceStart { protocol, name } => {
+            Event::InstanceStart {
+                protocol,
+                name,
+            } => {
                 instance_start(self, protocol, name);
             }
             Event::StaticRouteInstall(prefix) => {
@@ -1171,9 +1136,7 @@ impl Provider for Master {
                 // Get nexthops.
                 let mut kind = RouteKind::Unicast;
                 let mut nexthops = BTreeSet::default();
-                if let Some(nexthop) =
-                    static_nexthop_get(&self.interfaces, &route.nexthop_single)
-                {
+                if let Some(nexthop) = static_nexthop_get(&self.interfaces, &route.nexthop_single) {
                     nexthops.insert(nexthop);
                 }
                 if let Some(special) = &route.nexthop_special {
@@ -1183,11 +1146,7 @@ impl Provider for Master {
                         NexthopSpecial::Prohibit => RouteKind::Prohibit,
                     };
                 }
-                for nexthop in
-                    route.nexthop_list.values().filter_map(|nexthop| {
-                        static_nexthop_get(&self.interfaces, nexthop)
-                    })
-                {
+                for nexthop in route.nexthop_list.values().filter_map(|nexthop| static_nexthop_get(&self.interfaces, nexthop)) {
                     nexthops.insert(nexthop);
                 }
 
@@ -1222,25 +1181,19 @@ impl Provider for Master {
 
                 // Notify protocol instances about the updated SR configuration.
                 for instance in self.instances.values() {
-                    let _ = instance
-                        .ibus_tx
-                        .send(IbusMsg::SrCfgUpd(self.shared.sr_config.clone()));
+                    let _ = instance.ibus_tx.send(IbusMsg::SrCfgUpd(self.shared.sr_config.clone()));
                 }
             }
             Event::SrCfgLabelRangeUpdate => {
                 // Notify protocol instances about the updated SRGB/SRLB configuration.
                 for instance in self.instances.values() {
-                    let _ = instance.ibus_tx.send(IbusMsg::SrCfgEvent(
-                        SrCfgEvent::LabelRangeUpdate,
-                    ));
+                    let _ = instance.ibus_tx.send(IbusMsg::SrCfgEvent(SrCfgEvent::LabelRangeUpdate));
                 }
             }
             Event::SrCfgPrefixSidUpdate(af) => {
                 // Notify protocol instances about the updated Prefix-SID configuration.
                 for instance in self.instances.values() {
-                    let _ = instance.ibus_tx.send(IbusMsg::SrCfgEvent(
-                        SrCfgEvent::PrefixSidUpdate(af),
-                    ));
+                    let _ = instance.ibus_tx.send(IbusMsg::SrCfgEvent(SrCfgEvent::PrefixSidUpdate(af)));
                 }
             }
             Event::BierCfgUpdate => {
@@ -1249,23 +1202,17 @@ impl Provider for Master {
 
                 // Notify protocol instances about the updated BIER configuration.
                 for instance in self.instances.values() {
-                    let _ = instance.ibus_tx.send(IbusMsg::BierCfgUpd(
-                        self.shared.bier_config.clone(),
-                    ));
+                    let _ = instance.ibus_tx.send(IbusMsg::BierCfgUpd(self.shared.bier_config.clone()));
                 }
             }
             Event::BierCfgEncapUpdate(_sd_id, af, _bsl, _encap_type) => {
                 for instance in self.instances.values() {
-                    let _ = instance.ibus_tx.send(IbusMsg::BierCfgEvent(
-                        BierCfgEvent::EncapUpdate(af),
-                    ));
+                    let _ = instance.ibus_tx.send(IbusMsg::BierCfgEvent(BierCfgEvent::EncapUpdate(af)));
                 }
             }
             Event::BierCfgSubDomainUpdate(af) => {
                 for instance in self.instances.values() {
-                    let _ = instance.ibus_tx.send(IbusMsg::BierCfgEvent(
-                        BierCfgEvent::SubDomainUpdate(af),
-                    ));
+                    let _ = instance.ibus_tx.send(IbusMsg::BierCfgEvent(BierCfgEvent::SubDomainUpdate(af)));
                 }
             }
             Event::BierCfgBiftUpdate(_bfr_id) => {
@@ -1294,15 +1241,7 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
         Protocol::BGP => {
             use holo_bgp::instance::Instance;
 
-            spawn_protocol_task::<Instance>(
-                name,
-                &master.nb_tx,
-                &master.ibus_tx,
-                ibus_instance_tx.clone(),
-                ibus_instance_rx,
-                Default::default(),
-                master.shared.clone(),
-            )
+            spawn_protocol_task::<Instance>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), master.shared.clone())
         }
         Protocol::DIRECT => {
             // This protocol type can not be configured.
@@ -1312,103 +1251,47 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
         Protocol::IGMP => {
             use holo_igmp::instance::Instance;
 
-            spawn_protocol_task::<Instance>(
-                name,
-                &master.nb_tx,
-                &master.ibus_tx,
-                ibus_instance_tx.clone(),
-                ibus_instance_rx,
-                Default::default(),
-                master.shared.clone(),
-            )
+            spawn_protocol_task::<Instance>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), master.shared.clone())
         }
         #[cfg(feature = "isis")]
         Protocol::ISIS => {
             use holo_isis::instance::Instance;
 
-            spawn_protocol_task::<Instance>(
-                name,
-                &master.nb_tx,
-                &master.ibus_tx,
-                ibus_instance_tx.clone(),
-                ibus_instance_rx,
-                Default::default(),
-                master.shared.clone(),
-            )
+            spawn_protocol_task::<Instance>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), master.shared.clone())
         }
         #[cfg(feature = "ldp")]
         Protocol::LDP => {
             use holo_ldp::instance::Instance;
 
-            spawn_protocol_task::<Instance>(
-                name,
-                &master.nb_tx,
-                &master.ibus_tx,
-                ibus_instance_tx.clone(),
-                ibus_instance_rx,
-                Default::default(),
-                master.shared.clone(),
-            )
+            spawn_protocol_task::<Instance>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), master.shared.clone())
         }
         #[cfg(feature = "ospf")]
         Protocol::OSPFV2 => {
             use holo_ospf::instance::Instance;
             use holo_ospf::version::Ospfv2;
 
-            spawn_protocol_task::<Instance<Ospfv2>>(
-                name,
-                &master.nb_tx,
-                &master.ibus_tx,
-                ibus_instance_tx.clone(),
-                ibus_instance_rx,
-                Default::default(),
-                master.shared.clone(),
-            )
+            spawn_protocol_task::<Instance<Ospfv2>>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), master.shared.clone())
         }
         #[cfg(feature = "ospf")]
         Protocol::OSPFV3 => {
             use holo_ospf::instance::Instance;
             use holo_ospf::version::Ospfv3;
 
-            spawn_protocol_task::<Instance<Ospfv3>>(
-                name,
-                &master.nb_tx,
-                &master.ibus_tx,
-                ibus_instance_tx.clone(),
-                ibus_instance_rx,
-                Default::default(),
-                master.shared.clone(),
-            )
+            spawn_protocol_task::<Instance<Ospfv3>>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), master.shared.clone())
         }
         #[cfg(feature = "rip")]
         Protocol::RIPV2 => {
             use holo_rip::instance::Instance;
             use holo_rip::version::Ripv2;
 
-            spawn_protocol_task::<Instance<Ripv2>>(
-                name,
-                &master.nb_tx,
-                &master.ibus_tx,
-                ibus_instance_tx.clone(),
-                ibus_instance_rx,
-                Default::default(),
-                master.shared.clone(),
-            )
+            spawn_protocol_task::<Instance<Ripv2>>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), master.shared.clone())
         }
         #[cfg(feature = "rip")]
         Protocol::RIPNG => {
             use holo_rip::instance::Instance;
             use holo_rip::version::Ripng;
 
-            spawn_protocol_task::<Instance<Ripng>>(
-                name,
-                &master.nb_tx,
-                &master.ibus_tx,
-                ibus_instance_tx.clone(),
-                ibus_instance_rx,
-                Default::default(),
-                master.shared.clone(),
-            )
+            spawn_protocol_task::<Instance<Ripng>>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), master.shared.clone())
         }
         _ => {
             // Nothing to do.
@@ -1422,10 +1305,7 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
     master.instances.insert(instance_id, instance);
 }
 
-fn static_nexthop_get(
-    interfaces: &Interfaces,
-    nexthop: &StaticRouteNexthop,
-) -> Option<Nexthop> {
+fn static_nexthop_get(interfaces: &Interfaces, nexthop: &StaticRouteNexthop) -> Option<Nexthop> {
     let ifname = nexthop.ifname.as_ref()?;
     let iface = interfaces.get_by_name(ifname)?;
     let ifindex = iface.ifindex;
@@ -1435,7 +1315,9 @@ fn static_nexthop_get(
             addr,
             labels: Default::default(),
         },
-        None => Nexthop::Interface { ifindex },
+        None => Nexthop::Interface {
+            ifindex,
+        },
     };
     Some(nexthop)
 }

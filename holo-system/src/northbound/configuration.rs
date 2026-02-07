@@ -6,16 +6,13 @@
 
 use std::sync::LazyLock as Lazy;
 
-use holo_northbound::configuration::{
-    self, Callbacks, CallbacksBuilder, Provider,
-};
+use holo_northbound::configuration::{self, Callbacks, CallbacksBuilder, Provider};
 use holo_utils::yang::DataNodeRefExt;
 
 use crate::northbound::yang_gen::system;
 use crate::{Master, ibus};
 
-static CALLBACKS: Lazy<configuration::Callbacks<Master>> =
-    Lazy::new(load_callbacks);
+static CALLBACKS: Lazy<configuration::Callbacks<Master>> = Lazy::new(load_callbacks);
 
 #[derive(Debug, Default)]
 pub enum ListEntry {
@@ -92,10 +89,7 @@ impl Provider for Master {
         match event {
             Event::HostnameChange => {
                 for ibus_tx in self.hostname_subscriptions.values() {
-                    ibus::notify_hostname_update(
-                        ibus_tx,
-                        self.config.hostname.clone(),
-                    );
+                    ibus::notify_hostname_update(ibus_tx, self.config.hostname.clone());
                 }
             }
         }

@@ -12,9 +12,7 @@ use std::sync::LazyLock as Lazy;
 use std::sync::atomic::Ordering;
 
 use enum_as_inner::EnumAsInner;
-use holo_northbound::state::{
-    Callbacks, CallbacksBuilder, ListEntryKind, Provider,
-};
+use holo_northbound::state::{Callbacks, CallbacksBuilder, ListEntryKind, Provider};
 use holo_utils::option::OptionExt;
 use holo_yang::ToYang;
 

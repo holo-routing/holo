@@ -33,39 +33,17 @@ impl ToYang for fsm::Event {
             fsm::Event::None => "ietf-vrrp:vrrp-event-none".into(),
             fsm::Event::Startup => "ietf-vrrp:vrrp-event-startup".into(),
             fsm::Event::Shutdown => "ietf-vrrp:vrrp-event-shutdown".into(),
-            fsm::Event::HigherPriorityBackup => {
-                "ietf-vrrp:vrrp-event-higher-priority-backup".into()
-            }
-            fsm::Event::MasterTimeout => {
-                "ietf-vrrp:vrrp-event-master-timeout".into()
-            }
-            fsm::Event::InterfaceUp => {
-                "ietf-vrrp:vrrp-event-interface-up".into()
-            }
-            fsm::Event::InterfaceDown => {
-                "ietf-vrrp:vrrp-event-interface-down".into()
-            }
-            fsm::Event::NoPrimaryIpAddress => {
-                "ietf-vrrp:vrrp-event-no-primary-ip-address".into()
-            }
-            fsm::Event::PrimaryIpAddress => {
-                "ietf-vrrp:vrrp-event-primary-ip-address".into()
-            }
-            fsm::Event::NoVirtualIpAddresses => {
-                "ietf-vrrp:vrrp-event-no-virtual-ip-addresses".into()
-            }
-            fsm::Event::VirtualIpAddresses => {
-                "ietf-vrrp:vrrp-event-virtual-ip-addresses".into()
-            }
-            fsm::Event::PreemptHoldTimeout => {
-                "ietf-vrrp:vrrp-event-preempt-hold-timeout".into()
-            }
-            fsm::Event::LowerPriorityMaster => {
-                "ietf-vrrp:vrrp-event-lower-priority-master".into()
-            }
-            fsm::Event::OwnerPreempt => {
-                "ietf-vrrp:vrrp-event-owner-preempt".into()
-            }
+            fsm::Event::HigherPriorityBackup => "ietf-vrrp:vrrp-event-higher-priority-backup".into(),
+            fsm::Event::MasterTimeout => "ietf-vrrp:vrrp-event-master-timeout".into(),
+            fsm::Event::InterfaceUp => "ietf-vrrp:vrrp-event-interface-up".into(),
+            fsm::Event::InterfaceDown => "ietf-vrrp:vrrp-event-interface-down".into(),
+            fsm::Event::NoPrimaryIpAddress => "ietf-vrrp:vrrp-event-no-primary-ip-address".into(),
+            fsm::Event::PrimaryIpAddress => "ietf-vrrp:vrrp-event-primary-ip-address".into(),
+            fsm::Event::NoVirtualIpAddresses => "ietf-vrrp:vrrp-event-no-virtual-ip-addresses".into(),
+            fsm::Event::VirtualIpAddresses => "ietf-vrrp:vrrp-event-virtual-ip-addresses".into(),
+            fsm::Event::PreemptHoldTimeout => "ietf-vrrp:vrrp-event-preempt-hold-timeout".into(),
+            fsm::Event::LowerPriorityMaster => "ietf-vrrp:vrrp-event-lower-priority-master".into(),
+            fsm::Event::OwnerPreempt => "ietf-vrrp:vrrp-event-owner-preempt".into(),
         }
     }
 }
@@ -88,9 +66,7 @@ impl ToYang for GlobalError {
             GlobalError::IpTtlError => "ietf-vrrp:ip-ttl-error".into(),
             GlobalError::VersionError => "ietf-vrrp:version-error".into(),
             GlobalError::VridError => "ietf-vrrp:vrid-error".into(),
-            GlobalError::IncompletePacket => {
-                "holo-vrrp:incomplete-packet".into()
-            }
+            GlobalError::IncompletePacket => "holo-vrrp:incomplete-packet".into(),
         }
     }
 }
@@ -98,15 +74,9 @@ impl ToYang for GlobalError {
 impl ToYang for VirtualRouterError {
     fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            VirtualRouterError::AddressListError => {
-                "ietf-vrrp:address-list-error".into()
-            }
-            VirtualRouterError::IntervalError => {
-                "ietf-vrrp:interval-error".into()
-            }
-            VirtualRouterError::PacketLengthError => {
-                "ietf-vrrp:packet-length-error".into()
-            }
+            VirtualRouterError::AddressListError => "ietf-vrrp:address-list-error".into(),
+            VirtualRouterError::IntervalError => "ietf-vrrp:interval-error".into(),
+            VirtualRouterError::PacketLengthError => "ietf-vrrp:packet-length-error".into(),
         }
     }
 }

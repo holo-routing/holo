@@ -15,11 +15,7 @@ use crate::northbound::yang_gen as yang;
 
 // ===== global functions =====
 
-pub(crate) fn mpls_ldp_peer_event(
-    nb_tx: &NbProviderSender,
-    instance_name: &str,
-    nbr: &Neighbor,
-) {
+pub(crate) fn mpls_ldp_peer_event(nb_tx: &NbProviderSender, instance_name: &str, nbr: &Neighbor) {
     use yang::mpls_ldp_peer_event::peer::Peer;
     use yang::mpls_ldp_peer_event::{self, MplsLdpPeerEvent};
 
@@ -35,18 +31,10 @@ pub(crate) fn mpls_ldp_peer_event(
     notification::send(nb_tx, mpls_ldp_peer_event::PATH, data);
 }
 
-pub(crate) fn mpls_ldp_hello_adjacency_event(
-    nb_tx: &NbProviderSender,
-    instance_name: &str,
-    ifname: Option<&str>,
-    addr: &IpAddr,
-    created: bool,
-) {
+pub(crate) fn mpls_ldp_hello_adjacency_event(nb_tx: &NbProviderSender, instance_name: &str, ifname: Option<&str>, addr: &IpAddr, created: bool) {
     use yang::mpls_ldp_hello_adjacency_event::link::Link;
     use yang::mpls_ldp_hello_adjacency_event::targeted::Targeted;
-    use yang::mpls_ldp_hello_adjacency_event::{
-        self, MplsLdpHelloAdjacencyEvent,
-    };
+    use yang::mpls_ldp_hello_adjacency_event::{self, MplsLdpHelloAdjacencyEvent};
 
     let event_type = event_type(created);
     let data = MplsLdpHelloAdjacencyEvent {
@@ -65,11 +53,7 @@ pub(crate) fn mpls_ldp_hello_adjacency_event(
     notification::send(nb_tx, mpls_ldp_hello_adjacency_event::PATH, data);
 }
 
-pub(crate) fn mpls_ldp_fec_event(
-    nb_tx: &NbProviderSender,
-    instance_name: &str,
-    fec: &Fec,
-) {
+pub(crate) fn mpls_ldp_fec_event(nb_tx: &NbProviderSender, instance_name: &str, fec: &Fec) {
     use yang::mpls_ldp_fec_event::{self, MplsLdpFecEvent};
 
     let event_type = event_type(fec.is_operational());

@@ -14,10 +14,8 @@ use crate::northbound::yang_gen as yang;
 use crate::route::RouteType;
 use crate::version::{Ripng, Ripv2, Version};
 
-pub static CALLBACKS_RIPV2: Lazy<Callbacks<Instance<Ripv2>>> =
-    Lazy::new(load_callbacks);
-pub static CALLBACKS_RIPNG: Lazy<Callbacks<Instance<Ripng>>> =
-    Lazy::new(load_callbacks);
+pub static CALLBACKS_RIPV2: Lazy<Callbacks<Instance<Ripv2>>> = Lazy::new(load_callbacks);
+pub static CALLBACKS_RIPNG: Lazy<Callbacks<Instance<Ripng>>> = Lazy::new(load_callbacks);
 
 // ===== callbacks =====
 

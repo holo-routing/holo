@@ -9,10 +9,7 @@ use std::net::Ipv4Addr;
 use std::sync::LazyLock as Lazy;
 
 use enum_as_inner::EnumAsInner;
-use holo_northbound::configuration::{
-    Callbacks, CallbacksBuilder, Provider, ValidationCallbacks,
-    ValidationCallbacksBuilder,
-};
+use holo_northbound::configuration::{Callbacks, CallbacksBuilder, Provider, ValidationCallbacks, ValidationCallbacksBuilder};
 use holo_utils::yang::DataNodeRefExt;
 
 use crate::instance::Instance;
@@ -35,8 +32,7 @@ pub enum Event {
     InterfaceIbusSub(String),
 }
 
-pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
-    Lazy::new(load_validation_callbacks);
+pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> = Lazy::new(load_validation_callbacks);
 pub static CALLBACKS: Lazy<Callbacks<Instance>> = Lazy::new(load_callbacks);
 
 // ===== configuration structs =====
@@ -60,8 +56,7 @@ fn load_callbacks() -> Callbacks<Instance> {
     CallbacksBuilder::<Instance>::default()
         .path(igmp::interfaces::interface::PATH)
         .create_apply(|instance, args| {
-            let ifname =
-                args.dnode.get_string_relative("./interface-name").unwrap();
+            let ifname = args.dnode.get_string_relative("./interface-name").unwrap();
             let iface = Interface::new(ifname.clone());
             instance.interfaces.insert(ifname.clone(), iface);
 
@@ -181,13 +176,10 @@ impl Default for InstanceCfg {
 
 impl Default for InterfaceCfg {
     fn default() -> InterfaceCfg {
-        let last_member_query_interval =
-            igmp::interfaces::interface::last_member_query_interval::DFLT;
+        let last_member_query_interval = igmp::interfaces::interface::last_member_query_interval::DFLT;
         let query_interval = igmp::interfaces::interface::query_interval::DFLT;
-        let query_max_response_time =
-            igmp::interfaces::interface::query_max_response_time::DFLT;
-        let robustness_variable =
-            igmp::interfaces::interface::robustness_variable::DFLT;
+        let query_max_response_time = igmp::interfaces::interface::query_max_response_time::DFLT;
+        let robustness_variable = igmp::interfaces::interface::robustness_variable::DFLT;
         let enabled = igmp::interfaces::interface::enabled::DFLT;
 
         InterfaceCfg {

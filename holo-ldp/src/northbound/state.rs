@@ -10,9 +10,7 @@ use std::sync::{LazyLock as Lazy, atomic};
 
 use derive_new::new;
 use enum_as_inner::EnumAsInner;
-use holo_northbound::state::{
-    Callbacks, CallbacksBuilder, ListEntryKind, Provider,
-};
+use holo_northbound::state::{Callbacks, CallbacksBuilder, ListEntryKind, Provider};
 use holo_utils::ip::{IpAddrKind, IpNetworkKind};
 use holo_utils::mpls::Label;
 use holo_utils::num::SaturatingInto;
@@ -123,7 +121,12 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::global::address_families::ipv4::bindings::fec_label::PATH)
         .get_iterate(|instance, _args| {
             let Some(instance_state) = &instance.state else { return None };
-            let iter = instance_state.fecs.values().filter(|fec| fec.inner.prefix.is_ipv4()).filter(|fec| !fec.inner.upstream.is_empty() || !fec.inner.downstream.is_empty()).map(ListEntry::Fec);
+            let iter = instance_state
+                .fecs
+                .values()
+                .filter(|fec| fec.inner.prefix.is_ipv4())
+                .filter(|fec| !fec.inner.upstream.is_empty() || !fec.inner.downstream.is_empty())
+                .map(ListEntry::Fec);
             Some(Box::new(iter))
         })
         .get_object(|_instance, args| {

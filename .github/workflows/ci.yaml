@@ -19,8 +19,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: "rustfmt --check"
         run: |
-          if ! cargo fmt --all --check; then
-            printf "Please run \`cargo fmt --all\` locally to fix formatting errors.\nSee CONTRIBUTING.md for more details.\n" >&2
+          if ! rustfmt --check $(git ls-files '*.rs'); then
+            printf "Please run \`rustfmt \$(git ls-files '*.rs')\` locally to fix formatting errors.\nSee CONTRIBUTING.md for more details.\n" >&2
             exit 1
           fi
 

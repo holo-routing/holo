@@ -15,14 +15,10 @@ use crate::gr::GrExitReason;
 use crate::interface::{InterfaceType, ism};
 use crate::lsdb::LsaLogReason;
 use crate::neighbor::nsm;
-use crate::northbound::configuration::{
-    InstanceTraceOption, InterfaceTraceOption,
-};
+use crate::northbound::configuration::{InstanceTraceOption, InterfaceTraceOption};
 use crate::packet::PacketType;
 use crate::packet::error::LsaValidationError;
-use crate::packet::tlv::{
-    AdjSidFlags, GrReason, PrefixSidFlags, RouterInfoCaps,
-};
+use crate::packet::tlv::{AdjSidFlags, GrReason, PrefixSidFlags, RouterInfoCaps};
 use crate::spf::SpfLogType;
 use crate::{ospfv2, ospfv3, spf};
 
@@ -105,22 +101,12 @@ impl ToYang for InterfaceCfgError {
         match self {
             InterfaceCfgError::AfBitClear => "option-mismatch".into(),
             InterfaceCfgError::AreaIdMismatch(..) => "area-mismatch".into(),
-            InterfaceCfgError::HelloMaskMismatch(..) => {
-                "net-mask-mismatch".into()
-            }
-            InterfaceCfgError::HelloIntervalMismatch(..) => {
-                "hello-interval-mismatch".into()
-            }
-            InterfaceCfgError::DeadIntervalMismatch(..) => {
-                "dead-interval-mismatch".into()
-            }
-            InterfaceCfgError::ExternalRoutingCapabilityMismatch(..) => {
-                "option-mismatch".into()
-            }
+            InterfaceCfgError::HelloMaskMismatch(..) => "net-mask-mismatch".into(),
+            InterfaceCfgError::HelloIntervalMismatch(..) => "hello-interval-mismatch".into(),
+            InterfaceCfgError::DeadIntervalMismatch(..) => "dead-interval-mismatch".into(),
+            InterfaceCfgError::ExternalRoutingCapabilityMismatch(..) => "option-mismatch".into(),
             InterfaceCfgError::MtuMismatch(..) => "mtu-mismatch".into(),
-            InterfaceCfgError::DuplicateRouterId(..) => {
-                "duplicate-router-id".into()
-            }
+            InterfaceCfgError::DuplicateRouterId(..) => "duplicate-router-id".into(),
         }
     }
 }
@@ -131,9 +117,7 @@ impl ToYang for LsaValidationError {
             LsaValidationError::InvalidChecksum => "invalid-checksum".into(),
             LsaValidationError::InvalidLsaAge => "invalid-age".into(),
             LsaValidationError::InvalidLsaSeqNo => "invalid-seq-num".into(),
-            LsaValidationError::Ospfv2RouterLsaIdMismatch => {
-                "ospfv2-router-lsa-id-mismatch".into()
-            }
+            LsaValidationError::Ospfv2RouterLsaIdMismatch => "ospfv2-router-lsa-id-mismatch".into(),
         }
     }
 }
@@ -218,9 +202,7 @@ impl ToYang for GrReason {
             GrReason::Unknown => "unknown".into(),
             GrReason::SoftwareRestart => "software-restart".into(),
             GrReason::SoftwareUpgrade => "software-upgrade".into(),
-            GrReason::ControlProcessorSwitchover => {
-                "control-processor-switchover".into()
-            }
+            GrReason::ControlProcessorSwitchover => "control-processor-switchover".into(),
         }
     }
 }
@@ -280,19 +262,11 @@ impl ToYang for ospfv2::packet::lsa::LsaType {
         match self.type_code() {
             Some(LsaTypeCode::Router) => "ospfv2-router-lsa".into(),
             Some(LsaTypeCode::Network) => "ospfv2-network-lsa".into(),
-            Some(LsaTypeCode::SummaryNetwork) => {
-                "ospfv2-network-summary-lsa".into()
-            }
-            Some(LsaTypeCode::SummaryRouter) => {
-                "ospfv2-asbr-summary-lsa".into()
-            }
+            Some(LsaTypeCode::SummaryNetwork) => "ospfv2-network-summary-lsa".into(),
+            Some(LsaTypeCode::SummaryRouter) => "ospfv2-asbr-summary-lsa".into(),
             Some(LsaTypeCode::AsExternal) => "ospfv2-as-external-lsa".into(),
-            Some(LsaTypeCode::OpaqueLink) => {
-                "ospfv2-link-scope-opaque-lsa".into()
-            }
-            Some(LsaTypeCode::OpaqueArea) => {
-                "ospfv2-area-scope-opaque-lsa".into()
-            }
+            Some(LsaTypeCode::OpaqueLink) => "ospfv2-link-scope-opaque-lsa".into(),
+            Some(LsaTypeCode::OpaqueArea) => "ospfv2-area-scope-opaque-lsa".into(),
             Some(LsaTypeCode::OpaqueAs) => "ospfv2-as-scope-opaque-lsa".into(),
             None => "ospfv2-unknown-lsa-type".into(),
         }
@@ -371,44 +345,20 @@ impl ToYang for ospfv3::packet::lsa::LsaType {
         match self.function_code() {
             Some(LsaFunctionCode::Router) => "ospfv3-router-lsa".into(),
             Some(LsaFunctionCode::Network) => "ospfv3-network-lsa".into(),
-            Some(LsaFunctionCode::InterAreaPrefix) => {
-                "ospfv3-inter-area-prefix-lsa".into()
-            }
-            Some(LsaFunctionCode::InterAreaRouter) => {
-                "ospfv3-inter-area-router-lsa".into()
-            }
-            Some(LsaFunctionCode::AsExternal) => {
-                "ospfv3-external-lsa-type".into()
-            }
+            Some(LsaFunctionCode::InterAreaPrefix) => "ospfv3-inter-area-prefix-lsa".into(),
+            Some(LsaFunctionCode::InterAreaRouter) => "ospfv3-inter-area-router-lsa".into(),
+            Some(LsaFunctionCode::AsExternal) => "ospfv3-external-lsa-type".into(),
             Some(LsaFunctionCode::Link) => "ospfv3-link-lsa".into(),
-            Some(LsaFunctionCode::IntraAreaPrefix) => {
-                "ospfv3-intra-area-prefix-lsa".into()
-            }
-            Some(LsaFunctionCode::RouterInfo) => {
-                "ospfv3-router-information-lsa".into()
-            }
+            Some(LsaFunctionCode::IntraAreaPrefix) => "ospfv3-intra-area-prefix-lsa".into(),
+            Some(LsaFunctionCode::RouterInfo) => "ospfv3-router-information-lsa".into(),
             Some(LsaFunctionCode::Grace) => "holo-ospf:ospfv3-grace-lsa".into(),
-            Some(LsaFunctionCode::ExtRouter) => {
-                "ietf-ospfv3-extended-lsa:ospfv3-e-router-lsa".into()
-            }
-            Some(LsaFunctionCode::ExtNetwork) => {
-                "ietf-ospfv3-extended-lsa:ospfv3-e-network-lsa".into()
-            }
-            Some(LsaFunctionCode::ExtInterAreaPrefix) => {
-                "ietf-ospfv3-extended-lsa:ospfv3-e-inter-area-prefix-lsa".into()
-            }
-            Some(LsaFunctionCode::ExtInterAreaRouter) => {
-                "ietf-ospfv3-extended-lsa:ospfv3-e-inter-area-router-lsa".into()
-            }
-            Some(LsaFunctionCode::ExtAsExternal) => {
-                "ietf-ospfv3-extended-lsa:ospfv3-e-external-lsa-type".into()
-            }
-            Some(LsaFunctionCode::ExtLink) => {
-                "ietf-ospfv3-extended-lsa:ospfv3-e-link-lsa".into()
-            }
-            Some(LsaFunctionCode::ExtIntraAreaPrefix) => {
-                "ietf-ospfv3-extended-lsa:ospfv3-e-intra-area-prefix-lsa".into()
-            }
+            Some(LsaFunctionCode::ExtRouter) => "ietf-ospfv3-extended-lsa:ospfv3-e-router-lsa".into(),
+            Some(LsaFunctionCode::ExtNetwork) => "ietf-ospfv3-extended-lsa:ospfv3-e-network-lsa".into(),
+            Some(LsaFunctionCode::ExtInterAreaPrefix) => "ietf-ospfv3-extended-lsa:ospfv3-e-inter-area-prefix-lsa".into(),
+            Some(LsaFunctionCode::ExtInterAreaRouter) => "ietf-ospfv3-extended-lsa:ospfv3-e-inter-area-router-lsa".into(),
+            Some(LsaFunctionCode::ExtAsExternal) => "ietf-ospfv3-extended-lsa:ospfv3-e-external-lsa-type".into(),
+            Some(LsaFunctionCode::ExtLink) => "ietf-ospfv3-extended-lsa:ospfv3-e-link-lsa".into(),
+            Some(LsaFunctionCode::ExtIntraAreaPrefix) => "ietf-ospfv3-extended-lsa:ospfv3-e-intra-area-prefix-lsa".into(),
             None => "ospfv3-unknown-lsa-type".into(),
         }
     }
@@ -581,9 +531,7 @@ impl TryFromYang for InterfaceTraceOption {
             "packets-all" => Some(InterfaceTraceOption::PacketsAll),
             "packets-hello" => Some(InterfaceTraceOption::PacketsHello),
             "packets-dbdescr" => Some(InterfaceTraceOption::PacketsDbDesc),
-            "packets-ls-request" => {
-                Some(InterfaceTraceOption::PacketsLsRequest)
-            }
+            "packets-ls-request" => Some(InterfaceTraceOption::PacketsLsRequest),
             "packets-ls-update" => Some(InterfaceTraceOption::PacketsLsUpdate),
             "packets-ls-ack" => Some(InterfaceTraceOption::PacketsLsAck),
             _ => None,

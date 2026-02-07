@@ -46,9 +46,7 @@ impl ToYang for LabelDistMode {
 impl ToYang for LabelAdvMode {
     fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            LabelAdvMode::DownstreamUnsolicited => {
-                "downstream-unsolicited".into()
-            }
+            LabelAdvMode::DownstreamUnsolicited => "downstream-unsolicited".into(),
             LabelAdvMode::DownstreamOnDemand => "downstream-on-demand".into(),
         }
     }

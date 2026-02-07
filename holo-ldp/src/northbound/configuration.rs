@@ -9,10 +9,7 @@ use std::net::Ipv4Addr;
 use std::sync::LazyLock as Lazy;
 
 use enum_as_inner::EnumAsInner;
-use holo_northbound::configuration::{
-    Callbacks, CallbacksBuilder, Provider, ValidationCallbacks,
-    ValidationCallbacksBuilder,
-};
+use holo_northbound::configuration::{Callbacks, CallbacksBuilder, Provider, ValidationCallbacks, ValidationCallbacksBuilder};
 use holo_utils::ip::AddressFamily;
 use holo_utils::yang::DataNodeRefExt;
 
@@ -52,8 +49,7 @@ pub enum Event {
     CfgSeqNumberUpdate,
 }
 
-pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
-    Lazy::new(load_validation_callbacks);
+pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> = Lazy::new(load_validation_callbacks);
 pub static CALLBACKS: Lazy<Callbacks<Instance>> = Lazy::new(load_callbacks);
 
 // ===== configuration structs =====
@@ -150,8 +146,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::discovery::interfaces::hello_holdtime::PATH)
         .modify_apply(|instance, args| {
             let hello_holdtime = args.dnode.get_u16();
-            instance.config.interface_hello_holdtime =
-                hello_holdtime;
+            instance.config.interface_hello_holdtime = hello_holdtime;
             for iface in instance.interfaces.iter_mut() {
                 iface.config.hello_holdtime = hello_holdtime;
             }
@@ -162,8 +157,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::discovery::interfaces::hello_interval::PATH)
         .modify_apply(|instance, args| {
             let hello_interval = args.dnode.get_u16();
-            instance.config.interface_hello_interval =
-                hello_interval;
+            instance.config.interface_hello_interval = hello_interval;
             for iface in instance.interfaces.iter_mut() {
                 iface.config.hello_interval = hello_interval;
             }
@@ -190,11 +184,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .lookup(|instance, _list_entry, dnode| {
             let ifname = dnode.get_string_relative("./name").unwrap();
-            instance
-                .interfaces
-                .get_mut_by_name(&ifname)
-                .map(|(iface_idx, _)| ListEntry::Interface(iface_idx))
-                .expect("could not find LDP interface")
+            instance.interfaces.get_mut_by_name(&ifname).map(|(iface_idx, _)| ListEntry::Interface(iface_idx)).expect("could not find LDP interface")
         })
         .path(mpls_ldp::discovery::interfaces::interface::address_families::ipv4::PATH)
         .create_apply(|instance, args| {
@@ -280,8 +270,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(mpls_ldp::discovery::targeted::address_families::ipv4::target::PATH)
         .create_apply(|instance, args| {
             let addr = args.dnode.get_ip_relative("adjacent-address").unwrap();
-            let (tnbr_index, tnbr) =
-                instance.tneighbors.insert(addr);
+            let (tnbr_index, tnbr) = instance.tneighbors.insert(addr);
             tnbr.configured = true;
 
             let event_queue = args.event_queue;
@@ -300,11 +289,7 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .lookup(|instance, _list_entry, dnode| {
             let addr = dnode.get_ip_relative("./adjacent-address").unwrap();
-            instance
-                .tneighbors
-                .get_mut_by_addr(&addr)
-                .map(|(tnbr_idx, _)| ListEntry::TargetedNbr(tnbr_idx))
-                .expect("could not find LDP targeted neighbor")
+            instance.tneighbors.get_mut_by_addr(&addr).map(|(tnbr_idx, _)| ListEntry::TargetedNbr(tnbr_idx)).expect("could not find LDP targeted neighbor")
         })
         .path(mpls_ldp::discovery::targeted::address_families::ipv4::target::enabled::PATH)
         .modify_apply(|instance, args| {
@@ -327,7 +312,6 @@ fn load_callbacks() -> Callbacks<Instance> {
             event_queue.insert(Event::ResetNeighbors);
             event_queue.insert(Event::UpdateNeighborsAuth);
             event_queue.insert(Event::CfgSeqNumberUpdate);
-
         })
         .delete_apply(|instance, args| {
             instance.config.password = None;
@@ -468,10 +452,7 @@ impl Provider for Instance {
             }
             Event::InterfaceIbusSub(ifname) => {
                 if let Some((instance, _, _)) = self.as_up() {
-                    instance
-                        .tx
-                        .ibus
-                        .interface_sub(Some(ifname), Some(AddressFamily::Ipv4));
+                    instance.tx.ibus.interface_sub(Some(ifname), Some(AddressFamily::Ipv4));
                 }
             }
             Event::TargetedNbrUpdate(tnbr_idx) => {
@@ -500,11 +481,7 @@ impl Provider for Instance {
                     for tnbr_idx in tneighbors.indexes().collect::<Vec<_>>() {
                         let tnbr = &mut tneighbors[tnbr_idx];
                         tnbr.dynamic = false;
-                        TargetedNbr::update(
-                            &mut instance,
-                            tneighbors,
-                            tnbr_idx,
-                        );
+                        TargetedNbr::update(&mut instance, tneighbors, tnbr_idx);
                     }
                 }
             }
@@ -530,8 +507,7 @@ impl Provider for Instance {
             }
             Event::ResetNeighbor(lsr_id) => {
                 if let Some((instance, _, _)) = self.as_up()
-                    && let Some((_, nbr)) =
-                        instance.state.neighbors.get_mut_by_lsr_id(&lsr_id)
+                    && let Some((_, nbr)) = instance.state.neighbors.get_mut_by_lsr_id(&lsr_id)
                 {
                     // Send Shutdown notification.
                     if nbr.state != neighbor::fsm::State::NonExistent {
@@ -545,28 +521,17 @@ impl Provider for Instance {
             Event::UpdateNeighborsAuth => {
                 if let Some((instance, _, _)) = self.as_up() {
                     for nbr in instance.state.neighbors.iter_mut() {
-                        let password =
-                            instance.config.get_neighbor_password(nbr.lsr_id);
-                        network::tcp::listen_socket_md5sig_update(
-                            &instance.state.ipv4.session_socket,
-                            &nbr.trans_addr,
-                            password,
-                        );
+                        let password = instance.config.get_neighbor_password(nbr.lsr_id);
+                        network::tcp::listen_socket_md5sig_update(&instance.state.ipv4.session_socket, &nbr.trans_addr, password);
                     }
                 }
             }
             Event::UpdateNeighborAuth(lsr_id) => {
                 if let Some((instance, _, _)) = self.as_up()
-                    && let Some((_, nbr)) =
-                        instance.state.neighbors.get_by_lsr_id(&lsr_id)
+                    && let Some((_, nbr)) = instance.state.neighbors.get_by_lsr_id(&lsr_id)
                 {
-                    let password =
-                        instance.config.get_neighbor_password(nbr.lsr_id);
-                    network::tcp::listen_socket_md5sig_update(
-                        &instance.state.ipv4.session_socket,
-                        &nbr.trans_addr,
-                        password,
-                    );
+                    let password = instance.config.get_neighbor_password(nbr.lsr_id);
+                    network::tcp::listen_socket_md5sig_update(&instance.state.ipv4.session_socket, &nbr.trans_addr, password);
                 }
             }
             Event::CfgSeqNumberUpdate => {
@@ -574,16 +539,12 @@ impl Provider for Instance {
                     instance.state.cfg_seqno += 1;
 
                     // Synchronize interfaces.
-                    for iface in
-                        interfaces.iter_mut().filter(|iface| iface.is_active())
-                    {
+                    for iface in interfaces.iter_mut().filter(|iface| iface.is_active()) {
                         iface.sync_hello_tx(instance.state);
                     }
 
                     // Synchronize targeted neighbors.
-                    for tnbr in
-                        tneighbors.iter_mut().filter(|tnbr| tnbr.is_active())
-                    {
+                    for tnbr in tneighbors.iter_mut().filter(|tnbr| tnbr.is_active()) {
                         tnbr.sync_hello_tx(instance.state);
                     }
                 }
@@ -596,8 +557,7 @@ impl Provider for Instance {
 
 fn validate_crypto_algo(algo: &str) -> Result<(), String> {
     if algo != "ietf-key-chain:md5" {
-        return Err("unsupported cryptographic algorithm (valid options: \"ietf-key-chain:md5\")"
-            .to_string());
+        return Err("unsupported cryptographic algorithm (valid options: \"ietf-key-chain:md5\")".to_string());
     }
 
     Ok(())
@@ -609,16 +569,11 @@ impl Default for InstanceCfg {
     fn default() -> InstanceCfg {
         let session_ka_holdtime = mpls_ldp::peers::session_ka_holdtime::DFLT;
         let session_ka_interval = mpls_ldp::peers::session_ka_interval::DFLT;
-        let interface_hello_holdtime =
-            mpls_ldp::discovery::interfaces::hello_holdtime::DFLT;
-        let interface_hello_interval =
-            mpls_ldp::discovery::interfaces::hello_interval::DFLT;
-        let targeted_hello_holdtime =
-            mpls_ldp::discovery::targeted::hello_holdtime::DFLT;
-        let targeted_hello_interval =
-            mpls_ldp::discovery::targeted::hello_interval::DFLT;
-        let targeted_hello_accept =
-            mpls_ldp::discovery::targeted::hello_accept::enabled::DFLT;
+        let interface_hello_holdtime = mpls_ldp::discovery::interfaces::hello_holdtime::DFLT;
+        let interface_hello_interval = mpls_ldp::discovery::interfaces::hello_interval::DFLT;
+        let targeted_hello_holdtime = mpls_ldp::discovery::targeted::hello_holdtime::DFLT;
+        let targeted_hello_interval = mpls_ldp::discovery::targeted::hello_interval::DFLT;
+        let targeted_hello_accept = mpls_ldp::discovery::targeted::hello_accept::enabled::DFLT;
 
         InstanceCfg {
             router_id: None,
@@ -638,19 +593,18 @@ impl Default for InstanceCfg {
 
 impl Default for InstanceIpv4Cfg {
     fn default() -> InstanceIpv4Cfg {
-        let enabled =
-            mpls_ldp::discovery::targeted::address_families::ipv4::target::enabled::DFLT;
+        let enabled = mpls_ldp::discovery::targeted::address_families::ipv4::target::enabled::DFLT;
 
-        InstanceIpv4Cfg { enabled }
+        InstanceIpv4Cfg {
+            enabled,
+        }
     }
 }
 
 impl Default for InterfaceCfg {
     fn default() -> InterfaceCfg {
-        let hello_holdtime =
-            mpls_ldp::discovery::interfaces::hello_holdtime::DFLT;
-        let hello_interval =
-            mpls_ldp::discovery::interfaces::hello_interval::DFLT;
+        let hello_holdtime = mpls_ldp::discovery::interfaces::hello_holdtime::DFLT;
+        let hello_interval = mpls_ldp::discovery::interfaces::hello_interval::DFLT;
 
         InterfaceCfg {
             hello_holdtime,
@@ -662,21 +616,19 @@ impl Default for InterfaceCfg {
 
 impl Default for InterfaceIpv4Cfg {
     fn default() -> InterfaceIpv4Cfg {
-        let enabled =
-            mpls_ldp::discovery::interfaces::interface::address_families::ipv4::enabled::DFLT;
+        let enabled = mpls_ldp::discovery::interfaces::interface::address_families::ipv4::enabled::DFLT;
 
-        InterfaceIpv4Cfg { enabled }
+        InterfaceIpv4Cfg {
+            enabled,
+        }
     }
 }
 
 impl Default for TargetedNbrCfg {
     fn default() -> TargetedNbrCfg {
-        let enabled =
-            mpls_ldp::discovery::targeted::address_families::ipv4::target::enabled::DFLT;
-        let hello_holdtime =
-            mpls_ldp::discovery::targeted::hello_holdtime::DFLT;
-        let hello_interval =
-            mpls_ldp::discovery::targeted::hello_interval::DFLT;
+        let enabled = mpls_ldp::discovery::targeted::address_families::ipv4::target::enabled::DFLT;
+        let hello_holdtime = mpls_ldp::discovery::targeted::hello_holdtime::DFLT;
+        let hello_interval = mpls_ldp::discovery::targeted::hello_interval::DFLT;
 
         TargetedNbrCfg {
             enabled,

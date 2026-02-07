@@ -10,9 +10,7 @@ use std::net::IpAddr;
 use std::sync::{Arc, LazyLock as Lazy, atomic};
 
 use enum_as_inner::EnumAsInner;
-use holo_northbound::state::{
-    Callbacks, CallbacksBuilder, ListEntryKind, Provider,
-};
+use holo_northbound::state::{Callbacks, CallbacksBuilder, ListEntryKind, Provider};
 use holo_utils::bgp::AfiSafi;
 use holo_utils::option::OptionExt;
 use holo_yang::ToYang;
@@ -21,17 +19,13 @@ use ipnetwork::{Ipv4Network, Ipv6Network};
 use crate::instance::Instance;
 use crate::neighbor::{Neighbor, fsm};
 use crate::northbound::yang_gen::bgp;
-use crate::packet::attribute::{
-    AsPathSegment, BaseAttrs, Comms, ExtComms, Extv6Comms, LargeComms,
-    UnknownAttr,
-};
+use crate::packet::attribute::{AsPathSegment, BaseAttrs, Comms, ExtComms, Extv6Comms, LargeComms, UnknownAttr};
 use crate::packet::consts::{Afi, AttrFlags, Safi};
 use crate::packet::message::{AddPathTuple, Capability, NegotiatedCapability};
 use crate::rib::{AttrSet, Destination, LocalRoute, Route};
 
 pub static CALLBACKS: Lazy<Callbacks<Instance>> = Lazy::new(load_callbacks);
-pub static AFI_SAFIS: [AfiSafi; 2] =
-    [AfiSafi::Ipv4Unicast, AfiSafi::Ipv6Unicast];
+pub static AFI_SAFIS: [AfiSafi; 2] = [AfiSafi::Ipv4Unicast, AfiSafi::Ipv6Unicast];
 
 #[derive(Debug, Default, EnumAsInner)]
 pub enum ListEntry<'a> {

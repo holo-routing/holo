@@ -8,9 +8,7 @@ use std::borrow::Cow;
 use std::sync::LazyLock as Lazy;
 
 use enum_as_inner::EnumAsInner;
-use holo_northbound::state::{
-    Callbacks, CallbacksBuilder, ListEntryKind, Provider,
-};
+use holo_northbound::state::{Callbacks, CallbacksBuilder, ListEntryKind, Provider};
 use holo_utils::option::OptionExt;
 
 //use holo_yang::ToYang;
@@ -45,8 +43,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             use igmp::global::statistics::Statistics;
             let mut discontinuity_time = None;
             if let Some(state) = &instance.state {
-                discontinuity_time =
-                    Some(Cow::Borrowed(&state.statistics.discontinuity_time));
+                discontinuity_time = Some(Cow::Borrowed(&state.statistics.discontinuity_time));
             }
 
             Box::new(Statistics {

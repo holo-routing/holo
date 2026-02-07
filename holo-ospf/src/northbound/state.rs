@@ -11,9 +11,7 @@ use std::sync::LazyLock as Lazy;
 use std::time::Instant;
 
 use enum_as_inner::EnumAsInner;
-use holo_northbound::state::{
-    Callbacks, CallbacksBuilder, ListEntryKind, Provider,
-};
+use holo_northbound::state::{Callbacks, CallbacksBuilder, ListEntryKind, Provider};
 use holo_utils::ip::IpAddrKind;
 use holo_utils::num::SaturatingInto;
 use holo_utils::option::OptionExt;
@@ -30,19 +28,14 @@ use crate::lsdb::{LsaEntry, LsaLogEntry, LsaLogId};
 use crate::neighbor::Neighbor;
 use crate::northbound::yang_gen::ospf;
 use crate::packet::lsa::{LsaBodyVersion, LsaHdrVersion};
-use crate::packet::tlv::{
-    BierEncapSubStlv, BierStlv, GrReason, NodeAdminTagTlv, SidLabelRangeTlv,
-    SrLocalBlockTlv, UnknownTlv,
-};
+use crate::packet::tlv::{BierEncapSubStlv, BierStlv, GrReason, NodeAdminTagTlv, SidLabelRangeTlv, SrLocalBlockTlv, UnknownTlv};
 use crate::route::{Nexthop, RouteNet};
 use crate::spf::SpfLogEntry;
 use crate::version::{Ospfv2, Ospfv3, Version};
 use crate::{ospfv2, ospfv3};
 
-pub static CALLBACKS_OSPFV2: Lazy<Callbacks<Instance<Ospfv2>>> =
-    Lazy::new(load_callbacks_ospfv2);
-pub static CALLBACKS_OSPFV3: Lazy<Callbacks<Instance<Ospfv3>>> =
-    Lazy::new(load_callbacks_ospfv3);
+pub static CALLBACKS_OSPFV2: Lazy<Callbacks<Instance<Ospfv2>>> = Lazy::new(load_callbacks_ospfv2);
+pub static CALLBACKS_OSPFV3: Lazy<Callbacks<Instance<Ospfv3>>> = Lazy::new(load_callbacks_ospfv3);
 
 #[derive(Debug, EnumAsInner)]
 pub enum ListEntry<'a, V: Version> {
@@ -3562,9 +3555,7 @@ where
 
 // ===== helper functions =====
 
-fn lsa_hdr_opaque_data(
-    lsa_hdr: &ospfv2::packet::lsa::LsaHdr,
-) -> (Option<u8>, Option<u32>) {
+fn lsa_hdr_opaque_data(lsa_hdr: &ospfv2::packet::lsa::LsaHdr) -> (Option<u8>, Option<u32>) {
     let mut opaque_type = None;
     let mut opaque_id = None;
     if lsa_hdr.lsa_type.is_opaque() {

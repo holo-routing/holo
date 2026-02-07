@@ -33,11 +33,5 @@ impl ProviderBase for Master {
 // ===== regular expressions =====
 
 // Matches on the protocol type and instance name of a YANG path.
-static REGEX_VRRP_STR: Lazy<String> = Lazy::new(|| {
-    format!(
-        r"{}\[name='(.+?)'\](?:/ietf-ip:(?:ipv4|ipv6))?/(?:ietf-vrrp|holo-vrrp):vrrp/*",
-        interfaces::interface::PATH
-    )
-});
-pub static REGEX_VRRP: Lazy<Regex> =
-    Lazy::new(|| Regex::new(&REGEX_VRRP_STR).unwrap());
+static REGEX_VRRP_STR: Lazy<String> = Lazy::new(|| format!(r"{}\[name='(.+?)'\](?:/ietf-ip:(?:ipv4|ipv6))?/(?:ietf-vrrp|holo-vrrp):vrrp/*", interfaces::interface::PATH));
+pub static REGEX_VRRP: Lazy<Regex> = Lazy::new(|| Regex::new(&REGEX_VRRP_STR).unwrap());

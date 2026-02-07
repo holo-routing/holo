@@ -28,10 +28,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             let rpc = args.data.find_path(args.rpc_path).unwrap();
 
             // Parse input parameters.
-            let (lsr_id, lspace_id) = (
-                rpc.get_ipv4_relative("./lsr-id"),
-                rpc.get_u16_relative("./label-space-id"),
-            );
+            let (lsr_id, lspace_id) = (rpc.get_ipv4_relative("./lsr-id"), rpc.get_u16_relative("./label-space-id"));
 
             // Clear peers.
             if let Some((mut instance, _, _)) = instance.as_up() {
@@ -46,23 +43,14 @@ fn load_callbacks() -> Callbacks<Instance> {
 
             // Parse input parameters.
             let (nexthop_ifname, nexthop_addr, tnbr_addr) = (
-                rpc.get_string_relative(
-                    "./hello-adjacency/link/next-hop-interface",
-                ),
+                rpc.get_string_relative("./hello-adjacency/link/next-hop-interface"),
                 rpc.get_ip_relative("./hello-adjacency/link/next-hop-address"),
-                rpc.get_ip_relative(
-                    "./hello-adjacency/targeted/target-address",
-                ),
+                rpc.get_ip_relative("./hello-adjacency/targeted/target-address"),
             );
 
             // Clear adjacencies.
             if let Some((mut instance, _, _)) = instance.as_up() {
-                clear_adjacencies(
-                    &mut instance,
-                    nexthop_ifname,
-                    nexthop_addr,
-                    tnbr_addr,
-                );
+                clear_adjacencies(&mut instance, nexthop_ifname, nexthop_addr, tnbr_addr);
             }
 
             Ok(())
@@ -72,10 +60,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             let rpc = args.data.find_path(args.rpc_path).unwrap();
 
             // Parse input parameters.
-            let (lsr_id, lspace_id) = (
-                rpc.get_ipv4_relative("./lsr-id"),
-                rpc.get_u16_relative("./label-space-id"),
-            );
+            let (lsr_id, lspace_id) = (rpc.get_ipv4_relative("./lsr-id"), rpc.get_u16_relative("./label-space-id"));
 
             // Clear peers.
             if let Some((mut instance, _, _)) = instance.as_up() {
@@ -97,11 +82,7 @@ impl Provider for Instance {
 
 // ===== helper functions =====
 
-fn clear_peers(
-    instance: &mut InstanceUpView<'_>,
-    lsr_id: Option<Ipv4Addr>,
-    lspace_id: Option<u16>,
-) {
+fn clear_peers(instance: &mut InstanceUpView<'_>, lsr_id: Option<Ipv4Addr>, lspace_id: Option<u16>) {
     for nbr_idx in instance.state.neighbors.indexes().collect::<Vec<_>>() {
         let nbr = &mut instance.state.neighbors[nbr_idx];
 
@@ -128,19 +109,8 @@ fn clear_peers(
     }
 }
 
-fn clear_adjacencies(
-    instance: &mut InstanceUpView<'_>,
-    nexthop_ifname: Option<String>,
-    nexthop_addr: Option<IpAddr>,
-    tnbr_addr: Option<IpAddr>,
-) {
-    for adj_idx in instance
-        .state
-        .ipv4
-        .adjacencies
-        .indexes()
-        .collect::<Vec<_>>()
-    {
+fn clear_adjacencies(instance: &mut InstanceUpView<'_>, nexthop_ifname: Option<String>, nexthop_addr: Option<IpAddr>, tnbr_addr: Option<IpAddr>) {
+    for adj_idx in instance.state.ipv4.adjacencies.indexes().collect::<Vec<_>>() {
         let adjacencies = &mut instance.state.ipv4.adjacencies;
         let adj = &adjacencies[adj_idx];
 
@@ -167,11 +137,7 @@ fn clear_adjacencies(
     }
 }
 
-fn clear_statistics(
-    instance: &mut InstanceUpView<'_>,
-    lsr_id: Option<Ipv4Addr>,
-    lspace_id: Option<u16>,
-) {
+fn clear_statistics(instance: &mut InstanceUpView<'_>, lsr_id: Option<Ipv4Addr>, lspace_id: Option<u16>) {
     for nbr in instance.state.neighbors.iter_mut() {
         // Filter by LSR-ID.
         if let Some(lsr_id) = lsr_id

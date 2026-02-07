@@ -10,10 +10,7 @@ use std::sync::{Arc, LazyLock as Lazy};
 
 use arc_swap::ArcSwap;
 use enum_as_inner::EnumAsInner;
-use holo_northbound::configuration::{
-    Callbacks, CallbacksBuilder, InheritableConfig, Provider,
-    ValidationCallbacks, ValidationCallbacksBuilder,
-};
+use holo_northbound::configuration::{Callbacks, CallbacksBuilder, InheritableConfig, Provider, ValidationCallbacks, ValidationCallbacksBuilder};
 use holo_utils::bfd;
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
@@ -83,14 +80,10 @@ pub enum Event {
     UpdateTraceOptions,
 }
 
-pub static VALIDATION_CALLBACKS_OSPFV2: Lazy<ValidationCallbacks> =
-    Lazy::new(load_validation_callbacks_ospfv2);
-pub static VALIDATION_CALLBACKS_OSPFV3: Lazy<ValidationCallbacks> =
-    Lazy::new(load_validation_callbacks_ospfv3);
-pub static CALLBACKS_OSPFV2: Lazy<Callbacks<Instance<Ospfv2>>> =
-    Lazy::new(load_callbacks_ospfv2);
-pub static CALLBACKS_OSPFV3: Lazy<Callbacks<Instance<Ospfv3>>> =
-    Lazy::new(load_callbacks_ospfv3);
+pub static VALIDATION_CALLBACKS_OSPFV2: Lazy<ValidationCallbacks> = Lazy::new(load_validation_callbacks_ospfv2);
+pub static VALIDATION_CALLBACKS_OSPFV3: Lazy<ValidationCallbacks> = Lazy::new(load_validation_callbacks_ospfv3);
+pub static CALLBACKS_OSPFV2: Lazy<Callbacks<Instance<Ospfv2>>> = Lazy::new(load_callbacks_ospfv2);
+pub static CALLBACKS_OSPFV3: Lazy<Callbacks<Instance<Ospfv3>>> = Lazy::new(load_callbacks_ospfv3);
 
 // ===== configuration structs =====
 
@@ -448,7 +441,6 @@ where
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::NodeTagsChange);
-
         })
         .delete_apply(|instance, args| {
             let node_tag = args.list_entry.into_node_tag().unwrap();
@@ -456,7 +448,6 @@ where
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::NodeTagsChange);
-
         })
         .lookup(|_instance, _list_entry, dnode| {
             let node_tag = dnode.get_u32_relative("tag").unwrap();
@@ -498,12 +489,7 @@ where
         })
         .lookup(|instance, _list_entry, dnode| {
             let area_id = dnode.get_ipv4_relative("./area-id").unwrap();
-            instance
-                .arenas
-                .areas
-                .get_mut_by_area_id(area_id)
-                .map(|(area_idx, _)| ListEntry::Area(area_idx))
-                .expect("could not find OSPF area")
+            instance.arenas.areas.get_mut_by_area_id(area_id).map(|(area_idx, _)| ListEntry::Area(area_idx)).expect("could not find OSPF area")
         })
         .path(ospf::areas::area::area_type::PATH)
         .modify_apply(|instance, args| {
@@ -618,10 +604,11 @@ where
             let transit_area_id = args.dnode.get_ipv4_relative("transit-area-id").unwrap();
             let router_id = args.dnode.get_ipv4_relative("router-id").unwrap();
             let ifname = format!("vlink-{transit_area_id}-{router_id}");
-            let vlink_key = VirtualLinkKey { transit_area_id, router_id };
-            let (iface_idx, iface) = area
-                .interfaces
-                .insert(&mut instance.arenas.interfaces, ifname, Some(vlink_key));
+            let vlink_key = VirtualLinkKey {
+                transit_area_id,
+                router_id,
+            };
+            let (iface_idx, iface) = area.interfaces.insert(&mut instance.arenas.interfaces, ifname, Some(vlink_key));
             iface.config.if_type = InterfaceType::VirtualLink;
 
             let event_queue = args.event_queue;
@@ -629,8 +616,7 @@ where
             event_queue.insert(Event::InterfaceUpdateTraceOptions(iface_idx));
         })
         .delete_apply(|_instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InterfaceDelete(area_idx, iface_idx));
@@ -649,34 +635,27 @@ where
         })
         .path(ospf::areas::area::virtual_links::virtual_link::hello_interval::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let hello_interval = args.dnode.get_u16();
             iface.config.hello_interval = hello_interval;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceResetHelloInterval(
-                area_idx, iface_idx,
-            ));
-            event_queue
-                .insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
+            event_queue.insert(Event::InterfaceResetHelloInterval(area_idx, iface_idx));
+            event_queue.insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
         })
         .path(ospf::areas::area::virtual_links::virtual_link::dead_interval::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let dead_interval = args.dnode.get_u16();
             iface.config.dead_interval = dead_interval;
 
             let event_queue = args.event_queue;
-            event_queue
-                .insert(Event::InterfaceResetDeadInterval(area_idx, iface_idx));
-            event_queue
-                .insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
+            event_queue.insert(Event::InterfaceResetDeadInterval(area_idx, iface_idx));
+            event_queue.insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
         })
         .path(ospf::areas::area::virtual_links::virtual_link::retransmit_interval::PATH)
         .modify_apply(|instance, args| {
@@ -704,8 +683,7 @@ where
         })
         .path(ospf::areas::area::virtual_links::virtual_link::enabled::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let enabled = args.dnode.get_bool();
@@ -720,9 +698,7 @@ where
             let area = &mut instance.arenas.areas[area_idx];
 
             let ifname = args.dnode.get_string_relative("name").unwrap();
-            let (iface_idx, _) = area
-                .interfaces
-                .insert(&mut instance.arenas.interfaces, ifname.clone(), None);
+            let (iface_idx, _) = area.interfaces.insert(&mut instance.arenas.interfaces, ifname.clone(), None);
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InstanceUpdate);
@@ -731,8 +707,7 @@ where
             event_queue.insert(Event::InterfaceIbusSub(ifname));
         })
         .delete_apply(|_instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::InstanceUpdate);
@@ -750,8 +725,7 @@ where
         })
         .path(ospf::areas::area::interfaces::interface::interface_type::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let if_type = args.dnode.get_string();
@@ -763,8 +737,7 @@ where
         })
         .path(ospf::areas::area::interfaces::interface::passive::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let passive = args.dnode.get_bool();
@@ -775,18 +748,15 @@ where
         })
         .path(ospf::areas::area::interfaces::interface::priority::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let priority = args.dnode.get_u8();
             iface.config.priority = priority;
 
             let event_queue = args.event_queue;
-            event_queue
-                .insert(Event::InterfacePriorityChange(area_idx, iface_idx));
-            event_queue
-                .insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
+            event_queue.insert(Event::InterfacePriorityChange(area_idx, iface_idx));
+            event_queue.insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
         })
         .path(ospf::areas::area::interfaces::interface::static_neighbors::neighbor::PATH)
         .create_apply(|instance, args| {
@@ -795,10 +765,7 @@ where
 
             let identifier = args.dnode.get_ip_relative("identifier").unwrap();
             let identifier = V::NetIpAddr::get(identifier).unwrap();
-            iface
-                .config
-                .static_nbrs
-                .insert(identifier, Default::default());
+            iface.config.static_nbrs.insert(identifier, Default::default());
         })
         .delete_apply(|instance, args| {
             let (iface_idx, addr) = args.list_entry.into_static_nbr().unwrap();
@@ -914,38 +881,29 @@ where
         })
         .path(ospf::areas::area::interfaces::interface::hello_interval::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let hello_interval = args.dnode.get_u16();
             iface.config.hello_interval = hello_interval;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceResetHelloInterval(
-                area_idx, iface_idx,
-            ));
-            event_queue
-                .insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
+            event_queue.insert(Event::InterfaceResetHelloInterval(area_idx, iface_idx));
+            event_queue.insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
         })
         .path(ospf::areas::area::interfaces::interface::dead_interval::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let dead_interval = args.dnode.get_u16();
             iface.config.dead_interval = dead_interval;
 
             let event_queue = args.event_queue;
-            event_queue
-                .insert(Event::InterfaceResetDeadInterval(area_idx, iface_idx));
-            event_queue
-                .insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
+            event_queue.insert(Event::InterfaceResetDeadInterval(area_idx, iface_idx));
+            event_queue.insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
         })
-        .path(
-            ospf::areas::area::interfaces::interface::retransmit_interval::PATH,
-        )
+        .path(ospf::areas::area::interfaces::interface::retransmit_interval::PATH)
         .modify_apply(|instance, args| {
             let (_, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
@@ -971,8 +929,7 @@ where
         })
         .path(ospf::areas::area::interfaces::interface::enabled::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let enabled = args.dnode.get_bool();
@@ -983,8 +940,7 @@ where
         })
         .path(ospf::areas::area::interfaces::interface::cost::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let cost = args.dnode.get_u16();
@@ -1232,7 +1188,6 @@ where
             let event_queue = args.event_queue;
             event_queue.insert(Event::UpdateTraceOptions);
         })
-
         .build()
 }
 
@@ -1241,8 +1196,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
     CallbacksBuilder::<Instance<Ospfv2>>::new(core_cbs)
         .path(ospf::areas::area::virtual_links::virtual_link::authentication::ospfv2_key_chain::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let auth_keychain = args.dnode.get_string();
@@ -1252,8 +1206,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .delete_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             iface.config.auth_keychain = None;
@@ -1263,8 +1216,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         })
         .path(ospf::areas::area::virtual_links::virtual_link::authentication::ospfv2_key_id::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let auth_keyid = args.dnode.get_u32();
@@ -1274,8 +1226,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .delete_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             iface.config.auth_keyid = None;
@@ -1285,8 +1236,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         })
         .path(ospf::areas::area::virtual_links::virtual_link::authentication::ospfv2_key::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let auth_key = args.dnode.get_string();
@@ -1296,8 +1246,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .delete_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             iface.config.auth_key = None;
@@ -1307,8 +1256,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         })
         .path(ospf::areas::area::virtual_links::virtual_link::authentication::ospfv2_crypto_algorithm::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let auth_algo = args.dnode.get_string();
@@ -1319,8 +1267,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .delete_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             iface.config.auth_algo = None;
@@ -1330,8 +1277,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         })
         .path(ospf::areas::area::interfaces::interface::authentication::ospfv2_key_chain::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let auth_keychain = args.dnode.get_string();
@@ -1341,8 +1287,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .delete_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             iface.config.auth_keychain = None;
@@ -1352,8 +1297,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         })
         .path(ospf::areas::area::interfaces::interface::authentication::ospfv2_key_id::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let auth_keyid = args.dnode.get_u32();
@@ -1363,8 +1307,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .delete_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             iface.config.auth_keyid = None;
@@ -1374,8 +1317,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         })
         .path(ospf::areas::area::interfaces::interface::authentication::ospfv2_key::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let auth_key = args.dnode.get_string();
@@ -1385,8 +1327,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .delete_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             iface.config.auth_key = None;
@@ -1396,8 +1337,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
         })
         .path(ospf::areas::area::interfaces::interface::authentication::ospfv2_crypto_algorithm::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let auth_algo = args.dnode.get_string();
@@ -1408,8 +1348,7 @@ fn load_callbacks_ospfv2() -> Callbacks<Instance<Ospfv2>> {
             event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .delete_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             iface.config.auth_algo = None;
@@ -1436,8 +1375,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         })
         .path(ospf::areas::area::virtual_links::virtual_link::authentication::ospfv3_key_chain::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let auth_keychain = args.dnode.get_string();
@@ -1447,8 +1385,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .delete_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             iface.config.auth_keychain = None;
@@ -1458,8 +1395,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         })
         .path(ospf::areas::area::virtual_links::virtual_link::authentication::ospfv3_sa_id::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let auth_keyid = args.dnode.get_u16();
@@ -1469,8 +1405,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .delete_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             iface.config.auth_keyid = None;
@@ -1480,8 +1415,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         })
         .path(ospf::areas::area::virtual_links::virtual_link::authentication::ospfv3_key::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let auth_key = args.dnode.get_string();
@@ -1491,8 +1425,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .delete_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             iface.config.auth_key = None;
@@ -1502,8 +1435,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         })
         .path(ospf::areas::area::virtual_links::virtual_link::authentication::ospfv3_crypto_algorithm::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let auth_algo = args.dnode.get_string();
@@ -1514,8 +1446,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .delete_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             iface.config.auth_algo = None;
@@ -1525,8 +1456,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         })
         .path(ospf::areas::area::interfaces::interface::instance_id::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let instance_id = args.dnode.get_u8();
@@ -1534,25 +1464,21 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             iface.config.instance_id.resolved = instance_id;
 
             let event_queue = args.event_queue;
-            event_queue
-                .insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
+            event_queue.insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
         })
         .delete_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             iface.config.instance_id.explicit = None;
             iface.config.instance_id.resolved = instance.config.instance_id;
 
             let event_queue = args.event_queue;
-            event_queue
-                .insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
+            event_queue.insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
         })
         .path(ospf::areas::area::interfaces::interface::authentication::ospfv3_key_chain::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let auth_keychain = args.dnode.get_string();
@@ -1562,8 +1488,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .delete_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             iface.config.auth_keychain = None;
@@ -1573,8 +1498,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         })
         .path(ospf::areas::area::interfaces::interface::authentication::ospfv3_sa_id::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let auth_keyid = args.dnode.get_u16();
@@ -1584,8 +1508,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .delete_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             iface.config.auth_keyid = None;
@@ -1595,8 +1518,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         })
         .path(ospf::areas::area::interfaces::interface::authentication::ospfv3_key::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let auth_key = args.dnode.get_string();
@@ -1606,8 +1528,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .delete_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             iface.config.auth_key = None;
@@ -1617,8 +1538,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
         })
         .path(ospf::areas::area::interfaces::interface::authentication::ospfv3_crypto_algorithm::PATH)
         .modify_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             let auth_algo = args.dnode.get_string();
@@ -1629,8 +1549,7 @@ fn load_callbacks_ospfv3() -> Callbacks<Instance<Ospfv3>> {
             event_queue.insert(Event::InterfaceUpdateAuth(area_idx, iface_idx));
         })
         .delete_apply(|instance, args| {
-            let (area_idx, iface_idx) =
-                args.list_entry.into_interface().unwrap();
+            let (area_idx, iface_idx) = args.list_entry.into_interface().unwrap();
             let iface = &mut instance.arenas.interfaces[iface_idx];
 
             iface.config.auth_algo = None;
@@ -1647,16 +1566,9 @@ fn load_validation_callbacks() -> ValidationCallbacks {
         .validate(|args| {
             // Ensure no interface is configured in more than one area.
             let mut ifnames = HashSet::new();
-            for dnode in args
-                .dnode
-                .find_xpath("./area/interfaces/interface/name")
-                .unwrap()
-            {
+            for dnode in args.dnode.find_xpath("./area/interfaces/interface/name").unwrap() {
                 if !ifnames.insert(dnode.get_string()) {
-                    return Err(format!(
-                        "interface '{}' configured in more than one area",
-                        dnode.get_string()
-                    ));
+                    return Err(format!("interface '{}' configured in more than one area", dnode.get_string()));
                 }
             }
 
@@ -1674,9 +1586,7 @@ fn load_validation_callbacks() -> ValidationCallbacks {
 
             let area_id = args.dnode.get_ipv4_relative("../area-id").unwrap();
             if area_type != AreaType::Normal && area_id == BACKBONE_AREA_ID {
-                return Err(
-                    "can't change type of the backbone area".to_string()
-                );
+                return Err("can't change type of the backbone area".to_string());
             }
 
             Ok(())
@@ -1699,10 +1609,7 @@ fn load_validation_callbacks_ospfv2() -> ValidationCallbacks {
 
             let algo = args.dnode.get_string();
             if !valid_options.iter().any(|option| *option == algo) {
-                return Err(format!(
-                    "unsupported cryptographic algorithm (valid options: \"{}\")",
-                    valid_options.join(", "),
-                ));
+                return Err(format!("unsupported cryptographic algorithm (valid options: \"{}\")", valid_options.join(", "),));
             }
 
             Ok(())
@@ -1716,10 +1623,7 @@ fn load_validation_callbacks_ospfv3() -> ValidationCallbacks {
         .path(ospf::instance_id::PATH)
         .validate(|args| {
             let instance_id = args.dnode.get_u8();
-            let af = args
-                .dnode
-                .get_af_relative("../address-family")
-                .unwrap_or(AddressFamily::Ipv6);
+            let af = args.dnode.get_af_relative("../address-family").unwrap_or(AddressFamily::Ipv6);
 
             // Validate interface Instance ID based on RFC5838's address-family
             // Instance ID ranges.
@@ -1728,9 +1632,7 @@ fn load_validation_callbacks_ospfv3() -> ValidationCallbacks {
                 AddressFamily::Ipv4 => 64..=95,
             };
             if !range.contains(&instance_id) {
-                return Err(format!(
-                    "Instance ID {instance_id} isn't valid for the {af} address family"
-                ));
+                return Err(format!("Instance ID {instance_id} isn't valid for the {af} address family"));
             }
 
             Ok(())
@@ -1738,10 +1640,7 @@ fn load_validation_callbacks_ospfv3() -> ValidationCallbacks {
         .path(ospf::areas::area::interfaces::interface::instance_id::PATH)
         .validate(|args| {
             let instance_id = args.dnode.get_u8();
-            let af = args
-                .dnode
-                .get_af_relative("../../../../../address-family")
-                .unwrap_or(AddressFamily::Ipv6);
+            let af = args.dnode.get_af_relative("../../../../../address-family").unwrap_or(AddressFamily::Ipv6);
 
             // Validate interface Instance ID based on RFC5838's
             // address-family Instance ID ranges.
@@ -1750,9 +1649,7 @@ fn load_validation_callbacks_ospfv3() -> ValidationCallbacks {
                 AddressFamily::Ipv4 => 64..=95,
             };
             if !range.contains(&instance_id) {
-                return Err(format!(
-                    "Instance ID {instance_id} isn't valid for the {af} address family"
-                ));
+                return Err(format!("Instance ID {instance_id} isn't valid for the {af} address family"));
             }
 
             Ok(())
@@ -1766,33 +1663,21 @@ fn load_validation_callbacks_ospfv3() -> ValidationCallbacks {
             }
 
             let sr_enabled = args.dnode.get_bool();
-            let extended_lsa = args
-                .dnode
-                .get_bool_relative("../../extended-lsa-support");
+            let extended_lsa = args.dnode.get_bool_relative("../../extended-lsa-support");
 
             if sr_enabled && extended_lsa != Some(true) {
-                return Err(
-                    "Segment Routing for OSPFv3 requires extended LSA support enabled".to_string()
-                );
+                return Err("Segment Routing for OSPFv3 requires extended LSA support enabled".to_string());
             }
 
             Ok(())
         })
         .path(ospf::areas::area::interfaces::interface::authentication::ospfv3_crypto_algorithm::PATH)
         .validate(|args| {
-            let valid_options = [
-                CryptoAlgo::HmacSha1.to_yang(),
-                CryptoAlgo::HmacSha256.to_yang(),
-                CryptoAlgo::HmacSha384.to_yang(),
-                CryptoAlgo::HmacSha512.to_yang(),
-            ];
+            let valid_options = [CryptoAlgo::HmacSha1.to_yang(), CryptoAlgo::HmacSha256.to_yang(), CryptoAlgo::HmacSha384.to_yang(), CryptoAlgo::HmacSha512.to_yang()];
 
             let algo = args.dnode.get_string();
             if !valid_options.iter().any(|option| *option == algo) {
-                return Err(format!(
-                    "unsupported cryptographic algorithm (valid options: \"{}\")",
-                    valid_options.join(", "),
-                ));
+                return Err(format!("unsupported cryptographic algorithm (valid options: \"{}\")", valid_options.join(", "),));
             }
 
             Ok(())
@@ -1819,18 +1704,11 @@ where
             Event::InstanceReset => self.reset(),
             Event::InstanceUpdate => self.update(),
             Event::InstanceIdUpdate => {
-                for area_idx in self.arenas.areas.indexes().collect::<Vec<_>>()
-                {
+                for area_idx in self.arenas.areas.indexes().collect::<Vec<_>>() {
                     let area = &mut self.arenas.areas[area_idx];
-                    for iface_idx in
-                        area.interfaces.indexes().collect::<Vec<_>>()
-                    {
+                    for iface_idx in area.interfaces.indexes().collect::<Vec<_>>() {
                         let iface = &mut self.arenas.interfaces[iface_idx];
-                        iface.config.instance_id.resolved = iface
-                            .config
-                            .instance_id
-                            .explicit
-                            .unwrap_or(self.config.instance_id);
+                        iface.config.instance_id.resolved = iface.config.instance_id.explicit.unwrap_or(self.config.instance_id);
                     }
 
                     self.process_event(Event::AreaSyncHelloTx(area_idx));
@@ -1840,18 +1718,16 @@ where
                 let area = &mut self.arenas.areas[area_idx];
 
                 // Originate Router Information LSA(s).
-                self.tx.protocol_input.lsa_orig_event(
-                    LsaOriginateEvent::AreaStart { area_id: area.id },
-                );
+                self.tx.protocol_input.lsa_orig_event(LsaOriginateEvent::AreaStart {
+                    area_id: area.id,
+                });
             }
             Event::AreaDelete(area_idx) => {
                 let area = &mut self.arenas.areas[area_idx];
 
                 // Delete area's interfaces.
                 for iface_idx in area.interfaces.indexes().collect::<Vec<_>>() {
-                    self.process_event(Event::InterfaceDelete(
-                        area_idx, iface_idx,
-                    ));
+                    self.process_event(Event::InterfaceDelete(area_idx, iface_idx));
                 }
 
                 // Delete area.
@@ -1865,23 +1741,14 @@ where
                     for iface_idx in area.interfaces.indexes() {
                         let iface = &mut arenas.interfaces[iface_idx];
 
-                        for nbr in iface.state.neighbors.iter(&arenas.neighbors)
-                        {
-                            instance.tx.protocol_input.nsm_event(
-                                area.id,
-                                iface.id,
-                                nbr.id,
-                                nsm::Event::Kill,
-                            );
+                        for nbr in iface.state.neighbors.iter(&arenas.neighbors) {
+                            instance.tx.protocol_input.nsm_event(area.id, iface.id, nbr.id, nsm::Event::Kill);
                         }
                     }
 
                     // Purge all AS-scoped LSAs in the absence of at least one
                     // active normal area.
-                    if !arenas.areas.iter().any(|area| {
-                        area.config.area_type == AreaType::Normal
-                            && area.is_active(&arenas.interfaces)
-                    }) {
+                    if !arenas.areas.iter().any(|area| area.config.area_type == AreaType::Normal && area.is_active(&arenas.interfaces)) {
                         instance.state.lsdb = Default::default();
                     }
                 }
@@ -1902,12 +1769,7 @@ where
                     let area = &arenas.areas[area_idx];
                     let iface = &mut arenas.interfaces[iface_idx];
 
-                    iface.update(
-                        area,
-                        &instance,
-                        &mut arenas.neighbors,
-                        &arenas.lsa_entries,
-                    );
+                    iface.update(area, &instance, &mut arenas.neighbors, &arenas.lsa_entries);
                 }
             }
             Event::InterfaceDelete(area_idx, iface_idx) => {
@@ -1917,34 +1779,22 @@ where
 
                     // Cancel ibus subscription.
                     if !iface.is_virtual_link() {
-                        instance
-                            .tx
-                            .ibus
-                            .interface_unsub(Some(iface.name.clone()));
+                        instance.tx.ibus.interface_unsub(Some(iface.name.clone()));
                     }
 
                     // Stop interface if it's active.
                     let reason = InterfaceInactiveReason::AdminDown;
-                    iface.fsm(
-                        area,
-                        &instance,
-                        &mut arenas.neighbors,
-                        &arenas.lsa_entries,
-                        ism::Event::InterfaceDown(reason),
-                    );
+                    iface.fsm(area, &instance, &mut arenas.neighbors, &arenas.lsa_entries, ism::Event::InterfaceDown(reason));
 
                     // Update the routing table to remove nexthops that are no
                     // longer reachable.
                     for route in instance.state.rib.values_mut() {
-                        route.nexthops.retain(|_, nexthop| {
-                            nexthop.iface_idx != iface_idx
-                        });
+                        route.nexthops.retain(|_, nexthop| nexthop.iface_idx != iface_idx);
                     }
                 }
 
                 let area = &mut self.arenas.areas[area_idx];
-                area.interfaces
-                    .delete(&mut self.arenas.interfaces, iface_idx);
+                area.interfaces.delete(&mut self.arenas.interfaces, iface_idx);
             }
             Event::InterfaceReset(area_idx, iface_idx) => {
                 if let Some((instance, arenas)) = self.as_up() {
@@ -1952,12 +1802,7 @@ where
                     let iface = &mut arenas.interfaces[iface_idx];
 
                     if !iface.is_down() {
-                        iface.reset(
-                            area,
-                            &instance,
-                            &mut arenas.neighbors,
-                            &arenas.lsa_entries,
-                        );
+                        iface.reset(area, &instance, &mut arenas.neighbors, &arenas.lsa_entries);
                     }
                 }
             }
@@ -1987,8 +1832,7 @@ where
 
                     // Also reset the interface wait timer if it exists
                     if iface.state.tasks.wait_timer.is_some() {
-                        let task =
-                            tasks::ism_wait_timer(iface, area, &instance);
+                        let task = tasks::ism_wait_timer(iface, area, &instance);
                         iface.state.tasks.wait_timer = Some(task);
                     }
                 }
@@ -2000,11 +1844,7 @@ where
 
                     // Rerun the DR election algorithm if necessary.
                     if !iface.is_down() && iface.is_broadcast_or_nbma() {
-                        instance.tx.protocol_input.ism_event(
-                            area.id,
-                            iface.id,
-                            ism::Event::NbrChange,
-                        );
+                        instance.tx.protocol_input.ism_event(area.id, iface.id, ism::Event::NbrChange);
                     }
                 }
             }
@@ -2012,11 +1852,9 @@ where
                 if let Some((instance, arenas)) = self.as_up() {
                     let area = &arenas.areas[area_idx];
 
-                    instance.tx.protocol_input.lsa_orig_event(
-                        LsaOriginateEvent::InterfaceCostChange {
-                            area_id: area.id,
-                        },
-                    );
+                    instance.tx.protocol_input.lsa_orig_event(LsaOriginateEvent::InterfaceCostChange {
+                        area_id: area.id,
+                    });
                 }
             }
             Event::InterfaceSyncHelloTx(area_idx, iface_idx) => {
@@ -2040,12 +1878,7 @@ where
                 if let Some((instance, arenas)) = self.as_up() {
                     let iface = &mut arenas.interfaces[iface_idx];
 
-                    for nbr in iface
-                        .state
-                        .neighbors
-                        .iter(&arenas.neighbors)
-                        .filter(|nbr| nbr.state >= nsm::State::TwoWay)
-                    {
+                    for nbr in iface.state.neighbors.iter(&arenas.neighbors).filter(|nbr| nbr.state >= nsm::State::TwoWay) {
                         if iface.config.bfd_enabled {
                             nbr.bfd_register(iface, &instance);
                         } else {
@@ -2075,37 +1908,24 @@ where
             Event::StubRouterChange => {
                 if let Some((instance, _)) = self.as_up() {
                     // (Re)originate Router-LSAs.
-                    instance
-                        .tx
-                        .protocol_input
-                        .lsa_orig_event(LsaOriginateEvent::StubRouterChange);
+                    instance.tx.protocol_input.lsa_orig_event(LsaOriginateEvent::StubRouterChange);
                 }
             }
             Event::GrHelperChange => {
                 if let Some((mut instance, arenas)) = self.as_up() {
                     // Exit from the helper mode for all neighbors.
                     if !instance.config.gr.helper_enabled {
-                        gr::helper_process_topology_change(
-                            None,
-                            &mut instance,
-                            arenas,
-                        );
+                        gr::helper_process_topology_change(None, &mut instance, arenas);
                     }
 
                     // (Re)originate Router Information LSAs.
-                    instance
-                        .tx
-                        .protocol_input
-                        .lsa_orig_event(LsaOriginateEvent::GrHelperChange);
+                    instance.tx.protocol_input.lsa_orig_event(LsaOriginateEvent::GrHelperChange);
                 }
             }
             Event::SrEnableChange(sr_enabled) => {
                 if let Some((instance, arenas)) = self.as_up() {
                     // (Re)originate LSAs that might have been affected.
-                    instance
-                        .tx
-                        .protocol_input
-                        .lsa_orig_event(LsaOriginateEvent::SrEnableChange);
+                    instance.tx.protocol_input.lsa_orig_event(LsaOriginateEvent::SrEnableChange);
 
                     // Iterate over all existing adjacencies.
                     for area in arenas.areas.iter_mut() {
@@ -2131,10 +1951,7 @@ where
             Event::BierEnableChange(bier_enabled) => {
                 if let Some((instance, _arenas)) = self.as_up() {
                     // (Re)originate LSAs that might have been affected.
-                    instance
-                        .tx
-                        .protocol_input
-                        .lsa_orig_event(LsaOriginateEvent::BierEnableChange);
+                    instance.tx.protocol_input.lsa_orig_event(LsaOriginateEvent::BierEnableChange);
 
                     // Purge BIRT if bier disabled or re-install routes if enabled
                     if bier_enabled {
@@ -2146,67 +1963,36 @@ where
             }
             Event::RerunSpf => {
                 if let Some((instance, _)) = self.as_up() {
-                    instance
-                        .tx
-                        .protocol_input
-                        .spf_delay_event(spf::fsm::Event::ConfigChange);
+                    instance.tx.protocol_input.spf_delay_event(spf::fsm::Event::ConfigChange);
                 }
             }
             Event::UpdateVirtualLinks => {
                 if let Some((instance, arenas)) = self.as_up() {
-                    area::update_virtual_links(
-                        &instance,
-                        &mut arenas.areas,
-                        &mut arenas.interfaces,
-                        &arenas.lsa_entries,
-                    );
+                    area::update_virtual_links(&instance, &mut arenas.areas, &mut arenas.interfaces, &arenas.lsa_entries);
                 }
             }
             Event::UpdateSummaries => {
                 if let Some((mut instance, arenas)) = self.as_up() {
-                    area::update_summary_lsas(
-                        &mut instance,
-                        &mut arenas.areas,
-                        &arenas.interfaces,
-                        &arenas.lsa_entries,
-                    );
+                    area::update_summary_lsas(&mut instance, &mut arenas.areas, &arenas.interfaces, &arenas.lsa_entries);
                 }
             }
             Event::ReinstallRoutes => {
                 if let Some((instance, arenas)) = self.as_up() {
-                    for (dest, route) in
-                        instance.state.rib.iter().filter(|(_, route)| {
-                            route.flags.contains(RouteNetFlags::INSTALLED)
-                        })
-                    {
+                    for (dest, route) in instance.state.rib.iter().filter(|(_, route)| route.flags.contains(RouteNetFlags::INSTALLED)) {
                         let distance = route.distance(instance.config);
-                        ibus::tx::route_install(
-                            &instance.tx.ibus,
-                            dest,
-                            route,
-                            None,
-                            distance,
-                            &arenas.interfaces,
-                        );
+                        ibus::tx::route_install(&instance.tx.ibus, dest, route, None, distance, &arenas.interfaces);
                     }
                 }
             }
             Event::NodeTagsChange => {
                 if let Some((instance, arenas)) = self.as_up() {
-                    let _ = V::lsa_orig_event(
-                        &instance,
-                        arenas,
-                        LsaOriginateEvent::NodeTagsChange,
-                    );
+                    let _ = V::lsa_orig_event(&instance, arenas, LsaOriginateEvent::NodeTagsChange);
                 }
             }
             Event::UpdateTraceOptions => {
-                for area_idx in self.arenas.areas.indexes().collect::<Vec<_>>()
-                {
+                for area_idx in self.arenas.areas.indexes().collect::<Vec<_>>() {
                     let area = &mut self.arenas.areas[area_idx];
-                    for iface_idx in
-                        area.interfaces.indexes().collect::<Vec<_>>()
-                    {
+                    for iface_idx in area.interfaces.indexes().collect::<Vec<_>>() {
                         let iface = &mut self.arenas.interfaces[iface_idx];
                         iface.config.update_trace_options(&self.config);
                     }
@@ -2233,36 +2019,11 @@ where
             tx: false,
             rx: false,
         };
-        let hello = iface_trace_opts
-            .hello
-            .or(iface_trace_opts.all)
-            .or(instance_trace_opts.hello)
-            .or(instance_trace_opts.all)
-            .unwrap_or(disabled);
-        let dbdesc = iface_trace_opts
-            .dbdesc
-            .or(iface_trace_opts.all)
-            .or(instance_trace_opts.dbdesc)
-            .or(instance_trace_opts.all)
-            .unwrap_or(disabled);
-        let lsreq = iface_trace_opts
-            .lsreq
-            .or(iface_trace_opts.all)
-            .or(instance_trace_opts.lsreq)
-            .or(instance_trace_opts.all)
-            .unwrap_or(disabled);
-        let lsupd = iface_trace_opts
-            .lsupd
-            .or(iface_trace_opts.all)
-            .or(instance_trace_opts.lsupd)
-            .or(instance_trace_opts.all)
-            .unwrap_or(disabled);
-        let lsack = iface_trace_opts
-            .lsack
-            .or(iface_trace_opts.all)
-            .or(instance_trace_opts.lsack)
-            .or(instance_trace_opts.all)
-            .unwrap_or(disabled);
+        let hello = iface_trace_opts.hello.or(iface_trace_opts.all).or(instance_trace_opts.hello).or(instance_trace_opts.all).unwrap_or(disabled);
+        let dbdesc = iface_trace_opts.dbdesc.or(iface_trace_opts.all).or(instance_trace_opts.dbdesc).or(instance_trace_opts.all).unwrap_or(disabled);
+        let lsreq = iface_trace_opts.lsreq.or(iface_trace_opts.all).or(instance_trace_opts.lsreq).or(instance_trace_opts.all).unwrap_or(disabled);
+        let lsupd = iface_trace_opts.lsupd.or(iface_trace_opts.all).or(instance_trace_opts.lsupd).or(instance_trace_opts.all).unwrap_or(disabled);
+        let lsack = iface_trace_opts.lsack.or(iface_trace_opts.all).or(instance_trace_opts.lsack).or(instance_trace_opts.all).unwrap_or(disabled);
 
         let resolved = Arc::new(TraceOptionPacketResolved {
             hello,
@@ -2315,15 +2076,11 @@ impl Default for InstanceCfg {
     fn default() -> InstanceCfg {
         let enabled = ospf::enabled::DFLT;
         let max_paths = ospf::spf_control::paths::DFLT;
-        let spf_initial_delay =
-            ospf::spf_control::ietf_spf_delay::initial_delay::DFLT;
-        let spf_short_delay =
-            ospf::spf_control::ietf_spf_delay::short_delay::DFLT;
-        let spf_long_delay =
-            ospf::spf_control::ietf_spf_delay::long_delay::DFLT;
+        let spf_initial_delay = ospf::spf_control::ietf_spf_delay::initial_delay::DFLT;
+        let spf_short_delay = ospf::spf_control::ietf_spf_delay::short_delay::DFLT;
+        let spf_long_delay = ospf::spf_control::ietf_spf_delay::long_delay::DFLT;
         let spf_hold_down = ospf::spf_control::ietf_spf_delay::hold_down::DFLT;
-        let spf_time_to_learn =
-            ospf::spf_control::ietf_spf_delay::time_to_learn::DFLT;
+        let spf_time_to_learn = ospf::spf_control::ietf_spf_delay::time_to_learn::DFLT;
         let extended_lsa = ospf::extended_lsa_support::DFLT;
         let sr_enabled = ospf::segment_routing::enabled::DFLT;
         let instance_id = ospf::instance_id::DFLT;
@@ -2382,8 +2139,7 @@ impl Default for Preference {
 impl Default for InstanceGrCfg {
     fn default() -> InstanceGrCfg {
         let helper_enabled = ospf::graceful_restart::helper_enabled::DFLT;
-        let helper_strict_lsa_checking =
-            ospf::graceful_restart::helper_strict_lsa_checking::DFLT;
+        let helper_strict_lsa_checking = ospf::graceful_restart::helper_strict_lsa_checking::DFLT;
 
         InstanceGrCfg {
             helper_enabled,
@@ -2424,25 +2180,18 @@ where
 {
     fn default() -> InterfaceCfg<V> {
         let instance_id = ospf::instance_id::DFLT;
-        let if_type =
-            ospf::areas::area::interfaces::interface::interface_type::DFLT;
+        let if_type = ospf::areas::area::interfaces::interface::interface_type::DFLT;
         let if_type = InterfaceType::try_from_yang(if_type).unwrap();
         let passive = ospf::areas::area::interfaces::interface::passive::DFLT;
         let priority = ospf::areas::area::interfaces::interface::priority::DFLT;
-        let hello_interval =
-            ospf::areas::area::interfaces::interface::hello_interval::DFLT;
-        let dead_interval =
-            ospf::areas::area::interfaces::interface::dead_interval::DFLT;
-        let retransmit_interval =
-            ospf::areas::area::interfaces::interface::retransmit_interval::DFLT;
-        let transmit_delay =
-            ospf::areas::area::interfaces::interface::transmit_delay::DFLT;
+        let hello_interval = ospf::areas::area::interfaces::interface::hello_interval::DFLT;
+        let dead_interval = ospf::areas::area::interfaces::interface::dead_interval::DFLT;
+        let retransmit_interval = ospf::areas::area::interfaces::interface::retransmit_interval::DFLT;
+        let transmit_delay = ospf::areas::area::interfaces::interface::transmit_delay::DFLT;
         let enabled = ospf::areas::area::interfaces::interface::enabled::DFLT;
         let cost = ospf::areas::area::interfaces::interface::cost::DFLT;
-        let mtu_ignore =
-            ospf::areas::area::interfaces::interface::mtu_ignore::DFLT;
-        let bfd_enabled =
-            ospf::areas::area::interfaces::interface::bfd::enabled::DFLT;
+        let mtu_ignore = ospf::areas::area::interfaces::interface::mtu_ignore::DFLT;
+        let bfd_enabled = ospf::areas::area::interfaces::interface::bfd::enabled::DFLT;
         let lls_enabled = ospf::areas::area::interfaces::interface::lls::DFLT;
 
         InterfaceCfg {
@@ -2472,10 +2221,8 @@ where
 
 impl Default for StaticNbr {
     fn default() -> StaticNbr {
-        let poll_interval =
-            ospf::areas::area::interfaces::interface::static_neighbors::neighbor::poll_interval::DFLT;
-        let priority =
-            ospf::areas::area::interfaces::interface::static_neighbors::neighbor::priority::DFLT;
+        let poll_interval = ospf::areas::area::interfaces::interface::static_neighbors::neighbor::poll_interval::DFLT;
+        let priority = ospf::areas::area::interfaces::interface::static_neighbors::neighbor::priority::DFLT;
 
         StaticNbr {
             cost: None,
@@ -2506,6 +2253,9 @@ impl Default for TraceOptionPacketType {
         let tx = ospf::trace_options::flag::send::DFLT;
         let rx = ospf::trace_options::flag::receive::DFLT;
 
-        TraceOptionPacketType { tx, rx }
+        TraceOptionPacketType {
+            tx,
+            rx,
+        }
     }
 }

@@ -27,38 +27,30 @@ pub(crate) fn established(instance: &InstanceUpView<'_>, nbr: &Neighbor) {
     notification::send(&instance.tx.nb, path, data);
 }
 
-pub(crate) fn backward_transition(
-    instance: &InstanceUpView<'_>,
-    nbr: &Neighbor,
-) {
+pub(crate) fn backward_transition(instance: &InstanceUpView<'_>, nbr: &Neighbor) {
     use bgp::neighbors::backward_transition::notification_received::NotificationReceived;
     use bgp::neighbors::backward_transition::notification_sent::NotificationSent;
     use bgp::neighbors::backward_transition::{self, BackwardTransition};
 
-    let path =
-        notification_path(instance.name, backward_transition::RELATIVE_PATH);
+    let path = notification_path(instance.name, backward_transition::RELATIVE_PATH);
     let data = BackwardTransition {
         remote_addr: Some(Cow::Borrowed(&nbr.remote_addr)),
-        notification_received: nbr.notification_rcvd.as_ref().map(
-            |(time, notif)| {
-                Box::new(NotificationReceived {
-                    last_notification: Some(Cow::Borrowed(time)),
-                    last_error: Some(notif.to_yang()),
-                    last_error_code: Some(notif.error_code),
-                    last_error_subcode: Some(notif.error_subcode),
-                })
-            },
-        ),
-        notification_sent: nbr.notification_sent.as_ref().map(
-            |(time, notif)| {
-                Box::new(NotificationSent {
-                    last_notification: Some(Cow::Borrowed(time)),
-                    last_error: Some(notif.to_yang()),
-                    last_error_code: Some(notif.error_code),
-                    last_error_subcode: Some(notif.error_subcode),
-                })
-            },
-        ),
+        notification_received: nbr.notification_rcvd.as_ref().map(|(time, notif)| {
+            Box::new(NotificationReceived {
+                last_notification: Some(Cow::Borrowed(time)),
+                last_error: Some(notif.to_yang()),
+                last_error_code: Some(notif.error_code),
+                last_error_subcode: Some(notif.error_subcode),
+            })
+        }),
+        notification_sent: nbr.notification_sent.as_ref().map(|(time, notif)| {
+            Box::new(NotificationSent {
+                last_notification: Some(Cow::Borrowed(time)),
+                last_error: Some(notif.to_yang()),
+                last_error_code: Some(notif.error_code),
+                last_error_subcode: Some(notif.error_subcode),
+            })
+        }),
     };
     notification::send(&instance.tx.nb, path, data);
 }
@@ -72,10 +64,5 @@ fn notification_path(instance_name: &str, notification: &str) -> String {
         r#type: Protocol::BGP.to_yang(),
         name: instance_name.into(),
     };
-    format!(
-        "{}{}{}",
-        control_plane_protocol::PATH,
-        control_plane_protocol.list_keys(),
-        notification,
-    )
+    format!("{}{}{}", control_plane_protocol::PATH, control_plane_protocol.list_keys(), notification,)
 }

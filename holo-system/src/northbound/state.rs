@@ -8,9 +8,7 @@ use std::borrow::Cow;
 use std::sync::LazyLock as Lazy;
 
 use chrono::{DateTime, Utc};
-use holo_northbound::state::{
-    Callbacks, CallbacksBuilder, ListEntryKind, Provider,
-};
+use holo_northbound::state::{Callbacks, CallbacksBuilder, ListEntryKind, Provider};
 use sysinfo::System;
 
 use crate::Master;
@@ -42,8 +40,7 @@ fn load_callbacks() -> Callbacks<Master> {
         .get_object(|_context, _args| {
             use system_state::clock::Clock;
             let time_now = Utc::now();
-            let time_boot =
-                DateTime::from_timestamp(System::boot_time() as i64, 0);
+            let time_boot = DateTime::from_timestamp(System::boot_time() as i64, 0);
             Box::new(Clock {
                 current_datetime: Some(Cow::Owned(time_now)),
                 boot_datetime: time_boot.map(Cow::Owned),

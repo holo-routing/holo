@@ -23,10 +23,8 @@ use crate::version::Version;
 
 // ===== global functions =====
 
-pub(crate) fn if_state_change<V>(
-    instance: &InstanceUpView<'_, V>,
-    iface: &Interface<V>,
-) where
+pub(crate) fn if_state_change<V>(instance: &InstanceUpView<'_, V>, iface: &Interface<V>)
+where
     V: Version,
 {
     use yang::if_state_change::interface::Interface;
@@ -50,13 +48,8 @@ pub(crate) fn if_state_change<V>(
     notification::send(&instance.tx.nb, if_state_change::PATH, data);
 }
 
-pub(crate) fn if_config_error<V>(
-    instance: &InstanceUpView<'_, V>,
-    ifname: &str,
-    src: &V::NetIpAddr,
-    pkt_type: &PacketType,
-    error: &InterfaceCfgError,
-) where
+pub(crate) fn if_config_error<V>(instance: &InstanceUpView<'_, V>, ifname: &str, src: &V::NetIpAddr, pkt_type: &PacketType, error: &InterfaceCfgError)
+where
     V: Version,
 {
     use yang::if_config_error::interface::Interface;
@@ -76,11 +69,8 @@ pub(crate) fn if_config_error<V>(
     notification::send(&instance.tx.nb, if_config_error::PATH, data);
 }
 
-pub(crate) fn nbr_state_change<V>(
-    instance: &InstanceUpView<'_, V>,
-    iface: &Interface<V>,
-    nbr: &Neighbor<V>,
-) where
+pub(crate) fn nbr_state_change<V>(instance: &InstanceUpView<'_, V>, iface: &Interface<V>, nbr: &Neighbor<V>)
+where
     V: Version,
 {
     use yang::nbr_state_change::interface::Interface;
@@ -106,19 +96,13 @@ pub(crate) fn nbr_state_change<V>(
     notification::send(&instance.tx.nb, nbr_state_change::PATH, data);
 }
 
-pub(crate) fn nbr_restart_helper_enter<V>(
-    instance: &InstanceUpView<'_, V>,
-    iface: &Interface<V>,
-    nbr: &Neighbor<V>,
-    age: u32,
-) where
+pub(crate) fn nbr_restart_helper_enter<V>(instance: &InstanceUpView<'_, V>, iface: &Interface<V>, nbr: &Neighbor<V>, age: u32)
+where
     V: Version,
 {
     use yang::nbr_restart_helper_status_change::interface::Interface;
     use yang::nbr_restart_helper_status_change::virtual_link::VirtualLink;
-    use yang::nbr_restart_helper_status_change::{
-        self, NbrRestartHelperStatusChange,
-    };
+    use yang::nbr_restart_helper_status_change::{self, NbrRestartHelperStatusChange};
 
     let data = NbrRestartHelperStatusChange {
         routing_protocol_name: Some(instance.name.into()),
@@ -138,26 +122,16 @@ pub(crate) fn nbr_restart_helper_enter<V>(
         age: Some(Cow::Owned(Duration::from_secs(age.into()))),
         exit_reason: None,
     };
-    notification::send(
-        &instance.tx.nb,
-        nbr_restart_helper_status_change::PATH,
-        data,
-    );
+    notification::send(&instance.tx.nb, nbr_restart_helper_status_change::PATH, data);
 }
 
-pub(crate) fn nbr_restart_helper_exit<V>(
-    instance: &InstanceUpView<'_, V>,
-    iface: &Interface<V>,
-    nbr: &Neighbor<V>,
-    reason: GrExitReason,
-) where
+pub(crate) fn nbr_restart_helper_exit<V>(instance: &InstanceUpView<'_, V>, iface: &Interface<V>, nbr: &Neighbor<V>, reason: GrExitReason)
+where
     V: Version,
 {
     use yang::nbr_restart_helper_status_change::interface::Interface;
     use yang::nbr_restart_helper_status_change::virtual_link::VirtualLink;
-    use yang::nbr_restart_helper_status_change::{
-        self, NbrRestartHelperStatusChange,
-    };
+    use yang::nbr_restart_helper_status_change::{self, NbrRestartHelperStatusChange};
 
     let data = NbrRestartHelperStatusChange {
         routing_protocol_name: Some(instance.name.into()),
@@ -177,18 +151,11 @@ pub(crate) fn nbr_restart_helper_exit<V>(
         age: None,
         exit_reason: Some(reason.to_yang()),
     };
-    notification::send(
-        &instance.tx.nb,
-        nbr_restart_helper_status_change::PATH,
-        data,
-    );
+    notification::send(&instance.tx.nb, nbr_restart_helper_status_change::PATH, data);
 }
 
-pub(crate) fn if_rx_bad_packet<V>(
-    instance: &InstanceUpView<'_, V>,
-    iface: &Interface<V>,
-    src: V::NetIpAddr,
-) where
+pub(crate) fn if_rx_bad_packet<V>(instance: &InstanceUpView<'_, V>, iface: &Interface<V>, src: V::NetIpAddr)
+where
     V: Version,
 {
     use yang::if_rx_bad_packet::interface::Interface;
@@ -214,11 +181,8 @@ pub(crate) fn if_rx_bad_packet<V>(
     notification::send(&instance.tx.nb, if_rx_bad_packet::PATH, data);
 }
 
-pub(crate) fn if_rx_bad_lsa<V>(
-    instance: &InstanceUpView<'_, V>,
-    src: V::NetIpAddr,
-    error: LsaValidationError,
-) where
+pub(crate) fn if_rx_bad_lsa<V>(instance: &InstanceUpView<'_, V>, src: V::NetIpAddr, error: LsaValidationError)
+where
     V: Version,
 {
     use yang::if_rx_bad_lsa::{self, IfRxBadLsa};
@@ -231,25 +195,16 @@ pub(crate) fn if_rx_bad_lsa<V>(
     notification::send(&instance.tx.nb, if_rx_bad_lsa::PATH, data);
 }
 
-pub(crate) fn sr_index_out_of_range<V>(
-    instance: &InstanceUpView<'_, V>,
-    nbr_router_id: Ipv4Addr,
-    index: u32,
-) where
+pub(crate) fn sr_index_out_of_range<V>(instance: &InstanceUpView<'_, V>, nbr_router_id: Ipv4Addr, index: u32)
+where
     V: Version,
 {
-    use yang::segment_routing_index_out_of_range::{
-        self, SegmentRoutingIndexOutOfRange,
-    };
+    use yang::segment_routing_index_out_of_range::{self, SegmentRoutingIndexOutOfRange};
 
     let data = SegmentRoutingIndexOutOfRange {
         received_target: Some(nbr_router_id.to_string().into()),
         received_index: Some(index),
         routing_protocol: Some(instance.name.into()),
     };
-    notification::send(
-        &instance.tx.nb,
-        segment_routing_index_out_of_range::PATH,
-        data,
-    );
+    notification::send(&instance.tx.nb, segment_routing_index_out_of_range::PATH, data);
 }

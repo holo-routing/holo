@@ -8,10 +8,7 @@ use std::net::{IpAddr, SocketAddr};
 use std::sync::LazyLock as Lazy;
 
 use enum_as_inner::EnumAsInner;
-use holo_northbound::configuration::{
-    Callbacks, CallbacksBuilder, Provider, ValidationCallbacks,
-    ValidationCallbacksBuilder,
-};
+use holo_northbound::configuration::{Callbacks, CallbacksBuilder, Provider, ValidationCallbacks, ValidationCallbacksBuilder};
 use holo_utils::bfd::{SessionKey, State};
 use holo_utils::socket::TTL_MAX;
 use holo_utils::yang::DataNodeRefExt;
@@ -45,8 +42,7 @@ pub enum Event {
     UpdateTxInterval(SessionIndex),
 }
 
-pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> =
-    Lazy::new(load_validation_callbacks);
+pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> = Lazy::new(load_validation_callbacks);
 pub static CALLBACKS: Lazy<Callbacks<Master>> = Lazy::new(load_callbacks);
 
 // ===== configuration structs =====
@@ -104,11 +100,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let ifname = dnode.get_string_relative("interface").unwrap();
             let dst = dnode.get_ip_relative("dest-addr").unwrap();
             let key = SessionKey::new_ip_single_hop(ifname, dst);
-            master
-                .sessions
-                .get_mut_by_key(&key)
-                .map(|(sess_idx, _)| ListEntry::Session(sess_idx))
-                .expect("could not find BFD session")
+            master.sessions.get_mut_by_key(&key).map(|(sess_idx, _)| ListEntry::Session(sess_idx)).expect("could not find BFD session")
         })
         .path(bfd::ip_sh::sessions::session::source_addr::PATH)
         .modify_apply(|master, args| {
@@ -220,8 +212,7 @@ fn load_callbacks() -> Callbacks<Master> {
             sess.config_enabled = true;
 
             // Initialize session's socket address.
-            sess.state.sockaddr =
-                Some(SocketAddr::new(dst, network::PORT_DST_MULTIHOP));
+            sess.state.sockaddr = Some(SocketAddr::new(dst, network::PORT_DST_MULTIHOP));
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::UpdateRxSockets);
@@ -242,11 +233,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let src = dnode.get_ip_relative("source-addr").unwrap();
             let dst = dnode.get_ip_relative("dest-addr").unwrap();
             let key = SessionKey::new_ip_multihop(src, dst);
-            master
-                .sessions
-                .get_mut_by_key(&key)
-                .map(|(sess_idx, _)| ListEntry::Session(sess_idx))
-                .expect("could not find BFD session")
+            master.sessions.get_mut_by_key(&key).map(|(sess_idx, _)| ListEntry::Session(sess_idx)).expect("could not find BFD session")
         })
         .path(bfd::ip_mh::session_groups::session_group::local_multiplier::PATH)
         .modify_apply(|master, args| {
@@ -433,12 +420,9 @@ fn validate_interval(interval: u32) -> Result<(), String> {
 
 impl Default for SessionCfg {
     fn default() -> SessionCfg {
-        let local_multiplier =
-            bfd::ip_sh::sessions::session::local_multiplier::DFLT;
-        let min_tx =
-            bfd::ip_sh::sessions::session::desired_min_tx_interval::DFLT;
-        let min_rx =
-            bfd::ip_sh::sessions::session::required_min_rx_interval::DFLT;
+        let local_multiplier = bfd::ip_sh::sessions::session::local_multiplier::DFLT;
+        let min_tx = bfd::ip_sh::sessions::session::desired_min_tx_interval::DFLT;
+        let min_rx = bfd::ip_sh::sessions::session::required_min_rx_interval::DFLT;
         let admin_down = bfd::ip_sh::sessions::session::admin_down::DFLT;
 
         SessionCfg {

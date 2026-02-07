@@ -27,9 +27,6 @@ pub mod yang_gen {
 
 impl ProviderBase for Interface {
     fn top_level_node(&self) -> String {
-        format!(
-            "/ietf-interfaces:interfaces/interface[name='{}']",
-            self.name
-        )
+        format!("/ietf-interfaces:interfaces/interface[name='{}']", self.name)
     }
 }

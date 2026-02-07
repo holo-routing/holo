@@ -8,9 +8,7 @@ use std::borrow::Cow;
 use std::sync::LazyLock as Lazy;
 
 use enum_as_inner::EnumAsInner;
-use holo_northbound::state::{
-    Callbacks, CallbacksBuilder, ListEntryKind, Provider,
-};
+use holo_northbound::state::{Callbacks, CallbacksBuilder, ListEntryKind, Provider};
 use holo_northbound::{CallbackKey, NbDaemonSender};
 
 use crate::Master;
@@ -69,9 +67,7 @@ impl Provider for Master {
 impl ListEntryKind for ListEntry<'_> {
     fn child_task(&self, module_name: &str) -> Option<NbDaemonSender> {
         match self {
-            ListEntry::Interface(iface) if module_name == "ietf-vrrp" => {
-                iface.vrrp.as_ref().map(|vrrp| vrrp.nb_tx.clone())
-            }
+            ListEntry::Interface(iface) if module_name == "ietf-vrrp" => iface.vrrp.as_ref().map(|vrrp| vrrp.nb_tx.clone()),
             _ => None,
         }
     }

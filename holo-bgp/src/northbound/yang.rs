@@ -10,14 +10,8 @@ use holo_yang::{ToYang, TryFromYang};
 use num_traits::FromPrimitive;
 
 use crate::neighbor::{PeerType, fsm};
-use crate::northbound::configuration::{
-    InstanceTraceOption, NeighborTraceOption, PrivateAsRemove,
-};
-use crate::packet::consts::{
-    AddPathMode, AsPathSegmentType, CapabilityCode, CeaseSubcode, ErrorCode,
-    FsmErrorSubcode, MessageHeaderErrorSubcode, OpenMessageErrorSubcode,
-    RouteRefreshErrorSubcode, Safi, UpdateMessageErrorSubcode,
-};
+use crate::northbound::configuration::{InstanceTraceOption, NeighborTraceOption, PrivateAsRemove};
+use crate::packet::consts::{AddPathMode, AsPathSegmentType, CapabilityCode, CeaseSubcode, ErrorCode, FsmErrorSubcode, MessageHeaderErrorSubcode, OpenMessageErrorSubcode, RouteRefreshErrorSubcode, Safi, UpdateMessageErrorSubcode};
 use crate::packet::message::NotificationMsg;
 use crate::rib::{RouteIneligibleReason, RouteOrigin, RouteRejectReason};
 
@@ -70,12 +64,8 @@ impl ToYang for CapabilityCode {
             CapabilityCode::MultiProtocol => "iana-bgp-types:mp-bgp".into(),
             CapabilityCode::FourOctetAsNumber => "iana-bgp-types:asn32".into(),
             CapabilityCode::AddPath => "holo-bgp:add-paths".into(),
-            CapabilityCode::RouteRefresh => {
-                "iana-bgp-types:route-refresh".into()
-            }
-            CapabilityCode::EnhancedRouteRefresh => {
-                "holo-bgp:enhanced-route-refresh".into()
-            }
+            CapabilityCode::RouteRefresh => "iana-bgp-types:route-refresh".into(),
+            CapabilityCode::EnhancedRouteRefresh => "holo-bgp:enhanced-route-refresh".into(),
         }
     }
 }
@@ -89,18 +79,10 @@ impl ToYang for NotificationMsg {
             ErrorCode::MessageHeaderError => {
                 use MessageHeaderErrorSubcode as ErrorSubcode;
                 match ErrorSubcode::from_u8(self.error_subcode) {
-                    Some(ErrorSubcode::Unspecific) => {
-                        "message-header-unspecific"
-                    }
-                    Some(ErrorSubcode::ConnectionNotSynchronized) => {
-                        "message-header-connection-not-synchronized"
-                    }
-                    Some(ErrorSubcode::BadMessageLength) => {
-                        "message-header-bad-message-length"
-                    }
-                    Some(ErrorSubcode::BadMessageType) => {
-                        "message-header-bad-message-type"
-                    }
+                    Some(ErrorSubcode::Unspecific) => "message-header-unspecific",
+                    Some(ErrorSubcode::ConnectionNotSynchronized) => "message-header-connection-not-synchronized",
+                    Some(ErrorSubcode::BadMessageLength) => "message-header-bad-message-length",
+                    Some(ErrorSubcode::BadMessageType) => "message-header-bad-message-type",
                     None => "message-header-error",
                 }
             }
@@ -108,20 +90,12 @@ impl ToYang for NotificationMsg {
                 use OpenMessageErrorSubcode as ErrorSubcode;
                 match ErrorSubcode::from_u8(self.error_subcode) {
                     Some(ErrorSubcode::Unspecific) => "open-message-unspecific",
-                    Some(ErrorSubcode::UnsupportedVersionNumber) => {
-                        "open-unsupported-version-number"
-                    }
+                    Some(ErrorSubcode::UnsupportedVersionNumber) => "open-unsupported-version-number",
                     Some(ErrorSubcode::BadPeerAs) => "open-bad-peer-as",
                     Some(ErrorSubcode::BadBgpIdentifier) => "open-bad-bgp-id",
-                    Some(ErrorSubcode::UnsupportedOptParam) => {
-                        "open-unsupported-optional-parameter"
-                    }
-                    Some(ErrorSubcode::UnacceptableHoldTime) => {
-                        "open-unacceptable-hold-time"
-                    }
-                    Some(ErrorSubcode::UnsupportedCapability) => {
-                        "open-unsupported-capability"
-                    }
+                    Some(ErrorSubcode::UnsupportedOptParam) => "open-unsupported-optional-parameter",
+                    Some(ErrorSubcode::UnacceptableHoldTime) => "open-unacceptable-hold-time",
+                    Some(ErrorSubcode::UnsupportedCapability) => "open-unsupported-capability",
                     Some(ErrorSubcode::RoleMismatch) => "open-role-mismatch",
                     None => "open-message-error",
                 }
@@ -130,36 +104,16 @@ impl ToYang for NotificationMsg {
                 use UpdateMessageErrorSubcode as ErrorSubcode;
                 match ErrorSubcode::from_u8(self.error_subcode) {
                     Some(ErrorSubcode::Unspecific) => "update-unspecific",
-                    Some(ErrorSubcode::MalformedAttributeList) => {
-                        "update-malformed-attribute-list"
-                    }
-                    Some(ErrorSubcode::UnrecognizedWellKnownAttribute) => {
-                        "update-unrecognized-well-known-attribute"
-                    }
-                    Some(ErrorSubcode::MissingWellKnownAttribute) => {
-                        "update-missing-well-known-attribute"
-                    }
-                    Some(ErrorSubcode::AttributeFlagsError) => {
-                        "update-attribute-flags-error"
-                    }
-                    Some(ErrorSubcode::AttributeLengthError) => {
-                        "update-attribute-length-error"
-                    }
-                    Some(ErrorSubcode::InvalidOriginAttribute) => {
-                        "update-invalid-origin-attribute"
-                    }
-                    Some(ErrorSubcode::InvalidNexthopAttribute) => {
-                        "update-invalid-next-hop-attribute"
-                    }
-                    Some(ErrorSubcode::OptionalAttributeError) => {
-                        "open-optional-attribute-error"
-                    }
-                    Some(ErrorSubcode::InvalidNetworkField) => {
-                        "open-invalid-network-field"
-                    }
-                    Some(ErrorSubcode::MalformedAsPath) => {
-                        "open-malformed-as-path"
-                    }
+                    Some(ErrorSubcode::MalformedAttributeList) => "update-malformed-attribute-list",
+                    Some(ErrorSubcode::UnrecognizedWellKnownAttribute) => "update-unrecognized-well-known-attribute",
+                    Some(ErrorSubcode::MissingWellKnownAttribute) => "update-missing-well-known-attribute",
+                    Some(ErrorSubcode::AttributeFlagsError) => "update-attribute-flags-error",
+                    Some(ErrorSubcode::AttributeLengthError) => "update-attribute-length-error",
+                    Some(ErrorSubcode::InvalidOriginAttribute) => "update-invalid-origin-attribute",
+                    Some(ErrorSubcode::InvalidNexthopAttribute) => "update-invalid-next-hop-attribute",
+                    Some(ErrorSubcode::OptionalAttributeError) => "open-optional-attribute-error",
+                    Some(ErrorSubcode::InvalidNetworkField) => "open-invalid-network-field",
+                    Some(ErrorSubcode::MalformedAsPath) => "open-malformed-as-path",
                     None => "update-message-error",
                 }
             }
@@ -167,45 +121,23 @@ impl ToYang for NotificationMsg {
             ErrorCode::FiniteStateMachineError => {
                 use FsmErrorSubcode as ErrorSubcode;
                 match ErrorSubcode::from_u8(self.error_subcode) {
-                    Some(ErrorSubcode::UnexpectedMessageInOpenSent) => {
-                        "fsm-error-unexpected-in-opensent"
-                    }
-                    Some(ErrorSubcode::UnexpectedMessageInOpenConfirm) => {
-                        "fsm-error-unexpected-in-openconfirm"
-                    }
-                    Some(ErrorSubcode::UnexpectedMessageInEstablished) => {
-                        "fsm-error-unexpected-in-established"
-                    }
+                    Some(ErrorSubcode::UnexpectedMessageInOpenSent) => "fsm-error-unexpected-in-opensent",
+                    Some(ErrorSubcode::UnexpectedMessageInOpenConfirm) => "fsm-error-unexpected-in-openconfirm",
+                    Some(ErrorSubcode::UnexpectedMessageInEstablished) => "fsm-error-unexpected-in-established",
                     None => "fsm-error",
                 }
             }
             ErrorCode::Cease => {
                 use CeaseSubcode as ErrorSubcode;
                 match ErrorSubcode::from_u8(self.error_subcode) {
-                    Some(ErrorSubcode::MaximumNumberofPrefixesReached) => {
-                        "cease-max-prefixes"
-                    }
-                    Some(ErrorSubcode::AdministrativeShutdown) => {
-                        "cease-admin-shutdown"
-                    }
-                    Some(ErrorSubcode::PeerDeConfigured) => {
-                        "cease-peer-deconfigured"
-                    }
-                    Some(ErrorSubcode::AdministrativeReset) => {
-                        "cease-admin-reset"
-                    }
-                    Some(ErrorSubcode::ConnectionRejected) => {
-                        "cease-connection-rejected"
-                    }
-                    Some(ErrorSubcode::OtherConfigurationChange) => {
-                        "cease-other-configuration-change"
-                    }
-                    Some(ErrorSubcode::ConnectionCollisionResolution) => {
-                        "cease-connection-collision"
-                    }
-                    Some(ErrorSubcode::OutOfResources) => {
-                        "cease-out-of-resources"
-                    }
+                    Some(ErrorSubcode::MaximumNumberofPrefixesReached) => "cease-max-prefixes",
+                    Some(ErrorSubcode::AdministrativeShutdown) => "cease-admin-shutdown",
+                    Some(ErrorSubcode::PeerDeConfigured) => "cease-peer-deconfigured",
+                    Some(ErrorSubcode::AdministrativeReset) => "cease-admin-reset",
+                    Some(ErrorSubcode::ConnectionRejected) => "cease-connection-rejected",
+                    Some(ErrorSubcode::OtherConfigurationChange) => "cease-other-configuration-change",
+                    Some(ErrorSubcode::ConnectionCollisionResolution) => "cease-connection-collision",
+                    Some(ErrorSubcode::OutOfResources) => "cease-out-of-resources",
                     Some(ErrorSubcode::HardReset) => "cease-hard-reset",
                     Some(ErrorSubcode::BfdDown) => "cease-bfd-down",
                     None => "cease",
@@ -214,9 +146,7 @@ impl ToYang for NotificationMsg {
             ErrorCode::RouteRefreshMessageError => {
                 use RouteRefreshErrorSubcode as ErrorSubcode;
                 match ErrorSubcode::from_u8(self.error_subcode) {
-                    Some(ErrorSubcode::InvalidMessageLength) => {
-                        "route-refresh-invalid-message-length"
-                    }
+                    Some(ErrorSubcode::InvalidMessageLength) => "route-refresh-invalid-message-length",
                     None => "route-refresh-message-error",
                 }
             }
@@ -252,12 +182,8 @@ impl ToYang for AsPathSegmentType {
         match self {
             AsPathSegmentType::Set => "iana-bgp-types:as-set".into(),
             AsPathSegmentType::Sequence => "iana-bgp-types:as-sequence".into(),
-            AsPathSegmentType::ConfedSequence => {
-                "iana-bgp-types:as-confed-sequence".into()
-            }
-            AsPathSegmentType::ConfedSet => {
-                "iana-bgp-types:as-confed-set".into()
-            }
+            AsPathSegmentType::ConfedSequence => "iana-bgp-types:as-confed-sequence".into(),
+            AsPathSegmentType::ConfedSet => "iana-bgp-types:as-confed-set".into(),
         }
     }
 }
@@ -265,9 +191,9 @@ impl ToYang for AsPathSegmentType {
 impl ToYang for RouteOrigin {
     fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            RouteOrigin::Neighbor { remote_addr, .. } => {
-                remote_addr.to_string().into()
-            }
+            RouteOrigin::Neighbor {
+                remote_addr, ..
+            } => remote_addr.to_string().into(),
             RouteOrigin::Protocol(protocol) => protocol.to_yang(),
         }
     }
@@ -276,21 +202,11 @@ impl ToYang for RouteOrigin {
 impl ToYang for RouteIneligibleReason {
     fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            RouteIneligibleReason::ClusterLoop => {
-                "iana-bgp-rib-types:ineligible-cluster-loop".into()
-            }
-            RouteIneligibleReason::AsLoop => {
-                "iana-bgp-rib-types:ineligible-as-loop".into()
-            }
-            RouteIneligibleReason::Originator => {
-                "iana-bgp-rib-types:ineligible-originator".into()
-            }
-            RouteIneligibleReason::Confed => {
-                "iana-bgp-rib-types:ineligible-confed".into()
-            }
-            RouteIneligibleReason::Unresolvable => {
-                "holo-bgp:ineligible-unresolvable".into()
-            }
+            RouteIneligibleReason::ClusterLoop => "iana-bgp-rib-types:ineligible-cluster-loop".into(),
+            RouteIneligibleReason::AsLoop => "iana-bgp-rib-types:ineligible-as-loop".into(),
+            RouteIneligibleReason::Originator => "iana-bgp-rib-types:ineligible-originator".into(),
+            RouteIneligibleReason::Confed => "iana-bgp-rib-types:ineligible-confed".into(),
+            RouteIneligibleReason::Unresolvable => "holo-bgp:ineligible-unresolvable".into(),
         }
     }
 }
@@ -298,33 +214,15 @@ impl ToYang for RouteIneligibleReason {
 impl ToYang for RouteRejectReason {
     fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            RouteRejectReason::LocalPrefLower => {
-                "iana-bgp-rib-types:local-pref-lower".into()
-            }
-            RouteRejectReason::AsPathLonger => {
-                "iana-bgp-rib-types:as-path-longer".into()
-            }
-            RouteRejectReason::OriginTypeHigher => {
-                "iana-bgp-rib-types:origin-type-higher".into()
-            }
-            RouteRejectReason::MedHigher => {
-                "iana-bgp-rib-types:med-higher".into()
-            }
-            RouteRejectReason::PreferExternal => {
-                "iana-bgp-rib-types:prefer-external".into()
-            }
-            RouteRejectReason::NexthopCostHigher => {
-                "iana-bgp-rib-types:nexthop-cost-higher".into()
-            }
-            RouteRejectReason::HigherRouterId => {
-                "iana-bgp-rib-types:higher-router-id".into()
-            }
-            RouteRejectReason::HigherPeerAddress => {
-                "iana-bgp-rib-types:higher-peer-address".into()
-            }
-            RouteRejectReason::RejectedImportPolicy => {
-                "iana-bgp-rib-types:rejected-import-policy".into()
-            }
+            RouteRejectReason::LocalPrefLower => "iana-bgp-rib-types:local-pref-lower".into(),
+            RouteRejectReason::AsPathLonger => "iana-bgp-rib-types:as-path-longer".into(),
+            RouteRejectReason::OriginTypeHigher => "iana-bgp-rib-types:origin-type-higher".into(),
+            RouteRejectReason::MedHigher => "iana-bgp-rib-types:med-higher".into(),
+            RouteRejectReason::PreferExternal => "iana-bgp-rib-types:prefer-external".into(),
+            RouteRejectReason::NexthopCostHigher => "iana-bgp-rib-types:nexthop-cost-higher".into(),
+            RouteRejectReason::HigherRouterId => "iana-bgp-rib-types:higher-router-id".into(),
+            RouteRejectReason::HigherPeerAddress => "iana-bgp-rib-types:higher-peer-address".into(),
+            RouteRejectReason::RejectedImportPolicy => "iana-bgp-rib-types:rejected-import-policy".into(),
         }
     }
 }
@@ -334,12 +232,8 @@ impl ToYang for RouteRejectReason {
 impl TryFromYang for PrivateAsRemove {
     fn try_from_yang(value: &str) -> Option<PrivateAsRemove> {
         match value {
-            "iana-bgp-types:private-as-remove-all" => {
-                Some(PrivateAsRemove::RemoveAll)
-            }
-            "iana-bgp-types:private-as-replace-all" => {
-                Some(PrivateAsRemove::ReplaceAll)
-            }
+            "iana-bgp-types:private-as-remove-all" => Some(PrivateAsRemove::RemoveAll),
+            "iana-bgp-types:private-as-replace-all" => Some(PrivateAsRemove::ReplaceAll),
             _ => None,
         }
     }
@@ -354,9 +248,7 @@ impl TryFromYang for InstanceTraceOption {
             "packets-all" => Some(InstanceTraceOption::PacketsAll),
             "packets-open" => Some(InstanceTraceOption::PacketsOpen),
             "packets-update" => Some(InstanceTraceOption::PacketsUpdate),
-            "packets-notification" => {
-                Some(InstanceTraceOption::PacketsNotification)
-            }
+            "packets-notification" => Some(InstanceTraceOption::PacketsNotification),
             "packets-keepalive" => Some(InstanceTraceOption::PacketsKeepalive),
             "packets-refresh" => Some(InstanceTraceOption::PacketsRefresh),
             "route" => Some(InstanceTraceOption::Route),
@@ -372,9 +264,7 @@ impl TryFromYang for NeighborTraceOption {
             "packets-all" => Some(NeighborTraceOption::PacketsAll),
             "packets-open" => Some(NeighborTraceOption::PacketsOpen),
             "packets-update" => Some(NeighborTraceOption::PacketsUpdate),
-            "packets-notification" => {
-                Some(NeighborTraceOption::PacketsNotification)
-            }
+            "packets-notification" => Some(NeighborTraceOption::PacketsNotification),
             "packets-keepalive" => Some(NeighborTraceOption::PacketsKeepalive),
             "packets-refresh" => Some(NeighborTraceOption::PacketsRefresh),
             _ => None,

@@ -76,6 +76,7 @@ impl ToYang for CapabilityCode {
             CapabilityCode::EnhancedRouteRefresh => {
                 "holo-bgp:enhanced-route-refresh".into()
             }
+            CapabilityCode::BgpRole => "holo-bgp:role".into(),
         }
     }
 }
@@ -100,6 +101,9 @@ impl ToYang for NotificationMsg {
                     }
                     Some(ErrorSubcode::BadMessageType) => {
                         "message-header-bad-message-type"
+                    }
+                    Some(ErrorSubcode::RoleMismatch) => {
+                        "message-header-role-mismatch"
                     }
                     None => "message-header-error",
                 }

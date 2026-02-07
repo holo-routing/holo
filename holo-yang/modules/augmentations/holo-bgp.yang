@@ -72,6 +72,14 @@ module holo-bgp {
       "RFC 7313: Enhanced Route Refresh Capability for BGP-4";
   }
 
+  identity role {
+    base bt:bgp-capability;
+    description
+      "The BGP enhanced roles functionality";
+    reference
+      "RFC 9234: Route Leak Prevention and Detection Using Roles in UPDATE";
+  }
+
   /*
    * Augmentations.
    */
@@ -170,7 +178,40 @@ module holo-bgp {
         }
       }
     }
+
+    // Neighbor roles as described in RFC 9234.
+    leaf role {
+      description "Characterizes the relationship between eBGP speakers
+        forming a session.";
+      type enumeration {
+        enum provider {
+          description
+            "The local AS is a transit provider of the remote AS.";
+        }
+
+        enum customer {
+          description
+            "The local AS is a transit customer of the remote AS.";
+        }
+
+        enum rs {
+          description
+            "The local AS is a Route Server, and the remote AS is its RS-Client.";
+        }
+
+        enum rs-client {
+          description
+            "The local AS is a client of an RS and the RS is the remote AS.";
+        }
+
+        enum peer {
+          description
+            "The local and remote ASes have a lateral peering relationship.";
+        }
+      }
+    }
   }
+
 
   augment "/rt:routing/rt:control-plane-protocols/"
         + "rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:neighbor/"

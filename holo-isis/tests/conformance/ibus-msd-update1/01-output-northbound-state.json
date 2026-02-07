@@ -1734,7 +1734,8 @@
                       ],
                       "holo-isis:lsp-buffer-size": 1492
                     }
-                  ]
+                  ],
+                  "holo-isis:lsp-count": 7
                 },
                 {
                   "level": 2,
@@ -5503,7 +5504,8 @@
                       ],
                       "holo-isis:lsp-buffer-size": 1492
                     }
-                  ]
+                  ],
+                  "holo-isis:lsp-count": 7
                 }
               ]
             },
@@ -5882,7 +5884,6 @@
                     ]
                   },
                   "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0,
                   "holo-isis-dev:srm": {
                     "level": [
                       {
@@ -5929,7 +5930,6 @@
                     ]
                   },
                   "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0,
                   "holo-isis-dev:srm": {
                     "level": [
                       {
@@ -5949,8 +5949,7 @@
                 },
                 {
                   "name": "lo",
-                  "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0
+                  "holo-isis:state": "up"
                 }
               ]
             }

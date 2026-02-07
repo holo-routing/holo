@@ -1308,7 +1308,8 @@
                       ],
                       "holo-isis:lsp-buffer-size": 1492
                     }
-                  ]
+                  ],
+                  "holo-isis:lsp-count": 7
                 }
               ]
             },
@@ -1678,8 +1679,7 @@
                       }
                     ]
                   },
-                  "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0
+                  "holo-isis:state": "up"
                 },
                 {
                   "name": "eth-rt2-2",
@@ -1709,8 +1709,7 @@
                       }
                     ]
                   },
-                  "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0
+                  "holo-isis:state": "up"
                 },
                 {
                   "name": "eth-rt5",
@@ -1740,8 +1739,7 @@
                       }
                     ]
                   },
-                  "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0
+                  "holo-isis:state": "up"
                 },
                 {
                   "name": "eth-rt6",
@@ -1771,13 +1769,11 @@
                       }
                     ]
                   },
-                  "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0
+                  "holo-isis:state": "up"
                 },
                 {
                   "name": "lo",
-                  "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0
+                  "holo-isis:state": "up"
                 }
               ]
             }

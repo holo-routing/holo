@@ -1064,7 +1064,8 @@
                       ],
                       "holo-isis:lsp-buffer-size": 1492
                     }
-                  ]
+                  ],
+                  "holo-isis:lsp-count": 6
                 }
               ]
             },
@@ -1393,7 +1394,6 @@
                     ]
                   },
                   "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0,
                   "holo-isis-dev:srm": {
                     "level": [
                       {
@@ -1434,7 +1434,6 @@
                     ]
                   },
                   "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0,
                   "holo-isis-dev:ssn": {
                     "level": [
                       {
@@ -1448,8 +1447,7 @@
                 },
                 {
                   "name": "lo",
-                  "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0
+                  "holo-isis:state": "up"
                 }
               ]
             }

@@ -199,7 +199,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             let (level, lsdb) = args.list_entry.as_lsdb().unwrap();
             Box::new(Levels {
                 level: *level as u8,
-                lsp_count: Some(lsdb.lsp_count()).ignore_in_testing(),
+                lsp_count: Some(lsdb.lsp_count()),
             })
         })
         .path(isis::database::levels::fingerprint::PATH)
@@ -1346,7 +1346,7 @@ fn load_callbacks() -> Callbacks<Instance> {
                 name: Cow::Borrowed(&iface.name),
                 discontinuity_time: Some(Cow::Borrowed(&iface.state.discontinuity_time)).ignore_in_testing(),
                 state: Some(state.into()),
-                circuit_id: Some(iface.state.circuit_id),
+                circuit_id: Some(iface.state.circuit_id).ignore_in_testing(),
                 extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
             })
         })

@@ -1358,7 +1358,8 @@
                       ],
                       "holo-isis:lsp-buffer-size": 1492
                     }
-                  ]
+                  ],
+                  "holo-isis:lsp-count": 6
                 }
               ]
             },
@@ -1760,8 +1761,7 @@
                       }
                     ]
                   },
-                  "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0
+                  "holo-isis:state": "up"
                 },
                 {
                   "name": "eth-rt5-2",
@@ -1791,8 +1791,7 @@
                       }
                     ]
                   },
-                  "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0
+                  "holo-isis:state": "up"
                 },
                 {
                   "name": "eth-sw1",
@@ -1846,13 +1845,11 @@
                       }
                     ]
                   },
-                  "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 1
+                  "holo-isis:state": "up"
                 },
                 {
                   "name": "lo",
-                  "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0
+                  "holo-isis:state": "up"
                 }
               ]
             }

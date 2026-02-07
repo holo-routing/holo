@@ -1317,7 +1317,8 @@
                         ]
                       }
                     }
-                  ]
+                  ],
+                  "holo-isis:lsp-count": 8
                 }
               ]
             },
@@ -1688,7 +1689,6 @@
                     ]
                   },
                   "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0,
                   "holo-isis-dev:srm": {
                     "level": [
                       {
@@ -1729,7 +1729,6 @@
                     ]
                   },
                   "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0,
                   "holo-isis-dev:srm": {
                     "level": [
                       {
@@ -1770,7 +1769,6 @@
                     ]
                   },
                   "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0,
                   "holo-isis-dev:srm": {
                     "level": [
                       {
@@ -1811,7 +1809,6 @@
                     ]
                   },
                   "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0,
                   "holo-isis-dev:srm": {
                     "level": [
                       {
@@ -1825,8 +1822,7 @@
                 },
                 {
                   "name": "lo",
-                  "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0
+                  "holo-isis:state": "up"
                 }
               ]
             }

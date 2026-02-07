@@ -1312,7 +1312,8 @@
                       "lsp-id": "0000.0000.0009.00-00",
                       "sequence": 0
                     }
-                  ]
+                  ],
+                  "holo-isis:lsp-count": 8
                 }
               ]
             },
@@ -1691,7 +1692,6 @@
                     ]
                   },
                   "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0,
                   "holo-isis-dev:ssn": {
                     "level": [
                       {
@@ -1731,13 +1731,11 @@
                       }
                     ]
                   },
-                  "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0
+                  "holo-isis:state": "up"
                 },
                 {
                   "name": "lo",
-                  "holo-isis:state": "up",
-                  "holo-isis:circuit-id": 0
+                  "holo-isis:state": "up"
                 }
               ]
             }

@@ -10,6 +10,7 @@ pub mod yang;
 
 use std::env;
 use std::fmt::Write;
+use std::iter::once;
 use std::path::PathBuf;
 
 use check_keyword::CheckKeyword;
@@ -269,11 +270,15 @@ fn generate_yang_ops(
         .traverse()
         .filter(|snode| !snode.is_schema_only())
         .filter(|snode| snode.is_status_current())
+        .filter(|snode| snode_module_matches(snode, modules))
+        .filter(|snode| !snode_path_filter(snode, path_filter))
+        .flat_map(|snode| {
+            let actions = snode.actions();
+            once(snode).chain(actions)
+        })
         .filter(|snode| {
             matches!(snode.kind(), SchemaNodeKind::Rpc | SchemaNodeKind::Action)
         })
-        .filter(|snode| snode_module_matches(snode, modules))
-        .filter(|snode| !snode_path_filter(snode, path_filter))
     {
         let path = snode.path(SchemaPathFormat::DATA);
         let container = snode_rust_name(&snode, Case::Pascal);

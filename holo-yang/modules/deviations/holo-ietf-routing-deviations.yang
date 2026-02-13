@@ -29,4 +29,8 @@ module holo-ietf-routing-deviations {
   deviation "/rt:routing-state" {
     deviate not-supported;
   }
+
+  deviation "/rt:routing/rt:ribs/rt:rib/rt:active-route" {
+    deviate not-supported;
+  }
 }

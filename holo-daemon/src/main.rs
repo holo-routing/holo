@@ -17,8 +17,8 @@ use northbound::Northbound;
 use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};
 use tokio::signal::unix::{SignalKind, signal};
 use tokio::sync::mpsc;
+use tracing::info;
 use tracing::level_filters::LevelFilter;
-use tracing::{error, info};
 use tracing_appender::rolling;
 use tracing_subscriber::Layer;
 use tracing_subscriber::prelude::*;
@@ -133,7 +133,7 @@ fn privdrop(user: &str) -> nix::Result<()> {
         nix::unistd::setresgid(user.gid, user.gid, user.gid)?;
         nix::unistd::setresuid(user.uid, user.uid, user.uid)?;
     } else {
-        error!(name = %user, "failed to find user");
+        eprintln!("failed to find user {user}");
         std::process::exit(1);
     }
 
@@ -147,7 +147,7 @@ fn privdrop(user: &str) -> nix::Result<()> {
         caps.permitted.add(cap);
     }
     if let Err(error) = caps.set_current() {
-        error!(%error, "failed to set permitted capabilities");
+        eprintln!("failed to set permitted capabilities: {error}");
     }
 
     Ok(())
@@ -228,7 +228,7 @@ fn main() {
 
     // Drop privileges.
     if let Err(error) = privdrop(&config.user) {
-        error!(%error, "failed to drop root privileges");
+        eprintln!("failed to drop root privileges: {error}");
         std::process::exit(1);
     }
 

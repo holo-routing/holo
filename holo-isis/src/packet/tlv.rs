@@ -301,6 +301,14 @@ pub struct IsReachStlvs {
     pub max_resv_link_bw: Option<subtlvs::neighbor::MaxResvLinkBwStlv>,
     pub unreserved_bw: Option<subtlvs::neighbor::UnreservedBwStlv>,
     pub te_default_metric: Option<subtlvs::neighbor::TeDefaultMetricStlv>,
+    pub uni_link_delay: Option<subtlvs::neighbor::UniLinkDelayStlv>,
+    pub min_max_uni_link_delay:
+        Option<subtlvs::neighbor::MinMaxUniLinkDelayStlv>,
+    pub uni_delay_variation: Option<subtlvs::neighbor::UniDelayVariationStlv>,
+    pub uni_link_loss: Option<subtlvs::neighbor::UniLinkLossStlv>,
+    pub uni_resid_bw: Option<subtlvs::neighbor::UniResidualBwStlv>,
+    pub uni_avail_bw: Option<subtlvs::neighbor::UniAvailBwStlv>,
+    pub uni_util_bw: Option<subtlvs::neighbor::UniUtilBwStlv>,
     pub adj_sids: Vec<subtlvs::neighbor::AdjSidStlv>,
     pub link_msd: Option<MsdStlv>,
     pub unknown: Vec<UnknownTlv>,
@@ -1317,7 +1325,10 @@ impl IsReachTlv {
         use subtlvs::neighbor::{
             AdjSidStlv, AdminGroupStlv, ExtAdminGroupStlv,
             Ipv4InterfaceAddrStlv, Ipv4NeighborAddrStlv, MaxLinkBwStlv,
-            MaxResvLinkBwStlv, TeDefaultMetricStlv, UnreservedBwStlv,
+            MaxResvLinkBwStlv, MinMaxUniLinkDelayStlv, TeDefaultMetricStlv,
+            UniAvailBwStlv, UniDelayVariationStlv, UniLinkDelayStlv,
+            UniLinkLossStlv, UniResidualBwStlv, UniUtilBwStlv,
+            UnreservedBwStlv,
         };
 
         let mut mt_id = None;
@@ -1420,6 +1431,60 @@ impl IsReachTlv {
                             Err(error) => error.log(),
                         }
                     }
+                    Some(NeighborStlvType::UniLinkDelay) => {
+                        match UniLinkDelayStlv::decode(stlv_len, &mut buf_stlv)
+                        {
+                            Ok(stlv) => sub_tlvs.uni_link_delay = Some(stlv),
+                            Err(error) => error.log(),
+                        }
+                    }
+                    Some(NeighborStlvType::MinMaxUniLinkDelay) => {
+                        match MinMaxUniLinkDelayStlv::decode(
+                            stlv_len,
+                            &mut buf_stlv,
+                        ) {
+                            Ok(stlv) => {
+                                sub_tlvs.min_max_uni_link_delay = Some(stlv)
+                            }
+                            Err(error) => error.log(),
+                        }
+                    }
+                    Some(NeighborStlvType::UniDelayVariation) => {
+                        match UniDelayVariationStlv::decode(
+                            stlv_len,
+                            &mut buf_stlv,
+                        ) {
+                            Ok(stlv) => {
+                                sub_tlvs.uni_delay_variation = Some(stlv)
+                            }
+                            Err(error) => error.log(),
+                        }
+                    }
+                    Some(NeighborStlvType::UniLinkLoss) => {
+                        match UniLinkLossStlv::decode(stlv_len, &mut buf_stlv) {
+                            Ok(stlv) => sub_tlvs.uni_link_loss = Some(stlv),
+                            Err(error) => error.log(),
+                        }
+                    }
+                    Some(NeighborStlvType::UniResidualBw) => {
+                        match UniResidualBwStlv::decode(stlv_len, &mut buf_stlv)
+                        {
+                            Ok(stlv) => sub_tlvs.uni_resid_bw = Some(stlv),
+                            Err(error) => error.log(),
+                        }
+                    }
+                    Some(NeighborStlvType::UniAvailBw) => {
+                        match UniAvailBwStlv::decode(stlv_len, &mut buf_stlv) {
+                            Ok(stlv) => sub_tlvs.uni_avail_bw = Some(stlv),
+                            Err(error) => error.log(),
+                        }
+                    }
+                    Some(NeighborStlvType::UniUtilBw) => {
+                        match UniUtilBwStlv::decode(stlv_len, &mut buf_stlv) {
+                            Ok(stlv) => sub_tlvs.uni_util_bw = Some(stlv),
+                            Err(error) => error.log(),
+                        }
+                    }
                     Some(NeighborStlvType::AdjacencySid) => {
                         match AdjSidStlv::decode(stlv_len, false, &mut buf_stlv)
                         {
@@ -1513,6 +1578,27 @@ impl IsReachTlv {
                 stlv.encode(buf);
             }
             if let Some(stlv) = &entry.sub_tlvs.te_default_metric {
+                stlv.encode(buf);
+            }
+            if let Some(stlv) = &entry.sub_tlvs.uni_link_delay {
+                stlv.encode(buf);
+            }
+            if let Some(stlv) = &entry.sub_tlvs.min_max_uni_link_delay {
+                stlv.encode(buf);
+            }
+            if let Some(stlv) = &entry.sub_tlvs.uni_delay_variation {
+                stlv.encode(buf);
+            }
+            if let Some(stlv) = &entry.sub_tlvs.uni_link_loss {
+                stlv.encode(buf);
+            }
+            if let Some(stlv) = &entry.sub_tlvs.uni_resid_bw {
+                stlv.encode(buf);
+            }
+            if let Some(stlv) = &entry.sub_tlvs.uni_avail_bw {
+                stlv.encode(buf);
+            }
+            if let Some(stlv) = &entry.sub_tlvs.uni_util_bw {
                 stlv.encode(buf);
             }
             for stlv in &entry.sub_tlvs.adj_sids {

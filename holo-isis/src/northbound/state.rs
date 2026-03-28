@@ -7,8 +7,6 @@
 // See: https://nlnet.nl/NGI0
 //
 
-#![allow(unreachable_code)]
-
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::fmt::Write;
@@ -638,6 +636,110 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
     }
 }
 
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unidirectional_link_delay::UnidirectionalLinkDelay {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+        let stlv = reach.sub_tlvs.uni_link_delay.as_ref()?;
+        Some(Self {
+            value: Some(stlv.delay),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unidirectional_link_delay::flags::Flags<'a> {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+        let stlv = reach.sub_tlvs.uni_link_delay.as_ref()?;
+        let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
+        Some(Self {
+            unidirectional_link_delay_subtlv_flags: Some(Box::new(iter)),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::min_max_unidirectional_link_delay::MinMaxUnidirectionalLinkDelay {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+        let stlv = reach.sub_tlvs.min_max_uni_link_delay.as_ref()?;
+        Some(Self {
+            min_value: Some(stlv.min_delay),
+            max_value: Some(stlv.max_delay),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::min_max_unidirectional_link_delay::flags::Flags<'a> {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+        let stlv = reach.sub_tlvs.min_max_uni_link_delay.as_ref()?;
+        let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
+        Some(Self {
+            min_max_unidirectional_link_delay_subtlv_flags: Some(Box::new(iter)),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unidirectional_link_delay_variation::UnidirectionalLinkDelayVariation {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+        let stlv = reach.sub_tlvs.uni_delay_variation.as_ref()?;
+        Some(Self {
+            value: Some(stlv.get()),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unidirectional_link_loss::UnidirectionalLinkLoss {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+        let stlv = reach.sub_tlvs.uni_link_loss.as_ref()?;
+        Some(Self {
+            value: Some(stlv.loss),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unidirectional_link_loss::flags::Flags<'a> {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+        let stlv = reach.sub_tlvs.uni_link_loss.as_ref()?;
+        let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
+        Some(Self {
+            unidirectional_link_loss_subtlv_flags: Some(Box::new(iter)),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unidirectional_link_residual_bandwidth::UnidirectionalLinkResidualBandwidth<'a> {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+        let stlv = reach.sub_tlvs.uni_resid_bw.as_ref()?;
+        Some(Self {
+            value: Some(stlv.get()),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unidirectional_link_available_bandwidth::UnidirectionalLinkAvailableBandwidth<'a> {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+        let stlv = reach.sub_tlvs.uni_avail_bw.as_ref()?;
+        Some(Self {
+            value: Some(stlv.get()),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unidirectional_link_utilized_bandwidth::UnidirectionalLinkUtilizedBandwidth<'a> {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+        let stlv = reach.sub_tlvs.uni_util_bw.as_ref()?;
+        Some(Self {
+            value: Some(stlv.get()),
+        })
+    }
+}
+
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unknown_tlvs::unknown_tlv::UnknownTlv<'a> {
     fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
@@ -963,6 +1065,110 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
             priority: Some(*priority as u8),
             unreserved_bandwidth: Some(unreserved_bandwidth),
         }
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unidirectional_link_delay::UnidirectionalLinkDelay {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+        let stlv = reach.sub_tlvs.uni_link_delay.as_ref()?;
+        Some(Self {
+            value: Some(stlv.delay),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unidirectional_link_delay::flags::Flags<'a> {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+        let stlv = reach.sub_tlvs.uni_link_delay.as_ref()?;
+        let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
+        Some(Self {
+            unidirectional_link_delay_subtlv_flags: Some(Box::new(iter)),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::min_max_unidirectional_link_delay::MinMaxUnidirectionalLinkDelay {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+        let stlv = reach.sub_tlvs.min_max_uni_link_delay.as_ref()?;
+        Some(Self {
+            min_value: Some(stlv.min_delay),
+            max_value: Some(stlv.max_delay),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::min_max_unidirectional_link_delay::flags::Flags<'a> {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+        let stlv = reach.sub_tlvs.min_max_uni_link_delay.as_ref()?;
+        let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
+        Some(Self {
+            min_max_unidirectional_link_delay_subtlv_flags: Some(Box::new(iter)),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unidirectional_link_delay_variation::UnidirectionalLinkDelayVariation {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+        let stlv = reach.sub_tlvs.uni_delay_variation.as_ref()?;
+        Some(Self {
+            value: Some(stlv.get()),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unidirectional_link_loss::UnidirectionalLinkLoss {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+        let stlv = reach.sub_tlvs.uni_link_loss.as_ref()?;
+        Some(Self {
+            value: Some(stlv.loss),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unidirectional_link_loss::flags::Flags<'a> {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+        let stlv = reach.sub_tlvs.uni_link_loss.as_ref()?;
+        let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
+        Some(Self {
+            unidirectional_link_loss_subtlv_flags: Some(Box::new(iter)),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unidirectional_link_residual_bandwidth::UnidirectionalLinkResidualBandwidth<'a> {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+        let stlv = reach.sub_tlvs.uni_resid_bw.as_ref()?;
+        Some(Self {
+            value: Some(stlv.get()),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unidirectional_link_available_bandwidth::UnidirectionalLinkAvailableBandwidth<'a> {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+        let stlv = reach.sub_tlvs.uni_avail_bw.as_ref()?;
+        Some(Self {
+            value: Some(stlv.get()),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unidirectional_link_utilized_bandwidth::UnidirectionalLinkUtilizedBandwidth<'a> {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+        let stlv = reach.sub_tlvs.uni_util_bw.as_ref()?;
+        Some(Self {
+            value: Some(stlv.get()),
+        })
     }
 }
 

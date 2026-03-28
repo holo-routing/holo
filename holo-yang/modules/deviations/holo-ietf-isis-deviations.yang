@@ -256,34 +256,6 @@ module holo-ietf-isis-deviations {
     deviate not-supported;
   }
 
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-delay" {
-    deviate not-supported;
-  }
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:min-max-unidirectional-link-delay" {
-    deviate not-supported;
-  }
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-delay-variation" {
-    deviate not-supported;
-  }
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-loss" {
-    deviate not-supported;
-  }
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-residual-bandwidth" {
-    deviate not-supported;
-  }
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-available-bandwidth" {
-    deviate not-supported;
-  }
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-utilized-bandwidth" {
-    deviate not-supported;
-  }
-
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:extended-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:link-attributes-flags" {
     deviate not-supported;
   }
@@ -309,34 +281,6 @@ module holo-ietf-isis-deviations {
   }
 
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:interface-switching-capability" {
-    deviate not-supported;
-  }
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-delay" {
-    deviate not-supported;
-  }
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:min-max-unidirectional-link-delay" {
-    deviate not-supported;
-  }
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-delay-variation" {
-    deviate not-supported;
-  }
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-loss" {
-    deviate not-supported;
-  }
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-residual-bandwidth" {
-    deviate not-supported;
-  }
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-available-bandwidth" {
-    deviate not-supported;
-  }
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:mt-is-neighbor/isis:neighbor/isis:instances/isis:instance/isis:unidirectional-link-utilized-bandwidth" {
     deviate not-supported;
   }
 

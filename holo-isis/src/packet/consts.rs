@@ -103,6 +103,13 @@ pub enum NeighborStlvType {
     TeDefaultMetric = 18,
     AdjacencySid = 31,
     LanAdjacencySid = 32,
+    UniLinkDelay = 33,
+    MinMaxUniLinkDelay = 34,
+    UniDelayVariation = 35,
+    UniLinkLoss = 36,
+    UniResidualBw = 37,
+    UniAvailBw = 38,
+    UniUtilBw = 39,
 }
 
 // IS-IS Sub-TLVs for TLVs Advertising Prefix Reachability.

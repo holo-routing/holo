@@ -20,7 +20,7 @@ use crate::northbound::configuration::{ExtendedSeqNumMode, InstanceTraceOption, 
 use crate::packet::consts::{FloodingAlgo, MtId};
 use crate::packet::pdu::LspFlags;
 use crate::packet::subtlvs::capability::SrCapabilitiesFlags;
-use crate::packet::subtlvs::neighbor::AdjSidFlags;
+use crate::packet::subtlvs::neighbor::{AdjSidFlags, MinMaxUniLinkDelayFlags, UniLinkDelayFlags, UniLinkLossFlags};
 use crate::packet::subtlvs::prefix::PrefixSidFlags;
 use crate::packet::tlv::{MtFlags, RouterCapFlags};
 use crate::packet::{AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId};
@@ -172,6 +172,42 @@ impl ToYangBits for AdjSidFlags {
         }
         if self.contains(AdjSidFlags::P) {
             flags.push("ietf-isis-sr-mpls:pe-flag");
+        }
+
+        flags
+    }
+}
+
+impl ToYangBits for UniLinkDelayFlags {
+    fn to_yang_bits(&self) -> Vec<&'static str> {
+        let mut flags = vec![];
+
+        if self.contains(UniLinkDelayFlags::A) {
+            flags.push("ietf-isis:unidirectional-link-delay-subtlv-a-flag");
+        }
+
+        flags
+    }
+}
+
+impl ToYangBits for MinMaxUniLinkDelayFlags {
+    fn to_yang_bits(&self) -> Vec<&'static str> {
+        let mut flags = vec![];
+
+        if self.contains(MinMaxUniLinkDelayFlags::A) {
+            flags.push("ietf-isis:min-max-unidirectional-link-delay-subtlv-a-flag");
+        }
+
+        flags
+    }
+}
+
+impl ToYangBits for UniLinkLossFlags {
+    fn to_yang_bits(&self) -> Vec<&'static str> {
+        let mut flags = vec![];
+
+        if self.contains(UniLinkLossFlags::A) {
+            flags.push("ietf-isis:unidirectional-link-loss-subtlv-a-flag");
         }
 
         flags

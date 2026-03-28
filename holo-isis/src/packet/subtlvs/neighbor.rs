@@ -62,6 +62,78 @@ pub struct UnreservedBwStlv([f32; 8]);
 #[derive(Deserialize, Serialize)]
 pub struct TeDefaultMetricStlv(u32);
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(new)]
+#[derive(Deserialize, Serialize)]
+pub struct UniLinkDelayStlv {
+    pub flags: UniLinkDelayFlags,
+    pub delay: u32,
+}
+
+bitflags! {
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+    #[derive(Deserialize, Serialize)]
+    #[serde(transparent)]
+    pub struct UniLinkDelayFlags: u8 {
+        const A = 0x80;
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(new)]
+#[derive(Deserialize, Serialize)]
+pub struct MinMaxUniLinkDelayStlv {
+    pub flags: MinMaxUniLinkDelayFlags,
+    pub min_delay: u32,
+    pub max_delay: u32,
+}
+
+bitflags! {
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+    #[derive(Deserialize, Serialize)]
+    #[serde(transparent)]
+    pub struct MinMaxUniLinkDelayFlags: u8 {
+        const A = 0x80;
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(new)]
+#[derive(Deserialize, Serialize)]
+pub struct UniDelayVariationStlv(u32);
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(new)]
+#[derive(Deserialize, Serialize)]
+pub struct UniLinkLossStlv {
+    pub flags: UniLinkLossFlags,
+    pub loss: u32,
+}
+
+bitflags! {
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+    #[derive(Deserialize, Serialize)]
+    #[serde(transparent)]
+    pub struct UniLinkLossFlags: u8 {
+        const A = 0x80;
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[derive(new)]
+#[derive(Deserialize, Serialize)]
+pub struct UniResidualBwStlv(f32);
+
+#[derive(Clone, Debug, PartialEq)]
+#[derive(new)]
+#[derive(Deserialize, Serialize)]
+pub struct UniAvailBwStlv(f32);
+
+#[derive(Clone, Debug, PartialEq)]
+#[derive(new)]
+#[derive(Deserialize, Serialize)]
+pub struct UniUtilBwStlv(f32);
+
 bitflags! {
     #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
     #[derive(Deserialize, Serialize)]
@@ -339,6 +411,210 @@ impl TeDefaultMetricStlv {
 
     pub(crate) fn get(&self) -> u32 {
         self.0
+    }
+}
+
+// ===== impl UniLinkDelayStlv =====
+
+impl UniLinkDelayStlv {
+    const SIZE: usize = 4;
+
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
+        if stlv_len as usize != Self::SIZE {
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
+        }
+
+        let flags = UniLinkDelayFlags::from_bits_truncate(buf.try_get_u8()?);
+        let delay = buf.try_get_u24()?;
+
+        Ok(UniLinkDelayStlv { flags, delay })
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, NeighborStlvType::UniLinkDelay);
+        buf.put_u8(self.flags.bits());
+        buf.put_u24(self.delay);
+        tlv_encode_end(buf, start_pos);
+    }
+}
+
+// ===== impl MinMaxUniLinkDelayStlv =====
+
+impl MinMaxUniLinkDelayStlv {
+    const SIZE: usize = 8;
+
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
+        if stlv_len as usize != Self::SIZE {
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
+        }
+
+        let flags =
+            MinMaxUniLinkDelayFlags::from_bits_truncate(buf.try_get_u8()?);
+        let min_delay = buf.try_get_u24()?;
+        let _reserved = buf.try_get_u8()?;
+        let max_delay = buf.try_get_u24()?;
+
+        Ok(MinMaxUniLinkDelayStlv {
+            flags,
+            min_delay,
+            max_delay,
+        })
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos =
+            tlv_encode_start(buf, NeighborStlvType::MinMaxUniLinkDelay);
+        buf.put_u8(self.flags.bits());
+        buf.put_u24(self.min_delay);
+        buf.put_u8(0);
+        buf.put_u24(self.max_delay);
+        tlv_encode_end(buf, start_pos);
+    }
+}
+
+// ===== impl UniDelayVariationStlv =====
+
+impl UniDelayVariationStlv {
+    const SIZE: usize = 4;
+
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
+        if stlv_len as usize != Self::SIZE {
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
+        }
+
+        let _reserved = buf.try_get_u8()?;
+        let variation = buf.try_get_u24()?;
+
+        Ok(UniDelayVariationStlv(variation))
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos =
+            tlv_encode_start(buf, NeighborStlvType::UniDelayVariation);
+        buf.put_u8(0);
+        buf.put_u24(self.0);
+        tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn get(&self) -> u32 {
+        self.0
+    }
+}
+
+// ===== impl UniLinkLossStlv =====
+
+impl UniLinkLossStlv {
+    const SIZE: usize = 4;
+
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
+        if stlv_len as usize != Self::SIZE {
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
+        }
+
+        let flags = UniLinkLossFlags::from_bits_truncate(buf.try_get_u8()?);
+        let loss = buf.try_get_u24()?;
+
+        Ok(UniLinkLossStlv { flags, loss })
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, NeighborStlvType::UniLinkLoss);
+        buf.put_u8(self.flags.bits());
+        buf.put_u24(self.loss);
+        tlv_encode_end(buf, start_pos);
+    }
+}
+
+// ===== impl UniResidualBwStlv =====
+
+impl UniResidualBwStlv {
+    const SIZE: usize = 4;
+
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
+        if stlv_len as usize != Self::SIZE {
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
+        }
+
+        Ok(UniResidualBwStlv(buf.try_get_f32()?))
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, NeighborStlvType::UniResidualBw);
+        buf.put_f32(self.0);
+        tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn get(&self) -> &f32 {
+        &self.0
+    }
+}
+
+// ===== impl UniAvailBwStlv =====
+
+impl UniAvailBwStlv {
+    const SIZE: usize = 4;
+
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
+        if stlv_len as usize != Self::SIZE {
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
+        }
+
+        Ok(UniAvailBwStlv(buf.try_get_f32()?))
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, NeighborStlvType::UniAvailBw);
+        buf.put_f32(self.0);
+        tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn get(&self) -> &f32 {
+        &self.0
+    }
+}
+
+// ===== impl UniUtilBwStlv =====
+
+impl UniUtilBwStlv {
+    const SIZE: usize = 4;
+
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
+        if stlv_len as usize != Self::SIZE {
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
+        }
+
+        Ok(UniUtilBwStlv(buf.try_get_f32()?))
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, NeighborStlvType::UniUtilBw);
+        buf.put_f32(self.0);
+        tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn get(&self) -> &f32 {
+        &self.0
     }
 }
 

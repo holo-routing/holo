@@ -794,10 +794,10 @@ fn rxmt_lists_remove<V>(
         // Filter by LSA area.
         match lsdb_idx {
             LsdbIndex::Link(lsdb_area_idx, _)
-            | LsdbIndex::Area(lsdb_area_idx) => {
-                if area_idx != lsdb_area_idx {
-                    continue;
-                }
+            | LsdbIndex::Area(lsdb_area_idx)
+                if area_idx != lsdb_area_idx =>
+            {
+                continue;
             }
             _ => (),
         }

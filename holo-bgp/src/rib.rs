@@ -704,7 +704,7 @@ where
         // Pick the post-policy routes.
         .filter_map(|adj_rib| adj_rib.in_post.as_mut())
         // Consider locally redistributed routes too.
-        .chain(dest.redistribute.as_mut().into_iter())
+        .chain(dest.redistribute.as_mut())
     {
         route.reject_reason = None;
         route.ineligible_reason = None;

@@ -159,15 +159,14 @@ fn process_newaddr_msg(master: &mut Master, msg: AddressMessage) {
     for nla in msg.attributes.into_iter() {
         match nla {
             AddressAttribute::Address(nla_addr) => addr = Some(nla_addr),
-            AddressAttribute::Flags(nla_flags) => {
+            AddressAttribute::Flags(nla_flags)
                 // Ignore the address if it is still undergoing Duplicate
                 // Address Detection (DAD) or has failed DAD.
-                if nla_flags.contains(AddressFlags::Tentative)
-                    || nla_flags.contains(AddressFlags::Dadfailed)
-                {
+                if (nla_flags.contains(AddressFlags::Tentative)
+                    || nla_flags.contains(AddressFlags::Dadfailed))
+                => {
                     return;
                 }
-            }
             _ => (),
         }
     }

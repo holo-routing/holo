@@ -52,21 +52,19 @@ impl<'a> StructBuilder<'a> {
                     Self::extract_fields(snode, fields);
                 }
             }
-            SchemaNodeKind::Container => {
-                if snode.is_within_notification() {
-                    let mut container_fields = Vec::new();
-                    for snode in snode.children() {
-                        Self::extract_fields(snode, &mut container_fields);
-                    }
-                    if !container_fields.is_empty() {
-                        fields.push(snode);
-                    }
+            SchemaNodeKind::Container if snode.is_within_notification() => {
+                let mut container_fields = Vec::new();
+                for snode in snode.children() {
+                    Self::extract_fields(snode, &mut container_fields);
                 }
-            }
-            SchemaNodeKind::Leaf | SchemaNodeKind::LeafList => {
-                if !snode.is_config() || snode.is_list_key() {
+                if !container_fields.is_empty() {
                     fields.push(snode);
                 }
+            }
+            SchemaNodeKind::Leaf | SchemaNodeKind::LeafList
+                if (!snode.is_config() || snode.is_list_key()) =>
+            {
+                fields.push(snode);
             }
             _ => {}
         }

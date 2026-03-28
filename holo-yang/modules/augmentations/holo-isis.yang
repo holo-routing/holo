@@ -740,6 +740,50 @@ module holo-isis {
   }
 
   augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis/"
+        + "isis:database/isis:levels/isis:lsp/"
+        + "isis:extended-is-neighbor/isis:neighbor/"
+        + "isis:instances/isis:instance" {
+    description
+      "Augments Extended IS neighbor instances with Extended
+       Administrative Group sub-TLV data (RFC 7308).";
+    leaf-list extended-admin-group {
+      type uint32;
+      ordered-by user;
+      description
+        "Extended Administrative Group bit vector (RFC 7308),
+         sub-TLV type 14. Each element is one 32-bit word;
+         index 0 covers groups 0-31 (MSB = group 0), index 1
+         covers groups 32-63, and so on.";
+      reference
+        "RFC 7308: Extended Administrative Groups in MPLS
+                   Traffic Engineering";
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis/"
+        + "isis:database/isis:levels/isis:lsp/"
+        + "isis:mt-is-neighbor/isis:neighbor/"
+        + "isis:instances/isis:instance" {
+    description
+      "Augments MT IS neighbor instances with Extended
+       Administrative Group sub-TLV data (RFC 7308).";
+    leaf-list extended-admin-group {
+      type uint32;
+      ordered-by user;
+      description
+        "Extended Administrative Group bit vector (RFC 7308),
+         sub-TLV type 14. Each element is one 32-bit word;
+         index 0 covers groups 0-31 (MSB = group 0), index 1
+         covers groups 32-63, and so on.";
+      reference
+        "RFC 7308: Extended Administrative Groups in MPLS
+                   Traffic Engineering";
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
         + "rt:control-plane-protocol/isis:isis/isis:database/"
         + "isis:levels/isis:lsp" {
     description

@@ -30,6 +30,11 @@ pub struct AdminGroupStlv(u32);
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
+pub struct ExtAdminGroupStlv(Vec<u32>);
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(new)]
+#[derive(Deserialize, Serialize)]
 pub struct Ipv4InterfaceAddrStlv(Ipv4Addr);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -108,6 +113,41 @@ impl AdminGroupStlv {
 
     pub(crate) fn get(&self) -> u32 {
         self.0
+    }
+}
+
+// ===== impl ExtAdminGroupStlv =====
+
+impl ExtAdminGroupStlv {
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
+        // RFC 7308: length MUST be a non-zero multiple of 4.
+        if stlv_len == 0 || !(stlv_len as usize).is_multiple_of(4) {
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
+        }
+
+        let count = stlv_len as usize / 4;
+        let mut groups = Vec::with_capacity(count);
+        for _ in 0..count {
+            groups.push(buf.try_get_u32()?);
+        }
+
+        Ok(ExtAdminGroupStlv(groups))
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos =
+            tlv_encode_start(buf, NeighborStlvType::ExtendedAdminGroup);
+        for word in &self.0 {
+            buf.put_u32(*word);
+        }
+        tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn get(&self) -> &[u32] {
+        &self.0
     }
 }
 

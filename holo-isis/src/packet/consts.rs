@@ -98,6 +98,7 @@ pub enum NeighborStlvType {
     MaxLinkBandwidth = 9,
     MaxResvLinkBandwidth = 10,
     UnreservedBandwidth = 11,
+    ExtendedAdminGroup = 14,
     LinkMsd = 15,
     TeDefaultMetric = 18,
     AdjacencySid = 31,

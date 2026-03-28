@@ -294,6 +294,7 @@ pub struct IsReach {
 #[derive(Deserialize, Serialize)]
 pub struct IsReachStlvs {
     pub admin_group: Option<subtlvs::neighbor::AdminGroupStlv>,
+    pub ext_admin_group: Option<subtlvs::neighbor::ExtAdminGroupStlv>,
     pub ipv4_interface_addr: Vec<subtlvs::neighbor::Ipv4InterfaceAddrStlv>,
     pub ipv4_neighbor_addr: Vec<subtlvs::neighbor::Ipv4NeighborAddrStlv>,
     pub max_link_bw: Option<subtlvs::neighbor::MaxLinkBwStlv>,
@@ -1314,9 +1315,9 @@ impl IsReachTlv {
         buf: &mut Bytes,
     ) -> TlvDecodeResult<Self> {
         use subtlvs::neighbor::{
-            AdjSidStlv, AdminGroupStlv, Ipv4InterfaceAddrStlv,
-            Ipv4NeighborAddrStlv, MaxLinkBwStlv, MaxResvLinkBwStlv,
-            TeDefaultMetricStlv, UnreservedBwStlv,
+            AdjSidStlv, AdminGroupStlv, ExtAdminGroupStlv,
+            Ipv4InterfaceAddrStlv, Ipv4NeighborAddrStlv, MaxLinkBwStlv,
+            MaxResvLinkBwStlv, TeDefaultMetricStlv, UnreservedBwStlv,
         };
 
         let mut mt_id = None;
@@ -1362,6 +1363,13 @@ impl IsReachTlv {
                     Some(NeighborStlvType::AdminGroup) => {
                         match AdminGroupStlv::decode(stlv_len, &mut buf_stlv) {
                             Ok(stlv) => sub_tlvs.admin_group = Some(stlv),
+                            Err(error) => error.log(),
+                        }
+                    }
+                    Some(NeighborStlvType::ExtendedAdminGroup) => {
+                        match ExtAdminGroupStlv::decode(stlv_len, &mut buf_stlv)
+                        {
+                            Ok(stlv) => sub_tlvs.ext_admin_group = Some(stlv),
                             Err(error) => error.log(),
                         }
                     }
@@ -1484,6 +1492,9 @@ impl IsReachTlv {
             let subtlvs_len_pos = buf.len();
             buf.put_u8(0);
             if let Some(stlv) = &entry.sub_tlvs.admin_group {
+                stlv.encode(buf);
+            }
+            if let Some(stlv) = &entry.sub_tlvs.ext_admin_group {
                 stlv.encode(buf);
             }
             for stlv in &entry.sub_tlvs.ipv4_interface_addr {

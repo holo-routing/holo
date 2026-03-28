@@ -12,6 +12,7 @@ use std::path::Path;
 use capctl::caps;
 use clap::{App, Arg};
 use config::{Config, LoggingFileRotation, LoggingFmtStyle};
+use nix::fcntl::{Flock, FlockArg};
 use nix::unistd::{Uid, User};
 use northbound::Northbound;
 use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};
@@ -22,6 +23,38 @@ use tracing::level_filters::LevelFilter;
 use tracing_appender::rolling;
 use tracing_subscriber::Layer;
 use tracing_subscriber::prelude::*;
+
+// Path for the exclusive flock(2) used to prevent concurrent instances.
+const INSTANCE_LOCK_PATH: &str = "/var/opt/holo/holod.lock";
+
+fn ensure_single_instance() -> Flock<std::fs::File> {
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(INSTANCE_LOCK_PATH)
+        .unwrap_or_else(|err| {
+            eprintln!(
+                "failed to open instance lock file {INSTANCE_LOCK_PATH}: {err}"
+            );
+            std::process::exit(1);
+        });
+
+    match Flock::lock(file, FlockArg::LockExclusiveNonblock) {
+        Ok(lock) => lock,
+        Err((_, errno)) => {
+            if errno == nix::errno::Errno::EAGAIN {
+                eprintln!("another instance of holod is already running");
+            } else {
+                eprintln!(
+                    "failed to acquire instance lock on {INSTANCE_LOCK_PATH}: {errno}"
+                );
+            }
+            std::process::exit(1);
+        }
+    }
+}
 
 fn init_tracing(config: &config::Logging) {
     // Enable logging to journald.
@@ -218,6 +251,9 @@ fn main() {
         eprintln!("need privileged user");
         std::process::exit(1);
     }
+
+    // Ensure only one holod instance runs.
+    let _lock = ensure_single_instance();
 
     // Initialize tracing.
     init_tracing(&config.logging);

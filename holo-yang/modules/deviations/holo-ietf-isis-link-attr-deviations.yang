@@ -1,0 +1,36 @@
+module holo-ietf-isis-link-attr-deviations {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/holo-ietf-isis-link-attr-deviations";
+  prefix holo-ietf-isis-link-attr-deviations;
+
+  import ietf-isis-link-attr {
+    prefix isis-link-attr;
+  }
+
+  import ietf-routing {
+    prefix rt;
+  }
+
+  import ietf-isis {
+    prefix isis;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines deviation statements for the ietf-isis-link-attr
+     module.";
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis-link-attr:isis-link-attr" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis-link-attr:isis-asla" {
+    deviate not-supported;
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis-link-attr:application-specific-srlg-tlv" {
+    deviate not-supported;
+  }
+}

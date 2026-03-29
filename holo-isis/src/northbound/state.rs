@@ -28,7 +28,7 @@ use crate::interface::Interface;
 use crate::lsdb::{LspEntry, LspLogEntry, LspLogId};
 use crate::northbound::yang_gen::{self, isis};
 use crate::packet::subtlvs::capability::LabelBlockEntry;
-use crate::packet::subtlvs::neighbor::AdjSidStlv;
+use crate::packet::subtlvs::neighbor::{AdjSidStlv, AslaStlv};
 use crate::packet::subtlvs::prefix::{PrefixAttrFlags, PrefixSidStlv};
 use crate::packet::subtlvs::spb::{IsidEntry, IsidFlags, SpbmSiStlv};
 use crate::packet::tlv::{AuthenticationTlv, IpReachTlvEntry, Ipv4Reach, Ipv6Reach, IsReach, LegacyIpv4Reach, LegacyIsReach, MtCapabilityTlv, MultiTopologyEntry, RouterCapTlv, UnknownTlv};
@@ -65,6 +65,7 @@ pub enum ListEntry<'a> {
     MtIsReachInstance(u32, &'a IsReach),
     IsReachUnreservedBw(usize, &'a f32),
     AdjSidStlv(&'a AdjSidStlv),
+    AslaStlv(&'a AslaStlv),
     Ipv4Reach(&'a LegacyIpv4Reach),
     ExtIpv4Reach(&'a Ipv4Reach),
     MtIpv4Reach(u16, &'a Ipv4Reach),
@@ -740,6 +741,55 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
     }
 }
 
+impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::AslaSubTlv {
+    fn iter(_provider: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
+        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+        let iter = reach.sub_tlvs.asla.iter().map(ListEntry::AslaStlv);
+        Some(Box::new(iter))
+    }
+
+    fn new(_provider: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        Self {
+            l_flag: Some(stlv.l_flag),
+            sabm_length: Some(stlv.sabm_length),
+            r_flag: Some(stlv.r_flag),
+            udabm_length: Some(stlv.udabm_length),
+        }
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::sabm::Sabm<'a> {
+    fn new(_provider: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let bits = stlv.sabm.to_yang_bits();
+        if bits.is_empty() {
+            return None;
+        }
+        let iter = bits.into_iter().map(Cow::Borrowed);
+        Some(Self {
+            sabm_bits: Some(Box::new(iter)),
+        })
+    }
+}
+
+impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unknown_tlvs::unknown_tlv::UnknownTlv<'a> {
+    fn iter(_provider: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let iter = stlv.sub_tlvs.unknown.iter().map(ListEntry::UnknownTlv);
+        Some(Box::new(iter))
+    }
+
+    fn new(_provider: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
+        let tlv = list_entry.as_unknown_tlv().unwrap();
+        Self {
+            r#type: Some(tlv.tlv_type as u16),
+            length: Some(tlv.length as u16),
+            value: Some(tlv.value.as_ref()),
+        }
+    }
+}
+
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unknown_tlvs::unknown_tlv::UnknownTlv<'a> {
     fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
@@ -1172,6 +1222,54 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
     }
 }
 
+impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::AslaSubTlv {
+    fn iter(_provider: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
+        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+        let iter = reach.sub_tlvs.asla.iter().map(ListEntry::AslaStlv);
+        Some(Box::new(iter))
+    }
+
+    fn new(_provider: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        Self {
+            l_flag: Some(stlv.l_flag),
+            sabm_length: Some(stlv.sabm_length),
+            r_flag: Some(stlv.r_flag),
+            udabm_length: Some(stlv.udabm_length),
+        }
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::sabm::Sabm<'a> {
+    fn new(_provider: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let bits = stlv.sabm.to_yang_bits();
+        if bits.is_empty() {
+            return None;
+        }
+        let iter = bits.into_iter().map(Cow::Borrowed);
+        Some(Self {
+            sabm_bits: Some(Box::new(iter)),
+        })
+    }
+}
+
+impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unknown_tlvs::unknown_tlv::UnknownTlv<'a> {
+    fn iter(_provider: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let iter = stlv.sub_tlvs.unknown.iter().map(ListEntry::UnknownTlv);
+        Some(Box::new(iter))
+    }
+
+    fn new(_provider: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
+        let tlv = list_entry.as_unknown_tlv().unwrap();
+        Self {
+            r#type: Some(tlv.tlv_type as u16),
+            length: Some(tlv.length as u16),
+            value: Some(tlv.value.as_ref()),
+        }
+    }
+}
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unknown_tlvs::unknown_tlv::UnknownTlv<'a> {
     fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();

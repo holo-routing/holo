@@ -15,12 +15,15 @@ use derive_new::new;
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use holo_utils::mpls::Label;
 use holo_utils::sr::Sid;
+use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
 use crate::packet::SystemId;
-use crate::packet::consts::NeighborStlvType;
+use crate::packet::consts::{AslaSabmFlags, AslaStlvType, NeighborStlvType};
 use crate::packet::error::{TlvDecodeError, TlvDecodeResult};
-use crate::packet::tlv::{tlv_encode_end, tlv_encode_start};
+use crate::packet::tlv::{
+    TLV_HDR_SIZE, UnknownTlv, tlv_encode_end, tlv_encode_start,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(new)]
@@ -133,6 +136,45 @@ pub struct UniAvailBwStlv(f32);
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
 pub struct UniUtilBwStlv(f32);
+
+// RFC 9479, Section 4.2: Application-Specific Link Attributes Sub-TLV.
+//
+// This sub-TLV carries per-application link attributes. The SABM and UDABM
+// identify which applications are associated with the enclosed sub-sub-TLVs.
+#[derive(Clone, Debug, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct AslaStlv {
+    pub l_flag: bool,
+    pub r_flag: bool,
+    pub sabm_length: u8,
+    pub sabm: AslaSabmFlags,
+    pub udabm_length: u8,
+    pub udabm: u64,
+    pub sub_tlvs: AslaStlvs,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
+#[derive(Deserialize, Serialize)]
+pub struct AslaStlvs {
+    pub admin_group: Option<AdminGroupStlv>,
+    pub ext_admin_group: Option<ExtAdminGroupStlv>,
+    pub max_link_bw: Option<MaxLinkBwStlv>,
+    pub max_resv_link_bw: Option<MaxResvLinkBwStlv>,
+    pub unreserved_bw: Option<UnreservedBwStlv>,
+    pub te_default_metric: Option<TeDefaultMetricStlv>,
+    pub uni_link_delay: Option<UniLinkDelayStlv>,
+    pub min_max_uni_link_delay: Option<MinMaxUniLinkDelayStlv>,
+    pub uni_delay_variation: Option<UniDelayVariationStlv>,
+    pub uni_link_loss: Option<UniLinkLossStlv>,
+    pub uni_resid_bw: Option<UniResidualBwStlv>,
+    pub uni_avail_bw: Option<UniAvailBwStlv>,
+    pub uni_util_bw: Option<UniUtilBwStlv>,
+    pub unknown: Vec<UnknownTlv>,
+}
 
 bitflags! {
     #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -615,6 +657,238 @@ impl UniUtilBwStlv {
 
     pub(crate) fn get(&self) -> &f32 {
         &self.0
+    }
+}
+
+// ===== impl AslaStlv =====
+
+impl AslaStlv {
+    const MIN_SIZE: usize = 2;
+    const MAX_MASK_LEN: u8 = 8;
+    const FLAG_MASK: u8 = 0x80;
+    const LENGTH_MASK: u8 = 0x7F;
+
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Option<Self>> {
+        if (stlv_len as usize) < Self::MIN_SIZE {
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
+        }
+
+        let byte0 = buf.try_get_u8()?;
+        let l_flag = (byte0 & Self::FLAG_MASK) != 0;
+        let sabm_length = byte0 & Self::LENGTH_MASK;
+
+        let byte1 = buf.try_get_u8()?;
+        let r_flag = (byte1 & Self::FLAG_MASK) != 0;
+        let udabm_length = byte1 & Self::LENGTH_MASK;
+
+        // Per RFC 9479, ignore the entire sub-TLV if either mask length > 8.
+        if sabm_length > Self::MAX_MASK_LEN || udabm_length > Self::MAX_MASK_LEN
+        {
+            return Ok(None);
+        }
+
+        // Parse SABM.
+        let mut sabm_raw = 0u64;
+        for i in 0..sabm_length as usize {
+            sabm_raw |= (buf.try_get_u8()? as u64) << (56 - i * 8);
+        }
+        let sabm = AslaSabmFlags::from_bits_truncate(sabm_raw);
+
+        // Parse UDABM.
+        let mut udabm_raw = 0u64;
+        for i in 0..udabm_length as usize {
+            udabm_raw |= (buf.try_get_u8()? as u64) << (56 - i * 8);
+        }
+
+        // Parse sub-sub-TLVs.
+        let sub_tlvs = AslaStlvs::decode(buf);
+
+        Ok(Some(AslaStlv {
+            l_flag,
+            r_flag,
+            sabm_length,
+            sabm,
+            udabm_length,
+            udabm: udabm_raw,
+            sub_tlvs,
+        }))
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos =
+            tlv_encode_start(buf, NeighborStlvType::AppSpecificLinkAttr);
+        let byte0 = if self.l_flag { Self::FLAG_MASK } else { 0 }
+            | (self.sabm_length & Self::LENGTH_MASK);
+        buf.put_u8(byte0);
+        let byte1 = if self.r_flag { Self::FLAG_MASK } else { 0 }
+            | (self.udabm_length & Self::LENGTH_MASK);
+        buf.put_u8(byte1);
+        for i in 0..self.sabm_length as usize {
+            buf.put_u8((self.sabm.bits() >> (56 - i * 8)) as u8);
+        }
+        for i in 0..self.udabm_length as usize {
+            buf.put_u8((self.udabm >> (56 - i * 8)) as u8);
+        }
+        self.sub_tlvs.encode(buf);
+        tlv_encode_end(buf, start_pos);
+    }
+}
+
+// ===== impl AslaStlvs =====
+
+impl AslaStlvs {
+    pub(crate) fn decode(buf: &mut Bytes) -> Self {
+        let mut sub_tlvs = AslaStlvs::default();
+
+        while buf.remaining() >= TLV_HDR_SIZE {
+            let stlv_type = buf.get_u8();
+            let stlv_etype = AslaStlvType::from_u8(stlv_type);
+            let stlv_len = buf.get_u8();
+            if stlv_len as usize > buf.remaining() {
+                break;
+            }
+            let mut buf_stlv = buf.copy_to_bytes(stlv_len as usize);
+            match stlv_etype {
+                Some(AslaStlvType::AdminGroup) => {
+                    match AdminGroupStlv::decode(stlv_len, &mut buf_stlv) {
+                        Ok(stlv) => sub_tlvs.admin_group = Some(stlv),
+                        Err(error) => error.log(),
+                    }
+                }
+                Some(AslaStlvType::ExtendedAdminGroup) => {
+                    match ExtAdminGroupStlv::decode(stlv_len, &mut buf_stlv) {
+                        Ok(stlv) => sub_tlvs.ext_admin_group = Some(stlv),
+                        Err(error) => error.log(),
+                    }
+                }
+                Some(AslaStlvType::MaxLinkBandwidth) => {
+                    match MaxLinkBwStlv::decode(stlv_len, &mut buf_stlv) {
+                        Ok(stlv) => sub_tlvs.max_link_bw = Some(stlv),
+                        Err(error) => error.log(),
+                    }
+                }
+                Some(AslaStlvType::MaxResvLinkBandwidth) => {
+                    match MaxResvLinkBwStlv::decode(stlv_len, &mut buf_stlv) {
+                        Ok(stlv) => sub_tlvs.max_resv_link_bw = Some(stlv),
+                        Err(error) => error.log(),
+                    }
+                }
+                Some(AslaStlvType::UnreservedBandwidth) => {
+                    match UnreservedBwStlv::decode(stlv_len, &mut buf_stlv) {
+                        Ok(stlv) => sub_tlvs.unreserved_bw = Some(stlv),
+                        Err(error) => error.log(),
+                    }
+                }
+                Some(AslaStlvType::TeDefaultMetric) => {
+                    match TeDefaultMetricStlv::decode(stlv_len, &mut buf_stlv) {
+                        Ok(stlv) => sub_tlvs.te_default_metric = Some(stlv),
+                        Err(error) => error.log(),
+                    }
+                }
+                Some(AslaStlvType::UniLinkDelay) => {
+                    match UniLinkDelayStlv::decode(stlv_len, &mut buf_stlv) {
+                        Ok(stlv) => sub_tlvs.uni_link_delay = Some(stlv),
+                        Err(error) => error.log(),
+                    }
+                }
+                Some(AslaStlvType::MinMaxUniLinkDelay) => {
+                    match MinMaxUniLinkDelayStlv::decode(
+                        stlv_len,
+                        &mut buf_stlv,
+                    ) {
+                        Ok(stlv) => {
+                            sub_tlvs.min_max_uni_link_delay = Some(stlv)
+                        }
+                        Err(error) => error.log(),
+                    }
+                }
+                Some(AslaStlvType::UniDelayVariation) => {
+                    match UniDelayVariationStlv::decode(stlv_len, &mut buf_stlv)
+                    {
+                        Ok(stlv) => sub_tlvs.uni_delay_variation = Some(stlv),
+                        Err(error) => error.log(),
+                    }
+                }
+                Some(AslaStlvType::UniLinkLoss) => {
+                    match UniLinkLossStlv::decode(stlv_len, &mut buf_stlv) {
+                        Ok(stlv) => sub_tlvs.uni_link_loss = Some(stlv),
+                        Err(error) => error.log(),
+                    }
+                }
+                Some(AslaStlvType::UniResidualBw) => {
+                    match UniResidualBwStlv::decode(stlv_len, &mut buf_stlv) {
+                        Ok(stlv) => sub_tlvs.uni_resid_bw = Some(stlv),
+                        Err(error) => error.log(),
+                    }
+                }
+                Some(AslaStlvType::UniAvailBw) => {
+                    match UniAvailBwStlv::decode(stlv_len, &mut buf_stlv) {
+                        Ok(stlv) => sub_tlvs.uni_avail_bw = Some(stlv),
+                        Err(error) => error.log(),
+                    }
+                }
+                Some(AslaStlvType::UniUtilBw) => {
+                    match UniUtilBwStlv::decode(stlv_len, &mut buf_stlv) {
+                        Ok(stlv) => sub_tlvs.uni_util_bw = Some(stlv),
+                        Err(error) => error.log(),
+                    }
+                }
+                None => {
+                    sub_tlvs.unknown.push(UnknownTlv {
+                        tlv_type: stlv_type,
+                        length: stlv_len,
+                        value: buf_stlv,
+                    });
+                }
+            }
+        }
+
+        sub_tlvs
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        if let Some(stlv) = &self.admin_group {
+            stlv.encode(buf);
+        }
+        if let Some(stlv) = &self.ext_admin_group {
+            stlv.encode(buf);
+        }
+        if let Some(stlv) = &self.max_link_bw {
+            stlv.encode(buf);
+        }
+        if let Some(stlv) = &self.max_resv_link_bw {
+            stlv.encode(buf);
+        }
+        if let Some(stlv) = &self.unreserved_bw {
+            stlv.encode(buf);
+        }
+        if let Some(stlv) = &self.te_default_metric {
+            stlv.encode(buf);
+        }
+        if let Some(stlv) = &self.uni_link_delay {
+            stlv.encode(buf);
+        }
+        if let Some(stlv) = &self.min_max_uni_link_delay {
+            stlv.encode(buf);
+        }
+        if let Some(stlv) = &self.uni_delay_variation {
+            stlv.encode(buf);
+        }
+        if let Some(stlv) = &self.uni_link_loss {
+            stlv.encode(buf);
+        }
+        if let Some(stlv) = &self.uni_resid_bw {
+            stlv.encode(buf);
+        }
+        if let Some(stlv) = &self.uni_avail_bw {
+            stlv.encode(buf);
+        }
+        if let Some(stlv) = &self.uni_util_bw {
+            stlv.encode(buf);
+        }
     }
 }
 

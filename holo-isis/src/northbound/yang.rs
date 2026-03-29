@@ -17,7 +17,7 @@ use crate::error::AdjacencyRejectError;
 use crate::interface::InterfaceType;
 use crate::lsdb::LspLogReason;
 use crate::northbound::configuration::{ExtendedSeqNumMode, InstanceTraceOption, InterfaceTraceOption, MetricType};
-use crate::packet::consts::{FloodingAlgo, MtId};
+use crate::packet::consts::{AslaSabmFlags, FloodingAlgo, MtId};
 use crate::packet::pdu::LspFlags;
 use crate::packet::subtlvs::capability::SrCapabilitiesFlags;
 use crate::packet::subtlvs::neighbor::{AdjSidFlags, MinMaxUniLinkDelayFlags, UniLinkDelayFlags, UniLinkLossFlags};
@@ -309,6 +309,22 @@ impl ToYang for SpfType {
             SpfType::Full => "full".into(),
             SpfType::RouteOnly => "route-only".into(),
         }
+    }
+}
+
+impl ToYangBits for AslaSabmFlags {
+    fn to_yang_bits(&self) -> Vec<&'static str> {
+        let mut bits = vec![];
+        if self.contains(AslaSabmFlags::R) {
+            bits.push("ietf-isis-link-attr:rsvp-te-bit");
+        }
+        if self.contains(AslaSabmFlags::S) {
+            bits.push("ietf-isis-link-attr:sr-policy-bit");
+        }
+        if self.contains(AslaSabmFlags::F) {
+            bits.push("ietf-isis-link-attr:lfa-bit");
+        }
+        bits
     }
 }
 

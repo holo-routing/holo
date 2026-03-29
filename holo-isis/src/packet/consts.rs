@@ -7,6 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
+use bitflags::bitflags;
 use num_derive::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
 
@@ -100,6 +101,7 @@ pub enum NeighborStlvType {
     UnreservedBandwidth = 11,
     ExtendedAdminGroup = 14,
     LinkMsd = 15,
+    AppSpecificLinkAttr = 16,
     TeDefaultMetric = 18,
     AdjacencySid = 31,
     LanAdjacencySid = 32,
@@ -110,6 +112,47 @@ pub enum NeighborStlvType {
     UniResidualBw = 37,
     UniAvailBw = 38,
     UniUtilBw = 39,
+}
+
+// IS-IS Sub-Sub-TLV Codepoints for Application-Specific Link Attributes.
+//
+// IANA registry:
+// https://www.iana.org/assignments/isis-tlv-codepoints/isis-tlv-codepoints.xhtml#isis-tlv-codepoints-application-specific-link-attributes
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(FromPrimitive, ToPrimitive)]
+#[derive(Deserialize, Serialize)]
+pub enum AslaStlvType {
+    AdminGroup = 3,
+    MaxLinkBandwidth = 9,
+    MaxResvLinkBandwidth = 10,
+    UnreservedBandwidth = 11,
+    ExtendedAdminGroup = 14,
+    TeDefaultMetric = 18,
+    UniLinkDelay = 33,
+    MinMaxUniLinkDelay = 34,
+    UniDelayVariation = 35,
+    UniLinkLoss = 36,
+    UniResidualBw = 37,
+    UniAvailBw = 38,
+    UniUtilBw = 39,
+}
+
+// Link Attribute Application Identifiers.
+//
+// IANA registry:
+// https://www.iana.org/assignments/igp-parameters/igp-parameters.xhtml#link-attribute-application-identifiers
+bitflags! {
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+    #[derive(Deserialize, Serialize)]
+    #[serde(transparent)]
+    pub struct AslaSabmFlags: u64 {
+        // R-bit: RSVP-TE.
+        const R = 0x8000_0000_0000_0000;
+        // S-bit: Segment Routing Policy.
+        const S = 0x4000_0000_0000_0000;
+        // F-bit: Loop-Free Alternate (LFA).
+        const F = 0x2000_0000_0000_0000;
+    }
 }
 
 // IS-IS Sub-TLVs for TLVs Advertising Prefix Reachability.

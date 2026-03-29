@@ -309,6 +309,7 @@ pub struct IsReachStlvs {
     pub uni_resid_bw: Option<subtlvs::neighbor::UniResidualBwStlv>,
     pub uni_avail_bw: Option<subtlvs::neighbor::UniAvailBwStlv>,
     pub uni_util_bw: Option<subtlvs::neighbor::UniUtilBwStlv>,
+    pub asla: Vec<subtlvs::neighbor::AslaStlv>,
     pub adj_sids: Vec<subtlvs::neighbor::AdjSidStlv>,
     pub link_msd: Option<MsdStlv>,
     pub unknown: Vec<UnknownTlv>,
@@ -1323,7 +1324,7 @@ impl IsReachTlv {
         buf: &mut Bytes,
     ) -> TlvDecodeResult<Self> {
         use subtlvs::neighbor::{
-            AdjSidStlv, AdminGroupStlv, ExtAdminGroupStlv,
+            AdjSidStlv, AdminGroupStlv, AslaStlv, ExtAdminGroupStlv,
             Ipv4InterfaceAddrStlv, Ipv4NeighborAddrStlv, MaxLinkBwStlv,
             MaxResvLinkBwStlv, MinMaxUniLinkDelayStlv, TeDefaultMetricStlv,
             UniAvailBwStlv, UniDelayVariationStlv, UniLinkDelayStlv,
@@ -1516,6 +1517,13 @@ impl IsReachTlv {
                             Err(error) => error.log(),
                         }
                     }
+                    Some(NeighborStlvType::AppSpecificLinkAttr) => {
+                        match AslaStlv::decode(stlv_len, &mut buf_stlv) {
+                            Ok(Some(stlv)) => sub_tlvs.asla.push(stlv),
+                            Ok(None) => {}
+                            Err(error) => error.log(),
+                        }
+                    }
                     _ => {
                         // Save unknown Sub-TLV.
                         sub_tlvs.unknown.push(UnknownTlv::new(
@@ -1606,6 +1614,9 @@ impl IsReachTlv {
             }
             if let Some(stlv) = &entry.sub_tlvs.link_msd {
                 stlv.encode(NeighborStlvType::LinkMsd as u8, buf);
+            }
+            for stlv in &entry.sub_tlvs.asla {
+                stlv.encode(buf);
             }
             // Rewrite Sub-TLVs length field.
             buf[subtlvs_len_pos] = (buf.len() - 1 - subtlvs_len_pos) as u8;

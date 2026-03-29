@@ -98,6 +98,8 @@ static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-ipv6-router-advertisements@2018-03-13.yang"),
         EmbeddedModuleKey::new("ietf-isis", Some("2022-10-19"), None, None) =>
             include_str!("../modules/ietf/ietf-isis@2022-10-19.yang"),
+        EmbeddedModuleKey::new("ietf-isis-link-attr", Some("2025-09-11"), None, None) =>
+            include_str!("../modules/ietf/ietf-isis-link-attr@2025-09-11.yang"),
         EmbeddedModuleKey::new("ietf-isis-msd", Some("2024-09-02"), None, None) =>
             include_str!("../modules/ietf/ietf-isis-msd@2024-09-02.yang"),
         EmbeddedModuleKey::new("ietf-isis-sr-mpls", Some("2025-12-09"), None, None) =>
@@ -182,6 +184,8 @@ static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/deviations/holo-ietf-ip-deviations.yang"),
         EmbeddedModuleKey::new("holo-ietf-isis-deviations", None, None, None) =>
             include_str!("../modules/deviations/holo-ietf-isis-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-isis-link-attr-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-isis-link-attr-deviations.yang"),
         EmbeddedModuleKey::new("holo-ietf-isis-msd-deviations", None, None, None) =>
             include_str!("../modules/deviations/holo-ietf-isis-msd-deviations.yang"),
         EmbeddedModuleKey::new("holo-ietf-isis-sr-mpls-deviations", None, None, None) =>
@@ -253,6 +257,7 @@ pub mod implemented_modules {
         // IETF modules
         "ietf-bfd-types",
         "ietf-isis",
+        "ietf-isis-link-attr",
         "ietf-isis-msd",
         "ietf-isis-sr-mpls",
         "ietf-segment-routing-mpls",

@@ -6,7 +6,7 @@
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
-use holo_utils::bgp::AfiSafi;
+use holo_utils::bgp::{AfiSafi, RoleName};
 use holo_utils::ip::{IpAddrKind, IpNetworkKind, Ipv4AddrExt, Ipv6AddrExt};
 use ipnetwork::{Ipv4Network, Ipv6Network};
 use itertools::Itertools;
@@ -52,7 +52,10 @@ pub trait AddressFamily: Sized {
     fn nexthop_tx_change(nbr: &Neighbor, local: bool, attrs: &mut BaseAttrs);
 
     // Build BGP UPDATE messages based on the provided update queue.
-    fn build_updates(queue: &mut NeighborUpdateQueue<Self>) -> Vec<Message>;
+    fn build_updates(
+        queue: &mut NeighborUpdateQueue<Self>,
+        role: Option<RoleName>,
+    ) -> Vec<Message>;
 }
 
 #[derive(Debug)]
@@ -122,13 +125,33 @@ impl AddressFamily for Ipv4Unicast {
         }
     }
 
-    fn build_updates(queue: &mut NeighborUpdateQueue<Self>) -> Vec<Message> {
+    fn build_updates(
+        queue: &mut NeighborUpdateQueue<Self>,
+        role: Option<RoleName>,
+    ) -> Vec<Message> {
         let mut msgs = vec![];
         let reach = std::mem::take(&mut queue.reach);
         let unreach = std::mem::take(&mut queue.unreach);
 
         // Reachable prefixes.
         for (attrs, prefixes) in reach.into_iter() {
+            // RFC 9234: If a route already contains the OTC Attribute,
+            // it MUST NOT be propagated to Providers, Peers,or RSes.
+            //
+            // FIXIT: This logic was placed here as best fit. It necessitated
+            // the addition of 'role' argument to the function, which may /
+            // may not be necessary. If a better place can be found
+            //
+            if let Some(role) = role
+                && matches!(
+                    role,
+                    RoleName::Provider | RoleName::Peer | RoleName::Rs
+                )
+                && attrs.base.otc.is_some()
+            {
+                continue;
+            }
+
             let nexthop = Ipv4Addr::get(attrs.base.nexthop.unwrap()).unwrap();
             let max = (Message::MAX_LEN
                 - UpdateMsg::MIN_LEN
@@ -255,13 +278,32 @@ impl AddressFamily for Ipv6Unicast {
         }
     }
 
-    fn build_updates(queue: &mut NeighborUpdateQueue<Self>) -> Vec<Message> {
+    fn build_updates(
+        queue: &mut NeighborUpdateQueue<Self>,
+        role: Option<RoleName>,
+    ) -> Vec<Message> {
         let mut msgs = vec![];
         let reach = std::mem::take(&mut queue.reach);
         let unreach = std::mem::take(&mut queue.unreach);
 
         // Reachable prefixes.
         for (attrs, prefixes) in reach.into_iter() {
+            // RFC 9234: If a route already contains the OTC Attribute,
+            // it MUST NOT be propagated to Providers, Peers,or RSes.
+            //
+            // FIXIT: This logic was placed here as best fit. It necessitated
+            // the addition of 'role' argument to the function, which may /
+            // may not be necessary. If a better place can be found
+            if let Some(role) = role
+                && matches!(
+                    role,
+                    RoleName::Provider | RoleName::Peer | RoleName::Rs
+                )
+                && attrs.base.otc.is_some()
+            {
+                continue;
+            }
+
             let nexthop = Ipv6Addr::get(attrs.base.nexthop.unwrap()).unwrap();
             let ll_nexthop = attrs.base.ll_nexthop;
             let nexthop_len = if ll_nexthop.is_some() { 32 } else { 16 };

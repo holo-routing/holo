@@ -1075,7 +1075,8 @@ impl Neighbor {
                 // Re-send the current Adj-RIB-Out to this neighbor.
                 self.resend_adj_rib_out::<Ipv4Unicast>(instance);
                 self.resend_adj_rib_out::<Ipv6Unicast>(instance);
-                let msg_list = self.update_queues.build_updates();
+                let msg_list =
+                    self.update_queues.build_updates(self.remote_role);
                 if !msg_list.is_empty() {
                     self.message_list_send(msg_list);
                 }
@@ -1197,10 +1198,13 @@ impl MessageStatistics {
 // ===== impl NeighborUpdateQueues =====
 
 impl NeighborUpdateQueues {
-    pub(crate) fn build_updates(&mut self) -> Vec<Message> {
+    pub(crate) fn build_updates(
+        &mut self,
+        role: Option<RoleName>,
+    ) -> Vec<Message> {
         [
-            self.ipv4_unicast.build_updates(),
-            self.ipv6_unicast.build_updates(),
+            self.ipv4_unicast.build_updates(role),
+            self.ipv6_unicast.build_updates(role),
         ]
         .concat()
     }
@@ -1212,8 +1216,8 @@ impl<A> NeighborUpdateQueue<A>
 where
     A: AddressFamily,
 {
-    fn build_updates(&mut self) -> Vec<Message> {
-        A::build_updates(self)
+    fn build_updates(&mut self, role: Option<RoleName>) -> Vec<Message> {
+        A::build_updates(self, role)
     }
 }
 

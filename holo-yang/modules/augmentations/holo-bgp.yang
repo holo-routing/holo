@@ -40,6 +40,14 @@ module holo-bgp {
       "Route was ineligible due to unresolvable next-hop";
   }
 
+  identity ineligible-role {
+    base brt:ineligible-route-reason;
+    description
+      "Route's OTC configuration was not compatible with neighbor.";
+    reference
+      "RFC 9234: Bgp Route Leak Prevention.";
+  }
+
   identity unknown-error {
     base bn:bgp-notification;
     description

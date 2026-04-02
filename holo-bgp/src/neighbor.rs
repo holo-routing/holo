@@ -13,7 +13,7 @@ use std::time::Duration;
 use arbitrary::Arbitrary;
 use chrono::{DateTime, Utc};
 use holo_protocol::InstanceChannelsTx;
-use holo_utils::bgp::{AfiSafi, RoleName, RouteType, WellKnownCommunities};
+use holo_utils::bgp::{AfiSafi, RouteType, WellKnownCommunities};
 use holo_utils::ibus::IbusChannelsTx;
 use holo_utils::socket::{TTL_MAX, TcpConnInfo, TcpStream};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
@@ -30,7 +30,7 @@ use crate::northbound::notification;
 use crate::northbound::rpc::ClearType;
 use crate::packet::attribute::{AS_TRANS, Attrs};
 use crate::packet::iana::{
-    Afi, CeaseSubcode, ErrorCode, FsmErrorSubcode, Safi,
+    Afi, CeaseSubcode, ErrorCode, FsmErrorSubcode, RoleName, Safi,
 };
 use crate::packet::message::{
     Capability, DecodeCxt, EncodeCxt, KeepaliveMsg, Message,
@@ -698,7 +698,7 @@ impl Neighbor {
             });
         }
 
-        if let Some(role) = self.config.role {
+        if let Some(role) = self.config.local_role {
             capabilities.insert(Capability::Role { role });
         }
 
@@ -814,40 +814,46 @@ impl Neighbor {
             ));
         }
 
-        if let Some(local_role) = self.config.role
+        // RFC 9234: Role correctness validation for OPEN messages.
+        let mut role_correctness = true;
+        if let Some(local_role) = self.config.local_role
             && let Some(Capability::Role { role: remote_role }) = msg
                 .capabilities
                 .iter()
                 .find(|cap| matches!(cap, Capability::Role { .. }))
         {
-            let err = Err(Error::NbrRoleMismatch(
-                self.remote_addr,
-                local_role.to_u8().unwrap(),
-                remote_role.to_u8().unwrap(),
-            ));
-
-            // Validate the incoming BGP Role.
-            // ---
-            // Validation 1:
-            // Check if the neighbor had already sent a Role capability,
-            // and if the role capability is same as incoming.
-            if self.remote_role.is_some()
-                && self.remote_role != Some(*remote_role)
+            // If remote role already exists, it should be same as incoming role.
+            if let Some(r_role) = self.remote_role
+                && r_role != *remote_role
             {
-                return err;
+                // TODO: (RFC 9234 Section 4.2)
+                // Use error below only when 'strict mode'
+                // is enabled
+                //
+                // let err = Err(Error::NbrRoleMismatch(
+                //     self.remote_addr,
+                //     local_role.to_u8().unwrap(),
+                //     remote_role.to_u8().unwrap(),
+                // ));
+                // Should throw error on struct mode.
+                role_correctness = false;
             }
 
-            // Validation 2:
-            // Finds if:
-            //  1. Role has been locally configured.
-            //  2. role exists on the incoming message.
-            //  3. If local role and remote role correctly match the RFC 9234.
-            if !RoleName::validate_role_correctness(&local_role, remote_role) {
-                return err;
-            }
+            // Valid Role Mappings.
+            let role_mappings = BTreeMap::from([
+                (RoleName::Provider, RoleName::Customer),
+                (RoleName::Customer, RoleName::Provider),
+                (RoleName::Rs, RoleName::RsClient),
+                (RoleName::RsClient, RoleName::Rs),
+                (RoleName::Peer, RoleName::Peer),
+            ]);
 
-            // If everything is okay, then we can set the remote role correctly.
-            self.remote_role = Some(*remote_role);
+            if let Some(approved_role) = role_mappings.get(&local_role)
+                && approved_role == remote_role
+                && role_correctness
+            {
+                self.remote_role = Some(*remote_role);
+            }
         }
 
         Ok(())

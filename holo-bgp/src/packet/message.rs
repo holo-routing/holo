@@ -10,7 +10,6 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 use arbitrary::Arbitrary;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use enum_as_inner::EnumAsInner;
-use holo_utils::bgp::RoleName;
 use holo_utils::bytes::{BytesExt, BytesMutExt, TLS_BUF};
 use holo_utils::ip::{
     Ipv4AddrExt, Ipv4NetworkExt, Ipv6AddrExt, Ipv6NetworkExt,
@@ -28,7 +27,8 @@ use crate::packet::error::{
 };
 use crate::packet::iana::{
     Afi, CapabilityCode, ErrorCode, MessageHeaderErrorSubcode, MessageType,
-    OpenMessageErrorSubcode, OpenParamType, Safi, UpdateMessageErrorSubcode,
+    OpenMessageErrorSubcode, OpenParamType, RoleName, Safi,
+    UpdateMessageErrorSubcode,
 };
 
 //

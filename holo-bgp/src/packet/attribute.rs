@@ -908,7 +908,7 @@ mod otc {
     const LEN: u8 = 4;
 
     pub(super) fn encode(otc: u32, buf: &mut BytesMut) {
-        buf.put_u8(AttrFlags::OPTIONAL.bits());
+        buf.put_u8(AttrFlags::OPTIONAL.bits() | AttrFlags::TRANSITIVE.bits());
         buf.put_u8(AttrType::Otc as u8);
         buf.put_u8(LEN);
         buf.put_u32(otc);

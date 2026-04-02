@@ -208,6 +208,7 @@ impl ToYang for RouteIneligibleReason {
             RouteIneligibleReason::Originator => "iana-bgp-rib-types:ineligible-originator".into(),
             RouteIneligibleReason::Confed => "iana-bgp-rib-types:ineligible-confed".into(),
             RouteIneligibleReason::Unresolvable => "holo-bgp:ineligible-unresolvable".into(),
+            RouteIneligibleReason::Role => "holo-bgp:ineligible-role".into(),
         }
     }
 }

@@ -289,6 +289,18 @@ pub enum AttrType {
     //AttrSet = 128,
 }
 
+// Roles as defined in RFC 9234.
+#[derive(Clone, Copy, Ord, Debug, Eq, Hash, PartialEq, PartialOrd)]
+#[derive(FromPrimitive, ToPrimitive)]
+#[derive(Deserialize, Serialize)]
+pub enum RoleName {
+    Provider = 0,
+    Rs = 1,
+    RsClient = 2,
+    Customer = 3,
+    Peer = 4, // i.e Lateral Peer.
+}
+
 // BGP Origin.
 pub type Origin = holo_utils::bgp::Origin;
 

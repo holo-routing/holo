@@ -10,6 +10,7 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 use arbitrary::Arbitrary;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use enum_as_inner::EnumAsInner;
+use holo_utils::bgp::RoleName;
 use holo_utils::bytes::{BytesExt, BytesMutExt, TLS_BUF};
 use holo_utils::ip::{
     Ipv4AddrExt, Ipv4NetworkExt, Ipv6AddrExt, Ipv6NetworkExt,
@@ -123,6 +124,7 @@ pub enum Capability {
     AddPath(BTreeSet<AddPathTuple>),
     RouteRefresh,
     EnhancedRouteRefresh,
+    Role { role: RoleName },
 }
 
 // This is a stripped down version of `Capability`, containing only data that
@@ -137,6 +139,7 @@ pub enum NegotiatedCapability {
     AddPath,
     RouteRefresh,
     EnhancedRouteRefresh,
+    Role,
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -552,6 +555,11 @@ impl Capability {
                 buf.put_u8(CapabilityCode::EnhancedRouteRefresh as u8);
                 buf.put_u8(0);
             }
+            Capability::Role { role } => {
+                buf.put_u8(CapabilityCode::BgpRole as u8);
+                buf.put_u8(1);
+                buf.put_u8(RoleName::to_u8(role).unwrap());
+            }
         }
 
         // Rewrite the "Capability Length" field.
@@ -570,6 +578,7 @@ impl Capability {
         }
 
         let mut buf_cap = buf.copy_to_bytes(cap_len as usize);
+
         let cap = match CapabilityCode::from_u8(cap_type) {
             Some(CapabilityCode::MultiProtocol) => {
                 if cap_len != 4 {
@@ -638,6 +647,20 @@ impl Capability {
 
                 Capability::EnhancedRouteRefresh
             }
+            // RFC 9234.
+            Some(CapabilityCode::BgpRole) => {
+                if cap_len != 1 {
+                    return Err(OpenMessageError::MalformedOptParam);
+                }
+
+                let role_value = buf_cap.try_get_u8()?;
+                match RoleName::from_u8(role_value) {
+                    Some(role) => Capability::Role { role },
+                    None => {
+                        return Ok(None);
+                    }
+                }
+            }
             _ => {
                 // Ignore unknown capability.
                 return Ok(None);
@@ -658,6 +681,7 @@ impl Capability {
             Capability::EnhancedRouteRefresh => {
                 CapabilityCode::EnhancedRouteRefresh
             }
+            Capability::Role { .. } => CapabilityCode::BgpRole,
         }
     }
 
@@ -674,6 +698,7 @@ impl Capability {
             Capability::EnhancedRouteRefresh => {
                 NegotiatedCapability::EnhancedRouteRefresh
             }
+            Capability::Role { .. } => NegotiatedCapability::Role,
         }
     }
 }
@@ -694,6 +719,7 @@ impl NegotiatedCapability {
             NegotiatedCapability::EnhancedRouteRefresh => {
                 CapabilityCode::EnhancedRouteRefresh
             }
+            NegotiatedCapability::Role => CapabilityCode::BgpRole,
         }
     }
 }
@@ -917,6 +943,9 @@ impl From<DecodeError> for NotificationMsg {
                     }
                     OpenMessageError::MalformedOptParam => {
                         OpenMessageErrorSubcode::Unspecific
+                    }
+                    OpenMessageError::RoleMismatch => {
+                        OpenMessageErrorSubcode::RoleMismatch
                     }
                 } as u8;
             }

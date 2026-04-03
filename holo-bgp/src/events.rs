@@ -8,7 +8,7 @@ use std::net::IpAddr;
 
 use chrono::Utc;
 use holo_protocol::InstanceShared;
-use holo_utils::bgp::RouteType;
+use holo_utils::bgp::{RoleName, RouteType};
 use holo_utils::ibus::IbusChannelsTx;
 use holo_utils::ip::{IpAddrKind, IpNetworkKind};
 use holo_utils::policy::{PolicyResult, PolicyType};
@@ -285,6 +285,16 @@ fn process_nbr_reach_prefixes<A>(
         return;
     }
 
+    // RFC 9234: If a route is received from a Provider, a Peer or an RS and
+    // the OTC Attribute is not present, it MUST be added with AS number of
+    // remote AS.
+    if let Some(role) = nbr.config.remote_role
+        && matches!(role, RoleName::Provider | RoleName::Peer | RoleName::Rs)
+        && attrs.base.otc.is_none()
+    {
+        let _ = attrs.base.otc.get_or_insert(nbr.config.peer_as);
+    }
+
     // Initialize route origin and type.
     let origin = RouteOrigin::Neighbor {
         identifier: nbr.identifier.unwrap(),
@@ -411,7 +421,8 @@ fn process_nbr_route_refresh(
     }
 
     // Send UPDATE message(s) to the neighbor.
-    let msg_list = nbr.update_queues.build_updates();
+    let remote_role = nbr.config.remote_role;
+    let msg_list = nbr.update_queues.build_updates(remote_role);
     if !msg_list.is_empty() {
         nbr.message_list_send(msg_list);
     }
@@ -587,7 +598,8 @@ where
     }
 
     // Send UPDATE message(s) to the neighbor.
-    let msg_list = nbr.update_queues.build_updates();
+    let remote_role = nbr.config.remote_role;
+    let msg_list = nbr.update_queues.build_updates(remote_role);
     if !msg_list.is_empty() {
         nbr.message_list_send(msg_list);
     }
@@ -679,6 +691,7 @@ where
         let best_route = rib::best_path::<A>(
             dest,
             instance.config.asn,
+            neighbors,
             &table.nht,
             selection_cfg,
         );
@@ -793,7 +806,8 @@ fn withdraw_routes<A>(
     }
 
     // Send UPDATE message(s) to the neighbor.
-    let msg_list = nbr.update_queues.build_updates();
+    let remote_role = nbr.config.remote_role;
+    let msg_list = nbr.update_queues.build_updates(remote_role);
     if !msg_list.is_empty() {
         nbr.message_list_send(msg_list);
     }

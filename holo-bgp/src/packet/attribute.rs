@@ -58,6 +58,7 @@ pub struct BaseAttrs {
     pub atomic_aggregate: Option<()>,
     pub originator_id: Option<Ipv4Addr>,
     pub cluster_list: Option<ClusterList>,
+    pub otc: Option<u32>,
 }
 
 #[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -181,6 +182,11 @@ impl Attrs {
             atomic_aggregate::encode(buf);
         }
 
+        // Only To Customer (OTC) attribute.
+        if let Some(otc) = self.base.otc {
+            otc::encode(otc, buf);
+        }
+
         // AGGREGATOR attribute.
         if let Some(aggregator) = &self.base.aggregator {
             aggregator.encode(
@@ -278,6 +284,7 @@ impl Attrs {
         let mut ext_comm = None;
         let mut extv6_comm = None;
         let mut large_comm = None;
+        let mut otc = None;
         let mut unknown = vec![];
         let mut withdraw = false;
 
@@ -452,6 +459,7 @@ impl Attrs {
                 AttrType::LargeCommunity => {
                     LargeComms::decode(&mut buf, &mut large_comm)
                 }
+                AttrType::Otc => otc::decode(&mut buf, &mut otc),
             } {
                 // Log malformed attribute.
                 Debug::NbrAttrError(attr_type, error).log();
@@ -493,6 +501,7 @@ impl Attrs {
                     atomic_aggregate,
                     originator_id,
                     cluster_list,
+                    otc,
                 },
                 comm,
                 ext_comm,
@@ -548,6 +557,9 @@ impl Attrs {
         }
         if let Some(large_comm) = &self.large_comm {
             length += large_comm.length();
+        }
+        if self.base.otc.is_some() {
+            length += otc::length();
         }
 
         length
@@ -857,6 +869,37 @@ mod med {
 
         let value = buf.try_get_u32()?;
         *med = Some(value);
+        Ok(())
+    }
+
+    pub(super) fn length() -> u16 {
+        ATTR_MIN_LEN + LEN as u16
+    }
+}
+
+// ==== Only To Customer(OTC) attribute ====
+
+mod otc {
+    use super::*;
+    const LEN: u8 = 4;
+
+    pub(super) fn encode(otc: u32, buf: &mut BytesMut) {
+        buf.put_u8(AttrFlags::OPTIONAL.bits());
+        buf.put_u8(AttrType::Otc as u8);
+        buf.put_u8(LEN);
+        buf.put_u32(otc);
+    }
+
+    pub(super) fn decode(
+        buf: &mut Bytes,
+        otc: &mut Option<u32>,
+    ) -> Result<(), AttrError> {
+        if buf.remaining() != LEN as usize {
+            return Err(AttrError::Withdraw);
+        }
+
+        let value = buf.try_get_u32()?;
+        *otc = Some(value);
         Ok(())
     }
 
@@ -1450,9 +1493,8 @@ fn attribute_flags(attr_type: AttrType) -> AttrFlags {
         | AttrType::As4Path
         | AttrType::As4Aggregator
         | AttrType::Extv6Community
-        | AttrType::LargeCommunity => {
-            AttrFlags::TRANSITIVE | AttrFlags::OPTIONAL
-        }
+        | AttrType::LargeCommunity
+        | AttrType::Otc => AttrFlags::TRANSITIVE | AttrFlags::OPTIONAL,
     }
 }
 

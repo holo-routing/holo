@@ -12,6 +12,7 @@
 //! eliminating the need for shared definitions.
 
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::net::Ipv6Addr;
 
 use holo_yang::{ToYang, TryFromYang};
@@ -75,6 +76,18 @@ pub enum WellKnownCommunities {
     NoExport = 0xFFFFFF01,
     NoAdvertise = 0xFFFFFF02,
     NoExportSubconfed = 0xFFFFFF03,
+}
+
+// Roles as defined in RFC 9234.
+#[derive(Clone, Copy, Ord, Debug, Eq, Hash, PartialEq, PartialOrd)]
+#[derive(FromPrimitive, ToPrimitive)]
+#[derive(Deserialize, Serialize)]
+pub enum RoleName {
+    Provider = 0,
+    Rs = 1,
+    RsClient = 2,
+    Customer = 3,
+    Peer = 4, // i.e Lateral Peer.
 }
 
 // ===== impl AfiSafi =====
@@ -266,5 +279,60 @@ impl TryFromYang for LargeComm {
         }
 
         None
+    }
+}
+
+// ==== impl RoleName ====
+
+impl RoleName {
+    fn allowed_role() -> HashMap<Self, Self> {
+        HashMap::from([
+            (RoleName::Provider, RoleName::Customer),
+            (RoleName::Customer, RoleName::Provider),
+            (RoleName::Rs, RoleName::RsClient),
+            (RoleName::RsClient, RoleName::Rs),
+            (RoleName::Peer, RoleName::Peer),
+        ])
+    }
+
+    // Maps the Local AS Role and the Remote AS Role.
+    // If the Roles do not match, there will be a NotificationMsg that will be
+    // sent back.
+    // RFC 9234 section 4.2 Table 2.
+    pub fn validate_role_correctness(
+        local_role: &RoleName,
+        remote_role: &RoleName,
+    ) -> bool {
+        if let Some(approved_role) = Self::allowed_role().get(local_role)
+            && approved_role == remote_role
+        {
+            return true;
+        }
+        false
+    }
+}
+
+impl TryFromYang for RoleName {
+    fn try_from_yang(value: &str) -> Option<RoleName> {
+        match value {
+            "provider" => Some(RoleName::Provider),
+            "customer" => Some(RoleName::Customer),
+            "peer" => Some(RoleName::Peer),
+            "rs-client" => Some(RoleName::RsClient),
+            "rs" => Some(RoleName::Rs),
+            _ => None,
+        }
+    }
+}
+
+impl ToYang for RoleName {
+    fn to_yang(&self) -> Cow<'static, str> {
+        match self {
+            RoleName::Provider => "provider".into(),
+            RoleName::Customer => "customer".into(),
+            RoleName::Peer => "peer".into(),
+            RoleName::RsClient => "rs-client".into(),
+            RoleName::Rs => "rs".into(),
+        }
     }
 }

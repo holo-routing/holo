@@ -66,6 +66,7 @@ impl ToYang for CapabilityCode {
             CapabilityCode::AddPath => "holo-bgp:add-paths".into(),
             CapabilityCode::RouteRefresh => "iana-bgp-types:route-refresh".into(),
             CapabilityCode::EnhancedRouteRefresh => "holo-bgp:enhanced-route-refresh".into(),
+            CapabilityCode::BgpRole => "holo-bgp:role".into(),
         }
     }
 }
@@ -83,6 +84,7 @@ impl ToYang for NotificationMsg {
                     Some(ErrorSubcode::ConnectionNotSynchronized) => "message-header-connection-not-synchronized",
                     Some(ErrorSubcode::BadMessageLength) => "message-header-bad-message-length",
                     Some(ErrorSubcode::BadMessageType) => "message-header-bad-message-type",
+                    Some(ErrorSubcode::RoleMismatch) => "message-header-role-mismatch",
                     None => "message-header-error",
                 }
             }
@@ -191,9 +193,7 @@ impl ToYang for AsPathSegmentType {
 impl ToYang for RouteOrigin {
     fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            RouteOrigin::Neighbor {
-                remote_addr, ..
-            } => remote_addr.to_string().into(),
+            RouteOrigin::Neighbor { remote_addr, .. } => remote_addr.to_string().into(),
             RouteOrigin::Protocol(protocol) => protocol.to_yang(),
         }
     }
@@ -207,6 +207,7 @@ impl ToYang for RouteIneligibleReason {
             RouteIneligibleReason::Originator => "iana-bgp-rib-types:ineligible-originator".into(),
             RouteIneligibleReason::Confed => "iana-bgp-rib-types:ineligible-confed".into(),
             RouteIneligibleReason::Unresolvable => "holo-bgp:ineligible-unresolvable".into(),
+            RouteIneligibleReason::Role => "holo-bgp:ineligible-role".into(),
         }
     }
 }

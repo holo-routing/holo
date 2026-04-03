@@ -13,7 +13,7 @@ use std::time::Duration;
 use arbitrary::Arbitrary;
 use chrono::{DateTime, Utc};
 use holo_protocol::InstanceChannelsTx;
-use holo_utils::bgp::{AfiSafi, RouteType, WellKnownCommunities};
+use holo_utils::bgp::{AfiSafi, RoleName, RouteType, WellKnownCommunities};
 use holo_utils::ibus::IbusChannelsTx;
 use holo_utils::socket::{TTL_MAX, TcpConnInfo, TcpStream};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
@@ -696,6 +696,10 @@ impl Neighbor {
             });
         }
 
+        if let Some(role) = self.config.remote_role {
+            capabilities.insert(Capability::Role { role });
+        }
+
         // Keep track of the advertised capabilities.
         self.capabilities_adv.clone_from(&capabilities);
 
@@ -733,6 +737,12 @@ impl Neighbor {
                 Error::NbrBadIdentifier(..) => {
                     let error_code = ErrorCode::OpenMessageError;
                     let error_subcode = ErrorSubcode::BadBgpIdentifier;
+                    let msg = NotificationMsg::new(error_code, error_subcode);
+                    Some(msg)
+                }
+                Error::NbrRoleMismatch(..) => {
+                    let error_code = ErrorCode::OpenMessageError;
+                    let error_subcode = ErrorSubcode::RoleMismatch;
                     let msg = NotificationMsg::new(error_code, error_subcode);
                     Some(msg)
                 }
@@ -779,7 +789,7 @@ impl Neighbor {
     // Performs semantic validation of the received BGP OPEN message.
     // Syntactic errors are detected during the decoding phase.
     fn open_validate(
-        &self,
+        &mut self,
         instance: &InstanceUpView<'_>,
         msg: &OpenMsg,
     ) -> Result<(), Error> {
@@ -800,6 +810,14 @@ impl Neighbor {
                 self.remote_addr,
                 msg.identifier,
             ));
+        }
+
+        if let Some(Capability::Role { role: remote_role }) = msg
+            .capabilities
+            .iter()
+            .find(|cap| matches!(cap, Capability::Role { .. }))
+        {
+            self.config.remote_role = Some(*remote_role);
         }
 
         Ok(())
@@ -1027,7 +1045,8 @@ impl Neighbor {
                 // Re-send the current Adj-RIB-Out to this neighbor.
                 self.resend_adj_rib_out::<Ipv4Unicast>(instance);
                 self.resend_adj_rib_out::<Ipv6Unicast>(instance);
-                let msg_list = self.update_queues.build_updates();
+                let msg_list =
+                    self.update_queues.build_updates(self.config.remote_role);
                 if !msg_list.is_empty() {
                     self.message_list_send(msg_list);
                 }
@@ -1149,10 +1168,13 @@ impl MessageStatistics {
 // ===== impl NeighborUpdateQueues =====
 
 impl NeighborUpdateQueues {
-    pub(crate) fn build_updates(&mut self) -> Vec<Message> {
+    pub(crate) fn build_updates(
+        &mut self,
+        role: Option<RoleName>,
+    ) -> Vec<Message> {
         [
-            self.ipv4_unicast.build_updates(),
-            self.ipv6_unicast.build_updates(),
+            self.ipv4_unicast.build_updates(role),
+            self.ipv6_unicast.build_updates(role),
         ]
         .concat()
     }
@@ -1164,8 +1186,8 @@ impl<A> NeighborUpdateQueue<A>
 where
     A: AddressFamily,
 {
-    fn build_updates(&mut self) -> Vec<Message> {
-        A::build_updates(self)
+    fn build_updates(&mut self, role: Option<RoleName>) -> Vec<Message> {
+        A::build_updates(self, role)
     }
 }
 

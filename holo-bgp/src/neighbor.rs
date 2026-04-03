@@ -67,7 +67,6 @@ pub struct Neighbor {
     pub tasks: NeighborTasks,
     pub update_queues: NeighborUpdateQueues,
     pub msg_txp: Option<UnboundedSender<NbrTxMsg>>,
-    pub remote_role: Option<RoleName>,
 }
 
 // BGP peer type.
@@ -215,7 +214,6 @@ impl Neighbor {
             tasks: Default::default(),
             update_queues: Default::default(),
             msg_txp: None,
-            remote_role: None,
         }
     }
 
@@ -698,7 +696,7 @@ impl Neighbor {
             });
         }
 
-        if let Some(role) = self.config.role {
+        if let Some(role) = self.config.remote_role {
             capabilities.insert(Capability::Role { role });
         }
 
@@ -814,40 +812,12 @@ impl Neighbor {
             ));
         }
 
-        if let Some(local_role) = self.config.role
-            && let Some(Capability::Role { role: remote_role }) = msg
-                .capabilities
-                .iter()
-                .find(|cap| matches!(cap, Capability::Role { .. }))
+        if let Some(Capability::Role { role: remote_role }) = msg
+            .capabilities
+            .iter()
+            .find(|cap| matches!(cap, Capability::Role { .. }))
         {
-            let err = Err(Error::NbrRoleMismatch(
-                self.remote_addr,
-                local_role.to_u8().unwrap(),
-                remote_role.to_u8().unwrap(),
-            ));
-
-            // Validate the incoming BGP Role.
-            // ---
-            // Validation 1:
-            // Check if the neighbor had already sent a Role capability,
-            // and if the role capability is same as incoming.
-            if self.remote_role.is_some()
-                && self.remote_role != Some(*remote_role)
-            {
-                return err;
-            }
-
-            // Validation 2:
-            // Finds if:
-            //  1. Role has been locally configured.
-            //  2. role exists on the incoming message.
-            //  3. If local role and remote role correctly match the RFC 9234.
-            if !RoleName::validate_role_correctness(&local_role, remote_role) {
-                return err;
-            }
-
-            // If everything is okay, then we can set the remote role correctly.
-            self.remote_role = Some(*remote_role);
+            self.config.remote_role = Some(*remote_role);
         }
 
         Ok(())
@@ -1076,7 +1046,7 @@ impl Neighbor {
                 self.resend_adj_rib_out::<Ipv4Unicast>(instance);
                 self.resend_adj_rib_out::<Ipv6Unicast>(instance);
                 let msg_list =
-                    self.update_queues.build_updates(self.remote_role);
+                    self.update_queues.build_updates(self.config.remote_role);
                 if !msg_list.is_empty() {
                     self.message_list_send(msg_list);
                 }

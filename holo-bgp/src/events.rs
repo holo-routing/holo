@@ -288,10 +288,7 @@ fn process_nbr_reach_prefixes<A>(
     // RFC 9234: If a route is received from a Provider, a Peer or an RS and
     // the OTC Attribute is not present, it MUST be added with AS number of
     // remote AS.
-    //
-    // FIXIT: Confirmation for if the following check can be placed anywhere
-    // better should be done.
-    if let Some(role) = nbr.remote_role
+    if let Some(role) = nbr.config.remote_role
         && matches!(role, RoleName::Provider | RoleName::Peer | RoleName::Rs)
         && attrs.base.otc.is_none()
     {
@@ -424,7 +421,7 @@ fn process_nbr_route_refresh(
     }
 
     // Send UPDATE message(s) to the neighbor.
-    let remote_role = nbr.remote_role;
+    let remote_role = nbr.config.remote_role;
     let msg_list = nbr.update_queues.build_updates(remote_role);
     if !msg_list.is_empty() {
         nbr.message_list_send(msg_list);
@@ -601,7 +598,7 @@ where
     }
 
     // Send UPDATE message(s) to the neighbor.
-    let remote_role = nbr.remote_role;
+    let remote_role = nbr.config.remote_role;
     let msg_list = nbr.update_queues.build_updates(remote_role);
     if !msg_list.is_empty() {
         nbr.message_list_send(msg_list);
@@ -809,7 +806,7 @@ fn withdraw_routes<A>(
     }
 
     // Send UPDATE message(s) to the neighbor.
-    let remote_role = nbr.remote_role;
+    let remote_role = nbr.config.remote_role;
     let msg_list = nbr.update_queues.build_updates(remote_role);
     if !msg_list.is_empty() {
         nbr.message_list_send(msg_list);

@@ -731,7 +731,7 @@ where
         // then it is a route leak and be considered ineligible.
         if let RouteOrigin::Neighbor { remote_addr, .. } = route.origin
             && let Some(nbr) = neighbors.get(&remote_addr)
-            && let Some(role) = nbr.remote_role
+            && let Some(role) = nbr.config.remote_role
         {
             if let Some(otc) = route.attrs.base.value.otc {
                 let is_leak = match role {
@@ -890,7 +890,7 @@ pub(crate) fn attrs_tx_update<A>(
             // and the OTC Attribute is not present, then when advertising the
             // route, an OTC Attribute
             // be added with a value equal to the AS number of the local AS
-            if let Some(remote_role) = nbr.remote_role
+            if let Some(remote_role) = nbr.config.remote_role
                 && matches!(
                     remote_role,
                     RoleName::Customer | RoleName::Peer | RoleName::Rs

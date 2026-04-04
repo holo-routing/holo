@@ -29,7 +29,7 @@ use crate::instance::{InstanceArenas, InstanceUpView};
 use crate::interface::InterfaceType;
 use crate::lsdb::{LspEntry, LspLogId};
 use crate::northbound::configuration::MetricType;
-use crate::packet::consts::{FloodingAlgo, MtId, Nlpid};
+use crate::packet::iana::{FloodingAlgo, MtId, Nlpid};
 use crate::packet::pdu::Lsp;
 use crate::packet::subtlvs::prefix::{PrefixAttrFlags, PrefixSidStlv};
 use crate::packet::tlv::IpReachTlvEntry;

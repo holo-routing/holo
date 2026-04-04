@@ -15,8 +15,8 @@ use tracing::{error, warn, warn_span};
 
 use crate::collections::{AdjacencyId, InterfaceId, LspEntryId};
 use crate::network::MulticastAddr;
-use crate::packet::consts::PduType;
 use crate::packet::error::DecodeError;
+use crate::packet::iana::PduType;
 use crate::packet::tlv::ExtendedSeqNum;
 use crate::packet::{LevelNumber, SystemId};
 use crate::spf;

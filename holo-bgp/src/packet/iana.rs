@@ -5,13 +5,9 @@
 //
 
 use arbitrary::Arbitrary;
-use bitflags::bitflags;
 use holo_utils::ip::AddressFamily;
 use num_derive::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
-
-pub const BGP_VERSION: u8 = 4;
-pub const AS_TRANS: u16 = 23456;
 
 // BGP Message Types.
 //
@@ -73,16 +69,6 @@ pub enum CapabilityCode {
     AddPath = 69,
     // RFC7313
     EnhancedRouteRefresh = 70,
-}
-
-// Send/Receive value for a per-AFI/SAFI instance of the ADD-PATH Capability.
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-#[derive(FromPrimitive, ToPrimitive)]
-#[derive(Deserialize, Serialize)]
-pub enum AddPathMode {
-    Receive = 1,
-    Send = 2,
-    ReceiveSend = 3,
 }
 
 // BGP Error (Notification) Codes.
@@ -242,19 +228,6 @@ pub enum Safi {
     VpnAutoDiscovery = 140,
 }
 
-// BGP Path Attribute Flags.
-bitflags! {
-    #[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
-    #[derive(Deserialize, Serialize)]
-    #[serde(transparent)]
-    pub struct AttrFlags: u8 {
-        const OPTIONAL = 0x80;
-        const TRANSITIVE = 0x40;
-        const PARTIAL = 0x20;
-        const EXTENDED = 0x10;
-    }
-}
-
 // BGP Path Attribute Types.
 //
 // IANA registry:
@@ -316,16 +289,6 @@ pub enum AttrType {
 
 // BGP Origin.
 pub type Origin = holo_utils::bgp::Origin;
-
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[derive(FromPrimitive, ToPrimitive)]
-#[derive(Deserialize, Serialize)]
-pub enum AsPathSegmentType {
-    Set = 1,
-    Sequence = 2,
-    ConfedSequence = 3,
-    ConfedSet = 4,
-}
 
 // Re-exports for convenience.
 pub type WellKnownCommunities = holo_utils::bgp::WellKnownCommunities;

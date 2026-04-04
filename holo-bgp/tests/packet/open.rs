@@ -7,7 +7,7 @@
 use std::sync::LazyLock as Lazy;
 
 use const_addrs::ip4;
-use holo_bgp::packet::consts::{Afi, BGP_VERSION, Safi};
+use holo_bgp::packet::iana::{Afi, Safi};
 use holo_bgp::packet::message::{Capability, Message, OpenMsg};
 
 use super::{test_decode_msg, test_encode_msg};
@@ -20,7 +20,7 @@ static OPEN1: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
             0x00, 0xb4, 0x01, 0x01, 0x01, 0x01, 0x00,
         ],
         Message::Open(OpenMsg {
-            version: BGP_VERSION,
+            version: OpenMsg::VERSION,
             my_as: 1,
             holdtime: 180,
             identifier: ip4!("1.1.1.1"),
@@ -38,7 +38,7 @@ static OPEN2: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
             0x00, 0x01, 0x00, 0x01,
         ],
         Message::Open(OpenMsg {
-            version: BGP_VERSION,
+            version: OpenMsg::VERSION,
             my_as: 1,
             holdtime: 180,
             identifier: ip4!("1.1.1.1"),
@@ -62,7 +62,7 @@ static OPEN3: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
             0x02, 0x00, 0x02, 0x02, 0x46, 0x00,
         ],
         Message::Open(OpenMsg {
-            version: BGP_VERSION,
+            version: OpenMsg::VERSION,
             my_as: 1,
             holdtime: 180,
             identifier: ip4!("1.1.1.1"),

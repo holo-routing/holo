@@ -11,11 +11,6 @@ use bitflags::bitflags;
 use num_derive::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
 
-pub const IDRP_DISCRIMINATOR: u8 = 0x83;
-pub const VERSION_PROTO_EXT: u8 = 1;
-pub const VERSION: u8 = 1;
-pub const SYSTEM_ID_LEN: u8 = 6;
-
 // IS-IS PDU types.
 //
 // IANA registry:
@@ -212,7 +207,7 @@ pub enum LabelBindingStlvType {
 
 // IS-IS Sub-Sub-TLVs for BIER Info Sub-TLV.
 //
-// IANA Registry:
+// IANA registry:
 // https://www.iana.org/assignments/isis-tlv-codepoints/isis-tlv-codepoints.xhtml#bier-info-sub-tlv
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[derive(FromPrimitive, ToPrimitive)]
@@ -225,7 +220,7 @@ pub enum BierSubStlvType {
 
 // Network Layer Protocol Identifiers (NLPIDs).
 //
-// IANA Registry:
+// IANA registry:
 // https://www.iana.org/assignments/nlpids/nlpids.xhtml
 pub enum Nlpid {
     Ipv4 = 0xCC,

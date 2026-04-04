@@ -19,8 +19,8 @@ use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
 use crate::packet::SystemId;
-use crate::packet::consts::{AslaSabmFlags, AslaStlvType, NeighborStlvType};
 use crate::packet::error::{TlvDecodeError, TlvDecodeResult};
+use crate::packet::iana::{AslaSabmFlags, AslaStlvType, NeighborStlvType};
 use crate::packet::tlv::{
     TLV_HDR_SIZE, UnknownTlv, tlv_encode_end, tlv_encode_start,
 };

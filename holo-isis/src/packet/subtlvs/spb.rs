@@ -14,8 +14,8 @@ use derive_new::new;
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use serde::{Deserialize, Serialize};
 
-use crate::packet::consts::MtCapStlvType;
 use crate::packet::error::{TlvDecodeError, TlvDecodeResult};
+use crate::packet::iana::MtCapStlvType;
 use crate::packet::tlv::{TLV_HDR_SIZE, tlv_encode_end, tlv_encode_start};
 
 /// SPBM Service Identifier and Unicast Address (SPBM-SI) Sub-TLV.

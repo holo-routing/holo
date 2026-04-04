@@ -31,7 +31,7 @@ use crate::instance::InstanceUpView;
 use crate::network::{LLC_HDR, MulticastAddr};
 use crate::northbound::configuration::InterfaceCfg;
 use crate::northbound::notification;
-use crate::packet::consts::{MtId, Nlpid, PduType};
+use crate::packet::iana::{MtId, Nlpid, PduType};
 use crate::packet::pdu::{Hello, HelloTlvs, HelloVariant, Lsp, Pdu};
 use crate::packet::tlv::{
     ExtendedSeqNum, LspEntry, MtFlags, MultiTopologyEntry, ThreeWayAdjState,

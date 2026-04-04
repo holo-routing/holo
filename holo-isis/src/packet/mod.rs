@@ -8,8 +8,8 @@
 //
 
 pub mod auth;
-pub mod consts;
 pub mod error;
+pub mod iana;
 pub mod pdu;
 pub mod subtlvs;
 pub mod tlv;

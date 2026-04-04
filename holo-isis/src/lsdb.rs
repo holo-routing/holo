@@ -36,7 +36,7 @@ use crate::instance::{InstanceArenas, InstanceUpView};
 use crate::interface::{Interface, InterfaceType};
 use crate::northbound::configuration::MetricType;
 use crate::northbound::notification;
-use crate::packet::consts::{FloodingAlgo, MtId, Nlpid};
+use crate::packet::iana::{FloodingAlgo, MtId, Nlpid};
 use crate::packet::pdu::{Lsp, LspFlags, LspTlvs, Pdu};
 use crate::packet::subtlvs::MsdStlv;
 use crate::packet::subtlvs::capability::{

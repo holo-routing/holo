@@ -32,7 +32,7 @@ use crate::interface::InterfaceType;
 use crate::northbound::notification;
 use crate::northbound::yang_gen::isis;
 use crate::packet::auth::AuthMethod;
-use crate::packet::consts::{FloodingAlgo, MtId, PduType};
+use crate::packet::iana::{FloodingAlgo, MtId, PduType};
 use crate::packet::{AreaAddr, LevelNumber, LevelType, LevelTypeIterator, SystemId};
 use crate::route::RouteFlags;
 use crate::{ibus, spf, sr};

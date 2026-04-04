@@ -24,11 +24,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{Span, warn_span};
 
 use crate::packet::auth::AuthMethod;
-use crate::packet::consts::{
-    IDRP_DISCRIMINATOR, MtId, PduType, SYSTEM_ID_LEN, TlvType, VERSION,
-    VERSION_PROTO_EXT,
-};
 use crate::packet::error::{DecodeError, DecodeResult};
+use crate::packet::iana::{MtId, PduType, TlvType};
 use crate::packet::subtlvs::capability::{
     FloodingAlgoStlv, SrAlgoStlv, SrCapabilitiesStlv,
 };
@@ -422,6 +419,10 @@ impl Pdu {
 
 impl Header {
     const LEN: u8 = 8;
+    const IDRP_DISCRIMINATOR: u8 = 0x83;
+    const VERSION_PROTO_EXT: u8 = 1;
+    const VERSION: u8 = 1;
+    const SYSTEM_ID_LEN: u8 = 6;
 
     pub const fn new(pdu_type: PduType) -> Self {
         Header {
@@ -441,7 +442,7 @@ impl Header {
 
         // Parse IDRP discriminator.
         let idrp_discr = buf.try_get_u8()?;
-        if idrp_discr != IDRP_DISCRIMINATOR {
+        if idrp_discr != Self::IDRP_DISCRIMINATOR {
             return Err(DecodeError::InvalidIrdpDiscriminator(idrp_discr));
         }
 
@@ -450,13 +451,13 @@ impl Header {
 
         // Parse version/protocol ID extension.
         let version_proto_ext = buf.try_get_u8()?;
-        if version_proto_ext != VERSION_PROTO_EXT {
+        if version_proto_ext != Self::VERSION_PROTO_EXT {
             return Err(DecodeError::InvalidVersion(version_proto_ext));
         }
 
         // Parse ID length.
         let id_len = buf.try_get_u8()?;
-        if id_len != 0 && id_len != SYSTEM_ID_LEN {
+        if id_len != 0 && id_len != Self::SYSTEM_ID_LEN {
             return Err(DecodeError::InvalidIdLength(id_len));
         }
 
@@ -476,7 +477,7 @@ impl Header {
 
         // Parse version.
         let version = buf.try_get_u8()?;
-        if version != VERSION {
+        if version != Self::VERSION {
             return Err(DecodeError::InvalidVersion(version));
         }
 
@@ -495,17 +496,17 @@ impl Header {
     // Encodes IS-IS PDU header into a bytes buffer.
     fn encode(&self, buf: &mut BytesMut) {
         // Encode IDRP discriminator.
-        buf.put_u8(IDRP_DISCRIMINATOR);
+        buf.put_u8(Self::IDRP_DISCRIMINATOR);
         // Encode length of fixed header.
         buf.put_u8(Self::fixed_header_length(self.pdu_type));
         // Encode version/protocol ID extension.
-        buf.put_u8(VERSION_PROTO_EXT);
+        buf.put_u8(Self::VERSION_PROTO_EXT);
         // Encode ID length (use default value).
         buf.put_u8(0);
         // Encode PDU type.
         buf.put_u8(self.pdu_type as u8);
         // Encode version.
-        buf.put_u8(VERSION);
+        buf.put_u8(Self::VERSION);
         // Encode reserved field.
         buf.put_u8(0);
         // Encode maximum area addresses.

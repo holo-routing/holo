@@ -16,7 +16,7 @@ use crate::collections::{Arena, Interfaces};
 use crate::instance::InstanceUpView;
 use crate::interface::Interface;
 use crate::lsdb::LspEntry;
-use crate::packet::consts::FloodingAlgo;
+use crate::packet::iana::FloodingAlgo;
 use crate::packet::{LevelNumber, LspId, SystemId};
 use crate::spf::{self, MetricMode, Spt};
 

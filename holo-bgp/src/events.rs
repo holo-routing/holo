@@ -22,7 +22,7 @@ use crate::error::{Error, IoError, NbrRxError};
 use crate::instance::{InstanceUpView, PolicyApplyTasks};
 use crate::neighbor::{Neighbor, Neighbors, PeerType, fsm};
 use crate::packet::attribute::Attrs;
-use crate::packet::consts::{Afi, Safi};
+use crate::packet::iana::{Afi, Safi};
 use crate::packet::message::{
     Capability, Message, MpReachNlri, MpUnreachNlri, RouteRefreshMsg, UpdateMsg,
 };

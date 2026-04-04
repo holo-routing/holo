@@ -11,8 +11,8 @@ use ipnetwork::IpNetwork;
 use tracing::{debug, debug_span};
 
 use crate::neighbor::fsm;
-use crate::packet::consts::AttrType;
 use crate::packet::error::AttrError;
+use crate::packet::iana::AttrType;
 use crate::packet::message::Message;
 use crate::rib::Route;
 

@@ -17,7 +17,7 @@ use crate::error::AdjacencyRejectError;
 use crate::interface::InterfaceType;
 use crate::lsdb::LspLogReason;
 use crate::northbound::configuration::{ExtendedSeqNumMode, InstanceTraceOption, InterfaceTraceOption, MetricType};
-use crate::packet::consts::{AslaSabmFlags, FloodingAlgo, MtId};
+use crate::packet::iana::{AslaSabmFlags, FloodingAlgo, MtId};
 use crate::packet::pdu::LspFlags;
 use crate::packet::subtlvs::capability::SrCapabilitiesFlags;
 use crate::packet::subtlvs::neighbor::{AdjSidFlags, MinMaxUniLinkDelayFlags, UniLinkDelayFlags, UniLinkLossFlags};

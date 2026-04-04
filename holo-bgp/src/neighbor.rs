@@ -28,9 +28,9 @@ use crate::instance::{Instance, InstanceUpView};
 use crate::northbound::configuration::{InstanceCfg, NeighborCfg};
 use crate::northbound::notification;
 use crate::northbound::rpc::ClearType;
-use crate::packet::attribute::Attrs;
-use crate::packet::consts::{
-    AS_TRANS, Afi, BGP_VERSION, CeaseSubcode, ErrorCode, FsmErrorSubcode, Safi,
+use crate::packet::attribute::{AS_TRANS, Attrs};
+use crate::packet::iana::{
+    Afi, CeaseSubcode, ErrorCode, FsmErrorSubcode, Safi,
 };
 use crate::packet::message::{
     Capability, DecodeCxt, EncodeCxt, KeepaliveMsg, Message,
@@ -701,7 +701,7 @@ impl Neighbor {
 
         // Fill-in and send message.
         let msg = Message::Open(OpenMsg {
-            version: BGP_VERSION,
+            version: OpenMsg::VERSION,
             my_as: instance_cfg.asn.try_into().unwrap_or(AS_TRANS),
             holdtime: self.config.timers.holdtime,
             identifier,
@@ -716,7 +716,7 @@ impl Neighbor {
         instance: &mut InstanceUpView<'_>,
         msg: OpenMsg,
     ) -> fsm::State {
-        use crate::packet::consts::OpenMessageErrorSubcode as ErrorSubcode;
+        use crate::packet::iana::OpenMessageErrorSubcode as ErrorSubcode;
 
         // Validate the received message.
         if let Err(error) = self.open_validate(instance, &msg) {

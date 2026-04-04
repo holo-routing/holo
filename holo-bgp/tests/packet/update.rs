@@ -9,9 +9,10 @@ use std::sync::LazyLock as Lazy;
 use const_addrs::{ip4, ip6, net4, net6};
 use holo_bgp::neighbor::PeerType;
 use holo_bgp::packet::attribute::{
-    Aggregator, AsPath, AsPathSegment, Attrs, BaseAttrs, ClusterList, CommList,
+    Aggregator, AsPath, AsPathSegment, AsPathSegmentType, Attrs, BaseAttrs,
+    ClusterList, CommList,
 };
-use holo_bgp::packet::consts::{AsPathSegmentType, Origin};
+use holo_bgp::packet::iana::Origin;
 use holo_bgp::packet::message::{
     DecodeCxt, Message, MpReachNlri, MpUnreachNlri, NegotiatedCapability,
     ReachNlri, UnreachNlri, UpdateMsg,

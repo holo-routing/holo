@@ -18,8 +18,8 @@ use holo_utils::sr::{IgpAlgoType, Sid};
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
-use crate::packet::consts::{LabelBindingStlvType, RouterCapStlvType};
 use crate::packet::error::{TlvDecodeError, TlvDecodeResult};
+use crate::packet::iana::{LabelBindingStlvType, RouterCapStlvType};
 use crate::packet::tlv::{
     TLV_HDR_SIZE, TLV_MAX_LEN, tlv_encode_end, tlv_encode_start,
 };

@@ -26,7 +26,7 @@ use crate::debug::Debug;
 use crate::instance::InstanceUpView;
 use crate::interface::{Interface, InterfaceType};
 use crate::northbound::notification;
-use crate::packet::consts::{Nlpid, PduType};
+use crate::packet::iana::{Nlpid, PduType};
 use crate::packet::subtlvs::neighbor::{AdjSidFlags, AdjSidStlv};
 use crate::packet::tlv::{ExtendedSeqNum, ThreeWayAdjState};
 use crate::packet::{AreaAddr, LanId, LevelType, SystemId};

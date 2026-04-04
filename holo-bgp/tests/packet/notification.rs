@@ -6,7 +6,7 @@
 
 use std::sync::LazyLock as Lazy;
 
-use holo_bgp::packet::consts::{ErrorCode, MessageHeaderErrorSubcode};
+use holo_bgp::packet::iana::{ErrorCode, MessageHeaderErrorSubcode};
 use holo_bgp::packet::message::{Message, NotificationMsg};
 
 use super::{test_decode_msg, test_encode_msg};

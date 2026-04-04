@@ -19,8 +19,8 @@ use prefix_trie::PrefixMap;
 use crate::instance::Instance;
 use crate::neighbor::{Neighbor, fsm};
 use crate::northbound::yang_gen::{self, bgp};
-use crate::packet::attribute::{AsPathSegment, BaseAttrs, Comms, ExtComms, Extv6Comms, LargeComms, UnknownAttr};
-use crate::packet::consts::{Afi, AttrFlags, Safi};
+use crate::packet::attribute::{AsPathSegment, AttrFlags, BaseAttrs, Comms, ExtComms, Extv6Comms, LargeComms, UnknownAttr};
+use crate::packet::iana::{Afi, Safi};
 use crate::packet::message::{AddPathTuple, Capability};
 use crate::rib::{AttrSet, Destination, LocalRoute, Route};
 

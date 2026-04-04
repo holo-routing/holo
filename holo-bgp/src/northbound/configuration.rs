@@ -25,7 +25,7 @@ use crate::instance::{Instance, InstanceUpView};
 use crate::neighbor::{Neighbor, PeerType, fsm};
 use crate::network;
 use crate::northbound::yang_gen::bgp;
-use crate::packet::consts::{CeaseSubcode, ErrorCode};
+use crate::packet::iana::{CeaseSubcode, ErrorCode};
 use crate::packet::message::{Message, NotificationMsg};
 use crate::rib::RouteOrigin;
 

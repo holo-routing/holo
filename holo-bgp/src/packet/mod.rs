@@ -5,6 +5,6 @@
 //
 
 pub mod attribute;
-pub mod consts;
 pub mod error;
+pub mod iana;
 pub mod message;

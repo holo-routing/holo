@@ -28,11 +28,11 @@ use num_traits::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
 use tracing::debug_span;
 
-use crate::packet::consts::{
+use crate::packet::error::{TlvDecodeError, TlvDecodeResult};
+use crate::packet::iana::{
     AuthenticationType, MtCapStlvType, NeighborStlvType, Nlpid, PrefixStlvType,
     RouterCapStlvType, TlvType,
 };
-use crate::packet::error::{TlvDecodeError, TlvDecodeResult};
 #[cfg(feature = "testing")]
 use crate::packet::pdu::serde_lsp_rem_lifetime_filter;
 use crate::packet::subtlvs::MsdStlv;

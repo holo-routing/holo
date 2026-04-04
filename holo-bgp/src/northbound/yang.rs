@@ -11,8 +11,9 @@ use num_traits::FromPrimitive;
 
 use crate::neighbor::{PeerType, fsm};
 use crate::northbound::configuration::{InstanceTraceOption, NeighborTraceOption, PrivateAsRemove};
-use crate::packet::consts::{AddPathMode, AsPathSegmentType, CapabilityCode, CeaseSubcode, ErrorCode, FsmErrorSubcode, MessageHeaderErrorSubcode, OpenMessageErrorSubcode, RouteRefreshErrorSubcode, Safi, UpdateMessageErrorSubcode};
-use crate::packet::message::NotificationMsg;
+use crate::packet::attribute::AsPathSegmentType;
+use crate::packet::iana::{CapabilityCode, CeaseSubcode, ErrorCode, FsmErrorSubcode, MessageHeaderErrorSubcode, OpenMessageErrorSubcode, RouteRefreshErrorSubcode, Safi, UpdateMessageErrorSubcode};
+use crate::packet::message::{AddPathMode, NotificationMsg};
 use crate::rib::{RouteIneligibleReason, RouteOrigin, RouteRejectReason};
 
 // ===== ToYang implementations =====

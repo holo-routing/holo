@@ -25,7 +25,7 @@ use crate::debug::{Debug, InstanceInactiveReason};
 use crate::error::{Error, IoError};
 use crate::neighbor::{Neighbors, fsm};
 use crate::northbound::configuration::InstanceCfg;
-use crate::packet::consts::{CeaseSubcode, ErrorCode};
+use crate::packet::iana::{CeaseSubcode, ErrorCode};
 use crate::packet::message::NotificationMsg;
 use crate::rib::Rib;
 use crate::tasks::messages::input::{

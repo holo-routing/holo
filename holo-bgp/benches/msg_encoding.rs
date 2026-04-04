@@ -4,14 +4,14 @@ use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
 use criterion::{Criterion, criterion_group, criterion_main};
-use holo_bgp::packet::consts::{Afi, BGP_VERSION, Safi};
+use holo_bgp::packet::iana::{Afi, Safi};
 use holo_bgp::packet::message::{
     Capability, EncodeCxt, Message, NegotiatedCapability, OpenMsg,
 };
 
 static MESSAGE: Lazy<Message> = Lazy::new(|| {
     Message::Open(OpenMsg {
-        version: BGP_VERSION,
+        version: OpenMsg::VERSION,
         my_as: 1,
         holdtime: 180,
         identifier: Ipv4Addr::from_str("1.1.1.1").unwrap(),

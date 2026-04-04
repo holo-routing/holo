@@ -15,19 +15,19 @@ use holo_utils::ip::{
     Ipv4AddrExt, Ipv4NetworkExt, Ipv6AddrExt, Ipv6NetworkExt,
 };
 use ipnetwork::{Ipv4Network, Ipv6Network};
+use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
 use crate::neighbor::PeerType;
 use crate::packet::attribute::Attrs;
-use crate::packet::consts::{
-    AddPathMode, Afi, BGP_VERSION, CapabilityCode, ErrorCode,
-    MessageHeaderErrorSubcode, MessageType, OpenMessageErrorSubcode,
-    OpenParamType, Safi, UpdateMessageErrorSubcode,
-};
 use crate::packet::error::{
     DecodeError, MessageHeaderError, OpenMessageError, UpdateMessageError,
+};
+use crate::packet::iana::{
+    Afi, CapabilityCode, ErrorCode, MessageHeaderErrorSubcode, MessageType,
+    OpenMessageErrorSubcode, OpenParamType, Safi, UpdateMessageErrorSubcode,
 };
 
 //
@@ -145,6 +145,16 @@ pub struct AddPathTuple {
     pub afi: Afi,
     pub safi: Safi,
     pub mode: AddPathMode,
+}
+
+// Send/Receive value for a per-AFI/SAFI instance of the ADD-PATH Capability.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(FromPrimitive, ToPrimitive)]
+#[derive(Deserialize, Serialize)]
+pub enum AddPathMode {
+    Receive = 1,
+    Send = 2,
+    ReceiveSend = 3,
 }
 
 //
@@ -397,6 +407,7 @@ impl Message {
 // ===== impl OpenMsg =====
 
 impl OpenMsg {
+    pub const VERSION: u8 = 4;
     const MIN_LEN: u16 = 29;
 
     fn encode(&self, buf: &mut BytesMut) {
@@ -432,8 +443,8 @@ impl OpenMsg {
     pub fn decode(buf: &mut Bytes) -> Result<Self, OpenMessageError> {
         // Parse and validate BGP version.
         let version = buf.try_get_u8()?;
-        if version != BGP_VERSION {
-            return Err(OpenMessageError::UnsupportedVersion(BGP_VERSION));
+        if version != Self::VERSION {
+            return Err(OpenMessageError::UnsupportedVersion(Self::VERSION));
         }
 
         // Parse and validate ASN.

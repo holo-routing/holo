@@ -7,20 +7,20 @@
 use std::collections::{BTreeSet, HashSet, VecDeque};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
+use bitflags::bitflags;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use derive_new::new;
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use holo_utils::ip::{Ipv4AddrExt, Ipv6AddrExt};
+use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
 use crate::debug::Debug;
 use crate::neighbor::PeerType;
-use crate::packet::consts::{
-    Afi, AsPathSegmentType, AttrFlags, AttrType, Origin, Safi,
-};
 use crate::packet::error::{AttrError, UpdateMessageError};
+use crate::packet::iana::{Afi, AttrType, Origin, Safi};
 use crate::packet::message::{
     DecodeCxt, EncodeCxt, MpReachNlri, MpUnreachNlri, NegotiatedCapability,
     ReachNlri, decode_ipv4_prefix, decode_ipv6_prefix, encode_ipv4_prefix,
@@ -29,6 +29,7 @@ use crate::packet::message::{
 
 pub const ATTR_MIN_LEN: u16 = 3;
 pub const ATTR_MIN_LEN_EXT: u16 = 4;
+pub const AS_TRANS: u16 = 23456;
 
 #[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 #[skip_serializing_none]
@@ -60,6 +61,19 @@ pub struct BaseAttrs {
     pub cluster_list: Option<ClusterList>,
 }
 
+// BGP Path Attribute Flags.
+bitflags! {
+    #[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
+    #[derive(Deserialize, Serialize)]
+    #[serde(transparent)]
+    pub struct AttrFlags: u8 {
+        const OPTIONAL = 0x80;
+        const TRANSITIVE = 0x40;
+        const PARTIAL = 0x20;
+        const EXTENDED = 0x10;
+    }
+}
+
 #[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
 pub struct AsPath {
@@ -71,6 +85,16 @@ pub struct AsPath {
 pub struct AsPathSegment {
     pub seg_type: AsPathSegmentType,
     pub members: VecDeque<u32>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(FromPrimitive, ToPrimitive)]
+#[derive(Deserialize, Serialize)]
+pub enum AsPathSegmentType {
+    Set = 1,
+    Sequence = 2,
+    ConfedSequence = 3,
+    ConfedSet = 4,
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

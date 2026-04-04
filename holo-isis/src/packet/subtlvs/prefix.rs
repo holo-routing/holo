@@ -19,8 +19,8 @@ use holo_utils::sr::{IgpAlgoType, Sid};
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
-use crate::packet::consts::{BierSubStlvType, PrefixStlvType};
 use crate::packet::error::{TlvDecodeError, TlvDecodeResult};
+use crate::packet::iana::{BierSubStlvType, PrefixStlvType};
 use crate::packet::tlv::{TLV_HDR_SIZE, tlv_encode_end, tlv_encode_start};
 
 bitflags! {

@@ -6,7 +6,7 @@
 
 use std::sync::LazyLock as Lazy;
 
-use holo_bgp::packet::consts::{Afi, Safi};
+use holo_bgp::packet::iana::{Afi, Safi};
 use holo_bgp::packet::message::{Message, RouteRefreshMsg};
 
 use super::{test_decode_msg, test_encode_msg};

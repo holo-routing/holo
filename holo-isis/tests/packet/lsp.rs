@@ -10,7 +10,7 @@
 use std::sync::LazyLock as Lazy;
 
 use const_addrs::{ip4, ip6, net4, net6};
-use holo_isis::packet::consts::{AslaSabmFlags, FloodingAlgo};
+use holo_isis::packet::iana::{AslaSabmFlags, FloodingAlgo};
 use holo_isis::packet::pdu::{Lsp, LspFlags, LspTlvs, Pdu};
 use holo_isis::packet::subtlvs::MsdStlv;
 use holo_isis::packet::subtlvs::capability::{

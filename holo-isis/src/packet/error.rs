@@ -11,7 +11,7 @@ use bytes::TryGetError;
 use serde::{Deserialize, Serialize};
 use tracing::{Span, warn};
 
-use crate::packet::consts::PduType;
+use crate::packet::iana::PduType;
 
 // Type aliases.
 pub type DecodeResult<T> = Result<T, DecodeError>;

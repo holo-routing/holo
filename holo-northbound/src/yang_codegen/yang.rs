@@ -81,7 +81,3 @@ pub fn bandwidth_ieee_float32_to_yang(value: &f32) -> String {
     // Build the final string.
     format!("0x1.{fraction_hex}{exponent_str}")
 }
-
-pub fn fletcher_checksum16_to_yang(cksum: u16) -> String {
-    format!("{cksum:#06x}")
-}

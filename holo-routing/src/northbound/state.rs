@@ -165,8 +165,8 @@ impl<'a> YangList<'a, Master> for routing::ribs::rib::routes::route::Route<'a> {
             source_protocol: (!dest.is_label()).then_some(route.protocol.to_yang()),
             active: route.flags.contains(RouteFlags::ACTIVE).then_some(()),
             last_updated: Some(Cow::Borrowed(&route.last_updated)),
-            ipv4_destination_prefix: dest.as_ipv4().copied().map(Cow::Borrowed),
-            ipv6_destination_prefix: dest.as_ipv6().copied().map(Cow::Borrowed),
+            v4ur_destination_prefix: dest.as_ipv4().copied().map(Cow::Borrowed),
+            v6ur_destination_prefix: dest.as_ipv6().copied().map(Cow::Borrowed),
             mpls_enabled: None,
             mpls_local_label: None,
             mpls_destination_prefix: dest.as_label().map(|label| label.to_yang()),
@@ -191,8 +191,8 @@ impl<'a> YangContainer<'a, Master> for routing::ribs::rib::routes::route::next_h
     fn new(master: &'a Master, list_entry: &ListEntry<'a>) -> Option<Self> {
         let (_, route) = list_entry.as_route().unwrap();
         let mut outgoing_interface = None;
-        let mut ipv4_next_hop_address = None;
-        let mut ipv6_next_hop_address = None;
+        let mut v4ur_next_hop_address = None;
+        let mut v6ur_next_hop_address = None;
         let mut special_next_hop = None;
 
         match route.kind {
@@ -208,8 +208,8 @@ impl<'a> YangContainer<'a, Master> for routing::ribs::rib::routes::route::next_h
                             outgoing_interface = Some(Cow::Borrowed(iface.name.as_str()));
                         }
                         match addr {
-                            IpAddr::V4(addr) => ipv4_next_hop_address = Some(Cow::Borrowed(addr)),
-                            IpAddr::V6(addr) => ipv6_next_hop_address = Some(Cow::Borrowed(addr)),
+                            IpAddr::V4(addr) => v4ur_next_hop_address = Some(Cow::Borrowed(addr)),
+                            IpAddr::V6(addr) => v6ur_next_hop_address = Some(Cow::Borrowed(addr)),
                         }
                     }
                     Nexthop::Interface {
@@ -222,8 +222,8 @@ impl<'a> YangContainer<'a, Master> for routing::ribs::rib::routes::route::next_h
                     Nexthop::Recursive {
                         addr, ..
                     } => match addr {
-                        IpAddr::V4(addr) => ipv4_next_hop_address = Some(Cow::Borrowed(addr)),
-                        IpAddr::V6(addr) => ipv6_next_hop_address = Some(Cow::Borrowed(addr)),
+                        IpAddr::V4(addr) => v4ur_next_hop_address = Some(Cow::Borrowed(addr)),
+                        IpAddr::V6(addr) => v6ur_next_hop_address = Some(Cow::Borrowed(addr)),
                     },
                 }
             }
@@ -235,8 +235,8 @@ impl<'a> YangContainer<'a, Master> for routing::ribs::rib::routes::route::next_h
 
         Some(Self {
             outgoing_interface,
-            ipv4_next_hop_address,
-            ipv6_next_hop_address,
+            v4ur_next_hop_address,
+            v6ur_next_hop_address,
             special_next_hop,
         })
     }
@@ -293,7 +293,7 @@ impl<'a> YangList<'a, Master> for routing::ribs::rib::routes::route::next_hop::n
         } else {
             None
         };
-        let (ipv4_address, ipv6_address) = match nexthop {
+        let (v4ur_address, v6ur_address) = match nexthop {
             Nexthop::Address {
                 addr, ..
             }
@@ -307,8 +307,8 @@ impl<'a> YangList<'a, Master> for routing::ribs::rib::routes::route::next_hop::n
         };
         Self {
             outgoing_interface,
-            ipv4_address,
-            ipv6_address,
+            v4ur_address,
+            v6ur_address,
         }
     }
 }

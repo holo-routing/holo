@@ -203,7 +203,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let event_queue = args.event_queue;
             event_queue.insert(Event::StaticRouteInstall(prefix));
         })
-        .path(control_plane_protocol::static_routes::ipv4::route::next_hop::ipv4_next_hop_address::PATH)
+        .path(control_plane_protocol::static_routes::ipv4::route::next_hop::next_hop_address::PATH)
         .modify_apply(|master, args| {
             let prefix = args.list_entry.into_static_route().unwrap();
             let route = master.static_routes.get_mut(&prefix).unwrap();
@@ -292,7 +292,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let event_queue = args.event_queue;
             event_queue.insert(Event::StaticRouteInstall(prefix));
         })
-        .path(control_plane_protocol::static_routes::ipv4::route::next_hop::next_hop_list::next_hop::ipv4_next_hop_address::PATH)
+        .path(control_plane_protocol::static_routes::ipv4::route::next_hop::next_hop_list::next_hop::next_hop_address::PATH)
         .modify_apply(|master, args| {
             let (prefix, nh_index) = args.list_entry.into_static_route_nexthop().unwrap();
             let route = master.static_routes.get_mut(&prefix).unwrap();
@@ -359,7 +359,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let event_queue = args.event_queue;
             event_queue.insert(Event::StaticRouteInstall(prefix));
         })
-        .path(control_plane_protocol::static_routes::ipv6::route::next_hop::ipv6_next_hop_address::PATH)
+        .path(control_plane_protocol::static_routes::ipv6::route::next_hop::next_hop_address::PATH)
         .modify_apply(|master, args| {
             let prefix = args.list_entry.into_static_route().unwrap();
             let route = master.static_routes.get_mut(&prefix).unwrap();
@@ -448,7 +448,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let event_queue = args.event_queue;
             event_queue.insert(Event::StaticRouteInstall(prefix));
         })
-        .path(control_plane_protocol::static_routes::ipv6::route::next_hop::next_hop_list::next_hop::ipv6_next_hop_address::PATH)
+        .path(control_plane_protocol::static_routes::ipv6::route::next_hop::next_hop_list::next_hop::next_hop_address::PATH)
         .modify_apply(|master, args| {
             let (prefix, nh_index) = args.list_entry.into_static_route_nexthop().unwrap();
             let route = master.static_routes.get_mut(&prefix).unwrap();

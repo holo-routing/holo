@@ -6,12 +6,9 @@
 
 use clap::{App, Arg};
 use convert_case::Case;
+use holo_northbound::yang_codegen::SchemaNodeCodegenExt;
 use holo_northbound::yang_codegen::struct_builder::StructBuilder;
-use holo_northbound::yang_codegen::types::leaf_type_is_builtin;
-use holo_northbound::yang_codegen::{
-    snode_is_state_container, snode_is_state_list, snode_rust_module_path,
-    snode_rust_name,
-};
+use holo_northbound::yang_codegen::types::SchemaLeafTypeCodegenExt;
 use holo_yang as yang;
 use yang4::context::{Context, ContextFlags};
 use yang4::schema::{SchemaModule, SchemaNodeKind};
@@ -26,8 +23,8 @@ fn gen_impl_blocks_rpc(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
         .filter(|snode| modules.iter().any(|module| snode.module() == *module))
     {
         if snode.kind() == SchemaNodeKind::Rpc {
-            let module = snode_rust_module_path(&snode);
-            let struct_name = snode_rust_name(&snode, Case::Pascal);
+            let module = snode.rust_module_path();
+            let struct_name = snode.rust_name(Case::Pascal);
             println!(
                 "impl YangRpc<Provider> for yang::{module}::{struct_name}"
             );
@@ -42,8 +39,8 @@ fn gen_impl_blocks_rpc(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
         }
 
         for snode in snode.actions() {
-            let module = snode_rust_module_path(&snode);
-            let struct_name = snode_rust_name(&snode, Case::Pascal);
+            let module = snode.rust_module_path();
+            let struct_name = snode.rust_name(Case::Pascal);
             println!(
                 "impl YangRpc<Provider> for yang::{module}::{struct_name}"
             );
@@ -76,8 +73,8 @@ fn gen_impl_blocks_state(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
         })
         .filter(|snode| modules.iter().any(|module| snode.module() == *module))
     {
-        let module = snode_rust_module_path(&snode);
-        let struct_name = snode_rust_name(&snode, Case::Pascal);
+        let module = snode.rust_module_path();
+        let struct_name = snode.rust_name(Case::Pascal);
         let mut fields = Vec::new();
         for snode in snode.children() {
             StructBuilder::extract_fields(snode, &mut fields);
@@ -85,16 +82,16 @@ fn gen_impl_blocks_state(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
         let lifetime = if snode.is_within_notification()
             || fields.iter().any(|snode| {
                 snode.kind() == SchemaNodeKind::LeafList
-                    || !snode.leaf_type().is_some_and(|leaf_type| {
-                        leaf_type_is_builtin(&leaf_type)
-                    })
+                    || !snode
+                        .leaf_type()
+                        .is_some_and(|leaf_type| leaf_type.is_builtin())
             }) {
             "<'a>"
         } else {
             ""
         };
 
-        if snode_is_state_container(&snode) {
+        if snode.is_state_container() {
             if fields.is_empty() {
                 continue;
             }
@@ -116,7 +113,7 @@ fn gen_impl_blocks_state(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
                 })
                 .filter(|snode| snode.is_state() || snode.is_list_key())
             {
-                let field_name = snode_rust_name(snode, Case::Snake);
+                let field_name = snode.rust_name(Case::Snake);
                 println!("{indent3}{field_name}: todo!(),");
             }
             println!("{indent2}}})");
@@ -124,7 +121,7 @@ fn gen_impl_blocks_state(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
             println!("}}");
             println!();
         }
-        if snode_is_state_list(&snode) {
+        if snode.is_state_list() {
             println!(
                 "impl<'a> YangList<'a, Provider> for {module}::{struct_name}{lifetime}"
             );
@@ -149,7 +146,7 @@ fn gen_impl_blocks_state(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
                 })
                 .filter(|snode| snode.is_state() || snode.is_list_key())
             {
-                let field_name = snode_rust_name(snode, Case::Snake);
+                let field_name = snode.rust_name(Case::Snake);
                 println!("{indent3}{field_name}: todo!(),");
             }
             println!("{indent2}}}");

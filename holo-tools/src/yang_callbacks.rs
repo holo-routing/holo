@@ -6,7 +6,7 @@
 
 use clap::{App, Arg};
 use holo_northbound::configuration::CallbackOp;
-use holo_northbound::yang_codegen::snode_rust_module_path;
+use holo_northbound::yang_codegen::SchemaNodeCodegenExt;
 use holo_yang as yang;
 use yang4::context::{Context, ContextFlags};
 use yang4::schema::SchemaModule;
@@ -35,7 +35,7 @@ fn config_callbacks(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
         }
 
         // Print path.
-        let path = format!("{}::PATH", snode_rust_module_path(&snode));
+        let path = format!("{}::PATH", snode.rust_module_path());
         println!("        .path({path})");
 
         // Print callbacks.

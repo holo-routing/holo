@@ -4,12 +4,12 @@
 // SPDX-License-Identifier: MIT
 //
 
+pub mod code_writer;
 pub mod struct_builder;
 pub mod types;
 pub mod yang;
 
 use std::env;
-use std::fmt::Write;
 use std::iter::once;
 use std::path::PathBuf;
 
@@ -20,6 +20,7 @@ use yang4::schema::{
     DataValueType, SchemaNode, SchemaNodeKind, SchemaPathFormat,
 };
 
+use crate::yang_codegen::code_writer::{CodeWriter, emit};
 use crate::yang_codegen::struct_builder::StructBuilder;
 
 const HEADER_YANG_OBJECTS: &str = r#"
@@ -43,27 +44,118 @@ use super::*;
 
 "#;
 
+pub trait SchemaNodeCodegenExt {
+    // Returns the Rust identifier for this node in the given case.
+    fn rust_name(&self, case: Case<'_>) -> String;
+
+    // Returns the fully-qualified Rust module path for this node.
+    fn rust_module_path(&self) -> String;
+
+    // Returns true if this node is a list that can hold state data.
+    fn is_state_list(&self) -> bool;
+
+    // Returns true if this node is a container that can hold state data.
+    fn is_state_container(&self) -> bool;
+
+    // Returns true if this node directly carries leaf data: either it is a
+    // leaf/leaf-list itself, or it is a choice whose cases contain one.
+    fn has_leaf_data(&self) -> bool;
+
+    // Returns true if this node belongs to one of the given YANG modules.
+    fn in_modules(&self, modules: &[&str]) -> bool;
+
+    // Returns true if any ancestor of this node has the given name.
+    fn has_ancestor_named(&self, name: &str) -> bool;
+}
+
+// ===== impl SchemaNode =====
+
+impl SchemaNodeCodegenExt for SchemaNode<'_> {
+    fn rust_name(&self, case: Case<'_>) -> String {
+        let mut name = self.name().to_owned();
+
+        // If a sibling node shares the same name but belongs to a different
+        // module, prepend this node's module prefix to disambiguate.
+        if let Some(parent) = self.ancestors().next()
+            && parent.children().any(|sibling| {
+                sibling.name() == self.name()
+                    && sibling.module() != self.module()
+            })
+        {
+            name.insert_str(0, &format!("{}-", self.module().prefix()));
+        }
+
+        // Case conversion.
+        name = name
+            .from_case(Case::Kebab)
+            .remove_boundaries(&[Boundary::UpperDigit, Boundary::LowerDigit])
+            .to_case(case);
+
+        // Handle Rust reserved keywords.
+        name.into_safe()
+    }
+
+    fn rust_module_path(&self) -> String {
+        let snodes = self.inclusive_ancestors().collect::<Vec<_>>();
+        snodes
+            .iter()
+            .rev()
+            .filter(|snode| !snode.is_schema_only())
+            .map(|snode| snode.rust_name(Case::Snake))
+            .collect::<Vec<_>>()
+            .join("::")
+    }
+
+    fn is_state_list(&self) -> bool {
+        if self.kind() != SchemaNodeKind::List {
+            return false;
+        }
+        if !self.is_config() && !self.is_state() {
+            return false;
+        }
+        self.traverse().any(|snode| snode.is_state())
+    }
+
+    fn is_state_container(&self) -> bool {
+        if self.kind() != SchemaNodeKind::Container {
+            return false;
+        }
+        if !self.traverse().any(|snode| snode.is_state()) {
+            return false;
+        }
+        self.children()
+            .any(|snode| snode.is_state() && snode.has_leaf_data())
+    }
+
+    fn has_leaf_data(&self) -> bool {
+        match self.kind() {
+            SchemaNodeKind::Leaf | SchemaNodeKind::LeafList => true,
+            SchemaNodeKind::Choice => self
+                .children()
+                .flat_map(|snode| snode.children())
+                .any(|snode| snode.has_leaf_data()),
+            _ => false,
+        }
+    }
+
+    fn in_modules(&self, modules: &[&str]) -> bool {
+        modules.iter().any(|module| *module == self.module().name())
+    }
+
+    fn has_ancestor_named(&self, name: &str) -> bool {
+        self.ancestors().any(|ancestor| ancestor.name() == name)
+    }
+}
+
 // ===== helper functions =====
 
 fn generate_module(
-    output: &mut String,
+    w: &mut CodeWriter,
     modules: &[&str],
     snode: &SchemaNode<'_>,
-    level: usize,
 ) -> std::fmt::Result {
-    let indent = " ".repeat(level * 2);
     let gen_module = !snode.is_schema_only()
-        && (snode_module_matches(snode, modules)
-            || matches!(
-                snode.path(SchemaPathFormat::DATA).as_ref(),
-                "/ietf-routing:routing"
-                    | "/ietf-routing:routing/control-plane-protocols"
-                    | "/ietf-routing:routing/control-plane-protocols/control-plane-protocol"
-                    | "/ietf-interfaces:interfaces"
-                    | "/ietf-interfaces:interfaces/interface"
-                    | "/ietf-interfaces:interfaces/interface/ietf-ip:ipv4"
-                    | "/ietf-interfaces:interfaces/interface/ietf-ip:ipv6"
-            ))
+        && snode.traverse().any(|snode| snode.in_modules(modules))
         && (snode.is_config()
             || matches!(
                 snode.kind(),
@@ -75,14 +167,12 @@ fn generate_module(
             ));
 
     if gen_module {
-        let name = snode_rust_name(snode, Case::Snake);
+        let name = snode.rust_name(Case::Snake);
 
-        // Generate module.
-        writeln!(output, "{indent}pub mod {name} {{")?;
-        writeln!(output, "{indent}  use super::*;")?;
+        emit!(w, 0, "pub mod {name} {{")?;
+        emit!(w, 1, "use super::*;")?;
 
-        // Generate paths.
-        generate_paths(output, snode, level)?;
+        generate_paths(w, snode)?;
 
         // Generate default value (if any).
         if snode.is_config()
@@ -91,62 +181,59 @@ fn generate_module(
         {
             let dflt_type = leaf_type.base_type();
             let dflt_value = dflt_value.to_owned();
-            generate_default_value(output, dflt_type, dflt_value, level)?;
+            generate_default_value(w, dflt_type, dflt_value)?;
         }
 
         // Generate object struct.
         match snode.kind() {
             SchemaNodeKind::Container | SchemaNodeKind::Notification => {
-                let builder = StructBuilder::new(level, snode.clone());
+                let builder = StructBuilder::new(snode.clone());
                 if !builder.fields.is_empty() {
-                    builder.generate(output)?;
+                    builder.generate(w)?;
                 }
             }
             SchemaNodeKind::List
             | SchemaNodeKind::Rpc
             | SchemaNodeKind::Action => {
-                let builder = StructBuilder::new(level, snode.clone());
-                builder.generate(output)?;
+                let builder = StructBuilder::new(snode.clone());
+                builder.generate(w)?;
             }
             _ => (),
         }
     }
 
-    // Iterate over child nodes.
-    for snode in snode.actions() {
-        generate_module(output, modules, &snode, level + 1)?;
-    }
-    for snode in snode.notifications() {
-        generate_module(output, modules, &snode, level + 1)?;
-    }
-    for snode in snode.children().filter(|snode| snode.is_status_current()) {
-        generate_module(output, modules, &snode, level + 1)?;
-    }
-
+    // Iterate over child nodes at the next indentation level.
     if gen_module {
-        // Close generated module.
-        writeln!(output, "{indent}}}")?;
+        w.level += 1;
+    }
+    let children = snode
+        .actions()
+        .chain(snode.notifications())
+        .chain(snode.children().filter(|snode| snode.is_status_current()));
+    for snode in children {
+        generate_module(w, modules, &snode)?;
+    }
+    if gen_module {
+        w.level -= 1;
+        emit!(w, 0, "}}")?;
     }
 
     Ok(())
 }
 
 fn generate_paths(
-    output: &mut String,
+    w: &mut CodeWriter,
     snode: &SchemaNode<'_>,
-    level: usize,
 ) -> std::fmt::Result {
-    let indent = " ".repeat(level * 2);
-
-    // Generate data path.
     let path = snode.path(SchemaPathFormat::DATA);
-    writeln!(
-        output,
-        "{indent}  pub const PATH: YangPath = YangPath::new(\"{path}\");"
+    emit!(
+        w,
+        1,
+        "pub const PATH: YangPath = YangPath::new(\"{path}\");"
     )?;
 
-    // For notifications, generate data path relative to the nearest parent
-    // list.
+    // For notifications, also generate data path relative to the nearest
+    // parent list.
     if snode.kind() == SchemaNodeKind::Notification
         && let Some(snode_parent_list) = snode
             .ancestors()
@@ -154,24 +241,17 @@ fn generate_paths(
     {
         let path_parent_list = snode_parent_list.path(SchemaPathFormat::DATA);
         let relative_path = &path[path_parent_list.len()..];
-
-        writeln!(
-            output,
-            "{indent}  pub const RELATIVE_PATH: &str = \"{relative_path}\";"
-        )?;
+        emit!(w, 1, "pub const RELATIVE_PATH: &str = \"{relative_path}\";")?;
     }
 
     Ok(())
 }
 
 fn generate_default_value(
-    output: &mut String,
+    w: &mut CodeWriter,
     dflt_type: DataValueType,
     mut dflt_value: String,
-    level: usize,
 ) -> std::fmt::Result {
-    let indent = " ".repeat(level * 2);
-
     let dflt_type = match dflt_type {
         DataValueType::Uint8 => "u8",
         DataValueType::Uint16 => "u16",
@@ -188,157 +268,134 @@ fn generate_default_value(
     if dflt_type == "&str" {
         dflt_value = format!("\"{dflt_value}\"");
     }
+    emit!(w, 1, "pub const DFLT: {dflt_type} = {dflt_value};")?;
+    Ok(())
+}
 
-    writeln!(
-        output,
-        "{indent}  pub const DFLT: {dflt_type} = {dflt_value};",
+fn write_ops_map_entry(
+    w: &mut CodeWriter,
+    snode: &SchemaNode<'_>,
+    ops_expr: impl Fn(&str) -> String,
+) -> std::fmt::Result {
+    let path = snode.path(SchemaPathFormat::DATA);
+    let type_name = snode.rust_name(Case::Pascal);
+    emit!(w, 2, "\"{path}\" => {{")?;
+    emit!(w, 3, "use {}::{type_name};", snode.rust_module_path())?;
+    emit!(w, 3, "{}", ops_expr(&type_name))?;
+    emit!(w, 2, "}},")?;
+    Ok(())
+}
+
+fn write_ops_map<'a>(
+    w: &mut CodeWriter,
+    const_name: &str,
+    type_str: &str,
+    snodes: impl Iterator<Item = SchemaNode<'a>>,
+    ops_expr: impl Fn(&str) -> String,
+) -> std::fmt::Result {
+    emit!(
+        w,
+        0,
+        "const {const_name}: phf::Map<&'static str, {type_str}> = phf_map! {{"
     )?;
-
+    for snode in snodes {
+        write_ops_map_entry(w, &snode, &ops_expr)?;
+    }
+    emit!(w, 0, "}};")?;
     Ok(())
 }
 
 fn generate_yang_ops(
-    output: &mut String,
+    w: &mut CodeWriter,
     modules: &[&str],
     yang_ctx: &Context,
     path_filter: Option<&str>,
 ) -> std::fmt::Result {
-    writeln!(
-        output,
-        "const YANG_LIST_OPS: phf::Map<&'static str, YangListOps<Provider>> = phf_map! {{"
+    write_ops_map(
+        w,
+        "YANG_LIST_OPS",
+        "YangListOps<Provider>",
+        yang_ctx
+            .traverse()
+            .filter(|snode| !snode.is_schema_only())
+            .filter(|snode| snode.is_status_current())
+            .filter(|snode| snode.is_state_list())
+            .filter(|snode| snode.in_modules(modules))
+            .filter(|snode| {
+                !path_filter.is_some_and(|name| snode.has_ancestor_named(name))
+            }),
+        |name| {
+            format!(
+                "YangListOps {{ iter: |p, le| {name}::iter(p, le), new: |p, le| Box::new({name}::new(p, le)) }}"
+            )
+        },
     )?;
-    for snode in yang_ctx
-        .traverse()
-        .filter(|snode| !snode.is_schema_only())
-        .filter(|snode| snode.is_status_current())
-        .filter(|snode| snode_is_state_list(snode))
-        .filter(|snode| snode_module_matches(snode, modules))
-        .filter(|snode| !snode_path_filter(snode, path_filter))
-    {
-        let path = snode.path(SchemaPathFormat::DATA);
-        let list = snode_rust_name(&snode, Case::Pascal);
-        writeln!(output, "    \"{}\" => {{", path)?;
-        writeln!(
-            output,
-            "      use {}::{};",
-            snode_rust_module_path(&snode),
-            list
-        )?;
-        writeln!(
-            output,
-            "      YangListOps {{ iter: |p, le| {}::iter(p, le), new: |p, le| Box::new({}::new(p, le)) }}",
-            list, list,
-        )?;
-        writeln!(output, "    }},")?;
-    }
-    writeln!(output, "}};")?;
 
-    writeln!(
-        output,
-        "const YANG_CONTAINER_OPS: phf::Map<&'static str, YangContainerOps<Provider>> = phf_map! {{"
+    write_ops_map(
+        w,
+        "YANG_CONTAINER_OPS",
+        "YangContainerOps<Provider>",
+        yang_ctx
+            .traverse()
+            .filter(|snode| !snode.is_schema_only())
+            .filter(|snode| snode.is_status_current())
+            .filter(|snode| snode.is_state_container())
+            .filter(|snode| snode.in_modules(modules))
+            .filter(|snode| {
+                !path_filter.is_some_and(|name| snode.has_ancestor_named(name))
+            }),
+        |name| {
+            format!(
+                "YangContainerOps {{ new: |p, le| {name}::new(p, le).map(|c| Box::new(c) as _) }}"
+            )
+        },
     )?;
-    for snode in yang_ctx
-        .traverse()
-        .filter(|snode| !snode.is_schema_only())
-        .filter(|snode| snode.is_status_current())
-        .filter(|snode| snode_is_state_container(snode))
-        .filter(|snode| snode_module_matches(snode, modules))
-        .filter(|snode| !snode_path_filter(snode, path_filter))
-    {
-        let path = snode.path(SchemaPathFormat::DATA);
-        let container = snode_rust_name(&snode, Case::Pascal);
-        writeln!(output, "    \"{}\" => {{", path)?;
-        writeln!(
-            output,
-            "      use {}::{};",
-            snode_rust_module_path(&snode),
-            container
-        )?;
-        writeln!(
-            output,
-            "      YangContainerOps {{ new: |p, le| {}::new(p, le).map(|c| Box::new(c) as _) }}",
-            container
-        )?;
-        writeln!(output, "    }},")?;
-    }
-    writeln!(output, "}};")?;
 
-    writeln!(
-        output,
-        "const YANG_RPC_OPS: phf::Map<&'static str, YangRpcOps<Provider>> = phf_map! {{"
+    write_ops_map(
+        w,
+        "YANG_RPC_OPS",
+        "YangRpcOps<Provider>",
+        yang_ctx
+            .traverse()
+            .filter(|snode| !snode.is_schema_only())
+            .filter(|snode| snode.is_status_current())
+            .filter(|snode| snode.in_modules(modules))
+            .filter(|snode| {
+                !path_filter.is_some_and(|name| snode.has_ancestor_named(name))
+            })
+            .flat_map(|snode| {
+                let actions = snode.actions();
+                once(snode).chain(actions)
+            })
+            .filter(|snode| {
+                matches!(
+                    snode.kind(),
+                    SchemaNodeKind::Rpc | SchemaNodeKind::Action
+                )
+            }),
+        |name| format!("YangRpcOps {{ invoke: {name}::invoke }}"),
     )?;
-    for snode in yang_ctx
-        .traverse()
-        .filter(|snode| !snode.is_schema_only())
-        .filter(|snode| snode.is_status_current())
-        .filter(|snode| snode_module_matches(snode, modules))
-        .filter(|snode| !snode_path_filter(snode, path_filter))
-        .flat_map(|snode| {
-            let actions = snode.actions();
-            once(snode).chain(actions)
-        })
-        .filter(|snode| {
-            matches!(snode.kind(), SchemaNodeKind::Rpc | SchemaNodeKind::Action)
-        })
-    {
-        let path = snode.path(SchemaPathFormat::DATA);
-        let container = snode_rust_name(&snode, Case::Pascal);
-        writeln!(output, "    \"{}\" => {{", path)?;
-        writeln!(
-            output,
-            "      use {}::{};",
-            snode_rust_module_path(&snode),
-            container
-        )?;
-        writeln!(
-            output,
-            "      YangRpcOps {{ invoke: {}::invoke }}",
-            container
-        )?;
-        writeln!(output, "    }},")?;
-    }
-    writeln!(output, "}};")?;
 
-    writeln!(
-        output,
-        "
-pub const YANG_OPS_STATE: state::YangOps<Provider> = state::YangOps {{
-    list: YANG_LIST_OPS,
-    container: YANG_CONTAINER_OPS,
-}};
-pub const YANG_OPS_RPC: rpc::YangOps<Provider> = rpc::YangOps {{
-    rpc: YANG_RPC_OPS,
-}};"
+    emit!(
+        w,
+        0,
+        "pub const YANG_OPS_STATE: state::YangOps<Provider> = state::YangOps {{"
     )?;
+    emit!(w, 2, "list: YANG_LIST_OPS,")?;
+    emit!(w, 2, "container: YANG_CONTAINER_OPS,")?;
+    emit!(w, 0, "}};")?;
+    emit!(
+        w,
+        0,
+        "pub const YANG_OPS_RPC: rpc::YangOps<Provider> = rpc::YangOps {{"
+    )?;
+    emit!(w, 2, "rpc: YANG_RPC_OPS,")?;
+    emit!(w, 0, "}};")?;
 
     Ok(())
 }
 
-fn snode_contains_leaf_or_leaflist(snode: &SchemaNode<'_>) -> bool {
-    match snode.kind() {
-        SchemaNodeKind::Leaf | SchemaNodeKind::LeafList => true,
-        SchemaNodeKind::Choice => snode
-            .children()
-            .flat_map(|snode| snode.children())
-            .any(|snode| snode_contains_leaf_or_leaflist(&snode)),
-        _ => false,
-    }
-}
-
-fn snode_path_filter(snode: &SchemaNode<'_>, name: Option<&str>) -> bool {
-    let Some(name) = name else {
-        return false;
-    };
-    snode.ancestors().any(|ancestor| ancestor.name() == name)
-}
-
-fn snode_module_matches(snode: &SchemaNode<'_>, modules: &[&str]) -> bool {
-    modules
-        .iter()
-        .any(|module| *module == snode.module().name())
-}
-
-fn write_out_dir_file(filename: &str, output: String) {
+fn write_out_dir_file(filename: &str, output: &str) {
     let dst = PathBuf::from(env::var("OUT_DIR").unwrap());
     let out_file = dst.join(filename);
     std::fs::write(out_file, output).expect("Couldn't write to file");
@@ -346,110 +403,13 @@ fn write_out_dir_file(filename: &str, output: String) {
 
 // ===== global functions =====
 
-pub fn snode_rust_name(snode: &SchemaNode<'_>, case: Case<'_>) -> String {
-    let mut name = snode.name().to_owned();
-
-    // HACK: distinguish nodes with the same names but different namespaces.
-    if matches!(
-        snode.name(),
-        "destination-address"
-            | "destination-prefix"
-            | "address"
-            | "next-hop-address"
-    ) {
-        if snode.module().name() == "ietf-ipv4-unicast-routing" {
-            name.insert_str(0, "ipv4-");
-        }
-        if snode.module().name() == "ietf-ipv6-unicast-routing" {
-            name.insert_str(0, "ipv6-");
-        }
-        if snode.module().name() == "ietf-mpls" {
-            name.insert_str(0, "mpls-");
-        }
-    }
-    if let Some(snode_parent) = snode.ancestors().next()
-        && snode_parent.module().name() == "ietf-routing"
-    {
-        if snode.module().name() == "ietf-ospf"
-            && matches!(snode.name(), "route-type" | "tag" | "metric")
-        {
-            name.insert_str(0, "ospf-");
-        }
-        if snode.module().name() == "ietf-isis"
-            && matches!(snode.name(), "route-type" | "tag" | "metric")
-        {
-            name.insert_str(0, "isis-");
-        }
-    }
-
-    // Case conversion.
-    name = name
-        .from_case(Case::Kebab)
-        .remove_boundaries(&[Boundary::UpperDigit, Boundary::LowerDigit])
-        .to_case(case);
-
-    // Handle Rust reserved keywords.
-    name = name.into_safe();
-
-    name
-}
-
-pub fn snode_rust_module_path(snode: &SchemaNode<'_>) -> String {
-    let snodes = snode.inclusive_ancestors().collect::<Vec<_>>();
-    snodes
-        .iter()
-        .rev()
-        .filter(|snode| !snode.is_schema_only())
-        .map(|snode| {
-            let mut name = snode.name().to_owned();
-            // Replace hyphens by underscores.
-            name = str::replace(&name, "-", "_");
-            // Handle Rust reserved keywords.
-            name.into_safe()
-        })
-        .collect::<Vec<String>>()
-        .join("::")
-}
-
-pub fn snode_is_state_list(snode: &SchemaNode<'_>) -> bool {
-    if snode.kind() != SchemaNodeKind::List {
-        return false;
-    }
-
-    if !snode.is_config() && !snode.is_state() {
-        return false;
-    }
-
-    snode.traverse().any(|snode| snode.is_state())
-}
-
-pub fn snode_is_state_container(snode: &SchemaNode<'_>) -> bool {
-    if snode.kind() != SchemaNodeKind::Container {
-        return false;
-    }
-
-    if !snode.traverse().any(|snode| snode.is_state()) {
-        return false;
-    }
-
-    snode.children().any(|snode| {
-        if !snode.is_state() {
-            return false;
-        }
-
-        snode_contains_leaf_or_leaflist(&snode)
-    })
-}
-
 pub fn build_yang_objects(
     yang_ctx: &Context,
     modules: &[&str],
     filename: &str,
 ) {
-    // Generate file header.
-    let mut output = HEADER_YANG_OBJECTS.to_owned();
-
-    // Generate modules.
+    let output = HEADER_YANG_OBJECTS.to_owned();
+    let mut w = CodeWriter::new(output, 0);
     for snode in yang_ctx
         .modules(true)
         .flat_map(|module| {
@@ -461,11 +421,10 @@ pub fn build_yang_objects(
         .filter(|snode| !snode.is_schema_only())
         .filter(|snode| snode.is_status_current())
     {
-        generate_module(&mut output, modules, &snode, 0)
+        generate_module(&mut w, modules, &snode)
             .expect("Failed to write to stdout");
     }
-
-    write_out_dir_file(filename, output);
+    write_out_dir_file(filename, &w.output);
 }
 
 pub fn build_yang_ops(
@@ -474,12 +433,9 @@ pub fn build_yang_ops(
     path_filter: Option<&str>,
     filename: &str,
 ) {
-    // Generate file header.
-    let mut output = HEADER_YANG_OPS.to_owned();
-
-    // Generate YANG ops.
-    generate_yang_ops(&mut output, modules, yang_ctx, path_filter)
+    let output = HEADER_YANG_OPS.to_owned();
+    let mut w = CodeWriter::new(output, 0);
+    generate_yang_ops(&mut w, modules, yang_ctx, path_filter)
         .expect("Failed to write to stdout");
-
-    write_out_dir_file(filename, output);
+    write_out_dir_file(filename, &w.output);
 }

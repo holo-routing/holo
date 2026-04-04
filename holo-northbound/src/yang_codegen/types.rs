@@ -4,158 +4,224 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::collections::HashMap;
+use std::sync::OnceLock;
+
 use yang4::schema::{DataValueType, SchemaLeafType};
 
-pub fn leaf_type_is_builtin(leaf_type: &SchemaLeafType<'_>) -> bool {
-    matches!(
-        leaf_type.base_type(),
-        DataValueType::Uint8
-            | DataValueType::Uint16
-            | DataValueType::Uint32
-            | DataValueType::Uint64
-            | DataValueType::Int8
-            | DataValueType::Int16
-            | DataValueType::Int32
-            | DataValueType::Int64
-            | DataValueType::Bool
-            | DataValueType::Empty
-    )
+// Extra typedef mappings registered by individual crates.
+static EXTRA_TYPEDEFS: OnceLock<HashMap<&'static str, TypeSpec>> =
+    OnceLock::new();
+
+// Maps a YANG leaf type to its Rust type and defines how to convert values
+// to a YANG string representation.
+#[derive(Clone, Copy, Debug)]
+pub struct TypeSpec {
+    pub rust_type: &'static str,
+    pub to_yang: fn(&str) -> String,
 }
 
-pub fn leaf_type_map(leaf_type: &SchemaLeafType<'_>) -> &'static str {
-    if let Some(typedef) = leaf_typedef_map(leaf_type) {
-        return typedef;
+// Extension methods for SchemaLeafType.
+pub trait SchemaLeafTypeCodegenExt {
+    // Returns true for base types.
+    fn is_builtin(&self) -> bool;
+
+    // Returns the `TypeSpec` describing this leaf type.
+    fn spec(&self) -> TypeSpec;
+}
+
+// ===== impl SchemaLeafType =====
+
+impl SchemaLeafTypeCodegenExt for SchemaLeafType<'_> {
+    fn is_builtin(&self) -> bool {
+        matches!(
+            self.base_type(),
+            DataValueType::Uint8
+                | DataValueType::Uint16
+                | DataValueType::Uint32
+                | DataValueType::Uint64
+                | DataValueType::Int8
+                | DataValueType::Int16
+                | DataValueType::Int32
+                | DataValueType::Int64
+                | DataValueType::Bool
+                | DataValueType::Empty
+        )
     }
 
-    match leaf_type.base_type() {
-        DataValueType::Unknown => panic!("Unknown leaf type"),
-        DataValueType::Uint8 => "u8",
-        DataValueType::Uint16 => "u16",
-        DataValueType::Uint32 => "u32",
-        DataValueType::Uint64 => "u64",
-        DataValueType::Int8 => "i8",
-        DataValueType::Int16 => "i16",
-        DataValueType::Int32 => "i32",
-        DataValueType::Int64 => "i64",
-        DataValueType::Bool => "bool",
-        DataValueType::Empty => "()",
-        DataValueType::Binary => "&'a [u8]",
+    fn spec(&self) -> TypeSpec {
+        // Handle typedef.
+        if let Some(typedef_name) = self.typedef_name()
+            && let Some(spec) = typedef_spec(&typedef_name)
+        {
+            return spec;
+        }
+
+        // Handle leafref.
+        if let Some(real_type) = self.leafref_real_type() {
+            return real_type.spec();
+        }
+
+        // Handle base type.
+        base_type_spec(self.base_type())
+    }
+}
+
+// ===== global functions =====
+
+// Registers crate-specific YANG typedef mappings before code generation.
+// Must be called at most once per build script.
+pub fn register_typedefs(typedefs: &[(&'static str, TypeSpec)]) {
+    EXTRA_TYPEDEFS
+        .set(typedefs.iter().copied().collect())
+        .expect("typedefs already registered");
+}
+
+// ===== helper functions =====
+
+fn base_type_spec(base_type: DataValueType) -> TypeSpec {
+    match base_type {
+        DataValueType::Uint8 => TypeSpec {
+            rust_type: "u8",
+            to_yang: to_string,
+        },
+        DataValueType::Uint16 => TypeSpec {
+            rust_type: "u16",
+            to_yang: to_string,
+        },
+        DataValueType::Uint32 => TypeSpec {
+            rust_type: "u32",
+            to_yang: to_string,
+        },
+        DataValueType::Uint64 => TypeSpec {
+            rust_type: "u64",
+            to_yang: to_string,
+        },
+        DataValueType::Int8 => TypeSpec {
+            rust_type: "i8",
+            to_yang: to_string,
+        },
+        DataValueType::Int16 => TypeSpec {
+            rust_type: "i16",
+            to_yang: to_string,
+        },
+        DataValueType::Int32 => TypeSpec {
+            rust_type: "i32",
+            to_yang: to_string,
+        },
+        DataValueType::Int64 => TypeSpec {
+            rust_type: "i64",
+            to_yang: to_string,
+        },
+        DataValueType::Bool => TypeSpec {
+            rust_type: "bool",
+            to_yang: to_string,
+        },
+        DataValueType::Empty => TypeSpec {
+            rust_type: "()",
+            to_yang: |_| "None".to_owned(),
+        },
+        DataValueType::Binary => TypeSpec {
+            rust_type: "&'a [u8]",
+            to_yang: |f| format!("Some(&yang::binary_to_yang({f}))"),
+        },
         DataValueType::String
         | DataValueType::Union
         | DataValueType::Dec64
         | DataValueType::Enum
         | DataValueType::IdentityRef
         | DataValueType::InstanceId
-        | DataValueType::Bits => "Cow<'a, str>",
+        | DataValueType::Bits => TypeSpec {
+            rust_type: "Cow<'a, str>",
+            to_yang: |f| format!("Some(&{f})"),
+        },
         DataValueType::LeafRef => {
-            let real_type = leaf_type.leafref_real_type().unwrap();
-            leaf_type_map(&real_type)
+            unreachable!()
         }
+        DataValueType::Unknown => panic!("Unknown data value type"),
     }
 }
 
-pub fn leaf_type_value(
-    leaf_type: &SchemaLeafType<'_>,
-    field_name: &str,
-) -> String {
-    if let Some(typedef_value) = leaf_typedef_value(leaf_type, field_name) {
-        return typedef_value;
-    }
-
-    match leaf_type.base_type() {
-        DataValueType::Unknown => panic!("Unknown leaf type"),
-        DataValueType::Uint8
-        | DataValueType::Uint16
-        | DataValueType::Uint32
-        | DataValueType::Uint64
-        | DataValueType::Int8
-        | DataValueType::Int16
-        | DataValueType::Int32
-        | DataValueType::Int64
-        | DataValueType::Bool => {
-            format!("Some(&{field_name}.to_string())")
-        }
-        DataValueType::Empty => "None".to_owned(),
-        DataValueType::Binary => {
-            format!("Some(&yang::binary_to_yang({field_name}))")
-        }
-        DataValueType::String
-        | DataValueType::Union
-        | DataValueType::Dec64
-        | DataValueType::Enum
-        | DataValueType::IdentityRef
-        | DataValueType::InstanceId
-        | DataValueType::Bits => format!("Some(&{field_name})"),
-        DataValueType::LeafRef => {
-            let real_type = leaf_type.leafref_real_type().unwrap();
-            leaf_type_value(&real_type, field_name)
-        }
+fn typedef_spec(typedef_name: &str) -> Option<TypeSpec> {
+    match typedef_name {
+        // ietf-inet-types
+        "ip-address" => Some(TypeSpec {
+            rust_type: "Cow<'a, IpAddr>",
+            to_yang: to_string,
+        }),
+        // ietf-inet-types, ietf-yang-types, ietf-routing-types
+        "ipv4-address" | "dotted-quad" | "router-id" => Some(TypeSpec {
+            rust_type: "Cow<'a, Ipv4Addr>",
+            to_yang: to_string,
+        }),
+        // ietf-inet-types
+        "ipv6-address" => Some(TypeSpec {
+            rust_type: "Cow<'a, Ipv6Addr>",
+            to_yang: to_string,
+        }),
+        // ietf-inet-types
+        "ip-prefix" => Some(TypeSpec {
+            rust_type: "Cow<'a, ipnetwork::IpNetwork>",
+            to_yang: to_string,
+        }),
+        // ietf-inet-types
+        "ipv4-prefix" => Some(TypeSpec {
+            rust_type: "Cow<'a, ipnetwork::Ipv4Network>",
+            to_yang: to_string,
+        }),
+        // ietf-inet-types
+        "ipv6-prefix" => Some(TypeSpec {
+            rust_type: "Cow<'a, ipnetwork::Ipv6Network>",
+            to_yang: to_string,
+        }),
+        // ietf-yang-types
+        "date-and-time" => Some(TypeSpec {
+            rust_type: "Cow<'a, chrono::DateTime<chrono::Utc>>",
+            to_yang: |f| format!("Some(&{f}.to_rfc3339())"),
+        }),
+        // ietf-routing-types
+        "timer-value-seconds16" => Some(TypeSpec {
+            rust_type: "Cow<'a, Duration>",
+            to_yang: |f| format!("Some(&yang::timer_secs16_to_yang({f}))"),
+        }),
+        // ietf-routing-types
+        "timer-value-seconds32" => Some(TypeSpec {
+            rust_type: "Cow<'a, Duration>",
+            to_yang: |f| format!("Some(&yang::timer_secs32_to_yang({f}))"),
+        }),
+        // ietf-routing-types
+        "timer-value-milliseconds" => Some(TypeSpec {
+            rust_type: "Cow<'a, Duration>",
+            to_yang: |f| format!("Some(&yang::timer_millis_to_yang({f}))"),
+        }),
+        // ietf-yang-types
+        "timeticks" => Some(TypeSpec {
+            rust_type: "Cow<'a, Instant>",
+            to_yang: |f| format!("Some(&yang::timeticks_to_yang({f}))"),
+        }),
+        // ietf-routing-types
+        "timeticks64" => Some(TypeSpec {
+            rust_type: "Cow<'a, Instant>",
+            to_yang: |f| format!("Some(&yang::timeticks64_to_yang({f}))"),
+        }),
+        // ietf-yang-types
+        "hex-string" => Some(TypeSpec {
+            rust_type: "&'a [u8]",
+            to_yang: |f| format!("Some(&yang::hex_string_to_yang({f}))"),
+        }),
+        // ietf-routing-types
+        "bandwidth-ieee-float32" => Some(TypeSpec {
+            rust_type: "&'a f32",
+            to_yang: |f| {
+                format!("Some(&yang::bandwidth_ieee_float32_to_yang({f}))")
+            },
+        }),
+        _ => EXTRA_TYPEDEFS
+            .get()
+            .and_then(|map| map.get(typedef_name).copied()),
     }
 }
 
-pub fn leaf_typedef_map(
-    leaf_type: &SchemaLeafType<'_>,
-) -> Option<&'static str> {
-    match leaf_type.typedef_name().as_deref() {
-        Some("ip-address") => Some("Cow<'a, IpAddr>"),
-        Some("ipv4-address" | "dotted-quad" | "router-id") => {
-            Some("Cow<'a, Ipv4Addr>")
-        }
-        Some("ipv6-address") => Some("Cow<'a, Ipv6Addr>"),
-        Some("ip-prefix") => Some("Cow<'a, ipnetwork::IpNetwork>"),
-        Some("ipv4-prefix") => Some("Cow<'a, ipnetwork::Ipv4Network>"),
-        Some("ipv6-prefix") => Some("Cow<'a, ipnetwork::Ipv6Network>"),
-        Some("date-and-time") => Some("Cow<'a, chrono::DateTime<chrono::Utc>>"),
-        Some("timer-value-seconds16") => Some("Cow<'a, Duration>"),
-        Some("timer-value-seconds32") => Some("Cow<'a, Duration>"),
-        Some("timer-value-milliseconds") => Some("Cow<'a, Duration>"),
-        Some("timeticks") => Some("Cow<'a, Instant>"),
-        Some("timeticks64") => Some("Cow<'a, Instant>"),
-        Some("hex-string") => Some("&'a [u8]"),
-        Some("bandwidth-ieee-float32") => Some("&'a f32"),
-        // ietf-ospf
-        Some("fletcher-checksum16-type") => Some("u16"),
-        _ => None,
-    }
-}
-
-pub fn leaf_typedef_value(
-    leaf_type: &SchemaLeafType<'_>,
-    field_name: &str,
-) -> Option<String> {
-    match leaf_type.typedef_name().as_deref() {
-        Some(
-            "ip-address" | "ipv4-address" | "dotted-quad" | "router-id"
-            | "ipv6-address" | "ip-prefix" | "ipv4-prefix" | "ipv6-prefix",
-        ) => Some(format!("Some(&{field_name}.to_string())")),
-        Some("date-and-time") => {
-            Some(format!("Some(&{field_name}.to_rfc3339())"))
-        }
-        Some("timer-value-seconds16") => {
-            Some(format!("Some(&yang::timer_secs16_to_yang({field_name}))"))
-        }
-        Some("timer-value-seconds32") => {
-            Some(format!("Some(&yang::timer_secs32_to_yang({field_name}))"))
-        }
-        Some("timer-value-milliseconds") => {
-            Some(format!("Some(&yang::timer_millis_to_yang({field_name}))"))
-        }
-        Some("timeticks") => {
-            Some(format!("Some(&yang::timeticks_to_yang({field_name}))"))
-        }
-        Some("timeticks64") => {
-            Some(format!("Some(&yang::timeticks64_to_yang({field_name}))"))
-        }
-        Some("hex-string") => {
-            Some(format!("Some(&yang::hex_string_to_yang({field_name}))"))
-        }
-        Some("bandwidth-ieee-float32") => Some(format!(
-            "Some(&yang::bandwidth_ieee_float32_to_yang({field_name}))"
-        )),
-        // ietf-ospf
-        Some("fletcher-checksum16-type") => Some(format!(
-            "Some(&yang::fletcher_checksum16_to_yang({field_name}))"
-        )),
-        _ => None,
-    }
+fn to_string(f: &str) -> String {
+    format!("Some(&{f}.to_string())")
 }

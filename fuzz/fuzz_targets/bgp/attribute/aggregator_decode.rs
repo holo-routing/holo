@@ -2,7 +2,7 @@
 
 use bytes::Bytes;
 use holo_bgp::packet::attribute::Aggregator;
-use holo_bgp::packet::consts::AttrType;
+use holo_bgp::packet::iana::AttrType;
 use holo_utils::bytes::BytesExt;
 use libfuzzer_sys::arbitrary::{Arbitrary, Unstructured};
 use libfuzzer_sys::fuzz_target;

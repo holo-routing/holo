@@ -6,6 +6,7 @@
 
 use clap::{App, Arg};
 use holo_yang as yang;
+use yang4::context::ContextFlags;
 use yang4::schema::SchemaNode;
 
 // Generate fully-prefixed schema path.
@@ -44,6 +45,7 @@ fn main() {
 
     // Initialize YANG context.
     let mut yang_ctx = yang::new_context();
+    yang_ctx.set_options(ContextFlags::ALL_IMPLEMENTED).unwrap();
 
     // Load base YANG modules that define features used by other modules.
     yang::load_module(&mut yang_ctx, "ietf-bfd-types");

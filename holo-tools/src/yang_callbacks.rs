@@ -8,7 +8,7 @@ use clap::{App, Arg};
 use holo_northbound::configuration::CallbackOp;
 use holo_northbound::yang_codegen::snode_rust_module_path;
 use holo_yang as yang;
-use yang4::context::Context;
+use yang4::context::{Context, ContextFlags};
 use yang4::schema::SchemaModule;
 
 fn config_callbacks(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
@@ -96,6 +96,7 @@ fn main() {
 
     // Initialize context.
     let mut yang_ctx = yang::new_context();
+    yang_ctx.set_options(ContextFlags::ALL_IMPLEMENTED).unwrap();
 
     // Load base YANG modules that define features used by other modules.
     yang::load_module(&mut yang_ctx, "ietf-bfd-types");

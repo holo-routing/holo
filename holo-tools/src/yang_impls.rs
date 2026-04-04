@@ -13,7 +13,7 @@ use holo_northbound::yang_codegen::{
     snode_rust_name,
 };
 use holo_yang as yang;
-use yang4::context::Context;
+use yang4::context::{Context, ContextFlags};
 use yang4::schema::{SchemaModule, SchemaNodeKind};
 
 fn gen_impl_blocks_rpc(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
@@ -189,6 +189,7 @@ fn main() {
 
     // Initialize context.
     let mut yang_ctx = yang::new_context();
+    yang_ctx.set_options(ContextFlags::ALL_IMPLEMENTED).unwrap();
 
     // Load provided YANG module.
     for module_name in &module_names {

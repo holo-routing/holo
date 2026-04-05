@@ -8,9 +8,6 @@
 //
 
 use holo_northbound::rpc::{Provider, YangOps, YangRpc};
-use holo_utils::yang::DataNodeRefExt;
-use holo_yang::TryFromYang;
-use yang4::data::{Data, DataTree};
 
 use crate::adjacency::AdjacencyEvent;
 use crate::instance::Instance;
@@ -24,22 +21,20 @@ impl Provider for Instance {
 // ===== YANG impls =====
 
 impl YangRpc<Instance> for yang::clear_adjacency::ClearAdjacency {
-    fn invoke(instance: &mut Instance, data: &mut DataTree<'static>, rpc_path: &str) -> Result<(), String> {
+    fn invoke(&mut self, instance: &mut Instance) -> Result<(), String> {
         let Some((mut instance, arenas)) = instance.as_up() else {
             return Ok(());
         };
 
-        // Parse input parameters.
-        let rpc = data.find_path(rpc_path).unwrap();
-        let ifname = rpc.get_string_relative("./interface");
-
-        // Clear adjacencies.
-        for iface in arenas
-            .interfaces
-            .iter_mut()
+        for iface in arenas.interfaces.iter_mut() {
             // Filter by interface name.
-            .filter(|iface| ifname.is_none() || *ifname.as_ref().unwrap() == iface.name)
-        {
+            if let Some(interface) = &self.input.interface
+                && *interface != iface.name
+            {
+                continue;
+            }
+
+            // Clear adjacencies.
             let event = AdjacencyEvent::Kill;
             iface.clear_adjacencies(&mut instance, &mut arenas.adjacencies, event);
         }
@@ -49,14 +44,10 @@ impl YangRpc<Instance> for yang::clear_adjacency::ClearAdjacency {
 }
 
 impl YangRpc<Instance> for yang::clear_database::ClearDatabase {
-    fn invoke(instance: &mut Instance, data: &mut DataTree<'static>, rpc_path: &str) -> Result<(), String> {
+    fn invoke(&mut self, instance: &mut Instance) -> Result<(), String> {
         let Some((mut instance, arenas)) = instance.as_up() else {
             return Ok(());
         };
-
-        // Parse input parameters.
-        let rpc = data.find_path(rpc_path).unwrap();
-        let level_type = rpc.get_string_relative("./level").and_then(|level_type| LevelType::try_from_yang(&level_type)).unwrap_or(LevelType::All);
 
         // Kill all adjacencies.
         for iface in arenas.interfaces.iter_mut() {
@@ -65,6 +56,7 @@ impl YangRpc<Instance> for yang::clear_database::ClearDatabase {
         }
 
         // Clear database.
+        let level_type = self.input.level.unwrap_or(LevelType::All);
         for level in level_type {
             let lsdb = instance.state.lsdb.get_mut(level);
             lsdb.clear(&mut arenas.lsp_entries);

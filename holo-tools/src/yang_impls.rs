@@ -8,7 +8,6 @@ use clap::{App, Arg};
 use convert_case::Case;
 use holo_northbound::yang_codegen::SchemaNodeCodegenExt;
 use holo_northbound::yang_codegen::struct_builder::StructBuilder;
-use holo_northbound::yang_codegen::types::SchemaLeafTypeCodegenExt;
 use holo_yang as yang;
 use yang4::context::{Context, ContextFlags};
 use yang4::schema::{SchemaModule, SchemaNodeKind};
@@ -25,8 +24,10 @@ fn gen_impl_blocks_rpc(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
         if snode.kind() == SchemaNodeKind::Rpc {
             let module = snode.rust_module_path();
             let struct_name = snode.rust_name(Case::Pascal);
+            let builder = StructBuilder::new(snode.clone());
+            let lifetime = if builder.needs_lifetime() { "<'_>" } else { "" };
             println!(
-                "impl YangRpc<Provider> for yang::{module}::{struct_name}"
+                "impl YangRpc<Provider> for yang::{module}::{struct_name}{lifetime}"
             );
             println!("{{");
             println!(
@@ -41,8 +42,10 @@ fn gen_impl_blocks_rpc(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
         for snode in snode.actions() {
             let module = snode.rust_module_path();
             let struct_name = snode.rust_name(Case::Pascal);
+            let builder = StructBuilder::new(snode.clone());
+            let lifetime = if builder.needs_lifetime() { "<'_>" } else { "" };
             println!(
-                "impl YangRpc<Provider> for yang::{module}::{struct_name}"
+                "impl YangRpc<Provider> for yang::{module}::{struct_name}{lifetime}"
             );
             println!("{{");
             println!(
@@ -75,21 +78,9 @@ fn gen_impl_blocks_state(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
     {
         let module = snode.rust_module_path();
         let struct_name = snode.rust_name(Case::Pascal);
-        let mut fields = Vec::new();
-        for snode in snode.children() {
-            StructBuilder::extract_fields(snode, &mut fields);
-        }
-        let lifetime = if snode.is_within_notification()
-            || fields.iter().any(|snode| {
-                snode.kind() == SchemaNodeKind::LeafList
-                    || !snode
-                        .leaf_type()
-                        .is_some_and(|leaf_type| leaf_type.is_builtin())
-            }) {
-            "<'a>"
-        } else {
-            ""
-        };
+        let builder = StructBuilder::new(snode.clone());
+        let fields = &builder.fields;
+        let lifetime = if builder.needs_lifetime() { "<'a>" } else { "" };
 
         if snode.is_state_container() {
             if fields.is_empty() {

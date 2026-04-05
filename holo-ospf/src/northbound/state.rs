@@ -16,6 +16,7 @@ use holo_utils::num::SaturatingInto;
 use holo_utils::option::OptionExt;
 use holo_utils::protocol::Protocol;
 use holo_utils::sr::IgpAlgoType;
+use holo_yang::types::{HexStr, TimerValueMillis, TimerValueSecs16, Timeticks};
 use holo_yang::{ToYang, ToYangBits};
 use num_traits::FromPrimitive;
 
@@ -25,6 +26,7 @@ use crate::instance::Instance;
 use crate::interface::{Interface, ism};
 use crate::lsdb::{LsaEntry, LsaLogEntry, LsaLogId};
 use crate::neighbor::Neighbor;
+use crate::northbound::yang::FletcherChecksum16;
 use crate::northbound::yang_gen::ospf;
 use crate::packet::lsa::{LsaBodyVersion, LsaHdrVersion};
 use crate::packet::tlv::{BierEncapSubStlv, BierStlv, GrReason, NodeAdminTagTlv, SidLabelRangeTlv, SrLocalBlockTlv, UnknownTlv};
@@ -110,11 +112,11 @@ impl<'a, V: Version> YangContainer<'a, Instance<V>> for ospf::spf_control::ietf_
         let state = instance.state.as_ref()?;
         Some(Self {
             current_state: Some(state.spf_delay_state.to_yang()),
-            remaining_time_to_learn: state.spf_learn_timer.as_ref().map(|task| task.remaining()).map(Cow::Owned).ignore_in_testing(),
-            remaining_hold_down: state.spf_hold_down_timer.as_ref().map(|task| task.remaining()).map(Cow::Owned).ignore_in_testing(),
-            last_event_received: state.spf_last_event_rcvd.as_ref().map(Cow::Borrowed).ignore_in_testing(),
-            next_spf_time: state.spf_delay_timer.as_ref().map(|timer| Instant::now() + timer.remaining()).map(Cow::Owned).ignore_in_testing(),
-            last_spf_time: state.spf_last_time.as_ref().map(Cow::Borrowed).ignore_in_testing(),
+            remaining_time_to_learn: state.spf_learn_timer.as_ref().map(|task| TimerValueMillis(task.remaining())).ignore_in_testing(),
+            remaining_hold_down: state.spf_hold_down_timer.as_ref().map(|task| TimerValueMillis(task.remaining())).ignore_in_testing(),
+            last_event_received: state.spf_last_event_rcvd.as_ref().map(|t| Timeticks(*t)).ignore_in_testing(),
+            next_spf_time: state.spf_delay_timer.as_ref().map(|timer| Timeticks(Instant::now() + timer.remaining())).ignore_in_testing(),
+            last_spf_time: state.spf_last_time.as_ref().map(|t| Timeticks(*t)).ignore_in_testing(),
         })
     }
 }
@@ -213,7 +215,7 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::database::as_scope_lsa_
             lsa_id: lsa.hdr.lsa_id().to_string().into(),
             adv_router: Cow::Owned(lsa.hdr.adv_rtr()),
             decode_completed: Some(!lsa.body.is_unknown()),
-            raw_data: Some(lsa.raw.as_ref()).ignore_in_testing(),
+            raw_data: Some(HexStr(lsa.raw.as_ref())).ignore_in_testing(),
         }
     }
 }
@@ -231,7 +233,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::database::as_scope_lsa_ty
             r#type: Some(lsa.hdr.lsa_type.to_yang()),
             adv_router: Some(Cow::Owned(lsa.hdr.adv_rtr)),
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
-            checksum: Some(lsa.hdr.cksum).ignore_in_testing(),
+            checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
             maxage: lsa.hdr.is_maxage().then_some(()).only_in_testing(),
         })
@@ -375,7 +377,7 @@ impl<'a> YangList<'a, Instance<Ospfv2>> for ospf::database::as_scope_lsa_type::a
         Self {
             r#type: Some(tlv.tlv_type),
             length: Some(tlv.length),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         }
     }
 }
@@ -481,7 +483,7 @@ impl<'a> YangList<'a, Instance<Ospfv2>> for ospf::database::as_scope_lsa_type::a
         Self {
             r#type: Some(tlv.tlv_type),
             length: Some(tlv.length),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         }
     }
 }
@@ -526,7 +528,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_ty
             r#type: Some(lsa.hdr.lsa_type.to_yang()),
             adv_router: Some(Cow::Owned(lsa.hdr.adv_rtr)),
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
-            checksum: Some(lsa.hdr.cksum).ignore_in_testing(),
+            checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
             maxage: lsa.hdr.is_maxage().then_some(()).only_in_testing(),
         })
@@ -710,7 +712,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_ty
         Some(Self {
             r#type: Some(tlv.tlv_type),
             length: Some(tlv.length),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         })
     }
 }
@@ -791,7 +793,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_ty
         Some(Self {
             r#type: Some(tlv.tlv_type),
             length: Some(tlv.length),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         })
     }
 }
@@ -839,9 +841,9 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::spf_log::event::Event<'
         Self {
             id: log.id,
             spf_type: Some(log.spf_type.to_yang()),
-            schedule_timestamp: Some(Cow::Borrowed(&log.schedule_time)),
-            start_timestamp: Some(Cow::Borrowed(&log.start_time)),
-            end_timestamp: Some(Cow::Borrowed(&log.end_time)),
+            schedule_timestamp: Some(Timeticks(log.schedule_time)),
+            start_timestamp: Some(Timeticks(log.start_time)),
+            end_timestamp: Some(Timeticks(log.end_time)),
         }
     }
 }
@@ -876,7 +878,7 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::lsa_log::event::Event<'
         let log = list_entry.as_lsa_log().unwrap();
         Self {
             id: log.id,
-            received_timestamp: log.rcvd_time.as_ref().map(Cow::Borrowed).ignore_in_testing(),
+            received_timestamp: log.rcvd_time.as_ref().map(|t| Timeticks(*t)).ignore_in_testing(),
             reason: Some(log.reason.to_yang()),
         }
     }
@@ -969,7 +971,7 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::database::
             lsa_id: lsa.hdr.lsa_id().to_string().into(),
             adv_router: Cow::Owned(lsa.hdr.adv_rtr()),
             decode_completed: Some(!lsa.body.is_unknown()),
-            raw_data: Some(lsa.raw.as_ref()).ignore_in_testing(),
+            raw_data: Some(HexStr(lsa.raw.as_ref())).ignore_in_testing(),
         }
     }
 }
@@ -987,7 +989,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::database::ar
             r#type: Some(lsa.hdr.lsa_type.to_yang()),
             adv_router: Some(Cow::Owned(lsa.hdr.adv_rtr)),
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
-            checksum: Some(lsa.hdr.cksum).ignore_in_testing(),
+            checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
             maxage: lsa.hdr.is_maxage().then_some(()).only_in_testing(),
         })
@@ -1241,7 +1243,7 @@ impl<'a> YangList<'a, Instance<Ospfv2>> for ospf::areas::area::database::area_sc
         Self {
             r#type: Some(tlv.tlv_type),
             length: Some(tlv.length),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         }
     }
 }
@@ -1348,7 +1350,7 @@ impl<'a> YangList<'a, Instance<Ospfv2>> for ospf::areas::area::database::area_sc
         Self {
             r#type: Some(tlv.tlv_type),
             length: Some(tlv.length),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         }
     }
 }
@@ -1430,7 +1432,7 @@ impl<'a> YangList<'a, Instance<Ospfv2>> for ospf::areas::area::database::area_sc
         Self {
             r#type: Some(tlv.tlv_type),
             length: Some(tlv.length),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         }
     }
 }
@@ -1512,7 +1514,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
             r#type: Some(lsa.hdr.lsa_type.to_yang()),
             adv_router: Some(Cow::Owned(lsa.hdr.adv_rtr)),
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
-            checksum: Some(lsa.hdr.cksum).ignore_in_testing(),
+            checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
             maxage: lsa.hdr.is_maxage().then_some(()).only_in_testing(),
         })
@@ -1876,7 +1878,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
         Some(Self {
             r#type: Some(tlv.tlv_type),
             length: Some(tlv.length),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         })
     }
 }
@@ -1912,7 +1914,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
         Some(Self {
             r#type: Some(tlv.tlv_type),
             length: Some(tlv.length),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         })
     }
 }
@@ -2007,7 +2009,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
         Some(Self {
             r#type: Some(tlv.tlv_type),
             length: Some(tlv.length),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         })
     }
 }
@@ -2044,7 +2046,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
         Some(Self {
             r#type: Some(tlv.tlv_type),
             length: Some(tlv.length),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         })
     }
 }
@@ -2097,7 +2099,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>>
         Some(Self {
             r#type: Some(tlv.tlv_type),
             length: Some(tlv.length),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         })
     }
 }
@@ -2152,7 +2154,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
         Some(Self {
             r#type: Some(tlv.tlv_type),
             length: Some(tlv.length),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         })
     }
 }
@@ -2203,7 +2205,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>>
         Some(Self {
             r#type: Some(tlv.tlv_type),
             length: Some(tlv.length),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         })
     }
 }
@@ -2241,7 +2243,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
         Some(Self {
             r#type: Some(tlv.tlv_type),
             length: Some(tlv.length),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         })
     }
 }
@@ -2293,7 +2295,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>>
         Some(Self {
             r#type: Some(tlv.tlv_type),
             length: Some(tlv.length),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         })
     }
 }
@@ -2358,7 +2360,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
         Some(Self {
             r#type: Some(tlv.tlv_type),
             length: Some(tlv.length),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         })
     }
 }
@@ -2408,8 +2410,8 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::virtual_li
             router_id: Cow::Owned(vlink_key.router_id),
             cost: iface.state.vlink.as_ref().map(|vlink| vlink.cost as u16),
             state: Some(iface.state.ism_state.to_yang()),
-            hello_timer: iface.state.tasks.hello_interval.as_ref().map(|task| task.remaining()).map(Cow::Owned).ignore_in_testing(),
-            wait_timer: iface.state.tasks.wait_timer.as_ref().map(|task| task.remaining()).map(Cow::Owned).ignore_in_testing(),
+            hello_timer: iface.state.tasks.hello_interval.as_ref().map(|task| TimerValueSecs16(task.remaining())).ignore_in_testing(),
+            wait_timer: iface.state.tasks.wait_timer.as_ref().map(|task| TimerValueSecs16(task.remaining())).ignore_in_testing(),
             dr_router_id: None,
             dr_ip_addr: None,
             bdr_router_id: None,
@@ -2465,7 +2467,7 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::virtual_li
             bdr_ip_addr: None,
             state: Some(nbr.state.to_yang()),
             cost: None,
-            dead_timer: nbr.tasks.inactivity_timer.as_ref().map(|task| task.remaining()).map(Cow::Owned).ignore_in_testing(),
+            dead_timer: nbr.tasks.inactivity_timer.as_ref().map(|task| TimerValueSecs16(task.remaining())).ignore_in_testing(),
         }
     }
 }
@@ -2510,7 +2512,7 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::virtual_li
             lsa_id: lsa.hdr.lsa_id().to_string().into(),
             adv_router: Cow::Owned(lsa.hdr.adv_rtr()),
             decode_completed: Some(!lsa.body.is_unknown()),
-            raw_data: Some(lsa.raw.as_ref()).ignore_in_testing(),
+            raw_data: Some(HexStr(lsa.raw.as_ref())).ignore_in_testing(),
         }
     }
 }
@@ -2528,7 +2530,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::virtual_link
             r#type: Some(lsa.hdr.lsa_type.to_yang()),
             adv_router: Some(Cow::Owned(lsa.hdr.adv_rtr)),
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
-            checksum: Some(lsa.hdr.cksum).ignore_in_testing(),
+            checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
             maxage: lsa.hdr.is_maxage().then_some(()).only_in_testing(),
         })
@@ -2630,7 +2632,7 @@ impl<'a> YangList<'a, Instance<Ospfv2>> for ospf::areas::area::virtual_links::vi
         Self {
             r#type: Some(tlv.tlv_type),
             length: Some(tlv.length),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         }
     }
 }
@@ -2645,7 +2647,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::virtual_link
             r#type: Some(lsa.hdr.lsa_type.to_yang()),
             adv_router: Some(Cow::Owned(lsa.hdr.adv_rtr)),
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
-            checksum: Some(lsa.hdr.cksum).ignore_in_testing(),
+            checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
             maxage: lsa.hdr.is_maxage().then_some(()).only_in_testing(),
         })
@@ -2740,8 +2742,8 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::interfaces
         Self {
             name: Cow::Borrowed(&iface.name),
             state: Some(iface.state.ism_state.to_yang()),
-            hello_timer: iface.state.tasks.hello_interval.as_ref().map(|task| task.remaining()).map(Cow::Owned).ignore_in_testing(),
-            wait_timer: iface.state.tasks.wait_timer.as_ref().map(|task| task.remaining()).map(Cow::Owned).ignore_in_testing(),
+            hello_timer: iface.state.tasks.hello_interval.as_ref().map(|task| TimerValueSecs16(task.remaining())).ignore_in_testing(),
+            wait_timer: iface.state.tasks.wait_timer.as_ref().map(|task| TimerValueSecs16(task.remaining())).ignore_in_testing(),
             dr_router_id: dr_router_id.map(Cow::Owned),
             dr_ip_addr: dr_ip_addr.map(Cow::Owned),
             bdr_router_id: bdr_router_id.map(Cow::Owned),
@@ -2829,7 +2831,7 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::interfaces
             bdr_router_id: bdr_router_id.map(Cow::Owned),
             bdr_ip_addr: bdr_ip_addr.map(Cow::Owned),
             state: Some(nbr.state.to_yang()),
-            dead_timer: nbr.tasks.inactivity_timer.as_ref().map(|task| task.remaining()).map(Cow::Owned).ignore_in_testing(),
+            dead_timer: nbr.tasks.inactivity_timer.as_ref().map(|task| TimerValueSecs16(task.remaining())).ignore_in_testing(),
         }
     }
 }
@@ -2885,7 +2887,7 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::interfaces
             lsa_id: lsa.hdr.lsa_id().to_string().into(),
             adv_router: Cow::Owned(lsa.hdr.adv_rtr()),
             decode_completed: Some(!lsa.body.is_unknown()),
-            raw_data: Some(lsa.raw.as_ref()).ignore_in_testing(),
+            raw_data: Some(HexStr(lsa.raw.as_ref())).ignore_in_testing(),
         }
     }
 }
@@ -2903,7 +2905,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::interfaces::
             r#type: Some(lsa.hdr.lsa_type.to_yang()),
             adv_router: Some(Cow::Owned(lsa.hdr.adv_rtr)),
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
-            checksum: Some(lsa.hdr.cksum).ignore_in_testing(),
+            checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
             maxage: lsa.hdr.is_maxage().then_some(()).only_in_testing(),
         })
@@ -3009,7 +3011,7 @@ impl<'a> YangList<'a, Instance<Ospfv2>> for ospf::areas::area::interfaces::inter
         Self {
             r#type: Some(tlv.tlv_type),
             length: Some(tlv.length),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         }
     }
 }
@@ -3037,7 +3039,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::
             r#type: Some(lsa.hdr.lsa_type.to_yang()),
             adv_router: Some(Cow::Owned(lsa.hdr.adv_rtr)),
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
-            checksum: Some(lsa.hdr.cksum).ignore_in_testing(),
+            checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
             maxage: lsa.hdr.is_maxage().then_some(()).only_in_testing(),
         })
@@ -3210,7 +3212,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::
         Some(Self {
             r#type: Some(tlv.tlv_type),
             length: Some(tlv.length),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         })
     }
 }
@@ -3257,7 +3259,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>>
         Some(Self {
             r#type: Some(tlv.tlv_type),
             length: Some(tlv.length),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         })
     }
 }
@@ -3315,7 +3317,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>>
         Some(Self {
             r#type: Some(tlv.tlv_type),
             length: Some(tlv.length),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         })
     }
 }
@@ -3349,7 +3351,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>>
         Some(Self {
             r#type: Some(tlv.tlv_type),
             length: Some(tlv.length),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         })
     }
 }

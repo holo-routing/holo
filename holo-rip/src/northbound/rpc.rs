@@ -5,7 +5,6 @@
 //
 
 use holo_northbound::rpc::{Provider, YangOps, YangRpc};
-use yang4::data::DataTree;
 
 use crate::ibus;
 use crate::instance::Instance;
@@ -23,7 +22,7 @@ where
 // ===== YANG impls =====
 
 impl<V: Version> YangRpc<Instance<V>> for yang::clear_rip_route::ClearRipRoute {
-    fn invoke(instance: &mut Instance<V>, _data: &mut DataTree<'static>, _rpc_path: &str) -> Result<(), String> {
+    fn invoke(&mut self, instance: &mut Instance<V>) -> Result<(), String> {
         let Some((instance, _)) = instance.as_up() else {
             return Ok(());
         };

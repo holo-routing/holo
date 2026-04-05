@@ -12,8 +12,8 @@ use holo_yang as yang;
 static TYPEDEFS: &[(&str, TypeSpec)] = &[(
     "fletcher-checksum16-type",
     TypeSpec {
-        rust_type: "u16",
-        to_yang: |f| format!("Some(&format!(\"{{:#06x}}\", {f}))"),
+        rust_type: "FletcherChecksum16",
+        copy_semantics: true,
     },
 )];
 

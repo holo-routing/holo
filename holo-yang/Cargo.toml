@@ -8,6 +8,9 @@ repository.workspace = true
 description = "YANG module of Holo Routing, including embedded YANG models and utility code"
 
 [dependencies]
+base64.workspace = true
+chrono.workspace = true
+ipnetwork.workspace = true
 maplit.workspace = true
 serde.workspace = true
 tracing.workspace = true

@@ -10,6 +10,7 @@ use std::time::Duration;
 
 use holo_northbound::notification;
 use holo_yang::ToYang;
+use holo_yang::types::TimerValueSecs16;
 
 use crate::error::InterfaceCfgError;
 use crate::gr::GrExitReason;
@@ -113,7 +114,7 @@ where
         neighbor_router_id: Some(Cow::Borrowed(&nbr.router_id)),
         neighbor_ip_addr: Some(Cow::Owned(nbr.src.into())),
         status: Some("helping".into()),
-        age: Some(Cow::Owned(Duration::from_secs(age.into()))),
+        age: Some(TimerValueSecs16(Duration::from_secs(age.into()))),
         exit_reason: None,
     };
     notification::send(&instance.tx.nb, nbr_restart_helper_status_change::PATH, data);

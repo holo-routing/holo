@@ -5,8 +5,6 @@
 //
 
 use holo_northbound::rpc::{Provider, YangOps, YangRpc};
-use holo_utils::yang::DataNodeRefExt;
-use yang4::data::{Data, DataTree};
 
 use crate::discovery;
 use crate::instance::Instance;
@@ -21,14 +19,10 @@ impl Provider for Instance {
 // ===== YANG impls =====
 
 impl YangRpc<Instance> for yang::mpls_ldp_clear_peer::MplsLdpClearPeer {
-    fn invoke(instance: &mut Instance, data: &mut DataTree<'static>, rpc_path: &str) -> Result<(), String> {
+    fn invoke(&mut self, instance: &mut Instance) -> Result<(), String> {
         let Some((mut instance, _, _)) = instance.as_up() else {
             return Ok(());
         };
-
-        // Parse input parameters.
-        let rpc = data.find_path(rpc_path).unwrap();
-        let (lsr_id, lspace_id) = (rpc.get_ipv4_relative("./lsr-id"), rpc.get_u16_relative("./label-space-id"));
 
         // Clear peers.
         for nbr_idx in instance.state.neighbors.indexes().collect::<Vec<_>>() {
@@ -40,12 +34,12 @@ impl YangRpc<Instance> for yang::mpls_ldp_clear_peer::MplsLdpClearPeer {
             }
 
             // Filter by LSR-ID.
-            if let Some(lsr_id) = lsr_id
+            if let Some(lsr_id) = self.input.lsr_id
                 && nbr.lsr_id != lsr_id
             {
                 continue;
             }
-            if let Some(lspace_id) = lspace_id
+            if let Some(lspace_id) = self.input.label_space_id
                 && lspace_id != 0
             {
                 continue;
@@ -61,40 +55,47 @@ impl YangRpc<Instance> for yang::mpls_ldp_clear_peer::MplsLdpClearPeer {
 }
 
 impl YangRpc<Instance> for yang::mpls_ldp_clear_hello_adjacency::MplsLdpClearHelloAdjacency {
-    fn invoke(instance: &mut Instance, data: &mut DataTree<'static>, rpc_path: &str) -> Result<(), String> {
+    fn invoke(&mut self, instance: &mut Instance) -> Result<(), String> {
         let Some((mut instance, _, _)) = instance.as_up() else {
             return Ok(());
         };
 
-        // Parse input parameters.
-        let rpc = data.find_path(rpc_path).unwrap();
-        let (nexthop_ifname, nexthop_addr, tnbr_addr) = (
-            rpc.get_string_relative("./hello-adjacency/link/next-hop-interface"),
-            rpc.get_ip_relative("./hello-adjacency/link/next-hop-address"),
-            rpc.get_ip_relative("./hello-adjacency/targeted/target-address"),
-        );
-
-        // Clear adjacencies.
         for adj_idx in instance.state.ipv4.adjacencies.indexes().collect::<Vec<_>>() {
-            let adjacencies = &mut instance.state.ipv4.adjacencies;
-            let adj = &adjacencies[adj_idx];
+            let adj = &instance.state.ipv4.adjacencies[adj_idx];
 
             // Filter by source.
-            if let Some(ifname) = &adj.source.ifname {
-                if let Some(nexthop_ifname) = &nexthop_ifname
-                    && *ifname != *nexthop_ifname
+            if let Some(input) = &self.input.hello_adjacency {
+                // Filter by adjacency type.
+                if input.targeted.is_some() && adj.source.ifname.is_some() {
+                    continue;
+                }
+                if input.link.is_some() && adj.source.ifname.is_none() {
+                    continue;
+                }
+
+                // Filter targeted adjacency by target address.
+                if let Some(targeted) = &input.targeted
+                    && let Some(target_address) = targeted.target_address
+                    && adj.source.addr != target_address
                 {
                     continue;
                 }
-                if let Some(nexthop_addr) = &nexthop_addr
-                    && adj.source.addr != *nexthop_addr
-                {
-                    continue;
+
+                if let Some(link) = &input.link {
+                    // Filter link adjacency by next-hop interface.
+                    if let Some(next_hop_interface) = link.next_hop_interface.as_ref()
+                        && adj.source.ifname.as_ref() != Some(next_hop_interface)
+                    {
+                        continue;
+                    }
+
+                    // Filter link adjacency by next-hop address.
+                    if let Some(next_hop_address) = link.next_hop_address
+                        && adj.source.addr != next_hop_address
+                    {
+                        continue;
+                    }
                 }
-            } else if let Some(tnbr_addr) = &tnbr_addr
-                && adj.source.addr != *tnbr_addr
-            {
-                continue;
             }
 
             // Delete adjacency.
@@ -106,24 +107,20 @@ impl YangRpc<Instance> for yang::mpls_ldp_clear_hello_adjacency::MplsLdpClearHel
 }
 
 impl YangRpc<Instance> for yang::mpls_ldp_clear_peer_statistics::MplsLdpClearPeerStatistics {
-    fn invoke(instance: &mut Instance, data: &mut DataTree<'static>, rpc_path: &str) -> Result<(), String> {
+    fn invoke(&mut self, instance: &mut Instance) -> Result<(), String> {
         let Some((instance, _, _)) = instance.as_up() else {
             return Ok(());
         };
 
-        // Parse input parameters.
-        let rpc = data.find_path(rpc_path).unwrap();
-        let (lsr_id, lspace_id) = (rpc.get_ipv4_relative("./lsr-id"), rpc.get_u16_relative("./label-space-id"));
-
         // Clear peers.
         for nbr in instance.state.neighbors.iter_mut() {
             // Filter by LSR-ID.
-            if let Some(lsr_id) = lsr_id
+            if let Some(lsr_id) = self.input.lsr_id
                 && nbr.lsr_id != lsr_id
             {
                 continue;
             }
-            if let Some(lspace_id) = lspace_id
+            if let Some(lspace_id) = self.input.label_space_id
                 && lspace_id != 0
             {
                 continue;

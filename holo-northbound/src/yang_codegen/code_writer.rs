@@ -32,7 +32,7 @@ impl CodeWriter {
 
 // Writes an indented line. The depth is relative to the writer's base level.
 macro_rules! emit {
-    ($w:expr, $n:literal, $($arg:tt)*) => {
+    ($w:expr, $n:expr, $($arg:tt)*) => {
         $w.line($n, format_args!($($arg)*))
     };
 }

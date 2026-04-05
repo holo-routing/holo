@@ -22,6 +22,10 @@ use crate::packet::tlv::{AdjSidFlags, GrReason, PrefixSidFlags, RouterInfoCaps};
 use crate::spf::SpfLogType;
 use crate::{ospfv2, ospfv3, spf};
 
+// Fletcher checksum (u16 displayed as hex, e.g. "0x1234").
+#[derive(Clone, Copy, Debug)]
+pub struct FletcherChecksum16(pub u16);
+
 // ===== ToYang implementations =====
 
 impl ToYang for PacketType {
@@ -477,6 +481,12 @@ impl ToYangBits for ospfv3::packet::lsa::PrefixOptions {
         }
 
         options
+    }
+}
+
+impl ToYang for FletcherChecksum16 {
+    fn to_yang(&self) -> Cow<'static, str> {
+        Cow::Owned(format!("{:#06x}", self.0))
     }
 }
 

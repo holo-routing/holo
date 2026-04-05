@@ -6,7 +6,7 @@
 
 use holo_utils::yang::SchemaNodeExt;
 use tokio::sync::oneshot;
-use yang4::data::{DataNodeRef, DataTree};
+use yang4::data::{Data, DataNodeRef, DataTree};
 use yang4::schema::SchemaNodeKind;
 
 use crate::error::Error;
@@ -24,13 +24,9 @@ pub trait Provider: ProviderBase {
     }
 }
 
-// Implemented by all auto-generated YANG RPC/Action structs.
+// Manually implemented in each provider to handle RPC/Action invocations.
 pub trait YangRpc<P: Provider> {
-    fn invoke(
-        provider: &mut P,
-        data: &mut DataTree<'static>,
-        rpc_path: &str,
-    ) -> Result<(), String>;
+    fn invoke(&mut self, provider: &mut P) -> Result<(), String>;
 }
 
 // Static dispatch tables generated from YANG models.
@@ -39,18 +35,23 @@ pub struct YangOps<P: Provider> {
 }
 
 pub struct YangRpcOps<P: Provider> {
-    pub invoke: YangInvokeFn<P>,
+    pub process: fn(&mut DataNodeRef<'_>, &mut P) -> Result<(), String>,
 }
 
-// Type aliases.
-type YangInvokeFn<P> =
-    fn(&mut P, &mut DataTree<'static>, &str) -> Result<(), String>;
+// Automatically implemented for all auto-generated YANG RPC/Action structs.
+pub trait YangRpcObject: Sized {
+    // Parses input parameters from the YANG data node into the generated struct.
+    fn parse_input(dnode: &DataNodeRef<'_>) -> Self;
+
+    // Writes output parameters back into the YANG data node after invoke().
+    fn write_output(self, dnode: &mut DataNodeRef<'_>);
+}
 
 // ===== helper functions =====
 
 fn process_rpc_local<P>(
     provider: &mut P,
-    mut data: DataTree<'static>,
+    data: DataTree<'static>,
     rpc_data_path: String,
     rpc_schema_path: String,
 ) -> Result<api::daemon::RpcResponse, Error>
@@ -58,8 +59,10 @@ where
     P: Provider,
 {
     if let Some(rpc_ops) = P::YANG_OPS.rpc.get(&rpc_schema_path) {
-        (rpc_ops.invoke)(provider, &mut data, &rpc_data_path)
-            .map_err(Error::RpcCallback)?;
+        let mut rpc = data
+            .find_path(&rpc_data_path)
+            .map_err(|_| Error::RpcNotFound)?;
+        (rpc_ops.process)(&mut rpc, provider).map_err(Error::RpcCallback)?;
     }
 
     let response = api::daemon::RpcResponse { data };

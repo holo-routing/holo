@@ -13,19 +13,15 @@ use yang4::schema::{DataValueType, SchemaLeafType};
 static EXTRA_TYPEDEFS: OnceLock<HashMap<&'static str, TypeSpec>> =
     OnceLock::new();
 
-// Maps a YANG leaf type to its Rust type and defines how to convert values
-// to a YANG string representation.
+// Maps a YANG leaf type to its Rust type.
 #[derive(Clone, Copy, Debug)]
 pub struct TypeSpec {
     pub rust_type: &'static str,
-    pub to_yang: fn(&str) -> String,
+    pub copy_semantics: bool,
 }
 
 // Extension methods for SchemaLeafType.
 pub trait SchemaLeafTypeCodegenExt {
-    // Returns true for base types.
-    fn is_builtin(&self) -> bool;
-
     // Returns the `TypeSpec` describing this leaf type.
     fn spec(&self) -> TypeSpec;
 }
@@ -33,22 +29,6 @@ pub trait SchemaLeafTypeCodegenExt {
 // ===== impl SchemaLeafType =====
 
 impl SchemaLeafTypeCodegenExt for SchemaLeafType<'_> {
-    fn is_builtin(&self) -> bool {
-        matches!(
-            self.base_type(),
-            DataValueType::Uint8
-                | DataValueType::Uint16
-                | DataValueType::Uint32
-                | DataValueType::Uint64
-                | DataValueType::Int8
-                | DataValueType::Int16
-                | DataValueType::Int32
-                | DataValueType::Int64
-                | DataValueType::Bool
-                | DataValueType::Empty
-        )
-    }
-
     fn spec(&self) -> TypeSpec {
         // Handle typedef.
         if let Some(typedef_name) = self.typedef_name()
@@ -83,47 +63,47 @@ fn base_type_spec(base_type: DataValueType) -> TypeSpec {
     match base_type {
         DataValueType::Uint8 => TypeSpec {
             rust_type: "u8",
-            to_yang: to_string,
+            copy_semantics: true,
         },
         DataValueType::Uint16 => TypeSpec {
             rust_type: "u16",
-            to_yang: to_string,
+            copy_semantics: true,
         },
         DataValueType::Uint32 => TypeSpec {
             rust_type: "u32",
-            to_yang: to_string,
+            copy_semantics: true,
         },
         DataValueType::Uint64 => TypeSpec {
             rust_type: "u64",
-            to_yang: to_string,
+            copy_semantics: true,
         },
         DataValueType::Int8 => TypeSpec {
             rust_type: "i8",
-            to_yang: to_string,
+            copy_semantics: true,
         },
         DataValueType::Int16 => TypeSpec {
             rust_type: "i16",
-            to_yang: to_string,
+            copy_semantics: true,
         },
         DataValueType::Int32 => TypeSpec {
             rust_type: "i32",
-            to_yang: to_string,
+            copy_semantics: true,
         },
         DataValueType::Int64 => TypeSpec {
             rust_type: "i64",
-            to_yang: to_string,
+            copy_semantics: true,
         },
         DataValueType::Bool => TypeSpec {
             rust_type: "bool",
-            to_yang: to_string,
+            copy_semantics: true,
         },
         DataValueType::Empty => TypeSpec {
             rust_type: "()",
-            to_yang: |_| "None".to_owned(),
+            copy_semantics: true,
         },
         DataValueType::Binary => TypeSpec {
-            rust_type: "&'a [u8]",
-            to_yang: |f| format!("Some(&yang::binary_to_yang({f}))"),
+            rust_type: "Base64String",
+            copy_semantics: false,
         },
         DataValueType::String
         | DataValueType::Union
@@ -132,8 +112,8 @@ fn base_type_spec(base_type: DataValueType) -> TypeSpec {
         | DataValueType::IdentityRef
         | DataValueType::InstanceId
         | DataValueType::Bits => TypeSpec {
-            rust_type: "Cow<'a, str>",
-            to_yang: |f| format!("Some(&{f})"),
+            rust_type: "String",
+            copy_semantics: false,
         },
         DataValueType::LeafRef => {
             unreachable!()
@@ -146,82 +126,76 @@ fn typedef_spec(typedef_name: &str) -> Option<TypeSpec> {
     match typedef_name {
         // ietf-inet-types
         "ip-address" => Some(TypeSpec {
-            rust_type: "Cow<'a, IpAddr>",
-            to_yang: to_string,
+            rust_type: "IpAddr",
+            copy_semantics: false,
         }),
         // ietf-inet-types, ietf-yang-types, ietf-routing-types
         "ipv4-address" | "dotted-quad" | "router-id" => Some(TypeSpec {
-            rust_type: "Cow<'a, Ipv4Addr>",
-            to_yang: to_string,
+            rust_type: "Ipv4Addr",
+            copy_semantics: false,
         }),
         // ietf-inet-types
         "ipv6-address" => Some(TypeSpec {
-            rust_type: "Cow<'a, Ipv6Addr>",
-            to_yang: to_string,
+            rust_type: "Ipv6Addr",
+            copy_semantics: false,
         }),
         // ietf-inet-types
         "ip-prefix" => Some(TypeSpec {
-            rust_type: "Cow<'a, ipnetwork::IpNetwork>",
-            to_yang: to_string,
+            rust_type: "ipnetwork::IpNetwork",
+            copy_semantics: false,
         }),
         // ietf-inet-types
         "ipv4-prefix" => Some(TypeSpec {
-            rust_type: "Cow<'a, ipnetwork::Ipv4Network>",
-            to_yang: to_string,
+            rust_type: "ipnetwork::Ipv4Network",
+            copy_semantics: false,
         }),
         // ietf-inet-types
         "ipv6-prefix" => Some(TypeSpec {
-            rust_type: "Cow<'a, ipnetwork::Ipv6Network>",
-            to_yang: to_string,
+            rust_type: "ipnetwork::Ipv6Network",
+            copy_semantics: false,
         }),
         // ietf-yang-types
         "date-and-time" => Some(TypeSpec {
-            rust_type: "Cow<'a, chrono::DateTime<chrono::Utc>>",
-            to_yang: |f| format!("Some(&{f}.to_rfc3339())"),
+            rust_type: "chrono::DateTime<chrono::Utc>",
+            copy_semantics: false,
         }),
         // ietf-routing-types
         "timer-value-seconds16" => Some(TypeSpec {
-            rust_type: "Cow<'a, Duration>",
-            to_yang: |f| format!("Some(&yang::timer_secs16_to_yang({f}))"),
+            rust_type: "TimerValueSecs16",
+            copy_semantics: true,
         }),
         // ietf-routing-types
         "timer-value-seconds32" => Some(TypeSpec {
-            rust_type: "Cow<'a, Duration>",
-            to_yang: |f| format!("Some(&yang::timer_secs32_to_yang({f}))"),
+            rust_type: "TimerValueSecs32",
+            copy_semantics: true,
         }),
         // ietf-routing-types
         "timer-value-milliseconds" => Some(TypeSpec {
-            rust_type: "Cow<'a, Duration>",
-            to_yang: |f| format!("Some(&yang::timer_millis_to_yang({f}))"),
+            rust_type: "TimerValueMillis",
+            copy_semantics: true,
         }),
         // ietf-yang-types
         "timeticks" => Some(TypeSpec {
-            rust_type: "Cow<'a, Instant>",
-            to_yang: |f| format!("Some(&yang::timeticks_to_yang({f}))"),
+            rust_type: "Timeticks",
+            copy_semantics: true,
         }),
         // ietf-routing-types
         "timeticks64" => Some(TypeSpec {
-            rust_type: "Cow<'a, Instant>",
-            to_yang: |f| format!("Some(&yang::timeticks64_to_yang({f}))"),
+            rust_type: "Timeticks64",
+            copy_semantics: true,
         }),
         // ietf-yang-types
         "hex-string" => Some(TypeSpec {
-            rust_type: "&'a [u8]",
-            to_yang: |f| format!("Some(&yang::hex_string_to_yang({f}))"),
+            rust_type: "HexString",
+            copy_semantics: false,
         }),
         // ietf-routing-types
         "bandwidth-ieee-float32" => Some(TypeSpec {
-            rust_type: "&'a f32",
-            to_yang: |f| {
-                format!("Some(&yang::bandwidth_ieee_float32_to_yang({f}))")
-            },
+            rust_type: "f32",
+            copy_semantics: true,
         }),
         _ => EXTRA_TYPEDEFS
             .get()
             .and_then(|map| map.get(typedef_name).copied()),
     }
-}
-
-fn to_string(f: &str) -> String {
-    format!("Some(&{f}.to_string())")
 }

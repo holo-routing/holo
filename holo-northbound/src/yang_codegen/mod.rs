@@ -7,7 +7,6 @@
 pub mod code_writer;
 pub mod struct_builder;
 pub mod types;
-pub mod yang;
 
 use std::env;
 use std::iter::once;
@@ -26,19 +25,20 @@ use crate::yang_codegen::struct_builder::StructBuilder;
 const HEADER_YANG_OBJECTS: &str = r#"
 use std::borrow::Cow;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-use std::time::{Duration, Instant};
 
-use holo_northbound::yang_codegen::yang;
+use holo_northbound::rpc::YangRpcObject;
 use holo_northbound::{YangObject, YangPath};
-use holo_yang::YANG_CTX;
-use yang4::data::DataNodeRef;
+use holo_utils::yang::DataNodeRefExt;
+use holo_yang::{YANG_CTX, ToYang, TryFromYang};
+use holo_yang::types::*;
+use yang4::data::{Data, DataNodeRef};
 use yang4::schema::SchemaModule;
 
 "#;
 
 const HEADER_YANG_OPS: &str = r#"
 use holo_northbound::state::{self, YangList, YangListOps, YangContainer, YangContainerOps};
-use holo_northbound::rpc::{self, YangRpc, YangRpcOps};
+use holo_northbound::rpc::{self, YangRpc, YangRpcObject, YangRpcOps};
 use phf::phf_map;
 use super::*;
 
@@ -161,8 +161,10 @@ fn generate_module(
                 snode.kind(),
                 SchemaNodeKind::Container
                     | SchemaNodeKind::List
-                    | SchemaNodeKind::Action
                     | SchemaNodeKind::Rpc
+                    | SchemaNodeKind::Action
+                    | SchemaNodeKind::Input
+                    | SchemaNodeKind::Output
                     | SchemaNodeKind::Notification
             ));
 
@@ -194,7 +196,9 @@ fn generate_module(
             }
             SchemaNodeKind::List
             | SchemaNodeKind::Rpc
-            | SchemaNodeKind::Action => {
+            | SchemaNodeKind::Action
+            | SchemaNodeKind::Input
+            | SchemaNodeKind::Output => {
                 let builder = StructBuilder::new(snode.clone());
                 builder.generate(w)?;
             }
@@ -373,7 +377,15 @@ fn generate_yang_ops(
                     SchemaNodeKind::Rpc | SchemaNodeKind::Action
                 )
             }),
-        |name| format!("YangRpcOps {{ invoke: {name}::invoke }}"),
+        |name| {
+            format!(
+                "YangRpcOps {{ process: |dnode, provider| {{ \
+                 let mut rpc = {name}::parse_input(dnode); \
+                 rpc.invoke(provider)?; \
+                 rpc.write_output(dnode); \
+                 Ok(()) }} }}"
+            )
+        },
     )?;
 
     emit!(

@@ -420,8 +420,8 @@ impl UnreservedBwStlv {
         tlv_encode_end(buf, start_pos);
     }
 
-    pub(crate) fn iter(&self) -> impl Iterator<Item = (usize, &f32)> {
-        self.0.iter().enumerate()
+    pub(crate) fn iter(&self) -> impl Iterator<Item = (usize, f32)> {
+        self.0.iter().copied().enumerate()
     }
 }
 

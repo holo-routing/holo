@@ -5,8 +5,6 @@
 //
 
 use holo_northbound::rpc::{Provider, YangOps, YangRpc};
-use holo_utils::yang::DataNodeRefExt;
-use yang4::data::{Data, DataTree};
 
 use crate::instance::Instance;
 use crate::neighbor::nsm;
@@ -23,14 +21,10 @@ where
 // ===== YANG impls =====
 
 impl<V: Version> YangRpc<Instance<V>> for yang::clear_neighbor::ClearNeighbor {
-    fn invoke(instance: &mut Instance<V>, data: &mut DataTree<'static>, rpc_path: &str) -> Result<(), String> {
+    fn invoke(&mut self, instance: &mut Instance<V>) -> Result<(), String> {
         let Some((instance, arenas)) = instance.as_up() else {
             return Ok(());
         };
-
-        // Parse input parameters.
-        let rpc = data.find_path(rpc_path).unwrap();
-        let ifname = rpc.get_string_relative("./interface");
 
         // Clear neighbors.
         for area in arenas.areas.iter() {
@@ -38,7 +32,7 @@ impl<V: Version> YangRpc<Instance<V>> for yang::clear_neighbor::ClearNeighbor {
                 .interfaces
                 .iter(&arenas.interfaces)
                 // Filter by interface name.
-                .filter(|iface| ifname.is_none() || *ifname.as_ref().unwrap() == iface.name)
+                .filter(|iface| self.input.interface.as_ref().is_none_or(|name| *name == iface.name))
             {
                 // Kill neighbors from this interface.
                 for nbr in iface.state.neighbors.iter(&arenas.neighbors) {
@@ -52,7 +46,7 @@ impl<V: Version> YangRpc<Instance<V>> for yang::clear_neighbor::ClearNeighbor {
 }
 
 impl<V: Version> YangRpc<Instance<V>> for yang::clear_database::ClearDatabase {
-    fn invoke(instance: &mut Instance<V>, _data: &mut DataTree<'static>, _rpc_path: &str) -> Result<(), String> {
+    fn invoke(&mut self, instance: &mut Instance<V>) -> Result<(), String> {
         let Some((instance, arenas)) = instance.as_up() else {
             return Ok(());
         };

@@ -16,6 +16,7 @@ use holo_utils::mpls::Label;
 use holo_utils::num::SaturatingInto;
 use holo_utils::option::OptionExt;
 use holo_yang::ToYang;
+use holo_yang::types::Timeticks64;
 use ipnetwork::Ipv4Network;
 
 use crate::discovery::Adjacency;
@@ -315,7 +316,7 @@ impl<'a> YangList<'a, Instance> for mpls_ldp::peers::peer::Peer<'a> {
             label_space_id: 0,
             next_keep_alive: nbr.next_kalive().map(|d| d.as_secs().saturating_into()).ignore_in_testing(),
             session_state: Some(nbr.state.to_yang()),
-            up_time: nbr.uptime.as_ref().map(Cow::Borrowed).ignore_in_testing(),
+            up_time: nbr.uptime.map(Timeticks64).ignore_in_testing(),
         }
     }
 }

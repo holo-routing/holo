@@ -18,6 +18,7 @@ use holo_northbound::state::{ListEntryKind, Provider, YangContainer, YangList, Y
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::mac_addr::MacAddr;
 use holo_utils::option::OptionExt;
+use holo_yang::types::{HexStr, TimerValueMillis, TimerValueSecs16, Timeticks};
 use holo_yang::{ToYang, ToYangBits};
 use ipnetwork::IpNetwork;
 
@@ -63,7 +64,7 @@ pub enum ListEntry<'a> {
     ExtIsReachInstance(u32, &'a IsReach),
     MtIsReach(u16, LanId, Vec<&'a IsReach>),
     MtIsReachInstance(u32, &'a IsReach),
-    IsReachUnreservedBw(usize, &'a f32),
+    IsReachUnreservedBw(usize, f32),
     AdjSidStlv(&'a AdjSidStlv),
     AslaStlv(&'a AslaStlv),
     Ipv4Reach(&'a LegacyIpv4Reach),
@@ -114,11 +115,11 @@ impl<'a> YangList<'a, Instance> for isis::spf_control::ietf_spf_delay::level::Le
         Self {
             level: *level as u8,
             current_state: Some(spf_sched.delay_state.to_yang()),
-            remaining_time_to_learn: spf_sched.learn_timer.as_ref().map(|task| task.remaining()).map(Cow::Owned).ignore_in_testing(),
-            remaining_hold_down: spf_sched.hold_down_timer.as_ref().map(|task| task.remaining()).map(Cow::Owned).ignore_in_testing(),
-            last_event_received: spf_sched.last_event_rcvd.as_ref().map(Cow::Borrowed).ignore_in_testing(),
-            next_spf_time: spf_sched.delay_timer.as_ref().map(|timer| Instant::now() + timer.remaining()).map(Cow::Owned).ignore_in_testing(),
-            last_spf_time: spf_sched.last_time.as_ref().map(Cow::Borrowed).ignore_in_testing(),
+            remaining_time_to_learn: spf_sched.learn_timer.as_ref().map(|task| TimerValueMillis(task.remaining())).ignore_in_testing(),
+            remaining_hold_down: spf_sched.hold_down_timer.as_ref().map(|task| TimerValueMillis(task.remaining())).ignore_in_testing(),
+            last_event_received: spf_sched.last_event_rcvd.map(Timeticks).ignore_in_testing(),
+            next_spf_time: spf_sched.delay_timer.as_ref().map(|timer| Timeticks(Instant::now() + timer.remaining())).ignore_in_testing(),
+            last_spf_time: spf_sched.last_time.map(Timeticks).ignore_in_testing(),
         }
     }
 }
@@ -136,9 +137,9 @@ impl<'a> YangList<'a, Instance> for isis::spf_log::event::Event<'a> {
             id: log.id,
             spf_type: Some(log.spf_type.to_yang()),
             level: Some(log.level as u8),
-            schedule_timestamp: log.schedule_time.as_ref().map(Cow::Borrowed),
-            start_timestamp: Some(Cow::Borrowed(&log.start_time)),
-            end_timestamp: Some(Cow::Borrowed(&log.end_time)),
+            schedule_timestamp: log.schedule_time.map(Timeticks),
+            start_timestamp: Some(Timeticks(log.start_time)),
+            end_timestamp: Some(Timeticks(log.end_time)),
         }
     }
 }
@@ -171,7 +172,7 @@ impl<'a> YangList<'a, Instance> for isis::lsp_log::event::Event<'a> {
         Self {
             id: log.id,
             level: Some(log.level as u8),
-            received_timestamp: log.rcvd_time.as_ref().map(Cow::Borrowed).ignore_in_testing(),
+            received_timestamp: log.rcvd_time.map(Timeticks).ignore_in_testing(),
             reason: Some(log.reason.to_yang()),
         }
     }
@@ -237,7 +238,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::Lsp<'a> {
         Self {
             lsp_id: lsp.lsp_id.to_yang(),
             decoded_completed: None,
-            raw_data: Some(lsp.raw.as_ref()).ignore_in_testing(),
+            raw_data: Some(HexStr(lsp.raw.as_ref())).ignore_in_testing(),
             checksum: Some(lsp.cksum).ignore_in_testing(),
             remaining_lifetime: Some(remaining_lifetime).ignore_in_testing_if(remaining_lifetime != 0),
             sequence: Some(lsp.seqno).ignore_in_testing_if(lsp.seqno != 0),
@@ -376,7 +377,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::router_capabili
         Self {
             r#type: Some(tlv.tlv_type as u16),
             length: Some(tlv.length as u16),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         }
     }
 }
@@ -469,7 +470,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::unknown_tlvs::u
         Self {
             r#type: Some(tlv.tlv_type as u16),
             length: Some(tlv.length as u16),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         }
     }
 }
@@ -594,8 +595,8 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
             admin_group: reach.sub_tlvs.admin_group.as_ref().map(|tlv| tlv.get()),
             extended_admin_group: reach.sub_tlvs.ext_admin_group.as_ref().map(|tlv| Box::new(tlv.get().iter().copied()) as _),
             te_metric: reach.sub_tlvs.te_default_metric.as_ref().map(|tlv| tlv.get()),
-            max_bandwidth: reach.sub_tlvs.max_link_bw.as_ref().map(|tlv| tlv.get()),
-            max_reservable_bandwidth: reach.sub_tlvs.max_resv_link_bw.as_ref().map(|tlv| tlv.get()),
+            max_bandwidth: reach.sub_tlvs.max_link_bw.as_ref().map(|tlv| *tlv.get()),
+            max_reservable_bandwidth: reach.sub_tlvs.max_resv_link_bw.as_ref().map(|tlv| *tlv.get()),
         }
     }
 }
@@ -620,7 +621,7 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
     }
 }
 
-impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unreserved_bandwidths::unreserved_bandwidth::UnreservedBandwidth<'a> {
+impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unreserved_bandwidths::unreserved_bandwidth::UnreservedBandwidth {
     fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
         let unreserved_bw = reach.sub_tlvs.unreserved_bw.as_ref()?;
@@ -632,7 +633,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
         let (priority, unreserved_bandwidth) = list_entry.as_is_reach_unreserved_bw().unwrap();
         Self {
             priority: Some(*priority as u8),
-            unreserved_bandwidth: Some(unreserved_bandwidth),
+            unreserved_bandwidth: Some(*unreserved_bandwidth),
         }
     }
 }
@@ -711,32 +712,32 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
     }
 }
 
-impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unidirectional_link_residual_bandwidth::UnidirectionalLinkResidualBandwidth<'a> {
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unidirectional_link_residual_bandwidth::UnidirectionalLinkResidualBandwidth {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
         let stlv = reach.sub_tlvs.uni_resid_bw.as_ref()?;
         Some(Self {
-            value: Some(stlv.get()),
+            value: Some(*stlv.get()),
         })
     }
 }
 
-impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unidirectional_link_available_bandwidth::UnidirectionalLinkAvailableBandwidth<'a> {
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unidirectional_link_available_bandwidth::UnidirectionalLinkAvailableBandwidth {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
         let stlv = reach.sub_tlvs.uni_avail_bw.as_ref()?;
         Some(Self {
-            value: Some(stlv.get()),
+            value: Some(*stlv.get()),
         })
     }
 }
 
-impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unidirectional_link_utilized_bandwidth::UnidirectionalLinkUtilizedBandwidth<'a> {
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unidirectional_link_utilized_bandwidth::UnidirectionalLinkUtilizedBandwidth {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
         let stlv = reach.sub_tlvs.uni_util_bw.as_ref()?;
         Some(Self {
-            value: Some(stlv.get()),
+            value: Some(*stlv.get()),
         })
     }
 }
@@ -785,7 +786,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
         Self {
             r#type: Some(tlv.tlv_type as u16),
             length: Some(tlv.length as u16),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         }
     }
 }
@@ -802,7 +803,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
         Self {
             r#type: Some(tlv.tlv_type as u16),
             length: Some(tlv.length as u16),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         }
     }
 }
@@ -1002,7 +1003,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_ipv4_r
         Self {
             r#type: Some(tlv.tlv_type as u16),
             length: Some(tlv.length as u16),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         }
     }
 }
@@ -1075,8 +1076,8 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
             admin_group: reach.sub_tlvs.admin_group.as_ref().map(|tlv| tlv.get()),
             extended_admin_group: reach.sub_tlvs.ext_admin_group.as_ref().map(|tlv| Box::new(tlv.get().iter().copied()) as _),
             te_metric: reach.sub_tlvs.te_default_metric.as_ref().map(|tlv| tlv.get()),
-            max_bandwidth: reach.sub_tlvs.max_link_bw.as_ref().map(|tlv| tlv.get()),
-            max_reservable_bandwidth: reach.sub_tlvs.max_resv_link_bw.as_ref().map(|tlv| tlv.get()),
+            max_bandwidth: reach.sub_tlvs.max_link_bw.as_ref().map(|tlv| *tlv.get()),
+            max_reservable_bandwidth: reach.sub_tlvs.max_resv_link_bw.as_ref().map(|tlv| *tlv.get()),
         }
     }
 }
@@ -1101,7 +1102,7 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
     }
 }
 
-impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unreserved_bandwidths::unreserved_bandwidth::UnreservedBandwidth<'a> {
+impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unreserved_bandwidths::unreserved_bandwidth::UnreservedBandwidth {
     fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
         let unreserved_bw = reach.sub_tlvs.unreserved_bw.as_ref()?;
@@ -1113,7 +1114,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
         let (priority, unreserved_bandwidth) = list_entry.as_is_reach_unreserved_bw().unwrap();
         Self {
             priority: Some(*priority as u8),
-            unreserved_bandwidth: Some(unreserved_bandwidth),
+            unreserved_bandwidth: Some(*unreserved_bandwidth),
         }
     }
 }
@@ -1192,32 +1193,32 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
     }
 }
 
-impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unidirectional_link_residual_bandwidth::UnidirectionalLinkResidualBandwidth<'a> {
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unidirectional_link_residual_bandwidth::UnidirectionalLinkResidualBandwidth {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
         let stlv = reach.sub_tlvs.uni_resid_bw.as_ref()?;
         Some(Self {
-            value: Some(stlv.get()),
+            value: Some(*stlv.get()),
         })
     }
 }
 
-impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unidirectional_link_available_bandwidth::UnidirectionalLinkAvailableBandwidth<'a> {
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unidirectional_link_available_bandwidth::UnidirectionalLinkAvailableBandwidth {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
         let stlv = reach.sub_tlvs.uni_avail_bw.as_ref()?;
         Some(Self {
-            value: Some(stlv.get()),
+            value: Some(*stlv.get()),
         })
     }
 }
 
-impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unidirectional_link_utilized_bandwidth::UnidirectionalLinkUtilizedBandwidth<'a> {
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unidirectional_link_utilized_bandwidth::UnidirectionalLinkUtilizedBandwidth {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
         let stlv = reach.sub_tlvs.uni_util_bw.as_ref()?;
         Some(Self {
-            value: Some(stlv.get()),
+            value: Some(*stlv.get()),
         })
     }
 }
@@ -1266,7 +1267,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
         Self {
             r#type: Some(tlv.tlv_type as u16),
             length: Some(tlv.length as u16),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         }
     }
 }
@@ -1282,7 +1283,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
         Self {
             r#type: Some(tlv.tlv_type as u16),
             length: Some(tlv.length as u16),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         }
     }
 }
@@ -1369,7 +1370,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_extended_ipv
         Self {
             r#type: Some(tlv.tlv_type as u16),
             length: Some(tlv.length as u16),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         }
     }
 }
@@ -1438,7 +1439,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_ipv6_reachab
         Self {
             r#type: Some(tlv.tlv_type as u16),
             length: Some(tlv.length as u16),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         }
     }
 }
@@ -1506,7 +1507,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::ipv6_reachabili
         Self {
             r#type: Some(tlv.tlv_type as u16),
             length: Some(tlv.length as u16),
-            value: Some(tlv.value.as_ref()),
+            value: Some(HexStr(tlv.value.as_ref())),
         }
     }
 }
@@ -1732,14 +1733,14 @@ impl<'a> YangList<'a, Instance> for isis::interfaces::interface::adjacencies::ad
         let protocol_supported = adj.protocols_supported.iter().copied();
         let topologies = adj.topologies.iter().copied();
         Self {
-            neighbor_sys_type: Some(adj.level_capability.to_yang()),
+            neighbor_sys_type: Some(adj.level_capability),
             neighbor_sysid: Some(adj.system_id.to_yang()),
             neighbor_extended_circuit_id: adj.ext_circuit_id.ignore_in_testing(),
             neighbor_snpa: Some(Cow::Owned(adj.snpa.to_string())).ignore_in_testing(),
-            usage: Some(adj.level_usage.to_yang()),
-            hold_timer: adj.holdtimer.as_ref().map(|task| task.remaining()).map(Cow::Owned).ignore_in_testing(),
+            usage: Some(adj.level_usage),
+            hold_timer: adj.holdtimer.as_ref().map(|task| TimerValueSecs16(task.remaining())).ignore_in_testing(),
             neighbor_priority: adj.priority,
-            lastuptime: adj.last_uptime.as_ref().map(Cow::Borrowed).ignore_in_testing(),
+            lastuptime: adj.last_uptime.map(Timeticks).ignore_in_testing(),
             state: Some(adj.state.to_yang()),
             area_addresses: Some(Box::new(area_addresses)),
             ipv4_addresses: Some(Box::new(ipv4_addresses)),

@@ -5,8 +5,6 @@
 //
 
 use holo_northbound::rpc::{Provider, YangOps, YangRpc};
-use holo_utils::yang::DataNodeRefExt;
-use yang4::data::{Data, DataTree};
 
 use crate::instance::Instance;
 use crate::northbound::yang_gen::{self, bgp};
@@ -26,28 +24,25 @@ pub enum ClearType {
 // ===== YANG impls =====
 
 impl YangRpc<Instance> for bgp::neighbors::clear::Clear {
-    fn invoke(instance: &mut Instance, data: &mut DataTree<'static>, rpc_path: &str) -> Result<(), String> {
+    fn invoke(&mut self, instance: &mut Instance) -> Result<(), String> {
         let Some((mut instance, neighbors)) = instance.as_up() else {
             return Ok(());
         };
 
-        // Parse input parameters.
-        let rpc = data.find_path(rpc_path).unwrap();
-        let remote_addr = rpc.get_ip_relative("./remote-addr");
-        let clear_type = if rpc.exists("./hard") {
+        let clear_type = if self.input.hard.is_some() {
             ClearType::Hard
-        } else if rpc.exists("./soft") {
+        } else if self.input.soft.is_some() {
             ClearType::Soft
-        } else if rpc.exists("./soft-inbound") {
+        } else if self.input.soft_inbound.is_some() {
             ClearType::SoftInbound
         } else {
             ClearType::Admin
         };
 
         // Clear peers.
-        match remote_addr {
+        match &self.input.remote_addr {
             Some(remote_addr) => {
-                if let Some(nbr) = neighbors.get_mut(&remote_addr) {
+                if let Some(nbr) = neighbors.get_mut(remote_addr) {
                     nbr.clear_session(&mut instance, clear_type);
                 }
             }

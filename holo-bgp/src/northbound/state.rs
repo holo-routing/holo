@@ -13,6 +13,7 @@ use holo_northbound::state::{ListEntryKind, Provider, YangContainer, YangList, Y
 use holo_utils::bgp::AfiSafi;
 use holo_utils::option::OptionExt;
 use holo_yang::ToYang;
+use holo_yang::types::{Base64Str, Timeticks};
 use ipnetwork::{Ipv4Network, Ipv6Network};
 use prefix_trie::PrefixMap;
 
@@ -325,7 +326,7 @@ impl<'a> YangContainer<'a, Instance> for bgp::neighbors::neighbor::errors::recei
             last_error: Some(notif.to_yang()),
             last_error_code: Some(notif.error_code),
             last_error_subcode: Some(notif.error_subcode),
-            last_error_data: Some(notif.data.as_ref()),
+            last_error_data: Some(Base64Str(notif.data.as_ref())),
         })
     }
 }
@@ -339,7 +340,7 @@ impl<'a> YangContainer<'a, Instance> for bgp::neighbors::neighbor::errors::sent:
             last_error: Some(notif.to_yang()),
             last_error_code: Some(notif.error_code),
             last_error_subcode: Some(notif.error_subcode),
-            last_error_data: Some(notif.data.as_ref()),
+            last_error_data: Some(Base64Str(notif.data.as_ref())),
         })
     }
 }
@@ -569,7 +570,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
             ext_community_index: route.attrs.ext_comm.as_ref().map(|c| c.index),
             large_community_index: route.attrs.large_comm.as_ref().map(|c| c.index),
-            last_modified: Some(Cow::Borrowed(&route.last_modified)).ignore_in_testing(),
+            last_modified: Some(Timeticks(route.last_modified)).ignore_in_testing(),
             eligible_route: None,
             ineligible_reason: None,
             reject_reason: None,
@@ -594,7 +595,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
             partial: Some(attr.flags.contains(AttrFlags::EXTENDED)),
             extended: Some(attr.flags.contains(AttrFlags::EXTENDED)),
             attr_len: Some(attr.length),
-            attr_value: Some(attr.value.as_ref()),
+            attr_value: Some(Base64Str(attr.value.as_ref())),
         }
     }
 }
@@ -635,7 +636,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
             ext_community_index: route.attrs.ext_comm.as_ref().map(|c| c.index),
             large_community_index: route.attrs.large_comm.as_ref().map(|c| c.index),
-            last_modified: Some(Cow::Borrowed(&route.last_modified)).ignore_in_testing(),
+            last_modified: Some(Timeticks(route.last_modified)).ignore_in_testing(),
             eligible_route: Some(route.is_eligible()),
             ineligible_reason: route.ineligible_reason.as_ref().map(|r| r.to_yang()),
             reject_reason: route.reject_reason.as_ref().map(|r| r.to_yang()),
@@ -660,7 +661,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
             partial: Some(attr.flags.contains(AttrFlags::EXTENDED)),
             extended: Some(attr.flags.contains(AttrFlags::EXTENDED)),
             attr_len: Some(attr.length),
-            attr_value: Some(attr.value.as_ref()),
+            attr_value: Some(Base64Str(attr.value.as_ref())),
         }
     }
 }
@@ -683,7 +684,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
             ext_community_index: route.attrs.ext_comm.as_ref().map(|c| c.index),
             large_community_index: route.attrs.large_comm.as_ref().map(|c| c.index),
-            last_modified: Some(Cow::Borrowed(&route.last_modified)).ignore_in_testing(),
+            last_modified: Some(Timeticks(route.last_modified)).ignore_in_testing(),
             eligible_route: Some(route.is_eligible()),
             ineligible_reason: route.ineligible_reason.as_ref().map(|r| r.to_yang()),
             best_path: None, // TODO
@@ -709,7 +710,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
             partial: Some(attr.flags.contains(AttrFlags::EXTENDED)),
             extended: Some(attr.flags.contains(AttrFlags::EXTENDED)),
             attr_len: Some(attr.length),
-            attr_value: Some(attr.value.as_ref()),
+            attr_value: Some(Base64Str(attr.value.as_ref())),
         }
     }
 }
@@ -732,7 +733,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
             ext_community_index: route.attrs.ext_comm.as_ref().map(|c| c.index),
             large_community_index: route.attrs.large_comm.as_ref().map(|c| c.index),
-            last_modified: Some(Cow::Borrowed(&route.last_modified)).ignore_in_testing(),
+            last_modified: Some(Timeticks(route.last_modified)).ignore_in_testing(),
             eligible_route: Some(route.is_eligible()),
             ineligible_reason: route.ineligible_reason.as_ref().map(|r| r.to_yang()),
             reject_reason: route.reject_reason.as_ref().map(|r| r.to_yang()),
@@ -757,7 +758,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
             partial: Some(attr.flags.contains(AttrFlags::EXTENDED)),
             extended: Some(attr.flags.contains(AttrFlags::EXTENDED)),
             attr_len: Some(attr.length),
-            attr_value: Some(attr.value.as_ref()),
+            attr_value: Some(Base64Str(attr.value.as_ref())),
         }
     }
 }
@@ -780,7 +781,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
             ext_community_index: route.attrs.ext_comm.as_ref().map(|c| c.index),
             large_community_index: route.attrs.large_comm.as_ref().map(|c| c.index),
-            last_modified: Some(Cow::Borrowed(&route.last_modified)).ignore_in_testing(),
+            last_modified: Some(Timeticks(route.last_modified)).ignore_in_testing(),
             eligible_route: Some(route.is_eligible()),
             ineligible_reason: route.ineligible_reason.as_ref().map(|r| r.to_yang()),
             reject_reason: route.reject_reason.as_ref().map(|r| r.to_yang()),
@@ -805,7 +806,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
             partial: Some(attr.flags.contains(AttrFlags::EXTENDED)),
             extended: Some(attr.flags.contains(AttrFlags::EXTENDED)),
             attr_len: Some(attr.length),
-            attr_value: Some(attr.value.as_ref()),
+            attr_value: Some(Base64Str(attr.value.as_ref())),
         }
     }
 }
@@ -832,7 +833,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
             ext_community_index: route.attrs.ext_comm.as_ref().map(|c| c.index),
             large_community_index: route.attrs.large_comm.as_ref().map(|c| c.index),
-            last_modified: Some(Cow::Borrowed(&route.last_modified)).ignore_in_testing(),
+            last_modified: Some(Timeticks(route.last_modified)).ignore_in_testing(),
             eligible_route: None,
             ineligible_reason: None,
             reject_reason: None,
@@ -857,7 +858,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
             partial: Some(attr.flags.contains(AttrFlags::EXTENDED)),
             extended: Some(attr.flags.contains(AttrFlags::EXTENDED)),
             attr_len: Some(attr.length),
-            attr_value: Some(attr.value.as_ref()),
+            attr_value: Some(Base64Str(attr.value.as_ref())),
         }
     }
 }
@@ -898,7 +899,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
             ext_community_index: route.attrs.ext_comm.as_ref().map(|c| c.index),
             large_community_index: route.attrs.large_comm.as_ref().map(|c| c.index),
-            last_modified: Some(Cow::Borrowed(&route.last_modified)).ignore_in_testing(),
+            last_modified: Some(Timeticks(route.last_modified)).ignore_in_testing(),
             eligible_route: Some(route.is_eligible()),
             ineligible_reason: route.ineligible_reason.as_ref().map(|r| r.to_yang()),
             reject_reason: route.reject_reason.as_ref().map(|r| r.to_yang()),
@@ -923,7 +924,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
             partial: Some(attr.flags.contains(AttrFlags::EXTENDED)),
             extended: Some(attr.flags.contains(AttrFlags::EXTENDED)),
             attr_len: Some(attr.length),
-            attr_value: Some(attr.value.as_ref()),
+            attr_value: Some(Base64Str(attr.value.as_ref())),
         }
     }
 }
@@ -946,7 +947,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
             ext_community_index: route.attrs.ext_comm.as_ref().map(|c| c.index),
             large_community_index: route.attrs.large_comm.as_ref().map(|c| c.index),
-            last_modified: Some(Cow::Borrowed(&route.last_modified)).ignore_in_testing(),
+            last_modified: Some(Timeticks(route.last_modified)).ignore_in_testing(),
             eligible_route: Some(route.is_eligible()),
             ineligible_reason: route.ineligible_reason.as_ref().map(|r| r.to_yang()),
             best_path: None, // TODO
@@ -972,7 +973,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
             partial: Some(attr.flags.contains(AttrFlags::EXTENDED)),
             extended: Some(attr.flags.contains(AttrFlags::EXTENDED)),
             attr_len: Some(attr.length),
-            attr_value: Some(attr.value.as_ref()),
+            attr_value: Some(Base64Str(attr.value.as_ref())),
         }
     }
 }
@@ -995,7 +996,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
             ext_community_index: route.attrs.ext_comm.as_ref().map(|c| c.index),
             large_community_index: route.attrs.large_comm.as_ref().map(|c| c.index),
-            last_modified: Some(Cow::Borrowed(&route.last_modified)).ignore_in_testing(),
+            last_modified: Some(Timeticks(route.last_modified)).ignore_in_testing(),
             eligible_route: Some(route.is_eligible()),
             ineligible_reason: route.ineligible_reason.as_ref().map(|r| r.to_yang()),
             reject_reason: route.reject_reason.as_ref().map(|r| r.to_yang()),
@@ -1020,7 +1021,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
             partial: Some(attr.flags.contains(AttrFlags::EXTENDED)),
             extended: Some(attr.flags.contains(AttrFlags::EXTENDED)),
             attr_len: Some(attr.length),
-            attr_value: Some(attr.value.as_ref()),
+            attr_value: Some(Base64Str(attr.value.as_ref())),
         }
     }
 }
@@ -1043,7 +1044,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
             ext_community_index: route.attrs.ext_comm.as_ref().map(|c| c.index),
             large_community_index: route.attrs.large_comm.as_ref().map(|c| c.index),
-            last_modified: Some(Cow::Borrowed(&route.last_modified)).ignore_in_testing(),
+            last_modified: Some(Timeticks(route.last_modified)).ignore_in_testing(),
             eligible_route: Some(route.is_eligible()),
             ineligible_reason: route.ineligible_reason.as_ref().map(|r| r.to_yang()),
             reject_reason: route.reject_reason.as_ref().map(|r| r.to_yang()),
@@ -1068,7 +1069,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
             partial: Some(attr.flags.contains(AttrFlags::EXTENDED)),
             extended: Some(attr.flags.contains(AttrFlags::EXTENDED)),
             attr_len: Some(attr.length),
-            attr_value: Some(attr.value.as_ref()),
+            attr_value: Some(Base64Str(attr.value.as_ref())),
         }
     }
 }

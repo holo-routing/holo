@@ -30,6 +30,8 @@ pub trait NorthboundVersion<V: Version> {
 #[allow(clippy::module_inception)]
 pub mod yang_gen {
     pub use routing::control_plane_protocols::control_plane_protocol::ospf;
+
+    use crate::northbound::yang::FletcherChecksum16;
     include!(concat!(env!("OUT_DIR"), "/yang_objects.rs"));
     pub mod ops {
         use super::*;

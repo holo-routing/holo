@@ -5,6 +5,7 @@
 //
 
 pub mod serde;
+pub mod types;
 
 use std::borrow::Cow;
 use std::collections::HashMap;

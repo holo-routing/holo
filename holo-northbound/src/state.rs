@@ -261,6 +261,10 @@ where
             });
 
         // Find the list entry associated to the provided path.
+        // If a matching entry isn't found (e.g. the neighbor session is
+        // not Established and the RIB iterator filters it out), return
+        // the default entry so callers produce empty output instead of
+        // panicking on a mismatched variant.
         if let Some(entry) = {
             (list_ops.iter)(provider, &list_entry).and_then(|mut list_iter| {
                 list_iter.find(|entry| {
@@ -270,6 +274,8 @@ where
             })
         } {
             list_entry = entry;
+        } else {
+            return Default::default();
         }
     }
 

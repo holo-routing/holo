@@ -14,7 +14,7 @@ ipnetwork.workspace = true
 maplit.workspace = true
 serde.workspace = true
 tracing.workspace = true
-yang4.workspace = true
+yang5.workspace = true
 
 [lints]
 workspace = true

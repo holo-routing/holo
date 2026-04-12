@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, WeakSender};
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, info, instrument, trace, warn};
-use yang4::data::{
+use yang5::data::{
     Data, DataDiffFlags, DataFormat, DataPrinterFlags, DataTree,
     DataValidationFlags,
 };
@@ -793,6 +793,7 @@ fn validate_callbacks(
     for snode in yang_ctx
         .traverse()
         .filter(|snode| snode.module().is_implemented())
+        .filter(|snode| snode.module().name() != "yang")
         .filter(|snode| snode.module().name() != "ietf-yang-schema-mount")
         .filter(|snode| snode.is_status_current())
     {

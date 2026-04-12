@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot::Sender as Responder;
-use yang4::data::DataTree;
+use yang5::data::DataTree;
 
 use crate::configuration::{CallbackKey, CommitPhase, ConfigChanges};
 use crate::error::Error;

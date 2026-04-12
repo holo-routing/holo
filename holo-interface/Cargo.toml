@@ -21,7 +21,7 @@ regex.workspace = true
 rtnetlink.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-yang4.workspace = true
+yang5.workspace = true
 libc.workspace = true
 
 holo-northbound = { path = "../holo-northbound", features = ["interface"] }
@@ -32,7 +32,7 @@ holo-yang = { path = "../holo-yang" }
 holo-vrrp = { path = "../holo-vrrp", optional = true }
 
 [build-dependencies]
-yang4 = { workspace = true, features = ["bundled"] }
+yang5 = { workspace = true, features = ["bundled"] }
 holo-northbound = { path = "../holo-northbound", features = ["interface"] }
 holo-yang = { path = "../holo-yang" }
 

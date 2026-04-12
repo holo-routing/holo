@@ -5,7 +5,7 @@
 //
 
 use holo_yang::YANG_CTX;
-use yang4::data::DataTree;
+use yang5::data::DataTree;
 
 use crate::api::provider::Notification;
 use crate::{NbProviderSender, YangObject};

@@ -16,9 +16,9 @@ pub type Result<T> = std::result::Result<T, Error>;
 //
 #[derive(Debug)]
 pub enum Error {
-    YangInvalidPath(yang4::Error),
-    YangInvalidData(yang4::Error),
-    YangInternal(yang4::Error),
+    YangInvalidPath(yang5::Error),
+    YangInvalidData(yang5::Error),
+    YangInternal(yang5::Error),
     TransactionValidation(northbound::error::Error),
     TransactionPreparation(northbound::error::Error),
     TransactionIdNotFound(u32),

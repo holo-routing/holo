@@ -14,8 +14,8 @@ use std::path::PathBuf;
 
 use check_keyword::CheckKeyword;
 use convert_case::{Boundary, Case, Casing};
-use yang4::context::Context;
-use yang4::schema::{
+use yang5::context::Context;
+use yang5::schema::{
     DataValueType, SchemaNode, SchemaNodeKind, SchemaPathFormat,
 };
 
@@ -31,8 +31,8 @@ use holo_northbound::{YangObject, YangPath};
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::{YANG_CTX, ToYang, TryFromYang};
 use holo_yang::types::*;
-use yang4::data::{Data, DataNodeRef};
-use yang4::schema::SchemaModule;
+use yang5::data::{Data, DataNodeRef};
+use yang5::schema::SchemaModule;
 
 "#;
 

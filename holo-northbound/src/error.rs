@@ -14,8 +14,8 @@ pub enum Error {
     RpcNotFound,
     RpcRelay(String),
     RpcCallback(String),
-    YangInvalidPath(yang4::Error),
-    YangInvalidData(yang4::Error),
+    YangInvalidPath(yang5::Error),
+    YangInvalidData(yang5::Error),
 }
 
 // ===== impl Error =====

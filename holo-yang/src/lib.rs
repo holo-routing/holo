@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, LazyLock as Lazy, OnceLock};
 
 use maplit::hashmap;
-use yang4::context::{
+use yang5::context::{
     Context, ContextFlags, EmbeddedModuleKey, EmbeddedModules,
 };
 

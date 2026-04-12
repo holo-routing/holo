@@ -9,8 +9,8 @@ use convert_case::Case;
 use holo_northbound::yang_codegen::SchemaNodeCodegenExt;
 use holo_northbound::yang_codegen::struct_builder::StructBuilder;
 use holo_yang as yang;
-use yang4::context::{Context, ContextFlags};
-use yang4::schema::{SchemaModule, SchemaNodeKind};
+use yang5::context::{Context, ContextFlags};
+use yang5::schema::{SchemaModule, SchemaNodeKind};
 
 fn gen_impl_blocks_rpc(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
     let indent1 = " ".repeat(4);

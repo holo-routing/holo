@@ -13,7 +13,7 @@ num-traits.workspace = true
 serde_json.workspace = true
 similar.workspace = true
 tokio.workspace = true
-yang4 = { workspace = true, features = ["bundled"] }
+yang5 = { workspace = true, features = ["bundled"] }
 
 holo-northbound = { path = "../holo-northbound" }
 holo-yang = { path = "../holo-yang" }

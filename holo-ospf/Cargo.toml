@@ -33,7 +33,7 @@ smallvec.workspace = true
 socket2.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-yang4.workspace = true
+yang5.workspace = true
 
 holo-northbound = { path = "../holo-northbound", features = ["ospf"] }
 holo-protocol = { path = "../holo-protocol" }
@@ -44,7 +44,7 @@ holo-yang = { path = "../holo-yang" }
 const-addrs.workspace = true
 criterion.workspace = true
 maplit.workspace = true
-yang4 = { workspace = true, features = ["bundled"] }
+yang5 = { workspace = true, features = ["bundled"] }
 
 holo-ospf = { path = ".", features = ["testing", "deterministic"] }
 holo-northbound = { path = "../holo-northbound", features = ["testing"] }
@@ -52,7 +52,7 @@ holo-protocol = { path = "../holo-protocol", features = ["testing"] }
 holo-utils = { path = "../holo-utils", features = ["testing"] }
 
 [build-dependencies]
-yang4 = { workspace = true, features = ["bundled"] }
+yang5 = { workspace = true, features = ["bundled"] }
 holo-northbound = { path = "../holo-northbound", features = ["ospf"] }
 holo-yang = { path = "../holo-yang" }
 

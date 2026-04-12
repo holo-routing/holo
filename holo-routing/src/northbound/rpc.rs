@@ -8,7 +8,7 @@ use holo_northbound::NbDaemonSender;
 use holo_northbound::rpc::{Provider, YangOps};
 use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
-use yang4::data::DataNodeRef;
+use yang5::data::DataNodeRef;
 
 use crate::Master;
 use crate::northbound::yang_gen;

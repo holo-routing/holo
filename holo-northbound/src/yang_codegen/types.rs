@@ -7,7 +7,7 @@
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
-use yang4::schema::{DataValueType, SchemaLeafType};
+use yang5::schema::{DataValueType, SchemaLeafType};
 
 // Extra typedef mappings registered by individual crates.
 static EXTRA_TYPEDEFS: OnceLock<HashMap<&'static str, TypeSpec>> =

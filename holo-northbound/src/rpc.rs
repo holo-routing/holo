@@ -6,8 +6,8 @@
 
 use holo_utils::yang::SchemaNodeExt;
 use tokio::sync::oneshot;
-use yang4::data::{Data, DataNodeRef, DataTree};
-use yang4::schema::SchemaNodeKind;
+use yang5::data::{Data, DataNodeRef, DataTree};
+use yang5::schema::SchemaNodeKind;
 
 use crate::error::Error;
 use crate::{NbDaemonSender, ProviderBase, api};

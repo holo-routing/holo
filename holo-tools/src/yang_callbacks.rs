@@ -8,8 +8,8 @@ use clap::{App, Arg};
 use holo_northbound::configuration::CallbackOp;
 use holo_northbound::yang_codegen::SchemaNodeCodegenExt;
 use holo_yang as yang;
-use yang4::context::{Context, ContextFlags};
-use yang4::schema::SchemaModule;
+use yang5::context::{Context, ContextFlags};
+use yang5::schema::SchemaModule;
 
 fn config_callbacks(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
     // Header.

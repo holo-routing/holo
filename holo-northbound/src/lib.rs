@@ -17,7 +17,7 @@ pub mod state;
 pub mod yang_codegen;
 
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
-use yang4::data::DataNodeRef;
+use yang5::data::DataNodeRef;
 
 use crate::debug::Debug;
 

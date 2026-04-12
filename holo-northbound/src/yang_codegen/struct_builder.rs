@@ -5,7 +5,7 @@
 //
 
 use convert_case::Case;
-use yang4::schema::{SchemaNode, SchemaNodeKind};
+use yang5::schema::{SchemaNode, SchemaNodeKind};
 
 use crate::yang_codegen::SchemaNodeCodegenExt;
 use crate::yang_codegen::code_writer::{CodeWriter, emit};

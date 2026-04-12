@@ -17,11 +17,11 @@ use tokio::sync::oneshot;
 use tonic::transport::{Server, ServerTlsConfig};
 use tonic::{Request, Response, Status};
 use tracing::{error, trace, trace_span};
-use yang4::data::{
+use yang5::data::{
     Data, DataDiff, DataFormat, DataOperation, DataParserFlags,
     DataPrinterFlags, DataTree, DataValidationFlags,
 };
-use yang4::schema::{SchemaOutputFormat, SchemaPrinterFlags};
+use yang5::schema::{SchemaOutputFormat, SchemaPrinterFlags};
 
 use crate::northbound::client::api;
 use crate::{config, northbound};

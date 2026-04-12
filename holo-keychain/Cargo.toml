@@ -12,14 +12,14 @@ enum-as-inner.workspace = true
 phf.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-yang4.workspace = true
+yang5.workspace = true
 
 holo-northbound = { path = "../holo-northbound", features = ["keychain"] }
 holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
 
 [build-dependencies]
-yang4 = { workspace = true, features = ["bundled"] }
+yang5 = { workspace = true, features = ["bundled"] }
 holo-northbound = { path = "../holo-northbound", features = ["keychain"] }
 holo-yang = { path = "../holo-yang" }
 

@@ -110,6 +110,17 @@ impl ToYang for Origin {
     }
 }
 
+impl TryFromYang for Origin {
+    fn try_from_yang(value: &str) -> Option<Origin> {
+        match value {
+            "igp" => Some(Origin::Igp),
+            "egp" => Some(Origin::Egp),
+            "incomplete" => Some(Origin::Incomplete),
+            _ => None,
+        }
+    }
+}
+
 // ===== impl WellKnownCommunities =====
 
 impl ToYang for WellKnownCommunities {

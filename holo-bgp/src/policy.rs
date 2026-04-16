@@ -181,12 +181,14 @@ fn process_stmt_condition(
         // "match-prefix-set"
         PolicyCondition::MatchPrefixSet(value) => {
             let af = prefix.address_family();
-            let set = match_sets.prefixes.get(&(value.clone(), af)).unwrap();
-            set.prefixes.iter().any(|range| {
-                prefix.ip() == range.prefix.ip()
-                    && prefix.prefix() >= range.masklen_lower
-                    && prefix.prefix() <= range.masklen_upper
-            })
+            match match_sets.prefixes.get(&(value.clone(), af)) {
+                Some(set) => set.prefixes.iter().any(|range| {
+                    prefix.ip() == range.prefix.ip()
+                        && prefix.prefix() >= range.masklen_lower
+                        && prefix.prefix() <= range.masklen_upper
+                }),
+                None => false,
+            }
         }
         // "match-neighbor-set"
         PolicyCondition::MatchNeighborSet(value) => {

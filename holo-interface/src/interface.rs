@@ -303,8 +303,15 @@ impl Interfaces {
         };
 
         // Add address to the interface.
+        //
+        // An IPv4 /32 address is flagged UNNUMBERED only on genuine
+        // point-to-point interfaces. On those, both ends share a /32
+        // borrowed from loopback, and a connected route for that /32
+        // would shadow the real route. On non-P2P interfaces (dummy,
+        // ethernet, loopback aliases), a /32 is a local host prefix
+        // that should generate a connected RIB entry.
         let mut flags = AddressFlags::empty();
-        if !iface.flags.contains(InterfaceFlags::LOOPBACK)
+        if iface.flags.contains(InterfaceFlags::POINT_TO_POINT)
             && let IpNetwork::V4(addr) = addr
             && addr.is_host_prefix()
         {

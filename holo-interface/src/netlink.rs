@@ -109,6 +109,9 @@ fn process_newlink_msg(master: &mut Master, msg: LinkMessage) {
     if msg.header.flags.contains(LinkFlags::Broadcast) {
         flags.insert(InterfaceFlags::BROADCAST)
     }
+    if msg.header.flags.contains(LinkFlags::Pointopoint) {
+        flags.insert(InterfaceFlags::POINT_TO_POINT);
+    }
 
     for nla in msg.attributes.into_iter() {
         match nla {

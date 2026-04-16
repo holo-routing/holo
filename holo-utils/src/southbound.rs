@@ -28,6 +28,12 @@ bitflags! {
         const LOOPBACK = 0x01;
         const OPERATIVE = 0x02;
         const BROADCAST = 0x04;
+        // Set for interfaces with IFF_POINTOPOINT (e.g. GRE, tunnels,
+        // unnumbered serial links). Used to scope the IPv4 UNNUMBERED
+        // address behavior to genuine P2P links, so that /32 addresses
+        // on dummy interfaces (anycast VIPs, loopback aliases) still
+        // generate connected RIB entries.
+        const POINT_TO_POINT = 0x08;
     }
 }
 

@@ -137,6 +137,7 @@ pub struct NeighborCfg {
     pub afi_safi: BTreeMap<AfiSafi, NeighborAfiSafiCfg>,
     pub trace_opts: NeighborTraceOptions,
     pub local_role: Option<RoleName>,
+    pub role_strict_mode: bool,
 }
 
 #[derive(Debug)]
@@ -272,6 +273,14 @@ fn load_callbacks() -> Callbacks<Instance> {
             let nbr_addr = args.list_entry.into_neighbor().unwrap();
             let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
             nbr.config.local_role = None;
+        })
+        .path(bgp::neighbors::neighbor::role_strict_mode::PATH)
+        .modify_apply(|instance, args| {
+            let nbr_addr = args.list_entry.into_neighbor().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+
+            let strict_mode = args.dnode.get_bool();
+            nbr.config.role_strict_mode = strict_mode;
         })
         .path(bgp::global::r#as::PATH)
         .modify_apply(|instance, args| {
@@ -1784,6 +1793,7 @@ impl Default for NeighborCfg {
     fn default() -> NeighborCfg {
         let enabled = bgp::neighbors::neighbor::enabled::DFLT;
         let log_neighbor_state_changes = bgp::neighbors::neighbor::logging_options::log_neighbor_state_changes::DFLT;
+        let role_strict_mode = bgp::neighbors::neighbor::role_strict_mode::DFLT;
 
         NeighborCfg {
             enabled,
@@ -1799,6 +1809,7 @@ impl Default for NeighborCfg {
             afi_safi: Default::default(),
             trace_opts: Default::default(),
             local_role: Default::default(),
+            role_strict_mode,
         }
     }
 }

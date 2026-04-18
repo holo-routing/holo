@@ -815,44 +815,59 @@ impl Neighbor {
         }
 
         // RFC 9234: Role correctness validation for OPEN messages.
-        let mut role_correctness = true;
-        if let Some(local_role) = self.config.local_role
-            && let Some(Capability::Role { role: remote_role }) = msg
+        if let Some(local_role) = self.config.local_role {
+            let remote_role_capability = msg
                 .capabilities
                 .iter()
-                .find(|cap| matches!(cap, Capability::Role { .. }))
-        {
-            // If remote role already exists, it should be same as incoming role.
-            if let Some(r_role) = self.remote_role
-                && r_role != *remote_role
-            {
-                // TODO: (RFC 9234 Section 4.2)
-                // Use error below only when 'strict mode'
-                // is enabled
-                //
-                // let err = Err(Error::NbrRoleMismatch(
-                //     self.remote_addr,
-                //     local_role.to_u8().unwrap(),
-                //     remote_role.to_u8().unwrap(),
-                // ));
-                // Should throw error on struct mode.
-                role_correctness = false;
-            }
+                .find(|cap| matches!(cap, Capability::Role { .. }));
 
-            // Valid Role Mappings.
-            let role_mappings = BTreeMap::from([
-                (RoleName::Provider, RoleName::Customer),
-                (RoleName::Customer, RoleName::Provider),
-                (RoleName::Rs, RoleName::RsClient),
-                (RoleName::RsClient, RoleName::Rs),
-                (RoleName::Peer, RoleName::Peer),
-            ]);
+            match remote_role_capability {
+                Some(Capability::Role { role: remote_role }) => {
+                    // RFC 9234: 4.2.
+                    // Valid Role Mappings.
+                    let role_mappings = BTreeMap::from([
+                        (RoleName::Provider, RoleName::Customer),
+                        (RoleName::Customer, RoleName::Provider),
+                        (RoleName::Rs, RoleName::RsClient),
+                        (RoleName::RsClient, RoleName::Rs),
+                        (RoleName::Peer, RoleName::Peer),
+                    ]);
 
-            if let Some(approved_role) = role_mappings.get(&local_role)
-                && approved_role == remote_role
-                && role_correctness
-            {
-                self.remote_role = Some(*remote_role);
+                    // If Remote role had been sent before, it should be same
+                    // with currently received.
+                    if let Some(r_role) = self.remote_role
+                        && r_role != *remote_role
+                    {
+                        return Err(Error::NbrRoleMismatch(
+                            self.remote_addr,
+                            local_role.to_u8().unwrap(),
+                            remote_role.to_u8().unwrap(),
+                        ));
+                    }
+
+                    match role_mappings.get(&local_role) {
+                        Some(correct_role) if correct_role == remote_role => {
+                            self.remote_role = Some(*remote_role);
+                        }
+                        _ => {
+                            // Not correct Role Mappings.
+                            return Err(Error::NbrRoleMismatch(
+                                self.remote_addr,
+                                local_role.to_u8().unwrap(),
+                                remote_role.to_u8().unwrap(),
+                            ));
+                        }
+                    }
+                }
+                None if self.config.role_strict_mode => {
+                    // "strict mode" is enabled, role MUST be sent from nbr.
+                    return Err(Error::NbrRoleMismatch(
+                        self.remote_addr,
+                        local_role.to_u8().unwrap(),
+                        RoleName::Undefined.to_u8().unwrap(),
+                    ));
+                }
+                _ => {}
             }
         }
 

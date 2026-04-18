@@ -25,7 +25,7 @@ pub enum Error {
     InstanceStartError(Box<Error>),
 
     // Recently added to IANA for role mismatch errors.
-    // First param: local_role. Second Para, remote role,
+    // Params: (nbr_addr, local_role, remote_role)
     // https://www.iana.org/assignments/bgp-parameters/bgp-parameters.xhtml#bgp-parameters-6.
     NbrRoleMismatch(IpAddr, u8, u8),
 }
@@ -100,7 +100,7 @@ impl std::fmt::Display for Error {
                 write!(f, "failed to start instance")
             }
             Error::NbrRoleMismatch(..) => {
-                write!(f, "BGP Role mismatch issue")
+                write!(f, "BGP Roles mismatch")
             }
         }
     }

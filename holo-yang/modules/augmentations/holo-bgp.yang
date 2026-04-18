@@ -218,6 +218,22 @@ module holo-bgp {
         }
       }
     }
+
+    // "strict mode" as described in RFC 9234 section 4.2
+    leaf role-strict-mode {
+      type boolean;
+      default false;
+      description
+        "Neighbor MUST set a role.
+        When set to true, the BGP speaker requires that the neighbor
+        advertise the BGP Role Capability (RFC 9234) in the OPEN message.
+        If the capability is not received, the connection is rejected
+        with a Role Mismatch Notification (code 2, subcode 11).
+        When set to false (default), the BGP speaker SHOULD ignore the
+        absence of the BGP Role Capability and proceed with session
+        establishment. The locally configured BGP Role is still used
+        for OTC attribute procedures as described in RFC 9234 Section 5.";
+    }
   }
 
 

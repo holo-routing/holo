@@ -299,6 +299,7 @@ pub enum RoleName {
     RsClient = 2,
     Customer = 3,
     Peer = 4, // i.e Lateral Peer.
+    Undefined = 255,
 }
 
 // BGP Origin.

@@ -12,6 +12,12 @@
                   {
                     "name": "iana-bgp-types:ipv4-unicast",
                     "statistics": {
+                      "total-prefixes": 0
+                    }
+                  },
+                  {
+                    "name": "iana-bgp-types:ipv6-unicast",
+                    "statistics": {
                       "total-prefixes": 4
                     }
                   }
@@ -27,94 +33,7 @@
                   "remote-address": "10.0.1.1",
                   "local-address": "10.0.1.2",
                   "peer-type": "external",
-                  "identifier": "1.1.1.1",
-                  "timers": {
-                    "negotiated-hold-time": 90
-                  },
-                  "afi-safis": {
-                    "afi-safi": [
-                        {
-                          "name": "iana-bgp-types:ipv4-unicast",
-                          "prefixes": {
-                            "received": 3,
-                            "sent": 3,
-                            "installed": 3
-                          }
-                        }
-                      ]
-                  },
-                  "session-state": "established",
-                  "capabilities": {
-                    "advertised-capabilities": [
-                      {
-                        "code": 1,
-                        "index": 0,
-                        "name": "iana-bgp-types:mp-bgp",
-                        "value": {
-                          "mpbgp": {
-                            "afi": "ipv4",
-                            "safi": "unicast-safi",
-                            "name": "iana-bgp-types:ipv4-unicast"
-                          }
-                        }
-                      },
-                      {
-                        "code": 65,
-                        "index": 1,
-                        "name": "iana-bgp-types:asn32",
-                        "value": {
-                          "asn32": {
-                            "as": 65101
-                          }
-                        }
-                      },
-                      {
-                        "code": 2,
-                        "index": 2,
-                        "name": "iana-bgp-types:route-refresh"
-                      }
-                    ],
-                    "received-capabilities": [
-                      {
-                        "code": 1,
-                        "index": 0,
-                        "name": "iana-bgp-types:mp-bgp",
-                        "value": {
-                          "mpbgp": {
-                            "afi": "ipv4",
-                            "safi": "unicast-safi",
-                            "name": "iana-bgp-types:ipv4-unicast"
-                          }
-                        }
-                      },
-                      {
-                        "code": 65,
-                        "index": 1,
-                        "name": "iana-bgp-types:asn32",
-                        "value": {
-                          "asn32": {
-                            "as": 65100
-                          }
-                        }
-                      },
-                      {
-                        "code": 2,
-                        "index": 2,
-                        "name": "iana-bgp-types:route-refresh"
-                      }
-                    ],
-                    "negotiated-capabilities": [
-                      "iana-bgp-types:mp-bgp",
-                      "iana-bgp-types:asn32",
-                      "iana-bgp-types:route-refresh"
-                    ]
-                  }
-                },
-                {
-                  "remote-address": "10.0.3.4",
-                  "local-address": "10.0.3.2",
-                  "peer-type": "external",
-                  "identifier": "4.4.4.4",
+                  "identifier": "10.0.2.1",
                   "timers": {
                     "negotiated-hold-time": 90
                   },
@@ -122,6 +41,14 @@
                     "afi-safi": [
                       {
                         "name": "iana-bgp-types:ipv4-unicast",
+                        "prefixes": {
+                          "received": 0,
+                          "sent": 0,
+                          "installed": 0
+                        }
+                      },
+                      {
+                        "name": "iana-bgp-types:ipv6-unicast",
                         "prefixes": {
                           "received": 2,
                           "sent": 2,
@@ -146,8 +73,20 @@
                         }
                       },
                       {
-                        "code": 65,
+                        "code": 1,
                         "index": 1,
+                        "name": "iana-bgp-types:mp-bgp",
+                        "value": {
+                          "mpbgp": {
+                            "afi": "ipv6",
+                            "safi": "unicast-safi",
+                            "name": "iana-bgp-types:ipv6-unicast"
+                          }
+                        }
+                      },
+                      {
+                        "code": 65,
+                        "index": 2,
                         "name": "iana-bgp-types:asn32",
                         "value": {
                           "asn32": {
@@ -157,7 +96,7 @@
                       },
                       {
                         "code": 2,
-                        "index": 2,
+                        "index": 3,
                         "name": "iana-bgp-types:route-refresh"
                       }
                     ],
@@ -175,8 +114,140 @@
                         }
                       },
                       {
-                        "code": 65,
+                        "code": 1,
                         "index": 1,
+                        "name": "iana-bgp-types:mp-bgp",
+                        "value": {
+                          "mpbgp": {
+                            "afi": "ipv6",
+                            "safi": "unicast-safi",
+                            "name": "iana-bgp-types:ipv6-unicast"
+                          }
+                        }
+                      },
+                      {
+                        "code": 65,
+                        "index": 2,
+                        "name": "iana-bgp-types:asn32",
+                        "value": {
+                          "asn32": {
+                            "as": 65100
+                          }
+                        }
+                      },
+                      {
+                        "code": 2,
+                        "index": 3,
+                        "name": "iana-bgp-types:route-refresh"
+                      }
+                    ],
+                    "negotiated-capabilities": [
+                      "iana-bgp-types:mp-bgp",
+                      "iana-bgp-types:mp-bgp",
+                      "iana-bgp-types:asn32",
+                      "iana-bgp-types:route-refresh"
+                    ]
+                  }
+                },
+                {
+                  "remote-address": "10.0.3.4",
+                  "local-address": "10.0.3.2",
+                  "peer-type": "external",
+                  "identifier": "172.16.1.4",
+                  "timers": {
+                    "negotiated-hold-time": 90
+                  },
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "name": "iana-bgp-types:ipv4-unicast",
+                        "prefixes": {
+                          "received": 0,
+                          "sent": 0,
+                          "installed": 0
+                        }
+                      },
+                      {
+                        "name": "iana-bgp-types:ipv6-unicast",
+                        "prefixes": {
+                          "received": 2,
+                          "sent": 2,
+                          "installed": 2
+                        }
+                      }
+                    ]
+                  },
+                  "session-state": "established",
+                  "capabilities": {
+                    "advertised-capabilities": [
+                      {
+                        "code": 1,
+                        "index": 0,
+                        "name": "iana-bgp-types:mp-bgp",
+                        "value": {
+                          "mpbgp": {
+                            "afi": "ipv4",
+                            "safi": "unicast-safi",
+                            "name": "iana-bgp-types:ipv4-unicast"
+                          }
+                        }
+                      },
+                      {
+                        "code": 1,
+                        "index": 1,
+                        "name": "iana-bgp-types:mp-bgp",
+                        "value": {
+                          "mpbgp": {
+                            "afi": "ipv6",
+                            "safi": "unicast-safi",
+                            "name": "iana-bgp-types:ipv6-unicast"
+                          }
+                        }
+                      },
+                      {
+                        "code": 65,
+                        "index": 2,
+                        "name": "iana-bgp-types:asn32",
+                        "value": {
+                          "asn32": {
+                            "as": 65101
+                          }
+                        }
+                      },
+                      {
+                        "code": 2,
+                        "index": 3,
+                        "name": "iana-bgp-types:route-refresh"
+                      }
+                    ],
+                    "received-capabilities": [
+                      {
+                        "code": 1,
+                        "index": 0,
+                        "name": "iana-bgp-types:mp-bgp",
+                        "value": {
+                          "mpbgp": {
+                            "afi": "ipv4",
+                            "safi": "unicast-safi",
+                            "name": "iana-bgp-types:ipv4-unicast"
+                          }
+                        }
+                      },
+                      {
+                        "code": 1,
+                        "index": 1,
+                        "name": "iana-bgp-types:mp-bgp",
+                        "value": {
+                          "mpbgp": {
+                            "afi": "ipv6",
+                            "safi": "unicast-safi",
+                            "name": "iana-bgp-types:ipv6-unicast"
+                          }
+                        }
+                      },
+                      {
+                        "code": 65,
+                        "index": 2,
                         "name": "iana-bgp-types:asn32",
                         "value": {
                           "asn32": {
@@ -186,11 +257,12 @@
                       },
                       {
                         "code": 2,
-                        "index": 2,
+                        "index": 3,
                         "name": "iana-bgp-types:route-refresh"
                       }
                     ],
                     "negotiated-capabilities": [
+                      "iana-bgp-types:mp-bgp",
                       "iana-bgp-types:mp-bgp",
                       "iana-bgp-types:asn32",
                       "iana-bgp-types:route-refresh"
@@ -203,13 +275,13 @@
               "attr-sets": {
                 "attr-set": [
                   {
-                    "index": "9414355416643581871",
+                    "index": "6200596107836267356",
                     "attributes": {
                       "origin": "incomplete"
                     }
                   },
                   {
-                    "index": "3792574372557815872",
+                    "index": "8131110412108697841",
                     "attributes": {
                       "origin": "incomplete",
                       "as-path": {
@@ -222,11 +294,11 @@
                           }
                         ]
                       },
-                      "next-hop": "10.0.3.4"
+                      "next-hop": "::ffff:10.0.3.4"
                     }
                   },
                   {
-                    "index": "3339871200699403153",
+                    "index": "17595447604736641254",
                     "attributes": {
                       "origin": "incomplete",
                       "as-path": {
@@ -239,25 +311,7 @@
                           }
                         ]
                       },
-                      "next-hop": "10.0.1.1"
-                    }
-                  },
-                  {
-                    "index": "10006168947044790100",
-                    "attributes": {
-                      "origin": "incomplete",
-                      "as-path": {
-                        "segment": [
-                          {
-                            "type": "iana-bgp-types:as-sequence",
-                            "member": [
-                              65100,
-                              65000
-                            ]
-                          }
-                        ]
-                      },
-                      "next-hop": "10.0.1.1"
+                      "next-hop": "::ffff:10.0.1.1"
                     }
                   }
                 ]
@@ -267,32 +321,35 @@
                   {
                     "name": "iana-bgp-types:ipv4-unicast",
                     "ipv4-unicast": {
+                      "neighbors": {
+                        "neighbor": [
+                          {
+                            "neighbor-address": "10.0.1.1"
+                          },
+                          {
+                            "neighbor-address": "10.0.3.4"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "name": "iana-bgp-types:ipv6-unicast",
+                    "ipv6-unicast": {
                       "loc-rib": {
                         "routes": {
                           "route": [
                             {
-                              "prefix": "1.1.1.1/32",
-                              "origin": "10.0.1.1",
-                              "path-id": 0,
-                              "attr-index": "3339871200699403153"
-                            },
-                            {
-                              "prefix": "2.2.2.2/32",
+                              "prefix": "fc00:0:0:1::/64",
                               "origin": "ietf-routing:direct",
                               "path-id": 0,
-                              "attr-index": "9414355416643581871"
+                              "attr-index": "6200596107836267356"
                             },
                             {
-                              "prefix": "3.3.3.3/32",
-                              "origin": "10.0.3.4",
+                              "prefix": "fc00:0:0:3::/64",
+                              "origin": "ietf-routing:direct",
                               "path-id": 0,
-                              "attr-index": "3792574372557815872"
-                            },
-                            {
-                              "prefix": "4.4.4.4/32",
-                              "origin": "10.0.3.4",
-                              "path-id": 0,
-                              "attr-index": "3792574372557815872"
+                              "attr-index": "6200596107836267356"
                             }
                           ]
                         }
@@ -305,21 +362,15 @@
                               "routes": {
                                 "route": [
                                   {
-                                    "prefix": "1.1.1.1/32",
+                                    "prefix": "fc00:0:0:1::/64",
                                     "path-id": 0,
-                                    "attr-index": "3339871200699403153",
+                                    "attr-index": "17595447604736641254",
                                     "eligible-route": true
                                   },
                                   {
-                                    "prefix": "3.3.3.3/32",
+                                    "prefix": "fc00:0:0:2::/64",
                                     "path-id": 0,
-                                    "attr-index": "10006168947044790100",
-                                    "eligible-route": true
-                                  },
-                                  {
-                                    "prefix": "4.4.4.4/32",
-                                    "path-id": 0,
-                                    "attr-index": "10006168947044790100",
+                                    "attr-index": "17595447604736641254",
                                     "eligible-route": true
                                   }
                                 ]
@@ -329,24 +380,18 @@
                               "routes": {
                                 "route": [
                                   {
-                                    "prefix": "1.1.1.1/32",
+                                    "prefix": "fc00:0:0:1::/64",
                                     "path-id": 0,
-                                    "attr-index": "3339871200699403153",
-                                    "eligible-route": true
+                                    "attr-index": "17595447604736641254",
+                                    "eligible-route": false,
+                                    "ineligible-reason": "holo-bgp:ineligible-unresolvable"
                                   },
                                   {
-                                    "prefix": "3.3.3.3/32",
+                                    "prefix": "fc00:0:0:2::/64",
                                     "path-id": 0,
-                                    "attr-index": "10006168947044790100",
-                                    "eligible-route": true,
-                                    "reject-reason": "iana-bgp-rib-types:as-path-longer"
-                                  },
-                                  {
-                                    "prefix": "4.4.4.4/32",
-                                    "path-id": 0,
-                                    "attr-index": "10006168947044790100",
-                                    "eligible-route": true,
-                                    "reject-reason": "iana-bgp-rib-types:as-path-longer"
+                                    "attr-index": "17595447604736641254",
+                                    "eligible-route": false,
+                                    "ineligible-reason": "holo-bgp:ineligible-unresolvable"
                                   }
                                 ]
                               }
@@ -355,21 +400,15 @@
                               "routes": {
                                 "route": [
                                   {
-                                    "prefix": "2.2.2.2/32",
+                                    "prefix": "fc00:0:0:1::/64",
                                     "path-id": 0,
-                                    "attr-index": "9414355416643581871",
+                                    "attr-index": "6200596107836267356",
                                     "eligible-route": true
                                   },
                                   {
-                                    "prefix": "3.3.3.3/32",
+                                    "prefix": "fc00:0:0:3::/64",
                                     "path-id": 0,
-                                    "attr-index": "3792574372557815872",
-                                    "eligible-route": true
-                                  },
-                                  {
-                                    "prefix": "4.4.4.4/32",
-                                    "path-id": 0,
-                                    "attr-index": "3792574372557815872",
+                                    "attr-index": "6200596107836267356",
                                     "eligible-route": true
                                   }
                                 ]
@@ -379,21 +418,15 @@
                               "routes": {
                                 "route": [
                                   {
-                                    "prefix": "2.2.2.2/32",
+                                    "prefix": "fc00:0:0:1::/64",
                                     "path-id": 0,
-                                    "attr-index": "9414355416643581871",
+                                    "attr-index": "6200596107836267356",
                                     "eligible-route": true
                                   },
                                   {
-                                    "prefix": "3.3.3.3/32",
+                                    "prefix": "fc00:0:0:3::/64",
                                     "path-id": 0,
-                                    "attr-index": "3792574372557815872",
-                                    "eligible-route": true
-                                  },
-                                  {
-                                    "prefix": "4.4.4.4/32",
-                                    "path-id": 0,
-                                    "attr-index": "3792574372557815872",
+                                    "attr-index": "6200596107836267356",
                                     "eligible-route": true
                                   }
                                 ]
@@ -406,15 +439,15 @@
                               "routes": {
                                 "route": [
                                   {
-                                    "prefix": "3.3.3.3/32",
+                                    "prefix": "fc00:0:0:3::/64",
                                     "path-id": 0,
-                                    "attr-index": "3792574372557815872",
+                                    "attr-index": "8131110412108697841",
                                     "eligible-route": true
                                   },
                                   {
-                                    "prefix": "4.4.4.4/32",
+                                    "prefix": "fc00:0:0:4::/64",
                                     "path-id": 0,
-                                    "attr-index": "3792574372557815872",
+                                    "attr-index": "8131110412108697841",
                                     "eligible-route": true
                                   }
                                 ]
@@ -424,16 +457,18 @@
                               "routes": {
                                 "route": [
                                   {
-                                    "prefix": "3.3.3.3/32",
+                                    "prefix": "fc00:0:0:3::/64",
                                     "path-id": 0,
-                                    "attr-index": "3792574372557815872",
-                                    "eligible-route": true
+                                    "attr-index": "8131110412108697841",
+                                    "eligible-route": false,
+                                    "ineligible-reason": "holo-bgp:ineligible-unresolvable"
                                   },
                                   {
-                                    "prefix": "4.4.4.4/32",
+                                    "prefix": "fc00:0:0:4::/64",
                                     "path-id": 0,
-                                    "attr-index": "3792574372557815872",
-                                    "eligible-route": true
+                                    "attr-index": "8131110412108697841",
+                                    "eligible-route": false,
+                                    "ineligible-reason": "holo-bgp:ineligible-unresolvable"
                                   }
                                 ]
                               }
@@ -442,15 +477,15 @@
                               "routes": {
                                 "route": [
                                   {
-                                    "prefix": "1.1.1.1/32",
+                                    "prefix": "fc00:0:0:1::/64",
                                     "path-id": 0,
-                                    "attr-index": "3339871200699403153",
+                                    "attr-index": "6200596107836267356",
                                     "eligible-route": true
                                   },
                                   {
-                                    "prefix": "2.2.2.2/32",
+                                    "prefix": "fc00:0:0:3::/64",
                                     "path-id": 0,
-                                    "attr-index": "9414355416643581871",
+                                    "attr-index": "6200596107836267356",
                                     "eligible-route": true
                                   }
                                 ]
@@ -460,15 +495,15 @@
                               "routes": {
                                 "route": [
                                   {
-                                    "prefix": "1.1.1.1/32",
+                                    "prefix": "fc00:0:0:1::/64",
                                     "path-id": 0,
-                                    "attr-index": "3339871200699403153",
+                                    "attr-index": "6200596107836267356",
                                     "eligible-route": true
                                   },
                                   {
-                                    "prefix": "2.2.2.2/32",
+                                    "prefix": "fc00:0:0:3::/64",
                                     "path-id": 0,
-                                    "attr-index": "9414355416643581871",
+                                    "attr-index": "6200596107836267356",
                                     "eligible-route": true
                                   }
                                 ]

@@ -2,19 +2,22 @@
   "ietf-interfaces:interfaces": {
     "interface": [
       {
+        "name": "eth1",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {},
+        "ietf-ip:ipv6": {}
+      },
+      {
+        "name": "eth2",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {},
+        "ietf-ip:ipv6": {}
+      },
+      {
         "name": "lo",
         "type": "iana-if-type:ethernetCsmacd",
-        "ietf-ip:ipv4": {}
-      },
-      {
-        "name": "eth-rt1",
-        "type": "iana-if-type:ethernetCsmacd",
-        "ietf-ip:ipv4": {}
-      },
-      {
-        "name": "eth-rt4",
-        "type": "iana-if-type:ethernetCsmacd",
-        "ietf-ip:ipv4": {}
+        "ietf-ip:ipv4": {},
+        "ietf-ip:ipv6": {}
       }
     ]
   },
@@ -22,35 +25,8 @@
     "control-plane-protocols": {
       "control-plane-protocol": [
         {
-          "type": "ietf-ospf:ospfv2",
-          "name": "test",
-          "ietf-ospf:ospf": {
-            "explicit-router-id": "3.3.3.3",
-            "areas": {
-              "area": [
-                {
-                  "area-id": "0.0.0.0",
-                  "interfaces": {
-                    "interface": [
-                      {
-                        "name": "lo"
-                      },
-                      {
-                        "name": "eth-rt4",
-                        "interface-type": "point-to-point",
-                        "hello-interval": 3,
-                        "dead-interval": 12
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
-          }
-        },
-        {
           "type": "ietf-bgp:bgp",
-          "name": "test",
+          "name": "main",
           "ietf-bgp:bgp": {
             "global": {
               "as": 65000,
@@ -71,28 +47,26 @@
                         }
                       ]
                     }
+                  },
+                  {
+                    "name": "iana-bgp-types:ipv6-unicast",
+                    "enabled": true,
+                    "apply-policy": {
+                      "default-import-policy": "accept-route"
+                    },
+                    "ipv6-unicast": {
+                      "holo-bgp:redistribution": [
+                        {
+                          "type": "ietf-routing:direct"
+                        }
+                      ]
+                    }
                   }
                 ]
               }
             },
             "neighbors": {
               "neighbor": [
-                {
-                  "remote-address": "10.0.2.1",
-                  "peer-as": 65100,
-                  "afi-safis": {
-                    "afi-safi": [
-                      {
-                        "name": "iana-bgp-types:ipv4-unicast",
-                        "enabled": true,
-                        "apply-policy": {
-                          "default-import-policy": "accept-route",
-                          "default-export-policy": "accept-route"
-                        }
-                      }
-                    ]
-                  }
-                },
                 {
                   "remote-address": "4.4.4.4",
                   "peer-as": 65000,
@@ -108,6 +82,65 @@
                           "default-import-policy": "accept-route",
                           "default-export-policy": "accept-route"
                         }
+                      },
+                      {
+                        "name": "iana-bgp-types:ipv6-unicast",
+                        "enabled": true,
+                        "apply-policy": {
+                          "default-import-policy": "accept-route",
+                          "default-export-policy": "accept-route"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "remote-address": "10.0.2.1",
+                  "peer-as": 65100,
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "name": "iana-bgp-types:ipv4-unicast",
+                        "enabled": true,
+                        "apply-policy": {
+                          "default-import-policy": "accept-route",
+                          "default-export-policy": "accept-route"
+                        }
+                      },
+                      {
+                        "name": "iana-bgp-types:ipv6-unicast",
+                        "enabled": true,
+                        "apply-policy": {
+                          "default-import-policy": "accept-route",
+                          "default-export-policy": "accept-route"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "ietf-ospf:ospfv2",
+          "name": "main",
+          "ietf-ospf:ospf": {
+            "explicit-router-id": "3.3.3.3",
+            "areas": {
+              "area": [
+                {
+                  "area-id": "0.0.0.0",
+                  "interfaces": {
+                    "interface": [
+                      {
+                        "name": "eth2",
+                        "interface-type": "point-to-point",
+                        "hello-interval": 3,
+                        "dead-interval": 12
+                      },
+                      {
+                        "name": "lo"
                       }
                     ]
                   }

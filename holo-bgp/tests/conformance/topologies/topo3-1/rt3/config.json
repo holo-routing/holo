@@ -2,21 +2,16 @@
   "ietf-interfaces:interfaces": {
     "interface": [
       {
-        "name": "eth1",
-        "type": "iana-if-type:ethernetCsmacd",
-        "ietf-ip:ipv4": {},
-        "ietf-ip:ipv6": {}
-      },
-      {
-        "name": "eth2",
-        "type": "iana-if-type:ethernetCsmacd",
-        "ietf-ip:ipv4": {},
-        "ietf-ip:ipv6": {}
-      },
-      {
         "name": "lo",
-        "type": "iana-if-type:ethernetCsmacd",
-        "ietf-ip:ipv4": {},
+        "type": "iana-if-type:softwareLoopback",
+        "ietf-ip:ipv4": {
+          "address": [
+            {
+              "ip": "3.3.3.3",
+              "prefix-length": 32
+            }
+          ]
+        },
         "ietf-ip:ipv6": {}
       }
     ]
@@ -29,32 +24,19 @@
           "name": "main",
           "ietf-bgp:bgp": {
             "global": {
-              "as": 65000,
-              "identifier": "4.4.4.4",
+              "as": 65103,
+              "identifier": "3.3.3.3",
               "afi-safis": {
                 "afi-safi": [
                   {
                     "name": "iana-bgp-types:ipv4-unicast",
+                    "enabled": true,
                     "apply-policy": {
                       "import-policy": [
                         "REDIST"
                       ]
                     },
                     "ipv4-unicast": {
-                      "holo-bgp:redistribution": [
-                        {
-                          "type": "ietf-routing:direct"
-                        }
-                      ]
-                    }
-                  },
-                  {
-                    "name": "iana-bgp-types:ipv6-unicast",
-                    "enabled": true,
-                    "apply-policy": {
-                      "default-import-policy": "accept-route"
-                    },
-                    "ipv6-unicast": {
                       "holo-bgp:redistribution": [
                         {
                           "type": "ietf-routing:direct"
@@ -68,11 +50,8 @@
             "neighbors": {
               "neighbor": [
                 {
-                  "remote-address": "3.3.3.3",
-                  "peer-as": 65000,
-                  "transport": {
-                    "local-address": "4.4.4.4"
-                  },
+                  "remote-address": "192.168.0.5",
+                  "peer-as": 65102,
                   "afi-safis": {
                     "afi-safi": [
                       {
@@ -82,21 +61,14 @@
                           "default-import-policy": "accept-route",
                           "default-export-policy": "accept-route"
                         }
-                      },
-                      {
-                        "name": "iana-bgp-types:ipv6-unicast",
-                        "enabled": true,
-                        "apply-policy": {
-                          "default-import-policy": "accept-route",
-                          "default-export-policy": "accept-route"
-                        }
                       }
                     ]
-                  }
+                  },
+                  "holo-bgp:local-role": "provider"
                 },
                 {
-                  "remote-address": "10.0.3.2",
-                  "peer-as": 65101,
+                  "remote-address": "192.168.0.10",
+                  "peer-as": 65104,
                   "afi-safis": {
                     "afi-safi": [
                       {
@@ -106,44 +78,10 @@
                           "default-import-policy": "accept-route",
                           "default-export-policy": "accept-route"
                         }
-                      },
-                      {
-                        "name": "iana-bgp-types:ipv6-unicast",
-                        "enabled": true,
-                        "apply-policy": {
-                          "default-import-policy": "accept-route",
-                          "default-export-policy": "accept-route"
-                        }
                       }
                     ]
-                  }
-                }
-              ]
-            }
-          }
-        },
-        {
-          "type": "ietf-ospf:ospfv2",
-          "name": "main",
-          "ietf-ospf:ospf": {
-            "explicit-router-id": "4.4.4.4",
-            "areas": {
-              "area": [
-                {
-                  "area-id": "0.0.0.0",
-                  "interfaces": {
-                    "interface": [
-                      {
-                        "name": "eth2",
-                        "interface-type": "point-to-point",
-                        "hello-interval": 3,
-                        "dead-interval": 12
-                      },
-                      {
-                        "name": "lo"
-                      }
-                    ]
-                  }
+                  },
+                  "holo-bgp:local-role": "peer"
                 }
               ]
             }
@@ -157,14 +95,29 @@
       "prefix-sets": {
         "prefix-set": [
           {
-            "name": "LOOPBACK",
+            "name": "LOCAL",
             "mode": "ipv4",
             "prefixes": {
               "prefix-list": [
                 {
-                  "ip-prefix": "4.4.4.4/32",
+                  "ip-prefix": "3.3.3.3/32",
                   "mask-length-lower": 32,
                   "mask-length-upper": 32
+                },
+                {
+                  "ip-prefix": "10.0.3.0/24",
+                  "mask-length-lower": 24,
+                  "mask-length-upper": 24
+                },
+                {
+                  "ip-prefix": "192.168.0.4/30",
+                  "mask-length-lower": 30,
+                  "mask-length-upper": 30
+                },
+                {
+                  "ip-prefix": "192.168.0.8/30",
+                  "mask-length-lower": 30,
+                  "mask-length-upper": 30
                 }
               ]
             }
@@ -182,7 +135,7 @@
                 "name": "1",
                 "conditions": {
                   "match-prefix-set": {
-                    "prefix-set": "LOOPBACK"
+                    "prefix-set": "LOCAL"
                   }
                 },
                 "actions": {

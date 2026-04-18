@@ -194,7 +194,9 @@ impl ToYang for AsPathSegmentType {
 impl ToYang for RouteOrigin {
     fn to_yang(&self) -> Cow<'static, str> {
         match self {
-            RouteOrigin::Neighbor { remote_addr, .. } => remote_addr.to_string().into(),
+            RouteOrigin::Neighbor {
+                remote_addr, ..
+            } => remote_addr.to_string().into(),
             RouteOrigin::Protocol(protocol) => protocol.to_yang(),
         }
     }

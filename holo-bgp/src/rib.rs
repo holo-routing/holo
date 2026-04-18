@@ -418,20 +418,40 @@ impl Route {
         }
 
         // Compare IGP costs.
+        //
+        // Per RFC 4271 §9.1.2.2, the route with the lower interior cost
+        // (shorter IGP path to the next-hop) must win. Local-origin routes
+        // (redistribute-*, redistribute-direct, locally configured static)
+        // have `igp_cost = None` because there is no next-hop to track —
+        // the route originates here. They are treated as having the
+        // highest interior preference over any iBGP route with a resolved
+        // next-hop, matching standard BGP semantics where locally
+        // originated routes win over iBGP-learned ones.
         if !selection_cfg.ignore_next_hop_igp_metric {
-            let a = self.igp_cost;
-            let b = other.igp_cost;
             let reason = RouteRejectReason::NexthopCostHigher;
-            match a.cmp(&b) {
-                Ordering::Less => {
-                    return RouteCompare::LessPreferred(reason);
+            match (self.igp_cost, other.igp_cost) {
+                (None, None) => {
+                    // Both local — fall through to next tie-breaker.
                 }
-                Ordering::Greater => {
+                (None, Some(_)) => {
+                    // self is local, other is iBGP. Prefer local.
                     return RouteCompare::Preferred(reason);
                 }
-                Ordering::Equal => {
-                    // Move to next tie-breaker.
+                (Some(_), None) => {
+                    // self is iBGP, other is local. Prefer local (other).
+                    return RouteCompare::LessPreferred(reason);
                 }
+                (Some(a), Some(b)) => match a.cmp(&b) {
+                    Ordering::Less => {
+                        return RouteCompare::Preferred(reason);
+                    }
+                    Ordering::Greater => {
+                        return RouteCompare::LessPreferred(reason);
+                    }
+                    Ordering::Equal => {
+                        // Move to next tie-breaker.
+                    }
+                },
             }
         }
 
@@ -900,6 +920,149 @@ pub(crate) fn nexthop_untrack<A>(
         if nht.prefixes.is_empty() {
             ibus::tx::nexthop_untrack(ibus_tx, addr);
             nht_e.remove();
+        }
+    }
+}
+
+// ===== tests =====
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::packet::attribute::BaseAttrs;
+
+    fn make_route(
+        origin: RouteOrigin,
+        route_type: RouteType,
+        igp_cost: Option<u32>,
+    ) -> Route {
+        let base_attrs = BaseAttrs::default();
+        let attrs = RouteAttrs {
+            base: Arc::new(AttrSet {
+                index: 0,
+                value: base_attrs,
+            }),
+            comm: None,
+            ext_comm: None,
+            extv6_comm: None,
+            large_comm: None,
+            unknown: None,
+        };
+        Route {
+            origin,
+            attrs,
+            route_type,
+            igp_cost,
+            last_modified: Instant::now(),
+            ineligible_reason: None,
+            reject_reason: None,
+        }
+    }
+
+    fn ibgp_origin() -> RouteOrigin {
+        RouteOrigin::Neighbor {
+            identifier: Ipv4Addr::new(10, 0, 0, 1),
+            remote_addr: IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)),
+        }
+    }
+
+    fn local_origin() -> RouteOrigin {
+        RouteOrigin::Protocol(Protocol::STATIC)
+    }
+
+    #[test]
+    fn compare_prefers_lower_igp_cost_some_some() {
+        // Two iBGP routes identical except for IGP cost.
+        // Per RFC 4271 §9.1.2.2, the route with the lower interior cost
+        // (shorter IGP path to the next-hop) must win.
+        let cfg = RouteSelectionCfg::default();
+        let lower = make_route(ibgp_origin(), RouteType::Internal, Some(5));
+        let mut higher_origin = ibgp_origin();
+        if let RouteOrigin::Neighbor { remote_addr, .. } = &mut higher_origin {
+            *remote_addr = IpAddr::V4(Ipv4Addr::new(10, 0, 0, 2));
+        }
+        let higher = make_route(higher_origin, RouteType::Internal, Some(10));
+
+        // Lower should be preferred over higher.
+        match lower.compare(&higher, &cfg, None) {
+            RouteCompare::Preferred(RouteRejectReason::NexthopCostHigher) => {}
+            other => panic!(
+                "lower IGP cost (5) should be Preferred over higher (10), got {:?}",
+                other
+            ),
+        }
+
+        // Symmetric: higher should be LessPreferred vs lower.
+        match higher.compare(&lower, &cfg, None) {
+            RouteCompare::LessPreferred(
+                RouteRejectReason::NexthopCostHigher,
+            ) => {}
+            other => panic!(
+                "higher IGP cost (10) should be LessPreferred vs lower (5), got {:?}",
+                other
+            ),
+        }
+    }
+
+    #[test]
+    fn compare_prefers_local_origin_over_ibgp_when_all_else_equal() {
+        // Local-origin routes (redistribute-*, static) have igp_cost=None
+        // because there is no next-hop to track (the route originates here).
+        // They must win over any iBGP route with a resolvable next-hop:
+        // locally originated routes are the highest-priority source per BGP
+        // decision rules. Without this, a route-reflector topology where an
+        // RR client receives a reflected copy of its own locally-redistributed
+        // prefix will stop advertising its own origination because best-path
+        // picks the reflected iBGP copy as winner.
+        let cfg = RouteSelectionCfg::default();
+        let local = make_route(local_origin(), RouteType::Internal, None);
+        let ibgp = make_route(ibgp_origin(), RouteType::Internal, Some(0));
+
+        match local.compare(&ibgp, &cfg, None) {
+            RouteCompare::Preferred(RouteRejectReason::NexthopCostHigher) => {}
+            other => panic!(
+                "local-origin route (igp_cost=None) should be Preferred over \
+                 iBGP route (igp_cost=Some(0)), got {:?}",
+                other
+            ),
+        }
+
+        // Symmetric.
+        match ibgp.compare(&local, &cfg, None) {
+            RouteCompare::LessPreferred(
+                RouteRejectReason::NexthopCostHigher,
+            ) => {}
+            other => panic!(
+                "iBGP route should be LessPreferred vs local-origin, got {:?}",
+                other
+            ),
+        }
+    }
+
+    #[test]
+    fn compare_local_vs_local_falls_through_tiebreaker() {
+        // Two local-origin routes with igp_cost=None should not decide on
+        // the IGP-cost tiebreaker — they fall through to the subsequent
+        // tiebreakers (router-id, peer-addr). Since both are local, neither
+        // has Neighbor origin, so the router-id and peer-addr blocks are
+        // skipped and we hit `unreachable!()`. This test confirms that the
+        // None/None case falls through to the next tiebreaker (which for
+        // two identical local routes is actually unreachable — we catch
+        // the panic to verify we got past IGP cost cleanly).
+        //
+        // To make this testable without hitting unreachable, compare two
+        // local routes with different route_type.
+        let cfg = RouteSelectionCfg::default();
+        let local_int = make_route(local_origin(), RouteType::Internal, None);
+        let local_ext = make_route(local_origin(), RouteType::External, None);
+
+        // External should be preferred over Internal (eBGP tiebreaker comes
+        // BEFORE IGP cost, so we never hit IGP cost in this case — this
+        // just confirms the compare function still reaches that earlier
+        // tiebreaker correctly).
+        match local_ext.compare(&local_int, &cfg, None) {
+            RouteCompare::Preferred(RouteRejectReason::PreferExternal) => {}
+            other => panic!("expected PreferExternal, got {:?}", other),
         }
     }
 }

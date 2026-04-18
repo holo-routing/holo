@@ -13,6 +13,10 @@ use crate::northbound::yang_gen;
 impl Provider for Master {
     type ListEntry<'a> = ListEntry;
     const YANG_OPS: YangOps<Self> = yang_gen::ops::YANG_OPS_STATE;
+
+    fn top_level_node(&self) -> String {
+        "/ietf-routing-policy:routing-policy".to_owned()
+    }
 }
 
 #[derive(Debug, Default)]

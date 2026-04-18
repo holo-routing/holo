@@ -10,10 +10,10 @@ use yang5::data::{Data, DataNodeRef, DataTree};
 use yang5::schema::SchemaNodeKind;
 
 use crate::error::Error;
-use crate::{NbDaemonSender, ProviderBase, api};
+use crate::{NbDaemonSender, api};
 
 // Northbound RPC provider.
-pub trait Provider: ProviderBase {
+pub trait Provider: 'static + Sized {
     const YANG_OPS: YangOps<Self>;
 
     fn relay_rpc(

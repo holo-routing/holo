@@ -17,6 +17,10 @@ use crate::northbound::yang_gen::{self, interfaces};
 impl Provider for Master {
     type ListEntry<'a> = ListEntry<'a>;
     const YANG_OPS: YangOps<Self> = yang_gen::ops::YANG_OPS_STATE;
+
+    fn top_level_node(&self) -> String {
+        "/ietf-interfaces:interfaces".to_owned()
+    }
 }
 
 #[derive(Debug, Default)]

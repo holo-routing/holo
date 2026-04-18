@@ -15,6 +15,7 @@ use holo_utils::ip::{IpAddrKind, IpNetworkKind};
 use holo_utils::mpls::Label;
 use holo_utils::num::SaturatingInto;
 use holo_utils::option::OptionExt;
+use holo_utils::protocol::Protocol;
 use holo_yang::ToYang;
 use holo_yang::types::Timeticks64;
 use ipnetwork::Ipv4Network;
@@ -29,6 +30,14 @@ use crate::northbound::yang_gen::{self, mpls_ldp};
 impl Provider for Instance {
     type ListEntry<'a> = ListEntry<'a>;
     const YANG_OPS: YangOps<Self> = yang_gen::ops::YANG_OPS_STATE;
+
+    fn top_level_node(&self) -> String {
+        format!(
+            "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='{}']/ietf-mpls-ldp:mpls-ldp",
+            Protocol::LDP.to_yang(),
+            self.name
+        )
+    }
 }
 
 #[derive(Debug, Default, EnumAsInner)]

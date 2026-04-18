@@ -11,8 +11,6 @@ pub mod state;
 pub mod yang;
 
 use holo_northbound as northbound;
-use holo_northbound::ProviderBase;
-use holo_yang::ToYang;
 
 use crate::instance::Instance;
 use crate::version::{Ospfv2, Ospfv3, Version};
@@ -47,17 +45,6 @@ pub mod yang_gen {
             type Provider = Instance<Ospfv3>;
             include!(concat!(env!("OUT_DIR"), "/yang_ops_ospfv3.rs"));
         }
-    }
-}
-
-// ===== impl Instance =====
-
-impl<V> ProviderBase for Instance<V>
-where
-    V: Version,
-{
-    fn top_level_node(&self) -> String {
-        format!("/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='{}']/ietf-ospf:ospf", V::PROTOCOL.to_yang(), self.name)
     }
 }
 

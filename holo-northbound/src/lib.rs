@@ -72,14 +72,6 @@ pub type NbDaemonReceiver = Receiver<api::daemon::Request>;
 pub type NbProviderSender = UnboundedSender<api::provider::Notification>;
 pub type NbProviderReceiver = UnboundedReceiver<api::provider::Notification>;
 
-/// Base northbound provider trait.
-pub trait ProviderBase
-where
-    Self: 'static + Sized,
-{
-    fn top_level_node(&self) -> String;
-}
-
 // ===== impl YangPath =====
 
 impl YangPath {

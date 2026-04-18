@@ -10,8 +10,6 @@ pub mod state;
 pub mod yang;
 
 use holo_northbound as northbound;
-use holo_northbound::ProviderBase;
-use holo_yang::ToYang;
 
 use crate::instance::Instance;
 use crate::version::{Ripng, Ripv2, Version};
@@ -45,17 +43,6 @@ pub mod yang_gen {
             type Provider = Instance<Ripng>;
             include!(concat!(env!("OUT_DIR"), "/yang_ops_ripng.rs"));
         }
-    }
-}
-
-// ===== impl Instance =====
-
-impl<V> ProviderBase for Instance<V>
-where
-    V: Version,
-{
-    fn top_level_node(&self) -> String {
-        format!("/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='{}']/ietf-rip:rip", V::PROTOCOL.to_yang(), self.name)
     }
 }
 

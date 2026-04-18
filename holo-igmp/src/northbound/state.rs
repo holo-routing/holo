@@ -9,8 +9,9 @@ use std::borrow::Cow;
 use enum_as_inner::EnumAsInner;
 use holo_northbound::state::{ListEntryKind, Provider, YangContainer, YangList, YangOps};
 use holo_utils::option::OptionExt;
+use holo_utils::protocol::Protocol;
+use holo_yang::ToYang;
 
-//use holo_yang::ToYang;
 use crate::instance::Instance;
 use crate::interface::Interface;
 use crate::northbound::yang_gen::{self, igmp};
@@ -18,6 +19,14 @@ use crate::northbound::yang_gen::{self, igmp};
 impl Provider for Instance {
     type ListEntry<'a> = ListEntry<'a>;
     const YANG_OPS: YangOps<Self> = yang_gen::ops::YANG_OPS_STATE;
+
+    fn top_level_node(&self) -> String {
+        format!(
+            "/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='{}']/ietf-igmp-mld:igmp",
+            Protocol::IGMP.to_yang(),
+            self.name
+        )
+    }
 }
 
 #[derive(Debug, Default)]

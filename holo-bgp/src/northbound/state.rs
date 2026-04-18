@@ -12,6 +12,7 @@ use enum_as_inner::EnumAsInner;
 use holo_northbound::state::{ListEntryKind, Provider, YangContainer, YangList, YangOps};
 use holo_utils::bgp::AfiSafi;
 use holo_utils::option::OptionExt;
+use holo_utils::protocol::Protocol;
 use holo_yang::ToYang;
 use holo_yang::types::{Base64Str, Timeticks};
 use ipnetwork::{Ipv4Network, Ipv6Network};
@@ -30,6 +31,10 @@ pub static AFI_SAFIS: [AfiSafi; 2] = [AfiSafi::Ipv4Unicast, AfiSafi::Ipv6Unicast
 impl Provider for Instance {
     type ListEntry<'a> = ListEntry<'a>;
     const YANG_OPS: YangOps<Self> = yang_gen::ops::YANG_OPS_STATE;
+
+    fn top_level_node(&self) -> String {
+        format!("/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='{}']/ietf-bgp:bgp", Protocol::BGP.to_yang(), self.name)
+    }
 }
 
 #[derive(Debug, Default)]

@@ -16,7 +16,7 @@ use yang5::schema::{DataValueType, SchemaNode, SchemaNodeKind};
 
 use crate::debug::Debug;
 use crate::error::Error;
-use crate::{NbDaemonSender, ProviderBase, YangPath, api};
+use crate::{NbDaemonSender, YangPath, api};
 
 // A generic struct representing an inheritable configuration value.
 //
@@ -125,7 +125,7 @@ pub type ValidationCallback =
 // Provider northbound.
 //
 
-pub trait Provider: ProviderBase {
+pub trait Provider: 'static + Sized {
     type ListEntry: Default;
     type Event;
     type Resource: Send;

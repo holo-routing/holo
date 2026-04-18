@@ -18,6 +18,7 @@ use holo_northbound::state::{ListEntryKind, Provider, YangContainer, YangList, Y
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::mac_addr::MacAddr;
 use holo_utils::option::OptionExt;
+use holo_utils::protocol::Protocol;
 use holo_yang::types::{HexStr, TimerValueMillis, TimerValueSecs16, Timeticks};
 use holo_yang::{ToYang, ToYangBits};
 use ipnetwork::IpNetwork;
@@ -40,6 +41,10 @@ use crate::spf::{SpfLogEntry, SpfScheduler};
 impl Provider for Instance {
     type ListEntry<'a> = ListEntry<'a>;
     const YANG_OPS: YangOps<Self> = yang_gen::ops::YANG_OPS_STATE;
+
+    fn top_level_node(&self) -> String {
+        format!("/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='{}']/ietf-isis:isis", Protocol::ISIS.to_yang(), self.name)
+    }
 }
 
 #[derive(Debug, Default)]

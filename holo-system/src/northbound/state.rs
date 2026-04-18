@@ -16,6 +16,10 @@ use crate::northbound::yang_gen::{self, system_state};
 impl Provider for Master {
     type ListEntry<'a> = ListEntry;
     const YANG_OPS: YangOps<Self> = yang_gen::ops::YANG_OPS_STATE;
+
+    fn top_level_node(&self) -> String {
+        "/ietf-system:system".to_owned()
+    }
 }
 
 #[derive(Debug, Default)]

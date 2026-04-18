@@ -12,6 +12,7 @@ use holo_northbound::state::{ListEntryKind, Provider, YangContainer, YangList, Y
 use holo_utils::bfd::{PathType, State};
 use holo_utils::num::SaturatingInto;
 use holo_utils::option::OptionExt;
+use holo_utils::protocol::Protocol;
 use holo_yang::ToYang;
 use num_traits::FromPrimitive;
 
@@ -24,6 +25,10 @@ use crate::session::Session;
 impl Provider for Master {
     type ListEntry<'a> = ListEntry<'a>;
     const YANG_OPS: YangOps<Self> = yang_gen::ops::YANG_OPS_STATE;
+
+    fn top_level_node(&self) -> String {
+        format!("/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='main']/ietf-bfd:bfd", Protocol::BFD.to_yang(),)
+    }
 }
 
 #[derive(Debug, Default)]

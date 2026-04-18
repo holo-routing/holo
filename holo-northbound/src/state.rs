@@ -13,12 +13,17 @@ use yang5::data::{DataNodeRef, DataTree};
 use yang5::schema::{SchemaNode, SchemaNodeKind};
 
 use crate::error::Error;
-use crate::{NbDaemonSender, ProviderBase, YangObject, api};
+use crate::{NbDaemonSender, YangObject, api};
 
 // Northbound data provider.
-pub trait Provider: ProviderBase {
+pub trait Provider
+where
+    Self: 'static + Sized,
+{
     type ListEntry<'a>: ListEntryKind;
     const YANG_OPS: YangOps<Self>;
+
+    fn top_level_node(&self) -> String;
 }
 
 // Common behavior for all list entries.

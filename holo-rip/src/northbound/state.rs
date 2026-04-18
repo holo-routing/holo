@@ -25,6 +25,10 @@ where
 {
     type ListEntry<'a> = ListEntry<'a, V>;
     const YANG_OPS: YangOps<Self> = V::YANG_OPS_STATE;
+
+    fn top_level_node(&self) -> String {
+        format!("/ietf-routing:routing/control-plane-protocols/control-plane-protocol[type='{}'][name='{}']/ietf-rip:rip", V::PROTOCOL.to_yang(), self.name)
+    }
 }
 
 #[derive(Debug, Default)]

@@ -22,6 +22,10 @@ use crate::northbound::yang_gen::{self, interfaces};
 impl Provider for Interface {
     type ListEntry<'a> = ListEntry<'a>;
     const YANG_OPS: YangOps<Self> = yang_gen::ops::YANG_OPS_STATE;
+
+    fn top_level_node(&self) -> String {
+        format!("/ietf-interfaces:interfaces/interface[name='{}']", self.name)
+    }
 }
 
 #[derive(Debug, Default)]

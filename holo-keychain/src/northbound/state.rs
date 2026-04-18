@@ -16,6 +16,10 @@ use crate::northbound::yang_gen::{self, key_chains};
 impl Provider for Master {
     type ListEntry<'a> = ListEntry<'a>;
     const YANG_OPS: YangOps<Self> = yang_gen::ops::YANG_OPS_STATE;
+
+    fn top_level_node(&self) -> String {
+        "/ietf-key-chain:key-chains".to_owned()
+    }
 }
 
 #[derive(Debug, Default)]

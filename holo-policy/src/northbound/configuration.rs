@@ -5,12 +5,17 @@
 //
 
 use std::collections::{BTreeSet, btree_map};
+use std::net::IpAddr;
 use std::sync::{Arc, LazyLock as Lazy};
 
 use enum_as_inner::EnumAsInner;
 use holo_northbound::configuration::{self, Callbacks, CallbacksBuilder, Provider};
+use holo_utils::bgp::{self, Origin};
 use holo_utils::ip::AddressFamily;
-use holo_utils::policy::{IpPrefixRange, MatchSetRestrictedType, MatchSetType, MetricType, NeighborSet, Policy, PolicyAction, PolicyActionType, PolicyCondition, PolicyConditionType, PolicyStmt, PrefixSet, RouteLevel, RouteType, TagSet};
+use holo_utils::policy::{
+    BgpEqOperator, BgpNexthop, BgpPolicyAction, BgpPolicyActionType, BgpPolicyCondition, BgpPolicyConditionType, BgpSetMed, IpPrefixRange, MatchSetRestrictedType, MatchSetType, MetricType, NeighborSet, Policy, PolicyAction,
+    PolicyActionType, PolicyCondition, PolicyConditionType, PolicyStmt, PrefixSet, RouteLevel, RouteType, TagSet,
+};
 use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
@@ -548,69 +553,115 @@ fn load_callbacks() -> Callbacks<Master> {
             let event_queue = args.event_queue;
             event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
+        // BGP condition: local-pref (value + operator)
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::local_pref::value::PATH)
-        .modify_apply(|_master, _args| {
-            // TODO: implement me!
+        .modify_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            let value = args.dnode.get_u32();
+            let op = bgp_cond_get_op(stmt, BgpPolicyConditionType::LocalPref);
+            stmt.condition_add(PolicyCondition::Bgp(BgpPolicyCondition::LocalPref {
+                value,
+                op,
+            }));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
+        .delete_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            stmt.condition_remove(PolicyConditionType::Bgp(BgpPolicyConditionType::LocalPref));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::local_pref::eq::PATH)
-        .create_apply(|_master, _args| {
-            // TODO: implement me!
+        .create_apply(|master, args| {
+            bgp_cond_set_op(master, args, BgpPolicyConditionType::LocalPref, BgpEqOperator::Equal);
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
-        })
+        .delete_apply(|_master, _args| {})
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::local_pref::lt_or_eq::PATH)
-        .create_apply(|_master, _args| {
-            // TODO: implement me!
+        .create_apply(|master, args| {
+            bgp_cond_set_op(master, args, BgpPolicyConditionType::LocalPref, BgpEqOperator::LessThanOrEqual);
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
-        })
+        .delete_apply(|_master, _args| {})
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::local_pref::gt_or_eq::PATH)
-        .create_apply(|_master, _args| {
-            // TODO: implement me!
+        .create_apply(|master, args| {
+            bgp_cond_set_op(master, args, BgpPolicyConditionType::LocalPref, BgpEqOperator::GreaterThanOrEqual);
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
-        })
+        .delete_apply(|_master, _args| {})
+        // BGP condition: med (value + operator)
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::med::value::PATH)
-        .modify_apply(|_master, _args| {
-            // TODO: implement me!
+        .modify_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            let value = args.dnode.get_u32();
+            let op = bgp_cond_get_op(stmt, BgpPolicyConditionType::Med);
+            stmt.condition_add(PolicyCondition::Bgp(BgpPolicyCondition::Med {
+                value,
+                op,
+            }));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
+        .delete_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            stmt.condition_remove(PolicyConditionType::Bgp(BgpPolicyConditionType::Med));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::med::eq::PATH)
-        .create_apply(|_master, _args| {
-            // TODO: implement me!
+        .create_apply(|master, args| {
+            bgp_cond_set_op(master, args, BgpPolicyConditionType::Med, BgpEqOperator::Equal);
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
-        })
+        .delete_apply(|_master, _args| {})
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::med::lt_or_eq::PATH)
-        .create_apply(|_master, _args| {
-            // TODO: implement me!
+        .create_apply(|master, args| {
+            bgp_cond_set_op(master, args, BgpPolicyConditionType::Med, BgpEqOperator::LessThanOrEqual);
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
-        })
+        .delete_apply(|_master, _args| {})
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::med::gt_or_eq::PATH)
-        .create_apply(|_master, _args| {
-            // TODO: implement me!
+        .create_apply(|master, args| {
+            bgp_cond_set_op(master, args, BgpPolicyConditionType::Med, BgpEqOperator::GreaterThanOrEqual);
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
-        })
+        .delete_apply(|_master, _args| {})
+        // BGP condition: origin-eq
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::origin_eq::PATH)
-        .modify_apply(|_master, _args| {
-            // TODO: implement me!
+        .modify_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            let origin = args.dnode.get_string();
+            let origin = Origin::try_from_yang(&origin).unwrap();
+            stmt.condition_add(PolicyCondition::Bgp(BgpPolicyCondition::Origin(origin)));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
+        .delete_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            stmt.condition_remove(PolicyConditionType::Bgp(BgpPolicyConditionType::Origin));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
+        // BGP condition: match-afi-safi (TODO: multi-value set, deferred)
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_afi_safi::afi_safi_in::PATH)
         .create_apply(|_master, _args| {
             // TODO: implement me!
@@ -625,83 +676,185 @@ fn load_callbacks() -> Callbacks<Master> {
         .delete_apply(|_master, _args| {
             // TODO: implement me!
         })
+        // BGP condition: match-neighbor
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_neighbor::neighbor_eq::PATH)
-        .create_apply(|_master, _args| {
-            // TODO: implement me!
+        .create_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            let addr = args.dnode.get_ip();
+            let key = PolicyConditionType::Bgp(BgpPolicyConditionType::MatchNeighbor);
+            match stmt.conditions.get_mut(&key) {
+                Some(PolicyCondition::Bgp(BgpPolicyCondition::MatchNeighbor {
+                    value, ..
+                })) => {
+                    value.insert(addr);
+                }
+                _ => {
+                    let mut value = BTreeSet::new();
+                    value.insert(addr);
+                    stmt.condition_add(PolicyCondition::Bgp(BgpPolicyCondition::MatchNeighbor {
+                        value,
+                        match_type: MatchSetRestrictedType::Any,
+                    }));
+                }
+            }
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
+        .delete_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            let addr = args.dnode.get_ip();
+            let key = PolicyConditionType::Bgp(BgpPolicyConditionType::MatchNeighbor);
+            if let Some(PolicyCondition::Bgp(BgpPolicyCondition::MatchNeighbor {
+                value, ..
+            })) = stmt.conditions.get_mut(&key)
+            {
+                value.remove(&addr);
+                if value.is_empty() {
+                    stmt.condition_remove(key);
+                }
+            }
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_neighbor::match_set_options::PATH)
-        .modify_apply(|_master, _args| {
-            // TODO: implement me!
+        .modify_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            let match_type = args.dnode.get_string();
+            let match_type = MatchSetRestrictedType::try_from_yang(&match_type).unwrap();
+            let key = PolicyConditionType::Bgp(BgpPolicyConditionType::MatchNeighbor);
+            if let Some(PolicyCondition::Bgp(BgpPolicyCondition::MatchNeighbor {
+                match_type: existing, ..
+            })) = stmt.conditions.get_mut(&key)
+            {
+                *existing = match_type;
+            }
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
-        })
+        .delete_apply(|_master, _args| {})
+        // BGP condition: route-type
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::route_type::PATH)
-        .modify_apply(|_master, _args| {
-            // TODO: implement me!
+        .modify_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            let route_type = match args.dnode.get_string().as_str() {
+                "internal" => bgp::RouteType::Internal,
+                "external" => bgp::RouteType::External,
+                v => panic!("unknown BGP route-type: {v}"),
+            };
+            stmt.condition_add(PolicyCondition::Bgp(BgpPolicyCondition::RouteType(route_type)));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
+        .delete_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            stmt.condition_remove(PolicyConditionType::Bgp(BgpPolicyConditionType::RouteType));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
+        // BGP condition: community-count (value + operator)
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::community_count::community_count::PATH)
-        .modify_apply(|_master, _args| {
-            // TODO: implement me!
+        .modify_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            let value = args.dnode.get_u32();
+            let op = bgp_cond_get_op(stmt, BgpPolicyConditionType::CommCount);
+            stmt.condition_add(PolicyCondition::Bgp(BgpPolicyCondition::CommCount {
+                value,
+                op,
+            }));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
+        .delete_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            stmt.condition_remove(PolicyConditionType::Bgp(BgpPolicyConditionType::CommCount));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::community_count::eq::PATH)
-        .create_apply(|_master, _args| {
-            // TODO: implement me!
+        .create_apply(|master, args| {
+            bgp_cond_set_op(master, args, BgpPolicyConditionType::CommCount, BgpEqOperator::Equal);
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
-        })
+        .delete_apply(|_master, _args| {})
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::community_count::lt_or_eq::PATH)
-        .create_apply(|_master, _args| {
-            // TODO: implement me!
+        .create_apply(|master, args| {
+            bgp_cond_set_op(master, args, BgpPolicyConditionType::CommCount, BgpEqOperator::LessThanOrEqual);
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
-        })
+        .delete_apply(|_master, _args| {})
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::community_count::gt_or_eq::PATH)
-        .create_apply(|_master, _args| {
-            // TODO: implement me!
+        .create_apply(|master, args| {
+            bgp_cond_set_op(master, args, BgpPolicyConditionType::CommCount, BgpEqOperator::GreaterThanOrEqual);
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
-        })
+        .delete_apply(|_master, _args| {})
+        // BGP condition: as-path-length (value + operator)
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::as_path_length::as_path_length::PATH)
-        .modify_apply(|_master, _args| {
-            // TODO: implement me!
+        .modify_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            let value = args.dnode.get_u32();
+            let op = bgp_cond_get_op(stmt, BgpPolicyConditionType::AsPathLen);
+            stmt.condition_add(PolicyCondition::Bgp(BgpPolicyCondition::AsPathLen {
+                value,
+                op,
+            }));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
+        .delete_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            stmt.condition_remove(PolicyConditionType::Bgp(BgpPolicyConditionType::AsPathLen));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::as_path_length::eq::PATH)
-        .create_apply(|_master, _args| {
-            // TODO: implement me!
+        .create_apply(|master, args| {
+            bgp_cond_set_op(master, args, BgpPolicyConditionType::AsPathLen, BgpEqOperator::Equal);
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
-        })
+        .delete_apply(|_master, _args| {})
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::as_path_length::lt_or_eq::PATH)
-        .create_apply(|_master, _args| {
-            // TODO: implement me!
+        .create_apply(|master, args| {
+            bgp_cond_set_op(master, args, BgpPolicyConditionType::AsPathLen, BgpEqOperator::LessThanOrEqual);
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
-        })
+        .delete_apply(|_master, _args| {})
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::as_path_length::gt_or_eq::PATH)
-        .create_apply(|_master, _args| {
-            // TODO: implement me!
+        .create_apply(|master, args| {
+            bgp_cond_set_op(master, args, BgpPolicyConditionType::AsPathLen, BgpEqOperator::GreaterThanOrEqual);
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
-        })
+        .delete_apply(|_master, _args| {})
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_community_set::community_set::PATH)
         .modify_apply(|_master, _args| {
             // TODO: implement me!
@@ -946,46 +1099,166 @@ fn load_callbacks() -> Callbacks<Master> {
             event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_route_origin::PATH)
-        .modify_apply(|_master, _args| {
-            // TODO: implement me!
+        .modify_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            let origin = args.dnode.get_string();
+            let origin = Origin::try_from_yang(&origin).unwrap();
+            stmt.action_add(PolicyAction::Bgp(BgpPolicyAction::SetRouteOrigin(origin)));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
+        .delete_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            stmt.action_remove(PolicyActionType::Bgp(BgpPolicyActionType::SetRouteOrigin));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_local_pref::PATH)
-        .modify_apply(|_master, _args| {
-            // TODO: implement me!
+        .modify_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            let local_pref = args.dnode.get_u32();
+            stmt.action_add(PolicyAction::Bgp(BgpPolicyAction::SetLocalPref(local_pref)));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
+        .delete_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            stmt.action_remove(PolicyActionType::Bgp(BgpPolicyActionType::SetLocalPref));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_next_hop::PATH)
-        .modify_apply(|_master, _args| {
-            // TODO: implement me!
+        .modify_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            let value = args.dnode.get_string();
+            let nexthop = if value == "self" {
+                BgpNexthop::NexthopSelf
+            } else {
+                let addr: IpAddr = value.parse().unwrap();
+                BgpNexthop::Addr(addr)
+            };
+            stmt.action_add(PolicyAction::Bgp(BgpPolicyAction::SetNexthop(nexthop)));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
+        .delete_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            stmt.action_remove(PolicyActionType::Bgp(BgpPolicyActionType::SetNexthop));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_med::PATH)
-        .modify_apply(|_master, _args| {
-            // TODO: implement me!
+        .modify_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            let value = args.dnode.get_string();
+            let med = if value == "igp" {
+                BgpSetMed::Igp
+            } else if value == "med-plus-igp" {
+                BgpSetMed::MedPlusIgp
+            } else if let Some(stripped) = value.strip_prefix('+') {
+                BgpSetMed::Add(stripped.parse().unwrap())
+            } else if let Some(stripped) = value.strip_prefix('-') {
+                BgpSetMed::Subtract(stripped.parse().unwrap())
+            } else {
+                BgpSetMed::Set(value.parse().unwrap())
+            };
+            stmt.action_add(PolicyAction::Bgp(BgpPolicyAction::SetMed(med)));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
+        .delete_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            stmt.action_remove(PolicyActionType::Bgp(BgpPolicyActionType::SetMed));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_as_path_prepend::repeat_n::PATH)
-        .modify_apply(|_master, _args| {
-            // TODO: implement me!
+        .modify_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            let repeat = args.dnode.get_u8();
+            let asn = bgp_as_path_prepend_get_asn(stmt);
+            stmt.action_add(PolicyAction::Bgp(BgpPolicyAction::SetAsPathPrepent {
+                asn,
+                repeat: Some(repeat),
+            }));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
+        .delete_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            let asn = bgp_as_path_prepend_get_asn(stmt);
+            stmt.action_add(PolicyAction::Bgp(BgpPolicyAction::SetAsPathPrepent {
+                asn,
+                repeat: None,
+            }));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_as_path_prepend::asn::PATH)
-        .create_apply(|_master, _args| {
-            // TODO: implement me!
+        .create_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            let asn = args.dnode.get_u32();
+            let repeat = bgp_as_path_prepend_get_repeat(stmt);
+            stmt.action_add(PolicyAction::Bgp(BgpPolicyAction::SetAsPathPrepent {
+                asn,
+                repeat,
+            }));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
+        .delete_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            stmt.action_remove(PolicyActionType::Bgp(BgpPolicyActionType::SetAsPathPrepent));
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::actions::bgp_actions::set_community::options::PATH)
         .modify_apply(|_master, _args| {
@@ -1111,5 +1384,76 @@ impl Provider for Master {
                 self.ibus_tx.policy_del(name);
             }
         }
+    }
+}
+
+// ===== BGP condition/action helpers =====
+
+fn bgp_cond_get_op(stmt: &PolicyStmt, cond_type: BgpPolicyConditionType) -> BgpEqOperator {
+    let key = PolicyConditionType::Bgp(cond_type);
+    match stmt.conditions.get(&key) {
+        Some(PolicyCondition::Bgp(
+            BgpPolicyCondition::LocalPref {
+                op, ..
+            }
+            | BgpPolicyCondition::Med {
+                op, ..
+            }
+            | BgpPolicyCondition::CommCount {
+                op, ..
+            }
+            | BgpPolicyCondition::AsPathLen {
+                op, ..
+            },
+        )) => *op,
+        _ => BgpEqOperator::Equal,
+    }
+}
+
+fn bgp_cond_set_op(master: &mut Master, args: configuration::CallbackArgs<'_, Master>, cond_type: BgpPolicyConditionType, op: BgpEqOperator) {
+    let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+    let policy = master.policies.get_mut(&policy_name).unwrap();
+    let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+    let key = PolicyConditionType::Bgp(cond_type);
+    if let Some(PolicyCondition::Bgp(
+        BgpPolicyCondition::LocalPref {
+            op: existing_op, ..
+        }
+        | BgpPolicyCondition::Med {
+            op: existing_op, ..
+        }
+        | BgpPolicyCondition::CommCount {
+            op: existing_op, ..
+        }
+        | BgpPolicyCondition::AsPathLen {
+            op: existing_op, ..
+        },
+    )) = stmt.conditions.get_mut(&key)
+    {
+        *existing_op = op;
+    }
+
+    let event_queue = args.event_queue;
+    event_queue.insert(Event::PolicyChange(policy.name.clone()));
+}
+
+fn bgp_as_path_prepend_get_asn(stmt: &PolicyStmt) -> u32 {
+    let key = PolicyActionType::Bgp(BgpPolicyActionType::SetAsPathPrepent);
+    match stmt.actions.get(&key) {
+        Some(PolicyAction::Bgp(BgpPolicyAction::SetAsPathPrepent {
+            asn, ..
+        })) => *asn,
+        _ => 0,
+    }
+}
+
+fn bgp_as_path_prepend_get_repeat(stmt: &PolicyStmt) -> Option<u8> {
+    let key = PolicyActionType::Bgp(BgpPolicyActionType::SetAsPathPrepent);
+    match stmt.actions.get(&key) {
+        Some(PolicyAction::Bgp(BgpPolicyAction::SetAsPathPrepent {
+            repeat, ..
+        })) => *repeat,
+        _ => None,
     }
 }

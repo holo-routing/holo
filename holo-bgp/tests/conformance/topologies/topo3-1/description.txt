@@ -1,0 +1,22 @@
+rt1       rt2       rt3       rt4       rt5       rt6
+ |         |         |         |         |         |
+ |--p-c----|         |         |         |         |
+ |         |---c-p---|         |         |         |
+ |         |         |--pr-pr--|         |         |
+ |         |         |         |--c-p----|         |
+ |         |         |         |         |--p-c----|
+ [1.1.1.1] [2.2.2.2] [3.3.3.3] [4.4.4.4] [5.5.5.5] [6.6.6.6]
+
+Key
+---
+p: provider role
+c: customer role
+pr: peer role
+
+Expected routes installed in each router via BGP (based on roles):
+rt1: [rt2 routes]
+rt2: [rt1 routes, rt3 routes, rt4 routes]
+rt3: [rt2 routes, rt4 routes]
+rt4: [rt2 routes, rt3 routes, rt5 routes, rt6 routes]
+rt5: [rt4 routes, rt6 routes]
+rt6: [rt4 routes, rt5 routes]

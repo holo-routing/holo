@@ -1,0 +1,12 @@
+{"RouterIdSub":{}}
+{"RouteRedistributeSub":{"protocol":"direct","af":"Ipv4"}}
+{"NexthopTrack":{"addr":"192.168.0.6"}}
+{"NexthopTrack":{"addr":"192.168.0.1"}}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"1.1.1.1/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"192.168.0.1","labels":[],"resolved":[]}}]}}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"3.3.3.3/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"192.168.0.6","labels":[],"resolved":[]}}]}}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"10.0.1.0/24","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"192.168.0.1","labels":[],"resolved":[]}}]}}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"10.0.3.0/24","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"192.168.0.6","labels":[],"resolved":[]}}]}}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"192.168.0.8/30","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"192.168.0.6","labels":[],"resolved":[]}}]}}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"4.4.4.4/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"192.168.0.6","labels":[],"resolved":[]}}]}}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"10.0.4.0/24","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"192.168.0.6","labels":[],"resolved":[]}}]}}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"192.168.0.12/30","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"192.168.0.6","labels":[],"resolved":[]}}]}}

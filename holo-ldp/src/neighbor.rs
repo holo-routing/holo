@@ -128,7 +128,7 @@ pub enum LabelDistMode {
     Ordered,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum LabelAdvMode {
     DownstreamUnsolicited,
     DownstreamOnDemand,

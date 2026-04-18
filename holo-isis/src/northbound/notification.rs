@@ -49,7 +49,7 @@ pub(crate) fn lsp_too_large(instance: &InstanceUpView<'_>, iface: &Interface, ls
         interface_level: Some(iface.config.level_type.resolved),
         extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
         pdu_size: Some(lsp.raw.len() as u32),
-        lsp_id: Some(lsp.lsp_id.to_yang()),
+        lsp_id: Some(lsp.lsp_id),
     };
     notification::send(&instance.tx.nb, path, data);
 }
@@ -78,7 +78,7 @@ pub(crate) fn corrupted_lsp_detected(instance: &InstanceUpView<'_>, lsp: &Lsp) {
     let data = CorruptedLspDetected {
         routing_protocol_name: Some(Cow::Borrowed(instance.name)),
         isis_level: Some(instance.config.level_type),
-        lsp_id: Some(lsp.lsp_id.to_yang()),
+        lsp_id: Some(lsp.lsp_id),
     };
     notification::send(&instance.tx.nb, path, data);
 }
@@ -91,7 +91,7 @@ pub(crate) fn attempt_to_exceed_max_sequence(instance: &InstanceUpView<'_>, lsp:
     let data = AttemptToExceedMaxSequence {
         routing_protocol_name: Some(Cow::Borrowed(instance.name)),
         isis_level: Some(instance.config.level_type),
-        lsp_id: Some(lsp.lsp_id.to_yang()),
+        lsp_id: Some(lsp.lsp_id),
     };
     notification::send(&instance.tx.nb, path, data);
 }
@@ -138,7 +138,7 @@ pub(crate) fn own_lsp_purge(instance: &InstanceUpView<'_>, iface: &Interface, ls
         interface_name: Some(Cow::Borrowed(&iface.name)),
         interface_level: Some(iface.config.level_type.resolved),
         extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
-        lsp_id: Some(lsp.lsp_id.to_yang()),
+        lsp_id: Some(lsp.lsp_id),
     };
     notification::send(&instance.tx.nb, path, data);
 }
@@ -153,7 +153,7 @@ pub(crate) fn sequence_number_skipped(instance: &InstanceUpView<'_>, iface: &Int
         interface_name: Some(Cow::Borrowed(&iface.name)),
         interface_level: Some(iface.config.level_type.resolved),
         extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
-        lsp_id: Some(lsp.lsp_id.to_yang()),
+        lsp_id: Some(lsp.lsp_id),
     };
     notification::send(&instance.tx.nb, path, data);
 }
@@ -262,7 +262,7 @@ pub(crate) fn lsp_error_detected(instance: &InstanceUpView<'_>, iface: &Interfac
         interface_name: Some(Cow::Borrowed(&iface.name)),
         interface_level: Some(iface.config.level_type.resolved),
         extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
-        lsp_id: Some(lsp.lsp_id.to_yang()),
+        lsp_id: Some(lsp.lsp_id),
         raw_pdu: Some(Base64Str(lsp.raw.as_ref())),
         error_offset: None,
         tlv_type: None,
@@ -281,14 +281,14 @@ pub(crate) fn adjacency_state_change(instance: &InstanceUpView<'_>, iface: &Inte
         interface_level: Some(iface.config.level_type.resolved),
         extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
         neighbor: None,
-        neighbor_system_id: Some(adj.system_id.to_yang()),
-        state: Some(state.to_yang()),
+        neighbor_system_id: Some(adj.system_id),
+        state: Some(state),
         reason: (state == AdjacencyState::Up).then_some(event.to_yang()),
     };
     notification::send(&instance.tx.nb, path, data);
 }
 
-pub(crate) fn lsp_received(instance: &InstanceUpView<'_>, iface: &Interface, lsp: &Lsp, system_id: &SystemId) {
+pub(crate) fn lsp_received(instance: &InstanceUpView<'_>, iface: &Interface, lsp: &Lsp, system_id: SystemId) {
     use yang::lsp_received::{self, LspReceived};
 
     let path = lsp_received::PATH;
@@ -298,10 +298,10 @@ pub(crate) fn lsp_received(instance: &InstanceUpView<'_>, iface: &Interface, lsp
         interface_name: Some(Cow::Borrowed(&iface.name)),
         interface_level: Some(iface.config.level_type.resolved),
         extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
-        lsp_id: Some(lsp.lsp_id.to_yang()),
+        lsp_id: Some(lsp.lsp_id),
         sequence: Some(lsp.seqno).ignore_in_testing(),
         received_timestamp: lsp.base_time.map(Timeticks).ignore_in_testing(),
-        neighbor_system_id: Some(system_id.to_yang()),
+        neighbor_system_id: Some(system_id),
     };
     notification::send(&instance.tx.nb, path, data);
 }
@@ -313,7 +313,7 @@ pub(crate) fn lsp_generation(instance: &InstanceUpView<'_>, lsp: &Lsp) {
     let data = LspGeneration {
         routing_protocol_name: Some(Cow::Borrowed(instance.name)),
         isis_level: Some(instance.config.level_type),
-        lsp_id: Some(lsp.lsp_id.to_yang()),
+        lsp_id: Some(lsp.lsp_id),
         sequence: Some(lsp.seqno).ignore_in_testing(),
         send_timestamp: lsp.base_time.map(Timeticks),
     };

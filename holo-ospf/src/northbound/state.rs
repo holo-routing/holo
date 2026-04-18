@@ -125,7 +125,7 @@ impl<'a, V: Version> YangContainer<'a, Instance<V>> for ospf::spf_control::ietf_
     }
 }
 
-impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::local_rib::route::Route<'a> {
+impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::local_rib::route::Route {
     fn iter(instance: &'a Instance<V>, _list_entry: &ListEntry<'a, V>) -> Option<ListIterator<'a, V>> {
         let rib = &instance.state.as_ref()?.rib;
         let iter = rib.iter().map(|(destination, route)| ListEntry::Route(destination, route));
@@ -137,7 +137,7 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::local_rib::route::Route
         Self {
             prefix: (**prefix).into(),
             metric: Some(route.metric),
-            route_type: Some(route.path_type.to_yang()),
+            route_type: Some(route.path_type),
             route_tag: route.tag,
         }
     }
@@ -2397,7 +2397,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
     }
 }
 
-impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::virtual_links::virtual_link::VirtualLink<'a> {
+impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::virtual_links::virtual_link::VirtualLink {
     fn iter(instance: &'a Instance<V>, list_entry: &ListEntry<'a, V>) -> Option<ListIterator<'a, V>> {
         let area = list_entry.as_area().unwrap();
         let iter = area.interfaces.iter(&instance.arenas.interfaces).filter(|iface| iface.is_virtual_link()).map(ListEntry::Interface);
@@ -2411,7 +2411,7 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::virtual_li
             transit_area_id: vlink_key.transit_area_id,
             router_id: vlink_key.router_id,
             cost: iface.state.vlink.as_ref().map(|vlink| vlink.cost as u16),
-            state: Some(iface.state.ism_state.to_yang()),
+            state: Some(iface.state.ism_state),
             hello_timer: iface.state.tasks.hello_interval.as_ref().map(|task| TimerValueSecs16(task.remaining())).ignore_in_testing(),
             wait_timer: iface.state.tasks.wait_timer.as_ref().map(|task| TimerValueSecs16(task.remaining())).ignore_in_testing(),
             dr_router_id: None,
@@ -2451,7 +2451,7 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::virtual_li
     }
 }
 
-impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::virtual_links::virtual_link::neighbors::neighbor::Neighbor<'a> {
+impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::virtual_links::virtual_link::neighbors::neighbor::Neighbor {
     fn iter(instance: &'a Instance<V>, list_entry: &ListEntry<'a, V>) -> Option<ListIterator<'a, V>> {
         let iface = list_entry.as_interface().unwrap();
         let iter = iface.state.neighbors.iter(&instance.arenas.neighbors).map(|nbr| ListEntry::Neighbor(iface, nbr));
@@ -2467,7 +2467,7 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::virtual_li
             dr_ip_addr: None,
             bdr_router_id: None,
             bdr_ip_addr: None,
-            state: Some(nbr.state.to_yang()),
+            state: Some(nbr.state),
             cost: None,
             dead_timer: nbr.tasks.inactivity_timer.as_ref().map(|task| TimerValueSecs16(task.remaining())).ignore_in_testing(),
         }
@@ -2743,7 +2743,7 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::interfaces
         }
         Self {
             name: Cow::Borrowed(&iface.name),
-            state: Some(iface.state.ism_state.to_yang()),
+            state: Some(iface.state.ism_state),
             hello_timer: iface.state.tasks.hello_interval.as_ref().map(|task| TimerValueSecs16(task.remaining())).ignore_in_testing(),
             wait_timer: iface.state.tasks.wait_timer.as_ref().map(|task| TimerValueSecs16(task.remaining())).ignore_in_testing(),
             dr_router_id,
@@ -2784,7 +2784,7 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::interfaces
     }
 }
 
-impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::interfaces::interface::neighbors::neighbor::Neighbor<'a> {
+impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::interfaces::interface::neighbors::neighbor::Neighbor {
     fn iter(instance: &'a Instance<V>, list_entry: &ListEntry<'a, V>) -> Option<ListIterator<'a, V>> {
         let iface = list_entry.as_interface().unwrap();
         let iter = iface.state.neighbors.iter(&instance.arenas.neighbors).map(|nbr| ListEntry::Neighbor(iface, nbr));
@@ -2832,7 +2832,7 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::interfaces
             dr_ip_addr,
             bdr_router_id,
             bdr_ip_addr,
-            state: Some(nbr.state.to_yang()),
+            state: Some(nbr.state),
             dead_timer: nbr.tasks.inactivity_timer.as_ref().map(|task| TimerValueSecs16(task.remaining())).ignore_in_testing(),
         }
     }
@@ -2849,12 +2849,12 @@ impl<'a, V: Version> YangContainer<'a, Instance<V>> for ospf::areas::area::inter
     }
 }
 
-impl<'a, V: Version> YangContainer<'a, Instance<V>> for ospf::areas::area::interfaces::interface::neighbors::neighbor::graceful_restart::GracefulRestart<'a> {
+impl<'a, V: Version> YangContainer<'a, Instance<V>> for ospf::areas::area::interfaces::interface::neighbors::neighbor::graceful_restart::GracefulRestart {
     fn new(_instance: &'a Instance<V>, list_entry: &ListEntry<'a, V>) -> Option<Self> {
         let (_, nbr) = list_entry.as_neighbor().unwrap();
         let gr = nbr.gr.as_ref()?;
         Some(Self {
-            restart_reason: Some(gr.restart_reason.to_yang()),
+            restart_reason: Some(gr.restart_reason),
             grace_timer: Some(gr.grace_period.remaining().as_secs().saturating_into()).ignore_in_testing(),
         })
     }
@@ -3018,14 +3018,14 @@ impl<'a> YangList<'a, Instance<Ospfv2>> for ospf::areas::area::interfaces::inter
     }
 }
 
-impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::grace::Grace<'a> {
+impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv2::body::opaque::grace::Grace {
     fn new(_instance: &'a Instance<Ospfv2>, list_entry: &ListEntry<'a, Ospfv2>) -> Option<Self> {
         let lse = list_entry.as_interface_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_opaque_link()?.as_grace()?;
         Some(Self {
             grace_period: lsa_body.grace_period.as_ref().map(|tlv| tlv.get()),
-            graceful_restart_reason: lsa_body.gr_reason.as_ref().and_then(|tlv| GrReason::from_u8(tlv.get())).map(|reason| reason.to_yang()),
+            graceful_restart_reason: lsa_body.gr_reason.as_ref().and_then(|tlv| GrReason::from_u8(tlv.get())),
             ip_interface_address: lsa_body.addr.as_ref().map(|tlv| tlv.get()),
         })
     }
@@ -3159,14 +3159,14 @@ impl<'a> YangList<'a, Instance<Ospfv3>>
     }
 }
 
-impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::grace::Grace<'a> {
+impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::grace::Grace {
     fn new(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<Self> {
         let lse = list_entry.as_interface_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_grace()?;
         Some(Self {
             grace_period: lsa_body.grace_period.as_ref().map(|tlv| tlv.get()),
-            graceful_restart_reason: lsa_body.gr_reason.as_ref().and_then(|tlv| GrReason::from_u8(tlv.get())).map(|reason| reason.to_yang()),
+            graceful_restart_reason: lsa_body.gr_reason.as_ref().and_then(|tlv| GrReason::from_u8(tlv.get())),
         })
     }
 }

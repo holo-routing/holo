@@ -58,7 +58,7 @@ impl<'a> YangList<'a, Interface> for interfaces::interface::ipv4::vrrp::vrrp_ins
             master_down_interval: instance.state.timer.as_master_down_timer().map(|task| task.remaining().as_millis() as u32 / 10).ignore_in_testing(),
             skew_time: None, // TODO
             last_event: Some(instance.state.last_event.to_yang()).ignore_in_testing(),
-            new_master_reason: Some(instance.state.new_master_reason.to_yang()),
+            new_master_reason: Some(instance.state.new_master_reason),
         }
     }
 }
@@ -99,7 +99,7 @@ impl<'a> YangList<'a, Interface> for interfaces::interface::ipv6::vrrp::vrrp_ins
             master_down_interval: instance.state.timer.as_master_down_timer().map(|task| task.remaining().as_millis() as u32 / 10).ignore_in_testing(),
             skew_time: None, // TODO
             last_event: Some(instance.state.last_event.to_yang()).ignore_in_testing(),
-            new_master_reason: Some(instance.state.new_master_reason.to_yang()),
+            new_master_reason: Some(instance.state.new_master_reason),
         }
     }
 }

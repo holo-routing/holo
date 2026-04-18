@@ -299,7 +299,14 @@ impl<'a> StructBuilder<'a> {
         let fmt_args = self
             .snode
             .list_keys()
-            .map(|snode| format!("self.{}", &snode.rust_name(Case::Snake)))
+            .map(|snode| {
+                let field = format!("self.{}", &snode.rust_name(Case::Snake));
+                let spec = snode.leaf_type().unwrap().spec();
+                match spec.rust_type {
+                    "String" => field,
+                    _ => format!("{field}.to_yang()"),
+                }
+            })
             .collect::<Vec<_>>()
             .join(", ");
 

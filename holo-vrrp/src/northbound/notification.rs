@@ -23,7 +23,7 @@ pub(crate) fn new_master_event(nb_tx: &NbProviderSender, addr: IpAddr, reason: M
 
     let data = VrrpNewMasterEvent {
         master_ip_address: Some(addr),
-        new_master_reason: Some(reason.to_yang()),
+        new_master_reason: Some(reason),
     };
     notification::send(nb_tx, vrrp_new_master_event::PATH, data);
 }

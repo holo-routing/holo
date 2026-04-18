@@ -109,10 +109,10 @@ impl<'a> YangContainer<'a, Master> for bfd::ip_mh::session_groups::session_group
         let sess = list_entry.as_session().unwrap();
         Some(Self {
             session_index: Some(sess.id as u32),
-            local_state: Some(sess.state.local_state.to_yang()),
-            remote_state: sess.state.remote.as_ref().map(|remote| remote.state.to_yang()),
-            local_diagnostic: Some(sess.state.local_diag.to_yang()),
-            remote_diagnostic: sess.state.remote.as_ref().map(|remote| remote.diag).and_then(DiagnosticCode::from_u8).map(|diag| diag.to_yang()),
+            local_state: Some(sess.state.local_state),
+            remote_state: sess.state.remote.as_ref().map(|remote| remote.state),
+            local_diagnostic: Some(sess.state.local_diag),
+            remote_diagnostic: sess.state.remote.as_ref().map(|remote| remote.diag).and_then(DiagnosticCode::from_u8),
             remote_authenticated: Some(false),
             detection_mode: Some("async-without-echo".into()),
             negotiated_tx_interval: sess.negotiated_tx_interval(),
@@ -179,10 +179,10 @@ impl<'a> YangContainer<'a, Master> for bfd::ip_sh::sessions::session::session_ru
         let sess = list_entry.as_session().unwrap();
         Some(Self {
             session_index: Some(sess.id as u32),
-            local_state: Some(sess.state.local_state.to_yang()),
-            remote_state: sess.state.remote.as_ref().map(|remote| remote.state.to_yang()),
-            local_diagnostic: Some(sess.state.local_diag.to_yang()),
-            remote_diagnostic: sess.state.remote.as_ref().map(|remote| remote.diag).and_then(DiagnosticCode::from_u8).map(|diag| diag.to_yang()),
+            local_state: Some(sess.state.local_state),
+            remote_state: sess.state.remote.as_ref().map(|remote| remote.state),
+            local_diagnostic: Some(sess.state.local_diag),
+            remote_diagnostic: sess.state.remote.as_ref().map(|remote| remote.diag).and_then(DiagnosticCode::from_u8),
             remote_authenticated: Some(false),
             detection_mode: Some("async-without-echo".into()),
             negotiated_tx_interval: sess.negotiated_tx_interval(),

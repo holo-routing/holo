@@ -131,7 +131,7 @@ impl<'a> YangList<'a, Instance> for bgp::neighbors::neighbor::Neighbor<'a> {
             local_address,
             local_port: local_port.ignore_in_testing(),
             remote_port: remote_port.ignore_in_testing(),
-            peer_type: Some(nbr.peer_type.to_yang()),
+            peer_type: Some(nbr.peer_type),
             identifier: nbr.identifier,
             dynamically_configured: None,
             session_state: Some(nbr.state.to_yang()),
@@ -398,7 +398,7 @@ impl<'a> YangContainer<'a, Instance> for bgp::rib::attr_sets::attr_set::attribut
         let attr_set = list_entry.as_rib_base_attrs().unwrap();
         let cluster_list = attr_set.value.cluster_list.as_ref().map(|clist| Box::new(clist.0.iter().copied()) as _);
         Some(Self {
-            origin: Some(attr_set.value.origin.to_yang()),
+            origin: Some(attr_set.value.origin),
             next_hop: attr_set.value.nexthop,
             link_local_next_hop: attr_set.value.ll_nexthop,
             med: attr_set.value.med,

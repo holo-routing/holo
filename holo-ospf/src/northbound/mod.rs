@@ -27,9 +27,15 @@ pub trait NorthboundVersion<V: Version> {
 #[allow(unused_imports, unused_variables)]
 #[allow(clippy::module_inception)]
 pub mod yang_gen {
+    use holo_utils::southbound::OspfRouteType;
     pub use routing::control_plane_protocols::control_plane_protocol::ospf;
 
+    use crate::gr::GrExitReason;
+    use crate::interface::ism;
+    use crate::neighbor::nsm;
     use crate::northbound::yang::FletcherChecksum16;
+    use crate::packet::PacketType;
+    use crate::packet::tlv::GrReason;
     include!(concat!(env!("OUT_DIR"), "/yang_objects.rs"));
     pub mod ops {
         use super::*;

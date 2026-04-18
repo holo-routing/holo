@@ -652,7 +652,7 @@ fn process_pdu_lsp(
     lsp.raw = bytes;
 
     // Send YANG notification.
-    notification::lsp_received(instance, iface, &lsp, &adj.system_id);
+    notification::lsp_received(instance, iface, &lsp, adj.system_id);
 
     // Check if we're receiving a purge from a self-originated LSP.
     if lsp.is_expired() && lsp.lsp_id.system_id == system_id {

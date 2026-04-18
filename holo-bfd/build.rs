@@ -5,12 +5,32 @@
 //
 
 use holo_northbound::yang_codegen;
+use holo_northbound::yang_codegen::types::TypeSpec;
 use holo_yang as yang;
+
+// BFD-specific YANG types.
+static TYPEDEFS: &[(&str, TypeSpec)] = &[
+    (
+        "diagnostic",
+        TypeSpec {
+            rust_type: "DiagnosticCode",
+            copy_semantics: true,
+        },
+    ),
+    (
+        "state",
+        TypeSpec {
+            rust_type: "State",
+            copy_semantics: true,
+        },
+    ),
+];
 
 fn main() {
     let mut yang_ctx = yang::new_context();
     let modules = yang::implemented_modules::BFD;
     yang::load_modules(&mut yang_ctx, modules);
+    yang_codegen::types::register_typedefs(TYPEDEFS);
     yang_codegen::build_yang_objects(&yang_ctx, modules, "yang_objects.rs");
     yang_codegen::build_yang_ops(&yang_ctx, modules, None, "yang_ops.rs");
 }

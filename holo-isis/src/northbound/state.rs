@@ -149,7 +149,7 @@ impl<'a> YangList<'a, Instance> for isis::spf_log::event::Event<'a> {
     }
 }
 
-impl<'a> YangList<'a, Instance> for isis::spf_log::event::trigger_lsp::TriggerLsp<'a> {
+impl<'a> YangList<'a, Instance> for isis::spf_log::event::trigger_lsp::TriggerLsp {
     fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let log = list_entry.as_spf_log().unwrap();
         let iter = log.trigger_lsps.iter().map(ListEntry::SpfTriggerLsp);
@@ -159,7 +159,7 @@ impl<'a> YangList<'a, Instance> for isis::spf_log::event::trigger_lsp::TriggerLs
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let lsp = list_entry.as_spf_trigger_lsp().unwrap();
         Self {
-            lsp: lsp.lsp_id.to_yang(),
+            lsp: lsp.lsp_id,
             sequence: Some(lsp.seqno),
         }
     }
@@ -183,11 +183,11 @@ impl<'a> YangList<'a, Instance> for isis::lsp_log::event::Event<'a> {
     }
 }
 
-impl<'a> YangContainer<'a, Instance> for isis::lsp_log::event::lsp::Lsp<'a> {
+impl<'a> YangContainer<'a, Instance> for isis::lsp_log::event::lsp::Lsp {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let log = list_entry.as_lsp_log().unwrap();
         Some(Self {
-            lsp: Some(log.lsp.lsp_id.to_yang()),
+            lsp: Some(log.lsp.lsp_id),
             sequence: Some(log.lsp.seqno),
         })
     }
@@ -203,7 +203,7 @@ impl<'a> YangList<'a, Instance> for isis::hostnames::hostname::Hostname<'a> {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let (system_id, hostname) = list_entry.as_hostname().unwrap();
         Self {
-            system_id: system_id.to_yang(),
+            system_id: *system_id,
             hostname: Some(Cow::Borrowed(hostname)),
         }
     }
@@ -239,9 +239,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::Lsp<'a> {
         let ipv4_addresses = lsp.tlvs.ipv4_addrs().copied();
         let ipv6_addresses = lsp.tlvs.ipv6_addrs().copied();
         let protocol_supported = lsp.tlvs.protocols_supported();
-        let area_addresses = lsp.tlvs.area_addrs().map(|area| area.to_yang());
+        let area_addresses = lsp.tlvs.area_addrs().map(Cow::Borrowed);
         Self {
-            lsp_id: lsp.lsp_id.to_yang(),
+            lsp_id: lsp.lsp_id,
             decoded_completed: None,
             raw_data: Some(HexStr(lsp.raw.as_ref())).ignore_in_testing(),
             checksum: Some(lsp.cksum).ignore_in_testing(),
@@ -480,7 +480,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::unknown_tlvs::u
     }
 }
 
-impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::is_neighbor::neighbor::Neighbor<'a> {
+impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::is_neighbor::neighbor::Neighbor {
     fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let lse = list_entry.as_lsp_entry().unwrap();
         let lsp = &lse.data;
@@ -500,7 +500,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::is_neighbor::ne
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let (neighbor, _) = list_entry.as_legacy_is_reach().unwrap();
         Self {
-            neighbor_id: neighbor.to_yang(),
+            neighbor_id: *neighbor,
         }
     }
 }
@@ -560,7 +560,7 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::is_neighbo
     }
 }
 
-impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::Neighbor<'a> {
+impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::Neighbor {
     fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let lse = list_entry.as_lsp_entry().unwrap();
         let lsp = &lse.data;
@@ -580,7 +580,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let (neighbor, _) = list_entry.as_ext_is_reach().unwrap();
         Self {
-            neighbor_id: neighbor.to_yang(),
+            neighbor_id: *neighbor,
         }
     }
 }
@@ -830,7 +830,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
     }
 }
 
-impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::adj_sid_sub_tlvs::adj_sid_sub_tlv::AdjSidSubTlv<'a> {
+impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::adj_sid_sub_tlvs::adj_sid_sub_tlv::AdjSidSubTlv {
     fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
         let iter = reach.sub_tlvs.adj_sids.iter().map(ListEntry::AdjSidStlv);
@@ -841,7 +841,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
         let stlv = list_entry.as_adj_sid_stlv().unwrap();
         Self {
             weight: Some(stlv.weight),
-            neighbor_id: stlv.nbr_system_id.as_ref().map(|system_id| system_id.to_yang()),
+            neighbor_id: stlv.nbr_system_id,
             label_value: stlv.sid.as_label().map(|label| label.get()),
             index_value: stlv.sid.as_index().copied(),
         }
@@ -1040,7 +1040,7 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
     }
 }
 
-impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::Neighbor<'a> {
+impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::Neighbor {
     fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let lse = list_entry.as_lsp_entry().unwrap();
         let lsp = &lse.data;
@@ -1061,7 +1061,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
         let (mt_id, neighbor, _) = list_entry.as_mt_is_reach().unwrap();
         Self {
             mt_id: Some(*mt_id),
-            neighbor_id: Some(neighbor.to_yang()),
+            neighbor_id: Some(*neighbor),
         }
     }
 }
@@ -1310,7 +1310,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
     }
 }
 
-impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::adj_sid_sub_tlvs::adj_sid_sub_tlv::AdjSidSubTlv<'a> {
+impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::adj_sid_sub_tlvs::adj_sid_sub_tlv::AdjSidSubTlv {
     fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
         let iter = reach.sub_tlvs.adj_sids.iter().map(ListEntry::AdjSidStlv);
@@ -1321,7 +1321,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
         let stlv = list_entry.as_adj_sid_stlv().unwrap();
         Self {
             weight: Some(stlv.weight),
-            neighbor_id: stlv.nbr_system_id.as_ref().map(|system_id| system_id.to_yang()),
+            neighbor_id: stlv.nbr_system_id,
             label_value: stlv.sid.as_label().map(|label| label.get()),
             index_value: stlv.sid.as_index().copied(),
         }
@@ -1544,13 +1544,13 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::ipv6_reach
     }
 }
 
-impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::purge_originator_identification::PurgeOriginatorIdentification<'a> {
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::purge_originator_identification::PurgeOriginatorIdentification {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let lse = list_entry.as_lsp_entry().unwrap();
         let lsp = &lse.data;
         Some(Self {
-            originator: lsp.tlvs.purge_originator_id.as_ref().map(|tlv| tlv.system_id.to_yang()),
-            received_from: lsp.tlvs.purge_originator_id.as_ref().and_then(|tlv| tlv.system_id_rcvd.map(|system_id| system_id.to_yang())),
+            originator: lsp.tlvs.purge_originator_id.as_ref().map(|tlv| tlv.system_id),
+            received_from: lsp.tlvs.purge_originator_id.as_ref().and_then(|tlv| tlv.system_id_rcvd),
         })
     }
 }
@@ -1732,21 +1732,21 @@ impl<'a> YangList<'a, Instance> for isis::interfaces::interface::adjacencies::ad
 
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let adj = list_entry.as_adjacency().unwrap();
-        let area_addresses = adj.area_addrs.iter().map(|area| area.to_yang());
+        let area_addresses = adj.area_addrs.iter().map(Cow::Borrowed);
         let ipv4_addresses = adj.ipv4_addrs.iter().copied();
         let ipv6_addresses = adj.ipv6_addrs.iter().copied();
         let protocol_supported = adj.protocols_supported.iter().copied();
         let topologies = adj.topologies.iter().copied();
         Self {
             neighbor_sys_type: Some(adj.level_capability),
-            neighbor_sysid: Some(adj.system_id.to_yang()),
+            neighbor_sysid: Some(adj.system_id),
             neighbor_extended_circuit_id: adj.ext_circuit_id.ignore_in_testing(),
             neighbor_snpa: Some(Cow::Owned(adj.snpa.to_string())).ignore_in_testing(),
             usage: Some(adj.level_usage),
             hold_timer: adj.holdtimer.as_ref().map(|task| TimerValueSecs16(task.remaining())).ignore_in_testing(),
             neighbor_priority: adj.priority,
             lastuptime: adj.last_uptime.map(Timeticks).ignore_in_testing(),
-            state: Some(adj.state.to_yang()),
+            state: Some(adj.state),
             area_addresses: Some(Box::new(area_addresses)),
             ipv4_addresses: Some(Box::new(ipv4_addresses)),
             ipv6_addresses: Some(Box::new(ipv6_addresses)),
@@ -1872,7 +1872,7 @@ impl<'a> YangList<'a, Instance> for isis::interfaces::interface::srm::level::Lev
         let (iface, level) = list_entry.as_interface_srm_list().unwrap();
         Self {
             level: *level as u8,
-            lsp_id: Some(Box::new(iface.state.srm_list.get(*level).keys().map(|lsp_id| lsp_id.to_yang()))),
+            lsp_id: Some(Box::new(iface.state.srm_list.get(*level).keys().copied())),
         }
     }
 }
@@ -1888,7 +1888,7 @@ impl<'a> YangList<'a, Instance> for isis::interfaces::interface::ssn::level::Lev
         let (iface, level) = list_entry.as_interface_ssn_list().unwrap();
         Self {
             level: *level as u8,
-            lsp_id: Some(Box::new(iface.state.ssn_list.get(*level).keys().map(|lsp_id| lsp_id.to_yang()))),
+            lsp_id: Some(Box::new(iface.state.ssn_list.get(*level).keys().copied())),
         }
     }
 }

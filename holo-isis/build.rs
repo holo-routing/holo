@@ -9,13 +9,50 @@ use holo_northbound::yang_codegen::types::TypeSpec;
 use holo_yang as yang;
 
 // IS-IS-specific YANG types.
-static TYPEDEFS: &[(&str, TypeSpec)] = &[(
-    "level",
-    TypeSpec {
-        rust_type: "LevelType",
-        copy_semantics: true,
-    },
-)];
+static TYPEDEFS: &[(&str, TypeSpec)] = &[
+    (
+        "adj-state-type",
+        TypeSpec {
+            rust_type: "AdjacencyState",
+            copy_semantics: true,
+        },
+    ),
+    (
+        "area-address",
+        TypeSpec {
+            rust_type: "AreaAddr",
+            copy_semantics: false,
+        },
+    ),
+    (
+        "extended-system-id",
+        TypeSpec {
+            rust_type: "LanId",
+            copy_semantics: true,
+        },
+    ),
+    (
+        "level",
+        TypeSpec {
+            rust_type: "LevelType",
+            copy_semantics: true,
+        },
+    ),
+    (
+        "lsp-id",
+        TypeSpec {
+            rust_type: "LspId",
+            copy_semantics: true,
+        },
+    ),
+    (
+        "system-id",
+        TypeSpec {
+            rust_type: "SystemId",
+            copy_semantics: true,
+        },
+    ),
+];
 
 fn main() {
     let mut yang_ctx = yang::new_context();

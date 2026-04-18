@@ -40,8 +40,8 @@ fn state_change_singlehop(ifname: &str, dst: IpAddr, nb_tx: &NbProviderSender, s
     let data = SinglehopNotification {
         local_discr: Some(sess.state.local_discr),
         remote_discr: sess.state.remote.as_ref().map(|remote| remote.discr),
-        new_state: Some(sess.state.local_state.to_yang()),
-        state_change_reason: Some(sess.state.local_diag.to_yang()),
+        new_state: Some(sess.state.local_state),
+        state_change_reason: Some(sess.state.local_diag),
         time_of_last_state_change: sess.statistics.last_state_change_time,
         dest_addr: Some(dst),
         source_addr: sess.config.src,
@@ -59,8 +59,8 @@ fn state_change_multihop(src: IpAddr, dst: IpAddr, nb_tx: &NbProviderSender, ses
     let data = MultihopNotification {
         local_discr: Some(sess.state.local_discr),
         remote_discr: sess.state.remote.as_ref().map(|remote| remote.discr),
-        new_state: Some(sess.state.local_state.to_yang()),
-        state_change_reason: Some(sess.state.local_diag.to_yang()),
+        new_state: Some(sess.state.local_state),
+        state_change_reason: Some(sess.state.local_diag),
         time_of_last_state_change: sess.statistics.last_state_change_time,
         dest_addr: Some(dst),
         source_addr: Some(src),

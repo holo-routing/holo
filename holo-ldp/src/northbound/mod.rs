@@ -16,6 +16,8 @@ pub mod yang;
 pub mod yang_gen {
     pub use routing::control_plane_protocols::control_plane_protocol::mpls_ldp;
 
+    use crate::neighbor::LabelAdvMode;
+    use crate::northbound::state::AdvertisementType;
     include!(concat!(env!("OUT_DIR"), "/yang_objects.rs"));
     pub mod ops {
         use crate::instance::Instance;

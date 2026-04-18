@@ -5,12 +5,23 @@
 //
 
 use holo_northbound::yang_codegen;
+use holo_northbound::yang_codegen::types::TypeSpec;
 use holo_yang as yang;
+
+// VRRP-specific YANG types.
+static TYPEDEFS: &[(&str, TypeSpec)] = &[(
+    "new-master-reason-type",
+    TypeSpec {
+        rust_type: "MasterReason",
+        copy_semantics: true,
+    },
+)];
 
 fn main() {
     let mut yang_ctx = yang::new_context();
     let modules = yang::implemented_modules::VRRP;
     yang::load_modules(&mut yang_ctx, modules);
+    yang_codegen::types::register_typedefs(TYPEDEFS);
     yang_codegen::build_yang_objects(&yang_ctx, modules, "yang_objects.rs");
     yang_codegen::build_yang_ops(&yang_ctx, modules, None, "yang_ops.rs");
 }

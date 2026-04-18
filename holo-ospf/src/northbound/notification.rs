@@ -41,7 +41,7 @@ where
             transit_area_id: Some(vlink_key.transit_area_id),
             neighbor_router_id: Some(vlink_key.router_id),
         }),
-        state: Some(iface.state.ism_state.to_yang()),
+        state: Some(iface.state.ism_state),
     };
     notification::send(&instance.tx.nb, if_state_change::PATH, data);
 }
@@ -61,7 +61,7 @@ where
         }),
         virtual_link: None,
         packet_source: Some((*src).into()),
-        packet_type: Some(pkt_type.to_yang()),
+        packet_type: Some(*pkt_type),
         error: Some(error.to_yang()),
     };
     notification::send(&instance.tx.nb, if_config_error::PATH, data);
@@ -87,7 +87,7 @@ where
         }),
         neighbor_router_id: Some(nbr.router_id),
         neighbor_ip_addr: Some(nbr.src.into()),
-        state: Some(nbr.state.to_yang()),
+        state: Some(nbr.state),
     };
     notification::send(&instance.tx.nb, nbr_state_change::PATH, data);
 }
@@ -141,7 +141,7 @@ where
         neighbor_ip_addr: Some(nbr.src.into()),
         status: Some("not-helping".into()),
         age: None,
-        exit_reason: Some(reason.to_yang()),
+        exit_reason: Some(reason),
     };
     notification::send(&instance.tx.nb, nbr_restart_helper_status_change::PATH, data);
 }

@@ -19,7 +19,8 @@ pub mod yang;
 pub mod yang_gen {
     pub use routing::control_plane_protocols::control_plane_protocol::isis;
 
-    use crate::packet::LevelType;
+    use crate::adjacency::AdjacencyState;
+    use crate::packet::{AreaAddr, LanId, LevelType, LspId, SystemId};
     include!(concat!(env!("OUT_DIR"), "/yang_objects.rs"));
     pub mod ops {
         use crate::instance::Instance;

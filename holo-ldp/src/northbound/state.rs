@@ -71,7 +71,7 @@ pub struct LabelBinding {
     used_in_fwd: bool,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum AdvertisementType {
     Advertised,
     Received,
@@ -91,7 +91,7 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::global::address_families::ipv
     }
 }
 
-impl<'a> YangList<'a, Instance> for mpls_ldp::global::address_families::ipv4::bindings::address::Address<'a> {
+impl<'a> YangList<'a, Instance> for mpls_ldp::global::address_families::ipv4::bindings::address::Address {
     fn iter(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let neighbors = &instance.state.as_ref()?.neighbors;
 
@@ -124,7 +124,7 @@ impl<'a> YangList<'a, Instance> for mpls_ldp::global::address_families::ipv4::bi
         let binding = list_entry.as_addr_binding().unwrap();
         Self {
             address: binding.addr,
-            advertisement_type: Some(binding.adv_type.to_yang()),
+            advertisement_type: Some(binding.adv_type),
         }
     }
 }
@@ -185,7 +185,7 @@ impl<'a> YangList<'a, Instance> for mpls_ldp::global::address_families::ipv4::bi
         Self {
             lsr_id: binding.lsr_id,
             label_space_id: 0,
-            advertisement_type: binding.adv_type.to_yang(),
+            advertisement_type: binding.adv_type,
             label: Some(binding.label.to_yang()),
             used_in_forwarding: Some(binding.used_in_fwd),
         }
@@ -371,13 +371,13 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::address_families
     }
 }
 
-impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::label_advertisement_mode::LabelAdvertisementMode<'a> {
+impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::label_advertisement_mode::LabelAdvertisementMode {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let nbr = list_entry.as_neighbor().unwrap();
         Some(Self {
-            local: nbr.is_operational().then_some(LabelAdvMode::DownstreamUnsolicited.to_yang()),
-            peer: nbr.rcvd_label_adv_mode.as_ref().map(|mode| mode.to_yang()),
-            negotiated: nbr.is_operational().then_some(LabelAdvMode::DownstreamUnsolicited.to_yang()),
+            local: nbr.is_operational().then_some(LabelAdvMode::DownstreamUnsolicited),
+            peer: nbr.rcvd_label_adv_mode,
+            negotiated: nbr.is_operational().then_some(LabelAdvMode::DownstreamUnsolicited),
         })
     }
 }

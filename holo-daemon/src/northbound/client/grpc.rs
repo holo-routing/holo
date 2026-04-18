@@ -12,8 +12,10 @@ use std::time::SystemTime;
 use futures::Stream;
 use holo_utils::task::Task;
 use holo_yang::{YANG_CTX, YANG_FEATURES};
+use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
+use tokio_stream::wrappers::UnboundedReceiverStream;
 use tonic::transport::{Server, ServerTlsConfig};
 use tonic::{Request, Response, Status};
 use tracing::{error, trace, trace_span};
@@ -405,6 +407,55 @@ impl proto::Northbound for NorthboundService {
             config: Some(config),
         };
         Ok(Response::new(grpc_response))
+    }
+
+    type SubscribeStream = Pin<
+        Box<
+            dyn Stream<Item = Result<proto::Notification, Status>> + Send,
+        >,
+    >;
+
+    async fn subscribe(
+        &self,
+        grpc_request: Request<proto::SubscribeRequest>,
+    ) -> Result<Response<Self::SubscribeStream>, Status> {
+        let grpc_request = grpc_request.into_inner();
+        trace_span!("northbound").in_scope(|| {
+            trace_span!("client", name = "grpc").in_scope(|| {
+                trace!(data = ?grpc_request, "received Subscribe() request");
+            });
+        });
+
+        let encoding = proto::Encoding::try_from(grpc_request.encoding)
+            .map_err(|_| Status::invalid_argument("Invalid data encoding"))?;
+        let path = get_optional_string(grpc_request.path);
+
+        // Create channel for receiving notifications from the daemon.
+        let (tx, rx) = mpsc::unbounded_channel();
+
+        // Register subscription with the daemon.
+        let nb_request = api::client::Request::Subscribe(
+            api::client::SubscribeRequest { path, tx },
+        );
+        self.request_tx.send(nb_request).await.unwrap();
+
+        // Convert internal notifications to gRPC format.
+        let stream = UnboundedReceiverStream::new(rx);
+        let output = futures::StreamExt::map(stream, move |notification| {
+            let printer_flags = DataPrinterFlags::WITH_SIBLINGS;
+            let data = data_tree_init(
+                &notification.data,
+                encoding,
+                printer_flags,
+            )?;
+            Ok(proto::Notification {
+                timestamp: get_timestamp(),
+                module_path: notification.path,
+                data: Some(data),
+            })
+        });
+
+        Ok(Response::new(Box::pin(output)))
     }
 }
 

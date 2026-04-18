@@ -20,5 +20,8 @@ pub fn send(
     let mut dnode =
         dtree.new_path(path.as_ref(), None, false).unwrap().unwrap();
     data.into_data_node(&mut dnode);
-    let _ = nb_tx.send(Notification { data: dtree });
+    let _ = nb_tx.send(Notification {
+        path: path.as_ref().to_owned(),
+        data: dtree,
+    });
 }

@@ -10,6 +10,7 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use derive_new::new;
+use holo_northbound as northbound;
 use holo_northbound::configuration::{
     CallbackKey, CallbackOp, CommitPhase, ConfigChange, ValidationCallbacks,
 };
@@ -18,17 +19,19 @@ use holo_protocol::InstanceShared;
 use holo_utils::task::{Task, TimeoutTask};
 use holo_utils::yang::{ContextExt, SchemaNodeExt};
 use holo_utils::{Database, ibus};
+use holo_yang as yang;
 use holo_yang::YANG_CTX;
 use pickledb::PickleDb;
 use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, WeakSender};
+use tokio::sync::mpsc::{
+    Receiver, Sender, UnboundedReceiver, UnboundedSender, WeakSender,
+};
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, info, instrument, trace, warn};
 use yang5::data::{
     Data, DataDiffFlags, DataFormat, DataPrinterFlags, DataTree,
     DataValidationFlags,
 };
-use {holo_northbound as northbound, holo_yang as yang};
 
 use crate::config::Config;
 use crate::northbound::client::{api as capi, gnmi, grpc};
@@ -53,6 +56,13 @@ pub struct Northbound {
     rx_providers: UnboundedReceiver<papi::provider::Notification>,
     // Confirmed commit information.
     confirmed_commit: ConfirmedCommit,
+    // Active notification subscribers.
+    notification_subscribers: Vec<NotificationSubscriber>,
+}
+
+struct NotificationSubscriber {
+    path: Option<String>,
+    tx: UnboundedSender<capi::client::SubscribeNotification>,
 }
 
 #[derive(Debug, new)]
@@ -131,6 +141,7 @@ impl Northbound {
             rx_clients,
             rx_providers,
             confirmed_commit: Default::default(),
+            notification_subscribers: Vec::new(),
         }
     }
 
@@ -210,6 +221,12 @@ impl Northbound {
                     .process_client_get_transaction(request.transaction_id)
                     .await;
                 let _ = request.responder.send(response);
+            }
+            capi::client::Request::Subscribe(request) => {
+                self.notification_subscribers.push(NotificationSubscriber {
+                    path: request.path,
+                    tx: request.tx,
+                });
             }
         }
     }
@@ -321,8 +338,37 @@ impl Northbound {
     }
 
     // Processes a message received from a data provider.
-    fn process_provider_msg(&mut self, _request: papi::provider::Notification) {
-        // TODO: relay request to the external clients (e.g. YANG notification).
+    fn process_provider_msg(
+        &mut self,
+        notification: papi::provider::Notification,
+    ) {
+        debug!(path = %notification.path, "received YANG notification");
+
+        self.notification_subscribers.retain(|subscriber| {
+            // Filter by path prefix if specified.
+            if let Some(filter_path) = &subscriber.path
+                && !notification.path.starts_with(filter_path.as_str())
+            {
+                return true;
+            }
+
+            // Duplicate the data tree for this subscriber.
+            let data = match notification.data.duplicate() {
+                Ok(data) => data,
+                Err(error) => {
+                    error!(%error, "failed to duplicate notification data");
+                    return true;
+                }
+            };
+
+            let msg = capi::client::SubscribeNotification {
+                path: notification.path.clone(),
+                data,
+            };
+
+            // If send fails, the subscriber has disconnected.
+            subscriber.tx.send(msg).is_ok()
+        });
     }
 
     // Processes a confirmed commit timeout.

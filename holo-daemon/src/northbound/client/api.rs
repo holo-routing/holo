@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::oneshot::Sender as Responder;
 use yang5::data::{DataDiff, DataTree};
 
@@ -32,6 +33,8 @@ pub mod client {
         ListTransactions(ListTransactionsRequest),
         // Request to retrieve configuration data from the rollback log.
         GetTransaction(GetTransactionRequest),
+        // Request to subscribe to YANG notifications.
+        Subscribe(SubscribeRequest),
     }
 
     #[derive(Debug)]
@@ -98,6 +101,18 @@ pub mod client {
     #[derive(Debug)]
     pub struct GetTransactionResponse {
         pub dtree: DataTree<'static>,
+    }
+
+    #[derive(Debug)]
+    pub struct SubscribeRequest {
+        pub path: Option<String>,
+        pub tx: UnboundedSender<SubscribeNotification>,
+    }
+
+    #[derive(Debug)]
+    pub struct SubscribeNotification {
+        pub path: String,
+        pub data: DataTree<'static>,
     }
 }
 

@@ -49,6 +49,9 @@ service Northbound {
 
   // Retrieve configuration data from the rollback log.
   rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse) {}
+
+  // Subscribe to receive YANG-modeled notifications.
+  rpc Subscribe(SubscribeRequest) returns (stream Notification) {}
 }
 
 // ----------------------- Parameters and return types -------------------------
@@ -248,6 +251,32 @@ message GetTransactionResponse {
   // - grpc::StatusCode::NOT_FOUND: Transaction ID wasn't found in the rollback log.
 
   DataTree config = 1;
+}
+
+//
+// RPC: Subscribe()
+//
+message SubscribeRequest {
+  // Encoding to be used for notification data.
+  Encoding encoding = 1;
+
+  // Optional YANG data path to filter notifications.
+  // If empty, all notifications are delivered.
+  string path = 2;
+}
+
+message Notification {
+  // Return values:
+  // - grpc::StatusCode::OK: Success.
+
+  // Timestamp in nanoseconds since Epoch.
+  int64 timestamp = 1;
+
+  // The YANG notification data path.
+  string module_path = 2;
+
+  // The notification data.
+  DataTree data = 3;
 }
 
 // -------------------------------- Definitions --------------------------------

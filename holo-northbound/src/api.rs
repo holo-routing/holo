@@ -88,6 +88,7 @@ pub mod provider {
 
     #[derive(Debug)]
     pub struct Notification {
+        pub path: String,
         pub data: DataTree<'static>,
     }
 }

@@ -7,7 +7,6 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use std::borrow::Cow;
 use std::sync::atomic::Ordering;
 
 use enum_as_inner::EnumAsInner;
@@ -54,8 +53,8 @@ impl<'a> YangList<'a, Interface> for interfaces::interface::ipv4::vrrp::vrrp_ins
             vrid: *vrid,
             state: Some(instance.state.state.to_yang()), // TODO
             is_owner: None,
-            last_adv_source: instance.state.last_adv_src.as_ref().map(Cow::Borrowed).ignore_in_testing(),
-            up_datetime: instance.state.up_time.as_ref().map(Cow::Borrowed).ignore_in_testing(),
+            last_adv_source: instance.state.last_adv_src.ignore_in_testing(),
+            up_datetime: instance.state.up_time.ignore_in_testing(),
             master_down_interval: instance.state.timer.as_master_down_timer().map(|task| task.remaining().as_millis() as u32 / 10).ignore_in_testing(),
             skew_time: None, // TODO
             last_event: Some(instance.state.last_event.to_yang()).ignore_in_testing(),
@@ -64,12 +63,12 @@ impl<'a> YangList<'a, Interface> for interfaces::interface::ipv4::vrrp::vrrp_ins
     }
 }
 
-impl<'a> YangContainer<'a, Interface> for interfaces::interface::ipv4::vrrp::vrrp_instance::statistics::Statistics<'a> {
+impl<'a> YangContainer<'a, Interface> for interfaces::interface::ipv4::vrrp::vrrp_instance::statistics::Statistics {
     fn new(_interface: &'a Interface, list_entry: &ListEntry<'a>) -> Option<Self> {
         let (_, instance) = list_entry.as_instance().unwrap();
         let statistics = &instance.state.statistics;
         Some(Self {
-            discontinuity_datetime: Some(Cow::Borrowed(&statistics.discontinuity_time)),
+            discontinuity_datetime: Some(statistics.discontinuity_time),
             master_transitions: Some(statistics.master_transitions),
             advertisement_rcvd: Some(statistics.adv_rcvd),
             advertisement_sent: Some(statistics.adv_sent.load(Ordering::Relaxed)),
@@ -95,8 +94,8 @@ impl<'a> YangList<'a, Interface> for interfaces::interface::ipv6::vrrp::vrrp_ins
             vrid: *vrid,
             state: Some(instance.state.state.to_yang()),
             is_owner: None, // TODO
-            last_adv_source: instance.state.last_adv_src.as_ref().map(Cow::Borrowed).ignore_in_testing(),
-            up_datetime: instance.state.up_time.as_ref().map(Cow::Borrowed).ignore_in_testing(),
+            last_adv_source: instance.state.last_adv_src.ignore_in_testing(),
+            up_datetime: instance.state.up_time.ignore_in_testing(),
             master_down_interval: instance.state.timer.as_master_down_timer().map(|task| task.remaining().as_millis() as u32 / 10).ignore_in_testing(),
             skew_time: None, // TODO
             last_event: Some(instance.state.last_event.to_yang()).ignore_in_testing(),
@@ -105,12 +104,12 @@ impl<'a> YangList<'a, Interface> for interfaces::interface::ipv6::vrrp::vrrp_ins
     }
 }
 
-impl<'a> YangContainer<'a, Interface> for interfaces::interface::ipv6::vrrp::vrrp_instance::statistics::Statistics<'a> {
+impl<'a> YangContainer<'a, Interface> for interfaces::interface::ipv6::vrrp::vrrp_instance::statistics::Statistics {
     fn new(_interface: &'a Interface, list_entry: &ListEntry<'a>) -> Option<Self> {
         let (_, instance) = list_entry.as_instance().unwrap();
         let statistics = &instance.state.statistics;
         Some(Self {
-            discontinuity_datetime: Some(Cow::Borrowed(&statistics.discontinuity_time)),
+            discontinuity_datetime: Some(statistics.discontinuity_time),
             master_transitions: Some(statistics.master_transitions),
             advertisement_rcvd: Some(statistics.adv_rcvd),
             advertisement_sent: Some(statistics.adv_sent.load(Ordering::Relaxed)),

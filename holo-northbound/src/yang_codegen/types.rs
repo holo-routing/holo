@@ -127,37 +127,37 @@ fn typedef_spec(typedef_name: &str) -> Option<TypeSpec> {
         // ietf-inet-types
         "ip-address" => Some(TypeSpec {
             rust_type: "IpAddr",
-            copy_semantics: false,
+            copy_semantics: true,
         }),
         // ietf-inet-types, ietf-yang-types, ietf-routing-types
         "ipv4-address" | "dotted-quad" | "router-id" => Some(TypeSpec {
             rust_type: "Ipv4Addr",
-            copy_semantics: false,
+            copy_semantics: true,
         }),
         // ietf-inet-types
         "ipv6-address" => Some(TypeSpec {
             rust_type: "Ipv6Addr",
-            copy_semantics: false,
+            copy_semantics: true,
         }),
         // ietf-inet-types
         "ip-prefix" => Some(TypeSpec {
             rust_type: "ipnetwork::IpNetwork",
-            copy_semantics: false,
+            copy_semantics: true,
         }),
         // ietf-inet-types
         "ipv4-prefix" => Some(TypeSpec {
             rust_type: "ipnetwork::Ipv4Network",
-            copy_semantics: false,
+            copy_semantics: true,
         }),
         // ietf-inet-types
         "ipv6-prefix" => Some(TypeSpec {
             rust_type: "ipnetwork::Ipv6Network",
-            copy_semantics: false,
+            copy_semantics: true,
         }),
         // ietf-yang-types
         "date-and-time" => Some(TypeSpec {
             rust_type: "chrono::DateTime<chrono::Utc>",
-            copy_semantics: false,
+            copy_semantics: true,
         }),
         // ietf-routing-types
         "timer-value-seconds16" => Some(TypeSpec {

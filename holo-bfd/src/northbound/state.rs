@@ -68,7 +68,7 @@ impl<'a> YangContainer<'a, Master> for bfd::ip_mh::summary::Summary {
     }
 }
 
-impl<'a> YangList<'a, Master> for bfd::ip_mh::session_groups::session_group::SessionGroup<'a> {
+impl<'a> YangList<'a, Master> for bfd::ip_mh::session_groups::session_group::SessionGroup {
     fn iter(master: &'a Master, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let iter = master.sessions.iter().filter(|sess| sess.key.is_ip_multihop()).map(ListEntry::Session);
         Some(Box::new(iter))
@@ -78,8 +78,8 @@ impl<'a> YangList<'a, Master> for bfd::ip_mh::session_groups::session_group::Ses
         let sess = list_entry.as_session().unwrap();
         let (src, dst) = sess.key.as_ip_multihop().unwrap();
         Self {
-            source_addr: Cow::Borrowed(src),
-            dest_addr: Cow::Borrowed(dst),
+            source_addr: *src,
+            dest_addr: *dst,
         }
     }
 }
@@ -122,13 +122,13 @@ impl<'a> YangContainer<'a, Master> for bfd::ip_mh::session_groups::session_group
     }
 }
 
-impl<'a> YangContainer<'a, Master> for bfd::ip_mh::session_groups::session_group::sessions::session_statistics::SessionStatistics<'a> {
+impl<'a> YangContainer<'a, Master> for bfd::ip_mh::session_groups::session_group::sessions::session_statistics::SessionStatistics {
     fn new(_master: &'a Master, list_entry: &ListEntry<'a>) -> Option<Self> {
         let sess = list_entry.as_session().unwrap();
         Some(Self {
-            create_time: Some(Cow::Borrowed(&sess.statistics.create_time)).ignore_in_testing(),
-            last_down_time: sess.statistics.last_down_time.as_ref().map(Cow::Borrowed).ignore_in_testing(),
-            last_up_time: sess.statistics.last_up_time.as_ref().map(Cow::Borrowed).ignore_in_testing(),
+            create_time: Some(sess.statistics.create_time).ignore_in_testing(),
+            last_down_time: sess.statistics.last_down_time.ignore_in_testing(),
+            last_up_time: sess.statistics.last_up_time.ignore_in_testing(),
             down_count: Some(sess.statistics.down_count).ignore_in_testing(),
             admin_down_count: Some(sess.statistics.admin_down_count).ignore_in_testing(),
             receive_packet_count: Some(sess.statistics.rx_packet_count).ignore_in_testing(),
@@ -162,7 +162,7 @@ impl<'a> YangList<'a, Master> for bfd::ip_sh::sessions::session::Session<'a> {
         let (ifname, dst) = sess.key.as_ip_single_hop().unwrap();
         Self {
             interface: Cow::Borrowed(ifname),
-            dest_addr: Cow::Borrowed(dst),
+            dest_addr: *dst,
             path_type: Some(sess.key.path_type().to_yang()),
             ip_encapsulation: Some(true),
             local_discriminator: Some(sess.state.local_discr),
@@ -192,13 +192,13 @@ impl<'a> YangContainer<'a, Master> for bfd::ip_sh::sessions::session::session_ru
     }
 }
 
-impl<'a> YangContainer<'a, Master> for bfd::ip_sh::sessions::session::session_statistics::SessionStatistics<'a> {
+impl<'a> YangContainer<'a, Master> for bfd::ip_sh::sessions::session::session_statistics::SessionStatistics {
     fn new(_master: &'a Master, list_entry: &ListEntry<'a>) -> Option<Self> {
         let sess = list_entry.as_session().unwrap();
         Some(Self {
-            create_time: Some(Cow::Borrowed(&sess.statistics.create_time)).ignore_in_testing(),
-            last_down_time: sess.statistics.last_down_time.as_ref().map(Cow::Borrowed).ignore_in_testing(),
-            last_up_time: sess.statistics.last_up_time.as_ref().map(Cow::Borrowed).ignore_in_testing(),
+            create_time: Some(sess.statistics.create_time).ignore_in_testing(),
+            last_down_time: sess.statistics.last_down_time.ignore_in_testing(),
+            last_up_time: sess.statistics.last_up_time.ignore_in_testing(),
             down_count: Some(sess.statistics.down_count).ignore_in_testing(),
             admin_down_count: Some(sess.statistics.admin_down_count).ignore_in_testing(),
             receive_packet_count: Some(sess.statistics.rx_packet_count).ignore_in_testing(),

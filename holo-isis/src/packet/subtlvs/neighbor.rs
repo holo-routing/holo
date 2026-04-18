@@ -291,8 +291,8 @@ impl Ipv4InterfaceAddrStlv {
         tlv_encode_end(buf, start_pos);
     }
 
-    pub(crate) fn get(&self) -> &Ipv4Addr {
-        &self.0
+    pub(crate) fn get(&self) -> Ipv4Addr {
+        self.0
     }
 }
 
@@ -322,8 +322,8 @@ impl Ipv4NeighborAddrStlv {
         tlv_encode_end(buf, start_pos);
     }
 
-    pub(crate) fn get(&self) -> &Ipv4Addr {
-        &self.0
+    pub(crate) fn get(&self) -> Ipv4Addr {
+        self.0
     }
 }
 
@@ -353,8 +353,8 @@ impl MaxLinkBwStlv {
         tlv_encode_end(buf, start_pos);
     }
 
-    pub(crate) fn get(&self) -> &f32 {
-        &self.0
+    pub(crate) fn get(&self) -> f32 {
+        self.0
     }
 }
 
@@ -384,8 +384,8 @@ impl MaxResvLinkBwStlv {
         tlv_encode_end(buf, start_pos);
     }
 
-    pub(crate) fn get(&self) -> &f32 {
-        &self.0
+    pub(crate) fn get(&self) -> f32 {
+        self.0
     }
 }
 
@@ -601,8 +601,8 @@ impl UniResidualBwStlv {
         tlv_encode_end(buf, start_pos);
     }
 
-    pub(crate) fn get(&self) -> &f32 {
-        &self.0
+    pub(crate) fn get(&self) -> f32 {
+        self.0
     }
 }
 
@@ -628,8 +628,8 @@ impl UniAvailBwStlv {
         tlv_encode_end(buf, start_pos);
     }
 
-    pub(crate) fn get(&self) -> &f32 {
-        &self.0
+    pub(crate) fn get(&self) -> f32 {
+        self.0
     }
 }
 
@@ -655,8 +655,8 @@ impl UniUtilBwStlv {
         tlv_encode_end(buf, start_pos);
     }
 
-    pub(crate) fn get(&self) -> &f32 {
-        &self.0
+    pub(crate) fn get(&self) -> f32 {
+        self.0
     }
 }
 

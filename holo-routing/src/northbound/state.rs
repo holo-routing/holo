@@ -40,7 +40,7 @@ pub enum ListEntry<'a> {
     None,
     ProtocolInstance(ProtocolInstance<'a>),
     Rib(RibAddressFamily),
-    Route(RouteDestination<'a>, &'a Route),
+    Route(RouteDestination, &'a Route),
     Nexthop(&'a Nexthop),
     Label((usize, &'a Label)),
     SubDomainId(u8),
@@ -67,10 +67,10 @@ pub enum RibAddressFamily {
 
 #[derive(Debug)]
 #[derive(EnumAsInner, new)]
-pub enum RouteDestination<'a> {
-    Ipv4(&'a Ipv4Network),
-    Ipv6(&'a Ipv6Network),
-    Label(&'a Label),
+pub enum RouteDestination {
+    Ipv4(Ipv4Network),
+    Ipv6(Ipv6Network),
+    Label(Label),
 }
 
 pub type ListIterator<'a> = Box<dyn Iterator<Item = ListEntry<'a>> + 'a>;
@@ -136,7 +136,7 @@ impl<'a> YangList<'a, Master> for routing::ribs::rib::routes::route::Route<'a> {
             RibAddressFamily::Ipv4 => {
                 let iter = master.rib.ip.ipv4().iter().flat_map(|(dest, routes)| {
                     routes.values().filter(|route| !route.flags.contains(RouteFlags::REMOVED)).map(|route| {
-                        let dest = RouteDestination::new_ipv4(dest);
+                        let dest = RouteDestination::new_ipv4(*dest);
                         ListEntry::Route(dest, route)
                     })
                 });
@@ -145,7 +145,7 @@ impl<'a> YangList<'a, Master> for routing::ribs::rib::routes::route::Route<'a> {
             RibAddressFamily::Ipv6 => {
                 let iter = master.rib.ip.ipv6().iter().flat_map(|(dest, routes)| {
                     routes.values().filter(|route| !route.flags.contains(RouteFlags::REMOVED)).map(|route| {
-                        let dest = RouteDestination::new_ipv6(dest);
+                        let dest = RouteDestination::new_ipv6(*dest);
                         ListEntry::Route(dest, route)
                     })
                 });
@@ -153,7 +153,7 @@ impl<'a> YangList<'a, Master> for routing::ribs::rib::routes::route::Route<'a> {
             }
             RibAddressFamily::Mpls => {
                 let iter = master.rib.mpls.iter().filter(|(_, route)| !route.flags.contains(RouteFlags::REMOVED)).map(|(dest, route)| {
-                    let dest = RouteDestination::new_label(dest);
+                    let dest = RouteDestination::new_label(*dest);
                     ListEntry::Route(dest, route)
                 });
                 Some(Box::new(iter))
@@ -168,9 +168,9 @@ impl<'a> YangList<'a, Master> for routing::ribs::rib::routes::route::Route<'a> {
             route_preference: (!dest.is_label()).then_some(route.distance),
             source_protocol: (!dest.is_label()).then_some(route.protocol.to_yang()),
             active: route.flags.contains(RouteFlags::ACTIVE).then_some(()),
-            last_updated: Some(Cow::Borrowed(&route.last_updated)),
-            v4ur_destination_prefix: dest.as_ipv4().copied().map(Cow::Borrowed),
-            v6ur_destination_prefix: dest.as_ipv6().copied().map(Cow::Borrowed),
+            last_updated: Some(route.last_updated),
+            v4ur_destination_prefix: dest.as_ipv4().copied(),
+            v6ur_destination_prefix: dest.as_ipv6().copied(),
             mpls_enabled: None,
             mpls_local_label: None,
             mpls_destination_prefix: dest.as_label().map(|label| label.to_yang()),
@@ -212,8 +212,8 @@ impl<'a> YangContainer<'a, Master> for routing::ribs::rib::routes::route::next_h
                             outgoing_interface = Some(Cow::Borrowed(iface.name.as_str()));
                         }
                         match addr {
-                            IpAddr::V4(addr) => v4ur_next_hop_address = Some(Cow::Borrowed(addr)),
-                            IpAddr::V6(addr) => v6ur_next_hop_address = Some(Cow::Borrowed(addr)),
+                            IpAddr::V4(addr) => v4ur_next_hop_address = Some(*addr),
+                            IpAddr::V6(addr) => v6ur_next_hop_address = Some(*addr),
                         }
                     }
                     Nexthop::Interface {
@@ -226,8 +226,8 @@ impl<'a> YangContainer<'a, Master> for routing::ribs::rib::routes::route::next_h
                     Nexthop::Recursive {
                         addr, ..
                     } => match addr {
-                        IpAddr::V4(addr) => v4ur_next_hop_address = Some(Cow::Borrowed(addr)),
-                        IpAddr::V6(addr) => v6ur_next_hop_address = Some(Cow::Borrowed(addr)),
+                        IpAddr::V4(addr) => v4ur_next_hop_address = Some(*addr),
+                        IpAddr::V6(addr) => v6ur_next_hop_address = Some(*addr),
                     },
                 }
             }
@@ -304,8 +304,8 @@ impl<'a> YangList<'a, Master> for routing::ribs::rib::routes::route::next_hop::n
             | Nexthop::Recursive {
                 addr, ..
             } => match addr {
-                IpAddr::V4(addr) => (Some(Cow::Borrowed(addr)), None),
-                IpAddr::V6(addr) => (None, Some(Cow::Borrowed(addr))),
+                IpAddr::V4(addr) => (Some(*addr), None),
+                IpAddr::V6(addr) => (None, Some(*addr)),
             },
             _ => (None, None),
         };
@@ -369,7 +369,7 @@ impl<'a> YangList<'a, Master> for routing::birts::birt::bfr_id::BfrId {
     }
 }
 
-impl<'a> YangList<'a, Master> for routing::birts::birt::bfr_id::birt_entry::BirtEntry<'a> {
+impl<'a> YangList<'a, Master> for routing::birts::birt::bfr_id::birt_entry::BirtEntry {
     fn iter(master: &'a Master, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let bfr_id_arg = *list_entry.as_bfr_id().unwrap();
         let iter = master
@@ -384,8 +384,8 @@ impl<'a> YangList<'a, Master> for routing::birts::birt::bfr_id::birt_entry::Birt
         let birt_key = list_entry.as_birt_key().unwrap();
         let birt_entry = master.birt.entries.get(birt_key).unwrap();
         let bsl = birt_key.2;
-        let bfr_prefix = Some(Cow::Borrowed(&birt_entry.bfr_prefix));
-        let bfr_nbr = Some(Cow::Borrowed(&birt_entry.bfr_nbr));
+        let bfr_prefix = Some(birt_entry.bfr_prefix);
+        let bfr_nbr = Some(birt_entry.bfr_nbr);
         Self {
             bsl: bsl.into(),
             bfr_prefix,

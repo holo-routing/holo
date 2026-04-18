@@ -45,13 +45,13 @@ impl<'a> YangContainer<'a, Master> for system_state::platform::Platform<'a> {
     }
 }
 
-impl<'a> YangContainer<'a, Master> for system_state::clock::Clock<'a> {
+impl<'a> YangContainer<'a, Master> for system_state::clock::Clock {
     fn new(_master: &'a Master, _list_entry: &ListEntry) -> Option<Self> {
         let time_now = Utc::now();
         let time_boot = DateTime::from_timestamp(System::boot_time() as i64, 0);
         Some(Self {
-            current_datetime: Some(Cow::Owned(time_now)),
-            boot_datetime: time_boot.map(Cow::Owned),
+            current_datetime: Some(time_now),
+            boot_datetime: time_boot,
         })
     }
 }

@@ -119,7 +119,13 @@ impl<'a> StructBuilder<'a> {
     fn field_type(&self, snode: &SchemaNode<'a>) -> String {
         match snode.kind() {
             SchemaNodeKind::Container => {
-                let lifetime = if self.use_owned_types { "" } else { "<'a>" };
+                let lifetime = if !self.use_owned_types
+                    && StructBuilder::new(snode.clone()).needs_lifetime()
+                {
+                    "<'a>"
+                } else {
+                    ""
+                };
                 format!(
                     "Option<{}::{}{lifetime}>",
                     snode.rust_name(Case::Snake),

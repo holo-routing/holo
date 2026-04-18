@@ -7,7 +7,6 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use std::borrow::Cow;
 use std::net::IpAddr;
 
 use holo_northbound::{NbProviderSender, notification};
@@ -23,7 +22,7 @@ pub(crate) fn new_master_event(nb_tx: &NbProviderSender, addr: IpAddr, reason: M
     use yang::vrrp_new_master_event::{self, VrrpNewMasterEvent};
 
     let data = VrrpNewMasterEvent {
-        master_ip_address: Some(Cow::Owned(addr)),
+        master_ip_address: Some(addr),
         new_master_reason: Some(reason.to_yang()),
     };
     notification::send(nb_tx, vrrp_new_master_event::PATH, data);

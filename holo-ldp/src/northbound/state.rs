@@ -123,23 +123,23 @@ impl<'a> YangList<'a, Instance> for mpls_ldp::global::address_families::ipv4::bi
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let binding = list_entry.as_addr_binding().unwrap();
         Self {
-            address: Cow::Owned(binding.addr),
+            address: binding.addr,
             advertisement_type: Some(binding.adv_type.to_yang()),
         }
     }
 }
 
-impl<'a> YangContainer<'a, Instance> for mpls_ldp::global::address_families::ipv4::bindings::address::peer::Peer<'a> {
+impl<'a> YangContainer<'a, Instance> for mpls_ldp::global::address_families::ipv4::bindings::address::peer::Peer {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let binding = list_entry.as_addr_binding().unwrap();
         Some(Self {
-            lsr_id: binding.lsr_id.map(Cow::Owned),
+            lsr_id: binding.lsr_id,
             label_space_id: binding.lsr_id.map(|_lsr_id| 0),
         })
     }
 }
 
-impl<'a> YangList<'a, Instance> for mpls_ldp::global::address_families::ipv4::bindings::fec_label::FecLabel<'a> {
+impl<'a> YangList<'a, Instance> for mpls_ldp::global::address_families::ipv4::bindings::fec_label::FecLabel {
     fn iter(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let fecs = &instance.state.as_ref()?.fecs;
         let iter = fecs
@@ -153,7 +153,7 @@ impl<'a> YangList<'a, Instance> for mpls_ldp::global::address_families::ipv4::bi
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let fec = list_entry.as_fec().unwrap();
         Self {
-            fec: Cow::Owned(Ipv4Network::get(*fec.inner.prefix).unwrap()),
+            fec: Ipv4Network::get(*fec.inner.prefix).unwrap(),
         }
     }
 }
@@ -183,7 +183,7 @@ impl<'a> YangList<'a, Instance> for mpls_ldp::global::address_families::ipv4::bi
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let binding = list_entry.as_label_binding().unwrap();
         Self {
-            lsr_id: Cow::Owned(binding.lsr_id),
+            lsr_id: binding.lsr_id,
             label_space_id: 0,
             advertisement_type: binding.adv_type.to_yang(),
             label: Some(binding.label.to_yang()),
@@ -210,7 +210,7 @@ impl<'a> YangList<'a, Instance> for mpls_ldp::discovery::interfaces::interface::
     }
 }
 
-impl<'a> YangList<'a, Instance> for mpls_ldp::discovery::interfaces::interface::address_families::ipv4::hello_adjacencies::hello_adjacency::HelloAdjacency<'a> {
+impl<'a> YangList<'a, Instance> for mpls_ldp::discovery::interfaces::interface::address_families::ipv4::hello_adjacencies::hello_adjacency::HelloAdjacency {
     fn iter(instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let iface = list_entry.as_interface().unwrap();
         let iter = instance.state.as_ref().unwrap().ipv4.adjacencies.iter_by_iface(&iface.name).into_iter().flatten().map(ListEntry::InterfaceAdj);
@@ -221,7 +221,7 @@ impl<'a> YangList<'a, Instance> for mpls_ldp::discovery::interfaces::interface::
         let adj = list_entry.as_interface_adj().unwrap();
         let next_hello = adj.next_hello(&instance.interfaces, &instance.tneighbors);
         Self {
-            adjacent_address: Cow::Owned(Ipv4Addr::get(adj.source.addr).unwrap()),
+            adjacent_address: Ipv4Addr::get(adj.source.addr).unwrap(),
             next_hello: Some(next_hello.as_secs().saturating_into()).ignore_in_testing(),
         }
     }
@@ -238,11 +238,11 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::interfaces::interf
     }
 }
 
-impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::interfaces::interface::address_families::ipv4::hello_adjacencies::hello_adjacency::statistics::Statistics<'a> {
+impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::interfaces::interface::address_families::ipv4::hello_adjacencies::hello_adjacency::statistics::Statistics {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let adj = list_entry.as_interface_adj().unwrap();
         Some(Self {
-            discontinuity_time: Some(Cow::Borrowed(&adj.discontinuity_time)),
+            discontinuity_time: Some(adj.discontinuity_time),
             hello_received: Some(adj.hello_rcvd),
             hello_dropped: Some(adj.hello_dropped),
         })
@@ -250,17 +250,17 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::interfaces::interf
     }
 }
 
-impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::interfaces::interface::address_families::ipv4::hello_adjacencies::hello_adjacency::peer::Peer<'a> {
+impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::interfaces::interface::address_families::ipv4::hello_adjacencies::hello_adjacency::peer::Peer {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let adj = list_entry.as_interface_adj().unwrap();
         Some(Self {
-            lsr_id: Some(Cow::Owned(adj.lsr_id)),
+            lsr_id: Some(adj.lsr_id),
             label_space_id: Some(0),
         })
     }
 }
 
-impl<'a> YangList<'a, Instance> for mpls_ldp::discovery::targeted::address_families::ipv4::hello_adjacencies::hello_adjacency::HelloAdjacency<'a> {
+impl<'a> YangList<'a, Instance> for mpls_ldp::discovery::targeted::address_families::ipv4::hello_adjacencies::hello_adjacency::HelloAdjacency {
     fn iter(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let adjacencies = &instance.state.as_ref()?.ipv4.adjacencies;
         let iter = adjacencies.iter().filter(|adj| adj.source.ifname.is_none()).map(ListEntry::TargetedNbrAdj);
@@ -271,8 +271,8 @@ impl<'a> YangList<'a, Instance> for mpls_ldp::discovery::targeted::address_famil
         let adj = list_entry.as_targeted_nbr_adj().unwrap();
         let next_hello = adj.next_hello(&instance.interfaces, &instance.tneighbors);
         Self {
-            local_address: Cow::Owned(Ipv4Addr::get(adj.local_addr).unwrap()),
-            adjacent_address: Cow::Owned(Ipv4Addr::get(adj.source.addr).unwrap()),
+            local_address: Ipv4Addr::get(adj.local_addr).unwrap(),
+            adjacent_address: Ipv4Addr::get(adj.source.addr).unwrap(),
             next_hello: Some(next_hello.as_secs().saturating_into()).ignore_in_testing(),
         }
     }
@@ -289,11 +289,11 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::targeted::address_
     }
 }
 
-impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::targeted::address_families::ipv4::hello_adjacencies::hello_adjacency::statistics::Statistics<'a> {
+impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::targeted::address_families::ipv4::hello_adjacencies::hello_adjacency::statistics::Statistics {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let adj = list_entry.as_targeted_nbr_adj().unwrap();
         Some(Self {
-            discontinuity_time: Some(Cow::Borrowed(&adj.discontinuity_time)),
+            discontinuity_time: Some(adj.discontinuity_time),
             hello_received: Some(adj.hello_rcvd),
             hello_dropped: Some(adj.hello_dropped),
         })
@@ -301,11 +301,11 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::targeted::address_
     }
 }
 
-impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::targeted::address_families::ipv4::hello_adjacencies::hello_adjacency::peer::Peer<'a> {
+impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::targeted::address_families::ipv4::hello_adjacencies::hello_adjacency::peer::Peer {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let adj = list_entry.as_targeted_nbr_adj().unwrap();
         Some(Self {
-            lsr_id: Some(Cow::Owned(adj.lsr_id)),
+            lsr_id: Some(adj.lsr_id),
             label_space_id: Some(0),
         })
     }
@@ -321,7 +321,7 @@ impl<'a> YangList<'a, Instance> for mpls_ldp::peers::peer::Peer<'a> {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let nbr = list_entry.as_neighbor().unwrap();
         Self {
-            lsr_id: Cow::Owned(nbr.lsr_id),
+            lsr_id: nbr.lsr_id,
             label_space_id: 0,
             next_keep_alive: nbr.next_kalive().map(|d| d.as_secs().saturating_into()).ignore_in_testing(),
             session_state: Some(nbr.state.to_yang()),
@@ -330,7 +330,7 @@ impl<'a> YangList<'a, Instance> for mpls_ldp::peers::peer::Peer<'a> {
     }
 }
 
-impl<'a> YangList<'a, Instance> for mpls_ldp::peers::peer::address_families::ipv4::hello_adjacencies::hello_adjacency::HelloAdjacency<'a> {
+impl<'a> YangList<'a, Instance> for mpls_ldp::peers::peer::address_families::ipv4::hello_adjacencies::hello_adjacency::HelloAdjacency {
     fn iter(instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let nbr = list_entry.as_neighbor().unwrap();
         let iter = instance.state.as_ref().unwrap().ipv4.adjacencies.iter_by_lsr_id(&nbr.lsr_id).into_iter().flatten().map(ListEntry::NeighborAdj);
@@ -341,8 +341,8 @@ impl<'a> YangList<'a, Instance> for mpls_ldp::peers::peer::address_families::ipv
         let adj = list_entry.as_neighbor_adj().unwrap();
         let next_hello = adj.next_hello(&instance.interfaces, &instance.tneighbors);
         Self {
-            local_address: Cow::Owned(Ipv4Addr::get(adj.local_addr).unwrap()),
-            adjacent_address: Cow::Owned(Ipv4Addr::get(adj.source.addr).unwrap()),
+            local_address: Ipv4Addr::get(adj.local_addr).unwrap(),
+            adjacent_address: Ipv4Addr::get(adj.source.addr).unwrap(),
             next_hello: Some(next_hello.as_secs().saturating_into()).ignore_in_testing(),
         }
     }
@@ -359,11 +359,11 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::address_families
     }
 }
 
-impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::address_families::ipv4::hello_adjacencies::hello_adjacency::statistics::Statistics<'a> {
+impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::address_families::ipv4::hello_adjacencies::hello_adjacency::statistics::Statistics {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let adj = list_entry.as_neighbor_adj().unwrap();
         Some(Self {
-            discontinuity_time: Some(Cow::Borrowed(&adj.discontinuity_time)),
+            discontinuity_time: Some(adj.discontinuity_time),
             hello_received: Some(adj.hello_rcvd),
             hello_dropped: Some(adj.hello_dropped),
         })
@@ -411,27 +411,27 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::session_holdtime
     }
 }
 
-impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::tcp_connection::TcpConnection<'a> {
+impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::tcp_connection::TcpConnection {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let nbr = list_entry.as_neighbor().unwrap();
         let conn_info = nbr.conn_info.as_ref()?;
         Some(Self {
-            local_address: Some(Cow::Borrowed(&conn_info.local_addr)),
+            local_address: Some(conn_info.local_addr),
             local_port: Some(conn_info.local_port).ignore_in_testing(),
-            remote_address: Some(Cow::Borrowed(&conn_info.remote_addr)),
+            remote_address: Some(conn_info.remote_addr),
             remote_port: Some(conn_info.remote_port).ignore_in_testing(),
         })
     }
 }
 
-impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::statistics::Statistics<'a> {
+impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::statistics::Statistics {
     fn new(instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let nbr = list_entry.as_neighbor().unwrap();
         let total_addresses = nbr.addr_list.len();
         let total_labels = nbr.rcvd_mappings.len();
         let total_fec_label_bindings = nbr.rcvd_mappings.keys().map(|prefix| instance.state.as_ref().unwrap().fecs.get(prefix).unwrap()).filter(|fec| fec.is_nbr_nexthop(nbr)).count();
         Some(Self {
-            discontinuity_time: nbr.statistics.discontinuity_time.as_ref().map(Cow::Borrowed).ignore_in_testing(),
+            discontinuity_time: nbr.statistics.discontinuity_time.ignore_in_testing(),
             total_addresses: Some(total_addresses.saturating_into()),
             total_labels: Some(total_labels.saturating_into()),
             total_fec_label_bindings: Some(total_fec_label_bindings.saturating_into()),

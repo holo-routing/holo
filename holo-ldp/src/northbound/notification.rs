@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::borrow::Cow;
 use std::net::IpAddr;
 
 use holo_northbound::{NbProviderSender, notification};
@@ -24,14 +23,14 @@ pub(crate) fn mpls_ldp_peer_event(nb_tx: &NbProviderSender, instance_name: &str,
         event_type: Some(event_type.into()),
         peer: Some(Peer {
             protocol_name: Some(instance_name.into()),
-            lsr_id: Some(Cow::Owned(nbr.lsr_id)),
+            lsr_id: Some(nbr.lsr_id),
             label_space_id: None,
         }),
     };
     notification::send(nb_tx, mpls_ldp_peer_event::PATH, data);
 }
 
-pub(crate) fn mpls_ldp_hello_adjacency_event(nb_tx: &NbProviderSender, instance_name: &str, ifname: Option<&str>, addr: &IpAddr, created: bool) {
+pub(crate) fn mpls_ldp_hello_adjacency_event(nb_tx: &NbProviderSender, instance_name: &str, ifname: Option<&str>, addr: IpAddr, created: bool) {
     use yang::mpls_ldp_hello_adjacency_event::link::Link;
     use yang::mpls_ldp_hello_adjacency_event::targeted::Targeted;
     use yang::mpls_ldp_hello_adjacency_event::{self, MplsLdpHelloAdjacencyEvent};
@@ -41,11 +40,11 @@ pub(crate) fn mpls_ldp_hello_adjacency_event(nb_tx: &NbProviderSender, instance_
         protocol_name: Some(instance_name.into()),
         event_type: Some(event_type.into()),
         targeted: ifname.is_none().then_some(Targeted {
-            target_address: Some(Cow::Borrowed(addr)),
+            target_address: Some(addr),
         }),
         link: ifname.map(|ifname| Link {
             next_hop_interface: Some(ifname.into()),
-            next_hop_address: Some(Cow::Borrowed(addr)),
+            next_hop_address: Some(addr),
         }),
     };
     notification::send(nb_tx, mpls_ldp_hello_adjacency_event::PATH, data);
@@ -58,7 +57,7 @@ pub(crate) fn mpls_ldp_fec_event(nb_tx: &NbProviderSender, instance_name: &str, 
     let data = MplsLdpFecEvent {
         event_type: Some(event_type.into()),
         protocol_name: Some(instance_name.into()),
-        fec: Some(Cow::Borrowed(&fec.inner.prefix)),
+        fec: Some(*fec.inner.prefix),
     };
     notification::send(nb_tx, mpls_ldp_fec_event::PATH, data);
 }

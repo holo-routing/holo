@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::borrow::Cow;
 use std::net::Ipv4Addr;
 use std::time::Duration;
 
@@ -39,8 +38,8 @@ where
             interface: Some(iface.name.as_str().into()),
         }),
         virtual_link: iface.vlink_key.map(|vlink_key| VirtualLink {
-            transit_area_id: Some(Cow::Owned(vlink_key.transit_area_id)),
-            neighbor_router_id: Some(Cow::Owned(vlink_key.router_id)),
+            transit_area_id: Some(vlink_key.transit_area_id),
+            neighbor_router_id: Some(vlink_key.router_id),
         }),
         state: Some(iface.state.ism_state.to_yang()),
     };
@@ -61,7 +60,7 @@ where
             interface: Some(ifname.into()),
         }),
         virtual_link: None,
-        packet_source: Some(Cow::Owned((*src).into())),
+        packet_source: Some((*src).into()),
         packet_type: Some(pkt_type.to_yang()),
         error: Some(error.to_yang()),
     };
@@ -83,11 +82,11 @@ where
             interface: Some(iface.name.as_str().into()),
         }),
         virtual_link: iface.vlink_key.map(|vlink_key| VirtualLink {
-            transit_area_id: Some(Cow::Owned(vlink_key.transit_area_id)),
-            neighbor_router_id: Some(Cow::Owned(vlink_key.router_id)),
+            transit_area_id: Some(vlink_key.transit_area_id),
+            neighbor_router_id: Some(vlink_key.router_id),
         }),
-        neighbor_router_id: Some(Cow::Borrowed(&nbr.router_id)),
-        neighbor_ip_addr: Some(Cow::Owned(nbr.src.into())),
+        neighbor_router_id: Some(nbr.router_id),
+        neighbor_ip_addr: Some(nbr.src.into()),
         state: Some(nbr.state.to_yang()),
     };
     notification::send(&instance.tx.nb, nbr_state_change::PATH, data);
@@ -108,11 +107,11 @@ where
             interface: Some(iface.name.as_str().into()),
         }),
         virtual_link: iface.vlink_key.map(|vlink_key| VirtualLink {
-            transit_area_id: Some(Cow::Owned(vlink_key.transit_area_id)),
-            neighbor_router_id: Some(Cow::Owned(vlink_key.router_id)),
+            transit_area_id: Some(vlink_key.transit_area_id),
+            neighbor_router_id: Some(vlink_key.router_id),
         }),
-        neighbor_router_id: Some(Cow::Borrowed(&nbr.router_id)),
-        neighbor_ip_addr: Some(Cow::Owned(nbr.src.into())),
+        neighbor_router_id: Some(nbr.router_id),
+        neighbor_ip_addr: Some(nbr.src.into()),
         status: Some("helping".into()),
         age: Some(TimerValueSecs16(Duration::from_secs(age.into()))),
         exit_reason: None,
@@ -135,11 +134,11 @@ where
             interface: Some(iface.name.as_str().into()),
         }),
         virtual_link: iface.vlink_key.map(|vlink_key| VirtualLink {
-            transit_area_id: Some(Cow::Owned(vlink_key.transit_area_id)),
-            neighbor_router_id: Some(Cow::Owned(vlink_key.router_id)),
+            transit_area_id: Some(vlink_key.transit_area_id),
+            neighbor_router_id: Some(vlink_key.router_id),
         }),
-        neighbor_router_id: Some(Cow::Borrowed(&nbr.router_id)),
-        neighbor_ip_addr: Some(Cow::Owned(nbr.src.into())),
+        neighbor_router_id: Some(nbr.router_id),
+        neighbor_ip_addr: Some(nbr.src.into()),
         status: Some("not-helping".into()),
         age: None,
         exit_reason: Some(reason.to_yang()),
@@ -162,10 +161,10 @@ where
             interface: Some(iface.name.as_str().into()),
         }),
         virtual_link: iface.vlink_key.map(|vlink_key| VirtualLink {
-            transit_area_id: Some(Cow::Owned(vlink_key.transit_area_id)),
-            neighbor_router_id: Some(Cow::Owned(vlink_key.router_id)),
+            transit_area_id: Some(vlink_key.transit_area_id),
+            neighbor_router_id: Some(vlink_key.router_id),
         }),
-        packet_source: Some(Cow::Owned(src.into())),
+        packet_source: Some(src.into()),
         // TODO: set the packet-type whenever possible.
         packet_type: None,
     };
@@ -180,7 +179,7 @@ where
 
     let data = IfRxBadLsa {
         routing_protocol_name: Some(instance.name.into()),
-        packet_source: Some(Cow::Owned(src.into())),
+        packet_source: Some(src.into()),
         error: Some(error.to_yang()),
     };
     notification::send(&instance.tx.nb, if_rx_bad_lsa::PATH, data);

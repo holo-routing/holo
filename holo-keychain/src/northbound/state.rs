@@ -4,8 +4,6 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::borrow::Cow;
-
 use enum_as_inner::EnumAsInner;
 use holo_northbound::state::{ListEntryKind, Provider, YangList, YangOps};
 use holo_utils::keychain::{Keychain, KeychainKey};
@@ -47,7 +45,7 @@ impl<'a> YangList<'a, Master> for key_chains::key_chain::KeyChain<'a> {
         let keychain = list_entry.as_keychain().unwrap();
         Self {
             name: keychain.name.as_str().into(),
-            last_modified_timestamp: keychain.last_modified.as_ref().map(Cow::Borrowed),
+            last_modified_timestamp: keychain.last_modified,
         }
     }
 }

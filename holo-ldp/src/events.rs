@@ -252,7 +252,7 @@ fn process_hello(
             &instance.tx.nb,
             instance.name,
             adj.source.ifname.as_deref(),
-            &adj.source.addr,
+            adj.source.addr,
             true,
         );
 

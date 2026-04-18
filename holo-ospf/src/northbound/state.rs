@@ -103,10 +103,10 @@ impl<V> ListEntryKind for ListEntry<'_, V> where V: Version {}
 
 // ===== YANG impls =====
 
-impl<'a, V: Version> YangContainer<'a, Instance<V>> for ospf::Ospf<'a> {
+impl<'a, V: Version> YangContainer<'a, Instance<V>> for ospf::Ospf {
     fn new(instance: &'a Instance<V>, _list_entry: &ListEntry<'a, V>) -> Option<Self> {
         Some(Self {
-            router_id: instance.state.as_ref().map(|state| Cow::Owned(state.router_id)),
+            router_id: instance.state.as_ref().map(|state| state.router_id),
         })
     }
 }
@@ -135,7 +135,7 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::local_rib::route::Route
     fn new(_instance: &'a Instance<V>, list_entry: &ListEntry<'a, V>) -> Self {
         let (prefix, route) = list_entry.as_route().unwrap();
         Self {
-            prefix: Cow::Owned((**prefix).into()),
+            prefix: (**prefix).into(),
             metric: Some(route.metric),
             route_type: Some(route.path_type.to_yang()),
             route_tag: route.tag,
@@ -155,16 +155,16 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::local_rib::route::next_
         let iface = &instance.arenas.interfaces[nexthop.iface_idx];
         Self {
             outgoing_interface: Some(iface.name.as_str().into()),
-            next_hop: nexthop.addr.map(std::convert::Into::into).map(Cow::Owned),
+            next_hop: nexthop.addr.map(std::convert::Into::into),
         }
     }
 }
 
-impl<'a, V: Version> YangContainer<'a, Instance<V>> for ospf::statistics::Statistics<'a> {
+impl<'a, V: Version> YangContainer<'a, Instance<V>> for ospf::statistics::Statistics {
     fn new(instance: &'a Instance<V>, _list_entry: &ListEntry<'a, V>) -> Option<Self> {
         let state = instance.state.as_ref()?;
         Some(Self {
-            discontinuity_time: Some(Cow::Borrowed(&state.discontinuity_time)).ignore_in_testing(),
+            discontinuity_time: Some(state.discontinuity_time).ignore_in_testing(),
             originate_new_lsa_count: Some(state.orig_lsa_count).ignore_in_testing(),
             rx_new_lsas_count: Some(state.rx_lsa_count).ignore_in_testing(),
             as_scope_lsa_count: Some(state.lsdb.lsa_count()),
@@ -217,7 +217,7 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::database::as_scope_lsa_
         let lsa = &lse.data;
         Self {
             lsa_id: lsa.hdr.lsa_id().to_string().into(),
-            adv_router: Cow::Owned(lsa.hdr.adv_rtr()),
+            adv_router: lsa.hdr.adv_rtr(),
             decode_completed: Some(!lsa.body.is_unknown()),
             raw_data: Some(HexStr(lsa.raw.as_ref())).ignore_in_testing(),
         }
@@ -230,12 +230,12 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::database::as_scope_lsa_ty
         let lsa = &lse.data;
         let (opaque_type, opaque_id) = lsa_hdr_opaque_data(&lsa.hdr);
         Some(Self {
-            lsa_id: Some(Cow::Owned(lsa.hdr.lsa_id)),
+            lsa_id: Some(lsa.hdr.lsa_id),
             opaque_type,
             opaque_id,
             age: Some(lsa.age()).ignore_in_testing(),
             r#type: Some(lsa.hdr.lsa_type.to_yang()),
-            adv_router: Some(Cow::Owned(lsa.hdr.adv_rtr)),
+            adv_router: Some(lsa.hdr.adv_rtr),
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
             checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
@@ -255,12 +255,12 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::database::as_scope_lsa_ty
     }
 }
 
-impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::external::External<'a> {
+impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::external::External {
     fn new(_instance: &'a Instance<Ospfv2>, list_entry: &ListEntry<'a, Ospfv2>) -> Option<Self> {
         let lse = list_entry.as_as_lsa().unwrap();
         let lsa = &lse.data;
         Some(Self {
-            network_mask: lsa.body.as_as_external().map(|lsa_body| lsa_body.mask).map(Cow::Owned),
+            network_mask: lsa.body.as_as_external().map(|lsa_body| lsa_body.mask),
         })
     }
 }
@@ -282,7 +282,7 @@ impl<'a> YangList<'a, Instance<Ospfv2>> for ospf::database::as_scope_lsa_type::a
             mt_id: Some(0),
             flags: Some(lsa_body.flags.to_yang()),
             metric: Some(lsa_body.metric),
-            forwarding_address: lsa_body.fwd_addr.map(Cow::Owned),
+            forwarding_address: lsa_body.fwd_addr,
             external_route_tag: Some(lsa_body.tag),
         }
     }
@@ -460,7 +460,7 @@ impl<'a> YangList<'a, Instance<Ospfv2>> for ospf::database::as_scope_lsa_type::a
         let tlv = list_entry.as_ospfv2_ext_prefix_tlv().unwrap();
         Self {
             route_type: Some(tlv.route_type.to_yang()),
-            prefix: Some(Cow::Owned(tlv.prefix.into())),
+            prefix: Some(tlv.prefix.into()),
         }
     }
 }
@@ -530,7 +530,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_ty
             lsa_id: Some(lsa.hdr.lsa_id.into()),
             age: Some(lsa.age()).ignore_in_testing(),
             r#type: Some(lsa.hdr.lsa_type.to_yang()),
-            adv_router: Some(Cow::Owned(lsa.hdr.adv_rtr)),
+            adv_router: Some(lsa.hdr.adv_rtr),
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
             checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
@@ -549,12 +549,10 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_ty
             flags: Some(lsa_body.flags.to_yang()),
             referenced_ls_type: lsa_body.ref_lsa_type.map(|lsa_type| lsa_type.to_yang()),
             unknown_referenced_ls_type: lsa_body.ref_lsa_type.and_then(|ref_lsa_type| if ref_lsa_type.function_code().is_none() { Some(ref_lsa_type.0) } else { None }),
-            prefix: Some(Cow::Borrowed(&lsa_body.prefix)),
-            forwarding_address: lsa_body.fwd_addr.map(|addr| {
-                Cow::Owned(match addr {
-                    IpAddr::V4(addr) => addr.to_ipv6_mapped(),
-                    IpAddr::V6(addr) => addr,
-                })
+            prefix: Some(lsa_body.prefix),
+            forwarding_address: lsa_body.fwd_addr.map(|addr| match addr {
+                IpAddr::V4(addr) => addr.to_ipv6_mapped(),
+                IpAddr::V6(addr) => addr,
             }),
             external_route_tag: lsa_body.tag,
             referenced_link_state_id: lsa_body.ref_lsa_id.map(|lsa_id| lsa_id.into()),
@@ -721,14 +719,14 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_ty
     }
 }
 
-impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::ExternalPrefixTlv<'a> {
+impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::ExternalPrefixTlv {
     fn new(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<Self> {
         let lse = list_entry.as_as_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_ext_as_external()?;
         Some(Self {
             metric: Some(lsa_body.metric),
-            prefix: Some(Cow::Borrowed(&lsa_body.prefix)),
+            prefix: Some(lsa_body.prefix),
         })
     }
 }
@@ -767,7 +765,7 @@ impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_type::a
     }
 }
 
-impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::ipv6_fwd_addr_sub_tlv::Ipv6FwdAddrSubTlv<'a> {
+impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::ipv6_fwd_addr_sub_tlv::Ipv6FwdAddrSubTlv {
     fn new(_instance: &'a Instance<Ospfv3>, _list_entry: &ListEntry<'a, Ospfv3>) -> Option<Self> {
         Some(Self {
             forwarding_address: None, // TODO
@@ -775,7 +773,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_ty
     }
 }
 
-impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::ipv4_fwd_addr_sub_tlv::Ipv4FwdAddrSubTlv<'a> {
+impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::ipv4_fwd_addr_sub_tlv::Ipv4FwdAddrSubTlv {
     fn new(_instance: &'a Instance<Ospfv3>, _list_entry: &ListEntry<'a, Ospfv3>) -> Option<Self> {
         Some(Self {
             forwarding_address: None, // TODO
@@ -862,10 +860,10 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::spf_log::event::trigger
     fn new(_instance: &'a Instance<V>, list_entry: &ListEntry<'a, V>) -> Self {
         let lsa_id = list_entry.as_spf_trigger_lsa().unwrap();
         Self {
-            area_id: lsa_id.area_id.map(Cow::Owned),
+            area_id: lsa_id.area_id,
             r#type: Some(lsa_id.lsa_type.into()),
             lsa_id: Some(lsa_id.lsa_id.to_string().into()),
-            adv_router: Some(Cow::Owned(lsa_id.adv_rtr)),
+            adv_router: Some(lsa_id.adv_rtr),
             seq_num: Some(lsa_id.seq_no).ignore_in_testing(),
         }
     }
@@ -892,16 +890,16 @@ impl<'a, V: Version> YangContainer<'a, Instance<V>> for ospf::lsa_log::event::ls
     fn new(_instance: &'a Instance<V>, list_entry: &ListEntry<'a, V>) -> Option<Self> {
         let log = list_entry.as_lsa_log().unwrap();
         Some(Self {
-            area_id: log.lsa.area_id.map(Cow::Owned),
+            area_id: log.lsa.area_id,
             r#type: Some(log.lsa.lsa_type.into()),
             lsa_id: Some(log.lsa.lsa_id.to_string().into()),
-            adv_router: Some(Cow::Owned(log.lsa.adv_rtr)),
+            adv_router: Some(log.lsa.adv_rtr),
             seq_num: Some(log.lsa.seq_no).ignore_in_testing(),
         })
     }
 }
 
-impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::Area<'a> {
+impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::Area {
     fn iter(instance: &'a Instance<V>, _list_entry: &ListEntry<'a, V>) -> Option<ListIterator<'a, V>> {
         let iter = instance.arenas.areas.iter().map(ListEntry::Area);
         Some(Box::new(iter))
@@ -910,16 +908,16 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::Area<'a> {
     fn new(_instance: &'a Instance<V>, list_entry: &ListEntry<'a, V>) -> Self {
         let area = list_entry.as_area().unwrap();
         Self {
-            area_id: Cow::Owned(area.area_id),
+            area_id: area.area_id,
         }
     }
 }
 
-impl<'a, V: Version> YangContainer<'a, Instance<V>> for ospf::areas::area::statistics::Statistics<'a> {
+impl<'a, V: Version> YangContainer<'a, Instance<V>> for ospf::areas::area::statistics::Statistics {
     fn new(_instance: &'a Instance<V>, list_entry: &ListEntry<'a, V>) -> Option<Self> {
         let area = list_entry.as_area().unwrap();
         Some(Self {
-            discontinuity_time: Some(Cow::Borrowed(&area.state.discontinuity_time)).ignore_in_testing(),
+            discontinuity_time: Some(area.state.discontinuity_time).ignore_in_testing(),
             spf_runs_count: Some(area.state.spf_run_count).ignore_in_testing(),
             abr_count: Some(area.abr_count() as _),
             asbr_count: Some(area.asbr_count() as _),
@@ -973,7 +971,7 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::database::
         let lsa = &lse.data;
         Self {
             lsa_id: lsa.hdr.lsa_id().to_string().into(),
-            adv_router: Cow::Owned(lsa.hdr.adv_rtr()),
+            adv_router: lsa.hdr.adv_rtr(),
             decode_completed: Some(!lsa.body.is_unknown()),
             raw_data: Some(HexStr(lsa.raw.as_ref())).ignore_in_testing(),
         }
@@ -986,12 +984,12 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::database::ar
         let lsa = &lse.data;
         let (opaque_type, opaque_id) = lsa_hdr_opaque_data(&lsa.hdr);
         Some(Self {
-            lsa_id: Some(Cow::Owned(lsa.hdr.lsa_id)),
+            lsa_id: Some(lsa.hdr.lsa_id),
             opaque_type,
             opaque_id,
             age: Some(lsa.age()).ignore_in_testing(),
             r#type: Some(lsa.hdr.lsa_type.to_yang()),
-            adv_router: Some(Cow::Owned(lsa.hdr.adv_rtr)),
+            adv_router: Some(lsa.hdr.adv_rtr),
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
             checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
@@ -1069,13 +1067,13 @@ impl<'a> YangList<'a, Instance<Ospfv2>> for ospf::areas::area::database::area_sc
     }
 }
 
-impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::network::Network<'a> {
+impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::network::Network {
     fn new(_instance: &'a Instance<Ospfv2>, list_entry: &ListEntry<'a, Ospfv2>) -> Option<Self> {
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_network()?;
         Some(Self {
-            network_mask: Some(Cow::Owned(lsa_body.mask)),
+            network_mask: Some(lsa_body.mask),
         })
     }
 }
@@ -1085,20 +1083,20 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::database::ar
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_network()?;
-        let iter = lsa_body.attached_rtrs.iter().map(Cow::Borrowed);
+        let iter = lsa_body.attached_rtrs.iter().copied();
         Some(Self {
             attached_router: Some(Box::new(iter)),
         })
     }
 }
 
-impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::summary::Summary<'a> {
+impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::summary::Summary {
     fn new(_instance: &'a Instance<Ospfv2>, list_entry: &ListEntry<'a, Ospfv2>) -> Option<Self> {
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_summary()?;
         Some(Self {
-            network_mask: Some(Cow::Owned(lsa_body.mask)),
+            network_mask: Some(lsa_body.mask),
         })
     }
 }
@@ -1326,7 +1324,7 @@ impl<'a> YangList<'a, Instance<Ospfv2>> for ospf::areas::area::database::area_sc
         let tlv = list_entry.as_ospfv2_ext_prefix_tlv().unwrap();
         Self {
             route_type: Some(tlv.route_type.to_yang()),
-            prefix: Some(Cow::Owned(tlv.prefix.into())),
+            prefix: Some(tlv.prefix.into()),
         }
     }
 }
@@ -1474,7 +1472,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>>
 }
 
 impl<'a> YangList<'a, Instance<Ospfv2>>
-    for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::extended_link_opaque::extended_link_tlv::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::LanAdjSidSubTlv<'a>
+    for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::extended_link_opaque::extended_link_tlv::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::LanAdjSidSubTlv
 {
     fn iter(_instance: &'a Instance<Ospfv2>, list_entry: &ListEntry<'a, Ospfv2>) -> Option<ListIterator<'a, Ospfv2>> {
         let lse = list_entry.as_area_lsa().unwrap();
@@ -1489,7 +1487,7 @@ impl<'a> YangList<'a, Instance<Ospfv2>>
         Self {
             mt_id: Some(0),
             weight: Some(stlv.weight),
-            neighbor_router_id: Some(Cow::Owned(stlv.nbr_router_id.unwrap())),
+            neighbor_router_id: Some(stlv.nbr_router_id.unwrap()),
             label_value: stlv.sid.as_label().map(|label| label.get()),
             index_value: stlv.sid.as_index().copied(),
         }
@@ -1516,7 +1514,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
             lsa_id: Some(lsa.hdr.lsa_id.into()),
             age: Some(lsa.age()).ignore_in_testing(),
             r#type: Some(lsa.hdr.lsa_type.to_yang()),
-            adv_router: Some(Cow::Owned(lsa.hdr.adv_rtr)),
+            adv_router: Some(lsa.hdr.adv_rtr),
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
             checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
@@ -1563,7 +1561,7 @@ impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_sc
         Self {
             interface_id: Some(rtr_link.iface_id),
             neighbor_interface_id: Some(rtr_link.nbr_iface_id),
-            neighbor_router_id: Some(Cow::Owned(rtr_link.nbr_router_id)),
+            neighbor_router_id: Some(rtr_link.nbr_router_id),
             r#type: Some(rtr_link.link_type.to_yang()),
             metric: Some(rtr_link.metric),
         }
@@ -1587,21 +1585,21 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_std_network()?;
-        let iter = lsa_body.attached_rtrs.iter().map(Cow::Borrowed);
+        let iter = lsa_body.attached_rtrs.iter().copied();
         Some(Self {
             attached_router: Some(Box::new(iter)),
         })
     }
 }
 
-impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::inter_area_prefix::InterAreaPrefix<'a> {
+impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::inter_area_prefix::InterAreaPrefix {
     fn new(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<Self> {
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_std_inter_area_prefix()?;
         Some(Self {
             metric: Some(lsa_body.metric),
-            prefix: Some(Cow::Borrowed(&lsa_body.prefix)),
+            prefix: Some(lsa_body.prefix),
         })
     }
 }
@@ -1618,14 +1616,14 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
     }
 }
 
-impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::inter_area_router::InterAreaRouter<'a> {
+impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::inter_area_router::InterAreaRouter {
     fn new(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<Self> {
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_std_inter_area_router()?;
         Some(Self {
             metric: Some(lsa_body.metric),
-            destination_router_id: Some(Cow::Owned(lsa_body.router_id)),
+            destination_router_id: Some(lsa_body.router_id),
         })
     }
 }
@@ -1651,13 +1649,13 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
             referenced_ls_type: Some(lsa_body.ref_lsa_type.to_yang()),
             unknown_referenced_ls_type: if lsa_body.ref_lsa_type.function_code().is_none() { Some(lsa_body.ref_lsa_type.0) } else { None },
             referenced_link_state_id: Some(lsa_body.ref_lsa_id.into()),
-            referenced_adv_router: Some(Cow::Owned(lsa_body.ref_adv_rtr)),
+            referenced_adv_router: Some(lsa_body.ref_adv_rtr),
             num_of_prefixes: Some(lsa_body.prefixes.len() as _),
         })
     }
 }
 
-impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::intra_area_prefix::prefixes::prefix::Prefix<'a> {
+impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::intra_area_prefix::prefixes::prefix::Prefix {
     fn iter(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<ListIterator<'a, Ospfv3>> {
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
@@ -1669,7 +1667,7 @@ impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_sc
     fn new(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Self {
         let prefix = list_entry.as_ospfv3_intra_area_lsa_prefix().unwrap();
         Self {
-            prefix: Some(Cow::Borrowed(&prefix.value)),
+            prefix: Some(prefix.value),
             metric: Some(prefix.metric),
         }
     }
@@ -1893,7 +1891,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
         Some(Self {
             interface_id: Some(rtr_link.iface_id),
             neighbor_interface_id: Some(rtr_link.nbr_iface_id),
-            neighbor_router_id: Some(Cow::Owned(rtr_link.nbr_router_id)),
+            neighbor_router_id: Some(rtr_link.nbr_router_id),
             r#type: Some(rtr_link.link_type.to_yang()),
             metric: Some(rtr_link.metric),
         })
@@ -1953,7 +1951,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>>
 }
 
 impl<'a> YangList<'a, Instance<Ospfv3>>
-    for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::sub_tlvs::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::LanAdjSidSubTlv<'a>
+    for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::sub_tlvs::lan_adj_sid_sub_tlvs::lan_adj_sid_sub_tlv::LanAdjSidSubTlv
 {
     fn iter(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<ListIterator<'a, Ospfv3>> {
         let adj_sids = list_entry.as_ospfv3_adj_sids()?;
@@ -1965,7 +1963,7 @@ impl<'a> YangList<'a, Instance<Ospfv3>>
         let stlv = list_entry.as_ospfv3_adj_sid().unwrap();
         Self {
             weight: Some(stlv.weight),
-            neighbor_router_id: Some(Cow::Owned(stlv.nbr_router_id.unwrap())),
+            neighbor_router_id: Some(stlv.nbr_router_id.unwrap()),
             label_value: stlv.sid.as_label().map(|label| label.get()),
             index_value: stlv.sid.as_index().copied(),
         }
@@ -2023,7 +2021,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_ext_network()?;
-        let iter = lsa_body.attached_rtrs.iter().map(Cow::Borrowed);
+        let iter = lsa_body.attached_rtrs.iter().copied();
         Some(Self {
             adjacent_neighbor_router_id: Some(Box::new(iter)),
         })
@@ -2055,14 +2053,14 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
     }
 }
 
-impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::InterPrefixTlv<'a> {
+impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::InterPrefixTlv {
     fn new(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<Self> {
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_ext_inter_area_prefix()?;
         Some(Self {
             metric: Some(lsa_body.metric),
-            prefix: Some(Cow::Borrowed(&lsa_body.prefix)),
+            prefix: Some(lsa_body.prefix),
         })
     }
 }
@@ -2163,14 +2161,14 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
     }
 }
 
-impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::inter_router_tlv::InterRouterTlv<'a> {
+impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::inter_router_tlv::InterRouterTlv {
     fn new(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<Self> {
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_ext_inter_area_router()?;
         Some(Self {
             metric: Some(lsa_body.metric),
-            destination_router_id: Some(Cow::Owned(lsa_body.router_id)),
+            destination_router_id: Some(lsa_body.router_id),
         })
     }
 }
@@ -2214,7 +2212,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>>
     }
 }
 
-impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::EIntraAreaPrefix<'a> {
+impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::EIntraAreaPrefix {
     fn new(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<Self> {
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
@@ -2222,7 +2220,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
         Some(Self {
             referenced_ls_type: Some(lsa_body.ref_lsa_type.into()),
             referenced_link_state_id: Some(lsa_body.ref_lsa_id.into()),
-            referenced_adv_router: Some(Cow::Owned(lsa_body.ref_adv_rtr)),
+            referenced_adv_router: Some(lsa_body.ref_adv_rtr),
         })
     }
 }
@@ -2252,12 +2250,12 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
     }
 }
 
-impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::IntraPrefixTlv<'a> {
+impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::IntraPrefixTlv {
     fn new(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<Self> {
         let prefix = list_entry.as_ospfv3_intra_area_lsa_prefix().unwrap();
         Some(Self {
             metric: Some(prefix.metric as u32),
-            prefix: Some(Cow::Borrowed(&prefix.value)),
+            prefix: Some(prefix.value),
         })
     }
 }
@@ -2410,8 +2408,8 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::virtual_li
         let iface = list_entry.as_interface().unwrap();
         let vlink_key = iface.vlink_key.unwrap();
         Self {
-            transit_area_id: Cow::Owned(vlink_key.transit_area_id),
-            router_id: Cow::Owned(vlink_key.router_id),
+            transit_area_id: vlink_key.transit_area_id,
+            router_id: vlink_key.router_id,
             cost: iface.state.vlink.as_ref().map(|vlink| vlink.cost as u16),
             state: Some(iface.state.ism_state.to_yang()),
             hello_timer: iface.state.tasks.hello_interval.as_ref().map(|task| TimerValueSecs16(task.remaining())).ignore_in_testing(),
@@ -2424,11 +2422,11 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::virtual_li
     }
 }
 
-impl<'a, V: Version> YangContainer<'a, Instance<V>> for ospf::areas::area::virtual_links::virtual_link::statistics::Statistics<'a> {
+impl<'a, V: Version> YangContainer<'a, Instance<V>> for ospf::areas::area::virtual_links::virtual_link::statistics::Statistics {
     fn new(_instance: &'a Instance<V>, list_entry: &ListEntry<'a, V>) -> Option<Self> {
         let iface = list_entry.as_interface().unwrap();
         Some(Self {
-            discontinuity_time: Some(Cow::Borrowed(&iface.state.discontinuity_time)).ignore_in_testing(),
+            discontinuity_time: Some(iface.state.discontinuity_time).ignore_in_testing(),
             if_event_count: Some(iface.state.event_count).ignore_in_testing(),
             link_scope_lsa_count: Some(iface.state.lsdb.lsa_count()),
             link_scope_lsa_cksum_sum: Some(iface.state.lsdb.cksum_sum()).ignore_in_testing(),
@@ -2463,8 +2461,8 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::virtual_li
     fn new(_instance: &'a Instance<V>, list_entry: &ListEntry<'a, V>) -> Self {
         let (_iface, nbr) = list_entry.as_neighbor().unwrap();
         Self {
-            neighbor_router_id: Cow::Owned(nbr.router_id),
-            address: Some(Cow::Owned(nbr.src.into())),
+            neighbor_router_id: nbr.router_id,
+            address: Some(nbr.src.into()),
             dr_router_id: None,
             dr_ip_addr: None,
             bdr_router_id: None,
@@ -2476,11 +2474,11 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::virtual_li
     }
 }
 
-impl<'a, V: Version> YangContainer<'a, Instance<V>> for ospf::areas::area::virtual_links::virtual_link::neighbors::neighbor::statistics::Statistics<'a> {
+impl<'a, V: Version> YangContainer<'a, Instance<V>> for ospf::areas::area::virtual_links::virtual_link::neighbors::neighbor::statistics::Statistics {
     fn new(_instance: &'a Instance<V>, list_entry: &ListEntry<'a, V>) -> Option<Self> {
         let (_, nbr) = list_entry.as_neighbor().unwrap();
         Some(Self {
-            discontinuity_time: Some(Cow::Borrowed(&nbr.discontinuity_time)).ignore_in_testing(),
+            discontinuity_time: Some(nbr.discontinuity_time).ignore_in_testing(),
             nbr_event_count: Some(nbr.event_count).ignore_in_testing(),
             nbr_retrans_qlen: Some(nbr.lists.ls_rxmt.len() as u32),
         })
@@ -2514,7 +2512,7 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::virtual_li
         let lsa = &lse.data;
         Self {
             lsa_id: lsa.hdr.lsa_id().to_string().into(),
-            adv_router: Cow::Owned(lsa.hdr.adv_rtr()),
+            adv_router: lsa.hdr.adv_rtr(),
             decode_completed: Some(!lsa.body.is_unknown()),
             raw_data: Some(HexStr(lsa.raw.as_ref())).ignore_in_testing(),
         }
@@ -2527,12 +2525,12 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::virtual_link
         let lsa = &lse.data;
         let (opaque_type, opaque_id) = lsa_hdr_opaque_data(&lsa.hdr);
         Some(Self {
-            lsa_id: Some(Cow::Owned(lsa.hdr.lsa_id)),
+            lsa_id: Some(lsa.hdr.lsa_id),
             opaque_type,
             opaque_id,
             age: Some(lsa.age()).ignore_in_testing(),
             r#type: Some(lsa.hdr.lsa_type.to_yang()),
-            adv_router: Some(Cow::Owned(lsa.hdr.adv_rtr)),
+            adv_router: Some(lsa.hdr.adv_rtr),
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
             checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
@@ -2649,7 +2647,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::virtual_link
             lsa_id: Some(lsa.hdr.lsa_id.into()),
             age: Some(lsa.age()).ignore_in_testing(),
             r#type: Some(lsa.hdr.lsa_type.to_yang()),
-            adv_router: Some(Cow::Owned(lsa.hdr.adv_rtr)),
+            adv_router: Some(lsa.hdr.adv_rtr),
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
             checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
@@ -2748,20 +2746,20 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::interfaces
             state: Some(iface.state.ism_state.to_yang()),
             hello_timer: iface.state.tasks.hello_interval.as_ref().map(|task| TimerValueSecs16(task.remaining())).ignore_in_testing(),
             wait_timer: iface.state.tasks.wait_timer.as_ref().map(|task| TimerValueSecs16(task.remaining())).ignore_in_testing(),
-            dr_router_id: dr_router_id.map(Cow::Owned),
-            dr_ip_addr: dr_ip_addr.map(Cow::Owned),
-            bdr_router_id: bdr_router_id.map(Cow::Owned),
-            bdr_ip_addr: bdr_ip_addr.map(Cow::Owned),
+            dr_router_id,
+            dr_ip_addr,
+            bdr_router_id,
+            bdr_ip_addr,
             interface_id: if V::PROTOCOL == Protocol::OSPFV3 { iface.system.ifindex } else { None },
         }
     }
 }
 
-impl<'a, V: Version> YangContainer<'a, Instance<V>> for ospf::areas::area::interfaces::interface::statistics::Statistics<'a> {
+impl<'a, V: Version> YangContainer<'a, Instance<V>> for ospf::areas::area::interfaces::interface::statistics::Statistics {
     fn new(_instance: &'a Instance<V>, list_entry: &ListEntry<'a, V>) -> Option<Self> {
         let iface = list_entry.as_interface().unwrap();
         Some(Self {
-            discontinuity_time: Some(Cow::Borrowed(&iface.state.discontinuity_time)).ignore_in_testing(),
+            discontinuity_time: Some(iface.state.discontinuity_time).ignore_in_testing(),
             if_event_count: Some(iface.state.event_count).ignore_in_testing(),
             link_scope_lsa_count: Some(iface.state.lsdb.lsa_count()),
             link_scope_lsa_cksum_sum: Some(iface.state.lsdb.cksum_sum()).ignore_in_testing(),
@@ -2828,23 +2826,23 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::interfaces
             }
         }
         Self {
-            neighbor_router_id: Cow::Owned(nbr.router_id),
-            address: Some(Cow::Owned(nbr.src.into())),
-            dr_router_id: dr_router_id.map(Cow::Owned),
-            dr_ip_addr: dr_ip_addr.map(Cow::Owned),
-            bdr_router_id: bdr_router_id.map(Cow::Owned),
-            bdr_ip_addr: bdr_ip_addr.map(Cow::Owned),
+            neighbor_router_id: nbr.router_id,
+            address: Some(nbr.src.into()),
+            dr_router_id,
+            dr_ip_addr,
+            bdr_router_id,
+            bdr_ip_addr,
             state: Some(nbr.state.to_yang()),
             dead_timer: nbr.tasks.inactivity_timer.as_ref().map(|task| TimerValueSecs16(task.remaining())).ignore_in_testing(),
         }
     }
 }
 
-impl<'a, V: Version> YangContainer<'a, Instance<V>> for ospf::areas::area::interfaces::interface::neighbors::neighbor::statistics::Statistics<'a> {
+impl<'a, V: Version> YangContainer<'a, Instance<V>> for ospf::areas::area::interfaces::interface::neighbors::neighbor::statistics::Statistics {
     fn new(_instance: &'a Instance<V>, list_entry: &ListEntry<'a, V>) -> Option<Self> {
         let (_, nbr) = list_entry.as_neighbor().unwrap();
         Some(Self {
-            discontinuity_time: Some(Cow::Borrowed(&nbr.discontinuity_time)).ignore_in_testing(),
+            discontinuity_time: Some(nbr.discontinuity_time).ignore_in_testing(),
             nbr_event_count: Some(nbr.event_count).ignore_in_testing(),
             nbr_retrans_qlen: Some(nbr.lists.ls_rxmt.len() as u32),
         })
@@ -2889,7 +2887,7 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::interfaces
         let lsa = &lse.data;
         Self {
             lsa_id: lsa.hdr.lsa_id().to_string().into(),
-            adv_router: Cow::Owned(lsa.hdr.adv_rtr()),
+            adv_router: lsa.hdr.adv_rtr(),
             decode_completed: Some(!lsa.body.is_unknown()),
             raw_data: Some(HexStr(lsa.raw.as_ref())).ignore_in_testing(),
         }
@@ -2902,12 +2900,12 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::interfaces::
         let lsa = &lse.data;
         let (opaque_type, opaque_id) = lsa_hdr_opaque_data(&lsa.hdr);
         Some(Self {
-            lsa_id: Some(Cow::Owned(lsa.hdr.lsa_id)),
+            lsa_id: Some(lsa.hdr.lsa_id),
             opaque_type,
             opaque_id,
             age: Some(lsa.age()).ignore_in_testing(),
             r#type: Some(lsa.hdr.lsa_type.to_yang()),
-            adv_router: Some(Cow::Owned(lsa.hdr.adv_rtr)),
+            adv_router: Some(lsa.hdr.adv_rtr),
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
             checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
@@ -3028,7 +3026,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::interfaces::
         Some(Self {
             grace_period: lsa_body.grace_period.as_ref().map(|tlv| tlv.get()),
             graceful_restart_reason: lsa_body.gr_reason.as_ref().and_then(|tlv| GrReason::from_u8(tlv.get())).map(|reason| reason.to_yang()),
-            ip_interface_address: lsa_body.addr.as_ref().map(|tlv| Cow::Owned(tlv.get())),
+            ip_interface_address: lsa_body.addr.as_ref().map(|tlv| tlv.get()),
         })
     }
 }
@@ -3041,7 +3039,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::
             lsa_id: Some(lsa.hdr.lsa_id.into()),
             age: Some(lsa.age()).ignore_in_testing(),
             r#type: Some(lsa.hdr.lsa_type.to_yang()),
-            adv_router: Some(Cow::Owned(lsa.hdr.adv_rtr)),
+            adv_router: Some(lsa.hdr.adv_rtr),
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
             checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
@@ -3050,17 +3048,17 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::
     }
 }
 
-impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::link::Link<'a> {
+impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::link::Link {
     fn new(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<Self> {
         let lse = list_entry.as_interface_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_std_link()?;
         Some(Self {
             rtr_priority: Some(lsa_body.priority),
-            link_local_interface_address: Some(Cow::Owned(match lsa_body.linklocal {
+            link_local_interface_address: Some(match lsa_body.linklocal {
                 IpAddr::V4(addr) => addr.to_ipv6_mapped(),
                 IpAddr::V6(addr) => addr,
-            })),
+            }),
             num_of_prefixes: Some(lsa_body.prefixes.len() as _),
         })
     }
@@ -3078,7 +3076,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::
     }
 }
 
-impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::link::prefixes::prefix::Prefix<'a> {
+impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::link::prefixes::prefix::Prefix {
     fn iter(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<ListIterator<'a, Ospfv3>> {
         let lse = list_entry.as_interface_lsa().unwrap();
         let lsa = &lse.data;
@@ -3090,7 +3088,7 @@ impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::inter
     fn new(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Self {
         let prefix = list_entry.as_ospfv3_link_lsa_prefix().unwrap();
         Self {
-            prefix: Some(Cow::Borrowed(&prefix.value)),
+            prefix: Some(prefix.value),
         }
     }
 }
@@ -3221,12 +3219,12 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::
     }
 }
 
-impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::IntraPrefixTlv<'a> {
+impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::intra_prefix_tlv::IntraPrefixTlv {
     fn new(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<Self> {
         let lsa_prefix = list_entry.as_ospfv3_link_lsa_prefix()?;
         Some(Self {
             metric: None, // TODO
-            prefix: Some(Cow::Borrowed(&lsa_prefix.value)),
+            prefix: Some(lsa_prefix.value),
         })
     }
 }
@@ -3292,13 +3290,11 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::
     }
 }
 
-impl<'a> YangContainer<'a, Instance<Ospfv3>>
-    for ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv6_link_local_addr_tlv::Ipv6LinkLocalAddrTlv<'a>
-{
+impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv6_link_local_addr_tlv::Ipv6LinkLocalAddrTlv {
     fn new(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<Self> {
         let lladdr = list_entry.as_ospfv3_link_local_addr()?;
         Some(Self {
-            link_local_address: Ipv6Addr::get(*lladdr).map(Cow::Owned),
+            link_local_address: Ipv6Addr::get(*lladdr),
         })
     }
 }
@@ -3326,13 +3322,11 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>>
     }
 }
 
-impl<'a> YangContainer<'a, Instance<Ospfv3>>
-    for ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv4_link_local_addr_tlv::Ipv4LinkLocalAddrTlv<'a>
-{
+impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::ipv4_link_local_addr_tlv::Ipv4LinkLocalAddrTlv {
     fn new(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<Self> {
         let lladdr = list_entry.as_ospfv3_link_local_addr()?;
         Some(Self {
-            link_local_address: Ipv4Addr::get(*lladdr).map(Cow::Owned),
+            link_local_address: Ipv4Addr::get(*lladdr),
         })
     }
 }
@@ -3370,7 +3364,7 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::hostnames::hostname::Ho
     fn new(_instance: &'a Instance<V>, list_entry: &ListEntry<'a, V>) -> Self {
         let (router_id, hostname) = list_entry.as_hostname().unwrap();
         Self {
-            router_id: Cow::Borrowed(router_id),
+            router_id: **router_id,
             hostname: Some(Cow::Borrowed(hostname)),
         }
     }

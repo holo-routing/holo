@@ -351,7 +351,7 @@ pub(crate) fn adjacency_delete(
         &instance.tx.nb,
         instance.name,
         ifname.as_deref(),
-        &addr,
+        addr,
         false,
     );
     Neighbors::delete_check(instance, &lsr_id, status_code);

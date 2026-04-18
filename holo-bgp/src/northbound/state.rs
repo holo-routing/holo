@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::borrow::Cow;
 use std::net::IpAddr;
 use std::sync::{Arc, atomic};
 
@@ -55,10 +54,10 @@ pub enum ListEntry<'a> {
     RibLargeComms(&'a Arc<AttrSet<LargeComms>>),
     RibAsPathSegment(&'a AsPathSegment),
     RibNeighbor(&'a Neighbor),
-    RibV4LocRoute(&'a Ipv4Network, &'a Box<LocalRoute>),
-    RibV6LocRoute(&'a Ipv6Network, &'a Box<LocalRoute>),
-    RibV4Route(&'a Ipv4Network, &'a Route),
-    RibV6Route(&'a Ipv6Network, &'a Route),
+    RibV4LocRoute(Ipv4Network, &'a Box<LocalRoute>),
+    RibV6LocRoute(Ipv6Network, &'a Box<LocalRoute>),
+    RibV4Route(Ipv4Network, &'a Route),
+    RibV6Route(Ipv6Network, &'a Route),
     RouteUnknownAttr(&'a UnknownAttr),
 }
 
@@ -123,20 +122,20 @@ impl<'a> YangList<'a, Instance> for bgp::neighbors::neighbor::Neighbor<'a> {
         let mut local_port = None;
         let mut remote_port = None;
         if let Some(conn_info) = &nbr.conn_info {
-            local_address = Some(Cow::Borrowed(&conn_info.local_addr));
+            local_address = Some(conn_info.local_addr);
             local_port = Some(conn_info.local_port);
             remote_port = Some(conn_info.remote_port);
         }
         Self {
-            remote_address: Cow::Borrowed(&nbr.remote_addr),
+            remote_address: nbr.remote_addr,
             local_address,
             local_port: local_port.ignore_in_testing(),
             remote_port: remote_port.ignore_in_testing(),
             peer_type: Some(nbr.peer_type.to_yang()),
-            identifier: nbr.identifier.map(Cow::Owned),
+            identifier: nbr.identifier,
             dynamically_configured: None,
             session_state: Some(nbr.state.to_yang()),
-            last_established: nbr.last_established.as_ref().map(Cow::Borrowed).ignore_in_testing(),
+            last_established: nbr.last_established.ignore_in_testing(),
         }
     }
 }
@@ -327,7 +326,7 @@ impl<'a> YangContainer<'a, Instance> for bgp::neighbors::neighbor::errors::recei
         let nbr = list_entry.as_neighbor().unwrap();
         let (time, notif) = nbr.notification_rcvd.as_ref()?;
         Some(Self {
-            last_notification: Some(Cow::Borrowed(time)),
+            last_notification: Some(*time),
             last_error: Some(notif.to_yang()),
             last_error_code: Some(notif.error_code),
             last_error_subcode: Some(notif.error_subcode),
@@ -341,7 +340,7 @@ impl<'a> YangContainer<'a, Instance> for bgp::neighbors::neighbor::errors::sent:
         let nbr = list_entry.as_neighbor().unwrap();
         let (time, notif) = nbr.notification_sent.as_ref()?;
         Some(Self {
-            last_notification: Some(Cow::Borrowed(time)),
+            last_notification: Some(*time),
             last_error: Some(notif.to_yang()),
             last_error_code: Some(notif.error_code),
             last_error_subcode: Some(notif.error_subcode),
@@ -397,15 +396,15 @@ impl<'a> YangList<'a, Instance> for bgp::rib::attr_sets::attr_set::AttrSet {
 impl<'a> YangContainer<'a, Instance> for bgp::rib::attr_sets::attr_set::attributes::Attributes<'a> {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let attr_set = list_entry.as_rib_base_attrs().unwrap();
-        let cluster_list = attr_set.value.cluster_list.as_ref().map(|clist| Box::new(clist.0.iter().map(Cow::Borrowed)) as _);
+        let cluster_list = attr_set.value.cluster_list.as_ref().map(|clist| Box::new(clist.0.iter().copied()) as _);
         Some(Self {
             origin: Some(attr_set.value.origin.to_yang()),
-            next_hop: attr_set.value.nexthop.as_ref().map(Cow::Borrowed),
-            link_local_next_hop: attr_set.value.ll_nexthop.as_ref().map(Cow::Borrowed),
+            next_hop: attr_set.value.nexthop,
+            link_local_next_hop: attr_set.value.ll_nexthop,
             med: attr_set.value.med,
             local_pref: attr_set.value.local_pref,
             atomic_aggregate: attr_set.value.atomic_aggregate.map(|_| true),
-            originator_id: attr_set.value.originator_id.map(Cow::Owned),
+            originator_id: attr_set.value.originator_id,
             cluster_list,
         })
     }
@@ -446,24 +445,24 @@ impl<'a> YangList<'a, Instance> for bgp::rib::attr_sets::attr_set::attributes::a
     }
 }
 
-impl<'a> YangContainer<'a, Instance> for bgp::rib::attr_sets::attr_set::attributes::aggregator::Aggregator<'a> {
+impl<'a> YangContainer<'a, Instance> for bgp::rib::attr_sets::attr_set::attributes::aggregator::Aggregator {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let attr_set = list_entry.as_rib_base_attrs().unwrap();
         let aggregator = attr_set.value.aggregator.as_ref()?;
         Some(Self {
             r#as: Some(aggregator.asn),
-            identifier: Some(Cow::Owned(aggregator.identifier)),
+            identifier: Some(aggregator.identifier),
         })
     }
 }
 
-impl<'a> YangContainer<'a, Instance> for bgp::rib::attr_sets::attr_set::attributes::aggregator4::Aggregator4<'a> {
+impl<'a> YangContainer<'a, Instance> for bgp::rib::attr_sets::attr_set::attributes::aggregator4::Aggregator4 {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let attr_set = list_entry.as_rib_base_attrs().unwrap();
         let as4_aggregator = attr_set.value.as4_aggregator.as_ref()?;
         Some(Self {
             as4: Some(as4_aggregator.asn),
-            identifier: Some(Cow::Owned(as4_aggregator.identifier)),
+            identifier: Some(as4_aggregator.identifier),
         })
     }
 }
@@ -561,14 +560,14 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
         }
         let rib = &instance.state.as_ref()?.rib;
         let iter = rib.tables.ipv4_unicast.prefixes.iter();
-        let iter = iter.filter_map(|(prefix, dest)| dest.local.as_ref().map(|route| ListEntry::RibV4LocRoute(prefix, route)));
+        let iter = iter.filter_map(|(prefix, dest)| dest.local.as_ref().map(|route| ListEntry::RibV4LocRoute(*prefix, route)));
         Some(Box::new(iter))
     }
 
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let (prefix, route) = list_entry.as_rib_v4_loc_route().unwrap();
         Self {
-            prefix: Cow::Borrowed(prefix),
+            prefix: *prefix,
             origin: route.origin.to_yang(),
             path_id: 0,
             attr_index: Some(route.attrs.base.index),
@@ -605,7 +604,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
     }
 }
 
-impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::Neighbor<'a> {
+impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::Neighbor {
     fn iter(instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let afi_safi = list_entry.as_rib().unwrap();
         if *afi_safi != AfiSafi::Ipv4Unicast {
@@ -618,7 +617,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let nbr = list_entry.as_rib_neighbor().unwrap();
         Self {
-            neighbor_address: Cow::Borrowed(&nbr.remote_addr),
+            neighbor_address: nbr.remote_addr,
         }
     }
 }
@@ -628,14 +627,14 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
         let nbr = list_entry.as_rib_neighbor().unwrap();
         let rib = &instance.state.as_ref()?.rib;
         let iter = rib.tables.ipv4_unicast.prefixes.iter();
-        let iter = iter.filter_map(|(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.in_pre()).map(|route| ListEntry::RibV4Route(prefix, route)));
+        let iter = iter.filter_map(|(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.in_pre()).map(|route| ListEntry::RibV4Route(*prefix, route)));
         Some(Box::new(iter))
     }
 
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let (prefix, route) = list_entry.as_rib_v4_route().unwrap();
         Self {
-            prefix: Cow::Borrowed(prefix),
+            prefix: *prefix,
             path_id: 0,
             attr_index: Some(route.attrs.base.index),
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
@@ -676,14 +675,14 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
         let nbr = list_entry.as_rib_neighbor().unwrap();
         let rib = &instance.state.as_ref()?.rib;
         let iter = rib.tables.ipv4_unicast.prefixes.iter();
-        let iter = iter.filter_map(|(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.in_post()).map(|route| ListEntry::RibV4Route(prefix, route)));
+        let iter = iter.filter_map(|(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.in_post()).map(|route| ListEntry::RibV4Route(*prefix, route)));
         Some(Box::new(iter))
     }
 
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let (prefix, route) = list_entry.as_rib_v4_route().unwrap();
         Self {
-            prefix: Cow::Borrowed(prefix),
+            prefix: *prefix,
             path_id: 0,
             attr_index: Some(route.attrs.base.index),
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
@@ -725,14 +724,14 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
         let nbr = list_entry.as_rib_neighbor().unwrap();
         let rib = &instance.state.as_ref()?.rib;
         let iter = rib.tables.ipv4_unicast.prefixes.iter();
-        let iter = iter.filter_map(|(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.out_pre()).map(|route| ListEntry::RibV4Route(prefix, route)));
+        let iter = iter.filter_map(|(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.out_pre()).map(|route| ListEntry::RibV4Route(*prefix, route)));
         Some(Box::new(iter))
     }
 
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let (prefix, route) = list_entry.as_rib_v4_route().unwrap();
         Self {
-            prefix: Cow::Borrowed(prefix),
+            prefix: *prefix,
             path_id: 0,
             attr_index: Some(route.attrs.base.index),
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
@@ -773,14 +772,14 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
         let nbr = list_entry.as_rib_neighbor().unwrap();
         let rib = &instance.state.as_ref()?.rib;
         let iter = rib.tables.ipv4_unicast.prefixes.iter();
-        let iter = iter.filter_map(|(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.out_post()).map(|route| ListEntry::RibV4Route(prefix, route)));
+        let iter = iter.filter_map(|(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.out_post()).map(|route| ListEntry::RibV4Route(*prefix, route)));
         Some(Box::new(iter))
     }
 
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let (prefix, route) = list_entry.as_rib_v4_route().unwrap();
         Self {
-            prefix: Cow::Borrowed(prefix),
+            prefix: *prefix,
             path_id: 0,
             attr_index: Some(route.attrs.base.index),
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
@@ -824,14 +823,14 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
         }
         let rib = &instance.state.as_ref()?.rib;
         let iter = rib.tables.ipv6_unicast.prefixes.iter();
-        let iter = iter.filter_map(|(prefix, dest)| dest.local.as_ref().map(|route| ListEntry::RibV6LocRoute(prefix, route)));
+        let iter = iter.filter_map(|(prefix, dest)| dest.local.as_ref().map(|route| ListEntry::RibV6LocRoute(*prefix, route)));
         Some(Box::new(iter))
     }
 
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let (prefix, route) = list_entry.as_rib_v6_loc_route().unwrap();
         Self {
-            prefix: Cow::Borrowed(prefix),
+            prefix: *prefix,
             origin: route.origin.to_yang(),
             path_id: 0,
             attr_index: Some(route.attrs.base.index),
@@ -868,7 +867,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
     }
 }
 
-impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::Neighbor<'a> {
+impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::Neighbor {
     fn iter(instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let afi_safi = list_entry.as_rib().unwrap();
         if *afi_safi != AfiSafi::Ipv6Unicast {
@@ -881,7 +880,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let nbr = list_entry.as_rib_neighbor().unwrap();
         Self {
-            neighbor_address: Cow::Borrowed(&nbr.remote_addr),
+            neighbor_address: nbr.remote_addr,
         }
     }
 }
@@ -891,14 +890,14 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
         let nbr = list_entry.as_rib_neighbor().unwrap();
         let rib = &instance.state.as_ref()?.rib;
         let iter = rib.tables.ipv6_unicast.prefixes.iter();
-        let iter = iter.filter_map(|(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.in_pre()).map(|route| ListEntry::RibV6Route(prefix, route)));
+        let iter = iter.filter_map(|(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.in_pre()).map(|route| ListEntry::RibV6Route(*prefix, route)));
         Some(Box::new(iter))
     }
 
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let (prefix, route) = list_entry.as_rib_v6_route().unwrap();
         Self {
-            prefix: Cow::Borrowed(prefix),
+            prefix: *prefix,
             path_id: 0,
             attr_index: Some(route.attrs.base.index),
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
@@ -939,14 +938,14 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
         let nbr = list_entry.as_rib_neighbor().unwrap();
         let rib = &instance.state.as_ref()?.rib;
         let iter = rib.tables.ipv6_unicast.prefixes.iter();
-        let iter = iter.filter_map(|(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.in_post()).map(|route| ListEntry::RibV6Route(prefix, route)));
+        let iter = iter.filter_map(|(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.in_post()).map(|route| ListEntry::RibV6Route(*prefix, route)));
         Some(Box::new(iter))
     }
 
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let (prefix, route) = list_entry.as_rib_v6_route().unwrap();
         Self {
-            prefix: Cow::Borrowed(prefix),
+            prefix: *prefix,
             path_id: 0,
             attr_index: Some(route.attrs.base.index),
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
@@ -988,14 +987,14 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
         let nbr = list_entry.as_rib_neighbor().unwrap();
         let rib = &instance.state.as_ref()?.rib;
         let iter = rib.tables.ipv6_unicast.prefixes.iter();
-        let iter = iter.filter_map(|(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.out_pre()).map(|route| ListEntry::RibV6Route(prefix, route)));
+        let iter = iter.filter_map(|(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.out_pre()).map(|route| ListEntry::RibV6Route(*prefix, route)));
         Some(Box::new(iter))
     }
 
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let (prefix, route) = list_entry.as_rib_v6_route().unwrap();
         Self {
-            prefix: Cow::Borrowed(prefix),
+            prefix: *prefix,
             path_id: 0,
             attr_index: Some(route.attrs.base.index),
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
@@ -1036,14 +1035,14 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
         let nbr = list_entry.as_rib_neighbor().unwrap();
         let rib = &instance.state.as_ref()?.rib;
         let iter = rib.tables.ipv6_unicast.prefixes.iter();
-        let iter = iter.filter_map(|(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.out_post()).map(|route| ListEntry::RibV6Route(prefix, route)));
+        let iter = iter.filter_map(|(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.out_post()).map(|route| ListEntry::RibV6Route(*prefix, route)));
         Some(Box::new(iter))
     }
 
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let (prefix, route) = list_entry.as_rib_v6_route().unwrap();
         Self {
-            prefix: Cow::Borrowed(prefix),
+            prefix: *prefix,
             path_id: 0,
             attr_index: Some(route.attrs.base.index),
             community_index: route.attrs.comm.as_ref().map(|c| c.index),

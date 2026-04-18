@@ -170,8 +170,8 @@ impl Ipv4SourceRidStlv {
         TLV_HDR_SIZE + Self::SIZE
     }
 
-    pub(crate) fn get(&self) -> &Ipv4Addr {
-        &self.0
+    pub(crate) fn get(&self) -> Ipv4Addr {
+        self.0
     }
 }
 
@@ -205,8 +205,8 @@ impl Ipv6SourceRidStlv {
         TLV_HDR_SIZE + Self::SIZE
     }
 
-    pub(crate) fn get(&self) -> &Ipv6Addr {
-        &self.0
+    pub(crate) fn get(&self) -> Ipv6Addr {
+        self.0
     }
 }
 

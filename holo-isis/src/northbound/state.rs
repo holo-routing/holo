@@ -56,7 +56,7 @@ pub enum ListEntry<'a> {
     SpfLog(&'a SpfLogEntry),
     SpfTriggerLsp(&'a LspLogId),
     LspLog(&'a LspLogEntry),
-    Hostname(&'a SystemId, &'a String),
+    Hostname(SystemId, &'a String),
     Lsdb(LevelNumber, &'a Lsdb),
     LspEntry(&'a LspEntry),
     RouterCap(&'a RouterCapTlv),
@@ -79,7 +79,7 @@ pub enum ListEntry<'a> {
     MtIpv6Reach(u16, &'a Ipv6Reach),
     PrefixSidStlv(&'a PrefixSidStlv),
     UnknownTlv(&'a UnknownTlv),
-    Route(&'a IpNetwork, &'a Route),
+    Route(IpNetwork, &'a Route),
     Nexthop(&'a Nexthop),
     SystemCounters(LevelNumber),
     Interface(&'a Interface),
@@ -100,10 +100,10 @@ impl ListEntryKind for ListEntry<'_> {}
 
 // ===== YANG impls =====
 
-impl<'a> YangContainer<'a, Instance> for isis::Isis<'a> {
+impl<'a> YangContainer<'a, Instance> for isis::Isis {
     fn new(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<Self> {
         Some(Self {
-            discontinuity_time: instance.state.as_ref().map(|state| &state.discontinuity_time).map(Cow::Borrowed).ignore_in_testing(),
+            discontinuity_time: instance.state.as_ref().map(|state| state.discontinuity_time).ignore_in_testing(),
         })
     }
 }
@@ -196,7 +196,7 @@ impl<'a> YangContainer<'a, Instance> for isis::lsp_log::event::lsp::Lsp<'a> {
 impl<'a> YangList<'a, Instance> for isis::hostnames::hostname::Hostname<'a> {
     fn iter(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let hostnames = &instance.state.as_ref()?.hostnames;
-        let iter = hostnames.iter().map(|(system_id, hostname)| ListEntry::Hostname(system_id, hostname));
+        let iter = hostnames.iter().map(|(system_id, hostname)| ListEntry::Hostname(*system_id, hostname));
         Some(Box::new(iter))
     }
 
@@ -236,8 +236,8 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::Lsp<'a> {
         let lse = list_entry.as_lsp_entry().unwrap();
         let lsp = &lse.data;
         let remaining_lifetime = lsp.rem_lifetime();
-        let ipv4_addresses = lsp.tlvs.ipv4_addrs().map(Cow::Borrowed);
-        let ipv6_addresses = lsp.tlvs.ipv6_addrs().map(Cow::Borrowed);
+        let ipv4_addresses = lsp.tlvs.ipv4_addrs().copied();
+        let ipv6_addresses = lsp.tlvs.ipv6_addrs().copied();
         let protocol_supported = lsp.tlvs.protocols_supported();
         let area_addresses = lsp.tlvs.area_addrs().map(|area| area.to_yang());
         Self {
@@ -249,8 +249,8 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::Lsp<'a> {
             sequence: Some(lsp.seqno).ignore_in_testing_if(lsp.seqno != 0),
             ipv4_addresses: Some(Box::new(ipv4_addresses)),
             ipv6_addresses: Some(Box::new(ipv6_addresses)),
-            ipv4_te_routerid: lsp.tlvs.ipv4_router_id.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
-            ipv6_te_routerid: lsp.tlvs.ipv6_router_id.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
+            ipv4_te_routerid: lsp.tlvs.ipv4_router_id.as_ref().map(|tlv| tlv.get()),
+            ipv6_te_routerid: lsp.tlvs.ipv6_router_id.as_ref().map(|tlv| tlv.get()),
             protocol_supported: Some(Box::new(protocol_supported)),
             dynamic_hostname: lsp.tlvs.hostname().map(Cow::Borrowed),
             area_addresses: Some(Box::new(area_addresses)),
@@ -600,8 +600,8 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
             admin_group: reach.sub_tlvs.admin_group.as_ref().map(|tlv| tlv.get()),
             extended_admin_group: reach.sub_tlvs.ext_admin_group.as_ref().map(|tlv| Box::new(tlv.get().iter().copied()) as _),
             te_metric: reach.sub_tlvs.te_default_metric.as_ref().map(|tlv| tlv.get()),
-            max_bandwidth: reach.sub_tlvs.max_link_bw.as_ref().map(|tlv| *tlv.get()),
-            max_reservable_bandwidth: reach.sub_tlvs.max_resv_link_bw.as_ref().map(|tlv| *tlv.get()),
+            max_bandwidth: reach.sub_tlvs.max_link_bw.as_ref().map(|tlv| tlv.get()),
+            max_reservable_bandwidth: reach.sub_tlvs.max_resv_link_bw.as_ref().map(|tlv| tlv.get()),
         }
     }
 }
@@ -609,7 +609,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::local_if_ipv4_addrs::LocalIfIpv4Addrs<'a> {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
-        let iter = reach.sub_tlvs.ipv4_interface_addr.iter().map(|tlv| tlv.get()).map(Cow::Borrowed);
+        let iter = reach.sub_tlvs.ipv4_interface_addr.iter().map(|tlv| tlv.get());
         Some(Self {
             local_if_ipv4_addr: Some(Box::new(iter)),
         })
@@ -619,7 +619,7 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::remote_if_ipv4_addrs::RemoteIfIpv4Addrs<'a> {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
-        let iter = reach.sub_tlvs.ipv4_neighbor_addr.iter().map(|tlv| tlv.get()).map(Cow::Borrowed);
+        let iter = reach.sub_tlvs.ipv4_neighbor_addr.iter().map(|tlv| tlv.get());
         Some(Self {
             remote_if_ipv4_addr: Some(Box::new(iter)),
         })
@@ -722,7 +722,7 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
         let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
         let stlv = reach.sub_tlvs.uni_resid_bw.as_ref()?;
         Some(Self {
-            value: Some(*stlv.get()),
+            value: Some(stlv.get()),
         })
     }
 }
@@ -732,7 +732,7 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
         let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
         let stlv = reach.sub_tlvs.uni_avail_bw.as_ref()?;
         Some(Self {
-            value: Some(*stlv.get()),
+            value: Some(stlv.get()),
         })
     }
 }
@@ -742,7 +742,7 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
         let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
         let stlv = reach.sub_tlvs.uni_util_bw.as_ref()?;
         Some(Self {
-            value: Some(*stlv.get()),
+            value: Some(stlv.get()),
         })
     }
 }
@@ -858,7 +858,7 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
     }
 }
 
-impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::ipv4_internal_reachability::prefixes::Prefixes<'a> {
+impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::ipv4_internal_reachability::prefixes::Prefixes {
     fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let lse = list_entry.as_lsp_entry().unwrap();
         let lsp = &lse.data;
@@ -869,7 +869,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::ipv4_internal_r
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let reach = list_entry.as_ipv4_reach().unwrap();
         Self {
-            ip_prefix: Some(Cow::Owned(reach.prefix.ip())),
+            ip_prefix: Some(reach.prefix.ip()),
             prefix_len: Some(reach.prefix.prefix()),
             i_e: Some(reach.ie_bit),
         }
@@ -915,7 +915,7 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::ipv4_inter
     }
 }
 
-impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::ipv4_external_reachability::prefixes::Prefixes<'a> {
+impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::ipv4_external_reachability::prefixes::Prefixes {
     fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let lse = list_entry.as_lsp_entry().unwrap();
         let lsp = &lse.data;
@@ -926,7 +926,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::ipv4_external_r
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let reach = list_entry.as_ipv4_reach().unwrap();
         Self {
-            ip_prefix: Some(Cow::Owned(reach.prefix.ip())),
+            ip_prefix: Some(reach.prefix.ip()),
             prefix_len: Some(reach.prefix.prefix()),
             i_e: Some(reach.ie_bit),
         }
@@ -972,7 +972,7 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::ipv4_exter
     }
 }
 
-impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_ipv4_reachability::prefixes::Prefixes<'a> {
+impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_ipv4_reachability::prefixes::Prefixes {
     fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let lse = list_entry.as_lsp_entry().unwrap();
         let lsp = &lse.data;
@@ -984,14 +984,14 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_ipv4_r
         let reach = list_entry.as_ext_ipv4_reach().unwrap();
         Self {
             up_down: Some(reach.up_down),
-            ip_prefix: Some(Cow::Owned(reach.prefix.ip())),
+            ip_prefix: Some(reach.prefix.ip()),
             prefix_len: Some(reach.prefix.prefix()),
             metric: Some(reach.metric),
             external_prefix_flag: reach.prefix_attr_flags_get(PrefixAttrFlags::X),
             node_flag: reach.prefix_attr_flags_get(PrefixAttrFlags::N),
             readvertisement_flag: reach.prefix_attr_flags_get(PrefixAttrFlags::R),
-            ipv4_source_router_id: reach.sub_tlvs.ipv4_source_rid.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
-            ipv6_source_router_id: reach.sub_tlvs.ipv6_source_rid.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
+            ipv4_source_router_id: reach.sub_tlvs.ipv4_source_rid.as_ref().map(|tlv| tlv.get()),
+            ipv6_source_router_id: reach.sub_tlvs.ipv6_source_rid.as_ref().map(|tlv| tlv.get()),
         }
     }
 }
@@ -1081,8 +1081,8 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
             admin_group: reach.sub_tlvs.admin_group.as_ref().map(|tlv| tlv.get()),
             extended_admin_group: reach.sub_tlvs.ext_admin_group.as_ref().map(|tlv| Box::new(tlv.get().iter().copied()) as _),
             te_metric: reach.sub_tlvs.te_default_metric.as_ref().map(|tlv| tlv.get()),
-            max_bandwidth: reach.sub_tlvs.max_link_bw.as_ref().map(|tlv| *tlv.get()),
-            max_reservable_bandwidth: reach.sub_tlvs.max_resv_link_bw.as_ref().map(|tlv| *tlv.get()),
+            max_bandwidth: reach.sub_tlvs.max_link_bw.as_ref().map(|tlv| tlv.get()),
+            max_reservable_bandwidth: reach.sub_tlvs.max_resv_link_bw.as_ref().map(|tlv| tlv.get()),
         }
     }
 }
@@ -1090,7 +1090,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::local_if_ipv4_addrs::LocalIfIpv4Addrs<'a> {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
-        let iter = reach.sub_tlvs.ipv4_interface_addr.iter().map(|tlv| tlv.get()).map(Cow::Borrowed);
+        let iter = reach.sub_tlvs.ipv4_interface_addr.iter().map(|tlv| tlv.get());
         Some(Self {
             local_if_ipv4_addr: Some(Box::new(iter)),
         })
@@ -1100,7 +1100,7 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::remote_if_ipv4_addrs::RemoteIfIpv4Addrs<'a> {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
-        let iter = reach.sub_tlvs.ipv4_neighbor_addr.iter().map(|tlv| tlv.get()).map(Cow::Borrowed);
+        let iter = reach.sub_tlvs.ipv4_neighbor_addr.iter().map(|tlv| tlv.get());
         Some(Self {
             remote_if_ipv4_addr: Some(Box::new(iter)),
         })
@@ -1203,7 +1203,7 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
         let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
         let stlv = reach.sub_tlvs.uni_resid_bw.as_ref()?;
         Some(Self {
-            value: Some(*stlv.get()),
+            value: Some(stlv.get()),
         })
     }
 }
@@ -1213,7 +1213,7 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
         let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
         let stlv = reach.sub_tlvs.uni_avail_bw.as_ref()?;
         Some(Self {
-            value: Some(*stlv.get()),
+            value: Some(stlv.get()),
         })
     }
 }
@@ -1223,7 +1223,7 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
         let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
         let stlv = reach.sub_tlvs.uni_util_bw.as_ref()?;
         Some(Self {
-            value: Some(*stlv.get()),
+            value: Some(stlv.get()),
         })
     }
 }
@@ -1338,7 +1338,7 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
     }
 }
 
-impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_extended_ipv4_reachability::prefixes::Prefixes<'a> {
+impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_extended_ipv4_reachability::prefixes::Prefixes {
     fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let lse = list_entry.as_lsp_entry().unwrap();
         let lsp = &lse.data;
@@ -1351,14 +1351,14 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_extended_ipv
         Self {
             mt_id: Some(*mt_id),
             up_down: Some(reach.up_down),
-            ip_prefix: Some(Cow::Owned(reach.prefix.ip())),
+            ip_prefix: Some(reach.prefix.ip()),
             prefix_len: Some(reach.prefix.prefix()),
             metric: Some(reach.metric),
             external_prefix_flag: reach.prefix_attr_flags_get(PrefixAttrFlags::X),
             node_flag: reach.prefix_attr_flags_get(PrefixAttrFlags::N),
             readvertisement_flag: reach.prefix_attr_flags_get(PrefixAttrFlags::R),
-            ipv4_source_router_id: reach.sub_tlvs.ipv4_source_rid.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
-            ipv6_source_router_id: reach.sub_tlvs.ipv6_source_rid.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
+            ipv4_source_router_id: reach.sub_tlvs.ipv4_source_rid.as_ref().map(|tlv| tlv.get()),
+            ipv6_source_router_id: reach.sub_tlvs.ipv6_source_rid.as_ref().map(|tlv| tlv.get()),
         }
     }
 }
@@ -1407,7 +1407,7 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_extende
     }
 }
 
-impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_ipv6_reachability::prefixes::Prefixes<'a> {
+impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_ipv6_reachability::prefixes::Prefixes {
     fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let lse = list_entry.as_lsp_entry().unwrap();
         let lsp = &lse.data;
@@ -1420,14 +1420,14 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_ipv6_reachab
         Self {
             mt_id: Some(*mt_id),
             up_down: Some(reach.up_down),
-            ip_prefix: Some(Cow::Owned(reach.prefix.ip())),
+            ip_prefix: Some(reach.prefix.ip()),
             prefix_len: Some(reach.prefix.prefix()),
             metric: Some(reach.metric),
             external_prefix_flag: Some(reach.external),
             node_flag: reach.prefix_attr_flags_get(PrefixAttrFlags::N),
             readvertisement_flag: reach.prefix_attr_flags_get(PrefixAttrFlags::R),
-            ipv4_source_router_id: reach.sub_tlvs.ipv4_source_rid.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
-            ipv6_source_router_id: reach.sub_tlvs.ipv6_source_rid.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
+            ipv4_source_router_id: reach.sub_tlvs.ipv4_source_rid.as_ref().map(|tlv| tlv.get()),
+            ipv6_source_router_id: reach.sub_tlvs.ipv6_source_rid.as_ref().map(|tlv| tlv.get()),
         }
     }
 }
@@ -1476,7 +1476,7 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_ipv6_re
     }
 }
 
-impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::ipv6_reachability::prefixes::Prefixes<'a> {
+impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::ipv6_reachability::prefixes::Prefixes {
     fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let lse = list_entry.as_lsp_entry().unwrap();
         let lsp = &lse.data;
@@ -1488,14 +1488,14 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::ipv6_reachabili
         let reach = list_entry.as_ipv6_reach().unwrap();
         Self {
             up_down: Some(reach.up_down),
-            ip_prefix: Some(Cow::Owned(reach.prefix.ip())),
+            ip_prefix: Some(reach.prefix.ip()),
             prefix_len: Some(reach.prefix.prefix()),
             metric: Some(reach.metric),
             external_prefix_flag: Some(reach.external),
             node_flag: reach.prefix_attr_flags_get(PrefixAttrFlags::N),
             readvertisement_flag: reach.prefix_attr_flags_get(PrefixAttrFlags::R),
-            ipv4_source_router_id: reach.sub_tlvs.ipv4_source_rid.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
-            ipv6_source_router_id: reach.sub_tlvs.ipv6_source_rid.as_ref().map(|tlv| Cow::Borrowed(tlv.get())),
+            ipv4_source_router_id: reach.sub_tlvs.ipv4_source_rid.as_ref().map(|tlv| tlv.get()),
+            ipv6_source_router_id: reach.sub_tlvs.ipv6_source_rid.as_ref().map(|tlv| tlv.get()),
         }
     }
 }
@@ -1616,17 +1616,17 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::fingerprint::Fi
     }
 }
 
-impl<'a> YangList<'a, Instance> for isis::local_rib::route::Route<'a> {
+impl<'a> YangList<'a, Instance> for isis::local_rib::route::Route {
     fn iter(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         let rib = instance.state.as_ref()?.rib(instance.config.level_type);
-        let iter = rib.iter().map(|(destination, route)| ListEntry::Route(destination, route));
+        let iter = rib.iter().map(|(destination, route)| ListEntry::Route(*destination, route));
         Some(Box::new(iter))
     }
 
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let (prefix, route) = list_entry.as_route().unwrap();
         Self {
-            prefix: Cow::Borrowed(prefix),
+            prefix: *prefix,
             metric: Some(route.metric),
             level: Some(route.level as u8),
             route_tag: route.tag,
@@ -1645,7 +1645,7 @@ impl<'a> YangList<'a, Instance> for isis::local_rib::route::next_hops::next_hop:
         let nexthop = list_entry.as_nexthop().unwrap();
         let iface = &instance.arenas.interfaces[nexthop.iface_idx];
         Self {
-            next_hop: Cow::Borrowed(&nexthop.addr),
+            next_hop: nexthop.addr,
             outgoing_interface: Some(Cow::Borrowed(iface.name.as_str())),
         }
     }
@@ -1715,7 +1715,7 @@ impl<'a> YangList<'a, Instance> for isis::interfaces::interface::Interface<'a> {
         let state = if iface.state.active { "up" } else { "down" };
         Self {
             name: Cow::Borrowed(&iface.name),
-            discontinuity_time: Some(Cow::Borrowed(&iface.state.discontinuity_time)).ignore_in_testing(),
+            discontinuity_time: Some(iface.state.discontinuity_time).ignore_in_testing(),
             state: Some(Cow::Borrowed(state)),
             circuit_id: Some(iface.state.circuit_id).ignore_in_testing(),
             extended_circuit_id: iface.system.ifindex.ignore_in_testing(),
@@ -1733,8 +1733,8 @@ impl<'a> YangList<'a, Instance> for isis::interfaces::interface::adjacencies::ad
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
         let adj = list_entry.as_adjacency().unwrap();
         let area_addresses = adj.area_addrs.iter().map(|area| area.to_yang());
-        let ipv4_addresses = adj.ipv4_addrs.iter().map(Cow::Borrowed);
-        let ipv6_addresses = adj.ipv6_addrs.iter().map(Cow::Borrowed);
+        let ipv4_addresses = adj.ipv4_addrs.iter().copied();
+        let ipv6_addresses = adj.ipv6_addrs.iter().copied();
         let protocol_supported = adj.protocols_supported.iter().copied();
         let topologies = adj.topologies.iter().copied();
         Self {

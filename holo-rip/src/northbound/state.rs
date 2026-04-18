@@ -85,11 +85,11 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for rip::interfaces::interface::I
     }
 }
 
-impl<'a, V: Version> YangContainer<'a, Instance<V>> for rip::interfaces::interface::statistics::Statistics<'a> {
+impl<'a, V: Version> YangContainer<'a, Instance<V>> for rip::interfaces::interface::statistics::Statistics {
     fn new(_instance: &'a Instance<V>, list_entry: &ListEntry<'a, V>) -> Option<Self> {
         let iface = list_entry.as_interface().unwrap();
         Some(Self {
-            discontinuity_time: iface.state.statistics.discontinuity_time.as_ref().map(Cow::Borrowed),
+            discontinuity_time: iface.state.statistics.discontinuity_time,
             bad_packets_rcvd: Some(iface.state.statistics.bad_packets_rcvd),
             bad_routes_rcvd: Some(iface.state.statistics.bad_routes_rcvd),
             updates_sent: Some(iface.state.statistics.updates_sent),
@@ -98,7 +98,7 @@ impl<'a, V: Version> YangContainer<'a, Instance<V>> for rip::interfaces::interfa
     }
 }
 
-impl<'a> YangList<'a, Instance<Ripv2>> for rip::ipv4::neighbors::neighbor::Neighbor<'a> {
+impl<'a> YangList<'a, Instance<Ripv2>> for rip::ipv4::neighbors::neighbor::Neighbor {
     fn iter(instance: &'a Instance<Ripv2>, _list_entry: &ListEntry<'a, Ripv2>) -> Option<ListIterator<'a, Ripv2>> {
         let neighbors = &instance.state.as_ref()?.neighbors;
         let iter = neighbors.values().map(ListEntry::Neighbor);
@@ -108,8 +108,8 @@ impl<'a> YangList<'a, Instance<Ripv2>> for rip::ipv4::neighbors::neighbor::Neigh
     fn new(_instance: &'a Instance<Ripv2>, list_entry: &ListEntry<'a, Ripv2>) -> Self {
         let nbr = list_entry.as_neighbor().unwrap();
         Self {
-            ipv4_address: Cow::Borrowed(&nbr.addr),
-            last_update: Some(Cow::Borrowed(&nbr.last_update)).ignore_in_testing(),
+            ipv4_address: nbr.addr,
+            last_update: Some(nbr.last_update).ignore_in_testing(),
             bad_packets_rcvd: Some(nbr.bad_packets_rcvd).ignore_in_testing(),
             bad_routes_rcvd: Some(nbr.bad_routes_rcvd).ignore_in_testing(),
         }
@@ -126,8 +126,8 @@ impl<'a> YangList<'a, Instance<Ripv2>> for rip::ipv4::routes::route::Route<'a> {
     fn new(instance: &'a Instance<Ripv2>, list_entry: &ListEntry<'a, Ripv2>) -> Self {
         let route = list_entry.as_route().unwrap();
         Self {
-            ipv4_prefix: Cow::Borrowed(&route.prefix),
-            next_hop: route.nexthop.as_ref().map(Cow::Borrowed),
+            ipv4_prefix: route.prefix,
+            next_hop: route.nexthop,
             interface: instance.interfaces.get_by_ifindex(route.ifindex).map(|(_, iface)| Cow::Borrowed(iface.name.as_str())),
             redistributed: Some(false),
             route_type: Some(route.route_type.to_yang()),
@@ -140,7 +140,7 @@ impl<'a> YangList<'a, Instance<Ripv2>> for rip::ipv4::routes::route::Route<'a> {
     }
 }
 
-impl<'a> YangList<'a, Instance<Ripng>> for rip::ipv6::neighbors::neighbor::Neighbor<'a> {
+impl<'a> YangList<'a, Instance<Ripng>> for rip::ipv6::neighbors::neighbor::Neighbor {
     fn iter(instance: &'a Instance<Ripng>, _list_entry: &ListEntry<'a, Ripng>) -> Option<ListIterator<'a, Ripng>> {
         let neighbors = &instance.state.as_ref()?.neighbors;
         let iter = neighbors.values().map(ListEntry::Neighbor);
@@ -150,8 +150,8 @@ impl<'a> YangList<'a, Instance<Ripng>> for rip::ipv6::neighbors::neighbor::Neigh
     fn new(_instance: &'a Instance<Ripng>, list_entry: &ListEntry<'a, Ripng>) -> Self {
         let nbr = list_entry.as_neighbor().unwrap();
         Self {
-            ipv6_address: Cow::Borrowed(&nbr.addr),
-            last_update: Some(Cow::Borrowed(&nbr.last_update)).ignore_in_testing(),
+            ipv6_address: nbr.addr,
+            last_update: Some(nbr.last_update).ignore_in_testing(),
             bad_packets_rcvd: Some(nbr.bad_packets_rcvd).ignore_in_testing(),
             bad_routes_rcvd: Some(nbr.bad_routes_rcvd).ignore_in_testing(),
         }
@@ -168,8 +168,8 @@ impl<'a> YangList<'a, Instance<Ripng>> for rip::ipv6::routes::route::Route<'a> {
     fn new(instance: &'a Instance<Ripng>, list_entry: &ListEntry<'a, Ripng>) -> Self {
         let route = list_entry.as_route().unwrap();
         Self {
-            ipv6_prefix: Cow::Borrowed(&route.prefix),
-            next_hop: route.nexthop.as_ref().map(Cow::Borrowed),
+            ipv6_prefix: route.prefix,
+            next_hop: route.nexthop,
             interface: instance.interfaces.get_by_ifindex(route.ifindex).map(|(_, iface)| Cow::Borrowed(iface.name.as_str())),
             redistributed: Some(false),
             route_type: Some(route.route_type.to_yang()),
@@ -182,11 +182,11 @@ impl<'a> YangList<'a, Instance<Ripng>> for rip::ipv6::routes::route::Route<'a> {
     }
 }
 
-impl<'a, V: Version> YangContainer<'a, Instance<V>> for rip::statistics::Statistics<'a> {
+impl<'a, V: Version> YangContainer<'a, Instance<V>> for rip::statistics::Statistics {
     fn new(instance: &'a Instance<V>, _list_entry: &ListEntry<'a, V>) -> Option<Self> {
         let statistics = &instance.state.as_ref()?.statistics;
         Some(Self {
-            discontinuity_time: statistics.discontinuity_time.as_ref().map(Cow::Borrowed),
+            discontinuity_time: statistics.discontinuity_time,
             requests_rcvd: Some(statistics.requests_rcvd),
             requests_sent: Some(statistics.requests_sent),
             responses_rcvd: Some(statistics.responses_rcvd),

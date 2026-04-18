@@ -52,11 +52,11 @@ impl<'a> YangContainer<'a, Instance> for igmp::global::Global {
     }
 }
 
-impl<'a> YangContainer<'a, Instance> for igmp::global::statistics::Statistics<'a> {
+impl<'a> YangContainer<'a, Instance> for igmp::global::statistics::Statistics {
     fn new(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<Self> {
         let statistics = &instance.state.as_ref()?.statistics;
         Some(Self {
-            discontinuity_time: Some(Cow::Borrowed(&statistics.discontinuity_time)).ignore_in_testing(),
+            discontinuity_time: Some(statistics.discontinuity_time).ignore_in_testing(),
         })
     }
 }
@@ -135,7 +135,7 @@ impl<'a> YangList<'a, Instance> for igmp::interfaces::interface::group::Group<'a
     }
 }
 
-impl<'a> YangList<'a, Instance> for igmp::interfaces::interface::group::source::Source<'a> {
+impl<'a> YangList<'a, Instance> for igmp::interfaces::interface::group::source::Source {
     fn iter(_instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
         todo!()
     }

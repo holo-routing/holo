@@ -2456,8 +2456,8 @@ impl Ipv4RouterIdTlv {
         tlv_encode_end(buf, start_pos);
     }
 
-    pub(crate) fn get(&self) -> &Ipv4Addr {
-        &self.0
+    pub(crate) fn get(&self) -> Ipv4Addr {
+        self.0
     }
 }
 
@@ -2492,8 +2492,8 @@ impl Ipv6RouterIdTlv {
         tlv_encode_end(buf, start_pos);
     }
 
-    pub(crate) fn get(&self) -> &Ipv6Addr {
-        &self.0
+    pub(crate) fn get(&self) -> Ipv6Addr {
+        self.0
     }
 }
 

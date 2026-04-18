@@ -6,6 +6,7 @@
 
 use std::time::SystemTime;
 
+use holo_northbound::{Path, PathElem};
 use holo_utils::task::Task;
 use holo_yang::YANG_CTX;
 use itertools::join;
@@ -123,12 +124,8 @@ impl proto::GNmi for GNmiService {
 
         // Convert and relay gNMI request to the northbound.
         let mut notification = vec![];
-        for entry in grpc_request.path {
-            let mut path = "/".to_owned();
-            if let Some(prefix) = &grpc_request.prefix {
-                path.push_str(&prefix.to_string());
-            }
-            path.push_str(&entry.to_string());
+        for path in grpc_request.path {
+            let path = Path::from(path);
 
             // Create oneshot channel to receive response back from the
             // northbound.
@@ -411,6 +408,25 @@ impl GNmiService {
         // Receive response from the northbound.
         let nb_response = responder_rx.await.unwrap()?;
         Ok(nb_response.dtree)
+    }
+}
+
+// ===== From/TryFrom conversion methods =====
+
+impl From<proto::Path> for Path {
+    fn from(path: proto::Path) -> Self {
+        Path {
+            elems: path.elem.into_iter().map(PathElem::from).collect(),
+        }
+    }
+}
+
+impl From<proto::PathElem> for PathElem {
+    fn from(elem: proto::PathElem) -> Self {
+        PathElem {
+            name: elem.name,
+            keys: elem.key,
+        }
     }
 }
 

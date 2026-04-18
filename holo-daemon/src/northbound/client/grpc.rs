@@ -10,6 +10,7 @@ use std::pin::Pin;
 use std::time::SystemTime;
 
 use futures::Stream;
+use holo_northbound::{Path, PathElem};
 use holo_utils::task::Task;
 use holo_yang::{YANG_CTX, YANG_FEATURES};
 use tokio::sync::mpsc::Sender;
@@ -172,7 +173,7 @@ impl proto::Northbound for NorthboundService {
         let encoding = proto::Encoding::try_from(grpc_request.encoding)
             .map_err(|_| Status::invalid_argument("Invalid data encoding"))?;
         let with_defaults = grpc_request.with_defaults;
-        let path = (!grpc_request.path.is_empty()).then_some(grpc_request.path);
+        let path = grpc_request.path.map(Path::from);
         let nb_request = api::client::Request::Get(api::client::GetRequest {
             data_type,
             path,
@@ -509,6 +510,23 @@ impl From<proto::SchemaFormat> for SchemaOutputFormat {
         match format {
             proto::SchemaFormat::Yang => SchemaOutputFormat::YANG,
             proto::SchemaFormat::Yin => SchemaOutputFormat::YIN,
+        }
+    }
+}
+
+impl From<proto::Path> for Path {
+    fn from(path: proto::Path) -> Self {
+        Path {
+            elems: path.elem.into_iter().map(PathElem::from).collect(),
+        }
+    }
+}
+
+impl From<proto::PathElem> for PathElem {
+    fn from(elem: proto::PathElem) -> Self {
+        PathElem {
+            name: elem.name,
+            keys: elem.key,
         }
     }
 }

@@ -17,6 +17,7 @@ pub enum Error {
     RpcRelay(RpcError),
     RpcCallback(RpcError),
     YangInvalidPath(yang5::Error),
+    YangInvalidListKeys,
     YangInvalidData(yang5::Error),
 }
 
@@ -41,6 +42,7 @@ impl Error {
             Error::YangInvalidPath(error) => {
                 warn!(%error, "{}", self);
             }
+            Error::YangInvalidListKeys => warn!("{}", self),
             Error::YangInvalidData(error) => {
                 warn!(%error, "{}", self);
             }
@@ -66,6 +68,9 @@ impl std::fmt::Display for Error {
             }
             Error::YangInvalidPath(..) => {
                 write!(f, "Invalid YANG data path")
+            }
+            Error::YangInvalidListKeys => {
+                write!(f, "Invalid YANG list keys")
             }
             Error::YangInvalidData(..) => {
                 write!(f, "Invalid YANG instance data")

@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot::Sender as Responder;
 use yang5::data::DataTree;
 
+use crate::Path;
 use crate::configuration::{CallbackKey, CommitPhase, ConfigChanges};
 use crate::error::Error;
 
@@ -58,7 +59,7 @@ pub mod daemon {
 
     #[derive(Debug, Deserialize, Serialize)]
     pub struct GetRequest {
-        pub path: Option<String>,
+        pub path: Option<Path>,
         #[serde(skip)]
         pub responder: Option<Responder<Result<GetResponse, Error>>>,
     }

@@ -130,8 +130,8 @@ message GetRequest {
   // Include implicit default nodes.
   bool with_defaults = 3;
 
-  // Requested YANG path.
-  string path = 4;
+  // Target YANG path.
+  Path path = 4;
 }
 
 message GetResponse {
@@ -307,6 +307,21 @@ enum Encoding {
 enum SchemaFormat {
   YANG = 0;
   YIN = 1;
+}
+
+// YANG data path, represented as a sequence of path elements.
+message Path {
+  // Ordered list of elements forming the path.
+  repeated PathElem elem = 1;
+}
+
+// A single element within a YANG data path.
+message PathElem {
+  // Name of the data tree node.
+  string name = 1;
+
+  // List keys for this node.
+  map<string, string> key = 2;
 }
 
 // YANG instance data.

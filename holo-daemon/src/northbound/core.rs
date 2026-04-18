@@ -14,7 +14,7 @@ use holo_northbound as northbound;
 use holo_northbound::configuration::{
     CallbackKey, CallbackOp, CommitPhase, ConfigChange, ValidationCallbacks,
 };
-use holo_northbound::{NbDaemonSender, NbProviderReceiver, api as papi};
+use holo_northbound::{NbDaemonSender, NbProviderReceiver, Path, api as papi};
 use holo_protocol::InstanceShared;
 use holo_utils::task::{Task, TimeoutTask};
 use holo_utils::yang::{ContextExt, SchemaNodeExt};
@@ -235,9 +235,9 @@ impl Northbound {
     async fn process_client_get(
         &self,
         data_type: capi::DataType,
-        path: Option<String>,
+        path: Option<Path>,
     ) -> Result<capi::client::GetResponse> {
-        let path = path.as_deref();
+        let path = path.as_ref();
         let dtree = match data_type {
             capi::DataType::State => self.get_state(path).await?,
             capi::DataType::Configuration => self.get_configuration(path)?,
@@ -543,7 +543,7 @@ impl Northbound {
     // Gets a full or partial copy of the running configuration.
     fn get_configuration(
         &self,
-        path: Option<&str>,
+        path: Option<&Path>,
     ) -> Result<DataTree<'static>> {
         match path {
             Some(path) => {
@@ -551,7 +551,7 @@ impl Northbound {
                 let mut dtree = DataTree::new(yang_ctx);
                 for dnode in self
                     .running_config
-                    .find_xpath(path)
+                    .find_xpath(&path.to_string())
                     .map_err(Error::YangInvalidPath)?
                 {
                     let subtree =
@@ -568,7 +568,10 @@ impl Northbound {
 
     // Gets dynamically generated operational data for the provided path. The
     // request might span multiple data providers.
-    async fn get_state(&self, path: Option<&str>) -> Result<DataTree<'static>> {
+    async fn get_state(
+        &self,
+        path: Option<&Path>,
+    ) -> Result<DataTree<'static>> {
         let yang_ctx = YANG_CTX.get().unwrap();
         let mut dtree = DataTree::new(yang_ctx);
 
@@ -577,7 +580,7 @@ impl Northbound {
             let (responder_tx, responder_rx) = oneshot::channel();
             let request =
                 papi::daemon::Request::Get(papi::daemon::GetRequest {
-                    path: path.map(String::from),
+                    path: path.cloned(),
                     responder: Some(responder_tx),
                 });
             daemon_tx.send(request).await.unwrap();

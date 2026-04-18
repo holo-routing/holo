@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use holo_northbound::Path;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::oneshot::Sender as Responder;
 use yang5::data::{DataDiff, DataTree};
@@ -40,7 +41,7 @@ pub mod client {
     #[derive(Debug)]
     pub struct GetRequest {
         pub data_type: DataType,
-        pub path: Option<String>,
+        pub path: Option<Path>,
         pub responder: Responder<Result<GetResponse>>,
     }
 

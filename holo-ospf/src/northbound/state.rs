@@ -17,7 +17,7 @@ use holo_utils::option::OptionExt;
 use holo_utils::protocol::Protocol;
 use holo_utils::sr::IgpAlgoType;
 use holo_yang::types::{HexStr, TimerValueMillis, TimerValueSecs16, Timeticks};
-use holo_yang::{ToYang, ToYangBits};
+use holo_yang::{ToYang, ToYangFlags};
 use num_traits::FromPrimitive;
 
 use crate::area::Area;
@@ -248,9 +248,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::database::as_scope_lsa_ty
     fn new(_instance: &'a Instance<Ospfv2>, list_entry: &ListEntry<'a, Ospfv2>) -> Option<Self> {
         let lse = list_entry.as_as_lsa().unwrap();
         let lsa = &lse.data;
-        let iter = lsa.hdr.options.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            lsa_options: Some(Box::new(iter)),
+            lsa_options: lsa.hdr.options.to_yang_flags_iter(),
         })
     }
 }
@@ -295,9 +294,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>>
         let lse = list_entry.as_as_lsa().unwrap();
         let lsa = &lse.data;
         let info_caps = lsa.body.as_opaque_as()?.as_router_info()?.info_caps.as_ref()?;
-        let iter = info_caps.get().to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            informational_capabilities: Some(Box::new(iter)),
+            informational_capabilities: info_caps.get().to_yang_flags_iter(),
         })
     }
 }
@@ -468,9 +466,8 @@ impl<'a> YangList<'a, Instance<Ospfv2>> for ospf::database::as_scope_lsa_type::a
 impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::opaque::extended_prefix_opaque::extended_prefix_tlv::flags::Flags<'a> {
     fn new(_instance: &'a Instance<Ospfv2>, list_entry: &ListEntry<'a, Ospfv2>) -> Option<Self> {
         let tlv = list_entry.as_ospfv2_ext_prefix_tlv().unwrap();
-        let iter = tlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            extended_prefix_flags: Some(Box::new(iter)),
+            extended_prefix_flags: tlv.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -515,9 +512,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>>
 {
     fn new(_instance: &'a Instance<Ospfv2>, list_entry: &ListEntry<'a, Ospfv2>) -> Option<Self> {
         let prefix_sid = list_entry.as_ospfv2_prefix_sid().unwrap();
-        let iter = prefix_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            flag: Some(Box::new(iter)),
+            flag: prefix_sid.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -565,9 +561,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_ty
         let lse = list_entry.as_as_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_std_as_external()?;
-        let iter = lsa_body.prefix_options.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            prefix_options: Some(Box::new(iter)),
+            prefix_options: lsa_body.prefix_options.to_yang_flags_iter(),
         })
     }
 }
@@ -579,9 +574,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>>
         let lse = list_entry.as_as_lsa().unwrap();
         let lsa = &lse.data;
         let info_caps = lsa.body.as_router_info()?.info_caps.as_ref()?;
-        let iter = info_caps.get().to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            informational_capabilities: Some(Box::new(iter)),
+            informational_capabilities: info_caps.get().to_yang_flags_iter(),
         })
     }
 }
@@ -736,9 +730,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_ty
         let lse = list_entry.as_as_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_ext_as_external()?;
-        let iter = lsa_body.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            ospfv3_e_external_prefix_bits: Some(Box::new(iter)),
+            ospfv3_e_external_prefix_bits: lsa_body.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -748,9 +741,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_ty
         let lse = list_entry.as_as_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_ext_as_external()?;
-        let iter = lsa_body.prefix_options.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            prefix_options: Some(Box::new(iter)),
+            prefix_options: lsa_body.prefix_options.to_yang_flags_iter(),
         })
     }
 }
@@ -824,9 +816,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>>
 {
     fn new(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<Self> {
         let prefix_sid = list_entry.as_ospfv3_prefix_sid().unwrap();
-        let iter = prefix_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            flag: Some(Box::new(iter)),
+            flag: prefix_sid.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -1002,9 +993,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::database::ar
     fn new(_instance: &'a Instance<Ospfv2>, list_entry: &ListEntry<'a, Ospfv2>) -> Option<Self> {
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
-        let iter = lsa.hdr.options.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            lsa_options: Some(Box::new(iter)),
+            lsa_options: lsa.hdr.options.to_yang_flags_iter(),
         })
     }
 }
@@ -1025,9 +1015,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::database::ar
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_router()?;
-        let iter = lsa_body.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            rtr_lsa_bits: Some(Box::new(iter)),
+            rtr_lsa_bits: lsa_body.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -1128,9 +1117,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>>
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
         let info_caps = lsa.body.as_opaque_area()?.as_router_info()?.info_caps.as_ref()?;
-        let iter = info_caps.get().to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            informational_capabilities: Some(Box::new(iter)),
+            informational_capabilities: info_caps.get().to_yang_flags_iter(),
         })
     }
 }
@@ -1332,10 +1320,8 @@ impl<'a> YangList<'a, Instance<Ospfv2>> for ospf::areas::area::database::area_sc
 impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::opaque::extended_prefix_opaque::extended_prefix_tlv::flags::Flags<'a> {
     fn new(_instance: &'a Instance<Ospfv2>, list_entry: &ListEntry<'a, Ospfv2>) -> Option<Self> {
         let tlv = list_entry.as_ospfv2_ext_prefix_tlv().unwrap();
-        let flags = tlv.flags.to_yang_bits();
-        let iter = flags.into_iter().map(|flag| flag.to_string().into());
         Some(Self {
-            extended_prefix_flags: Some(Box::new(iter)),
+            extended_prefix_flags: tlv.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -1382,9 +1368,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>>
 {
     fn new(_instance: &'a Instance<Ospfv2>, list_entry: &ListEntry<'a, Ospfv2>) -> Option<Self> {
         let prefix_sid = list_entry.as_ospfv2_prefix_sid().unwrap();
-        let iter = prefix_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            flag: Some(Box::new(iter)),
+            flag: prefix_sid.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -1464,9 +1449,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>>
 {
     fn new(_instance: &'a Instance<Ospfv2>, list_entry: &ListEntry<'a, Ospfv2>) -> Option<Self> {
         let adj_sid = list_entry.as_ospfv2_adj_sid().unwrap();
-        let iter = adj_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            flag: Some(Box::new(iter)),
+            flag: adj_sid.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -1499,9 +1483,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>>
 {
     fn new(_instance: &'a Instance<Ospfv2>, list_entry: &ListEntry<'a, Ospfv2>) -> Option<Self> {
         let adj_sid = list_entry.as_ospfv2_adj_sid().unwrap();
-        let iter = adj_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            flag: Some(Box::new(iter)),
+            flag: adj_sid.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -1528,9 +1511,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_std_router()?;
-        let iter = lsa_body.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            rtr_lsa_bits: Some(Box::new(iter)),
+            rtr_lsa_bits: lsa_body.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -1540,9 +1522,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_std_router()?;
-        let iter = lsa_body.options.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            lsa_options: Some(Box::new(iter)),
+            lsa_options: lsa_body.options.to_yang_flags_iter(),
         })
     }
 }
@@ -1573,9 +1554,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_std_network()?;
-        let iter = lsa_body.options.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            lsa_options: Some(Box::new(iter)),
+            lsa_options: lsa_body.options.to_yang_flags_iter(),
         })
     }
 }
@@ -1609,9 +1589,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_std_inter_area_prefix()?;
-        let iter = lsa_body.prefix_options.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            prefix_options: Some(Box::new(iter)),
+            prefix_options: lsa_body.prefix_options.to_yang_flags_iter(),
         })
     }
 }
@@ -1633,9 +1612,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_std_inter_area_router()?;
-        let iter = lsa_body.options.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            lsa_options: Some(Box::new(iter)),
+            lsa_options: lsa_body.options.to_yang_flags_iter(),
         })
     }
 }
@@ -1676,9 +1654,8 @@ impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_sc
 impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::intra_area_prefix::prefixes::prefix::prefix_options::PrefixOptions<'a> {
     fn new(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<Self> {
         let prefix = list_entry.as_ospfv3_intra_area_lsa_prefix().unwrap();
-        let iter = prefix.options.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            prefix_options: Some(Box::new(iter)),
+            prefix_options: prefix.options.to_yang_flags_iter(),
         })
     }
 }
@@ -1690,9 +1667,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>>
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
         let info_caps = lsa.body.as_router_info()?.info_caps.as_ref()?;
-        let iter = info_caps.get().to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            informational_capabilities: Some(Box::new(iter)),
+            informational_capabilities: info_caps.get().to_yang_flags_iter(),
         })
     }
 }
@@ -1841,9 +1817,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_ext_router()?;
-        let iter = lsa_body.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            rtr_lsa_bits: Some(Box::new(iter)),
+            rtr_lsa_bits: lsa_body.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -1853,9 +1828,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_ext_router()?;
-        let iter = lsa_body.options.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            lsa_options: Some(Box::new(iter)),
+            lsa_options: lsa_body.options.to_yang_flags_iter(),
         })
     }
 }
@@ -1943,9 +1917,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>>
 {
     fn new(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<Self> {
         let adj_sid = list_entry.as_ospfv3_adj_sid().unwrap();
-        let iter = adj_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            flag: Some(Box::new(iter)),
+            flag: adj_sid.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -1975,9 +1948,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>>
 {
     fn new(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<Self> {
         let adj_sid = list_entry.as_ospfv3_adj_sid().unwrap();
-        let iter = adj_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            flag: Some(Box::new(iter)),
+            flag: adj_sid.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -1987,9 +1959,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_ext_network()?;
-        let iter = lsa_body.options.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            lsa_options: Some(Box::new(iter)),
+            lsa_options: lsa_body.options.to_yang_flags_iter(),
         })
     }
 }
@@ -2072,9 +2043,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>>
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_ext_inter_area_prefix()?;
-        let iter = lsa_body.prefix_options.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            prefix_options: Some(Box::new(iter)),
+            prefix_options: lsa_body.prefix_options.to_yang_flags_iter(),
         })
     }
 }
@@ -2129,9 +2099,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
 {
     fn new(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<Self> {
         let prefix_sid = list_entry.as_ospfv3_prefix_sid().unwrap();
-        let iter = prefix_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            flag: Some(Box::new(iter)),
+            flag: prefix_sid.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -2178,9 +2147,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
         let lse = list_entry.as_area_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_ext_inter_area_router()?;
-        let iter = lsa_body.options.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            lsa_options: Some(Box::new(iter)),
+            lsa_options: lsa_body.options.to_yang_flags_iter(),
         })
     }
 }
@@ -2265,9 +2233,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>>
 {
     fn new(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<Self> {
         let prefix = list_entry.as_ospfv3_intra_area_lsa_prefix().unwrap();
-        let iter = prefix.options.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            prefix_options: Some(Box::new(iter)),
+            prefix_options: prefix.options.to_yang_flags_iter(),
         })
     }
 }
@@ -2390,9 +2357,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
 {
     fn new(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<Self> {
         let prefix_sid = list_entry.as_ospfv3_prefix_sid().unwrap();
-        let iter = prefix_sid.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            flag: Some(Box::new(iter)),
+            flag: prefix_sid.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -2543,9 +2509,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::virtual_link
     fn new(_instance: &'a Instance<Ospfv2>, list_entry: &ListEntry<'a, Ospfv2>) -> Option<Self> {
         let lse = list_entry.as_interface_lsa().unwrap();
         let lsa = &lse.data;
-        let iter = lsa.hdr.options.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            lsa_options: Some(Box::new(iter)),
+            lsa_options: lsa.hdr.options.to_yang_flags_iter(),
         })
     }
 }
@@ -2556,9 +2521,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::virtual_link
         let lse = list_entry.as_interface_lsa().unwrap();
         let lsa = &lse.data;
         let info_caps = lsa.body.as_opaque_link()?.as_router_info()?.info_caps.as_ref()?;
-        let iter = info_caps.get().to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            informational_capabilities: Some(Box::new(iter)),
+            informational_capabilities: info_caps.get().to_yang_flags_iter(),
         })
     }
 }
@@ -2662,9 +2626,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::virtual_link
         let lse = list_entry.as_interface_lsa().unwrap();
         let lsa = &lse.data;
         let info_caps = lsa.body.as_router_info()?.info_caps.as_ref()?;
-        let iter = info_caps.get().to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            informational_capabilities: Some(Box::new(iter)),
+            informational_capabilities: info_caps.get().to_yang_flags_iter(),
         })
     }
 }
@@ -2918,9 +2881,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::interfaces::
     fn new(_instance: &'a Instance<Ospfv2>, list_entry: &ListEntry<'a, Ospfv2>) -> Option<Self> {
         let lse = list_entry.as_interface_lsa().unwrap();
         let lsa = &lse.data;
-        let iter = lsa.hdr.options.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            lsa_options: Some(Box::new(iter)),
+            lsa_options: lsa.hdr.options.to_yang_flags_iter(),
         })
     }
 }
@@ -2934,9 +2896,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>>
         let lse = list_entry.as_interface_lsa().unwrap();
         let lsa = &lse.data;
         let info_caps = lsa.body.as_opaque_link()?.as_router_info()?.info_caps.as_ref()?;
-        let iter = info_caps.get().to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            informational_capabilities: Some(Box::new(iter)),
+            informational_capabilities: info_caps.get().to_yang_flags_iter(),
         })
     }
 }
@@ -3069,9 +3030,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::
         let lse = list_entry.as_interface_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_std_link()?;
-        let iter = lsa_body.options.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            lsa_options: Some(Box::new(iter)),
+            lsa_options: lsa_body.options.to_yang_flags_iter(),
         })
     }
 }
@@ -3096,9 +3056,8 @@ impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::inter
 impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::link::prefixes::prefix::prefix_options::PrefixOptions<'a> {
     fn new(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<Self> {
         let prefix = list_entry.as_ospfv3_link_lsa_prefix().unwrap();
-        let iter = prefix.options.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            prefix_options: Some(Box::new(iter)),
+            prefix_options: prefix.options.to_yang_flags_iter(),
         })
     }
 }
@@ -3112,9 +3071,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>>
         let lse = list_entry.as_interface_lsa().unwrap();
         let lsa = &lse.data;
         let info_caps = lsa.body.as_router_info()?.info_caps.as_ref()?;
-        let iter = info_caps.get().to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            informational_capabilities: Some(Box::new(iter)),
+            informational_capabilities: info_caps.get().to_yang_flags_iter(),
         })
     }
 }
@@ -3186,9 +3144,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::
         let lse = list_entry.as_interface_lsa().unwrap();
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_ext_link()?;
-        let iter = lsa_body.options.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            lsa_options: Some(Box::new(iter)),
+            lsa_options: lsa_body.options.to_yang_flags_iter(),
         })
     }
 }
@@ -3234,9 +3191,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>>
 {
     fn new(_instance: &'a Instance<Ospfv3>, list_entry: &ListEntry<'a, Ospfv3>) -> Option<Self> {
         let prefix = list_entry.as_ospfv3_link_lsa_prefix()?;
-        let iter = prefix.options.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            prefix_options: Some(Box::new(iter)),
+            prefix_options: prefix.options.to_yang_flags_iter(),
         })
     }
 }

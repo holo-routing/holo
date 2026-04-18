@@ -9,7 +9,7 @@
 
 use std::borrow::Cow;
 
-use holo_yang::{ToYang, ToYangBits, TryFromYang};
+use holo_yang::{ToYang, ToYangFlags, TryFromYang};
 use regex::Regex;
 
 use crate::adjacency::{AdjacencyEvent, AdjacencyState};
@@ -73,8 +73,8 @@ impl ToYang for AreaAddr {
     }
 }
 
-impl ToYangBits for LspFlags {
-    fn to_yang_bits(&self) -> Vec<&'static str> {
+impl ToYangFlags for LspFlags {
+    fn to_yang_flags(&self) -> Vec<&'static str> {
         let mut flags = vec![];
 
         if self.contains(LspFlags::P) {
@@ -97,8 +97,8 @@ impl ToYangBits for LspFlags {
     }
 }
 
-impl ToYangBits for RouterCapFlags {
-    fn to_yang_bits(&self) -> Vec<&'static str> {
+impl ToYangFlags for RouterCapFlags {
+    fn to_yang_flags(&self) -> Vec<&'static str> {
         let mut flags = vec![];
 
         if self.contains(RouterCapFlags::S) {
@@ -121,8 +121,8 @@ impl ToYang for MtId {
     }
 }
 
-impl ToYangBits for MtFlags {
-    fn to_yang_bits(&self) -> Vec<&'static str> {
+impl ToYangFlags for MtFlags {
+    fn to_yang_flags(&self) -> Vec<&'static str> {
         let mut flags = vec![];
 
         if self.contains(MtFlags::OL) {
@@ -136,8 +136,8 @@ impl ToYangBits for MtFlags {
     }
 }
 
-impl ToYangBits for SrCapabilitiesFlags {
-    fn to_yang_bits(&self) -> Vec<&'static str> {
+impl ToYangFlags for SrCapabilitiesFlags {
+    fn to_yang_flags(&self) -> Vec<&'static str> {
         let mut flags = vec![];
 
         if self.contains(SrCapabilitiesFlags::I) {
@@ -151,8 +151,8 @@ impl ToYangBits for SrCapabilitiesFlags {
     }
 }
 
-impl ToYangBits for AdjSidFlags {
-    fn to_yang_bits(&self) -> Vec<&'static str> {
+impl ToYangFlags for AdjSidFlags {
+    fn to_yang_flags(&self) -> Vec<&'static str> {
         let mut flags = vec![];
 
         if self.contains(AdjSidFlags::F) {
@@ -178,8 +178,8 @@ impl ToYangBits for AdjSidFlags {
     }
 }
 
-impl ToYangBits for UniLinkDelayFlags {
-    fn to_yang_bits(&self) -> Vec<&'static str> {
+impl ToYangFlags for UniLinkDelayFlags {
+    fn to_yang_flags(&self) -> Vec<&'static str> {
         let mut flags = vec![];
 
         if self.contains(UniLinkDelayFlags::A) {
@@ -190,8 +190,8 @@ impl ToYangBits for UniLinkDelayFlags {
     }
 }
 
-impl ToYangBits for MinMaxUniLinkDelayFlags {
-    fn to_yang_bits(&self) -> Vec<&'static str> {
+impl ToYangFlags for MinMaxUniLinkDelayFlags {
+    fn to_yang_flags(&self) -> Vec<&'static str> {
         let mut flags = vec![];
 
         if self.contains(MinMaxUniLinkDelayFlags::A) {
@@ -202,8 +202,8 @@ impl ToYangBits for MinMaxUniLinkDelayFlags {
     }
 }
 
-impl ToYangBits for UniLinkLossFlags {
-    fn to_yang_bits(&self) -> Vec<&'static str> {
+impl ToYangFlags for UniLinkLossFlags {
+    fn to_yang_flags(&self) -> Vec<&'static str> {
         let mut flags = vec![];
 
         if self.contains(UniLinkLossFlags::A) {
@@ -214,8 +214,8 @@ impl ToYangBits for UniLinkLossFlags {
     }
 }
 
-impl ToYangBits for PrefixSidFlags {
-    fn to_yang_bits(&self) -> Vec<&'static str> {
+impl ToYangFlags for PrefixSidFlags {
+    fn to_yang_flags(&self) -> Vec<&'static str> {
         let mut flags = vec![];
 
         if self.contains(PrefixSidFlags::R) {
@@ -312,8 +312,8 @@ impl ToYang for SpfType {
     }
 }
 
-impl ToYangBits for AslaSabmFlags {
-    fn to_yang_bits(&self) -> Vec<&'static str> {
+impl ToYangFlags for AslaSabmFlags {
+    fn to_yang_flags(&self) -> Vec<&'static str> {
         let mut bits = vec![];
         if self.contains(AslaSabmFlags::R) {
             bits.push("ietf-isis-link-attr:rsvp-te-bit");

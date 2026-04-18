@@ -20,7 +20,7 @@ use holo_utils::mac_addr::MacAddr;
 use holo_utils::option::OptionExt;
 use holo_utils::protocol::Protocol;
 use holo_yang::types::{HexStr, TimerValueMillis, TimerValueSecs16, Timeticks};
-use holo_yang::{ToYang, ToYangBits};
+use holo_yang::{ToYang, ToYangFlags};
 use ipnetwork::IpNetwork;
 
 use crate::adjacency::{Adjacency, AdjacencySid};
@@ -264,9 +264,8 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::attributes
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let lse = list_entry.as_lsp_entry().unwrap();
         let lsp = &lse.data;
-        let iter = lsp.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            lsp_flags: Some(Box::new(iter)),
+            lsp_flags: lsp.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -322,9 +321,8 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_entries::top
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_entries::topology::attributes::Attributes<'a> {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let mt = list_entry.as_multi_topology_entry().unwrap();
-        let iter = mt.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            flags: Some(Box::new(iter)),
+            flags: mt.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -348,9 +346,8 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::router_capabili
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::router_capabilities::router_capability::flags::Flags<'a> {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let router_cap = list_entry.as_router_cap().unwrap();
-        let iter = router_cap.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            router_capability_flags: Some(Box::new(iter)),
+            router_capability_flags: router_cap.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -408,9 +405,8 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::router_cap
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let router_cap = list_entry.as_router_cap().unwrap();
         let sr_cap = &router_cap.sub_tlvs.sr_cap.as_ref()?;
-        let iter = sr_cap.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            sr_capability_flag: Some(Box::new(iter)),
+            sr_capability_flag: sr_cap.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -657,9 +653,8 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
         let stlv = reach.sub_tlvs.uni_link_delay.as_ref()?;
-        let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            unidirectional_link_delay_subtlv_flags: Some(Box::new(iter)),
+            unidirectional_link_delay_subtlv_flags: stlv.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -679,9 +674,8 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
         let stlv = reach.sub_tlvs.min_max_uni_link_delay.as_ref()?;
-        let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            min_max_unidirectional_link_delay_subtlv_flags: Some(Box::new(iter)),
+            min_max_unidirectional_link_delay_subtlv_flags: stlv.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -710,9 +704,8 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
         let stlv = reach.sub_tlvs.uni_link_loss.as_ref()?;
-        let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            unidirectional_link_loss_subtlv_flags: Some(Box::new(iter)),
+            unidirectional_link_loss_subtlv_flags: stlv.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -768,13 +761,8 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::sabm::Sabm<'a> {
     fn new(_provider: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let stlv = list_entry.as_asla_stlv().unwrap();
-        let bits = stlv.sabm.to_yang_bits();
-        if bits.is_empty() {
-            return None;
-        }
-        let iter = bits.into_iter().map(Cow::Borrowed);
         Some(Self {
-            sabm_bits: Some(Box::new(iter)),
+            sabm_bits: stlv.sabm.to_yang_flags_iter(),
         })
     }
 }
@@ -851,9 +839,8 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::adj_sid_sub_tlvs::adj_sid_sub_tlv::adj_sid_flags::AdjSidFlags<'a> {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let stlv = list_entry.as_adj_sid_stlv().unwrap();
-        let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            flag: Some(Box::new(iter)),
+            flag: stlv.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -1033,9 +1020,8 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_ipv4_r
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_ipv4_reachability::prefixes::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::prefix_sid_flags::PrefixSidFlags<'a> {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let stlv = list_entry.as_prefix_sid_stlv().unwrap();
-        let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            flag: Some(Box::new(iter)),
+            flag: stlv.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -1138,9 +1124,8 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
         let stlv = reach.sub_tlvs.uni_link_delay.as_ref()?;
-        let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            unidirectional_link_delay_subtlv_flags: Some(Box::new(iter)),
+            unidirectional_link_delay_subtlv_flags: stlv.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -1160,9 +1145,8 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
         let stlv = reach.sub_tlvs.min_max_uni_link_delay.as_ref()?;
-        let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            min_max_unidirectional_link_delay_subtlv_flags: Some(Box::new(iter)),
+            min_max_unidirectional_link_delay_subtlv_flags: stlv.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -1191,9 +1175,8 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
         let stlv = reach.sub_tlvs.uni_link_loss.as_ref()?;
-        let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            unidirectional_link_loss_subtlv_flags: Some(Box::new(iter)),
+            unidirectional_link_loss_subtlv_flags: stlv.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -1249,13 +1232,8 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::sabm::Sabm<'a> {
     fn new(_provider: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let stlv = list_entry.as_asla_stlv().unwrap();
-        let bits = stlv.sabm.to_yang_bits();
-        if bits.is_empty() {
-            return None;
-        }
-        let iter = bits.into_iter().map(Cow::Borrowed);
         Some(Self {
-            sabm_bits: Some(Box::new(iter)),
+            sabm_bits: stlv.sabm.to_yang_flags_iter(),
         })
     }
 }
@@ -1331,9 +1309,8 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::adj_sid_sub_tlvs::adj_sid_sub_tlv::adj_sid_flags::AdjSidFlags<'a> {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let stlv = list_entry.as_adj_sid_stlv().unwrap();
-        let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            flag: Some(Box::new(iter)),
+            flag: stlv.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -1400,9 +1377,8 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_extended_ipv
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_extended_ipv4_reachability::prefixes::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::prefix_sid_flags::PrefixSidFlags<'a> {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let stlv = list_entry.as_prefix_sid_stlv().unwrap();
-        let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            flag: Some(Box::new(iter)),
+            flag: stlv.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -1469,9 +1445,8 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_ipv6_reachab
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_ipv6_reachability::prefixes::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::prefix_sid_flags::PrefixSidFlags<'a> {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let stlv = list_entry.as_prefix_sid_stlv().unwrap();
-        let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            flag: Some(Box::new(iter)),
+            flag: stlv.flags.to_yang_flags_iter(),
         })
     }
 }
@@ -1537,9 +1512,8 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::ipv6_reachabili
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::ipv6_reachability::prefixes::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::prefix_sid_flags::PrefixSidFlags<'a> {
     fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
         let stlv = list_entry.as_prefix_sid_stlv().unwrap();
-        let iter = stlv.flags.to_yang_bits().into_iter().map(Cow::Borrowed);
         Some(Self {
-            flag: Some(Box::new(iter)),
+            flag: stlv.flags.to_yang_flags_iter(),
         })
     }
 }

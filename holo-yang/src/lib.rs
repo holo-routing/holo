@@ -433,9 +433,20 @@ pub trait ToYang {
     fn to_yang(&self) -> Cow<'static, str>;
 }
 
-pub trait ToYangBits {
-    // Return vector representing YANG bit set.
-    fn to_yang_bits(&self) -> Vec<&'static str>;
+pub trait ToYangFlags {
+    // Return YANG flags for a leaf of type "bits" or a leaf-list of flags.
+    fn to_yang_flags(&self) -> Vec<&'static str>;
+
+    // Return YANG flags as a boxed iterator.
+    fn to_yang_flags_iter<'a>(
+        &self,
+    ) -> Option<Box<dyn Iterator<Item = Cow<'a, str>> + 'a>> {
+        let flags = self.to_yang_flags();
+        if flags.is_empty() {
+            return None;
+        }
+        Some(Box::new(flags.into_iter().map(Cow::Borrowed)))
+    }
 }
 
 pub trait TryFromYang: Sized {

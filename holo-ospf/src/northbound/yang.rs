@@ -7,7 +7,7 @@
 use std::borrow::Cow;
 use std::fmt::Write;
 
-use holo_yang::{ToYang, ToYangBits, TryFromYang};
+use holo_yang::{ToYang, ToYangFlags, TryFromYang};
 
 use crate::area::AreaType;
 use crate::error::InterfaceCfgError;
@@ -126,8 +126,8 @@ impl ToYang for LsaValidationError {
     }
 }
 
-impl ToYangBits for RouterInfoCaps {
-    fn to_yang_bits(&self) -> Vec<&'static str> {
+impl ToYangFlags for RouterInfoCaps {
+    fn to_yang_flags(&self) -> Vec<&'static str> {
         let mut options = vec![];
         if self.contains(RouterInfoCaps::GR) {
             options.push("graceful-restart");
@@ -152,8 +152,8 @@ impl ToYangBits for RouterInfoCaps {
     }
 }
 
-impl ToYangBits for PrefixSidFlags {
-    fn to_yang_bits(&self) -> Vec<&'static str> {
+impl ToYangFlags for PrefixSidFlags {
+    fn to_yang_flags(&self) -> Vec<&'static str> {
         let mut flags = vec![];
 
         if self.contains(PrefixSidFlags::NP) {
@@ -176,8 +176,8 @@ impl ToYangBits for PrefixSidFlags {
     }
 }
 
-impl ToYangBits for AdjSidFlags {
-    fn to_yang_bits(&self) -> Vec<&'static str> {
+impl ToYangFlags for AdjSidFlags {
+    fn to_yang_flags(&self) -> Vec<&'static str> {
         let mut flags = vec![];
 
         if self.contains(AdjSidFlags::B) {
@@ -234,8 +234,8 @@ impl ToYang for ospfv2::packet::lsa::LsaAsExternalFlags {
     }
 }
 
-impl ToYangBits for ospfv2::packet::Options {
-    fn to_yang_bits(&self) -> Vec<&'static str> {
+impl ToYangFlags for ospfv2::packet::Options {
+    fn to_yang_flags(&self) -> Vec<&'static str> {
         use ospfv2::packet::Options;
 
         let mut options = vec![];
@@ -277,8 +277,8 @@ impl ToYang for ospfv2::packet::lsa::LsaType {
     }
 }
 
-impl ToYangBits for ospfv2::packet::lsa::LsaRouterFlags {
-    fn to_yang_bits(&self) -> Vec<&'static str> {
+impl ToYangFlags for ospfv2::packet::lsa::LsaRouterFlags {
+    fn to_yang_flags(&self) -> Vec<&'static str> {
         use ospfv2::packet::lsa::LsaRouterFlags;
 
         let mut flags = vec![];
@@ -326,8 +326,8 @@ impl ToYang for ospfv2::packet::lsa_opaque::ExtPrefixRouteType {
     }
 }
 
-impl ToYangBits for ospfv2::packet::lsa_opaque::LsaExtPrefixFlags {
-    fn to_yang_bits(&self) -> Vec<&'static str> {
+impl ToYangFlags for ospfv2::packet::lsa_opaque::LsaExtPrefixFlags {
+    fn to_yang_flags(&self) -> Vec<&'static str> {
         use ospfv2::packet::lsa_opaque::LsaExtPrefixFlags;
 
         let mut flags = vec![];
@@ -368,8 +368,8 @@ impl ToYang for ospfv3::packet::lsa::LsaType {
     }
 }
 
-impl ToYangBits for ospfv3::packet::lsa::LsaRouterFlags {
-    fn to_yang_bits(&self) -> Vec<&'static str> {
+impl ToYangFlags for ospfv3::packet::lsa::LsaRouterFlags {
+    fn to_yang_flags(&self) -> Vec<&'static str> {
         use ospfv3::packet::lsa::LsaRouterFlags;
 
         let mut flags = vec![];
@@ -421,8 +421,8 @@ impl ToYang for ospfv3::packet::lsa::LsaAsExternalFlags {
     }
 }
 
-impl ToYangBits for ospfv3::packet::lsa::LsaAsExternalFlags {
-    fn to_yang_bits(&self) -> Vec<&'static str> {
+impl ToYangFlags for ospfv3::packet::lsa::LsaAsExternalFlags {
+    fn to_yang_flags(&self) -> Vec<&'static str> {
         use ospfv3::packet::lsa::LsaAsExternalFlags;
 
         let mut options = vec![];
@@ -434,8 +434,8 @@ impl ToYangBits for ospfv3::packet::lsa::LsaAsExternalFlags {
     }
 }
 
-impl ToYangBits for ospfv3::packet::Options {
-    fn to_yang_bits(&self) -> Vec<&'static str> {
+impl ToYangFlags for ospfv3::packet::Options {
+    fn to_yang_flags(&self) -> Vec<&'static str> {
         use ospfv3::packet::Options;
 
         let mut options = vec![];
@@ -462,8 +462,8 @@ impl ToYangBits for ospfv3::packet::Options {
     }
 }
 
-impl ToYangBits for ospfv3::packet::lsa::PrefixOptions {
-    fn to_yang_bits(&self) -> Vec<&'static str> {
+impl ToYangFlags for ospfv3::packet::lsa::PrefixOptions {
+    fn to_yang_flags(&self) -> Vec<&'static str> {
         use ospfv3::packet::lsa::PrefixOptions;
 
         let mut options = vec![];

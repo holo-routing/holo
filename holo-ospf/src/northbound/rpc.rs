@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use holo_northbound::rpc::{Provider, YangOps, YangRpc};
+use holo_northbound::rpc::{Provider, RpcResult, YangOps, YangRpc};
 
 use crate::instance::Instance;
 use crate::neighbor::nsm;
@@ -21,7 +21,7 @@ where
 // ===== YANG impls =====
 
 impl<V: Version> YangRpc<Instance<V>> for yang::clear_neighbor::ClearNeighbor {
-    fn invoke(&mut self, instance: &mut Instance<V>) -> Result<(), String> {
+    fn invoke(&mut self, instance: &mut Instance<V>) -> RpcResult {
         let Some((instance, arenas)) = instance.as_up() else {
             return Ok(());
         };
@@ -46,7 +46,7 @@ impl<V: Version> YangRpc<Instance<V>> for yang::clear_neighbor::ClearNeighbor {
 }
 
 impl<V: Version> YangRpc<Instance<V>> for yang::clear_database::ClearDatabase {
-    fn invoke(&mut self, instance: &mut Instance<V>) -> Result<(), String> {
+    fn invoke(&mut self, instance: &mut Instance<V>) -> RpcResult {
         let Some((instance, arenas)) = instance.as_up() else {
             return Ok(());
         };

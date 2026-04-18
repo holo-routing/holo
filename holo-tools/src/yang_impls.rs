@@ -31,7 +31,7 @@ fn gen_impl_blocks_rpc(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
             );
             println!("{{");
             println!(
-                "{indent1}fn invoke(_provider: &mut Provider, _data: &mut DataTree<'static>, _rpc_path: &str) -> Result<(), String> {{"
+                "{indent1}fn invoke(&mut self, _provider: &mut Provider) -> RpcResult {{"
             );
             println!("{indent2}Ok(())");
             println!("{indent1}}}");
@@ -49,7 +49,7 @@ fn gen_impl_blocks_rpc(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
             );
             println!("{{");
             println!(
-                "{indent1}fn invoke(_provider: &mut Provider, _data: &mut DataTree<'static>, _rpc_path: &str) -> Result<(), String> {{"
+                "{indent1}fn invoke(&mut self, _provider: &mut Provider) -> RpcResult {{"
             );
             println!("{indent2}Ok(())");
             println!("{indent1}}}");

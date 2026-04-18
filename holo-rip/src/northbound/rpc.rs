@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use holo_northbound::rpc::{Provider, YangOps, YangRpc};
+use holo_northbound::rpc::{Provider, RpcResult, YangOps, YangRpc};
 
 use crate::ibus;
 use crate::instance::Instance;
@@ -22,7 +22,7 @@ where
 // ===== YANG impls =====
 
 impl<V: Version> YangRpc<Instance<V>> for yang::clear_rip_route::ClearRipRoute {
-    fn invoke(&mut self, instance: &mut Instance<V>) -> Result<(), String> {
+    fn invoke(&mut self, instance: &mut Instance<V>) -> RpcResult {
         let Some((instance, _)) = instance.as_up() else {
             return Ok(());
         };

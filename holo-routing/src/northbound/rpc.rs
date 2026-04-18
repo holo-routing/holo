@@ -5,7 +5,7 @@
 //
 
 use holo_northbound::NbDaemonSender;
-use holo_northbound::rpc::{Provider, YangOps};
+use holo_northbound::rpc::{Provider, RpcError, RpcErrorTag, YangOps};
 use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
 use yang5::data::DataNodeRef;
@@ -17,7 +17,7 @@ use crate::northbound::yang_gen::control_plane_protocol;
 impl Provider for Master {
     const YANG_OPS: YangOps<Self> = yang_gen::ops::YANG_OPS_RPC;
 
-    fn relay_rpc(&self, rpc: &DataNodeRef<'_>) -> Result<Option<Vec<NbDaemonSender>>, String> {
+    fn relay_rpc(&self, rpc: &DataNodeRef<'_>) -> Result<Option<Vec<NbDaemonSender>>, RpcError> {
         let (protocol, name) = find_instance(rpc)?;
 
         let mut child_tasks = vec![];
@@ -46,7 +46,7 @@ impl Provider for Master {
 // Using top-level RPCs in the IETF IGP modules was a mistake, since there's no
 // easy way to identify the protocol type and name. YANG actions would greatly
 // simplify this.
-fn find_instance(rpc: &DataNodeRef<'_>) -> Result<(Protocol, Option<String>), String> {
+fn find_instance(rpc: &DataNodeRef<'_>) -> Result<(Protocol, Option<String>), RpcError> {
     let (protocol, name) = match rpc.schema().module().name() {
         "ietf-bgp" => {
             let protocol = Protocol::BGP;
@@ -79,7 +79,7 @@ fn find_instance(rpc: &DataNodeRef<'_>) -> Result<(Protocol, Option<String>), St
             let name = rpc.get_string_relative("./rip-instance");
             (protocol, name)
         }
-        _ => return Err("unknown instance protocol".to_string()),
+        _ => return Err(RpcError::new(RpcErrorTag::OperationFailed).with_message("unknown protocol")),
     };
 
     Ok((protocol, name))

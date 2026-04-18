@@ -19,14 +19,14 @@ pub trait Provider: 'static + Sized {
     fn relay_rpc(
         &self,
         _rpc: &DataNodeRef<'_>,
-    ) -> Result<Option<Vec<NbDaemonSender>>, String> {
+    ) -> Result<Option<Vec<NbDaemonSender>>, RpcError> {
         Ok(None)
     }
 }
 
 // Manually implemented in each provider to handle RPC/Action invocations.
 pub trait YangRpc<P: Provider> {
-    fn invoke(&mut self, provider: &mut P) -> Result<(), String>;
+    fn invoke(&mut self, provider: &mut P) -> RpcResult;
 }
 
 // Static dispatch tables generated from YANG models.
@@ -35,7 +35,7 @@ pub struct YangOps<P: Provider> {
 }
 
 pub struct YangRpcOps<P: Provider> {
-    pub process: fn(&mut DataNodeRef<'_>, &mut P) -> Result<(), String>,
+    pub process: fn(&mut DataNodeRef<'_>, &mut P) -> RpcResult,
 }
 
 // Automatically implemented for all auto-generated YANG RPC/Action structs.
@@ -46,6 +46,77 @@ pub trait YangRpcObject: Sized {
     // Writes output parameters back into the YANG data node after invoke().
     fn write_output(self, dnode: &mut DataNodeRef<'_>);
 }
+
+// YANG/NETCONF RPC error tag (subset of RFC 6241, Appendix A).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RpcErrorTag {
+    DataMissing,
+    InvalidValue,
+    OperationNotSupported,
+    OperationFailed,
+}
+
+// Structured RPC error modeled after NETCONF error elements.
+#[derive(Clone, Debug)]
+pub struct RpcError {
+    pub tag: RpcErrorTag,
+    pub app_tag: Option<String>,
+    pub message: Option<String>,
+}
+
+pub type RpcResult = Result<(), RpcError>;
+
+// ===== impl RpcErrorTag =====
+
+impl std::fmt::Display for RpcErrorTag {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RpcErrorTag::DataMissing => write!(f, "data-missing"),
+            RpcErrorTag::InvalidValue => write!(f, "invalid-value"),
+            RpcErrorTag::OperationNotSupported => {
+                write!(f, "operation-not-supported")
+            }
+            RpcErrorTag::OperationFailed => write!(f, "operation-failed"),
+        }
+    }
+}
+
+// ===== impl RpcError =====
+
+impl RpcError {
+    pub fn new(tag: RpcErrorTag) -> Self {
+        RpcError {
+            tag,
+            app_tag: None,
+            message: None,
+        }
+    }
+
+    pub fn with_app_tag(mut self, app_tag: impl Into<String>) -> Self {
+        self.app_tag = Some(app_tag.into());
+        self
+    }
+
+    pub fn with_message(mut self, message: impl Into<String>) -> Self {
+        self.message = Some(message.into());
+        self
+    }
+}
+
+impl std::fmt::Display for RpcError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.tag)?;
+        if let Some(app_tag) = &self.app_tag {
+            write!(f, " ({})", app_tag)?;
+        }
+        if let Some(message) = &self.message {
+            write!(f, ": {}", message)?;
+        }
+        Ok(())
+    }
+}
+
+impl std::error::Error for RpcError {}
 
 // ===== helper functions =====
 
@@ -93,17 +164,6 @@ fn process_rpc_relayed(
     Ok(response)
 }
 
-fn find_rpc<'a>(data: &'a DataTree<'static>) -> Result<DataNodeRef<'a>, Error> {
-    data.traverse()
-        .find(|dnode| {
-            matches!(
-                dnode.schema().kind(),
-                SchemaNodeKind::Rpc | SchemaNodeKind::Action
-            )
-        })
-        .ok_or(Error::RpcNotFound)
-}
-
 // ===== global functions =====
 
 pub(crate) fn process_rpc<P>(
@@ -113,7 +173,16 @@ pub(crate) fn process_rpc<P>(
 where
     P: Provider,
 {
-    let rpc = find_rpc(&data)?;
+    let rpc = data
+        .traverse()
+        .find(|dnode| {
+            matches!(
+                dnode.schema().kind(),
+                SchemaNodeKind::Rpc | SchemaNodeKind::Action
+            )
+        })
+        .ok_or(Error::RpcNotFound)?;
+
     if let Some(children_nb_tx) =
         provider.relay_rpc(&rpc).map_err(Error::RpcRelay)?
     {

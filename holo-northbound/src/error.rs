@@ -6,14 +6,16 @@
 
 use tracing::warn;
 
+use crate::rpc::RpcError;
+
 // Northbound errors.
 #[derive(Debug)]
 pub enum Error {
     ValidationCallback(String),
     CfgCallback(String),
     RpcNotFound,
-    RpcRelay(String),
-    RpcCallback(String),
+    RpcRelay(RpcError),
+    RpcCallback(RpcError),
     YangInvalidPath(yang5::Error),
     YangInvalidData(yang5::Error),
 }

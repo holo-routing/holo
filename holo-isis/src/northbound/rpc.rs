@@ -7,7 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
-use holo_northbound::rpc::{Provider, YangOps, YangRpc};
+use holo_northbound::rpc::{Provider, RpcResult, YangOps, YangRpc};
 
 use crate::adjacency::AdjacencyEvent;
 use crate::instance::Instance;
@@ -21,7 +21,7 @@ impl Provider for Instance {
 // ===== YANG impls =====
 
 impl YangRpc<Instance> for yang::clear_adjacency::ClearAdjacency {
-    fn invoke(&mut self, instance: &mut Instance) -> Result<(), String> {
+    fn invoke(&mut self, instance: &mut Instance) -> RpcResult {
         let Some((mut instance, arenas)) = instance.as_up() else {
             return Ok(());
         };
@@ -44,7 +44,7 @@ impl YangRpc<Instance> for yang::clear_adjacency::ClearAdjacency {
 }
 
 impl YangRpc<Instance> for yang::clear_database::ClearDatabase {
-    fn invoke(&mut self, instance: &mut Instance) -> Result<(), String> {
+    fn invoke(&mut self, instance: &mut Instance) -> RpcResult {
         let Some((mut instance, arenas)) = instance.as_up() else {
             return Ok(());
         };

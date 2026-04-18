@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use holo_northbound::rpc::{Provider, YangOps, YangRpc};
+use holo_northbound::rpc::{Provider, RpcResult, YangOps, YangRpc};
 
 use crate::instance::Instance;
 use crate::northbound::yang_gen::{self, bgp};
@@ -24,7 +24,7 @@ pub enum ClearType {
 // ===== YANG impls =====
 
 impl YangRpc<Instance> for bgp::neighbors::clear::Clear {
-    fn invoke(&mut self, instance: &mut Instance) -> Result<(), String> {
+    fn invoke(&mut self, instance: &mut Instance) -> RpcResult {
         let Some((mut instance, neighbors)) = instance.as_up() else {
             return Ok(());
         };

@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use holo_northbound::rpc::{Provider, YangOps, YangRpc};
+use holo_northbound::rpc::{Provider, RpcResult, YangOps, YangRpc};
 
 use crate::discovery;
 use crate::instance::Instance;
@@ -19,7 +19,7 @@ impl Provider for Instance {
 // ===== YANG impls =====
 
 impl YangRpc<Instance> for yang::mpls_ldp_clear_peer::MplsLdpClearPeer {
-    fn invoke(&mut self, instance: &mut Instance) -> Result<(), String> {
+    fn invoke(&mut self, instance: &mut Instance) -> RpcResult {
         let Some((mut instance, _, _)) = instance.as_up() else {
             return Ok(());
         };
@@ -55,7 +55,7 @@ impl YangRpc<Instance> for yang::mpls_ldp_clear_peer::MplsLdpClearPeer {
 }
 
 impl YangRpc<Instance> for yang::mpls_ldp_clear_hello_adjacency::MplsLdpClearHelloAdjacency {
-    fn invoke(&mut self, instance: &mut Instance) -> Result<(), String> {
+    fn invoke(&mut self, instance: &mut Instance) -> RpcResult {
         let Some((mut instance, _, _)) = instance.as_up() else {
             return Ok(());
         };
@@ -107,7 +107,7 @@ impl YangRpc<Instance> for yang::mpls_ldp_clear_hello_adjacency::MplsLdpClearHel
 }
 
 impl YangRpc<Instance> for yang::mpls_ldp_clear_peer_statistics::MplsLdpClearPeerStatistics {
-    fn invoke(&mut self, instance: &mut Instance) -> Result<(), String> {
+    fn invoke(&mut self, instance: &mut Instance) -> RpcResult {
         let Some((instance, _, _)) = instance.as_up() else {
             return Ok(());
         };

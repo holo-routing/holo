@@ -60,7 +60,7 @@ pub enum CapabilityCode {
     // RFC 8277
     //MultipleLabels = 8,
     // RFC 9234
-    //BgpRole = 9,
+    BgpRole = 9,
     // RFC 4724
     //GracefulRestart = 64,
     // RFC 6793
@@ -101,6 +101,8 @@ pub enum MessageHeaderErrorSubcode {
     ConnectionNotSynchronized = 1,
     BadMessageLength = 2,
     BadMessageType = 3,
+    // RFC 9234.
+    RoleMismatch = 11,
 }
 
 // OPEN Message Error subcodes.
@@ -276,7 +278,7 @@ pub enum AttrType {
     // RFC 8205
     //BgpSecPath = 33,
     // RFC 9234
-    //Otc = 35,
+    Otc = 35,
     // RFC 9015
     //Sfp = 37,
     // RFC 9026
@@ -285,6 +287,19 @@ pub enum AttrType {
     //BgpPrefixSid = 40,
     // RFC6 368
     //AttrSet = 128,
+}
+
+// Roles as defined in RFC 9234.
+#[derive(Clone, Copy, Ord, Debug, Eq, Hash, PartialEq, PartialOrd)]
+#[derive(FromPrimitive, ToPrimitive)]
+#[derive(Deserialize, Serialize)]
+pub enum RoleName {
+    Provider = 0,
+    Rs = 1,
+    RsClient = 2,
+    Customer = 3,
+    Peer = 4, // i.e Lateral Peer.
+    Undefined = 255,
 }
 
 // BGP Origin.

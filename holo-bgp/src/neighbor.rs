@@ -30,7 +30,7 @@ use crate::northbound::notification;
 use crate::northbound::rpc::ClearType;
 use crate::packet::attribute::{AS_TRANS, Attrs};
 use crate::packet::iana::{
-    Afi, CeaseSubcode, ErrorCode, FsmErrorSubcode, Safi,
+    Afi, CeaseSubcode, ErrorCode, FsmErrorSubcode, RoleName, Safi,
 };
 use crate::packet::message::{
     Capability, DecodeCxt, EncodeCxt, KeepaliveMsg, Message,
@@ -67,6 +67,7 @@ pub struct Neighbor {
     pub tasks: NeighborTasks,
     pub update_queues: NeighborUpdateQueues,
     pub msg_txp: Option<UnboundedSender<NbrTxMsg>>,
+    pub remote_role: Option<RoleName>,
 }
 
 // BGP peer type.
@@ -214,6 +215,7 @@ impl Neighbor {
             tasks: Default::default(),
             update_queues: Default::default(),
             msg_txp: None,
+            remote_role: None,
         }
     }
 
@@ -696,6 +698,10 @@ impl Neighbor {
             });
         }
 
+        if let Some(role) = self.config.local_role {
+            capabilities.insert(Capability::Role { role });
+        }
+
         // Keep track of the advertised capabilities.
         self.capabilities_adv.clone_from(&capabilities);
 
@@ -733,6 +739,12 @@ impl Neighbor {
                 Error::NbrBadIdentifier(..) => {
                     let error_code = ErrorCode::OpenMessageError;
                     let error_subcode = ErrorSubcode::BadBgpIdentifier;
+                    let msg = NotificationMsg::new(error_code, error_subcode);
+                    Some(msg)
+                }
+                Error::NbrRoleMismatch(..) => {
+                    let error_code = ErrorCode::OpenMessageError;
+                    let error_subcode = ErrorSubcode::RoleMismatch;
                     let msg = NotificationMsg::new(error_code, error_subcode);
                     Some(msg)
                 }
@@ -779,7 +791,7 @@ impl Neighbor {
     // Performs semantic validation of the received BGP OPEN message.
     // Syntactic errors are detected during the decoding phase.
     fn open_validate(
-        &self,
+        &mut self,
         instance: &InstanceUpView<'_>,
         msg: &OpenMsg,
     ) -> Result<(), Error> {
@@ -800,6 +812,63 @@ impl Neighbor {
                 self.remote_addr,
                 msg.identifier,
             ));
+        }
+
+        // RFC 9234: Role correctness validation for OPEN messages.
+        if let Some(local_role) = self.config.local_role {
+            let remote_role_capability = msg
+                .capabilities
+                .iter()
+                .find(|cap| matches!(cap, Capability::Role { .. }));
+
+            match remote_role_capability {
+                Some(Capability::Role { role: remote_role }) => {
+                    // RFC 9234: 4.2.
+                    // Valid Role Mappings.
+                    let role_mappings = BTreeMap::from([
+                        (RoleName::Provider, RoleName::Customer),
+                        (RoleName::Customer, RoleName::Provider),
+                        (RoleName::Rs, RoleName::RsClient),
+                        (RoleName::RsClient, RoleName::Rs),
+                        (RoleName::Peer, RoleName::Peer),
+                    ]);
+
+                    // If Remote role had been sent before, it should be same
+                    // with currently received.
+                    if let Some(r_role) = self.remote_role
+                        && r_role != *remote_role
+                    {
+                        return Err(Error::NbrRoleMismatch(
+                            self.remote_addr,
+                            local_role.to_u8().unwrap(),
+                            remote_role.to_u8().unwrap(),
+                        ));
+                    }
+
+                    match role_mappings.get(&local_role) {
+                        Some(correct_role) if correct_role == remote_role => {
+                            self.remote_role = Some(*remote_role);
+                        }
+                        _ => {
+                            // Not correct Role Mappings.
+                            return Err(Error::NbrRoleMismatch(
+                                self.remote_addr,
+                                local_role.to_u8().unwrap(),
+                                remote_role.to_u8().unwrap(),
+                            ));
+                        }
+                    }
+                }
+                None if self.config.role_strict_mode => {
+                    // "strict mode" is enabled, role MUST be sent from nbr.
+                    return Err(Error::NbrRoleMismatch(
+                        self.remote_addr,
+                        local_role.to_u8().unwrap(),
+                        RoleName::Undefined.to_u8().unwrap(),
+                    ));
+                }
+                _ => {}
+            }
         }
 
         Ok(())

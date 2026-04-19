@@ -23,6 +23,11 @@ pub enum Error {
     NbrBadIdentifier(IpAddr, Ipv4Addr),
     // Other
     InstanceStartError(Box<Error>),
+
+    // Recently added to IANA for role mismatch errors.
+    // Params: (nbr_addr, local_role, remote_role)
+    // https://www.iana.org/assignments/bgp-parameters/bgp-parameters.xhtml#bgp-parameters-6.
+    NbrRoleMismatch(IpAddr, u8, u8),
 }
 
 // BGP I/O errors.
@@ -71,6 +76,11 @@ impl Error {
             Error::InstanceStartError(error) => {
                 error!(error = %with_source(error), "{}", self);
             }
+            Error::NbrRoleMismatch(addr, local_role, nbr_role) => {
+                warn_span!("neighbor", %addr).in_scope(|| {
+                    warn!(%local_role, %nbr_role, "{}", self);
+                });
+            }
         }
     }
 }
@@ -88,6 +98,9 @@ impl std::fmt::Display for Error {
             }
             Error::InstanceStartError(..) => {
                 write!(f, "failed to start instance")
+            }
+            Error::NbrRoleMismatch(..) => {
+                write!(f, "BGP Roles mismatch")
             }
         }
     }

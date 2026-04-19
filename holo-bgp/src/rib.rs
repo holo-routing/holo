@@ -19,13 +19,14 @@ use serde::{Deserialize, Serialize};
 use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
 use crate::debug::Debug;
 use crate::ibus;
-use crate::neighbor::{Neighbor, PeerType};
+use crate::neighbor::{Neighbor, Neighbors, PeerType};
 use crate::northbound::configuration::{
     DistanceCfg, InstanceTraceOptions, MultipathCfg, RouteSelectionCfg,
 };
 use crate::packet::attribute::{
     Attrs, BaseAttrs, Comms, ExtComms, Extv6Comms, LargeComms, UnknownAttr,
 };
+use crate::packet::iana::RoleName;
 use crate::policy::RoutePolicyInfo;
 
 // Default values.
@@ -145,6 +146,7 @@ pub enum RouteIneligibleReason {
     Originator,
     Confed,
     Unresolvable,
+    Role,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -709,6 +711,7 @@ where
 pub(crate) fn best_path<A>(
     dest: &mut Destination,
     local_asn: u32,
+    neighbors: &Neighbors,
     nht: &HashMap<IpAddr, NhtEntry<A>>,
     selection_cfg: &RouteSelectionCfg,
 ) -> Option<Box<Route>>
@@ -718,7 +721,7 @@ where
     let mut best_route = None;
 
     // Iterate over each Adj-RIB-In route for the destination.
-    for route in dest
+    'rib_loop: for route in dest
         .adj_rib
         .values_mut()
         // Pick the post-policy routes.
@@ -732,7 +735,39 @@ where
         // First, check if the route is eligible.
         if route.attrs.base.value.as_path.contains(local_asn) {
             route.ineligible_reason = Some(RouteIneligibleReason::AsLoop);
-            continue;
+            continue 'rib_loop;
+        }
+
+        // Check for RoleName and OTC validity.
+        // RFC 9234 Section 5.
+        //
+        // 1.
+        // If a route with the OTC Attribute is received from a Customer or an
+        // RS-Client, then it is a route leak and be considered ineligible.
+        //
+        // 2.
+        // If a route with the OTC Attribute is received from a Peer
+        // (i.e., remote AS with a Peer Role) and the Attribute has
+        // a value that is not equal to the remote (i.e., Peer's) AS number,
+        // then it is a route leak and be considered ineligible.
+        if let RouteOrigin::Neighbor { remote_addr, .. } = route.origin
+            && let Some(nbr) = neighbors.get(&remote_addr)
+            && let Some(remote_role) = nbr.remote_role
+        {
+            let attrs = &route.attrs.get();
+
+            if let Some(otc) = attrs.base.otc {
+                let is_leak = match remote_role {
+                    RoleName::Customer | RoleName::RsClient => true,
+                    RoleName::Peer if otc != nbr.config.peer_as => true,
+                    _ => false,
+                };
+
+                if is_leak {
+                    route.ineligible_reason = Some(RouteIneligibleReason::Role);
+                    continue 'rib_loop;
+                }
+            }
         }
 
         // Get interior cost to the route's nexthop.
@@ -742,7 +777,7 @@ where
             if route.igp_cost.is_none() {
                 route.ineligible_reason =
                     Some(RouteIneligibleReason::Unresolvable);
-                continue;
+                continue 'rib_loop;
             };
         }
 
@@ -871,6 +906,22 @@ pub(crate) fn attrs_tx_update<A>(
 
             // Remove the LOCAL_PREF attribute.
             attrs.base.local_pref = None;
+
+            if let Some(remote_role) = nbr.remote_role {
+                // RFC 9234 - Section 5:
+                // If a route is to be advertised to a Customer, a Peer, or an
+                // RS-Client (when the sender is an RS) and the OTC Attribute is
+                // not present, then when advertising the route, an OTC Attribute
+                // be added with a value equal to the AS number of the local AS
+                match (remote_role, nbr.config.local_role) {
+                    (RoleName::Customer, _)
+                    | (RoleName::Peer, _)
+                    | (RoleName::RsClient, Some(RoleName::Rs)) => {
+                        attrs.base.otc.get_or_insert(local_asn);
+                    }
+                    (_, _) => {}
+                }
+            }
         }
     }
 

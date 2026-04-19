@@ -9,5 +9,17 @@ wrap_comments = false
 # Northbound modules are excluded to allow their local rustfmt.toml
 # configurations to take precedence.
 ignore = [
-  "holo-*/src/northbound/",
+  "holo-bfd/src/northbound/",
+  "holo-bgp/src/northbound/",
+  "holo-igmp/src/northbound/",
+  "holo-interface/src/northbound/",
+  "holo-isis/src/northbound/",
+  "holo-keychain/src/northbound/",
+  "holo-ldp/src/northbound/",
+  "holo-ospf/src/northbound/",
+  "holo-policy/src/northbound/",
+  "holo-rip/src/northbound/",
+  "holo-routing/src/northbound/",
+  "holo-system/src/northbound/",
+  "holo-vrrp/src/northbound/",
 ]

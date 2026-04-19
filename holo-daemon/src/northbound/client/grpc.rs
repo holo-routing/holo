@@ -12,9 +12,8 @@ use std::time::SystemTime;
 use futures::Stream;
 use holo_utils::task::Task;
 use holo_yang::{YANG_CTX, YANG_FEATURES};
-use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
-use tokio::sync::oneshot;
+use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tonic::transport::{Server, ServerTlsConfig};
 use tonic::{Request, Response, Status};
@@ -409,11 +408,8 @@ impl proto::Northbound for NorthboundService {
         Ok(Response::new(grpc_response))
     }
 
-    type SubscribeStream = Pin<
-        Box<
-            dyn Stream<Item = Result<proto::Notification, Status>> + Send,
-        >,
-    >;
+    type SubscribeStream =
+        Pin<Box<dyn Stream<Item = Result<proto::Notification, Status>> + Send>>;
 
     async fn subscribe(
         &self,
@@ -434,20 +430,19 @@ impl proto::Northbound for NorthboundService {
         let (tx, rx) = mpsc::unbounded_channel();
 
         // Register subscription with the daemon.
-        let nb_request = api::client::Request::Subscribe(
-            api::client::SubscribeRequest { path, tx },
-        );
+        let nb_request =
+            api::client::Request::Subscribe(api::client::SubscribeRequest {
+                path,
+                tx,
+            });
         self.request_tx.send(nb_request).await.unwrap();
 
         // Convert internal notifications to gRPC format.
         let stream = UnboundedReceiverStream::new(rx);
         let output = futures::StreamExt::map(stream, move |notification| {
             let printer_flags = DataPrinterFlags::WITH_SIBLINGS;
-            let data = data_tree_init(
-                &notification.data,
-                encoding,
-                printer_flags,
-            )?;
+            let data =
+                data_tree_init(&notification.data, encoding, printer_flags)?;
             Ok(proto::Notification {
                 timestamp: get_timestamp(),
                 module_path: notification.path,

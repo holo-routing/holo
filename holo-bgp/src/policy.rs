@@ -181,12 +181,14 @@ fn process_stmt_condition(
         // "match-prefix-set"
         PolicyCondition::MatchPrefixSet(value) => {
             let af = prefix.address_family();
-            let set = match_sets.prefixes.get(&(value.clone(), af)).unwrap();
-            set.prefixes.iter().any(|range| {
-                prefix.ip() == range.prefix.ip()
-                    && prefix.prefix() >= range.masklen_lower
-                    && prefix.prefix() <= range.masklen_upper
-            })
+            match match_sets.prefixes.get(&(value.clone(), af)) {
+                Some(set) => set.prefixes.iter().any(|range| {
+                    prefix.ip() == range.prefix.ip()
+                        && prefix.prefix() >= range.masklen_lower
+                        && prefix.prefix() <= range.masklen_upper
+                }),
+                None => false,
+            }
         }
         // "match-neighbor-set"
         PolicyCondition::MatchNeighborSet(value) => {
@@ -195,13 +197,16 @@ fn process_stmt_condition(
                 return true;
             };
 
-            let set = match_sets.neighbors.get(value).unwrap();
-            set.addrs.contains(remote_addr)
+            match match_sets.neighbors.get(value) {
+                Some(set) => set.addrs.contains(remote_addr),
+                None => false,
+            }
         }
         // "match-tag-set"
         PolicyCondition::MatchTagSet(value) => {
-            if let Some(tag) = &rpinfo.tag {
-                let set = match_sets.tags.get(value).unwrap();
+            if let Some(tag) = &rpinfo.tag
+                && let Some(set) = match_sets.tags.get(value)
+            {
                 set.tags.contains(tag)
             } else {
                 false

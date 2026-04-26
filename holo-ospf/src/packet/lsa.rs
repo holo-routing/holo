@@ -415,6 +415,13 @@ where
             }
         }
 
+        // RFC 2328 - Section 12.1.7:
+        // "The LS checksum field cannot take on the value of zero; the
+        // occurrence of such a value should be considered a checksum failure."
+        if self.hdr.cksum() == 0 {
+            return false;
+        }
+
         // Skip the Age field.
         fletcher::calc_fletcher16(&self.raw[2..(self.hdr.length() as usize)])
             == 0

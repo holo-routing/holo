@@ -168,15 +168,15 @@ impl LsdbVersion<Self> for Ospfv3 {
                 let (_, iface) =
                     area.interfaces.get_by_id(&arenas.interfaces, iface_id)?;
 
+                // (Re)originate or flush Link-LSA.
                 if iface.state.ism_state >= ism::State::Waiting {
-                    // (Re)originate or flush Link-LSA.
-                    if iface.state.ism_state >= ism::State::Waiting {
-                        lsa_orig_link(iface, area, instance);
-                    } else {
-                        lsa_flush_link(iface, area, instance, arenas);
-                    }
+                    lsa_orig_link(iface, area, instance);
                 } else {
-                    // (Re)originate Intra-area-prefix-LSA(s).
+                    lsa_flush_link(iface, area, instance, arenas);
+                }
+
+                // (Re)originate Intra-area-prefix-LSA(s).
+                if iface.state.ism_state == ism::State::Dr {
                     lsa_orig_intra_area_prefix(area, instance, arenas);
                 }
             }

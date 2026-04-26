@@ -63,6 +63,24 @@ pub(crate) fn helper_process_grace_lsa<V>(
             helper_exit(nbr, iface, area, GrExitReason::Completed, instance);
         }
     } else {
+        // Check if the neighbor is fully adjacent.
+        if nbr.state != nsm::State::Full {
+            if instance.config.trace_opts.gr {
+                let reason = GrRejectReason::NeighborNotFull;
+                Debug::<V>::GrHelperReject(nbr.router_id, reason).log();
+            }
+            return;
+        }
+
+        // Check if the grace period has already expired.
+        if lsa_hdr.age() as u32 >= grace_period {
+            if instance.config.trace_opts.gr {
+                let reason = GrRejectReason::GracePeriodExpired;
+                Debug::<V>::GrHelperReject(nbr.router_id, reason).log();
+            }
+            return;
+        }
+
         // Calculate the remaining grace period.
         let remn_grace_period = grace_period - lsa_hdr.age() as u32;
 
@@ -71,15 +89,6 @@ pub(crate) fn helper_process_grace_lsa<V>(
         if let Some(gr) = &mut nbr.gr {
             gr.grace_period
                 .reset(Some(Duration::from_secs(remn_grace_period.into())));
-            return;
-        }
-
-        // Check if the neighbor is fully adjacent.
-        if nbr.state != nsm::State::Full {
-            if instance.config.trace_opts.gr {
-                let reason = GrRejectReason::NeighborNotFull;
-                Debug::<V>::GrHelperReject(nbr.router_id, reason).log();
-            }
             return;
         }
 
@@ -93,15 +102,6 @@ pub(crate) fn helper_process_grace_lsa<V>(
         {
             if instance.config.trace_opts.gr {
                 let reason = GrRejectReason::TopologyChange;
-                Debug::<V>::GrHelperReject(nbr.router_id, reason).log();
-            }
-            return;
-        }
-
-        // Check if the grace period has already expired.
-        if lsa_hdr.age() as u32 >= grace_period {
-            if instance.config.trace_opts.gr {
-                let reason = GrRejectReason::GracePeriodExpired;
                 Debug::<V>::GrHelperReject(nbr.router_id, reason).log();
             }
             return;

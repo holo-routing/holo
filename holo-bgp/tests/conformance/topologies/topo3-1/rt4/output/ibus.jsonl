@@ -1,0 +1,15 @@
+{"RouterIdSub":{}}
+{"RouteRedistributeSub":{"protocol":"direct","af":"Ipv4"}}
+{"NexthopTrack":{"addr":"192.168.0.14"}}
+{"NexthopTrack":{"addr":"192.168.0.9"}}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"2.2.2.2/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"192.168.0.9","labels":[],"resolved":[]}}]}}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"3.3.3.3/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"192.168.0.9","labels":[],"resolved":[]}}]}}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"5.5.5.5/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"192.168.0.14","labels":[],"resolved":[]}}]}}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"6.6.6.6/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"192.168.0.14","labels":[],"resolved":[]}}]}}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"10.0.2.0/24","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"192.168.0.9","labels":[],"resolved":[]}}]}}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"10.0.3.0/24","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"192.168.0.9","labels":[],"resolved":[]}}]}}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"10.0.5.0/24","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"192.168.0.14","labels":[],"resolved":[]}}]}}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"10.0.6.0/24","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"192.168.0.14","labels":[],"resolved":[]}}]}}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"192.168.0.0/30","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"192.168.0.9","labels":[],"resolved":[]}}]}}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"192.168.0.4/30","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"192.168.0.9","labels":[],"resolved":[]}}]}}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"192.168.0.16/30","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"192.168.0.14","labels":[],"resolved":[]}}]}}

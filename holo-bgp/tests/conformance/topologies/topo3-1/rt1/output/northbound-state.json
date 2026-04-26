@@ -1,0 +1,327 @@
+{
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-bgp:bgp",
+          "name": "test",
+          "ietf-bgp:bgp": {
+            "global": {
+              "afi-safis": {
+                "afi-safi": [
+                  {
+                    "name": "iana-bgp-types:ipv4-unicast",
+                    "statistics": {
+                      "total-prefixes": 6
+                    }
+                  }
+                ]
+              },
+              "statistics": {
+                "total-prefixes": 6
+              }
+            },
+            "neighbors": {
+              "neighbor": [
+                {
+                  "remote-address": "192.168.0.2",
+                  "local-address": "192.168.0.1",
+                  "peer-type": "external",
+                  "identifier": "192.168.0.5",
+                  "timers": {
+                    "negotiated-hold-time": 90
+                  },
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "name": "iana-bgp-types:ipv4-unicast",
+                        "prefixes": {
+                          "received": 4,
+                          "sent": 3,
+                          "installed": 4
+                        }
+                      }
+                    ]
+                  },
+                  "session-state": "established",
+                  "capabilities": {
+                    "advertised-capabilities": [
+                      {
+                        "code": 1,
+                        "index": 0,
+                        "name": "iana-bgp-types:mp-bgp",
+                        "value": {
+                          "mpbgp": {
+                            "afi": "ipv4",
+                            "safi": "unicast-safi",
+                            "name": "iana-bgp-types:ipv4-unicast"
+                          }
+                        }
+                      },
+                      {
+                        "code": 65,
+                        "index": 1,
+                        "name": "iana-bgp-types:asn32",
+                        "value": {
+                          "asn32": {
+                            "as": 65101
+                          }
+                        }
+                      },
+                      {
+                        "code": 2,
+                        "index": 2,
+                        "name": "iana-bgp-types:route-refresh"
+                      },
+                      {
+                        "code": 9,
+                        "index": 3,
+                        "name": "holo-bgp:role"
+                      }
+                    ],
+                    "received-capabilities": [
+                      {
+                        "code": 1,
+                        "index": 0,
+                        "name": "iana-bgp-types:mp-bgp",
+                        "value": {
+                          "mpbgp": {
+                            "afi": "ipv4",
+                            "safi": "unicast-safi",
+                            "name": "iana-bgp-types:ipv4-unicast"
+                          }
+                        }
+                      },
+                      {
+                        "code": 65,
+                        "index": 1,
+                        "name": "iana-bgp-types:asn32",
+                        "value": {
+                          "asn32": {
+                            "as": 65102
+                          }
+                        }
+                      },
+                      {
+                        "code": 2,
+                        "index": 2,
+                        "name": "iana-bgp-types:route-refresh"
+                      },
+                      {
+                        "code": 9,
+                        "index": 3,
+                        "name": "holo-bgp:role"
+                      }
+                    ],
+                    "negotiated-capabilities": [
+                      "iana-bgp-types:mp-bgp",
+                      "iana-bgp-types:asn32",
+                      "iana-bgp-types:route-refresh",
+                      "holo-bgp:role"
+                    ]
+                  }
+                }
+              ]
+            },
+            "rib": {
+              "attr-sets": {
+                "attr-set": [
+                  {
+                    "index": "6200596107836267356",
+                    "attributes": {
+                      "origin": "incomplete"
+                    }
+                  },
+                  {
+                    "index": "2058728291198426334",
+                    "attributes": {
+                      "origin": "incomplete",
+                      "as-path": {
+                        "segment": [
+                          {
+                            "type": "iana-bgp-types:as-sequence",
+                            "member": [
+                              65102
+                            ]
+                          }
+                        ]
+                      },
+                      "next-hop": "192.168.0.2"
+                    }
+                  }
+                ]
+              },
+              "afi-safis": {
+                "afi-safi": [
+                  {
+                    "name": "iana-bgp-types:ipv4-unicast",
+                    "ipv4-unicast": {
+                      "loc-rib": {
+                        "routes": {
+                          "route": [
+                            {
+                              "prefix": "1.1.1.1/32",
+                              "origin": "ietf-routing:direct",
+                              "path-id": 0,
+                              "attr-index": "6200596107836267356"
+                            },
+                            {
+                              "prefix": "2.2.2.2/32",
+                              "origin": "192.168.0.2",
+                              "path-id": 0,
+                              "attr-index": "2058728291198426334"
+                            },
+                            {
+                              "prefix": "10.0.1.0/24",
+                              "origin": "ietf-routing:direct",
+                              "path-id": 0,
+                              "attr-index": "6200596107836267356"
+                            },
+                            {
+                              "prefix": "10.0.2.0/24",
+                              "origin": "192.168.0.2",
+                              "path-id": 0,
+                              "attr-index": "2058728291198426334"
+                            },
+                            {
+                              "prefix": "192.168.0.0/30",
+                              "origin": "ietf-routing:direct",
+                              "path-id": 0,
+                              "attr-index": "6200596107836267356"
+                            },
+                            {
+                              "prefix": "192.168.0.4/30",
+                              "origin": "192.168.0.2",
+                              "path-id": 0,
+                              "attr-index": "2058728291198426334"
+                            }
+                          ]
+                        }
+                      },
+                      "neighbors": {
+                        "neighbor": [
+                          {
+                            "neighbor-address": "192.168.0.2",
+                            "adj-rib-in-pre": {
+                              "routes": {
+                                "route": [
+                                  {
+                                    "prefix": "2.2.2.2/32",
+                                    "path-id": 0,
+                                    "attr-index": "2058728291198426334",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "10.0.2.0/24",
+                                    "path-id": 0,
+                                    "attr-index": "2058728291198426334",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "192.168.0.0/30",
+                                    "path-id": 0,
+                                    "attr-index": "2058728291198426334",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "192.168.0.4/30",
+                                    "path-id": 0,
+                                    "attr-index": "2058728291198426334",
+                                    "eligible-route": true
+                                  }
+                                ]
+                              }
+                            },
+                            "adj-rib-in-post": {
+                              "routes": {
+                                "route": [
+                                  {
+                                    "prefix": "2.2.2.2/32",
+                                    "path-id": 0,
+                                    "attr-index": "2058728291198426334",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "10.0.2.0/24",
+                                    "path-id": 0,
+                                    "attr-index": "2058728291198426334",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "192.168.0.0/30",
+                                    "path-id": 0,
+                                    "attr-index": "2058728291198426334",
+                                    "eligible-route": true,
+                                    "reject-reason": "iana-bgp-rib-types:as-path-longer"
+                                  },
+                                  {
+                                    "prefix": "192.168.0.4/30",
+                                    "path-id": 0,
+                                    "attr-index": "2058728291198426334",
+                                    "eligible-route": true
+                                  }
+                                ]
+                              }
+                            },
+                            "adj-rib-out-pre": {
+                              "routes": {
+                                "route": [
+                                  {
+                                    "prefix": "1.1.1.1/32",
+                                    "path-id": 0,
+                                    "attr-index": "6200596107836267356",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "10.0.1.0/24",
+                                    "path-id": 0,
+                                    "attr-index": "6200596107836267356",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "192.168.0.0/30",
+                                    "path-id": 0,
+                                    "attr-index": "6200596107836267356",
+                                    "eligible-route": true
+                                  }
+                                ]
+                              }
+                            },
+                            "adj-rib-out-post": {
+                              "routes": {
+                                "route": [
+                                  {
+                                    "prefix": "1.1.1.1/32",
+                                    "path-id": 0,
+                                    "attr-index": "6200596107836267356",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "10.0.1.0/24",
+                                    "path-id": 0,
+                                    "attr-index": "6200596107836267356",
+                                    "eligible-route": true
+                                  },
+                                  {
+                                    "prefix": "192.168.0.0/30",
+                                    "path-id": 0,
+                                    "attr-index": "6200596107836267356",
+                                    "eligible-route": true
+                                  }
+                                ]
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,152 @@
+{
+  "ietf-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "lo",
+        "type": "iana-if-type:softwareLoopback",
+        "ietf-ip:ipv4": {
+          "address": [
+            {
+              "ip": "4.4.4.4",
+              "prefix-length": 32
+            }
+          ]
+        },
+        "ietf-ip:ipv6": {}
+      }
+    ]
+  },
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-bgp:bgp",
+          "name": "main",
+          "ietf-bgp:bgp": {
+            "global": {
+              "as": 65104,
+              "identifier": "4.4.4.4",
+              "afi-safis": {
+                "afi-safi": [
+                  {
+                    "name": "iana-bgp-types:ipv4-unicast",
+                    "enabled": true,
+                    "apply-policy": {
+                      "import-policy": [
+                        "REDIST"
+                      ]
+                    },
+                    "ipv4-unicast": {
+                      "holo-bgp:redistribution": [
+                        {
+                          "type": "ietf-routing:direct"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            "neighbors": {
+              "neighbor": [
+                {
+                  "remote-address": "192.168.0.9",
+                  "peer-as": 65103,
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "name": "iana-bgp-types:ipv4-unicast",
+                        "enabled": true,
+                        "apply-policy": {
+                          "default-import-policy": "accept-route",
+                          "default-export-policy": "accept-route"
+                        }
+                      }
+                    ]
+                  },
+                  "holo-bgp:local-role": "peer"
+                },
+                {
+                  "remote-address": "192.168.0.14",
+                  "peer-as": 65105,
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "name": "iana-bgp-types:ipv4-unicast",
+                        "enabled": true,
+                        "apply-policy": {
+                          "default-import-policy": "accept-route",
+                          "default-export-policy": "accept-route"
+                        }
+                      }
+                    ]
+                  },
+                  "holo-bgp:local-role": "customer"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "ietf-routing-policy:routing-policy": {
+    "defined-sets": {
+      "prefix-sets": {
+        "prefix-set": [
+          {
+            "name": "LOCAL",
+            "mode": "ipv4",
+            "prefixes": {
+              "prefix-list": [
+                {
+                  "ip-prefix": "4.4.4.4/32",
+                  "mask-length-lower": 32,
+                  "mask-length-upper": 32
+                },
+                {
+                  "ip-prefix": "10.0.4.0/24",
+                  "mask-length-lower": 24,
+                  "mask-length-upper": 24
+                },
+                {
+                  "ip-prefix": "192.168.0.8/30",
+                  "mask-length-lower": 30,
+                  "mask-length-upper": 30
+                },
+                {
+                  "ip-prefix": "192.168.0.12/30",
+                  "mask-length-lower": 30,
+                  "mask-length-upper": 30
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "name": "REDIST",
+          "statements": {
+            "statement": [
+              {
+                "name": "1",
+                "conditions": {
+                  "match-prefix-set": {
+                    "prefix-set": "LOCAL"
+                  }
+                },
+                "actions": {
+                  "policy-result": "accept-route"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+

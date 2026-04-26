@@ -25,7 +25,7 @@ use crate::instance::{Instance, InstanceUpView};
 use crate::neighbor::{Neighbor, PeerType, fsm};
 use crate::network;
 use crate::northbound::yang_gen::bgp;
-use crate::packet::iana::{CeaseSubcode, ErrorCode};
+use crate::packet::iana::{CeaseSubcode, ErrorCode, RoleName};
 use crate::packet::message::{Message, NotificationMsg};
 use crate::rib::RouteOrigin;
 
@@ -136,6 +136,8 @@ pub struct NeighborCfg {
     pub prefix_limit: PrefixLimitCfg,
     pub afi_safi: BTreeMap<AfiSafi, NeighborAfiSafiCfg>,
     pub trace_opts: NeighborTraceOptions,
+    pub local_role: Option<RoleName>,
+    pub role_strict_mode: bool,
 }
 
 #[derive(Debug)]
@@ -252,6 +254,34 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::global::PATH)
         .create_apply(|_instance, _args| {})
         .delete_apply(|_instance, _args| {})
+        .path(bgp::neighbors::neighbor::local_role::PATH)
+        .modify_apply(|instance, args| {
+            let nbr_addr = args.list_entry.into_neighbor().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+
+            let local_role = args.dnode.get_string();
+            nbr.config.local_role = match local_role.as_str() {
+                "provider" => Some(RoleName::Provider),
+                "customer" => Some(RoleName::Customer),
+                "peer" => Some(RoleName::Peer),
+                "rs-client" => Some(RoleName::RsClient),
+                "rs" => Some(RoleName::Rs),
+                _ => None,
+            };
+        })
+        .delete_apply(|instance, args| {
+            let nbr_addr = args.list_entry.into_neighbor().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+            nbr.config.local_role = None;
+        })
+        .path(bgp::neighbors::neighbor::role_strict_mode::PATH)
+        .modify_apply(|instance, args| {
+            let nbr_addr = args.list_entry.into_neighbor().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+
+            let strict_mode = args.dnode.get_bool();
+            nbr.config.role_strict_mode = strict_mode;
+        })
         .path(bgp::global::r#as::PATH)
         .modify_apply(|instance, args| {
             let asn = args.dnode.get_u32();
@@ -1769,6 +1799,7 @@ impl Default for NeighborCfg {
     fn default() -> NeighborCfg {
         let enabled = bgp::neighbors::neighbor::enabled::DFLT;
         let log_neighbor_state_changes = bgp::neighbors::neighbor::logging_options::log_neighbor_state_changes::DFLT;
+        let role_strict_mode = bgp::neighbors::neighbor::role_strict_mode::DFLT;
 
         NeighborCfg {
             enabled,
@@ -1783,6 +1814,8 @@ impl Default for NeighborCfg {
             prefix_limit: Default::default(),
             afi_safi: Default::default(),
             trace_opts: Default::default(),
+            local_role: Default::default(),
+            role_strict_mode,
         }
     }
 }

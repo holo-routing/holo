@@ -22,7 +22,7 @@ use crate::error::{Error, IoError, NbrRxError};
 use crate::instance::{InstanceUpView, PolicyApplyTasks};
 use crate::neighbor::{Neighbor, Neighbors, PeerType, fsm};
 use crate::packet::attribute::Attrs;
-use crate::packet::iana::{Afi, Safi};
+use crate::packet::iana::{Afi, RoleName, Safi};
 use crate::packet::message::{
     Capability, Message, MpReachNlri, MpUnreachNlri, RouteRefreshMsg, UpdateMsg,
 };
@@ -283,6 +283,18 @@ fn process_nbr_reach_prefixes<A>(
     // Check if the address-family is enabled for this session.
     if !nbr.is_af_enabled(A::AFI, A::SAFI) {
         return;
+    }
+
+    // RFC 9234: If a route is received from a Provider, a Peer or an RS and
+    // the OTC Attribute is not present, it MUST be added with AS number of
+    // remote AS.
+    if let Some(remote_role) = nbr.remote_role
+        && matches!(
+            remote_role,
+            RoleName::Provider | RoleName::Peer | RoleName::Rs
+        )
+    {
+        let _ = attrs.base.otc.get_or_insert(nbr.config.peer_as);
     }
 
     // Initialize route origin and type.
@@ -564,6 +576,20 @@ where
 
                     // Update route's attributes before transmission.
                     let mut attrs = rpinfo.attrs;
+
+                    // RFC 9234; If a route already contains the OTC Attribute,
+                    // it be propagated to Providers, Peers, or RSes.
+                    if let Some(remote_role) = nbr.remote_role
+                        && matches!(
+                            remote_role,
+                            RoleName::Provider | RoleName::Peer | RoleName::Rs
+                        )
+                        && attrs.base.otc.is_some()
+                        && !rpinfo.origin.is_local()
+                    {
+                        continue;
+                    }
+
                     rib::attrs_tx_update::<A>(
                         &mut attrs,
                         nbr,
@@ -679,6 +705,7 @@ where
         let best_route = rib::best_path::<A>(
             dest,
             instance.config.asn,
+            neighbors,
             &table.nht,
             selection_cfg,
         );

@@ -1,0 +1,8 @@
+{"NbrTx":{"SendMessage":{"nbr_addr":"192.168.0.14","msg":{"Open":{"version":4,"my_as":65104,"holdtime":90,"identifier":"4.4.4.4","capabilities":[{"MultiProtocol":{"afi":"Ipv4","safi":"Unicast"}},{"FourOctetAsNumber":{"asn":65104}},"RouteRefresh",{"Role":{"role":"Customer"}}]}}}}}
+{"NbrTx":{"SendMessage":{"nbr_addr":"192.168.0.14","msg":{"Keepalive":{}}}}}
+{"NbrTx":{"SendMessage":{"nbr_addr":"192.168.0.9","msg":{"Open":{"version":4,"my_as":65104,"holdtime":90,"identifier":"4.4.4.4","capabilities":[{"MultiProtocol":{"afi":"Ipv4","safi":"Unicast"}},{"FourOctetAsNumber":{"asn":65104}},"RouteRefresh",{"Role":{"role":"Peer"}}]}}}}}
+{"NbrTx":{"SendMessage":{"nbr_addr":"192.168.0.9","msg":{"Keepalive":{}}}}}
+{"NbrTx":{"UpdateCapabilities":[{"MultiProtocol":{"afi":"Ipv4","safi":"Unicast"}},"FourOctetAsNumber","RouteRefresh","Role"]}}
+{"NbrTx":{"UpdateCapabilities":[{"MultiProtocol":{"afi":"Ipv4","safi":"Unicast"}},"FourOctetAsNumber","RouteRefresh","Role"]}}
+{"NbrTx":{"SendMessageList":{"nbr_addr":"192.168.0.14","msg_list":[{"Update":{"reach":{"prefixes":["4.4.4.4/32","10.0.4.0/24","192.168.0.8/30","192.168.0.12/30"],"nexthop":"192.168.0.13"},"attrs":{"base":{"origin":"Incomplete","as_path":{"segments":[{"seg_type":"Sequence","members":[65104]}]},"nexthop":"192.168.0.13"}}}}]}}}
+{"NbrTx":{"SendMessageList":{"nbr_addr":"192.168.0.9","msg_list":[{"Update":{"reach":{"prefixes":["4.4.4.4/32","10.0.4.0/24","192.168.0.8/30","192.168.0.12/30"],"nexthop":"192.168.0.10"},"attrs":{"base":{"origin":"Incomplete","as_path":{"segments":[{"seg_type":"Sequence","members":[65104]}]},"nexthop":"192.168.0.10","otc":65104}}}}]}}}

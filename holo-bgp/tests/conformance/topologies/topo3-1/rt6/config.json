@@ -1,0 +1,130 @@
+{
+  "ietf-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "lo",
+        "type": "iana-if-type:softwareLoopback",
+        "ietf-ip:ipv4": {
+          "address": [
+            {
+              "ip": "6.6.6.6",
+              "prefix-length": 32
+            }
+          ]
+        },
+        "ietf-ip:ipv6": {}
+      }
+    ]
+  },
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-bgp:bgp",
+          "name": "main",
+          "ietf-bgp:bgp": {
+            "global": {
+              "as": 65106,
+              "identifier": "6.6.6.6",
+              "afi-safis": {
+                "afi-safi": [
+                  {
+                    "name": "iana-bgp-types:ipv4-unicast",
+                    "enabled": true,
+                    "apply-policy": {
+                      "import-policy": [
+                        "REDIST"
+                      ]
+                    },
+                    "ipv4-unicast": {
+                      "holo-bgp:redistribution": [
+                        {
+                          "type": "ietf-routing:direct"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            "neighbors": {
+              "neighbor": [
+                {
+                  "remote-address": "192.168.0.17",
+                  "peer-as": 65105,
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "name": "iana-bgp-types:ipv4-unicast",
+                        "enabled": true,
+                        "apply-policy": {
+                          "default-import-policy": "accept-route",
+                          "default-export-policy": "accept-route"
+                        }
+                      }
+                    ]
+                  },
+                  "holo-bgp:local-role": "customer"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "ietf-routing-policy:routing-policy": {
+    "defined-sets": {
+      "prefix-sets": {
+        "prefix-set": [
+          {
+            "name": "LOCAL",
+            "mode": "ipv4",
+            "prefixes": {
+              "prefix-list": [
+                {
+                  "ip-prefix": "6.6.6.6/32",
+                  "mask-length-lower": 32,
+                  "mask-length-upper": 32
+                },
+                {
+                  "ip-prefix": "10.0.6.0/24",
+                  "mask-length-lower": 24,
+                  "mask-length-upper": 24
+                },
+                {
+                  "ip-prefix": "192.168.0.16/30",
+                  "mask-length-lower": 30,
+                  "mask-length-upper": 30
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "name": "REDIST",
+          "statements": {
+            "statement": [
+              {
+                "name": "1",
+                "conditions": {
+                  "match-prefix-set": {
+                    "prefix-set": "LOCAL"
+                  }
+                },
+                "actions": {
+                  "policy-result": "accept-route"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+

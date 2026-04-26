@@ -6,7 +6,7 @@ license.workspace = true
 edition.workspace = true
 
 [dependencies]
-sysinfo = "0.30"
+sysinfo = "0.38"
 
 capctl.workspace = true
 chrono.workspace = true

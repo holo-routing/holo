@@ -40,7 +40,7 @@ impl<'a> YangContainer<'a, Master> for system_state::platform::Platform<'a> {
             os_name: System::name().map(Cow::Owned),
             os_release: System::kernel_version().map(Cow::Owned),
             os_version: System::os_version().map(Cow::Owned),
-            machine: System::cpu_arch().map(Cow::Owned),
+            machine: Some(Cow::Owned(System::cpu_arch())),
         })
     }
 }

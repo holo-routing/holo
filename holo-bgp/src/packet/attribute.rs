@@ -106,7 +106,7 @@ pub struct Aggregator {
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
-pub struct ClusterList(pub BTreeSet<Ipv4Addr>);
+pub struct ClusterList(pub Vec<Ipv4Addr>);
 
 // Re-exports for convenience.
 pub type Comm = holo_utils::bgp::Comm;
@@ -1085,10 +1085,10 @@ impl ClusterList {
             return Err(AttrError::Withdraw);
         }
 
-        let mut list = BTreeSet::new();
+        let mut list = Vec::new();
         while buf.remaining() > 0 {
             let cluster_id = buf.try_get_ipv4()?;
-            list.insert(cluster_id);
+            list.push(cluster_id);
         }
 
         *cluster_list = Some(ClusterList(list));

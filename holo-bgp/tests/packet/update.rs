@@ -113,7 +113,7 @@ static UPDATE2: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
                     as4_aggregator: None,
                     atomic_aggregate: Some(()),
                     originator_id: Some(ip4!("1.1.1.1")),
-                    cluster_list: Some(ClusterList([ip4!("3.3.3.3")].into())),
+                    cluster_list: Some(ClusterList(vec![ip4!("3.3.3.3")])),
                 },
                 comm: Some(CommList([Comm(1), Comm(2), Comm(3)].into())),
                 ext_comm: Some(CommList(

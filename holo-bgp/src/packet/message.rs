@@ -607,6 +607,9 @@ impl Capability {
                 }
 
                 let asn = buf_cap.try_get_u32()?;
+                if asn == 0 {
+                    return Err(OpenMessageError::BadPeerAs);
+                }
                 Capability::FourOctetAsNumber { asn }
             }
             Some(CapabilityCode::AddPath) => {

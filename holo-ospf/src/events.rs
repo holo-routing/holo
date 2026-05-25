@@ -583,7 +583,7 @@ where
             if (nbr.dd_flags.contains(DbDescFlags::MS)
                 && dbdesc.dd_seq_no() != nbr.dd_seq_no)
                 || (!nbr.dd_flags.contains(DbDescFlags::MS)
-                    && dbdesc.dd_seq_no() != nbr.dd_seq_no + 1)
+                    && dbdesc.dd_seq_no() != nbr.dd_seq_no.wrapping_add(1))
             {
                 let reason = SeqNoMismatchReason::InconsistentSeqNo;
                 let event = nsm::Event::SeqNoMismatch(reason);
@@ -670,7 +670,7 @@ where
     // Further processing depends on whether the router is master or slave.
     let mut exchange_done = false;
     if nbr.dd_flags.contains(DbDescFlags::MS) {
-        nbr.dd_seq_no += 1;
+        nbr.dd_seq_no = nbr.dd_seq_no.wrapping_add(1);
 
         if !nbr.dd_flags.contains(DbDescFlags::M)
             && !dbdesc.dd_flags().contains(DbDescFlags::M)

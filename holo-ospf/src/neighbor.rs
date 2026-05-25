@@ -243,7 +243,7 @@ where
             (State::Init, Event::TwoWayRcvd)
             | (State::TwoWay, Event::AdjOk) => {
                 if iface.need_adjacency(self) {
-                    self.dd_seq_no += 1;
+                    self.dd_seq_no = self.dd_seq_no.wrapping_add(1);
                     self.dd_flags.insert(
                         DbDescFlags::I | DbDescFlags::M | DbDescFlags::MS,
                     );
@@ -320,7 +320,7 @@ where
                 Event::SeqNoMismatch(_) | Event::BadLsReq,
             ) => {
                 self.reset_adjacency();
-                self.dd_seq_no += 1;
+                self.dd_seq_no = self.dd_seq_no.wrapping_add(1);
                 self.dd_flags
                     .insert(DbDescFlags::I | DbDescFlags::M | DbDescFlags::MS);
                 output::send_dbdesc(self, iface, area, instance);

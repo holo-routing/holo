@@ -480,12 +480,11 @@ fn process_pdu_hello_p2p(
                         .intersection(hello.circuit_type)
                 }
                 false => {
-                    // Non-matching area: only accept L2 circuit type.
-                    if hello.circuit_type != LevelType::L1 {
-                        Some(LevelType::L2)
-                    } else {
-                        None
-                    }
+                    // Non-matching area: only L2 is allowed, and only if
+                    // the interface is configured for L2.
+                    (iface.config.level_type.resolved.intersects(LevelType::L2)
+                        && hello.circuit_type.intersects(LevelType::L2))
+                    .then_some(LevelType::L2)
                 }
             }) else {
                 return Err(AdjacencyRejectError::WrongSystem.into());

@@ -39,7 +39,7 @@ const SPF_LOG_TRIGGER_LSAS_MAX_SIZE: usize = 8;
 pub struct Vertex<V: Version> {
     pub id: V::VertexId,
     pub lsa: V::VertexLsa,
-    pub distance: u16,
+    pub distance: u32,
     pub hops: u16,
     #[new(default)]
     pub nexthops: Nexthops<V::IpAddr>,
@@ -631,7 +631,7 @@ fn run_area<V>(
                 PathType::IntraArea,
                 vertex.lsa.router_options(),
                 vertex.lsa.router_flags(),
-                vertex.distance.into(),
+                vertex.distance,
                 vertex.nexthops.clone(),
             );
             area.state.routers.insert(vertex.lsa.router_id(), route);
@@ -669,7 +669,7 @@ fn run_area<V>(
             }
 
             // Calculate distance to the link's vertex.
-            let distance = vertex.distance.saturating_add(link.cost);
+            let distance = vertex.distance.saturating_add(link.cost.into());
 
             // Increment number of hops to the root.
             let mut hops = vertex.hops;

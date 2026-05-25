@@ -753,9 +753,12 @@ fn process_pdu_lsp(
             // received.
             lsp.rcvd_rem_lifetime = Some(lsp.rem_lifetime);
 
-            // RFC 7987: If the LSP is not expired, reset its Remaining Lifetime
-            // to the configured maximum to protect against corrupted values.
-            if !lsp.is_expired() {
+            // RFC 7987: If the LSP is not expired and its Remaining Lifetime
+            // is less than the configured maximum, reset it to the configured
+            // maximum to protect against corrupted values.
+            if !lsp.is_expired()
+                && lsp.rem_lifetime < instance.config.lsp_lifetime
+            {
                 lsp.rem_lifetime = instance.config.lsp_lifetime;
             }
 

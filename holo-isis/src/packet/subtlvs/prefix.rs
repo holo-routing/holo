@@ -298,7 +298,7 @@ impl BierInfoStlv {
                 ) => {
                     let max_si = buf_stlv.try_get_u8()?;
                     let id = buf_stlv.try_get_u24()?;
-                    let bs_len = ((id >> 20) & 0xf) as u8;
+                    let bs_len = ((id >> 20) & 0x0f) as u8;
                     let id = match stlv_etype.unwrap() {
                         BierSubStlvType::MplsEncap => BierEncapId::Mpls(
                             Label::new(id & Label::VALUE_MASK),
@@ -346,7 +346,7 @@ impl BierInfoStlv {
                     buf.put_u8(encap.max_si);
                     buf.put_u24(
                         (encap.id.clone().get() & 0x0fffff)
-                            | ((encap.bs_len as u32 | 0xf) << 20),
+                            | ((encap.bs_len as u32 & 0x0f) << 20),
                     );
                     tlv_encode_end(buf, start_pos);
                 }

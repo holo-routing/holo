@@ -447,7 +447,7 @@ fn process_pdu_hello_p2p(
 
     // Process existing or new adjacency.
     let mut adj = match iface.state.p2p_adjacency.take() {
-        Some(adj) => {
+        Some(mut adj) => {
             // Determine if the PDU can be accepted based on area match and
             // level usage.
             let accept = match (area_match, adj.level_usage) {
@@ -459,11 +459,23 @@ fn process_pdu_hello_p2p(
                 _ => false,
             };
             if !accept {
+                adj.state_change(
+                    iface,
+                    instance,
+                    AdjacencyEvent::Kill,
+                    AdjacencyState::Down,
+                );
                 return Err(AdjacencyRejectError::WrongSystem.into());
             }
 
             // Reject PDU if the System-ID doesn't match (see IS-IS 8.2.5.2.d).
             if adj.system_id != hello.source {
+                adj.state_change(
+                    iface,
+                    instance,
+                    AdjacencyEvent::Kill,
+                    AdjacencyState::Down,
+                );
                 return Err(AdjacencyRejectError::WrongSystem.into());
             }
             adj
@@ -545,6 +557,12 @@ fn process_pdu_hello_p2p(
                 adj.three_way_state = new_state;
                 match new_state {
                     ThreeWayAdjState::Down => {
+                        adj.state_change(
+                            iface,
+                            instance,
+                            AdjacencyEvent::HelloOneWayRcvd,
+                            AdjacencyState::Down,
+                        );
                         return Ok(());
                     }
                     ThreeWayAdjState::Initializing => {

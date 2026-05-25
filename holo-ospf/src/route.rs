@@ -711,7 +711,28 @@ fn update_rib_inter_area_routers<V>(
             metric,
             nexthops: route_br.nexthops.clone(),
         };
-        area.state.routers.insert(lsa.router_id, new_route);
+
+        // Prefer intra-area over inter-area, then lowest metric, merging
+        // nexthops on ties.
+        match area.state.routers.entry(lsa.router_id) {
+            btree_map::Entry::Occupied(mut o) => {
+                let curr_route = o.get_mut();
+                let cmp = curr_route
+                    .path_type
+                    .cmp(&new_route.path_type)
+                    .then_with(|| curr_route.metric.cmp(&new_route.metric));
+                match cmp {
+                    Ordering::Less => {}
+                    Ordering::Equal => {
+                        curr_route.nexthops.extend(new_route.nexthops);
+                    }
+                    Ordering::Greater => *curr_route = new_route,
+                }
+            }
+            btree_map::Entry::Vacant(v) => {
+                v.insert(new_route);
+            }
+        }
     }
 }
 

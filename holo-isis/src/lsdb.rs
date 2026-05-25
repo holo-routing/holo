@@ -204,6 +204,7 @@ fn lsp_build_flags(
         lsp_flags.insert(LspFlags::IS_TYPE2);
     }
     if !instance.config.att_suppress
+        && !instance.config.overload_status
         && instance.config.level_type == LevelType::All
         && level == LevelNumber::L1
         && lsp_id.pseudonode == 0
@@ -234,6 +235,7 @@ fn lsp_build_mt_flags(
     let mut mt_flags = MtFlags::default();
 
     if !instance.config.att_suppress
+        && !instance.config.overload_status
         && instance.config.level_type == LevelType::All
         && level == LevelNumber::L1
         && instance.is_l2_attached_to_backbone(

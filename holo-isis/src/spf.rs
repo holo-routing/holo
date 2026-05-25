@@ -867,7 +867,13 @@ fn compute_routes(
         else {
             continue;
         };
-        let att_bit = !instance.config.att_ignore && zeroth_lsp.att_bit(mt_id);
+        // Do not honor the ATT bit when the originator has the overload bit
+        // set, since the resulting default route would require transit
+        // through a router that has signalled it cannot forward transit
+        // traffic.
+        let att_bit = !instance.config.att_ignore
+            && zeroth_lsp.att_bit(mt_id)
+            && !zeroth_lsp.overload_bit(mt_id);
 
         for network in vertex_networks(
             instance.config.level_type,

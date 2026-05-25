@@ -135,9 +135,7 @@ impl LsdbVersion<Self> for Ospfv3 {
                 }
 
                 // (Re)originate Intra-area-prefix-LSA(s).
-                if iface.state.ism_state == ism::State::Dr {
-                    lsa_orig_intra_area_prefix(area, instance, arenas);
-                }
+                lsa_orig_intra_area_prefix(area, instance, arenas);
             }
             LsaOriginateEvent::InterfaceDrChange { area_id, iface_id }
             | LsaOriginateEvent::GrHelperExit { area_id, iface_id } => {
@@ -176,9 +174,7 @@ impl LsdbVersion<Self> for Ospfv3 {
                 }
 
                 // (Re)originate Intra-area-prefix-LSA(s).
-                if iface.state.ism_state == ism::State::Dr {
-                    lsa_orig_intra_area_prefix(area, instance, arenas);
-                }
+                lsa_orig_intra_area_prefix(area, instance, arenas);
             }
             LsaOriginateEvent::InterfaceCostChange { area_id } => {
                 let (_, area) = arenas.areas.get_by_id(area_id)?;

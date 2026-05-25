@@ -336,8 +336,12 @@ fn lsp_build_tlvs(
     );
 
     // In an L1/L2 router, propagate L1 IP reachability to L2 for inter-area
-    // routing.
-    if level == LevelNumber::L2 && instance.config.level_type == LevelType::All
+    // routing. Skip propagation when the overload bit is set, since
+    // advertising L1 prefixes into L2 would attract transit traffic that
+    // the overload signal says we cannot forward.
+    if level == LevelNumber::L2
+        && instance.config.level_type == LevelType::All
+        && !instance.config.overload_status
     {
         lsp_propagate_l1_to_l2(
             instance,

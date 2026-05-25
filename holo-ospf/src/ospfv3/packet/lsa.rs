@@ -1019,6 +1019,7 @@ impl LsaTypeVersion for LsaType {
                     | LsaFunctionCode::InterAreaPrefix
                     | LsaFunctionCode::InterAreaRouter
                     | LsaFunctionCode::AsExternal
+                    | LsaFunctionCode::IntraAreaPrefix
             )
         )
     }

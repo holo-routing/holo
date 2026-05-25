@@ -45,6 +45,8 @@ const SPF_LOG_TRIGGER_LSPS_MAX_SIZE: usize = 8;
 const MAX_PATH_METRIC_STANDARD: u32 = 1023;
 // Maximum total metric value for a complete path (wide metrics).
 const MAX_PATH_METRIC_WIDE: u32 = 0xFE000000;
+// Maximum value of the wide link metric.
+const MAX_LINK_METRIC_WIDE: u32 = 0x00FFFFFF;
 
 // A macro to chain multiple `Option<Iterator<Item = T>>` into a single
 // iterator.
@@ -1048,7 +1050,7 @@ fn vertex_edges<'a>(
                     // "If a link is advertised with the maximum link metric,
                     // this link MUST NOT be considered during the normal SPF
                     // computation".
-                    .filter(|reach| reach.metric < MAX_PATH_METRIC_WIDE)
+                    .filter(|reach| reach.metric < MAX_LINK_METRIC_WIDE)
                     .map(move |reach| {
                         let cost = vertex_edge_cost(
                             &reach.neighbor,
@@ -1072,7 +1074,7 @@ fn vertex_edges<'a>(
                     // "If a link is advertised with the maximum link metric,
                     // this link MUST NOT be considered during the normal SPF
                     // computation".
-                    .filter(|reach| reach.metric < MAX_PATH_METRIC_WIDE)
+                    .filter(|reach| reach.metric < MAX_LINK_METRIC_WIDE)
                     .map(move |reach| {
                         let cost = vertex_edge_cost(
                             &reach.neighbor,
@@ -1095,7 +1097,7 @@ fn vertex_edges<'a>(
                     // "If a link is advertised with the maximum link metric,
                     // this link MUST NOT be considered during the normal SPF
                     // computation".
-                    .filter(|reach| reach.metric < MAX_PATH_METRIC_WIDE)
+                    .filter(|reach| reach.metric < MAX_LINK_METRIC_WIDE)
                     .map(move |reach| {
                         let cost = vertex_edge_cost(
                             &reach.neighbor,

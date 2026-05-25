@@ -1260,16 +1260,23 @@ fn vertex_networks<'a>(
                 } else {
                     Box::new(lsp.tlvs.ipv6_reach())
                 };
-                let iter = iter.map(|reach| VertexNetwork {
-                    prefix: reach.prefix.into(),
-                    metric: reach.metric,
-                    external: reach.external,
-                    prefix_sid: reach
-                        .sub_tlvs
-                        .prefix_sids
-                        .get(&IgpAlgoType::Spf)
-                        .cloned(),
-                });
+                let iter = iter
+                    // RFC 5308 - Section 5:
+                    // "if a prefix is advertised with a metric larger than
+                    // MAX_V6_PATH_METRIC (0xFE000000), this prefix MUST not be
+                    // considered during the normal Shortest Path First (SPF)
+                    // computation".
+                    .filter(|reach| reach.metric <= MAX_PATH_METRIC_WIDE)
+                    .map(|reach| VertexNetwork {
+                        prefix: reach.prefix.into(),
+                        metric: reach.metric,
+                        external: reach.external,
+                        prefix_sid: reach
+                            .sub_tlvs
+                            .prefix_sids
+                            .get(&IgpAlgoType::Spf)
+                            .cloned(),
+                    });
                 ipv6_iter = Some(iter);
             }
 

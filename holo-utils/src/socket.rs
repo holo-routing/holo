@@ -383,7 +383,7 @@ pub trait TcpSocketExt: SocketExt {
 
         setsockopt(
             self,
-            libc::IPPROTO_IP,
+            libc::IPPROTO_TCP,
             libc::TCP_MAXSEG,
             &optval as *const _ as *const libc::c_void,
             std::mem::size_of::<i32>() as libc::socklen_t,

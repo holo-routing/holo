@@ -846,9 +846,14 @@ impl PacketVersion<Self> for Ospfv3 {
                 return Err(DecodeError::InvalidLength(buf.len() as u16));
             }
             let _lls_cksum = buf.try_get_u16()?;
-            let lls_block_len = buf.try_get_u16()?;
-            let lls_block_len =
-                lls_block_len as usize * 4 - LLS_HDR_SIZE as usize;
+            // RFC 5613 Section 2.2: the LLS Data Length field measures the
+            // entire LLS block (including the 4-byte header) in 32-bit words,
+            // so it must be at least 1.
+            let lls_len = buf.try_get_u16()? as usize * 4;
+            if lls_len < LLS_HDR_SIZE as usize {
+                return Err(DecodeError::InvalidLength(buf.len() as u16));
+            }
+            let lls_block_len = lls_len - LLS_HDR_SIZE as usize;
             if buf.remaining() < lls_block_len {
                 return Err(DecodeError::InvalidLength(buf.len() as u16));
             }

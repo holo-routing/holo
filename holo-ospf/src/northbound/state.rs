@@ -2317,7 +2317,7 @@ impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_sc
         Self {
             max_si: Some(bier_encap.max_si),
             id: Some(bier_encap.id.clone().get()),
-            bs_len: Some(bier_encap.bs_len)
+            bs_len: Some(u8::from(bier_encap.bs_len))
         }
     }
 }

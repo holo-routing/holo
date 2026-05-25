@@ -943,11 +943,7 @@ fn lsa_orig_intra_area_prefix(
                                 }),
                             }
                             .map(|id| {
-                                BierEncapSubStlv::new(
-                                    encap.max_si,
-                                    id,
-                                    (*bsl).into(),
-                                )
+                                BierEncapSubStlv::new(encap.max_si, id, *bsl)
                             })
                         })
                         .collect::<Vec<BierEncapSubStlv>>();

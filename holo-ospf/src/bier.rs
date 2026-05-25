@@ -32,13 +32,8 @@ pub(crate) fn bier_route_add<V>(
             // 2. Register entry in BIRT for each supported bitstring length by the BFR prefix
             // TODO: Use BAR and IPA
 
-            // TODO: Sanity check on bitstring lengths upon LSA reception
-
-            let bfr_bss: Vec<Bsl> = tlv
-                .encaps
-                .iter()
-                .map(|encap| Bsl::try_from(encap.bs_len).unwrap())
-                .collect();
+            let bfr_bss: Vec<Bsl> =
+                tlv.encaps.iter().map(|encap| encap.bs_len).collect();
 
             if !bfr_bss.is_empty() {
                 new_route.bier_info = Some(BierInfo {

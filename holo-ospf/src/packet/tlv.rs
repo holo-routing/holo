@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use bitflags::bitflags;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use derive_new::new;
-use holo_utils::bier::{BierEncapId, BiftId};
+use holo_utils::bier::{BierEncapId, BiftId, Bsl};
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid};
@@ -382,7 +382,7 @@ pub struct BierStlv {
 pub struct BierEncapSubStlv {
     pub max_si: u8,
     pub id: BierEncapId,
-    pub bs_len: u8,
+    pub bs_len: Bsl,
 }
 
 #[derive(FromPrimitive, ToPrimitive)]
@@ -434,21 +434,26 @@ impl BierStlv {
                         | BierStlvType::NonMplsEncap => {
                             let max_si = buf_stlv.try_get_u8()?;
                             let id = buf_stlv.try_get_u24()?;
-                            let bs_len = (buf_stlv.try_get_u8()? & 0xf0) >> 4;
+                            let bs_len_raw =
+                                (buf_stlv.try_get_u8()? & 0xf0) >> 4;
 
-                            let id = match stlv_type {
-                                BierStlvType::MplsEncap => BierEncapId::Mpls(
-                                    Label::new(id & Label::VALUE_MASK),
-                                ),
-                                BierStlvType::NonMplsEncap => {
-                                    BierEncapId::NonMpls(BiftId::new(id))
-                                }
-                            };
-                            encaps.push(BierEncapSubStlv {
-                                max_si,
-                                id,
-                                bs_len,
-                            });
+                            if let Ok(bs_len) = Bsl::try_from(bs_len_raw) {
+                                let id = match stlv_type {
+                                    BierStlvType::MplsEncap => {
+                                        BierEncapId::Mpls(Label::new(
+                                            id & Label::VALUE_MASK,
+                                        ))
+                                    }
+                                    BierStlvType::NonMplsEncap => {
+                                        BierEncapId::NonMpls(BiftId::new(id))
+                                    }
+                                };
+                                encaps.push(BierEncapSubStlv {
+                                    max_si,
+                                    id,
+                                    bs_len,
+                                });
+                            }
                         }
                     };
                 }
@@ -490,7 +495,7 @@ impl BierStlv {
             let start_pos = tlv_encode_start(buf, encap_type);
             buf.put_u8(encap.max_si);
             buf.put_u24(encap.id.clone().get());
-            buf.put_u8((encap.bs_len << 4) & 0xf0);
+            buf.put_u8((u8::from(encap.bs_len) << 4) & 0xf0);
             buf.put_u24(0);
             tlv_encode_end(buf, start_pos);
         }

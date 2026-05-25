@@ -2396,6 +2396,14 @@ impl LsaIntraAreaPrefix {
             }
         }
 
+        // If no Intra-Area-Prefix TLV is included in the
+        // E-Intra-Area-Prefix-LSA, it is treated as malformed.
+        if iap.prefixes.is_empty() {
+            return Err(DecodeError::MissingRequiredTlv(
+                ExtLsaTlv::IntraAreaPrefix as u16,
+            ));
+        }
+
         Ok(iap)
     }
 

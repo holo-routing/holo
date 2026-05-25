@@ -389,12 +389,14 @@ fn update_rib_intra_area<V>(
             && let btree_map::Entry::Occupied(o) = rib.entry(stub.prefix)
         {
             let curr_route = o.get();
-            if metric > curr_route.metric
-                || origin.lsa_id < curr_route.origin.unwrap().lsa_id
+            if metric < curr_route.metric
+                || (metric == curr_route.metric
+                    && origin.lsa_id > curr_route.origin.unwrap().lsa_id)
             {
+                o.remove();
+            } else {
                 continue;
             }
-            o.remove();
         }
 
         // Create new intra-area route.

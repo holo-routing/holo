@@ -6,6 +6,8 @@
 
 use std::net::{IpAddr, Ipv4Addr};
 
+use holo_utils::mpls::LabelManagerError;
+use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
 use tracing::{error, warn, warn_span};
 
@@ -34,6 +36,8 @@ pub enum Error {
     NbrRcvdError(Ipv4Addr, StatusCode),
     NbrSentError(Ipv4Addr, StatusCode),
     NbrFsmUnexpectedEvent(Ipv4Addr, neighbor::fsm::State, neighbor::fsm::Event),
+    #[serde(skip)]
+    FecLabelAllocFailed(IpNetwork, LabelManagerError),
     InstanceStartError(Box<Error>),
     InterfaceStartError(String, Box<Error>),
 }
@@ -103,6 +107,9 @@ impl Error {
                     });
                 });
             }
+            Error::FecLabelAllocFailed(prefix, error) => {
+                warn!(%prefix, %error, "{}", self);
+            }
             Error::InstanceStartError(error) => {
                 error!(error = %with_source(error), "{}", self);
             }
@@ -152,6 +159,9 @@ impl std::fmt::Display for Error {
             }
             Error::NbrFsmUnexpectedEvent(..) => {
                 write!(f, "unexpected event")
+            }
+            Error::FecLabelAllocFailed(..) => {
+                write!(f, "failed to allocate FEC label")
             }
             Error::InstanceStartError(..) => {
                 write!(f, "failed to start instance")

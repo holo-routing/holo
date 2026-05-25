@@ -89,7 +89,18 @@ pub(crate) fn adj_sid_add<V>(
     }
 
     let mut label_manager = instance.shared.label_manager.lock().unwrap();
-    let label = label_manager.label_request().unwrap();
+    let label = match label_manager.label_request() {
+        Ok(label) => label,
+        Err(error) => {
+            Error::<V>::AdjSidAllocFailed(
+                iface.name.clone(),
+                nbr.router_id,
+                error,
+            )
+            .log();
+            return;
+        }
+    };
     let nbr_router_id = iface.is_broadcast_or_nbma().then_some(nbr.router_id);
     let adj_sid = V::AdjSid::new(label, 0, nbr_router_id);
     ibus::tx::adj_sid_install(&instance.tx.ibus, iface, nbr.src, label);

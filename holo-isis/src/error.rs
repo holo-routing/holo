@@ -10,6 +10,7 @@
 use holo_utils::DatabaseError;
 use holo_utils::ip::AddressFamily;
 use holo_utils::mac_addr::MacAddr;
+use holo_utils::mpls::LabelManagerError;
 use holo_yang::ToYang;
 use tracing::{error, warn, warn_span};
 
@@ -36,6 +37,7 @@ pub enum Error {
     SrCapNotFound(LevelNumber, SystemId),
     SrCapUnsupportedAf(LevelNumber, SystemId, AddressFamily),
     InvalidSidIndex(u32),
+    AdjSidAllocFailed(String, SystemId, AddressFamily, LabelManagerError),
     // Other
     CircuitIdAllocationFailed,
     SpfDelayUnexpectedEvent(LevelNumber, spf::fsm::State, spf::fsm::Event),
@@ -117,6 +119,9 @@ impl Error {
             Error::InvalidSidIndex(sid_index) => {
                 warn!(%sid_index, "{}", self);
             }
+            Error::AdjSidAllocFailed(iface, system_id, af, error) => {
+                warn!(interface = %iface, system_id = %system_id.to_yang(), %af, %error, "{}", self);
+            }
             Error::SpfDelayUnexpectedEvent(level, state, event) => {
                 warn!(?level, ?state, ?event, "{}", self);
             }
@@ -163,6 +168,9 @@ impl std::fmt::Display for Error {
             }
             Error::InvalidSidIndex(..) => {
                 write!(f, "failed to map SID index to MPLS label")
+            }
+            Error::AdjSidAllocFailed(..) => {
+                write!(f, "failed to allocate Adjacency SID label")
             }
             Error::SpfDelayUnexpectedEvent(..) => {
                 write!(f, "unexpected SPF Delay FSM event")

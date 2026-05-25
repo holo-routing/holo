@@ -17,6 +17,7 @@ use ipnetwork::IpNetwork;
 use maplit::btreeset;
 
 use crate::debug::Debug;
+use crate::error::Error;
 use crate::fec::Fec;
 use crate::instance::{Instance, InstanceUpView};
 use crate::northbound::notification;
@@ -35,7 +36,13 @@ fn local_label_update(fec: &mut Fec, label_manager: &Mutex<LabelManager>) {
         Label::implicit_null()
     } else {
         let mut label_manager = label_manager.lock().unwrap();
-        label_manager.label_request().unwrap()
+        match label_manager.label_request() {
+            Ok(label) => label,
+            Err(error) => {
+                Error::FecLabelAllocFailed(*fec.inner.prefix, error).log();
+                return;
+            }
+        }
     };
     let label = Some(label);
 

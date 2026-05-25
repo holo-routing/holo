@@ -112,7 +112,19 @@ pub(crate) fn adj_sids_add(
         .filter(|af| iface.config.is_af_enabled(*af, instance.config))
     {
         // Allocate a label and create a new Adjacency SID.
-        let label = label_manager.label_request().unwrap();
+        let label = match label_manager.label_request() {
+            Ok(label) => label,
+            Err(error) => {
+                Error::AdjSidAllocFailed(
+                    iface.name.clone(),
+                    adj.system_id,
+                    af,
+                    error,
+                )
+                .log();
+                continue;
+            }
+        };
         let adj_sid = AdjacencySid::new(af, label, nbr_system_id);
         adj.adj_sids.push(adj_sid);
 

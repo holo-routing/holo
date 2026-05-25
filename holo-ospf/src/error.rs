@@ -7,6 +7,7 @@
 use std::net::Ipv4Addr;
 
 use holo_utils::DatabaseError;
+use holo_utils::mpls::LabelManagerError;
 use tracing::{error, warn, warn_span};
 
 use crate::collections::{AreaId, InterfaceId, LsaEntryId, NeighborId};
@@ -50,6 +51,7 @@ pub enum Error<V: Version> {
     // Segment Routing
     SrgbNotFound(Ipv4Addr, Ipv4Addr),
     InvalidSidIndex(u32),
+    AdjSidAllocFailed(String, Ipv4Addr, LabelManagerError),
     // Other
     IsmUnexpectedEvent(ism::State, ism::Event),
     NsmUnexpectedEvent(Ipv4Addr, nsm::State, nsm::Event),
@@ -157,6 +159,9 @@ where
             Error::InvalidSidIndex(sid_index) => {
                 warn!(%sid_index, "{}", self);
             }
+            Error::AdjSidAllocFailed(iface, router_id, error) => {
+                warn!(interface = %iface, %router_id, %error, "{}", self);
+            }
             Error::IsmUnexpectedEvent(state, event) => warn_span!("fsm")
                 .in_scope(|| {
                     warn!(?state, ?event, "{}", self);
@@ -257,6 +262,9 @@ where
             }
             Error::InvalidSidIndex(..) => {
                 write!(f, "failed to map SID index to MPLS label")
+            }
+            Error::AdjSidAllocFailed(..) => {
+                write!(f, "failed to allocate Adj-SID label")
             }
             Error::IsmUnexpectedEvent(..) => {
                 write!(f, "unexpected event")

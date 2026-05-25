@@ -69,6 +69,8 @@ pub enum Event {
     InterfaceDelete(InterfaceIndex),
     InterfaceReset(InterfaceIndex),
     InterfaceRestartNetwork(InterfaceIndex),
+    InstanceUpdateAuth,
+    InterfaceUpdateAuth(InterfaceIndex),
     InterfacePriorityChange(InterfaceIndex, LevelNumber),
     InterfaceUpdateHelloInterval(InterfaceIndex, LevelNumber),
     InterfaceUpdateCsnpInterval(InterfaceIndex),
@@ -105,6 +107,7 @@ pub struct InstanceCfg {
     pub metric_type: LevelsCfgWithDefault<MetricType>,
     pub default_metric: LevelsCfgWithDefault<u32>,
     pub auth: LevelsCfg<AuthCfg>,
+    pub auth_resolved: Arc<ArcSwap<Option<AuthMethod>>>,
     pub ipv4_router_id: Option<Ipv4Addr>,
     pub ipv6_router_id: Option<Ipv6Addr>,
     pub max_paths: u16,
@@ -239,6 +242,7 @@ pub struct InterfaceCfg {
     pub interface_type: InterfaceType,
     pub node_flag: bool,
     pub hello_auth: LevelsCfg<AuthCfg>,
+    pub hello_auth_resolved: Arc<ArcSwap<Option<AuthMethod>>>,
     pub hello_interval: LevelsCfgWithDefault<u16>,
     pub hello_multiplier: LevelsCfgWithDefault<u16>,
     pub priority: LevelsCfgWithDefault<u8>,
@@ -499,6 +503,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             instance.config.auth.all.keychain = Some(keychain);
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
@@ -506,6 +511,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             instance.config.auth.all.keychain = None;
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
@@ -515,6 +521,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             instance.config.auth.all.key = Some(key);
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
@@ -522,6 +529,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             instance.config.auth.all.key = None;
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
@@ -531,6 +539,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             instance.config.auth.all.key_id = Some(key_id);
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
@@ -538,6 +547,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             instance.config.auth.all.key_id = None;
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
@@ -548,6 +558,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             instance.config.auth.all.algo = Some(algo);
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
@@ -555,6 +566,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             instance.config.auth.all.algo = None;
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
@@ -564,12 +576,14 @@ fn load_callbacks() -> Callbacks<Instance> {
             instance.config.auth.l1.keychain = Some(keychain);
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
         })
         .delete_apply(|instance, args| {
             instance.config.auth.l1.keychain = None;
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
         })
         .path(isis::authentication::level_1::key::PATH)
@@ -578,12 +592,14 @@ fn load_callbacks() -> Callbacks<Instance> {
             instance.config.auth.l1.key = Some(key);
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
         })
         .delete_apply(|instance, args| {
             instance.config.auth.l1.key = None;
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
         })
         .path(isis::authentication::level_1::key_id::PATH)
@@ -592,12 +608,14 @@ fn load_callbacks() -> Callbacks<Instance> {
             instance.config.auth.l1.key_id = Some(key_id);
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
         })
         .delete_apply(|instance, args| {
             instance.config.auth.l1.key_id = None;
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
         })
         .path(isis::authentication::level_1::crypto_algorithm::PATH)
@@ -607,12 +625,14 @@ fn load_callbacks() -> Callbacks<Instance> {
             instance.config.auth.l1.algo = Some(algo);
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
         })
         .delete_apply(|instance, args| {
             instance.config.auth.l1.algo = None;
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
         })
         .path(isis::authentication::level_2::key_chain::PATH)
@@ -621,12 +641,14 @@ fn load_callbacks() -> Callbacks<Instance> {
             instance.config.auth.l2.keychain = Some(keychain);
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
         .delete_apply(|instance, args| {
             instance.config.auth.l2.keychain = None;
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
         .path(isis::authentication::level_2::key::PATH)
@@ -635,12 +657,14 @@ fn load_callbacks() -> Callbacks<Instance> {
             instance.config.auth.l2.key = Some(key);
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
         .delete_apply(|instance, args| {
             instance.config.auth.l2.key = None;
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
         .path(isis::authentication::level_2::key_id::PATH)
@@ -649,12 +673,14 @@ fn load_callbacks() -> Callbacks<Instance> {
             instance.config.auth.l2.key_id = Some(key_id);
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
         .delete_apply(|instance, args| {
             instance.config.auth.l2.key_id = None;
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
         .path(isis::authentication::level_2::crypto_algorithm::PATH)
@@ -664,12 +690,14 @@ fn load_callbacks() -> Callbacks<Instance> {
             instance.config.auth.l2.algo = Some(algo);
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
         .delete_apply(|instance, args| {
             instance.config.auth.l2.algo = None;
 
             let event_queue = args.event_queue;
+            event_queue.insert(Event::InstanceUpdateAuth);
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
         .path(isis::address_families::address_family_list::PATH)
@@ -1208,7 +1236,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.all.keychain = Some(keychain);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .delete_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -1217,7 +1245,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.all.keychain = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .path(isis::interfaces::interface::hello_authentication::key::PATH)
         .modify_apply(|instance, args| {
@@ -1228,7 +1256,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.all.key = Some(key);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .delete_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -1237,7 +1265,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.all.key = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .path(isis::interfaces::interface::hello_authentication::key_id::PATH)
         .modify_apply(|instance, args| {
@@ -1248,7 +1276,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.all.key_id = Some(key_id);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .delete_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -1257,7 +1285,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.all.key_id = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .path(isis::interfaces::interface::hello_authentication::crypto_algorithm::PATH)
         .modify_apply(|instance, args| {
@@ -1269,7 +1297,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.all.algo = Some(algo);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .delete_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -1278,7 +1306,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.all.algo = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .path(isis::interfaces::interface::hello_authentication::level_1::key_chain::PATH)
         .modify_apply(|instance, args| {
@@ -1289,7 +1317,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.l1.keychain = Some(keychain);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .delete_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -1298,7 +1326,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.l1.keychain = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .path(isis::interfaces::interface::hello_authentication::level_1::key::PATH)
         .modify_apply(|instance, args| {
@@ -1309,7 +1337,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.l1.key = Some(key);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .delete_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -1318,7 +1346,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.l1.key = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .path(isis::interfaces::interface::hello_authentication::level_1::key_id::PATH)
         .modify_apply(|instance, args| {
@@ -1329,7 +1357,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.l1.key_id = Some(key_id);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .delete_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -1338,7 +1366,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.l1.key_id = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .path(isis::interfaces::interface::hello_authentication::level_1::crypto_algorithm::PATH)
         .modify_apply(|instance, args| {
@@ -1350,7 +1378,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.l1.algo = Some(algo);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .delete_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -1359,7 +1387,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.l1.algo = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .path(isis::interfaces::interface::hello_authentication::level_2::key_chain::PATH)
         .modify_apply(|instance, args| {
@@ -1370,7 +1398,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.l2.keychain = Some(keychain);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .delete_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -1379,7 +1407,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.l2.keychain = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .path(isis::interfaces::interface::hello_authentication::level_2::key::PATH)
         .modify_apply(|instance, args| {
@@ -1390,7 +1418,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.l2.key = Some(key);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .delete_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -1399,7 +1427,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.l2.key = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .path(isis::interfaces::interface::hello_authentication::level_2::key_id::PATH)
         .modify_apply(|instance, args| {
@@ -1410,7 +1438,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.l2.key_id = Some(key_id);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .delete_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -1419,7 +1447,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.l2.key_id = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .path(isis::interfaces::interface::hello_authentication::level_2::crypto_algorithm::PATH)
         .modify_apply(|instance, args| {
@@ -1431,7 +1459,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.l2.algo = Some(algo);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .delete_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -1440,7 +1468,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             iface.config.hello_auth.l2.algo = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::InterfaceRestartNetwork(iface_idx));
+            event_queue.insert(Event::InterfaceUpdateAuth(iface_idx));
         })
         .path(isis::interfaces::interface::hello_interval::value::PATH)
         .modify_apply(|instance, args| {
@@ -2224,6 +2252,15 @@ impl Provider for Instance {
                     iface.restart_network_tasks(&mut instance);
                 }
             }
+            Event::InstanceUpdateAuth => {
+                let auth = self.config.auth.all.method(&self.shared.keychains);
+                self.config.auth_resolved.store(Arc::new(auth));
+            }
+            Event::InterfaceUpdateAuth(iface_idx) => {
+                let iface = &mut self.arenas.interfaces[iface_idx];
+                let auth = iface.config.hello_auth.all.method(&self.shared.keychains);
+                iface.config.hello_auth_resolved.store(Arc::new(auth));
+            }
             Event::InterfacePriorityChange(iface_idx, level) => {
                 let Some((instance, arenas)) = self.as_up() else {
                     return;
@@ -2617,6 +2654,7 @@ impl Default for InstanceCfg {
             metric_type,
             default_metric,
             auth: Default::default(),
+            auth_resolved: Default::default(),
             max_paths,
             ipv4_router_id: None,
             ipv6_router_id: None,
@@ -2780,6 +2818,7 @@ impl Default for InterfaceCfg {
             interface_type,
             node_flag,
             hello_auth: Default::default(),
+            hello_auth_resolved: Default::default(),
             hello_interval,
             hello_multiplier,
             priority,

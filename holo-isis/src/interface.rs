@@ -886,9 +886,8 @@ impl InterfaceNet {
         let hello_padding = iface.config.hello_padding.then_some(
             std::cmp::max(iface.iso_mtu() as u16, instance.config.lsp_mtu),
         );
-        let keychains = &instance.shared.keychains;
-        let hello_auth = iface.config.hello_auth.all.method(keychains);
-        let global_auth = instance.config.auth.all.method(keychains);
+        let hello_auth = iface.config.hello_auth_resolved.clone();
+        let global_auth = instance.config.auth_resolved.clone();
         let trace_opts = iface.config.trace_opts.packets_resolved.clone();
         let (net_tx_pdup, net_tx_pduc) = mpsc::unbounded_channel();
         let mut net_tx_task = tasks::net_tx(

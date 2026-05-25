@@ -207,8 +207,8 @@ pub mod messages {
 pub(crate) fn net_rx(
     socket: Arc<AsyncFd<Socket>>,
     broadcast: bool,
-    hello_auth: Option<AuthMethod>,
-    global_auth: Option<AuthMethod>,
+    hello_auth: Arc<ArcSwap<Option<AuthMethod>>>,
+    global_auth: Arc<ArcSwap<Option<AuthMethod>>>,
     iface: &Interface,
     net_pdu_rxp: &Sender<messages::input::NetRxPduMsg>,
 ) -> Task<()> {
@@ -255,8 +255,8 @@ pub(crate) fn net_tx(
     ifname: String,
     ifindex: u32,
     hello_padding: Option<u16>,
-    hello_auth: Option<AuthMethod>,
-    global_auth: Option<AuthMethod>,
+    hello_auth: Arc<ArcSwap<Option<AuthMethod>>>,
+    global_auth: Arc<ArcSwap<Option<AuthMethod>>>,
     trace_opts: Arc<ArcSwap<TraceOptionPacketResolved>>,
     mut net_pdu_txc: UnboundedReceiver<messages::output::NetTxPduMsg>,
     #[cfg(feature = "testing")] proto_output_tx: &Sender<

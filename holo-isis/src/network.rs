@@ -125,18 +125,18 @@ pub(crate) async fn write_loop(
     ifname: String,
     ifindex: u32,
     hello_padding: Option<u16>,
-    hello_auth: Option<AuthMethod>,
-    global_auth: Option<AuthMethod>,
+    hello_auth: Arc<ArcSwap<Option<AuthMethod>>>,
+    global_auth: Arc<ArcSwap<Option<AuthMethod>>>,
     trace_opts: Arc<ArcSwap<TraceOptionPacketResolved>>,
     mut net_tx_packetc: UnboundedReceiver<NetTxPduMsg>,
 ) {
     while let Some(NetTxPduMsg { mut pdu, dst }) = net_tx_packetc.recv().await {
         // Get authentication key.
-        let auth = match &pdu {
-            Pdu::Hello(..) => hello_auth.as_ref(),
-            Pdu::Lsp(..) | Pdu::Snp(..) => global_auth.as_ref(),
+        let auth_guard = match &pdu {
+            Pdu::Hello(..) => hello_auth.load(),
+            Pdu::Lsp(..) | Pdu::Snp(..) => global_auth.load(),
         };
-        let auth = auth.and_then(|auth| auth.get_key_send());
+        let auth = auth_guard.as_ref().as_ref().and_then(|a| a.get_key_send());
 
         // Add Hello padding.
         //
@@ -176,8 +176,8 @@ pub(crate) async fn read_loop(
     socket: Arc<AsyncFd<Socket>>,
     broadcast: bool,
     iface_id: InterfaceId,
-    hello_auth: Option<AuthMethod>,
-    global_auth: Option<AuthMethod>,
+    hello_auth: Arc<ArcSwap<Option<AuthMethod>>>,
+    global_auth: Arc<ArcSwap<Option<AuthMethod>>>,
     net_packet_rxp: Sender<NetRxPduMsg>,
 ) -> Result<(), SendError<NetRxPduMsg>> {
     let mut buf = [0; 16384];
@@ -222,8 +222,8 @@ pub(crate) async fn read_loop(
                     Bytes::copy_from_slice(&iov[0].deref()[offset..bytes]);
                 let pdu = Pdu::decode(
                     bytes.clone(),
-                    hello_auth.as_ref(),
-                    global_auth.as_ref(),
+                    hello_auth.load().as_ref().as_ref(),
+                    global_auth.load().as_ref().as_ref(),
                 );
                 let msg = NetRxPduMsg {
                     iface_key: iface_id.into(),

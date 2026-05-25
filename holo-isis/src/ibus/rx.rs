@@ -266,19 +266,27 @@ pub(crate) fn process_keychain_update(
     instance: &mut Instance,
     keychain_name: &str,
 ) -> Result<(), Error> {
-    let Some((mut instance, arenas)) = instance.as_up() else {
-        return Ok(());
-    };
+    // Update global auth if it uses this keychain.
+    if instance.config.auth.all.keychain.as_deref() == Some(keychain_name) {
+        let keychains = &instance.shared.keychains;
+        let auth = instance.config.auth.all.method(keychains);
+        instance.config.auth_resolved.store(Arc::new(auth));
 
-    for iface in arenas.interfaces.iter_mut() {
-        if iface.config.hello_auth.all.keychain.as_deref()
-            != Some(keychain_name)
-        {
-            continue;
+        // Schedule LSP reorigination to encode with the new key.
+        if let Some((mut instance, _)) = instance.as_up() {
+            instance.schedule_lsp_origination(instance.config.level_type);
         }
+    }
 
-        // Restart network Tx/Rx tasks.
-        iface.restart_network_tasks(&mut instance);
+    // Update hello auth on each interface that uses this keychain.
+    for iface in instance.arenas.interfaces.iter_mut() {
+        if iface.config.hello_auth.all.keychain.as_deref()
+            == Some(keychain_name)
+        {
+            let keychains = &instance.shared.keychains;
+            let auth = iface.config.hello_auth.all.method(keychains);
+            iface.config.hello_auth_resolved.store(Arc::new(auth));
+        }
     }
 
     Ok(())

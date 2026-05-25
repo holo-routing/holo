@@ -144,7 +144,7 @@ pub(crate) async fn write_loop<V>(
     ifname: String,
     ifindex: u32,
     src: V::NetIpAddr,
-    auth: Option<AuthMethod>,
+    auth: Arc<ArcSwap<Option<AuthMethod>>>,
     auth_seqno: Arc<AtomicU64>,
     trace_opts: Arc<ArcSwap<TraceOptionPacketResolved>>,
     mut net_tx_packetc: UnboundedReceiver<NetTxPacketMsg<V>>,
@@ -154,7 +154,8 @@ pub(crate) async fn write_loop<V>(
     while let Some(NetTxPacketMsg { packet, dst }) = net_tx_packetc.recv().await
     {
         // Prepare authentication context.
-        let auth = match &auth {
+        let auth_guard = auth.load();
+        let auth = match auth_guard.as_ref() {
             Some(auth) => {
                 let auth_key = match auth {
                     AuthMethod::ManualKey(key) => key,
@@ -199,7 +200,7 @@ pub(crate) async fn read_loop<V>(
     area_id: AreaId,
     iface_id: InterfaceId,
     af: AddressFamily,
-    auth: Option<AuthMethod>,
+    auth: Arc<ArcSwap<Option<AuthMethod>>>,
     net_packet_rxp: Sender<NetRxPacketMsg<V>>,
 ) -> Result<(), SendError<NetRxPacketMsg<V>>>
 where
@@ -245,8 +246,10 @@ where
 
                 // Decode packet.
                 let mut buf = Bytes::copy_from_slice(&iov[0].deref()[0..bytes]);
+                let auth_guard = auth.load();
                 let packet = V::validate_ip_hdr(&mut buf).and_then(|_| {
-                    let auth = auth
+                    let auth = auth_guard
+                        .as_ref()
                         .as_ref()
                         .map(|auth| AuthDecodeCtx::new(auth, src.into()));
                     Packet::decode(af, &mut buf, auth)

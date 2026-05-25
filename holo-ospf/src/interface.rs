@@ -9,6 +9,7 @@ use std::net::Ipv4Addr;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 
+use arc_swap::ArcSwap;
 use chrono::{DateTime, Utc};
 use holo_protocol::InstanceChannelsTx;
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
@@ -94,7 +95,7 @@ pub struct InterfaceState<V: Version> {
     pub lsdb: Lsdb<V>,
     pub network_lsa_self: Option<LsaKey<V::LsaType>>,
     // Authentication data.
-    pub auth: Option<AuthMethod>,
+    pub auth: Arc<ArcSwap<Option<AuthMethod>>>,
     // Tasks.
     pub tasks: InterfaceTasks<V>,
 }
@@ -314,7 +315,9 @@ where
         }
 
         if !self.is_passive() {
-            self.state.auth = self.auth(&instance.shared.keychains);
+            self.state
+                .auth
+                .store(Arc::new(self.auth(&instance.shared.keychains)));
 
             // Start network Tx/Rx tasks.
             match InterfaceNet::new(
@@ -429,7 +432,7 @@ where
         self.state.ls_update_list = Default::default();
         self.state.ls_ack_list = Default::default();
         // NOTE: the interface LSDB should be preserved.
-        self.state.auth = None;
+        self.state.auth.store(Default::default());
         self.state.tasks = Default::default();
     }
 
@@ -503,33 +506,19 @@ where
         None
     }
 
-    pub(crate) fn auth_update(
-        &mut self,
-        area: &Area<V>,
-        instance: &InstanceUpView<'_, V>,
-    ) {
+    pub(crate) fn auth_update(&mut self, instance: &InstanceUpView<'_, V>) {
         // Update authentication data.
-        self.state.auth = self.auth(&instance.shared.keychains);
+        let auth = self.auth(&instance.shared.keychains);
+        self.state.auth.store(Arc::new(auth));
 
-        if let Some(mut net) = self.state.net.take() {
+        if let Some(net) = &self.state.net {
             // Enable or disable checksum offloading.
-            let cksum_enable = self.state.auth.is_none();
+            let cksum_enable = self.state.auth.load().is_none();
             if let Err(error) =
                 V::set_cksum_offloading(net.socket.get_ref(), cksum_enable)
             {
                 IoError::ChecksumOffloadError(cksum_enable, error).log();
             }
-
-            // Restart network Tx/Rx tasks.
-            net.restart_tasks(
-                self,
-                area,
-                instance.state.af,
-                &instance.state.auth_seqno,
-                instance.tx,
-            );
-            self.state.net = Some(net);
-            self.sync_hello_tx(area, instance);
         }
     }
 
@@ -1014,7 +1003,7 @@ where
             discontinuity_time: Utc::now(),
             lsdb: Default::default(),
             network_lsa_self: None,
-            auth: None,
+            auth: Default::default(),
             tasks: Default::default(),
         }
     }
@@ -1047,7 +1036,7 @@ where
             .map(Arc::new)?;
 
         // Enable or disable checksum offloading.
-        let cksum_enable = iface.state.auth.is_none();
+        let cksum_enable = iface.state.auth.load().is_none();
         V::set_cksum_offloading(socket.get_ref(), cksum_enable).map_err(
             |error| IoError::ChecksumOffloadError(cksum_enable, error),
         )?;
@@ -1083,38 +1072,6 @@ where
             _net_rx_task: net_rx_task,
             net_tx_packetp,
         })
-    }
-
-    fn restart_tasks(
-        &mut self,
-        iface: &Interface<V>,
-        area: &Area<V>,
-        af: AddressFamily,
-        auth_seqno: &Arc<AtomicU64>,
-        instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
-    ) {
-        let (net_tx_packetp, net_tx_packetc) = mpsc::unbounded_channel();
-        self._net_tx_task = tasks::net_tx(
-            self.socket.clone(),
-            iface,
-            auth_seqno,
-            net_tx_packetc,
-            #[cfg(feature = "testing")]
-            &instance_channels_tx.protocol_output,
-        );
-        if !iface.is_virtual_link() {
-            self._net_rx_task = Some(tasks::net_rx(
-                self.socket.clone(),
-                iface,
-                area,
-                af,
-                &instance_channels_tx.protocol_input.net_packet_rx,
-            ));
-        }
-        // The network Tx task needs to be detached to ensure flushed
-        // self-originated LSAs will be sent once the instance terminates.
-        self._net_tx_task.detach();
-        self.net_tx_packetp = net_tx_packetp;
     }
 }
 

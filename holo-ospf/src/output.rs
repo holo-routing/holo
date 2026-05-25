@@ -87,7 +87,7 @@ pub(crate) fn send_dbdesc<V>(
             area,
             OptionsLocation::new_packet(
                 PacketType::DbDesc,
-                iface.state.auth.is_some(),
+                iface.state.auth.load().is_some(),
                 lls.is_some(),
             ),
         ),

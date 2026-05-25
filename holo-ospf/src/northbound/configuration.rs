@@ -1865,13 +1865,12 @@ where
                     iface.sync_hello_tx(area, &instance);
                 }
             }
-            Event::InterfaceUpdateAuth(area_idx, iface_idx) => {
+            Event::InterfaceUpdateAuth(_area_idx, iface_idx) => {
                 if let Some((instance, arenas)) = self.as_up() {
-                    let area = &arenas.areas[area_idx];
                     let iface = &mut arenas.interfaces[iface_idx];
 
                     // Update interface authentication keys.
-                    iface.auth_update(area, &instance);
+                    iface.auth_update(&instance);
                 }
             }
             Event::InterfaceBfdChange(iface_idx) => {

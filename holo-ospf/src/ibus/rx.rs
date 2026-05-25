@@ -280,7 +280,7 @@ where
             }
 
             // Update interface authentication keys.
-            iface.auth_update(area, &instance);
+            iface.auth_update(&instance);
         }
     }
 

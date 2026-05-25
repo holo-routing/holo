@@ -1022,3 +1022,26 @@ fn test_decode_lsp_crypto_auth_short_digest() {
     let result = Pdu::decode(Bytes::from(bytes), Some(&auth), Some(&auth));
     assert!(result.is_err());
 }
+
+#[test]
+fn test_decode_lsp_short_pdu_length() {
+    use bytes::Bytes;
+
+    // Craft an LSP whose `pdu_len` field declares a length smaller than the
+    // fixed LSP header (27 bytes).
+    let bytes = vec![
+        // Common IS-IS header.
+        0x83, 0x1b, 0x01, 0x00, 0x12, 0x01, 0x00, 0x00,
+        // PDU length: 0 (invalid).
+        0x00, 0x00, // Remaining lifetime.
+        0x04, 0x92, // LSP ID.
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+        // Sequence number.
+        0x00, 0x00, 0x00, 0x04, // Checksum.
+        0x00, 0x00, // Flags.
+        0x01,
+    ];
+
+    let result = Pdu::decode(Bytes::from(bytes), None, None);
+    assert!(result.is_err());
+}

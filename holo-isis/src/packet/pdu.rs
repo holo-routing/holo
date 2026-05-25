@@ -2058,8 +2058,11 @@ fn decode_pdu_length(
 ) -> DecodeResult<u16> {
     let pdu_len = buf.try_get_u16()?;
 
-    // Reject PDUs that extend beyond the input buffer.
-    if pdu_len > buf_orig.len() as u16 {
+    // Reject PDUs whose declared length is smaller than the fixed header
+    // or extends beyond the input buffer.
+    if pdu_len < Header::fixed_header_length(hdr.pdu_type) as u16
+        || pdu_len > buf_orig.len() as u16
+    {
         return Err(DecodeError::InvalidPduLength(hdr.pdu_type, pdu_len));
     }
 

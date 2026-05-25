@@ -355,7 +355,7 @@ impl LsdbVersion<Self> for Ospfv3 {
         if let Some(mut prefix_sid) = summary.prefix_sid {
             // For non-connected prefixes, disable Prefix-SID PHP to ensure
             // end-to-end MPLS forwarding.
-            if summary.flags.contains(SummaryNetFlags::CONNECTED) {
+            if !summary.flags.contains(SummaryNetFlags::CONNECTED) {
                 let flags = prefix_sid.flags_mut();
                 flags.insert(PrefixSidFlags::NP);
                 flags.remove(PrefixSidFlags::E);

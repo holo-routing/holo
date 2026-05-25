@@ -138,8 +138,8 @@ impl ToYang for Label {
 impl LabelRange {
     // Checks if this label range overlaps with another.
     fn overlaps(&self, other: &LabelRange) -> bool {
-        self.lower_bound < other.upper_bound
-            && self.upper_bound > other.lower_bound
+        self.lower_bound <= other.upper_bound
+            && self.upper_bound >= other.lower_bound
     }
 }
 

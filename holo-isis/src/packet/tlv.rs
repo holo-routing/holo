@@ -819,7 +819,8 @@ impl AuthenticationTlv {
         match self {
             AuthenticationTlv::ClearText(passwd) => {
                 buf.put_u8(AuthenticationType::ClearText as u8);
-                buf.put_slice(passwd);
+                let max_len = TLV_MAX_LEN - 1;
+                buf.put_slice(&passwd[..passwd.len().min(max_len)]);
             }
             AuthenticationTlv::HmacMd5(digest) => {
                 buf.put_u8(AuthenticationType::HmacMd5 as u8);

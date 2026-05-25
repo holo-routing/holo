@@ -1971,7 +1971,8 @@ impl Ipv4ReachTlv {
             }
             let has_subtlvs = entry.sub_tlvs.prefix_attr_flags.is_some()
                 || entry.sub_tlvs.ipv4_source_rid.is_some()
-                || entry.sub_tlvs.ipv6_source_rid.is_some();
+                || entry.sub_tlvs.ipv6_source_rid.is_some()
+                || !entry.sub_tlvs.prefix_sids.is_empty();
             if has_subtlvs {
                 control |= Self::CONTROL_SUBTLVS;
             }
@@ -2284,6 +2285,7 @@ impl Ipv6ReachTlv {
             let has_subtlvs = entry.sub_tlvs.prefix_attr_flags.is_some()
                 || entry.sub_tlvs.ipv4_source_rid.is_some()
                 || entry.sub_tlvs.ipv6_source_rid.is_some()
+                || !entry.sub_tlvs.prefix_sids.is_empty()
                 || !entry.sub_tlvs.bier.is_empty();
             if has_subtlvs {
                 flags |= Self::FLAG_SUBTLVS;

@@ -9,7 +9,7 @@
 
 use std::collections::{BTreeSet, HashMap};
 use std::net::{Ipv4Addr, Ipv6Addr};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use chrono::Utc;
 use derive_new::new;
@@ -253,7 +253,8 @@ impl Adjacency {
         holdtime: u16,
     ) {
         if let Some(holdtimer) = self.holdtimer.as_mut() {
-            holdtimer.reset(None);
+            let holdtime = Duration::from_secs(holdtime.into());
+            holdtimer.reset(Some(holdtime));
         } else {
             let task =
                 tasks::adjacency_holdtimer(self, iface, instance, holdtime);

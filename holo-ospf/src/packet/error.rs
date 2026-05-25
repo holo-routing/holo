@@ -14,7 +14,8 @@ use tracing::warn;
 pub type DecodeResult<T> = Result<T, DecodeError>;
 
 // OSPFv2 decode errors.
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
 pub enum DecodeError {
     ReadOutOfBounds,
     IncompletePacket,

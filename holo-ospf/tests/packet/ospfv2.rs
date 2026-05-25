@@ -14,6 +14,7 @@ use holo_ospf::ospfv2::packet::lsa::*;
 use holo_ospf::ospfv2::packet::lsa_opaque::*;
 use holo_ospf::ospfv2::packet::*;
 use holo_ospf::packet::auth::{AuthDecodeCtx, AuthEncodeCtx, AuthMethod};
+use holo_ospf::packet::error::DecodeError;
 use holo_ospf::packet::lls::ExtendedOptionsFlags;
 use holo_ospf::packet::lsa::{Lsa, LsaKey};
 use holo_ospf::packet::tlv::*;
@@ -1290,4 +1291,22 @@ fn test_encode_grace_lsa1() {
 fn test_decode_grace_lsa1() {
     let (ref bytes, ref lsa) = *GRACE_LSA1;
     test_decode_lsa(bytes, lsa);
+}
+
+#[test]
+fn test_decode_invalid_auth_len() {
+    let (ref bytes, ref auth_data, _) = *HELLO1_MD5;
+
+    // Tamper with the auth_len field (byte 19 of the OSPFv2 header) so that
+    // the trailer it announces extends past the end of the buffer.
+    let mut bytes = bytes.clone();
+    bytes[19] = 0xff;
+
+    let (auth_key, _) = auth_data.as_ref().unwrap();
+    let auth_method = AuthMethod::ManualKey(auth_key.clone());
+    let auth = Some(AuthDecodeCtx::new(&auth_method, SRC_ADDR.into()));
+
+    let mut buf = Bytes::copy_from_slice(&bytes);
+    let result = Packet::<Ospfv2>::decode(AddressFamily::Ipv4, &mut buf, auth);
+    assert_eq!(result.unwrap_err(), DecodeError::AuthLenError(0xff));
 }

@@ -854,9 +854,17 @@ impl PacketVersion<Self> for Ospfv2 {
                 auth_len,
                 seqno,
             } => {
+                // Validate that the buffer is large enough to contain the
+                // authentication trailer announced by the header.
+                let trailer_end = (pkt_len as usize)
+                    .checked_add(*auth_len as usize)
+                    .ok_or(DecodeError::AuthLenError(*auth_len as u16))?;
+                if trailer_end > data.len() {
+                    return Err(DecodeError::AuthLenError(*auth_len as u16));
+                }
+
                 // Get the authentication trailer.
-                let auth_trailer = &data
-                    [pkt_len as usize..pkt_len as usize + *auth_len as usize];
+                let auth_trailer = &data[pkt_len as usize..trailer_end];
 
                 // Compute message digest.
                 let data = &data[..pkt_len as usize];

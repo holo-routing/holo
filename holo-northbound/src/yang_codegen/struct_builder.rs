@@ -261,10 +261,15 @@ impl<'a> StructBuilder<'a> {
                     let leaf_type = snode.leaf_type().unwrap();
                     let spec = leaf_type.spec();
                     let value = to_yang_expr(spec.rust_type, &field_name);
+                    let output = if snode.is_within_output() {
+                        "true"
+                    } else {
+                        "false"
+                    };
                     emit!(
                         w,
                         4,
-                        "dnode.new_term(module, \"{}\", {value}).unwrap();",
+                        "dnode.new_term(module, \"{}\", {value}, {output}).unwrap();",
                         snode.name()
                     )?;
                 }
@@ -273,10 +278,15 @@ impl<'a> StructBuilder<'a> {
                     let spec = leaf_type.spec();
                     emit!(w, 4, "for element in {field_name} {{")?;
                     let value = to_yang_expr(spec.rust_type, "element");
+                    let output = if snode.is_within_output() {
+                        "true"
+                    } else {
+                        "false"
+                    };
                     emit!(
                         w,
                         5,
-                        "dnode.new_term(module, \"{}\", {value}).unwrap();",
+                        "dnode.new_term(module, \"{}\", {value}, {output}).unwrap();",
                         snode.name()
                     )?;
                     emit!(w, 4, "}}")?;

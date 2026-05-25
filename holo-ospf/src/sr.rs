@@ -42,10 +42,9 @@ pub(crate) fn prefix_sid_update<V>(
     // value that the remote node has not advertised in the SR-Algorithm TLV
     // MUST ignore the Prefix-SID Sub- TLV.
     let ri = V::area_router_information(&area.state.lsdb, adv_rtr, lsa_entries);
-    if ri
+    if !ri
         .sr_algo
-        .map(|sr_algo| sr_algo.get().contains(&IgpAlgoType::Spf))
-        .is_none()
+        .is_some_and(|sr_algo| sr_algo.get().contains(&IgpAlgoType::Spf))
     {
         return;
     }

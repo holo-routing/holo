@@ -460,11 +460,11 @@ impl OpenMsg {
         }
 
         // Parse and validate BGP identifier.
+        //
+        // RFC 6286 redefines the BGP Identifier as a 4-octet, unsigned,
+        // non-zero integer (no longer restricted to valid unicast IPv4).
         let identifier = buf.try_get_ipv4()?;
-        if identifier.is_unspecified()
-            || identifier.is_multicast()
-            || identifier.is_broadcast()
-        {
+        if identifier.is_unspecified() {
             return Err(OpenMessageError::BadBgpIdentifier);
         }
 

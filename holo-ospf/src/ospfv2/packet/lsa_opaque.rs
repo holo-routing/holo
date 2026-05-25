@@ -693,6 +693,8 @@ impl LsaExtLink {
                 return Err(DecodeError::InvalidTlvLength(tlv_len));
             }
 
+            // Parse TLV value.
+            let mut buf_tlv = buf.copy_to_bytes(tlv_wlen as usize);
             match tlv_etype {
                 Some(ExtLinkTlvType::ExtLink) => {
                     // Decode TLV.
@@ -703,12 +705,11 @@ impl LsaExtLink {
                     // If this TLV is advertised multiple times in the same
                     // OSPFv2 Extended Link Opaque LSA, only the first instance
                     // of the TLV is used by receiving OSPFv2 routers.
-                    let link_tlv = ExtLinkTlv::decode(tlv_len, buf)?;
+                    let link_tlv = ExtLinkTlv::decode(tlv_len, &mut buf_tlv)?;
                     lsa.link.get_or_insert(link_tlv);
                 }
                 _ => {
                     // Ignore unknown TLV.
-                    buf.advance(tlv_wlen.into());
                 }
             }
         }

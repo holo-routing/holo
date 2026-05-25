@@ -537,7 +537,7 @@ where
                 nbr.dd_seq_no = dbdesc.dd_seq_no();
             } else if !dbdesc
                 .dd_flags()
-                .contains(DbDescFlags::I | DbDescFlags::MS)
+                .intersects(DbDescFlags::I | DbDescFlags::MS)
                 && dbdesc.dd_seq_no() == nbr.dd_seq_no
                 && dbdesc.router_id() < instance.state.router_id
             {

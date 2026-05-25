@@ -133,9 +133,8 @@ impl SpfVersion<Self> for Ospfv2 {
                     .as_summary_network()
                     .map(move |lsa_body| (lsa.hdr, lsa_body))
             })
-            .map(|(lsa_hdr, lsa_body)| {
-                Ipv4Network::with_netmask(lsa_hdr.lsa_id, lsa_body.mask)
-                    .unwrap()
+            .filter_map(|(lsa_hdr, lsa_body)| {
+                Ipv4Network::with_netmask(lsa_hdr.lsa_id, lsa_body.mask).ok()
             })
             .collect();
 
@@ -156,9 +155,8 @@ impl SpfVersion<Self> for Ospfv2 {
                     .as_as_external()
                     .map(move |lsa_body| (lsa.hdr, lsa_body))
             })
-            .map(|(lsa_hdr, lsa_body)| {
-                Ipv4Network::with_netmask(lsa_hdr.lsa_id, lsa_body.mask)
-                    .unwrap()
+            .filter_map(|(lsa_hdr, lsa_body)| {
+                Ipv4Network::with_netmask(lsa_hdr.lsa_id, lsa_body.mask).ok()
             })
             .collect();
 
@@ -315,7 +313,7 @@ impl SpfVersion<Self> for Ospfv2 {
                     parent_lsa.hdr.lsa_id,
                     lsa_body.mask,
                 )
-                .unwrap();
+                .map_err(|_| Error::SpfNexthopCalcError(dest_id))?;
                 let dest_lsa = dest_lsa.as_router().unwrap();
                 let dest_link = dest_lsa
                     .body
@@ -471,11 +469,13 @@ impl SpfVersion<Self> for Ospfv2 {
             match &vertex.lsa {
                 VertexLsa::Network(lsa) => {
                     let lsa_body = lsa.body.as_network().unwrap();
-                    let prefix = Ipv4Network::with_netmask(
+                    let Some(prefix) = Ipv4Network::with_netmask(
                         lsa.hdr.lsa_id,
                         lsa_body.mask,
                     )
-                    .unwrap();
+                    .ok() else {
+                        continue;
+                    };
                     let prefix = prefix.apply_mask();
                     let prefix_sids = route_prefix_sids(
                         area,
@@ -503,12 +503,12 @@ impl SpfVersion<Self> for Ospfv2 {
                             .filter(|link| {
                                 link.link_type == LsaRouterLinkType::StubNetwork
                             })
-                            .map(|link| {
+                            .filter_map(|link| {
                                 let prefix = Ipv4Network::with_netmask(
                                     link.link_id,
                                     link.link_data,
                                 )
-                                .unwrap();
+                                .ok()?;
                                 let prefix = prefix.apply_mask();
                                 let metric = link.metric;
                                 let prefix_sids = route_prefix_sids(
@@ -518,7 +518,7 @@ impl SpfVersion<Self> for Ospfv2 {
                                     ExtPrefixRouteType::IntraArea,
                                 );
 
-                                SpfIntraAreaNetwork {
+                                Some(SpfIntraAreaNetwork {
                                     vertex,
                                     prefix,
                                     prefix_options: Default::default(),
@@ -526,7 +526,7 @@ impl SpfVersion<Self> for Ospfv2 {
                                     prefix_sids,
                                     // FIXME: BIER not supported yet for OSPFv2
                                     bier: Default::default(),
-                                }
+                                })
                             }),
                     )
                 }
@@ -546,11 +546,11 @@ impl SpfVersion<Self> for Ospfv2 {
             .iter_by_type(lsa_entries, LsaTypeCode::SummaryNetwork.into())
             .map(|(_, lse)| &lse.data)
             .filter(|lsa| !lsa.hdr.is_maxage())
-            .map(|lsa| {
+            .filter_map(|lsa| {
                 let lsa_body = lsa.body.as_summary_network().unwrap();
                 let prefix =
                     Ipv4Network::with_netmask(lsa.hdr.lsa_id, lsa_body.mask)
-                        .unwrap();
+                        .ok()?;
                 let prefix_sids = route_prefix_sids(
                     area,
                     lsa.hdr.adv_rtr,
@@ -558,13 +558,13 @@ impl SpfVersion<Self> for Ospfv2 {
                     ExtPrefixRouteType::InterArea,
                 );
 
-                SpfInterAreaNetwork {
+                Some(SpfInterAreaNetwork {
                     adv_rtr: lsa.hdr.adv_rtr,
                     prefix,
                     prefix_options: Default::default(),
                     metric: lsa_body.metric,
                     prefix_sids,
-                }
+                })
             })
     }
 
@@ -596,13 +596,13 @@ impl SpfVersion<Self> for Ospfv2 {
         lsdb.iter_by_type(lsa_entries, LsaTypeCode::AsExternal.into())
             .map(|(_, lse)| &lse.data)
             .filter(|lsa| !lsa.hdr.is_maxage())
-            .map(|lsa| {
+            .filter_map(|lsa| {
                 let lsa_body = lsa.body.as_as_external().unwrap();
                 let prefix =
                     Ipv4Network::with_netmask(lsa.hdr.lsa_id, lsa_body.mask)
-                        .unwrap();
+                        .ok()?;
 
-                SpfExternalNetwork {
+                Some(SpfExternalNetwork {
                     adv_rtr: lsa.hdr.adv_rtr,
                     e_bit: lsa_body.flags.contains(LsaAsExternalFlags::E),
                     prefix,
@@ -610,7 +610,7 @@ impl SpfVersion<Self> for Ospfv2 {
                     metric: lsa_body.metric,
                     fwd_addr: lsa_body.fwd_addr,
                     tag: Some(lsa_body.tag),
-                }
+                })
             })
     }
 

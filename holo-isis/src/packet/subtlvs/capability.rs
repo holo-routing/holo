@@ -208,6 +208,9 @@ impl SrLocalBlockStlv {
 impl LabelBlockEntry {
     pub(crate) fn decode(buf: &mut Bytes) -> TlvDecodeResult<Self> {
         let range = buf.try_get_u24()?;
+        if range == 0 {
+            return Err(TlvDecodeError::ZeroLabelBlockRange);
+        }
 
         // Only the SID/Label sub-TLV is valid here.
         let stlv_type = buf.try_get_u8()?;
@@ -228,6 +231,21 @@ impl LabelBlockEntry {
                 return Err(TlvDecodeError::InvalidLength(stlv_len));
             }
         };
+
+        // Sanity checks.
+        if let Sid::Label(label) = &first {
+            if label.is_reserved() {
+                return Err(TlvDecodeError::LabelBlockReservedFirstLabel(
+                    *label,
+                ));
+            }
+            let last = label.get().saturating_add(range - 1);
+            if last > *Label::UNRESERVED_RANGE.end() {
+                return Err(TlvDecodeError::LabelBlockRangeOverflow(
+                    *label, range,
+                ));
+            }
+        }
 
         Ok(LabelBlockEntry { range, first })
     }

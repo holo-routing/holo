@@ -671,6 +671,9 @@ impl SidLabelRangeTlv {
         let mut first = None;
 
         let range = buf.try_get_u24()?;
+        if range == 0 {
+            return Err(DecodeError::ZeroLabelRangeRange);
+        }
         let _reserved = buf.try_get_u8()?;
 
         // Parse Sub-TLVs.
@@ -710,7 +713,23 @@ impl SidLabelRangeTlv {
         }
 
         match first {
-            Some(first) => Ok(SidLabelRangeTlv { first, range }),
+            Some(first) => {
+                // Sanity checks.
+                if let Sid::Label(label) = &first {
+                    if label.is_reserved() {
+                        return Err(DecodeError::LabelRangeReservedFirstLabel(
+                            *label,
+                        ));
+                    }
+                    let last = label.get().saturating_add(range - 1);
+                    if last > *Label::UNRESERVED_RANGE.end() {
+                        return Err(DecodeError::LabelRangeRangeOverflow(
+                            *label, range,
+                        ));
+                    }
+                }
+                Ok(SidLabelRangeTlv { first, range })
+            }
             None => Err(DecodeError::MissingRequiredTlv(SUBTLV_SID_LABEL)),
         }
     }
@@ -741,6 +760,9 @@ impl SrLocalBlockTlv {
     pub(crate) fn decode(_tlv_len: u16, buf: &mut Bytes) -> DecodeResult<Self> {
         let mut first = None;
         let range = buf.try_get_u24()?;
+        if range == 0 {
+            return Err(DecodeError::ZeroLabelRangeRange);
+        }
         let _reserved = buf.try_get_u8()?;
 
         // Parse Sub-TLVs.
@@ -780,7 +802,23 @@ impl SrLocalBlockTlv {
         }
 
         match first {
-            Some(first) => Ok(SrLocalBlockTlv { first, range }),
+            Some(first) => {
+                // Sanity checks.
+                if let Sid::Label(label) = &first {
+                    if label.is_reserved() {
+                        return Err(DecodeError::LabelRangeReservedFirstLabel(
+                            *label,
+                        ));
+                    }
+                    let last = label.get().saturating_add(range - 1);
+                    if last > *Label::UNRESERVED_RANGE.end() {
+                        return Err(DecodeError::LabelRangeRangeOverflow(
+                            *label, range,
+                        ));
+                    }
+                }
+                Ok(SrLocalBlockTlv { first, range })
+            }
             None => Err(DecodeError::MissingRequiredTlv(SUBTLV_SID_LABEL)),
         }
     }

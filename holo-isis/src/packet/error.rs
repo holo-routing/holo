@@ -8,6 +8,7 @@
 //
 
 use bytes::TryGetError;
+use holo_utils::mpls::Label;
 use serde::{Deserialize, Serialize};
 use tracing::{Span, warn};
 
@@ -57,6 +58,9 @@ pub enum TlvDecodeError {
     InvalidThreeWayAdjState(u8),
     InvalidPrefixLength(u8),
     InvalidNumSystemIds(u8),
+    ZeroLabelBlockRange,
+    LabelBlockReservedFirstLabel(Label),
+    LabelBlockRangeOverflow(Label, u32),
     ZeroExtendedSessionSeqNum,
 }
 
@@ -214,6 +218,23 @@ impl std::fmt::Display for TlvDecodeError {
             }
             TlvDecodeError::InvalidNumSystemIds(num) => {
                 write!(f, "invalid number of System IDs: {num}")
+            }
+            TlvDecodeError::ZeroLabelBlockRange => {
+                write!(f, "label block range value is 0")
+            }
+            TlvDecodeError::LabelBlockReservedFirstLabel(label) => {
+                write!(
+                    f,
+                    "label block first label {} falls in the reserved range",
+                    label.get()
+                )
+            }
+            TlvDecodeError::LabelBlockRangeOverflow(first, range) => {
+                write!(
+                    f,
+                    "label block range exceeds MPLS label space: first {}, range {range}",
+                    first.get()
+                )
             }
             TlvDecodeError::ZeroExtendedSessionSeqNum => {
                 write!(f, "extended session sequence number is zero")

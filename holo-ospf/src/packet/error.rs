@@ -7,6 +7,7 @@
 use std::net::Ipv4Addr;
 
 use bytes::TryGetError;
+use holo_utils::mpls::Label;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
@@ -36,6 +37,9 @@ pub enum DecodeError {
     AuthKeyIdNotFound(u32),
     AuthLenError(u16),
     AuthError,
+    ZeroLabelRangeRange,
+    LabelRangeReservedFirstLabel(Label),
+    LabelRangeRangeOverflow(Label, u32),
     // OSPFv2
     InvalidExtPrefixRouteType(u8),
 }
@@ -119,6 +123,23 @@ impl std::fmt::Display for DecodeError {
             }
             DecodeError::AuthError => {
                 write!(f, "authentication failed")
+            }
+            DecodeError::ZeroLabelRangeRange => {
+                write!(f, "label range Range value is 0")
+            }
+            DecodeError::LabelRangeReservedFirstLabel(label) => {
+                write!(
+                    f,
+                    "label range first label {} falls in the reserved range",
+                    label.get()
+                )
+            }
+            DecodeError::LabelRangeRangeOverflow(first, range) => {
+                write!(
+                    f,
+                    "label range exceeds MPLS label space: first {}, range {range}",
+                    first.get()
+                )
             }
             DecodeError::InvalidExtPrefixRouteType(route_type) => {
                 write!(f, "invalid extended prefix route type: {route_type}")

@@ -993,3 +993,32 @@ fn test_decode_lsp6_mt_cap() {
     let (ref bytes, ref auth, ref lsp) = *LSP6_MT_CAP;
     test_decode_pdu(bytes, lsp, auth);
 }
+
+#[test]
+fn test_decode_lsp_crypto_auth_short_digest() {
+    use bytes::Bytes;
+    use holo_isis::packet::auth::AuthMethod;
+
+    // Craft an LSP PDU whose Cryptographic Authentication TLV is the last
+    // TLV in the PDU and declares a length that leaves no room for the
+    // expected HMAC-SHA256 digest.
+    let bytes = vec![
+        // Common IS-IS header.
+        0x83, 0x1b, 0x01, 0x00, 0x12, 0x01, 0x00, 0x00,
+        // PDU length (32 bytes).
+        0x00, 0x20, // Remaining lifetime.
+        0x04, 0x92, // LSP ID.
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+        // Sequence number.
+        0x00, 0x00, 0x00, 0x04, // Checksum.
+        0x00, 0x00, // Flags.
+        0x01,
+        // Authentication TLV: type 10, length 3, auth-type 3 (Cryptographic),
+        // key-id 1. No digest bytes follow.
+        0x0a, 0x03, 0x03, 0x00, 0x01,
+    ];
+
+    let auth = AuthMethod::ManualKey(KEY_HMAC_SHA256.clone());
+    let result = Pdu::decode(Bytes::from(bytes), Some(&auth), Some(&auth));
+    assert!(result.is_err());
+}

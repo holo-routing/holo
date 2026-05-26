@@ -5,6 +5,7 @@
 //
 
 use std::borrow::Cow;
+use std::collections::BTreeSet;
 use std::net::{
     IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6,
 };
@@ -231,6 +232,12 @@ pub trait JointPrefixSetExt {
 
     // Returns a mutable reference to the IPv6 prefix set.
     fn ipv6_mut(&mut self) -> &mut PrefixSet<Ipv6Network>;
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct AddrList {
+    v4: BTreeSet<Ipv4Network>,
+    v6: BTreeSet<Ipv6Network>,
 }
 
 // ===== impl AddressFamily =====
@@ -560,7 +567,7 @@ impl IpNetworkKind<Ipv4Addr> for Ipv4Network {
     }
 
     fn contains(&self, ip: Ipv4Addr) -> bool {
-        Ipv4Network::contains(*self, ip)
+        Ipv4Network::contains(self, ip)
     }
 
     fn is_supernet_of(self, other: Self) -> bool {
@@ -572,7 +579,7 @@ impl IpNetworkKind<Ipv4Addr> for Ipv4Network {
     }
 
     fn mask(&self) -> Ipv4Addr {
-        Ipv4Network::mask(*self)
+        Ipv4Network::mask(self)
     }
 
     fn apply_mask(&self) -> Self {
@@ -732,5 +739,30 @@ impl JointPrefixSetExt for JointPrefixSet<IpNetwork> {
 
     fn ipv6_mut(&mut self) -> &mut PrefixSet<Ipv6Network> {
         &mut self.t2
+    }
+}
+
+// ===== impl AddrList =====
+
+impl AddrList {
+    pub fn insert(&mut self, addr: IpNetwork) -> bool {
+        match addr {
+            IpNetwork::V4(n) => self.v4.insert(n),
+            IpNetwork::V6(n) => self.v6.insert(n),
+        }
+    }
+
+    pub fn remove(&mut self, addr: &IpNetwork) -> bool {
+        match addr {
+            IpNetwork::V4(n) => self.v4.remove(n),
+            IpNetwork::V6(n) => self.v6.remove(n),
+        }
+    }
+
+    pub fn ipv4(&self) -> &BTreeSet<Ipv4Network> {
+        &self.v4
+    }
+    pub fn ipv6(&self) -> &BTreeSet<Ipv6Network> {
+        &self.v6
     }
 }

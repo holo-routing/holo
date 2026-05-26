@@ -1695,7 +1695,7 @@ where
         dest.redistribute = None;
 
         // Enqueue prefix for the BGP Decision Process.
-        table.queued_prefixes.insert(*prefix);
+        table.queued_prefixes.insert(prefix);
     }
 
     // Schedule the BGP Decision Process.

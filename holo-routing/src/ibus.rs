@@ -174,12 +174,12 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
                 };
             if af.is_none() || af == Some(AddressFamily::Ipv4) {
                 for (prefix, routes) in master.rib.ip.ipv4().iter() {
-                    redistribute_prefix((*prefix).into(), routes);
+                    redistribute_prefix(prefix.into(), routes);
                 }
             }
             if af.is_none() || af == Some(AddressFamily::Ipv6) {
                 for (prefix, routes) in master.rib.ip.ipv6().iter() {
-                    redistribute_prefix((*prefix).into(), routes);
+                    redistribute_prefix(prefix.into(), routes);
                 }
             }
         }

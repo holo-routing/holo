@@ -54,7 +54,7 @@ use crate::packet::tlv::{
     MtCapStlvs, MtCapabilityTlv, MtFlags, MultiTopologyEntry, RouterCapFlags,
     RouterCapTlv,
 };
-use crate::packet::{LanId, LevelNumber, LevelType, LspId};
+use crate::packet::{LanId, LevelNumber, LevelType, LspId, SystemId};
 use crate::spf::{SpfType, VertexId};
 use crate::tasks::messages::input::LspPurgeMsg;
 use crate::{spf, tasks};
@@ -1401,6 +1401,52 @@ fn log_lsp(
     instance.state.lsp_log.truncate(LSP_LOG_MAX_SIZE);
 }
 
+// Updates the hostname database for the given System ID.
+fn update_hostname_db(
+    instance: &mut InstanceUpView<'_>,
+    lsp_entries: &Arena<LspEntry>,
+    level: LevelNumber,
+    system_id: SystemId,
+) {
+    let lsdb = instance.state.lsdb.get(level);
+
+    // Per RFC 5301, the Dynamic hostname TLV may be present in any fragment of
+    // a non-pseudonode LSP, so all fragments of the system are scanned and the
+    // hostname is taken from the first fragment that advertises one.
+    let hostname = lsdb
+        .iter_for_system_id(lsp_entries, system_id)
+        .filter(|lse| lse.data.lsp_id.pseudonode == 0)
+        .filter(|lse| lse.data.rem_lifetime != 0)
+        .find_map(|lse| lse.data.tlvs.hostname())
+        .map(|hostname| hostname.to_owned());
+
+    match hostname {
+        Some(hostname) => {
+            let mut update = false;
+            match instance.state.hostnames.entry(system_id) {
+                btree_map::Entry::Vacant(entry) => {
+                    entry.insert(hostname.clone());
+                    update = true;
+                }
+                btree_map::Entry::Occupied(mut entry) => {
+                    if *entry.get() != hostname {
+                        entry.insert(hostname.clone());
+                        update = true;
+                    }
+                }
+            }
+            if update {
+                Debug::HostnameUpdate(system_id, &hostname).log();
+            }
+        }
+        None => {
+            if instance.state.hostnames.remove(&system_id).is_some() {
+                Debug::HostnameRemove(system_id).log();
+            }
+        }
+    }
+}
+
 // ===== global functions =====
 
 // Compares which LSP is more recent.
@@ -1443,11 +1489,12 @@ pub(crate) fn install<'a>(
     if instance.config.trace_opts.lsdb {
         Debug::LspInstall(level, &lsp).log();
     }
+    let lsp_id = lsp.lsp_id;
 
     // Remove old instance of the LSP.
     let lsdb = instance.state.lsdb.get_mut(level);
     let mut old_lsp = None;
-    if let Some((lse_idx, _)) = lsdb.get_by_lspid(lsp_entries, &lsp.lsp_id) {
+    if let Some((lse_idx, _)) = lsdb.get_by_lspid(lsp_entries, &lsp_id) {
         let old_lse = lsdb.delete(lsp_entries, lse_idx);
         old_lsp = Some(old_lse.data);
     }
@@ -1470,40 +1517,13 @@ pub(crate) fn install<'a>(
     }
 
     // Add LSP entry to LSDB.
-    let (_, lse) = instance.state.lsdb.get_mut(level).insert(
+    let (lse_idx, lse) = instance.state.lsdb.get_mut(level).insert(
         lsp_entries,
         level,
         lsp,
         &instance.tx.protocol_input.lsp_purge,
     );
     let lsp = &lse.data;
-
-    // Update hostname database.
-    if lsp.lsp_id.pseudonode == 0 && lsp.lsp_id.fragment == 0 {
-        let system_id = lsp.lsp_id.system_id;
-        if let Some(hostname) = lsp.tlvs.hostname()
-            && lsp.rem_lifetime != 0
-        {
-            let mut update = false;
-            match instance.state.hostnames.entry(system_id) {
-                btree_map::Entry::Vacant(entry) => {
-                    entry.insert(hostname.to_owned());
-                    update = true;
-                }
-                btree_map::Entry::Occupied(mut entry) => {
-                    if entry.get() != hostname {
-                        entry.insert(hostname.to_owned());
-                        update = true;
-                    }
-                }
-            }
-            if update {
-                Debug::HostnameUpdate(system_id, hostname).log();
-            }
-        } else if instance.state.hostnames.remove(&system_id).is_some() {
-            Debug::HostnameRemove(system_id).log();
-        }
-    }
 
     // Start the delete timer if the LSP has expired.
     if lsp.is_expired() {
@@ -1518,7 +1538,7 @@ pub(crate) fn install<'a>(
     }
 
     // Add entry to LSP log.
-    let lsp_log_id = LspLogId::new(lsp.lsp_id, lsp.seqno);
+    let lsp_log_id = LspLogId::new(lsp_id, lsp.seqno);
     let reason = if content_change {
         LspLogReason::ContentChange
     } else {
@@ -1541,7 +1561,12 @@ pub(crate) fn install<'a>(
             .spf_delay_event(level, spf::fsm::Event::Igp);
     }
 
-    lse
+    // Update the hostname database.
+    if lsp_id.pseudonode == 0 {
+        update_hostname_db(instance, lsp_entries, level, lsp_id.system_id);
+    }
+
+    &mut lsp_entries[lse_idx]
 }
 
 pub(crate) fn lsp_originate_all(

@@ -1092,7 +1092,9 @@ fn process_pdu_snp(
     // Complete Sequence Numbers PDU processing.
     //
     // Flood LSPs we have that the neighbor doesn't.
-    if let Some((start, end)) = snp.summary {
+    if let Some((start, end)) = snp.summary
+        && start <= end
+    {
         let lsdb = instance.state.lsdb.get(level);
         for lsp in lsdb
             .range(&arenas.lsp_entries, start..=end)

@@ -750,7 +750,7 @@ where
 
     // Remove routing table entries that no longer hold any data.
     for prefix in queued_prefixes {
-        if let prefix_trie::map::Entry::Occupied(mut entry) =
+        if let prefix_trie::map::Entry::Occupied(entry) =
             table.prefixes.entry(prefix)
         {
             let dest = entry.get();

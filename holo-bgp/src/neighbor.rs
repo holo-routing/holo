@@ -922,7 +922,7 @@ impl Neighbor {
                         ineligible_reason: None,
                         reject_reason: None,
                     };
-                    (*prefix, Box::new(route))
+                    (prefix, Box::new(route))
                 })
             })
             .filter(|(_, route)| self.distribute_filter(route))
@@ -966,7 +966,7 @@ impl Neighbor {
 
             // Update neighbor's Tx queue.
             let update_queue = A::update_queue(&mut self.update_queues);
-            update_queue.reach.entry(attrs).or_default().insert(*prefix);
+            update_queue.reach.entry(attrs).or_default().insert(prefix);
         }
     }
 
@@ -983,7 +983,7 @@ impl Neighbor {
                 if let Some(adj_in_route) = adj_rib.in_post() {
                     rib::nexthop_untrack(
                         &mut table.nht,
-                        prefix,
+                        &prefix,
                         adj_in_route,
                         ibus_tx,
                     );
@@ -996,7 +996,7 @@ impl Neighbor {
             }
 
             // Enqueue prefix for the BGP Decision Process.
-            table.queued_prefixes.insert(*prefix);
+            table.queued_prefixes.insert(prefix);
         }
     }
 

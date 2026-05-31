@@ -20,7 +20,6 @@ use holo_utils::bier::{
 };
 use holo_utils::ip::{
     AddressFamily, Ipv4NetworkExt, Ipv6NetworkExt, JointPrefixMapExt,
-    JointPrefixSetExt,
 };
 use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid, SidLastHopBehavior, SrCfgPrefixSid};

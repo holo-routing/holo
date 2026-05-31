@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 use std::net::Ipv4Addr;
 use std::sync::Arc;
 
+use const_addrs::ip4;
 use holo_utils::socket::{AsyncFd, RawSocketExt, Socket, SocketExt};
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::task::Task;
@@ -130,7 +131,7 @@ impl Interface {
                 igmp_type: PacketType::MembershipReportV2Type,
                 max_resp_time: Some(0x00),
                 checksum: 0x06fb,
-                group_address: Some("225.1.2.3".parse().unwrap()),
+                group_address: Some(ip4!("225.1.2.3")),
             }));
         self.send_packet(packet);
 
@@ -178,7 +179,7 @@ impl Interface {
         let msg = NetTxPacketMsg {
             #[cfg(feature = "testing")]
             ifname: self.name.clone(),
-            dst: *network::ALL_SYSTEMS,
+            dst: network::ALL_SYSTEMS,
             packet,
         };
         let _ = self.state.net.as_ref().unwrap().net_tx_packetp.send(msg);

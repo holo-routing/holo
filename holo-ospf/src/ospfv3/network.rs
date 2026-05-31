@@ -5,10 +5,9 @@
 //
 
 use std::net::Ipv6Addr;
-use std::str::FromStr;
-use std::sync::LazyLock as Lazy;
 
 use bytes::Bytes;
+use const_addrs::ip6;
 use holo_utils::capabilities;
 use holo_utils::socket::{RawSocketExt, Socket};
 use ipnetwork::Ipv6Network;
@@ -20,10 +19,8 @@ use crate::packet::error::DecodeResult;
 use crate::version::Ospfv3;
 
 // OSPFv3 multicast addresses.
-static ALL_SPF_RTRS: Lazy<Ipv6Addr> =
-    Lazy::new(|| Ipv6Addr::from_str("FF02::5").unwrap());
-static ALL_DR_RTRS: Lazy<Ipv6Addr> =
-    Lazy::new(|| Ipv6Addr::from_str("FF02::6").unwrap());
+static ALL_SPF_RTRS: Ipv6Addr = ip6!("FF02::5");
+static ALL_DR_RTRS: Ipv6Addr = ip6!("FF02::6");
 
 // ===== impl Ospfv3 =====
 

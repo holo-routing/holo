@@ -409,12 +409,12 @@ dependencies = [
 
 [[package]]
 name = "const-addrs"
-version = "0.1.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b5a08d6ff3095fa91560f935dfefd6e942ff7693b3e1f57dca184df23fed128"
+checksum = "041f2b0232c2e6fa506799be90ce7143b44f831bb3e22eef6c3fcb9d46750757"
 dependencies = [
  "cfg-if",
- "ipnetwork 0.20.0",
+ "ipnetwork",
  "proc-macro-error",
  "proc-macro2",
  "quote",
@@ -1031,7 +1031,7 @@ dependencies = [
  "holo-protocol",
  "holo-utils",
  "holo-yang",
- "ipnetwork 0.21.1",
+ "ipnetwork",
  "itertools 0.14.0",
  "libc",
  "nix 0.31.3",
@@ -1067,7 +1067,7 @@ dependencies = [
  "holo-protocol",
  "holo-utils",
  "holo-yang",
- "ipnetwork 0.21.1",
+ "ipnetwork",
  "itertools 0.14.0",
  "libc",
  "num-derive",
@@ -1149,7 +1149,7 @@ dependencies = [
  "holo-utils",
  "holo-yang",
  "internet-checksum",
- "ipnetwork 0.21.1",
+ "ipnetwork",
  "itertools 0.14.0",
  "libc",
  "nix 0.31.3",
@@ -1181,7 +1181,7 @@ dependencies = [
  "holo-utils",
  "holo-vrrp",
  "holo-yang",
- "ipnetwork 0.21.1",
+ "ipnetwork",
  "libc",
  "netlink-packet-core",
  "netlink-packet-route",
@@ -1214,7 +1214,7 @@ dependencies = [
  "holo-protocol",
  "holo-utils",
  "holo-yang",
- "ipnetwork 0.21.1",
+ "ipnetwork",
  "itertools 0.14.0",
  "libc",
  "maplit",
@@ -1270,7 +1270,7 @@ dependencies = [
  "holo-protocol",
  "holo-utils",
  "holo-yang",
- "ipnetwork 0.21.1",
+ "ipnetwork",
  "libc",
  "maplit",
  "num-derive",
@@ -1326,7 +1326,7 @@ dependencies = [
  "holo-utils",
  "holo-yang",
  "internet-checksum",
- "ipnetwork 0.21.1",
+ "ipnetwork",
  "itertools 0.14.0",
  "libc",
  "maplit",
@@ -1357,7 +1357,7 @@ dependencies = [
  "holo-northbound",
  "holo-utils",
  "holo-yang",
- "ipnetwork 0.21.1",
+ "ipnetwork",
  "phf 0.13.1",
  "tokio",
  "tracing",
@@ -1415,7 +1415,7 @@ dependencies = [
  "holo-rip",
  "holo-utils",
  "holo-yang",
- "ipnetwork 0.21.1",
+ "ipnetwork",
  "itertools 0.14.0",
  "libc",
  "md-5",
@@ -1452,7 +1452,7 @@ dependencies = [
  "holo-rip",
  "holo-utils",
  "holo-yang",
- "ipnetwork 0.21.1",
+ "ipnetwork",
  "libc",
  "netlink-packet-core",
  "netlink-packet-route",
@@ -1511,7 +1511,7 @@ dependencies = [
  "derive-new",
  "enum-as-inner 0.7.0",
  "holo-yang",
- "ipnetwork 0.21.1",
+ "ipnetwork",
  "itertools 0.14.0",
  "libc",
  "nix 0.31.3",
@@ -1544,7 +1544,7 @@ dependencies = [
  "holo-vrrp",
  "holo-yang",
  "internet-checksum",
- "ipnetwork 0.21.1",
+ "ipnetwork",
  "libc",
  "nix 0.31.3",
  "phf 0.13.1",
@@ -1563,7 +1563,7 @@ version = "0.5.6"
 dependencies = [
  "base64 0.22.1",
  "chrono",
- "ipnetwork 0.21.1",
+ "ipnetwork",
  "maplit",
  "serde",
  "tracing",
@@ -1895,15 +1895,6 @@ name = "ipnet"
 version = "2.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d98f6fed1fde3f8c21bc40a1abb88dd75e67924f9cffc3ef95607bad8017f8e2"
-
-[[package]]
-name = "ipnetwork"
-version = "0.20.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf466541e9d546596ee94f9f69590f89473455f88372423e0008fc1a7daf100e"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "ipnetwork"
@@ -2519,7 +2510,7 @@ checksum = "fbeb97a96d43f215f842f6ab81e8c7b5f6e9b912495c3178127f54f9dce28e32"
 dependencies = [
  "array-const-fn-init",
  "either",
- "ipnetwork 0.21.1",
+ "ipnetwork",
  "num-traits",
 ]
 

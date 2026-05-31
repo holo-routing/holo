@@ -8,6 +8,7 @@ edition.workspace = true
 [dependencies]
 bytes.workspace = true
 chrono.workspace = true
+const-addrs.workspace = true
 enum-as-inner.workspace = true
 internet-checksum.workspace = true
 ipnetwork.workspace = true
@@ -28,7 +29,6 @@ holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
 
 [dev-dependencies]
-const-addrs.workspace = true
 yang5 = { workspace = true, features = ["bundled"] }
 
 holo-vrrp = { path = ".", features = ["testing"] }

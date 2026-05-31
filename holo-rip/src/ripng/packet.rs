@@ -7,6 +7,7 @@
 use std::net::Ipv6Addr;
 
 use bytes::{Buf, BufMut, Bytes, BytesMut, TryGetError};
+use const_addrs::net6;
 use derive_new::new;
 use holo_utils::bytes::{BytesExt, BytesMutExt, TLS_BUF};
 use holo_utils::crypto::CryptoAlgo;
@@ -224,7 +225,7 @@ impl PduVersion<Ipv6Addr, Ipv6Network, DecodeError> for Pdu {
 
     fn new_dump_request() -> Self {
         let rtes = vec![Rte::Ipv6(RteIpv6 {
-            prefix: Ipv6Network::new(Ipv6Addr::UNSPECIFIED, 0).unwrap(),
+            prefix: net6!("::/0"),
             tag: 0,
             metric: Metric::from(Metric::INFINITE),
         })];

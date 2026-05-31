@@ -10,6 +10,7 @@ arc-swap.workspace = true
 bitflags.workspace = true
 bytes.workspace = true
 chrono.workspace = true
+const-addrs.workspace = true
 derive-new.workspace = true
 enum-as-inner.workspace = true
 fletcher.workspace = true
@@ -41,7 +42,6 @@ holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
 
 [dev-dependencies]
-const-addrs.workspace = true
 criterion.workspace = true
 maplit.workspace = true
 yang5 = { workspace = true, features = ["bundled"] }

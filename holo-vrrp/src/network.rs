@@ -13,11 +13,11 @@ use std::net::{
 };
 use std::ops::Deref;
 use std::os::fd::AsRawFd;
-use std::str::FromStr;
 use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, LazyLock as Lazy, atomic};
+use std::sync::{Arc, atomic};
 
 use bytes::{BufMut, Bytes};
+use const_addrs::{ip4, ip6};
 use holo_utils::capabilities;
 use holo_utils::ip::AddressFamily;
 use holo_utils::socket::{
@@ -46,12 +46,9 @@ pub const VRRP_PROTO_NUMBER: i32 = 112;
 pub const ICMP_PROTO_NUMBER: i32 = 58;
 
 // VRRP multicast addresses.
-pub static VRRP_MULTICAST_ADDR_IPV4: Lazy<Ipv4Addr> =
-    Lazy::new(|| Ipv4Addr::from_str("224.0.0.18").unwrap());
-pub static VRRP_MULTICAST_ADDR_IPV6: Lazy<Ipv6Addr> =
-    Lazy::new(|| Ipv6Addr::from_str("ff02::12").unwrap());
-pub static SOLICITATION_BASE_ADDR: Lazy<Ipv6Addr> =
-    Lazy::new(|| Ipv6Addr::from_str("ff02::1:ff00:0").unwrap());
+pub static VRRP_MULTICAST_ADDR_IPV4: Ipv4Addr = ip4!("224.0.0.18");
+pub static VRRP_MULTICAST_ADDR_IPV6: Ipv6Addr = ip6!("ff02::12");
+pub static SOLICITATION_BASE_ADDR: Ipv6Addr = ip6!("ff02::1:ff00:0");
 
 // ===== global functions =====
 
@@ -252,7 +249,7 @@ async fn send_packet_vrrp4(
     // Send packet.
     let iov = [IoSlice::new(&buf)];
     let sockaddr: SockaddrIn =
-        std::net::SocketAddrV4::new(*VRRP_MULTICAST_ADDR_IPV4, 0).into();
+        std::net::SocketAddrV4::new(VRRP_MULTICAST_ADDR_IPV4, 0).into();
     socket
         .async_io(tokio::io::Interest::WRITABLE, |socket| {
             socket::sendmsg(
@@ -293,7 +290,7 @@ async fn send_packet_vrrp6(
     };
     let cmsg = [socket::ControlMessage::Ipv6PacketInfo(&pktinfo)];
     let sockaddr: SockaddrIn6 =
-        std::net::SocketAddrV6::new(*VRRP_MULTICAST_ADDR_IPV6, 0, 0, ifindex)
+        std::net::SocketAddrV6::new(VRRP_MULTICAST_ADDR_IPV6, 0, 0, ifindex)
             .into();
     socket
         .async_io(tokio::io::Interest::WRITABLE, |socket| {

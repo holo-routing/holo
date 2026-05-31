@@ -1,8 +1,7 @@
 use std::hint::black_box;
-use std::net::Ipv4Addr;
-use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
+use const_addrs::ip4;
 use criterion::{Criterion, criterion_group, criterion_main};
 use holo_bgp::packet::iana::{Afi, Safi};
 use holo_bgp::packet::message::{
@@ -14,7 +13,7 @@ static MESSAGE: Lazy<Message> = Lazy::new(|| {
         version: OpenMsg::VERSION,
         my_as: 1,
         holdtime: 180,
-        identifier: Ipv4Addr::from_str("1.1.1.1").unwrap(),
+        identifier: ip4!("1.1.1.1"),
         capabilities: [
             Capability::MultiProtocol {
                 afi: Afi::Ipv4,

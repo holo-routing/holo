@@ -1,8 +1,7 @@
 use std::hint::black_box;
-use std::net::Ipv4Addr;
-use std::str::FromStr;
 use std::sync::LazyLock as Lazy;
 
+use const_addrs::ip4;
 use criterion::{Criterion, criterion_group, criterion_main};
 use holo_ospf::ospfv2::packet::lsa::*;
 use holo_ospf::ospfv2::packet::*;
@@ -14,23 +13,23 @@ static PACKET: Lazy<Packet<Ospfv2>> = Lazy::new(|| {
     Packet::LsUpdate(LsUpdate {
         hdr: PacketHdr {
             pkt_type: PacketType::LsUpdate,
-            router_id: Ipv4Addr::from_str("2.2.2.2").unwrap(),
-            area_id: Ipv4Addr::from_str("0.0.0.1").unwrap(),
+            router_id: ip4!("2.2.2.2"),
+            area_id: ip4!("0.0.0.1"),
             auth_seqno: None,
         },
         lsas: vec![
             Lsa::new(
                 49,
                 Some(Options::E),
-                Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                ip4!("2.2.2.2"),
+                ip4!("2.2.2.2"),
                 0x80000002,
                 LsaBody::Router(LsaRouter {
                     flags: LsaRouterFlags::B,
                     links: vec![LsaRouterLink {
                         link_type: LsaRouterLinkType::StubNetwork,
-                        link_id: Ipv4Addr::from_str("10.0.1.0").unwrap(),
-                        link_data: Ipv4Addr::from_str("255.255.255.0").unwrap(),
+                        link_id: ip4!("10.0.1.0"),
+                        link_data: ip4!("255.255.255.0"),
                         metric: 10,
                     }],
                 }),
@@ -38,22 +37,22 @@ static PACKET: Lazy<Packet<Ospfv2>> = Lazy::new(|| {
             Lsa::new(
                 49,
                 Some(Options::E),
-                Ipv4Addr::from_str("2.2.2.2").unwrap(),
-                Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                ip4!("2.2.2.2"),
+                ip4!("2.2.2.2"),
                 0x80000001,
                 LsaBody::SummaryNetwork(LsaSummary {
-                    mask: Ipv4Addr::from_str("255.255.255.255").unwrap(),
+                    mask: ip4!("255.255.255.255"),
                     metric: 0,
                 }),
             ),
             Lsa::new(
                 49,
                 Some(Options::E),
-                Ipv4Addr::from_str("10.0.2.0").unwrap(),
-                Ipv4Addr::from_str("2.2.2.2").unwrap(),
+                ip4!("10.0.2.0"),
+                ip4!("2.2.2.2"),
                 0x80000001,
                 LsaBody::SummaryNetwork(LsaSummary {
-                    mask: Ipv4Addr::from_str("255.255.255.0").unwrap(),
+                    mask: ip4!("255.255.255.0"),
                     metric: 10,
                 }),
             ),

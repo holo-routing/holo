@@ -5,10 +5,9 @@
 //
 
 use std::net::Ipv4Addr;
-use std::str::FromStr;
-use std::sync::LazyLock as Lazy;
 
 use bytes::{Buf, Bytes};
+use const_addrs::ip4;
 use holo_utils::capabilities;
 use holo_utils::socket::{RawSocketExt, Socket};
 use ipnetwork::Ipv4Network;
@@ -20,10 +19,8 @@ use crate::packet::error::{DecodeError, DecodeResult};
 use crate::version::Ospfv2;
 
 // OSPFv2 multicast addresses.
-static ALL_SPF_RTRS: Lazy<Ipv4Addr> =
-    Lazy::new(|| Ipv4Addr::from_str("224.0.0.5").unwrap());
-static ALL_DR_RTRS: Lazy<Ipv4Addr> =
-    Lazy::new(|| Ipv4Addr::from_str("224.0.0.6").unwrap());
+static ALL_SPF_RTRS: Ipv4Addr = ip4!("224.0.0.5");
+static ALL_DR_RTRS: Ipv4Addr = ip4!("224.0.0.6");
 
 // ===== impl Ospfv2 =====
 

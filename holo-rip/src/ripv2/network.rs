@@ -5,9 +5,8 @@
 //
 
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
-use std::str::FromStr;
-use std::sync::LazyLock as Lazy;
 
+use const_addrs::{ip4, sock4};
 use holo_utils::capabilities;
 use holo_utils::socket::{SocketExt, UdpSocket, UdpSocketExt};
 
@@ -15,10 +14,8 @@ use crate::network::NetworkVersion;
 use crate::version::Ripv2;
 
 // RIPv2 multicast address.
-static RIPV2_MCAST_ADDR: Lazy<Ipv4Addr> =
-    Lazy::new(|| Ipv4Addr::from_str("224.0.0.9").unwrap());
-static RIPV2_MCAST_SOCKADDR: Lazy<SocketAddrV4> =
-    Lazy::new(|| SocketAddrV4::new(*RIPV2_MCAST_ADDR, Ripv2::UDP_PORT));
+static RIPV2_MCAST_ADDR: Ipv4Addr = ip4!("224.0.0.9");
+static RIPV2_MCAST_SOCKADDR: SocketAddrV4 = sock4!("224.0.0.9:520");
 
 // ===== impl Ripv2 =====
 

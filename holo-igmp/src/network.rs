@@ -8,10 +8,10 @@ use std::io::{IoSlice, IoSliceMut};
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::ops::Deref;
 use std::os::fd::AsRawFd;
-use std::str::FromStr;
-use std::sync::{Arc, LazyLock as Lazy};
+use std::sync::Arc;
 
 use bytes::{Buf, Bytes};
+use const_addrs::ip4;
 use holo_utils::capabilities;
 use holo_utils::socket::{AsyncFd, RawSocketExt, Socket};
 use nix::sys::socket::{self, SockaddrIn};
@@ -27,10 +27,8 @@ use crate::tasks::messages::output::NetTxPacketMsg;
 pub const IGMP_IP_PROTO: i32 = 2;
 
 // Multicast addresses.
-pub static ALL_SYSTEMS: Lazy<Ipv4Addr> =
-    Lazy::new(|| Ipv4Addr::from_str("224.0.0.1").unwrap());
-pub static ALL_ROUTERS: Lazy<Ipv4Addr> =
-    Lazy::new(|| Ipv4Addr::from_str("224.0.0.2").unwrap());
+pub static ALL_SYSTEMS: Ipv4Addr = ip4!("224.0.0.1");
+pub static ALL_ROUTERS: Ipv4Addr = ip4!("224.0.0.2");
 
 // ===== global functions =====
 

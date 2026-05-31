@@ -5,9 +5,8 @@
 //
 
 use std::net::{Ipv6Addr, SocketAddr, SocketAddrV6};
-use std::str::FromStr;
-use std::sync::LazyLock as Lazy;
 
+use const_addrs::{ip6, sock6};
 use holo_utils::capabilities;
 use holo_utils::socket::{SocketExt, TTL_MAX, UdpSocket, UdpSocketExt};
 
@@ -15,10 +14,8 @@ use crate::network::NetworkVersion;
 use crate::version::Ripng;
 
 // RIPng multicast address.
-static RIPNG_MCAST_ADDR: Lazy<Ipv6Addr> =
-    Lazy::new(|| Ipv6Addr::from_str("FF02::9").unwrap());
-static RIPNG_MCAST_SOCKADDR: Lazy<SocketAddrV6> =
-    Lazy::new(|| SocketAddrV6::new(*RIPNG_MCAST_ADDR, Ripng::UDP_PORT, 0, 0));
+static RIPNG_MCAST_ADDR: Ipv6Addr = ip6!("FF02::9");
+static RIPNG_MCAST_SOCKADDR: SocketAddrV6 = sock6!("[FF02::9]:521");
 
 // ===== impl Ripng =====
 

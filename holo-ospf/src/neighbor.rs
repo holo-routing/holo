@@ -353,7 +353,6 @@ where
                 Event::OneWayRcvd,
             ) => {
                 self.reset_adjacency();
-                self.tasks.inactivity_timer = None;
 
                 // If we're acting as a graceful restart helper for the
                 // neighbor, do not change its state once the 1-Way event is

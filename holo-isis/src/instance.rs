@@ -222,9 +222,11 @@ impl Instance {
 
         // Start interfaces.
         for iface in arenas.interfaces.iter_mut() {
-            iface
-                .update(&mut instance, &mut arenas.adjacencies)
-                .unwrap();
+            if let Err(error) =
+                iface.update(&mut instance, &mut arenas.adjacencies)
+            {
+                error.log();
+            }
         }
 
         // Schedule initial LSP origination.

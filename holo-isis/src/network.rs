@@ -231,7 +231,7 @@ pub(crate) async fn read_loop(
                     bytes,
                     pdu,
                 };
-                net_packet_rxp.send(msg).await.unwrap();
+                net_packet_rxp.send(msg).await?;
             }
             Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {
                 // Retry if the syscall was interrupted (EINTR).

@@ -521,7 +521,7 @@ pub(crate) async fn read_loop(
                     src: src.ip(),
                     packet: vrrp_pkt,
                 };
-                vrrp_net_packet_rxp.send(msg).await.unwrap();
+                vrrp_net_packet_rxp.send(msg).await?;
             }
             Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {
                 // Retry if the syscall was interrupted (EINTR).

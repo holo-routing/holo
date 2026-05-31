@@ -961,6 +961,7 @@ impl SrmsPrefTlv {
         }
 
         let pref = buf.try_get_u8()?;
+        let _reserved = buf.try_get_u24()?;
 
         Ok(SrmsPrefTlv(pref))
     }
@@ -968,6 +969,8 @@ impl SrmsPrefTlv {
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
         let start_pos = tlv_encode_start(buf, RouterInfoTlvType::SrmsPref);
         buf.put_u8(self.0);
+        let reserved = 0;
+        buf.put_u24(reserved);
         tlv_encode_end(buf, start_pos);
     }
 

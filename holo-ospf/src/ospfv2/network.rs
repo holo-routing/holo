@@ -124,8 +124,10 @@ impl NetworkVersion<Self> for Ospfv2 {
     fn new_pktinfo(src: Ipv4Addr, ifindex: u32) -> libc::in_pktinfo {
         libc::in_pktinfo {
             ipi_ifindex: ifindex as i32,
-            ipi_spec_dst: libc::in_addr { s_addr: 0 },
-            ipi_addr: libc::in_addr { s_addr: src.into() },
+            ipi_spec_dst: libc::in_addr {
+                s_addr: u32::from_ne_bytes(src.octets()),
+            },
+            ipi_addr: libc::in_addr { s_addr: 0 },
         }
     }
 

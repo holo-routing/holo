@@ -2844,7 +2844,6 @@ where
             let tlv = T::from(std::mem::take(&mut tlv_entries));
             tlvs.push(tlv);
             tlv_len = 0;
-            continue;
         }
         tlv_entries.push(entry);
         tlv_len += entry_len;

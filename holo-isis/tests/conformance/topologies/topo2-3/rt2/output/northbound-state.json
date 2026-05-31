@@ -2251,6 +2251,15 @@
                           },
                           {
                             "up-down": false,
+                            "ip-prefix": "fc00:0:0:6::",
+                            "prefix-len": 64,
+                            "metric": 30,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": true,
+                            "node-flag": false
+                          },
+                          {
+                            "up-down": false,
                             "ip-prefix": "fc00:0:0:7::",
                             "prefix-len": 64,
                             "metric": 30,
@@ -2864,6 +2873,15 @@
                           },
                           {
                             "up-down": false,
+                            "ip-prefix": "fc00:0:0:7::",
+                            "prefix-len": 64,
+                            "metric": 20,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": true,
+                            "node-flag": false
+                          },
+                          {
+                            "up-down": false,
                             "ip-prefix": "fc00:0:0:8::",
                             "prefix-len": 64,
                             "metric": 30,
@@ -3462,6 +3480,15 @@
                             "ip-prefix": "fc00:0:0:6::",
                             "prefix-len": 64,
                             "metric": 20,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": true,
+                            "node-flag": false
+                          },
+                          {
+                            "up-down": false,
+                            "ip-prefix": "fc00:0:0:7::",
+                            "prefix-len": 64,
+                            "metric": 30,
                             "external-prefix-flag": false,
                             "readvertisement-flag": true,
                             "node-flag": false
@@ -4224,6 +4251,13 @@
                           },
                           {
                             "up-down": false,
+                            "ip-prefix": "fc00:0:0:7::",
+                            "prefix-len": 64,
+                            "metric": 10,
+                            "external-prefix-flag": false
+                          },
+                          {
+                            "up-down": false,
                             "ip-prefix": "fc00:0:0:8::",
                             "prefix-len": 64,
                             "metric": 20,
@@ -4861,6 +4895,15 @@
                           },
                           {
                             "up-down": false,
+                            "ip-prefix": "fc00:0:0:7::",
+                            "prefix-len": 64,
+                            "metric": 20,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": true,
+                            "node-flag": false
+                          },
+                          {
+                            "up-down": false,
                             "ip-prefix": "fc00:0:0:8::",
                             "prefix-len": 64,
                             "metric": 10,
@@ -5441,6 +5484,15 @@
                           },
                           {
                             "up-down": false,
+                            "ip-prefix": "fc00:0:0:6::",
+                            "prefix-len": 64,
+                            "metric": 20,
+                            "external-prefix-flag": false,
+                            "readvertisement-flag": true,
+                            "node-flag": false
+                          },
+                          {
+                            "up-down": false,
                             "ip-prefix": "fc00:0:0:7::",
                             "prefix-len": 64,
                             "metric": 10,
@@ -5654,7 +5706,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::ac7a:f3ff:fec7:92dc",
+                        "next-hop": "fe80::602a:3ff:feed:33e3",
                         "outgoing-interface": "eth-sw1"
                       }
                     ]
@@ -5672,7 +5724,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::3852:fff:fe65:4b6b",
+                        "next-hop": "fe80::fc8c:49ff:fe53:2f2f",
                         "outgoing-interface": "eth-sw1"
                       }
                     ]
@@ -5685,12 +5737,12 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::4897:deff:fe3d:38e9",
-                        "outgoing-interface": "eth-rt4-2"
+                        "next-hop": "fe80::cc2e:2aff:fe1a:8095",
+                        "outgoing-interface": "eth-rt4-1"
                       },
                       {
-                        "next-hop": "fe80::d47b:1aff:fed2:9e2c",
-                        "outgoing-interface": "eth-rt4-1"
+                        "next-hop": "fe80::e805:c1ff:fe1a:f597",
+                        "outgoing-interface": "eth-rt4-2"
                       }
                     ]
                   },
@@ -5702,16 +5754,16 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::3852:fff:fe65:4b6b",
-                        "outgoing-interface": "eth-sw1"
+                        "next-hop": "fe80::cc2e:2aff:fe1a:8095",
+                        "outgoing-interface": "eth-rt4-1"
                       },
                       {
-                        "next-hop": "fe80::4897:deff:fe3d:38e9",
+                        "next-hop": "fe80::e805:c1ff:fe1a:f597",
                         "outgoing-interface": "eth-rt4-2"
                       },
                       {
-                        "next-hop": "fe80::d47b:1aff:fed2:9e2c",
-                        "outgoing-interface": "eth-rt4-1"
+                        "next-hop": "fe80::fc8c:49ff:fe53:2f2f",
+                        "outgoing-interface": "eth-sw1"
                       }
                     ]
                   },
@@ -5723,12 +5775,12 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::4897:deff:fe3d:38e9",
-                        "outgoing-interface": "eth-rt4-2"
+                        "next-hop": "fe80::cc2e:2aff:fe1a:8095",
+                        "outgoing-interface": "eth-rt4-1"
                       },
                       {
-                        "next-hop": "fe80::d47b:1aff:fed2:9e2c",
-                        "outgoing-interface": "eth-rt4-1"
+                        "next-hop": "fe80::e805:c1ff:fe1a:f597",
+                        "outgoing-interface": "eth-rt4-2"
                       }
                     ]
                   },
@@ -5755,7 +5807,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::3852:fff:fe65:4b6b",
+                        "next-hop": "fe80::fc8c:49ff:fe53:2f2f",
                         "outgoing-interface": "eth-sw1"
                       }
                     ]
@@ -5768,7 +5820,7 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::3852:fff:fe65:4b6b",
+                        "next-hop": "fe80::fc8c:49ff:fe53:2f2f",
                         "outgoing-interface": "eth-sw1"
                       }
                     ]
@@ -5781,12 +5833,12 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::4897:deff:fe3d:38e9",
-                        "outgoing-interface": "eth-rt4-2"
+                        "next-hop": "fe80::cc2e:2aff:fe1a:8095",
+                        "outgoing-interface": "eth-rt4-1"
                       },
                       {
-                        "next-hop": "fe80::d47b:1aff:fed2:9e2c",
-                        "outgoing-interface": "eth-rt4-1"
+                        "next-hop": "fe80::e805:c1ff:fe1a:f597",
+                        "outgoing-interface": "eth-rt4-2"
                       }
                     ]
                   },
@@ -5798,12 +5850,12 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::4897:deff:fe3d:38e9",
-                        "outgoing-interface": "eth-rt4-2"
+                        "next-hop": "fe80::cc2e:2aff:fe1a:8095",
+                        "outgoing-interface": "eth-rt4-1"
                       },
                       {
-                        "next-hop": "fe80::d47b:1aff:fed2:9e2c",
-                        "outgoing-interface": "eth-rt4-1"
+                        "next-hop": "fe80::e805:c1ff:fe1a:f597",
+                        "outgoing-interface": "eth-rt4-2"
                       }
                     ]
                   },
@@ -5815,16 +5867,16 @@
                   "next-hops": {
                     "next-hop": [
                       {
-                        "next-hop": "fe80::3852:fff:fe65:4b6b",
-                        "outgoing-interface": "eth-sw1"
+                        "next-hop": "fe80::cc2e:2aff:fe1a:8095",
+                        "outgoing-interface": "eth-rt4-1"
                       },
                       {
-                        "next-hop": "fe80::4897:deff:fe3d:38e9",
+                        "next-hop": "fe80::e805:c1ff:fe1a:f597",
                         "outgoing-interface": "eth-rt4-2"
                       },
                       {
-                        "next-hop": "fe80::d47b:1aff:fed2:9e2c",
-                        "outgoing-interface": "eth-rt4-1"
+                        "next-hop": "fe80::fc8c:49ff:fe53:2f2f",
+                        "outgoing-interface": "eth-sw1"
                       }
                     ]
                   },
@@ -5851,7 +5903,7 @@
                           "10.0.2.4"
                         ],
                         "holo-isis:ipv6-addresses": [
-                          "fe80::d47b:1aff:fed2:9e2c"
+                          "fe80::cc2e:2aff:fe1a:8095"
                         ],
                         "holo-isis:protocol-supported": [
                           204,
@@ -5881,7 +5933,7 @@
                           "10.0.3.4"
                         ],
                         "holo-isis:ipv6-addresses": [
-                          "fe80::4897:deff:fe3d:38e9"
+                          "fe80::e805:c1ff:fe1a:f597"
                         ],
                         "holo-isis:protocol-supported": [
                           204,
@@ -5912,7 +5964,7 @@
                           "10.0.1.1"
                         ],
                         "holo-isis:ipv6-addresses": [
-                          "fe80::ac7a:f3ff:fec7:92dc"
+                          "fe80::602a:3ff:feed:33e3"
                         ],
                         "holo-isis:protocol-supported": [
                           204,
@@ -5935,7 +5987,7 @@
                           "10.0.1.3"
                         ],
                         "holo-isis:ipv6-addresses": [
-                          "fe80::3852:fff:fe65:4b6b"
+                          "fe80::fc8c:49ff:fe53:2f2f"
                         ],
                         "holo-isis:protocol-supported": [
                           204,
@@ -5958,7 +6010,7 @@
                           "10.0.1.1"
                         ],
                         "holo-isis:ipv6-addresses": [
-                          "fe80::ac7a:f3ff:fec7:92dc"
+                          "fe80::602a:3ff:feed:33e3"
                         ],
                         "holo-isis:protocol-supported": [
                           204,
@@ -5981,7 +6033,7 @@
                           "10.0.1.3"
                         ],
                         "holo-isis:ipv6-addresses": [
-                          "fe80::3852:fff:fe65:4b6b"
+                          "fe80::fc8c:49ff:fe53:2f2f"
                         ],
                         "holo-isis:protocol-supported": [
                           204,

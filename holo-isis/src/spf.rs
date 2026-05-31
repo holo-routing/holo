@@ -91,8 +91,8 @@ pub struct Vertex {
 //
 // `VertexId` is designed to serve as a key in collections, such as `BTreeMap`,
 // that store vertices for the SPT and the tentative list. The `non_pseudonode`
-// flag ensures that non-pseudonode vertices are given priority and processed
-// first during the SPF algorithm.
+// flag ensures that pseudonode vertices are given priority and processed first
+// during the SPF algorithm.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct VertexId {
     pub non_pseudonode: bool,

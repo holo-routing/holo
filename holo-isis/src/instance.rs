@@ -704,7 +704,7 @@ fn process_ibus_msg(
         }
         // BIER configuration update.
         IbusMsg::BierCfgUpd(bier_config) => {
-            instance.shared.bier_config = bier_config;
+            ibus::rx::process_bier_cfg_update(instance, bier_config);
         }
         // Ignore other events.
         _ => {}

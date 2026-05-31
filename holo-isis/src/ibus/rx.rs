@@ -12,6 +12,7 @@ use std::net::Ipv4Addr;
 use std::sync::Arc;
 
 use holo_utils::bfd;
+use holo_utils::bier::BierCfg;
 use holo_utils::ip::IpNetworkKind;
 use holo_utils::southbound::{
     AddressMsg, InterfaceUpdateMsg, RouteKeyMsg, RouteMsg,
@@ -301,6 +302,22 @@ pub(crate) fn process_sr_cfg_update(
 
     // Schedule LSP reorigination.
     if instance.config.sr.enabled
+        && let Some((mut instance, _)) = instance.as_up()
+    {
+        instance.schedule_lsp_origination(instance.config.level_type);
+    }
+}
+
+pub(crate) fn process_bier_cfg_update(
+    instance: &mut Instance,
+    bier_config: Arc<BierCfg>,
+) {
+    // Update BIER configuration.
+    instance.shared.bier_config = bier_config;
+
+    // Schedule LSP reorigination.
+    if instance.config.bier.enabled
+        && instance.config.bier.advertise
         && let Some((mut instance, _)) = instance.as_up()
     {
         instance.schedule_lsp_origination(instance.config.level_type);

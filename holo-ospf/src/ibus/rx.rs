@@ -48,7 +48,7 @@ pub(crate) fn process_iface_update<V>(
 ) where
     V: Version,
 {
-    let Some((instance, arenas)) = instance.as_up() else {
+    let Some((mut instance, arenas)) = instance.as_up() else {
         return;
     };
 
@@ -71,14 +71,19 @@ pub(crate) fn process_iface_update<V>(
     }
 
     // Check if OSPF needs to be activated or deactivated on this interface.
-    iface.update(area, &instance, &mut arenas.neighbors, &arenas.lsa_entries);
+    iface.update(
+        area,
+        &mut instance,
+        &mut arenas.neighbors,
+        &arenas.lsa_entries,
+    );
 }
 
 pub(crate) fn process_addr_add<V>(instance: &mut Instance<V>, msg: AddressMsg)
 where
     V: Version,
 {
-    let Some((instance, arenas)) = instance.as_up() else {
+    let Some((mut instance, arenas)) = instance.as_up() else {
         return;
     };
 
@@ -123,14 +128,19 @@ where
     }
 
     // Check if OSPF needs to be activated on this interface.
-    iface.update(area, &instance, &mut arenas.neighbors, &arenas.lsa_entries);
+    iface.update(
+        area,
+        &mut instance,
+        &mut arenas.neighbors,
+        &arenas.lsa_entries,
+    );
 }
 
 pub(crate) fn process_addr_del<V>(instance: &mut Instance<V>, msg: AddressMsg)
 where
     V: Version,
 {
-    let Some((instance, arenas)) = instance.as_up() else {
+    let Some((mut instance, arenas)) = instance.as_up() else {
         return;
     };
 
@@ -171,7 +181,12 @@ where
     }
 
     // Check if OSPF needs to be deactivated on this interface.
-    iface.update(area, &instance, &mut arenas.neighbors, &arenas.lsa_entries);
+    iface.update(
+        area,
+        &mut instance,
+        &mut arenas.neighbors,
+        &arenas.lsa_entries,
+    );
 }
 
 pub(crate) fn process_sr_cfg_change<V>(

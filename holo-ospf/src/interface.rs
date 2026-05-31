@@ -271,7 +271,7 @@ where
     pub(crate) fn update(
         &mut self,
         area: &Area<V>,
-        instance: &InstanceUpView<'_, V>,
+        instance: &mut InstanceUpView<'_, V>,
         neighbors: &mut Arena<Neighbor<V>>,
         lsa_entries: &Arena<LsaEntry<V>>,
     ) {
@@ -391,7 +391,7 @@ where
     fn stop(
         &mut self,
         area: &Area<V>,
-        instance: &InstanceUpView<'_, V>,
+        instance: &mut InstanceUpView<'_, V>,
         neighbors: &mut Arena<Neighbor<V>>,
         lsa_entries: &Arena<LsaEntry<V>>,
         reason: InterfaceInactiveReason,
@@ -450,7 +450,7 @@ where
     pub(crate) fn reset(
         &mut self,
         area: &Area<V>,
-        instance: &InstanceUpView<'_, V>,
+        instance: &mut InstanceUpView<'_, V>,
         neighbors: &mut Arena<Neighbor<V>>,
         lsa_entries: &Arena<LsaEntry<V>>,
     ) {
@@ -525,7 +525,7 @@ where
     pub(crate) fn fsm(
         &mut self,
         area: &Area<V>,
-        instance: &InstanceUpView<'_, V>,
+        instance: &mut InstanceUpView<'_, V>,
         neighbors: &mut Arena<Neighbor<V>>,
         lsa_entries: &Arena<LsaEntry<V>>,
         event: Event,

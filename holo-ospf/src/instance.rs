@@ -234,7 +234,7 @@ where
         self.state = Some(state);
 
         // Iterate over all configured areas.
-        let (instance, arenas) = self.as_up().unwrap();
+        let (mut instance, arenas) = self.as_up().unwrap();
         for area in arenas.areas.iter() {
             // Try to start interfaces.
             for iface_idx in area.interfaces.indexes() {
@@ -242,7 +242,7 @@ where
 
                 iface.update(
                     area,
-                    &instance,
+                    &mut instance,
                     &mut arenas.neighbors,
                     &arenas.lsa_entries,
                 );
@@ -301,7 +301,7 @@ where
                 let reason = InterfaceInactiveReason::InstanceDown;
                 iface.fsm(
                     area,
-                    &instance,
+                    &mut instance,
                     &mut arenas.neighbors,
                     &arenas.lsa_entries,
                     ism::Event::InterfaceDown(reason),

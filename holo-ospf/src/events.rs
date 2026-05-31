@@ -43,7 +43,7 @@ use crate::{gr, output, spf, tasks};
 // ===== Interface FSM event =====
 
 pub(crate) fn process_ism_event<V>(
-    instance: &InstanceUpView<'_, V>,
+    instance: &mut InstanceUpView<'_, V>,
     arenas: &mut InstanceArenas<V>,
     area_key: AreaKey,
     iface_key: InterfaceKey,
@@ -73,7 +73,7 @@ where
 // ===== Neighbor FSM event =====
 
 pub(crate) fn process_nsm_event<V>(
-    instance: &InstanceUpView<'_, V>,
+    instance: &mut InstanceUpView<'_, V>,
     arenas: &mut InstanceArenas<V>,
     area_key: AreaKey,
     iface_key: InterfaceKey,
@@ -299,7 +299,7 @@ where
 fn process_packet_hello<V>(
     iface: &mut Interface<V>,
     area: &Area<V>,
-    instance: &InstanceUpView<'_, V>,
+    instance: &mut InstanceUpView<'_, V>,
     neighbors: &mut Arena<Neighbor<V>>,
     lsa_entries: &Arena<LsaEntry<V>>,
     src: V::NetIpAddr,
@@ -488,7 +488,7 @@ fn process_packet_dbdesc<V>(
     nbr: &mut Neighbor<V>,
     iface: &mut Interface<V>,
     area: &Area<V>,
-    instance: &InstanceUpView<'_, V>,
+    instance: &mut InstanceUpView<'_, V>,
     lsa_entries: &Arena<LsaEntry<V>>,
     src: V::NetIpAddr,
     dbdesc: V::PacketDbDesc,
@@ -726,7 +726,7 @@ fn process_packet_lsreq<V>(
     nbr: &mut Neighbor<V>,
     iface: &mut Interface<V>,
     area: &Area<V>,
-    instance: &InstanceUpView<'_, V>,
+    instance: &mut InstanceUpView<'_, V>,
     lsa_entries: &Arena<LsaEntry<V>>,
     ls_req: V::PacketLsRequest,
 ) -> Result<(), Error<V>>

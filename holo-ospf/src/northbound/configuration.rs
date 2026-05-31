@@ -1765,15 +1765,15 @@ where
                 }
             }
             Event::InterfaceUpdate(area_idx, iface_idx) => {
-                if let Some((instance, arenas)) = self.as_up() {
+                if let Some((mut instance, arenas)) = self.as_up() {
                     let area = &arenas.areas[area_idx];
                     let iface = &mut arenas.interfaces[iface_idx];
 
-                    iface.update(area, &instance, &mut arenas.neighbors, &arenas.lsa_entries);
+                    iface.update(area, &mut instance, &mut arenas.neighbors, &arenas.lsa_entries);
                 }
             }
             Event::InterfaceDelete(area_idx, iface_idx) => {
-                if let Some((instance, arenas)) = self.as_up() {
+                if let Some((mut instance, arenas)) = self.as_up() {
                     let area = &arenas.areas[area_idx];
                     let iface = &mut arenas.interfaces[iface_idx];
 
@@ -1784,7 +1784,7 @@ where
 
                     // Stop interface if it's active.
                     let reason = InterfaceInactiveReason::AdminDown;
-                    iface.fsm(area, &instance, &mut arenas.neighbors, &arenas.lsa_entries, ism::Event::InterfaceDown(reason));
+                    iface.fsm(area, &mut instance, &mut arenas.neighbors, &arenas.lsa_entries, ism::Event::InterfaceDown(reason));
 
                     // Update the routing table to remove nexthops that are no
                     // longer reachable.
@@ -1797,12 +1797,12 @@ where
                 area.interfaces.delete(&mut self.arenas.interfaces, iface_idx);
             }
             Event::InterfaceReset(area_idx, iface_idx) => {
-                if let Some((instance, arenas)) = self.as_up() {
+                if let Some((mut instance, arenas)) = self.as_up() {
                     let area = &arenas.areas[area_idx];
                     let iface = &mut arenas.interfaces[iface_idx];
 
                     if !iface.is_down() {
-                        iface.reset(area, &instance, &mut arenas.neighbors, &arenas.lsa_entries);
+                        iface.reset(area, &mut instance, &mut arenas.neighbors, &arenas.lsa_entries);
                     }
                 }
             }

@@ -19,6 +19,7 @@ use crate::area::Area;
 use crate::collections::{Arena, NeighborId};
 use crate::debug::Debug;
 use crate::error::Error;
+use crate::gr::GrExitReason;
 use crate::instance::InstanceUpView;
 use crate::interface::{Interface, InterfaceType, ism};
 use crate::lsdb::{LsaEntry, LsaOriginateEvent};
@@ -29,7 +30,7 @@ use crate::packet::{DbDescFlags, DbDescVersion, PacketType};
 use crate::tasks::messages::input::RxmtIntervalMsg;
 use crate::tasks::messages::output::NetTxPacketMsg;
 use crate::version::Version;
-use crate::{output, sr, tasks};
+use crate::{gr, output, sr, tasks};
 
 #[derive(Debug)]
 pub struct Neighbor<V: Version> {
@@ -206,7 +207,7 @@ where
         &mut self,
         iface: &mut Interface<V>,
         area: &Area<V>,
-        instance: &InstanceUpView<'_, V>,
+        instance: &mut InstanceUpView<'_, V>,
         lsa_entries: &Arena<LsaEntry<V>>,
         event: Event,
     ) {
@@ -404,10 +405,21 @@ where
         &mut self,
         iface: &mut Interface<V>,
         area: &Area<V>,
-        instance: &InstanceUpView<'_, V>,
+        instance: &mut InstanceUpView<'_, V>,
         event: Event,
         new_state: State,
     ) {
+        // Exit GR helper mode if active.
+        if new_state == State::Down && self.gr.is_some() {
+            gr::helper_exit(
+                self,
+                iface,
+                area,
+                GrExitReason::TopologyChanged,
+                instance,
+            );
+        }
+
         // Check for bidirectional communication change.
         if new_state >= State::TwoWay && self.state < State::TwoWay
             || new_state < State::TwoWay && self.state >= State::TwoWay

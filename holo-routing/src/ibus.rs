@@ -12,7 +12,9 @@ use holo_utils::ibus::{
 };
 use holo_utils::ip::{AddressFamily, IpNetworkKind, JointPrefixMapExt};
 use holo_utils::protocol::Protocol;
-use holo_utils::southbound::{RouteKeyMsg, RouteMsg};
+use holo_utils::southbound::{
+    AddressFlags, Nexthop, RouteKeyMsg, RouteKind, RouteMsg, RouteOpaqueAttrs,
+};
 use ipnetwork::IpNetwork;
 
 use crate::rib::{NhtEntry, RedistributeSub, Route, RouteFlags};
@@ -114,7 +116,7 @@ pub(crate) fn process_msg(
         }
         IbusMsg::RouteIpAdd(msg) => {
             // Add route to the RIB.
-            master.rib.ip_route_add(msg);
+            master.rib.ip_route_add(msg, client.id);
         }
         IbusMsg::RouteIpDel(msg) => {
             // Remove route from the RIB.
@@ -122,7 +124,7 @@ pub(crate) fn process_msg(
         }
         IbusMsg::RouteMplsAdd(msg) => {
             // Add MPLS route to the LIB.
-            master.rib.mpls_route_add(msg);
+            master.rib.mpls_route_add(msg, client.id);
         }
         IbusMsg::RouteMplsDel(msg) => {
             // Remove MPLS route from the LIB.
@@ -216,9 +218,21 @@ pub(crate) fn process_notification_msg(master: &mut Master, msg: IbusMsg) {
 
             // Add address to interface.
             iface.addresses.insert(msg.addr, msg.flags);
+            let ifindex = iface.ifindex;
 
             // Add connected route to the RIB.
-            master.rib.connected_route_add(iface, msg);
+            if !msg.flags.contains(AddressFlags::UNNUMBERED) {
+                master.ibus_tx.route_ip_add(RouteMsg {
+                    protocol: Protocol::DIRECT,
+                    kind: RouteKind::Unicast,
+                    prefix: msg.addr.apply_mask(),
+                    distance: 0,
+                    metric: 0,
+                    tag: None,
+                    opaque_attrs: RouteOpaqueAttrs::None,
+                    nexthops: [Nexthop::Interface { ifindex }].into(),
+                });
+            }
         }
         // Interface address delete notification.
         IbusMsg::InterfaceAddressDel(msg) => {
@@ -231,7 +245,12 @@ pub(crate) fn process_notification_msg(master: &mut Master, msg: IbusMsg) {
             iface.addresses.remove(&msg.addr);
 
             // Remove connected route from the RIB.
-            master.rib.connected_route_del(msg);
+            if !msg.flags.contains(AddressFlags::UNNUMBERED) {
+                master.ibus_tx.route_ip_del(RouteKeyMsg {
+                    protocol: Protocol::DIRECT,
+                    prefix: msg.addr.apply_mask(),
+                });
+            }
         }
         // Ignore other events.
         _ => {}
@@ -244,6 +263,7 @@ pub(crate) fn disconnect(master: &mut Master, id: IbusClientId) {
     for nhte in master.rib.nht.values_mut() {
         nhte.subscriptions.remove(&id);
     }
+    master.rib.route_remove_all_by_owner(id);
 }
 
 // Requests information about all interfaces addresses.

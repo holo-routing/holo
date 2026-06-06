@@ -11,19 +11,19 @@ use bitflags::bitflags;
 use chrono::{DateTime, Utc};
 use derive_new::new;
 use holo_utils::ibus::{IbusClient, IbusClientId, IbusSender};
-use holo_utils::ip::{AddressFamily, IpAddrExt, IpNetworkExt};
+use holo_utils::ip::{AddressFamily, IpAddrExt};
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{
-    AddressFlags, AddressMsg, LabelInstallMsg, LabelUninstallMsg, Nexthop,
-    RouteKeyMsg, RouteKind, RouteMsg, RouteOpaqueAttrs,
+    LabelInstallMsg, LabelUninstallMsg, Nexthop, RouteKeyMsg, RouteKind,
+    RouteMsg, RouteOpaqueAttrs,
 };
 use ipnetwork::IpNetwork;
 use prefix_trie::joint::map::JointPrefixMap;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{debug, warn};
 
-use crate::interface::{Interface, Interfaces};
+use crate::interface::Interfaces;
 use crate::netlink::NetlinkRequest;
 use crate::{ibus, netlink};
 
@@ -41,6 +41,7 @@ pub struct Rib {
 #[derive(Clone, Debug, new)]
 pub struct Route {
     pub protocol: Protocol,
+    pub owner: IbusClientId,
     pub kind: RouteKind,
     pub distance: u32,
     pub metric: u32,
@@ -87,75 +88,12 @@ impl Rib {
         }
     }
 
-    // Adds connected route to the RIB.
-    pub(crate) fn connected_route_add(
-        &mut self,
-        iface: &Interface,
-        msg: AddressMsg,
-    ) {
-        // Ignore unnumbered addresses.
-        if msg.flags.contains(AddressFlags::UNNUMBERED) {
-            return;
-        }
-
-        let prefix = msg.addr.apply_mask();
-        let rib_prefix = self.prefix_entry(prefix);
-        let distance = 0;
-        let nexthop = Nexthop::Interface {
-            ifindex: iface.ifindex,
-        };
-        match rib_prefix.entry(distance) {
-            btree_map::Entry::Vacant(v) => {
-                // If the IP route does not exist, create a new entry.
-                v.insert(Route::new(
-                    Protocol::DIRECT,
-                    RouteKind::Unicast,
-                    distance,
-                    0,
-                    None,
-                    RouteOpaqueAttrs::None,
-                    [nexthop].into(),
-                    Utc::now(),
-                    RouteFlags::empty(),
-                ));
-            }
-            btree_map::Entry::Occupied(o) => {
-                let route = o.into_mut();
-
-                // Update the existing IP route with the new information.
-                route.last_updated = Utc::now();
-                route.flags.remove(RouteFlags::REMOVED);
-            }
-        }
-
-        // Add IP route to the update queue.
-        self.ip_update_queue_add(prefix);
-    }
-
-    // Removes connected route from the RIB.
-    pub(crate) fn connected_route_del(&mut self, msg: AddressMsg) {
-        // Ignore unnumbered addresses.
-        if msg.flags.contains(AddressFlags::UNNUMBERED) {
-            return;
-        }
-
-        // Find IP route entry from the same advertising protocol.
-        let prefix = msg.addr.apply_mask();
-        let rib_prefix = self.prefix_entry(prefix);
-        if let Some(route) = rib_prefix
-            .values_mut()
-            .find(|route| route.protocol == Protocol::DIRECT)
-        {
-            // Mark IP route as removed.
-            route.flags.insert(RouteFlags::REMOVED);
-
-            // Add IP route to the update queue.
-            self.ip_update_queue_add(prefix);
-        }
-    }
-
     // Adds IP route to the RIB.
-    pub(crate) fn ip_route_add(&mut self, mut msg: RouteMsg) {
+    pub(crate) fn ip_route_add(
+        &mut self,
+        mut msg: RouteMsg,
+        owner: IbusClientId,
+    ) {
         msg.nexthops = self.resolve_nexthops(msg.nexthops);
         let rib_prefix = self.prefix_entry(msg.prefix);
         match rib_prefix.entry(msg.distance) {
@@ -163,6 +101,7 @@ impl Rib {
                 // If the IP route does not exist, create a new entry.
                 v.insert(Route::new(
                     msg.protocol,
+                    owner,
                     msg.kind,
                     msg.distance,
                     msg.metric,
@@ -177,6 +116,7 @@ impl Rib {
                 let route = o.into_mut();
 
                 // Update the existing IP route with the new information.
+                route.owner = owner;
                 route.kind = msg.kind;
                 route.distance = msg.distance;
                 route.metric = msg.metric;
@@ -210,13 +150,18 @@ impl Rib {
     }
 
     // Adds MPLS route to the RIB.
-    pub(crate) fn mpls_route_add(&mut self, mut msg: LabelInstallMsg) {
+    pub(crate) fn mpls_route_add(
+        &mut self,
+        mut msg: LabelInstallMsg,
+        owner: IbusClientId,
+    ) {
         msg.nexthops = self.resolve_nexthops(msg.nexthops);
         match self.mpls.entry(msg.label) {
             btree_map::Entry::Vacant(v) => {
                 // If the MPLS route does not exist, create a new entry.
                 v.insert(Route::new(
                     msg.protocol,
+                    owner,
                     RouteKind::Unicast,
                     0,
                     0,
@@ -231,6 +176,7 @@ impl Rib {
                 let route = o.into_mut();
 
                 // Update the existing MPLS route with the new information.
+                route.owner = owner;
                 route.protocol = msg.protocol;
                 if msg.replace {
                     route.replace_nexthops(&msg.nexthops);
@@ -539,6 +485,25 @@ impl Rib {
     // Adds MPLS label to the update queue.
     fn mpls_update_queue_add(&mut self, label: Label) {
         self.mpls_update_queue.insert(label);
+        let _ = self.update_queue_tx.send(());
+    }
+
+    // Removes all IP and MPLS routes installed by the given client.
+    pub(crate) fn route_remove_all_by_owner(&mut self, owner: IbusClientId) {
+        for (prefix, rib_prefix) in self.ip.iter_mut() {
+            for route in rib_prefix.values_mut() {
+                if route.owner == owner {
+                    route.flags.insert(RouteFlags::REMOVED);
+                    self.ip_update_queue.insert(prefix);
+                }
+            }
+        }
+        for (label, route) in &mut self.mpls {
+            if route.owner == owner {
+                route.flags.insert(RouteFlags::REMOVED);
+                self.mpls_update_queue.insert(*label);
+            }
+        }
         let _ = self.update_queue_tx.send(());
     }
 

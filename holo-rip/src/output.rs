@@ -186,8 +186,8 @@ pub(crate) fn triggered_update<V>(
     send_response_all(instance, interfaces, ResponseType::Triggered);
 
     // Start triggered update timeout.
-    let timeout =
-        rand::rng().random_range(1..instance.config.triggered_update_threshold);
+    let timeout = rand::rng()
+        .random_range(1..=instance.config.triggered_update_threshold);
     let triggered_upd_timeout_task = tasks::triggered_upd_timeout(
         Duration::from_secs(timeout.into()),
         &instance.tx.protocol_input.triggered_upd_timeout,

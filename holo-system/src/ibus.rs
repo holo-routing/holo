@@ -4,27 +4,30 @@
 // SPDX-License-Identifier: MIT
 //
 
-use holo_utils::ibus::{IbusMsg, IbusSender};
+use holo_utils::ibus::{IbusClient, IbusClientId, IbusMsg, IbusSender};
 
 use crate::Master;
 
 // ===== global functions =====
 
-pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
+pub(crate) fn process_msg(
+    master: &mut Master,
+    client: IbusClient,
+    msg: IbusMsg,
+) {
     match msg {
-        IbusMsg::HostnameSub { subscriber } => {
-            let subscriber = subscriber.unwrap();
-            notify_hostname_update(
-                &subscriber.tx,
-                master.config.hostname.clone(),
-            );
-            master
-                .hostname_subscriptions
-                .insert(subscriber.id, subscriber.tx);
+        IbusMsg::HostnameSub {} => {
+            notify_hostname_update(&client.tx, master.config.hostname.clone());
+            master.hostname_subscriptions.insert(client.id, client.tx);
         }
         // Ignore other events.
         _ => {}
     }
+}
+
+// Cleans up all state associated with a disconnected client.
+pub(crate) fn disconnect(master: &mut Master, id: IbusClientId) {
+    master.hostname_subscriptions.remove(&id);
 }
 
 pub(crate) fn notify_hostname_update(

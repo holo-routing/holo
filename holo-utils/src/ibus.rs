@@ -9,6 +9,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use futures::stream::{self, BoxStream, StreamExt};
 use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
@@ -30,36 +31,80 @@ use crate::sr::{MsdType, SrCfg, SrCfgEvent};
 // Useful type definition(s).
 pub type IbusReceiver = UnboundedReceiver<IbusMsg>;
 pub type IbusSender = UnboundedSender<IbusMsg>;
+pub type IbusClientId = usize;
+pub type IbusConnSender = UnboundedSender<IbusConn>;
+pub type IbusConnReceiver = UnboundedReceiver<IbusConn>;
 
-/// Transmit channels for sending [`IbusMsg`] messages to each base component.
+/// A client's send handles to the base components.
 #[derive(Clone, Debug)]
 pub struct IbusChannelsTx {
-    subscriber: Option<IbusSubscriber>,
-    routing: UnboundedSender<IbusMsg>,
-    interface: UnboundedSender<IbusMsg>,
-    system: UnboundedSender<IbusMsg>,
-    keychain: UnboundedSender<IbusMsg>,
-    policy: UnboundedSender<IbusMsg>,
+    routing: IbusConnTx,
+    interface: IbusConnTx,
+    system: IbusConnTx,
+    keychain: IbusConnTx,
+    policy: IbusConnTx,
 }
 
-/// Receive channels for receiving [`IbusMsg`] messages from each base component.
+/// Registration channels of the base components.
+///
+/// Each receives an [`IbusConn`] when a client connects to that component.
 #[derive(Debug)]
 pub struct IbusChannelsRx {
-    pub routing: UnboundedReceiver<IbusMsg>,
-    pub interface: UnboundedReceiver<IbusMsg>,
-    pub system: UnboundedReceiver<IbusMsg>,
-    pub keychain: UnboundedReceiver<IbusMsg>,
-    pub policy: UnboundedReceiver<IbusMsg>,
+    pub routing: IbusConnReceiver,
+    pub interface: IbusConnReceiver,
+    pub system: IbusConnReceiver,
+    pub keychain: IbusConnReceiver,
+    pub policy: IbusConnReceiver,
 }
 
-/// Subscriber to [`IbusMsg`] messages.
+/// A client's send-side handle to one base component.
+///
+/// Holds the component's shared registration channel, plus the client's
+/// dedicated channel once `connect` has established it.
 #[derive(Clone, Debug)]
-pub struct IbusSubscriber {
-    /// Unique identifier for the subscriber.
-    pub id: usize,
-    /// Channel for sending messages to the subscriber.
+struct IbusConnTx {
+    // Shared registration channel to the component.
+    reg: IbusConnSender,
+    // This client's dedicated channel. `None` on the base template, before
+    // `connect` establishes the connection.
+    tx: Option<IbusSender>,
+}
+
+/// A client of a base component, from the component's perspective.
+///
+/// Identifies which client a received message came from (`id`) and carries the
+/// channel for sending replies and notifications back to it (`tx`).
+#[derive(Clone, Debug)]
+pub struct IbusClient {
+    /// Unique identifier for the client.
+    pub id: IbusClientId,
+    /// Channel for sending messages to the client.
     pub tx: IbusSender,
 }
+
+/// A client's connection, handed to a base component when the client connects.
+#[derive(Debug)]
+pub struct IbusConn {
+    pub id: IbusClientId,
+    pub rx: IbusReceiver,
+    pub tx: IbusSender,
+}
+
+/// Event produced by a base component's per-client connection stream.
+#[derive(Debug)]
+pub enum IbusConnEvent {
+    /// A message from the client, with the channel for sending back to it.
+    Msg { tx: IbusSender, msg: IbusMsg },
+    /// The client disconnected (its channel was dropped).
+    Disconnect,
+}
+
+/// A client's connection demultiplexed into a keyed stream of events.
+///
+/// Yields `(id, event)` pairs and ends with a final `Disconnect` event once the
+/// connection's channel is closed. A base component merges these (e.g. in a
+/// [`futures::stream::SelectAll`]) to demultiplex all of its clients.
+pub type IbusConnStream = BoxStream<'static, (IbusClientId, IbusConnEvent)>;
 
 /// Ibus message for communication among the different Holo components.
 #[derive(Clone, Debug)]
@@ -68,7 +113,7 @@ pub enum IbusMsg {
     /// BFD peer registration.
     BfdSessionReg {
         #[serde(skip)]
-        subscriber: Option<IbusSubscriber>,
+        client: Option<IbusClient>,
         sess_key: bfd::SessionKey,
         client_id: bfd::ClientId,
         client_config: Option<bfd::ClientCfg>,
@@ -76,7 +121,7 @@ pub enum IbusMsg {
     /// BFD peer unregistration.
     BfdSessionUnreg {
         #[serde(skip)]
-        subscriber: Option<IbusSubscriber>,
+        client: Option<IbusClient>,
         sess_key: bfd::SessionKey,
     },
     /// BFD peer state update.
@@ -85,28 +130,19 @@ pub enum IbusMsg {
         state: bfd::State,
     },
     /// Request a subscription to hostname update notifications.
-    HostnameSub {
-        #[serde(skip)]
-        subscriber: Option<IbusSubscriber>,
-    },
+    HostnameSub {},
     /// Hostname update notification.
     HostnameUpdate(Option<String>),
     /// Request a subscription to interface update notifications.
     ///
-    /// The subscriber may filter updates by a specific interface or address
+    /// The client may filter updates by a specific interface or address
     /// family.
     InterfaceSub {
-        #[serde(skip)]
-        subscriber: Option<IbusSubscriber>,
         ifname: Option<String>,
         af: Option<AddressFamily>,
     },
     /// Cancel a previously requested subscription to interface updates.
-    InterfaceUnsub {
-        #[serde(skip)]
-        subscriber: Option<IbusSubscriber>,
-        ifname: Option<String>,
-    },
+    InterfaceUnsub { ifname: Option<String> },
     /// Interface update notification.
     InterfaceUpd(InterfaceUpdateMsg),
     /// Interface delete notification.
@@ -132,17 +168,9 @@ pub enum IbusMsg {
     /// Delete a macvlan interface.
     MacvlanDel { ifname: String },
     /// Nexthop tracking registration.
-    NexthopTrack {
-        #[serde(skip)]
-        subscriber: Option<IbusSubscriber>,
-        addr: IpAddr,
-    },
+    NexthopTrack { addr: IpAddr },
     /// Nexthop tracking unregistration.
-    NexthopUntrack {
-        #[serde(skip)]
-        subscriber: Option<IbusSubscriber>,
-        addr: IpAddr,
-    },
+    NexthopUntrack { addr: IpAddr },
     /// Nexthop tracking update.
     NexthopUpd { addr: IpAddr, metric: Option<u32> },
     /// Policy match sets update notification.
@@ -152,10 +180,7 @@ pub enum IbusMsg {
     /// Policy definition delete notification.
     PolicyDel(String),
     /// Request a subscription to Router ID update notifications.
-    RouterIdSub {
-        #[serde(skip)]
-        subscriber: Option<IbusSubscriber>,
-    },
+    RouterIdSub {},
     /// Router ID update notification.
     RouterIdUpdate(Option<Ipv4Addr>),
     /// Request to install IP route in the RIB.
@@ -178,15 +203,11 @@ pub enum IbusMsg {
     /// Requests a subscription to route update notifications for a specific
     /// protocol, with optional filtering by address family.
     RouteRedistributeSub {
-        #[serde(skip)]
-        subscriber: Option<IbusSubscriber>,
         protocol: Protocol,
         af: Option<AddressFamily>,
     },
     /// Cancel a previously requested subscription to route updates.
     RouteRedistributeUnsub {
-        #[serde(skip)]
-        subscriber: Option<IbusSubscriber>,
         protocol: Protocol,
         af: Option<AddressFamily>,
     },
@@ -204,24 +225,28 @@ pub enum IbusMsg {
     BierCfgUpd(Arc<BierCfg>),
     /// BIER configuration event.
     BierCfgEvent(BierCfgEvent),
-    /// Cancel all previously requested subscriptions.
-    Disconnect {
-        #[serde(skip)]
-        subscriber: Option<IbusSubscriber>,
-    },
 }
 
 // ===== impl IbusChannelsTx =====
 
 impl IbusChannelsTx {
-    /// Creates a new `IbusChannelsTx` with the provided subscriber.
-    pub fn with_subscriber(
+    /// Builds the send handles for a new client, opening a connection to every
+    /// component.
+    ///
+    /// `client_tx` is the client's own channel, where components send
+    /// notifications back. Components detect the client's teardown when the
+    /// returned handles are dropped.
+    pub fn with_client(
         tx: &IbusChannelsTx,
-        subscriber_tx: UnboundedSender<IbusMsg>,
+        client_tx: UnboundedSender<IbusMsg>,
     ) -> Self {
+        let client = IbusClient::new(client_tx);
         IbusChannelsTx {
-            subscriber: Some(IbusSubscriber::new(subscriber_tx)),
-            ..tx.clone()
+            routing: tx.routing.connect(&client),
+            interface: tx.interface.connect(&client),
+            system: tx.system.connect(&client),
+            keychain: tx.keychain.connect(&client),
+            policy: tx.policy.connect(&client),
         }
     }
 
@@ -232,30 +257,27 @@ impl IbusChannelsTx {
         client_id: bfd::ClientId,
         client_config: Option<bfd::ClientCfg>,
     ) {
-        let msg = IbusMsg::BfdSessionReg {
-            subscriber: self.subscriber.clone(),
+        // The client is filled in by `holo-routing` when it relays the
+        // message to the BFD instance, based on the connection it arrived on.
+        self.routing.send(IbusMsg::BfdSessionReg {
+            client: None,
             sess_key,
             client_id,
             client_config,
-        };
-        let _ = self.routing.send(msg);
+        });
     }
 
     /// Sends an [`IbusMsg::BfdSessionUnreg`] message to `holo-routing`.
     pub fn bfd_session_unreg(&self, sess_key: bfd::SessionKey) {
-        let msg = IbusMsg::BfdSessionUnreg {
-            subscriber: self.subscriber.clone(),
+        self.routing.send(IbusMsg::BfdSessionUnreg {
+            client: None,
             sess_key,
-        };
-        let _ = self.routing.send(msg);
+        });
     }
 
     /// Sends an [`IbusMsg::HostnameSub`] message to `holo-system`.
     pub fn hostname_sub(&self) {
-        let msg = IbusMsg::HostnameSub {
-            subscriber: self.subscriber.clone(),
-        };
-        let _ = self.system.send(msg);
+        self.system.send(IbusMsg::HostnameSub {});
     }
 
     /// Sends an [`IbusMsg::InterfaceSub`] message to `holo-interface`.
@@ -264,33 +286,24 @@ impl IbusChannelsTx {
         ifname: Option<String>,
         af: Option<AddressFamily>,
     ) {
-        let msg = IbusMsg::InterfaceSub {
-            subscriber: self.subscriber.clone(),
-            ifname,
-            af,
-        };
-        let _ = self.interface.send(msg);
+        self.interface.send(IbusMsg::InterfaceSub { ifname, af });
     }
 
     /// Sends an [`IbusMsg::InterfaceUnsub`] message to `holo-interface`.
     pub fn interface_unsub(&self, ifname: Option<String>) {
-        let msg = IbusMsg::InterfaceUnsub {
-            subscriber: self.subscriber.clone(),
-            ifname,
-        };
-        let _ = self.interface.send(msg);
+        self.interface.send(IbusMsg::InterfaceUnsub { ifname });
     }
 
     /// Sends an [`IbusMsg::InterfaceIpAddRequest`] message to `holo-interface`.
     pub fn interface_ip_add(&self, ifname: String, addr: IpNetwork) {
-        let msg = IbusMsg::InterfaceIpAddRequest { ifname, addr };
-        let _ = self.interface.send(msg);
+        self.interface
+            .send(IbusMsg::InterfaceIpAddRequest { ifname, addr });
     }
 
     /// Sends an [`IbusMsg::InterfaceIpDelRequest`] message to `holo-interface`.
     pub fn interface_ip_del(&self, ifname: String, addr: IpNetwork) {
-        let msg = IbusMsg::InterfaceIpDelRequest { ifname, addr };
-        let _ = self.interface.send(msg);
+        self.interface
+            .send(IbusMsg::InterfaceIpDelRequest { ifname, addr });
     }
 
     /// Sends an [`IbusMsg::MacvlanAdd`] message to `holo-interface`.
@@ -300,86 +313,66 @@ impl IbusChannelsTx {
         ifname: String,
         mac_addr: Option<MacAddr>,
     ) {
-        let msg = IbusMsg::MacvlanAdd {
+        self.interface.send(IbusMsg::MacvlanAdd {
             parent_ifname,
             ifname,
             mac_addr,
-        };
-        let _ = self.interface.send(msg);
+        });
     }
 
     /// Sends an [`IbusMsg::MacvlanDel`] message to `holo-interface`.
     pub fn macvlan_del(&self, ifname: String) {
-        let msg = IbusMsg::MacvlanDel { ifname };
-        let _ = self.interface.send(msg);
+        self.interface.send(IbusMsg::MacvlanDel { ifname });
     }
 
     /// Sends an [`IbusMsg::RouterIdSub`] message to `holo-interface`.
     pub fn router_id_sub(&self) {
-        let msg = IbusMsg::RouterIdSub {
-            subscriber: self.subscriber.clone(),
-        };
-        let _ = self.interface.send(msg);
+        self.interface.send(IbusMsg::RouterIdSub {});
     }
 
     /// Sends an [`IbusMsg::NexthopTrack`] message to `holo-routing`.
     pub fn nexthop_track(&self, addr: IpAddr) {
-        let msg = IbusMsg::NexthopTrack {
-            subscriber: self.subscriber.clone(),
-            addr,
-        };
-        let _ = self.routing.send(msg);
+        self.routing.send(IbusMsg::NexthopTrack { addr });
     }
 
     /// Sends an [`IbusMsg::NexthopUntrack`] message to `holo-routing`.
     pub fn nexthop_untrack(&self, addr: IpAddr) {
-        let msg = IbusMsg::NexthopUntrack {
-            subscriber: self.subscriber.clone(),
-            addr,
-        };
-        let _ = self.routing.send(msg);
+        self.routing.send(IbusMsg::NexthopUntrack { addr });
     }
 
     /// Sends an [`IbusMsg::RouteIpAdd`] message to `holo-routing`.
     pub fn route_ip_add(&self, route: RouteMsg) {
-        let msg = IbusMsg::RouteIpAdd(route);
-        let _ = self.routing.send(msg);
+        self.routing.send(IbusMsg::RouteIpAdd(route));
     }
 
     /// Sends an [`IbusMsg::RouteIpDel`] message to `holo-routing`.
     pub fn route_ip_del(&self, route: RouteKeyMsg) {
-        let msg = IbusMsg::RouteIpDel(route);
-        let _ = self.routing.send(msg);
+        self.routing.send(IbusMsg::RouteIpDel(route));
     }
 
     /// Sends an [`IbusMsg::RouteMplsAdd`] message to `holo-routing`.
     pub fn route_mpls_add(&self, msg: LabelInstallMsg) {
-        let msg = IbusMsg::RouteMplsAdd(msg);
-        let _ = self.routing.send(msg);
+        self.routing.send(IbusMsg::RouteMplsAdd(msg));
     }
 
     /// Sends an [`IbusMsg::RouteMplsDel`] message to `holo-routing`.
     pub fn route_mpls_del(&self, msg: LabelUninstallMsg) {
-        let msg = IbusMsg::RouteMplsDel(msg);
-        let _ = self.routing.send(msg);
+        self.routing.send(IbusMsg::RouteMplsDel(msg));
     }
 
     /// Sends an [`IbusMsg::RouteBierAdd`] message to `holo-routing`.
     pub fn route_bier_add(&self, msg: BierNbrInstallMsg) {
-        let msg = IbusMsg::RouteBierAdd(msg);
-        let _ = self.routing.send(msg);
+        self.routing.send(IbusMsg::RouteBierAdd(msg));
     }
 
     /// Sends an [`IbusMsg::RouteBierDel`] message to `holo-routing`.
     pub fn route_bier_del(&self, msg: BierNbrUninstallMsg) {
-        let msg = IbusMsg::RouteBierDel(msg);
-        let _ = self.routing.send(msg);
+        self.routing.send(IbusMsg::RouteBierDel(msg));
     }
 
     /// Sends an [`IbusMsg::BierPurge`] message.
     pub fn bier_purge(&self) {
-        let msg = IbusMsg::BierPurge;
-        let _ = self.routing.send(msg);
+        self.routing.send(IbusMsg::BierPurge);
     }
 
     /// Sends an [`IbusMsg::RouteRedistributeSub`] message to `holo-routing`.
@@ -388,12 +381,8 @@ impl IbusChannelsTx {
         protocol: Protocol,
         af: Option<AddressFamily>,
     ) {
-        let msg = IbusMsg::RouteRedistributeSub {
-            subscriber: self.subscriber.clone(),
-            protocol,
-            af,
-        };
-        let _ = self.routing.send(msg);
+        self.routing
+            .send(IbusMsg::RouteRedistributeSub { protocol, af });
     }
 
     /// Sends an [`IbusMsg::RouteRedistributeUnsub`] message to `holo-routing`.
@@ -402,67 +391,74 @@ impl IbusChannelsTx {
         protocol: Protocol,
         af: Option<AddressFamily>,
     ) {
-        let msg = IbusMsg::RouteRedistributeUnsub {
-            subscriber: self.subscriber.clone(),
-            protocol,
-            af,
-        };
-        let _ = self.routing.send(msg);
-    }
-
-    /// Sends an [`IbusMsg::Disconnect`] message to all base components.
-    pub fn disconnect(&self) {
-        for tx in &[
-            &self.routing,
-            &self.interface,
-            &self.system,
-            &self.keychain,
-            &self.policy,
-        ] {
-            let msg = IbusMsg::Disconnect {
-                subscriber: self.subscriber.clone(),
-            };
-            let _ = tx.send(msg);
-        }
+        self.routing
+            .send(IbusMsg::RouteRedistributeUnsub { protocol, af });
     }
 
     #[doc(hidden)]
     pub fn keychain_upd(&self, keychain: Arc<Keychain>) {
-        let msg = IbusMsg::KeychainUpd(keychain);
-        let _ = self.routing.send(msg);
+        self.routing.send(IbusMsg::KeychainUpd(keychain));
     }
 
     #[doc(hidden)]
     pub fn keychain_del(&self, name: String) {
-        let msg = IbusMsg::KeychainDel(name);
-        let _ = self.routing.send(msg);
+        self.routing.send(IbusMsg::KeychainDel(name));
     }
 
     #[doc(hidden)]
     pub fn policy_match_sets_upd(&self, match_sets: Arc<MatchSets>) {
-        let msg = IbusMsg::PolicyMatchSetsUpd(match_sets);
-        let _ = self.routing.send(msg);
+        self.routing.send(IbusMsg::PolicyMatchSetsUpd(match_sets));
     }
 
     #[doc(hidden)]
     pub fn policy_upd(&self, policy: Arc<Policy>) {
-        let msg = IbusMsg::PolicyUpd(policy);
-        let _ = self.routing.send(msg);
+        self.routing.send(IbusMsg::PolicyUpd(policy));
     }
 
     #[doc(hidden)]
     pub fn policy_del(&self, name: String) {
-        let msg = IbusMsg::PolicyDel(name);
-        let _ = self.routing.send(msg);
+        self.routing.send(IbusMsg::PolicyDel(name));
     }
 }
 
-// ===== impl IbusSubscriber =====
+// ===== impl IbusConnTx =====
 
-impl IbusSubscriber {
+impl IbusConnTx {
+    // Creates a client with no dedicated connection yet (base template).
+    fn new(reg: IbusConnSender) -> Self {
+        IbusConnTx { reg, tx: None }
+    }
+
+    // Establishes a dedicated connection for `client` and registers it with
+    // the component.
+    fn connect(&self, client: &IbusClient) -> Self {
+        let (tx, rx) = mpsc::unbounded_channel();
+        let _ = self.reg.send(IbusConn {
+            id: client.id,
+            rx,
+            tx: client.tx.clone(),
+        });
+        IbusConnTx {
+            reg: self.reg.clone(),
+            tx: Some(tx),
+        }
+    }
+
+    // Sends a message over the dedicated connection (no-op on the base
+    // template, which has no connection).
+    fn send(&self, msg: IbusMsg) {
+        if let Some(tx) = &self.tx {
+            let _ = tx.send(msg);
+        }
+    }
+}
+
+// ===== impl IbusClient =====
+
+impl IbusClient {
     fn new(tx: IbusSender) -> Self {
         static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
-        IbusSubscriber {
+        IbusClient {
             id: NEXT_ID.fetch_add(1, Ordering::Relaxed),
             tx,
         }
@@ -471,54 +467,52 @@ impl IbusSubscriber {
 
 // ===== global functions =====
 
-/// Creates a set of Ibus communication channels for inter-component messaging.
+/// Wraps a connection into a keyed [`IbusConnStream`]: the client's messages
+/// (each tagged with the channel for sending back) followed by a final
+/// `Disconnect` once the connection closes.
+pub fn connection_stream(conn: IbusConn) -> IbusConnStream {
+    let IbusConn { id, rx, tx } = conn;
+    stream::unfold(
+        rx,
+        |mut rx| async move { rx.recv().await.map(|msg| (msg, rx)) },
+    )
+    .map(move |msg| {
+        let event = IbusConnEvent::Msg {
+            tx: tx.clone(),
+            msg,
+        };
+        (id, event)
+    })
+    .chain(stream::once(async move { (id, IbusConnEvent::Disconnect) }))
+    .boxed()
+}
+
+/// Creates the ibus channels.
 ///
-/// Returns a tuple containing:
-/// - A tuple of [`IbusChannelsTx`] instances, where each should be owned by the
-///   corresponding base component.
-/// - A single [`IbusChannelsRx`] instance, where each receiver should be owned
-///   by the corresponding component.
-pub fn ibus_channels() -> (
-    (
-        IbusChannelsTx,
-        IbusChannelsTx,
-        IbusChannelsTx,
-        IbusChannelsTx,
-        IbusChannelsTx,
-    ),
-    IbusChannelsRx,
-) {
-    let (routing_tx, routing_rx) = mpsc::unbounded_channel();
-    let (interface_tx, interface_rx) = mpsc::unbounded_channel();
-    let (system_tx, system_rx) = mpsc::unbounded_channel();
-    let (keychain_tx, keychain_rx) = mpsc::unbounded_channel();
-    let (policy_tx, policy_rx) = mpsc::unbounded_channel();
+/// Returns the base [`IbusChannelsTx`] template, from which each client builds
+/// its own handle via [`IbusChannelsTx::with_client`], and the
+/// [`IbusChannelsRx`] with the components' registration channels.
+pub fn ibus_channels() -> (IbusChannelsTx, IbusChannelsRx) {
+    let (routing_reg_tx, routing_reg_rx) = mpsc::unbounded_channel();
+    let (interface_reg_tx, interface_reg_rx) = mpsc::unbounded_channel();
+    let (system_reg_tx, system_reg_rx) = mpsc::unbounded_channel();
+    let (keychain_reg_tx, keychain_reg_rx) = mpsc::unbounded_channel();
+    let (policy_reg_tx, policy_reg_rx) = mpsc::unbounded_channel();
 
     let tx = IbusChannelsTx {
-        subscriber: None,
-        routing: routing_tx,
-        interface: interface_tx,
-        system: system_tx,
-        keychain: keychain_tx,
-        policy: policy_tx,
+        routing: IbusConnTx::new(routing_reg_tx),
+        interface: IbusConnTx::new(interface_reg_tx),
+        system: IbusConnTx::new(system_reg_tx),
+        keychain: IbusConnTx::new(keychain_reg_tx),
+        policy: IbusConnTx::new(policy_reg_tx),
     };
     let rx = IbusChannelsRx {
-        routing: routing_rx,
-        interface: interface_rx,
-        system: system_rx,
-        keychain: keychain_rx,
-        policy: policy_rx,
+        routing: routing_reg_rx,
+        interface: interface_reg_rx,
+        system: system_reg_rx,
+        keychain: keychain_reg_rx,
+        policy: policy_reg_rx,
     };
 
-    let tx_routing = IbusChannelsTx::with_subscriber(&tx, tx.routing.clone());
-    let tx_interface =
-        IbusChannelsTx::with_subscriber(&tx, tx.interface.clone());
-    let tx_system = IbusChannelsTx::with_subscriber(&tx, tx.system.clone());
-    let tx_keychain = IbusChannelsTx::with_subscriber(&tx, tx.keychain.clone());
-    let tx_policy = IbusChannelsTx::with_subscriber(&tx, tx.policy.clone());
-
-    (
-        (tx_routing, tx_interface, tx_system, tx_keychain, tx_policy),
-        rx,
-    )
+    (tx, rx)
 }

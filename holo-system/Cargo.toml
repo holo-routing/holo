@@ -11,6 +11,7 @@ sysinfo = "0.38"
 capctl.workspace = true
 chrono.workspace = true
 derive-new.workspace = true
+futures.workspace = true
 phf.workspace = true
 tokio.workspace = true
 tracing.workspace = true

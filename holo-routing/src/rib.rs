@@ -10,7 +10,7 @@ use std::net::IpAddr;
 use bitflags::bitflags;
 use chrono::{DateTime, Utc};
 use derive_new::new;
-use holo_utils::ibus::{IbusSender, IbusSubscriber};
+use holo_utils::ibus::{IbusClient, IbusClientId, IbusSender};
 use holo_utils::ip::{AddressFamily, IpAddrExt, IpNetworkExt};
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
@@ -341,21 +341,21 @@ impl Rib {
     }
 
     // Nexthop tracking registration.
-    pub(crate) fn nht_add(&mut self, subscriber: IbusSubscriber, addr: IpAddr) {
+    pub(crate) fn nht_add(&mut self, client: IbusClient, addr: IpAddr) {
         debug!(%addr, "nexthop tracking add");
         let metric = self.nht_evaluate(&addr);
         let nhte = self.nht.entry(addr).or_default();
         nhte.metric = metric;
-        nhte.subscriptions.insert(subscriber.id, subscriber.tx);
+        nhte.subscriptions.insert(client.id, client.tx);
         ibus::notify_nht_update(addr, nhte);
     }
 
     // Nexthop tracking unregistration.
-    pub(crate) fn nht_del(&mut self, subscriber: IbusSubscriber, addr: IpAddr) {
+    pub(crate) fn nht_del(&mut self, id: IbusClientId, addr: IpAddr) {
         debug!(%addr, "nexthop tracking delete");
         if let hash_map::Entry::Occupied(mut o) = self.nht.entry(addr) {
             let nhte = o.get_mut();
-            nhte.subscriptions.remove(&subscriber.id);
+            nhte.subscriptions.remove(&id);
             if nhte.subscriptions.is_empty() {
                 o.remove();
             }

@@ -6,8 +6,9 @@
 
 use std::sync::{Arc, Mutex};
 
+use futures::stream::{self, BoxStream, SelectAll, StreamExt};
 use holo_northbound::NbProviderReceiver;
-use holo_utils::ibus::IbusChannelsRx;
+use holo_utils::ibus::{IbusChannelsRx, IbusConn, IbusMsg};
 use tokio::sync::mpsc::Receiver;
 use yang5::data::{Data, DataFormat, DataPrinterFlags};
 
@@ -88,6 +89,17 @@ impl MessageCollector {
         protocol_output: Arc<Mutex<Vec<String>>>,
     ) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
+            let mut routing: SelectAll<BoxStream<'static, IbusMsg>> =
+                SelectAll::new();
+            let mut interface: SelectAll<BoxStream<'static, IbusMsg>> =
+                SelectAll::new();
+            let mut system: SelectAll<BoxStream<'static, IbusMsg>> =
+                SelectAll::new();
+            let mut keychain: SelectAll<BoxStream<'static, IbusMsg>> =
+                SelectAll::new();
+            let mut policy: SelectAll<BoxStream<'static, IbusMsg>> =
+                SelectAll::new();
+
             loop {
                 tokio::select! {
                     biased;
@@ -103,23 +115,38 @@ impl MessageCollector {
                             .unwrap();
                         nb_notifications.lock().unwrap().push(data);
                     }
-                    Some(msg) = ibus_output_rx.routing.recv() => {
+                    Some(conn) = ibus_output_rx.routing.recv() => {
+                        routing.push(connection_stream(conn));
+                    }
+                    Some(conn) = ibus_output_rx.interface.recv() => {
+                        interface.push(connection_stream(conn));
+                    }
+                    Some(conn) = ibus_output_rx.system.recv() => {
+                        system.push(connection_stream(conn));
+                    }
+                    Some(conn) = ibus_output_rx.keychain.recv() => {
+                        keychain.push(connection_stream(conn));
+                    }
+                    Some(conn) = ibus_output_rx.policy.recv() => {
+                        policy.push(connection_stream(conn));
+                    }
+                    Some(msg) = routing.next(), if !routing.is_empty() => {
                         let data = serde_json::to_string(&msg).unwrap();
                         ibus_output.lock().unwrap().push(data);
                     }
-                    Some(msg) = ibus_output_rx.interface.recv() => {
+                    Some(msg) = interface.next(), if !interface.is_empty() => {
                         let data = serde_json::to_string(&msg).unwrap();
                         ibus_output.lock().unwrap().push(data);
                     }
-                    Some(msg) = ibus_output_rx.system.recv() => {
+                    Some(msg) = system.next(), if !system.is_empty() => {
                         let data = serde_json::to_string(&msg).unwrap();
                         ibus_output.lock().unwrap().push(data);
                     }
-                    Some(msg) = ibus_output_rx.keychain.recv() => {
+                    Some(msg) = keychain.next(), if !keychain.is_empty() => {
                         let data = serde_json::to_string(&msg).unwrap();
                         ibus_output.lock().unwrap().push(data);
                     }
-                    Some(msg) = ibus_output_rx.policy.recv() => {
+                    Some(msg) = policy.next(), if !policy.is_empty() => {
                         let data = serde_json::to_string(&msg).unwrap();
                         ibus_output.lock().unwrap().push(data);
                     }
@@ -132,4 +159,13 @@ impl MessageCollector {
             }
         })
     }
+}
+
+// Wraps a connection's receive channel into a stream of its messages, which
+// ends once the channel is closed.
+fn connection_stream(conn: IbusConn) -> BoxStream<'static, IbusMsg> {
+    stream::unfold(conn.rx, |mut rx| async move {
+        rx.recv().await.map(|msg| (msg, rx))
+    })
+    .boxed()
 }

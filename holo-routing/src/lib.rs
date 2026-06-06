@@ -15,12 +15,16 @@ mod sysctl;
 use std::collections::BTreeMap;
 
 use derive_new::new;
+use futures::stream::{SelectAll, StreamExt};
 use holo_northbound::{
     NbDaemonReceiver, NbDaemonSender, NbProviderSender, process_northbound_msg,
 };
 use holo_protocol::InstanceShared;
 use holo_utils::bier::BierCfg;
-use holo_utils::ibus::{IbusChannelsTx, IbusMsg, IbusReceiver, IbusSender};
+use holo_utils::ibus::{
+    IbusChannelsTx, IbusClient, IbusClientId, IbusConnEvent, IbusConnReceiver,
+    IbusConnStream, IbusMsg, IbusReceiver, IbusSender, connection_stream,
+};
 use holo_utils::protocol::Protocol;
 use holo_utils::sr::SrCfg;
 use holo_utils::task::Task;
@@ -77,7 +81,9 @@ pub struct InstanceHandle {
 #[derive(Debug)]
 pub enum EventMsg {
     Northbound(Option<holo_northbound::api::daemon::Request>),
-    Ibus(IbusMsg),
+    Ibus { client: IbusClient, msg: IbusMsg },
+    IbusDisconnect { id: IbusClientId },
+    IbusNotification(IbusMsg),
     RibUpdate,
     BirtUpdate,
 }
@@ -88,7 +94,8 @@ impl Master {
     fn run(
         &mut self,
         nb_rx: NbDaemonReceiver,
-        ibus_rx: IbusReceiver,
+        ibus_conn_rx: IbusConnReceiver,
+        ibus_notif_rx: IbusReceiver,
         rib_update_queue_rx: UnboundedReceiver<()>,
         birt_update_queue_rx: UnboundedReceiver<()>,
     ) {
@@ -96,7 +103,8 @@ impl Master {
         let (agg_tx, mut agg_rx) = mpsc::channel(4);
         let _event_aggregator = event_aggregator(
             nb_rx,
-            ibus_rx,
+            ibus_conn_rx,
+            ibus_notif_rx,
             rib_update_queue_rx,
             birt_update_queue_rx,
             agg_tx,
@@ -116,8 +124,14 @@ impl Master {
                     // Exit when northbound channel closes.
                     return;
                 }
-                EventMsg::Ibus(msg) => {
-                    ibus::process_msg(self, msg);
+                EventMsg::Ibus { client, msg } => {
+                    ibus::process_msg(self, client, msg);
+                }
+                EventMsg::IbusDisconnect { id } => {
+                    ibus::disconnect(self, id);
+                }
+                EventMsg::IbusNotification(msg) => {
+                    ibus::process_notification_msg(self, msg);
                 }
                 EventMsg::RibUpdate => {
                     self.rib.process_rib_update_queue(
@@ -137,19 +151,39 @@ impl Master {
 
 fn event_aggregator(
     mut nb_rx: NbDaemonReceiver,
-    mut ibus_rx: IbusReceiver,
+    mut ibus_conn_rx: IbusConnReceiver,
+    mut ibus_notif_rx: IbusReceiver,
     mut rib_update_queue_rx: UnboundedReceiver<()>,
     mut birt_update_queue_rx: UnboundedReceiver<()>,
     agg_tx: Sender<EventMsg>,
 ) -> Task<()> {
     Task::spawn(async move {
+        let mut connections: SelectAll<IbusConnStream> = SelectAll::new();
+
         loop {
             let msg = tokio::select! {
                 msg = nb_rx.recv() => {
                     EventMsg::Northbound(msg)
                 }
-                Some(msg) = ibus_rx.recv() => {
-                    EventMsg::Ibus(msg)
+                Some(conn) = ibus_conn_rx.recv() => {
+                    connections.push(connection_stream(conn));
+                    continue;
+                }
+                Some((id, event)) = connections.next(),
+                    if !connections.is_empty() =>
+                {
+                    match event {
+                        IbusConnEvent::Msg { tx, msg } => EventMsg::Ibus {
+                            client: IbusClient { id, tx },
+                            msg,
+                        },
+                        IbusConnEvent::Disconnect => {
+                            EventMsg::IbusDisconnect { id }
+                        }
+                    }
+                }
+                Some(msg) = ibus_notif_rx.recv() => {
+                    EventMsg::IbusNotification(msg)
                 }
                 Some(_) = rib_update_queue_rx.recv() => {
                     EventMsg::RibUpdate
@@ -167,11 +201,13 @@ fn event_aggregator(
 
 pub fn start(
     nb_tx: NbProviderSender,
-    ibus_tx: IbusChannelsTx,
-    ibus_rx: IbusReceiver,
+    ibus_tx: &IbusChannelsTx,
+    ibus_conn_rx: IbusConnReceiver,
     shared: InstanceShared,
 ) -> NbDaemonSender {
     let (nb_daemon_tx, nb_daemon_rx) = mpsc::channel(4);
+    let (ibus_notif_tx, ibus_notif_rx) = mpsc::unbounded_channel();
+    let ibus_tx = IbusChannelsTx::with_client(ibus_tx, ibus_notif_tx);
     let (netlink_txp, mut netlink_txc) = mpsc::unbounded_channel();
     let (rib_update_queue_tx, rib_update_queue_rx) = mpsc::unbounded_channel();
     let (birt_update_queue_tx, birt_update_queue_rx) =
@@ -250,7 +286,8 @@ pub fn start(
             let _span_guard = span.enter();
             master.run(
                 nb_daemon_rx,
-                ibus_rx,
+                ibus_conn_rx,
+                ibus_notif_rx,
                 rib_update_queue_rx,
                 birt_update_queue_rx,
             );

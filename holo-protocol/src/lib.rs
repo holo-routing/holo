@@ -349,10 +349,11 @@ async fn run<P>(
     )
     .await;
 
-    // Cancel ibus subscriptions.
-    ibus_tx.disconnect();
-
-    // Ensure instance is shut down before exiting.
+    // Shut down the instance before exiting.
+    //
+    // Cleanup that isn't done explicitly here, such as cancelling subscriptions
+    // and uninstalling routes, happens on its own once this task's channels are
+    // dropped and the other components detect the closed connections.
     instance.shutdown();
 }
 
@@ -375,7 +376,7 @@ where
 {
     let (nb_daemon_tx, nb_daemon_rx) = mpsc::channel(4);
     let nb_provider_tx = nb_provider_tx.clone();
-    let ibus_tx = IbusChannelsTx::with_subscriber(ibus_tx, ibus_instance_tx);
+    let ibus_tx = IbusChannelsTx::with_client(ibus_tx, ibus_instance_tx);
     let fut = async move {
         let span = P::debug_span(&name);
         let _span_guard = span.enter();

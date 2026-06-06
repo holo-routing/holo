@@ -230,26 +230,21 @@ fn process_ibus_msg(master: &mut Master, msg: IbusMsg) -> Result<(), Error> {
     match msg {
         // BFD peer registration.
         IbusMsg::BfdSessionReg {
-            subscriber,
+            client,
             client_id,
             sess_key,
             client_config,
         } => ibus::process_client_peer_reg(
             master,
-            subscriber.unwrap(),
+            client.unwrap(),
             sess_key,
             client_id,
             client_config,
         )?,
         // BFD peer unregistration.
-        IbusMsg::BfdSessionUnreg {
-            subscriber,
-            sess_key,
-        } => ibus::process_client_peer_unreg(
-            master,
-            subscriber.unwrap(),
-            sess_key,
-        )?,
+        IbusMsg::BfdSessionUnreg { client, sess_key } => {
+            ibus::process_client_peer_unreg(master, client.unwrap(), sess_key)?
+        }
         // Interface update notification.
         IbusMsg::InterfaceUpd(msg) => {
             ibus::process_iface_update(master, msg);

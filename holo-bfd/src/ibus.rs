@@ -8,7 +8,7 @@ use std::collections::hash_map;
 use std::net::SocketAddr;
 
 use holo_utils::bfd::{ClientCfg, ClientId, SessionKey};
-use holo_utils::ibus::IbusSubscriber;
+use holo_utils::ibus::IbusClient;
 use holo_utils::southbound::InterfaceUpdateMsg;
 
 use crate::debug::Debug;
@@ -52,7 +52,7 @@ pub(crate) fn process_iface_update(
 
 pub(crate) fn process_client_peer_reg(
     master: &mut Master,
-    subscriber: IbusSubscriber,
+    client: IbusClient,
     sess_key: SessionKey,
     client_id: ClientId,
     client_config: Option<ClientCfg>,
@@ -60,8 +60,8 @@ pub(crate) fn process_client_peer_reg(
     Debug::SessionClientReg(&sess_key, &client_id).log();
 
     let (sess_idx, sess) = master.sessions.insert(sess_key);
-    let client = SessionClient::new(client_id, client_config, subscriber.tx);
-    sess.clients.insert(subscriber.id, client);
+    let sess_client = SessionClient::new(client_id, client_config, client.tx);
+    sess.clients.insert(client.id, sess_client);
 
     // Start Poll Sequence as the configuration parameters might have changed.
     sess.poll_sequence_start();
@@ -89,7 +89,7 @@ pub(crate) fn process_client_peer_reg(
 
 pub(crate) fn process_client_peer_unreg(
     master: &mut Master,
-    subscriber: IbusSubscriber,
+    client: IbusClient,
     sess_key: SessionKey,
 ) -> Result<(), Error> {
     let Some((sess_idx, sess)) = master.sessions.get_mut_by_key(&sess_key)
@@ -98,11 +98,11 @@ pub(crate) fn process_client_peer_unreg(
     };
 
     // Remove BFD client.
-    let Some(client) = sess.clients.remove(&subscriber.id) else {
+    let Some(sess_client) = sess.clients.remove(&client.id) else {
         return Ok(());
     };
 
-    Debug::SessionClientUnreg(&sess_key, &client.id).log();
+    Debug::SessionClientUnreg(&sess_key, &sess_client.id).log();
 
     // Check if the BFD session can be deleted.
     master.sessions.delete_check(sess_idx);

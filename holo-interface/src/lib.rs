@@ -9,12 +9,15 @@ mod interface;
 mod netlink;
 pub mod northbound;
 
-use futures::stream::StreamExt;
+use futures::stream::{SelectAll, StreamExt};
 use holo_northbound::{
     NbDaemonReceiver, NbDaemonSender, NbProviderSender, process_northbound_msg,
 };
 use holo_protocol::InstanceShared;
-use holo_utils::ibus::{IbusChannelsTx, IbusMsg, IbusReceiver};
+use holo_utils::ibus::{
+    IbusChannelsTx, IbusClient, IbusClientId, IbusConnEvent, IbusConnReceiver,
+    IbusConnStream, IbusMsg, connection_stream,
+};
 use holo_utils::task::Task;
 use netlink_packet_core::NetlinkMessage;
 use netlink_packet_route::RouteNetlinkMessage;
@@ -43,7 +46,8 @@ pub struct Master {
 #[derive(Debug)]
 pub enum EventMsg {
     Northbound(Option<holo_northbound::api::daemon::Request>),
-    Ibus(IbusMsg),
+    Ibus { client: IbusClient, msg: IbusMsg },
+    IbusDisconnect { id: IbusClientId },
     Netlink(NetlinkMessage<RouteNetlinkMessage>),
 }
 
@@ -53,13 +57,13 @@ impl Master {
     fn run(
         &mut self,
         nb_rx: NbDaemonReceiver,
-        ibus_rx: IbusReceiver,
+        ibus_conn_rx: IbusConnReceiver,
         netlink_rx: NetlinkMonitor,
     ) {
         // Spawn event aggregator task.
         let (agg_tx, mut agg_rx) = mpsc::channel(4);
         let _event_aggregator =
-            event_aggregator(nb_rx, ibus_rx, netlink_rx, agg_tx);
+            event_aggregator(nb_rx, ibus_conn_rx, netlink_rx, agg_tx);
 
         let mut resources = vec![];
         loop {
@@ -75,8 +79,11 @@ impl Master {
                     // Exit when northbound channel closes.
                     return;
                 }
-                EventMsg::Ibus(msg) => {
-                    ibus::process_msg(self, msg);
+                EventMsg::Ibus { client, msg } => {
+                    ibus::process_msg(self, client, msg);
+                }
+                EventMsg::IbusDisconnect { id } => {
+                    ibus::disconnect(self, id);
                 }
                 EventMsg::Netlink(msg) => {
                     netlink::process_msg(self, msg);
@@ -90,18 +97,34 @@ impl Master {
 
 fn event_aggregator(
     mut nb_rx: NbDaemonReceiver,
-    mut ibus_rx: IbusReceiver,
+    mut ibus_conn_rx: IbusConnReceiver,
     mut netlink_rx: NetlinkMonitor,
     agg_tx: Sender<EventMsg>,
 ) -> Task<()> {
     Task::spawn(async move {
+        let mut connections: SelectAll<IbusConnStream> = SelectAll::new();
+
         loop {
             let msg = tokio::select! {
                 msg = nb_rx.recv() => {
                     EventMsg::Northbound(msg)
                 }
-                Some(msg) = ibus_rx.recv() => {
-                    EventMsg::Ibus(msg)
+                Some(conn) = ibus_conn_rx.recv() => {
+                    connections.push(connection_stream(conn));
+                    continue;
+                }
+                Some((id, event)) = connections.next(),
+                    if !connections.is_empty() =>
+                {
+                    match event {
+                        IbusConnEvent::Msg { tx, msg } => EventMsg::Ibus {
+                            client: IbusClient { id, tx },
+                            msg,
+                        },
+                        IbusConnEvent::Disconnect => {
+                            EventMsg::IbusDisconnect { id }
+                        }
+                    }
                 }
                 Some((msg, _)) = netlink_rx.next() => {
                     EventMsg::Netlink(msg)
@@ -116,11 +139,13 @@ fn event_aggregator(
 
 pub fn start(
     nb_tx: NbProviderSender,
-    ibus_tx: IbusChannelsTx,
-    ibus_rx: IbusReceiver,
+    ibus_tx: &IbusChannelsTx,
+    ibus_conn_rx: IbusConnReceiver,
     shared: InstanceShared,
 ) -> NbDaemonSender {
     let (nb_daemon_tx, nb_daemon_rx) = mpsc::channel(4);
+    let (ibus_notif_tx, _) = mpsc::unbounded_channel();
+    let ibus_tx = IbusChannelsTx::with_client(ibus_tx, ibus_notif_tx);
     let (netlink_txp, mut netlink_txc) = mpsc::unbounded_channel();
 
     tokio::task::spawn(async move {
@@ -149,7 +174,7 @@ pub fn start(
             // Run task main loop.
             let span = debug_span!("interface");
             let _span_guard = span.enter();
-            master.run(nb_daemon_rx, ibus_rx, netlink_rx);
+            master.run(nb_daemon_rx, ibus_conn_rx, netlink_rx);
         });
     });
 

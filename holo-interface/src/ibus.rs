@@ -7,7 +7,7 @@
 use std::collections::BTreeSet;
 use std::net::Ipv4Addr;
 
-use holo_utils::ibus::{IbusMsg, IbusSender};
+use holo_utils::ibus::{IbusClient, IbusClientId, IbusMsg, IbusSender};
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::southbound::{AddressFlags, AddressMsg, InterfaceUpdateMsg};
 use ipnetwork::IpNetwork;
@@ -17,14 +17,13 @@ use crate::{Master, netlink};
 
 // ===== global functions =====
 
-pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
+pub(crate) fn process_msg(
+    master: &mut Master,
+    client: IbusClient,
+    msg: IbusMsg,
+) {
     match msg {
-        IbusMsg::InterfaceSub {
-            subscriber,
-            ifname,
-            af,
-        } => {
-            let subscriber = subscriber.unwrap();
+        IbusMsg::InterfaceSub { ifname, af } => {
             let mut afs = BTreeSet::new();
             if let Some(af) = af {
                 afs.insert(af);
@@ -35,64 +34,59 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
             if let Some(ifname) = ifname {
                 if let Some(iface) = master.interfaces.get_mut_by_name(&ifname)
                 {
-                    notify_interface_update(&subscriber.tx, iface);
+                    notify_interface_update(&client.tx, iface);
                     for iface_addr in
                         iface.addresses.values().filter(|iface_addr| {
                             afs.contains(&iface_addr.addr.address_family())
                         })
                     {
                         notify_addr_add(
-                            &subscriber.tx,
+                            &client.tx,
                             iface.name.clone(),
                             iface_addr.addr,
                             iface_addr.flags,
                         );
                     }
 
-                    let sub = InterfaceSub::new(afs, subscriber.tx);
-                    iface.subscriptions.insert(subscriber.id, sub);
+                    let sub = InterfaceSub::new(afs, client.tx);
+                    iface.subscriptions.insert(client.id, sub);
                 }
             } else {
                 for iface in master.interfaces.iter() {
-                    notify_interface_update(&subscriber.tx, iface);
+                    notify_interface_update(&client.tx, iface);
                     for iface_addr in
                         iface.addresses.values().filter(|iface_addr| {
                             afs.contains(&iface_addr.addr.address_family())
                         })
                     {
                         notify_addr_add(
-                            &subscriber.tx,
+                            &client.tx,
                             iface.name.clone(),
                             iface_addr.addr,
                             iface_addr.flags,
                         );
                     }
                 }
-                let sub = InterfaceSub::new(afs, subscriber.tx);
-                master.interfaces.subscriptions.insert(subscriber.id, sub);
+                let sub = InterfaceSub::new(afs, client.tx);
+                master.interfaces.subscriptions.insert(client.id, sub);
             }
         }
-        IbusMsg::InterfaceUnsub { subscriber, ifname } => {
-            let subscriber = subscriber.unwrap();
+        IbusMsg::InterfaceUnsub { ifname } => {
             if let Some(ifname) = ifname {
                 if let Some(iface) = master.interfaces.get_mut_by_name(&ifname)
                 {
-                    iface.subscriptions.remove(&subscriber.id);
+                    iface.subscriptions.remove(&client.id);
                 }
             } else {
-                master.interfaces.subscriptions.remove(&subscriber.id);
+                master.interfaces.subscriptions.remove(&client.id);
             }
         }
-        IbusMsg::RouterIdSub { subscriber } => {
-            let subscriber = subscriber.unwrap();
-            notify_router_id_update(
-                &subscriber.tx,
-                master.interfaces.router_id(),
-            );
+        IbusMsg::RouterIdSub {} => {
+            notify_router_id_update(&client.tx, master.interfaces.router_id());
             master
                 .interfaces
                 .router_id_subscriptions
-                .insert(subscriber.id, subscriber.tx);
+                .insert(client.id, client.tx);
         }
         IbusMsg::MacvlanAdd {
             parent_ifname,
@@ -131,19 +125,17 @@ pub(crate) fn process_msg(master: &mut Master, msg: IbusMsg) {
                 netlink::addr_uninstall(&master.netlink_tx, ifindex, &addr);
             }
         }
-        IbusMsg::Disconnect { subscriber } => {
-            let subscriber = subscriber.unwrap();
-            master.interfaces.subscriptions.remove(&subscriber.id);
-            master
-                .interfaces
-                .router_id_subscriptions
-                .remove(&subscriber.id);
-            for iface in master.interfaces.iter_mut() {
-                iface.subscriptions.remove(&subscriber.id);
-            }
-        }
         // Ignore other events.
         _ => {}
+    }
+}
+
+// Cleans up all state associated with a disconnected client.
+pub(crate) fn disconnect(master: &mut Master, id: IbusClientId) {
+    master.interfaces.subscriptions.remove(&id);
+    master.interfaces.router_id_subscriptions.remove(&id);
+    for iface in master.interfaces.iter_mut() {
+        iface.subscriptions.remove(&id);
     }
 }
 

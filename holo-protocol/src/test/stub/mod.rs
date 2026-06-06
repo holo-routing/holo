@@ -272,7 +272,7 @@ where
     // Spawn protocol task.
     let (nb_provider_tx, nb_provider_rx) = mpsc::unbounded_channel();
 
-    let ((ibus_tx, _, _, _, _), ibus_rx) = ibus::ibus_channels();
+    let (ibus_tx, ibus_rx) = ibus::ibus_channels();
     let (ibus_instance_tx, ibus_instance_rx) = mpsc::unbounded_channel();
     let channels = InstanceAggChannels::default();
     let instance_tx = channels.tx.clone();

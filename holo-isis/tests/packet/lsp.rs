@@ -201,7 +201,6 @@ static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                             uni_util_bw: Some(UniUtilBwStlv::new(25000000.0)),
                             asla: vec![AslaStlv {
                                 l_flag: false,
-                                r_flag: false,
                                 sabm_length: 1,
                                 sabm: AslaSabmFlags::S,
                                 udabm_length: 0,

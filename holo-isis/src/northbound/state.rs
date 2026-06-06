@@ -752,8 +752,11 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
         Self {
             l_flag: Some(stlv.l_flag),
             sabm_length: Some(stlv.sabm_length),
-            r_flag: Some(stlv.r_flag),
             udabm_length: Some(stlv.udabm_length),
+            te_metric: stlv.sub_tlvs.te_default_metric.as_ref().map(|tlv| tlv.get()),
+            admin_group: stlv.sub_tlvs.admin_group.as_ref().map(|tlv| tlv.get()),
+            max_bandwidth: stlv.sub_tlvs.max_link_bw.as_ref().map(|tlv| tlv.get()),
+            max_reservable_bandwidth: stlv.sub_tlvs.max_resv_link_bw.as_ref().map(|tlv| tlv.get()),
         }
     }
 }
@@ -763,6 +766,124 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
         let stlv = list_entry.as_asla_stlv().unwrap();
         Some(Self {
             sabm_bits: stlv.sabm.to_yang_flags_iter(),
+        })
+    }
+}
+
+impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unreserved_bandwidths::unreserved_bandwidth::UnreservedBandwidth {
+    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let unreserved_bw = stlv.sub_tlvs.unreserved_bw.as_ref()?;
+        let iter = unreserved_bw.iter().map(|(prio, bw)| ListEntry::IsReachUnreservedBw(prio, bw));
+        Some(Box::new(iter))
+    }
+
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
+        let (priority, unreserved_bandwidth) = list_entry.as_is_reach_unreserved_bw().unwrap();
+        Self {
+            priority: Some(*priority as u8),
+            unreserved_bandwidth: Some(*unreserved_bandwidth),
+        }
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_delay::UnidirectionalLinkDelay {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let stlv = stlv.sub_tlvs.uni_link_delay.as_ref()?;
+        Some(Self {
+            value: Some(stlv.delay),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_delay::flags::Flags<'a> {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let stlv = stlv.sub_tlvs.uni_link_delay.as_ref()?;
+        Some(Self {
+            unidirectional_link_delay_subtlv_flags: stlv.flags.to_yang_flags_iter(),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::min_max_unidirectional_link_delay::MinMaxUnidirectionalLinkDelay {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let stlv = stlv.sub_tlvs.min_max_uni_link_delay.as_ref()?;
+        Some(Self {
+            min_value: Some(stlv.min_delay),
+            max_value: Some(stlv.max_delay),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::min_max_unidirectional_link_delay::flags::Flags<'a> {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let stlv = stlv.sub_tlvs.min_max_uni_link_delay.as_ref()?;
+        Some(Self {
+            min_max_unidirectional_link_delay_subtlv_flags: stlv.flags.to_yang_flags_iter(),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_delay_variation::UnidirectionalLinkDelayVariation {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let stlv = stlv.sub_tlvs.uni_delay_variation.as_ref()?;
+        Some(Self {
+            value: Some(stlv.get()),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_loss::UnidirectionalLinkLoss {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let stlv = stlv.sub_tlvs.uni_link_loss.as_ref()?;
+        Some(Self {
+            value: Some(stlv.loss),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_loss::flags::Flags<'a> {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let stlv = stlv.sub_tlvs.uni_link_loss.as_ref()?;
+        Some(Self {
+            unidirectional_link_loss_subtlv_flags: stlv.flags.to_yang_flags_iter(),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_residual_bandwidth::UnidirectionalLinkResidualBandwidth {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let stlv = stlv.sub_tlvs.uni_resid_bw.as_ref()?;
+        Some(Self {
+            value: Some(stlv.get()),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_available_bandwidth::UnidirectionalLinkAvailableBandwidth {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let stlv = stlv.sub_tlvs.uni_avail_bw.as_ref()?;
+        Some(Self {
+            value: Some(stlv.get()),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_utilized_bandwidth::UnidirectionalLinkUtilizedBandwidth {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let stlv = stlv.sub_tlvs.uni_util_bw.as_ref()?;
+        Some(Self {
+            value: Some(stlv.get()),
         })
     }
 }
@@ -1223,8 +1344,11 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
         Self {
             l_flag: Some(stlv.l_flag),
             sabm_length: Some(stlv.sabm_length),
-            r_flag: Some(stlv.r_flag),
             udabm_length: Some(stlv.udabm_length),
+            te_metric: stlv.sub_tlvs.te_default_metric.as_ref().map(|tlv| tlv.get()),
+            admin_group: stlv.sub_tlvs.admin_group.as_ref().map(|tlv| tlv.get()),
+            max_bandwidth: stlv.sub_tlvs.max_link_bw.as_ref().map(|tlv| tlv.get()),
+            max_reservable_bandwidth: stlv.sub_tlvs.max_resv_link_bw.as_ref().map(|tlv| tlv.get()),
         }
     }
 }
@@ -1234,6 +1358,124 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
         let stlv = list_entry.as_asla_stlv().unwrap();
         Some(Self {
             sabm_bits: stlv.sabm.to_yang_flags_iter(),
+        })
+    }
+}
+
+impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unreserved_bandwidths::unreserved_bandwidth::UnreservedBandwidth {
+    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let unreserved_bw = stlv.sub_tlvs.unreserved_bw.as_ref()?;
+        let iter = unreserved_bw.iter().map(|(prio, bw)| ListEntry::IsReachUnreservedBw(prio, bw));
+        Some(Box::new(iter))
+    }
+
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
+        let (priority, unreserved_bandwidth) = list_entry.as_is_reach_unreserved_bw().unwrap();
+        Self {
+            priority: Some(*priority as u8),
+            unreserved_bandwidth: Some(*unreserved_bandwidth),
+        }
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_delay::UnidirectionalLinkDelay {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let stlv = stlv.sub_tlvs.uni_link_delay.as_ref()?;
+        Some(Self {
+            value: Some(stlv.delay),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_delay::flags::Flags<'a> {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let stlv = stlv.sub_tlvs.uni_link_delay.as_ref()?;
+        Some(Self {
+            unidirectional_link_delay_subtlv_flags: stlv.flags.to_yang_flags_iter(),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::min_max_unidirectional_link_delay::MinMaxUnidirectionalLinkDelay {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let stlv = stlv.sub_tlvs.min_max_uni_link_delay.as_ref()?;
+        Some(Self {
+            min_value: Some(stlv.min_delay),
+            max_value: Some(stlv.max_delay),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::min_max_unidirectional_link_delay::flags::Flags<'a> {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let stlv = stlv.sub_tlvs.min_max_uni_link_delay.as_ref()?;
+        Some(Self {
+            min_max_unidirectional_link_delay_subtlv_flags: stlv.flags.to_yang_flags_iter(),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_delay_variation::UnidirectionalLinkDelayVariation {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let stlv = stlv.sub_tlvs.uni_delay_variation.as_ref()?;
+        Some(Self {
+            value: Some(stlv.get()),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_loss::UnidirectionalLinkLoss {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let stlv = stlv.sub_tlvs.uni_link_loss.as_ref()?;
+        Some(Self {
+            value: Some(stlv.loss),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_loss::flags::Flags<'a> {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let stlv = stlv.sub_tlvs.uni_link_loss.as_ref()?;
+        Some(Self {
+            unidirectional_link_loss_subtlv_flags: stlv.flags.to_yang_flags_iter(),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_residual_bandwidth::UnidirectionalLinkResidualBandwidth {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let stlv = stlv.sub_tlvs.uni_resid_bw.as_ref()?;
+        Some(Self {
+            value: Some(stlv.get()),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_available_bandwidth::UnidirectionalLinkAvailableBandwidth {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let stlv = stlv.sub_tlvs.uni_avail_bw.as_ref()?;
+        Some(Self {
+            value: Some(stlv.get()),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_utilized_bandwidth::UnidirectionalLinkUtilizedBandwidth {
+    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
+        let stlv = list_entry.as_asla_stlv().unwrap();
+        let stlv = stlv.sub_tlvs.uni_util_bw.as_ref()?;
+        Some(Self {
+            value: Some(stlv.get()),
         })
     }
 }

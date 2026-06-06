@@ -145,7 +145,6 @@ pub struct UniUtilBwStlv(f32);
 #[derive(Deserialize, Serialize)]
 pub struct AslaStlv {
     pub l_flag: bool,
-    pub r_flag: bool,
     pub sabm_length: u8,
     pub sabm: AslaSabmFlags,
     pub udabm_length: u8,
@@ -681,7 +680,6 @@ impl AslaStlv {
         let sabm_length = byte0 & Self::LENGTH_MASK;
 
         let byte1 = buf.try_get_u8()?;
-        let r_flag = (byte1 & Self::FLAG_MASK) != 0;
         let udabm_length = byte1 & Self::LENGTH_MASK;
 
         // Per RFC 9479, ignore the entire sub-TLV if either mask length > 8.
@@ -708,7 +706,6 @@ impl AslaStlv {
 
         Ok(Some(AslaStlv {
             l_flag,
-            r_flag,
             sabm_length,
             sabm,
             udabm_length,
@@ -723,8 +720,7 @@ impl AslaStlv {
         let byte0 = if self.l_flag { Self::FLAG_MASK } else { 0 }
             | (self.sabm_length & Self::LENGTH_MASK);
         buf.put_u8(byte0);
-        let byte1 = if self.r_flag { Self::FLAG_MASK } else { 0 }
-            | (self.udabm_length & Self::LENGTH_MASK);
+        let byte1 = self.udabm_length & Self::LENGTH_MASK;
         buf.put_u8(byte1);
         for i in 0..self.sabm_length as usize {
             buf.put_u8((self.sabm.bits() >> (56 - i * 8)) as u8);

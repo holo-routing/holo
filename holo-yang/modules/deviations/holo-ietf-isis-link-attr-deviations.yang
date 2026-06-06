@@ -22,11 +22,7 @@ module holo-ietf-isis-link-attr-deviations {
     "This module defines deviation statements for the ietf-isis-link-attr
      module.";
 
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis-link-attr:isis-link-attr" {
-    deviate not-supported;
-  }
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis-link-attr:isis-asla" {
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis-link-attr:isis-asla/isis-link-attr:interface-asla/isis-link-attr:srlgs" {
     deviate not-supported;
   }
 

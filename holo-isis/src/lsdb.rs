@@ -33,7 +33,7 @@ use crate::collections::{Arena, LspEntryId};
 use crate::debug::{Debug, LspPurgeReason};
 use crate::instance::{InstanceArenas, InstanceUpView};
 use crate::interface::{Interface, InterfaceType};
-use crate::northbound::configuration::MetricType;
+use crate::northbound::configuration::{LinkAttrMode, MetricType};
 use crate::northbound::notification;
 use crate::packet::iana::{FloodingAlgo, MtId, Nlpid};
 use crate::packet::pdu::{Lsp, LspFlags, LspTlvs, Pdu};
@@ -41,6 +41,9 @@ use crate::packet::subtlvs::MsdStlv;
 use crate::packet::subtlvs::capability::{
     FloodingAlgoStlv, LabelBlockEntry, NodeAdminTagStlv, SrAlgoStlv,
     SrCapabilitiesFlags, SrCapabilitiesStlv, SrLocalBlockStlv,
+};
+use crate::packet::subtlvs::neighbor::{
+    AdminGroupStlv, AslaStlv, AslaStlvs, TeDefaultMetricStlv,
 };
 use crate::packet::subtlvs::prefix::{
     BierEncapSubStlv, BierInfoStlv, BierSubStlv, Ipv4SourceRidStlv,
@@ -925,6 +928,14 @@ fn lsp_build_is_reach_lan_stlvs(
         sub_tlvs.link_msd = Some(MsdStlv::from(&iface.system.msd));
     }
 
+    // Add ASLA Sub-TLV(s).
+    if matches!(
+        instance.config.link_attr_mode,
+        LinkAttrMode::AppSpecific | LinkAttrMode::Transition
+    ) {
+        lsp_build_is_reach_asla_stlvs(instance, iface, &mut sub_tlvs);
+    }
+
     sub_tlvs
 }
 
@@ -951,7 +962,52 @@ fn lsp_build_is_reach_p2p_stlvs(
         sub_tlvs.link_msd = Some(MsdStlv::from(&iface.system.msd));
     }
 
+    // Add ASLA Sub-TLV(s).
+    if matches!(
+        instance.config.link_attr_mode,
+        LinkAttrMode::AppSpecific | LinkAttrMode::Transition
+    ) {
+        lsp_build_is_reach_asla_stlvs(instance, iface, &mut sub_tlvs);
+    }
+
     sub_tlvs
+}
+
+fn lsp_build_is_reach_asla_stlvs(
+    _instance: &InstanceUpView<'_>,
+    iface: &Interface,
+    sub_tlvs: &mut IsReachStlvs,
+) {
+    // Applications that share the same set of attributes are grouped into a
+    // single ASLA sub-TLV.
+    let mut groups = BTreeMap::new();
+    for (app, asla_cfg) in &iface.config.asla {
+        let key = (asla_cfg.te_metric, asla_cfg.admin_group);
+        *groups.entry(key).or_default() |= app.sabm();
+    }
+    for ((te_metric, admin_group), sabm) in groups {
+        // Skip applications without any configured attribute.
+        if te_metric.is_none() && admin_group.is_none() {
+            continue;
+        }
+
+        let mut asla_sub_tlvs = AslaStlvs::default();
+        if let Some(metric) = te_metric {
+            asla_sub_tlvs.te_default_metric =
+                Some(TeDefaultMetricStlv::new(metric));
+        }
+        if let Some(admin_group) = admin_group {
+            asla_sub_tlvs.admin_group = Some(AdminGroupStlv::new(admin_group));
+        }
+        sub_tlvs.asla.push(AslaStlv {
+            l_flag: false,
+            sabm_length: 1,
+            sabm,
+            udabm_length: 0,
+            udabm: 0,
+            sub_tlvs: asla_sub_tlvs,
+        });
+    }
 }
 
 fn lsp_build_ipv4_reach_stlvs(

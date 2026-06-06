@@ -19,6 +19,18 @@ module ietf-isis-link-attr {
     reference
       "RFC 9130: YANG Data Model for the IS-IS Protocol";
   }
+  import ietf-routing-types {
+    prefix rt-types;
+    reference
+      "RFC 8294: Common YANG Data Types for the
+       Routing Area";
+  }
+  import iana-igp-link-attr-apps {
+    prefix iana-link-attr-apps;
+    reference
+      "RFC XXXX: YANG Data Model for OSPF Application-Specific
+                 Link Attributes and Flexible Algorithm";
+  }
 
   organization
     "IETF LSR - Link State Routing Working Group";
@@ -30,8 +42,6 @@ module ietf-isis-link-attr {
                <mailto:yingzhen.ietf@gmail.com>
      Author:   Acee Lindem
                <mailto:acee.ietf@gmail.com>
-     Author:   Stephane Litkowski
-               <mailto:slitkows.ietf@gmail.com>
      Author:    Madhavi Joshi
               <madhavi@arrcus.com>
     ";
@@ -43,7 +53,7 @@ module ietf-isis-link-attr {
      This YANG model conforms to the Network Management
      Datastore Architecture (NMDA) as described in RFC 8342.
 
-     Copyright (c) 2025 IETF Trust and the persons identified as
+     Copyright (c) 2026 IETF Trust and the persons identified as
      authors of the code.  All rights reserved.
 
      Redistribution and use in source and binary forms, with or
@@ -62,7 +72,7 @@ module ietf-isis-link-attr {
      described in BCP 14 (RFC 2119) (RFC 8174) when, and only when,
      they appear in all capitals, as shown here.";
 
-  revision 2025-09-11 {
+  revision 2026-04-30 {
     description
       "Initial version";
     reference
@@ -70,37 +80,68 @@ module ietf-isis-link-attr {
                  Link Attributes and Flexible Algorithm";
   }
 
-  identity sabm-bit {
+  grouping isis-te-link-attrs {
     description
-      "Base identity for sabm bits.";
+      "IS-IS Application-Specific Link Attributes (ASLA)
+       inherited from the base IS-IS TE attributes";
+    leaf te-metric {
+      type uint32;
+      description
+        "TE default metric.";
+      reference
+        "RFC 5305: IS-IS Extensions for Traffic Engineering,
+         Section 3.7";
+    }
+    leaf admin-group {
+      type uint32;
+      description
+        "Administrative Group / Resource Class/Color.";
+      reference
+        "RFC 5305: IS-IS Extensions for Traffic Engineering,
+         Section 3.1";
+    }
+    leaf max-bandwidth {
+      type rt-types:bandwidth-ieee-float32;
+      description
+        "Maximum bandwidth.";
+      reference
+        "RFC 5305: IS-IS Extensions for Traffic Engineering,
+         Section 3.4";
+    }
+    leaf max-reservable-bandwidth {
+      type rt-types:bandwidth-ieee-float32;
+      description
+        "Maximum reservable bandwidth.";
+      reference
+        "RFC 5305: IS-IS Extensions for Traffic Engineering,
+         Section 3.5";
+    }
+    container unreserved-bandwidths {
+      description
+        "All unreserved bandwidths.";
+      list unreserved-bandwidth {
+        leaf priority {
+          type uint8 {
+            range "0 .. 7";
+          }
+          description
+            "Priority from 0 to 7.";
+        }
+        leaf unreserved-bandwidth {
+          type rt-types:bandwidth-ieee-float32;
+          description
+            "Unreserved bandwidth.";
+        }
+        description
+          "List of unreserved bandwidths for different
+           priorities.";
+      }
+      reference
+        "RFC 5305: IS-IS Extensions for Traffic Engineering,
+         Section 3.6";
+    }
     reference
-      "RFC 8919: IS-IS Application-Specific Link Attributes";
-  }
-
-  identity rsvp-te-bit {
-    base sabm-bit;
-    description
-      "R bit, RSVP-TE.";
-  }
-
-  identity sr-policy-bit {
-    base sabm-bit;
-    description
-      "S bit, Segment Routing Policy.";
-  }
-
-  identity lfa-bit {
-    base sabm-bit;
-    description
-      "F bit, Loop Free Alternate (LFA). Includes all LFA types.";
-  }
-
-  identity flex-algo-bit {
-    base sabm-bit;
-    description
-      "X bit, flexible algorithm.";
-    reference
-      "RFC 9350: IGP Flexible Algorithm, Section 12.";
+      "RFC 5305: IS-IS Extensions for Traffic Engineering";
   }
 
   grouping application-identifier-bit-mask {
@@ -120,12 +161,6 @@ module ietf-isis-link-attr {
         "Standard Application Identifier Bit Mask Length in
          octets.";
     }
-    leaf r-flag {
-      type boolean;
-      default "false";
-      description
-        "Reserved.";
-    }
     leaf udabm-length {
       type uint8;
       description
@@ -135,12 +170,12 @@ module ietf-isis-link-attr {
     container sabm {
       leaf-list sabm-bits {
         type identityref {
-          base sabm-bit;
+          base iana-link-attr-apps:igp-link-attr-app;
         }
         description
           "SABM bits list. This list will contain
            identities for the bits which are set in the
-           SABA bits.";
+           SABM bits.";
       }
       description
         "Standard Application Identifier Bit Mask.";
@@ -152,7 +187,6 @@ module ietf-isis-link-attr {
          applications.";
     }
   }
-
   grouping application-specific-link-attributes-sub-tlv {
     description
       "Grouping for specification of the applications and
@@ -160,6 +194,8 @@ module ietf-isis-link-attr {
     container asla-sub-tlvs {
       list asla-sub-tlv {
         uses application-identifier-bit-mask;
+        uses isis-te-link-attrs;
+        uses isis:neighbor-extended-te-extensions;
         uses isis:unknown-tlvs;
         description
           "List of application specific link attributes sub-tlvs.";
@@ -281,14 +317,14 @@ module ietf-isis-link-attr {
     when "/rt:routing/rt:control-plane-protocols/"
        + "rt:control-plane-protocol/rt:type = 'isis:isis'" {
       description
-        "This augment ISIS routing protocol when used";
+        "This augment IS-IS routing protocol when used";
     }
     description
-      "This augments ISIS protocol configuration
+      "This augments IS-IS protocol configuration
        with application specific link attributes.";
     container isis-link-attr {
       choice link-attr-op-mode {
-        mandatory true;
+        default "legacy";
         leaf legacy {
           type empty;
           description
@@ -306,7 +342,8 @@ module ietf-isis-link-attr {
             "Only send application-specific advertisements.";
         }
         description
-          "Link attributes mode";
+          "Link attributes mode. Default to legacy mode for
+           backward compatibility.";
       }
       description
         "Link attributes operation mode.";
@@ -320,42 +357,45 @@ module ietf-isis-link-attr {
        + "rt:control-plane-protocol/"
        + "rt:type = 'isis:isis'" {
       description
-        "This augment ISIS routing protocol when used.";
+        "This augment IS-IS routing protocol when used.";
     }
     description
-      "This augments ISIS interface configuration
+      "This augments IS-IS interface configuration
        with application specific link attributes.";
     container isis-asla {
       list interface-asla {
-        key "app-id";
-        leaf app-id {
-          type uint16 {
-            range "0 .. 1023";
+        key "link-attr-app";
+        leaf link-attr-app {
+          type identityref {
+            base iana-link-attr-apps:igp-link-attr-app;
           }
           description
-            "Application ID.
-             0 - RSVP TE. 1 - Segment Routing Policy.
-             2 - Loop-Free Alternate.";
+            "Application-specific attributes. Note that
+             when encoded, applications with identical
+             attributes may be included in the same sub-TLV.";
         }
-        leaf unidirectional-link-delay {
-          type uint32 {
-            range "0 .. 16777215";
+        leaf te-metric {
+          type uint32;
+          description
+            "TE metric.";
+          reference
+            "RFC 5305: IS-IS Extensions for Traffic Engineering";
+        }
+        leaf admin-group {
+          type uint32;
+          description
+            "Administrative Group / Resource Class/Color.";
+          reference
+            "RFC 5305: IS-IS Extensions for Traffic Engineering";
+        }
+        container srlgs {
+          description
+            "List of SRLGs.";
+          leaf-list srlg {
+            type uint32;
+            description
+              "SRLG value of the link.";
           }
-          description
-            "This 24-bit field carries the average link delay in
-             microseconds.";
-        }
-        leaf metric-type {
-          type uint8;
-          description
-            "IGP metric type.";
-        }
-        leaf metric {
-          type uint32 {
-            range "1 .. 16777215";
-          }
-          description
-            "metric value.";
         }
         description
           "ASLA interface configuration.";
@@ -375,10 +415,10 @@ module ietf-isis-link-attr {
     when "/rt:routing/rt:control-plane-protocols/"
        + "rt:control-plane-protocol/rt:type = 'isis:isis'" {
       description
-        "This augment ISIS routing protocol when used";
+        "This augment IS-IS routing protocol when used";
     }
     description
-      "This augments ISIS protocol LSDB TLV22.";
+      "This augments IS-IS protocol LSDB TLV22.";
     uses application-specific-link-attributes-sub-tlv;
   }
 
@@ -392,14 +432,14 @@ module ietf-isis-link-attr {
     when "/rt:routing/rt:control-plane-protocols/"
        + "rt:control-plane-protocol/rt:type = 'isis:isis'" {
       description
-        "This augment ISIS routing protocol when used";
+        "This augment IS-IS routing protocol when used";
     }
     description
-      "This augments ISIS protocol LSDB TLV223.";
+      "This augments IS-IS protocol LSDB TLV223.";
     uses application-specific-link-attributes-sub-tlv;
   }
 
-  /* application-specific SRLG TLV 238 */
+  /* Application-specific SRLG TLV 238 */
 
   augment "/rt:routing/"
         + "rt:control-plane-protocols/rt:control-plane-protocol"
@@ -407,10 +447,10 @@ module ietf-isis-link-attr {
     when "/rt:routing/rt:control-plane-protocols/"
        + "rt:control-plane-protocol/rt:type = 'isis:isis'" {
       description
-        "This augment ISIS routing protocol when used";
+        "This augment IS-IS routing protocol when used";
     }
     description
-      "This augments ISIS protocol LSDB.";
+      "This augments IS-IS protocol LSDB.";
     uses application-specific-srlg-tlv;
   }
 }

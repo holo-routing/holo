@@ -16,7 +16,7 @@ use crate::adjacency::{AdjacencyEvent, AdjacencyState};
 use crate::error::AdjacencyRejectError;
 use crate::interface::InterfaceType;
 use crate::lsdb::LspLogReason;
-use crate::northbound::configuration::{ExtendedSeqNumMode, InstanceTraceOption, InterfaceTraceOption, MetricType};
+use crate::northbound::configuration::{ExtendedSeqNumMode, InstanceTraceOption, InterfaceTraceOption, MetricType, StandardApp};
 use crate::packet::iana::{AslaSabmFlags, FloodingAlgo, MtId};
 use crate::packet::pdu::LspFlags;
 use crate::packet::subtlvs::capability::SrCapabilitiesFlags;
@@ -316,13 +316,13 @@ impl ToYangFlags for AslaSabmFlags {
     fn to_yang_flags(&self) -> Vec<&'static str> {
         let mut bits = vec![];
         if self.contains(AslaSabmFlags::R) {
-            bits.push("ietf-isis-link-attr:rsvp-te-bit");
+            bits.push("iana-igp-link-attr-apps:rsvp-te-app");
         }
         if self.contains(AslaSabmFlags::S) {
-            bits.push("ietf-isis-link-attr:sr-policy-bit");
+            bits.push("iana-igp-link-attr-apps:sr-policy-app");
         }
         if self.contains(AslaSabmFlags::F) {
-            bits.push("ietf-isis-link-attr:lfa-bit");
+            bits.push("iana-igp-link-attr-apps:lfa-app");
         }
         bits
     }
@@ -435,6 +435,17 @@ impl TryFromYang for ExtendedSeqNumMode {
         match value {
             "send-only" => Some(ExtendedSeqNumMode::SendOnly),
             "send-and-verify" => Some(ExtendedSeqNumMode::SendAndVerify),
+            _ => None,
+        }
+    }
+}
+
+impl TryFromYang for StandardApp {
+    fn try_from_yang(value: &str) -> Option<StandardApp> {
+        match value {
+            "iana-igp-link-attr-apps:rsvp-te-app" => Some(StandardApp::RsvpTe),
+            "iana-igp-link-attr-apps:sr-policy-app" => Some(StandardApp::SrPolicy),
+            "iana-igp-link-attr-apps:lfa-app" => Some(StandardApp::Lfa),
             _ => None,
         }
     }

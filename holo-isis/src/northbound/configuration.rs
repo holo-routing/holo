@@ -32,7 +32,7 @@ use crate::interface::InterfaceType;
 use crate::northbound::notification;
 use crate::northbound::yang_gen::isis;
 use crate::packet::auth::AuthMethod;
-use crate::packet::iana::{FloodingAlgo, MtId, PduType};
+use crate::packet::iana::{AslaSabmFlags, FloodingAlgo, MtId, PduType};
 use crate::packet::{AreaAddr, LevelNumber, LevelType, LevelTypeIterator, SystemId};
 use crate::route::RouteFlags;
 use crate::{ibus, spf, sr};
@@ -51,6 +51,7 @@ pub enum ListEntry {
     Interface(InterfaceIndex),
     InterfaceAddressFamily(InterfaceIndex, AddressFamily),
     InterfaceTopology(InterfaceIndex, MtId),
+    InterfaceAsla(InterfaceIndex, StandardApp),
     InterfaceTraceOption(InterfaceIndex, InterfaceTraceOption),
     SpbService(SpbServiceKey),
     SpbIsid(SpbServiceKey, u32),
@@ -120,6 +121,7 @@ pub struct InstanceCfg {
     pub preference: Preference,
     pub overload_status: bool,
     pub mt: HashMap<MtId, InstanceMtCfg>,
+    pub link_attr_mode: LinkAttrMode,
     pub summaries: JointPrefixMap<IpNetwork, SummaryCfg>,
     pub flooding_reduction: InstanceFloodingReductionCfg,
     pub att_suppress: bool,
@@ -134,6 +136,33 @@ pub struct InstanceCfg {
 pub struct InstanceMtCfg {
     pub enabled: bool,
     pub default_metric: LevelsCfgWithDefault<u32>,
+}
+
+// Operation mode for link attribute advertisements (RFC 9479).
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum LinkAttrMode {
+    // Advertise only legacy link attributes.
+    #[default]
+    Legacy,
+    // Advertise both legacy and application-specific link attributes.
+    Transition,
+    // Advertise only application-specific link attributes.
+    AppSpecific,
+}
+
+// Standard application using application-specific link attributes (RFC 9479).
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum StandardApp {
+    RsvpTe,
+    SrPolicy,
+    Lfa,
+}
+
+// Per-application application-specific link attributes configuration.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct InterfaceAslaCfg {
+    pub te_metric: Option<u32>,
+    pub admin_group: Option<u32>,
 }
 
 #[derive(Debug)]
@@ -251,6 +280,7 @@ pub struct InterfaceCfg {
     pub bfd_params: bfd::ClientCfg,
     pub afs: BTreeSet<AddressFamily>,
     pub mt: HashMap<MtId, InterfaceMtCfg>,
+    pub asla: BTreeMap<StandardApp, InterfaceAslaCfg>,
     pub ext_seqnum_mode: LevelsCfg<Option<ExtendedSeqNumMode>>,
     pub trace_opts: InterfaceTraceOptions,
 }
@@ -948,6 +978,39 @@ fn load_callbacks() -> Callbacks<Instance> {
             let mt_cfg = instance.config.mt.get_mut(&mt_id).unwrap();
 
             mt_cfg.default_metric.l2 = None;
+        })
+        .path(isis::isis_link_attr::legacy::PATH)
+        .create_apply(|instance, args| {
+            instance.config.link_attr_mode = LinkAttrMode::Legacy;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .delete_apply(|_instance, _args| {
+            // Nothing to do.
+        })
+        .path(isis::isis_link_attr::transition::PATH)
+        .create_apply(|instance, args| {
+            instance.config.link_attr_mode = LinkAttrMode::Transition;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .delete_apply(|_instance, _args| {
+            // Nothing to do.
+        })
+        .path(isis::isis_link_attr::app_specific::PATH)
+        .create_apply(|instance, args| {
+            instance.config.link_attr_mode = LinkAttrMode::AppSpecific;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .delete_apply(|_instance, _args| {
+            // Nothing to do.
         })
         .path(isis::attached_bit::suppress_advertisement::PATH)
         .modify_apply(|instance, args| {
@@ -1887,6 +1950,83 @@ fn load_callbacks() -> Callbacks<Instance> {
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
         })
+        .path(isis::interfaces::interface::isis_asla::interface_asla::PATH)
+        .create_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let app = args.dnode.get_string_relative("link-attr-app").unwrap();
+            let app = StandardApp::try_from_yang(&app).unwrap();
+            iface.config.asla.insert(app, InterfaceAslaCfg::default());
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .delete_apply(|instance, args| {
+            let (iface_idx, app) = args.list_entry.into_interface_asla().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            iface.config.asla.remove(&app);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .lookup(|_instance, list_entry, dnode| {
+            let iface_idx = list_entry.into_interface().unwrap();
+            let app = dnode.get_string_relative("link-attr-app").unwrap();
+            let app = StandardApp::try_from_yang(&app).unwrap();
+            ListEntry::InterfaceAsla(iface_idx, app)
+        })
+        .path(isis::interfaces::interface::isis_asla::interface_asla::te_metric::PATH)
+        .modify_apply(|instance, args| {
+            let (iface_idx, app) = args.list_entry.into_interface_asla().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+            let asla_cfg = iface.config.asla.get_mut(&app).unwrap();
+
+            let metric = args.dnode.get_u32();
+            asla_cfg.te_metric = Some(metric);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .delete_apply(|instance, args| {
+            let (iface_idx, app) = args.list_entry.into_interface_asla().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+            let asla_cfg = iface.config.asla.get_mut(&app).unwrap();
+
+            asla_cfg.te_metric = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .path(isis::interfaces::interface::isis_asla::interface_asla::admin_group::PATH)
+        .modify_apply(|instance, args| {
+            let (iface_idx, app) = args.list_entry.into_interface_asla().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+            let asla_cfg = iface.config.asla.get_mut(&app).unwrap();
+
+            let admin_group = args.dnode.get_u32();
+            asla_cfg.admin_group = Some(admin_group);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
+        .delete_apply(|instance, args| {
+            let (iface_idx, app) = args.list_entry.into_interface_asla().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+            let asla_cfg = iface.config.asla.get_mut(&app).unwrap();
+
+            asla_cfg.admin_group = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
+            event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+        })
         .path(isis::interfaces::interface::extended_sequence_number::mode::PATH)
         .modify_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -2588,6 +2728,18 @@ impl AuthCfg {
     }
 }
 
+impl StandardApp {
+    // Returns the Standard Application Identifier Bit Mask bit associated with
+    // this application.
+    pub(crate) fn sabm(&self) -> AslaSabmFlags {
+        match self {
+            StandardApp::RsvpTe => AslaSabmFlags::R,
+            StandardApp::SrPolicy => AslaSabmFlags::S,
+            StandardApp::Lfa => AslaSabmFlags::F,
+        }
+    }
+}
+
 impl TraceOptionPacketResolved {
     pub(crate) fn tx(&self, pdu_type: PduType) -> bool {
         match pdu_type {
@@ -2667,6 +2819,7 @@ impl Default for InstanceCfg {
             preference: Default::default(),
             overload_status,
             mt: Default::default(),
+            link_attr_mode: Default::default(),
             summaries: Default::default(),
             flooding_reduction: Default::default(),
             att_suppress,
@@ -2827,6 +2980,7 @@ impl Default for InterfaceCfg {
             bfd_params: Default::default(),
             afs: Default::default(),
             mt: Default::default(),
+            asla: Default::default(),
             ext_seqnum_mode: Default::default(),
             trace_opts: Default::default(),
         }

@@ -691,7 +691,10 @@ impl Neighbor {
         fec: &mut Fec,
     ) {
         let prefix = *fec.inner.prefix;
-        let label = fec.inner.local_label.unwrap();
+        // Skip FECs without a local label (allocation failure or policy).
+        let Some(label) = fec.inner.local_label else {
+            return;
+        };
         let mut request_id = None;
 
         // This function skips SL.1 - 3 and SL.9 - 14 because the label
@@ -729,7 +732,10 @@ impl Neighbor {
         fec: &Fec,
     ) {
         let prefix = *fec.inner.prefix;
-        let label = fec.inner.local_label.unwrap();
+        // Skip FECs without a local label (allocation failure or policy).
+        let Some(label) = fec.inner.local_label else {
+            return;
+        };
 
         // SWd.1: send label withdraw.
         self.send_label(

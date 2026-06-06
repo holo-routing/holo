@@ -50,6 +50,16 @@ module holo-ospf {
       "OSPFv3 Grace-LSA.";
   }
 
+  identity n-bit {
+    base ospf:ospfv3-prefix-option;
+    description
+      "N-bit.  When set, the prefix is a host prefix that
+       identifies the advertising router.";
+    reference
+      "RFC 8362: OSPFv3 Link State Advertisement (LSA)
+       Extensibility";
+  }
+
   /*
    * Types.
    */

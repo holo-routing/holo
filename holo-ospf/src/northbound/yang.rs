@@ -479,6 +479,9 @@ impl ToYangFlags for ospfv3::packet::iana::PrefixOptions {
         if self.contains(PrefixOptions::DN) {
             options.push("dn-bit");
         }
+        if self.contains(PrefixOptions::N) {
+            options.push("holo-ospf:n-bit");
+        }
 
         options
     }

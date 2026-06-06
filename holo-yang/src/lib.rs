@@ -406,6 +406,7 @@ pub static YANG_FEATURES: Lazy<HashMap<&'static str, Vec<&'static str>>> =
                 "lls",
                 "max-ecmp",
                 "mtu-ignore",
+                "node-flag",
                 "node-tag",
                 "ospfv3-authentication-trailer",
                 "stub-router",

@@ -140,12 +140,17 @@ impl LsdbVersion<Self> for Ospfv2 {
                 // Originate Router Information LSA(s).
                 lsa_orig_router_info(area, instance);
             }
-            LsaOriginateEvent::InterfaceStateChange { .. } => {
+            LsaOriginateEvent::InterfaceStateChange { area_id, .. } => {
                 // (Re)originate Router-LSA in all areas since the ABR status
                 // might have changed.
                 for area in arenas.areas.iter() {
                     lsa_orig_router(area, instance, arenas);
                 }
+
+                // (Re)originate Extended Prefix Opaque LSA(s) since the set of
+                // loopback interfaces with the node flag might have changed.
+                let (_, area) = arenas.areas.get_by_id(area_id)?;
+                lsa_orig_ext_prefix(area, instance, arenas);
             }
             LsaOriginateEvent::InterfaceDrChange { area_id, iface_id }
             | LsaOriginateEvent::GrHelperExit { area_id, iface_id } => {
@@ -172,11 +177,20 @@ impl LsdbVersion<Self> for Ospfv2 {
                 // (Re)originate Router-LSA.
                 let (_, area) = arenas.areas.get_by_id(area_id)?;
                 lsa_orig_router(area, instance, arenas);
+
+                // (Re)originate Extended Prefix Opaque LSA(s) since the set of
+                // loopback host prefixes might have changed.
+                lsa_orig_ext_prefix(area, instance, arenas);
             }
             LsaOriginateEvent::InterfaceCostChange { area_id } => {
                 // (Re)originate Router-LSA.
                 let (_, area) = arenas.areas.get_by_id(area_id)?;
                 lsa_orig_router(area, instance, arenas);
+            }
+            LsaOriginateEvent::InterfaceNodeFlagChange { area_id } => {
+                // (Re)originate Extended Prefix Opaque LSA(s).
+                let (_, area) = arenas.areas.get_by_id(area_id)?;
+                lsa_orig_ext_prefix(area, instance, arenas);
             }
             LsaOriginateEvent::NeighborToFromFull { area_id, iface_id } => {
                 // (Re)originate Router-LSA.
@@ -708,11 +722,6 @@ fn lsa_orig_ext_prefix(
     if instance.config.sr_enabled {
         for ((prefix, algo), prefix_sid) in sr_config.prefix_sids.iter() {
             if let IpNetwork::V4(prefix) = prefix {
-                let mut flags = LsaExtPrefixFlags::empty();
-                if prefix.is_host_prefix() {
-                    flags.insert(LsaExtPrefixFlags::N);
-                }
-
                 // Add Prefix-SID Sub-TLV.
                 let mut psid_flags = PrefixSidFlags::empty();
                 let mut prefix_sids = BTreeMap::new();
@@ -735,13 +744,42 @@ fn lsa_orig_ext_prefix(
                     ExtPrefixTlv {
                         route_type: ExtPrefixRouteType::IntraArea,
                         af: 0,
-                        flags,
+                        flags: LsaExtPrefixFlags::empty(),
                         prefix: *prefix,
                         prefix_sids,
                         unknown_tlvs: vec![],
                     },
                 );
             }
+        }
+    }
+
+    // Set the N-flag for the host prefixes of loopback interfaces that have
+    // the node flag configured (RFC 7684).
+    for iface in area
+        .interfaces
+        .iter(&arenas.interfaces)
+        .filter(|iface| iface.config.node_flag)
+        .filter(|iface| iface.state.ism_state == ism::State::Loopback)
+    {
+        for prefix in iface
+            .system
+            .addr_list
+            .iter()
+            .filter(|addr| addr.is_host_prefix())
+            .map(|addr| addr.apply_mask())
+        {
+            prefixes
+                .entry(prefix)
+                .and_modify(|tlv| tlv.flags.insert(LsaExtPrefixFlags::N))
+                .or_insert_with(|| {
+                    ExtPrefixTlv::new(
+                        ExtPrefixRouteType::IntraArea,
+                        0,
+                        LsaExtPrefixFlags::N,
+                        prefix,
+                    )
+                });
         }
     }
 
@@ -767,19 +805,15 @@ fn lsa_orig_ext_prefix(
         // Increment the Opaque ID.
         opaque_id += 1;
     };
-    if prefixes.is_empty() {
-        originate_fn(prefixes);
-    } else {
-        for prefixes in prefixes
-            .into_iter()
-            .chunks(
-                (Lsa::<Ospfv2>::MAX_LENGTH - LsaHdr::LENGTH as usize)
-                    / ExtPrefixTlv::BASE_LENGTH as usize,
-            )
-            .into_iter()
-        {
-            originate_fn(prefixes.collect());
-        }
+    for prefixes in prefixes
+        .into_iter()
+        .chunks(
+            (Lsa::<Ospfv2>::MAX_LENGTH - LsaHdr::LENGTH as usize)
+                / ExtPrefixTlv::BASE_LENGTH as usize,
+        )
+        .into_iter()
+    {
+        originate_fn(prefixes.collect());
     }
 
     // Flush self-originated Extended Prefix Opaque LSAs that are no longer

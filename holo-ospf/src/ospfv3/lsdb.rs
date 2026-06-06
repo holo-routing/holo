@@ -188,6 +188,12 @@ impl LsdbVersion<Self> for Ospfv3 {
                 // (Re)originate Intra-area-prefix-LSA(s).
                 lsa_orig_intra_area_prefix(area, instance, arenas);
             }
+            LsaOriginateEvent::InterfaceNodeFlagChange { area_id } => {
+                let (_, area) = arenas.areas.get_by_id(area_id)?;
+
+                // (Re)originate Intra-area-prefix-LSA(s).
+                lsa_orig_intra_area_prefix(area, instance, arenas);
+            }
             LsaOriginateEvent::NeighborToFromFull { area_id, iface_id } => {
                 // (Re)originate Router-LSA(s).
                 let (_, area) = arenas.areas.get_by_id(area_id)?;
@@ -868,9 +874,14 @@ fn lsa_orig_intra_area_prefix(
             // with the interface (if any) are copied into the
             // intra-area-prefix-LSA with the PrefixOptions LA-bit set, the
             // PrefixLength set to 128, and the metric set to 0.
+            let mut prefix_options = PrefixOptions::LA;
+            if iface.config.node_flag
+                && iface.state.ism_state == ism::State::Loopback
+            {
+                prefix_options.insert(PrefixOptions::N);
+            }
             let plen = instance.state.af.max_prefixlen();
             let prefix = IpNetwork::new(prefix.ip(), plen).unwrap();
-            let prefix_options = PrefixOptions::LA | PrefixOptions::N;
             LsaIntraAreaPrefixEntry::new(prefix_options, prefix, 0)
         } else {
             // Otherwise, the list of global prefixes configured in RTX for the

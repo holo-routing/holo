@@ -17,8 +17,8 @@ use crate::instance::InstanceUpView;
 use crate::interface::Interface;
 use crate::neighbor::Neighbor;
 use crate::northbound::yang_gen as yang;
-use crate::packet::PacketType;
 use crate::packet::error::LsaValidationError;
+use crate::packet::iana::PacketType;
 use crate::version::Version;
 
 // ===== global functions =====

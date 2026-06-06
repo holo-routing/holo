@@ -20,8 +20,12 @@ use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
-use crate::ospfv3::packet::Options;
+use crate::ospfv3::packet::iana::{
+    ExtLsaStlv, ExtLsaTlv, LsaFunctionCode, LsaRouterFlags, LsaRouterLinkType,
+    Options, PrefixOptions,
+};
 use crate::packet::error::{DecodeError, DecodeResult, LsaValidationError};
+use crate::packet::iana::RouterInfoTlvType;
 #[cfg(feature = "testing")]
 use crate::packet::lsa::serde_lsa_age_filter;
 use crate::packet::lsa::{
@@ -32,28 +36,11 @@ use crate::packet::lsa::{
 use crate::packet::tlv::{
     AdjSidFlags, BierStlv, DynamicHostnameTlv, GrReason, GrReasonTlv,
     GracePeriodTlv, MsdTlv, NodeAdminTagTlv, PrefixSidFlags, RouterFuncCapsTlv,
-    RouterInfoCapsTlv, RouterInfoTlvType, SidLabelRangeTlv, SrAlgoTlv,
-    SrLocalBlockTlv, SrmsPrefTlv, TLV_HDR_SIZE, UnknownTlv, tlv_encode_end,
-    tlv_encode_start, tlv_wire_len,
+    RouterInfoCapsTlv, SidLabelRangeTlv, SrAlgoTlv, SrLocalBlockTlv,
+    SrmsPrefTlv, TLV_HDR_SIZE, UnknownTlv, tlv_encode_end, tlv_encode_start,
+    tlv_wire_len,
 };
 use crate::version::Ospfv3;
-
-// The PrefixOptions Field.
-//
-// IANA registry:
-// https://www.iana.org/assignments/ospfv3-parameters/ospfv3-parameters.xhtml#ospfv3-parameters-4
-bitflags! {
-    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-    #[derive(Deserialize, Serialize)]
-    #[serde(transparent)]
-    pub struct PrefixOptions: u8 {
-        const NU = 0x01;
-        const LA = 0x02;
-        const P = 0x08;
-        const DN = 0x10;
-        const N = 0x20;
-    }
-}
 
 // OSPFv3 LSA type.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -72,34 +59,6 @@ pub enum LsaScopeCode {
     Area = 0x2000,
     As = 0x4000,
     Reserved = 0x6000,
-}
-
-// OSPFv3 LSA function code.
-//
-// IANA registry:
-// https://www.iana.org/assignments/ospfv3-parameters/ospfv3-parameters.xhtml#ospfv3-parameters-3
-#[derive(Clone, Copy, Debug, Eq, FromPrimitive, Ord, PartialEq, PartialOrd)]
-#[derive(Deserialize, Serialize)]
-pub enum LsaFunctionCode {
-    // Legacy LSA Types
-    Router = 1,
-    Network = 2,
-    InterAreaPrefix = 3,
-    InterAreaRouter = 4,
-    AsExternal = 5,
-    Link = 8,
-    IntraAreaPrefix = 9,
-    // Extended LSA Types
-    ExtRouter = 33,
-    ExtNetwork = 34,
-    ExtInterAreaPrefix = 35,
-    ExtInterAreaRouter = 36,
-    ExtAsExternal = 37,
-    ExtLink = 40,
-    ExtIntraAreaPrefix = 41,
-    // Other LSA types
-    Grace = 11,
-    RouterInfo = 12,
 }
 
 //
@@ -153,43 +112,6 @@ pub enum LsaBody {
     Grace(LsaGrace),
     RouterInfo(LsaRouterInfo),
     Unknown(LsaUnknown),
-}
-
-// OSPFv3 Extended-LSA TLV types.
-//
-// IANA registry:
-// https://www.iana.org/assignments/ospfv3-parameters/ospfv3-parameters.xhtml#extended-lsa-tlvs
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-#[derive(FromPrimitive, ToPrimitive)]
-#[derive(Deserialize, Serialize)]
-pub enum ExtLsaTlv {
-    RouterLink = 1,
-    AttachedRouters = 2,
-    InterAreaPrefix = 3,
-    InterAreaRouter = 4,
-    ExternalPrefix = 5,
-    IntraAreaPrefix = 6,
-    Ipv6LinkLocalAddr = 7,
-    Ipv4LinkLocalAddr = 8,
-}
-
-// OSPFv3 Extended-LSA Sub-TLV types.
-//
-// IANA registry:
-// https://www.iana.org/assignments/ospfv3-parameters/ospfv3-parameters.xhtml#extended-lsa-sub-tlvs
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-#[derive(FromPrimitive, ToPrimitive)]
-#[derive(Deserialize, Serialize)]
-pub enum ExtLsaStlv {
-    Ipv6FwdAddr = 1,
-    Ipv4FwdAddr = 2,
-    RouteTag = 3,
-    PrefixSid = 4,
-    AdjSid = 5,
-    LanAdjSid = 6,
-    SidLabel = 7,
-    LinkMsd = 9,
-    Bier = 42,
 }
 
 // OSPFv3 Extended-LSA Sub-TLVs.
@@ -384,34 +306,6 @@ pub struct LsaRouter {
     pub links: Vec<LsaRouterLink>,
     #[new(default)]
     pub unknown_tlvs: Vec<UnknownTlv>,
-}
-
-// OSPFv3 Router Properties Registry.
-//
-// IANA registry:
-// https://www.iana.org/assignments/ospfv3-parameters/ospfv3-parameters.xhtml#ospfv3-parameters-7
-bitflags! {
-    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-    #[derive(Deserialize, Serialize)]
-    #[serde(transparent)]
-    pub struct LsaRouterFlags: u8 {
-        const B = 0x01;
-        const E = 0x02;
-        const V = 0x04;
-        const NT = 0x10;
-    }
-}
-
-// OSPFv3 Router LSA Link Types.
-//
-// IANA registry:
-// https://www.iana.org/assignments/ospfv3-parameters/ospfv3-parameters.xhtml#ospfv3-parameters-6
-#[derive(Clone, Copy, Debug, Eq, FromPrimitive, PartialEq)]
-#[derive(Deserialize, Serialize)]
-pub enum LsaRouterLinkType {
-    PointToPoint = 0x01,
-    TransitNetwork = 0x02,
-    VirtualLink = 0x04,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, new)]

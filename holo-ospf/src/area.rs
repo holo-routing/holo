@@ -20,7 +20,7 @@ use crate::instance::InstanceUpView;
 use crate::interface::{Interface, VirtualLinkState, ism};
 use crate::lsdb::{LSA_INFINITY, LsaEntry, LsaEntryFlags, LsaOriginateEvent};
 use crate::northbound::configuration::{AreaCfg, RangeCfg};
-use crate::packet::PacketType;
+use crate::packet::iana::PacketType;
 use crate::packet::lsa::{LsaKey, LsaRouterFlagsVersion};
 use crate::route::{
     Nexthops, PathType, RouteNetFlags, RouteRtr, SummaryNet, SummaryNetFlags,

@@ -13,11 +13,12 @@ use derive_new::new;
 use enum_as_inner::EnumAsInner;
 use holo_utils::bytes::{BytesExt, BytesMutExt};
 use holo_utils::ip::AddressFamily;
-use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
-use crate::ospfv2::packet::Options;
+use crate::ospfv2::packet::iana::{
+    LsaRouterFlags, LsaRouterLinkType, LsaTypeCode, Options,
+};
 use crate::ospfv2::packet::lsa_opaque::{AdjSid, LsaOpaque, PrefixSid};
 use crate::packet::error::{DecodeError, DecodeResult, LsaValidationError};
 #[cfg(feature = "testing")]
@@ -38,23 +39,6 @@ pub struct PrefixOptions {}
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
 pub struct LsaType(pub u8);
-
-// OSPFv2 LSA type code.
-//
-// IANA registry:
-// https://www.iana.org/assignments/ospfv2-parameters/ospfv2-parameters.xhtml#ospfv2-parameters-5
-#[derive(Clone, Copy, Debug, Eq, Ord, FromPrimitive, PartialEq, PartialOrd)]
-#[derive(Deserialize, Serialize)]
-pub enum LsaTypeCode {
-    Router = 1,
-    Network = 2,
-    SummaryNetwork = 3,
-    SummaryRouter = 4,
-    AsExternal = 5,
-    OpaqueLink = 9,
-    OpaqueArea = 10,
-    OpaqueAs = 11,
-}
 
 // OSPFv2 LSA.
 #[derive(Clone, Debug, EnumAsInner, Eq, PartialEq)]
@@ -140,35 +124,6 @@ pub struct LsaHdr {
 pub struct LsaRouter {
     pub flags: LsaRouterFlags,
     pub links: Vec<LsaRouterLink>,
-}
-
-// OSPFv2 Router Properties Registry.
-//
-// IANA registry:
-// https://www.iana.org/assignments/ospfv2-parameters/ospfv2-parameters.xhtml#ospfv2-parameters-11
-bitflags! {
-    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-    #[derive(Deserialize, Serialize)]
-    #[serde(transparent)]
-    pub struct LsaRouterFlags: u8 {
-        const B = 0x01;
-        const E = 0x02;
-        const V = 0x04;
-        const NT = 0x10;
-    }
-}
-
-// OSPFv2 Router LSA Link Type.
-//
-// IANA registry:
-// https://www.iana.org/assignments/ospfv2-parameters/ospfv2-parameters.xhtml#ospfv2-parameters-7
-#[derive(Clone, Copy, Debug, Eq, FromPrimitive, PartialEq)]
-#[derive(Deserialize, Serialize)]
-pub enum LsaRouterLinkType {
-    PointToPoint = 0x01,
-    TransitNetwork = 0x02,
-    StubNetwork = 0x03,
-    VirtualLink = 0x04,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, new)]

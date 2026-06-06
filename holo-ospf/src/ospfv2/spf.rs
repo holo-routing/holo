@@ -19,10 +19,11 @@ use crate::error::Error;
 use crate::interface::{Interface, InterfaceType};
 use crate::lsdb::LsaEntry;
 use crate::neighbor::Neighbor;
-use crate::ospfv2::packet::Options;
+use crate::ospfv2::packet::iana::{
+    LsaRouterFlags, LsaRouterLinkType, LsaTypeCode, Options,
+};
 use crate::ospfv2::packet::lsa::{
-    LsaAsExternalFlags, LsaBody, LsaRouterFlags, LsaRouterLink,
-    LsaRouterLinkType, LsaType, LsaTypeCode,
+    LsaAsExternalFlags, LsaBody, LsaRouterLink, LsaType,
 };
 use crate::ospfv2::packet::lsa_opaque::{
     ExtPrefixRouteType, LsaOpaque, PrefixSid,

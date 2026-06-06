@@ -28,20 +28,23 @@ use crate::instance::{InstanceArenas, InstanceUpView};
 use crate::interface::{Interface, InterfaceType, ism};
 use crate::lsdb::{self, LsaOriginateEvent, LsdbVersion, MAX_LINK_METRIC};
 use crate::neighbor::nsm;
-use crate::ospfv3::packet::Options;
-use crate::ospfv3::packet::lsa::{
-    LsaBody, LsaFunctionCode, LsaHdr, LsaInterAreaPrefix, LsaInterAreaRouter,
-    LsaIntraAreaPrefix, LsaIntraAreaPrefixEntry, LsaLink, LsaLinkPrefix,
-    LsaNetwork, LsaRouter, LsaRouterFlags, LsaRouterInfo, LsaRouterLink,
-    LsaRouterLinkType, LsaScopeCode, LsaType, PrefixOptions, PrefixSid,
+use crate::ospfv3::packet::iana::{
+    LsaFunctionCode, LsaRouterFlags, LsaRouterLinkType, Options, PrefixOptions,
 };
+use crate::ospfv3::packet::lsa::{
+    LsaBody, LsaHdr, LsaInterAreaPrefix, LsaInterAreaRouter,
+    LsaIntraAreaPrefix, LsaIntraAreaPrefixEntry, LsaLink, LsaLinkPrefix,
+    LsaNetwork, LsaRouter, LsaRouterInfo, LsaRouterLink, LsaScopeCode, LsaType,
+    PrefixSid,
+};
+use crate::packet::iana::RouterInfoCaps;
 use crate::packet::lsa::{
     Lsa, LsaHdrVersion, LsaKey, LsaScope, LsaTypeVersion, PrefixSidVersion,
 };
 use crate::packet::tlv::{
     BierEncapSubStlv, BierStlv, DynamicHostnameTlv, NodeAdminTagTlv,
-    PrefixSidFlags, RouterInfoCaps, RouterInfoCapsTlv, SidLabelRangeTlv,
-    SrAlgoTlv, SrLocalBlockTlv,
+    PrefixSidFlags, RouterInfoCapsTlv, SidLabelRangeTlv, SrAlgoTlv,
+    SrLocalBlockTlv,
 };
 use crate::route::{SummaryNet, SummaryNetFlags, SummaryRtr};
 use crate::version::Ospfv3;

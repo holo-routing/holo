@@ -16,9 +16,9 @@ use crate::interface::{InterfaceType, ism};
 use crate::lsdb::LsaLogReason;
 use crate::neighbor::nsm;
 use crate::northbound::configuration::{InstanceTraceOption, InterfaceTraceOption};
-use crate::packet::PacketType;
 use crate::packet::error::LsaValidationError;
-use crate::packet::tlv::{AdjSidFlags, GrReason, PrefixSidFlags, RouterInfoCaps};
+use crate::packet::iana::{PacketType, RouterInfoCaps};
+use crate::packet::tlv::{AdjSidFlags, GrReason, PrefixSidFlags};
 use crate::spf::SpfLogType;
 use crate::{ospfv2, ospfv3, spf};
 
@@ -234,9 +234,9 @@ impl ToYang for ospfv2::packet::lsa::LsaAsExternalFlags {
     }
 }
 
-impl ToYangFlags for ospfv2::packet::Options {
+impl ToYangFlags for ospfv2::packet::iana::Options {
     fn to_yang_flags(&self) -> Vec<&'static str> {
-        use ospfv2::packet::Options;
+        use ospfv2::packet::iana::Options;
 
         let mut options = vec![];
         if self.contains(Options::E) {
@@ -261,7 +261,7 @@ impl ToYangFlags for ospfv2::packet::Options {
 
 impl ToYang for ospfv2::packet::lsa::LsaType {
     fn to_yang(&self) -> Cow<'static, str> {
-        use ospfv2::packet::lsa::LsaTypeCode;
+        use ospfv2::packet::iana::LsaTypeCode;
 
         match self.type_code() {
             Some(LsaTypeCode::Router) => "ospfv2-router-lsa".into(),
@@ -277,9 +277,9 @@ impl ToYang for ospfv2::packet::lsa::LsaType {
     }
 }
 
-impl ToYangFlags for ospfv2::packet::lsa::LsaRouterFlags {
+impl ToYangFlags for ospfv2::packet::iana::LsaRouterFlags {
     fn to_yang_flags(&self) -> Vec<&'static str> {
-        use ospfv2::packet::lsa::LsaRouterFlags;
+        use ospfv2::packet::iana::LsaRouterFlags;
 
         let mut flags = vec![];
         if self.contains(LsaRouterFlags::B) {
@@ -299,9 +299,9 @@ impl ToYangFlags for ospfv2::packet::lsa::LsaRouterFlags {
     }
 }
 
-impl ToYang for ospfv2::packet::lsa::LsaRouterLinkType {
+impl ToYang for ospfv2::packet::iana::LsaRouterLinkType {
     fn to_yang(&self) -> Cow<'static, str> {
-        use ospfv2::packet::lsa::LsaRouterLinkType;
+        use ospfv2::packet::iana::LsaRouterLinkType;
 
         match self {
             LsaRouterLinkType::PointToPoint => "point-to-point-link".into(),
@@ -326,9 +326,9 @@ impl ToYang for ospfv2::packet::lsa_opaque::ExtPrefixRouteType {
     }
 }
 
-impl ToYangFlags for ospfv2::packet::lsa_opaque::LsaExtPrefixFlags {
+impl ToYangFlags for ospfv2::packet::iana::LsaExtPrefixFlags {
     fn to_yang_flags(&self) -> Vec<&'static str> {
-        use ospfv2::packet::lsa_opaque::LsaExtPrefixFlags;
+        use ospfv2::packet::iana::LsaExtPrefixFlags;
 
         let mut flags = vec![];
         if self.contains(LsaExtPrefixFlags::A) {
@@ -344,7 +344,7 @@ impl ToYangFlags for ospfv2::packet::lsa_opaque::LsaExtPrefixFlags {
 
 impl ToYang for ospfv3::packet::lsa::LsaType {
     fn to_yang(&self) -> Cow<'static, str> {
-        use ospfv3::packet::lsa::LsaFunctionCode;
+        use ospfv3::packet::iana::LsaFunctionCode;
 
         match self.function_code() {
             Some(LsaFunctionCode::Router) => "ospfv3-router-lsa".into(),
@@ -368,9 +368,9 @@ impl ToYang for ospfv3::packet::lsa::LsaType {
     }
 }
 
-impl ToYangFlags for ospfv3::packet::lsa::LsaRouterFlags {
+impl ToYangFlags for ospfv3::packet::iana::LsaRouterFlags {
     fn to_yang_flags(&self) -> Vec<&'static str> {
-        use ospfv3::packet::lsa::LsaRouterFlags;
+        use ospfv3::packet::iana::LsaRouterFlags;
 
         let mut flags = vec![];
         if self.contains(LsaRouterFlags::B) {
@@ -390,9 +390,9 @@ impl ToYangFlags for ospfv3::packet::lsa::LsaRouterFlags {
     }
 }
 
-impl ToYang for ospfv3::packet::lsa::LsaRouterLinkType {
+impl ToYang for ospfv3::packet::iana::LsaRouterLinkType {
     fn to_yang(&self) -> Cow<'static, str> {
-        use ospfv3::packet::lsa::LsaRouterLinkType;
+        use ospfv3::packet::iana::LsaRouterLinkType;
 
         match self {
             LsaRouterLinkType::PointToPoint => "point-to-point-link".into(),
@@ -434,9 +434,9 @@ impl ToYangFlags for ospfv3::packet::lsa::LsaAsExternalFlags {
     }
 }
 
-impl ToYangFlags for ospfv3::packet::Options {
+impl ToYangFlags for ospfv3::packet::iana::Options {
     fn to_yang_flags(&self) -> Vec<&'static str> {
-        use ospfv3::packet::Options;
+        use ospfv3::packet::iana::Options;
 
         let mut options = vec![];
         if self.contains(Options::V6) {
@@ -462,9 +462,9 @@ impl ToYangFlags for ospfv3::packet::Options {
     }
 }
 
-impl ToYangFlags for ospfv3::packet::lsa::PrefixOptions {
+impl ToYangFlags for ospfv3::packet::iana::PrefixOptions {
     fn to_yang_flags(&self) -> Vec<&'static str> {
-        use ospfv3::packet::lsa::PrefixOptions;
+        use ospfv3::packet::iana::PrefixOptions;
 
         let mut options = vec![];
         if self.contains(PrefixOptions::NU) {

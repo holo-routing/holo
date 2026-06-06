@@ -29,13 +29,13 @@ use crate::lsdb::{
 use crate::neighbor::{LastDbDesc, Neighbor, RxmtPacketType, nsm};
 use crate::northbound::notification;
 use crate::packet::error::DecodeResult;
+use crate::packet::iana::PacketType;
 use crate::packet::lsa::{
     Lsa, LsaBodyVersion, LsaHdrVersion, LsaKey, LsaScope, LsaTypeVersion,
 };
 use crate::packet::{
     DbDescFlags, DbDescVersion, HelloVersion, LsAckVersion, LsRequestVersion,
     LsUpdateVersion, OptionsVersion, Packet, PacketBase, PacketHdrVersion,
-    PacketType,
 };
 use crate::version::Version;
 use crate::{gr, output, spf, tasks};

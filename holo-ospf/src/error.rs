@@ -14,8 +14,8 @@ use crate::collections::{AreaId, InterfaceId, LsaEntryId, NeighborId};
 use crate::interface::{VirtualLinkKey, ism};
 use crate::neighbor::nsm;
 use crate::network::MulticastAddr;
-use crate::packet::PacketType;
 use crate::packet::error::DecodeError;
+use crate::packet::iana::PacketType;
 use crate::spf;
 use crate::version::Version;
 

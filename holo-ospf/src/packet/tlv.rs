@@ -18,28 +18,10 @@ use num_traits::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
 
 use crate::packet::error::{DecodeError, DecodeResult};
+use crate::packet::iana::{RouterFuncCaps, RouterInfoCaps, RouterInfoTlvType};
 
 // TLV header size.
 pub const TLV_HDR_SIZE: u16 = 4;
-
-// OSPF Router Information (RI) TLV types.
-//
-// IANA registry:
-// https://www.iana.org/assignments/ospf-parameters/ospf-parameters.xhtml#ri-tlv
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-#[derive(FromPrimitive, ToPrimitive)]
-#[derive(Deserialize, Serialize)]
-pub enum RouterInfoTlvType {
-    InformationalCaps = 1,
-    FunctionalCaps = 2,
-    DynamicHostname = 7,
-    SrAlgo = 8,
-    SidLabelRange = 9,
-    NodeAdminTag = 10,
-    NodeMsd = 12,
-    SrLocalBlock = 14,
-    SrmsPref = 15,
-}
 
 // SID/Label Sub-TLV type.
 //
@@ -47,24 +29,6 @@ pub enum RouterInfoTlvType {
 // Sub-TLV registry of their own. Regardless of that, its type value is always
 // the same.
 const SUBTLV_SID_LABEL: u16 = 1;
-
-// OSPF Router Informational Capability Bits.
-//
-// IANA registry:
-// https://www.iana.org/assignments/ospf-parameters/ospf-parameters.xhtml#router-informational-capability
-bitflags! {
-    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-    #[derive(Deserialize, Serialize)]
-    #[serde(transparent)]
-    pub struct RouterInfoCaps: u32 {
-        const GR = 1 << 31;
-        const GR_HELPER = 1 << 30;
-        const STUB_ROUTER = 1 << 29;
-        const TE = 1 << 28;
-        const P2P_LAN = 1 << 27;
-        const EXPERIMENTAL_TE = 1 << 26;
-    }
-}
 
 //
 // OSPF Router Informational Capabilities TLV.
@@ -82,18 +46,6 @@ bitflags! {
 #[derive(Clone, Debug, Default, Eq, new, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct RouterInfoCapsTlv(RouterInfoCaps);
-
-// OSPF Router Functional Capability Bits.
-//
-// IANA registry:
-// https://www.iana.org/assignments/ospf-parameters/ospf-parameters.xhtml#router-functional-capability
-bitflags! {
-    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-    #[derive(Deserialize, Serialize)]
-    #[serde(transparent)]
-    pub struct RouterFuncCaps: u32 {
-    }
-}
 
 //
 // OSPF Router Functional Capabilities TLV.

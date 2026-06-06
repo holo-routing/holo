@@ -18,9 +18,11 @@ use crate::interface::{self, Interface, InterfaceSys, InterfaceVersion};
 use crate::neighbor::Neighbor;
 use crate::network::{MulticastAddr, NetworkVersion};
 use crate::ospfv3;
-use crate::ospfv3::packet::{Hello, Options, PacketHdr};
+use crate::ospfv3::packet::iana::Options;
+use crate::ospfv3::packet::{Hello, PacketHdr};
+use crate::packet::Packet;
 use crate::packet::auth::AuthMethod;
-use crate::packet::{Packet, PacketType};
+use crate::packet::iana::PacketType;
 use crate::version::Ospfv3;
 
 // ===== impl Ospfv3 =====

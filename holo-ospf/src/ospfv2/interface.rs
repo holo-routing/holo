@@ -20,8 +20,9 @@ use crate::neighbor::{Neighbor, NeighborVersion};
 use crate::network::{MulticastAddr, NetworkVersion};
 use crate::ospfv2;
 use crate::ospfv2::packet::{Hello, PacketHdr};
+use crate::packet::Packet;
 use crate::packet::auth::AuthMethod;
-use crate::packet::{Packet, PacketType};
+use crate::packet::iana::PacketType;
 use crate::version::Ospfv2;
 
 // ===== impl Ospfv2 =====

@@ -6,6 +6,7 @@
 
 pub mod auth;
 pub mod error;
+pub mod iana;
 pub mod lls;
 pub mod lsa;
 pub mod tlv;
@@ -20,7 +21,6 @@ use error::DecodeError;
 use holo_utils::ip::AddressFamily;
 use holo_yang::ToYang;
 use lls::{LlsData, LlsDbDescData, LlsHelloData};
-use num_derive::FromPrimitive;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tracing::debug_span;
@@ -28,6 +28,7 @@ use tracing::debug_span;
 use crate::neighbor::NeighborNetId;
 use crate::packet::auth::{AuthDecodeCtx, AuthEncodeCtx};
 use crate::packet::error::DecodeResult;
+use crate::packet::iana::PacketType;
 use crate::packet::lsa::{Lsa, LsaKey};
 use crate::version::Version;
 
@@ -41,20 +42,6 @@ bitflags! {
         const M = 0x02;
         const I = 0x04;
     }
-}
-
-// OSPF Packet Type.
-//
-// IANA registry:
-// https://www.iana.org/assignments/ospfv2-parameters/ospfv2-parameters.xhtml#ospfv2-parameters-3
-#[derive(Clone, Copy, Debug, Eq, Hash, FromPrimitive, PartialEq)]
-#[derive(Deserialize, Serialize)]
-pub enum PacketType {
-    Hello = 0x01,
-    DbDesc = 0x02,
-    LsRequest = 0x03,
-    LsUpdate = 0x04,
-    LsAck = 0x05,
 }
 
 // OSPF packet.

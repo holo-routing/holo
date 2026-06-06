@@ -27,22 +27,24 @@ use crate::lsdb::{
     self, LsaEntry, LsaOriginateEvent, LsdbVersion, MAX_LINK_METRIC,
 };
 use crate::neighbor::nsm;
-use crate::ospfv2::packet::Options;
+use crate::ospfv2::packet::iana::{
+    LsaExtPrefixFlags, LsaOpaqueType, LsaRouterFlags, LsaRouterLinkType,
+    LsaTypeCode, Options,
+};
 use crate::ospfv2::packet::lsa::{
-    LsaBody, LsaHdr, LsaNetwork, LsaRouter, LsaRouterFlags, LsaRouterLink,
-    LsaRouterLinkType, LsaSummary, LsaType, LsaTypeCode,
+    LsaBody, LsaHdr, LsaNetwork, LsaRouter, LsaRouterLink, LsaSummary, LsaType,
 };
 use crate::ospfv2::packet::lsa_opaque::{
     ExtLinkTlv, ExtPrefixRouteType, ExtPrefixTlv, LsaExtLink, LsaExtPrefix,
-    LsaExtPrefixFlags, LsaOpaque, LsaOpaqueType, LsaRouterInfo, OpaqueLsaId,
-    PrefixSid,
+    LsaOpaque, LsaRouterInfo, OpaqueLsaId, PrefixSid,
 };
+use crate::packet::iana::RouterInfoCaps;
 use crate::packet::lsa::{
     Lsa, LsaHdrVersion, LsaKey, LsaScope, LsaTypeVersion,
 };
 use crate::packet::tlv::{
-    DynamicHostnameTlv, NodeAdminTagTlv, PrefixSidFlags, RouterInfoCaps,
-    RouterInfoCapsTlv, SidLabelRangeTlv, SrAlgoTlv, SrLocalBlockTlv,
+    DynamicHostnameTlv, NodeAdminTagTlv, PrefixSidFlags, RouterInfoCapsTlv,
+    SidLabelRangeTlv, SrAlgoTlv, SrLocalBlockTlv,
 };
 use crate::route::{SummaryNet, SummaryRtr};
 use crate::version::Ospfv2;

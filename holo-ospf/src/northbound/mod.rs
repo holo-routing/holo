@@ -34,7 +34,7 @@ pub mod yang_gen {
     use crate::interface::ism;
     use crate::neighbor::nsm;
     use crate::northbound::yang::FletcherChecksum16;
-    use crate::packet::PacketType;
+    use crate::packet::iana::PacketType;
     use crate::packet::tlv::GrReason;
     include!(concat!(env!("OUT_DIR"), "/yang_objects.rs"));
     pub mod ops {

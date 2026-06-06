@@ -27,7 +27,7 @@ use crate::interface::{InterfaceType, VirtualLinkKey, ism};
 use crate::lsdb::LsaOriginateEvent;
 use crate::neighbor::nsm;
 use crate::northbound::yang_gen::ospf;
-use crate::packet::PacketType;
+use crate::packet::iana::PacketType;
 use crate::route::RouteNetFlags;
 use crate::version::{Ospfv2, Ospfv3, Version};
 use crate::{gr, ibus, spf, sr, tasks};

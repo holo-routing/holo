@@ -8,7 +8,7 @@ use bytes::{Buf, Bytes, BytesMut};
 use num_traits::FromPrimitive;
 
 use super::PacketHdrAuth;
-use crate::ospfv3::packet::Options;
+use crate::ospfv3::packet::iana::Options;
 use crate::packet::auth::{AuthDecodeCtx, AuthEncodeCtx};
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::lls::{

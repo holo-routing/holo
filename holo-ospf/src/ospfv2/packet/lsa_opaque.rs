@@ -7,7 +7,6 @@
 use std::collections::{BTreeMap, btree_map};
 use std::net::Ipv4Addr;
 
-use bitflags::bitflags;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use derive_new::new;
 use enum_as_inner::EnumAsInner;
@@ -15,34 +14,24 @@ use holo_utils::bytes::{BytesExt, BytesMutExt};
 use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid};
 use ipnetwork::Ipv4Network;
-use num_derive::{FromPrimitive, ToPrimitive};
+use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
-use crate::ospfv2::packet::lsa::{LsaRouterLinkType, LsaUnknown};
+use crate::ospfv2::packet::iana::{
+    ExtLinkStlvType, ExtLinkTlvType, ExtPrefixStlvType, ExtPrefixTlvType,
+    GraceTlvType, LsaExtPrefixFlags, LsaOpaqueType, LsaRouterLinkType,
+};
+use crate::ospfv2::packet::lsa::LsaUnknown;
 use crate::packet::error::{DecodeError, DecodeResult};
+use crate::packet::iana::RouterInfoTlvType;
 use crate::packet::lsa::{AdjSidVersion, PrefixSidVersion};
 use crate::packet::tlv::{
     AdjSidFlags, DynamicHostnameTlv, GrReasonTlv, GracePeriodTlv, MsdTlv,
     NodeAdminTagTlv, PrefixSidFlags, RouterFuncCapsTlv, RouterInfoCapsTlv,
-    RouterInfoTlvType, SidLabelRangeTlv, SrAlgoTlv, SrLocalBlockTlv,
-    SrmsPrefTlv, TLV_HDR_SIZE, UnknownTlv, tlv_encode_end, tlv_encode_start,
-    tlv_wire_len,
+    SidLabelRangeTlv, SrAlgoTlv, SrLocalBlockTlv, SrmsPrefTlv, TLV_HDR_SIZE,
+    UnknownTlv, tlv_encode_end, tlv_encode_start, tlv_wire_len,
 };
-
-// OSPFv2 opaque LSA types.
-//
-// IANA registry:
-// https://www.iana.org/assignments/ospf-opaque-types/ospf-opaque-types.xhtml#ospf-opaque-types-2
-#[derive(Clone, Copy, Debug, Eq, Ord, FromPrimitive, PartialEq, PartialOrd)]
-#[derive(Deserialize, Serialize)]
-pub enum LsaOpaqueType {
-    Te = 1,
-    Grace = 3,
-    RouterInfo = 4,
-    ExtPrefix = 7,
-    ExtLink = 8,
-}
 
 // OSPFv2 opaque LSA ID.
 #[derive(Clone, Copy, Debug, Eq, new, PartialEq)]
@@ -60,19 +49,6 @@ pub enum LsaOpaque {
     ExtPrefix(LsaExtPrefix),
     ExtLink(LsaExtLink),
     Unknown(LsaUnknown),
-}
-
-// OSPFv2 Grace LSA Top Level TLV types.
-//
-// IANA registry:
-// https://www.iana.org/assignments/ospfv2-parameters/ospfv2-parameters.xhtml#ospfv2-parameters-13
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-#[derive(FromPrimitive, ToPrimitive)]
-#[derive(Deserialize, Serialize)]
-pub enum GraceTlvType {
-    GracePeriod = 1,
-    GrReason = 2,
-    InterfaceAddr = 3,
 }
 
 //
@@ -168,18 +144,6 @@ pub struct LsaExtLink {
     pub link: Option<ExtLinkTlv>,
 }
 
-// OSPFv2 Extended Prefix Opaque LSA TLV types.
-//
-// IANA registry:
-// https://www.iana.org/assignments/ospfv2-parameters/ospfv2-parameters.xhtml#extended-prefix-opaque-lsa-tlvs
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[derive(FromPrimitive, ToPrimitive)]
-#[derive(Deserialize, Serialize)]
-pub enum ExtPrefixTlvType {
-    ExtPrefix = 1,
-    ExtPrefixRange = 2,
-}
-
 //
 // OSPFv2 Extended Prefix TLV.
 //
@@ -225,33 +189,6 @@ pub enum ExtPrefixRouteType {
     NssaExternal = 7,
 }
 
-// OSPFv2 Extended Prefix TLV Flags.
-//
-// IANA registry:
-// https://www.iana.org/assignments/ospfv2-parameters/ospfv2-parameters.xhtml#extended-prefix-tlv-flags
-bitflags! {
-    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-    #[derive(Deserialize, Serialize)]
-    #[serde(transparent)]
-    pub struct LsaExtPrefixFlags: u8 {
-        const A = 0x80;
-        const N = 0x40;
-    }
-}
-
-//
-// OSPFv2 Extended Prefix TLV Sub-TLV types.
-//
-// IANA registry:
-// https://www.iana.org/assignments/ospfv2-parameters/ospfv2-parameters.xhtml#extended-prefix-tlv-sub-tlvs
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[derive(FromPrimitive, ToPrimitive)]
-#[derive(Deserialize, Serialize)]
-pub enum ExtPrefixStlvType {
-    SidLabel = 1,
-    PrefixSid = 2,
-}
-
 //
 // Prefix-SID Sub-TLV.
 //
@@ -273,17 +210,6 @@ pub struct PrefixSid {
     pub flags: PrefixSidFlags,
     pub algo: IgpAlgoType,
     pub sid: Sid,
-}
-
-// OSPFv2 Extended Link Opaque LSA TLV types.
-//
-// IANA registry:
-// https://www.iana.org/assignments/ospfv2-parameters/ospfv2-parameters.xhtml#extended-link-opaque-lsa-tlvs
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[derive(FromPrimitive, ToPrimitive)]
-#[derive(Deserialize, Serialize)]
-pub enum ExtLinkTlvType {
-    ExtLink = 1,
 }
 
 //
@@ -316,20 +242,6 @@ pub struct ExtLinkTlv {
     pub msds: Option<MsdTlv>,
     #[new(default)]
     pub unknown_tlvs: Vec<UnknownTlv>,
-}
-
-// OSPFv2 Extended Link TLV Sub-TLV types.
-//
-// IANA registry:
-// https://www.iana.org/assignments/ospfv2-parameters/ospfv2-parameters.xhtml#extended-link-tlv-sub-tlvs
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[derive(FromPrimitive, ToPrimitive)]
-#[derive(Deserialize, Serialize)]
-pub enum ExtLinkStlvType {
-    SidLabel = 1,
-    AdjSid = 2,
-    LanAdjSid = 3,
-    LinkMsd = 6,
 }
 
 //

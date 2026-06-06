@@ -153,10 +153,12 @@ fn process_rpc_relayed(
         };
         nb_tx
             .blocking_send(api::daemon::Request::Rpc(relayed_req))
-            .unwrap();
+            .map_err(|_| Error::RelayUnreachable)?;
 
         // Receive response.
-        let response = responder_rx.blocking_recv().unwrap()?;
+        let response = responder_rx
+            .blocking_recv()
+            .map_err(|_| Error::RelayUnreachable)??;
         data = response.data;
     }
 

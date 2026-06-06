@@ -8,9 +8,13 @@ pub mod event_recorder;
 #[cfg(feature = "testing")]
 pub mod test;
 
+#[cfg(not(feature = "testing"))]
+use std::panic::AssertUnwindSafe;
 use std::sync::{Arc, Mutex};
 
 use derive_new::new;
+#[cfg(not(feature = "testing"))]
+use futures::FutureExt;
 use holo_northbound as northbound;
 use holo_northbound::{
     NbDaemonReceiver, NbDaemonSender, NbProviderSender, process_northbound_msg,
@@ -28,7 +32,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender};
-use tracing::{Span, debug_span};
+use tracing::{Span, debug_span, error};
 
 use crate::event_recorder::EventRecorder;
 #[cfg(feature = "testing")]
@@ -338,23 +342,40 @@ async fn run<P>(
     let mut instance = P::new(name, shared, instance_channels_tx);
     instance.init();
 
-    // Run event loop.
-    event_loop(
+    // Run the event loop.
+    //
+    // In production, the event loop is wrapped in `catch_unwind` so that a
+    // panic while processing an event is contained to this protocol instance
+    // instead of propagating and bringing down the entire daemon.
+    // During testing, panics are left to propagate so they fail the test.
+    let fut = event_loop(
         &mut instance,
         instance_channels_rx,
         agg_channels,
         #[cfg(feature = "testing")]
         Some(output_channels_rx),
         event_record,
-    )
-    .await;
+    );
+    #[cfg(not(feature = "testing"))]
+    let panicked = AssertUnwindSafe(fut).catch_unwind().await.is_err();
+    #[cfg(feature = "testing")]
+    let panicked = {
+        fut.await;
+        false
+    };
+    if panicked {
+        error!("instance panicked; stopping it");
+    }
 
-    // Shut down the instance before exiting.
+    // Shut down the instance before exiting. This is skipped when the instance
+    // panicked, since its state might be left inconsistent.
     //
     // Cleanup that isn't done explicitly here, such as cancelling subscriptions
     // and uninstalling routes, happens on its own once this task's channels are
     // dropped and the other components detect the closed connections.
-    instance.shutdown();
+    if !panicked {
+        instance.shutdown();
+    }
 }
 
 // ===== global functions =====

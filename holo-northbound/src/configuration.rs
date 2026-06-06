@@ -569,10 +569,12 @@ where
         };
         nb_tx
             .blocking_send(api::daemon::Request::Commit(relayed_commit))
-            .unwrap();
+            .map_err(|_| Error::RelayUnreachable)?;
 
         // Receive response.
-        let _ = responder_rx.blocking_recv().unwrap()?;
+        let _ = responder_rx
+            .blocking_recv()
+            .map_err(|_| Error::RelayUnreachable)??;
     }
 
     Ok(())

@@ -235,10 +235,7 @@ fn relay_request(nb_tx: NbDaemonSender, path: Path) -> GetReceiver {
         responder: Some(responder_tx),
     };
     tokio::task::spawn(async move {
-        nb_tx
-            .send(api::daemon::Request::Get(request))
-            .await
-            .unwrap();
+        let _ = nb_tx.send(api::daemon::Request::Get(request)).await;
     });
     responder_rx
 }
@@ -464,7 +461,12 @@ where
 
     // Merge responses from child tasks.
     for relay_rx in relay_list {
-        let response = relay_rx.blocking_recv().unwrap()?;
+        // Skip data from instances that are no longer running.
+        let Ok(response) = relay_rx.blocking_recv() else {
+            Error::RelayUnreachable.log();
+            continue;
+        };
+        let response = response?;
         dtree
             .merge(&response.data)
             .map_err(Error::YangInvalidData)?;

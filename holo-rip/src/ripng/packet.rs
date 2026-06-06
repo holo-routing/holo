@@ -274,17 +274,16 @@ impl Rte {
         // hop. The route tag and prefix length in the next hop RTE must be set
         // to zero on sending and ignored on reception.
         if metric == 0xFF {
+            // A next hop address of :: indicates that the originator of the
+            // advertisement should be used as the next hop.
+            if addr.is_unspecified() {
+                return Ok(Rte::Nexthop(RteNexthop { addr: None }));
+            }
             // An address specified as a next hop must be a link-local address.
             if !addr.is_unicast_link_local() {
                 return Err(DecodeError::InvalidRteNexthop(addr));
             }
-
-            let addr = if addr.is_unspecified() {
-                None
-            } else {
-                Some(addr)
-            };
-            return Ok(Rte::Nexthop(RteNexthop { addr }));
+            return Ok(Rte::Nexthop(RteNexthop { addr: Some(addr) }));
         }
 
         // Sanity checks.

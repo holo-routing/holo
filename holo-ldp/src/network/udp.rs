@@ -139,7 +139,7 @@ pub(crate) async fn read_loop(
 
     loop {
         // Receive data from the network.
-        let (_, src) = match socket.recv_from(&mut buf).await {
+        let (num_bytes, src) = match socket.recv_from(&mut buf).await {
             Ok((num_bytes, src)) => (num_bytes, src),
             Err(error) => {
                 IoError::UdpRecvError(error).log();
@@ -156,7 +156,8 @@ pub(crate) async fn read_loop(
 
         // Decode packet.
         cxt.pkt_info.src_addr = src_addr;
-        let pdu = Pdu::get_pdu_size(&buf, &cxt)
+        let buf = &buf[0..num_bytes];
+        let pdu = Pdu::get_pdu_size(buf, &cxt)
             .and_then(|pdu_size| Pdu::decode(&buf[0..pdu_size], &cxt));
         let msg = UdpRxPduMsg {
             src_addr,

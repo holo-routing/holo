@@ -562,12 +562,14 @@ fn process_nbr_msg_notification(
         // initialization, it SHOULD transmit a Shutdown message and then
         // close the transport connection".
         //
-        let status_code = StatusCode::decode(msg.status.status_code);
-        if !nbr.is_operational() && status_code == Some(StatusCode::Shutdown) {
+        let status_code = msg.status.status_code;
+        if !nbr.is_operational()
+            && StatusCode::decode(status_code) == Some(StatusCode::Shutdown)
+        {
             nbr.send_shutdown(&instance.state.msg_id, msg);
         }
 
-        return Err(Error::NbrRcvdError(nbr.lsr_id, status_code.unwrap()));
+        return Err(Error::NbrRcvdError(nbr.lsr_id, status_code));
     }
 
     Ok(())

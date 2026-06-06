@@ -473,6 +473,26 @@ async fn nb_config_node_tags1() {
 // Test description:
 //
 // Input:
+//  * Northbound: enable the anycast flag on the loopback interface
+// Output:
+//  * Protocol: send an LS Update to all adjacencies containing a
+//    self-originated Extended Prefix Opaque LSA with the AC-flag set on
+//    the loopback host prefix
+//
+// Input:
+//  * Northbound: disable the anycast flag on the loopback interface
+// Output:
+//  * Protocol: send an LS Update to all adjacencies flushing the
+//    self-originated Extended Prefix Opaque LSA
+#[tokio::test]
+async fn nb_config_anycast_flag1() {
+    run_test::<Instance<Ospfv2>>("nb-config-anycast-flag1", "topo2-1", "rt6")
+        .await;
+}
+
+// Test description:
+//
+// Input:
 //  * Northbound: change the cost of the eth-rt1 interface to 50
 // Output:
 //  * Protocol: send an LS Update to rt3 containing the updated self-originated

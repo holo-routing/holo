@@ -337,6 +337,9 @@ impl ToYangFlags for ospfv2::packet::iana::LsaExtPrefixFlags {
         if self.contains(LsaExtPrefixFlags::N) {
             flags.push("node-flag");
         }
+        if self.contains(LsaExtPrefixFlags::AC) {
+            flags.push("ietf-ospf-anycast-flag:ac-flag");
+        }
 
         flags
     }

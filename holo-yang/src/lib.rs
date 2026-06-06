@@ -117,6 +117,8 @@ static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-netconf-acm@2018-02-14.yang"),
         EmbeddedModuleKey::new("ietf-ospf", Some("2022-10-19"), None, None) =>
             include_str!("../modules/ietf/ietf-ospf@2022-10-19.yang"),
+        EmbeddedModuleKey::new("ietf-ospf-anycast-flag", Some("2026-05-19"), None, None) =>
+            include_str!("../modules/ietf/ietf-ospf-anycast-flag@2026-05-19.yang"),
         EmbeddedModuleKey::new("ietf-ospf-sr-mpls", Some("2025-12-09"), None, None) =>
             include_str!("../modules/ietf/ietf-ospf-sr-mpls@2025-12-09.yang"),
         EmbeddedModuleKey::new("ietf-ospfv3-extended-lsa", Some("2024-06-07"), None, None) =>
@@ -280,6 +282,7 @@ pub mod implemented_modules {
         // IETF modules
         "ietf-bfd-types",
         "ietf-ospf",
+        "ietf-ospf-anycast-flag",
         "ietf-ospf-sr-mpls",
         "ietf-ospfv3-extended-lsa",
         "ietf-segment-routing-mpls",

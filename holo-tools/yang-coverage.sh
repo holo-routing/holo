@@ -26,6 +26,7 @@ cargo run --bin yang_coverage --\
   -m ietf-isis-sr-mpls\
   -m ietf-mpls-ldp\
   -m ietf-ospf\
+  -m ietf-ospf-anycast-flag\
   -m ietf-ospf-sr-mpls\
   -m ietf-ospfv3-extended-lsa\
   -m ietf-rip\

@@ -96,7 +96,7 @@ pub enum LsaOriginateEvent {
     InterfaceCostChange {
         area_id: AreaId,
     },
-    InterfaceNodeFlagChange {
+    InterfaceFlagChange {
         area_id: AreaId,
     },
     NeighborToFromFull {

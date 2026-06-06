@@ -1,0 +1,37 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-ospf:ospfv2",
+          "name": "test",
+          "ietf-ospf:ospf": {
+            "areas": {
+              "area": [
+                {
+                  "area-id": "0.0.0.0",
+                  "interfaces": {
+                    "interface": [
+                      {
+                        "name": "lo",
+                        "ietf-ospf-anycast-flag:anycast-flag": false,
+                        "@ietf-ospf-anycast-flag:anycast-flag": {
+                          "yang:operation": "replace",
+                          "yang:orig-default": false,
+                          "yang:orig-value": "true"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

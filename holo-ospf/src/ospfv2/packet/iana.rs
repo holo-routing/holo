@@ -134,6 +134,7 @@ bitflags! {
     pub struct LsaExtPrefixFlags: u8 {
         const A = 0x80;
         const N = 0x40;
+        const AC = 0x10;
     }
 }
 

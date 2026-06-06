@@ -188,7 +188,7 @@ impl LsdbVersion<Self> for Ospfv3 {
                 // (Re)originate Intra-area-prefix-LSA(s).
                 lsa_orig_intra_area_prefix(area, instance, arenas);
             }
-            LsaOriginateEvent::InterfaceNodeFlagChange { area_id } => {
+            LsaOriginateEvent::InterfaceFlagChange { area_id } => {
                 let (_, area) = arenas.areas.get_by_id(area_id)?;
 
                 // (Re)originate Intra-area-prefix-LSA(s).

@@ -180,7 +180,11 @@ impl Northbound {
         match request {
             capi::client::Request::Get(request) => {
                 let response = self
-                    .process_client_get(request.data_type, request.path)
+                    .process_client_get(
+                        request.data_type,
+                        request.path,
+                        request.exclude,
+                    )
                     .await;
                 let _ = request.responder.send(response);
             }
@@ -236,13 +240,16 @@ impl Northbound {
         &self,
         data_type: capi::DataType,
         path: Option<Path>,
+        exclude: Vec<Path>,
     ) -> Result<capi::client::GetResponse> {
         let path = path.as_ref();
         let dtree = match data_type {
-            capi::DataType::State => self.get_state(path).await?,
+            capi::DataType::State => self.get_state(path, exclude).await?,
+            // Filtering applies only to state data; configuration is
+            // returned as-is from the running datastore.
             capi::DataType::Configuration => self.get_configuration(path)?,
             capi::DataType::All => {
-                let mut dtree_state = self.get_state(path).await?;
+                let mut dtree_state = self.get_state(path, exclude).await?;
                 let dtree_config = self.get_configuration(path)?;
                 dtree_state
                     .merge(&dtree_config)
@@ -571,6 +578,7 @@ impl Northbound {
     async fn get_state(
         &self,
         path: Option<&Path>,
+        exclude: Vec<Path>,
     ) -> Result<DataTree<'static>> {
         let yang_ctx = YANG_CTX.get().unwrap();
         let mut dtree = DataTree::new(yang_ctx);
@@ -581,6 +589,7 @@ impl Northbound {
             let request =
                 papi::daemon::Request::Get(papi::daemon::GetRequest {
                     path: path.cloned(),
+                    exclude: exclude.clone(),
                     responder: Some(responder_tx),
                 });
             daemon_tx.send(request).await.unwrap();

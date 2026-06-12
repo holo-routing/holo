@@ -22,6 +22,15 @@ struct ResolvedPathElem<'a> {
     snode: SchemaNode<'static>,
 }
 
+// Filter options applied during state retrieval.
+struct GetFilter {
+    // Maximum traversal depth beyond the requested target.
+    // `None` = unlimited; `Some(0)` = target only, no descendants.
+    max_depth: Option<u32>,
+    // Subtrees to skip; matched by suffix on the schema path.
+    exclude: Vec<Path>,
+}
+
 // Northbound data provider.
 pub trait Provider
 where
@@ -96,19 +105,28 @@ fn iterate_node<'a, P>(
     snode: &SchemaNode<'_>,
     list_entry: &P::ListEntry<'a>,
     relay_list: &mut Vec<GetReceiver>,
+    filter: &GetFilter,
+    depth: u32,
 ) -> Result<(), Error>
 where
     P: Provider,
 {
     match snode.kind() {
         SchemaNodeKind::List => {
-            iterate_list(provider, dnode, snode, list_entry, relay_list)?;
+            iterate_list(
+                provider, dnode, snode, list_entry, relay_list, filter, depth,
+            )?;
         }
         SchemaNodeKind::Container => {
-            iterate_container(provider, dnode, snode, list_entry, relay_list)?;
+            iterate_container(
+                provider, dnode, snode, list_entry, relay_list, filter, depth,
+            )?;
         }
         SchemaNodeKind::Choice | SchemaNodeKind::Case => {
-            iterate_children(provider, dnode, snode, list_entry, relay_list)?;
+            // Choice/case are transparent — no data node, depth unchanged.
+            iterate_children(
+                provider, dnode, snode, list_entry, relay_list, filter, depth,
+            )?;
         }
         _ => (),
     }
@@ -122,6 +140,8 @@ fn iterate_list<'a, P>(
     snode: &SchemaNode<'_>,
     parent_list_entry: &P::ListEntry<'a>,
     relay_list: &mut Vec<GetReceiver>,
+    filter: &GetFilter,
+    depth: u32,
 ) -> Result<(), Error>
 where
     P: Provider,
@@ -151,6 +171,8 @@ where
                 snode,
                 &list_entry,
                 relay_list,
+                filter,
+                depth,
             )?;
         }
     }
@@ -164,6 +186,8 @@ fn iterate_container<'a, P>(
     snode: &SchemaNode<'_>,
     list_entry: &P::ListEntry<'a>,
     relay_list: &mut Vec<GetReceiver>,
+    filter: &GetFilter,
+    depth: u32,
 ) -> Result<(), Error>
 where
     P: Provider,
@@ -180,7 +204,15 @@ where
         obj.into_data_node(&mut child);
     }
 
-    iterate_children(provider, &mut child, snode, list_entry, relay_list)?;
+    iterate_children(
+        provider,
+        &mut child,
+        snode,
+        list_entry,
+        relay_list,
+        filter,
+        depth,
+    )?;
 
     // Remove empty containers that produced no children.
     if child.children().next().is_none() {
@@ -196,10 +228,23 @@ fn iterate_children<'a, P>(
     snode: &SchemaNode<'_>,
     list_entry: &P::ListEntry<'a>,
     relay_list: &mut Vec<GetReceiver>,
+    filter: &GetFilter,
+    depth: u32,
 ) -> Result<(), Error>
 where
     P: Provider,
 {
+    // Depth check: stop descending once max_depth reached. Choice/case
+    // are transparent and do not consume depth.
+    let is_transparent =
+        matches!(snode.kind(), SchemaNodeKind::Choice | SchemaNodeKind::Case);
+    if !is_transparent
+        && let Some(max) = filter.max_depth
+        && depth >= max
+    {
+        return Ok(());
+    }
+
     for snode in snode.children().filter(|snode| {
         matches!(
             snode.kind(),
@@ -209,6 +254,11 @@ where
                 | SchemaNodeKind::Case
         )
     }) {
+        // Skip excluded subtrees.
+        if exclude_matches_any(&snode, &filter.exclude) {
+            continue;
+        }
+
         // Check if the provider implements the child node.
         let module = snode.module();
         if let Some(child_nb_tx) = list_entry.child_task(module.name()) {
@@ -217,27 +267,101 @@ where
                 name: format!("{}:{}", module.name(), snode.name()),
                 keys: HashMap::new(),
             });
-            let relay_rx = relay_request(child_nb_tx, path);
+            // The relayed target is this child, which sits one level
+            // below `dnode` in the original tree.
+            let relay_rx =
+                relay_request(child_nb_tx, path, filter, depth + 1);
             relay_list.push(relay_rx);
             continue;
         }
 
-        iterate_node(provider, dnode, &snode, list_entry, relay_list)?;
+        // Choice/case are transparent: depth does not advance through them.
+        let child_depth = match snode.kind() {
+            SchemaNodeKind::Choice | SchemaNodeKind::Case => depth,
+            _ => depth + 1,
+        };
+        iterate_node(
+            provider,
+            dnode,
+            &snode,
+            list_entry,
+            relay_list,
+            filter,
+            child_depth,
+        )?;
     }
 
     Ok(())
 }
 
-fn relay_request(nb_tx: NbDaemonSender, path: Path) -> GetReceiver {
+fn relay_request(
+    nb_tx: NbDaemonSender,
+    mut path: Path,
+    filter: &GetFilter,
+    target_depth_in_original: u32,
+) -> GetReceiver {
+    // Shrink the depth budget by the depth of the relayed target relative
+    // to the original request's target. `None` (unlimited) stays unlimited.
+    path.max_depth = filter
+        .max_depth
+        .map(|max| max.saturating_sub(target_depth_in_original));
+
     let (responder_tx, responder_rx) = oneshot::channel();
     let request = api::daemon::GetRequest {
         path: Some(path),
+        exclude: filter.exclude.clone(),
         responder: Some(responder_tx),
     };
     tokio::task::spawn(async move {
         let _ = nb_tx.send(api::daemon::Request::Get(request)).await;
     });
     responder_rx
+}
+
+// Matches `pattern` against a candidate schema node. Pattern may be a bare
+// node name ("rib") or module-qualified ("ietf-bgp:rib").
+fn name_matches(snode: &SchemaNode<'_>, pattern: &str) -> bool {
+    if let Some((module, name)) = pattern.split_once(':') {
+        snode.module().name() == module && snode.name() == name
+    } else {
+        snode.name() == pattern
+    }
+}
+
+// Returns true if `snode`'s data path ends with the elements of `exclude`.
+//
+// Single-element excludes match the node by name at any depth. Multi-element
+// excludes match a contiguous tail of the data path. Choice/case schema
+// nodes are skipped during ancestor traversal so excludes mirror the data
+// tree shape rather than the schema tree.
+fn exclude_matches_path(snode: &SchemaNode<'_>, exclude: &Path) -> bool {
+    let n = exclude.elems.len();
+    if n == 0 {
+        return false;
+    }
+
+    let mut pat_iter = exclude.elems.iter().rev();
+    let last = pat_iter.next().unwrap();
+    if !name_matches(snode, &last.name) {
+        return false;
+    }
+
+    let mut ancestors = snode.ancestors().filter(|a| {
+        !matches!(a.kind(), SchemaNodeKind::Choice | SchemaNodeKind::Case)
+    });
+    for pat in pat_iter {
+        let Some(ancestor) = ancestors.next() else {
+            return false;
+        };
+        if !name_matches(&ancestor, &pat.name) {
+            return false;
+        }
+    }
+    true
+}
+
+fn exclude_matches_any(snode: &SchemaNode<'_>, excludes: &[Path]) -> bool {
+    excludes.iter().any(|e| exclude_matches_path(snode, e))
 }
 
 // Resolves each path element to its schema node, validating key names.
@@ -279,6 +403,7 @@ fn expand_path<'a, P>(
     remaining: &[ResolvedPathElem<'_>],
     list_entry: P::ListEntry<'a>,
     relay_list: &mut Vec<GetReceiver>,
+    filter: &GetFilter,
 ) -> Result<(), Error>
 where
     P: Provider,
@@ -291,8 +416,11 @@ where
             .unwrap();
         let module = snode.module();
         if let Some(child_nb_tx) = list_entry.child_task(module.name()) {
+            // Path expansion exhausted at a foreign-module target — relay
+            // with the full filter budget intact (depth is measured from
+            // this target, which equals the original target).
             let path = Path::from_dnode(parent_dnode);
-            let relay_rx = relay_request(child_nb_tx, path);
+            let relay_rx = relay_request(child_nb_tx, path, filter, 0);
             relay_list.push(relay_rx);
         } else {
             if snode.kind() == SchemaNodeKind::Container {
@@ -311,6 +439,8 @@ where
                 &snode,
                 &list_entry,
                 relay_list,
+                filter,
+                0,
             )?;
         }
         return Ok(());
@@ -322,9 +452,11 @@ where
     // Relay to child task if this node is owned by a different provider.
     let module = snode.module();
     if let Some(child_nb_tx) = list_entry.child_task(module.name()) {
+        // We are still walking the requested path, so the full filter
+        // budget passes through unchanged.
         let mut path = Path::from_dnode(parent_dnode);
         path.elems.extend(remaining.iter().map(|r| r.elem.clone()));
-        let relay_rx = relay_request(child_nb_tx, path);
+        let relay_rx = relay_request(child_nb_tx, path, filter, 0);
         relay_list.push(relay_rx);
         return Ok(());
     }
@@ -365,7 +497,14 @@ where
                     }
 
                     let relay_count = relay_list.len();
-                    expand_path(provider, &mut child, rest, entry, relay_list)?;
+                    expand_path(
+                        provider,
+                        &mut child,
+                        rest,
+                        entry,
+                        relay_list,
+                        filter,
+                    )?;
 
                     // Prune entries with only keys and no actual data.
                     if relay_list.len() == relay_count
@@ -390,6 +529,7 @@ where
                     rest,
                     Default::default(),
                     relay_list,
+                    filter,
                 )?;
 
                 if relay_list.len() == relay_count
@@ -415,7 +555,14 @@ where
                 }
             }
 
-            expand_path(provider, &mut child, rest, list_entry, relay_list)?;
+            expand_path(
+                provider,
+                &mut child,
+                rest,
+                list_entry,
+                relay_list,
+                filter,
+            )?;
 
             if child.children().next().is_none() {
                 child.remove();
@@ -432,6 +579,7 @@ where
 pub(crate) fn process_get<P>(
     provider: &P,
     path: Option<Path>,
+    exclude: Vec<Path>,
 ) -> Result<api::daemon::GetResponse, Error>
 where
     P: Provider,
@@ -443,6 +591,10 @@ where
     let path = path
         .filter(|path| !path.elems.is_empty())
         .unwrap_or_else(|| Path::from_yang_path(&provider.top_level_node()));
+    let filter = GetFilter {
+        max_depth: path.max_depth,
+        exclude,
+    };
     let resolved = resolve_path(&path)?;
 
     // Create the root data node and expand the remaining path.
@@ -457,6 +609,7 @@ where
         &resolved[1..],
         Default::default(),
         &mut relay_list,
+        &filter,
     )?;
 
     // Merge responses from child tasks.

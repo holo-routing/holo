@@ -127,6 +127,7 @@ impl NorthboundStub {
         let (responder_tx, responder_rx) = oneshot::channel();
         let request = api::daemon::Request::Get(api::daemon::GetRequest {
             path: None,
+            exclude: vec![],
             responder: Some(responder_tx),
         });
 

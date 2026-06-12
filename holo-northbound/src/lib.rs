@@ -74,6 +74,10 @@ pub struct YangPath(&'static str);
 pub struct Path {
     // Ordered list of elements forming the path.
     pub elems: Vec<PathElem>,
+    // Maximum traversal depth beyond the target.
+    // `None` = unlimited; `Some(0)` = target only, no descendants.
+    #[serde(default)]
+    pub max_depth: Option<u32>,
 }
 
 // A single element within a YANG data path.
@@ -149,7 +153,10 @@ impl Path {
             elems.push(PathElem { name, keys });
         }
 
-        Path { elems }
+        Path {
+            elems,
+            max_depth: None,
+        }
     }
 
     pub fn from_yang_path(s: &str) -> Path {
@@ -182,7 +189,10 @@ impl Path {
             })
             .collect();
 
-        Path { elems }
+        Path {
+            elems,
+            max_depth: None,
+        }
     }
 }
 
@@ -249,7 +259,8 @@ pub fn process_northbound_msg<Provider>(
             }
         }
         api::daemon::Request::Get(request) => {
-            let response = state::process_get(provider, request.path);
+            let response =
+                state::process_get(provider, request.path, request.exclude);
             if let Some(responder) = request.responder {
                 responder.send(response).unwrap();
             }

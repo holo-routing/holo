@@ -42,6 +42,7 @@ pub mod client {
     pub struct GetRequest {
         pub data_type: DataType,
         pub path: Option<Path>,
+        pub exclude: Vec<Path>,
         pub responder: Responder<Result<GetResponse>>,
     }
 

@@ -132,6 +132,13 @@ message GetRequest {
 
   // Target YANG path.
   Path path = 4;
+
+  // YANG paths to exclude from the response (matched at any depth).
+  // A single-element path with just a name (optionally module-qualified
+  // as "module:name") matches any node with that name. Multi-element
+  // paths match a specific subtree wherever it occurs.
+  // Applies only to state data.
+  repeated Path exclude = 5;
 }
 
 message GetResponse {
@@ -313,6 +320,11 @@ enum SchemaFormat {
 message Path {
   // Ordered list of elements forming the path.
   repeated PathElem elem = 1;
+
+  // Maximum depth of the YANG tree traversal beyond the requested path
+  // (0 = unlimited). A value of 1 returns only immediate children of
+  // the target. Applies only to state data.
+  uint32 max_depth = 2;
 }
 
 // A single element within a YANG data path.

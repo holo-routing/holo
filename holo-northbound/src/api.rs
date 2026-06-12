@@ -60,6 +60,8 @@ pub mod daemon {
     #[derive(Debug, Deserialize, Serialize)]
     pub struct GetRequest {
         pub path: Option<Path>,
+        #[serde(default)]
+        pub exclude: Vec<Path>,
         #[serde(skip)]
         pub responder: Option<Responder<Result<GetResponse, Error>>>,
     }

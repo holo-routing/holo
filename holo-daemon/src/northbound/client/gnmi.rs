@@ -133,6 +133,7 @@ impl proto::GNmi for GNmiService {
             let nb_request = api::client::GetRequest {
                 data_type,
                 path: Some(path),
+                exclude: vec![],
                 responder: responder_tx,
             };
             let nb_request = api::client::Request::Get(nb_request);
@@ -400,6 +401,7 @@ impl GNmiService {
         let nb_request = api::client::GetRequest {
             data_type: api::DataType::Configuration,
             path: None,
+            exclude: vec![],
             responder: responder_tx,
         };
         let nb_request = api::client::Request::Get(nb_request);
@@ -417,6 +419,8 @@ impl From<proto::Path> for Path {
     fn from(path: proto::Path) -> Self {
         Path {
             elems: path.elem.into_iter().map(PathElem::from).collect(),
+            // gNMI paths carry no depth limit.
+            max_depth: None,
         }
     }
 }

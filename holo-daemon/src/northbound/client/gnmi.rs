@@ -101,19 +101,8 @@ impl proto::GNmi for GNmiService {
 
         // Get data type.
         let data_type =
-            match proto::get_request::DataType::try_from(grpc_request.r#type) {
-                Ok(proto::get_request::DataType::All) => api::DataType::All,
-                Ok(proto::get_request::DataType::Config) => {
-                    api::DataType::Configuration
-                }
-                Ok(
-                    proto::get_request::DataType::State
-                    | proto::get_request::DataType::Operational,
-                ) => api::DataType::State,
-                Err(_) => {
-                    return Err(Status::invalid_argument("Invalid data type"));
-                }
-            };
+            proto::get_request::DataType::try_from(grpc_request.r#type)
+                .map_err(|_| Status::invalid_argument("Invalid data type"))?;
 
         // Get encoding type.
         let encoding = match proto::Encoding::try_from(grpc_request.encoding) {
@@ -127,28 +116,34 @@ impl proto::GNmi for GNmiService {
         for path in grpc_request.path {
             let path = Path::from(path);
 
-            // Create oneshot channel to receive response back from the
-            // northbound.
-            let (responder_tx, responder_rx) = oneshot::channel();
-            let nb_request = api::client::GetRequest {
-                data_type,
-                path: Some(path),
-                responder: responder_tx,
+            // Retrieve the requested data from the northbound, merging
+            // configuration and state data when both are requested.
+            let dtree = match data_type {
+                proto::get_request::DataType::Config => {
+                    self.get_config(Some(path)).await?
+                }
+                proto::get_request::DataType::State
+                | proto::get_request::DataType::Operational => {
+                    self.get_state(Some(path)).await?
+                }
+                proto::get_request::DataType::All => {
+                    let mut dtree = self.get_state(Some(path.clone())).await?;
+                    let dtree_config = self.get_config(Some(path)).await?;
+                    dtree.merge(&dtree_config).map_err(|_| {
+                        Status::internal(
+                            "Failed to merge configuration and state data",
+                        )
+                    })?;
+                    dtree
+                }
             };
-            let nb_request = api::client::Request::Get(nb_request);
-            self.request_tx.send(nb_request).await.unwrap();
-
-            // Receive response from the northbound.
-            let nb_response = responder_rx.await.unwrap()?;
 
             // Fill-in update message.
             let models = &grpc_request.use_models;
             let update = match encoding {
-                proto::Encoding::Proto => {
-                    self.gen_update_proto(nb_response.dtree, models)
-                }
+                proto::Encoding::Proto => self.gen_update_proto(dtree, models),
                 proto::Encoding::JsonIetf => {
-                    self.gen_update_ietf_json(nb_response.dtree, models)
+                    self.gen_update_ietf_json(dtree, models)
                 }
                 _ => unreachable!(),
             };
@@ -189,7 +184,7 @@ impl proto::GNmi for GNmiService {
         let mut candidate = if !grpc_request.replace.is_empty() {
             DataTree::new(yang_ctx)
         } else {
-            self.get_running().await?
+            self.get_config(None).await?
         };
 
         // Create oneshot channel to receive response back from the northbound.
@@ -392,17 +387,39 @@ impl GNmiService {
             .collect()
     }
 
-    async fn get_running(&self) -> Result<DataTree<'static>, Status> {
+    async fn get_state(
+        &self,
+        path: Option<Path>,
+    ) -> Result<DataTree<'static>, Status> {
         // Create oneshot channel to receive response back from the northbound.
         let (responder_tx, responder_rx) = oneshot::channel();
 
         // Send request to the northbound.
-        let nb_request = api::client::GetRequest {
-            data_type: api::DataType::Configuration,
-            path: None,
+        let nb_request = api::client::GetStateRequest {
+            path,
             responder: responder_tx,
         };
-        let nb_request = api::client::Request::Get(nb_request);
+        let nb_request = api::client::Request::GetState(nb_request);
+        self.request_tx.send(nb_request).await.unwrap();
+
+        // Receive response from the northbound.
+        let nb_response = responder_rx.await.unwrap()?;
+        Ok(nb_response.dtree)
+    }
+
+    async fn get_config(
+        &self,
+        path: Option<Path>,
+    ) -> Result<DataTree<'static>, Status> {
+        // Create oneshot channel to receive response back from the northbound.
+        let (responder_tx, responder_rx) = oneshot::channel();
+
+        // Send request to the northbound.
+        let nb_request = api::client::GetConfigRequest {
+            path,
+            responder: responder_tx,
+        };
+        let nb_request = api::client::Request::GetConfig(nb_request);
         self.request_tx.send(nb_request).await.unwrap();
 
         // Receive response from the northbound.

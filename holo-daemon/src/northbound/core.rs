@@ -178,10 +178,13 @@ impl Northbound {
         trace!(?request, "received client request");
 
         match request {
-            capi::client::Request::Get(request) => {
-                let response = self
-                    .process_client_get(request.data_type, request.path)
-                    .await;
+            capi::client::Request::GetState(request) => {
+                let response =
+                    self.process_client_get_state(request.path).await;
+                let _ = request.responder.send(response);
+            }
+            capi::client::Request::GetConfig(request) => {
+                let response = self.process_client_get_config(request.path);
                 let _ = request.responder.send(response);
             }
             capi::client::Request::Validate(request) => {
@@ -231,27 +234,22 @@ impl Northbound {
         }
     }
 
-    // Processes a `Get` message received from an external client.
-    async fn process_client_get(
+    // Processes a `GetState` message received from an external client.
+    async fn process_client_get_state(
         &self,
-        data_type: capi::DataType,
         path: Option<Path>,
-    ) -> Result<capi::client::GetResponse> {
-        let path = path.as_ref();
-        let dtree = match data_type {
-            capi::DataType::State => self.get_state(path).await?,
-            capi::DataType::Configuration => self.get_configuration(path)?,
-            capi::DataType::All => {
-                let mut dtree_state = self.get_state(path).await?;
-                let dtree_config = self.get_configuration(path)?;
-                dtree_state
-                    .merge(&dtree_config)
-                    .map_err(Error::YangInternal)?;
-                dtree_state
-            }
-        };
+    ) -> Result<capi::client::GetStateResponse> {
+        let dtree = self.get_state(path.as_ref()).await?;
+        Ok(capi::client::GetStateResponse { dtree })
+    }
 
-        Ok(capi::client::GetResponse { dtree })
+    // Processes a `GetConfig` message received from an external client.
+    fn process_client_get_config(
+        &self,
+        path: Option<Path>,
+    ) -> Result<capi::client::GetConfigResponse> {
+        let dtree = self.get_configuration(path.as_ref())?;
+        Ok(capi::client::GetConfigResponse { dtree })
     }
 
     // Processes a `Validate` message received from an external client.

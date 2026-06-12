@@ -154,14 +154,14 @@ impl proto::Northbound for NorthboundService {
         Ok(Response::new(grpc_response))
     }
 
-    async fn get(
+    async fn get_state(
         &self,
-        grpc_request: Request<proto::GetRequest>,
-    ) -> Result<Response<proto::GetResponse>, Status> {
+        grpc_request: Request<proto::GetStateRequest>,
+    ) -> Result<Response<proto::GetStateResponse>, Status> {
         let grpc_request = grpc_request.into_inner();
         trace_span!("northbound").in_scope(|| {
             trace_span!("client", name = "grpc").in_scope(|| {
-                trace!(data = ?grpc_request, "received Get() request");
+                trace!(data = ?grpc_request, "received GetState() request");
             });
         });
 
@@ -169,16 +169,15 @@ impl proto::Northbound for NorthboundService {
         let (responder_tx, responder_rx) = oneshot::channel();
 
         // Convert and relay gRPC request to the northbound.
-        let data_type = api::DataType::try_from(grpc_request.r#type)?;
         let encoding = proto::Encoding::try_from(grpc_request.encoding)
             .map_err(|_| Status::invalid_argument("Invalid data encoding"))?;
         let with_defaults = grpc_request.with_defaults;
         let path = grpc_request.path.map(Path::from);
-        let nb_request = api::client::Request::Get(api::client::GetRequest {
-            data_type,
-            path,
-            responder: responder_tx,
-        });
+        let nb_request =
+            api::client::Request::GetState(api::client::GetStateRequest {
+                path,
+                responder: responder_tx,
+            });
         self.request_tx.send(nb_request).await.unwrap();
 
         // Receive response from the northbound.
@@ -190,7 +189,49 @@ impl proto::Northbound for NorthboundService {
             printer_flags.insert(DataPrinterFlags::WD_ALL);
         }
         let data = data_tree_init(&nb_response.dtree, encoding, printer_flags)?;
-        let grpc_response = proto::GetResponse {
+        let grpc_response = proto::GetStateResponse {
+            timestamp: get_timestamp(),
+            data: Some(data),
+        };
+        Ok(Response::new(grpc_response))
+    }
+
+    async fn get_config(
+        &self,
+        grpc_request: Request<proto::GetConfigRequest>,
+    ) -> Result<Response<proto::GetConfigResponse>, Status> {
+        let grpc_request = grpc_request.into_inner();
+        trace_span!("northbound").in_scope(|| {
+            trace_span!("client", name = "grpc").in_scope(|| {
+                trace!(data = ?grpc_request, "received GetConfig() request");
+            });
+        });
+
+        // Create oneshot channel to receive response back from the northbound.
+        let (responder_tx, responder_rx) = oneshot::channel();
+
+        // Convert and relay gRPC request to the northbound.
+        let encoding = proto::Encoding::try_from(grpc_request.encoding)
+            .map_err(|_| Status::invalid_argument("Invalid data encoding"))?;
+        let with_defaults = grpc_request.with_defaults;
+        let path = grpc_request.path.map(Path::from);
+        let nb_request =
+            api::client::Request::GetConfig(api::client::GetConfigRequest {
+                path,
+                responder: responder_tx,
+            });
+        self.request_tx.send(nb_request).await.unwrap();
+
+        // Receive response from the northbound.
+        let nb_response = responder_rx.await.unwrap()?;
+
+        // Convert and relay northbound response to the gRPC client.
+        let mut printer_flags = DataPrinterFlags::WITH_SIBLINGS;
+        if with_defaults {
+            printer_flags.insert(DataPrinterFlags::WD_ALL);
+        }
+        let data = data_tree_init(&nb_response.dtree, encoding, printer_flags)?;
+        let grpc_response = proto::GetConfigResponse {
             timestamp: get_timestamp(),
             data: Some(data),
         };
@@ -527,21 +568,6 @@ impl From<proto::PathElem> for PathElem {
         PathElem {
             name: elem.name,
             keys: elem.key,
-        }
-    }
-}
-
-impl TryFrom<i32> for api::DataType {
-    type Error = Status;
-
-    fn try_from(data_type: i32) -> Result<Self, Self::Error> {
-        match proto::get_request::DataType::try_from(data_type) {
-            Ok(proto::get_request::DataType::All) => Ok(api::DataType::All),
-            Ok(proto::get_request::DataType::Config) => {
-                Ok(api::DataType::Configuration)
-            }
-            Ok(proto::get_request::DataType::State) => Ok(api::DataType::State),
-            Err(_) => Err(Status::invalid_argument("Invalid data type")),
         }
     }
 }

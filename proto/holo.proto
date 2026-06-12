@@ -32,8 +32,11 @@ service Northbound {
   // Retrieve the specified schema data from the target.
   rpc GetSchema(GetSchemaRequest) returns (GetSchemaResponse) {}
 
-  // Retrieve configuration data, state data or both from the target.
-  rpc Get(GetRequest) returns (GetResponse) {}
+  // Retrieve state data from the target.
+  rpc GetState(GetStateRequest) returns (GetStateResponse) {}
+
+  // Retrieve configuration data from the target.
+  rpc GetConfig(GetConfigRequest) returns (GetConfigResponse) {}
 
   // Validate the configuration without committing it.
   rpc Validate(ValidateRequest) returns (ValidateResponse) {}
@@ -106,35 +109,20 @@ message GetSchemaResponse {
 }
 
 //
-// RPC: Get()
+// RPC: GetState()
 //
-message GetRequest {
-  // Type of elements within the data tree.
-  enum DataType {
-    // All data elements.
-    ALL = 0;
-
-    // Config elements.
-    CONFIG = 1;
-
-    // State elements.
-    STATE = 2;
-  }
-
-  // The type of data being requested.
-  DataType type = 1;
-
+message GetStateRequest {
   // Encoding to be used.
-  Encoding encoding = 2;
+  Encoding encoding = 1;
 
   // Include implicit default nodes.
-  bool with_defaults = 3;
+  bool with_defaults = 2;
 
   // Target YANG path.
-  Path path = 4;
+  Path path = 3;
 }
 
-message GetResponse {
+message GetStateResponse {
   // Return values:
   // - grpc::StatusCode::OK: Success.
   // - grpc::StatusCode::INVALID_ARGUMENT: Invalid YANG data path.
@@ -142,7 +130,33 @@ message GetResponse {
   // Timestamp in nanoseconds since Epoch.
   int64 timestamp = 1;
 
-  // The requested data.
+  // The requested state data.
+  DataTree data = 2;
+}
+
+//
+// RPC: GetConfig()
+//
+message GetConfigRequest {
+  // Encoding to be used.
+  Encoding encoding = 1;
+
+  // Include implicit default nodes.
+  bool with_defaults = 2;
+
+  // Target YANG path.
+  Path path = 3;
+}
+
+message GetConfigResponse {
+  // Return values:
+  // - grpc::StatusCode::OK: Success.
+  // - grpc::StatusCode::INVALID_ARGUMENT: Invalid YANG data path.
+
+  // Timestamp in nanoseconds since Epoch.
+  int64 timestamp = 1;
+
+  // The requested configuration data.
   DataTree data = 2;
 }
 

@@ -21,8 +21,10 @@ pub mod client {
 
     #[derive(Debug)]
     pub enum Request {
-        // Request to get data (configuration, state or both).
-        Get(GetRequest),
+        // Request to get state data.
+        GetState(GetStateRequest),
+        // Request to get configuration data.
+        GetConfig(GetConfigRequest),
         // Request to validate a candidate configuration.
         Validate(ValidateRequest),
         // Request to change the running configuration.
@@ -39,14 +41,24 @@ pub mod client {
     }
 
     #[derive(Debug)]
-    pub struct GetRequest {
-        pub data_type: DataType,
+    pub struct GetStateRequest {
         pub path: Option<Path>,
-        pub responder: Responder<Result<GetResponse>>,
+        pub responder: Responder<Result<GetStateResponse>>,
     }
 
     #[derive(Debug)]
-    pub struct GetResponse {
+    pub struct GetStateResponse {
+        pub dtree: DataTree<'static>,
+    }
+
+    #[derive(Debug)]
+    pub struct GetConfigRequest {
+        pub path: Option<Path>,
+        pub responder: Responder<Result<GetConfigResponse>>,
+    }
+
+    #[derive(Debug)]
+    pub struct GetConfigResponse {
         pub dtree: DataTree<'static>,
     }
 
@@ -115,13 +127,6 @@ pub mod client {
         pub path: String,
         pub data: DataTree<'static>,
     }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum DataType {
-    All,
-    Configuration,
-    State,
 }
 
 #[derive(Debug)]
